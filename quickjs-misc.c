@@ -241,12 +241,14 @@ clear_screen(intptr_t h, ClearMode mode, BOOL line) {
       n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
       break;
     }
+
     case CLEAR_TO_BEGIN: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
       n = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
       break;
     }
+
     case CLEAR_ENTIRE: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
@@ -980,16 +982,19 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       sep = '\0';
       break;
     }
+
     case FUNC_GETPROCMAPS: {
       file = "/proc/self/maps";
       sep = '\n';
       break;
     }
+
     case FUNC_GETPROCMOUNTS: {
       file = "/proc/self/mounts";
       sep = '\n';
       break;
     }
+
     case FUNC_GETPROCSTAT: {
       file = "/proc/self/stat";
       sep = ' ';
@@ -1307,6 +1312,8 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, ret, "release", JS_NewString(ctx, un.release));
     JS_SetPropertyStr(ctx, ret, "version", JS_NewString(ctx, un.version));
     JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx, un.machine));
+  } else {
+    ret = js_syscallerror_throw(ctx, "uname");
   }
 #else
   ret = JS_NewObject(ctx);
@@ -1372,7 +1379,7 @@ js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc >= 4)
     JS_ToInt32(ctx, &args[1], argv[3]);
 
-  return JS_NewInt32(ctx, ioctl(fd, request, args[0], args[1]));
+  return js_syscall_result(ctx, ioctl, fd, request, args[0], args[1]);
 }
 #endif
 
@@ -1495,6 +1502,7 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       ret = JS_NewBool(ctx, set_text_attributes(h, attr));
       break;
     }
+
     case SET_TEXT_COLOR: {
 #ifdef _WIN32
       uint32_t attr = 0;
@@ -1563,6 +1571,7 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
+
     case GET_CONSOLE_MODE: {
       DWORD mode = 0;
 
@@ -1755,18 +1764,22 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = getuid();
       break;
     }
+
     case FUNC_GETGID: {
       ret = getgid();
       break;
     }
+
     case FUNC_GETEUID: {
       ret = geteuid();
       break;
     }
+
     case FUNC_GETEGID: {
       ret = getegid();
       break;
     }
+
     case FUNC_SETUID: {
 #ifndef __ANDROID__
       int32_t uid;
@@ -1778,6 +1791,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
+
     case FUNC_SETGID: {
 #ifndef __ANDROID__
       int32_t gid;
@@ -1789,6 +1803,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
+
     case FUNC_SETEUID: {
 #ifndef __ANDROID__
       int32_t euid;
@@ -1800,6 +1815,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
+
     case FUNC_SETEGID: {
 #ifndef __ANDROID__
       int32_t egid;
@@ -1814,23 +1830,20 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
   }
 
-  if(ret == -1)
-    return JS_ThrowInternalError(ctx,
-                                 "%s() failed: %s",
-                                 ((const char* const[]){"getpid",
-                                                        "getppid",
-                                                        "getsid",
-                                                        "getuid",
-                                                        "getgid",
-                                                        "geteuid",
-                                                        "getegid",
-                                                        "setuid",
-                                                        "setgid",
-                                                        "seteuid",
-                                                        "setegid"})[magic - FUNC_GETPID],
-                                 strerror(errno));
-
-  return JS_NewInt32(ctx, ret);
+  js_syscall_throw(((const char* const[]){
+                       "getpid",
+                       "getppid",
+                       "getsid",
+                       "getuid",
+                       "getgid",
+                       "geteuid",
+                       "getegid",
+                       "setuid",
+                       "setgid",
+                       "seteuid",
+                       "setegid",
+                   })[magic - FUNC_GETPID],
+                   ret);
 }
 
 enum {
@@ -1859,26 +1872,32 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewString(ctx, typestr);
       break;
     }
+
     case VALUE_TAG: {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_TAG(argv[0]));
       break;
     }
+
     case VALUE_POINTER: {
       ret = js_newpointer(ctx, js_value_ptr(argv[0]));
       break;
     }
+
     case OBJECT_REFCOUNT: {
       ret = JS_NewInt32(ctx, js_object_refcount(argv[0]));
       break;
     }
+
     case OBJECT_CLASSID: {
       ret = JS_NewInt32(ctx, js_object_classid(argv[0]));
       break;
     }
+
     case OBJECT_OPAQUE: {
       ret = js_newpointer(ctx, js_object_opaque(argv[0]));
       break;
     }
+
     case CLASS_ATOM: {
       uint32_t id = js_toint32(ctx, argv[0]);
       uint32_t count = js_class_count(JS_GetRuntime(ctx));
@@ -1890,11 +1909,13 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
+
     case CLASS_NAME: {
       int32_t id = js_toint32(ctx, argv[0]);
       ret = js_class_value(ctx, id);
       break;
     }
+
     case CLASS_ID: {
       JSAtom name = JS_IsNumber(argv[0]) ? js_touint32(ctx, argv[0]) : JS_ValueToAtom(ctx, argv[0]);
 
@@ -1905,6 +1926,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         JS_FreeAtom(ctx, name);
       break;
     }
+
     case STRING_POINTER: {
       if(JS_IsString(argv[0])) {
         ret = js_newpointer(ctx, js_cstring_ptr(argv[0]));
@@ -1917,6 +1939,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
+
     case STRING_LENGTH: {
       if(JS_IsString(argv[0])) {
         ret = JS_NewInt64(ctx, strlen(js_cstring_ptr(argv[0])));
@@ -1929,6 +1952,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
+
     case STRING_BUFFER: {
       if(JS_IsString(argv[0]))
         ret = js_arraybuffer_fromstring(ctx, argv[0]);
@@ -2004,6 +2028,7 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_AtomToString(ctx, atom);
       break;
     }
+
     case ATOM_TO_VALUE: {
       int32_t atom;
 
@@ -2011,6 +2036,7 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_AtomToValue(ctx, atom);
       break;
     }
+
     case VALUE_TO_ATOM: {
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
 
@@ -2041,6 +2067,7 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_NewInt32(ctx, type_id);
       break;
     }
+
     case GET_TYPE_STR: {
       const char* type;
 
@@ -2049,6 +2076,7 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       break;
     }
+
     case GET_TYPE_NAME: {
       const char* type;
 
@@ -2097,6 +2125,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
+
     case BITFIELD_BITS: {
       const uint8_t* buf;
       size_t len;
@@ -2138,6 +2167,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
+
     case BITFIELD_TOARRAY: {
       const uint8_t* buf;
       size_t len;
@@ -2158,6 +2188,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
+
     case BITFIELD_FROMARRAY: {
       JSValue prop;
       int64_t len;
@@ -2267,15 +2298,18 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       break;
     }
+
     case BITOP_XOR: {
       for(i = 0; i < ab[0].len; i++)
         ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
 
       break;
     }
+
     case BITOP_AND: {
       break;
     }
+
     case BITOP_OR: {
       break;
     }
@@ -2306,6 +2340,7 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, num);
       break;
     }
+
     case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
 
@@ -2585,6 +2620,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
         JS_FreeCString(ctx, s);
       break;
     }
+
     case IS_ERROR: r = JS_IsError(ctx, arg); break;
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
@@ -2698,28 +2734,27 @@ js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   nochdir = argc >= 1 && JS_ToBool(ctx, argv[0]);
   noclose = argc >= 2 && JS_ToBool(ctx, argv[0]);
 
-  return JS_NewInt32(ctx, daemon(nochdir, noclose));
+  return js_syscall_result(ctx, daemon, nochdir, noclose);
 }
 #endif
 
 #ifdef HAVE_FORK
 static JSValue
 js_misc_fork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_NewInt32(ctx, fork());
+  return js_syscall_result(ctx, fork);
 }
 #endif
 
 #ifdef HAVE_VFORK
 static JSValue
 js_misc_vfork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_NewInt32(ctx, vfork());
+  return js_syscall_result(ctx, vfork);
 }
 #endif
 
 #ifdef HAVE_EXECVE
 static JSValue
 js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   size_t nargs;
   char** args;
   const char* file;
@@ -2732,7 +2767,7 @@ js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     return JS_ThrowTypeError(ctx, "argument 2 must be an array");
   }
 
-  ret = JS_NewInt32(ctx, execve(file, args, environ));
+  JSValue ret = js_syscallerror_result(ctx, "execve", execve(file, args, environ));
 
   JS_FreeCString(ctx, file);
   js_strv_free(ctx, args);
@@ -2755,7 +2790,8 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #if !(defined(_WIN32) && !defined(__MSYS__))
   else
     exitcode = SIGTERM;
-  ret = JS_NewInt32(ctx, kill(handle, exitcode));
+
+  ret = js_syscallerror_result(ctx, "kill", kill(handle, exitcode));
 #else
   ret = JS_NewBool(ctx, TerminateProcess((HANDLE)handle, exitcode));
 #endif
@@ -2766,7 +2802,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #ifdef HAVE_SETSID
 static JSValue
 js_misc_setsid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_NewInt32(ctx, setsid());
+  return js_syscall_result(ctx, setsid);
 }
 #endif
 
@@ -2818,14 +2854,72 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if(!(to = JS_ToCString(ctx, argv[1])))
     return JS_ThrowTypeError(ctx, "argument 2 must be a string");
 
-  return JS_NewInt32(ctx, link(from, to));
+  return js_syscall_result(ctx, link, from, to);
+}
+#endif
+
+#ifdef HAVE_LINKAT
+static JSValue
+js_misc_linkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t olddirfd = -1, newdirfd = -1, flags = 0;
+  const char *oldpath, *newpath;
+
+  if(JS_ToInt32(ctx, &olddirfd, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a file descriptor");
+
+  if(!(oldpath = JS_ToCString(ctx, argv[1])))
+    return JS_ThrowTypeError(ctx, "argument 2 must be a string");
+
+  if(JS_ToInt32(ctx, &newdirfd, argv[2]))
+    return JS_ThrowTypeError(ctx, "argument 3 must be a file descriptor");
+
+  if(!(newpath = JS_ToCString(ctx, argv[3])))
+    return JS_ThrowTypeError(ctx, "argument 4 must be a string");
+
+  if(argc > 3)
+    JS_ToInt32(ctx, &flags, argv[4]);
+
+  return js_syscall_result(ctx, linkat, olddirfd, oldpath, newdirfd, newpath, flags);
+}
+#endif
+
+#ifdef HAVE_SYMLINK
+static JSValue
+js_misc_symlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char *target, *linkpath;
+
+  if(!(target = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+  if(!(linkpath = JS_ToCString(ctx, argv[1])))
+    return JS_ThrowTypeError(ctx, "argument 2 must be a string");
+
+  return js_syscall_result(ctx, symlink, target, linkpath);
+}
+#endif
+
+#ifdef HAVE_SYMLINKAT
+static JSValue
+js_misc_symlinkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t newdirfd = -1;
+  const char *target, *linkpath;
+
+  if(!(target = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+  if(JS_ToInt32(ctx, &newdirfd, argv[1]))
+    return JS_ThrowTypeError(ctx, "argument 2 must be a file descriptor");
+
+  if(!(linkpath = JS_ToCString(ctx, argv[2])))
+    return JS_ThrowTypeError(ctx, "argument 3 must be a string");
+
+  return js_syscall_result(ctx, symlinkat, target, newdirfd, linkpath);
 }
 #endif
 
 static JSValue
 js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t mode = 0;
-  int32_t ret = -1;
 
   JS_ToUint32(ctx, &mode, argv[1]);
 
@@ -2836,8 +2930,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       JS_ToInt32(ctx, &fd, argv[0]);
 
-      ret = fchmod(fd, mode);
-      break;
+      return js_syscall_result(ctx, fchmod, fd, mode);
     }
 #endif
 
@@ -2848,19 +2941,17 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       if(!(path = JS_ToCString(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
-      ret = chmod(path, mode);
-      break;
+      return js_syscall_result(ctx, chmod, path, mode);
     }
 #endif
   }
 
-  return JS_NewInt32(ctx, ret);
+  return JS_UNDEFINED;
 }
 
 #ifdef HAVE_CHOWN
 static JSValue
 js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t ret = -1;
   uint32_t owner = 0, group = 0;
 
   JS_ToUint32(ctx, &owner, argv[1]);
@@ -2872,9 +2963,9 @@ js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       JS_ToInt32(ctx, &fd, argv[0]);
 
-      ret = fchown(fd, owner, group);
-      break;
+      return js_syscall_result(ctx, fchown, fd, owner, group);
     }
+
     case 0:
     case 2: {
       const char* path;
@@ -2882,44 +2973,43 @@ js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       if(!(path = JS_ToCString(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
-      ret = magic ? lchown(path, owner, group) : chown(path, owner, group);
-      break;
+      if(magic)
+        return js_syscall_result(ctx, lchown, path, owner, group);
+
+      return js_syscall_result(ctx, chown, path, owner, group);
     }
   }
 
-  return JS_NewInt32(ctx, ret);
+  return JS_UNDEFINED;
 }
 #endif
 
 static JSValue
 js_misc_fsync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t ret = -1, fd = -1;
+  int32_t fd = -1;
 
   JS_ToInt32(ctx, &fd, argv[0]);
 
   switch(magic) {
 #ifdef HAVE_FSYNC
     case 0: {
-      ret = fsync(fd);
-      break;
+      return js_syscall_result(ctx, fsync, fd);
     }
 #endif
 
 #ifdef HAVE_FDATASYNC
     case 1: {
-      ret = fdatasync(fd);
-      break;
+      return js_syscall_result(ctx, fdatasync, fd);
     }
 #endif
   }
 
-  return JS_NewInt32(ctx, ret);
+  return JS_UNDEFINED;
 }
 
 static JSValue
 js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int64_t len = -1;
-  int32_t ret = -1;
 
   JS_ToInt64Ext(ctx, &len, argv[1]);
 
@@ -2934,8 +3024,7 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(!(path = JS_ToCString(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
-      ret = truncate(path, len);
-      break;
+      return js_syscall_result(ctx, truncate, path, len);
     }
 #endif
 
@@ -2945,18 +3034,17 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       JS_ToInt32(ctx, &fd, argv[0]);
 
-      ret = ftruncate(fd, len);
-      break;
+      return js_syscall_result(ctx, ftruncate, fd, len);
     }
 #endif
   }
 
-  return JS_NewInt32(ctx, ret);
+  return JS_UNDEFINED;
 }
 
 static JSValue
 js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t fd = -1, ret = -1;
+  int32_t fd = -1;
   const char* path = 0;
 
   if(magic < 3) {
@@ -2977,8 +3065,7 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       tms.actime = js_get_propertyint_int64(ctx, argv[1], 0);
       tms.modtime = js_get_propertyint_int64(ctx, argv[1], 1);
 
-      ret = utime(path, &tms);
-      break;
+      return js_syscall_result(ctx, utime, path, &tms);
     }
 #endif
 
@@ -2998,13 +3085,13 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       switch(magic) {
 #ifdef HAVE_FUTIMES
-        case 3: ret = futimes(fd, tv); break;
+        case 3: return js_syscall_result(ctx, futimes, fd, tv);
 #endif
 #ifdef HAVE_LUTIMES
-        case 2: ret = lutimes(path, tv); break;
+        case 2: return js_syscall_result(ctx, lutimes, path, tv);
 #endif
 #ifdef HAVE_UTIMES
-        case 1: ret = utimes(path, tv); break;
+        case 1: return js_syscall_result(ctx, utimes, path, tv);
 #endif
       }
 
@@ -3013,7 +3100,7 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 #endif
   }
 
-  return JS_NewInt32(ctx, ret);
+  return JS_UNDEFINED;
 }
 
 static JSValue
@@ -3023,20 +3110,17 @@ js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!(file = JS_ToCString(ctx, argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
-  return JS_NewInt32(ctx, unlink(file));
+  return js_syscall_result(ctx, unlink, file);
 }
 
 #ifdef HAVE_ACCESS
 static JSValue
 js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t mode = -1;
-  int ret;
   const char* pathname = JS_ToCString(ctx, argv[0]);
 
   JS_ToInt32(ctx, &mode, argv[1]);
-  ret = access(pathname, mode);
-
-  return JS_NewInt32(ctx, ret);
+  return js_syscall_result(ctx, access, pathname, mode);
 }
 #endif
 
@@ -3044,7 +3128,6 @@ js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static JSValue
 js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1, cmd = -1, arg = -1;
-  int ret;
 
   JS_ToInt32(ctx, &fd, argv[0]);
   JS_ToInt32(ctx, &cmd, argv[1]);
@@ -3052,8 +3135,7 @@ js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc > 2)
     JS_ToInt32(ctx, &arg, argv[2]);
 
-  ret = fcntl(fd, cmd, arg);
-  return JS_NewInt32(ctx, ret);
+  return js_syscall_result(ctx, fcntl, fd, cmd, arg);
 }
 #endif
 
@@ -3088,7 +3170,8 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
 
 #ifdef HAVE_FSTAT
-  res = fstat(fd, &st);
+  if((res = fstat(fd, &st)) == -1)
+    return js_syscallerror_throw_free(ctx, "fstat", ret);
 #else
 #warning Emulating fstat() using /proc/self/fd/<n>
   {
@@ -3096,7 +3179,8 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     strcpy(pbuf, "/proc/self/fd/");
     pbuf[fmt_ulong(&pbuf[14], fd)] = '\0';
 
-    res = stat(pbuf, &st);
+    if((res = fstat(pbuf, &st)) == -1)
+      return js_syscallerror_throw_free(ctx, "stat", ret);
   }
 #endif
 
@@ -3157,6 +3241,7 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewInt64(ctx, _get_osfhandle(fd));
       break;
     }
+
     case FUNC_OPEN_OSFHANDLE: {
       int64_t hnd = -1;
       int32_t flags = 0;
@@ -3228,7 +3313,9 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   if(restore) {
     if(!have_oldtty) {
-      tcgetattr(fd, &tty);
+      if(tcgetattr(fd, &tty) == -1)
+        return js_syscallerror_throw(ctx, "tcgetattr");
+
       tty.c_iflag = IGNPAR | IMAXBEL | IUTF8;
       tty.c_oflag = OPOST | ONLCR;
       tty.c_cflag = B38400 | CSIZE | CREAD;
@@ -3240,13 +3327,15 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       tty = oldtty;
     }
 
-    tcsetattr(0, TCSANOW, &tty);
+    return js_syscall_result(ctx, tcsetattr, 0, TCSANOW, &tty);
 
   } else {
 
     memset(&tty, 0, sizeof(tty));
 
-    tcgetattr(fd, &tty);
+    if(tcgetattr(fd, &tty) == -1)
+      return js_syscallerror_throw(ctx, "tcgetattr");
+
     oldtty = tty;
     have_oldtty = TRUE;
 
@@ -3258,7 +3347,8 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     tty.c_cc[VMIN] = 1;
     tty.c_cc[VTIME] = 0;
 
-    tcsetattr(fd, TCSANOW, &tty);
+    if(tcsetattr(fd, TCSANOW, &tty) == -1)
+      return js_syscallerror_throw(ctx, "tcsetattr");
 
     atexit(term_exit);
   }
@@ -3320,6 +3410,17 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
 #ifdef HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
+#endif
+#ifdef HAVE_LINKAT
+    JS_CFUNC_DEF("linkat", 3, js_misc_linkat),
+    JS_CONSTANT(AT_EMPTY_PATH),
+    JS_CONSTANT(AT_SYMLINK_FOLLOW),
+#endif
+#ifdef HAVE_SYMLINK
+    JS_CFUNC_DEF("symlink", 2, js_misc_symlink),
+#endif
+#ifdef HAVE_SYMLINKAT
+    JS_CFUNC_DEF("symlinkat", 3, js_misc_symlinkat),
 #endif
 #ifdef HAVE_CHMOD
     JS_CFUNC_MAGIC_DEF("chmod", 2, js_misc_chmod, 0),
