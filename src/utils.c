@@ -2016,6 +2016,9 @@ const char*
 js_value_typeof(JSValueConst value) {
   ValueTypeFlag flag = js_value_type_flag(value);
 
+  if(flag == FLAG_INVALID)
+    return NULL;
+
   return js_value_typenames[flag];
 }
 
@@ -3902,7 +3905,7 @@ int
 js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, struct OffsetLength* out) {
   int ret;
 
-  if((ret = offsetlength_from_argv(out, size, argc, argv, ctx)) < 0) {
+  if((ret = offsetlength_from_argv(out, size, argc - start_arg, argv + start_arg, ctx)) < 0) {
     ret = (-ret - 1) + start_arg;
 
     JS_ThrowTypeError(ctx,

@@ -558,26 +558,27 @@ js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
+  uint8_t* data;
+  size_t len;
 
-  if(js_is_arraybuffer(ctx, argv[0]) || js_is_sharedarraybuffer(ctx, argv[0])) {
-    uint8_t* data;
-    size_t len;
+  /* if(js_is_arraybuffer(ctx, argv[0]) || js_is_sharedarraybuffer(ctx, argv[0])) {*/
 
-    if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      OffsetLength ol = OFFSETLENGTH_INIT();
-      uint8_t* s;
-      size_t n;
+  if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+    OffsetLength ol = OFFSETLENGTH_INIT();
+    uint8_t* s;
+    size_t n;
 
+    if(argc > 1)
       js_offset_length(ctx, len, argc, argv, 1, &ol);
 
-      s = offsetlength_data(ol, data);
-      n = offsetlength_size(ol, len);
+    s = offsetlength_data(ol, data);
+    n = offsetlength_size(ol, len);
 
-      if(ol.length == SIZE_MAX && memchr(s, '\0', n))
-        ret = JS_NewString(ctx, (const char*)s);
-      else
-        ret = JS_NewStringLen(ctx, (const char*)s, n);
-    }
+    if(ol.length == SIZE_MAX && memchr(s, '\0', n))
+      ret = JS_NewString(ctx, (const char*)s);
+    else
+      ret = JS_NewStringLen(ctx, (const char*)s, n);
+    /* }*/
   } else {
     ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);
   }

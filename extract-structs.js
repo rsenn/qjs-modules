@@ -205,7 +205,7 @@ function main(...args) {
             let [objName, cFuncListName] = fnArgs;
             cFuncListObjects[cFuncListName] = define([objName], { loc });
           } else if(fnName == 'JS_NewClass' || fnName == 'JS_SetClassProto') {
-            if(fnName == 'JS_NewClass') fnArgs.shift(), fnArgs.reverse();
+            if(fnName == 'JS_NewClass') (fnArgs.shift(), fnArgs.reverse());
             let [objName, cClassIdName] = fnArgs.slice(-2);
             cFuncListObjects[cClassIdName] = define([objName], { loc });
           } else if(fnIndex > 0) {

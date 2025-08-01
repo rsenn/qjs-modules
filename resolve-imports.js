@@ -484,6 +484,8 @@ class ModuleLoader {
   }
 
   static resolve(module) {
+    //console.log('ModuleLoader.resolve', module);
+
     let file;
 
     if(path.isDirectory(module)) {
@@ -506,6 +508,8 @@ class ModuleLoader {
 
     if(!path.exists(module) && !path.isAbsolute(module)) {
       for(let p of this.paths) {
+        if(module.startsWith(p)) continue;
+
         if((file = ModuleLoader.resolve(path.join(p, module)))) return file;
       }
 
