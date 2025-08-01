@@ -1302,6 +1302,11 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
       break;
     }
 
+    case JS_TAG_UNINITIALIZED: {
+      writer_puts(wr, opts->colors ? COLOR_MAGENTA "[uninitialized]" COLOR_NONE : "[uninitialized]");
+      break;
+    }
+
     default: {
       JS_ThrowTypeError(ctx, "Unhandled value tag in inspect_value: %d\n", tag);
       return -1;
