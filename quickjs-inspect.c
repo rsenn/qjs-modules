@@ -1358,9 +1358,9 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
       /* handle Array with holes */
       if(is_arr && (key & 0x80000000)) {
-        int32_t prev_index = it->idx > 0 ? it->tab_atom[it->idx - 1] & 0x7fffffff : -1;
+        int32_t prev_index = it->idx > 0 ? (int32_t)(it->tab_atom[it->idx - 1] & 0x7fffffff) : -1;
 
-        while(++prev_index < (key & 0x7fffffff))
+        while(++prev_index < (int32_t)(key & 0x7fffffff))
           writer_puts(wr, " ,");
       }
 

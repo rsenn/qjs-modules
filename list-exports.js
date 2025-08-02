@@ -10,8 +10,9 @@ import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
 
-let buffers = {},
+const buffers = {},
   modules = {};
+
 let T,
   log,
   code = 'c',
@@ -37,7 +38,7 @@ const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWor
 const bufferRef = new WeakMap();
 
 function compareFn() {
-  let compare = (a, b) => ('' + a).localeCompare('' + b);
+  const compare = (a, b) => ('' + a).localeCompare('' + b);
 
   if(!caseSensitive) {
     let fn = compare;
@@ -48,10 +49,10 @@ function compareFn() {
 }
 
 function BufferFile(file) {
-  //console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
-  let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
-  //console.log('bufferRef', bufferRef, bufferRef.set, b);
+
+  const b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
+
   if(typeof b == 'object' && b !== null) bufferRef.set(b, file);
   return b;
 }
@@ -69,8 +70,10 @@ function BufferRanges(file) {
 }
 
 function WriteFile(file, tok) {
-  let f = std.open(file, 'w+');
+  const f = std.open(file, 'w+');
+
   f.puts(tok);
+
   console.log('Wrote "' + file + '": ' + tok.length + ' bytes');
 }
 
@@ -102,10 +105,12 @@ const TokIs = curry((type, lexeme, tok) => {
     if(typeof lexeme == 'string' && tok.lexeme != lexeme) return false;
     else if(Array.isArray(lexeme) && lexeme.indexOf(tok.lexeme) == -1) return false;
   }
+
   if(type != undefined) {
     if(typeof type == 'string' && tok.type != type) return false;
     if(typeof type == 'number' && tok.id != type) return false;
   }
+
   return true;
 });
 
@@ -116,37 +121,47 @@ const IsStringLiteral = TokIs('stringLiteral');
 
 function ImportType(seq) {
   if(IsKeyword('import', seq[0])) seq.shift();
+
   if(IsPunctuator('*', seq[0])) {
     if(IsKeyword('as', seq[1])) return ImportTypes.IMPORT_NAMESPACE;
   } else if(IsIdentifier(undefined, seq[0])) {
     if(IsKeyword('from', seq[1])) return ImportTypes.IMPORT_DEFAULT;
   }
+
   return ImportTypes.IMPORT;
 }
 
 function ImportFile(seq) {
   let idx = seq.findIndex(tok => IsKeyword('from', tok));
+
   while(seq[idx] && seq[idx].type != 'stringLiteral') ++idx;
+
   return seq[idx].lexeme.replace(/^[\'\"\`](.*)[\'\"\`]$/g, '$1');
 }
 
 function ExportName(seq) {
   seq = seq.filter(({ type }) => type != 'whitespace');
   let idx = seq.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
+
   if(seq[idx + 1] && IsKeyword('as', seq[idx + 1])) idx += 2;
-  let ret = seq[idx]?.lexeme;
-  return ret;
+
+  return seq[idx]?.lexeme;
 }
 
 function ExportNames(seq) {
   seq = seq.filter(({ type }) => type != 'whitespace');
-  let ret = [];
+  const ret = [];
+
   for(let idx = seq.findIndex(tok => IsPunctuator('{', tok)) + 1; idx < seq.length; idx++) {
     if(IsPunctuator(',', seq[idx])) idx++;
 
     if(seq[idx + 1] && IsKeyword('as', seq[idx + 1])) idx += 2;
+
+    if(IsPunctuator('}', seq[idx])) break;
+
     ret.push(seq[idx]?.lexeme);
   }
+
   return ret;
 }
 
@@ -168,9 +183,8 @@ function HasStar(tokens) {
 
 function HasFrom(tokens) {
   let idx;
-  if((idx = tokens.findIndex(tok => IsKeyword('from', tok))) != -1) {
-    return tokens[idx + 1].lexeme.slice(1, -1);
-  }
+
+  if((idx = tokens.findIndex(tok => IsKeyword('from', tok))) != -1) return tokens[idx + 1].lexeme.slice(1, -1);
 }
 
 function AddExport(tokens) {
@@ -187,8 +201,6 @@ function AddExport(tokens) {
 
   let file = HasFrom(tokens);
   let exported = (multi ? ExportNames(tokens) : ExportName(tokens)) || (HasStar(tokens) ? ModuleExports(file) : undefined);
-
-  //console.log('AddExport', { code,multi,exported  });
 
   let exp = define(
     {
@@ -238,6 +250,7 @@ function AddImport(tokens) {
           specifier.push(tokens[idx].lexeme);
         }
       }
+
       return specifiers;
     },
   }[type]();
@@ -373,6 +386,7 @@ function ListExports(file, output, params) {
           stack.push(tok.lexeme);
           break;
         }
+
         case '}':
         case ']':
         case ')': {
@@ -421,6 +435,7 @@ function ListExports(file, output, params) {
       if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
       if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
     }
+
     let n = balancers.last.depth;
     tok = lexer.token;
 
@@ -438,6 +453,7 @@ function ListExports(file, output, params) {
         cond = true;
         imp = [];
       }
+
       if(cond == true) {
         imp.push(tok);
 
@@ -452,9 +468,11 @@ function ListExports(file, output, params) {
           if(impexp == What.EXPORT) exports.push(AddExport(imp));
         }
       }
+
       printTok(tok, newState);
       tokens.push(tok);
     }
+
     state = newState;
   }
 
@@ -466,9 +484,9 @@ function ListExports(file, output, params) {
     .unique();
 
   for(let exp of exports) {
-    let { exported } = exp;
+    const { type, exported, code } = exp;
 
-    if(exported) exportNames.pushUnique(...exported);
+    if(exported) exportNames.pushUnique(...(Array.isArray(exported) ? exported : [exported]));
   }
 
   if(debug > 2) log('Export names', exportNames);
@@ -683,6 +701,7 @@ function main(...args) {
         return;
       }
     }
+
     ListExports(file, output, params);
   }
   /*  if(identifiers.size) {
