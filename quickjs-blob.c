@@ -112,7 +112,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   JSValue proto, obj = JS_UNDEFINED;
   Blob* blob;
 
-  if(!(blob = js_mallocz(ctx, sizeof(Blob))))
+  if(!(blob = blob_new(ctx, 0)))
     return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -126,8 +126,6 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
 
   if(JS_IsException(obj))
     goto fail;
-
-  blob->type = 0;
 
   if(argc >= 1) {
     Iteration iter = ITERATION_INIT();
@@ -179,9 +177,10 @@ fail:
 
 enum {
   BLOB_ARRAYBUFFER,
+  BLOB_BYTES,
+  BLOB_TEXT,
   BLOB_SLICE,
   BLOB_STREAM,
-  BLOB_TEXT,
 };
 
 static JSValue
@@ -194,7 +193,21 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   switch(magic) {
     case BLOB_ARRAYBUFFER: {
-      ret = js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val);
+      ret = js_promise_resolve(ctx, js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val));
+      break;
+    }
+
+    case BLOB_BYTES: {
+      JSValue buf = js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val);
+
+      ret = js_promise_resolve(ctx, js_typedarray_new(ctx, 8, FALSE, FALSE, buf));
+
+      JS_FreeValue(ctx, buf);
+      break;
+    }
+
+    case BLOB_TEXT: {
+      ret = js_promise_resolve(ctx, JS_NewStringLen(ctx, (const char*)blob->data, blob->size));
       break;
     }
 
@@ -231,11 +244,6 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_UNDEFINED;
       break;
     }
-
-    case BLOB_TEXT: {
-      ret = JS_NewStringLen(ctx, (const char*)blob->data, blob->size);
-      break;
-    }
   }
 
   return ret;
@@ -256,9 +264,10 @@ static JSClassDef js_blob_class = {
 
 static const JSCFunctionListEntry js_blob_funcs[] = {
     JS_CFUNC_MAGIC_DEF("arrayBuffer", 0, js_blob_method, BLOB_ARRAYBUFFER),
+    JS_CFUNC_MAGIC_DEF("bytes", 0, js_blob_method, BLOB_BYTES),
+    JS_CFUNC_MAGIC_DEF("text", 0, js_blob_method, BLOB_TEXT),
     JS_CFUNC_MAGIC_DEF("stream", 0, js_blob_method, BLOB_STREAM),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_blob_method, BLOB_SLICE),
-    JS_CFUNC_MAGIC_DEF("text", 0, js_blob_method, BLOB_TEXT),
     JS_CGETSET_MAGIC_DEF("size", js_blob_get, 0, BLOB_SIZE),
     JS_CGETSET_MAGIC_DEF("type", js_blob_get, 0, BLOB_TYPE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Blob", JS_PROP_CONFIGURABLE),
