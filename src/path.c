@@ -773,7 +773,10 @@ path_getcwd1(DynBuf* db) {
   dbuf_zero(db);
   dbuf_realloc(db, PATH_MAX);
 
-  getcwd((char*)db->buf, db->allocated_size);
+  if(getcwd((char*)db->buf, db->allocated_size) == NULL) {
+    dbuf_zero(db);
+    return 0;
+  }
 
   db->size = strlen((const char*)db->buf);
   dbuf_0(db);

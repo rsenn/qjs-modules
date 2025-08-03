@@ -46,6 +46,9 @@ int strverscmp(const char*, const char*);
 #include <pthread.h>
 #endif
 
+js_realloc_helper(utils_js_realloc);
+js_realloc_rt_helper(utils_js_realloc_rt);
+
 #if defined(__linux__) || defined(__APPLE__)
 uint64_t
 time_us(void) {
@@ -131,19 +134,28 @@ list_link_prev(struct list_head* node, struct list_head* newn) {
   node->prev = newn;
   newn->next = node;
 }
+void
+__list_splice(struct list_head* list, struct list_head* head) {
+  struct list_head* first = list->next;
+  struct list_head* last = list->prev;
+  struct list_head* at = head->next;
 
+  first->prev = head;
+  head->next = first;
+
+  last->next = at;
+  at->prev = last;
+}
+
+/**
+ * @brief join two lists
+ * @param list  the new list to add.
+ * @param head  the place to add it in the first list.
+ */
 void
 list_splice(struct list_head* list, struct list_head* head) {
-  struct list_head *next = head->next, *first = list->next, *last = list->prev;
-
-  if(list_empty(list))
-    return;
-
-  head->next = first;
-  first->prev = head;
-
-  last->next = next;
-  next->prev = last;
+  if(!list_empty(list))
+    __list_splice(list, head);
 }
 
 void
@@ -241,8 +253,72 @@ __list_reverse(struct list_head* head) {
   }
 }
 
-js_realloc_helper(utils_js_realloc);
-js_realloc_rt_helper(utils_js_realloc_rt);
+/**
+ * Delete a list entry by making the prev/next entries point to each other.
+ *
+ * This is only for internal list manipulation where we know
+ * the prev/next entries already!
+ */
+void
+__list_del(struct list_head* prev, struct list_head* next) {
+  next->prev = prev;
+  prev->next = next;
+}
+
+/**
+ * @brief delete from one list and add as another's head
+ * @param list the entry to move
+ * @param head the head that will precede our entry
+ */
+void
+list_move(struct list_head* list, struct list_head* head) {
+  __list_del(list->prev, list->next);
+  list_add(list, head);
+}
+
+/**
+ * @brief delete from one list and add as another's tail
+ * @param list the entry to move
+ * @param head the head that will follow our entry
+ */
+void
+list_move_tail(struct list_head* list, struct list_head* head) {
+  __list_del(list->prev, list->next);
+  list_add_tail(list, head);
+}
+/**
+ * @brief replace old entry by new one
+ * @param old the element to be replaced
+ * @param new the new element to insert
+ *
+ * If @old was empty, it will be overwritten.
+ */
+void
+list_replace(struct list_head* old, struct list_head* new) {
+  new->next = old->next;
+  new->next->prev = new;
+  new->prev = old->prev;
+  new->prev->next = new;
+}
+
+/* merge result: dprev <-> (shead <-> ... <-> stail) <-> dnext */
+void
+__list_merge(struct list_head* dprev, struct list_head* shead, struct list_head* stail, struct list_head* dnext) {
+  dprev->next = shead;
+  shead->prev = dprev;
+  stail->next = dnext;
+  dnext->prev = stail;
+}
+
+void
+list_merge(struct list_head* dest, struct list_head* src) {
+  __list_merge(dest, src->next, src->prev, dest->next);
+}
+
+void
+list_merge_tail(struct list_head* dest, struct list_head* src) {
+  __list_merge(dest->prev, src->next, src->prev, dest);
+}
 
 int
 regexp_flags_fromstring(const char* s) {

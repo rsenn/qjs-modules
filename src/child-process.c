@@ -284,11 +284,14 @@ child_process_spawn(ChildProcess* cp) {
     }
 
     if(cp->cwd)
-      (void)chdir(cp->cwd);
+      if(chdir(cp->cwd) == -1)
+        perror("chdir()");
 
 #ifndef __ANDROID__
-    (void)setuid(cp->uid);
-    (void)setgid(cp->gid);
+    if(setuid(cp->uid) == -1)
+      perror("setuid()");
+    if(setgid(cp->gid) == -1)
+      perror("setgid()");
 #endif
 
 #ifdef HAVE_EXECVPE
