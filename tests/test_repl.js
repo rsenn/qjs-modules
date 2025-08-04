@@ -7,7 +7,7 @@ import * as std from 'std';
 let repl = {
   printStatus(...args) {
     console.log(...args);
-  }
+  },
 };
 
 function StartREPL() {
@@ -27,17 +27,17 @@ function main(...args) {
       compact: false,
       maxStringLength: Infinity,
       customInspect: true /*,
-      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
-    }
+      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/,
+    },
   });
 
   let params = getOpt(
     {
       output: [true, null, 'o'],
       interactive: [false, null, 'i'],
-      '@': 'xml'
+      '@': 'xml',
     },
-    args
+    args,
   );
 
   console.log('params', params);

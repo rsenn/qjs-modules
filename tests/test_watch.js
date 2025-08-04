@@ -1,5 +1,5 @@
 import * as os from 'os';
-import { IN_ACCESS, IN_ATTRIB, IN_CLOSE, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_IGNORED, IN_ISDIR, IN_MASK_ADD, IN_MODIFY, IN_MOVE, IN_MOVE_SELF, IN_MOVED_FROM, IN_MOVED_TO, IN_ONESHOT, IN_ONLYDIR, IN_OPEN, IN_Q_OVERFLOW, IN_UNMOUNT, randStr, toArrayBuffer, toString, watch } from 'util';
+import { IN_ACCESS, IN_ATTRIB, IN_CLOSE, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_IGNORED, IN_ISDIR, IN_MASK_ADD, IN_MODIFY, IN_MOVE, IN_MOVE_SELF, IN_MOVED_FROM, IN_MOVED_TO, IN_ONESHOT, IN_ONLYDIR, IN_OPEN, IN_Q_OVERFLOW, IN_UNMOUNT, randStr, toArrayBuffer, toString, watch, } from 'util';
 import { Console } from 'console';
 
 const modes = Object.entries({
@@ -25,7 +25,7 @@ const modes = Object.entries({
   IN_EXCL_UNLINK,
   IN_MASK_ADD,
   IN_ISDIR,
-  IN_ONESHOT
+  IN_ONESHOT,
 });
 
 const modeNames = Object.fromEntries(modes.map(([name, value]) => [value, name]));
@@ -41,8 +41,8 @@ function eventName(n) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      compact: 1
-    }
+      compact: 1,
+    },
   });
   const file = randStr(10) + '.tmp';
   console.log('file', file);

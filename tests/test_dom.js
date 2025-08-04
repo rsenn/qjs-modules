@@ -13,7 +13,7 @@ extendArray();
 let repl = {
   printStatus(...args) {
     console.log(...args);
-  }
+  },
 };
 
 function StartREPL() {
@@ -34,17 +34,17 @@ function main(...args) {
       depth: 10,
       maxArrayLength: 10000,
       compact: false,
-      customInspect: true
-    }
+      customInspect: true,
+    },
   });
 
   let params = getOpt(
     {
       output: [true, null, 'o'],
       interactive: [true, null, 'i'],
-      '@': 'xml'
+      '@': 'xml',
     },
-    args
+    args,
   );
 
   console.log('params', params);

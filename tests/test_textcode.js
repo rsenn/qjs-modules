@@ -52,8 +52,8 @@ function main(...args) {
       maxArrayLength: 256,
       compact: true,
       showHidden: false,
-      numberBase: 16
-    }
+      numberBase: 16,
+    },
   });
   console.log('TextDecoder', TextDecoder);
 

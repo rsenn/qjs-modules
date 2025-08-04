@@ -12,8 +12,8 @@ async function main(...args) {
     inspectOptions: {
       maxStringLength: 50,
       maxArrayLength: 10,
-      compact: false
-    }
+      compact: false,
+    },
   });
   let fd = fs.openSync('quickjs-misc.c', fs.O_RDONLY);
 
@@ -53,7 +53,7 @@ async function main(...args) {
         (acc ??= []).push(...lines);
       }
       return acc;
-    })('')
+    })(''),
   );
 
   /*let linestream=await LineStreamIterator(iter);

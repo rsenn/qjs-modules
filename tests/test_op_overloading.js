@@ -62,20 +62,20 @@ const OperatorsObjects = Expr => [
     },
     '~'(...args) {
       return new Expr('~', ...args);
-    }
+    },
   },
   {
     left: String,
     '*'(a, b) {
       return new Expr('*', a, b);
-    }
+    },
   },
   {
     right: String,
     '*'(a, b) {
       return new Expr('*', a, b);
-    }
-  }
+    },
+  },
 ];
 
 function assert(actual, expected, message) {
@@ -199,20 +199,20 @@ function test_operators_class() {
       },
       '~'(...args) {
         return new Expr3('~', ...args);
-      }
+      },
     },
     {
       left: String,
       '*'(a, b) {
         return new Expr3('*', a, b);
-      }
+      },
     },
     {
       right: String,
       '*'(a, b) {
         return new Expr3('*', a, b);
-      }
-    }
+      },
+    },
   );
 
   Expr3 = class Expr3 extends ExprOps {
@@ -263,8 +263,8 @@ function main() {
       depth: 5,
       maxArrayLength: 10,
       compact: 1,
-      maxStringLength: 120
-    }
+      maxStringLength: 120,
+    },
   });
 
   try {

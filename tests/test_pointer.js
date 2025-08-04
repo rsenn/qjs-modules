@@ -18,8 +18,8 @@ function main(...args) {
       depth: 1,
       maxArrayLength: 10,
       maxStringLength: 100,
-      compact: 2
-    }
+      compact: 2,
+    },
   });
 
   console.log('args:', args);

@@ -38,8 +38,8 @@ async function main(...args) {
       breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
-      compact: false
-    }
+      compact: false,
+    },
   });
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;
@@ -216,8 +216,8 @@ async function main(...args) {
     new Map([
       ['2 ** mul', [pred.toSource(), [1, 2, 3, 4].map(n => pred(n))]],
       ['mul & 2', (mul & 0b11111111111111111111111111111101).toSource()],
-      ['mul | 2', (mul | 2).toSource()]
-    ])
+      ['mul | 2', (mul | 2).toSource()],
+    ]),
   );
 
   let check = Predicate.instanceOf(Predicate);

@@ -48,9 +48,9 @@ function WriteObject(file, obj, fn = arg => arg) {
         maxStringLength: Infinity,
         maxArrayLength: Infinity,
         compact: 3,
-        multiline: true
-      })
-    )
+        multiline: true,
+      }),
+    ),
   );
 }
 
@@ -72,8 +72,8 @@ function main(...args) {
       breakLength: 80,
       compact: 2,
       showHidden: false,
-      customInspect: true
-    }
+      customInspect: true,
+    },
   });
 
   console.log('console.options', console.options);

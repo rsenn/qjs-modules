@@ -9,8 +9,8 @@ function main(...args) {
       maxStringLength: Infinity,
       maxArrayLength: 256,
       compact: 2,
-      showHidden: false
-    }
+      showHidden: false,
+    },
   });
   console.log('Location', Location);
 

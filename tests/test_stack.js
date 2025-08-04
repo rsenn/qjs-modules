@@ -26,8 +26,8 @@ function main(...args) {
       maxStringLength: Infinity,
       maxArrayLength: Infinity,
       compact: 1,
-      showHidden: false
-    }
+      showHidden: false,
+    },
   });
   let stack = Func1();
   console.log('stack', stack);
@@ -38,11 +38,11 @@ function main(...args) {
   console.log('stack.toString()', stack.toString());
   console.log(
     `stack.map(fr => fr+'')`,
-    [...stack].map(fr => fr + '')
+    [...stack].map(fr => fr + ''),
   );
   console.log(
     `stack.map(fr => fr.loc)`,
-    [...stack].map(fr => fr.loc)
+    [...stack].map(fr => fr.loc),
   );
 
   std.gc();

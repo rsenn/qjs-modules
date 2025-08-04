@@ -16,8 +16,8 @@ function main(...args) {
       depth: 2,
       maxArrayLength: 4,
       maxStringLength: 60,
-      compact: 1
-    }
+      compact: 1,
+    },
   });
   console.log('args:', args);
 
@@ -57,7 +57,7 @@ function main(...args) {
           inspect(node, { depth: 0 }) ||
             Object.getOwnPropertyNames(node)
               .filter(n => typeof node[n] != 'object')
-              .reduce((acc, name) => ({ ...acc, [name]: node[name] }), {})
+              .reduce((acc, name) => ({ ...acc, [name]: node[name] }), {}),
         );
       }
       i++;

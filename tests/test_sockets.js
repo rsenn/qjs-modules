@@ -2,7 +2,7 @@ import * as os from 'os';
 import Console from 'console';
 import inspect from 'inspect';
 import { error, quote, randi, srand, toString } from 'misc';
-import { AF_INET, AsyncSocket, fd_set, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_DONTROUTE, SO_ERROR, SO_KEEPALIVE, SO_OOBINLINE, SO_RCVBUF, SO_REUSEADDR, SO_REUSEPORT, SO_SNDBUF, SOCK_STREAM, SockAddr, Socket, socklen_t, SOL_SOCKET } from 'sockets';
+import { AF_INET, AsyncSocket, fd_set, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_DONTROUTE, SO_ERROR, SO_KEEPALIVE, SO_OOBINLINE, SO_RCVBUF, SO_REUSEADDR, SO_REUSEPORT, SO_SNDBUF, SOCK_STREAM, SockAddr, Socket, socklen_t, SOL_SOCKET, } from 'sockets';
 
 async function main() {
   globalThis.console = new Console({
@@ -10,8 +10,8 @@ async function main() {
       compact: true,
       breakLength: 80,
       maxArrayLength: 100,
-      maxStringLength: 100
-    }
+      maxStringLength: 100,
+    },
   });
   let seed = +Date.now();
   srand(seed);
@@ -45,7 +45,7 @@ async function main() {
       SO_BROADCAST,
       SO_OOBINLINE,
       SO_SNDBUF,
-      SO_RCVBUF
+      SO_RCVBUF,
     })
       .sort((a, b) => a[1] - b[1])
       .sort((a, b) => a[0].localeCompare(b[0]));

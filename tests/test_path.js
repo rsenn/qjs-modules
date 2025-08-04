@@ -193,5 +193,5 @@ tests({
   },
   'offsets()'() {},
   'lengths()'() {},
-  'ranges()'() {}
+  'ranges()'() {},
 });

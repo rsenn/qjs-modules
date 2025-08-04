@@ -10,8 +10,8 @@ async function main(...args) {
       maxArrayLength: 256,
       compact: 2,
       showHidden: false,
-      numberBase: 16
-    }
+      numberBase: 16,
+    },
   });
   let chunk, reader, writer, stream;
 

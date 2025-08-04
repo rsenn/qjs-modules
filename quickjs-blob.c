@@ -99,7 +99,7 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case BLOB_TYPE: {
-      ret = JS_NewString(ctx, blob->type);
+      ret = JS_NewString(ctx, blob->type ? blob->type : "");
       break;
     }
   }
@@ -128,43 +128,70 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
     goto fail;
 
   if(argc >= 1) {
+    if(!JS_IsObject(argv[0]) || JS_IsNull(argv[0])) {
+      JS_ThrowTypeError(ctx, "argument 1 must be an object");
+      goto fail;
+    }
+
     Iteration iter = ITERATION_INIT();
 
-    if(iteration_method_symbol(&iter, ctx, argv[0], "iterator")) {
-      int i = 0;
+    if(!iteration_method_symbol(&iter, ctx, argv[0], "iterator")) {
+      JS_ThrowTypeError(ctx, "argument 1 must be an iterable");
+      goto fail;
+    }
+    int i = 0;
 
-      while(!iteration_next(&iter, ctx)) {
-        Blob* other;
-        JSValue value = iteration_value(&iter, ctx);
-        InputBuffer input = (other = js_blob_data(ctx, value)) ? blob_input(ctx, other) : js_input_chars(ctx, value);
-        JS_FreeValue(ctx, value);
+    while(!iteration_next(&iter, ctx)) {
+      Blob* other;
+      JSValue value = iteration_value(&iter, ctx);
+      InputBuffer input = (other = js_blob_data(ctx, value)) ? blob_input(ctx, other) : js_input_chars(ctx, value);
+      JS_FreeValue(ctx, value);
 
-        ++i;
+      ++i;
 
-        if(input.data == 0) {
-          JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>", i);
-          goto fail;
-        }
-
-        if(blob_write(ctx, blob, input_buffer_data(&input), input_buffer_length(&input)) == -1) {
-          JS_ThrowInternalError(ctx, "blob_write returned -1");
-          goto fail;
-        }
-
-        input_buffer_free(&input, ctx);
+      if(input.data == 0) {
+        JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>", i);
+        goto fail;
       }
+
+      if(blob_write(ctx, blob, input_buffer_data(&input), input_buffer_length(&input)) == -1) {
+        JS_ThrowInternalError(ctx, "blob_write returned -1");
+        goto fail;
+      }
+
+      input_buffer_free(&input, ctx);
     }
 
     iteration_reset(&iter, ctx);
   }
 
-  if(argc >= 2 && JS_IsObject(argv[1])) {
-    if(js_has_propertystr(ctx, argv[1], "type"))
-      blob->type = js_get_propertystr_string(ctx, argv[1], "type");
+  if(argc > 1 && !js_is_null_or_undefined(argv[1])) {
+
+    if(!JS_IsObject(argv[1])) {
+      JS_ThrowTypeError(ctx, "argument 2 must be an object");
+      goto fail;
+    }
+
+    if(js_has_propertystr(ctx, argv[1], "type")) {
+      char* type;
+
+      if((type = js_get_propertystr_string(ctx, argv[1], "type"))) {
+        size_t i = 0;
+
+        for(i = 0; type[i]; i++) {
+          if(type[i] < 0x20 || type[i] >= 0x7f) {
+            js_free(ctx, type);
+            type = 0;
+            break;
+          }
+        }
+        blob->type = type;
+      }
+    }
   }
 
-  if(blob->type == 0)
-    blob->type = js_strdup(ctx, "application/binary");
+  /*if(blob->type == 0)
+    blob->type = js_strdup(ctx, "application/binary");*/
 
   JS_SetOpaque(obj, blob);
   return obj;
@@ -212,27 +239,17 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case BLOB_SLICE: {
-      int64_t n = blob->size, s = 0, e = INT64_MAX;
+      IndexRange rng = {0, INT64_MAX};
       char* type = 0;
+      int index = js_index_range(ctx, blob->size, argc, argv, 0, &rng);
 
-      if(argc >= 1) {
-        JS_ToInt64(ctx, &s, argv[0]);
+      if(argc > index)
+        type = js_tostring(ctx, argv[index]);
 
-        s = WRAP_NUM(s, n);
-        s = CLAMP_NUM(s, 0, n);
-
-        if(argc >= 2) {
-          JS_ToInt64(ctx, &e, argv[1]);
-
-          e = WRAP_NUM(e, n);
-          e = CLAMP_NUM(e, 0, n);
-
-          if(argc >= 3)
-            type = js_tostring(ctx, argv[2]);
-        }
-      }
-
-      ret = js_blob_new(ctx, &blob->data[s], e - s, type ? type : blob->type);
+      ret = js_blob_new(ctx,
+                        indexrange_data(rng, blob->data, blob->size),
+                        indexrange_size(rng, blob->size),
+                        type ? type : blob->type);
 
       if(type)
         js_free(ctx, type);
@@ -268,7 +285,7 @@ static const JSCFunctionListEntry js_blob_funcs[] = {
     JS_CFUNC_MAGIC_DEF("text", 0, js_blob_method, BLOB_TEXT),
     JS_CFUNC_MAGIC_DEF("stream", 0, js_blob_method, BLOB_STREAM),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_blob_method, BLOB_SLICE),
-    JS_CGETSET_MAGIC_DEF("size", js_blob_get, 0, BLOB_SIZE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("size", js_blob_get, 0, BLOB_SIZE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("type", js_blob_get, 0, BLOB_TYPE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Blob", JS_PROP_CONFIGURABLE),
 };

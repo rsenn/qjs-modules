@@ -9,8 +9,8 @@ async function main(...args) {
       depth: 5,
       maxArrayLength: 10,
       compact: 1,
-      maxStringLength: 120
-    }
+      maxStringLength: 120,
+    },
   });
   let filename = args[0] ?? scriptArgs[0];
   console.log('filename', filename);

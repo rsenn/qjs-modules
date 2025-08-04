@@ -2,7 +2,7 @@ import * as os from 'os';
 import Console from '../lib/console.js';
 import inspect from 'inspect';
 import * as std from 'std';
- 
+
 globalThis.inspect = inspect;
 
 Map.prototype.emplace = function emplace(key, handler) {
@@ -24,7 +24,7 @@ async function main(...args) {
   //console.log('main:', args);
 
   globalThis.console = new Console({
-    inspectOptions: { depth: 1, compact: Infinity }
+    inspectOptions: { depth: 1, compact: Infinity },
   });
 
   let winsz;
@@ -45,7 +45,7 @@ async function main(...args) {
     maxStringLength: 200,
     breakLength: winsz[0] || 80,
     compact: Infinity,
-    hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
+    hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')],
   };
   let arr = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   console.log('arr', arr);
@@ -72,7 +72,7 @@ async function main(...args) {
       print('inspect hideKeys ' + hideKeys.join(','));
       return ''; //dumpObj(this, depth, options);
     },
-    str: 'this is a string\0!'
+    str: 'this is a string\0!',
   };
   arr.fn = function TestFn() {};
   let fn = function test() {};
@@ -100,7 +100,7 @@ async function main(...args) {
       const { hideKeys, ...opts } = options;
       print('inspect hideKeys ' + hideKeys.join(','));
       return ''; //dumpObj(this, depth, options);
-    }
+    },
   };
 
   console.log('inspect(NaN)', inspect(NaN, options));
@@ -116,9 +116,9 @@ async function main(...args) {
   let deepObj = {
     a: {
       [1]: {
-        [Symbol.species]: { test: { [0]: { x: [{ z: { ['?']: [{}] } }] } } }
-      }
-    }
+        [Symbol.species]: { test: { [0]: { x: [{ z: { ['?']: [{}] } }] } } },
+      },
+    },
   };
 
   console.log('inspect(deepObj)', inspect(deepObj, options));
@@ -155,7 +155,7 @@ async function main(...args) {
     ['2', 2],
     ['3', 3],
     ['4', 4],
-    ['5', 5]
+    ['5', 5],
   ]);
 
   map.emplace('E', { insert: () => 0, update: v => v + 1 });

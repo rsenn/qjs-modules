@@ -4,9 +4,8 @@ import extendArray from 'extendArray';
 import { format } from 'util';
 import { Console } from 'console';
 import { Location } from 'location';
-import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClassConstructor, getClassID, getClassName, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClassConstructor, getClassID, getClassName, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject, } from 'misc';
 import * as std from 'std';
-
 
 extendArray(Array.prototype);
 
@@ -17,8 +16,8 @@ function main(...args) {
       maxStringLength: Infinity,
       maxArrayLength: 8,
       compact: 2,
-      showHidden: false
-    }
+      showHidden: false,
+    },
   });
   console.log('console.options', console.options);
   let loc = new Location('test.js:12:1');

@@ -13,8 +13,8 @@ async function main(...args) {
       customInspect: true,
       showHidden: false,
       hideKeys: ['query'],
-      protoChain: true
-    }
+      protoChain: true,
+    },
   });
 
   Object.assign(globalThis, { PGconn, PGresult });

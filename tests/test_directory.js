@@ -12,8 +12,8 @@ function main(...args) {
       maxArrayLength: 10,
       maxStringLength: 200,
       compact: false,
-      hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
-    }
+      hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')],
+    },
   });
 
   if(args.length == 0) args = ['.'];

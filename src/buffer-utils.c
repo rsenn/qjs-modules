@@ -509,7 +509,9 @@ js_input_chars(JSContext* ctx, JSValueConst value) {
       OFFSETLENGTH_INIT(),
   };
 
-  if(JS_IsString(value)) {
+  BOOL is_buffer = js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value);
+
+  if(!is_buffer) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
     ret.value = JS_DupValue(ctx, value);
     ret.free = &input_buffer_free_default;

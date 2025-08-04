@@ -3,7 +3,7 @@ import Console from '../lib/console.js';
 
 function main(...args) {
   globalThis.console = new Console({
-    inspectOptions: { depth: 1, compact: Infinity }
+    inspectOptions: { depth: 1, compact: Infinity },
   });
 
   console.log('console.options:', console.options);

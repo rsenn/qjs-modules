@@ -23,8 +23,8 @@ async function main(...args) {
       compact: true,
       customInspect: true,
       showHidden: false,
-      hideKeys: ['query']
-    }
+      hideKeys: ['query'],
+    },
   });
 
   Object.assign(globalThis, { MySQL, MySQLResult });
@@ -48,8 +48,8 @@ async function main(...args) {
           const { redBright, reset } = ansiStyles;
           console.log(`${redBright.open + className(err) + reset.close}:`, err.message);
           return null;
-        }
-      )
+        },
+      ),
     )
   );
 
@@ -70,7 +70,7 @@ async function main(...args) {
 
   let users = [
     ['roman', 'r4eHuJ'],
-    ['root', 'tD51o7xf']
+    ['root', 'tD51o7xf'],
   ];
 
   res = await q(`INSERT INTO users (username,password) VALUES ${users.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`);

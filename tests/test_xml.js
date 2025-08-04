@@ -19,8 +19,8 @@ function main(...args) {
       //stringBreakNewline: false,
       maxArrayLength: Infinity,
       compact: 1,
-      maxStringLength: 60
-    }
+      maxStringLength: 60,
+    },
   });
 
   let file = args[0] ?? 'tests/test1.xml';

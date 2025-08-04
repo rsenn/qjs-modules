@@ -1,5 +1,5 @@
 import * as os from 'os';
-import { IN_ACCESS, IN_ATTRIB, IN_CLOSE, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_IGNORED, IN_ISDIR, IN_MASK_ADD, IN_MODIFY, IN_MOVE, IN_MOVE_SELF, IN_MOVED_FROM, IN_MOVED_TO, IN_NONBLOCK, IN_ONESHOT, IN_ONLYDIR, IN_OPEN, IN_Q_OVERFLOW, IN_UNMOUNT, inotify } from '../lib/inotify.js';
+import { IN_ACCESS, IN_ATTRIB, IN_CLOSE, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_IGNORED, IN_ISDIR, IN_MASK_ADD, IN_MODIFY, IN_MOVE, IN_MOVE_SELF, IN_MOVED_FROM, IN_MOVED_TO, IN_NONBLOCK, IN_ONESHOT, IN_ONLYDIR, IN_OPEN, IN_Q_OVERFLOW, IN_UNMOUNT, inotify, } from '../lib/inotify.js';
 import { Console } from 'console';
 import * as std from 'std';
 
@@ -27,7 +27,7 @@ let inotifyFlags = {
   IN_OPEN,
   IN_Q_OVERFLOW,
   IN_UNMOUNT,
-  IN_NONBLOCK
+  IN_NONBLOCK,
 };
 
 function flags2names(obj, num) {
@@ -46,8 +46,8 @@ function main(...args) {
       maxArrayLength: 256,
       compact: 2,
       showHidden: false,
-      customInspect: false
-    }
+      customInspect: false,
+    },
   });
 
   let watch = new inotify(IN_NONBLOCK);

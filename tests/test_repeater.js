@@ -9,8 +9,8 @@ async function main(...args) {
       maxStringLength: Infinity,
       maxArrayLength: 256,
       compact: true,
-      showHidden: false
-    }
+      showHidden: false,
+    },
   });
 
   console.log('Repeater', Repeater);
