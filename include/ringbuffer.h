@@ -59,6 +59,7 @@ typedef union ringbuffer {
 #define ringbuffer_FULL(rb) ((rb)->size == (rb)->head - (rb)->tail)
 #define ringbuffer_WRAPPED(rb) ((rb)->head < (rb)->tail)
 #define ringbuffer_HEADROOM(rb) ((rb)->size - (rb)->head)
+#define ringbuffer_TAILROOM(rb) ((rb)->size - (rb)->tail)
 #define ringbuffer_AVAIL(rb) ((rb)->size - ringbuffer_LENGTH(rb))
 #define ringbuffer_LENGTH(rb) \
   (ringbuffer_WRAPPED(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)

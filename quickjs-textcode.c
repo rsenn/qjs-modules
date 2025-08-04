@@ -70,7 +70,7 @@ textdecoder_length(TextDecoder* td) {
 
   if(len == ringbuffer_CONTINUOUS(&td->buffer))
     if(td->buffer.head < td->buffer.tail) {
-      r = textdecoder_try(td->buffer.data, ringbuffer_HEAD(&td->buffer));
+      r = textdecoder_try(td->buffer.data, td->buffer.head);
       len += r;
     }
 
@@ -98,7 +98,9 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           dlen = textdecoder_length(dec);
         }
 
-        ret = JS_NewStringLen(ctx, (const char*)ringbuffer_BEGIN(&dec->buffer), dlen);
+        dlen = MIN_NUM(dlen, ringbuffer_TAILROOM(&dec->buffer));
+
+        ret = JS_NewStringLen(ctx, (const char*)ringbuffer_peek(&dec->buffer, 0), dlen);
         ringbuffer_skip(&dec->buffer, dlen);
         break;
       }
@@ -308,17 +310,20 @@ js_decoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     }
 
     case DECODER_DECODE: {
-      InputBuffer in = js_input_chars(ctx, argv[0]);
-      size_t avail = ringbuffer_AVAIL(&dec->buffer);
+      InputBuffer in = argc == 0 ? (InputBuffer){0} : js_input_chars(ctx, argv[0]);
 
-      if(in.size >= avail)
-        ringbuffer_allocate(&dec->buffer, in.size + 1);
+      if(in.data) {
+        size_t avail = ringbuffer_AVAIL(&dec->buffer);
 
-      if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
-        return JS_ThrowInternalError(ctx,
-                                     "%s: TextDecoder: ringbuffer %s failed",
-                                     __func__,
-                                     magic == DECODER_DECODE ? "decode" : "end");
+        if(in.size >= avail)
+          ringbuffer_allocate(&dec->buffer, in.size + 1);
+
+        if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
+          return JS_ThrowInternalError(ctx,
+                                       "%s: TextDecoder: ringbuffer %s failed",
+                                       __func__,
+                                       magic == DECODER_DECODE ? "decode" : "end");
+      }
 
       ret = ringbuffer_LENGTH(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
 
