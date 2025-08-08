@@ -2096,6 +2096,29 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 enum {
+  PROMISE_STATE,
+  PROMISE_RESULT,
+};
+
+static JSValue
+js_misc_promise(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case PROMISE_STATE: {
+      ret = JS_NewInt32(ctx, JS_PromiseState(ctx, argv[0]));
+      break;
+    }
+    case PROMISE_RESULT: {
+      ret = JS_PromiseResult(ctx, argv[0]);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+enum {
   BITFIELD_SET,
   BITFIELD_BITS,
   BITFIELD_FROMARRAY,
@@ -3603,6 +3626,11 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
     JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
     JS_CFUNC_MAGIC_DEF("getTypeName", 1, js_misc_type, GET_TYPE_NAME),
+    JS_CONSTANT(JS_PROMISE_PENDING),
+    JS_CONSTANT(JS_PROMISE_FULFILLED),
+    JS_CONSTANT(JS_PROMISE_REJECTED),
+    JS_CFUNC_MAGIC_DEF("promiseState", 1, js_misc_promise, PROMISE_STATE),
+    JS_CFUNC_MAGIC_DEF("promiseResult", 1, js_misc_promise, PROMISE_RESULT),
     JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
     // JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),

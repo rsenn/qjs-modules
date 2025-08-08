@@ -1070,8 +1070,9 @@ restart:
 
       if(!js_is_null_or_undefined(exception)) {
         char* top = jsm_stack_top();
-        
-        JS_ThrowInternalError(ctx, "%s: %s%scould not load module filename '%s'", __func__, top ? top : "", top ? ": " : "", s);
+
+        JS_ThrowInternalError(ctx, "%s: %s%scould not load module filename '%s'", __func__, top ? top : "", top ? ": " :
+    "", s);
       }
 
       JS_FreeValue(ctx, exception);

@@ -1126,6 +1126,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
       if(s)
         JS_FreeCString(ctx, s);
     }
+
   } else {
     JSValue name = JS_GetPropertyStr(ctx, value, "name");
 
@@ -1333,12 +1334,39 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
   is_array = js_is_array(ctx, obj);
 
-  if(it) {
-    writer_puts(wr, is_array ? "[" : "{");
+  writer_puts(wr, is_array ? "[" : "{");
+
+  if(it)
     ++depth;
-  } else {
-    writer_puts(wr, is_array ? "[]" : "{}");
+
+  if(js_is_promise(ctx, obj)) {
+    JSPromiseStateEnum state = JS_PromiseState(ctx, obj);
+
+    put_spacing(wr, opts, depth + 1);
+
+    switch(state) {
+      case JS_PROMISE_PENDING: {
+        writer_puts(wr, opts->colors ? COLOR_MARINE "<pending>" COLOR_NONE : "<pending>");
+        break;
+      }
+      case JS_PROMISE_REJECTED: {
+        writer_puts(wr, opts->colors ? COLOR_MARINE "<rejected> " COLOR_NONE : "<rejected> ");
+        break;
+      }
+      default: break;
+    }
+
+    if(state != JS_PROMISE_PENDING) {
+      JSValue result = JS_PromiseResult(ctx, obj);
+      inspect_value(insp, result, level);
+      JS_FreeValue(ctx, result);
+    }
+
+    put_spacing(wr, opts, depth);
   }
+
+  if(!it)
+    writer_puts(wr, is_array ? "]" : "}");
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
