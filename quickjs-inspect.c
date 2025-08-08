@@ -1358,7 +1358,12 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
     if(state != JS_PROMISE_PENDING) {
       JSValue result = JS_PromiseResult(ctx, obj);
-      inspect_value(insp, result, level);
+
+      if(JS_IsObject(result) && depth < opts->depth)
+        inspect_recursive(insp, result, depth + 1);
+      else
+        inspect_value(insp, result, depth);
+
       JS_FreeValue(ctx, result);
     }
 
