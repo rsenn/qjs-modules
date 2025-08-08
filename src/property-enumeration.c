@@ -340,7 +340,7 @@ property_recursion_push(Vector* vec, JSContext* ctx, JSValue object, int flags) 
   assert(JS_IsObject(object));
 
   if(!property_enumeration_init(it, ctx, object, flags)) {
-    if(it->tab_atom_len > 0)
+    if(it->tab_atom_len >= 0)
       return vector_growplus(vec, sizeof(PropertyEnumeration), 1);
 
     property_enumeration_reset(it, JS_GetRuntime(ctx));

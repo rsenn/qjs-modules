@@ -1325,8 +1325,8 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   PropertyEnumeration* it;
   BOOL is_array;
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
-  uint32_t index = 0;
-  int ret;
+  int index = 0, ret;
+  JSPromiseStateEnum state = -1;
 
   if((ret = inspect_object(insp, obj, depth)))
     return ret;
@@ -1340,9 +1340,11 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
     ++depth;
 
   if(js_is_promise(ctx, obj)) {
-    JSPromiseStateEnum state = JS_PromiseState(ctx, obj);
+    int level = it ? depth : depth + 1;
 
-    put_spacing(wr, opts, depth + 1);
+    state = JS_PromiseState(ctx, obj);
+
+    put_spacing(wr, opts, level);
 
     switch(state) {
       case JS_PROMISE_PENDING: {
@@ -1358,16 +1360,20 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
     if(state != JS_PROMISE_PENDING) {
       JSValue result = JS_PromiseResult(ctx, obj);
+      Inspector nest = {*opts, *wr, VECTOR(ctx)};
 
-      if(JS_IsObject(result) && depth < opts->depth)
-        inspect_recursive(insp, result, depth + 1);
+      if(JS_IsObject(result) && level < opts->depth)
+        inspect_recursive(&nest, result, level);
       else
-        inspect_value(insp, result, depth);
+        inspect_value(&nest, result, level);
 
       JS_FreeValue(ctx, result);
+
+      vector_free(&nest.hier);
     }
 
-    put_spacing(wr, opts, depth);
+    if(!it)
+      put_spacing(wr, opts, depth);
   }
 
   if(!it)
@@ -1383,7 +1389,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
     if(!options_hidden(opts, property_enumeration_atom(it))) {
 
-      if(index > 0)
+      if(index > 0 || (index == 0 && state != -1))
         writer_puts(wr, ",");
 
       BOOL is_arr = js_is_array(ctx, property_recursion_top(&insp->hier)->obj);
