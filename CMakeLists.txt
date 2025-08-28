@@ -2,7 +2,7 @@ project(qjs-modules C ASM)
 
 #message("Building project [1;31m${PROJECT_NAME}[0m")
 
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_C_STANDARD 11)
 
