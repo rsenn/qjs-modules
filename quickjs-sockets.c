@@ -138,7 +138,7 @@ js_sockaddr_new(JSContext* ctx, int family) {
 }
 
 static JSValue
-js_sockaddr_from_argv(JSContext* ctx, int* argcp, JSValueConst** argvp) {
+js_sockaddr_args(JSContext* ctx, int* argcp, JSValueConst** argvp) {
   JSValue ret = js_sockaddr_new(ctx, AF_INET);
 
   if(!JS_IsException(ret)) {
@@ -1685,7 +1685,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(magic >= METHOD_BIND && magic <= METHOD_CONNECT) {
     int old_argc = argc;
 
-    sa = js_sockaddr_from_argv(ctx, &argc, &argv);
+    sa = js_sockaddr_args(ctx, &argc, &argv);
 
     if(old_argc != argc) {
       if(!JS_IsException(sa))
