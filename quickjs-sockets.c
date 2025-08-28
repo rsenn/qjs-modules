@@ -628,6 +628,19 @@ mmsg_read(JSContext* ctx, JSValueConst arg, struct mmsghdr* mmh) {
 }
 
 static BOOL
+mmsg_write(JSContext* ctx, JSValueConst arg, const struct mmsghdr* mmh) {
+  if(js_is_array(ctx, arg)) {
+    JS_SetPropertyUint32(ctx, arg, 1, JS_NewUint32(ctx, mmh->msg_len));
+  } else if(JS_IsObject(arg)) {
+    JS_SetPropertyStr(ctx, arg, "len", JS_NewUint32(ctx, mmh->msg_len));
+  } else {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static BOOL
 mmsgs_read(JSContext* ctx, JSValueConst arg, MultiMessageHeader* mm) {
   if(js_is_array(ctx, arg) || js_is_iterable(ctx, arg)) {
     mm->msgvec = 0;
@@ -655,6 +668,15 @@ mmsgs_read(JSContext* ctx, JSValueConst arg, MultiMessageHeader* mm) {
     }
 
     iteration_reset(&iter, ctx);
+  }
+}
+
+static BOOL
+mmsgs_write(JSContext* ctx, JSValueConst arg, const MultiMessageHeader* mm) {
+  for(size_t i = 0; i < mm->vlen; i++) {
+    JSValue mmsg = JS_GetPropertyUint32(ctx, arg, i);
+    mmsg_write(ctx, mmsg, &mm->msgvec[i]);
+    JS_FreeValue(ctx, mmsg);
   }
 }
 
