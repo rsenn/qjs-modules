@@ -34,8 +34,11 @@ typedef enum {
 
 /*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0,
                       js_writer_class_id = 0, js_transform_class_id = 0;
-/*VISIBLE*/ JSValue readable_proto, readable_default_controller, readable_bytestream_controller, readable_ctor, writable_proto, writable_controller, writable_ctor, transform_proto, transform_controller, transform_ctor, default_reader_proto, default_reader_ctor, byob_reader_proto, byob_reader_ctor, byob_request_proto, writer_proto, writer_ctor;
-                      
+/*VISIBLE*/ JSValue readable_proto, readable_default_controller, readable_bytestream_controller, readable_ctor,
+    writable_proto, writable_controller, writable_ctor, transform_proto, transform_controller, transform_ctor,
+    default_reader_proto, default_reader_ctor, byob_reader_proto, byob_reader_ctor, byob_request_proto, writer_proto,
+    writer_ctor;
+
 static int reader_update(ReadableStreamReader*, JSContext*);
 static BOOL reader_passthrough(ReadableStreamReader*, JSValueConst, JSContext*);
 static int readable_unlock(ReadableStream*, ReadableStreamReader*);
@@ -167,7 +170,7 @@ read_next(ReadableStreamReader* rd, JSContext* ctx) {
       ret = JS_EXCEPTION;
 
   if(op) {
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
     printf("%s(): (%i/%zu)\n", __func__, op->seq, list_size(&rd->list));
 #endif
 
@@ -335,7 +338,7 @@ reader_close(ReadableStreamReader* rd, JSContext* ctx) {
 
   ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 0, 0);
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(1): promise=%i\n", __func__, js_is_promise(ctx, ret));
 #endif
   rd->stream->closed = TRUE;
@@ -356,7 +359,7 @@ reader_close(ReadableStreamReader* rd, JSContext* ctx) {
     //    ret = promise_forward(ctx, ret, &rd->events.closed);
   }
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(2): promise=%i\n", __func__, js_is_promise(ctx, ret));
 #endif
 
@@ -427,12 +430,12 @@ reader_read(ReadableStreamReader* rd, JSContext* ctx) {
 
   reader_update(rd, ctx);
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(): (2) [%zu] closed=%i\n", __func__, list_size(&rd->list), rd->stream->closed);
 #endif
 
-#ifdef DEBUG_OUTPUT
-  printf("%s():ReadRequest (%i) q2[%zu]\n", __func__, op->seq, queue_size(&st->q));
+#ifdef DEBUG_OUTPUT_
+  printf("%s():ReadRequest q2[%zu]\n", __func__, queue_size(&st->q));
 #endif
 
   return ret;
@@ -454,7 +457,7 @@ reader_clean(ReadableStreamReader* rd, JSContext* ctx) {
 
   list_for_each_prev_safe(el, next, (ReadRequest*)&rd->reads) {
     if(read_done(el)) {
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
       printf("%s(): delete[%i]\n", __func__, el->seq);
 #endif
 
@@ -488,7 +491,7 @@ reader_update(ReadableStreamReader* rd, JSContext* ctx) {
 
   reader_clean(rd, ctx);
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(): [%zu] closed=%d queue.size=%zu\n",
          __func__,
          list_size(&rd->list),
@@ -509,7 +512,7 @@ reader_update(ReadableStreamReader* rd, JSContext* ctx) {
     while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
       JSValue chunk, value;
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
       printf("%s(2): Chunk ptr=%p, size=%zu, pos=%zu\n", __func__, ch->data, ch->size, ch->pos);
 #endif
 
@@ -526,7 +529,7 @@ reader_update(ReadableStreamReader* rd, JSContext* ctx) {
     }
   }
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(3): closed=%d queue.size=%zu result = %d\n", __func__, readable_closed(st), queue_size(&st->q), ret);
 #endif
 
@@ -548,7 +551,7 @@ reader_passthrough(ReadableStreamReader* rd, JSValueConst result, JSContext* ctx
   BOOL ret = FALSE;
 
   list_for_each_prev_safe(el, next, &rd->reads) {
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
     printf("%s(1): el[%i]\n", __func__, el->seq);
 #endif
 
@@ -558,7 +561,7 @@ reader_passthrough(ReadableStreamReader* rd, JSValueConst result, JSContext* ctx
     }
   }
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(2): result=%s\n", __func__, JS_ToCString(ctx, result));
 #endif
 
@@ -617,7 +620,7 @@ readable_close(ReadableStream* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   static BOOL expected = FALSE;
 
-#ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT_
   printf("%s(1): expected=%i, closed=%i\n", __func__, st->closed, expected);
 #endif
 

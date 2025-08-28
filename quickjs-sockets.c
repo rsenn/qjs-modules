@@ -88,7 +88,7 @@ socketcall_return(Socket* sock, int sysno, int retval) {
 #endif
                              : 0;
 
-#ifdef DEBUG_OUTPUT_
+#ifdef DEBUG_OUTPUT
   printf("%s(): syscall %s returned %d (%d)\n",
          __func__,
          (sock)->sysno ? socketcall_name((sock)->sysno) : "0",
@@ -324,9 +324,8 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   if(argc >= 1 && (other = js_sockaddr_data(argv[0]))) {
     *a = *other;
-  } else if(!js_sockaddr_init(ctx, argc, argv, a)) {
-    JS_ThrowInternalError(ctx, "SockAddr init() failed");
-    goto fail;
+  } else {
+    js_sockaddr_init(ctx, argc, argv, a);
   }
 
   JS_SetOpaque(obj, a);
@@ -1393,7 +1392,7 @@ js_asyncsocket_resolve(
 
     JS_Call(ctx, data[3], JS_UNDEFINED, 2, args);
 
-#ifdef DEBUG_OUTPUT_
+#ifdef DEBUG_OUTPUT
     printf("%s(): [%p] set%sHandler(%d, null)\n",
            __func__,
            JS_VALUE_GET_OBJ(data[1]),
@@ -1454,7 +1453,7 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   args[0] = JS_NewInt32(ctx, socket_fd(*s));
   args[1] = JS_NewCFunctionData(ctx, js_asyncsocket_resolve, 0, magic, data_len, data);
 
-#ifdef DEBUG_OUTPUT_
+#ifdef DEBUG_OUTPUT
   printf(
       "%s(): set%sHandler(%d, %p)\n", __func__, magic & 1 ? "Write" : "Read", socket_fd(*s), JS_VALUE_GET_OBJ(data[1]));
 #endif
@@ -1683,24 +1682,28 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   magic &= (ASYNC_READY - 1);
 
   if(magic >= METHOD_BIND && magic <= METHOD_CONNECT) {
-    int old_argc = argc;
 
-    sa = js_sockaddr_args(ctx, &argc, &argv);
+    if(!(a = js_sockaddr_data(argv[0])) && magic != METHOD_ACCEPT) {
+      int my_argc = argc;
+      JSValueConst* my_argv = argv;
 
-    if(old_argc != argc) {
-      if(!JS_IsException(sa))
-        a = js_sockaddr_data2(ctx, sa);
-    } else if(!(a = js_sockaddr_data(argv[0])) && argc >= 2 && magic != METHOD_ACCEPT) {
-      JSValueConst args[] = {
-          JS_NewInt32(ctx, socket_address_family(*s)),
-          argv[0],
-          argv[1],
-      };
+      sa = js_sockaddr_args(ctx, &my_argc, &my_argv);
 
-      sa = js_sockaddr_constructor(ctx, sockaddr_ctor, countof(args), args);
+      if(my_argc != argc) {
+        if(!JS_IsException(sa))
+          a = js_sockaddr_data2(ctx, sa);
+      } else if(argc >= 2) {
+        JSValueConst args[] = {
+            JS_NewInt32(ctx, socket_address_family(*s)),
+            argv[0],
+            argv[1],
+        };
 
-      if(!JS_IsException(sa))
-        a = js_sockaddr_data2(ctx, sa);
+        sa = js_sockaddr_constructor(ctx, sockaddr_ctor, countof(args), args);
+
+        if(!JS_IsException(sa))
+          a = js_sockaddr_data2(ctx, sa);
+      }
     }
 
     if(!a)
@@ -1755,9 +1758,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_ACCEPT: {
       socklen_t addrlen = sockaddr_len(a);
 
-      if(argc > 0) {
+      if(argc > 1) {
         int32_t flags = 0;
-        JS_ToInt32(ctx, &flags, argv[0]);
+        JS_ToInt32(ctx, &flags, argv[1]);
 
         JS_SOCKETCALL_RETURN(SYSCALL_ACCEPT4,
                              s,
@@ -1841,30 +1844,23 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_SENDTO: {
       int32_t flags = 0;
       InputBuffer buf = js_input_chars(ctx, argv[0]);
-      OffsetLength off = OFFSETLENGTH_INIT();
+      OffsetLength off = {0, buf.size};
 
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, 0, &off);
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
 
+      void* ptr = offsetlength_data(off, buf.data);
+      size_t len = offsetlength_size(off, buf.size);
+
       if(magic == METHOD_SENDTO) {
         if((a = argc >= 5 ? js_sockaddr_data(argv[4]) : 0))
           alen = sockaddr_len(a);
 
-        JS_SOCKETCALL(SYSCALL_SENDTO,
-                      s,
-                      sendto(socket_handle(*s),
-                             offsetlength_data(off, buf.data),
-                             offsetlength_size(off, buf.size),
-                             flags,
-                             a ? &a->s : NULL,
-                             a ? alen : 0));
+        JS_SOCKETCALL(SYSCALL_SENDTO, s, sendto(socket_handle(*s), ptr, len, flags, a ? &a->s : NULL, a ? alen : 0));
       } else {
-        JS_SOCKETCALL(
-            SYSCALL_SEND,
-            s,
-            send(socket_handle(*s), offsetlength_data(off, buf.data), offsetlength_size(off, buf.size), flags));
+        JS_SOCKETCALL(SYSCALL_SEND, s, send(socket_handle(*s), ptr, len, flags));
       }
 
       break;

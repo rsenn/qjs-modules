@@ -685,12 +685,14 @@ offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst ar
   int i = 0;
 
   if(i < argc) {
-    if(JS_ToInt64Clamp(ctx, &offset, argv[i], 0, size, size))
-      return -1;
+    if(JS_IsNumber(argv[i]))
+      if(JS_ToInt64Clamp(ctx, &offset, argv[i], 0, size, size))
+        return -1;
 
     if(++i < argc) {
-      if(JS_ToInt64Clamp(ctx, &length, argv[i], 0, size - offset, size))
-        return -2;
+      if(JS_IsNumber(argv[i]))
+        if(JS_ToInt64Clamp(ctx, &length, argv[i], 0, size - offset, size))
+          return -2;
 
       ++i;
     }
