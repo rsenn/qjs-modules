@@ -127,7 +127,9 @@ enum SocketCalls {
   SYSCALL_SHUTDOWN,
   SYSCALL_CLOSE,
   SYSCALL_GETSOCKOPT,
-  SYSCALL_SETSOCKOPT
+  SYSCALL_SETSOCKOPT,
+  SYSCALL_RECVMSG,
+  SYSCALL_SENDMSG,
 };
 
 #define socket_fd(sock) ((int16_t)(uint16_t)(sock).fd)

@@ -478,7 +478,7 @@ void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 JSValue js_value_coerce(JSContext*, const char* func_name, JSValueConst);
 JSValue js_global_new(JSContext*, const char* ctor_name, int argc, JSValueConst argv[]);
 
-//#include "buffer-utils.h"
+// #include "buffer-utils.h"
 
 char* js_cstring_dup(JSContext*, const char* str);
 char* js_cstring_ptr(JSValueConst v);
@@ -764,7 +764,7 @@ const char* js_object_tostring2(JSContext*, JSValueConst method, JSValueConst va
 typedef struct {
   JSContext* ctx;
   JSObject* obj;
-} JSCallback;
+} JSTrampoline;
 
 const char* js_function_name(JSContext*, JSValueConst value);
 
@@ -782,14 +782,14 @@ JSValue js_function_return_undefined(JSContext*);
 JSValue js_function_return_value(JSContext*, JSValue value);
 JSValue js_function_prototype(JSContext*);
 
-BOOL js_callback3(JSContext*, JSCallback*, JSValueConst);
-JSCallback* js_callback(JSContext*, JSValueConst);
-void js_callback_free(JSCallback*);
-JSValue js_callback_call_this(JSCallback*, JSValueConst, int, JSValueConst[]);
+BOOL js_trampoline3(JSContext*, JSTrampoline*, JSValueConst);
+JSTrampoline* js_trampoline(JSContext*, JSValueConst);
+void js_trampoline_free(JSTrampoline*);
+JSValue js_trampoline_call_this(JSTrampoline*, JSValueConst, int, JSValueConst[]);
 
 static inline JSValue
-js_callback_call(JSCallback* cb, int argc, JSValueConst argv[]) {
-  return js_callback_call_this(cb, JS_UNDEFINED, argc, argv);
+js_trampoline_call(JSTrampoline* cb, int argc, JSValueConst argv[]) {
+  return js_trampoline_call_this(cb, JS_UNDEFINED, argc, argv);
 }
 
 typedef JSValue CClosureFunc(JSContext*, JSValueConst, int, JSValueConst[], int, void*);

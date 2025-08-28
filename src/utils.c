@@ -966,24 +966,24 @@ js_function_return_undefined(JSContext* ctx) {
 }
 
 BOOL
-js_callback3(JSContext* ctx, JSCallback* ret, JSValueConst arg) {
+js_trampoline3(JSContext* ctx, JSTrampoline* ret, JSValueConst arg) {
   if(!JS_IsFunction(ctx, arg)) {
     JS_ThrowTypeError(ctx, "must be a function");
     return FALSE;
   }
 
-  *ret = (JSCallback){JS_DupContext(ctx), js_value_obj(JS_DupValue(ctx, arg))};
+  *ret = (JSTrampoline){JS_DupContext(ctx), js_value_obj(JS_DupValue(ctx, arg))};
   return TRUE;
 }
 
-JSCallback*
-js_callback(JSContext* ctx, JSValueConst arg) {
-  JSCallback* ret;
+JSTrampoline*
+js_trampoline(JSContext* ctx, JSValueConst arg) {
+  JSTrampoline* ret;
 
-  if(!(ret = js_malloc(ctx, sizeof(JSCallback))))
+  if(!(ret = js_malloc(ctx, sizeof(JSTrampoline))))
     return ret;
 
-  if(!js_callback3(ctx, ret, arg)) {
+  if(!js_trampoline3(ctx, ret, arg)) {
     js_free(ctx, ret);
     return NULL;
   }
@@ -992,7 +992,7 @@ js_callback(JSContext* ctx, JSValueConst arg) {
 }
 
 void
-js_callback_free(JSCallback* cb) {
+js_trampoline_free(JSTrampoline* cb) {
   JSContext* ctx;
 
   if((ctx = cb->ctx)) {
@@ -1007,7 +1007,7 @@ js_callback_free(JSCallback* cb) {
 }
 
 JSValue
-js_callback_call_this(JSCallback* cb, JSValueConst this_obj, int argc, JSValueConst argv[]) {
+js_trampoline_call_this(JSTrampoline* cb, JSValueConst this_obj, int argc, JSValueConst argv[]) {
   return JS_Call(cb->ctx, js_value_mkobj(cb->obj), this_obj, argc, argv);
 }
 

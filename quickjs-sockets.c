@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "buffer-utils.h"
 #include "debug.h"
+#include "iteration.h"
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 int socketpair(int, int, int, SOCKET[2]);
@@ -53,9 +54,7 @@ static JSValue js_socket_new_proto(JSContext*, JSValueConst, int, BOOL, BOOL);
 static int js_socket_address_family(JSValueConst);
 
 JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_asyncsocket_class_id = 0;
-static JSValue sockaddr_proto, sockaddr_ctor,
-        socket_proto, asyncsocket_proto,
-        socket_ctor, asyncsocket_ctor;
+static JSValue sockaddr_proto, sockaddr_ctor, socket_proto, asyncsocket_proto, socket_ctor, asyncsocket_ctor;
 
 static const char* socketcall_names[] = {
     "socket",
@@ -533,6 +532,131 @@ static JSClassDef js_sockaddr_class = {
     .class_name = "SockAddr",
     .finalizer = js_sockaddr_finalizer,
 };
+
+static BOOL
+msg_read(JSContext* ctx, JSValueConst arg, struct msghdr* m) {
+  if(js_is_array(ctx, arg) || js_is_iterable(ctx, arg)) {
+    m->msg_iov = 0;
+    m->msg_iovlen = 0;
+
+    Iteration iter = ITERATION_INIT();
+
+    if(!iteration_method_symbol(&iter, ctx, arg, "iterator")) {
+      JS_ThrowInternalError(ctx, "Failed to iterate");
+      return FALSE;
+    }
+
+    while(!iteration_next(&iter, ctx)) {
+      JSValue value = iteration_value(&iter, ctx);
+      InputBuffer buf = js_input_chars(ctx, value);
+      JS_FreeValue(ctx, value);
+
+      if(!(m->msg_iov = js_realloc(ctx, m->msg_iov, sizeof(struct iovec) * (m->msg_iovlen + 1))))
+        return FALSE;
+
+      m->msg_iov[m->msg_iovlen++] = (struct iovec){buf.data, buf.size};
+    }
+
+    iteration_reset(&iter, ctx);
+
+  } else if(js_has_propertystr(ctx, arg, "iov")) {
+    JSValue iov = JS_GetPropertyStr(ctx, arg, "iov");
+
+    msg_read(ctx, iov, m);
+
+    JS_FreeValue(ctx, iov);
+  }
+
+  if(js_has_propertystr(ctx, arg, "name")) {
+    size_t len;
+    m->msg_name = js_get_propertystr_stringlen(ctx, arg, "name", &len);
+    m->msg_namelen = len;
+  }
+
+  if(js_has_propertystr(ctx, arg, "flags"))
+    m->msg_flags = js_get_propertystr_int32(ctx, arg, "flags");
+
+  return TRUE;
+}
+
+static BOOL
+msg_write(JSContext* ctx, JSValueConst ret, const struct msghdr* m) {
+
+  if(m->msg_name)
+    JS_SetPropertyStr(ctx, ret, "name", JS_NewStringLen(ctx, m->msg_name, m->msg_namelen));
+
+  if(m->msg_iov && m->msg_iovlen) {
+    JSValue iov = JS_NewArray(ctx);
+
+    for(uint32_t i = 0; i < m->msg_iovlen; i++) {
+      const struct iovec* iv = &m->msg_iov[i];
+
+      JS_SetPropertyUint32(ctx, iov, i, JS_NewArrayBufferCopy(ctx, iv->iov_base, iv->iov_len));
+    }
+
+    JS_SetPropertyStr(ctx, ret, "iov", iov);
+  }
+
+  if(m->msg_flags)
+    JS_SetPropertyStr(ctx, ret, "flags", JS_NewInt32(ctx, m->msg_flags));
+
+  return TRUE;
+}
+
+typedef struct {
+  struct mmsghdr* msgvec;
+  unsigned vlen;
+} MultiMessageHeader;
+
+static BOOL
+mmsg_read(JSContext* ctx, JSValueConst arg, struct mmsghdr* mmh) {
+  JSValue hdr, len;
+
+  if(js_is_array(ctx, arg)) {
+    hdr = JS_GetPropertyUint32(ctx, arg, 0);
+    len = JS_GetPropertyUint32(ctx, arg, 1);
+
+  } else if(JS_IsObject(arg)) {
+    hdr = JS_GetPropertyStr(ctx, arg, "hdr");
+    len = JS_GetPropertyStr(ctx, arg, "len");
+  }
+
+  msg_read(ctx, hdr, &mmh->msg_hdr);
+  mmh->msg_len = js_touint64(ctx, len);
+
+  return TRUE;
+}
+
+static BOOL
+mmsgs_read(JSContext* ctx, JSValueConst arg, MultiMessageHeader* mm) {
+  if(js_is_array(ctx, arg) || js_is_iterable(ctx, arg)) {
+    mm->msgvec = 0;
+    mm->vlen = 0;
+
+    Iteration iter = ITERATION_INIT();
+
+    if(!iteration_method_symbol(&iter, ctx, arg, "iterator")) {
+      JS_ThrowInternalError(ctx, "Failed to iterate");
+      return FALSE;
+    }
+
+    while(!iteration_next(&iter, ctx)) {
+      JSValue value = iteration_value(&iter, ctx);
+      struct mmsghdr mmh = {};
+
+      mmsg_read(ctx, value, &mmh);
+
+      JS_FreeValue(ctx, value);
+
+      if(!(mm->msgvec = js_realloc(ctx, mm->msgvec, sizeof(*mm->msgvec) * (mm->vlen + 1))))
+        return FALSE;
+
+      mm->msgvec[mm->vlen++] = mmh;
+    }
+
+    iteration_reset(&iter, ctx);
+  }
+}
 
 static BOOL
 timeval_read(JSContext* ctx, JSValueConst arg, struct timeval* tv) {
@@ -1026,6 +1150,8 @@ socket_method(int magic) {
       "send",
       "recvfrom",
       "sendto",
+      "recvmsg",
+      "sendmsg",
       "getsockopt",
       "setsockopt",
       "shutdown",
@@ -1061,12 +1187,16 @@ enum {
   METHOD_ACCEPT = 0x02,
   METHOD_CONNECT = 0x03,
   METHOD_LISTEN = 0x04,
-  METHOD_RECV = 0x08 /* 0b1000 */,
-  METHOD_SEND = 0x09 /* 0b1001 */,
-  METHOD_RECVFROM = 0x0a /* 0b1010 */,
-  METHOD_SENDTO = 0x0b /* 0b1011 */,
-  METHOD_GETSOCKOPT /* 0b1100 */,
-  METHOD_SETSOCKOPT /* 0b1101 */,
+  METHOD_RECV = 0x08 /* 0b01000 */,
+  METHOD_SEND = 0x09 /* 0b01001 */,
+  METHOD_RECVFROM = 0x0a /* 0b01010 */,
+  METHOD_SENDTO = 0x0b /* 0b01011 */,
+  METHOD_RECVMSG = 0x0e /* 0b01110 */,
+  METHOD_SENDMSG = 0x0f /* 0b01111 */,
+  METHOD_RECVMMSG = 0x1e /* 0b11110 */,
+  METHOD_SENDMMSG = 0x1f /* 0b11111 */,
+  METHOD_GETSOCKOPT,
+  METHOD_SETSOCKOPT,
   METHOD_SHUTDOWN,
   METHOD_CLOSE,
 };
@@ -1457,7 +1587,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       case METHOD_RECV:
       case METHOD_RECVFROM:
       case METHOD_SEND:
-      case METHOD_SENDTO: {
+      case METHOD_SENDTO:
+      case METHOD_RECVMSG:
+      case METHOD_SENDMSG: {
         return JS_ThrowInternalError(ctx, "socket %s() wait assert", socket_method(magic));
         assert(0);
         break;
@@ -1703,6 +1835,33 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       if(socket_retval(*s) == 0)
         s->fd = UINT16_MAX;
+
+      break;
+    }
+
+    case METHOD_RECVMSG:
+    case METHOD_SENDMSG: {
+      int32_t flags = 0;
+      struct msghdr mh = {};
+
+      if(!msg_read(ctx, argv[0], &mh)) {
+        ret = JS_ThrowInternalError(ctx, "Error parsing msghdr structure");
+        break;
+      }
+
+      if(argc > 1)
+        JS_ToInt32(ctx, &flags, argv[1]);
+
+      if(magic == METHOD_SENDMSG)
+        JS_SOCKETCALL(SYSCALL_SENDMSG, s, sendmsg(socket_handle(*s), &mh, flags));
+      else
+        JS_SOCKETCALL(SYSCALL_RECVMSG, s, recvmsg(socket_handle(*s), &mh, flags));
+
+      break;
+    }
+
+    case METHOD_RECVMMSG:
+    case METHOD_SENDMMSG: {
 
       break;
     }
@@ -1990,6 +2149,8 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("close", 0, js_socket_method, METHOD_CLOSE),
     JS_CFUNC_MAGIC_DEF("getsockopt", 3, js_socket_method, METHOD_GETSOCKOPT),
     JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, METHOD_SETSOCKOPT),
+    JS_CFUNC_MAGIC_DEF("recvmsg", 1, js_socket_method, METHOD_RECVMSG),
+    JS_CFUNC_MAGIC_DEF("sendmsg", 1, js_socket_method, METHOD_SENDMSG),
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
@@ -2022,6 +2183,8 @@ static const JSCFunctionListEntry js_asyncsocket_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("close", 0, js_socket_method, METHOD_CLOSE),
     JS_CFUNC_MAGIC_DEF("getsockopt", 3, js_socket_method, METHOD_GETSOCKOPT),
     JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, METHOD_SETSOCKOPT),
+    JS_CFUNC_MAGIC_DEF("recvmsg", 1, js_asyncsocket_method, METHOD_RECVMSG),
+    JS_CFUNC_MAGIC_DEF("sendmsg", 1, js_asyncsocket_method, METHOD_SENDMSG),
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "AsyncSocket", JS_PROP_CONFIGURABLE),
