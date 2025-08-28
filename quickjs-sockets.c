@@ -139,7 +139,7 @@ js_sockaddr_new(JSContext* ctx, int family) {
 
 static JSValue
 js_sockaddr_args(JSContext* ctx, int* argcp, JSValueConst** argvp) {
-  JSValue ret = js_sockaddr_new(ctx, AF_INET);
+  JSValue ret = js_sockaddr_new(ctx, 0);
 
   if(!JS_IsException(ret)) {
     SockAddr* sa;
