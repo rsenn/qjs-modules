@@ -52,31 +52,20 @@ static BOOL js_socket_check_open(JSContext*, Socket);
 static JSValue js_socket_create(JSContext*, JSValueConst, int, JSValueConst[], BOOL);
 static JSValue js_socket_new_proto(JSContext*, JSValueConst, int, BOOL, BOOL);
 static int js_socket_address_family(JSValueConst);
+static int js_sockaddr_init(JSContext*, int, JSValueConst[], SockAddr*);
 
 JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_asyncsocket_class_id = 0;
 static JSValue sockaddr_proto, sockaddr_ctor, socket_proto, asyncsocket_proto, socket_ctor, asyncsocket_ctor;
 
 static const char* socketcall_names[] = {
-    "socket",
-    "getsockname",
-    "getpeername",
+    "socket",      "getsockname", "getpeername",
 #ifdef _WIN32
     "ioctlsocket",
 #else
     "fcntl",
 #endif
-    "bind",
-    "accept",
-    "connect",
-    "listen",
-    "recv",
-    "recvfrom",
-    "send",
-    "sendto",
-    "shutdown",
-    "close",
-    "getsockopt",
-    "setsockopt",
+    "bind",        "accept",      "accept4",     "connect",    "listen",  "recv",    "recvfrom", "send",     "sendto",
+    "shutdown",    "close",       "getsockopt",  "setsockopt", "recvmsg", "sendmsg", "recvmmsg", "sendmmsg",
 };
 
 static const char*
@@ -149,6 +138,26 @@ js_sockaddr_new(JSContext* ctx, int family) {
 }
 
 static JSValue
+js_sockaddr_from_argv(JSContext* ctx, int* argcp, JSValueConst** argvp) {
+  JSValue ret = js_sockaddr_new(ctx, AF_INET);
+
+  if(!JS_IsException(ret)) {
+    SockAddr* sa;
+
+    if((sa = js_sockaddr_data(ret))) {
+      int r;
+
+      if((r = js_sockaddr_init(ctx, *argcp, *argvp, sa)) > 0) {
+        *argcp -= r;
+        *argvp += r;
+      }
+    }
+  }
+
+  return ret;
+}
+
+static JSValue
 js_sockaddr_clone(JSContext* ctx, SockAddr addr) {
   JSValue obj = js_sockaddr_new(ctx, addr.family);
   SockAddr* a = js_sockaddr_data(obj);
@@ -158,8 +167,11 @@ js_sockaddr_clone(JSContext* ctx, SockAddr addr) {
   return obj;
 }
 
-static BOOL
+static int
 js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
+  JSValueConst* old_argv = argv;
+  int old_argc = argc;
+
   if(argc == 1 && js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
     size_t len;
@@ -168,7 +180,10 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
       if(len > 0)
         memcpy(a, data, MIN_NUM(len, sizeof(SockAddr)));
 
-    return TRUE;
+    argv++;
+    argc--;
+
+    goto end;
   }
 
   if(argc >= 1 && JS_IsNumber(argv[0])) {
@@ -283,7 +298,10 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
       a->ip6.sin6_port = htons(port);
   }
 
-  return TRUE;
+end:
+  int ret = argv - old_argv;
+
+  return ret;
 }
 
 static JSValue
@@ -568,9 +586,16 @@ msg_read(JSContext* ctx, JSValueConst arg, struct msghdr* m) {
   }
 
   if(js_has_propertystr(ctx, arg, "name")) {
-    size_t len;
-    m->msg_name = js_get_propertystr_stringlen(ctx, arg, "name", &len);
-    m->msg_namelen = len;
+    JSValue name = JS_GetPropertyStr(ctx, arg, "name");
+    InputBuffer buf = js_input_buffer(ctx, name);
+    JS_FreeValue(ctx, name);
+
+    if(buf.data && buf.size) {
+      m->msg_name = buf.data;
+      m->msg_namelen = buf.size;
+    }
+
+    input_buffer_free(&buf, ctx);
   }
 
   if(js_has_propertystr(ctx, arg, "flags"))
@@ -668,16 +693,21 @@ mmsgs_read(JSContext* ctx, JSValueConst arg, MultiMessageHeader* mm) {
     }
 
     iteration_reset(&iter, ctx);
+    return TRUE;
   }
+
+  return FALSE;
 }
 
 static BOOL
-mmsgs_write(JSContext* ctx, JSValueConst arg, const MultiMessageHeader* mm) {
-  for(size_t i = 0; i < mm->vlen; i++) {
+mmsgs_write(JSContext* ctx, JSValueConst arg, MultiMessageHeader mm) {
+  for(size_t i = 0; i < mm.vlen; i++) {
     JSValue mmsg = JS_GetPropertyUint32(ctx, arg, i);
-    mmsg_write(ctx, mmsg, &mm->msgvec[i]);
+    mmsg_write(ctx, mmsg, &mm.msgvec[i]);
     JS_FreeValue(ctx, mmsg);
   }
+
+  return TRUE;
 }
 
 static BOOL
@@ -744,6 +774,78 @@ timeval_write(JSContext* ctx, const struct timeval* tv, JSValueConst arg) {
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct timeval)) {
         memcpy(data, tv, sizeof(struct timeval));
+        return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
+static BOOL
+timespec_read(JSContext* ctx, JSValueConst arg, struct timespec* ts) {
+  if(JS_IsNumber(arg)) {
+    int64_t msecs = 0;
+
+    JS_ToInt64Ext(ctx, &msecs, arg);
+    ts->tv_sec = msecs / 1000;
+    msecs -= ts->tv_sec * 1000;
+    ts->tv_nsec = msecs * 1e06;
+
+    return TRUE;
+  }
+
+  if(js_is_array(ctx, arg) && js_array_length(ctx, arg) >= 2) {
+    int64_t sec = 0, nsec = 0;
+    JSValue member = JS_GetPropertyUint32(ctx, arg, 0);
+
+    JS_ToInt64Ext(ctx, &sec, member);
+    JS_FreeValue(ctx, member);
+    member = JS_GetPropertyUint32(ctx, arg, 1);
+    JS_ToInt64Ext(ctx, &nsec, member);
+    JS_FreeValue(ctx, member);
+    ts->tv_sec = sec;
+    ts->tv_nsec = nsec;
+
+    return TRUE;
+  }
+
+  if(js_is_arraybuffer(ctx, arg)) {
+    uint8_t* data;
+    size_t len;
+
+    if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
+      if(len >= sizeof(struct timespec)) {
+        memcpy(ts, data, sizeof(struct timespec));
+        return TRUE;
+      }
+    }
+  }
+
+  return FALSE;
+}
+
+static BOOL
+timespec_write(JSContext* ctx, const struct timespec* ts, JSValueConst arg) {
+  if(JS_IsNumber(arg))
+    return FALSE;
+
+  if(js_is_array(ctx, arg)) {
+    js_array_clear(ctx, arg);
+
+    JS_SetPropertyUint32(ctx, arg, 0, JS_NewBigInt64(ctx, ts->tv_sec));
+    JS_SetPropertyUint32(ctx, arg, 1, JS_NewBigInt64(ctx, ts->tv_nsec));
+
+    return TRUE;
+  }
+
+  if(js_is_arraybuffer(ctx, arg)) {
+    uint8_t* data;
+    size_t len;
+
+    if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
+      if(len >= sizeof(struct timespec)) {
+        memcpy(data, ts, sizeof(struct timespec));
         return TRUE;
       }
     }
@@ -1581,7 +1683,14 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   magic &= (ASYNC_READY - 1);
 
   if(magic >= METHOD_BIND && magic <= METHOD_CONNECT) {
-    if(!(a = js_sockaddr_data(argv[0])) && argc >= 2 && magic != METHOD_ACCEPT) {
+    int old_argc = argc;
+
+    sa = js_sockaddr_from_argv(ctx, &argc, &argv);
+
+    if(old_argc != argc) {
+      if(!JS_IsException(sa))
+        a = js_sockaddr_data2(ctx, sa);
+    } else if(!(a = js_sockaddr_data(argv[0])) && argc >= 2 && magic != METHOD_ACCEPT) {
       JSValueConst args[] = {
           JS_NewInt32(ctx, socket_address_family(*s)),
           argv[0],
@@ -1646,11 +1755,21 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_ACCEPT: {
       socklen_t addrlen = sockaddr_len(a);
 
-      JS_SOCKETCALL_RETURN(SYSCALL_ACCEPT,
-                           s,
-                           accept(socket_handle(*s), &a->s, &addrlen),
-                           socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)),
-                           js_socket_error(ctx, *s));
+      if(argc > 0) {
+        int32_t flags = 0;
+        JS_ToInt32(ctx, &flags, argv[0]);
+
+        JS_SOCKETCALL_RETURN(SYSCALL_ACCEPT4,
+                             s,
+                             accept4(socket_handle(*s), &a->s, &addrlen, flags),
+                             socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)),
+                             js_socket_error(ctx, *s));
+      } else
+        JS_SOCKETCALL_RETURN(SYSCALL_ACCEPT,
+                             s,
+                             accept(socket_handle(*s), &a->s, &addrlen),
+                             socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)),
+                             js_socket_error(ctx, *s));
 
       break;
     }
@@ -1884,6 +2003,33 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     case METHOD_RECVMMSG:
     case METHOD_SENDMMSG: {
+      int r;
+      int32_t flags = 0;
+      MultiMessageHeader mmh = {0, 0};
+      struct timespec ts = {}, *tptr = 0;
+
+      if(!mmsgs_read(ctx, argv[0], &mmh)) {
+        ret = JS_ThrowInternalError(ctx, "Error parsing mmsghdr structure");
+        break;
+      }
+
+      if(argc > 1)
+        JS_ToInt32(ctx, &flags, argv[1]);
+
+      if(magic == METHOD_RECVMMSG)
+        if(argc > 2)
+          if(timespec_read(ctx, argv[2], &ts))
+            tptr = &ts;
+
+      if(magic == METHOD_SENDMMSG)
+        JS_SOCKETCALL(SYSCALL_SENDMMSG, s, (r = sendmmsg(socket_handle(*s), mmh.msgvec, mmh.vlen, flags)));
+      else
+        JS_SOCKETCALL(SYSCALL_RECVMMSG, s, (r = recvmmsg(socket_handle(*s), mmh.msgvec, mmh.vlen, flags, tptr)));
+
+      if(r > 0) {
+        mmh.vlen = r;
+        mmsgs_write(ctx, argv[0], mmh);
+      }
 
       break;
     }
@@ -2173,6 +2319,8 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, METHOD_SETSOCKOPT),
     JS_CFUNC_MAGIC_DEF("recvmsg", 1, js_socket_method, METHOD_RECVMSG),
     JS_CFUNC_MAGIC_DEF("sendmsg", 1, js_socket_method, METHOD_SENDMSG),
+    JS_CFUNC_MAGIC_DEF("recvmmsg", 1, js_socket_method, METHOD_RECVMMSG),
+    JS_CFUNC_MAGIC_DEF("sendmmsg", 1, js_socket_method, METHOD_SENDMMSG),
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
@@ -2207,6 +2355,8 @@ static const JSCFunctionListEntry js_asyncsocket_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, METHOD_SETSOCKOPT),
     JS_CFUNC_MAGIC_DEF("recvmsg", 1, js_asyncsocket_method, METHOD_RECVMSG),
     JS_CFUNC_MAGIC_DEF("sendmsg", 1, js_asyncsocket_method, METHOD_SENDMSG),
+    JS_CFUNC_MAGIC_DEF("recvmmsg", 1, js_asyncsocket_method, METHOD_RECVMMSG),
+    JS_CFUNC_MAGIC_DEF("sendmmsg", 1, js_asyncsocket_method, METHOD_SENDMMSG),
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "AsyncSocket", JS_PROP_CONFIGURABLE),
@@ -2922,6 +3072,16 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
 #ifdef SOL_IRDA
     JS_CONSTANT_NONENUMERABLE(SOL_IRDA),
 #endif
+
+    JS_CONSTANT(MSG_EOR),
+    JS_CONSTANT(MSG_TRUNC),
+    JS_CONSTANT(MSG_CTRUNC),
+    JS_CONSTANT(MSG_OOB),
+    JS_CONSTANT(MSG_ERRQUEUE),
+
+    JS_CONSTANT(SHUT_RD),
+    JS_CONSTANT(SHUT_WR),
+    JS_CONSTANT(SHUT_RDWR),
 };
 
 static int

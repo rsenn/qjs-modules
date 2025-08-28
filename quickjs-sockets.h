@@ -118,6 +118,7 @@ enum SocketCalls {
   SYSCALL_FCNTL,
   SYSCALL_BIND,
   SYSCALL_ACCEPT,
+  SYSCALL_ACCEPT4,
   SYSCALL_CONNECT,
   SYSCALL_LISTEN,
   SYSCALL_RECV,
@@ -130,6 +131,8 @@ enum SocketCalls {
   SYSCALL_SETSOCKOPT,
   SYSCALL_RECVMSG,
   SYSCALL_SENDMSG,
+  SYSCALL_RECVMMSG,
+  SYSCALL_SENDMMSG,
 };
 
 #define socket_fd(sock) ((int16_t)(uint16_t)(sock).fd)
