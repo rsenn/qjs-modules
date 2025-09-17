@@ -11,7 +11,7 @@
 #include <cutils.h>
 #include <list.h>
 #define list_add mariadb_list_add
-#include <mariadb/mysql.h>
+#include <mysql.h>
 
 MYSQL* js_mysql_data(JSValueConst);
 MYSQL* js_mysql_data2(JSContext*, JSValueConst);

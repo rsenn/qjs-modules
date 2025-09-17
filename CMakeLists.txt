@@ -369,6 +369,9 @@ endif(MODULE_MAGIC)
 
 if(MODULE_MAGIC)
   set(magic_MODULE magic)
+  if(NOT LIBMAGIC_LIBRARY)  
+    set(magic_LIBRARIES magic)
+  endif(NOT LIBMAGIC_LIBRARY)  
 endif(MODULE_MAGIC)
 
 if(MODULE_MYSQL)

@@ -140,7 +140,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_ATAN2: {
       JSValue values[2] = {pr->binary.left, pr->binary.right};
       BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
-      double left, right, r=0;
+      double left, right, r = 0;
 
       for(size_t i = 0; i < 2; i++) {
         if(nullish[i])
@@ -170,16 +170,21 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_OR: {
-      for(size_t i = 0; i < pr->boolean.npredicates; i++)
-        if(JS_ToBool(ctx, (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
+      for(size_t i = 0; i < pr->boolean.npredicates; i++) {
+        JSArguments args2 = *args;
+        ret = predicate_value(ctx, pr->boolean.predicates[i], &args2);
+
+        if(JS_ToBool(ctx, ret))
           break;
+      }
 
       break;
     }
 
     case PREDICATE_AND: {
       for(size_t i = 0; i < pr->boolean.npredicates; i++) {
-        ret = predicate_value(ctx, pr->boolean.predicates[i], args);
+        JSArguments args2 = *args;
+        ret = predicate_value(ctx, pr->boolean.predicates[i], &args2);
 
         if(!JS_ToBool(ctx, ret))
           break;
@@ -820,7 +825,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     }
 
     case PREDICATE_REGEXP: {
-      //const char* arg = arguments_push(args, ctx, "str");
+      // const char* arg = arguments_push(args, ctx, "str");
       char flagbuf[32];
       regexp_flags_tostring(pr->regexp.expr.flags, flagbuf);
       dbuf_printf(dbuf, "/%s/%s.test(str)", pr->regexp.expr.source, flagbuf);

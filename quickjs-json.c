@@ -5,6 +5,11 @@
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
 
+struct js_json_parser_opaque {
+  JSContext* ctx;
+  JSObject *parser, *obj;
+};
+
 static JSValue
 js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -68,20 +73,17 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     case JSON_PARSER_PARSE: {
       JsonValueType type = json_parse(parser, ctx);
       ret = JS_NewString(ctx,
-                         (const char*[]){
-                             "NONE",
-                             "OBJECT",
-                             "OBJECT_END",
-                             "ARRAY",
-                             "ARRAY_END",
-                             "KEY",
-                             "STRING",
-                             "TRUE",
-                             "FALSE",
-                             "NULL",
-                             "NUMBER",
-
-                         }[type + 1]);
+                         (const char*[]){"NONE",
+                                         "OBJECT",
+                                         "OBJECT_END",
+                                         "ARRAY",
+                                         "ARRAY_END",
+                                         "KEY",
+                                         "STRING",
+                                         "TRUE",
+                                         "FALSE",
+                                         "NULL",
+                                         "NUMBER"}[type + 1]);
       break;
     }
   }
@@ -130,11 +132,6 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   return ret;
 }
-
-struct js_json_parser_opaque {
-  JSContext* ctx;
-  JSObject *parser, *obj;
-};
 
 static void
 js_json_parser_callback(JsonParser* parser, JsonValueType type, void* ptr) {
