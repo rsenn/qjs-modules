@@ -6,6 +6,41 @@ class EagleElement extends Element {
     super(...args);
 
     switch (this.tagName) {
+      case 'instance': {
+        Properties(this, {
+          part: () => this.ownerDocument.querySelector(`part[name="${this.getAttribute('part')}"]`),
+          gate: () => this.part.deviceset.querySelector(`gate[name="${this.getAttribute('gate')}"]`),
+        });
+        break;
+      }
+      case 'element': {
+        Properties(this, {
+          library: () => this.ownerDocument.querySelector(`library[name="${this.getAttribute('library')}"]`),
+          package() {
+            const { library } = this;
+            return library.querySelector(`package[name="${this.getAttribute('package')}"]`);
+          },
+        });
+        break;
+      }
+      case 'part': {
+        Properties(this, {
+          library: () => this.ownerDocument.querySelector(`library[name="${this.getAttribute('library')}"]`),
+          deviceset() {
+            const { library } = this;
+            return library.querySelector(`deviceset[name="${this.getAttribute('deviceset')}"]`);
+          },
+          device() {
+            const { deviceset } = this;
+            return deviceset.querySelector(`device[name="${this.getAttribute('device')}"]`);
+          },
+        });
+
+        break;
+      }
+    }
+
+    switch (this.tagName) {
       case 'board':
       case 'schematic':
       case 'sheet':
