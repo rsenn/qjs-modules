@@ -1,5 +1,5 @@
 import { define, properties, isNumber } from 'util';
-import { Factory } from 'dom';
+import { NamedNodeMap, Factory, ListAdapter } from 'dom';
 
 class EagleElement extends Element {
   constructor(...args) {
@@ -81,6 +81,13 @@ class EagleDocument extends Document {
             ownKeys: () => Node.raw(layers).children.map(e => e.attributes.name),
           },
         );
+      },
+    });
+
+    Properties(this, {
+      elements: () => {
+        const list = this.querySelector('elements');
+        if(list) return new NamedNodeMap(ListAdapter(list.children), 'name');
       },
     });
 
