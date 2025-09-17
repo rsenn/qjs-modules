@@ -170,9 +170,12 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_OR: {
-      for(size_t i = 0; i < pr->boolean.npredicates; i++)
-        if(JS_ToBool(ctx, (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
+      for(size_t i = 0; i < pr->boolean.npredicates; i++) {
+        ret = predicate_value(ctx, pr->boolean.predicates[i], args);
+
+        if(JS_ToBool(ctx, ret))
           break;
+}
 
       break;
     }

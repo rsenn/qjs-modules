@@ -9,6 +9,7 @@ class EagleElement extends Element {
       case 'board':
       case 'schematic':
       case 'sheet':
+      case 'library':
       case 'drawing': {
         for(const child of this.children) if(!(child.tagName in this)) Properties(this, { [child.tagName]: () => child });
 
