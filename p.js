@@ -87,7 +87,7 @@ class EagleDocument extends Document {
     Properties(this, {
       elements: () => {
         const list = this.querySelector('elements');
-        if(list) return new NamedNodeMap(ListAdapter(list.children), 'name');
+        if(list) return new NamedNodeMap(ListAdapter(Node.raw(list).children, 'name'));
       },
     });
 
