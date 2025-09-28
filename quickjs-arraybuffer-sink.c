@@ -72,7 +72,7 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
       InputBuffer buf = js_input_args(ctx, argc, argv);
 
       if(buf.data && buf.size) {
-        if(dbuf_put(s, buf.data, buf.size)) {
+        if(dbuf_put(s, input_buffer_data(&buf), input_buffer_length(&buf))) {
           input_buffer_free(&buf, ctx);
           return JS_ThrowInternalError(ctx, "Unable to write to ArrayBufferSink");
         }
