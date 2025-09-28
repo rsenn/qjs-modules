@@ -23,6 +23,8 @@ js_arraybuffer_sink_constructor(JSContext* ctx, JSValueConst new_target, int arg
   if(!(s = js_mallocz(ctx, sizeof(DynBuf))))
     return JS_EXCEPTION;
 
+  dbuf_init2(s, 0, 0);
+
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -63,6 +65,10 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
 
   switch(magic) {
     case METHOD_WRITE: {
+      if(!s->realloc_func) {
+        return JS_ThrowInternalError(ctx, "ArrayBufferSink has ended");
+      }
+
       InputBuffer buf = js_input_args(ctx, argc, argv);
 
       if(buf.data && buf.size) {
@@ -71,13 +77,20 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
 
       break;
     }
-    case METHOD_FLUSH:
+    case METHOD_FLUSH: {
+      if(s->buf && s->size) {
+        ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
+
+        dbuf_init2(s, 0, 0);
+      }
+
+      break;
+    }
     case METHOD_END: {
       if(s->buf && s->size) {
         ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
 
-        s->buf = NULL;
-        s->size = 0;
+        dbuf_free(s);
       }
 
       break;
@@ -139,8 +152,10 @@ static JSClassDef js_arraybuffer_sink_class = {
 
 static const JSCFunctionListEntry js_arraybuffer_sink_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("write", 1, js_arraybuffer_sink_method, METHOD_WRITE),
+    JS_CFUNC_MAGIC_DEF("flush", 0, js_arraybuffer_sink_method, METHOD_FLUSH),
+    JS_CFUNC_MAGIC_DEF("end", 0, js_arraybuffer_sink_method, METHOD_END),
     JS_CGETSET_MAGIC_DEF("size", js_arraybuffer_sink_get, NULL, PROP_SIZE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "DynBuf", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ArrayBufferSink", JS_PROP_CONFIGURABLE),
 };
 
 static int
@@ -155,12 +170,13 @@ js_arraybuffer_sink_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_arraybuffer_sink_proto_funcs));
   JS_SetClassProto(ctx, js_arraybuffer_sink_class_id, arraybuffer_sink_proto);
 
-  arraybuffer_sink_ctor = JS_NewCFunction2(ctx, js_arraybuffer_sink_constructor, "DynBuf", 1, JS_CFUNC_constructor, 0);
+  arraybuffer_sink_ctor =
+      JS_NewCFunction2(ctx, js_arraybuffer_sink_constructor, "ArrayBufferSink", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, arraybuffer_sink_ctor, arraybuffer_sink_proto);
 
   if(m) {
-    JS_SetModuleExport(ctx, m, "DynBuf", arraybuffer_sink_ctor);
+    JS_SetModuleExport(ctx, m, "ArrayBufferSink", arraybuffer_sink_ctor);
   }
 
   return 0;
@@ -177,7 +193,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_arraybuffer_sink_init))) {
-    JS_AddModuleExport(ctx, m, "DynBuf");
+    JS_AddModuleExport(ctx, m, "ArrayBufferSink");
   }
 
   return m;
