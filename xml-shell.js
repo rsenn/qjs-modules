@@ -79,6 +79,16 @@ function main(...args) {
     ...globalThis.xml,
     ...globalThis.dom,
     dom,
+    Q(...args) {
+      return document.querySelector(...args);
+    },
+    QA(...args) {
+      let result = document.querySelectorAll(...args);
+      try {
+        if(result) result = [...result];
+      } catch(e) {}
+      return result;
+    },
   });
 
   globalThis.parser ??= new Parser();
