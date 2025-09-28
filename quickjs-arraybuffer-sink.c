@@ -65,8 +65,8 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
     case METHOD_WRITE: {
       InputBuffer buf = js_input_args(ctx, argc, argv);
 
-      if(buf.buf && buf.size) {
-        ret = JS_NewInt32(ctx, dbuf_put(s, buf.buf, buf.size));
+      if(buf.data && buf.size) {
+        ret = JS_NewInt32(ctx, dbuf_put(s, buf.data, buf.size));
       }
 
       break;
@@ -139,37 +139,8 @@ static JSClassDef js_arraybuffer_sink_class = {
 
 static const JSCFunctionListEntry js_arraybuffer_sink_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("write", 1, js_arraybuffer_sink_method, METHOD_WRITE),
-
     JS_CGETSET_MAGIC_DEF("size", js_arraybuffer_sink_get, NULL, PROP_SIZE),
-
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "DynBuf", JS_PROP_CONFIGURABLE),
-};
-
-static const JSCFunctionListEntry js_arraybuffer_sink_static_funcs[] = {
-    JS_CONSTANT(TYPE_UNDEFINED),
-    JS_CONSTANT(TYPE_NULL),
-    JS_CONSTANT(TYPE_BOOL),
-    JS_CONSTANT(TYPE_INT),
-    JS_CONSTANT(TYPE_OBJECT),
-    JS_CONSTANT(TYPE_STRING),
-    JS_CONSTANT(TYPE_SYMBOL),
-    JS_CONSTANT(TYPE_BIG_FLOAT),
-    JS_CONSTANT(TYPE_BIG_INT),
-    JS_CONSTANT(TYPE_BIG_DECIMAL),
-    JS_CONSTANT(TYPE_ALL),
-    JS_CONSTANT(TYPE_PRIMITIVE),
-    JS_CONSTANT(RETURN_VALUE),
-    JS_CONSTANT(RETURN_PATH),
-    JS_CONSTANT(RETURN_VALUE_PATH),
-    JS_CONSTANT(FILTER_ACCEPT),
-    JS_CONSTANT(FILTER_REJECT),
-    JS_CONSTANT(FILTER_SKIP),
-};
-
-static const JSCFunctionListEntry js_tree_iterator_proto_funcs[] = {
-    JS_ITERATOR_NEXT_DEF("next", 0, js_tree_iterator_next, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TreeIterator", JS_PROP_CONFIGURABLE),
-    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_arraybuffer_sink_iterator),
 };
 
 static int
@@ -187,32 +158,9 @@ js_arraybuffer_sink_init(JSContext* ctx, JSModuleDef* m) {
   arraybuffer_sink_ctor = JS_NewCFunction2(ctx, js_arraybuffer_sink_constructor, "DynBuf", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, arraybuffer_sink_ctor, arraybuffer_sink_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             arraybuffer_sink_ctor,
-                             js_arraybuffer_sink_static_funcs,
-                             countof(js_arraybuffer_sink_static_funcs));
-
-  JS_NewClassID(&js_tree_iterator_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_tree_iterator_class_id, &js_tree_iterator_class);
-
-  tree_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             tree_iterator_proto,
-                             js_tree_iterator_proto_funcs,
-                             countof(js_tree_iterator_proto_funcs));
-  JS_SetClassProto(ctx, js_tree_iterator_class_id, tree_iterator_proto);
-
-  tree_iterator_ctor = JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, tree_iterator_ctor, tree_iterator_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             tree_iterator_ctor,
-                             js_arraybuffer_sink_static_funcs,
-                             countof(js_arraybuffer_sink_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "DynBuf", arraybuffer_sink_ctor);
-    JS_SetModuleExport(ctx, m, "TreeIterator", tree_iterator_ctor);
   }
 
   return 0;
@@ -230,7 +178,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   if((m = JS_NewCModule(ctx, module_name, js_arraybuffer_sink_init))) {
     JS_AddModuleExport(ctx, m, "DynBuf");
-    JS_AddModuleExport(ctx, m, "TreeIterator");
   }
 
   return m;
