@@ -2256,7 +2256,7 @@ function ProcessFile(source, recursive, depth = 0) {
         continue;
       }
 
-      log(`Import(recursive)`, compact(true), { recursive, file });
+      if(debug >= 1) log(`Import(recursive)`, compact(true), { recursive, file });
 
       ///file = NormalizePath(file);
       file = ModuleLoader.resolve(file);
@@ -2277,13 +2277,16 @@ function ProcessFile(source, recursive, depth = 0) {
       if(/\.(so|dll)$/i.test(file)) {
         if(printFiles) std.puts(`${path.resolve(file)}\n`);
       } else {
-        let ret = ProcessFile(file, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+        try {
+          ProcessFile(file, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+        } catch(e) {}
 
         //    log('ret',ret);
       }
 
       if(printImports) {
         const ids = imp.ids();
+        const rel = path.relative(file);
 
         std.puts(source + ':' + rel + ' ' + ids.join(' ') + `\n`);
       }
