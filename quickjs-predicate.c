@@ -725,12 +725,7 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
-      JSValue func, this_obj = JS_UNDEFINED;
-
-      func = predicate_nextarg(ctx, &args);
-
-      if(args.c)
-        this_obj = predicate_nextarg(ctx, &args);
+      JSValue func = predicate_nextarg(ctx, &args);
 
       ret = js_predicate_wrap(ctx, magic == PREDICATE_SOME ? predicate_some(func) : predicate_every(func));
       break;
