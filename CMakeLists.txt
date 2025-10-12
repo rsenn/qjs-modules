@@ -50,6 +50,11 @@ option(MODULE_SERIAL "Build 'serial' module" OFF)
 #option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
+set(LIB_MODULES
+    console db events fs io
+    #lexer/csv lexer/ecmascript
+    parser perf_hooks process repl require stack tty util)
+
 include(FindPkgConfig)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
@@ -207,7 +212,7 @@ if(NOT HAVE_GETDENTS64)
     add_definitions(-DHAVE_GETDENTS)
   endif(HAVE_GETDENTS)
 else(NOT HAVE_GETDENTS64)
-  add_definitions(-DHAVE_GETDENTS64)  
+  add_definitions(-DHAVE_GETDENTS64)
 endif(NOT HAVE_GETDENTS64)
 
 #dump(HAVE_GETDENTS64 HAVE_GETDENTS)
@@ -681,10 +686,6 @@ install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
-set(LIB_MODULES
-    console db events fs io
-    #lexer/csv lexer/ecmascript
-    parser perf_hooks process repl require stack tty util)
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
@@ -812,6 +813,12 @@ if(QUICKJS_INTERNAL)
   if(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
     set(HAVE_QJSCALC TRUE CACHE BOOL "Have qjscalc.js")
     var2define(HAVE_QJSCALC)
+
+    if(HAVE_QJSCALC)
+      #list(APPEND LIB_MODULES qjscalc)
+      relative_path(QJSCALC_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
+      compile_module("${QJSCALC_PATH}")
+    endif(HAVE_QJSCALC)
   endif(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
 endif(QUICKJS_INTERNAL)
 
