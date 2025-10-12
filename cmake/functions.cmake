@@ -1,7 +1,7 @@
 include(CheckFunctionExists)
 
 ##
-## var2define <VARIABLE NAMES...>
+## var2define <VARIABLE-NAMES...>
 ##
 function(DUMP)
   foreach(VAR ${ARGN})
@@ -19,7 +19,7 @@ function(DUMP)
 endfunction(DUMP)
 
 ##
-## var2define <NAME> [DEFINED_VALUE] [VAR_NAME]
+## var2define <NAME> [DEFINED_VALUE] [VARIABLE-NAME]
 ##
 function(VAR2DEFINE NAME)
   if("${ARGC}" GREATER 2)
@@ -46,7 +46,7 @@ function(VAR2DEFINE NAME)
 endfunction(VAR2DEFINE NAME)
 
 ##
-## canonicalize <OUTPUT VARIABLE> <STR>
+## canonicalize <OUTPUT-VARIABLE> <STR>
 ##
 function(CANONICALIZE OUTPUT_VAR STR)
   string(REGEX REPLACE "^-W" "WARN_" TMP_STR "${STR}")
@@ -58,7 +58,7 @@ function(CANONICALIZE OUTPUT_VAR STR)
 endfunction(CANONICALIZE OUTPUT_VAR STR)
 
 ##
-## basename <OUTPUT VARIABLE> <STR>
+## basename <OUTPUT-VARIABLE> <STR>
 ##
 function(BASENAME OUTPUT_VAR STR)
   string(REGEX REPLACE ".*/" "" TMP_STR "${STR}")
@@ -70,7 +70,7 @@ function(BASENAME OUTPUT_VAR STR)
 endfunction(BASENAME OUTPUT_VAR FILE)
 
 ##
-## dirname <OUTPUT VARIABLE> <STR>
+## dirname <OUTPUT-VARIABLE> <STR>
 ##
 function(DIRNAME OUTPUT_VAR STR)
   string(REGEX REPLACE "/[^/]+/*$" "" TMP_STR "${STR}")
@@ -82,7 +82,7 @@ function(DIRNAME OUTPUT_VAR STR)
 endfunction(DIRNAME OUTPUT_VAR FILE)
 
 ##
-## addprefix <OUTPUT VARIABLE> <PREFIX>
+## addprefix <OUTPUT-VARIABLE> <PREFIX>
 ##
 function(ADDPREFIX OUTPUT_VAR PREFIX)
   set(OUTPUT "")
@@ -93,7 +93,7 @@ function(ADDPREFIX OUTPUT_VAR PREFIX)
 endfunction(ADDPREFIX OUTPUT_VAR PREFIX)
 
 ##
-## addsuffix <OUTPUT VARIABLE> <PREFIX>
+## addsuffix <OUTPUT-VARIABLE> <PREFIX>
 ##
 function(ADDSUFFIX OUTPUT_VAR SUFFIX)
   set(OUTPUT "")
@@ -104,7 +104,7 @@ function(ADDSUFFIX OUTPUT_VAR SUFFIX)
 endfunction(ADDSUFFIX OUTPUT_VAR SUFFIX)
 
 ##
-## relative_path <OUTPUT VARIABLE> <RELATIVE_TO>
+## relative_path <OUTPUT-VARIABLE> <RELATIVE_TO>
 ##
 function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
   set(LIST "")
@@ -118,7 +118,7 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
 endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
 
 ##
-## check_function_def <FUNCTION NAME> [RESULT VARIABLE] [PREPROC_DEF]
+## check_function_def <FUNCTION-NAME> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
 ##
 macro(CHECK_FUNCTION_DEF FUNC)
   if(${ARGC} GREATER 1)
@@ -158,7 +158,7 @@ macro(CHECK_FUNCTION_DEF FUNC)
 endmacro(CHECK_FUNCTION_DEF FUNC)
 
 ##
-## check_functions <FUNCTION NAMES...>
+## check_functions <FUNCTION-NAMES...>
 ##
 macro(CHECK_FUNCTIONS)
   foreach(FUNC ${ARGN})
@@ -168,7 +168,7 @@ macro(CHECK_FUNCTIONS)
 endmacro(CHECK_FUNCTIONS)
 
 ##
-## check_functions_def <FUNCTION NAMES...>
+## check_functions_def <FUNCTION-NAMES...>
 ##
 macro(CHECK_FUNCTIONS_DEF)
   foreach(FUNC ${ARGN})
@@ -177,7 +177,7 @@ macro(CHECK_FUNCTIONS_DEF)
 endmacro(CHECK_FUNCTIONS_DEF)
 
 ##
-## clean_name <STRING> <OUTPUT VAR>
+## clean_name <STRING> <OUTPUT-VARIABLE>
 ##
 function(CLEAN_NAME STR OUTPUT_VAR)
   string(TOUPPER "${STR}" STR)
@@ -186,7 +186,7 @@ function(CLEAN_NAME STR OUTPUT_VAR)
 endfunction(CLEAN_NAME STR OUTPUT_VAR)
 
 ##
-## check_include_def <INCLUDE> [RESULT VARIABLE] [PREPROC_DEF]
+## check_include_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
 ##
 macro(CHECK_INCLUDE_DEF INC)
   if(ARGC GREATER_EQUAL 2)
@@ -212,7 +212,7 @@ macro(CHECK_INCLUDE_DEF INC)
 endmacro(CHECK_INCLUDE_DEF INC)
 
 ##
-## check_includes <INCLUDE FILES...>
+## check_includes <INCLUDE-FILES...>
 ##
 macro(CHECK_INCLUDES)
   foreach(INC ${ARGN})
@@ -222,7 +222,7 @@ macro(CHECK_INCLUDES)
 endmacro(CHECK_INCLUDES)
 
 ##
-## check_includes_def <INCLUDE FILES...>
+## check_includes_def <INCLUDE-FILES...>
 ##
 macro(CHECK_INCLUDES_DEF)
   foreach(INC ${ARGN})
@@ -245,7 +245,7 @@ macro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 endmacro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 
 ##
-## check_include_cxx_def <INCLUDE> [RESULT VARIABLE] [PREPROC_DEF]
+## check_include_cxx_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
 ##
 macro(CHECK_INCLUDE_CXX_DEF INC)
   if(ARGC GREATER_EQUAL 2)
@@ -269,7 +269,7 @@ macro(CHECK_INCLUDE_CXX_DEF INC)
 endmacro(CHECK_INCLUDE_CXX_DEF INC)
 
 ##
-## append_parent <VARIABLE NAME>
+## append_parent <VARIABLE-NAME>
 ##
 macro(APPEND_PARENT VAR)
   set(LIST "${${VAR}}")
@@ -278,7 +278,7 @@ macro(APPEND_PARENT VAR)
 endmacro(APPEND_PARENT VAR)
 
 ##
-## contains <LIST NAME> <VALUE> <OUTPUT VARIABE>
+## contains <LIST-NAME> <VALUE> <OUTPUT-VARIABLE>
 ##
 function(CONTAINS LIST VALUE OUTPUT)
   list(FIND "${LIST}" "${VALUE}" INDEX)
@@ -301,7 +301,7 @@ function(CONTAINS LIST VALUE OUTPUT)
 endfunction(CONTAINS LIST VALUE OUTPUT)
 
 ##
-## add_unique <LIST NAME> <VALUES...>
+## add_unique <LIST-NAME> <VALUES...>
 ##
 function(ADD_UNIQUE LIST)
   set(RESULT "${${LIST}}")
@@ -318,7 +318,7 @@ function(ADD_UNIQUE LIST)
 endfunction(ADD_UNIQUE LIST)
 
 ##
-## symlink <TARGET> <SYMLINK PATH>
+## symlink <TARGET> <SYMLINK-PATH>
 ##
 macro(SYMLINK TARGET LINK_NAME)
   install(
@@ -327,7 +327,7 @@ macro(SYMLINK TARGET LINK_NAME)
 endmacro(SYMLINK TARGET LINK_NAME)
 
 ##
-## rpath_append <VARIABLE NAME>
+## rpath_append <VARIABLE-NAME>
 ##
 macro(RPATH_APPEND VAR)
   foreach(VALUE ${ARGN})
@@ -340,7 +340,7 @@ macro(RPATH_APPEND VAR)
 endmacro(RPATH_APPEND VAR)
 
 ##
-## try_code <FILENAME> <CODE> <RESULT VARIABLE> <OUTPUT VARIABLE> <LIBS> <LINKER FLAGS>
+## try_code <FILENAME> <CODE> <RESULT-VARIABLE> <OUTPUT-VARIABLE> <LIBS> <LINKER-FLAGS>
 ##
 function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   if(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
@@ -357,7 +357,7 @@ function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
 endfunction()
 
 ##
-## check_external <NAME> <LIBS> <LINKER FLAGS> <OUTPUT VARIABLE>
+## check_external <NAME> <LIBS> <LINKER-FLAGS> <OUTPUT-VARIABLE>
 ##
 function(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
   try_code("test-${NAME}.c" "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
@@ -366,7 +366,7 @@ function(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
 endfunction(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
 
 ##
-## run_code <FILENAME> <CODE> <RESULT VARIABLE> <OUTPUT VARIABLE> <LIBS> <LINKER FLAGS>
+## run_code <FILENAME> <CODE> <RESULT-VARIABLE> <OUTPUT-VARIABLE> <LIBS> <LINKER-FLAGS>
 ##
 function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   string(RANDOM LENGTH 8 RND)
@@ -401,7 +401,7 @@ function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
 endfunction()
 
 ##
-## libname <OUTPUT VARIABLE> <FILENAME>
+## libname <OUTPUT-VARIABLE> <FILENAME>
 ##
 function(LIBNAME OUT_VAR FILENAME)
   string(REGEX REPLACE ".*/(lib|)" "" LIBNAME "${FILENAME}")
