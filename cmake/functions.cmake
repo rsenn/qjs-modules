@@ -244,6 +244,9 @@ macro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
   endif(${${INC_RESULT}})
 endmacro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 
+##
+## check_include_cxx_def <INCLUDE> [RESULT_VAR] [PREPROC_DEF]
+##
 macro(CHECK_INCLUDE_CXX_DEF INC)
   if(ARGC GREATER_EQUAL 2)
     set(RESULT_VAR "${ARGV1}")
@@ -265,12 +268,18 @@ macro(CHECK_INCLUDE_CXX_DEF INC)
   endif(${${RESULT_VAR}})
 endmacro(CHECK_INCLUDE_CXX_DEF INC)
 
+##
+## append_parent <VARIABLE NAME>
+##
 macro(APPEND_PARENT VAR)
   set(LIST "${${VAR}}")
   list(APPEND LIST ${ARGN})
   set("${VAR}" "${LIST}" PARENT_SCOPE)
 endmacro(APPEND_PARENT VAR)
 
+##
+## contains <LIST NAME> <VALUE> <OUTPUT VARIABE>
+##
 function(CONTAINS LIST VALUE OUTPUT)
   list(FIND "${LIST}" "${VALUE}" INDEX)
 
@@ -291,6 +300,9 @@ function(CONTAINS LIST VALUE OUTPUT)
   set("${OUTPUT}" "${RESULT}" PARENT_SCOPE)
 endfunction(CONTAINS LIST VALUE OUTPUT)
 
+##
+## add_unique <LIST NAME> <VALUES...>
+##
 function(ADD_UNIQUE LIST)
   set(RESULT "${${LIST}}")
 
@@ -305,12 +317,18 @@ function(ADD_UNIQUE LIST)
   set("${LIST}" "${RESULT}" PARENT_SCOPE)
 endfunction(ADD_UNIQUE LIST)
 
+##
+## symlink <TARGET> <SYMLINK PATH>
+##
 macro(SYMLINK TARGET LINK_NAME)
   install(
     CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})"
   )
 endmacro(SYMLINK TARGET LINK_NAME)
 
+##
+## rpath_append <VARIABLE NAME>
+##
 macro(RPATH_APPEND VAR)
   foreach(VALUE ${ARGN})
     if("${${VAR}}" STREQUAL "")
@@ -321,6 +339,9 @@ macro(RPATH_APPEND VAR)
   endforeach(VALUE ${ARGN})
 endmacro(RPATH_APPEND VAR)
 
+##
+## try_code <FILENAME> <CODE> <RESULT VARIABLE> <OUTPUT VARIABLE> <LIBS> <LINKER FLAGS>
+##
 function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   if(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" "${CODE}")
@@ -335,16 +356,13 @@ function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   endif(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
 endfunction()
 
+##
+## check_external <NAME> <LIBS> <LINKER FLAGS> <OUTPUT VARIABLE>
+##
 function(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
   try_code(
     "test-${NAME}.c"
-    "
-  extern int ${NAME}(void);
-  int main() {
-    ${NAME}();
-    return 0;
-  }
-  "
+    "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
     "${OUTPUT_VAR}"
     OUT
     "${LIBS}"
@@ -352,6 +370,9 @@ function(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
   #dump(OUTPUT_VAR OUT)
 endfunction(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
 
+##
+## run_code <FILENAME> <CODE> <RESULT VARIABLE> <OUTPUT VARIABLE> <LIBS> <LINKER FLAGS>
+##
 function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   string(RANDOM LENGTH 8 RND)
   set(FN "${CMAKE_CURRENT_BINARY_DIR}/${RND}-${FILE}")
@@ -384,6 +405,9 @@ function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   unset(RND)
 endfunction()
 
+##
+## libname <OUTPUT VARIABLE> <FILENAME>
+##
 function(LIBNAME OUT_VAR FILENAME)
   string(REGEX REPLACE ".*/(lib|)" "" LIBNAME "${FILENAME}")
   string(REGEX REPLACE "\.[^/.]+$" "" LIBNAME "${LIBNAME}")
@@ -391,6 +415,9 @@ function(LIBNAME OUT_VAR FILENAME)
   set(${OUT_VAR} "${LIBNAME}" PARENT_SCOPE)
 endfunction(LIBNAME OUT_VAR FILENAME)
 
+##
+## check_flag <FLAG> <VARIABLE>
+##
 function(CHECK_FLAG FLAG VAR)
   if(NOT VAR OR VAR STREQUAL "")
     string(TOUPPER "${FLAG}" TMP)
