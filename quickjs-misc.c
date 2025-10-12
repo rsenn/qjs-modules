@@ -87,11 +87,11 @@
 #include "glob.h"
 #endif
 
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
 #include "wordexp.h"
 #endif
 
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
 #include <sys/inotify.h>
 #endif
 #include "buffer-utils.h"
@@ -872,7 +872,7 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_NULL;
 }
 
-#ifdef HAVE_FMEMOPEN
+#if HAVE_FMEMOPEN
 static JSValue
 js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* ptr;
@@ -1176,7 +1176,7 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
-#ifdef HAVE_FNMATCH
+#if HAVE_FNMATCH
   ret = fnmatch(pattern, string, flags);
 #else
   ret = path_fnmatch5(pattern, plen, string, slen, flags);
@@ -1263,7 +1263,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
 static JSValue
 js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t start = 0, i;
@@ -1306,7 +1306,7 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-#ifdef HAVE_UNAME
+#if HAVE_UNAME
   struct utsname un;
 
   if(uname(&un) != -1) {
@@ -1740,7 +1740,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   int32_t ret = 0;
 
   switch(magic) {
-#ifdef HAVE_GETTID
+#if HAVE_GETTID
     case FUNC_GETTID: {
       ret = gettid();
       break;
@@ -2687,7 +2687,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
   return JS_NewBool(ctx, r >= 1);
 }
 
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
 static JSValue
 js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -2765,7 +2765,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
-#ifdef HAVE_DAEMON
+#if HAVE_DAEMON
 static JSValue
 js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   BOOL nochdir, noclose;
@@ -2777,21 +2777,21 @@ js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
-#ifdef HAVE_FORK
+#if HAVE_FORK
 static JSValue
 js_misc_fork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_syscall_result(ctx, fork);
 }
 #endif
 
-#ifdef HAVE_VFORK
+#if HAVE_VFORK
 static JSValue
 js_misc_vfork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_syscall_result(ctx, vfork);
 }
 #endif
 
-#ifdef HAVE_EXECVE
+#if HAVE_EXECVE
 static JSValue
 js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t nargs;
@@ -2838,7 +2838,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
-#ifdef HAVE_SETSID
+#if HAVE_SETSID
 static JSValue
 js_misc_setsid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_syscall_result(ctx, setsid);
@@ -2882,7 +2882,7 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_UNDEFINED;
 }
 
-#ifdef HAVE_LINK
+#if HAVE_LINK
 static JSValue
 js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *from, *to;
@@ -2897,7 +2897,7 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
-#ifdef HAVE_LINKAT
+#if HAVE_LINKAT
 static JSValue
 js_misc_linkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t olddirfd = -1, newdirfd = -1, flags = 0;
@@ -2922,7 +2922,7 @@ js_misc_linkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
-#ifdef HAVE_SYMLINK
+#if HAVE_SYMLINK
 static JSValue
 js_misc_symlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *target, *linkpath;
@@ -2937,7 +2937,7 @@ js_misc_symlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 #endif
 
-#ifdef HAVE_SYMLINKAT
+#if HAVE_SYMLINKAT
 static JSValue
 js_misc_symlinkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t newdirfd = -1;
@@ -2963,7 +2963,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JS_ToUint32(ctx, &mode, argv[1]);
 
   switch(magic) {
-#ifdef HAVE_FCHMOD
+#if HAVE_FCHMOD
     case 1: {
       int32_t fd = -1;
 
@@ -2973,7 +2973,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     }
 #endif
 
-#ifdef HAVE_CHMOD
+#if HAVE_CHMOD
     case 0: {
       const char* path;
 
@@ -2988,7 +2988,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return JS_UNDEFINED;
 }
 
-#ifdef HAVE_CHOWN
+#if HAVE_CHOWN
 static JSValue
 js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t owner = 0, group = 0;
@@ -3030,13 +3030,13 @@ js_misc_fsync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JS_ToInt32(ctx, &fd, argv[0]);
 
   switch(magic) {
-#ifdef HAVE_FSYNC
+#if HAVE_FSYNC
     case 0: {
       return js_syscall_result(ctx, fsync, fd);
     }
 #endif
 
-#ifdef HAVE_FDATASYNC
+#if HAVE_FDATASYNC
     case 1: {
       return js_syscall_result(ctx, fdatasync, fd);
     }
@@ -3056,7 +3056,7 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_ThrowRangeError(ctx, "argument 2 must be positive-integer");
 
   switch(magic) {
-#ifdef HAVE_TRUNCATE
+#if HAVE_TRUNCATE
     case 0: {
       const char* path;
 
@@ -3067,7 +3067,7 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
 #endif
 
-#ifdef HAVE_FTRUNCATE
+#if HAVE_FTRUNCATE
     case 1: {
       int32_t fd = -1;
 
@@ -3097,7 +3097,7 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     return JS_ThrowTypeError(ctx, "argument 2 must be an array");
 
   switch(magic) {
-#ifdef HAVE_UTIME
+#if HAVE_UTIME
     case 0: {
       struct utimbuf tms;
 
@@ -3123,13 +3123,13 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       tv[1].tv_usec = (mtime - tv[1].tv_sec * 1000) * 1000;
 
       switch(magic) {
-#ifdef HAVE_FUTIMES
+#if HAVE_FUTIMES
         case 3: return js_syscall_result(ctx, futimes, fd, tv);
 #endif
-#ifdef HAVE_LUTIMES
+#if HAVE_LUTIMES
         case 2: return js_syscall_result(ctx, lutimes, path, tv);
 #endif
-#ifdef HAVE_UTIMES
+#if HAVE_UTIMES
         case 1: return js_syscall_result(ctx, utimes, path, tv);
 #endif
       }
@@ -3152,7 +3152,7 @@ js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return js_syscall_result(ctx, unlink, file);
 }
 
-#ifdef HAVE_ACCESS
+#if HAVE_ACCESS
 static JSValue
 js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t mode = -1;
@@ -3163,7 +3163,7 @@ js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
-#ifdef HAVE_FCNTL
+#if HAVE_FCNTL
 static JSValue
 js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1, cmd = -1, arg = -1;
@@ -3208,7 +3208,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
   new64.u = use_bigint ? JS_NewBigUint64 : (JSValue (*)(JSContext*, uint64_t))&JS_NewInt64;
 
-#ifdef HAVE_FSTAT
+#if HAVE_FSTAT
   if((res = fstat(fd, &st)) == -1)
     return js_syscallerror_throw_free(ctx, "fstat", ret);
 #else
@@ -3218,7 +3218,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     strcpy(pbuf, "/proc/self/fd/");
     pbuf[fmt_ulong(&pbuf[14], fd)] = '\0';
 
-    if((res = fstat(pbuf, &st)) == -1)
+    if((res = stat(pbuf, &st)) == -1)
       return js_syscallerror_throw_free(ctx, "stat", ret);
   }
 #endif
@@ -3432,90 +3432,90 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
 #endif
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
     JS_CFUNC_DEF("watch", 1, js_misc_watch),
 #endif
-#ifdef HAVE_DAEMON
+#if HAVE_DAEMON
     JS_CFUNC_DEF("daemon", 2, js_misc_daemon),
 #endif
-#ifdef HAVE_FORK
+#if HAVE_FORK
     JS_CFUNC_DEF("fork", 0, js_misc_fork),
 #endif
-#ifdef HAVE_VFORK
+#if HAVE_VFORK
     JS_CFUNC_DEF("vfork", 0, js_misc_vfork),
 #endif
-#ifdef HAVE_EXECVE
+#if HAVE_EXECVE
     JS_CFUNC_DEF("exec", 2, js_misc_exec),
 #endif
     JS_CFUNC_DEF("kill", 1, js_misc_kill),
-#ifdef HAVE_SETSID
+#if HAVE_SETSID
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
-#ifdef HAVE_LINK
+#if HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
 #endif
-#ifdef HAVE_LINKAT
+#if HAVE_LINKAT
     JS_CFUNC_DEF("linkat", 3, js_misc_linkat),
     JS_CONSTANT(AT_EMPTY_PATH),
     JS_CONSTANT(AT_SYMLINK_FOLLOW),
 #endif
-#ifdef HAVE_SYMLINK
+#if HAVE_SYMLINK
     JS_CFUNC_DEF("symlink", 2, js_misc_symlink),
 #endif
-#ifdef HAVE_SYMLINKAT
+#if HAVE_SYMLINKAT
     JS_CFUNC_DEF("symlinkat", 3, js_misc_symlinkat),
 #endif
-#ifdef HAVE_CHMOD
+#if HAVE_CHMOD
     JS_CFUNC_MAGIC_DEF("chmod", 2, js_misc_chmod, 0),
 #endif
-#ifdef HAVE_FCHMOD
+#if HAVE_FCHMOD
     JS_CFUNC_MAGIC_DEF("fchmod", 2, js_misc_chmod, 1),
 #endif
-#ifdef HAVE_CHOWN
+#if HAVE_CHOWN
     JS_CFUNC_MAGIC_DEF("chown", 3, js_misc_chown, 0),
 #endif
-#ifdef HAVE_FCHOWN
+#if HAVE_FCHOWN
     JS_CFUNC_MAGIC_DEF("fchown", 3, js_misc_chown, 1),
 #endif
-#ifdef HAVE_LCHOWN
+#if HAVE_LCHOWN
     JS_CFUNC_MAGIC_DEF("lchown", 3, js_misc_chown, 2),
 #endif
-#ifdef HAVE_FSYNC
+#if HAVE_FSYNC
     JS_CFUNC_MAGIC_DEF("fsync", 1, js_misc_fsync, 0),
 #endif
-#ifdef HAVE_FDATASYNC
+#if HAVE_FDATASYNC
     JS_CFUNC_MAGIC_DEF("fdatasync", 1, js_misc_fsync, 1),
 #endif
-#ifdef HAVE_TRUNCATE
+#if HAVE_TRUNCATE
     JS_CFUNC_MAGIC_DEF("truncate", 2, js_misc_truncate, 0),
 #endif
-#ifdef HAVE_FTRUNCATE
+#if HAVE_FTRUNCATE
     JS_CFUNC_MAGIC_DEF("ftruncate", 2, js_misc_truncate, 1),
 #endif
-#ifdef HAVE_UTIME
+#if HAVE_UTIME
     JS_CFUNC_MAGIC_DEF("utime", 2, js_misc_utime, 0),
 #endif
-#ifdef HAVE_UTIMES
+#if HAVE_UTIMES
     JS_CFUNC_MAGIC_DEF("utimes", 2, js_misc_utime, 1),
 #endif
-#ifdef HAVE_LUTIMES
+#if HAVE_LUTIMES
     JS_CFUNC_MAGIC_DEF("lutimes", 2, js_misc_utime, 2),
 #endif
-#ifdef HAVE_FUTIMES
+#if HAVE_FUTIMES
     JS_CFUNC_MAGIC_DEF("futimes", 2, js_misc_utime, 3),
 #endif
-#ifdef HAVE_ACCESS
+#if HAVE_ACCESS
     JS_CFUNC_DEF("access", 2, js_misc_access),
     JS_CONSTANT(F_OK),
     JS_CONSTANT(R_OK),
     JS_CONSTANT(W_OK),
     JS_CONSTANT(X_OK),
 #endif
-#ifdef HAVE_FCNTL
+#if HAVE_FCNTL
     JS_CFUNC_DEF("fcntl", 2, js_misc_fcntl),
     JS_CONSTANT(FD_CLOEXEC),
     JS_CONSTANT(F_DUPFD),
@@ -3564,7 +3564,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
     JS_CFUNC_DEF("memcmp", 2, js_misc_memcmp),
-#ifdef HAVE_FMEMOPEN
+#if HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
 #endif
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
@@ -3577,7 +3577,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),
     JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_DEF("getPrototypeChain", 0, js_misc_getprototypechain),
-#ifdef HAVE_GETTID
+#if HAVE_GETTID
     JS_CFUNC_MAGIC_DEF("gettid", 0, js_misc_getx, FUNC_GETTID),
 #endif
 #ifndef __wasi__
@@ -3705,7 +3705,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
     JS_CONSTANT(JS_EVAL_FLAG_MASK),
-#ifdef HAVE_FNMATCH
+#if HAVE_FNMATCH
     JS_CONSTANT(FNM_CASEFOLD),
 #ifdef FNM_EXTMATCH
     JS_CONSTANT(FNM_EXTMATCH),
@@ -3734,7 +3734,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(GLOB_ABORTED),
     JS_CONSTANT(GLOB_NOMATCH),
     JS_CONSTANT(GLOB_NOSYS),
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
     JS_CONSTANT(WRDE_SHOWERR),
     JS_CONSTANT(WRDE_UNDEF),
     JS_CONSTANT(WRDE_BADCHAR),
@@ -3744,7 +3744,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
 #endif
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
     JS_CONSTANT(IN_ACCESS),
     JS_CONSTANT(IN_MODIFY),
     JS_CONSTANT(IN_ATTRIB),

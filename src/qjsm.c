@@ -123,7 +123,11 @@ module_has_suffix(const char* module_name) {
   return 0;
 }
 
+<<<<<<< HEAD
 #if HAVE_JS_GETMODULELOADERFUNC
+=======
+#if HAVE_GET_MODULE_LOADER_FUNC
+>>>>>>> 154d476a (...)
 JSModuleLoaderFunc* js_std_get_module_loader_func();
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #endif
@@ -194,7 +198,7 @@ static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
 jsm_module_extern_compiled(qjscalc);
 #endif
 static int bignum_ext = 1;
@@ -1454,7 +1458,7 @@ jsm_help(void) {
 #ifdef CONFIG_BIGNUM
          "    --no-bignum    disable the bignum extensions (BigFloat, "
          "BigDecimal)\n"
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
          "    --qjscalc      load the QJSCalc runtime (default if invoked as "
          "qjscalc)\n"
 #endif
@@ -1952,7 +1956,7 @@ main(int argc, char** argv) {
        dump_unhandled_promise_rejection = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
   int load_jscalc;
 #endif
 
@@ -1965,7 +1969,7 @@ main(int argc, char** argv) {
   // printf("n = %zu, exename = %s, exelen = %d\n", n, exename, (int)exelen);
 
   /* load jscalc runtime if invoked as 'qjscalc' */
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
   load_jscalc = !strcmp(exename, "qjscalc");
 #endif
 
@@ -2085,7 +2089,7 @@ main(int argc, char** argv) {
         bignum_ext = 1;
         break;
       }
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
       if(!strcmp(longopt, "qjscalc")) {
         load_jscalc = 1;
         break;
@@ -2153,7 +2157,7 @@ main(int argc, char** argv) {
     }
   }
 
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
   if(load_jscalc)
     bignum_ext = 1;
 #endif
@@ -2202,7 +2206,7 @@ main(int argc, char** argv) {
     DynBuf db;
     js_dbuf_init(jsm_ctx, &db);
 
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
     if(load_jscalc) {
       js_eval_binary(jsm_ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }

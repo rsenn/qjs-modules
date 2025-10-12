@@ -614,7 +614,7 @@ js_opcode_list(JSContext* ctx, BOOL as_object) {
   return ret;
 }
 
-#ifdef HAVE_JS_DEBUGGER_BUILD_BACKTRACE
+#if HAVE_JS_DEBUGGER_BUILD_BACKTRACE
 JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
 
 JSValue
