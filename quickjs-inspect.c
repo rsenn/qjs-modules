@@ -392,7 +392,7 @@ put_escaped(Writer* wr, const char* str, size_t len) {
     ch = c;
     r = c > 0xff ? 0 : table[c];
 
-    if(/*clen > 2 ||*/ c > 0xffff)
+    if(clen >= 2 /*|| c > 0xffff*/)
       r = 'u';
 
     if(r == 'u' && clen > 1 && (c & 0xff) == 0) {
