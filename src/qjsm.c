@@ -123,11 +123,7 @@ module_has_suffix(const char* module_name) {
   return 0;
 }
 
-<<<<<<< HEAD
 #if HAVE_JS_GETMODULELOADERFUNC
-=======
-#if HAVE_GET_MODULE_LOADER_FUNC
->>>>>>> 154d476a (...)
 JSModuleLoaderFunc* js_std_get_module_loader_func();
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #endif
