@@ -489,25 +489,6 @@ js_module_at(JSContext* ctx, int index) {
   return 0;
 }
 
-void
-js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
-  JSString* jstr = opaque;
-
-  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
-}
-
-JSValue
-js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
-  JSString* jstr;
-
-  if(!JS_IsString(str))
-    return JS_ThrowTypeError(ctx, "Not a string");
-
-  jstr = js_value_ptr(JS_DupValue(ctx, str));
-
-  return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);
-}
-
 void*
 js_sab_alloc(void* opaque, size_t size) {
   JSSABHeader* sab;
