@@ -2131,6 +2131,8 @@ main(int argc, char** argv) {
 
   jsm_init_modules(jsm_ctx);
 
+  JSModuleLoaderFunc* module_loader = 0;
+
 #if HAVE_JS_GETMODULELOADERFUNC
   module_loader = js_std_get_module_loader_func();
 #endif
