@@ -108,6 +108,11 @@ check_library_exists(m atan2 "" HAVE_LIBMATH)
 if(HAVE_LIBMATH)
   link_libraries(m)
 endif(HAVE_LIBMATH)
+
+check_library_exists(quickjs js_std_file "${QUICKJS_LIBRARY_DIR}" HAVE_JS_STD_FILE)
+
+var2define(HAVE_JS_STD_FILE)
+
 check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
 if(HAVE_JS_PROMISE_STATE)
   add_definitions(-DHAVE_JS_PROMISE_STATE)
@@ -336,22 +341,17 @@ if(MODULE_ARCHIVE)
     include(FindLibArchive)
   endif(BUILD_LIBARCHIVE)
 
-  #if(NOT LibArchive_FOUND)
-  #  message(FATAL_ERROR "libarchive not found")
-  #endif(NOT LibArchive_FOUND)
-
   if(LibArchive_FOUND)
     set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
   endif(LibArchive_FOUND)
 endif(MODULE_ARCHIVE)
 
 if(MODULE_MAGIC)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindLibMagic.cmake)
-find_libmagic()
-endif(MODULE_MAGIC)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindLibMagic.cmake)
+  find_libmagic()
 
-if(MODULE_MAGIC)
   set(magic_MODULE magic)
+
   if(NOT LIBMAGIC_LIBRARY)
     set(magic_LIBRARIES magic)
   endif(NOT LIBMAGIC_LIBRARY)
@@ -802,6 +802,14 @@ function(WATCH_INTERNAL_READ VAR VALUE UNKNOWN)
   endif(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
 endfunction(WATCH_INTERNAL_READ VAR VALUE UNKNOWN)
 
+function(WATCH_INTERNAL_DEFINED VAR VALUE UNKNOWN)
+  set(OLD_VALUE "${${VAR}_VALUE}")
+  if(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
+    set("${VAR}_VALUE" "${VALUE}" PARENT_SCOPE)
+    message(STATUS "[1;32mDEINED[0m     ${VAR} VALUE=${VALUE} OLD_VALUE=${OLD_VALUE}")
+  endif(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
+endfunction(WATCH_INTERNAL_DEFINED VAR VALUE UNKNOWN)
+
 function(WATCH_INTERNAL_REMOVED VAR VALUE UNKNOWN)
   set("${VAR}_VALUE" "" PARENT_SCOPE)
   message(STATUS "[1;31mREMOVED [0m     ${VAR}")
@@ -838,11 +846,24 @@ endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
 set(QUICKJS_INTERNAL "${QUICKJS_INTERNAL}" CACHE BOOL "Generate quickjs-internal.h" FORCE)
 
+if(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+  set(QUICKJS_SOURCES_ROOT "${QUICKJS_SOURCES_ROOT}" CACHE PATH "QuickJS source directory" FORCE)
+else(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+  unset(QUICKJS_SOURCES_ROOT)
+  unset(QUICKJS_SOURCES_ROOT CACHE)
+  unset(QUICKJS_INTERNAL)
+  unset(QUICKJS_INTERNAL CACHE)
+endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+
 dump(QUICKJS_SOURCES_ROOT QUICKJS_INTERNAL)
 
 if(QUICKJS_INTERNAL)
   add_definitions(-DQUICKJS_INTERNAL=1)
+else(QUICKJS_INTERNAL)
+  add_definitions(-DQUICKJS_INTERNAL=0)
+endif(QUICKJS_INTERNAL)
 
+if(QUICKJS_INTERNAL)
   set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
 
   execute_process(

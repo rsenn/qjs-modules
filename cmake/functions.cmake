@@ -13,6 +13,17 @@ function(DUMP)
   endforeach(VAR ${ARGN})
 endfunction(DUMP)
 
+function(VAR2DEFINE NAME)
+  set(VALUE "${${NAME}}")
+
+  if("${VALUE}")
+    add_definitions(-D${NAME}=1)
+ else("${VALUE}")
+    add_definitions(-D${NAME}=0)
+  endif("${VALUE}")
+
+endfunction(VAR2DEFINE NAME)
+
 function(CANONICALIZE OUTPUT_VAR STR)
   string(REGEX REPLACE "^-W" "WARN_" TMP_STR "${STR}")
 

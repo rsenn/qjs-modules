@@ -141,7 +141,7 @@ int lutimes(const char*, const struct timeval[2]);
 #endif
 
 #define TextAttrColor(n) \
-  (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
+  (((n) & 1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
    (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
 #define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
@@ -906,7 +906,11 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   FILE* f = fmemopen(ptr, len, mode);
   JS_FreeCString(ctx, mode);
 
-  return f ? js_std_file(ctx, f) : JS_NULL;
+  return
+#if HAVE_JS_STD_FILE
+      f ? js_std_file(ctx, f) :
+#endif
+        JS_NULL;
 }
 #endif
 

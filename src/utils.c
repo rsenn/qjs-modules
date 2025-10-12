@@ -75,7 +75,9 @@ list_size(struct list_head* list) {
   struct list_head* el;
   size_t i = 0;
 
-  list_for_each(el, list) { ++i; }
+  list_for_each(el, list) {
+    ++i;
+  }
 
   return i;
 }
@@ -2519,7 +2521,7 @@ js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
 
 JSValue
 module_value(JSContext* ctx, JSModuleDef* m) {
-  return m == NULL ? JS_NULL : JS_NewInt32(ctx, js_module_indexof(ctx, m));
+  return m == NULL ? JS_NULL : JS_NewInt32(ctx, module_indexof(ctx, m));
   // return JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
 }
 
@@ -3032,7 +3034,7 @@ js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
 
   return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);*/
 
-  const char*x;
+  const char* x;
   size_t n;
 
   if((x = JS_ToCStringLen(ctx, &n, str))) {

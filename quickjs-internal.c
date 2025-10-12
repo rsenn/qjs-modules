@@ -443,7 +443,7 @@ js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
 }
 
 int
-js_module_indexof(JSContext* ctx, JSModuleDef* def) {
+module_indexof(JSContext* ctx, JSModuleDef* def) {
   int i = 0;
   struct list_head* el;
 

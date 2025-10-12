@@ -315,7 +315,9 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   arr = JS_NewArray(ctx);
   n = 0;
 
-  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
+  vector_foreach_t(&opts->hide_keys, key) {
+    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
+  }
 
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
@@ -1293,7 +1295,11 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
     case JS_TAG_MODULE: {
       JSModuleDef* def = JS_VALUE_GET_PTR(value);
-      const char* name = module_namecstr(ctx, def);
+      const char* name = 0;
+
+#if QUICKJS_INTERNAL
+      name = module_namecstr(ctx, def);
+#endif
 
       writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[module '" : "[module '");
       writer_puts(wr, name);

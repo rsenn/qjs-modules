@@ -1197,7 +1197,7 @@ JSModuleDef* js_module_find(JSContext*, const char* name);
 JSModuleDef* js_module_find_from(JSContext*, const char* name, int pos);
 JSModuleDef* js_module_find_fwd(JSContext*, const char* name, JSModuleDef* start);
 JSModuleDef* js_module_find_rev(JSContext*, const char* name, JSModuleDef* start);
-int js_module_indexof(JSContext*, JSModuleDef* def);
+int module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
 JSModuleDef* js_module_load(JSContext*, const char* name);
 

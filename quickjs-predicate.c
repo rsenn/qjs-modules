@@ -715,7 +715,8 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       break;
     }
 
-    case PREDICATE_SOME: case PREDICATE_EVERY: {
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
       JSValue func, this_obj = JS_UNDEFINED;
 
       func = predicate_nextarg(ctx, &args);
@@ -723,8 +724,7 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       if(args.c)
         this_obj = predicate_nextarg(ctx, &args);
 
-      ret = js_predicate_wrap(
-          ctx, magic == PREDICATE_SOME ?   predicate_some(func) : predicate_every(func));
+      ret = js_predicate_wrap(ctx, magic == PREDICATE_SOME ? predicate_some(func) : predicate_every(func));
       break;
     }
   }
@@ -888,8 +888,9 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       break;
     }
 
-    case PREDICATE_SOME:case PREDICATE_EVERY: {
-      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->array.predicate), JS_PROP_ENUMERABLE); 
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->array.predicate), JS_PROP_ENUMERABLE);
       break;
     }
   }
