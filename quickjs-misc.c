@@ -1056,11 +1056,11 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
-js_misc_procline(JSContext* ctx, const char* x, size_t len, size_t max_items) {
+js_misc_procline(JSContext* ctx, const char* x, size_t len, int max_items) {
   JSValue ret = JS_NewArray(ctx);
 
   for(size_t p = 0, i = 0; p < len; p += scan_whitenskip(&x[p], len - p)) {
-    size_t q = (i + 1) >= max_items ? len - p : scan_nonwhitenskip(&x[p], len - p);
+    size_t q = (max_items >= 0 && (i + 1) >= max_items) ? len - p : scan_nonwhitenskip(&x[p], len - p);
 
     JS_SetPropertyUint32(ctx, ret, i++, JS_NewStringLen(ctx, &x[p], q));
 
