@@ -200,7 +200,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
     const char* str;
 
     if((str = JS_ToCString(ctx, argv[0]))) {
-#if HAVE_LINUX_NETWORK_HEADERS
+#ifdef HAVE_LINUX_NETWORK_HEADERS
 
       if(a->family == AF_IPX) {
         str_copyn((char*)a->ipx.sipx_node, str, sizeof(a->ipx.sipx_node));
@@ -252,7 +252,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           a->family = AF_INET;
         else if(inet_pton(AF_INET6, str, &a->ip6.sin6_addr) > 0)
           a->family = AF_INET6;
-#if HAVE_AF_UNIX
+#ifdef HAVE_AF_UNIX
       } else if(a->family == AF_UNIX) {
         str_copyn(a->un.sun_path, str, sizeof(a->un.sun_path));
 #endif
@@ -367,7 +367,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       char port[FMT_ULONG];
       DynBuf dbuf;
 
-#if HAVE_AF_UNIX
+#ifdef HAVE_AF_UNIX
       if(a->family == AF_UNIX) {
         js_dbuf_init(ctx, &dbuf);
         dbuf_putstr(&dbuf, "unix://");
@@ -444,7 +444,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-#if HAVE_AF_UNIX
+#ifdef HAVE_AF_UNIX
     case SOCKADDR_PATH: {
       if(a->family == AF_UNIX)
         ret = JS_NewString(ctx, a->un.sun_path);
@@ -506,7 +506,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       break;
     }
 
-#if HAVE_AF_UNIX
+#ifdef HAVE_AF_UNIX
     case SOCKADDR_PATH: {
       if(a->family == AF_UNIX) {
         const char* str;
