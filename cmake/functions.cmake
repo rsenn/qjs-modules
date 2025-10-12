@@ -7,7 +7,7 @@ function(DUMP)
     string(REGEX REPLACE "[ \t\n]+" "\n" A "${${VAR}}")
     string(REGEX REPLACE "\n" ";" A "${A}")
     string(REGEX REPLACE ";" "${SEPARATOR}" A "${A}")
-    
+
     message("  ${VAR} = ${A}")
 
   endforeach(VAR ${ARGN})
