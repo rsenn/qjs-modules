@@ -207,7 +207,7 @@ if(NOT HAVE_GETDENTS64)
     add_definitions(-DHAVE_GETDENTS)
   endif(HAVE_GETDENTS)
 else(NOT HAVE_GETDENTS64)
-  add_definitions(-DHAVE_GETDENTS64)
+  add_definitions(-DHAVE_GETDENTS64)  
 endif(NOT HAVE_GETDENTS64)
 
 #dump(HAVE_GETDENTS64 HAVE_GETDENTS)
@@ -808,6 +808,11 @@ if(QUICKJS_INTERNAL)
     "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
   )
   list(APPEND LIBRARY_SOURCES quickjs-internal.c)
+
+  if(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
+    set(HAVE_QJSCALC TRUE CACHE BOOL "Have qjscalc.js")
+    var2define(HAVE_QJSCALC)
+  endif(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
 endif(QUICKJS_INTERNAL)
 
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
