@@ -337,6 +337,14 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         *pr = predicate_function(func, this_obj, MAX_NUM(1, js_get_propertystr_int32(ctx, func, "length")));
         break;
       }
+
+      case PREDICATE_SOME:
+      case PREDICATE_EVERY: {
+        JSValue func = predicate_nextarg(ctx, &args);
+
+        *pr = id == PREDICATE_SOME ? predicate_some(func) : predicate_every(func);
+        break;
+      }
     }
   }
 
