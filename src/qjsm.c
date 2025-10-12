@@ -1428,12 +1428,12 @@ static const JSMallocFunctions trace_mf = {
 #if defined(__APPLE__)
     malloc_size,
 #elif defined(_WIN32)
-    (size_t(*)(const void*))_msize,
+    (size_t (*)(const void*))_msize,
 #elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
     defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
-    (size_t(*)(const void*))malloc_usable_size,
+    (size_t (*)(const void*))malloc_usable_size,
 #else
 #warning change this to `0,` if compilation fails
     /* change this to `0,` if compilation fails */
@@ -1668,9 +1668,10 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case REQUIRE_MODULE: {
+#if QUICKJS_INTERNAL
       if((m = jsm_module_loader(ctx, name, NULL)))
         val = module_exports(ctx, m);
-
+#endif
       break;
     }
 
@@ -1855,7 +1856,9 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, EVAL_FILE),
     JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
     JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
+#if QUICKJS_INTERNAL
     JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
+#endif
     JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
     JS_CFUNC_MAGIC_DEF("moduleLoader", 1, jsm_module_func, MODULE_LOADER),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),

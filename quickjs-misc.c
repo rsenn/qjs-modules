@@ -1933,9 +1933,12 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case STRING_POINTER: {
+#if QUICKJS_INTERNAL
       if(JS_IsString(argv[0])) {
         ret = js_newpointer(ctx, js_cstring_ptr(argv[0]));
-      } else {
+      } else
+#endif
+      {
         void* ptr;
 
         if((ptr = js_get_pointer(ctx, argv[0])))
@@ -1946,9 +1949,12 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case STRING_LENGTH: {
+#if QUICKJS_INTERNAL
       if(JS_IsString(argv[0])) {
         ret = JS_NewInt64(ctx, strlen(js_cstring_ptr(argv[0])));
-      } else {
+      } else
+#endif
+      {
         void* ptr;
 
         if((ptr = js_get_pointer(ctx, argv[0])))
@@ -1997,11 +2003,16 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     if(tag == JS_TAG_MODULE) {
       if(JS_ResolveModule(ctx, obj) < 0) {
         JSModuleDef* m = JS_VALUE_GET_PTR(obj);
-        const char* name = module_namecstr(ctx, m);
+        const char* name = 0;
 
-        ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
-        JS_FreeCString(ctx, name);
-        JS_FreeValue(ctx, obj);
+#if QUICKJS_INTERNAL
+        if((name = module_namecstr(ctx, m))) {
+          ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
+          JS_FreeCString(ctx, name);
+          JS_FreeValue(ctx, obj);
+        }
+#endif
+
         return ret;
       }
 
@@ -3195,7 +3206,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   }
 
   new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
-  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
+  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue (*)(JSContext*, uint64_t))&JS_NewInt64;
 
 #ifdef HAVE_FSTAT
   if((res = fstat(fd, &st)) == -1)
@@ -3394,12 +3405,20 @@ js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 1)
     as_object = JS_ToBool(ctx, argv[0]);
 
+#if QUICKJS_INTERNAL
   return js_opcode_list(ctx, as_object);
+#else
+  return JS_UNDEFINED;
+#endif
 }
 
 static JSValue
 js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+#if QUICKJS_INTERNAL
   return js_get_bytecode(ctx, argv[0]);
+#else
+  return JS_UNDEFINED;
+#endif
 }
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
