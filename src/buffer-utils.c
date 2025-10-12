@@ -425,26 +425,27 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
 ssize_t
 dbuf_load(DynBuf* s, const char* filename) {
   FILE* fp;
+
+  if(!(fp = fopen(filename, "rb")))
+    return -1;
+
   size_t nbytes = 0;
+  char buf[4096];
+  size_t r;
 
   dbuf_reserve(s, 1);
 
-  if((fp = fopen(filename, "rb"))) {
-    char buf[4096];
-    size_t r;
-
-    while(!feof(fp)) {
-      if((r = fread(buf, 1, sizeof(buf), fp)) <= 0) {
-        fclose(fp);
-        return r < 0 ? -1 : nbytes;
-      }
-
-      dbuf_put(s, (uint8_t const*)buf, r);
-      nbytes += r;
+  while(!feof(fp)) {
+    if((r = fread(buf, 1, sizeof(buf), fp)) <= 0) {
+      fclose(fp);
+      return r < 0 ? -1 : nbytes;
     }
 
-    fclose(fp);
+    dbuf_put(s, (uint8_t const*)buf, r);
+    nbytes += r;
   }
+
+  fclose(fp);
 
   return nbytes;
 }

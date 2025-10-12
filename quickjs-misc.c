@@ -1055,21 +1055,11 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return ret;
 }
 
-enum {
-  FUNC_GETCOMMANDLINE = 0,
-  FUNC_GETENVIRON,
-  FUNC_GETPROCSTAT,
-  FUNC_GETPROCMAPS,
-  FUNC_GETPROCMOUNTS,
-};
-
 static JSValue
 js_misc_procline(JSContext* ctx, const char* x, size_t len, size_t max_items) {
   JSValue ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-  size_t p = 0;
 
-  while(p < len) {
+  for(size_t p = 0, i = 0; p < len; p += scan_whitenskip(&x[p], len - p)) {
     size_t q = (i + 1) >= max_items ? len - p : scan_nonwhitenskip(&x[p], len - p);
 
     JS_SetPropertyUint32(ctx, ret, i++, JS_NewStringLen(ctx, &x[p], q));
@@ -1078,11 +1068,18 @@ js_misc_procline(JSContext* ctx, const char* x, size_t len, size_t max_items) {
       break;
 
     p += q;
-    p += scan_whitenskip(&x[p], len - p);
   }
 
   return ret;
 }
+
+enum {
+  FUNC_GETCOMMANDLINE = 0,
+  FUNC_GETENVIRON,
+  FUNC_GETPROCSTAT,
+  FUNC_GETPROCMAPS,
+  FUNC_GETPROCMOUNTS,
+};
 
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1097,31 +1094,33 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     int64_t pid = -1;
     JS_ToInt64(ctx, &pid, argv[0]);
     p += fmt_longlong(&x[p], pid);
-  } else {
+  } else
     p += str_copyn(&x[p], "self", sizeof(x) - p);
-  }
 
   p += str_copyn(&x[p], links[magic], sizeof(x) - p);
-  x[p] = '\0';
-  DynBuf dbuf = DBUF_INIT_CTX(ctx);
-  size_t l, n;
 
-  if((l = dbuf_load(&dbuf, x)) >= 0) {
-    while(l > 0 && dbuf.buf[l - 1] == '\n')
-      l--;
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+  ssize_t len;
+
+  if((len = dbuf_load(&dbuf, x)) < 0) {
+    ret = JS_ThrowInternalError(ctx, "Error reading '%s': %s", x, strerror(errno));
+  } else if(len > 0) {
+    while(len > 0 && dbuf.buf[len - 1] == '\n')
+      len--;
 
     ret = JS_NewArray(ctx);
 
-    for(size_t i = 0, j = 0; i < l; i += n + 1) {
-      size_t len = n = byte_chr(&dbuf.buf[i], l - i, seps[magic]);
+    for(size_t n, i = 0, j = 0; i < len; i += n + 1) {
+      const uint8_t* y = &dbuf.buf[i];
+      size_t l = n = byte_chr(y, len - i, seps[magic]);
 
-      while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
-        len--;
+      while(l > 0 && is_whitespace_char(&y[l - 1]))
+        l--;
 
-      if(magic == 0 || len) {
-        const void* y = &dbuf.buf[i];
-        JSValue item =
-            magic >= FUNC_GETPROCMAPS ? js_misc_procline(ctx, y, len, max_items[magic]) : JS_NewStringLen(ctx, y, len);
+      if(magic == 0 || l) {
+        JSValue item = magic >= FUNC_GETPROCMAPS ? js_misc_procline(ctx, (const char*)y, l, max_items[magic])
+                                                 : JS_NewStringLen(ctx, (const char*)y, l);
+
         JS_SetPropertyUint32(ctx, ret, j++, item);
       }
     }
@@ -3501,6 +3500,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 #endif /* !_WIN32 */
 #endif
 
+#if QUICKJS_INTERNAL
 static JSValue
 js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   BOOL as_object = FALSE;
@@ -3508,21 +3508,16 @@ js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 1)
     as_object = JS_ToBool(ctx, argv[0]);
 
-#if QUICKJS_INTERNAL
   return js_opcode_list(ctx, as_object);
-#else
-  return JS_UNDEFINED;
-#endif
 }
+#endif
 
+#if QUICKJS_INTERNAL
 static JSValue
 js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-#if QUICKJS_INTERNAL
   return js_get_bytecode(ctx, argv[0]);
-#else
-  return JS_UNDEFINED;
-#endif
 }
+#endif
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
@@ -3731,8 +3726,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
+#if QUICKJS_INTERNAL
     JS_CFUNC_DEF("getOpCodes", 0, js_misc_opcodes),
     JS_CFUNC_DEF("getByteCode", 1, js_misc_get_bytecode),
+#endif
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
