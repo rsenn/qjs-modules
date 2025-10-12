@@ -580,15 +580,6 @@ path_diff4(const char* a, size_t la, const char* b, size_t lb) {
   return 0;
 }
 
-int
-path_equal4(const char* a, size_t la, const char* b, size_t lb) {
-  return 0 == path_diff4(a, la, b, lb);
-}
-
-int
-path_equal2(const char* a, const char* b) {
-  return path_equal4(a, strlen(a), b, strlen(b));
-}
 
 const char*
 path_extname1(const char* p) {
@@ -893,28 +884,6 @@ path_gethome2(const char* user, size_t userlen) {
   }
 
   return ret;
-}
-
-int
-path_isabsolute2(const char* x, size_t n) {
-  if(n > 0 && x[0] == PATHSEP_C)
-    return 1;
-#ifdef _WIN32
-  if(n >= 2 && x[1] == ':')
-    return 1;
-#endif
-  return 0;
-}
-
-int
-path_isabsolute1(const char* x) {
-  if(x[0] && x[0] == PATHSEP_C)
-    return 1;
-#ifdef _WIN32
-  if(x[0] && x[1] && x[1] == ':')
-    return 1;
-#endif
-  return 0;
 }
 
 int
