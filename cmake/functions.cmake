@@ -118,7 +118,7 @@ macro(CHECK_FUNCTION_DEF FUNC)
   #message("${RESULT_VAR}: ${${RESULT_VAR}}")
 
   #if(DEFINE)
-  var2define(PREPROC_DEF)
+  var2define("${RESULT_VAR}")
   #endif(DEFINE)
 
   list(APPEND CHECKED_FUNCTIONS "${FUNC}")
