@@ -14,6 +14,7 @@
 #include "quickjs-textcode.h"
 #include "quickjs-syscallerror.h"
 #include "utils.h"
+#include "buffer-utils.h"
 #include "path.h"
 #include "vector.h"
 #include "base64.h"
@@ -1008,39 +1009,57 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
 
 enum {
   FUNC_GETEXECUTABLE,
-  FUNC_GETCWD,
-  FUNC_GETROOT,
-  FUNC_GETFD,
+  FUNC_GETWORKINGDIRECTORY,
+  FUNC_GETROOTDIRECTORY,
+  FUNC_GETFILEDESCRIPTOR,
 };
 
 static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   const char* link = NULL;
-  char path[256];
+  char x[PATH_MAX];
+  int i = 0;
+  int64_t fd = -1;
+  size_t p = str_copyn(x, "/proc/", sizeof(x));
+
+  if(magic == FUNC_GETFILEDESCRIPTOR) {
+    if(argc <= i || !JS_IsNumber(argv[i]))
+      return JS_ThrowTypeError(ctx, "argument 1 must be Number");
+
+    JS_ToInt64(ctx, &fd, argv[i]);
+    ++i;
+  }
+
+  if(argc > i) {
+    int64_t pid;
+    JS_ToInt64(ctx, &pid, argv[i]);
+    p += fmt_longlong(&x[p], pid);
+  } else
+    p += str_copyn(&x[p], "self", sizeof(x) - p);
+
+  p += str_copyn(&x[p], "/", sizeof(x) - p);
 
   switch(magic) {
     case FUNC_GETEXECUTABLE: link = "exe"; break;
-    case FUNC_GETCWD: link = "cwd"; break;
-    case FUNC_GETROOT: link = "root"; break;
-    case FUNC_GETFD: link = "fd/"; break;
+    case FUNC_GETWORKINGDIRECTORY: link = "cwd"; break;
+    case FUNC_GETROOTDIRECTORY: link = "root"; break;
+    case FUNC_GETFILEDESCRIPTOR: link = "fd/"; break;
   }
 
-  size_t n = snprintf(path, sizeof(path), "/proc/self/%s", link);
+  p += str_copyn(&x[p], link, sizeof(x) - p);
+  // size_t n = snprintf(x, sizeof(x), "/proc/self/%s", link);
 
-  if(magic == FUNC_GETFD) {
-    int32_t fd;
+  if(magic == FUNC_GETFILEDESCRIPTOR)
+    p += fmt_longlong(&x[p], fd);
 
-    if(argc < 1 || !JS_IsNumber(argv[0]))
-      return JS_ThrowTypeError(ctx, "argument 1 must be Number");
+  x[p] = '\0';
 
-    JS_ToInt32(ctx, &fd, argv[0]);
-    snprintf(&path[n], sizeof(path) - n, "%d", fd);
-  }
+  ssize_t r;
+  DynBuf dbuf = {0};
+  js_dbuf_init(ctx, &dbuf);
 
-  DynBuf dbuf = DBUF_INIT_CTX(ctx);
-
-  if(path_readlink2(path, &dbuf) > 0)
+  if((r = path_readlink2(x, &dbuf)) > 0)
     ret = dbuf_tostring_free(&dbuf, ctx);
 
   return ret;
@@ -1056,9 +1075,8 @@ enum {
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  DynBuf dbuf = DBUF_INIT_CTX(ctx);
-  size_t size, n, pos = 0;
-  char path[PATH_MAX], sep = '\n';
+  size_t p = 0;
+  char x[PATH_MAX], sep = '\n';
   const char* file = 0;
 
   switch(magic) {
@@ -1087,28 +1105,33 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
   }
 
-  pos += str_copyn(&path[pos], "/proc/", sizeof(path) - pos);
+  p = str_copyn(x, "/proc/", sizeof(x));
 
   if(argc > 0) {
     int64_t pid = -1;
     JS_ToInt64(ctx, &pid, argv[0]);
 
-    pos += fmt_longlong(&path[pos], pid);
+    p += fmt_longlong(&x[p], pid);
   } else {
-    pos += str_copyn(&path[pos], "self", sizeof(path) - pos);
+    p += str_copyn(&x[p], "self", sizeof(x) - p);
   }
 
-  pos += str_copyn(&path[pos], "/", sizeof(path) - pos);
-  pos += str_copyn(&path[pos], file, sizeof(path) - pos);
+  p += str_copyn(&x[p], "/", sizeof(x) - p);
+  p += str_copyn(&x[p], file, sizeof(x) - p);
 
-  if((size = dbuf_load(&dbuf, path)) > 0) {
-    while(size > 0 && dbuf.buf[size - 1] == '\n')
-      size--;
+  x[p] = '\0';
+
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+  size_t l, n;
+
+  if((l = dbuf_load(&dbuf, x)) >= 0) {
+    while(l > 0 && dbuf.buf[l - 1] == '\n')
+      l--;
 
     ret = JS_NewArray(ctx);
 
-    for(size_t i = 0, j = 0; i < size; i += n + 1) {
-      size_t len = n = byte_chr(&dbuf.buf[i], size - i, sep);
+    for(size_t i = 0, j = 0; i < l; i += n + 1) {
+      size_t len = n = byte_chr(&dbuf.buf[i], l - i, sep);
 
       while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
         len--;
@@ -3660,9 +3683,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
-    JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),
-    JS_CFUNC_MAGIC_DEF("getRootDirectory", 0, js_misc_proclink, FUNC_GETROOT),
-    JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFD),
+    JS_CFUNC_MAGIC_DEF("getWorkingDirectory", 0, js_misc_proclink, FUNC_GETWORKINGDIRECTORY),
+    JS_CFUNC_MAGIC_DEF("getRootDirectory", 0, js_misc_proclink, FUNC_GETROOTDIRECTORY),
+    JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFILEDESCRIPTOR),
     JS_CFUNC_MAGIC_DEF("getCommandLine", 0, js_misc_procread, FUNC_GETCOMMANDLINE),
     JS_CFUNC_MAGIC_DEF("getProcMaps", 0, js_misc_procread, FUNC_GETPROCMAPS),
     JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),

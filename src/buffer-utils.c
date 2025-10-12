@@ -427,14 +427,16 @@ dbuf_load(DynBuf* s, const char* filename) {
   FILE* fp;
   size_t nbytes = 0;
 
+  dbuf_reserve(s, 1);
+
   if((fp = fopen(filename, "rb"))) {
     char buf[4096];
     size_t r;
 
     while(!feof(fp)) {
-      if((r = fread(buf, 1, sizeof(buf), fp)) == 0) {
+      if((r = fread(buf, 1, sizeof(buf), fp)) <= 0) {
         fclose(fp);
-        return -1;
+        return r < 0 ? -1 : nbytes;
       }
 
       dbuf_put(s, (uint8_t const*)buf, r);
