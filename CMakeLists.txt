@@ -815,7 +815,6 @@ if(QUICKJS_INTERNAL)
     var2define(HAVE_QJSCALC)
 
     if(HAVE_QJSCALC)
-      #list(APPEND LIB_MODULES qjscalc)
       relative_path(QJSCALC_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
       compile_module("${QJSCALC_PATH}")
     endif(HAVE_QJSCALC)
