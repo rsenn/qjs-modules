@@ -906,7 +906,7 @@ endforeach(LIB_MODULE ${LIB_MODULES})
 
 #compile_module(lib/stream.js "${CMAKE_CURRENT_BINARY_DIR}/stream.c" stream)
 if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
-  set(QUICKJS_INTERNAL 1 CACHE BOOL "Generate quickjs-internal.h")
+  set(QUICKJS_INTERNAL TRUE CACHE BOOL "Generate quickjs-internal.h")
 endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
 if(QUICKJS_INTERNAL)
   add_definitions(-DQUICKJS_INTERNAL=1)
