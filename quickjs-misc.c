@@ -1058,33 +1058,51 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 enum {
   FUNC_GETCOMMANDLINE = 0,
   FUNC_GETENVIRON,
+  FUNC_GETPROCSTAT,
   FUNC_GETPROCMAPS,
   FUNC_GETPROCMOUNTS,
-  FUNC_GETPROCSTAT,
 };
+
+static JSValue
+js_misc_procline(JSContext* ctx, const char* x, size_t len, size_t max_items) {
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+  size_t p = 0;
+
+  while(p < len) {
+    size_t q = (i + 1) >= max_items ? len - p : scan_nonwhitenskip(&x[p], len - p);
+
+    JS_SetPropertyUint32(ctx, ret, i++, JS_NewStringLen(ctx, &x[p], q));
+
+    if(i >= max_items)
+      break;
+
+    p += q;
+    p += scan_whitenskip(&x[p], len - p);
+  }
+
+  return ret;
+}
 
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   char x[PATH_MAX];
-  static const char* const links[] = {"/cmdline", "/environ", "/maps", "/mounts", "/stat"};
-  static const char seps[] = {'\0', '\0', '\n', '\n', ' '};
-
+  static const char* const links[] = {"/cmdline", "/environ", "/stat", "/maps", "/mounts"};
+  static const char seps[] = {'\0', '\0', ' ', '\n', '\n'};
+  static const int max_items[] = {-1, -1, -1, 6, 6};
   size_t p = str_copyn(x, "/proc/", sizeof(x));
 
   if(argc > 0) {
     int64_t pid = -1;
     JS_ToInt64(ctx, &pid, argv[0]);
-
     p += fmt_longlong(&x[p], pid);
   } else {
     p += str_copyn(&x[p], "self", sizeof(x) - p);
   }
 
   p += str_copyn(&x[p], links[magic], sizeof(x) - p);
-
   x[p] = '\0';
-
   DynBuf dbuf = DBUF_INIT_CTX(ctx);
   size_t l, n;
 
@@ -1100,8 +1118,12 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
         len--;
 
-      if(magic == 0 || len)
-        JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
+      if(magic == 0 || len) {
+        const void* y = &dbuf.buf[i];
+        JSValue item =
+            magic >= FUNC_GETPROCMAPS ? js_misc_procline(ctx, y, len, max_items[magic]) : JS_NewStringLen(ctx, y, len);
+        JS_SetPropertyUint32(ctx, ret, j++, item);
+      }
     }
   }
 
@@ -3653,9 +3675,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFILEDESCRIPTOR),
     JS_CFUNC_MAGIC_DEF("getCommandLine", 0, js_misc_procread, FUNC_GETCOMMANDLINE),
     JS_CFUNC_MAGIC_DEF("getEnvironment", 0, js_misc_procread, FUNC_GETENVIRON),
+    JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_MAGIC_DEF("getProcMaps", 0, js_misc_procread, FUNC_GETPROCMAPS),
     JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),
-    JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_DEF("getPrototypeChain", 0, js_misc_getprototypechain),
 #if HAVE_GETTID
     JS_CFUNC_MAGIC_DEF("gettid", 0, js_misc_getx, FUNC_GETTID),
