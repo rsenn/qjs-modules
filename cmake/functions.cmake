@@ -46,7 +46,7 @@ function(VAR2DEFINE NAME)
 endfunction(VAR2DEFINE NAME)
 
 ##
-## canonicalize <OUTPUT_VAR> <STR>
+## canonicalize <OUTPUT VARIABLE> <STR>
 ##
 function(CANONICALIZE OUTPUT_VAR STR)
   string(REGEX REPLACE "^-W" "WARN_" TMP_STR "${STR}")
@@ -58,7 +58,7 @@ function(CANONICALIZE OUTPUT_VAR STR)
 endfunction(CANONICALIZE OUTPUT_VAR STR)
 
 ##
-## basename <OUTPUT_VAR> <STR>
+## basename <OUTPUT VARIABLE> <STR>
 ##
 function(BASENAME OUTPUT_VAR STR)
   string(REGEX REPLACE ".*/" "" TMP_STR "${STR}")
@@ -70,7 +70,7 @@ function(BASENAME OUTPUT_VAR STR)
 endfunction(BASENAME OUTPUT_VAR FILE)
 
 ##
-## dirname <OUTPUT_VAR> <STR>
+## dirname <OUTPUT VARIABLE> <STR>
 ##
 function(DIRNAME OUTPUT_VAR STR)
   string(REGEX REPLACE "/[^/]+/*$" "" TMP_STR "${STR}")
@@ -82,7 +82,7 @@ function(DIRNAME OUTPUT_VAR STR)
 endfunction(DIRNAME OUTPUT_VAR FILE)
 
 ##
-## addprefix <OUTPUT_VAR> <PREFIX>
+## addprefix <OUTPUT VARIABLE> <PREFIX>
 ##
 function(ADDPREFIX OUTPUT_VAR PREFIX)
   set(OUTPUT "")
@@ -93,7 +93,7 @@ function(ADDPREFIX OUTPUT_VAR PREFIX)
 endfunction(ADDPREFIX OUTPUT_VAR PREFIX)
 
 ##
-## addsuffix <OUTPUT_VAR> <PREFIX>
+## addsuffix <OUTPUT VARIABLE> <PREFIX>
 ##
 function(ADDSUFFIX OUTPUT_VAR SUFFIX)
   set(OUTPUT "")
@@ -104,7 +104,7 @@ function(ADDSUFFIX OUTPUT_VAR SUFFIX)
 endfunction(ADDSUFFIX OUTPUT_VAR SUFFIX)
 
 ##
-## relative_path <OUT_VAR> <RELATIVE_TO>
+## relative_path <OUTPUT VARIABLE> <RELATIVE_TO>
 ##
 function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
   set(LIST "")
@@ -118,7 +118,7 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
 endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
 
 ##
-## check_function_def <FUNCTION NAME> [RESULT_VAR] [PREPROC_DEF]
+## check_function_def <FUNCTION NAME> [RESULT VARIABLE] [PREPROC_DEF]
 ##
 macro(CHECK_FUNCTION_DEF FUNC)
   if(${ARGC} GREATER 1)
@@ -186,7 +186,7 @@ function(CLEAN_NAME STR OUTPUT_VAR)
 endfunction(CLEAN_NAME STR OUTPUT_VAR)
 
 ##
-## check_include_def <INCLUDE> [RESULT_VAR] [PREPROC_DEF]
+## check_include_def <INCLUDE> [RESULT VARIABLE] [PREPROC_DEF]
 ##
 macro(CHECK_INCLUDE_DEF INC)
   if(ARGC GREATER_EQUAL 2)
@@ -245,7 +245,7 @@ macro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 endmacro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 
 ##
-## check_include_cxx_def <INCLUDE> [RESULT_VAR] [PREPROC_DEF]
+## check_include_cxx_def <INCLUDE> [RESULT VARIABLE] [PREPROC_DEF]
 ##
 macro(CHECK_INCLUDE_CXX_DEF INC)
   if(ARGC GREATER_EQUAL 2)
@@ -360,13 +360,8 @@ endfunction()
 ## check_external <NAME> <LIBS> <LINKER FLAGS> <OUTPUT VARIABLE>
 ##
 function(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
-  try_code(
-    "test-${NAME}.c"
-    "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
-    "${OUTPUT_VAR}"
-    OUT
-    "${LIBS}"
-    "${LDFLAGS}")
+  try_code("test-${NAME}.c" "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
+           "${OUTPUT_VAR}" OUT "${LIBS}" "${LDFLAGS}")
   #dump(OUTPUT_VAR OUT)
 endfunction(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
 
