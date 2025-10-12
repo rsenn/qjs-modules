@@ -50,7 +50,9 @@
 #include "base64.h"
 #include "debug.h"
 
+#if QUICKJS_INTERNAL
 #include "quickjs-internal.h"
+#endif
 
 JSModuleDef* js_module_loader_path(JSContext* ctx, const char* module_name, void* opaque);
 

@@ -104,6 +104,10 @@ include(CheckLibraryExists)
 
 #check_function_def(JS_PROMISE_STATE JS_PromiseState)
 
+check_library_exists(m atan2 "" HAVE_LIBMATH)
+if(HAVE_LIBMATH)
+  link_libraries(m)
+endif(HAVE_LIBMATH)
 check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
 if(HAVE_JS_PROMISE_STATE)
   add_definitions(-DHAVE_JS_PROMISE_STATE)
@@ -901,37 +905,40 @@ foreach(LIB_MODULE ${LIB_MODULES})
 endforeach(LIB_MODULE ${LIB_MODULES})
 
 #compile_module(lib/stream.js "${CMAKE_CURRENT_BINARY_DIR}/stream.c" stream)
+if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
+  add_definitions(-DQUICKJS_INTERNAL=1)
+  if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
+      set(QUICKJS_SOURCES_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
+  endif("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
-if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
-  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
-    set(QUICKJS_SOURCES_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
-  endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
-endif("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
 
-set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
+  #if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
+  #  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h ${QUICKJS_STRUCT_SOURCES})
+  #endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
 
-#if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
-#  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h ${QUICKJS_STRUCT_SOURCES})
-#endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
+  execute_process(
+    COMMAND
+      sed -n
+      "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
+      ${QUICKJS_STRUCT_SOURCES}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
+    #OUTPUT_VARIABLE INTERNAL
+  )
 
-execute_process(
-  COMMAND
-    sed -n
-    "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
-    ${QUICKJS_STRUCT_SOURCES}
-  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
-  #OUTPUT_VARIABLE INTERNAL
-)
+  file(READ "${CMAKE_CURRENT_BINARY_DIR}/internal.h" INTERNAL)
 
-file(READ "${CMAKE_CURRENT_BINARY_DIR}/internal.h" INTERNAL)
+  file(
+    WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
+    "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
+  )
+  list(APPEND LIBRARY_SOURCES quickjs-internal.c)  
+endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
 
-file(
-  WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
-  "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
-)
-
-add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES} ${libutf_SOURCES}
+add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES}
                            ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
 add_library(compiled STATIC ${COMPILED_MODULES})
