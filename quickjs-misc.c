@@ -1008,7 +1008,7 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
 }
 
 enum {
-  FUNC_GETEXECUTABLE,
+  FUNC_GETEXECUTABLE = 0,
   FUNC_GETWORKINGDIRECTORY,
   FUNC_GETROOTDIRECTORY,
   FUNC_GETFILEDESCRIPTOR,
@@ -1022,6 +1022,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   int i = 0;
   int64_t fd = -1;
   size_t p = str_copyn(x, "/proc/", sizeof(x));
+  static const char* const links[] = {"/exe", "/cwd", "/root", "/fd/"};
 
   if(magic == FUNC_GETFILEDESCRIPTOR) {
     if(argc <= i || !JS_IsNumber(argv[i]))
@@ -1038,17 +1039,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   } else
     p += str_copyn(&x[p], "self", sizeof(x) - p);
 
-  p += str_copyn(&x[p], "/", sizeof(x) - p);
-
-  switch(magic) {
-    case FUNC_GETEXECUTABLE: link = "exe"; break;
-    case FUNC_GETWORKINGDIRECTORY: link = "cwd"; break;
-    case FUNC_GETROOTDIRECTORY: link = "root"; break;
-    case FUNC_GETFILEDESCRIPTOR: link = "fd/"; break;
-  }
-
-  p += str_copyn(&x[p], link, sizeof(x) - p);
-  // size_t n = snprintf(x, sizeof(x), "/proc/self/%s", link);
+  p += str_copyn(&x[p], links[magic], sizeof(x) - p);
 
   if(magic == FUNC_GETFILEDESCRIPTOR)
     p += fmt_longlong(&x[p], fd);
@@ -1056,8 +1047,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   x[p] = '\0';
 
   ssize_t r;
-  DynBuf dbuf = {0};
-  js_dbuf_init(ctx, &dbuf);
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
 
   if((r = path_readlink2(x, &dbuf)) > 0)
     ret = dbuf_tostring_free(&dbuf, ctx);
@@ -1066,7 +1056,8 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 enum {
-  FUNC_GETCOMMANDLINE,
+  FUNC_GETCOMMANDLINE = 0,
+  FUNC_GETENVIRON,
   FUNC_GETPROCMAPS,
   FUNC_GETPROCMOUNTS,
   FUNC_GETPROCSTAT,
@@ -1075,37 +1066,11 @@ enum {
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  size_t p = 0;
-  char x[PATH_MAX], sep = '\n';
-  const char* file = 0;
+  char x[PATH_MAX];
+  static const char* const links[] = {"/cmdline", "/environ", "/maps", "/mounts", "/stat"};
+  static const char seps[] = {'\0', '\0', '\n', '\n', ' '};
 
-  switch(magic) {
-    case FUNC_GETCOMMANDLINE: {
-      file = "cmdline";
-      sep = '\0';
-      break;
-    }
-
-    case FUNC_GETPROCMAPS: {
-      file = "maps";
-      sep = '\n';
-      break;
-    }
-
-    case FUNC_GETPROCMOUNTS: {
-      file = "mounts";
-      sep = '\n';
-      break;
-    }
-
-    case FUNC_GETPROCSTAT: {
-      file = "stat";
-      sep = ' ';
-      break;
-    }
-  }
-
-  p = str_copyn(x, "/proc/", sizeof(x));
+  size_t p = str_copyn(x, "/proc/", sizeof(x));
 
   if(argc > 0) {
     int64_t pid = -1;
@@ -1116,8 +1081,7 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     p += str_copyn(&x[p], "self", sizeof(x) - p);
   }
 
-  p += str_copyn(&x[p], "/", sizeof(x) - p);
-  p += str_copyn(&x[p], file, sizeof(x) - p);
+  p += str_copyn(&x[p], links[magic], sizeof(x) - p);
 
   x[p] = '\0';
 
@@ -1131,12 +1095,13 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     ret = JS_NewArray(ctx);
 
     for(size_t i = 0, j = 0; i < l; i += n + 1) {
-      size_t len = n = byte_chr(&dbuf.buf[i], l - i, sep);
+      size_t len = n = byte_chr(&dbuf.buf[i], l - i, seps[magic]);
 
       while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
         len--;
 
-      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
+      if(magic == 0 || len)
+        JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
     }
   }
 
@@ -1356,7 +1321,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     globfree(&g);
   }
 
-  /*  struct glob_state* gs;
+  /*struct glob_state* gs;
     gs = js_mallocz(ctx, sizeof(struct glob_state));
     *gs = (struct glob_state){.flags = GLOB_TILDE | GLOB_BRACE};
 
@@ -3687,6 +3652,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getRootDirectory", 0, js_misc_proclink, FUNC_GETROOTDIRECTORY),
     JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFILEDESCRIPTOR),
     JS_CFUNC_MAGIC_DEF("getCommandLine", 0, js_misc_procread, FUNC_GETCOMMANDLINE),
+    JS_CFUNC_MAGIC_DEF("getEnvironment", 0, js_misc_procread, FUNC_GETENVIRON),
     JS_CFUNC_MAGIC_DEF("getProcMaps", 0, js_misc_procread, FUNC_GETPROCMAPS),
     JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),
     JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
