@@ -106,14 +106,11 @@ macro(CHECK_FUNCTION_DEF FUNC)
 
   if(${${RESULT_VAR}})
     if(NOT "${PREPROC_DEF}" STREQUAL "")
-      set(DEFINE TRUE)
+      set("${PREPROC_DEF}" "1")
+      var2define("${PREPROC_DEF}")
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
   #message("${RESULT_VAR}: ${${RESULT_VAR}}")
-
-  #if(DEFINE)
-  var2define("${RESULT_VAR}")
-  #endif(DEFINE)
 
   list(APPEND CHECKED_FUNCTIONS "${FUNC}")
 endmacro(CHECK_FUNCTION_DEF FUNC)
