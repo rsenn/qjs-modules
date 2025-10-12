@@ -123,7 +123,7 @@ module_has_suffix(const char* module_name) {
   return 0;
 }
 
-#ifdef HAVE_GET_MODULE_LOADER_FUNC
+#if HAVE_JS_GETMODULELOADERFUNC
 JSModuleLoaderFunc* js_std_get_module_loader_func();
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #endif
@@ -2131,7 +2131,7 @@ main(int argc, char** argv) {
 
   jsm_init_modules(jsm_ctx);
 
-#ifdef HAVE_GET_MODULE_LOADER_FUNC
+#if HAVE_JS_GETMODULELOADERFUNC
   module_loader = js_std_get_module_loader_func();
 #endif
 
