@@ -1,3 +1,5 @@
+include(CheckFunctionExists)
+
 function(DUMP)
   foreach(VAR ${ARGN})
     if("${SEPARATOR}" STREQUAL "")
@@ -76,8 +78,6 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
 
   set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
 endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
-
-include(CheckFunctionExists)
 
 macro(CHECK_FUNCTION_DEF FUNC)
   if(${ARGC} GREATER 1)
