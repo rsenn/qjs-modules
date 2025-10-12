@@ -132,34 +132,34 @@ int lutimes(const char*, const struct timeval[2]);
 #include <stdio.h>
 #include <stdlib.h>
 
+#define tempnam qjs_tempnam
+
 static char*
-tempnam(char* dir, char* template) {
-  char buf[1024];
-  int fd, len = sizeof(buf) - 1;
+tempnam(const char* dir, char* template) {
+  char x[1024];
+  const size_t n = sizeof(x) - 1;
+  int fd;
+  size_t p = 0;
 
-  buf[len] = '\0';
-
-  if((dir) && (*dir)) {
-    memccpy(buf, dir, 0, len);
-    strncat(buf, "/", 1);
+  if(dir && *dir) {
+    p += str_copyn(&x[p], dir, n - p);
+    p += str_copyn(&x[p], "/", n - p);
   } else
-    strncpy(buf, "/tmp/", len);
+    p += str_copyn(x, "/tmp/", n - p);
 
-  if((len = (sizeof(buf) - 1) - strlen(buf)) < 1)
+  if((n - p) < 1)
     return 0;
 
-  strncat(buf, template ? template : "temp_", --len);
+  p += str_copyn(&x[p], template ? template : "temp_", n - p);
+  p += str_copyn(&x[p], "XXXXXX", n - p);
 
-  len = (sizeof(buf) - 1) - strlen(buf);
-  strncat(buf, "XXXXXX", len);
-
-  if((fd = mkstemp(buf)) < 0)
+  if((fd = mkstemp(x)) < 0)
     return 0;
 
   close(fd);
-  unlink(buf);
+  unlink(x);
 
-  return strdup(buf);
+  return str_ndup(x, p);
 }
 #endif
 
@@ -744,7 +744,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 static JSValue
 js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  size_t total_len = 0, pos = 0;
+  size_t buf_size = 0, pos = 0;
   uint8_t* buf;
   InputBuffer* buffers = js_mallocz(ctx, sizeof(InputBuffer) * argc);
 
@@ -756,17 +756,17 @@ js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       goto fail;
     }
 
-    total_len += buffers[i].size;
+    buf_size += buffers[i].size;
   }
 
-  buf = js_malloc(ctx, total_len);
+  buf = js_malloc(ctx, buf_size);
 
   for(int i = 0; i < argc; i++) {
     memcpy(&buf[pos], buffers[i].data, buffers[i].size);
     pos += buffers[i].size;
   }
 
-  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_arraybuffer_free_pointer, 0, FALSE);
+  ret = JS_NewArrayBuffer(ctx, buf, buf_size, js_arraybuffer_free_pointer, 0, FALSE);
 
 fail:
   for(int i = 0; i < argc; i++)
@@ -1152,20 +1152,22 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  const char *dir = 0, *pfx = 0;
-  char* nam;
+  const char* dir = 0;
+  char *nam, *pfx = 0;
   JSValue ret = JS_NULL;
 
   if(argc >= 1 && JS_IsString(argv[0]))
     dir = JS_ToCString(ctx, argv[0]);
 
   if(argc >= 2 && JS_IsString(argv[1]))
-    pfx = JS_ToCString(ctx, argv[1]);
+    pfx = js_tostring(ctx, argv[1]);
 
   if((nam = tempnam(dir, pfx))) {
     ret = JS_NewString(ctx, nam);
     free(nam);
   }
+
+  js_free(ctx, pfx);
 
   return ret;
 }

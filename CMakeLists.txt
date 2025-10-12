@@ -272,7 +272,12 @@ check_function_and_include(sysinfo sys/sysinfo.h)
 
 check_function_def(gettid)
 check_function_def(uname)
-check_function_def(tempnam)
+
+if(NOT NO_TEMPNAM)
+  check_function_def(tempnam)
+else(NOT NO_TEMPNAM)
+  add_definitions(-UHAVE_TEMPNAM)
+endif(NOT NO_TEMPNAM)
 
 #if(HAVE_TEMPNAM)
 #  option(USE_TEMPNAM ON "Use tempnam()")
