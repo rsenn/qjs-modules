@@ -199,7 +199,7 @@ fmt_ulonglong(char* dest, uint64_t i) {
   return len;
 }
 
-#define tohex(c) (char)((c) >= 10 ? (c)-10 + 'a' : (c) + '0')
+#define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
 
 size_t
 fmt_xlonglong(char* dest, uint64_t i) {
@@ -253,7 +253,7 @@ fmt_8long(char* dest, uint32_t i) {
   return len;
 }
 
-#define tohex(c) (char)((c) >= 10 ? (c)-10 + 'a' : (c) + '0')
+#define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
 
 size_t
 fmt_xlong(char* dest, uint32_t i) {
@@ -311,7 +311,7 @@ scan_ushort(const char* src, uint16_t* dest) {
 
 size_t
 scan_uint(const char* src, uint32_t* dest) {
-  uint64_t u64;
+  uint64_t u64 = 0llu;
   size_t r = scan_ulonglong(src, &u64);
   *dest = u64;
   return r;
@@ -319,14 +319,14 @@ scan_uint(const char* src, uint32_t* dest) {
 
 size_t
 scan_int(const char* src, int32_t* dest) {
-  int64_t i64;
+  int64_t i64 = 0ll;
   size_t r = scan_longlong(src, &i64);
   *dest = i64;
   return r;
 }
 
 #ifndef MAXLONG
-#define MAXLONG (((uint32_t)-1) >> 1)
+#define MAXLONG (((uint32_t) - 1) >> 1)
 #endif
 
 size_t

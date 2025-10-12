@@ -112,18 +112,22 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = parser->opaque ? JS_DupValue(ctx, js_value_mkobj(parser->opaque)) : JS_NULL;
       break;
     }
+
     case JSON_PARSER_POS: {
       ret = JS_NewUint32(ctx, parser->pos);
       break;
     }
+
     case JSON_PARSER_TOKEN: {
-      ret = JS_NewStringLen(ctx, parser->token.buf, parser->token.size);
+      ret = JS_NewStringLen(ctx, (const char*)parser->token.buf, parser->token.size);
       break;
     }
+
     case JSON_PARSER_STATE: {
       ret = JS_NewInt32(ctx, parser->state);
       break;
     }
+
     case JSON_PARSER_DEPTH: {
       ret = JS_NewUint32(ctx, parser->stack.len);
       break;

@@ -124,8 +124,43 @@ int lutimes(const char*, const struct timeval[2]);
 
 #endif
 
-#ifndef USE_TEMPNAM
-#define USE_TEMPNAM
+#ifndef HAVE_TEMPNAM
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static char*
+tempnam(char* dir, char* template) {
+  char buf[1024];
+  int fd, len = sizeof(buf) - 1;
+
+  buf[len] = '\0';
+
+  if((dir) && (*dir)) {
+    memccpy(buf, dir, 0, len);
+    strncat(buf, "/", 1);
+  } else
+    strncpy(buf, "/tmp/", len);
+
+  if((len = (sizeof(buf) - 1) - strlen(buf)) < 1)
+    return 0;
+
+  strncat(buf, template ? template : "temp_", --len);
+
+  len = (sizeof(buf) - 1) - strlen(buf);
+  strncat(buf, "XXXXXX", len);
+
+  if((fd = mkstemp(buf)) < 0)
+    return 0;
+
+  close(fd);
+  unlink(buf);
+
+  return strdup(buf);
+}
 #endif
 
 #ifndef _WIN32
@@ -1115,7 +1150,6 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_NULL;
 }*/
 
-#ifdef USE_TEMPNAM
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *dir = 0, *pfx = 0;
@@ -1135,7 +1169,6 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   return ret;
 }
-#endif
 
 static JSValue
 js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -3206,7 +3239,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   }
 
   new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
-  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue (*)(JSContext*, uint64_t))&JS_NewInt64;
+  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
 
 #if HAVE_FSTAT
   if((res = fstat(fd, &st)) == -1)
@@ -3424,10 +3457,8 @@ js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
-// JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
-#ifdef USE_TEMPNAM
+    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
-#endif
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
