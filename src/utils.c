@@ -2616,12 +2616,12 @@ js_module_load(JSContext* ctx, const char* name) {
   JSModuleLoaderFunc* loader = 0;
   void* opaque = 0;
 
-#if HAVE_JS_GETMODULELOADERFUNC
+#ifdef HAVE_JS_GETMODULELOADERFUNC
   if(!(loader = JS_GetModuleLoaderFunc(JS_GetRuntime(ctx))))
     return 0;
 #endif
 
-#if HAVE_JS_GETMODULELOADEROPAQUE
+#ifdef HAVE_JS_GETMODULELOADEROPAQUE
   opaque = JS_GetModuleLoaderOpaque(JS_GetRuntime(ctx));
 #endif
 

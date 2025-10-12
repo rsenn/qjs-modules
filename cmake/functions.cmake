@@ -18,10 +18,9 @@ function(VAR2DEFINE NAME)
 
   if("${VALUE}")
     add_definitions(-D${NAME}=1)
- else("${VALUE}")
+  else("${VALUE}")
     add_definitions(-D${NAME}=0)
   endif("${VALUE}")
-
 endfunction(VAR2DEFINE NAME)
 
 function(CANONICALIZE OUTPUT_VAR STR)
@@ -109,12 +108,18 @@ macro(CHECK_FUNCTION_DEF FUNC)
     endif(${_${RESULT_VAR}})
   endif(NOT DEFINED ${RESULT_VAR})
 
+  set(DEFINE FALSE)
+
   if(${${RESULT_VAR}})
     if(NOT "${PREPROC_DEF}" STREQUAL "")
-      add_definitions(-D${PREPROC_DEF})
+      set(DEFINE TRUE)
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
   #message("${RESULT_VAR}: ${${RESULT_VAR}}")
+
+  if(DEFINE)
+    var2define(PREPROC_DEF)
+  endif(DEFINE)
 
   list(APPEND CHECKED_FUNCTIONS "${FUNC}")
 endmacro(CHECK_FUNCTION_DEF FUNC)
