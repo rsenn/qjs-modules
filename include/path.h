@@ -141,6 +141,7 @@ int path_readlink2(const char* path, DynBuf* dir);
 char* path_readlink1(const char* path);
 int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
 char* path_search(const char** path_ptr, const char* name, DynBuf* db);
+int path_diff4(const char* a, size_t la, const char* b, size_t lb);
 
 static inline int
 path_equal4(const char* a, size_t la, const char* b, size_t lb) {

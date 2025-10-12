@@ -580,7 +580,6 @@ path_diff4(const char* a, size_t la, const char* b, size_t lb) {
   return 0;
 }
 
-
 const char*
 path_extname1(const char* p) {
   size_t pos;
@@ -743,7 +742,7 @@ start:
     }
 
     default:
-    match : {
+    match: {
       if(*pattern == *string) {
         pattern++;
         plen--;
