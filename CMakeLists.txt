@@ -906,6 +906,9 @@ endforeach(LIB_MODULE ${LIB_MODULES})
 
 #compile_module(lib/stream.js "${CMAKE_CURRENT_BINARY_DIR}/stream.c" stream)
 if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
+  set(QUICKJS_INTERNAL 1 CACHE BOOL "Generate quickjs-internal.h")
+endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
+if(QUICKJS_INTERNAL)
   add_definitions(-DQUICKJS_INTERNAL=1)
   if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
@@ -936,7 +939,7 @@ if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
     "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
   )
   list(APPEND LIBRARY_SOURCES quickjs-internal.c)  
-endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
+endif(QUICKJS_INTERNAL)
 
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES}
                            ${libbcrypt_SOURCES})
