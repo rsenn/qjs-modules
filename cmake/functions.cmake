@@ -8,7 +8,7 @@ function(DUMP)
     string(REGEX REPLACE "\n" ";" A "${A}")
     string(REGEX REPLACE ";" "${SEPARATOR}" A "${A}")
     
-    message("	${VAR} = ${A}")
+    message("  ${VAR} = ${A}")
 
   endforeach(VAR ${ARGN})
 endfunction(DUMP)
