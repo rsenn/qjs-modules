@@ -124,6 +124,54 @@ int lutimes(const char*, const struct timeval[2]);
 
 #endif
 
+#ifndef HAVE_MKSTEMP
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
+#define mkstemp qjs_mkstemp
+
+static int
+qjs_mkstemp(char* template) {
+  char* tmp = template + strlen(template) - 6;
+  int res = -1;
+  unsigned int random;
+
+  if(tmp < template)
+    goto error;
+
+  for(int i = 0; i < 6; ++i)
+    if(tmp[i] != 'X') {
+    error:
+      errno = EINVAL;
+      return -1;
+    }
+
+  int randfd = open("/dev/urandom", O_RDONLY);
+
+  for(;;) {
+    read(randfd, &random, sizeof(random));
+
+    for(int i = 0; i < 6; ++i) {
+      int hexdigit = (random >> (i * 5)) & 0x1f;
+      tmp[i] = hexdigit > 9 ? hexdigit + 'a' - 10 : hexdigit + '0';
+    }
+
+    if((res = open(template, O_CREAT | O_RDWR | O_EXCL | O_NOFOLLOW, 0600)) >= 0 || errno != EEXIST)
+      break;
+  }
+
+  close(randfd);
+  return res;
+}
+#endif
+
 #ifndef HAVE_TEMPNAM
 #include <unistd.h>
 #include <fcntl.h>
@@ -135,7 +183,7 @@ int lutimes(const char*, const struct timeval[2]);
 #define tempnam qjs_tempnam
 
 static char*
-tempnam(const char* dir, char* template) {
+qjs_tempnam(const char* dir, const char* template) {
   char x[1024];
   const size_t n = sizeof(x) - 1;
   int fd;
@@ -968,11 +1016,8 @@ enum {
 static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  DynBuf dbuf = {0};
   const char* link = NULL;
   char path[256];
-  size_t n;
-  ssize_t r;
 
   switch(magic) {
     case FUNC_GETEXECUTABLE: link = "exe"; break;
@@ -981,7 +1026,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case FUNC_GETFD: link = "fd/"; break;
   }
 
-  n = snprintf(path, sizeof(path), "/proc/self/%s", link);
+  size_t n = snprintf(path, sizeof(path), "/proc/self/%s", link);
 
   if(magic == FUNC_GETFD) {
     int32_t fd;
@@ -993,9 +1038,9 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     snprintf(&path[n], sizeof(path) - n, "%d", fd);
   }
 
-  js_dbuf_init(ctx, &dbuf);
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
 
-  if((r = path_readlink2(path, &dbuf)) > 0)
+  if(path_readlink2(path, &dbuf) > 0)
     ret = dbuf_tostring_free(&dbuf, ctx);
 
   return ret;
@@ -1011,40 +1056,52 @@ enum {
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  DynBuf dbuf = {0};
-  size_t size, n;
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+  size_t size, n, pos = 0;
+  char path[PATH_MAX], sep = '\n';
   const char* file = 0;
-  char sep = '\n';
 
   switch(magic) {
     case FUNC_GETCOMMANDLINE: {
-      file = "/proc/self/cmdline";
+      file = "cmdline";
       sep = '\0';
       break;
     }
 
     case FUNC_GETPROCMAPS: {
-      file = "/proc/self/maps";
+      file = "maps";
       sep = '\n';
       break;
     }
 
     case FUNC_GETPROCMOUNTS: {
-      file = "/proc/self/mounts";
+      file = "mounts";
       sep = '\n';
       break;
     }
 
     case FUNC_GETPROCSTAT: {
-      file = "/proc/self/stat";
+      file = "stat";
       sep = ' ';
       break;
     }
   }
 
-  js_dbuf_init(ctx, &dbuf);
+  pos += str_copyn(&path[pos], "/proc/", sizeof(path) - pos);
 
-  if((size = dbuf_load(&dbuf, file)) > 0) {
+  if(argc > 0) {
+    int64_t pid = -1;
+    JS_ToInt64(ctx, &pid, argv[0]);
+
+    pos += fmt_longlong(&path[pos], pid);
+  } else {
+    pos += str_copyn(&path[pos], "self", sizeof(path) - pos);
+  }
+
+  pos += str_copyn(&path[pos], "/", sizeof(path) - pos);
+  pos += str_copyn(&path[pos], file, sizeof(path) - pos);
+
+  if((size = dbuf_load(&dbuf, path)) > 0) {
     while(size > 0 && dbuf.buf[size - 1] == '\n')
       size--;
 
@@ -1149,25 +1206,29 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_NewString(ctx, result);
   return JS_NULL;
 }*/
+#endif
 
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  const char* dir = 0;
-  char *nam, *pfx = 0;
+  const char *dir = 0, *pfx = 0;
+  char* nam;
   JSValue ret = JS_NULL;
 
   if(argc >= 1 && JS_IsString(argv[0]))
     dir = JS_ToCString(ctx, argv[0]);
 
   if(argc >= 2 && JS_IsString(argv[1]))
-    pfx = js_tostring(ctx, argv[1]);
+    pfx = JS_ToCString(ctx, argv[1]);
 
   if((nam = tempnam(dir, pfx))) {
     ret = JS_NewString(ctx, nam);
     free(nam);
   }
 
-  js_free(ctx, pfx);
+  if(dir)
+    JS_FreeCString(ctx, dir);
+  if(pfx)
+    JS_FreeCString(ctx, pfx);
 
   return ret;
 }
@@ -1175,13 +1236,11 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static JSValue
 js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* tmp = 0;
-  char* template;
-  int fd;
 
   if(argc >= 1 && JS_IsString(argv[0]))
     tmp = JS_ToCString(ctx, argv[0]);
 
-  template = js_strdup(ctx, tmp ? tmp : "/tmp/fileXXXXXX");
+  char* template = js_strdup(ctx, tmp ? tmp : "/tmp/fileXXXXXX");
 
   if(tmp)
     JS_FreeCString(ctx, tmp);
@@ -1189,7 +1248,7 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(!template)
     return JS_EXCEPTION;
 
-  fd = mkstemp(template);
+  int fd = mkstemp(template);
   js_free(ctx, template);
 
   if(fd < 0) {
@@ -1199,7 +1258,6 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   return JS_NewInt32(ctx, fd);
 }
-#endif
 
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {

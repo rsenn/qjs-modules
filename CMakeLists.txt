@@ -279,14 +279,12 @@ else(NOT NO_TEMPNAM)
   add_definitions(-UHAVE_TEMPNAM)
 endif(NOT NO_TEMPNAM)
 
-#if(HAVE_TEMPNAM)
-#  option(USE_TEMPNAM ON "Use tempnam()")
-#endif(HAVE_TEMPNAM)
-
-#if(USE_TEMPNAM)
-#  add_definitions(-DUSE_TEMPNAM=1)
-#endif(USE_TEMPNAM)
-
+if(NOT NO_MKSTEMP)
+  check_function_def(mkstemp)
+else(NOT NO_MKSTEMP)
+  add_definitions(-UHAVE_MKSTEMP)
+endif(NOT NO_MKSTEMP)
+ 
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
 #   ExternalProject_Add(
