@@ -714,6 +714,19 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           ctx, predicate_function(func, this_obj, MAX_NUM(1, js_get_propertystr_int32(ctx, func, "length"))));
       break;
     }
+
+    case PREDICATE_SOME: case PREDICATE_EVERY: {
+      JSValue func, this_obj = JS_UNDEFINED;
+
+      func = predicate_nextarg(ctx, &args);
+
+      if(args.c)
+        this_obj = predicate_nextarg(ctx, &args);
+
+      ret = js_predicate_wrap(
+          ctx, magic == PREDICATE_SOME ?   predicate_some(func) : predicate_every(func));
+      break;
+    }
   }
 
   return ret;
@@ -874,6 +887,11 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JS_DefinePropertyValueStr(ctx, obj, "arity", JS_NewInt32(ctx, pr->function.arity), JS_PROP_ENUMERABLE);
       break;
     }
+
+    case PREDICATE_SOME:case PREDICATE_EVERY: {
+      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->array.predicate), JS_PROP_ENUMERABLE); 
+      break;
+    }
   }
 
   return obj;
@@ -947,6 +965,8 @@ static const JSCFunctionListEntry js_predicate_funcs[] = {
     JS_CFUNC_MAGIC_DEF("slice", 0, js_predicate_function, PREDICATE_SLICE),
     JS_CFUNC_MAGIC_DEF("index", 1, js_predicate_function, PREDICATE_INDEX),
     JS_CFUNC_MAGIC_DEF("function", 1, js_predicate_function, PREDICATE_FUNCTION),
+    JS_CFUNC_MAGIC_DEF("some", 1, js_predicate_function, PREDICATE_SOME),
+    JS_CFUNC_MAGIC_DEF("every", 1, js_predicate_function, PREDICATE_EVERY),
 };
 
 static const JSCFunctionListEntry js_predicate_ids[] = {
@@ -979,6 +999,8 @@ static const JSCFunctionListEntry js_predicate_ids[] = {
     JS_PROP_INT32_DEF("SHIFT", PREDICATE_SHIFT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SLICE", PREDICATE_SLICE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("INDEX", PREDICATE_INDEX, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SOME", PREDICATE_SOME, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("EVERY", PREDICATE_SOME, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_predicate_types[] = {

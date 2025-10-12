@@ -624,7 +624,7 @@ js_stack_get(JSContext* ctx) {
 #endif
 
 const JSOpCode js_opcodes[/*OP_COUNT + (OP_TEMP_END - OP_TEMP_START)*/] = {
-//#define FMT(f)
+// #define FMT(f)
 #define def(id, size, n_pop, n_push, f)
 #undef FMT
 #ifdef DUMP_BYTECODE

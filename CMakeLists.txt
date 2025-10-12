@@ -8,7 +8,8 @@ set(CMAKE_C_STANDARD 11)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
-endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
+endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten"
+      OR DIET)
 
 option(BUILD_SHARED_MODULES "Build shared modules" ${BUILD_SHARED_LIBS})
 
@@ -108,12 +109,14 @@ check_library_exists(m atan2 "" HAVE_LIBMATH)
 if(HAVE_LIBMATH)
   link_libraries(m)
 endif(HAVE_LIBMATH)
-check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
+check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}"
+                     HAVE_JS_PROMISE_STATE)
 if(HAVE_JS_PROMISE_STATE)
   add_definitions(-DHAVE_JS_PROMISE_STATE)
 endif(HAVE_JS_PROMISE_STATE)
 
-check_library_exists(quickjs JS_PromiseResult "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_RESULT)
+check_library_exists(quickjs JS_PromiseResult "${QUICKJS_LIBRARY_DIR}"
+                     HAVE_JS_PROMISE_RESULT)
 if(HAVE_JS_PROMISE_RESULT)
   add_definitions(-DHAVE_JS_PROMISE_RESULT)
 endif(HAVE_JS_PROMISE_RESULT)
@@ -172,8 +175,8 @@ if(USE_SPAWN)
   endif(HAVE_SPAWN)
 endif(USE_SPAWN)
 
-check_includes(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linux/netlink.h linux/atalk.h
-               linux/phonet.h linux/if_alg.h)
+check_includes(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h
+               linux/netlink.h linux/atalk.h linux/phonet.h linux/if_alg.h)
 
 if(HAVE_LINUX_IPX_H)
   add_definitions(-DHAVE_LINUX_NETWORK_HEADERS)
@@ -290,12 +293,15 @@ endif(USE_TEMPNAM)
 #   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
 # endif(BUILD_PIGPIO)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}
-                    ${QUICKJS_INCLUDE_DIRS})
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
-                    textcode sockets stream syscallerror inspect tree-walker virtual xml)
+set(QUICKJS_MODULES
+    arraybuffer-sink bjson blob deep directory json lexer list location misc
+    path pointer predicate queue repeater textcode sockets stream syscallerror
+    inspect tree-walker virtual xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -322,12 +328,14 @@ if(MODULE_ARCHIVE)
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
       CMAKE_CACHE_ARGS
         "-DENABLE_TEST:BOOL=OFF"
-        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-      CMAKE_CACHE_DEFAULT_ARGS 
-        "-DENABLE_TEST:BOOL=OFF"
-        "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+        "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+        "-DCMAKE_C_FLAGS:STRING=-w"
+        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      CMAKE_CACHE_DEFAULT_ARGS "-DENABLE_TEST:BOOL=OFF"
+                               "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
     link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
 
@@ -373,26 +381,29 @@ endif(MODULE_MAGIC)
 
 if(MODULE_MAGIC)
   set(magic_MODULE magic)
-  if(NOT LIBMAGIC_LIBRARY)  
+  if(NOT LIBMAGIC_LIBRARY)
     set(magic_LIBRARIES magic)
-  endif(NOT LIBMAGIC_LIBRARY)  
+  endif(NOT LIBMAGIC_LIBRARY)
 endif(MODULE_MAGIC)
 
 if(MODULE_MYSQL)
   pkg_check_modules(MARIADB libmariadb mariadb)
 
-
   #dump(LIBMARIADB_INCLUDE_DIR)
-  string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}" LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
-  set(LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}" CACHE PATH "MariaDB library directory")
+  string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}"
+                       LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
+  set(LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}"
+      CACHE PATH "MariaDB library directory")
   link_directories(${LIBMARIADB_LIBRARY_DIR})
   if(pkgcfg_lib_MARIADB_mariadb)
     message(STATUS "MariaDB found by pkg-config")
-    set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
+    set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}"
+        CACHE STRING "MariaDB client library")
     unset(pkgcfg_lib_MARIADB_mariadb CACHE)
   else(pkgcfg_lib_MARIADB_mariadb)
     list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${LIBMARIADB_LIBRARY_DIR}")
-    check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}" HAVE_LIBMARIADB)
+    check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}"
+                         HAVE_LIBMARIADB)
     message(STATUS "MariaDB found by directory search")
 
     if(HAVE_LIBMARIADB)
@@ -416,12 +427,15 @@ if(MODULE_MYSQL)
 
     if(NOT LIBMARIADB_INCLUDE_DIR)
       if(LIBMARIADB_INCLUDE_DIR)
-        string(REGEX REPLACE "/lib.*" "/include" LIBMARIADB_INCLUDE_DIR "${ĹIBMARIADB_LIBRARY}")
+        string(REGEX REPLACE "/lib.*" "/include" LIBMARIADB_INCLUDE_DIR
+                             "${ĹIBMARIADB_LIBRARY}")
       endif(LIBMARIADB_INCLUDE_DIR)
-      set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}" CACHE PATH "MariaDB client include directory")
+      set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}"
+          CACHE PATH "MariaDB client include directory")
 
       if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
-        if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb" AND EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
+        if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb"
+           AND EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
           set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}/mariadb")
         endif()
       endif()
@@ -442,7 +456,8 @@ if(MODULE_PGSQL)
   pkg_check_modules(LIBPQ libpq)
 
   if(pkgcfg_lib_LIBPQ_pq)
-    set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}" CACHE STRING "PostgreSQL client library")
+    set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}"
+        CACHE STRING "PostgreSQL client library")
     unset(pkgcfg_lib_LIBPQ_pq CACHE)
   else(pkgcfg_lib_LIBPQ_pq)
     check_library_exists(pq PQconnectdb "${LIBPQ_LIBRARY_DIR}" HAVE_LIBPQCLIENT)
@@ -457,18 +472,21 @@ if(MODULE_PGSQL)
     set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
 
     if("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
-      string(REGEX REPLACE "/lib.*" "/include" LIBPQ_INCLUDE_DIR "${LIBPQ_LIBRARY}")
+      string(REGEX REPLACE "/lib.*" "/include" LIBPQ_INCLUDE_DIR
+                           "${LIBPQ_LIBRARY}")
     else("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
       set(LIBPQ_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
     endif("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
 
     if(NOT EXISTS "${LIBPQ_INCLUDE_DIR}/libpq-fe.h")
-      if(EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql" AND EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql/libpq-fe.h")
+      if(EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql"
+         AND EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql/libpq-fe.h")
         set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}/postgresql")
       endif()
     endif()
 
-    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}" CACHE PATH "PostgresSQL client include directory")
+    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}"
+        CACHE PATH "PostgresSQL client include directory")
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
     check_include_def(libpq-fe.h)
@@ -490,12 +508,16 @@ if(MODULE_WASM)
       SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm3
       CMAKE_CACHE_ARGS
-        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+        "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+        "-DCMAKE_C_FLAGS:STRING=-w"
+        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    set(WASM3_LIBRARY_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
     link_directories("${WASM3_LIBRARY_DIR}")
     set(WASM3_LIBRARY m3)
 
@@ -525,12 +547,16 @@ if(MODULE_WASM)
       SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm3
       CMAKE_CACHE_ARGS
-        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+        "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+        "-DCMAKE_C_FLAGS:STRING=-w"
+        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    set(WASM3_LIBRARY_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
     link_directories("${WASM3_LIBRARY_DIR}")
     set(WASM3_LIBRARY m3)
 
@@ -560,12 +586,16 @@ if(MODULE_WASM)
       SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm3
       CMAKE_CACHE_ARGS
-        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+        "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+        "-DCMAKE_C_FLAGS:STRING=-w"
+        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    set(WASM3_LIBRARY_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
     link_directories("${WASM3_LIBRARY_DIR}")
     set(WASM3_LIBRARY m3)
 
@@ -659,7 +689,8 @@ endif(NOT HAVE_INET_NTOP)
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
-file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
+file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h
+     tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)")
   set(X86 TRUE)
@@ -680,8 +711,9 @@ endif(HAVE_SYS_MMAN_H)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
 
-include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
-                    ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
+include_directories(
+  ${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 if(BUILD_LIBSERIALPORT)
@@ -699,7 +731,8 @@ if(BUILD_LIBSERIALPORT)
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       "-DNO_PUBLIC_API:BOOL=TRUE"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE" "-DNO_PUBLIC_API:BOOL=TRUE"
+    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE"
+                             "-DNO_PUBLIC_API:BOOL=TRUE"
     INSTALL_COMMAND cmake -E echo "Skipping install step.")
 
   #link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
@@ -707,14 +740,16 @@ if(BUILD_LIBSERIALPORT)
   set(LIBSERIALPORT_LIBRARY serialport)
   set(LIBSERIALPORT_LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport)
   set(LIBSERIALPORT_LIBRARY_FILE
-      ${LIBSERIALPORT_LIBRARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}serialport${CMAKE_STATIC_LIBRARY_SUFFIX})
+      ${LIBSERIALPORT_LIBRARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}serialport${CMAKE_STATIC_LIBRARY_SUFFIX}
+  )
 
   add_library(Serial::Port STATIC IMPORTED GLOBAL)
 
   #dump(LIBSERIALPORT_LIBRARY_FILE CMAKE_STATIC_LIBRARY_PREFIX CMAKE_STATIC_LIBRARY_SUFFIX)
 
-  set_target_properties(Serial::Port PROPERTIES IMPORTED_LOCATION "${LIBSERIALPORT_LIBRARY_FILE}"
-                                                IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE}")
+  set_target_properties(
+    Serial::Port PROPERTIES IMPORTED_LOCATION "${LIBSERIALPORT_LIBRARY_FILE}"
+                            IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE}")
 
   link_directories(${LIBSERIALPORT_LIBRARY_DIR})
 
@@ -739,7 +774,8 @@ else(HAVE_MMAP)
 endif(HAVE_MMAP)
 
 if(CACHE{CMAKE_BUILD_TYPE})
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel
+                                               RelWithDebInfo)
 endif(CACHE{CMAKE_BUILD_TYPE})
 
 set(CMAKE_REQUIRED_QUIET TRUE)
@@ -748,26 +784,31 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 #dump(VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
+check_flags(
+  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function"
+  CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
 
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -786,14 +827,16 @@ if(DO_TESTS)
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum "${TEST}")
+             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_CURRENT_BINARY_DIR}"
+                     "${QJSM}" --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
 check_c_source_runs(
   " # include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b,
     # c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n return
-    # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
+    # 0;\n}"
+  HAVE__BUILTIN_MUL_OVERFLOW)
 
 if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
@@ -838,15 +881,16 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
+set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm"
+    CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
 
 include(CTest)
 
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND ${QJSM} --bignum
-                                                                                       "${TEST_SOURCE}")
+  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+           COMMAND ${QJSM} --bignum "${TEST_SOURCE}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
@@ -901,26 +945,26 @@ foreach(LIB_MODULE ${LIB_MODULES})
 
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
 
-  compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
+  compile_module(lib/${LIB_MODULE}.js
+                 "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
 endforeach(LIB_MODULE ${LIB_MODULES})
+
+if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
+    set(QUICKJS_SOURCES_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+  endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
+endif("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
 #compile_module(lib/stream.js "${CMAKE_CURRENT_BINARY_DIR}/stream.c" stream)
 if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
   set(QUICKJS_INTERNAL TRUE CACHE BOOL "Generate quickjs-internal.h")
 endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs.c)
+
 if(QUICKJS_INTERNAL)
   add_definitions(-DQUICKJS_INTERNAL=1)
-  if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
-      set(QUICKJS_SOURCES_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
-    endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
-  endif("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
-  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
-
-  #if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
-  #  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h ${QUICKJS_STRUCT_SOURCES})
-  #endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
+  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs.c
+                             ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
 
   execute_process(
     COMMAND
@@ -938,37 +982,39 @@ if(QUICKJS_INTERNAL)
     WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
     "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
   )
-  list(APPEND LIBRARY_SOURCES quickjs-internal.c)  
+  list(APPEND LIBRARY_SOURCES quickjs-internal.c)
 endif(QUICKJS_INTERNAL)
 
-add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES}
-                           ${libbcrypt_SOURCES})
-set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
+add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES}
+                           ${libutf_SOURCES} ${libbcrypt_SOURCES})
+set_target_properties(modules PROPERTIES COMPILE_FLAGS
+                                         "-fPIC ${MODULE_COMPILE_FLAGS}")
 add_library(compiled STATIC ${COMPILED_MODULES})
 
 set(COMMON_LIBRARIES modules compiled)
 
 get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
-#dump(CURRENT_LINK_DIRS)
-
-#set(inspect_LIBS qjs-pointer)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
+
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
+
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
-  #list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 if(TARGET qjs-inspect)
   target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
 endif(TARGET qjs-inspect)
+
 if(TARGET qjs-tree-walker)
   target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
 endif(TARGET qjs-tree-walker)
+
 if(TARGET qjs-xml)
   target_link_libraries(qjs-xml PRIVATE qjs-pointer)
 endif(TARGET qjs-xml)
+
 # XXX: why?
 if(TARGET qjs-child-process)
   target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
@@ -994,7 +1040,8 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 set(QJSM_SOURCES src/qjsm.c)
 #set(QJSM_LDADD qjs-syscallerror-static)
 
-set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
+set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer
+                    predicate repeater tree-walker xml)
 list(APPEND NATIVE_BUILTINS syscallerror)
 
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
@@ -1014,27 +1061,36 @@ endif(LIBDL)
 link_directories(${QJSM_LIBDIR})
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
-set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w")
+set_target_properties(
+  qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS
+                                                                 "-w")
 
 if(BUILD_SHARED_LIBS)
-  set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
-                                        INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
+  set_target_properties(
+    qjsm
+    PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
+               INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
 endif(BUILD_SHARED_LIBS)
 
-target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
+target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
+                        ${QUICKJS_LIBRARY_DIR})
 
-target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY} ${LIBPTHREAD} ${LIBM}
-                                  ${LIBWS2_32})
+target_link_libraries(
+  qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY}
+              ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
 target_compile_definitions(
-  qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}" QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"
-               LIBMAGIC_DB="${LIBMAGIC_DB}" CONFIG_BIGNUM=1)
+  qjsm
+  PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
+          QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"
+          LIBMAGIC_DB="${LIBMAGIC_DB}" CONFIG_BIGNUM=1)
 install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)
 
-install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
-                                                             GROUP_READ WORLD_EXECUTE WORLD_READ)
+install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
+                    GROUP_READ WORLD_EXECUTE WORLD_READ)
 
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")

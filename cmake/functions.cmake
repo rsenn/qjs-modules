@@ -87,12 +87,14 @@ macro(CHECK_FUNCTION_DEF FUNC)
       #unset("${RESULT_VAR}")
       #unset("${RESULT_VAR}" CACHE)
       #set("${RESULT_VAR}" TRUE)
-      set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${FUNC}' function")
+      set("${RESULT_VAR}" TRUE
+          CACHE INTERNAL "Define this if you have the '${FUNC}' function")
     else(${_${RESULT_VAR}})
       #unset("${RESULT_VAR}")
       #unset("${RESULT_VAR}" CACHE)
       #set("${RESULT_VAR}" FALSE)
-      set("${RESULT_VAR}" FALSE CACHE INTERNAL "Define this if you have the '${FUNC}' function")
+      set("${RESULT_VAR}" FALSE
+          CACHE INTERNAL "Define this if you have the '${FUNC}' function")
     endif(${_${RESULT_VAR}})
   endif(NOT DEFINED ${RESULT_VAR})
 
@@ -136,7 +138,8 @@ macro(CHECK_INCLUDE_DEF INC)
   endif(ARGC GREATER_EQUAL 2)
   check_include_file("${INC}" "${RESULT_VAR}")
   if(${${RESULT_VAR}})
-    set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
+    set("${RESULT_VAR}" TRUE
+        CACHE INTERNAL "Define this if you have the '${INC}' header file")
     if(NOT "${PREPROC_DEF}" STREQUAL "")
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
@@ -179,7 +182,8 @@ macro(CHECK_INCLUDE_CXX_DEF INC)
   endif(ARGC GREATER_EQUAL 2)
   check_include_file_cxx("${INC}" "${RESULT_VAR}")
   if(${${RESULT_VAR}})
-    set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
+    set("${RESULT_VAR}" TRUE
+        CACHE INTERNAL "Define this if you have the '${INC}' header file")
     if(NOT "${PREPROC_DEF}" STREQUAL "")
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
@@ -241,8 +245,12 @@ function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" "${CODE}")
 
     try_compile(
-      RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
-      COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS "${LDFLAGS}" LINK_LIBRARIES "${LIBS}"
+      RESULT "${CMAKE_CURRENT_BINARY_DIR}"
+      "${CMAKE_CURRENT_BINARY_DIR}/${FILE}"
+      CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
+      COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}"
+      LINK_OPTIONS "${LDFLAGS}"
+      LINK_LIBRARIES "${LIBS}"
       OUTPUT_VARIABLE OUTPUT)
 
     set(${RESULT_VAR} "${RESULT}" PARENT_SCOPE)
@@ -276,13 +284,18 @@ function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
 
   # dump(FN)
 
-  try_run(RUN_RESULT COMPILE_RESULT SOURCES "${FN}" COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT
-          RUN_OUTPUT_VARIABLE RUN_OUTPUT CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
-          COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS "${LDFLAGS}" LINK_LIBRARIES "${LIBS}")
+  try_run(
+    RUN_RESULT COMPILE_RESULT SOURCES "${FN}"
+    COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT
+    RUN_OUTPUT_VARIABLE RUN_OUTPUT
+    CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
+    COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS
+                        "${LDFLAGS}" LINK_LIBRARIES "${LIBS}")
 
   #dump(RUN_RESULT COMPILE_RESULT)
 
-  file(WRITE "${LOG}" "Compile output:\n${COMPILE_OUTPUT}\n\nRun output:\n${RUN_OUTPUT}\n")
+  file(WRITE "${LOG}"
+       "Compile output:\n${COMPILE_OUTPUT}\n\nRun output:\n${RUN_OUTPUT}\n")
   unset(LOG)
 
   set(${RESULT_VAR} "${COMPILE_RESULT}" PARENT_SCOPE)
