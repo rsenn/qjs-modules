@@ -1523,7 +1523,7 @@ js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 }
 
 enum {
-  ERASE_IN_DISPLAY,
+  ERASE_IN_DISPLAY = 0,
   ERASE_IN_LINE,
 };
 
@@ -1549,7 +1549,7 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 enum {
-  SET_CURSOR_POSITION,
+  SET_CURSOR_POSITION = 0,
   MOVE_CURSOR,
 };
 
@@ -1578,7 +1578,7 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 enum {
-  SET_TEXT_ATTRIBUTES,
+  SET_TEXT_ATTRIBUTES = 0,
   SET_TEXT_COLOR,
 };
 
@@ -1651,7 +1651,7 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
 #ifdef _WIN32
 enum {
-  SET_CONSOLE_MODE,
+  SET_CONSOLE_MODE = 0,
   GET_CONSOLE_MODE,
 };
 
@@ -1823,7 +1823,7 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 enum {
-  FUNC_GETTID,
+  FUNC_GETTID = 0,
   FUNC_GETPID,
   FUNC_GETPPID,
   FUNC_GETSID,
@@ -2167,7 +2167,7 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 enum {
-  GET_TYPE_ID,
+  GET_TYPE_ID = 0,
   GET_TYPE_STR,
   GET_TYPE_NAME,
 };
@@ -2213,7 +2213,7 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 enum {
-  PROMISE_STATE,
+  PROMISE_STATE = 0,
   PROMISE_RESULT,
 };
 
@@ -2236,7 +2236,7 @@ js_misc_promise(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 
 enum {
-  BITFIELD_SET,
+  BITFIELD_SET = 0,
   BITFIELD_BITS,
   BITFIELD_FROMARRAY,
   BITFIELD_TOARRAY,
@@ -2402,7 +2402,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 enum {
-  BITOP_NOT,
+  BITOP_NOT = 0,
   BITOP_XOR,
   BITOP_AND,
   BITOP_OR,
@@ -2460,7 +2460,7 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 enum {
-  RANDOM_RAND,
+  RANDOM_RAND = 0,
   RANDOM_RANDI,
   RANDOM_RANDF,
   RANDOM_SRAND,
@@ -2708,7 +2708,7 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 enum {
-  IS_ARRAY,
+  IS_ARRAY = 0,
   IS_BIGDECIMAL,
   IS_BIGFLOAT,
   IS_BIGINT,
@@ -3365,7 +3365,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 enum {
-  FUNC_GET_OSFHANDLE,
+  FUNC_GET_OSFHANDLE = 0,
   FUNC_OPEN_OSFHANDLE,
 };
 
