@@ -11,9 +11,68 @@ struct js_json_parser_opaque {
 };
 
 static JSValue
-js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
+    JSValue ret=JS_UNDEFINED;
+const uint8_t *ptr, *end, *start;
 
+  ptr = buf;
+  end = buf + len;
+
+  size_t n = scan_whitenskip(ptr, end - ptr);
+
+  ptr += n;
+
+  while(ptr < end) {
+    size_t len = scan_nonwhitenskip(ptr, end - ptr);
+    switch(ptr[0]) {
+      case '{': {
+        break;
+      }
+      case '[': {
+        break;
+      }
+
+      case 't':
+      case 'f': {
+        break;
+      }
+
+      case 'n': {
+        break;
+      }
+      
+      case '"': {
+        break;
+      }
+    }
+
+    ptr += len;
+    ptr += scan_whitenskip(ptr, end - ptr);
+  }
+
+  return ret;
+}
+
+static JSValue
+js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret;
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+  const char* input_name = 0;
+
+  if(input.data == 0 || input.size == 0) {
+    JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
+    return JS_EXCEPTION;
+  }
+
+  if(argc >= 2)
+    input_name = JS_ToCString(ctx, argv[1]);
+
+  ret = js_json_parse(ctx, input.data, input.size, input_name ? input_name : "<json>");
+
+  if(input_name)
+    JS_FreeCString(ctx, input_name);
+
+  input_buffer_free(&input, ctx);
   return ret;
 }
 
