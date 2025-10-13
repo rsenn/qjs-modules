@@ -12,8 +12,8 @@ struct js_json_parser_opaque {
 
 static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
-    JSValue ret=JS_UNDEFINED;
-const uint8_t *ptr, *end, *start;
+  JSValue ret = JS_UNDEFINED;
+  const uint8_t *ptr, *end, *start;
 
   ptr = buf;
   end = buf + len;
@@ -24,6 +24,7 @@ const uint8_t *ptr, *end, *start;
 
   while(ptr < end) {
     size_t len = scan_nonwhitenskip(ptr, end - ptr);
+
     switch(ptr[0]) {
       case '{': {
         break;
@@ -40,7 +41,7 @@ const uint8_t *ptr, *end, *start;
       case 'n': {
         break;
       }
-      
+
       case '"': {
         break;
       }
