@@ -32,7 +32,7 @@ static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
   JSValue ret = JS_UNDEFINED;
   const uint8_t *ptr, *end, *start;
-  static const uint8_t states[ST_COUNT][256] = {
+  static const JsonState states[ST_COUNT][256] = {
       [ST_UNDEFINED] =
           {
               ['{'] = ST_OBJECT,
@@ -54,8 +54,16 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
               ['-'] = ST_NUMBER,
               ['+'] = ST_NUMBER,
           },
-      [ST_OBJECT] = {[','] = ST_COMMA},
-      [ST_ARRAY] = {[','] = ST_COMMA},
+      [ST_OBJECT] =
+          {
+              [','] = ST_COMMA,
+              ['}'] = ST_COUNT,
+          },
+      [ST_ARRAY] =
+          {
+              [','] = ST_COMMA,
+              [']'] = ST_COUNT,
+          },
       [ST_BOOL] =
           {
               ['r'] = ST_BOOL,
@@ -96,12 +104,23 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
   ptr += n;
 
   while(ptr < end) {
-    size_t len = scan_nonwhitenskip(ptr, end - ptr);
+    // size_t len = scan_nonwhitenskip(ptr, end - ptr);
+    uint8_t ch = *ptr++;
 
-    frame->state = states[frame->state][ptr[0]];
+    JsonState newstate = states[frame->state][ch];
 
-    ptr += len;
-    ptr += scan_whitenskip(ptr, end - ptr);
+    if(newstate == ST_COUNT) {
+      frame = vector_pop(&st, sizeof(JsonContext));
+    } else {
+      frame->state = newstate;
+
+      if(newstate >= ST_OBJECT && newstate <= ST_ARRAY) {
+        frame = vector_emplace(&st, sizeof(JsonContext));
+      }
+    }
+
+    /*   ptr += len;
+       ptr += scan_whitenskip(ptr, end - ptr);*/
   }
 
   return ret;
