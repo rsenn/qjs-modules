@@ -1,6 +1,7 @@
 #include "stream-utils.h"
 #include "utils.h"
 #include "json.h"
+#include "vector.h"
 
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
@@ -10,10 +11,82 @@ struct js_json_parser_opaque {
   JSObject *parser, *obj;
 };
 
+typedef enum {
+  ST_UNDEFINED = 0,
+  ST_OBJECT,
+  ST_ARRAY,
+  ST_BOOL,
+  ST_NULL,
+  ST_STRING,
+  ST_NUMBER,
+  ST_COMMA,
+  ST_COUNT
+} JsonState;
+
+typedef struct {
+  JsonState state;
+  size_t index;
+} JsonContext;
+
 static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
   JSValue ret = JS_UNDEFINED;
   const uint8_t *ptr, *end, *start;
+  static const uint8_t states[ST_COUNT][256] = {
+      [ST_UNDEFINED] =
+          {
+              ['{'] = ST_OBJECT,
+              ['['] = ST_ARRAY,
+              ['t'] = ST_BOOL,
+              ['f'] = ST_BOOL,
+              ['n'] = ST_NULL,
+              ['"'] = ST_STRING,
+              ['0'] = ST_NUMBER,
+              ['1'] = ST_NUMBER,
+              ['2'] = ST_NUMBER,
+              ['3'] = ST_NUMBER,
+              ['4'] = ST_NUMBER,
+              ['5'] = ST_NUMBER,
+              ['6'] = ST_NUMBER,
+              ['7'] = ST_NUMBER,
+              ['8'] = ST_NUMBER,
+              ['9'] = ST_NUMBER,
+              ['-'] = ST_NUMBER,
+              ['+'] = ST_NUMBER,
+          },
+      [ST_OBJECT] = {[','] = ST_COMMA},
+      [ST_ARRAY] = {[','] = ST_COMMA},
+      [ST_BOOL] =
+          {
+              ['r'] = ST_BOOL,
+              ['u'] = ST_BOOL,
+              ['e'] = ST_BOOL,
+              ['a'] = ST_BOOL,
+              ['l'] = ST_BOOL,
+              ['s'] = ST_BOOL,
+              ['e'] = ST_BOOL,
+          },
+      [ST_NUMBER] =
+          {
+              ['0'] = ST_NUMBER,
+              ['1'] = ST_NUMBER,
+              ['2'] = ST_NUMBER,
+              ['3'] = ST_NUMBER,
+              ['4'] = ST_NUMBER,
+              ['5'] = ST_NUMBER,
+              ['6'] = ST_NUMBER,
+              ['7'] = ST_NUMBER,
+              ['8'] = ST_NUMBER,
+              ['9'] = ST_NUMBER,
+              ['-'] = ST_NUMBER,
+              ['+'] = ST_NUMBER,
+              ['.'] = ST_NUMBER,
+              ['E'] = ST_NUMBER,
+              ['e'] = ST_NUMBER,
+          },
+  };
+  Vector st = VECTOR(ctx);
+  JsonContext* frame = vector_emplace(&st, sizeof(JsonContext));
 
   ptr = buf;
   end = buf + len;
@@ -25,27 +98,7 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
   while(ptr < end) {
     size_t len = scan_nonwhitenskip(ptr, end - ptr);
 
-    switch(ptr[0]) {
-      case '{': {
-        break;
-      }
-      case '[': {
-        break;
-      }
-
-      case 't':
-      case 'f': {
-        break;
-      }
-
-      case 'n': {
-        break;
-      }
-
-      case '"': {
-        break;
-      }
-    }
+    frame->state = states[frame->state][ptr[0]];
 
     ptr += len;
     ptr += scan_whitenskip(ptr, end - ptr);
