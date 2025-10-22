@@ -742,7 +742,7 @@ start:
     }
 
     default:
-    match: {
+    match : {
       if(*pattern == *string) {
         pattern++;
         plen--;
