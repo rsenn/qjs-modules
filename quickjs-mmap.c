@@ -93,13 +93,13 @@ js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   length = len;
 
   if(argc >= 3 && JS_IsNumber(argv[0])) {
-    JS_ToInt64(ctx, &offset, argv[0]);
+    JS_ToInt64Ext(ctx, &offset, argv[0]);
     argc--;
     argv++;
   }
 
   if(argc >= 2 && JS_IsNumber(argv[0])) {
-    JS_ToInt64(ctx, &length, argv[0]);
+    JS_ToInt64Ext(ctx, &length, argv[0]);
     argc--;
     argv++;
   }

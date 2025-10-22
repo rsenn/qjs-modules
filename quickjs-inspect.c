@@ -803,7 +803,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
   && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) { int64_t num; char
   buf[FMT_XLONG];
 
-    JS_ToInt64(ctx, &num, value);
+    JS_ToInt64Ext(ctx, &num, value);
 
     writer_puts(wr, "0x");
     writer_write(wr, buf, fmt_xlonglong(buf, num));

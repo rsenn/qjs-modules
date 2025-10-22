@@ -93,7 +93,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       }
       if(argc > 1) {
         int64_t index = INT64_MAX;
-        JS_ToInt64(ctx, &index, argv[1]);
+        JS_ToInt64Ext(ctx, &index, argv[1]);
 
         index = CLAMP_NUM(WRAP_NUM(index, (int64_t)alen), 0, (int64_t)alen);
 

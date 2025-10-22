@@ -676,7 +676,7 @@ js_archive_seek(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(!(ar = js_archive_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JS_ToInt64(ctx, &offset, argv[0]);
+  JS_ToInt64Ext(ctx, &offset, argv[0]);
   JS_ToInt32(ctx, &whence, argv[1]);
 
   r = archive_seek_data(ar, offset, whence);
@@ -1228,7 +1228,7 @@ js_archiveentry_constructor(JSContext* ctx, JSValueConst new_target, int argc, J
     if(JS_IsNumber(argv[i])) {
       int64_t size = -1;
 
-      if(!JS_ToInt64(ctx, &size, argv[i]))
+      if(!JS_ToInt64Ext(ctx, &size, argv[i]))
         archive_entry_set_size(ent, size);
     } else if(JS_IsObject(argv[i])) {
       js_object_copy(ctx, obj, argv[i]);

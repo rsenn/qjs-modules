@@ -1225,7 +1225,7 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       int64_t bytes = -1;
       JSValue newa = JS_UNDEFINED;
 
-      JS_ToInt64(ctx, &bytes, argv[0]);
+      JS_ToInt64Ext(ctx, &bytes, argv[0]);
 
       if(bytes >= 0 && (size_t)bytes > length) {
         ret = JS_ThrowRangeError(ctx,

@@ -976,7 +976,7 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(i + 1 < argc && JS_IsNumber(argv[i])) {
     int64_t offset = 0;
 
-    JS_ToInt64(ctx, &offset, argv[i++]);
+    JS_ToInt64Ext(ctx, &offset, argv[i++]);
     offset = MIN_NUM((int64_t)len, offset);
 
     ptr += offset;
@@ -986,7 +986,7 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(i + 1 < argc && JS_IsNumber(argv[i])) {
     int64_t length = 0;
 
-    if(!JS_ToInt64(ctx, &length, argv[i++]))
+    if(!JS_ToInt64Ext(ctx, &length, argv[i++]))
       len = MIN_NUM((int64_t)len, length);
   }
 
@@ -1143,10 +1143,10 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     return JS_ThrowTypeError(ctx, "argument 1 object excepted");
 
   if(argc >= 2 && !js_is_null_or_undefined(argv[1]))
-    JS_ToInt64(ctx, &limit, argv[1]);
+    JS_ToInt64Ext(ctx, &limit, argv[1]);
 
   if(argc >= 3 && !js_is_null_or_undefined(argv[2]))
-    JS_ToInt64(ctx, &start, argv[2]);
+    JS_ToInt64Ext(ctx, &start, argv[2]);
 
   ret = JS_NewArray(ctx);
   end = limit >= 0 ? start + limit : -1;
@@ -1185,8 +1185,8 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     psec = JS_GetPropertyUint32(ctx, argv[0], 0);
     pnsec = JS_GetPropertyUint32(ctx, argv[0], 1);
 
-    JS_ToInt64(ctx, &sec, psec);
-    JS_ToInt64(ctx, &nsec, pnsec);
+    JS_ToInt64Ext(ctx, &sec, psec);
+    JS_ToInt64Ext(ctx, &nsec, pnsec);
     JS_FreeValue(ctx, psec);
     JS_FreeValue(ctx, pnsec);
 
@@ -2342,7 +2342,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       size_t len;
 
       if(argc >= 2)
-        JS_ToInt64(ctx, &offset, argv[1]);
+        JS_ToInt64Ext(ctx, &offset, argv[1]);
 
       if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
         size_t i, j = 0, bits = len * 8;
@@ -2361,7 +2361,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       size_t len;
 
       if(argc >= 2)
-        JS_ToInt64(ctx, &offset, argv[1]);
+        JS_ToInt64Ext(ctx, &offset, argv[1]);
 
       if(argc >= 1 && (buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
         size_t i, j = 0, bits = len * 8;
@@ -2403,7 +2403,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       size_t len;
 
       if(argc >= 2)
-        JS_ToInt64(ctx, &offset, argv[1]);
+        JS_ToInt64Ext(ctx, &offset, argv[1]);
 
       if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
         size_t i, bits = len * 8;
@@ -2424,7 +2424,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       int64_t len;
 
       if(argc >= 2)
-        JS_ToInt64(ctx, &offset, argv[1]);
+        JS_ToInt64Ext(ctx, &offset, argv[1]);
 
       if(!JS_IsArray(ctx, argv[0]))
         return JS_ThrowTypeError(ctx, "argument must be an array");
@@ -2557,7 +2557,6 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 enum {
   RANDOM_RAND = 0,
   RANDOM_RANDI,
-  RANDOM_RANDF,
   RANDOM_SRAND,
 };
 
@@ -2584,17 +2583,10 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-      /*case RANDOM_RANDF: {
-        uint32_t num = pcg32_random();
-
-        ret = JS_NewFloat64(ctx, ((double)num / (UINT32_MAX >> 1)) - 1.0l);
-        break;
-      }*/
-
     case RANDOM_SRAND: {
-      uint32_t st = 0;
+      int64_t st = 0;
 
-      JS_ToUint32(ctx, &st, argv[0]);
+      JS_ToInt64Ext(ctx, &st, argv[0]);
       pcg32_init_state(st);
       ret = JS_UNDEFINED;
       break;
@@ -3856,7 +3848,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("promiseResult", 1, js_misc_promise, PROMISE_RESULT),
     JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
-    // JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, RANDOM_SRAND),
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
     JS_CFUNC_DEF("unescape", 1, js_misc_unescape),
