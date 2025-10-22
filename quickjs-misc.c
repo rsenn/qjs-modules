@@ -2152,18 +2152,28 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case ATOM_TO_VALUE: {
       uint32_t atom;
+      const uint32_t ATOM_BIT = (1u << 31u);
 
       JS_ToUint32(ctx, &atom, argv[0]);
-      ret = JS_AtomToValue(ctx, atom);
+
+      ret = atom & ATOM_BIT ? JS_NewUint32(ctx, atom & (~ATOM_BIT)) : JS_AtomToValue(ctx, atom);
       break;
     }
 
     case FIND_ATOM: {
+      char buf[17] = {'-', '-', '-', '-', 0, 0, 0, 0, 0, 0, 0, 0, '-', '-', '-', '-', 0};
+
+      for(int i = 4; i < 12; ++i)
+        buf[i] = 'A' + (rand() % 26);
+
+      JSAtom atom2 = JS_NewAtom(ctx, buf);
+      JS_FreeAtom(ctx, atom2);
+
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
-
       JS_FreeAtom(ctx, atom);
+      BOOL not_found = atom == atom2;
 
-      if(atom == JS_ATOM_NULL)
+      if(atom == JS_ATOM_NULL || not_found)
         ret = JS_ThrowTypeError(ctx, "not found");
       else
         ret = JS_NewUint32(ctx, atom);
