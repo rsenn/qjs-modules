@@ -2132,6 +2132,7 @@ enum {
   ATOM_TO_STRING = 0,
   ATOM_TO_VALUE,
   VALUE_TO_ATOM,
+  DUP_ATOM,
   FREE_ATOM,
 };
 
@@ -2160,6 +2161,15 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
 
       ret = JS_NewUint32(ctx, atom);
+      break;
+    }
+
+    case DUP_ATOM: {
+      uint32_t atom;
+
+      JS_ToUint32(ctx, &atom, argv[0]);
+
+      ret = JS_NewUint32(ctx, JS_DupAtom(ctx, atom));
       break;
     }
 
@@ -3754,6 +3764,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
     JS_CFUNC_MAGIC_DEF("valueToAtom", 1, js_misc_atom, VALUE_TO_ATOM),
+    JS_CFUNC_MAGIC_DEF("dupAtom", 1, js_misc_atom, DUP_ATOM),
     JS_CFUNC_MAGIC_DEF("freeAtom", 1, js_misc_atom, FREE_ATOM),
     JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
     JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
