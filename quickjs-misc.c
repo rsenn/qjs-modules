@@ -2172,10 +2172,11 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
           buf[i] = 'A' + (rand() % 26);
 
         JSAtom atom2 = JS_NewAtom(ctx, buf);
-        BOOL not_found = atom == (atom2 - 1);
 
-        if(atom == JS_ATOM_NULL || not_found)
-          ret = not_found ? JS_UNDEFINED : JS_NULL;
+        if(atom == (atom2 - 1))
+          ret = JS_UNDEFINED;
+        else if(atom == JS_ATOM_NULL)
+          ret = JS_NULL;
 
         JS_FreeAtom(ctx, atom2);
       }
