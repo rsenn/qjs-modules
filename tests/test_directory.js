@@ -19,7 +19,7 @@ function main(...args) {
   if(args.length == 0) args = ['.'];
 
   let index = 0;
-  for(let arg of args) {
+  for(const arg of args) {
     let dir = new Directory(arg);
 
     for(let [name, type] of dir) {

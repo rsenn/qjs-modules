@@ -289,13 +289,13 @@ function* GetTokens(file, pred = ({ type }) => type == 'identifier') {
 }
 
 function* TransformLexeme(gen) {
-  for(let token of gen) yield token.lexeme;
+  for(const token of gen) yield token.lexeme;
 }
 
 function* GetCommands(file) {
   let lex = GetTokens(file, ({ type }) => type != 'whitespace');
   let a = [];
-  for(let tok of lex) {
+  for(const tok of lex) {
     a.push(tok);
 
     if(tok.type == 'punctuator' && tok.lexeme == ';') {
@@ -483,7 +483,7 @@ function ListExports(file, output, params) {
     .filter(n => n !== undefined)
     .unique();
 
-  for(let exp of exports) {
+  for(const exp of exports) {
     const { type, exported, code } = exp;
 
     if(exported) exportNames.pushUnique(...(Array.isArray(exported) ? exported : [exported]));
@@ -678,7 +678,7 @@ function main(...args) {
     })();
   }
 
-  for(let file of files) {
+  for(const file of files) {
     log = quiet ? () => {} : (...args) => console.log(`${file}:`, console.config({ compact: 10 }), ...args);
 
     try {

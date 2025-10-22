@@ -4,7 +4,7 @@ import extendArray from 'extendArray';
 import { format } from 'util';
 import { Console } from 'console';
 import { Location } from 'location';
-import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClassConstructor, getClassID, getClassName, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject, } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClass, getClassID, getClassName, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject, } from 'misc';
 import * as std from 'std';
 
 extendArray(Array.prototype);
@@ -94,7 +94,7 @@ function main(...args) {
       console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
       console.log('misc.getClassID()', getClassID(Symbol));
       console.log('misc.getClassCount()', getClassCount());
-      console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]])));
+      console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClass(id)]])));
     }
     let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
     let arr = bitfieldToArray(bits, 0);
