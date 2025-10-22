@@ -18,9 +18,13 @@ int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
 
 #define DBUF_INIT_0() \
-  (DynBuf) { 0, 0, 0, 0, 0, 0 }
+  (DynBuf) { \
+    0, 0, 0, 0, 0, 0 \
+  }
 #define DBUF_INIT_CTX(ctx) \
-  (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) }
+  (DynBuf) { \
+    0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) \
+  }
 
 #define DBUF_DATA(db) ((void*)(db)->buf)
 #define DBUF_SIZE(db) ((db)->size)
@@ -185,7 +189,9 @@ typedef struct OffsetLength {
 } OffsetLength;
 
 #define OFFSETLENGTH_INIT() \
-  (OffsetLength) { 0, SIZE_MAX }
+  (OffsetLength) { \
+    0, SIZE_MAX \
+  }
 
 #define offsetlength_in_range(ol, num) ((num) >= (ol).offset && (num) < ((ol).offset + (ol).length))
 
@@ -247,7 +253,9 @@ typedef struct IndexRange {
 } IndexRange;
 
 #define INDEXRANGE_INIT() \
-  (IndexRange) { 0, INT64_MAX }
+  (IndexRange) { \
+    0, INT64_MAX \
+  }
 
 #define indexrange_in_range(ir, num) ((num) >= (ir).start && (num) < ((ir).end))
 
@@ -304,7 +312,9 @@ typedef struct {
 } PointerRange;
 
 #define RANGE_INIT() \
-  (PointerRange) { 0, 0 }
+  (PointerRange) { \
+    0, 0 \
+  }
 
 int range_overlap(const PointerRange*, const PointerRange*);
 PointerRange range_null(void);
@@ -392,7 +402,9 @@ typedef struct InputBuffer {
 } InputBuffer;
 
 #define INPUT_BUFFER_INIT() \
-  (InputBuffer) { {BLOCK_INIT()}, 0, NULL, JS_UNDEFINED, OFFSETLENGTH_INIT() }
+  (InputBuffer) { \
+    {BLOCK_INIT()}, 0, NULL, JS_UNDEFINED, OFFSETLENGTH_INIT() \
+  }
 
 static inline void
 input_buffer_free_default(JSContext* ctx, const char* str, JSValue val) {

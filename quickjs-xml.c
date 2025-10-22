@@ -802,7 +802,9 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
 
   str = JS_NewString(ctx, (const char*)output->buf);
 
-  vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&enumerations, it) {
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
+  }
   vector_free(&enumerations);
   return str;
 }

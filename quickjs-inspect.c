@@ -315,7 +315,9 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   arr = JS_NewArray(ctx);
   n = 0;
 
-  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
+  vector_foreach_t(&opts->hide_keys, key) {
+    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
+  }
 
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
@@ -376,20 +378,7 @@ put_escaped(Writer* wr, const char* str, size_t len) {
   char buf[FMT_ULONG];
   size_t i = 0;
   const uint8_t *pos, *end, *next;
-  static const uint8_t table[256] = {
-      'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'b', 't', 'n', 'v', 'f', 'r', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x',
-      'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,   0,   0,   '\'', 0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   '\\', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   'x',  0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u',  'u', 'u', 'u', 'u',
-      'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u',
-      'u', 'u', 'u', 0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,
-  };
+  static const uint8_t* table = escape_singlequote_tab;
 
   for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
     size_t clen;
@@ -401,10 +390,9 @@ put_escaped(Writer* wr, const char* str, size_t len) {
 
     clen = next - pos;
     ch = c;
-    r = c > 0xff ? 'u' : table[c];
+    r = c > 0xff ? 0 : table[c];
 
-    if(clen > 2 || c > 0xffff)
-      r = 'u';
+    // if(clen >= 2) r = 'u';
 
     if(r == 'u' && clen > 1 && (c & 0xff) == 0) {
       r = 'x';
@@ -1293,7 +1281,11 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
     case JS_TAG_MODULE: {
       JSModuleDef* def = JS_VALUE_GET_PTR(value);
-      const char* name = module_namecstr(ctx, def);
+      const char* name = 0;
+
+#if QUICKJS_INTERNAL
+      name = module_namecstr(ctx, def);
+#endif
 
       writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[module '" : "[module '");
       writer_puts(wr, name);

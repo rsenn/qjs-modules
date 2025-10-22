@@ -50,7 +50,9 @@
 #include "base64.h"
 #include "debug.h"
 
+#if QUICKJS_INTERNAL
 #include "quickjs-internal.h"
+#endif
 
 JSModuleDef* js_module_loader_path(JSContext* ctx, const char* module_name, void* opaque);
 
@@ -121,7 +123,7 @@ module_has_suffix(const char* module_name) {
   return 0;
 }
 
-#ifdef HAVE_GET_MODULE_LOADER_FUNC
+#if HAVE_JS_GETMODULELOADERFUNC
 JSModuleLoaderFunc* js_std_get_module_loader_func();
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #endif
@@ -152,10 +154,14 @@ typedef struct {
 #define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
-  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE }
+  (BuiltinModule) { \
+    #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE \
+  }
 
 #define jsm_module_record_native(name) \
-  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0, FALSE }
+  (BuiltinModule) { \
+    #name, js_init_module_##name, 0, 0, 0, FALSE \
+  }
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);
@@ -188,7 +194,7 @@ static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
 jsm_module_extern_compiled(qjscalc);
 #endif
 static int bignum_ext = 1;
@@ -366,16 +372,20 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   }
 
   if(JS_IsModule(val) || module) {
-    JSModuleDef* m;
+    JSModuleDef* m = 0;
 
     if(!JS_IsModule(val)) {
+#if QUICKJS_INTERNAL
       m = js_module_at(ctx, -1);
+#endif
       val = module_value(ctx, m);
     } else {
       m = JS_VALUE_GET_PTR(val);
     }
 
+#if QUICKJS_INTERNAL
     module_exports_get(ctx, m, TRUE, global_obj);
+#endif
   } else {
     JS_ToInt32(ctx, &ret, val);
   }
@@ -746,8 +756,12 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 
 static JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* path, const char* name) {
-  JSModuleDef* last_module = module_last(ctx);
+  JSModuleDef* last_module = 0;
   DynBuf dbuf;
+
+#if QUICKJS_INTERNAL
+  last_module = module_last(ctx);
+#endif
 
   dbuf_init2(&dbuf, 0, 0);
 
@@ -767,12 +781,16 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   dbuf_free(&dbuf);
 
+  JSModuleDef* m = 0;
+
+#if QUICKJS_INTERNAL
   if(module_next(ctx, last_module) == NULL)
     return 0;
 
   assert(module_next(ctx, last_module));
 
-  JSModuleDef* m = module_next(ctx, module_next(ctx, last_module));
+  m = module_next(ctx, module_next(ctx, last_module));
+#endif
 
   if(!m)
     m = jsm_module_find(ctx, path, 0);
@@ -961,7 +979,9 @@ again:
           JS_FreeValue(ctx, meta_obj);
         }*/
 
+#if QUICKJS_INTERNAL
         module_rename(ctx, m, JS_NewAtom(ctx, "<data-url>"));
+#endif
       }
 
       JS_FreeValue(ctx, module);
@@ -1097,10 +1117,14 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(bltin->def) {
-      const char* str = module_namecstr(ctx, bltin->def);
+      const char* str = 0;
 
-      file = js_strdup(ctx, str);
-      JS_FreeCString(ctx, str);
+#if QUICKJS_INTERNAL
+      if((str = module_namecstr(ctx, bltin->def))) {
+        file = js_strdup(ctx, str);
+        JS_FreeCString(ctx, str);
+      }
+#endif
     }
   } else {
     if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
@@ -1227,7 +1251,9 @@ jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
   JSModuleDef *m, **list;
   JSValue ret = JS_NewArray(ctx);
 
+#if QUICKJS_INTERNAL
   if(!(list = js_modules_vector(ctx)))
+#endif
     return JS_EXCEPTION;
 
   for(uint32_t i = 0; (m = list[i]); i++) {
@@ -1428,7 +1454,7 @@ jsm_help(void) {
 #ifdef CONFIG_BIGNUM
          "    --no-bignum    disable the bignum extensions (BigFloat, "
          "BigDecimal)\n"
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
          "    --qjscalc      load the QJSCalc runtime (default if invoked as "
          "qjscalc)\n"
 #endif
@@ -1517,8 +1543,10 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JSModuleDef* m = JS_VALUE_GET_PTR(ret);
     JSValue obj = JS_NewObject(ctx);
 
+#if QUICKJS_INTERNAL
     JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
     JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, m));
+#endif
     ret = obj;
   }
 
@@ -1616,8 +1644,9 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       m = jsm_module_find(ctx, name, start);
 
-      val = JS_NewInt32(ctx, js_module_indexof(ctx, m));
-
+#if QUICKJS_INTERNAL
+      val = JS_NewInt32(ctx, module_indexof(ctx, m));
+#endif
       break;
     }
 
@@ -1639,9 +1668,10 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case REQUIRE_MODULE: {
+#if QUICKJS_INTERNAL
       if((m = jsm_module_loader(ctx, name, NULL)))
         val = module_exports(ctx, m);
-
+#endif
       break;
     }
 
@@ -1659,7 +1689,12 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case NORMALIZE_MODULE: {
       const char *path, *module, *file;
 
-      path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
+      path =
+#if QUICKJS_INTERNAL
+          m ? module_namecstr(ctx, m) :
+#endif
+            JS_ToCString(ctx, argv[0]);
+
       module = JS_ToCString(ctx, argv[1]);
 
       if((file = jsm_module_normalize(ctx, path, module, 0))) {
@@ -1678,7 +1713,9 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case GET_MODULE_NAME: {
+#if QUICKJS_INTERNAL
       val = module_name(ctx, m);
+#endif
       break;
     }
 
@@ -1688,47 +1725,65 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case GET_MODULE_INDEX: {
-      val = JS_NewInt32(ctx, js_module_indexof(ctx, m));
+#if QUICKJS_INTERNAL
+      val = JS_NewInt32(ctx, module_indexof(ctx, m));
+#endif
       break;
     }
 
     case GET_MODULE_OBJECT: {
+#if QUICKJS_INTERNAL
       val = module_object(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_IMPORTS: {
+#if QUICKJS_INTERNAL
       val = module_imports(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_REQMODULES: {
+#if QUICKJS_INTERNAL
       val = module_reqmodules(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_EXPORTS: {
+#if QUICKJS_INTERNAL
       val = module_exports(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_NAMESPACE: {
+#if QUICKJS_INTERNAL
       val = module_ns(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_FUNCTION: {
+#if QUICKJS_INTERNAL
       val = module_func(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_EXCEPTION: {
+#if QUICKJS_INTERNAL
       val = module_exception(ctx, m);
+#endif
       break;
     }
 
     case GET_MODULE_META_OBJ: {
+#if QUICKJS_INTERNAL
       val = module_meta_obj(ctx, m);
+#endif
       break;
     }
 
@@ -1779,7 +1834,11 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           chain = JS_ToBool(ctx, argv[1]);
 
         m = jsm_module_loader(ctx, module, chain ? &module_loaders : 0);
-        val = m ? JS_NewInt32(ctx, js_module_indexof(ctx, m)) : JS_NULL;
+        val =
+#if QUICKJS_INTERNAL
+            m ? JS_NewInt32(ctx, module_indexof(ctx, m)) :
+#endif
+              JS_NULL;
         // val = m ? JS_DupValue(ctx, JS_MKVAL(JS_TAG_MODULE, m)) : JS_NULL;
       }
 
@@ -1797,7 +1856,9 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, EVAL_FILE),
     JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
     JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
+#if QUICKJS_INTERNAL
     JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
+#endif
     JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
     JS_CFUNC_MAGIC_DEF("moduleLoader", 1, jsm_module_func, MODULE_LOADER),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
@@ -1891,7 +1952,7 @@ main(int argc, char** argv) {
        dump_unhandled_promise_rejection = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
   int load_jscalc;
 #endif
 
@@ -1904,7 +1965,7 @@ main(int argc, char** argv) {
   // printf("n = %zu, exename = %s, exelen = %d\n", n, exename, (int)exelen);
 
   /* load jscalc runtime if invoked as 'qjscalc' */
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
   load_jscalc = !strcmp(exename, "qjscalc");
 #endif
 
@@ -2024,7 +2085,7 @@ main(int argc, char** argv) {
         bignum_ext = 1;
         break;
       }
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
       if(!strcmp(longopt, "qjscalc")) {
         load_jscalc = 1;
         break;
@@ -2070,8 +2131,8 @@ main(int argc, char** argv) {
 
   jsm_init_modules(jsm_ctx);
 
-#ifdef HAVE_GET_MODULE_LOADER_FUNC
-  module_loader = js_std_get_module_loader_func();
+#if HAVE_JS_GETMODULELOADERFUNC
+  JSModuleLoaderFunc* module_loader = js_std_get_module_loader_func();
 #endif
 
   {
@@ -2092,7 +2153,7 @@ main(int argc, char** argv) {
     }
   }
 
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
   if(load_jscalc)
     bignum_ext = 1;
 #endif
@@ -2141,7 +2202,7 @@ main(int argc, char** argv) {
     DynBuf db;
     js_dbuf_init(jsm_ctx, &db);
 
-#ifdef HAVE_QJSCALC
+#if HAVE_QJSCALC
     if(load_jscalc) {
       js_eval_binary(jsm_ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }

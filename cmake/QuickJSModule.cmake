@@ -197,12 +197,10 @@ function(make_module FNAME)
   #dump(VNAME ${VNAME}_SOURCES)
 
   if(ARGN)
-    set(SOURCES ${ARGN} ${${VNAME}_SOURCES}
-                ${COMMON_SOURCES})
+    set(SOURCES ${ARGN} ${${VNAME}_SOURCES} ${COMMON_SOURCES})
     add_unique(DEPS ${${VNAME}_DEPS})
   else(ARGN)
-    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES}
-                ${COMMON_SOURCES})
+    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES} ${COMMON_SOURCES})
     add_unique(LIBS ${${VNAME}_LIBRARIES})
   endif(ARGN)
   add_unique(LIBS ${COMMON_LIBRARIES})

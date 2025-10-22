@@ -95,8 +95,6 @@ int path_exists1(const char* p);
 int path_exists2(const char* p, size_t len);
 int path_isin4(const char* p, size_t len, const char* dir, size_t dirlen);
 int path_isin2(const char* p, const char* dir);
-int path_equal4(const char* a, size_t la, const char* b, size_t lb);
-int path_equal2(const char* a, const char* b);
 const char* path_extname1(const char* p);
 size_t path_extpos1(const char* p);
 size_t path_extlen1(const char* p);
@@ -107,8 +105,6 @@ char* path_gethome(void);
 char* path_gethome1(int uid);
 char* path_gethome2(const char* user, size_t userlen);
 int path_stat2(const char* p, size_t plen, struct stat* st);
-int path_isabsolute2(const char* x, size_t n);
-int path_isabsolute1(const char* x);
 int path_isdir1(const char* p);
 int path_isdir2(const char* p, size_t plen);
 int path_isfile1(const char* p);
@@ -145,6 +141,39 @@ int path_readlink2(const char* path, DynBuf* dir);
 char* path_readlink1(const char* path);
 int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
 char* path_search(const char** path_ptr, const char* name, DynBuf* db);
+int path_diff4(const char* a, size_t la, const char* b, size_t lb);
+
+static inline int
+path_equal4(const char* a, size_t la, const char* b, size_t lb) {
+  return 0 == path_diff4(a, la, b, lb);
+}
+
+static inline int
+path_equal2(const char* a, const char* b) {
+  return path_equal4(a, strlen(a), b, strlen(b));
+}
+
+static inline int
+path_isabsolute2(const char* x, size_t n) {
+  if(n > 0 && x[0] == PATHSEP_C)
+    return 1;
+#ifdef _WIN32
+  if(n >= 2 && x[1] == ':')
+    return 1;
+#endif
+  return 0;
+}
+
+static inline int
+path_isabsolute1(const char* x) {
+  if(x[0] && x[0] == PATHSEP_C)
+    return 1;
+#ifdef _WIN32
+  if(x[0] && x[1] && x[1] == ':')
+    return 1;
+#endif
+  return 0;
+}
 
 static inline size_t
 path_component1(const char* p) {

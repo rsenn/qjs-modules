@@ -110,8 +110,8 @@ is_backslash_char(int c) {
   return c == '\\';
 }
 
-//#define is_dot_char(c) ((c) == '.')0
-//#define is_backslash_char(c) ((c) == '\\')
+// #define is_dot_char(c) ((c) == '.')0
+// #define is_backslash_char(c) ((c) == '\\')
 
 static inline int
 is_dot_char(int c) {

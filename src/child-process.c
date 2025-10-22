@@ -27,7 +27,7 @@
 
 #ifndef __ANDROID__
 #ifndef HAVE_FORK
-#ifdef HAVE_VFORK
+#if HAVE_VFORK
 #define fork() vfork()
 #endif
 #endif
@@ -294,7 +294,7 @@ child_process_spawn(ChildProcess* cp) {
       perror("setgid()");
 #endif
 
-#ifdef HAVE_EXECVPE
+#if HAVE_EXECVPE
     (cp->use_path ? execvpe : execve)(cp->file, cp->args, cp->env ? cp->env : environ);
     perror("execvp()");
 #else

@@ -393,6 +393,40 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       break;
     }
 
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      JSValueConst pred = pr->array.predicate;
+      JSValue arg = js_arguments_at(args, 0);
+
+      size_t i, n = js_array_length(ctx, arg);
+
+      ret = pr->id == PREDICATE_SOME ? JS_FALSE : JS_TRUE;
+
+      for(i = 0; i < n; i++) {
+        JSValue member = JS_GetPropertyUint32(ctx, arg, i);
+        JSValue args[] = {member, JS_NewUint32(ctx, i), arg};
+        JSValue ret = JS_Call(ctx, pred, JS_NULL, countof(args), args);
+
+        BOOL result = JS_ToBool(ctx, ret);
+
+        JS_FreeValue(ctx, member);
+        JS_FreeValue(ctx, args[1]);
+        JS_FreeValue(ctx, ret);
+
+        if(pr->id == PREDICATE_SOME && result == TRUE) {
+          ret = JS_TRUE;
+          break;
+        }
+        if(pr->id == PREDICATE_EVERY && result == FALSE) {
+          ret = JS_FALSE;
+          break;
+        }
+      }
+
+      JS_FreeValue(ctx, arg);
+      break;
+    }
+
     default: {
       assert(0);
       break;
@@ -436,10 +470,10 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "type", "charset", "string", "notnot", "not",        "bnot",        "sqrt",  "add",
-      "sub",  "mul",     "div",    "mod",    "bor",        "band",        "pow",   "atan2",
-      "or",   "and",     "xor",    "regexp", "instanceof", "prototypeis", "equal", "property",
-      "has",  "member",  "shift",  "slice",  "index",      "function",    0,
+      "type",  "charset", "string",     "notnot",      "not",   "bnot",     "sqrt",  "add",    "sub",
+      "mul",   "div",     "mod",        "bor",         "band",  "pow",      "atan2", "or",     "and",
+      "xor",   "regexp",  "instanceof", "prototypeis", "equal", "property", "has",   "member", "shift",
+      "slice", "index",   "function",   "some",        "every", 0,
   })[pr->id];
 }
 
@@ -455,21 +489,21 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_putstr(dbuf, "type == ");
       dbuf_bitflags(dbuf,
                     pr->type.flags,
-                    ((const char* const[]){
-                        "UNDEFINED",
-                        "NULL",
-                        "BOOL",
-                        "INT",
-                        "OBJECT",
-                        "STRING",
-                        "SYMBOL",
-                        "BIG_FLOAT",
-                        "BIG_INT",
-                        "BIG_DECIMAL",
-                        "FLOAT64",
-                        "FUNCTION",
-                        "ARRAY",
-                    }));
+                    ((const char* const[]){"UNDEFINED",
+                                           "NULL",
+                                           "BOOL",
+                                           "INT",
+                                           "OBJECT",
+                                           "STRING",
+                                           "SYMBOL",
+                                           "BIG_FLOAT",
+                                           "BIG_INT",
+                                           "BIG_DECIMAL",
+                                           "FLOAT64",
+                                           "FUNCTION",
+                                           "SOME",
+                                           "EVERY",
+                                           0}));
       break;
     }
 
@@ -616,6 +650,12 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       int nargs = js_get_propertystr_int32(ctx, pr->function.func, "length");
 
       dbuf_printf(dbuf, "func(%d)", nargs);
+      break;
+    }
+
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      dbuf_putstr(dbuf, pr->id == PREDICATE_SOME ? "some" : "every");
       break;
     }
 
@@ -851,6 +891,12 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       break;
     }
 
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      dbuf_putstr(dbuf, pr->id == PREDICATE_SOME ? "some" : "every");
+      break;
+    }
+
     default: {
       assert(0);
       break;
@@ -971,6 +1017,11 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
       JS_FreeValueRT(rt, pr->index.predicate);
       break;
     }
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      JS_FreeValueRT(rt, pr->array.predicate);
+      break;
+    }
   }
 
   memset(pr, 0, sizeof(Predicate));
@@ -1062,6 +1113,12 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
       ret = JS_DupValue(ctx, pr->index.predicate);
       break;
     }
+
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      ret = JS_DupValue(ctx, pr->array.predicate);
+      break;
+    }
   }
 
   return ret;
@@ -1149,6 +1206,12 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
     }
 
     case PREDICATE_INDEX: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
+      break;
+    }
+
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
       break;
     }
@@ -1261,6 +1324,12 @@ predicate_clone(const Predicate* pr, JSContext* ctx) {
     case PREDICATE_INDEX: {
       ret->index.pos = pr->index.pos;
       ret->index.predicate = JS_DupValue(ctx, pr->index.predicate);
+      break;
+    }
+
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      ret->array.predicate = JS_DupValue(ctx, pr->array.predicate);
       break;
     }
   }
@@ -1379,6 +1448,12 @@ predicate_recursive_num_args(const Predicate* pr) {
       n++;
       break;
     }
+
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      n++;
+      break;
+    }
   }
 
   return n;
@@ -1462,6 +1537,11 @@ predicate_direct_num_args(const Predicate* pr) {
     case PREDICATE_INDEX: {
       return 1;
     }
+
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: {
+      return 1;
+    }
   }
 
   return -1;
@@ -1503,6 +1583,8 @@ predicate_precedence(const Predicate* pr) {
     case PREDICATE_HAS: ret = PRECEDENCE_MEMBER_ACCESS; break;
     case PREDICATE_MEMBER:
     case PREDICATE_FUNCTION: ret = PRECEDENCE_MEMBER_ACCESS; break;
+    case PREDICATE_SOME:
+    case PREDICATE_EVERY: break;
   }
 
   assert(ret != (JSPrecedence)-1);

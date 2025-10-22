@@ -75,7 +75,9 @@ list_size(struct list_head* list) {
   struct list_head* el;
   size_t i = 0;
 
-  list_for_each(el, list) { ++i; }
+  list_for_each(el, list) {
+    ++i;
+  }
 
   return i;
 }
@@ -2478,15 +2480,7 @@ js_map_iterator_prototype(JSContext* ctx) {
   return ret;
 }
 
-char*
-namestr(JSContext* ctx, JSModuleDef* m) {
-  const char* name = module_namecstr(ctx, m);
-  char* str = js_strdup(ctx, name);
-
-  JS_FreeCString(ctx, name);
-  return str;
-}
-
+#if QUICKJS_INTERNAL
 JSValue
 module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
   JSAtom atom = JS_NewAtom(ctx, name);
@@ -2507,10 +2501,14 @@ module_exports(JSContext* ctx, JSModuleDef* m) {
 
   return exports;
 }
+#endif
 
 JSValue
 js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
-  JSValue entries = js_modules_entries(ctx, this_val, magic);
+  JSValue entries = JS_UNDEFINED;
+#if QUICKJS_INTERNAL
+  entries = js_modules_entries(ctx, this_val, magic);
+#endif
   JSValue map = js_map_new(ctx, entries);
 
   JS_FreeValue(ctx, entries);
@@ -2519,17 +2517,22 @@ js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
 
 JSValue
 module_value(JSContext* ctx, JSModuleDef* m) {
-  return m == NULL ? JS_NULL : JS_NewInt32(ctx, js_module_indexof(ctx, m));
-  // return JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+  return
+#if QUICKJS_INTERNAL
+      m != NULL ? JS_NewInt32(ctx, module_indexof(ctx, m)) :
+#endif
+                JS_NULL;
 }
 
 JSValue
 module_entry(JSContext* ctx, JSModuleDef* m) {
   JSValue entry = JS_NewArray(ctx);
 
+#if QUICKJS_INTERNAL
   JS_SetPropertyUint32(ctx, entry, 0, module_ns(ctx, m));
   JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, m));
   JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, m));
+#endif
 
   return entry;
 }
@@ -2551,7 +2554,10 @@ js_module_def(JSContext* ctx, JSValueConst value) {
     int32_t num = -1;
 
     JS_ToInt32(ctx, &num, value);
+
+#if QUICKJS_INTERNAL
     return js_module_at(ctx, num);
+#endif
   }
 
   if(JS_IsObject(value)) {
@@ -2586,15 +2592,23 @@ js_module_def(JSContext* ctx, JSValueConst value) {
 
 JSModuleDef*
 js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
-  JSModuleDef* start = js_module_at(ctx, start_pos);
-  JSModuleDef* ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
+  JSModuleDef *start = 0, *ret = 0;
+
+#if QUICKJS_INTERNAL
+  start = js_module_at(ctx, start_pos);
+  ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
+#endif
 
   return ret;
 }
 
 JSModuleDef*
 js_module_find(JSContext* ctx, const char* name) {
+#if QUICKJS_INTERNAL
   return js_module_find_fwd(ctx, name, NULL);
+#else
+  return 0;
+#endif
 }
 
 JSModuleDef*
@@ -2602,12 +2616,12 @@ js_module_load(JSContext* ctx, const char* name) {
   JSModuleLoaderFunc* loader = 0;
   void* opaque = 0;
 
-#ifdef HAVE_JS_GETMODULELOADERFUNC
+#if HAVE_JS_GETMODULELOADERFUNC
   if(!(loader = JS_GetModuleLoaderFunc(JS_GetRuntime(ctx))))
     return 0;
 #endif
 
-#ifdef HAVE_JS_GETMODULELOADEROPAQUE
+#if HAVE_JS_GETMODULELOADEROPAQUE
   opaque = JS_GetModuleLoaderOpaque(JS_GetRuntime(ctx));
 #endif
 
@@ -3014,6 +3028,34 @@ js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
   return len;
 }
 
+/*void
+js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
+  JSString* jstr = opaque;
+
+  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
+}*/
+
+JSValue
+js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
+  /*JSString* jstr;
+
+  if(!JS_IsString(str))
+    return JS_ThrowTypeError(ctx, "Not a string");
+
+  jstr = js_value_ptr(JS_DupValue(ctx, str));
+
+  return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);*/
+
+  const char* x;
+  size_t n;
+
+  if((x = JS_ToCStringLen(ctx, &n, str))) {
+    return JS_NewArrayBufferCopy(ctx, (uint8_t*)x, n);
+  }
+
+  return JS_ThrowInternalError(ctx, "Cannot convert value to string");
+}
+
 JSValue
 js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
   int tag = JS_VALUE_GET_TAG(obj);
@@ -3330,7 +3372,9 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
         return JS_ThrowReferenceError(ctx, "'os' module required");
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);
+#if QUICKJS_INTERNAL
       set_handler = module_exports_find(ctx, os, func_name);
+#endif
       JS_FreeAtom(ctx, func_name);
     }
   }

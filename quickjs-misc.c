@@ -14,6 +14,7 @@
 #include "quickjs-textcode.h"
 #include "quickjs-syscallerror.h"
 #include "utils.h"
+#include "buffer-utils.h"
 #include "path.h"
 #include "vector.h"
 #include "base64.h"
@@ -87,11 +88,11 @@
 #include "glob.h"
 #endif
 
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
 #include "wordexp.h"
 #endif
 
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
 #include <sys/inotify.h>
 #endif
 #include "buffer-utils.h"
@@ -124,8 +125,91 @@ int lutimes(const char*, const struct timeval[2]);
 
 #endif
 
-#ifndef USE_TEMPNAM
-#define USE_TEMPNAM
+#ifndef HAVE_MKSTEMP
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
+#define mkstemp qjs_mkstemp
+
+static int
+qjs_mkstemp(char* template) {
+  char* tmp = template + strlen(template) - 6;
+  int res = -1;
+  unsigned int random;
+
+  if(tmp < template)
+    goto error;
+
+  for(int i = 0; i < 6; ++i)
+    if(tmp[i] != 'X') {
+    error:
+      errno = EINVAL;
+      return -1;
+    }
+
+  int randfd = open("/dev/urandom", O_RDONLY);
+
+  for(;;) {
+    read(randfd, &random, sizeof(random));
+
+    for(int i = 0; i < 6; ++i) {
+      int hexdigit = (random >> (i * 5)) & 0x1f;
+      tmp[i] = hexdigit > 9 ? hexdigit + 'a' - 10 : hexdigit + '0';
+    }
+
+    if((res = open(template, O_CREAT | O_RDWR | O_EXCL | O_NOFOLLOW, 0600)) >= 0 || errno != EEXIST)
+      break;
+  }
+
+  close(randfd);
+  return res;
+}
+#endif
+
+#ifndef HAVE_TEMPNAM
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define tempnam qjs_tempnam
+
+static char*
+qjs_tempnam(const char* dir, const char* template) {
+  char x[1024];
+  const size_t n = sizeof(x) - 1;
+  int fd;
+  size_t p = 0;
+
+  if(dir && *dir) {
+    p += str_copyn(&x[p], dir, n - p);
+    p += str_copyn(&x[p], "/", n - p);
+  } else
+    p += str_copyn(x, "/tmp/", n - p);
+
+  if((n - p) < 1)
+    return 0;
+
+  p += str_copyn(&x[p], template ? template : "temp_", n - p);
+  p += str_copyn(&x[p], "XXXXXX", n - p);
+
+  if((fd = mkstemp(x)) < 0)
+    return 0;
+
+  close(fd);
+  unlink(x);
+
+  return str_ndup(x, p);
+}
 #endif
 
 #ifndef _WIN32
@@ -141,7 +225,7 @@ int lutimes(const char*, const struct timeval[2]);
 #endif
 
 #define TextAttrColor(n) \
-  (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
+  (((n) & 1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
    (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
 #define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
@@ -709,7 +793,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 static JSValue
 js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  size_t total_len = 0, pos = 0;
+  size_t buf_size = 0, pos = 0;
   uint8_t* buf;
   InputBuffer* buffers = js_mallocz(ctx, sizeof(InputBuffer) * argc);
 
@@ -721,17 +805,17 @@ js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       goto fail;
     }
 
-    total_len += buffers[i].size;
+    buf_size += buffers[i].size;
   }
 
-  buf = js_malloc(ctx, total_len);
+  buf = js_malloc(ctx, buf_size);
 
   for(int i = 0; i < argc; i++) {
     memcpy(&buf[pos], buffers[i].data, buffers[i].size);
     pos += buffers[i].size;
   }
 
-  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_arraybuffer_free_pointer, 0, FALSE);
+  ret = JS_NewArrayBuffer(ctx, buf, buf_size, js_arraybuffer_free_pointer, 0, FALSE);
 
 fail:
   for(int i = 0; i < argc; i++)
@@ -872,7 +956,7 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_NULL;
 }
 
-#ifdef HAVE_FMEMOPEN
+#if HAVE_FMEMOPEN
 static JSValue
 js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* ptr;
@@ -906,7 +990,11 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   FILE* f = fmemopen(ptr, len, mode);
   JS_FreeCString(ctx, mode);
 
-  return f ? js_std_file(ctx, f) : JS_NULL;
+  return
+#if HAVE_JS_STD_FILE
+      f ? js_std_file(ctx, f) :
+#endif
+        JS_NULL;
 }
 #endif
 
@@ -920,104 +1008,121 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
 }
 
 enum {
-  FUNC_GETEXECUTABLE,
-  FUNC_GETCWD,
-  FUNC_GETROOT,
-  FUNC_GETFD,
+  FUNC_GETEXECUTABLE = 0,
+  FUNC_GETWORKINGDIRECTORY,
+  FUNC_GETROOTDIRECTORY,
+  FUNC_GETFILEDESCRIPTOR,
 };
 
 static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  DynBuf dbuf = {0};
   const char* link = NULL;
-  char path[256];
-  size_t n;
-  ssize_t r;
+  char x[PATH_MAX];
+  int i = 0;
+  int64_t fd = -1;
+  size_t p = str_copyn(x, "/proc/", sizeof(x));
+  static const char* const links[] = {"/exe", "/cwd", "/root", "/fd/"};
 
-  switch(magic) {
-    case FUNC_GETEXECUTABLE: link = "exe"; break;
-    case FUNC_GETCWD: link = "cwd"; break;
-    case FUNC_GETROOT: link = "root"; break;
-    case FUNC_GETFD: link = "fd/"; break;
-  }
-
-  n = snprintf(path, sizeof(path), "/proc/self/%s", link);
-
-  if(magic == FUNC_GETFD) {
-    int32_t fd;
-
-    if(argc < 1 || !JS_IsNumber(argv[0]))
+  if(magic == FUNC_GETFILEDESCRIPTOR) {
+    if(argc <= i || !JS_IsNumber(argv[i]))
       return JS_ThrowTypeError(ctx, "argument 1 must be Number");
 
-    JS_ToInt32(ctx, &fd, argv[0]);
-    snprintf(&path[n], sizeof(path) - n, "%d", fd);
+    JS_ToInt64(ctx, &fd, argv[i]);
+    ++i;
   }
 
-  js_dbuf_init(ctx, &dbuf);
+  if(argc > i) {
+    int64_t pid;
+    JS_ToInt64(ctx, &pid, argv[i]);
+    p += fmt_longlong(&x[p], pid);
+  } else
+    p += str_copyn(&x[p], "self", sizeof(x) - p);
 
-  if((r = path_readlink2(path, &dbuf)) > 0)
+  p += str_copyn(&x[p], links[magic], sizeof(x) - p);
+
+  if(magic == FUNC_GETFILEDESCRIPTOR)
+    p += fmt_longlong(&x[p], fd);
+
+  x[p] = '\0';
+
+  ssize_t r;
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+
+  if((r = path_readlink2(x, &dbuf)) > 0)
     ret = dbuf_tostring_free(&dbuf, ctx);
 
   return ret;
 }
 
+static JSValue
+js_misc_procline(JSContext* ctx, const char* x, size_t len, int max_items) {
+  JSValue ret = JS_NewArray(ctx);
+
+  for(size_t p = 0, i = 0; p < len; p += scan_whitenskip(&x[p], len - p)) {
+    size_t q = (max_items >= 0 && (i + 1) == max_items) ? len - p : scan_nonwhitenskip(&x[p], len - p);
+
+    JS_SetPropertyUint32(ctx, ret, i++, JS_NewStringLen(ctx, &x[p], q));
+
+    if(i >= max_items)
+      break;
+
+    p += q;
+  }
+
+  return ret;
+}
+
 enum {
-  FUNC_GETCOMMANDLINE,
+  FUNC_GETCOMMANDLINE = 0,
+  FUNC_GETENVIRON,
+  FUNC_GETPROCSTAT,
   FUNC_GETPROCMAPS,
   FUNC_GETPROCMOUNTS,
-  FUNC_GETPROCSTAT,
 };
 
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  DynBuf dbuf = {0};
-  size_t size, n;
-  const char* file = 0;
-  char sep = '\n';
+  char x[PATH_MAX];
+  static const char* const links[] = {"/cmdline", "/environ", "/stat", "/maps", "/mounts"};
+  static const char seps[] = {'\0', '\0', ' ', '\n', '\n'};
+  static const int max_items[] = {-1, -1, -1, 6, 6};
+  size_t p = str_copyn(x, "/proc/", sizeof(x));
 
-  switch(magic) {
-    case FUNC_GETCOMMANDLINE: {
-      file = "/proc/self/cmdline";
-      sep = '\0';
-      break;
-    }
+  if(argc > 0) {
+    int64_t pid = -1;
+    JS_ToInt64(ctx, &pid, argv[0]);
+    p += fmt_longlong(&x[p], pid);
+  } else
+    p += str_copyn(&x[p], "self", sizeof(x) - p);
 
-    case FUNC_GETPROCMAPS: {
-      file = "/proc/self/maps";
-      sep = '\n';
-      break;
-    }
+  p += str_copyn(&x[p], links[magic], sizeof(x) - p);
 
-    case FUNC_GETPROCMOUNTS: {
-      file = "/proc/self/mounts";
-      sep = '\n';
-      break;
-    }
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+  ssize_t len;
 
-    case FUNC_GETPROCSTAT: {
-      file = "/proc/self/stat";
-      sep = ' ';
-      break;
-    }
-  }
-
-  js_dbuf_init(ctx, &dbuf);
-
-  if((size = dbuf_load(&dbuf, file)) > 0) {
-    while(size > 0 && dbuf.buf[size - 1] == '\n')
-      size--;
+  if((len = dbuf_load(&dbuf, x)) < 0) {
+    ret = JS_ThrowInternalError(ctx, "Error reading '%s': %s", x, strerror(errno));
+  } else if(len > 0) {
+    while(len > 0 && dbuf.buf[len - 1] == '\n')
+      len--;
 
     ret = JS_NewArray(ctx);
 
-    for(size_t i = 0, j = 0; i < size; i += n + 1) {
-      size_t len = n = byte_chr(&dbuf.buf[i], size - i, sep);
+    for(size_t n, i = 0, j = 0; i < len; i += n + 1) {
+      const uint8_t* y = &dbuf.buf[i];
+      size_t l = n = byte_chr(y, len - i, seps[magic]);
 
-      while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
-        len--;
+      while(l > 0 && is_whitespace_char(&y[l - 1]))
+        l--;
 
-      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
+      if(magic == 0 || l) {
+        JSValue item = magic >= FUNC_GETPROCMAPS ? js_misc_procline(ctx, (const char*)y, l, max_items[magic])
+                                                 : JS_NewStringLen(ctx, (const char*)y, l);
+
+        JS_SetPropertyUint32(ctx, ret, j++, item);
+      }
     }
   }
 
@@ -1110,8 +1215,8 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_NewString(ctx, result);
   return JS_NULL;
 }*/
+#endif
 
-#ifdef USE_TEMPNAM
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *dir = 0, *pfx = 0;
@@ -1129,20 +1234,22 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     free(nam);
   }
 
+  if(dir)
+    JS_FreeCString(ctx, dir);
+  if(pfx)
+    JS_FreeCString(ctx, pfx);
+
   return ret;
 }
-#endif
 
 static JSValue
 js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* tmp = 0;
-  char* template;
-  int fd;
 
   if(argc >= 1 && JS_IsString(argv[0]))
     tmp = JS_ToCString(ctx, argv[0]);
 
-  template = js_strdup(ctx, tmp ? tmp : "/tmp/fileXXXXXX");
+  char* template = js_strdup(ctx, tmp ? tmp : "/tmp/fileXXXXXX");
 
   if(tmp)
     JS_FreeCString(ctx, tmp);
@@ -1150,7 +1257,7 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(!template)
     return JS_EXCEPTION;
 
-  fd = mkstemp(template);
+  int fd = mkstemp(template);
   js_free(ctx, template);
 
   if(fd < 0) {
@@ -1160,7 +1267,6 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   return JS_NewInt32(ctx, fd);
 }
-#endif
 
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1172,7 +1278,7 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
-#ifdef HAVE_FNMATCH
+#if HAVE_FNMATCH
   ret = fnmatch(pattern, string, flags);
 #else
   ret = path_fnmatch5(pattern, plen, string, slen, flags);
@@ -1236,7 +1342,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     globfree(&g);
   }
 
-  /*  struct glob_state* gs;
+  /*struct glob_state* gs;
     gs = js_mallocz(ctx, sizeof(struct glob_state));
     *gs = (struct glob_state){.flags = GLOB_TILDE | GLOB_BRACE};
 
@@ -1259,7 +1365,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
 static JSValue
 js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t start = 0, i;
@@ -1302,7 +1408,7 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-#ifdef HAVE_UNAME
+#if HAVE_UNAME
   struct utsname un;
 
   if(uname(&un) != -1) {
@@ -1417,7 +1523,7 @@ js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 }
 
 enum {
-  ERASE_IN_DISPLAY,
+  ERASE_IN_DISPLAY = 0,
   ERASE_IN_LINE,
 };
 
@@ -1443,7 +1549,7 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 enum {
-  SET_CURSOR_POSITION,
+  SET_CURSOR_POSITION = 0,
   MOVE_CURSOR,
 };
 
@@ -1472,7 +1578,7 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 enum {
-  SET_TEXT_ATTRIBUTES,
+  SET_TEXT_ATTRIBUTES = 0,
   SET_TEXT_COLOR,
 };
 
@@ -1545,7 +1651,7 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
 #ifdef _WIN32
 enum {
-  SET_CONSOLE_MODE,
+  SET_CONSOLE_MODE = 0,
   GET_CONSOLE_MODE,
 };
 
@@ -1717,7 +1823,7 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 enum {
-  FUNC_GETTID,
+  FUNC_GETTID = 0,
   FUNC_GETPID,
   FUNC_GETPPID,
   FUNC_GETSID,
@@ -1736,7 +1842,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   int32_t ret = 0;
 
   switch(magic) {
-#ifdef HAVE_GETTID
+#if HAVE_GETTID
     case FUNC_GETTID: {
       ret = gettid();
       break;
@@ -1929,9 +2035,12 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case STRING_POINTER: {
+#if QUICKJS_INTERNAL
       if(JS_IsString(argv[0])) {
         ret = js_newpointer(ctx, js_cstring_ptr(argv[0]));
-      } else {
+      } else
+#endif
+      {
         void* ptr;
 
         if((ptr = js_get_pointer(ctx, argv[0])))
@@ -1942,9 +2051,12 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case STRING_LENGTH: {
+#if QUICKJS_INTERNAL
       if(JS_IsString(argv[0])) {
         ret = JS_NewInt64(ctx, strlen(js_cstring_ptr(argv[0])));
-      } else {
+      } else
+#endif
+      {
         void* ptr;
 
         if((ptr = js_get_pointer(ctx, argv[0])))
@@ -1993,11 +2105,16 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     if(tag == JS_TAG_MODULE) {
       if(JS_ResolveModule(ctx, obj) < 0) {
         JSModuleDef* m = JS_VALUE_GET_PTR(obj);
-        const char* name = module_namecstr(ctx, m);
+        const char* name = 0;
 
-        ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
-        JS_FreeCString(ctx, name);
-        JS_FreeValue(ctx, obj);
+#if QUICKJS_INTERNAL
+        if((name = module_namecstr(ctx, m))) {
+          ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
+          JS_FreeCString(ctx, name);
+          JS_FreeValue(ctx, obj);
+        }
+#endif
+
         return ret;
       }
 
@@ -2050,7 +2167,7 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 enum {
-  GET_TYPE_ID,
+  GET_TYPE_ID = 0,
   GET_TYPE_STR,
   GET_TYPE_NAME,
 };
@@ -2096,7 +2213,7 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 enum {
-  PROMISE_STATE,
+  PROMISE_STATE = 0,
   PROMISE_RESULT,
 };
 
@@ -2119,7 +2236,7 @@ js_misc_promise(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 
 enum {
-  BITFIELD_SET,
+  BITFIELD_SET = 0,
   BITFIELD_BITS,
   BITFIELD_FROMARRAY,
   BITFIELD_TOARRAY,
@@ -2285,7 +2402,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 enum {
-  BITOP_NOT,
+  BITOP_NOT = 0,
   BITOP_XOR,
   BITOP_AND,
   BITOP_OR,
@@ -2343,7 +2460,7 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 enum {
-  RANDOM_RAND,
+  RANDOM_RAND = 0,
   RANDOM_RANDI,
   RANDOM_RANDF,
   RANDOM_SRAND,
@@ -2591,7 +2708,7 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 enum {
-  IS_ARRAY,
+  IS_ARRAY = 0,
   IS_BIGDECIMAL,
   IS_BIGFLOAT,
   IS_BIGINT,
@@ -2672,7 +2789,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
   return JS_NewBool(ctx, r >= 1);
 }
 
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
 static JSValue
 js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -2750,7 +2867,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
-#ifdef HAVE_DAEMON
+#if HAVE_DAEMON
 static JSValue
 js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   BOOL nochdir, noclose;
@@ -2762,21 +2879,21 @@ js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
-#ifdef HAVE_FORK
+#if HAVE_FORK
 static JSValue
 js_misc_fork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_syscall_result(ctx, fork);
 }
 #endif
 
-#ifdef HAVE_VFORK
+#if HAVE_VFORK
 static JSValue
 js_misc_vfork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_syscall_result(ctx, vfork);
 }
 #endif
 
-#ifdef HAVE_EXECVE
+#if HAVE_EXECVE
 static JSValue
 js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t nargs;
@@ -2823,7 +2940,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
-#ifdef HAVE_SETSID
+#if HAVE_SETSID
 static JSValue
 js_misc_setsid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_syscall_result(ctx, setsid);
@@ -2867,7 +2984,7 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_UNDEFINED;
 }
 
-#ifdef HAVE_LINK
+#if HAVE_LINK
 static JSValue
 js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *from, *to;
@@ -2882,7 +2999,7 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
-#ifdef HAVE_LINKAT
+#if HAVE_LINKAT
 static JSValue
 js_misc_linkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t olddirfd = -1, newdirfd = -1, flags = 0;
@@ -2907,7 +3024,7 @@ js_misc_linkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
-#ifdef HAVE_SYMLINK
+#if HAVE_SYMLINK
 static JSValue
 js_misc_symlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *target, *linkpath;
@@ -2922,7 +3039,7 @@ js_misc_symlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 #endif
 
-#ifdef HAVE_SYMLINKAT
+#if HAVE_SYMLINKAT
 static JSValue
 js_misc_symlinkat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t newdirfd = -1;
@@ -2948,7 +3065,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JS_ToUint32(ctx, &mode, argv[1]);
 
   switch(magic) {
-#ifdef HAVE_FCHMOD
+#if HAVE_FCHMOD
     case 1: {
       int32_t fd = -1;
 
@@ -2958,7 +3075,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     }
 #endif
 
-#ifdef HAVE_CHMOD
+#if HAVE_CHMOD
     case 0: {
       const char* path;
 
@@ -2973,7 +3090,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return JS_UNDEFINED;
 }
 
-#ifdef HAVE_CHOWN
+#if HAVE_CHOWN
 static JSValue
 js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t owner = 0, group = 0;
@@ -3015,13 +3132,13 @@ js_misc_fsync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JS_ToInt32(ctx, &fd, argv[0]);
 
   switch(magic) {
-#ifdef HAVE_FSYNC
+#if HAVE_FSYNC
     case 0: {
       return js_syscall_result(ctx, fsync, fd);
     }
 #endif
 
-#ifdef HAVE_FDATASYNC
+#if HAVE_FDATASYNC
     case 1: {
       return js_syscall_result(ctx, fdatasync, fd);
     }
@@ -3041,7 +3158,7 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_ThrowRangeError(ctx, "argument 2 must be positive-integer");
 
   switch(magic) {
-#ifdef HAVE_TRUNCATE
+#if HAVE_TRUNCATE
     case 0: {
       const char* path;
 
@@ -3052,7 +3169,7 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
 #endif
 
-#ifdef HAVE_FTRUNCATE
+#if HAVE_FTRUNCATE
     case 1: {
       int32_t fd = -1;
 
@@ -3082,7 +3199,7 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     return JS_ThrowTypeError(ctx, "argument 2 must be an array");
 
   switch(magic) {
-#ifdef HAVE_UTIME
+#if HAVE_UTIME
     case 0: {
       struct utimbuf tms;
 
@@ -3108,13 +3225,13 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       tv[1].tv_usec = (mtime - tv[1].tv_sec * 1000) * 1000;
 
       switch(magic) {
-#ifdef HAVE_FUTIMES
+#if HAVE_FUTIMES
         case 3: return js_syscall_result(ctx, futimes, fd, tv);
 #endif
-#ifdef HAVE_LUTIMES
+#if HAVE_LUTIMES
         case 2: return js_syscall_result(ctx, lutimes, path, tv);
 #endif
-#ifdef HAVE_UTIMES
+#if HAVE_UTIMES
         case 1: return js_syscall_result(ctx, utimes, path, tv);
 #endif
       }
@@ -3137,7 +3254,7 @@ js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return js_syscall_result(ctx, unlink, file);
 }
 
-#ifdef HAVE_ACCESS
+#if HAVE_ACCESS
 static JSValue
 js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t mode = -1;
@@ -3148,7 +3265,7 @@ js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
-#ifdef HAVE_FCNTL
+#if HAVE_FCNTL
 static JSValue
 js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1, cmd = -1, arg = -1;
@@ -3193,7 +3310,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
   new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
 
-#ifdef HAVE_FSTAT
+#if HAVE_FSTAT
   if((res = fstat(fd, &st)) == -1)
     return js_syscallerror_throw_free(ctx, "fstat", ret);
 #else
@@ -3203,7 +3320,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     strcpy(pbuf, "/proc/self/fd/");
     pbuf[fmt_ulong(&pbuf[14], fd)] = '\0';
 
-    if((res = fstat(pbuf, &st)) == -1)
+    if((res = stat(pbuf, &st)) == -1)
       return js_syscallerror_throw_free(ctx, "stat", ret);
   }
 #endif
@@ -3248,7 +3365,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 enum {
-  FUNC_GET_OSFHANDLE,
+  FUNC_GET_OSFHANDLE = 0,
   FUNC_OPEN_OSFHANDLE,
 };
 
@@ -3383,6 +3500,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 #endif /* !_WIN32 */
 #endif
 
+#if QUICKJS_INTERNAL
 static JSValue
 js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   BOOL as_object = FALSE;
@@ -3392,107 +3510,108 @@ js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   return js_opcode_list(ctx, as_object);
 }
+#endif
 
+#if QUICKJS_INTERNAL
 static JSValue
 js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return js_get_bytecode(ctx, argv[0]);
 }
+#endif
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
-// JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
-#ifdef USE_TEMPNAM
+    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
-#endif
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
 #endif
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
     JS_CFUNC_DEF("watch", 1, js_misc_watch),
 #endif
-#ifdef HAVE_DAEMON
+#if HAVE_DAEMON
     JS_CFUNC_DEF("daemon", 2, js_misc_daemon),
 #endif
-#ifdef HAVE_FORK
+#if HAVE_FORK
     JS_CFUNC_DEF("fork", 0, js_misc_fork),
 #endif
-#ifdef HAVE_VFORK
+#if HAVE_VFORK
     JS_CFUNC_DEF("vfork", 0, js_misc_vfork),
 #endif
-#ifdef HAVE_EXECVE
+#if HAVE_EXECVE
     JS_CFUNC_DEF("exec", 2, js_misc_exec),
 #endif
     JS_CFUNC_DEF("kill", 1, js_misc_kill),
-#ifdef HAVE_SETSID
+#if HAVE_SETSID
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
-#ifdef HAVE_LINK
+#if HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
 #endif
-#ifdef HAVE_LINKAT
+#if HAVE_LINKAT
     JS_CFUNC_DEF("linkat", 3, js_misc_linkat),
     JS_CONSTANT(AT_EMPTY_PATH),
     JS_CONSTANT(AT_SYMLINK_FOLLOW),
 #endif
-#ifdef HAVE_SYMLINK
+#if HAVE_SYMLINK
     JS_CFUNC_DEF("symlink", 2, js_misc_symlink),
 #endif
-#ifdef HAVE_SYMLINKAT
+#if HAVE_SYMLINKAT
     JS_CFUNC_DEF("symlinkat", 3, js_misc_symlinkat),
 #endif
-#ifdef HAVE_CHMOD
+#if HAVE_CHMOD
     JS_CFUNC_MAGIC_DEF("chmod", 2, js_misc_chmod, 0),
 #endif
-#ifdef HAVE_FCHMOD
+#if HAVE_FCHMOD
     JS_CFUNC_MAGIC_DEF("fchmod", 2, js_misc_chmod, 1),
 #endif
-#ifdef HAVE_CHOWN
+#if HAVE_CHOWN
     JS_CFUNC_MAGIC_DEF("chown", 3, js_misc_chown, 0),
 #endif
-#ifdef HAVE_FCHOWN
+#if HAVE_FCHOWN
     JS_CFUNC_MAGIC_DEF("fchown", 3, js_misc_chown, 1),
 #endif
-#ifdef HAVE_LCHOWN
+#if HAVE_LCHOWN
     JS_CFUNC_MAGIC_DEF("lchown", 3, js_misc_chown, 2),
 #endif
-#ifdef HAVE_FSYNC
+#if HAVE_FSYNC
     JS_CFUNC_MAGIC_DEF("fsync", 1, js_misc_fsync, 0),
 #endif
-#ifdef HAVE_FDATASYNC
+#if HAVE_FDATASYNC
     JS_CFUNC_MAGIC_DEF("fdatasync", 1, js_misc_fsync, 1),
 #endif
-#ifdef HAVE_TRUNCATE
+#if HAVE_TRUNCATE
     JS_CFUNC_MAGIC_DEF("truncate", 2, js_misc_truncate, 0),
 #endif
-#ifdef HAVE_FTRUNCATE
+#if HAVE_FTRUNCATE
     JS_CFUNC_MAGIC_DEF("ftruncate", 2, js_misc_truncate, 1),
 #endif
-#ifdef HAVE_UTIME
+#if HAVE_UTIME
     JS_CFUNC_MAGIC_DEF("utime", 2, js_misc_utime, 0),
 #endif
-#ifdef HAVE_UTIMES
+#if HAVE_UTIMES
     JS_CFUNC_MAGIC_DEF("utimes", 2, js_misc_utime, 1),
 #endif
-#ifdef HAVE_LUTIMES
+#if HAVE_LUTIMES
     JS_CFUNC_MAGIC_DEF("lutimes", 2, js_misc_utime, 2),
 #endif
-#ifdef HAVE_FUTIMES
+#if HAVE_FUTIMES
     JS_CFUNC_MAGIC_DEF("futimes", 2, js_misc_utime, 3),
 #endif
-#ifdef HAVE_ACCESS
+#if HAVE_ACCESS
     JS_CFUNC_DEF("access", 2, js_misc_access),
     JS_CONSTANT(F_OK),
     JS_CONSTANT(R_OK),
     JS_CONSTANT(W_OK),
     JS_CONSTANT(X_OK),
 #endif
-#ifdef HAVE_FCNTL
+#if HAVE_FCNTL
     JS_CFUNC_DEF("fcntl", 2, js_misc_fcntl),
     JS_CONSTANT(FD_CLOEXEC),
     JS_CONSTANT(F_DUPFD),
@@ -3541,20 +3660,21 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
     JS_CFUNC_DEF("memcmp", 2, js_misc_memcmp),
-#ifdef HAVE_FMEMOPEN
+#if HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
 #endif
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
-    JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),
-    JS_CFUNC_MAGIC_DEF("getRootDirectory", 0, js_misc_proclink, FUNC_GETROOT),
-    JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFD),
+    JS_CFUNC_MAGIC_DEF("getWorkingDirectory", 0, js_misc_proclink, FUNC_GETWORKINGDIRECTORY),
+    JS_CFUNC_MAGIC_DEF("getRootDirectory", 0, js_misc_proclink, FUNC_GETROOTDIRECTORY),
+    JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFILEDESCRIPTOR),
     JS_CFUNC_MAGIC_DEF("getCommandLine", 0, js_misc_procread, FUNC_GETCOMMANDLINE),
+    JS_CFUNC_MAGIC_DEF("getEnvironment", 0, js_misc_procread, FUNC_GETENVIRON),
+    JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_MAGIC_DEF("getProcMaps", 0, js_misc_procread, FUNC_GETPROCMAPS),
     JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),
-    JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_DEF("getPrototypeChain", 0, js_misc_getprototypechain),
-#ifdef HAVE_GETTID
+#if HAVE_GETTID
     JS_CFUNC_MAGIC_DEF("gettid", 0, js_misc_getx, FUNC_GETTID),
 #endif
 #ifndef __wasi__
@@ -3606,8 +3726,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
+#if QUICKJS_INTERNAL
     JS_CFUNC_DEF("getOpCodes", 0, js_misc_opcodes),
     JS_CFUNC_DEF("getByteCode", 1, js_misc_get_bytecode),
+#endif
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
@@ -3682,7 +3804,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
     JS_CONSTANT(JS_EVAL_FLAG_MASK),
-#ifdef HAVE_FNMATCH
+#if HAVE_FNMATCH
     JS_CONSTANT(FNM_CASEFOLD),
 #ifdef FNM_EXTMATCH
     JS_CONSTANT(FNM_EXTMATCH),
@@ -3711,7 +3833,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(GLOB_ABORTED),
     JS_CONSTANT(GLOB_NOMATCH),
     JS_CONSTANT(GLOB_NOSYS),
-#ifdef HAVE_WORDEXP
+#if HAVE_WORDEXP
     JS_CONSTANT(WRDE_SHOWERR),
     JS_CONSTANT(WRDE_UNDEF),
     JS_CONSTANT(WRDE_BADCHAR),
@@ -3721,7 +3843,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
 #endif
-#ifdef HAVE_INOTIFY_INIT1
+#if HAVE_INOTIFY_INIT1
     JS_CONSTANT(IN_ACCESS),
     JS_CONSTANT(IN_MODIFY),
     JS_CONSTANT(IN_ATTRIB),

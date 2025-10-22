@@ -443,7 +443,7 @@ js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
 }
 
 int
-js_module_indexof(JSContext* ctx, JSModuleDef* def) {
+module_indexof(JSContext* ctx, JSModuleDef* def) {
   int i = 0;
   struct list_head* el;
 
@@ -487,25 +487,6 @@ js_module_at(JSContext* ctx, int index) {
   }
 
   return 0;
-}
-
-void
-js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
-  JSString* jstr = opaque;
-
-  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
-}
-
-JSValue
-js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
-  JSString* jstr;
-
-  if(!JS_IsString(str))
-    return JS_ThrowTypeError(ctx, "Not a string");
-
-  jstr = js_value_ptr(JS_DupValue(ctx, str));
-
-  return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);
 }
 
 void*
@@ -633,7 +614,7 @@ js_opcode_list(JSContext* ctx, BOOL as_object) {
   return ret;
 }
 
-#ifdef HAVE_JS_DEBUGGER_BUILD_BACKTRACE
+#if HAVE_JS_DEBUGGER_BUILD_BACKTRACE
 JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
 
 JSValue
@@ -643,7 +624,7 @@ js_stack_get(JSContext* ctx) {
 #endif
 
 const JSOpCode js_opcodes[/*OP_COUNT + (OP_TEMP_END - OP_TEMP_START)*/] = {
-//#define FMT(f)
+// #define FMT(f)
 #define def(id, size, n_pop, n_push, f)
 #undef FMT
 #ifdef DUMP_BYTECODE

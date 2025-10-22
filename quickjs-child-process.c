@@ -258,7 +258,7 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
             ssize_t bytes = read(cp->parent_fds[i], tmp, sizeof(tmp));
 
             if(bytes > 0) {
-              dbuf_put(&db[i], tmp, bytes);
+              dbuf_put(&db[i], (const void*)tmp, bytes);
               continue;
             }
 

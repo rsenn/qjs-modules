@@ -1,6 +1,7 @@
 #include "stream-utils.h"
 #include "utils.h"
 #include "json.h"
+#include "vector.h"
 
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
@@ -10,10 +11,122 @@ struct js_json_parser_opaque {
   JSObject *parser, *obj;
 };
 
+typedef enum {
+  ST_UNDEFINED = 0,
+  ST_OBJECT,
+  ST_ARRAY,
+  ST_BOOL,
+  ST_NULL,
+  ST_STRING,
+  ST_NUMBER,
+  ST_COMMA,
+  ST_COUNT
+} JsonState;
+
+typedef struct {
+  JsonState state;
+  size_t index;
+} JsonContext;
+
+static JSValue
+js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
+  JSValue ret = JS_UNDEFINED;
+  const uint8_t *ptr, *end, *start;
+  static const uint8_t states[ST_COUNT][256] = {
+      [ST_UNDEFINED] =
+          {
+              ['{'] = ST_OBJECT,
+              ['['] = ST_ARRAY,
+              ['t'] = ST_BOOL,
+              ['f'] = ST_BOOL,
+              ['n'] = ST_NULL,
+              ['"'] = ST_STRING,
+              ['0'] = ST_NUMBER,
+              ['1'] = ST_NUMBER,
+              ['2'] = ST_NUMBER,
+              ['3'] = ST_NUMBER,
+              ['4'] = ST_NUMBER,
+              ['5'] = ST_NUMBER,
+              ['6'] = ST_NUMBER,
+              ['7'] = ST_NUMBER,
+              ['8'] = ST_NUMBER,
+              ['9'] = ST_NUMBER,
+              ['-'] = ST_NUMBER,
+              ['+'] = ST_NUMBER,
+          },
+      [ST_OBJECT] = {[','] = ST_COMMA},
+      [ST_ARRAY] = {[','] = ST_COMMA},
+      [ST_BOOL] =
+          {
+              ['r'] = ST_BOOL,
+              ['u'] = ST_BOOL,
+              ['e'] = ST_BOOL,
+              ['a'] = ST_BOOL,
+              ['l'] = ST_BOOL,
+              ['s'] = ST_BOOL,
+              ['e'] = ST_BOOL,
+          },
+      [ST_NUMBER] =
+          {
+              ['0'] = ST_NUMBER,
+              ['1'] = ST_NUMBER,
+              ['2'] = ST_NUMBER,
+              ['3'] = ST_NUMBER,
+              ['4'] = ST_NUMBER,
+              ['5'] = ST_NUMBER,
+              ['6'] = ST_NUMBER,
+              ['7'] = ST_NUMBER,
+              ['8'] = ST_NUMBER,
+              ['9'] = ST_NUMBER,
+              ['-'] = ST_NUMBER,
+              ['+'] = ST_NUMBER,
+              ['.'] = ST_NUMBER,
+              ['E'] = ST_NUMBER,
+              ['e'] = ST_NUMBER,
+          },
+  };
+  Vector st = VECTOR(ctx);
+  JsonContext* frame = vector_emplace(&st, sizeof(JsonContext));
+
+  ptr = buf;
+  end = buf + len;
+
+  size_t n = scan_whitenskip(ptr, end - ptr);
+
+  ptr += n;
+
+  while(ptr < end) {
+    size_t len = scan_nonwhitenskip(ptr, end - ptr);
+
+    frame->state = states[frame->state][ptr[0]];
+
+    ptr += len;
+    ptr += scan_whitenskip(ptr, end - ptr);
+  }
+
+  return ret;
+}
+
 static JSValue
 js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret;
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+  const char* input_name = 0;
 
+  if(input.data == 0 || input.size == 0) {
+    JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
+    return JS_EXCEPTION;
+  }
+
+  if(argc >= 2)
+    input_name = JS_ToCString(ctx, argv[1]);
+
+  ret = js_json_parse(ctx, input.data, input.size, input_name ? input_name : "<json>");
+
+  if(input_name)
+    JS_FreeCString(ctx, input_name);
+
+  input_buffer_free(&input, ctx);
   return ret;
 }
 
@@ -112,18 +225,22 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = parser->opaque ? JS_DupValue(ctx, js_value_mkobj(parser->opaque)) : JS_NULL;
       break;
     }
+
     case JSON_PARSER_POS: {
       ret = JS_NewUint32(ctx, parser->pos);
       break;
     }
+
     case JSON_PARSER_TOKEN: {
-      ret = JS_NewStringLen(ctx, parser->token.buf, parser->token.size);
+      ret = JS_NewStringLen(ctx, (const char*)parser->token.buf, parser->token.size);
       break;
     }
+
     case JSON_PARSER_STATE: {
       ret = JS_NewInt32(ctx, parser->state);
       break;
     }
+
     case JSON_PARSER_DEPTH: {
       ret = JS_NewUint32(ctx, parser->stack.len);
       break;

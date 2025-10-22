@@ -350,10 +350,10 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
      * handle a plain ~ or ~/ by expanding $HOME
      * first and then trying the password file
      */
-#ifdef HAVE_ISSETUGID
+#if HAVE_ISSETUGID
     if(issetugid() != 0 || (h = getenv("HOME")) == NULL) {
 #endif
-#ifdef HAVE_GETPWUID
+#if HAVE_GETPWUID
       struct passwd* pwd;
 
       if((pwd = getpwuid(getuid())) == NULL)
@@ -363,7 +363,7 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
 #else
     h = path_gethome();
 #endif
-#ifdef HAVE_ISSETUGID
+#if HAVE_ISSETUGID
     }
 #endif
   } else {
