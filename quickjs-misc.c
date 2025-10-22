@@ -2137,6 +2137,8 @@ enum {
   FREE_ATOM,
 };
 
+static const uint32_t ATOM_BIT = (1u << 31u);
+
 static JSValue
 js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -2152,7 +2154,6 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case ATOM_TO_VALUE: {
       uint32_t atom;
-      const uint32_t ATOM_BIT = (1u << 31u);
 
       JS_ToUint32(ctx, &atom, argv[0]);
 
@@ -2161,22 +2162,25 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 
     case FIND_ATOM: {
-      char buf[17] = {'-', '-', '-', '-', 0, 0, 0, 0, 0, 0, 0, 0, '-', '-', '-', '-', 0};
-
-      for(int i = 4; i < 12; ++i)
-        buf[i] = 'A' + (rand() % 26);
-
-      JSAtom atom2 = JS_NewAtom(ctx, buf);
-      JS_FreeAtom(ctx, atom2);
-
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
-      JS_FreeAtom(ctx, atom);
-      BOOL not_found = atom == atom2;
+      ret = JS_NewUint32(ctx, atom);
 
-      if(atom == JS_ATOM_NULL || not_found)
-        ret = JS_ThrowTypeError(ctx, "not found");
-      else
-        ret = JS_NewUint32(ctx, atom);
+      if(!(atom & ATOM_BIT)) {
+        char buf[17] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        for(int i = 0; i < 16; ++i)
+          buf[i] = 'A' + (rand() % 26);
+
+        JSAtom atom2 = JS_NewAtom(ctx, buf);
+        BOOL not_found = atom == (atom2 - 1);
+
+        if(atom == JS_ATOM_NULL || not_found)
+          ret = not_found ? JS_UNDEFINED : JS_NULL;
+
+        JS_FreeAtom(ctx, atom2);
+      }
+
+      JS_FreeAtom(ctx, atom);
       break;
     }
 
