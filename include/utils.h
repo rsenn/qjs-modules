@@ -440,6 +440,7 @@ js_value_type2flag(ValueType type) {
 
 ValueType js_value_type(JSContext*, JSValueConst);
 const char* const* js_value_types(void);
+const int js_value_types_length();
 const char* js_value_typeof(JSValueConst);
 const char* js_value_type_name(ValueType type);
 const char* js_value_tag_name(int tag);

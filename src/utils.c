@@ -75,9 +75,7 @@ list_size(struct list_head* list) {
   struct list_head* el;
   size_t i = 0;
 
-  list_for_each(el, list) {
-    ++i;
-  }
+  list_for_each(el, list) { ++i; }
 
   return i;
 }
@@ -2088,6 +2086,15 @@ static const char* const js_value_typenames[] = {
 const char* const*
 js_value_types() {
   return js_value_typenames;
+}
+
+const int
+js_value_types_length() {
+  for(int i = 0;; i++)
+    if(js_value_typenames[i] == 0)
+      return i;
+
+  return -1;
 }
 
 const char*

@@ -29,6 +29,10 @@
 #include <fnmatch.h>
 #endif
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #if defined(HAVE_GLOB) && defined(HAVE_GLOB_H)
 #include <glob.h>
 #ifndef GLOB_APPEND
@@ -1956,6 +1960,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 enum {
   VALUE_TYPE = 0,
   VALUETYPE_FLAG,
+  VALUETYPE_NAME,
   VALUETYPE_STRING,
   VALUE_TAG,
   VALUE_POINTER,
@@ -1992,6 +1997,18 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       JS_ToUint32(ctx, &type, argv[0]);
 
       ret = JS_NewUint32(ctx, js_value_type2flag(type));
+      break;
+    }
+
+    case VALUETYPE_NAME: {
+      uint32_t type;
+
+      JS_ToUint32(ctx, &type, argv[0]);
+
+      ValueTypeFlag flag = js_value_type2flag(type);
+
+      if(flag >= 0 && flag < js_value_types_length())
+        ret = JS_NewString(ctx, js_value_types()[flag]);
       break;
     }
 
@@ -3804,6 +3821,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("typeFlag", 1, js_misc_valuetype, VALUETYPE_FLAG),
+    JS_CFUNC_MAGIC_DEF("typeName", 1, js_misc_valuetype, VALUETYPE_NAME),
     JS_CFUNC_MAGIC_DEF("typeString", 1, js_misc_valuetype, VALUETYPE_STRING),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
