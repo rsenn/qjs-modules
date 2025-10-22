@@ -1974,9 +1974,13 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   switch(magic) {
     case VALUE_TYPE: {
-      const char* typestr = js_value_typestr(ctx, argv[0]);
-
-      ret = JS_NewString(ctx, typestr);
+      if(argc > 1 && JS_ToBool(ctx, argv[1])) {
+        ValueTypeFlag type = js_value_type_get(ctx, argv[0]);
+        ret = JS_NewUint32(ctx, type);
+      } else {
+        const char* typestr = js_value_typestr(ctx, argv[0]);
+        ret = JS_NewString(ctx, typestr);
+      }
       break;
     }
 
