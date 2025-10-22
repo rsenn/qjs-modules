@@ -2166,9 +2166,9 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_NewUint32(ctx, atom);
 
       if(!(atom & ATOM_BIT)) {
-        char buf[17] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        char buf[17] = {'_', '_', '_', '_', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-        for(int i = 0; i < 16; ++i)
+        for(int i = 4; i < 16; ++i)
           buf[i] = 'A' + (rand() % 26);
 
         JSAtom atom2 = JS_NewAtom(ctx, buf);
