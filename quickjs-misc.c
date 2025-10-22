@@ -225,7 +225,7 @@ qjs_tempnam(const char* dir, const char* template) {
 #endif
 
 #define TextAttrColor(n) \
-  (((n) & 1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
+  (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
    (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
 #define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
@@ -2132,6 +2132,7 @@ enum {
   ATOM_TO_STRING = 0,
   ATOM_TO_VALUE,
   VALUE_TO_ATOM,
+  FREE_ATOM,
 };
 
 static JSValue
@@ -2140,17 +2141,17 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   switch(magic) {
     case ATOM_TO_STRING: {
-      int32_t atom;
+      uint32_t atom;
 
-      JS_ToInt32(ctx, &atom, argv[0]);
+      JS_ToUint32(ctx, &atom, argv[0]);
       ret = JS_AtomToString(ctx, atom);
       break;
     }
 
     case ATOM_TO_VALUE: {
-      int32_t atom;
+      uint32_t atom;
 
-      JS_ToInt32(ctx, &atom, argv[0]);
+      JS_ToUint32(ctx, &atom, argv[0]);
       ret = JS_AtomToValue(ctx, atom);
       break;
     }
@@ -2159,6 +2160,14 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
 
       ret = JS_NewUint32(ctx, atom);
+      break;
+    }
+
+    case FREE_ATOM: {
+      uint32_t atom;
+
+      JS_ToUint32(ctx, &atom, argv[0]);
+      JS_FreeAtom(ctx, atom);
       break;
     }
   }
@@ -3745,6 +3754,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
     JS_CFUNC_MAGIC_DEF("valueToAtom", 1, js_misc_atom, VALUE_TO_ATOM),
+    JS_CFUNC_MAGIC_DEF("freeAtom", 1, js_misc_atom, FREE_ATOM),
     JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
     JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
     JS_CFUNC_MAGIC_DEF("getTypeName", 1, js_misc_type, GET_TYPE_NAME),
