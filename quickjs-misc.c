@@ -2502,45 +2502,51 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JSValue ret = JS_UNDEFINED;
   size_t i;
   struct {
-    uint8_t* buf;
-    size_t len;
+    uint8_t* x;
+    size_t n;
   } ab[2] = {{0, 0}, {0, 0}};
 
   if(argc >= 1) {
-    ab[0].buf = JS_GetArrayBuffer(ctx, &ab[0].len, argv[0]);
+    ab[0].x = JS_GetArrayBuffer(ctx, &ab[0].n, argv[0]);
 
     if(argc >= 2)
-      ab[1].buf = JS_GetArrayBuffer(ctx, &ab[1].len, argv[1]);
+      ab[1].x = JS_GetArrayBuffer(ctx, &ab[1].n, argv[1]);
   }
 
-  if(ab[0].buf == 0)
+  if(ab[0].x == 0)
     return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 
-  if(magic > BITOP_NOT && ab[1].buf == 0)
+  if(magic > BITOP_NOT && ab[1].x == 0)
     return JS_ThrowTypeError(ctx, "argument 2 must be an ArrayBuffer");
 
   ret = JS_DupValue(ctx, argv[0]);
 
   switch(magic) {
     case BITOP_NOT: {
-      for(i = 0; i < ab[0].len; i++)
-        ab[0].buf[i] ^= 0xffu;
+      for(i = 0; i < ab[0].n; i++)
+        ab[0].x[i] ^= 0xffu;
 
       break;
     }
 
     case BITOP_XOR: {
-      for(i = 0; i < ab[0].len; i++)
-        ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
+      for(i = 0; i < ab[0].n; i++)
+        ab[0].x[i] ^= ab[1].x[i % ab[1].n];
 
       break;
     }
 
     case BITOP_AND: {
+      for(i = 0; i < ab[0].n; i++)
+        ab[0].x[i] &= ab[1].x[i % ab[1].n];
+
       break;
     }
 
     case BITOP_OR: {
+      for(i = 0; i < ab[0].n; i++)
+        ab[0].x[i] |= ab[1].x[i % ab[1].n];
+
       break;
     }
   }
