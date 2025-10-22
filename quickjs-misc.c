@@ -1955,6 +1955,8 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
 enum {
   VALUE_TYPE = 0,
+  VALUETYPE_FLAG,
+  VALUETYPE_STRING,
   VALUE_TAG,
   VALUE_POINTER,
   OBJECT_REFCOUNT,
@@ -1981,6 +1983,25 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       else
         ret = JS_NewString(ctx, js_value_type_name(type));
 
+      break;
+    }
+
+    case VALUETYPE_FLAG: {
+      uint32_t type;
+
+      JS_ToUint32(ctx, &type, argv[0]);
+
+      ret = JS_NewUint32(ctx, js_value_type2flag(type));
+      break;
+    }
+
+    case VALUETYPE_STRING: {
+      uint32_t type;
+
+      JS_ToUint32(ctx, &type, argv[0]);
+      const char* str = js_value_type_name(type);
+
+      ret = str ? JS_NewString(ctx, str) : JS_NULL;
       break;
     }
 
@@ -3782,6 +3803,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getByteCode", 1, js_misc_get_bytecode),
 #endif
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
+    JS_CFUNC_MAGIC_DEF("typeFlag", 1, js_misc_valuetype, VALUETYPE_FLAG),
+    JS_CFUNC_MAGIC_DEF("typeString", 1, js_misc_valuetype, VALUETYPE_STRING),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
     JS_CFUNC_MAGIC_DEF("objectClassId", 1, js_misc_valuetype, OBJECT_CLASSID),
