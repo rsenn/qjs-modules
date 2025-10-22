@@ -2131,6 +2131,7 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 enum {
   ATOM_TO_STRING = 0,
   ATOM_TO_VALUE,
+  FIND_ATOM,
   VALUE_TO_ATOM,
   DUP_ATOM,
   FREE_ATOM,
@@ -2154,6 +2155,18 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       JS_ToUint32(ctx, &atom, argv[0]);
       ret = JS_AtomToValue(ctx, atom);
+      break;
+    }
+
+    case FIND_ATOM: {
+      JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
+
+      JS_FreeAtom(ctx, atom);
+
+      if(atom == JS_ATOM_NULL)
+        ret = JS_ThrowTypeError(ctx, "not found");
+      else
+        ret = JS_NewUint32(ctx, atom);
       break;
     }
 
@@ -3763,6 +3776,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
+    JS_CFUNC_MAGIC_DEF("findAtom", 1, js_misc_atom, FIND_ATOM),
     JS_CFUNC_MAGIC_DEF("valueToAtom", 1, js_misc_atom, VALUE_TO_ATOM),
     JS_CFUNC_MAGIC_DEF("dupAtom", 1, js_misc_atom, DUP_ATOM),
     JS_CFUNC_MAGIC_DEF("freeAtom", 1, js_misc_atom, FREE_ATOM),
