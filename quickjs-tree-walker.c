@@ -566,7 +566,7 @@ static const JSCFunctionListEntry js_tree_walker_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("index", js_tree_walker_get, js_tree_walker_set, PROP_INDEX),
     JS_CGETSET_MAGIC_DEF("length", js_tree_walker_get, NULL, PROP_LENGTH),
     JS_CGETSET_MAGIC_DEF("tagMask", js_tree_walker_get, js_tree_walker_set, PROP_TAG_MASK),
-    JS_CGETSET_MAGIC_FLAGS_DEF("filter", js_tree_walker_get, 0, PROP_FILTER),
+    JS_CGETSET_MAGIC_FLAGS_DEF("filter", js_tree_walker_get, 0, PROP_FILTER, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("flags", js_tree_walker_get, js_tree_walker_set, PROP_FLAGS),
     JS_CFUNC_DEF("toString", 0, js_tree_walker_tostring),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TreeWalker", JS_PROP_CONFIGURABLE),
