@@ -648,13 +648,12 @@ pointer_endswith(Pointer const* ptr, Pointer const* other) {
 
 static JSAtom
 deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
-  JSValue value;
   const int flags = JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_SET_ENUM;
 
   if(JS_HasProperty(ctx, obj, atom))
     return atom;
 
-  value = JS_AtomToValue(ctx, atom);
+  JSValue value = JS_AtomToValue(ctx, atom);
 
   if(JS_IsFunction(ctx, value)) {
     JSPropertyEnum* tmp_tab;
@@ -662,7 +661,7 @@ deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
 
     if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, flags)) {
       for(i = 0; i < tmp_len; i++) {
-        JSValue args[3] = {
+        JSValueConst args[3] = {
             JS_GetProperty(ctx, obj, tmp_tab[i].atom),
             JS_AtomToValue(ctx, tmp_tab[i].atom),
             obj,
