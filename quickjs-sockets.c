@@ -299,9 +299,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
   }
 
 end:
-  int ret = argv - old_argv;
-
-  return ret;
+  return argv - old_argv;
 }
 
 static JSValue

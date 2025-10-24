@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <string.h>
+#include <strings.h>
 #include <assert.h>
 #include <unistd.h>
 #include <errno.h>
