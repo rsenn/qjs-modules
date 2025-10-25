@@ -111,6 +111,9 @@ child_process_new(JSContext* ctx) {
     child->stopsig = -1;
     child->pid = -1;
 
+    child->uid = -1;
+    child->gid = -1;
+
     child->num_fds = 0;
 
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
