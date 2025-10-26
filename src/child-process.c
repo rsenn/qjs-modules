@@ -291,9 +291,9 @@ child_process_spawn(ChildProcess* cp) {
         perror("chdir()");
 
 #ifndef __ANDROID__
-    if(setuid(cp->uid) == -1)
+    if(cp->uid != -1 && setuid(cp->uid) == -1)
       perror("setuid()");
-    if(setgid(cp->gid) == -1)
+    if(cp->gid != -1 && setgid(cp->gid) == -1)
       perror("setgid()");
 #endif
 
