@@ -130,7 +130,8 @@ character_classes_init(int c[256]) {
 
 #define parse_getc() \
   do { \
-    parse_loc() c = *++ptr; \
+    parse_loc(); \
+    c = *++ptr; \
     if(ptr >= end) \
       done = TRUE; \
   } while(0)

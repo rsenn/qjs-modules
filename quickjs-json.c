@@ -28,11 +28,53 @@ typedef struct {
   size_t index;
 } JsonContext;
 
+#define WS 0x01
+#define STR 0x02
+#define OBJ 0x04
+#define ARR 0x08
+
+static const uint8_t character_classes[256] = {
+    [' '] = WS,
+    ['\t'] = WS,
+    ['\r'] = WS,
+    ['\n'] = WS,
+    ['"'] = STR,
+    ['{'] = OBJ,
+    ['['] = ARR,
+};
+
+#define parse_getc() \
+  do { \
+    parse_loc() c = *++ptr; \
+    if(ptr >= end) \
+      done = TRUE; \
+  } while(0)
+
+#define parse_loc() \
+  if(*ptr == '\n') { \
+    lineno++; \
+    column = 1; \
+  } else { \
+    column++; \
+  }
+
+#define parse_skip(cond) \
+  do { \
+    c = *ptr; \
+    if(!(cond)) \
+      break; \
+    parse_loc() if(++ptr >= end) done = TRUE; \
+  } while(!done)
+
+#define parse_until(cond) parse_skip(!(cond))
+#define parse_skipspace() parse_skip(character_classes[(uint8_t)(c)] & WS)
+#define parse_is(c, classes) (character_classes[(uint8_t)(c)] & (classes))
+
 static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
   JSValue ret = JS_UNDEFINED;
-  const uint8_t *ptr, *end, *start;
-  static const uint8_t states[ST_COUNT][256] = {
+  const uint8_t *ptr = buf, *end = buf + len, *start = buf;
+  static const JsonState states[ST_COUNT][256] = {
       [ST_UNDEFINED] =
           {
               ['{'] = ST_OBJECT,
@@ -54,8 +96,16 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
               ['-'] = ST_NUMBER,
               ['+'] = ST_NUMBER,
           },
-      [ST_OBJECT] = {[','] = ST_COMMA},
-      [ST_ARRAY] = {[','] = ST_COMMA},
+      [ST_OBJECT] =
+          {
+              [','] = ST_COMMA,
+              ['}'] = ST_COUNT,
+          },
+      [ST_ARRAY] =
+          {
+              [','] = ST_COMMA,
+              [']'] = ST_COUNT,
+          },
       [ST_BOOL] =
           {
               ['r'] = ST_BOOL,
@@ -85,23 +135,22 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
               ['e'] = ST_NUMBER,
           },
   };
+  BOOL done = FALSE;
+  uint32_t lineno = 1, column = 1;
   Vector st = VECTOR(ctx);
-  JsonContext* frame = vector_emplace(&st, sizeof(JsonContext));
+  JsonContext* frame = 0;
+  uint8_t c;
 
-  ptr = buf;
-  end = buf + len;
-
-  size_t n = scan_whitenskip(ptr, end - ptr);
-
-  ptr += n;
+  parse_skipspace();
 
   while(ptr < end) {
-    size_t len = scan_nonwhitenskip(ptr, end - ptr);
+    parse_getc();
 
-    frame->state = states[frame->state][ptr[0]];
+    JsonState oldstate = frame ? frame->state : 0;
+    JsonState newstate = states[oldstate][c];
+    JsonContext newctx = {newstate, 0};
 
-    ptr += len;
-    ptr += scan_whitenskip(ptr, end - ptr);
+    frame = newstate == ST_COUNT ? vector_pop(&st, sizeof(JsonContext)) : vector_push(&st, newctx);
   }
 
   return ret;

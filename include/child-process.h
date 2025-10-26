@@ -23,7 +23,7 @@ typedef struct ChildProcess {
 
   bool use_path /* : 1 */, exited /* : 1 */, signaled /* : 1 */, stopped /* : 1 */, continued /* : 1 */;
 
-  uint32_t uid, gid;
+  int uid, gid;
   int num_fds;
 
   int *child_fds, *parent_fds, *pipe_fds;

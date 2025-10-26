@@ -111,6 +111,9 @@ child_process_new(JSContext* ctx) {
     child->stopsig = -1;
     child->pid = -1;
 
+    child->uid = -1;
+    child->gid = -1;
+
     child->num_fds = 0;
 
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
@@ -288,9 +291,9 @@ child_process_spawn(ChildProcess* cp) {
         perror("chdir()");
 
 #ifndef __ANDROID__
-    if(setuid(cp->uid) == -1)
+    if(cp->uid != -1 && setuid(cp->uid) == -1)
       perror("setuid()");
-    if(setgid(cp->gid) == -1)
+    if(cp->gid != -1 && setgid(cp->gid) == -1)
       perror("setgid()");
 #endif
 

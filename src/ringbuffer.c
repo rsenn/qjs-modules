@@ -1,4 +1,5 @@
 #include "ringbuffer.h"
+#include <alloca.h>
 
 /**
  * \addtogroup ringbuffer
