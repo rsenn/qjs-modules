@@ -1,6 +1,7 @@
 #ifndef POINTER_H
 #define POINTER_H
 
+#include <stdint.h>
 #include <quickjs.h>
 #include <assert.h>
 #include "stream-utils.h"
@@ -16,7 +17,9 @@ typedef struct Pointer {
 } Pointer;
 
 #define POINTER_INIT() \
-  (Pointer) { 0, 0, NULL }
+  (Pointer) { \
+    0, 0, NULL \
+  }
 #define POINTER_LENGTH(ptr) ((ptr)->n)
 #define POINTER_ATOMS(ptr) ((ptr)->atoms)
 

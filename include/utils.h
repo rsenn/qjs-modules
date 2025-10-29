@@ -1162,7 +1162,6 @@ typedef union import_directive {
   const char* args[5];
 } ImportDirective;
 
-JSValue module_name(JSContext*, JSModuleDef*);
 char* module_namestr(JSContext*, JSModuleDef*);
 const char* module_namecstr(JSContext*, JSModuleDef* m);
 JSValue module_func(JSContext*, JSModuleDef*);

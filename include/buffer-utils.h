@@ -54,19 +54,6 @@ int dbuf_vprintf(DynBuf*, const char*, va_list);
 
 int screen_size(int size[2]);
 
-static inline int
-dbuf_putm(DynBuf* db, ...) {
-  int r = 0;
-  va_list a;
-  const char* s;
-  va_start(a, db);
-  while((s = va_arg(a, char*)))
-    if(dbuf_putstr(db, s))
-      return -1;
-  va_end(a);
-  return r;
-}
-
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 
 static inline size_t

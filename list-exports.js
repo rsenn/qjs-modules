@@ -101,6 +101,8 @@ const ImportTypes = {
 };
 
 const TokIs = curry((type, lexeme, tok) => {
+  if(!tok) return false;
+
   if(lexeme != undefined) {
     if(typeof lexeme == 'string' && tok.lexeme != lexeme) return false;
     else if(Array.isArray(lexeme) && lexeme.indexOf(tok.lexeme) == -1) return false;

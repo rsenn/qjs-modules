@@ -229,7 +229,7 @@ qjs_tempnam(const char* dir, const char* template) {
 #endif
 
 #define TextAttrColor(n) \
-  (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
+  (((n) & 1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
    (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
 #define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
@@ -1175,20 +1175,21 @@ static JSValue
 js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
   JSValue ret;
+  int32_t arg = CLOCK_MONOTONIC;
 
-  clock_gettime(CLOCK_MONOTONIC, &ts);
+  if(argc >= 1 && JS_IsNumber(argv[0])) {
+    JS_ToInt32(ctx, &arg, argv[0]);
+    argv++;
+    argc--;
+  }
+
+  clock_gettime(arg, &ts);
 
   if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
-    int64_t sec, nsec;
-    JSValue psec, pnsec;
+    uint64_t sec, nsec;
 
-    psec = JS_GetPropertyUint32(ctx, argv[0], 0);
-    pnsec = JS_GetPropertyUint32(ctx, argv[0], 1);
-
-    JS_ToInt64Ext(ctx, &sec, psec);
-    JS_ToInt64Ext(ctx, &nsec, pnsec);
-    JS_FreeValue(ctx, psec);
-    JS_FreeValue(ctx, pnsec);
+    sec = js_get_propertyint_int64(ctx, argv[0], 0);
+    nsec = js_get_propertyint_int64(ctx, argv[0], 1);
 
     if(nsec > ts.tv_nsec) {
       ts.tv_sec -= 1;
@@ -3587,6 +3588,19 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 #endif /* !_WIN32 */
 #endif
 
+static JSValue
+js_misc_job_function(JSContext* ctx, int argc, JSValueConst argv[]) {
+  return JS_Call(ctx, argv[0], JS_UNDEFINED, argc - 1, &argv[1]);
+}
+
+static JSValue
+js_misc_enqueue_job(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  if(!JS_IsFunction(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a function");
+
+  return JS_NewInt32(ctx, JS_EnqueueJob(ctx, js_misc_job_function, argc, argv));
+}
+
 #if QUICKJS_INTERNAL
 static JSValue
 js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -3885,6 +3899,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isUninitialized", 1, js_misc_is, IS_UNINITIALIZED),
     JS_CFUNC_MAGIC_DEF("isArrayBuffer", 1, js_misc_is, IS_ARRAYBUFFER),
     JS_CFUNC_DEF("ttySetRaw", 1, js_misc_ttysetraw),
+    JS_CFUNC_DEF("enqueueJob", 1, js_misc_enqueue_job),
     JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
     JS_CONSTANT(JS_EVAL_TYPE_MODULE),
     JS_CONSTANT(JS_EVAL_TYPE_DIRECT),
@@ -3992,6 +4007,49 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(BACKGROUND_RED),
     JS_CONSTANT(BACKGROUND_INTENSITY),
     JS_CONSTANT(COMMON_LVB_REVERSE_VIDEO),
+
+#ifdef CLOCK_BOOTTIME
+    JS_CONSTANT(CLOCK_BOOTTIME),
+#endif
+#ifdef CLOCK_BOOTTIME_ALARM
+    JS_CONSTANT(CLOCK_BOOTTIME_ALARM),
+#endif
+#ifdef CLOCK_MONOTONIC
+    JS_CONSTANT(CLOCK_MONOTONIC),
+#endif
+#ifdef CLOCK_MONOTONIC_COARSE
+    JS_CONSTANT(CLOCK_MONOTONIC_COARSE),
+#endif
+#ifdef CLOCK_MONOTONIC_HR
+    JS_CONSTANT(CLOCK_MONOTONIC_HR),
+#endif
+#ifdef CLOCK_MONOTONIC_RAW
+    JS_CONSTANT(CLOCK_MONOTONIC_RAW),
+#endif
+#ifdef CLOCK_PROCESS_CPUTIME_ID
+    JS_CONSTANT(CLOCK_PROCESS_CPUTIME_ID),
+#endif
+#ifdef CLOCK_REALTIME
+    JS_CONSTANT(CLOCK_REALTIME),
+#endif
+#ifdef CLOCK_REALTIME_ALARM
+    JS_CONSTANT(CLOCK_REALTIME_ALARM),
+#endif
+#ifdef CLOCK_REALTIME_COARSE
+    JS_CONSTANT(CLOCK_REALTIME_COARSE),
+#endif
+#ifdef CLOCK_REALTIME_HR
+    JS_CONSTANT(CLOCK_REALTIME_HR),
+#endif
+#ifdef CLOCK_SGI_CYCLE
+    JS_CONSTANT(CLOCK_SGI_CYCLE),
+#endif
+#ifdef CLOCK_TAI
+    JS_CONSTANT(CLOCK_TAI),
+#endif
+#ifdef CLOCK_THREAD_CPUTIME_ID
+    JS_CONSTANT(CLOCK_THREAD_CPUTIME_ID),
+#endif
 };
 
 static int
