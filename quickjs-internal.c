@@ -34,7 +34,7 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
   strcpy(buf, "0x");
 
   if(!js_has_propertystr(ctx, obj, "name"))
-    JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
+    JS_SetPropertyStr(ctx, obj, "name", module_nameval(ctx, m));
 
   JS_DefinePropertyValueStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved), 0);
   JS_DefinePropertyValueStr(ctx, obj, "funcCreated", JS_NewBool(ctx, m->func_created), 0);
@@ -240,7 +240,7 @@ module_func(JSContext* ctx, JSModuleDef* m) {
 }
 
 JSValue
-module_name(JSContext* ctx, JSModuleDef* m) {
+module_nameval(JSContext* ctx, JSModuleDef* m) {
 
   if(m->module_name < (size_t)JS_GetRuntime(ctx)->atom_count)
     return JS_AtomToValue(ctx, m->module_name);

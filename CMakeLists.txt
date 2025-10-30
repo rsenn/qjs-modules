@@ -444,7 +444,7 @@ set(lexer_LIBRARIES qjs-location)
 
 if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
-  set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
+  set(sockets_SOURCES ${sockets_SOURCES} quickjs-internal.c src/socketpair_win32.c)
   set(HAVE_INET_PTON TRUE)
 
   check_include_def(afunix.h)

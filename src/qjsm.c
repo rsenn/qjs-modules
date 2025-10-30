@@ -1545,7 +1545,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JSValue obj = JS_NewObject(ctx);
 
 #if QUICKJS_INTERNAL
-    JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
+    JS_SetPropertyStr(ctx, obj, "name", module_nameval(ctx, m));
     JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, m));
 #endif
     ret = obj;
@@ -1715,7 +1715,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case GET_MODULE_NAME: {
 #if QUICKJS_INTERNAL
-      val = module_name(ctx, m);
+      val = module_nameval(ctx, m);
 #endif
       break;
     }
