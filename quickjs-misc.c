@@ -651,7 +651,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   size_t n = input_buffer_length(&buf);
 
   if(s) {
-    if(n == SIZE_MAX && memchr(s, '\0', n))
+    if(n == SIZE_MAX /* && memchr(s, '\0', n)*/)
       ret = JS_NewString(ctx, (const char*)s);
     else
       ret = JS_NewStringLen(ctx, (const char*)s, n);

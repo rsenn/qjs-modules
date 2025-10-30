@@ -88,10 +88,10 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
   js_dbuf_init(ctx, &dbuf);
 
-  if((blen = ringbuffer_LENGTH(&dec->buffer)))
+  if((blen = ringbuffer_length(&dec->buffer)))
     switch(dec->type_code & 0x3) {
       case UTF8: {
-        size_t dlen, rlen = ringbuffer_LENGTH(&dec->buffer);
+        size_t dlen, rlen = ringbuffer_length(&dec->buffer);
 
         if((dlen = textdecoder_length(dec)) < rlen) {
           ringbuffer_normalize(&dec->buffer);
@@ -224,7 +224,7 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case DECODER_BUFFERED: {
-      ret = JS_NewUint32(ctx, ringbuffer_LENGTH(&dec->buffer));
+      ret = JS_NewUint32(ctx, ringbuffer_length(&dec->buffer));
       break;
     }
   }
@@ -301,7 +301,7 @@ js_decoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   switch(magic) {
     case DECODER_END: {
-      ret = ringbuffer_LENGTH(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
+      ret = ringbuffer_length(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
 
       if(magic == DECODER_END)
         ringbuffer_reset(&dec->buffer);
@@ -325,7 +325,7 @@ js_decoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
                                        magic == DECODER_DECODE ? "decode" : "end");
       }
 
-      ret = ringbuffer_LENGTH(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
+      ret = ringbuffer_length(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
 
       if(magic == DECODER_END)
         ringbuffer_reset(&dec->buffer);
@@ -349,7 +349,7 @@ js_decoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JS_DefinePropertyValueStr(
       ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->type_code]), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(
-      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_LENGTH(&dec->buffer)), JS_PROP_ENUMERABLE);
+      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
 
   return obj;
 }
@@ -392,7 +392,7 @@ JSValue
 textencoder_read(TextEncoder* te, JSContext* ctx) {
   JSValue ret, buf;
   int bits;
-  size_t len = ringbuffer_LENGTH(&te->buffer);
+  size_t len = ringbuffer_length(&te->buffer);
 
   if(len > ringbuffer_CONTINUOUS(&te->buffer))
     ringbuffer_normalize(&te->buffer);
@@ -511,7 +511,7 @@ js_encoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case ENCODER_BUFFERED: {
-      ret = JS_NewUint32(ctx, ringbuffer_LENGTH(&enc->buffer));
+      ret = JS_NewUint32(ctx, ringbuffer_length(&enc->buffer));
       break;
     }
   }
@@ -588,7 +588,7 @@ js_encoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   switch(magic) {
     case ENCODER_END: {
-      ret = ringbuffer_LENGTH(&enc->buffer) == 0 ? JS_NULL : textencoder_read(enc, ctx);
+      ret = ringbuffer_length(&enc->buffer) == 0 ? JS_NULL : textencoder_read(enc, ctx);
 
       if(magic == ENCODER_END)
         ringbuffer_reset(&enc->buffer);
@@ -629,7 +629,7 @@ js_encoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JS_DefinePropertyValueStr(
       ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[enc->type_code]), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(
-      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_LENGTH(&enc->buffer)), JS_PROP_ENUMERABLE);
+      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&enc->buffer)), JS_PROP_ENUMERABLE);
 
   return obj;
 }
