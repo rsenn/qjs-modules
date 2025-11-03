@@ -521,11 +521,8 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
 
 Location
 lexer_get_location(Lexer* lex, JSContext* ctx) {
-  Location loc;
-
-  loc.ref_count = 1;
+  Location loc = {1};
   location_copy(&loc, &lex->loc, ctx);
-
   return loc;
 }
 
@@ -544,7 +541,11 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   tok->lexer = lexer_dup(lex);
   tok->seq = lex->seq;
 
-  *tok->loc = lexer_get_location(lex, ctx);
+  if(!tok->loc)
+    tok->loc = location_new(ctx);
+
+  if(tok->loc)
+    location_copy(tok->loc, &lex->loc, ctx);
 
   return tok;
 }

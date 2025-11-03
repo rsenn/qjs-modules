@@ -158,12 +158,22 @@ location_equal(const Location* loc, const Location* other) {
 
 Location*
 location_copy(Location* dst, const Location* src, JSContext* ctx) {
+  if(dst->file >= 0) {
+    JS_FreeAtom(ctx, dst->file);
+    dst->file = -1;
+  }
+
   dst->file = src->file >= 0 ? (int32_t)JS_DupAtom(ctx, src->file) : src->file;
   dst->line = src->line;
   dst->column = src->column;
   dst->char_offset = src->char_offset;
   dst->byte_offset = src->byte_offset;
   dst->str = src->str && src->str[0] ? js_strdup(ctx, src->str) : 0;
+
+  if(dst->str) {
+    js_free(ctx, dst->str);
+    dst->str = 0;
+  }
 
   return dst;
 }

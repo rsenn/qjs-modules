@@ -22,6 +22,7 @@ typedef struct {
   int64_t char_offset, byte_offset;
   char* str;
   BOOL read_only : 1;
+  void* opaque;
 } Location;
 
 #define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, FALSE};
