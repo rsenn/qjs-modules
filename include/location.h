@@ -21,7 +21,7 @@ typedef struct {
   int32_t column;
   int64_t char_offset, byte_offset;
   char* str;
-  BOOL read_only : 1;
+  BOOL read_only : 1, allocated : 1;
   void* opaque;
 } Location;
 
@@ -42,6 +42,9 @@ LOCATION_API Location* location_clone(const Location*, JSContext*);
 LOCATION_API Location* location_new(JSContext*);
 LOCATION_API Location* location_dup(Location*);
 LOCATION_API BOOL location_equal(const Location* loc, const Location* other);
+LOCATION_API void location_set_file(Location*, int32_t, JSContext*);
+LOCATION_API void location_set_buffer(Location*, void*, size_t, JSContext*);
+
 /**
  * @}
  */

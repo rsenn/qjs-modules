@@ -91,7 +91,10 @@ typedef struct {
   { 0, 0 }
 
 int block_realloc(MemoryBlock*, size_t, JSContext*);
-int block_fromfile(MemoryBlock*, const char*);
+void block_free(MemoryBlock*, JSRuntime*);
+int block_mmap(MemoryBlock*, const char*);
+void block_munmap(MemoryBlock*);
+int block_fromfile(MemoryBlock*, const char*, JSContext*);
 
 static inline void
 block_init(MemoryBlock* mb) {
@@ -135,14 +138,6 @@ block_range(MemoryBlock mb, size_t offset, size_t length) {
   length = MIN_NUM((mb.size - offset), length);
 
   return (MemoryBlock){mb.base + offset, length};
-}
-
-static inline void
-block_free(MemoryBlock* mb, JSRuntime* rt) {
-  if(mb->base) {
-    js_free_rt(rt, mb->base);
-    mb->base = NULL;
-  }
 }
 
 static inline uint8_t*
@@ -412,6 +407,7 @@ const char* input_buffer_currentline(InputBuffer*, size_t*);
 size_t input_buffer_column(InputBuffer*, size_t*);
 JSValue input_buffer_tostring_free(InputBuffer*, JSContext*);
 JSValue input_buffer_toarraybuffer_free(InputBuffer*, JSContext*);
+InputBuffer input_buffer_fromfile(const char*, JSContext*);
 
 static inline void*
 input_buffer_data(const InputBuffer* in) {

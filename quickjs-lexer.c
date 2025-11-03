@@ -498,21 +498,21 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst a
   int32_t mode = 0;
   JSValue obj = JS_UNDEFINED;
 
-  if(!(lex = js_mallocz(ctx, sizeof(Lexer))))
+  if(!(lex = lexer_new(ctx)))
     return JS_EXCEPTION;
 
   if(JS_IsNumber(arg))
-    JS_ToInt32(ctx, &mode, arg);
-
-  lexer_init(lex, mode, ctx);
+    lex->mode = js_toint32(ctx, arg);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_lexer_class_id);
 
   if(JS_IsException(obj))
     goto fail;
 
-  lex->input = js_input_chars(ctx, in);
-  JS_GetException(ctx);
+  if(!js_is_null_or_undefined(in)) {
+    lex->input = js_input_chars(ctx, in);
+    JS_GetException(ctx);
+  }
 
   JS_SetOpaque(obj, lex);
   return obj;
@@ -614,8 +614,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 }
 
 enum {
-  LEXER_SET_INPUT = 0,
-  LEXER_SKIP_BYTES,
+  LEXER_SKIP_BYTES = 0,
   LEXER_SKIP_TOKEN,
   LEXER_BACK,
   LEXER_PEEKC,
@@ -634,6 +633,33 @@ enum {
 };
 
 static JSValue
+js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  Lexer *lex, *other;
+
+  if(!(lex = js_lexer_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  input_buffer_free(&lex->input, ctx);
+  location_release(&lex->loc, JS_GetRuntime(ctx));
+
+  if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
+    lex->input = input_buffer_clone(&other->input, ctx);
+    location_copy(&lex->loc, &other->loc, ctx);
+  } else if(argc > 1 && js_is_null_or_undefined(argv[0])) {
+    const char* file = JS_ToCString(ctx, argv[1]);
+    lex->input = input_buffer_fromfile(file, ctx);
+    JS_FreeCString(ctx, file);
+  } else {
+    lex->input = js_input_chars(ctx, argv[0]);
+  }
+
+  if(argc > 1 && !js_is_null_or_undefined(argv[1]))
+    location_set_file(&lex->loc, JS_ValueToAtom(ctx, argv[1]), ctx);
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
 js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
@@ -642,37 +668,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     return JS_EXCEPTION;
 
   switch(magic) {
-    case LEXER_SET_INPUT: {
-      Lexer* other;
-      InputBuffer in;
-      Location loc = LOCATION();
-
-      if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
-        in = input_buffer_clone(&other->input, ctx);
-        loc = other->loc;
-      } else {
-        in = js_input_chars(ctx, argv[0]);
-      }
-
-      input_buffer_free(&lex->input, ctx);
-      lex->input = in;
-      location_release(&lex->loc, JS_GetRuntime(ctx));
-      lex->loc = loc;
-
-      if(argc > 1 && JS_IsString(argv[1])) {
-        if(lex->loc.file > -1)
-          JS_FreeAtom(ctx, lex->loc.file);
-
-        lex->loc.file = JS_ValueToAtom(ctx, argv[1]);
-      }
-
-      break;
-    }
-
     case LEXER_SKIP_BYTES: {
-      uint32_t n = 0;
-
-      JS_ToUint32(ctx, &n, argv[0]);
+      uint32_t n = argc > 0 ? js_touint32(ctx, argv[0]) : 0;
 
       if(n > lex->byte_length)
         ret = JS_ThrowInternalError(ctx, "skipBytes(): count n > %lu", (unsigned long)lex->byte_length);
@@ -1435,6 +1432,15 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 static JSValue
 js_lexer_fromfile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
+  Lexer* lex;
+
+  if((lex = lexer_new(ctx))) {
+    JSValueConst args[] = {JS_UNDEFINED, argv[0], argv[1]};
+
+    ret = js_lexer_wrap(ctx, lex);
+
+    js_lexer_set_input(ctx, ret, countof(args), args);
+  }
 
   return ret;
 }
@@ -1475,7 +1481,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("lexeme", js_lexer_get, 0, LEXER_LEXEME),
     JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_TOKEN),
     JS_CGETSET_MAGIC_DEF("fileName", js_lexer_get, js_lexer_set, LEXER_FILENAME),
-    JS_CFUNC_MAGIC_DEF("setInput", 1, js_lexer_method, LEXER_SET_INPUT),
+    JS_CFUNC_DEF("setInput", 1, js_lexer_set_input),
     JS_CFUNC_MAGIC_DEF("skipBytes", 0, js_lexer_method, LEXER_SKIP_BYTES),
     JS_CFUNC_MAGIC_DEF("skipToken", 0, js_lexer_method, LEXER_SKIP_TOKEN),
     JS_CFUNC_MAGIC_DEF("skipChars", 0, js_lexer_method, LEXER_SKIP_CHARS),

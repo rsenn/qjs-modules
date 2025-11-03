@@ -546,8 +546,16 @@ block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
   return -1;
 }
 
+void
+block_free(MemoryBlock* mb, JSRuntime* rt) {
+  if(mb->base) {
+    js_free_rt(rt, mb->base);
+    mb->base = NULL;
+  }
+}
+
 int
-block_fromfile(MemoryBlock* mb, const char* filename) {
+block_mmap(MemoryBlock* mb, const char* filename) {
   int fd;
   void* ptr;
   struct stat st;
@@ -565,6 +573,44 @@ block_fromfile(MemoryBlock* mb, const char* filename) {
   close(fd);
 
   if(ptr != 0 && ptr != (void*)-1) {
+    mb->base = ptr;
+    mb->size = st.st_size;
+    return 0;
+  }
+
+  return -1;
+}
+
+void
+block_munmap(MemoryBlock* mb) {
+  munmap(mb->base, mb->size);
+  mb->base = 0;
+  mb->size = 0;
+}
+
+int
+block_fromfile(MemoryBlock* mb, const char* filename, JSContext* ctx) {
+  int fd;
+  void* ptr;
+  struct stat st;
+
+  if((fd = open(filename, O_RDONLY)) == -1)
+    return -1;
+
+  if(fstat(fd, &st) == -1) {
+    close(fd);
+    return -1;
+  }
+
+  if((ptr = js_malloc(ctx, st.st_size))) {
+    if(read(fd, ptr, st.st_size) != st.st_size) {
+      free(ptr);
+      close(fd);
+      return -1;
+    }
+
+    close(fd);
+
     mb->base = ptr;
     mb->size = st.st_size;
     return 0;
@@ -717,11 +763,30 @@ input_buffer_tostring_free(InputBuffer* in, JSContext* ctx) {
   return ret;
 }
 
+static void
+input_buffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
+  js_free_rt(rt, ptr);
+}
+
 JSValue
 input_buffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
-  JSValue ret = in->data ? JS_NewArrayBufferCopy(ctx, input_buffer_data(in), input_buffer_length(in)) : JS_UNDEFINED;
+  JSValue ret =
+      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, input_buffer_free_pointer, 0, FALSE) : JS_UNDEFINED;
+
+  in->data = 0;
+  in->size = 0;
+
   input_buffer_free(in, ctx);
   return ret;
+}
+
+InputBuffer
+input_buffer_fromfile(const char* filename, JSContext* ctx) {
+  InputBuffer in = {0};
+
+  block_fromfile(&in.block, filename, ctx);
+
+  return in;
 }
 
 int

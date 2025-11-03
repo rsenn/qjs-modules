@@ -74,6 +74,7 @@ int lexer_rule_add(Lexer*, char* name, char* expr);
 LexerRule* lexer_rule_find(Lexer*, const char* name);
 void lexer_rule_release_rt(LexerRule*, JSRuntime* rt);
 void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
+Lexer* lexer_new(JSContext*);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_define(Lexer*, char* name, char* expr);
 LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);

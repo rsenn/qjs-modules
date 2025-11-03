@@ -56,7 +56,7 @@ location_tovalue(const Location* loc, JSContext* ctx) {
   return ret;
 }
 
-/*VISIBLE*/ void
+void
 location_init(Location* loc) {
   loc->ref_count = 1;
   loc->file = -1;
@@ -65,6 +65,7 @@ location_init(Location* loc) {
   loc->char_offset = -1;
   loc->byte_offset = -1;
   loc->str = 0;
+  loc->allocated = FALSE;
 }
 
 void
@@ -81,8 +82,12 @@ location_release(Location* loc, JSRuntime* rt) {
     JS_FreeAtomRT(rt, loc->file);
   loc->file = -1;
 
-  if(loc->str)
-    js_free_rt(rt, (char*)loc->str);
+  if(loc->str) {
+    if(loc->allocated)
+      js_free_rt(rt, (char*)loc->str);
+    loc->str = 0;
+    loc->allocated = FALSE;
+  }
 
   location_zero(loc);
 }
@@ -158,22 +163,16 @@ location_equal(const Location* loc, const Location* other) {
 
 Location*
 location_copy(Location* dst, const Location* src, JSContext* ctx) {
-  if(dst->file >= 0) {
-    JS_FreeAtom(ctx, dst->file);
-    dst->file = -1;
-  }
+  location_release(dst, JS_GetRuntime(ctx));
 
   dst->file = src->file >= 0 ? (int32_t)JS_DupAtom(ctx, src->file) : src->file;
   dst->line = src->line;
   dst->column = src->column;
   dst->char_offset = src->char_offset;
   dst->byte_offset = src->byte_offset;
-  dst->str = src->str && src->str[0] ? js_strdup(ctx, src->str) : 0;
 
-  if(dst->str) {
-    js_free(ctx, dst->str);
-    dst->str = 0;
-  }
+  dst->str = src->str ? js_strdup(ctx, src->str) : 0;
+  dst->allocated = !!src->str;
 
   return dst;
 }
@@ -182,14 +181,8 @@ Location*
 location_clone(const Location* loc, JSContext* ctx) {
   Location* ret;
 
-  if((ret = location_new(ctx))) {
-    ret->file = loc->file >= 0 ? (int32_t)JS_DupAtom(ctx, loc->file) : -1;
-    ret->line = loc->line;
-    ret->column = loc->column;
-    ret->char_offset = loc->char_offset;
-    ret->byte_offset = loc->byte_offset;
-    ret->str = loc->str && loc->str[0] ? js_strdup(ctx, loc->str) : 0;
-  }
+  if((ret = location_new(ctx)))
+    location_copy(ret, loc, ctx);
 
   return ret;
 }
@@ -208,6 +201,24 @@ Location*
 location_dup(Location* loc) {
   ++loc->ref_count;
   return loc;
+}
+
+void
+location_set_file(Location* loc, int32_t file, JSContext* ctx) {
+  if(loc->file != -1)
+    JS_FreeAtom(ctx, loc->file);
+
+  loc->file = file != -1 ? JS_DupAtom(ctx, file) : file;
+}
+
+void
+location_set_buffer(Location* loc, void* str, size_t ofs, JSContext* ctx) {
+  if(loc->str && loc->allocated)
+    js_free(ctx, loc->str);
+
+  loc->str = str;
+  loc->byte_offset = ofs;
+  loc->char_offset = utf8_strlen(loc->str - loc->byte_offset, ofs);
 }
 
 /**

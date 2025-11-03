@@ -257,6 +257,16 @@ lexer_rule_dump(Lexer* lex, LexerRule* rule, DynBuf* dbuf) {
   lexer_rule_expand(lex, rule->expr, dbuf);
 }
 
+Lexer*
+lexer_new(JSContext* ctx) {
+  Lexer* lex;
+
+  if((lex = js_malloc(ctx, sizeof(Lexer))))
+    lexer_init(lex, -1, ctx);
+
+  return lex;
+}
+
 void
 lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   char* initial = js_strdup(ctx, "INITIAL");
