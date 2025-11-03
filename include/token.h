@@ -9,8 +9,9 @@
  * @{
  */
 typedef struct Token {
-  int ref_count, id;
+  int ref_count;
   uint8_t* lexeme;
+  int32_t id;
   uint32_t byte_length, char_length;
   Lexer* lexer;
   Location* loc;
@@ -18,7 +19,7 @@ typedef struct Token {
 } Token;
 
 Token* token_new(JSContext*);
-Token* token_create(int, const char*, size_t, JSContext*);
+Token* token_create(int, void*, size_t, JSContext*);
 void token_release(Token*, JSRuntime*);
 void token_free(Token*, JSRuntime*);
 void token_set_lexeme(Token*, void*, size_t, JSContext*);

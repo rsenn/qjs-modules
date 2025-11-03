@@ -539,7 +539,7 @@ lexer_get_location(Lexer* lex, JSContext* ctx) {
 Token*
 lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   size_t len;
-  const char* lexeme;
+  char* lexeme;
   Token* tok;
 
   if(!(lexeme = lexer_lexeme(lex, &len)))
@@ -554,8 +554,10 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   if(!tok->loc)
     tok->loc = location_new(ctx);
 
-  if(tok->loc)
+  if(tok->loc) {
     location_copy(tok->loc, &lex->loc, ctx);
+    tok->loc->ptr = lex->data + lex->loc.byte_offset;
+  }
 
   return tok;
 }

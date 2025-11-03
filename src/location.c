@@ -64,7 +64,7 @@ location_init(Location* loc) {
   loc->column = -1;
   loc->char_offset = -1;
   loc->byte_offset = -1;
-  loc->str = 0;
+  loc->ptr = 0;
   loc->allocated = FALSE;
 }
 
@@ -82,10 +82,10 @@ location_release(Location* loc, JSRuntime* rt) {
     JS_FreeAtomRT(rt, loc->file);
   loc->file = -1;
 
-  if(loc->str) {
+  if(loc->ptr) {
     if(loc->allocated)
-      js_free_rt(rt, (char*)loc->str);
-    loc->str = 0;
+      js_free_rt(rt, (char*)loc->ptr);
+    loc->ptr = 0;
     loc->allocated = FALSE;
   }
 
@@ -171,8 +171,8 @@ location_copy(Location* dst, const Location* src, JSContext* ctx) {
   dst->char_offset = src->char_offset;
   dst->byte_offset = src->byte_offset;
 
-  dst->str = src->str ? js_strdup(ctx, src->str) : 0;
-  dst->allocated = !!src->str;
+  dst->ptr = src->ptr ? js_strdup(ctx, src->ptr) : 0;
+  dst->allocated = !!src->ptr;
 
   return dst;
 }
@@ -213,18 +213,20 @@ location_set_file(Location* loc, int32_t file, JSContext* ctx) {
 
 void
 location_set_buffer(Location* loc, void* str, size_t ofs, JSContext* ctx) {
-  if(loc->str && loc->allocated)
-    js_free(ctx, loc->str);
+  if(loc->ptr && loc->allocated)
+    js_free(ctx, loc->ptr);
 
-  loc->str = str;
+  loc->ptr = str;
   loc->byte_offset = ofs;
-  loc->char_offset = utf8_strlen(loc->str - loc->byte_offset, ofs);
+  loc->char_offset = utf8_strlen(loc->ptr - loc->byte_offset, ofs);
 }
 
- void* location_buffer(const Location*loc) {
-  if(loc->str) return loc->str - loc->byte_offset;
-return 0;
- }
+void*
+location_buffer(const Location* loc) {
+  if(loc->ptr)
+    return loc->ptr - loc->byte_offset;
+  return 0;
+}
 
 /**
  * @}

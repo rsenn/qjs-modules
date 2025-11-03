@@ -47,13 +47,10 @@ token_free(Token* tok, JSRuntime* rt) {
 
 void
 token_set_lexeme(Token* tok, void* lexeme, size_t len, JSContext* ctx) {
-  if(lexeme) {
-    tok->lexeme = lexeme;
+  if((tok->lexeme = lexeme)) {
     tok->byte_length = len;
     tok->char_length = utf8_strlen(lexeme, len);
   } else {
-    js_free(ctx, tok->lexeme);
-    tok->lexeme = 0;
     tok->byte_length = 0;
     tok->char_length = 0;
   }
@@ -78,13 +75,13 @@ token_copy_location(Token* tok, const Location* loc, JSContext* ctx) {
 }
 
 Token*
-token_create(int id, const char* lexeme, size_t len, JSContext* ctx) {
+token_create(int id, void* lexeme, size_t len, JSContext* ctx) {
   Token* tok;
 
   if((tok = token_new(ctx))) {
     tok->id = id;
 
-    token_set_lexeme(tok, lexeme ? js_strndup(ctx, lexeme, len) : 0, len, ctx);
+    token_set_lexeme(tok, lexeme, len, ctx);
   }
 
   return tok;

@@ -20,13 +20,13 @@ typedef struct {
   int32_t line;
   int32_t column;
   int64_t char_offset, byte_offset;
-  char* str;
+  char* ptr;
   BOOL read_only : 1, allocated : 1;
   void* opaque;
 } Location;
 
-#define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, FALSE};
-#define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, 0, FALSE};
+#define LOCATION() (Location){0, -1, 0, 0, 0, 0, NULL, FALSE, FALSE, NULL};
+#define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, NULL, FALSE, FALSE, NULL};
 
 LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
 LOCATION_API char* location_tostring(const Location*, JSContext*);

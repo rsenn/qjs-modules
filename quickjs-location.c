@@ -137,9 +137,6 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
   if(loc->read_only)
     return JS_ThrowTypeError(ctx, "Location is read-only");
 
-  if(loc->str)
-    loc->str[0] = 0;
-
   switch(magic) {
     case LOCATION_PROP_FILE: {
       if(loc->file > -1)

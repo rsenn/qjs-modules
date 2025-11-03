@@ -123,8 +123,7 @@ js_token_new(JSContext* ctx, JSValueConst new_target, JSValueConst id, JSValueCo
 
   if(!js_is_null_or_undefined(lexeme))
     buf = js_input_chars(ctx, lexeme);
-
-  tok = (n != -1 || buf.data != 0) ? token_create(n, (const void*)buf.data, buf.size, ctx) : token_new(ctx);
+  tok = (n != -1 || buf.data != 0) ? token_create(n, buf.data, buf.size, ctx) : token_new(ctx);
 
   if(!tok)
     return JS_EXCEPTION;
