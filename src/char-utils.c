@@ -505,12 +505,22 @@ utf8_strlen(const void* in, size_t len) {
 }
 
 size_t
-utf8_countchars(const void* in, size_t chars) {
+utf8_countchars2(const void* in, size_t chars) {
   uint8_t *pos, *next;
   size_t i = 0;
 
   for(pos = (void*)in; *pos && i < chars; pos = next, ++i)
     unicode_from_utf8(pos, 6, (const uint8_t**)&next);
+
+  return pos - (uint8_t*)in;
+}
+
+size_t
+utf8_countchars3(const void* in, size_t len, size_t chars) {
+  uint8_t *pos = (void*)in, *end = (uint8_t*)in + len, *next;
+
+  for(size_t i = 0; i < chars && pos < end; pos = next, ++i)
+    unicode_from_utf8(pos, MIN_NUM((end - pos), 6), (const uint8_t**)&next);
 
   return pos - (uint8_t*)in;
 }

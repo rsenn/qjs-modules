@@ -210,10 +210,8 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   }
 
   if(char_offset != -1)
-    if(tok->loc) {
-      char* buf = location_buffer(tok->loc);
-
-      tok->loc->byte_offset = utf8_countchars(buf, char_offset);
+    if(tok->loc && lex) {
+      tok->loc->byte_offset = utf8_countchars3(lex->data, lex->size, char_offset);
       tok->loc->char_offset = char_offset;
     }
 

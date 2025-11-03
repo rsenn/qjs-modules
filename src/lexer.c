@@ -556,7 +556,6 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
 
   if(tok->loc) {
     location_copy(tok->loc, &lex->loc, ctx);
-    tok->loc->ptr = lex->data + lex->loc.byte_offset;
   }
 
   return tok;
