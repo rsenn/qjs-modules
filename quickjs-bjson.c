@@ -49,8 +49,8 @@ js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     }
   }
 
-  JSValue obj = JS_ReadObject(ctx, input_buffer_data(&input), input_buffer_length(&input), flags);
-  input_buffer_free(&input, ctx);
+  JSValue obj = JS_ReadObject(ctx, inputbuffer_data(&input), inputbuffer_length(&input), flags);
+  inputbuffer_free(&input, ctx);
   return obj;
 }
 

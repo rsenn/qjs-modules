@@ -239,7 +239,7 @@ reader_from_buf(InputBuffer* ib, JSContext* ctx) {
       &read_inputbuffer,
       ib,
       ctx,
-      (ReaderFinalizer*)(void*)&input_buffer_free,
+      (ReaderFinalizer*)(void*)&inputbuffer_free,
   };
 }
 

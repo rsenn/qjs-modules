@@ -156,7 +156,7 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
         dbuf_put(out, hex, 2);
       }
 
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
     } else {
       size_t len;
       const char* str = JS_ToCStringLen(ctx, &len, value);

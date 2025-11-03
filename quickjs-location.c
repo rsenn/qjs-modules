@@ -275,7 +275,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     /* From string */
     if(argc == 1 && js_is_input(ctx, argv[0])) {
       InputBuffer in = js_input_chars(ctx, argv[0]);
-      const uint8_t *p, *begin = input_buffer_begin(&in), *end = input_buffer_end(&in);
+      const uint8_t *p, *begin = inputbuffer_begin(&in), *end = inputbuffer_end(&in);
       unsigned long v, n[2];
       size_t ni = MAX_NUM(2, str_count((const char*)begin, ':'));
 

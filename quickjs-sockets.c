@@ -590,7 +590,7 @@ msg_read(JSContext* ctx, JSValueConst arg, struct msghdr* m) {
       m->msg_namelen = buf.size;
     }
 
-    input_buffer_free(&buf, ctx);
+    inputbuffer_free(&buf, ctx);
   }
 
   if(js_has_propertystr(ctx, arg, "flags"))
@@ -879,7 +879,7 @@ fdset_read(JSContext* ctx, JSValueConst arg, fd_set* set) {
   if(buf.data) {
     size_t len = MIN_NUM(buf.size, sizeof(fd_set));
     memcpy(set, buf.data, len);
-    input_buffer_free(&buf, ctx);
+    inputbuffer_free(&buf, ctx);
     return len;
   }
 
@@ -911,7 +911,7 @@ fdset_write(JSContext* ctx, const fd_set* set, JSValueConst arg) {
   if(buf.data) {
     size_t len = MIN_NUM(buf.size, sizeof(fd_set));
     memcpy(buf.data, set, len);
-    input_buffer_free(&buf, ctx);
+    inputbuffer_free(&buf, ctx);
     return len;
   }
 

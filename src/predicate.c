@@ -85,8 +85,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       ret = JS_NewInt32(ctx, 1);
 
-      while(!input_buffer_eof(&input)) {
-        uint32_t codepoint = input_buffer_getc(&input);
+      while(!inputbuffer_eof(&input)) {
+        uint32_t codepoint = inputbuffer_getc(&input);
         ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
 
         if(idx == -1) {
@@ -95,7 +95,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
         }
       }
 
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
       break;
     }
 
@@ -359,14 +359,14 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_SLICE: {
       JSValue arg = js_arguments_at(args, 0);
       InputBuffer buf = js_input_chars(ctx, arg);
-      MemoryBlock block = indexrange_block(pr->slice.index_range, input_buffer_block(&buf));
+      MemoryBlock block = indexrange_block(pr->slice.index_range, inputbuffer_block(&buf));
 
       if(JS_IsString(arg))
         ret = JS_NewStringLen(ctx, (const char*)block.base, block.size);
       else
         ret = JS_NewArrayBuffer(ctx, block.base, block.size, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
 
-      input_buffer_free(&buf, ctx);
+      inputbuffer_free(&buf, ctx);
       break;
     }
 

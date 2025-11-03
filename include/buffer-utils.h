@@ -383,16 +383,16 @@ typedef struct InputBuffer {
   JSValue value;
 } InputBuffer;
 
-#define INPUT_BUFFER() INPUT_BUFFER_FREE(&input_buffer_free_default)
-#define INPUT_BUFFER_FREE(fn) INPUT_BUFFER_DATA_FREE(0, 0, fn)
-#define INPUT_BUFFER_DATA(buf, len) INPUT_BUFFER_DATA_FREE(buf, len, &input_buffer_free_default)
-#define INPUT_BUFFER_DATA_FREE(buf, len, fn) \
+#define INPUTBUFFER() INPUTBUFFER_FREE(&inputbuffer_free_default)
+#define INPUTBUFFER_FREE(fn) INPUTBUFFER_DATA_FREE(0, 0, fn)
+#define INPUTBUFFER_DATA(buf, len) INPUTBUFFER_DATA_FREE(buf, len, &inputbuffer_free_default)
+#define INPUTBUFFER_DATA_FREE(buf, len, fn) \
   (InputBuffer) { \
     {BLOCK_INIT_DATA(buf, len)}, {OFFSETLENGTH_INIT()}, (fn), JS_UNDEFINED \
   }
 
 static inline void
-input_buffer_free_default(JSContext* ctx, const char* str, JSValue val) {
+inputbuffer_free_default(JSContext* ctx, const char* str, JSValue val) {
   if(JS_IsString(val))
     JS_FreeCString(ctx, str);
 
@@ -405,81 +405,81 @@ InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 
-int input_buffer_fromargv(InputBuffer*, int, JSValueConst[], JSContext*);
-BOOL input_buffer_valid(const InputBuffer*);
-void input_buffer_clone2(InputBuffer*, const InputBuffer*, JSContext*);
-InputBuffer input_buffer_clone(const InputBuffer*, JSContext*);
-void input_buffer_dump(const InputBuffer*, DynBuf*);
-void input_buffer_free(InputBuffer*, JSContext*);
-const uint8_t* input_buffer_peek(InputBuffer*, size_t*);
-const uint8_t* input_buffer_get(InputBuffer*, size_t*);
-const char* input_buffer_currentline(InputBuffer*, size_t*);
-size_t input_buffer_column(InputBuffer*, size_t*);
-JSValue input_buffer_tostring_free(InputBuffer*, JSContext*);
-JSValue input_buffer_toarraybuffer_free(InputBuffer*, JSContext*);
-InputBuffer input_buffer_fromfile(const char*, JSContext*);
+int inputbuffer_fromargv(InputBuffer*, int, JSValueConst[], JSContext*);
+BOOL inputbuffer_valid(const InputBuffer*);
+void inputbuffer_clone2(InputBuffer*, const InputBuffer*, JSContext*);
+InputBuffer inputbuffer_clone(const InputBuffer*, JSContext*);
+void inputbuffer_dump(const InputBuffer*, DynBuf*);
+void inputbuffer_free(InputBuffer*, JSContext*);
+const uint8_t* inputbuffer_peek(InputBuffer*, size_t*);
+const uint8_t* inputbuffer_get(InputBuffer*, size_t*);
+const char* inputbuffer_currentline(InputBuffer*, size_t*);
+size_t inputbuffer_column(InputBuffer*, size_t*);
+JSValue inputbuffer_tostring_free(InputBuffer*, JSContext*);
+JSValue inputbuffer_toarraybuffer_free(InputBuffer*, JSContext*);
+InputBuffer inputbuffer_fromfile(const char*, JSContext*);
 
 static inline void*
-input_buffer_data(const InputBuffer* in) {
+inputbuffer_data(const InputBuffer* in) {
   return offsetlength_data(in->range, in->data);
 }
 
 static inline uint8_t*
-input_buffer_begin(const InputBuffer* in) {
-  return input_buffer_data(in);
+inputbuffer_begin(const InputBuffer* in) {
+  return inputbuffer_data(in);
 }
 
 static inline size_t
-input_buffer_length(const InputBuffer* in) {
+inputbuffer_length(const InputBuffer* in) {
   return offsetlength_size(in->range, in->size);
 }
 
 static inline uint8_t*
-input_buffer_end(const InputBuffer* in) {
-  return input_buffer_data(in) + input_buffer_length(in);
+inputbuffer_end(const InputBuffer* in) {
+  return inputbuffer_data(in) + inputbuffer_length(in);
 }
 
 static inline PointerRange
-input_buffer_range(const InputBuffer* in) {
-  uint8_t* data = input_buffer_data(in);
-  return (PointerRange){data, data + input_buffer_length(in)};
+inputbuffer_range(const InputBuffer* in) {
+  uint8_t* data = inputbuffer_data(in);
+  return (PointerRange){data, data + inputbuffer_length(in)};
 }
 
 static inline MemoryBlock
-input_buffer_block(InputBuffer* in) {
-  return (MemoryBlock){input_buffer_data(in), input_buffer_length(in)};
+inputbuffer_block(InputBuffer* in) {
+  return (MemoryBlock){inputbuffer_data(in), inputbuffer_length(in)};
 }
 
 static inline MemoryBlock*
-input_buffer_blockptr(InputBuffer* in) {
+inputbuffer_blockptr(InputBuffer* in) {
   return &in->block;
 }
 
-const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
-const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
-const char* input_buffer_currentline(InputBuffer*, size_t* len);
-size_t input_buffer_column(InputBuffer*, size_t* len);
+const uint8_t* inputbuffer_get(InputBuffer* in, size_t* lenp);
+const uint8_t* inputbuffer_peek(InputBuffer* in, size_t* lenp);
+const char* inputbuffer_currentline(InputBuffer*, size_t* len);
+size_t inputbuffer_column(InputBuffer*, size_t* len);
 
-int input_buffer_peekc(InputBuffer* in, size_t* lenp);
-int input_buffer_putc(InputBuffer*, unsigned int, JSContext*);
+int inputbuffer_peekc(InputBuffer* in, size_t* lenp);
+int inputbuffer_putc(InputBuffer*, unsigned int, JSContext*);
 
 static inline int
-input_buffer_getc(InputBuffer* in) {
+inputbuffer_getc(InputBuffer* in) {
   size_t n;
   int ret;
-  ret = input_buffer_peekc(in, &n);
+  ret = inputbuffer_peekc(in, &n);
   in->pos += n;
   return ret;
 }
 
 static inline BOOL
-input_buffer_eof(const InputBuffer* in) {
+inputbuffer_eof(const InputBuffer* in) {
   return in->pos == in->size;
 }
 
 static inline size_t
-input_buffer_remain(const InputBuffer* in) {
-  return input_buffer_length(in) - in->pos;
+inputbuffer_remain(const InputBuffer* in) {
+  return inputbuffer_length(in) - in->pos;
 }
 
 /**

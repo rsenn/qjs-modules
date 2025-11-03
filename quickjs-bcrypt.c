@@ -36,7 +36,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
         ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, (void*)salt.data));
 
-        input_buffer_free(&salt, ctx);
+        inputbuffer_free(&salt, ctx);
       } else {
         char s[BCRYPT_HASHSIZE + 1];
 
@@ -65,8 +65,8 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         bcrypt_gensalt(workfactor, s = tmp);
       } else if(salt.size < BCRYPT_SALTSIZE) {
         JS_ThrowInternalError(ctx, "supplied salt size (%lu) < %d", (unsigned long)salt.size, BCRYPT_SALTSIZE);
-        input_buffer_free(&salt, ctx);
-        // input_buffer_free(&buf, ctx);
+        inputbuffer_free(&salt, ctx);
+        // inputbuffer_free(&buf, ctx);
         return JS_EXCEPTION;
       } else if(salt.size >= BCRYPT_SALTSIZE) {
         s = (void*)salt.data;
@@ -79,7 +79,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       else
         ret = JS_NewStringLen(ctx, out, strlen(out));
 
-      input_buffer_free(&salt, ctx);
+      inputbuffer_free(&salt, ctx);
       JS_FreeCString(ctx, pw);
       break;
     }
@@ -89,12 +89,12 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       char x[BCRYPT_HASHSIZE];
 
       if(!buf.size) {
-        input_buffer_free(&buf, ctx);
+        inputbuffer_free(&buf, ctx);
         return JS_ThrowInternalError(ctx, "supplied buffer size 0");
       }
 
       if(buf.size < (BCRYPT_HASHSIZE - 4)) {
-        input_buffer_free(&buf, ctx);
+        inputbuffer_free(&buf, ctx);
         return JS_ThrowInternalError(ctx,
                                      "supplied buffer size %lu < %u",
                                      (unsigned long)buf.size,
@@ -103,7 +103,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       memset(x, 0, sizeof(x));
       memcpy(x, buf.data, MIN_NUM(buf.size, BCRYPT_HASHSIZE));
-      input_buffer_free(&buf, ctx);
+      inputbuffer_free(&buf, ctx);
 
       const char* pw = JS_ToCString(ctx, argv[0]);
 

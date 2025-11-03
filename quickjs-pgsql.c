@@ -266,7 +266,7 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
 
     dbuf_putstr(out, "'::bytea");
 
-    input_buffer_free(&input, ctx);
+    inputbuffer_free(&input, ctx);
   } else if(JS_IsException(value)) {
     dbuf_putstr(out, "[exception]");
   } else {
@@ -1008,7 +1008,7 @@ js_pgconn_escape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   ret = JS_NewStringLen(ctx, dst, dlen);
   PQfreemem(dst);
 
-  input_buffer_free(&src, ctx);
+  inputbuffer_free(&src, ctx);
   return ret;
 }
 

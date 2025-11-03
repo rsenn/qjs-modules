@@ -175,7 +175,7 @@ js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if(input_name)
     JS_FreeCString(ctx, input_name);
 
-  input_buffer_free(&input, ctx);
+  inputbuffer_free(&input, ctx);
   return ret;
 }
 

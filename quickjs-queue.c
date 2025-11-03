@@ -76,28 +76,28 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   switch(magic) {
     case QUEUE_WRITE: {
       InputBuffer input = js_input_args(ctx, argc, argv);
-      int64_t r = queue_write(queue, input_buffer_data(&input), input_buffer_length(&input));
+      int64_t r = queue_write(queue, inputbuffer_data(&input), inputbuffer_length(&input));
 
       ret = JS_NewInt64(ctx, r);
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
       break;
     }
 
     case QUEUE_READ: {
       InputBuffer input = js_input_args(ctx, argc, argv);
-      int64_t r = queue_read(queue, input_buffer_data(&input), input_buffer_length(&input));
+      int64_t r = queue_read(queue, inputbuffer_data(&input), inputbuffer_length(&input));
 
       ret = JS_NewInt64(ctx, r);
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
       break;
     }
 
     case QUEUE_PEEK: {
       InputBuffer input = js_input_args(ctx, argc, argv);
-      int64_t r = queue_peek(queue, input_buffer_data(&input), input_buffer_length(&input));
+      int64_t r = queue_peek(queue, inputbuffer_data(&input), inputbuffer_length(&input));
 
       ret = JS_NewInt64(ctx, r);
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
       break;
     }
 

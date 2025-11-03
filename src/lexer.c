@@ -325,7 +325,7 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
   int ret = LEXER_ERROR_NOMATCH;
   size_t len = 0;
 
-  if(input_buffer_eof(&lex->input))
+  if(inputbuffer_eof(&lex->input))
     return LEXER_EOF;
 
   if(lex->loc.byte_offset == -1)
@@ -488,7 +488,7 @@ lexer_release(Lexer* lex, JSRuntime* rt) {
   char** statep;
   LexerRule* rule;
 
-  input_buffer_free(&lex->input, lex->rules.opaque);
+  inputbuffer_free(&lex->input, lex->rules.opaque);
 
   vector_foreach_t(&lex->defines, rule) {
     lexer_rule_release_rt(rule, rt);
@@ -521,7 +521,7 @@ void
 lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  state: %s", lex->mode, lexer_state_name(lex, lex->state));
   dbuf_putstr(dbuf, ",\n  input: ");
-  input_buffer_dump(&lex->input, dbuf);
+  inputbuffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");
   location_print(&lex->loc, dbuf, 0);
   dbuf_putstr(dbuf, "\n}");

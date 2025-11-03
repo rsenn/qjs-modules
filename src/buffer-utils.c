@@ -466,7 +466,7 @@ dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
 
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = INPUT_BUFFER_FREE(&input_buffer_free_default);
+  InputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
 
   if(js_is_typedarray(ctx, value)) {
     ret.value = offsetlength_typedarray(&ret.range, value, ctx);
@@ -489,13 +489,13 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
 InputBuffer
 js_input_chars(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = INPUT_BUFFER_FREE(&input_buffer_free_default);
+  InputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
   BOOL is_buffer = js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value);
 
   if(!is_buffer) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
     ret.value = JS_DupValue(ctx, value);
-    ret.free = &input_buffer_free_default;
+    ret.free = &inputbuffer_free_default;
   } else {
     ret = js_input_buffer(ctx, value);
   }
@@ -669,7 +669,7 @@ range_append(PointerRange* r, PointerRange other) {
 }
 
 int
-input_buffer_fromargv(InputBuffer* in, int argc, JSValueConst argv[], JSContext* ctx) {
+inputbuffer_fromargv(InputBuffer* in, int argc, JSValueConst argv[], JSContext* ctx) {
   int ret = 0;
 
   if(argc > 0) {
@@ -684,13 +684,13 @@ input_buffer_fromargv(InputBuffer* in, int argc, JSValueConst argv[], JSContext*
 }
 
 BOOL
-input_buffer_valid(const InputBuffer* in) {
+inputbuffer_valid(const InputBuffer* in) {
   return !JS_IsException(in->value);
 }
 
 void
-input_buffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
-  input_buffer_free(dst, ctx);
+inputbuffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
+  inputbuffer_free(dst, ctx);
 
   dst->block = src->block;
   dst->pos = src->pos;
@@ -700,16 +700,16 @@ input_buffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
 }
 
 InputBuffer
-input_buffer_clone(const InputBuffer* in, JSContext* ctx) {
-  InputBuffer ret = INPUT_BUFFER();
+inputbuffer_clone(const InputBuffer* in, JSContext* ctx) {
+  InputBuffer ret = INPUTBUFFER();
 
-  input_buffer_clone2(&ret, in, ctx);
+  inputbuffer_clone2(&ret, in, ctx);
 
   return ret;
 }
 
 void
-input_buffer_dump(const InputBuffer* in, DynBuf* db) {
+inputbuffer_dump(const InputBuffer* in, DynBuf* db) {
   dbuf_printf(db,
               "(InputBuffer){ .data = %p, .size = %lu, .pos = %lu, .free = %p }",
               in->data,
@@ -719,7 +719,7 @@ input_buffer_dump(const InputBuffer* in, DynBuf* db) {
 }
 
 void
-input_buffer_free(InputBuffer* in, JSContext* ctx) {
+inputbuffer_free(InputBuffer* in, JSContext* ctx) {
   if(in->data) {
     in->free(ctx, (const char*)in->data, in->value);
     in->data = 0;
@@ -730,14 +730,14 @@ input_buffer_free(InputBuffer* in, JSContext* ctx) {
 }
 
 const uint8_t*
-input_buffer_peek(InputBuffer* in, size_t* lenp) {
-  input_buffer_peekc(in, lenp);
-  return input_buffer_data(in) + in->pos;
+inputbuffer_peek(InputBuffer* in, size_t* lenp) {
+  inputbuffer_peekc(in, lenp);
+  return inputbuffer_data(in) + in->pos;
 }
 
 const uint8_t*
-input_buffer_get(InputBuffer* in, size_t* lenp) {
-  const uint8_t* ret = input_buffer_peek(in, lenp);
+inputbuffer_get(InputBuffer* in, size_t* lenp) {
+  const uint8_t* ret = inputbuffer_peek(in, lenp);
 
   in->pos += *lenp;
 
@@ -745,37 +745,37 @@ input_buffer_get(InputBuffer* in, size_t* lenp) {
 }
 
 const char*
-input_buffer_currentline(InputBuffer* in, size_t* len) {
+inputbuffer_currentline(InputBuffer* in, size_t* len) {
   size_t i;
 
-  if((i = byte_rchr(input_buffer_data(in), in->pos, '\n')) < in->pos)
+  if((i = byte_rchr(inputbuffer_data(in), in->pos, '\n')) < in->pos)
     i++;
 
   if(len)
     *len = in->pos - i;
 
-  return (const char*)&input_buffer_begin(in)[i];
+  return (const char*)&inputbuffer_begin(in)[i];
 }
 
 size_t
-input_buffer_column(InputBuffer* in, size_t* len) {
+inputbuffer_column(InputBuffer* in, size_t* len) {
   size_t i;
 
-  if((i = byte_rchr(input_buffer_data(in), in->pos, '\n')) < in->pos)
+  if((i = byte_rchr(inputbuffer_data(in), in->pos, '\n')) < in->pos)
     i++;
 
   return in->pos - i;
 }
 
 JSValue
-input_buffer_tostring_free(InputBuffer* in, JSContext* ctx) {
-  JSValue ret = in->data ? JS_NewStringLen(ctx, input_buffer_data(in), input_buffer_length(in)) : JS_UNDEFINED;
-  input_buffer_free(in, ctx);
+inputbuffer_tostring_free(InputBuffer* in, JSContext* ctx) {
+  JSValue ret = in->data ? JS_NewStringLen(ctx, inputbuffer_data(in), inputbuffer_length(in)) : JS_UNDEFINED;
+  inputbuffer_free(in, ctx);
   return ret;
 }
 
 static void
-input_buffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
+inputbuffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
   js_free_rt(rt, ptr);
 
   if(opaque)
@@ -783,21 +783,21 @@ input_buffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
 }
 
 JSValue
-input_buffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
+inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
   JSObject* obj = js_is_null_or_undefined(in->value) || !JS_IsObject(in->value) ? 0 : js_value_obj(in->value);
   JSValue ret =
-      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, input_buffer_free_pointer, obj, FALSE) : JS_UNDEFINED;
+      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, inputbuffer_free_pointer, obj, FALSE) : JS_UNDEFINED;
 
   in->data = 0;
   in->size = 0;
   in->value = JS_UNINITIALIZED;
 
-  input_buffer_free(in, ctx);
+  inputbuffer_free(in, ctx);
   return ret;
 }
 
 InputBuffer
-input_buffer_fromfile(const char* filename, JSContext* ctx) {
+inputbuffer_fromfile(const char* filename, JSContext* ctx) {
   InputBuffer in = {0};
 
   block_fromfile(&in.block, filename, ctx);
@@ -896,12 +896,12 @@ js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
 }
 
 inline int
-input_buffer_peekc(InputBuffer* in, size_t* lenp) {
+inputbuffer_peekc(InputBuffer* in, size_t* lenp) {
   const uint8_t *pos, *end, *next;
   int cp;
 
-  pos = input_buffer_data(in) + in->pos;
-  end = input_buffer_data(in) + input_buffer_length(in);
+  pos = inputbuffer_data(in) + in->pos;
+  end = inputbuffer_data(in) + inputbuffer_length(in);
   cp = unicode_from_utf8(pos, end - pos, &next);
 
   *lenp = next - pos;
@@ -910,7 +910,7 @@ input_buffer_peekc(InputBuffer* in, size_t* lenp) {
 }
 
 inline int
-input_buffer_putc(InputBuffer* in, unsigned int c, JSContext* ctx) {
+inputbuffer_putc(InputBuffer* in, unsigned int c, JSContext* ctx) {
   int len;
 
   if(in->pos + UTF8_CHAR_LEN_MAX > in->size)

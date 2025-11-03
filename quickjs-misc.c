@@ -574,14 +574,14 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 static JSValue
 js_misc_charlen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_args(ctx, argc, argv);
-  size_t size = input_buffer_length(&input);
-  const uint8_t* data = input_buffer_data(&input);
+  size_t size = inputbuffer_length(&input);
+  const uint8_t* data = inputbuffer_data(&input);
   int64_t len = 0;
 
   if(size)
     len = utf8_charlen((const char*)data, size);
 
-  input_buffer_free(&input, ctx);
+  inputbuffer_free(&input, ctx);
 
   return JS_NewInt64(ctx, len);
 }
@@ -589,14 +589,14 @@ js_misc_charlen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static JSValue
 js_misc_charcode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_args(ctx, argc, argv);
-  size_t size = input_buffer_length(&input);
-  const uint8_t* data = input_buffer_data(&input);
+  size_t size = inputbuffer_length(&input);
+  const uint8_t* data = inputbuffer_data(&input);
   int32_t code = -1;
 
   if(size)
     code = utf8_charcode((const char*)data, size);
 
-  input_buffer_free(&input, ctx);
+  inputbuffer_free(&input, ctx);
 
   return JS_NewInt32(ctx, code);
 }
@@ -604,8 +604,8 @@ js_misc_charcode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_misc_u8dec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_args(ctx, argc, argv);
-  size_t size = input_buffer_length(&input);
-  const uint8_t* data = input_buffer_data(&input);
+  size_t size = inputbuffer_length(&input);
+  const uint8_t* data = inputbuffer_data(&input);
   int32_t code = -1;
   int64_t len = 0;
 
@@ -614,7 +614,7 @@ js_misc_u8dec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     len = utf8_charlen((const char*)data, size);
   }
 
-  input_buffer_free(&input, ctx);
+  inputbuffer_free(&input, ctx);
 
   if(code == -1)
     return JS_NULL;
@@ -633,12 +633,12 @@ js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   JS_ToUint32(ctx, &code, argv[0]);
 
-  size_t size = input_buffer_length(&input);
-  uint8_t* data = input_buffer_data(&input);
+  size_t size = inputbuffer_length(&input);
+  uint8_t* data = inputbuffer_data(&input);
 
   int len = unicode_to_utf8(data, code);
 
-  input_buffer_free(&input, ctx);
+  inputbuffer_free(&input, ctx);
 
   return JS_NewInt32(ctx, len);
 }
@@ -647,8 +647,8 @@ static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   InputBuffer buf = js_input_args(ctx, argc, argv);
-  uint8_t* s = input_buffer_data(&buf);
-  size_t n = input_buffer_length(&buf);
+  uint8_t* s = inputbuffer_data(&buf);
+  size_t n = inputbuffer_length(&buf);
 
   if(s) {
     if(n == SIZE_MAX /* && memchr(s, '\0', n)*/)
@@ -659,7 +659,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);
   }
 
-  input_buffer_free(&buf, ctx);
+  inputbuffer_free(&buf, ctx);
 
   return ret;
 }
@@ -690,10 +690,10 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(JS_IsException(buf.value))
     return JS_EXCEPTION;
 
-  if((ptr = input_buffer_data(&buf)))
+  if((ptr = inputbuffer_data(&buf)))
     ret = JS_NewStringLen(ctx, str, snprintf(str, sizeof(str), "%p", ptr));
 
-  input_buffer_free(&buf, ctx);
+  inputbuffer_free(&buf, ctx);
   return ret;
 }
 
@@ -735,7 +735,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!JS_IsException(input.value)) {
     OffsetLength o = OFFSETLENGTH_INIT();
     js_offset_length(ctx, input.size, argc, argv, 1, &o);
-    MemoryBlock b = offsetlength_block(o, input_buffer_block(&input));
+    MemoryBlock b = offsetlength_block(o, inputbuffer_block(&input));
     ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
 
@@ -814,7 +814,7 @@ js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 fail:
   for(int i = 0; i < argc; i++)
     if(buffers[i].data)
-      input_buffer_free(&buffers[i], ctx);
+      inputbuffer_free(&buffers[i], ctx);
 
   return ret;
 }

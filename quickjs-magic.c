@@ -52,12 +52,12 @@ js_magic_load(JSContext* ctx, magic_t cookie, int argc, JSValueConst argv[]) {
     if(argc > 1)
       n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
-    void* buf[] = {input_buffer_data(&input), NULL};
-    size_t siz[] = {input_buffer_length(&input), 0};
+    void* buf[] = {inputbuffer_data(&input), NULL};
+    size_t siz[] = {inputbuffer_length(&input), 0};
 
     magic_load_buffers(cookie, buf, siz, 1);
 
-    input_buffer_free(&input, ctx);
+    inputbuffer_free(&input, ctx);
   }
 
   return n;
@@ -145,9 +145,9 @@ js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       if(argc > 1)
         n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
-      str = magic_buffer(cookie, input_buffer_data(&input), input_buffer_length(&input));
+      str = magic_buffer(cookie, inputbuffer_data(&input), inputbuffer_length(&input));
 
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
       break;
     }
   }

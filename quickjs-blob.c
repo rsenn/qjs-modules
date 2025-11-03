@@ -44,7 +44,7 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
 
 static inline InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
-  return INPUT_BUFFER_DATA(blob->data, blob->size);
+  return INPUTBUFFER_DATA(blob->data, blob->size);
 }
 
 JSValue
@@ -148,12 +148,12 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
         goto fail;
       }
 
-      if(blob_write(ctx, blob, input_buffer_data(&input), input_buffer_length(&input)) == -1) {
+      if(blob_write(ctx, blob, inputbuffer_data(&input), inputbuffer_length(&input)) == -1) {
         JS_ThrowInternalError(ctx, "blob_write returned -1");
         goto fail;
       }
 
-      input_buffer_free(&input, ctx);
+      inputbuffer_free(&input, ctx);
     }
 
     iteration_reset(&iter, ctx);

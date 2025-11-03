@@ -189,7 +189,7 @@ js_serialport_ioready(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   }
 
   if(magic < SERIALPORT_DRAIN)
-    input_buffer_free(&input, ctx);
+    inputbuffer_free(&input, ctx);
 
   if(ret < 0) {
     if(ret == SP_ERR_FAIL) {

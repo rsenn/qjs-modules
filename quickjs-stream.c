@@ -80,7 +80,7 @@ static JSValue
 js_to_arraybuffer(JSContext* ctx, JSValueConst chunk) {
   if(JS_IsString(chunk)) {
     InputBuffer input = js_input_chars(ctx, chunk);
-    return input_buffer_toarraybuffer_free(&input, ctx);
+    return inputbuffer_toarraybuffer_free(&input, ctx);
   }
 
   return JS_DupValue(ctx, chunk);
@@ -695,7 +695,7 @@ readable_enqueue(ReadableStream* st, JSValueConst chunk, BOOL binary, JSContext*
     ret = r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %lu", (unsigned long)r) : JS_NewInt64(ctx, r);
   }
 
-  input_buffer_free(&input, ctx);
+  inputbuffer_free(&input, ctx);
   return ret;
 }
 
@@ -1778,9 +1778,9 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       /*MemoryBlock b;
       InputBuffer input;
       input = js_input_args(ctx, argc, argv);
-      b = block_range(input_buffer_blockptr(&input), &input.range);
+      b = block_range(inputbuffer_blockptr(&input), &input.range);
       ret = writer_write(wr, &b, ctx);
-      input_buffer_free(&input, ctx);*/
+      inputbuffer_free(&input, ctx);*/
       ret = writer_write(wr, argv[0], ctx);
       break;
     }

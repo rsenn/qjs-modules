@@ -199,7 +199,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   int index = 0;
   int64_t char_offset = -1;
-  InputBuffer in = INPUT_BUFFER();
+  InputBuffer in = INPUTBUFFER();
 
   while(index < argc) {
     int r = 0;
@@ -215,7 +215,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
       }
       tok->loc = location_dup(loc);
 
-    } else if((r = input_buffer_fromargv(&in, argc - index, argv + index, ctx)) > 0) {
+    } else if((r = inputbuffer_fromargv(&in, argc - index, argv + index, ctx)) > 0) {
 
       index += r;
       continue;
@@ -683,15 +683,15 @@ js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(!(lex = js_lexer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  input_buffer_free(&lex->input, ctx);
+  inputbuffer_free(&lex->input, ctx);
   location_release(&lex->loc, JS_GetRuntime(ctx));
 
   if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
-    lex->input = input_buffer_clone(&other->input, ctx);
+    lex->input = inputbuffer_clone(&other->input, ctx);
     location_copy(&lex->loc, &other->loc, ctx);
   } else if(argc > 1 && js_is_null_or_undefined(argv[0])) {
     const char* file = JS_ToCString(ctx, argv[1]);
-    lex->input = input_buffer_fromfile(file, ctx);
+    lex->input = inputbuffer_fromfile(file, ctx);
     JS_FreeCString(ctx, file);
   } else {
     lex->input = js_input_chars(ctx, argv[0]);
@@ -776,11 +776,11 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_PEEKC: {
-      if(!input_buffer_eof(&lex->input)) {
+      if(!inputbuffer_eof(&lex->input)) {
         size_t len;
         const uint8_t* buf;
 
-        if((buf = input_buffer_peek(&lex->input, &len)))
+        if((buf = inputbuffer_peek(&lex->input, &len)))
           ret = JS_NewStringLen(ctx, (const char*)buf, len);
       }
 
@@ -788,11 +788,11 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_GETC: {
-      if(!input_buffer_eof(&lex->input)) {
+      if(!inputbuffer_eof(&lex->input)) {
         size_t len;
         const uint8_t* buf;
 
-        if((buf = input_buffer_get(&lex->input, &len)))
+        if((buf = inputbuffer_get(&lex->input, &len)))
           ret = JS_NewStringLen(ctx, (const char*)buf, len);
       }
 
@@ -800,7 +800,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_SKIP_CHARS: {
-      if(!input_buffer_eof(&lex->input)) {
+      if(!inputbuffer_eof(&lex->input)) {
         int32_t ntimes = 1;
         const uint8_t* p = 0;
         size_t n;
@@ -809,7 +809,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           JS_ToInt32(ctx, &ntimes, argv[0]);
 
         while(ntimes-- > 0)
-          p = input_buffer_get(&lex->input, &n);
+          p = inputbuffer_get(&lex->input, &n);
 
         if(p)
           ret = JS_NewStringLen(ctx, (const char*)p, n);
@@ -819,7 +819,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_SKIP_UNTIL: {
-      if(!input_buffer_eof(&lex->input)) {
+      if(!inputbuffer_eof(&lex->input)) {
         JSValueConst pred = argv[0];
 
         if(!JS_IsFunction(ctx, pred))
@@ -829,7 +829,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           size_t n;
           const uint8_t* p;
 
-          if((p = input_buffer_peek(&lex->input, &n))) {
+          if((p = inputbuffer_peek(&lex->input, &n))) {
             JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
             JSValue result = JS_Call(ctx, pred, this_val, 1, &str);
             BOOL b = JS_ToBool(ctx, result);
@@ -844,7 +844,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
             JS_FreeValue(ctx, str);
           }
 
-          input_buffer_getc(&lex->input);
+          inputbuffer_getc(&lex->input);
         }
       }
 
@@ -1009,7 +1009,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_ENDOFFILE: {
-      ret = JS_NewBool(ctx, input_buffer_eof(&lex->input));
+      ret = JS_NewBool(ctx, inputbuffer_eof(&lex->input));
       break;
     }
 
@@ -1311,7 +1311,7 @@ js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     } else {
       InputBuffer in = js_input_chars(ctx, argv[0]);
 
-      ret = input_buffer_tostring_free(&in, ctx);
+      ret = inputbuffer_tostring_free(&in, ctx);
     }
   }
 

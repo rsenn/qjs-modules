@@ -490,8 +490,8 @@ js_archive_open(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     InputBuffer input = js_input_chars(ctx, arg);
 
     prop = "buffer";
-    r = archive_read_open_memory(ar, input_buffer_data(&input), input_buffer_length(&input));
-    input_buffer_free(&input, ctx);
+    r = archive_read_open_memory(ar, inputbuffer_data(&input), inputbuffer_length(&input));
+    inputbuffer_free(&input, ctx);
   }
 
   if(r != ARCHIVE_OK) {
@@ -623,8 +623,8 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     if(argc > 1)
       n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
-    const uint8_t* buf = input_buffer_data(&input);
-    size_t len = input_buffer_length(&input);
+    const uint8_t* buf = inputbuffer_data(&input);
+    size_t len = inputbuffer_length(&input);
     size_t block_size = archive_write_get_bytes_per_block(ar);
     int64_t r, bytes = 0;
 
@@ -645,7 +645,7 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     ret = JS_NewInt64(ctx, bytes);
 
-    input_buffer_free(&input, ctx);
+    inputbuffer_free(&input, ctx);
 
     argv += n;
     argc -= n;
