@@ -1432,6 +1432,13 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_DupValue(ctx, this_val);
 }
 
+static JSValue
+js_lexer_fromfile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+
+  return ret;
+}
+
 static void
 js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
@@ -1498,6 +1505,7 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("escape", 1, js_lexer_escape, 0),
     JS_CFUNC_MAGIC_DEF("unescape", 1, js_lexer_escape, 1),
     JS_CFUNC_DEF("toString", 1, js_lexer_tostring),
+    JS_CFUNC_DEF("fromFile", 1, js_lexer_fromfile),
     JS_PROP_INT32_DEF("FIRST", LEXER_FIRST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LONGEST", LEXER_LONGEST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LAST", LEXER_LAST, JS_PROP_ENUMERABLE),

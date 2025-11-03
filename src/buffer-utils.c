@@ -11,6 +11,14 @@
 #endif
 #include "debug.h"
 #include <quickjs.h>
+#ifdef _WIN32
+#include "mmap-win32.h"
+#else
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#endif
 
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
@@ -526,6 +534,43 @@ js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
     js_offset_length(ctx, output.size, argc, argv, 1, &output.range);
 
   return output;
+}
+
+int
+block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
+  if((mb->base = js_realloc(ctx, mb->base, new_size))) {
+    mb->size = new_size;
+    return 0;
+  }
+
+  return -1;
+}
+
+int
+block_fromfile(MemoryBlock* mb, const char* filename) {
+  int fd;
+  void* ptr;
+  struct stat st;
+
+  if((fd = open(filename, O_RDONLY)) == -1)
+    return -1;
+
+  if(fstat(fd, &st) == -1) {
+    close(fd);
+    return -1;
+  }
+
+  ptr = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+  close(fd);
+
+  if(ptr != 0 && ptr != (void*)-1) {
+    mb->base = ptr;
+    mb->size = st.st_size;
+    return 0;
+  }
+
+  return -1;
 }
 
 int

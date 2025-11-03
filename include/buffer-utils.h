@@ -90,6 +90,9 @@ typedef struct {
 #define BLOCK_INIT() \
   { 0, 0 }
 
+int block_realloc(MemoryBlock*, size_t, JSContext*);
+int block_fromfile(MemoryBlock*, const char*);
+
 static inline void
 block_init(MemoryBlock* mb) {
   mb->base = 0;
@@ -132,16 +135,6 @@ block_range(MemoryBlock mb, size_t offset, size_t length) {
   length = MIN_NUM((mb.size - offset), length);
 
   return (MemoryBlock){mb.base + offset, length};
-}
-
-static inline int
-block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
-  if((mb->base = js_realloc(ctx, mb->base, new_size))) {
-    mb->size = new_size;
-    return 0;
-  }
-
-  return -1;
 }
 
 static inline void
