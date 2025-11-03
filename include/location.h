@@ -31,6 +31,7 @@ typedef struct {
 LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
 LOCATION_API char* location_tostring(const Location*, JSContext*);
 LOCATION_API char* location_file(const Location*, JSContext*);
+LOCATION_API void* location_buffer(const Location*);
 LOCATION_API JSValue location_tovalue(const Location*, JSContext*);
 LOCATION_API void location_init(Location*);
 LOCATION_API void location_zero(Location*);

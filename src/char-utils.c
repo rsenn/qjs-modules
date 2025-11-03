@@ -504,6 +504,17 @@ utf8_strlen(const void* in, size_t len) {
   return i;
 }
 
+size_t
+utf8_countchars(const void* in, size_t chars) {
+  uint8_t *pos, *next;
+  size_t i = 0;
+
+  for(pos = (void*)in; *pos && i < chars; pos = next, ++i)
+    unicode_from_utf8(pos, 6, (const uint8_t**)&next);
+
+  return pos - (uint8_t*)in;
+}
+
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
 wchar_t*
 utf8_towcs(const char* s) {

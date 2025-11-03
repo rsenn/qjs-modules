@@ -40,8 +40,12 @@ typedef enum lexer_result {
 
 typedef struct {
   union {
-    int ref_count;
     Location loc;
+    struct {
+      int ref_count;
+      int32_t file, line, column;
+      int64_t char_offset, byte_offset;
+    };
   };
   union {
     InputBuffer input;
@@ -49,7 +53,7 @@ typedef struct {
       uint8_t* data;
       size_t size;
       union {
-        size_t pos;
+        //  size_t pos;
         OffsetLength range;
       };
     };

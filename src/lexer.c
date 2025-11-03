@@ -184,7 +184,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
   // fprintf(stderr, "lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
-  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, lex->pos, lex->size, 0, ctx);
+  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, lex->byte_offset, lex->size, 0, ctx);
 }
 
 int
@@ -412,11 +412,11 @@ size_t
 lexer_skip_n(Lexer* lex, size_t bytes) {
   size_t len;
 
-  assert(bytes <= lex->size - lex->pos);
+  assert(bytes <= lex->size - lex->byte_offset);
 
-  lex->loc.byte_offset = lex->pos;
-  len = location_count(&lex->loc, &lex->data[lex->pos], bytes);
-  lex->pos += bytes;
+  lex->loc.byte_offset = lex->byte_offset;
+  len = location_count(&lex->loc, &lex->data[lex->byte_offset], bytes);
+  lex->byte_offset += bytes;
 
   return len;
 }
@@ -446,14 +446,14 @@ lexer_charlen(Lexer* lex) {
   if(lex->byte_length == 0)
     return 0;
 
-  assert((lex->size - lex->pos) >= lex->byte_length);
+  assert((lex->size - lex->byte_offset) >= lex->byte_length);
 
-  return utf8_strlen(&lex->data[lex->pos], lex->byte_length);
+  return utf8_strlen(&lex->data[lex->byte_offset], lex->byte_length);
 }
 
 char*
 lexer_lexeme(Lexer* lex, size_t* lenp) {
-  char* s = (char*)lex->data + lex->pos;
+  char* s = (char*)lex->data + lex->byte_offset;
 
   if(lenp)
     *lenp = lex->byte_length;
@@ -480,7 +480,7 @@ lexer_set_input(Lexer* lex, InputBuffer input, int32_t file_atom) {
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   lex->byte_length = 0;
-  lex->pos = loc->char_offset;
+  lex->byte_offset = loc->char_offset;
   location_release(&lex->loc, JS_GetRuntime(ctx));
   location_copy(&lex->loc, loc, ctx);
 }
@@ -562,7 +562,7 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
 
 char*
 lexer_current_line(Lexer* lex, JSContext* ctx) {
-  size_t size, start = lex->pos;
+  size_t size, start = lex->byte_offset;
 
   while(start > 0 && lex->data[start - 1] != '\n')
     start--;

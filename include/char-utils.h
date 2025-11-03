@@ -441,6 +441,7 @@ size_t scan_lineskip(const char*, size_t);
 size_t scan_lineskip_escaped(const char*, size_t);
 size_t scan_eolskip(const char*, size_t);
 size_t utf8_strlen(const void*, size_t);
+size_t utf8_countchars(const void*, size_t);
 wchar_t* utf8_towcs(const char*);
 char* utf8_fromwcs(const wchar_t*);
 BOOL utf16_multiword(const void*);

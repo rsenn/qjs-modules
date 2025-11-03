@@ -221,6 +221,11 @@ location_set_buffer(Location* loc, void* str, size_t ofs, JSContext* ctx) {
   loc->char_offset = utf8_strlen(loc->str - loc->byte_offset, ofs);
 }
 
+ void* location_buffer(const Location*loc) {
+  if(loc->str) return loc->str - loc->byte_offset;
+return 0;
+ }
+
 /**
  * @}
  */
