@@ -160,7 +160,7 @@ static const JSCFunctionListEntry js_arraybuffer_sink_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("write", 1, js_arraybuffer_sink_method, METHOD_WRITE),
     JS_CFUNC_MAGIC_DEF("flush", 0, js_arraybuffer_sink_method, METHOD_FLUSH),
     JS_CFUNC_MAGIC_DEF("end", 0, js_arraybuffer_sink_method, METHOD_END),
-    JS_CGETSET_MAGIC_DEF("size", js_arraybuffer_sink_get, NULL, PROP_SIZE),
+    JS_CGETSET_MAGIC_DEF("size", js_arraybuffer_sink_get, 0, PROP_SIZE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ArrayBufferSink", JS_PROP_CONFIGURABLE),
 };
 

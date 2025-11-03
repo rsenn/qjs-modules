@@ -111,14 +111,14 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
         for(i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 2) {
           uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->endian), 0};
-          size_t ns = 2;
-
+          /*size_t ns = 2;*/
+          
           if(utf16_multiword(u16)) {
             if(i + 2 >= n)
               break;
 
             u16[1] = uint16_get_endian(ptr + 1, dec->endian == BIG);
-            ns += 2;
+            /*ns += 2;*/
           }
 
           if(!libutf_c16_to_c32(u16, &cp)) {
@@ -279,7 +279,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
     JS_FreeCString(ctx, s);
   } else {
-    dec->type_code = UTF8;
+    dec->type_code = (TextEncoding)UTF8;
   }
 
   JS_SetOpaque(obj, dec);

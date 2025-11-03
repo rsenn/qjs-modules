@@ -80,10 +80,7 @@ static JSValue
 js_to_arraybuffer(JSContext* ctx, JSValueConst chunk) {
   if(JS_IsString(chunk)) {
     InputBuffer input = js_input_chars(ctx, chunk);
-    JSValue buf = JS_NewArrayBufferCopy(ctx, input.data, input.size);
-    input_buffer_free(&input, ctx);
-
-    return buf;
+    return input_buffer_toarraybuffer_free(&input, ctx);
   }
 
   return JS_DupValue(ctx, chunk);

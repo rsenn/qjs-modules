@@ -4,6 +4,7 @@
 #include <libregexp.h>
 #include <ctype.h>
 #include "buffer-utils.h"
+#include "token.h"
 
 /**
  * \addtogroup lexer
@@ -481,9 +482,15 @@ lexer_release(Lexer* lex, JSRuntime* rt) {
 
   input_buffer_free(&lex->input, lex->rules.opaque);
 
-  vector_foreach_t(&lex->defines, rule) { lexer_rule_release_rt(rule, rt); }
-  vector_foreach_t(&lex->rules, rule) { lexer_rule_release_rt(rule, rt); }
-  vector_foreach_t(&lex->states, statep) { js_free_rt(rt, *statep); }
+  vector_foreach_t(&lex->defines, rule) {
+    lexer_rule_release_rt(rule, rt);
+  }
+  vector_foreach_t(&lex->rules, rule) {
+    lexer_rule_release_rt(rule, rt);
+  }
+  vector_foreach_t(&lex->states, statep) {
+    js_free_rt(rt, *statep);
+  }
 
   vector_free(&lex->defines);
   vector_free(&lex->rules);
@@ -520,6 +527,54 @@ lexer_get_location(Lexer* lex, JSContext* ctx) {
   location_copy(&loc, &lex->loc, ctx);
 
   return loc;
+}
+
+Token*
+lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
+  size_t len;
+  const char* lexeme;
+  Token* tok;
+
+  if(!(lexeme = lexer_lexeme(lex, &len)))
+    return 0;
+
+  if(!(tok = token_create(id, lexeme, len, ctx)))
+    return 0;
+
+  tok->lexer = lexer_dup(lex);
+  tok->seq = lex->seq;
+
+  *tok->loc = lexer_get_location(lex, ctx);
+
+  return tok;
+}
+
+char*
+lexer_current_line(Lexer* lex, JSContext* ctx) {
+  size_t size, start = lex->pos;
+
+  while(start > 0 && lex->data[start - 1] != '\n')
+    start--;
+
+  size = byte_chr((const char*)&lex->data[start], lex->size - start, '\n');
+
+  return js_strndup(ctx, (const char*)&lex->data[start], size);
+}
+
+char*
+lexer_lexeme_s(Lexer* lex, JSContext* ctx, int (*escape_fn)(int)) {
+  size_t len;
+  char* s;
+  DynBuf output;
+
+  js_dbuf_init(ctx, &output);
+
+  if((s = lexer_lexeme(lex, &len)))
+    dbuf_put_escaped_pred(&output, s, len, escape_fn);
+
+  dbuf_0(&output);
+
+  return (char*)output.buf;
 }
 
 /**

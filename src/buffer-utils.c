@@ -187,7 +187,7 @@ const uint8_t escape_backquote_tab[256] = {
 
 void
 dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
-  size_t i = 0, clen;
+  size_t clen;
   int32_t c;
   const uint8_t *pos, *end, *next;
 
@@ -224,8 +224,6 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
     } else {
       dbuf_put(db, pos, next - pos);
     }
-
-    i++;
   }
 }
 
@@ -665,6 +663,20 @@ input_buffer_column(InputBuffer* in, size_t* len) {
     i++;
 
   return in->pos - i;
+}
+
+JSValue
+input_buffer_tostring_free(InputBuffer* in, JSContext* ctx) {
+  JSValue ret = in->data ? JS_NewStringLen(ctx, input_buffer_data(in), input_buffer_length(in)) : JS_UNDEFINED;
+  input_buffer_free(in, ctx);
+  return ret;
+}
+
+JSValue
+input_buffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
+  JSValue ret = in->data ? JS_NewArrayBufferCopy(ctx, input_buffer_data(in), input_buffer_length(in)) : JS_UNDEFINED;
+  input_buffer_free(in, ctx);
+  return ret;
 }
 
 int

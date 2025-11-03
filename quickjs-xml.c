@@ -623,7 +623,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
         /* Parse attributes if not a closing tag */
         const uint8_t *attr, *value;
-        size_t alen, vlen, num_attrs = 0;
+        size_t alen, vlen;
         JSValue attributes = JS_NewObject(ctx);
 
         JS_SetPropertyStr(ctx, element, "attributes", attributes);
@@ -642,7 +642,6 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
           if(parse_is(c, WS | CLOSE | SLASH)) {
             xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
-            num_attrs++;
             continue;
           }
 
@@ -669,7 +668,6 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
               parse_getc();
 
             xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
-            num_attrs++;
           }
         }
 

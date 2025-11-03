@@ -10,6 +10,9 @@
  * \defgroup lexer lexer: Lexical scanner, regex based
  * @{
  */
+
+typedef struct Token Token;
+
 typedef struct {
   char* name;
   char* expr;
@@ -88,6 +91,9 @@ Location lexer_get_location(Lexer*, JSContext* ctx);
 void lexer_release(Lexer*, JSRuntime* rt);
 void lexer_free(Lexer*, JSRuntime* rt);
 void lexer_dump(Lexer*, DynBuf* dbuf);
+Token* lexer_token(Lexer* lex, int32_t id, JSContext* ctx);
+char* lexer_current_line(Lexer* lex, JSContext* ctx);
+char* lexer_lexeme_s(Lexer* lex, JSContext* ctx, int (*escape_fn)(int));
 
 static inline Lexer*
 lexer_dup(Lexer* lex) {

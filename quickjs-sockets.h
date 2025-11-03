@@ -70,7 +70,7 @@ typedef union {
   BOOL nonblock : 1, async : 1, owner : 1; \
   signed ret : 32
 
-PACK union socket_state {
+union PACK socket_state {
   PACK struct { SOCKET_PROPS(); };
   ENDPACK
   uint64_t u64;

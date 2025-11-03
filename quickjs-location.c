@@ -185,15 +185,8 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
   return ret;
 }
 
-Location*
-js_location_from(JSContext* ctx, JSValueConst this_val) {
-  Location* loc;
-
-  if((loc = JS_GetOpaque(this_val, js_location_class_id)))
-    return location_dup(loc);
-
-  loc = location_new(ctx);
-
+void
+js_location_from2(JSContext* ctx, JSValueConst this_val, Location* loc) {
   if(js_has_propertystr(ctx, this_val, "line"))
     loc->line = js_get_propertystr_int32(ctx, this_val, "line") - 1;
   else if(js_has_propertystr(ctx, this_val, "lineNumber"))
@@ -214,6 +207,32 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
 
   if(js_has_propertystr(ctx, this_val, "byteOffset"))
     loc->byte_offset = js_get_propertystr_uint64(ctx, this_val, "byteOffset");
+}
+
+Location*
+js_location_from(JSContext* ctx, JSValueConst this_val) {
+  Location* loc;
+
+  if((loc = js_location_data(this_val)))
+    return location_dup(loc);
+
+  if((loc = location_new(ctx)))
+    js_location_from2(ctx, this_val, loc);
+
+  return loc;
+}
+
+Location*
+js_location_copy(JSContext* ctx, JSValueConst this_val) {
+  Location *loc, *other;
+
+  if(!(loc = location_new(ctx)))
+    return 0;
+
+  if((other = js_location_data(this_val)))
+    location_copy(loc, other, ctx);
+  else
+    js_location_from2(ctx, this_val, loc);
 
   return loc;
 }

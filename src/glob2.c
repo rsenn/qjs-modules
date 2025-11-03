@@ -324,7 +324,6 @@ static int
 glob_expand(PointerRange pat, struct glob_state* g) {
   Directory* dir;
   DirEntry* ent;
-  int i = 0;
   char *x = range_begin(&pat), *y = range_end(&pat);
 
   assert(!range_overlap(&g->buf, &pat));
@@ -361,8 +360,6 @@ glob_expand(PointerRange pat, struct glob_state* g) {
       range_resize(&g->buf, oldsize);
       // *range_end(&g->buf) = '\0';
     }
-
-    ++i;
   }
 
   getdents_close(dir);

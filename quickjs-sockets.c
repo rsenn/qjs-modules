@@ -370,8 +370,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         js_dbuf_init(ctx, &dbuf);
         dbuf_putstr(&dbuf, "unix://");
         dbuf_putstr(&dbuf, a->un.sun_path);
-        ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
-        dbuf_free(&dbuf);
+        ret = dbuf_tostring_free(&dbuf, ctx);
       } else
 #endif
       {
@@ -381,8 +380,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         dbuf.size = strlen((const char*)dbuf.buf);
         dbuf_putc(&dbuf, ':');
         dbuf_put(&dbuf, (const uint8_t*)port, fmt_ulong(port, sockaddr_port(a)));
-        ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
-        dbuf_free(&dbuf);
+           ret = dbuf_tostring_free(&dbuf, ctx);
       }
 
       break;
@@ -637,14 +635,19 @@ mmsg_read(JSContext* ctx, JSValueConst arg, struct mmsghdr* mmh) {
   if(js_is_array(ctx, arg)) {
     hdr = JS_GetPropertyUint32(ctx, arg, 0);
     len = JS_GetPropertyUint32(ctx, arg, 1);
-
   } else if(JS_IsObject(arg)) {
     hdr = JS_GetPropertyStr(ctx, arg, "hdr");
     len = JS_GetPropertyStr(ctx, arg, "len");
+  } else {
+    hdr = JS_UNDEFINED;
+    len = JS_UNDEFINED;
   }
 
   msg_read(ctx, hdr, &mmh->msg_hdr);
   mmh->msg_len = js_touint64(ctx, len);
+
+  JS_FreeValue(ctx, hdr);
+  JS_FreeValue(ctx, len);
 
   return TRUE;
 }

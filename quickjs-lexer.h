@@ -11,9 +11,11 @@
 
 extern VISIBLE JSClassID js_token_class_id, js_lexer_class_id;
 
-JSValue js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst mode);
-JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
-JSValue js_token_wrap(JSContext* ctx, Token* tok);
+JSValue js_token_wrap(JSContext*, Token*);
+JSValue js_token_constructor(JSContext*, JSValueConst, int, JSValueConst[]);
+JSValue js_lexer_new(JSContext*, JSValueConst, JSValueConst, JSValueConst);
+JSValue js_lexer_wrap(JSContext*, Lexer*);
+JSValue js_lexer_constructor(JSContext*, JSValueConst, int, JSValueConst[]);
 
 static inline Token*
 js_token_data(JSValueConst value) {

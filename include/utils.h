@@ -676,6 +676,7 @@ static inline int64_t
 js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
   if(JS_IsNumber(value))
     JS_ToInt64(ctx, &i, value);
+  
   return i;
 }
 

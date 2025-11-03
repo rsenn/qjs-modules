@@ -32,25 +32,27 @@ int64_t array_search(void*, size_t, size_t elsz, void* needle);
 extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256],
     escape_doublequote_tab[256], escape_backquote_tab[256];
 
-char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
+char* dbuf_at_n(const DynBuf*, size_t, size_t*, char);
 const char* dbuf_last_line(DynBuf*, size_t*);
-int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
-void dbuf_put_colorstr(DynBuf*, const char*, const char* color, int with_color);
-void dbuf_put_escaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
-void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const uint8_t table[256]);
-void dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]);
-void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(const char*, size_t*));
-void dbuf_put_escaped(DynBuf*, const char*, size_t len);
-void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
-void dbuf_put_uint32(DynBuf* db, uint32_t num);
-void dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom);
+int dbuf_prepend(DynBuf*, const uint8_t*, size_t);
+void dbuf_put_colorstr(DynBuf*, const char*, const char*, int);
+void dbuf_put_escaped_pred(DynBuf*, const char*, size_t, int (*)(int));
+void dbuf_put_escaped_table(DynBuf*, const char*, size_t, const uint8_t[256]);
+void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t, int (*)(const char*, size_t*));
+void dbuf_put_unescaped_table(DynBuf*, const char*, size_t, const uint8_t[256]);
+void dbuf_put_escaped(DynBuf*, const char*, size_t);
+void dbuf_put_value(DynBuf*, JSContext*, JSValueConst);
+void dbuf_put_uint32(DynBuf*, uint32_t);
+void dbuf_put_atom(DynBuf*, JSContext*, JSAtom);
 int dbuf_reserve_start(DynBuf*, size_t);
 uint8_t* dbuf_reserve(DynBuf*, size_t);
 size_t dbuf_token_pop(DynBuf*, char);
-size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
+size_t dbuf_token_push(DynBuf*, const char*, size_t, char);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);
 ssize_t dbuf_load(DynBuf*, const char*);
 int dbuf_vprintf(DynBuf*, const char*, va_list);
+void js_dbuf_allocator(JSContext*, DynBuf*);
+size_t dbuf_bitflags(DynBuf*, uint32_t, const char* const[]);
 
 int screen_size(int size[2]);
 
@@ -407,10 +409,16 @@ InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 
-InputBuffer input_buffer_clone(const InputBuffer* in, JSContext* ctx);
-BOOL input_buffer_valid(const InputBuffer* in);
-void input_buffer_dump(const InputBuffer* in, DynBuf* db);
-void input_buffer_free(InputBuffer* in, JSContext* ctx);
+BOOL input_buffer_valid(const InputBuffer*);
+InputBuffer input_buffer_clone(const InputBuffer*, JSContext*);
+void input_buffer_dump(const InputBuffer*, DynBuf*);
+void input_buffer_free(InputBuffer*, JSContext*);
+const uint8_t* input_buffer_peek(InputBuffer*, size_t*);
+const uint8_t* input_buffer_get(InputBuffer*, size_t*);
+const char* input_buffer_currentline(InputBuffer*, size_t*);
+size_t input_buffer_column(InputBuffer*, size_t*);
+JSValue input_buffer_tostring_free(InputBuffer*, JSContext*);
+JSValue input_buffer_toarraybuffer_free(InputBuffer*, JSContext*);
 
 static inline void*
 input_buffer_data(const InputBuffer* in) {

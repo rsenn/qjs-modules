@@ -174,16 +174,17 @@ js_syscallerror_throw_free(JSContext* ctx, const char* syscall, JSValue val) {
 
 static JSValue
 js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj=JS_UNDEFINED;
   SyscallError* err;
 
   if(!(err = js_mallocz(ctx, sizeof(SyscallError))))
     return JS_EXCEPTION;
 
-  JSValue proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
 
-  JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_syscallerror_class_id);
+  obj = JS_NewObjectProtoClass(ctx, proto, js_syscallerror_class_id);
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
@@ -234,7 +235,6 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       syscallerror_dump(err, &dbuf, ctx);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
       dbuf_free(&dbuf);
-
       break;
     }
 

@@ -22,15 +22,15 @@ typedef struct {
 } JSLexerRule;
 
 VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
-static JSValue token_proto, token_ctor;
-static JSValue lexer_proto, lexer_ctor;
+static JSValue token_proto, token_ctor, lexer_proto, lexer_ctor;
 
-static JSValue
-offsetlength_toarray(OffsetLength offs_len, JSContext* ctx) {
+static inline JSValue
+offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
 
-  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, offs_len.offset));
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, offs_len.offset + offs_len.length));
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ol.offset));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ol.offset + ol.length));
+
   return ret;
 }
 
@@ -73,6 +73,38 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
 }
 
 JSValue
+js_token_new(JSContext* ctx, JSValueConst proto, JSValueConst id, JSValueConst lexeme) {
+  Token* tok;
+  JSValue obj = JS_UNDEFINED;
+  int32_t n = -1;
+  InputBuffer buf = {0};
+
+  if(JS_IsNumber(id))
+    JS_ToInt32(ctx, &n, id);
+
+  if(!js_is_null_or_undefined(lexeme))
+    buf = js_input_chars(ctx, lexeme);
+
+  tok = (n != -1 || buf.data != 0) ? token_create(n, (const void*)buf.data, buf.size, ctx) : token_new(ctx);
+
+  if(!tok)
+    return JS_EXCEPTION;
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_token_class_id);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, tok);
+  return obj;
+
+fail:
+  js_free(ctx, tok);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+JSValue
 js_token_wrap(JSContext* ctx, Token* tok) {
   JSValue obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
 
@@ -83,39 +115,39 @@ js_token_wrap(JSContext* ctx, Token* tok) {
 JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Lexer* lex = 0;
-  Token* tok;
-  JSValue proto, obj = JS_UNDEFINED;
-
-  if(!(tok = js_mallocz(ctx, sizeof(Token))))
-    return JS_EXCEPTION;
+  Token* tok = 0;
+  JSValue proto, obj;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
 
-  obj = JS_NewObjectProtoClass(ctx, proto, js_token_class_id);
-  JS_FreeValue(ctx, proto);
-
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, tok);
-
   if(argc >= 1 && (lex = js_lexer_data(argv[0]))) {
     argc--;
     argv++;
   }
 
-  if(argc > 0) {
-    if(JS_IsNumber(argv[0])) {
-      JS_ToInt32(ctx, &tok->id, argv[0]);
-    } else if(JS_IsString(argv[0])) {
-    }
-  }
+  obj = js_token_new(ctx,
+                     proto,
+                     argc > 0 && JS_IsNumber(argv[0]) ? argv[0] : JS_UNDEFINED,
+                     argc > 1 && !js_is_null_or_undefined(argv[1]) ? argv[1] : JS_UNDEFINED);
+  JS_FreeValue(ctx, proto);
 
-  if(argc > 1)
-    tok->lexeme = (uint8_t*)js_tostring(ctx, argv[1]);
+  if(JS_IsException(obj))
+    goto fail;
+
+  tok = js_token_data(obj);
+
+  /*  if(argc > 0) {
+     if(JS_IsNumber(argv[0])) {
+       JS_ToInt32(ctx, &tok->id, argv[0]);
+     } else if(JS_IsString(argv[0])) {
+     }
+   }
+
+   if(argc > 1)
+     tok->lexeme = (uint8_t*)js_tostring(ctx, argv[1]);*/
 
   if(argc > 2) {
     Location* loc;
@@ -132,12 +164,13 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   return obj;
 
 fail:
-  js_free(ctx, tok);
+  if(tok)
+    js_free(ctx, tok);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
-JSValue
+static JSValue
 js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
 
@@ -147,7 +180,7 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
 }
 
-JSValue
+static JSValue
 js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
   const char* hint;
@@ -182,7 +215,7 @@ enum {
   TOKEN_TYPE,
 };
 
-JSValue
+static JSValue
 js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Token* tok;
   JSValue ret = JS_UNDEFINED;
@@ -261,7 +294,28 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-void
+static JSValue
+js_token_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  Token* tok;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(tok = js_token_data(this_val)))
+    return ret;
+
+  switch(magic) {
+    case TOKEN_LOC: {
+      if(tok->loc)
+        js_location_from2(ctx, value, tok->loc);
+      else
+        tok->loc = js_location_from(ctx, value);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok;
 
@@ -275,20 +329,22 @@ static JSClassDef js_token_class = {
 };
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, NULL, TOKEN_CHARLENGTH),
-    JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("charRange", js_token_get, NULL, TOKEN_CHARRANGE),
-    JS_CGETSET_MAGIC_DEF("byteRange", js_token_get, NULL, TOKEN_BYTERANGE),
-    JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_LOC),
-    JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_ID),
-    JS_CGETSET_MAGIC_DEF("seq", js_token_get, NULL, TOKEN_SEQ),
-    JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_TYPE),
-    JS_CGETSET_MAGIC_DEF("rule", js_token_get, NULL, TOKEN_RULE),
-    JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_LEXEME),
-    JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_LEXEME),
+    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, 0, TOKEN_CHARLENGTH),
+    JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, 0, TOKEN_BYTELENGTH),
+    JS_CGETSET_MAGIC_DEF("charRange", js_token_get, 0, TOKEN_CHARRANGE),
+    JS_CGETSET_MAGIC_DEF("byteRange", js_token_get, 0, TOKEN_BYTERANGE),
+    JS_CGETSET_MAGIC_DEF("loc", js_token_get, js_token_set, TOKEN_LOC),
+    JS_CGETSET_MAGIC_DEF("id", js_token_get, 0, TOKEN_ID),
+    JS_CGETSET_MAGIC_FLAGS_DEF("seq", js_token_get, 0, TOKEN_SEQ, JS_PROP_CONFIGURABLE),
+    JS_CGETSET_MAGIC_DEF("type", js_token_get, 0, TOKEN_TYPE),
+    JS_CGETSET_MAGIC_DEF("rule", js_token_get, 0, TOKEN_RULE),
+    JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, 0, TOKEN_LEXEME),
+    JS_CGETSET_MAGIC_DEF("value", js_token_get, 0, TOKEN_LEXEME),
     JS_ALIAS_DEF("position", "loc"),
     JS_ALIAS_DEF("length", "charLength"),
     JS_ALIAS_DEF("range", "charRange"),
+    JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_token_toprimitive),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
 };
 
@@ -298,9 +354,7 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 
 static JSValue
 lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
-  JSValue val = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, TRUE);
-
-  JS_SetPropertyUint32(ctx, data[0], 0, val);
+  JS_SetPropertyUint32(ctx, data[0], 0, argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, TRUE));
 
   return JS_UNDEFINED;
 }
@@ -326,7 +380,7 @@ static BOOL
 lexer_handle(Lexer* lex, JSContext* ctx, JSValueConst this_val, JSValueConst handler) {
   BOOL result = FALSE;
   JSValue ret, do_resume = JS_FALSE, data[1] = {JS_NewArray(ctx)};
-  JSValueConst args[2] = {
+  JSValueConst args[] = {
       JS_DupValue(ctx, this_val),
       JS_NewCFunctionData(ctx, lexer_continue, 0, 0, 1, data),
   };
@@ -426,9 +480,7 @@ lexer_escape_pred(int c) {
 
 static int
 lexer_unescape_pred(const char* s, size_t* n) {
-  char c = *s;
-
-  switch(c) {
+  switch(*s) {
     case 'r': return '\r';
     case 'n': return '\n';
     case 't': return '\t';
@@ -440,56 +492,8 @@ lexer_unescape_pred(const char* s, size_t* n) {
   return 0;
 }
 
-static char*
-lexer_current_line(Lexer* lex, JSContext* ctx) {
-  size_t size, start = lex->pos;
-
-  while(start > 0 && lex->data[start - 1] != '\n')
-    start--;
-
-  size = byte_chr((const char*)&lex->data[start], lex->size - start, '\n');
-
-  return js_strndup(ctx, (const char*)&lex->data[start], size);
-}
-
-static char*
-lexer_lexeme_s(Lexer* lex, JSContext* ctx) {
-  size_t len;
-  char* s;
-  DynBuf output;
-
-  js_dbuf_init(ctx, &output);
-
-  s = lexer_lexeme(lex, &len);
-
-  dbuf_put_escaped_pred(&output, s, len, lexer_escape_pred);
-  dbuf_0(&output);
-
-  return (char*)output.buf;
-}
-
-static Token*
-lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
-  size_t len;
-  const char* lexeme;
-  Token* tok;
-
-  if(!(lexeme = lexer_lexeme(lex, &len)))
-    return 0;
-
-  if(!(tok = token_create(id, lexeme, len, ctx)))
-    return 0;
-
-  tok->lexer = lexer_dup(lex);
-  tok->seq = lex->seq;
-
-  *tok->loc = lexer_get_location(lex, ctx);
-
-  return tok;
-}
-
 JSValue
-js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueConst vmode) {
+js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst arg) {
   Lexer* lex;
   int32_t mode = 0;
   JSValue obj = JS_UNDEFINED;
@@ -497,8 +501,8 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueCon
   if(!(lex = js_mallocz(ctx, sizeof(Lexer))))
     return JS_EXCEPTION;
 
-  if(JS_IsNumber(vmode))
-    JS_ToInt32(ctx, &mode, vmode);
+  if(JS_IsNumber(arg))
+    JS_ToInt32(ctx, &mode, arg);
 
   lexer_init(lex, mode, ctx);
 
@@ -507,7 +511,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueCon
   if(JS_IsException(obj))
     goto fail;
 
-  lex->input = js_input_chars(ctx, vinput);
+  lex->input = js_input_chars(ctx, in);
   JS_GetException(ctx);
 
   JS_SetOpaque(obj, lex);
@@ -527,7 +531,7 @@ js_lexer_wrap(JSContext* ctx, Lexer* lex) {
   return obj;
 }
 
-JSValue
+static JSValue
 js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Lexer* lex;
   char* name;
@@ -583,9 +587,10 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = lexer_proto; // JS_DupValue(ctx, lexer_proto);
+    proto = JS_DupValue(ctx, lexer_proto);
 
   ret = js_lexer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED, argc > 1 ? argv[1] : JS_UNDEFINED);
+  JS_FreeValue(ctx, proto);
 
   if((lex = JS_GetOpaque(ret, js_lexer_class_id))) {
     int i = 2;
@@ -628,7 +633,7 @@ enum {
   LEXER_PEEK,
 };
 
-JSValue
+static JSValue
 js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
@@ -639,18 +644,18 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   switch(magic) {
     case LEXER_SET_INPUT: {
       Lexer* other;
-      InputBuffer input;
+      InputBuffer in;
       Location loc = LOCATION();
 
       if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
-        input = input_buffer_clone(&other->input, ctx);
+        in = input_buffer_clone(&other->input, ctx);
         loc = other->loc;
       } else {
-        input = js_input_chars(ctx, argv[0]);
+        in = js_input_chars(ctx, argv[0]);
       }
 
       input_buffer_free(&lex->input, ctx);
-      lex->input = input;
+      lex->input = in;
       location_release(&lex->loc, JS_GetRuntime(ctx));
       lex->loc = loc;
 
@@ -689,8 +694,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_BACK: {
-      int i;
-      for(i = 0; i < argc; i++) {
+      for(int i = 0; i < argc; i++) {
         Token* tok;
         Location* loc;
 
@@ -733,9 +737,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LEXER_PEEKC: {
       if(!input_buffer_eof(&lex->input)) {
         size_t len;
-        const uint8_t* buf = input_buffer_peek(&lex->input, &len);
+        const uint8_t* buf;
 
-        ret = JS_NewStringLen(ctx, (const char*)buf, len);
+        if((buf = input_buffer_peek(&lex->input, &len)))
+          ret = JS_NewStringLen(ctx, (const char*)buf, len);
       }
 
       break;
@@ -744,9 +749,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LEXER_GETC: {
       if(!input_buffer_eof(&lex->input)) {
         size_t len;
-        const uint8_t* buf = input_buffer_get(&lex->input, &len);
+        const uint8_t* buf;
 
-        ret = JS_NewStringLen(ctx, (const char*)buf, len);
+        if((buf = input_buffer_get(&lex->input, &len)))
+          ret = JS_NewStringLen(ctx, (const char*)buf, len);
       }
 
       break;
@@ -773,28 +779,30 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case LEXER_SKIP_UNTIL: {
       if(!input_buffer_eof(&lex->input)) {
-        JSValueConst pred;
+        JSValueConst pred = argv[0];
 
-        if(!JS_IsFunction(ctx, argv[0]))
+        if(!JS_IsFunction(ctx, pred))
           return JS_ThrowTypeError(ctx, "argument 1 is not a function");
-
-        pred = argv[0];
 
         while(lex->pos < lex->size) {
           size_t n;
-          const uint8_t* p = input_buffer_peek(&lex->input, &n);
-          JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
-          JSValue result = JS_Call(ctx, pred, this_val, 1, &str);
-          BOOL b = JS_ToBool(ctx, result);
+          const uint8_t* p;
 
-          JS_FreeValue(ctx, result);
+          if((p = input_buffer_peek(&lex->input, &n))) {
+            JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
+            JSValue result = JS_Call(ctx, pred, this_val, 1, &str);
+            BOOL b = JS_ToBool(ctx, result);
 
-          if(b) {
-            result = str;
-            break;
+            JS_FreeValue(ctx, result);
+
+            if(b) {
+              result = str;
+              break;
+            }
+
+            JS_FreeValue(ctx, str);
           }
 
-          JS_FreeValue(ctx, str);
           input_buffer_getc(&lex->input);
         }
       }
@@ -941,7 +949,7 @@ enum {
   LEXER_TOKEN,
 };
 
-JSValue
+static JSValue
 js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
@@ -1099,7 +1107,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   Lexer* lex;
 
@@ -1166,7 +1174,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   return JS_UNDEFINED;
 }
 
-JSValue
+static JSValue
 js_lexer_tokens(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
   LexerRule* rule;
@@ -1187,7 +1195,7 @@ js_lexer_tokens(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_states(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
   char** cond;
@@ -1199,12 +1207,14 @@ js_lexer_states(JSContext* ctx, JSValueConst this_val) {
 
   ret = JS_NewArray(ctx);
 
-  vector_foreach_t(&lex->states, cond) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *cond)); }
+  vector_foreach_t(&lex->states, cond) {
+    JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *cond));
+  }
 
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
   int32_t* stack;
@@ -1234,19 +1244,19 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  InputBuffer input = js_input_chars(ctx, argv[0]);
-  DynBuf output;
-  js_dbuf_init(ctx, &output);
+  InputBuffer in = js_input_chars(ctx, argv[0]);
+  DynBuf out;
+  js_dbuf_init(ctx, &out);
 
-  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
-        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&out, (const char*)in.data, in.size, lexer_unescape_pred)
+        : dbuf_put_escaped_pred(&out, (const char*)in.data, in.size, lexer_escape_pred);
 
-  return dbuf_tostring_free(&output, ctx);
+  return dbuf_tostring_free(&out, ctx);
 }
 
-JSValue
+static JSValue
 js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
@@ -1256,17 +1266,16 @@ js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       ret = JS_NewString(ctx, re.source);
     } else {
-      InputBuffer input = js_input_chars(ctx, argv[0]);
+      InputBuffer in = js_input_chars(ctx, argv[0]);
 
-      ret = JS_NewStringLen(ctx, (const char*)input.data, input.size);
-      input_buffer_free(&input, ctx);
+      ret = input_buffer_tostring_free(&in, ctx);
     }
   }
 
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   Lexer* lex;
@@ -1289,7 +1298,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   switch(id) {
     case LEXER_ERROR_NOMATCH: {
-      char* lexeme = lexer_lexeme_s(lex, ctx);
+      char* lexeme = lexer_lexeme_s(lex, ctx, lexer_escape_pred);
       char* file = location_file(&lex->loc, ctx);
 
       ret = JS_ThrowInternalError(ctx,
@@ -1337,7 +1346,7 @@ enum {
   YIELD_DONE_VALUE = 2,
 };
 
-JSValue
+static JSValue
 js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   Lexer* lex;
@@ -1375,7 +1384,7 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   JSValue ret = js_lexer_nextfn(ctx, this_val, argc, argv, magic);
 
@@ -1384,7 +1393,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return ret;
 }
 
-JSValue
+static JSValue
 js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Lexer* lex;
 
@@ -1402,7 +1411,7 @@ js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int 
   return JS_DupValue(ctx, func_obj);
 }
 
-JSValue
+static JSValue
 js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue next, ret = JS_NewObject(ctx);
   JSAtom symbol = js_symbol_static_atom(ctx, "iterator");
@@ -1423,7 +1432,7 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_DupValue(ctx, this_val);
 }
 
-void
+static void
 js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
@@ -1479,6 +1488,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_DEF("lex", 0, js_lexer_lex),
     JS_CGETSET_DEF("tokens", js_lexer_tokens, 0),
     JS_CGETSET_DEF("states", js_lexer_states, 0),
+    JS_CGETSET_DEF("stateStack", js_lexer_statestack, 0),
     JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_lexer_iterator, YIELD_ID | YIELD_DONE_VALUE),
     JS_CFUNC_MAGIC_DEF("values", 0, js_lexer_iterator, YIELD_OBJ | YIELD_DONE_VALUE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_CONFIGURABLE),
@@ -1495,7 +1505,7 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_PROP_INT32_DEF("YIELD_OBJ", YIELD_OBJ, JS_PROP_ENUMERABLE),
 };
 
-int
+static int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   js_location_init(ctx, m);
 

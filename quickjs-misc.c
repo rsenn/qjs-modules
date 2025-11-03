@@ -1108,7 +1108,7 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       const uint8_t* y = &dbuf.buf[i];
       size_t l = n = byte_chr(y, len - i, seps[magic]);
 
-      while(l > 0 && is_whitespace_char(&y[l - 1]))
+      while(l > 0 && is_whitespace_char(*(const char*)&y[l - 1]))
         l--;
 
       if(magic == 0 || l) {

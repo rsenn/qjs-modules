@@ -2,6 +2,8 @@
 #include "debug.h"
 #include "token.h"
 
+static uint64_t token_seq;
+
 /**
  * \addtogroup token
  * @{
@@ -12,6 +14,8 @@ token_new(JSContext* ctx) {
 
   if((tok = js_mallocz(ctx, sizeof(Token)))) {
     tok->ref_count = 1;
+    tok->id = -1;
+    tok->seq = ++token_seq;
   }
 
   return tok;
@@ -41,18 +45,46 @@ token_free(Token* tok, JSRuntime* rt) {
   }
 }
 
+void
+token_set_lexeme(Token* tok, void* lexeme, size_t len, JSContext* ctx) {
+  if(lexeme) {
+    tok->lexeme = lexeme;
+    tok->byte_length = len;
+    tok->char_length = utf8_strlen(lexeme, len);
+  } else {
+    js_free(ctx, tok->lexeme);
+    tok->lexeme = 0;
+    tok->byte_length = 0;
+    tok->char_length = 0;
+  }
+}
+
+void
+token_set_location(Token* tok, Location* loc, JSContext* ctx) {
+  if(tok->loc) {
+    location_free(tok->loc, JS_GetRuntime(ctx));
+    tok->loc = 0;
+  }
+
+  tok->loc = loc ? location_dup(loc) : 0;
+}
+
+void
+token_copy_location(Token* tok, const Location* loc, JSContext* ctx) {
+  if(!tok->loc)
+    tok->loc = location_clone(loc, ctx);
+  else
+    location_copy(tok->loc, loc, ctx);
+}
+
 Token*
 token_create(int id, const char* lexeme, size_t len, JSContext* ctx) {
   Token* tok;
 
   if((tok = token_new(ctx))) {
     tok->id = id;
-    tok->loc = js_malloc(ctx, sizeof(Location));
 
-    tok->byte_length = len;
-
-    tok->lexeme = (uint8_t*)js_strndup(ctx, lexeme, len);
-    tok->char_length = utf8_strlen(lexeme, len);
+    token_set_lexeme(tok, lexeme ? js_strndup(ctx, lexeme, len) : 0, len, ctx);
   }
 
   return tok;

@@ -8,7 +8,7 @@
  * \defgroup token token: Token object for the lexer
  * @{
  */
-typedef struct {
+typedef struct Token {
   int ref_count, id;
   uint8_t* lexeme;
   uint32_t byte_length, char_length;
@@ -18,25 +18,21 @@ typedef struct {
 } Token;
 
 Token* token_new(JSContext*);
-Token* token_create(int, const char*, size_t len, JSContext* ctx);
+Token* token_create(int, const char*, size_t, JSContext*);
 void token_release(Token*, JSRuntime*);
 void token_free(Token*, JSRuntime*);
-
-static inline Location*
-token_set_location(Token* tok, Location* loc) {
-  return tok->loc = location_dup(loc);
-}
+void token_set_lexeme(Token*, void*, size_t, JSContext*);
+void token_set_location(Token*, Location*, JSContext*);
+void token_copy_location(Token*, const Location*, JSContext*);
 
 static inline OffsetLength
 token_char_range(Token* tok) {
-  OffsetLength ret = {tok->loc ? tok->loc->char_offset : -1, tok->char_length};
-  return ret;
+  return (OffsetLength){tok->loc ? tok->loc->char_offset : -1, tok->char_length};
 }
 
 static inline OffsetLength
 token_byte_range(Token* tok) {
-  OffsetLength ret = {tok->loc ? tok->loc->byte_offset : -1, tok->byte_length};
-  return ret;
+  return (OffsetLength){tok->loc ? tok->loc->byte_offset : -1, tok->byte_length};
 }
 
 static inline Token*

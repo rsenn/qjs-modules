@@ -63,7 +63,9 @@ static void
 tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(&w->hier, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&w->hier, it) {
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
+  }
   vector_clear(&w->hier);
 
   w->tag_mask = TYPE_ALL;
@@ -558,13 +560,13 @@ static const JSCFunctionListEntry js_tree_walker_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("parentNode", 0, js_tree_walker_method, PARENT_NODE),
     JS_CFUNC_MAGIC_DEF("previousNode", 0, js_tree_walker_method, PREVIOUS_NODE),
     JS_CFUNC_MAGIC_DEF("previousSibling", 0, js_tree_walker_method, PREVIOUS_SIBLING),
-    JS_CGETSET_MAGIC_DEF("root", js_tree_walker_get, NULL, PROP_ROOT),
-    JS_CGETSET_MAGIC_DEF("currentNode", js_tree_walker_get, NULL, PROP_CURRENT_NODE),
-    JS_CGETSET_MAGIC_DEF("currentKey", js_tree_walker_get, NULL, PROP_CURRENT_KEY),
-    JS_CGETSET_MAGIC_DEF("currentPath", js_tree_walker_get, NULL, PROP_CURRENT_PATH),
-    JS_CGETSET_MAGIC_DEF("depth", js_tree_walker_get, NULL, PROP_DEPTH),
+    JS_CGETSET_MAGIC_DEF("root", js_tree_walker_get, 0, PROP_ROOT),
+    JS_CGETSET_MAGIC_DEF("currentNode", js_tree_walker_get, 0, PROP_CURRENT_NODE),
+    JS_CGETSET_MAGIC_DEF("currentKey", js_tree_walker_get, 0, PROP_CURRENT_KEY),
+    JS_CGETSET_MAGIC_DEF("currentPath", js_tree_walker_get, 0, PROP_CURRENT_PATH),
+    JS_CGETSET_MAGIC_DEF("depth", js_tree_walker_get, 0, PROP_DEPTH),
     JS_CGETSET_MAGIC_DEF("index", js_tree_walker_get, js_tree_walker_set, PROP_INDEX),
-    JS_CGETSET_MAGIC_DEF("length", js_tree_walker_get, NULL, PROP_LENGTH),
+    JS_CGETSET_MAGIC_DEF("length", js_tree_walker_get, 0, PROP_LENGTH),
     JS_CGETSET_MAGIC_DEF("tagMask", js_tree_walker_get, js_tree_walker_set, PROP_TAG_MASK),
     JS_CGETSET_MAGIC_FLAGS_DEF("filter", js_tree_walker_get, 0, PROP_FILTER, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("flags", js_tree_walker_get, js_tree_walker_set, PROP_FLAGS),
