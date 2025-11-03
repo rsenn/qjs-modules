@@ -1164,12 +1164,23 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       lex->mode = m;
       break;
     }
+      /*
+          case LEXER_SEQUENCE: {
+            uint64_t s;
 
-    case LEXER_SEQUENCE: {
-      uint64_t s;
+            JS_ToIndex(ctx, &s, value);
+            lex->seq = s;
+            break;
+          }*/
 
-      JS_ToIndex(ctx, &s, value);
-      lex->seq = s;
+    case LEXER_STATE: {
+      int32_t state = js_toint32(ctx, value);
+      uint32_t num_states = vector_size(&lex->states, sizeof(int32_t));
+
+      if(!(state >= 0 && state < num_states))
+        return JS_ThrowRangeError(ctx, "state is not in range from 0 - %" PRIu32, num_states);
+
+      lex->state = state;
       break;
     }
   }
@@ -1478,15 +1489,15 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, LEXER_PEEK),
     JS_CFUNC_MAGIC_DEF("next", 0, js_lexer_nextfn, YIELD_ID),
     JS_CFUNC_MAGIC_DEF("nextToken", 0, js_lexer_nextfn, YIELD_OBJ),
-    JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_SIZE),
+    JS_CGETSET_MAGIC_DEF("size", js_lexer_get, 0, LEXER_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_POSITION),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_LOCATION),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_ENDOFFILE),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_MODE),
-    JS_CGETSET_MAGIC_DEF("seq", js_lexer_get, js_lexer_set, LEXER_SEQUENCE),
+    JS_CGETSET_MAGIC_DEF("seq", js_lexer_get, 0, LEXER_SEQUENCE),
     JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, LEXER_BYTE_LENGTH),
     JS_CGETSET_MAGIC_DEF("charLength", js_lexer_get, 0, LEXER_CHAR_LENGTH),
-    JS_CGETSET_MAGIC_DEF("state", js_lexer_get, 0, LEXER_STATE),
+    JS_CGETSET_MAGIC_DEF("state", js_lexer_get, js_lexer_set, LEXER_STATE),
     JS_CGETSET_MAGIC_DEF("states", js_lexer_get, 0, LEXER_STATES),
     JS_CGETSET_MAGIC_DEF("stateDepth", js_lexer_get, 0, LEXER_STATE_DEPTH),
     JS_CGETSET_MAGIC_DEF("stateStack", js_lexer_get, 0, LEXER_STATE_STACK),
@@ -1506,6 +1517,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("pushState", 1, js_lexer_method, LEXER_PUSH_STATE),
     JS_ALIAS_DEF("begin", "pushState"),
     JS_CFUNC_MAGIC_DEF("popState", 0, js_lexer_method, LEXER_POP_STATE),
+    JS_ALIAS_DEF("end", "popState"),
     JS_CFUNC_MAGIC_DEF("topState", 0, js_lexer_method, LEXER_TOP_STATE),
     JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_CURRENT_LINE),
     JS_CFUNC_MAGIC_DEF("back", 0, js_lexer_method, LEXER_BACK),

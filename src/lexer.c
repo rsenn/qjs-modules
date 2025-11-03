@@ -269,7 +269,7 @@ lexer_new(JSContext* ctx) {
 
 void
 lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
-  char* initial = js_strdup(ctx, "INITIAL");
+  // char* initial = js_strdup(ctx, "INITIAL");
 
   memset(lex, 0, sizeof(Lexer));
 
@@ -283,7 +283,7 @@ lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   vector_init(&lex->defines, ctx);
   vector_init(&lex->rules, ctx);
   vector_init(&lex->states, ctx);
-  vector_push(&lex->states, initial);
+  // vector_push(&lex->states, initial);
   vector_init(&lex->state_stack, ctx);
 }
 
