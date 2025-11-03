@@ -94,10 +94,17 @@ location_free(Location* loc, JSRuntime* rt) {
 
 size_t
 location_count(Location* loc, const uint8_t* x, size_t n) {
-  loc->byte_offset = 0;
-  loc->char_offset = 0;
-  loc->line = 0;
-  loc->column = 0;
+  if(loc->byte_offset == -1)
+    loc->byte_offset = 0;
+
+  if(loc->char_offset == -1)
+    loc->char_offset = 0;
+
+  if(loc->line == -1)
+    loc->line = 0;
+
+  if(loc->column == -1)
+    loc->column = 0;
 
   size_t start = loc->char_offset;
 
