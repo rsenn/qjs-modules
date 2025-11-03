@@ -142,6 +142,28 @@ fail:
 }
 
 JSValue
+js_token_new2(JSContext* ctx, JSValueConst new_target) {
+  Token* tok;
+  JSValue obj = JS_UNDEFINED;
+
+  if(!(tok = token_new(ctx)))
+    return JS_EXCEPTION;
+
+  obj = js_token_wrap(ctx, new_target, tok);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, tok);
+  return obj;
+
+fail:
+  js_free(ctx, tok);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+JSValue
 js_token_wrap(JSContext* ctx, JSValueConst new_target, Token* tok) {
   JSValue proto, obj = JS_UNDEFINED;
 
@@ -165,39 +187,34 @@ JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Lexer* lex = 0;
   Location* loc = 0;
-  Token* tok = 0;
-  JSValue obj, id = JS_UNDEFINED, lexeme = JS_UNDEFINED;
-
-  if(argc >= 1 && (lex = js_lexer_data(argv[0]))) {
-    argc--;
-    argv++;
-  }
-
-  int index = 0;
-
-  if(index < argc && JS_IsNumber(argv[index]))
-    id = argv[index++];
-
-  if(index < argc && JS_IsString(argv[index]))
-    lexeme = argv[index++];
-
-  obj = js_token_new(ctx, new_target, id, lexeme);
+  Token* tok;
+  int32_t id = -1;
+  JSValue obj = js_token_new2(ctx, new_target);
 
   if(JS_IsException(obj))
     goto fail;
 
-  tok = js_token_data(obj);
+  if(!(tok = js_token_data(obj)))
+    goto fail;
 
+  int index = 0;
   int64_t char_offset = -1;
 
   while(index < argc) {
-    if((lex = js_lexer_data(argv[index]))) {
+    if(id == -1 && JS_IsNumber(argv[index])) {
+      id = tok->id = js_toint32(ctx, argv[index]);
+    } else if(!lex && (lex = js_lexer_data(argv[index]))) {
       tok->lexer = lexer_dup(lex);
-    } else if((loc = js_location_data(argv[index]))) {
+    } else if(!loc && (loc = js_location_data(argv[index]))) {
+      if(tok->loc) {
+        location_free(tok->loc, JS_GetRuntime(ctx));
+        tok->loc = 0;
+      }
       tok->loc = location_dup(loc);
-    } else {
+    } else if(char_offset == -1) {
       JS_ToInt64Ext(ctx, &char_offset, argv[index]);
     }
+
     index++;
   }
 
@@ -208,10 +225,13 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     }
   }
 
+  if(loc == 0)
+    loc = tok->loc;
+
   if(char_offset != -1)
-    if(tok->loc && lex) {
-      tok->loc->byte_offset = utf8_countchars3(lex->data, lex->size, char_offset);
-      tok->loc->char_offset = char_offset;
+    if(loc && lex) {
+      loc->byte_offset = utf8_countchars3(lex->data, lex->size, char_offset);
+      loc->char_offset = char_offset;
     }
 
   return obj;
@@ -311,11 +331,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_LOC: {
-      Location* loc;
-
-      if((loc = location_dup(tok->loc)))
-        ret = js_location_wrap(ctx, loc);
-
+      ret = tok->loc ? js_location_wrap(ctx, location_dup(tok->loc)) : JS_NULL;
       break;
     }
 
@@ -1381,8 +1397,9 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_ToInt32(ctx, &id, result);
 
     if(magic & YIELD_OBJ) {
-      Token* tok = lexer_token(lex, id, ctx);
-      ret = js_token_wrap(ctx, token_ctor, tok);
+      /*Token* tok = lexer_token(lex, id, ctx);
+      ret = js_token_wrap(ctx, token_ctor, tok);*/
+      ret = js_token_new(ctx, token_ctor, result, JS_UNDEFINED);
     } else {
       ret = JS_NewInt32(ctx, id);
     }
