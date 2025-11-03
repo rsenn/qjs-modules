@@ -44,13 +44,7 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
 
 static inline InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
-  return (InputBuffer){
-      {{blob->data, blob->size}},
-      0,
-      &input_buffer_free_default,
-      JS_UNDEFINED,
-      OFFSETLENGTH_INIT(),
-  };
+  return INPUT_BUFFER_DATA(blob->data, blob->size);
 }
 
 JSValue

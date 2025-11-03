@@ -199,8 +199,11 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   int index = 0;
   int64_t char_offset = -1;
+  InputBuffer in = INPUT_BUFFER();
 
   while(index < argc) {
+    int r = 0;
+
     if(id == -1 && JS_IsNumber(argv[index])) {
       id = tok->id = js_toint32(ctx, argv[index]);
     } else if(!lex && (lex = js_lexer_data(argv[index]))) {
@@ -211,6 +214,12 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
         tok->loc = 0;
       }
       tok->loc = location_dup(loc);
+
+    } else if((r = input_buffer_fromargv(&in, argc - index, argv + index, ctx)) > 0) {
+
+      index += r;
+      continue;
+
     } else if(char_offset == -1) {
       JS_ToInt64Ext(ctx, &char_offset, argv[index]);
     }

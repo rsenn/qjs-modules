@@ -90,6 +90,9 @@ typedef struct {
 #define BLOCK_INIT() \
   { 0, 0 }
 
+#define BLOCK_INIT_DATA(buf, len) \
+  { (buf), (len) }
+
 int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 int block_mmap(MemoryBlock*, const char*);
@@ -373,16 +376,19 @@ typedef struct InputBuffer {
     };
   };
   union {
-    size_t pos;
     OffsetLength range;
+    size_t pos;
   };
   void (*free)(JSContext*, const char*, JSValue);
   JSValue value;
 } InputBuffer;
 
-#define INPUT_BUFFER_INIT() \
+#define INPUT_BUFFER() INPUT_BUFFER_FREE(&input_buffer_free_default)
+#define INPUT_BUFFER_FREE(fn) INPUT_BUFFER_DATA_FREE(0, 0, fn)
+#define INPUT_BUFFER_DATA(buf, len) INPUT_BUFFER_DATA_FREE(buf, len, &input_buffer_free_default)
+#define INPUT_BUFFER_DATA_FREE(buf, len, fn) \
   (InputBuffer) { \
-    {BLOCK_INIT()}, 0, NULL, JS_UNDEFINED, OFFSETLENGTH_INIT() \
+    {BLOCK_INIT_DATA(buf, len)}, {OFFSETLENGTH_INIT()}, (fn), JS_UNDEFINED \
   }
 
 static inline void
@@ -399,6 +405,7 @@ InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 
+int input_buffer_fromargv(InputBuffer*, int, JSValueConst[], JSContext*);
 BOOL input_buffer_valid(const InputBuffer*);
 void input_buffer_clone2(InputBuffer*, const InputBuffer*, JSContext*);
 InputBuffer input_buffer_clone(const InputBuffer*, JSContext*);

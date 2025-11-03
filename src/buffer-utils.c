@@ -466,13 +466,7 @@ dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
 
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {
-      {BLOCK_INIT()},
-      0,
-      &input_buffer_free_default,
-      JS_UNDEFINED,
-      OFFSETLENGTH_INIT(),
-  };
+  InputBuffer ret = INPUT_BUFFER_FREE(&input_buffer_free_default);
 
   if(js_is_typedarray(ctx, value)) {
     ret.value = offsetlength_typedarray(&ret.range, value, ctx);
@@ -495,14 +489,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
 InputBuffer
 js_input_chars(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {
-      {{0, 0}},
-      0,
-      &input_buffer_free_default,
-      JS_UNDEFINED,
-      OFFSETLENGTH_INIT(),
-  };
-
+  InputBuffer ret = INPUT_BUFFER_FREE(&input_buffer_free_default);
   BOOL is_buffer = js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value);
 
   if(!is_buffer) {
@@ -681,6 +668,21 @@ range_append(PointerRange* r, PointerRange other) {
   return range_write(r, other.start, range_len(&other));
 }
 
+int
+input_buffer_fromargv(InputBuffer* in, int argc, JSValueConst argv[], JSContext* ctx) {
+  int ret = 0;
+
+  if(argc > 0) {
+    *in = js_input_chars(ctx, argv[0]);
+    ret += 1;
+
+    if(ret < argc)
+      ret += js_offset_length(ctx, in->size, argc, argv, ret, &in->range);
+  }
+
+  return ret;
+}
+
 BOOL
 input_buffer_valid(const InputBuffer* in) {
   return !JS_IsException(in->value);
@@ -699,7 +701,7 @@ input_buffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
 
 InputBuffer
 input_buffer_clone(const InputBuffer* in, JSContext* ctx) {
-  InputBuffer ret = INPUT_BUFFER_INIT();
+  InputBuffer ret = INPUT_BUFFER();
 
   input_buffer_clone2(&ret, in, ctx);
 
