@@ -24,6 +24,45 @@ typedef struct {
 VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
 static JSValue token_proto, token_ctor, lexer_proto, lexer_ctor;
 
+static int
+escape_pred(int c) {
+  switch(c) {
+    case '*':
+    case '?':
+    case '+':
+    case '[':
+    case ']':
+    case '(':
+    case ')':
+    case '.':
+    case '^':
+    case '$':
+    case '|':
+    case '\r':
+    case '\n':
+    case '\t':
+    case '\v':
+    case '\f':
+    case '\\': return TRUE;
+  }
+
+  return FALSE;
+}
+
+static int
+unescape_pred(const char* s, size_t* n) {
+  switch(*s) {
+    case 'r': return '\r';
+    case 'n': return '\n';
+    case 't': return '\t';
+    case 'v': return '\v';
+    case 'f': return '\f';
+    case '/': return '/';
+  }
+
+  return 0;
+}
+
 static inline JSValue
 offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
@@ -360,7 +399,7 @@ lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static int32_t
-lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
+lexer_to_state(Lexer* lex, JSValueConst value, JSContext* ctx) {
   int32_t num;
 
   if(JS_IsNumber(value)) {
@@ -377,7 +416,7 @@ lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
 }
 
 static BOOL
-lexer_handle(Lexer* lex, JSContext* ctx, JSValueConst this_val, JSValueConst handler) {
+lexer_handle(Lexer* lex, JSValueConst this_val, JSValueConst handler, JSContext* ctx) {
   BOOL result = FALSE;
   JSValue ret, do_resume = JS_FALSE, data[1] = {JS_NewArray(ctx)};
   JSValueConst args[] = {
@@ -402,12 +441,12 @@ lexer_handle(Lexer* lex, JSContext* ctx, JSValueConst this_val, JSValueConst han
 }
 
 static int
-lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int64_t flags = 0;
+lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSContext* ctx) {
+  int64_t flags = 1ll << lex->state;
   int id = 0;
 
-  if(argc >= 1 && (flags = lexer_to_state(lex, ctx, argv[0]))) {
-  }
+  if(argc > 0 && JS_IsNumber(argv[0]))
+    flags = lexer_to_state(lex, argv[0], ctx);
 
   if(lex->byte_length > 0 && lex->token_id != -1)
     lexer_skip(lex);
@@ -428,7 +467,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         BOOL skip = FALSE;
 
         if(JS_IsFunction(ctx, jsrule->action))
-          skip = lexer_handle(lex, ctx, this_val, jsrule->action);
+          skip = lexer_handle(lex, this_val, jsrule->action, ctx);
 
         if(skip || jsrule->skip) {
           lexer_skip(lex);
@@ -440,7 +479,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       JSValue handler = JS_GetPropertyStr(ctx, this_val, "handler");
 
       if(JS_IsFunction(ctx, handler)) {
-        if(lexer_handle(lex, ctx, this_val, handler) == TRUE)
+        if(lexer_handle(lex, this_val, handler, ctx) == TRUE)
           continue;
 
         id = LEXER_ERROR_NOMATCH;
@@ -453,64 +492,19 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return id;
 }
 
-static int
-lexer_escape_pred(int c) {
-  switch(c) {
-    case '*':
-    case '?':
-    case '+':
-    case '[':
-    case ']':
-    case '(':
-    case ')':
-    case '.':
-    case '^':
-    case '$':
-    case '|':
-    case '\r':
-    case '\n':
-    case '\t':
-    case '\v':
-    case '\f':
-    case '\\': return TRUE;
-  }
-
-  return FALSE;
-}
-
-static int
-lexer_unescape_pred(const char* s, size_t* n) {
-  switch(*s) {
-    case 'r': return '\r';
-    case 'n': return '\n';
-    case 't': return '\t';
-    case 'v': return '\v';
-    case 'f': return '\f';
-    case '/': return '/';
-  }
-
-  return 0;
-}
-
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst new_target, JSValueConst in, JSValueConst arg) {
   Lexer* lex;
   int32_t mode = 0;
-  JSValue proto, obj = JS_UNDEFINED;
+  JSValue obj = JS_UNDEFINED;
 
   if(!(lex = lexer_new(ctx)))
     return JS_EXCEPTION;
 
+  obj = js_lexer_wrap(ctx, new_target, lex);
+
   if(JS_IsNumber(arg))
     lex->mode = js_toint32(ctx, arg);
-
-  /* using new_target to get the prototype is necessary when the class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, lexer_proto);
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_lexer_class_id);
-  JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj))
     goto fail;
@@ -520,7 +514,6 @@ js_lexer_new(JSContext* ctx, JSValueConst new_target, JSValueConst in, JSValueCo
     JS_GetException(ctx);
   }
 
-  JS_SetOpaque(obj, lex);
   return obj;
 
 fail:
@@ -549,6 +542,7 @@ static JSValue
 js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Lexer* lex;
   char* name;
+  int index = 1;
   int64_t mask = -1, skip = 0;
   RegExp expr;
   JSLexerRule* jsrule = 0;
@@ -557,10 +551,13 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     return JS_EXCEPTION;
 
   name = (magic || JS_IsString(argv[0])) ? js_tostring(ctx, argv[0]) : 0;
-  expr = regexp_from_argv(argc - 1, &argv[1], ctx);
+  index += regexp_from_argv(&expr, argc - index, &argv[index], ctx);
 
-  if(argc >= 3 && JS_IsNumber(argv[2]))
-    JS_ToInt64(ctx, &mask, argv[2]);
+  if(index < argc && JS_IsNumber(argv[index])) {
+    JS_ToInt64(ctx, &mask, argv[index]);
+
+    index++;
+  }
 
   JSValue skipv = JS_GetPropertyStr(ctx, this_val, "skip");
 
@@ -569,9 +566,9 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   JS_FreeValue(ctx, skipv);
 
-  if(argc > 3 || JS_IsFunction(ctx, argv[argc - 1])) {
+  if(index < argc && JS_IsFunction(ctx, argv[index])) {
     jsrule = js_malloc(ctx, sizeof(JSLexerRule));
-    jsrule->action = JS_DupValue(ctx, argv[argc - 1]);
+    jsrule->action = JS_DupValue(ctx, argv[index]);
     jsrule->skip = !!(mask & skip);
   }
 
@@ -1119,21 +1116,22 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
   switch(magic) {
     case LEXER_POSITION: {
+      uint64_t newpos = lex->pos;
       Token* tok;
+      Location* loc;
 
       if((tok = js_token_data(value))) {
-        lex->pos = tok->loc->char_offset;
-
-        location_release(&lex->loc, JS_GetRuntime(ctx));
-        location_copy(&lex->loc, tok->loc, ctx);
-      } /* else if(JS_IsNumber(value)) {
-        uint64_t newpos = lex->pos;
+        newpos = tok->loc->byte_offset;
+      } else if((loc = js_location_data(value))) {
+        newpos = loc->byte_offset;
+      } else {
         JS_ToIndex(ctx, &newpos, value);
-        lex->pos = newpos;
-      } */
-      else {
-        return JS_ThrowTypeError(ctx, "lexer.pos must be a Location object");
       }
+
+      if(newpos > lex->size)
+        return JS_ThrowRangeError(ctx, "new .pos not within range 0 - %" PRIu64, lex->size);
+
+      lex->pos = newpos;
 
       break;
     }
@@ -1264,8 +1262,8 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   DynBuf out;
   js_dbuf_init(ctx, &out);
 
-  magic ? dbuf_put_unescaped_pred(&out, (const char*)in.data, in.size, lexer_unescape_pred)
-        : dbuf_put_escaped_pred(&out, (const char*)in.data, in.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&out, (const char*)in.data, in.size, unescape_pred)
+        : dbuf_put_escaped_pred(&out, (const char*)in.data, in.size, escape_pred);
 
   return dbuf_tostring_free(&out, ctx);
 }
@@ -1276,7 +1274,9 @@ js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   if(argc > 0) {
     if(js_is_regexp(ctx, argv[0]) || JS_IsString(argv[0])) {
-      RegExp re = regexp_from_argv(argc, argv, ctx);
+      RegExp re = {0};
+
+      regexp_from_argv(&re, argc, argv, ctx);
 
       ret = JS_NewString(ctx, re.source);
     } else {
@@ -1305,14 +1305,14 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     JS_FreeCString(ctx, name);
   }
 
-  id = lexer_lex(lex, ctx, this_val, argc, argv);
+  id = lexer_lex(lex, this_val, argc, argv, ctx);
 
   if(state > -1)
     lexer_state_pop(lex);
 
   switch(id) {
     case LEXER_ERROR_NOMATCH: {
-      char* lexeme = lexer_lexeme_s(lex, ctx, lexer_escape_pred);
+      char* lexeme = lexer_lexeme_s(lex, ctx, escape_pred);
       char* file = location_file(&lex->loc, ctx);
 
       ret = JS_ThrowInternalError(ctx,

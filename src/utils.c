@@ -75,7 +75,9 @@ list_size(struct list_head* list) {
   struct list_head* el;
   size_t i = 0;
 
-  list_for_each(el, list) { ++i; }
+  list_for_each(el, list) {
+    ++i;
+  }
 
   return i;
 }
@@ -371,27 +373,28 @@ regexp_flags_tostring(int flags, char* buf) {
   return out - buf;
 }
 
-RegExp
-regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
-  RegExp re = {0, 0, 0};
+int
+regexp_from_argv(RegExp* re, int argc, JSValueConst argv[], JSContext* ctx) {
   const char* flagstr;
+  int ret = 1;
 
   assert(argc > 0);
 
   if(js_is_regexp(ctx, argv[0])) {
-    re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
-    re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
+    re->source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re->len);
+    re->flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
     JS_FreeCString(ctx, flagstr);
   } else {
-    re.source = js_tostringlen(ctx, &re.len, argv[0]);
+    re->source = js_tostringlen(ctx, &re->len, argv[0]);
 
     if(argc > 1 && JS_IsString(argv[1])) {
-      re.flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
+      re->flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
       JS_FreeCString(ctx, flagstr);
+      ret++;
     }
   }
 
-  return re;
+  return ret;
 }
 
 RegExp

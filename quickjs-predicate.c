@@ -234,10 +234,10 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_REGEXP: {
-        RegExp expr;
+        RegExp expr = {0};
 
       regexp:
-        expr = regexp_from_argv(argc - 1, argv + 1, ctx);
+        regexp_from_argv(&expr, argc - 1, argv + 1, ctx);
         *pr = predicate_regexp(expr.source, expr.len, expr.flags);
         break;
       }
@@ -624,7 +624,8 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PREDICATE_REGEXP: {
-      RegExp expr = regexp_from_argv(argc, argv, ctx);
+      RegExp expr = {0};
+      regexp_from_argv(&expr, argc, argv, ctx);
       Predicate pred = predicate_regexp(expr.source, expr.len, expr.flags);
 
       ret = js_predicate_wrap(ctx, pred);

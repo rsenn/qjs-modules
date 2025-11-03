@@ -30,13 +30,13 @@ enum lexer_mode {
   LEXER_LONGEST = 2,
 };
 
-enum lexer_result {
+typedef enum lexer_result {
   LEXER_EOF = -1,
   LEXER_EXCEPTION = -2,
   LEXER_ERROR_NOMATCH = -3,
   LEXER_ERROR_COMPILE = -4,
   LEXER_ERROR_EXEC = -5,
-};
+} LexerResult;
 
 typedef struct {
   union {
@@ -48,7 +48,10 @@ typedef struct {
     struct {
       uint8_t* data;
       size_t size;
-      size_t pos;
+      union {
+        size_t pos;
+        OffsetLength range;
+      };
     };
   };
   enum lexer_mode mode;

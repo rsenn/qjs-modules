@@ -174,7 +174,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   return ret;
 }
 
-static int
+static LexerResult
 lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx) {
 
   if(rule->bytecode == 0) {
@@ -189,7 +189,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
 int
 lexer_rule_add(Lexer* lex, char* name, char* expr) {
-  LexerRule rule = {name, expr, 1, 0, 0, 0}, *previous;
+  LexerRule rule = {name, expr, MASK_ALL, 0, 0, 0}, *previous;
   int ret;
 
   if((previous = lexer_rule_find(lex, name))) {
@@ -334,7 +334,7 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
   assert(start_rule < vector_size(&lex->rules, sizeof(LexerRule)));
 
   for(rule = start + start_rule; rule < end; ++rule) {
-    enum lexer_result result;
+    LexerResult result;
 
     if((rule->mask & (1 << lex->state)) == 0)
       continue;

@@ -304,7 +304,7 @@ typedef struct {
 
 int regexp_flags_tostring(int, char*);
 int regexp_flags_fromstring(const char*);
-RegExp regexp_from_argv(int argc, JSValueConst[], JSContext* ctx);
+int regexp_from_argv(RegExp*, int argc, JSValueConst[], JSContext* ctx);
 RegExp regexp_from_string(char* str, int flags);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
@@ -676,7 +676,7 @@ static inline int64_t
 js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
   if(JS_IsNumber(value))
     JS_ToInt64(ctx, &i, value);
-  
+
   return i;
 }
 

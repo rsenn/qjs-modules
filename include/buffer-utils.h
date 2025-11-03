@@ -372,10 +372,12 @@ typedef struct InputBuffer {
       size_t size;
     };
   };
-  size_t pos;
+  union {
+    size_t pos;
+    OffsetLength range;
+  };
   void (*free)(JSContext*, const char*, JSValue);
   JSValue value;
-  OffsetLength range;
 } InputBuffer;
 
 #define INPUT_BUFFER_INIT() \
@@ -465,7 +467,7 @@ input_buffer_getc(InputBuffer* in) {
 
 static inline BOOL
 input_buffer_eof(const InputBuffer* in) {
-  return in->pos == input_buffer_length(in);
+  return in->pos == in->size;
 }
 
 static inline size_t
