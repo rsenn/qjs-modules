@@ -201,18 +201,18 @@ location_set_file(Location* loc, int32_t file, JSContext* ctx) {
 }
 
 void
-location_set_byteoffset(Location* loc, const uint8_t* str, size_t ofs) {
+location_set_byteoffset(Location* loc, const void* str, size_t ofs) {
   loc->byte_offset = ofs;
   loc->char_offset = utf8_strlen(str, ofs);
 }
 
 void
-location_set_charoffset(Location* loc, const uint8_t* str, size_t ofs) {
+location_set_charoffset(Location* loc, const void* str, size_t ofs) {
   location_set_byteoffset(loc, str, utf8_countchars2(str, ofs));
 }
 
 void*
-location_pointer(const Location* loc, const uint8_t* buf) {
+location_pointer(const Location* loc, const void* buf) {
   return (uint8_t*)buf + loc->byte_offset;
 }
 
