@@ -966,7 +966,6 @@ enum {
   LEXER_STATE_STACK,
   LEXER_INPUT,
   LEXER_LEXEME,
-  LEXER_TOKEN,
 };
 
 static JSValue
@@ -1109,17 +1108,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case LEXER_LEXEME: {
       ret = JS_NewStringLen(ctx, (const char*)lex->data + lex->byte_offset, lex->byte_length);
-      break;
-    }
-
-    case LEXER_TOKEN: {
-      Token* tok;
-
-      if(lex->token_id < 0)
-        ret = JS_NULL;
-      else if((tok = lexer_token(lex, lex->token_id, ctx)))
-        ret = js_token_wrap(ctx, token_ctor, tok);
-
       break;
     }
   }
@@ -1524,7 +1512,6 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("stateStack", js_lexer_get, 0, LEXER_STATE_STACK),
     JS_CGETSET_MAGIC_DEF("input", js_lexer_get, 0, LEXER_INPUT),
     JS_CGETSET_MAGIC_DEF("lexeme", js_lexer_get, 0, LEXER_LEXEME),
-    JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_TOKEN),
     JS_CGETSET_MAGIC_DEF("fileName", js_lexer_get, js_lexer_set, LEXER_FILENAME),
     JS_CFUNC_DEF("setInput", 1, js_lexer_set_input),
     JS_CFUNC_MAGIC_DEF("skipBytes", 0, js_lexer_method, LEXER_SKIP_BYTES),
