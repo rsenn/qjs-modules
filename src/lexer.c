@@ -414,11 +414,9 @@ lexer_skip_n(Lexer* lex, size_t bytes) {
 
   assert(bytes <= lex->size - lex->byte_offset);
 
-  lex->loc.byte_offset = lex->byte_offset;
-  len = location_count(&lex->loc, &lex->data[lex->byte_offset], bytes);
-  lex->byte_offset += bytes;
+  lex->loc.byte_offset = LEXER_POS(lex);
 
-  return len;
+  return location_count(&lex->loc, LEXER_PTR(lex), bytes);
 }
 
 size_t
@@ -446,14 +444,14 @@ lexer_charlen(Lexer* lex) {
   if(lex->byte_length == 0)
     return 0;
 
-  assert((lex->size - lex->byte_offset) >= lex->byte_length);
+  assert((lex->size - LEXER_POS(lex)) >= lex->byte_length);
 
-  return utf8_strlen(&lex->data[lex->byte_offset], lex->byte_length);
+  return utf8_strlen(LEXER_PTR(lex), lex->byte_length);
 }
 
 char*
 lexer_lexeme(Lexer* lex, size_t* lenp) {
-  char* s = (char*)lex->data + lex->byte_offset;
+  char* s = (char*)LEXER_PTR(lex);
 
   if(lenp)
     *lenp = lex->byte_length;

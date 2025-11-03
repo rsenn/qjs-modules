@@ -22,7 +22,7 @@ Token* token_new(JSContext*);
 Token* token_create(int, void*, size_t, JSContext*);
 void token_release(Token*, JSRuntime*);
 void token_free(Token*, JSRuntime*);
-void token_set_lexeme(Token*, void*, size_t, JSContext*);
+void token_set_lexeme(Token*, void*, size_t);
 void token_set_location(Token*, Location*, JSContext*);
 void token_copy_location(Token*, const Location*, JSContext*);
 

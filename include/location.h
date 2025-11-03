@@ -24,6 +24,7 @@ typedef struct {
 
 #define LOCATION() (Location){0, -1, 0, 0, 0, 0, FALSE};
 #define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, FALSE};
+#define LOCATION_POS(l) ((l)->byte_offset)
 
 LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
 LOCATION_API char* location_tostring(const Location*, JSContext*);

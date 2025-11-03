@@ -427,10 +427,11 @@ static JSClassDef js_location_class = {
 static const JSCFunctionListEntry js_location_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("charOffset", js_location_get, js_location_set, LOCATION_PROP_CHAROFFSET),
-    JS_CGETSET_MAGIC_DEF("byteOffset", js_location_get, js_location_set, LOCATION_PROP_BYTEOFFSET),
+    JS_CGETSET_MAGIC_FLAGS_DEF(
+        "charOffset", js_location_get, js_location_set, LOCATION_PROP_CHAROFFSET, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF(
+        "byteOffset", js_location_get, js_location_set, LOCATION_PROP_BYTEOFFSET, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
-    JS_ALIAS_DEF("pos", "charOffset"),
     JS_CFUNC_MAGIC_DEF("equal", 1, js_location_methods, LOCATION_EQUAL),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),

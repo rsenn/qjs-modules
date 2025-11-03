@@ -53,8 +53,10 @@ typedef struct {
       uint8_t* data;
       size_t size;
       union {
-        //  size_t pos;
         OffsetLength range;
+        struct {
+          size_t start;
+        };
       };
     };
   };
@@ -67,6 +69,10 @@ typedef struct {
   Vector state_stack;
   uint64_t seq;
 } Lexer;
+
+#define LEXER_POS(l) ((l)->byte_offset)
+#define LEXER_DATA(l) ((l)->data)
+#define LEXER_PTR(l) ((l)->data + (l)->byte_offset)
 
 int lexer_state_findb(Lexer*, const char* state, size_t slen);
 int lexer_state_new(Lexer*, const char* name, size_t len);
