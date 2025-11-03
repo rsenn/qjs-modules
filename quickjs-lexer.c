@@ -1451,7 +1451,9 @@ js_lexer_fromfile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret = JS_NewObject(ctx);
+
+  js_set_tostringtag_value(ctx, ret, js_get_tostringtag_value(ctx, this_val));
 
   return ret;
 }
