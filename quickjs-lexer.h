@@ -15,7 +15,7 @@ JSValue js_token_new(JSContext*, JSValueConst, JSValueConst, JSValueConst);
 JSValue js_token_wrap(JSContext*, Token*);
 JSValue js_token_constructor(JSContext*, JSValueConst, int, JSValueConst[]);
 JSValue js_lexer_new(JSContext*, JSValueConst, JSValueConst, JSValueConst);
-JSValue js_lexer_wrap(JSContext*, Lexer*);
+JSValue js_lexer_wrap(JSContext*, JSValueConst, Lexer*);
 JSValue js_lexer_constructor(JSContext*, JSValueConst, int, JSValueConst[]);
 
 static inline Token*

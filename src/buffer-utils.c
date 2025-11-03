@@ -686,13 +686,22 @@ input_buffer_valid(const InputBuffer* in) {
   return !JS_IsException(in->value);
 }
 
+void
+input_buffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
+  input_buffer_free(dst, ctx);
+
+  dst->block = src->block;
+  dst->pos = src->pos;
+  dst->free = src->free;
+  dst->value = JS_DupValue(ctx, src->value);
+  dst->range = src->range;
+}
+
 InputBuffer
 input_buffer_clone(const InputBuffer* in, JSContext* ctx) {
-  InputBuffer ret = js_input_buffer(ctx, in->value);
+  InputBuffer ret = INPUT_BUFFER_INIT();
 
-  ret.pos = in->pos;
-  ret.size = in->size;
-  ret.free = in->free;
+  input_buffer_clone2(&ret, in, ctx);
 
   return ret;
 }
@@ -766,15 +775,20 @@ input_buffer_tostring_free(InputBuffer* in, JSContext* ctx) {
 static void
 input_buffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
   js_free_rt(rt, ptr);
+
+  if(opaque)
+    JS_FreeValueRT(rt, js_value_mkobj(opaque));
 }
 
 JSValue
 input_buffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
+  JSObject* obj = js_is_null_or_undefined(in->value) || !JS_IsObject(in->value) ? 0 : js_value_obj(in->value);
   JSValue ret =
-      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, input_buffer_free_pointer, 0, FALSE) : JS_UNDEFINED;
+      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, input_buffer_free_pointer, obj, FALSE) : JS_UNDEFINED;
 
   in->data = 0;
   in->size = 0;
+  in->value = JS_UNINITIALIZED;
 
   input_buffer_free(in, ctx);
   return ret;

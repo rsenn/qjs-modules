@@ -493,10 +493,10 @@ lexer_unescape_pred(const char* s, size_t* n) {
 }
 
 JSValue
-js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst arg) {
+js_lexer_new(JSContext* ctx, JSValueConst new_target, JSValueConst in, JSValueConst arg) {
   Lexer* lex;
   int32_t mode = 0;
-  JSValue obj = JS_UNDEFINED;
+  JSValue proto, obj = JS_UNDEFINED;
 
   if(!(lex = lexer_new(ctx)))
     return JS_EXCEPTION;
@@ -504,7 +504,13 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst a
   if(JS_IsNumber(arg))
     lex->mode = js_toint32(ctx, arg);
 
+  /* using new_target to get the prototype is necessary when the class is extended. */
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, lexer_proto);
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_lexer_class_id);
+  JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj))
     goto fail;
@@ -524,8 +530,16 @@ fail:
 }
 
 JSValue
-js_lexer_wrap(JSContext* ctx, Lexer* lex) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, lexer_proto, js_lexer_class_id);
+js_lexer_wrap(JSContext* ctx, JSValueConst new_target, Lexer* lex) {
+  JSValue proto, obj;
+
+  /* using new_target to get the prototype is necessary when the class is extended. */
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, lexer_proto);
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_lexer_class_id);
+  JS_FreeValue(ctx, proto);
 
   JS_SetOpaque(obj, lex);
   return obj;
@@ -580,17 +594,9 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 JSValue
 js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, ret;
   Lexer* lex;
   int64_t mask = MASK_ALL;
-
-  /* using new_target to get the prototype is necessary when the class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, lexer_proto);
-
-  ret = js_lexer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED, argc > 1 ? argv[1] : JS_UNDEFINED);
-  JS_FreeValue(ctx, proto);
+  JSValue ret = js_lexer_new(ctx, new_target, argc > 0 ? argv[0] : JS_UNDEFINED, argc > 1 ? argv[1] : JS_UNDEFINED);
 
   if((lex = JS_GetOpaque(ret, js_lexer_class_id))) {
     int i = 2;
@@ -941,7 +947,7 @@ enum {
   LEXER_STATES,
   LEXER_STATE_DEPTH,
   LEXER_STATE_STACK,
-  LEXER_SOURCE,
+  LEXER_INPUT,
   LEXER_LEXEME,
   LEXER_TOKEN,
 };
@@ -1079,8 +1085,8 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case LEXER_SOURCE: {
-      ret = JS_NewStringLen(ctx, (const char*)lex->data, lex->size);
+    case LEXER_INPUT: {
+      ret = block_toarraybuffer(&lex->input.block, ctx);
       break;
     }
 
@@ -1431,16 +1437,21 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_lexer_fromfile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret = JS_CallConstructor(ctx, this_val, argc, argv);
   Lexer* lex;
 
-  if((lex = lexer_new(ctx))) {
+  if((lex = js_lexer_data(ret))) {
     JSValueConst args[] = {JS_UNDEFINED, argv[0], argv[1]};
-
-    ret = js_lexer_wrap(ctx, lex);
 
     js_lexer_set_input(ctx, ret, countof(args), args);
   }
+
+  return ret;
+}
+
+static JSValue
+js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
 
   return ret;
 }
@@ -1477,7 +1488,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("states", js_lexer_get, 0, LEXER_STATES),
     JS_CGETSET_MAGIC_DEF("stateDepth", js_lexer_get, 0, LEXER_STATE_DEPTH),
     JS_CGETSET_MAGIC_DEF("stateStack", js_lexer_get, 0, LEXER_STATE_STACK),
-    JS_CGETSET_MAGIC_DEF("source", js_lexer_get, 0, LEXER_SOURCE),
+    JS_CGETSET_MAGIC_DEF("input", js_lexer_get, 0, LEXER_INPUT),
     JS_CGETSET_MAGIC_DEF("lexeme", js_lexer_get, 0, LEXER_LEXEME),
     JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_TOKEN),
     JS_CGETSET_MAGIC_DEF("fileName", js_lexer_get, js_lexer_set, LEXER_FILENAME),
@@ -1546,6 +1557,8 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, lexer_ctor, lexer_proto);
   JS_SetPropertyFunctionList(ctx, lexer_ctor, js_lexer_static_funcs, countof(js_lexer_static_funcs));
+
+  js_set_inspect_method(ctx, lexer_proto, js_lexer_inspect);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Token", token_ctor);

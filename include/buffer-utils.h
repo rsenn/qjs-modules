@@ -398,6 +398,7 @@ InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 
 BOOL input_buffer_valid(const InputBuffer*);
+void input_buffer_clone2(InputBuffer*, const InputBuffer*, JSContext*);
 InputBuffer input_buffer_clone(const InputBuffer*, JSContext*);
 void input_buffer_dump(const InputBuffer*, DynBuf*);
 void input_buffer_free(InputBuffer*, JSContext*);

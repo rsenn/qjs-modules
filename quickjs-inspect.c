@@ -56,6 +56,7 @@ typedef struct {
   unsigned reparseable : 1;
   int32_t depth;
   uint32_t max_array_length;
+  uint32_t max_buffer_length;
   uint32_t max_string_length;
   int32_t break_length;
   int32_t compact;
@@ -117,6 +118,7 @@ options_init(InspectOptions* opts, JSContext* ctx) {
   opts->reparseable = FALSE;
   opts->depth = INT32_MAX;
   opts->max_array_length = 300;
+  opts->max_buffer_length = 1024;
   opts->max_string_length = INT32_MAX;
   opts->break_length = screen_width();
   opts->compact = 5;
@@ -218,6 +220,17 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
     JS_FreeValue(ctx, value);
   }
 
+  value = JS_GetPropertyStr(ctx, object, "maxBufferLength");
+
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
+      opts->max_buffer_length = UINT32_MAX;
+    else
+      JS_ToUint32(ctx, &opts->max_buffer_length, value);
+
+    JS_FreeValue(ctx, value);
+  }
+
   value = JS_GetPropertyStr(ctx, object, "maxStringLength");
 
   if(!JS_IsUndefined(value) && !JS_IsException(value)) {
@@ -305,6 +318,7 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "reparseable", JS_NewBool(ctx, opts->reparseable));
   JS_SetPropertyStr(ctx, ret, "depth", js_number_new(ctx, opts->depth));
   JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_number_new(ctx, opts->max_array_length));
+  JS_SetPropertyStr(ctx, ret, "maxBufferLength", js_number_new(ctx, opts->max_buffer_length));
   JS_SetPropertyStr(ctx, ret, "maxStringLength", js_number_new(ctx, opts->max_string_length));
   JS_SetPropertyStr(ctx, ret, "breakLength", js_number_new(ctx, opts->break_length));
   JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
@@ -691,7 +705,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
         writer_write(wr, buf, fmt_xlong0(buf, ptr[i], 2));
         column += 4;
       }
-    } else if(i == (size_t)opts->max_array_length) {
+    } else if(i == (size_t)opts->max_buffer_length) {
       break;
     } else {
       writer_puts(wr, column ? " " : "");
