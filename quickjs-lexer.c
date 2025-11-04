@@ -318,7 +318,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       if((loc = tok->loc)) {
         PointerRange ol = token_byte_range(tok);
-        ret = offsetlength_toarray(ol, ctx);
+        IndexRange ir = range_toslice(&ol, ) ret = offsetlength_toarray(ol, ctx);
       }
 
       break;
