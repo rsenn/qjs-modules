@@ -328,7 +328,7 @@ range_str(PointerRange* pr) {
 }
 
 static inline BOOL
-range_is_default(PointerRange pr) {
+range_is_null(PointerRange pr) {
   return pr.start == 0 && pr.end == 0;
 }
 
