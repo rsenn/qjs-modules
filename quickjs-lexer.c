@@ -408,8 +408,10 @@ js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok;
 
   if((tok = js_token_data(val))) {
-    if(tok->opaque)
-      JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_OBJECT, tok->opaque));
+    if(tok->opaque) {
+      js_freeobj_rt(rt, tok->opaque);
+      tok->opaque = 0;
+    }
 
     token_free(tok, rt);
   }
@@ -422,9 +424,8 @@ static JSClassDef js_token_class = {
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("length", js_token_get, 0, TOKEN_CHARLENGTH),
-    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, 0, TOKEN_CHARLENGTH),
     JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, 0, TOKEN_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("charRange", js_token_get, 0, TOKEN_CHARRANGE),
+    JS_CGETSET_MAGIC_DEF("range", js_token_get, 0, TOKEN_CHARRANGE),
     JS_CGETSET_MAGIC_DEF("byteRange", js_token_get, 0, TOKEN_BYTERANGE),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, js_token_set, TOKEN_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, 0, TOKEN_ID),
