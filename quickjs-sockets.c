@@ -380,7 +380,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         dbuf.size = strlen((const char*)dbuf.buf);
         dbuf_putc(&dbuf, ':');
         dbuf_put(&dbuf, (const uint8_t*)port, fmt_ulong(port, sockaddr_port(a)));
-           ret = dbuf_tostring_free(&dbuf, ctx);
+        ret = dbuf_tostring_free(&dbuf, ctx);
       }
 
       break;
@@ -1803,7 +1803,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_RECVFROM: {
       int32_t flags = 0;
       InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      OffsetLength off = OFFSETLENGTH_INIT();
+      OffsetLength off = OFFSET_LENGTH_0();
 
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, 0, &off);
 

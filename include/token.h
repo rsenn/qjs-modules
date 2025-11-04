@@ -33,7 +33,7 @@ token_char_length(Token* tok) {
 
 /*static inline OffsetLength
 token_char_range(Token* tok) {
-  return OFFSETLENGTH(tok->loc ? tok->loc->char_offset : -1, token_char_length(tok));
+  return bOFFSET_LENGTH(tok->loc ? tok->loc->char_offset : -1, token_char_length(tok));
 }*/
 
 static inline PointerRange

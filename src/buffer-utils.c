@@ -880,7 +880,7 @@ inputbuffer_fromfile(const char* filename, JSContext* ctx) {
 
   block_fromfile(&in.block, filename, ctx);
 
-  in.range = OFFSETLENGTH_INIT();
+  in.range = OFFSET_LENGTH_0();
 
   return in;
 }

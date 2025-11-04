@@ -93,6 +93,8 @@ typedef struct {
 #define BLOCK_INIT_DATA(buf, len) \
   { (buf), (len) }
 
+#define MEMORY_BLOCK(buf, len) (MemoryBlock) BLOCK_INIT_DATA(buf, len)
+
 int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 int block_mmap(MemoryBlock*, const char*);
@@ -168,15 +170,11 @@ typedef struct OffsetLength {
   size_t offset, length;
 } OffsetLength;
 
-#define OFFSETLENGTH(o, l) \
-  (OffsetLength) { \
-    (o), (l) \
-  }
+#define OFFSET_LENGTH_DATA(o, l) \
+  { (o), (l) }
 
-#define OFFSETLENGTH_INIT() \
-  (OffsetLength) { \
-    0, SIZE_MAX \
-  }
+#define OFFSET_LENGTH_0() (OffsetLength) OFFSET_LENGTH_DATA(0, SIZE_MAX)
+#define OFFSET_LENGTH(o, l) (OffsetLength) OFFSET_LENGTH_DATA(o, l)
 
 #define offsetlength_in_range(ol, num) ((num) >= (ol).offset && (num) < ((ol).offset + (ol).length))
 
@@ -412,7 +410,7 @@ typedef struct InputBuffer {
 #define INPUTBUFFER_DATA(buf, len) INPUTBUFFER_DATA_FREE(buf, len, &inputbuffer_free_default)
 #define INPUTBUFFER_DATA_FREE(buf, len, fn) \
   (InputBuffer) { \
-    {BLOCK_INIT_DATA(buf, len)}, {OFFSETLENGTH_INIT()}, (fn), JS_UNDEFINED \
+    {BLOCK_INIT_DATA(buf, len)}, {OFFSET_LENGTH_0()}, (fn), JS_UNDEFINED \
   }
 
 static inline void
