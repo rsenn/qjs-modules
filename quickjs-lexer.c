@@ -63,16 +63,6 @@ unescape_pred(const char* s, size_t* n) {
   return 0;
 }
 
-static inline JSValue
-offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
-  JSValue ret = JS_NewArray(ctx);
-
-  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ol.offset));
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ol.length));
-
-  return ret;
-}
-
 static JSValue
 js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   JSValue ret, states;

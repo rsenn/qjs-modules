@@ -219,6 +219,14 @@ offsetlength_block(OffsetLength ol, MemoryBlock mb) {
   return block_range(mb, ol.offset, ol.length);
 }
 
+static inline JSValue
+offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
+  JSValue ret = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ol.offset));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ol.length));
+  return ret;
+}
+
 typedef struct IndexRange {
   int64_t start, end;
 } IndexRange;
