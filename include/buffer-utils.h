@@ -363,6 +363,11 @@ range_offset_length(PointerRange pr, OffsetLength ol) {
   return (PointerRange){base, base + offsetlength_size(ol, size)};
 }
 
+static inline MemoryBlock
+range_to_block(PointerRange pr) {
+  return (MemoryBlock){pr.start, range_size(pr)};
+}
+
 static inline IndexRange
 range_to_indexrange(PointerRange pr, const void* base) {
   const uint8_t* const ptr = base;

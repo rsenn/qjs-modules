@@ -310,27 +310,18 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_BYTERANGE: {
-      Location* loc;
+      const uint8_t* base = tok->lexeme - token_byte_pos(tok);
 
-      if((loc = tok->loc)) {
-        int64_t pos = token_byte_pos(tok);
-        // uint8_t* base = tok->lexeme - pos;
+      MemoryBlock mb = BLOCK_INIT_DATA(tok->lexeme, tok->byte_length);
 
-        ret = indexrange_toarray((IndexRange){pos, pos + tok->byte_length}, ctx);
-      }
-
+      ret = indexrange_toarray(range_to_indexrange(range_fromblock(mb), base), ctx);
       break;
     }
 
     case TOKEN_CHARRANGE: {
-      Location* loc;
+      const int64_t pos = token_char_pos(tok);
 
-      if((loc = tok->loc)) {
-        int64_t pos = token_char_pos(tok);
-
-        ret = indexrange_toarray((IndexRange){pos, pos + token_char_length(tok)}, ctx);
-      }
-
+      ret = indexrange_toarray((IndexRange){pos, pos + token_char_length(tok)}, ctx);
       break;
     }
 
