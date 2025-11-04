@@ -321,8 +321,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
         uint8_t* base = (const uint8_t*)pr.start - token_byte_pos(tok);
 
-        IndexRange ir = range_toslice(pr, base);
-        ret = indexrange_toarray(ir, ctx);
+        ret = indexrange_toarray(range_toslice(pr, base), ctx);
       }
 
       break;
