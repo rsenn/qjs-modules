@@ -708,6 +708,7 @@ enum {
   LEXER_POP_STATE,
   LEXER_TOP_STATE,
   LEXER_PEEK,
+  LEXER_PEEKTOKEN,
 };
 
 static JSValue
@@ -994,8 +995,22 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
-    case LEXER_PEEK: {
-      ret = JS_NewInt32(ctx, lexer_peek(lex, 0, ctx));
+    case LEXER_PEEK:
+    case LEXER_PEEKTOKEN: {
+      int32_t id = lexer_peek(lex, 0, ctx);
+
+      if(magic == LEXER_PEEKTOKEN) {
+        Token* tok;
+
+        if((tok = lexer_token(lex, id, ctx))) {
+          ret = js_token_wrap(ctx, token_ctor, tok);
+
+          tok->opaque = js_value_obj2(ctx, this_val);
+        }
+      } else {
+        ret = JS_NewInt32(ctx, id);
+      }
+
       break;
     }
   }
@@ -1554,6 +1569,7 @@ static JSClassDef js_lexer_class = {
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     // JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, YIELD_OBJ),
     JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, LEXER_PEEK),
+    JS_CFUNC_MAGIC_DEF("peekToken", 0, js_lexer_method, LEXER_PEEKTOKEN),
     JS_CFUNC_MAGIC_DEF("next", 0, js_lexer_nextfn, YIELD_ID),
     JS_CFUNC_MAGIC_DEF("nextToken", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, 0, LEXER_SIZE),
