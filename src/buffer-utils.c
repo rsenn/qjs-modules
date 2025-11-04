@@ -683,8 +683,8 @@ offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
 }
 
 int
-range_overlap(const PointerRange* a, const PointerRange* b) {
-  return range_in(a, b->start) || range_in(a, b->end);
+range_overlap(PointerRange a, PointerRange b) {
+  return range_in(a, b.start) || range_in(a, b.end);
 }
 
 PointerRange
@@ -727,7 +727,7 @@ range_write(PointerRange* r, const void* x, uintptr_t n) {
     if(!(r->start = realloc(r->start, a)))
       return -1;
 
-  byte_copy(range_begin(r) + len, n, x);
+  byte_copy(range_begin(*r) + len, n, x);
   r->end = r->start + len + n;
   *(char*)r->end = '\0';
 

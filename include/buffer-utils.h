@@ -338,7 +338,7 @@ typedef struct {
 
 #define RANGE_0() (PointerRange) RANGE_INIT(0, 0)
 
-int range_overlap(const PointerRange*, const PointerRange*);
+int range_overlap(PointerRange, PointerRange);
 PointerRange range_null(void);
 PointerRange range_from_buf(const void*, uintptr_t);
 PointerRange range_from_str(const char*);
@@ -348,17 +348,17 @@ int range_puts(PointerRange*, const void*);
 int range_append(PointerRange*, PointerRange);
 
 static inline char*
-range_begin(const PointerRange* pr) {
-  return (char*)pr->start;
+range_begin(PointerRange pr) {
+  return (char*)pr.start;
 }
 
 static inline char*
-range_end(const PointerRange* pr) {
-  return (char*)pr->end;
+range_end(PointerRange pr) {
+  return (char*)pr.end;
 }
 
 static inline char*
-range_str(PointerRange* pr) {
+range_str(PointerRange pr) {
   *range_end(pr) = '\0';
   return range_begin(pr);
 }
@@ -395,27 +395,27 @@ range_offset_length(PointerRange pr, OffsetLength ol) {
 
 static inline MemoryBlock
 range_to_block(PointerRange pr) {
-  return (MemoryBlock){(void*)range_begin(&pr), range_size(pr)};
+  return (MemoryBlock){(void*)range_begin(pr), range_size(pr)};
 }
 
 static inline IndexRange
 range_to_indexrange(PointerRange pr, const void* base) {
-  return (IndexRange){range_begin(&pr) - (char*)base, range_end(&pr) - (char*)base};
+  return (IndexRange){range_begin(pr) - (char*)base, range_end(pr) - (char*)base};
 }
 
 static inline OffsetLength
 range_to_offsetlength(PointerRange pr, const void* base) {
-  return (OffsetLength){range_begin(&pr) - (char*)base, range_size(pr)};
+  return (OffsetLength){range_begin(pr) - (char*)base, range_size(pr)};
 }
 
 static inline int
-range_in(const PointerRange* r, const void* ptr) {
+range_in(PointerRange r, const void* ptr) {
   return (char*)ptr >= range_begin(r) && (char*)ptr < range_end(r);
 }
 
 static inline int64_t
 range_index(PointerRange r, const void* ptr) {
-  return (char*)ptr - range_begin(&r);
+  return (char*)ptr - range_begin(r);
 }
 
 typedef struct InputBuffer {

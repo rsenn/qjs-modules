@@ -116,7 +116,7 @@ token_byte_pos(Token* tok) {
   if((tok->lexeme && (lex = token_lexer(tok)))) {
     PointerRange r = inputbuffer_range(&lex->input);
 
-    if(range_in(&r, tok->lexeme))
+    if(range_in(r, tok->lexeme))
       return range_index(r, tok->lexeme);
   }
 
