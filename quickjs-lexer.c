@@ -119,7 +119,7 @@ token_lexer(Token* tok) {
   return 0;
 }
 
-static inline int64_t
+static int64_t
 token_byte_pos(Token* tok) {
   Lexer* lex;
 
@@ -133,12 +133,13 @@ token_byte_pos(Token* tok) {
   return tok->loc ? tok->loc->byte_offset : -1;
 }
 
-static inline int64_t
+static int64_t
 token_char_pos(Token* tok) {
   Lexer* lex;
 
   if((tok->lexeme && (lex = token_lexer(tok)))) {
     uint8_t* data = LEXER_DATA(lex);
+
     if(tok->lexeme >= data)
       return utf8_strlen(data, tok->lexeme - data);
   }
