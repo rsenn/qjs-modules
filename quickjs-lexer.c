@@ -1215,20 +1215,12 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     }
 
     case LEXER_MODE: {
-      int32_t m;
+      int64_t m;
 
-      JS_ToInt32(ctx, &m, value);
+      JS_ToInt64Ext(ctx, &m, value);
       lex->mode = m;
       break;
     }
-      /*
-          case LEXER_SEQUENCE: {
-            uint64_t s;
-
-            JS_ToIndex(ctx, &s, value);
-            lex->seq = s;
-            break;
-          }*/
 
     case LEXER_STATE: {
       int32_t state = lexer_to_state(lex, value, ctx);
