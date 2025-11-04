@@ -704,7 +704,7 @@ range_fromstr(const char* s) {
 
 int
 range_resize(PointerRange* r, uintptr_t newlen) {
-  uintptr_t len = range_len(r);
+  uintptr_t len = range_size(*r);
 
   if(newlen > len) {
     uintptr_t res = alloc_len(len + 1);
@@ -720,7 +720,7 @@ range_resize(PointerRange* r, uintptr_t newlen) {
 
 int
 range_write(PointerRange* r, const void* x, uintptr_t n) {
-  ssize_t len = range_len(r);
+  ssize_t len = range_size(*r);
   ssize_t a = alloc_len(len + n + 1);
 
   if(!r->start || a != alloc_len(len + 1))
@@ -741,7 +741,7 @@ range_puts(PointerRange* r, const void* x) {
 
 int
 range_append(PointerRange* r, PointerRange other) {
-  return range_write(r, other.start, range_len(&other));
+  return range_write(r, other.start, range_size(other));
 }
 
 int

@@ -337,9 +337,9 @@ range_is_default(PointerRange pr) {
   return pr.start == 0 && pr.end == 0;
 }
 
-static inline intptr_t
+static inline size_t
 range_size(PointerRange pr) {
-  return pr.end - pr.start;
+  return (const char*)pr.end - (const char*)pr.start;
 }
 
 static inline PointerRange
@@ -369,14 +369,16 @@ range_toslice(PointerRange pr, const void* base) {
   return (IndexRange){(const uint8_t*)pr.start - ptr, (const uint8_t*)pr.end - ptr};
 }
 
+static inline OffsetLength
+range_to_offsetlength(PointerRange pr, const void* base) {
+  const uint8_t* const ptr = base;
+
+  return (OffsetLength){(const uint8_t*)pr.start - ptr, range_size(pr)};
+}
+
 static inline int
 range_in(const PointerRange* r, const void* ptr) {
   return (const uint8_t*)ptr >= (const uint8_t*)r->start && (const uint8_t*)ptr < (const uint8_t*)r->end;
-}
-
-static inline ssize_t
-range_len(const PointerRange* r) {
-  return r->end - r->start;
 }
 
 typedef struct InputBuffer {

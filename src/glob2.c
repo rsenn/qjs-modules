@@ -138,7 +138,7 @@ glob_brace2(PointerRange pat, struct glob_state* g) {
   if(range_append(&g->buf, pat))
     return -1;
 
-  uintptr_t rl = range_len(&out);
+  uintptr_t rl = range_size(out);
 
   /* Find the balanced brace */
   for(i = 0, right = ++y; right < y; right++)
@@ -330,7 +330,7 @@ glob_expand(PointerRange pat, struct glob_state* g) {
 
   dir = getdents_new();
 
-  if(getdents_open(dir, range_len(&g->buf) ? range_str(&g->buf) : "."))
+  if(getdents_open(dir, range_size(g->buf) ? range_str(&g->buf) : "."))
     return -1;
 
   while((ent = getdents_read(dir))) {
@@ -341,8 +341,8 @@ glob_expand(PointerRange pat, struct glob_state* g) {
 
     uintptr_t namelen = strlen(name);
 
-    if(path_fnmatch5(x, range_len(&pat), name, namelen, 0) != PATH_FNM_NOMATCH) {
-      uintptr_t sep, oldsize = range_len(&g->buf);
+    if(path_fnmatch5(x, range_size(pat), name, namelen, 0) != PATH_FNM_NOMATCH) {
+      uintptr_t sep, oldsize = range_size(g->buf);
 
       if(range_write(&g->buf, name, namelen))
         return -1;
@@ -352,7 +352,7 @@ glob_expand(PointerRange pat, struct glob_state* g) {
           return -1;
 
       // if(y == range_begin(&g->pat).end) printf("result: '%.*s' x: '%.*s'\n",
-      // (int)range_len(&g->buf), range_begin(&g->buf), (int)range_len(&pat), x);
+      // (int)range_size(g->buf), range_begin(&g->buf), (int)range_size(pat), x);
 
       PointerRange rest = range_fromstr(y + sep);
       glob_components(rest, g);
