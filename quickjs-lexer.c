@@ -68,7 +68,7 @@ offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
 
   JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ol.offset));
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ol.offset + ol.length));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ol.length));
 
   return ret;
 }
@@ -333,7 +333,8 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       if((loc = tok->loc)) {
         OffsetLength ol = {token_char_pos(tok), token_char_length(tok)};
-        ret = offsetlength_toarray(ol, ctx);
+
+        ret = indexrange_toarray(indexrange_from_offset(ol), ctx);
       }
 
       break;
