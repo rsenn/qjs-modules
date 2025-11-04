@@ -327,11 +327,9 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        int64_t pos = token_char_pos(tok);
-        int64_t len = token_char_length(tok);
+        int64_t pos = token_char_pos(tok), len = token_char_length(tok);
 
-        IndexRange ir = {pos, pos + len};
-        ret = indexrange_toarray(ir, ctx);
+        ret = indexrange_toarray((IndexRange){pos, pos + len}, ctx);
       }
 
       break;
