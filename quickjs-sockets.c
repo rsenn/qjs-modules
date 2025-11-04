@@ -1826,7 +1826,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_SOCKETCALL(SYSCALL_RECVFROM,
                       s,
                       recvfrom(socket_handle(*s),
-                               offsetlength_data(off, buf.data),
+                               offsetlength_begin(off, buf.data),
                                offsetlength_size(off, buf.size),
                                flags,
                                a ? &a->s : NULL,
@@ -1835,7 +1835,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_SOCKETCALL(
             SYSCALL_RECV,
             s,
-            recv(socket_handle(*s), offsetlength_data(off, buf.data), offsetlength_size(off, buf.size), flags));
+            recv(socket_handle(*s), offsetlength_begin(off, buf.data), offsetlength_size(off, buf.size), flags));
       }
 
       break;
@@ -1852,7 +1852,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
 
-      void* ptr = offsetlength_data(off, buf.data);
+      void* ptr = offsetlength_begin(off, buf.data);
       size_t len = offsetlength_size(off, buf.size);
 
       if(magic == METHOD_SENDTO) {

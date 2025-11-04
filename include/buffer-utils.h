@@ -382,10 +382,7 @@ range_from_block(MemoryBlock mb) {
 
 static inline PointerRange
 range_offset_length(PointerRange pr, OffsetLength ol) {
-  size_t size = range_size(pr);
-  uint8_t* base = pr.start + offsetlength_offset(ol, size);
-
-  return (PointerRange){base, base + offsetlength_size(ol, size)};
+  return (PointerRange){offsetlength_begin(ol, pr.start), offsetlength_end(ol, pr.start)};
 }
 
 static inline MemoryBlock

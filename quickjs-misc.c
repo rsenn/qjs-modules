@@ -753,7 +753,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     js_offset_length(ctx, len, argc - 1, argv + 1, 0, &ol);
 
     return JS_NewArrayBuffer(ctx,
-                             offsetlength_data(ol, data),
+                             offsetlength_begin(ol, data),
                              offsetlength_size(ol, len),
                              js_arraybuffer_free_object,
                              js_value_obj2(ctx, argv[0]),
@@ -899,7 +899,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   src.size = MIN_NUM(src.size, d_offs.length);*/
 
   if((n = MIN_NUM(offsetlength_size(d_offs, block_length(&dst)), offsetlength_size(s_offs, block_length(&src)))))
-    memcpy(offsetlength_data(d_offs, block_data(&dst)), offsetlength_data(s_offs, block_data(&src)), n);
+    memcpy(offsetlength_begin(d_offs, block_data(&dst)), offsetlength_begin(s_offs, block_data(&src)), n);
 
   return JS_NewInt64(ctx, n);
 }
@@ -924,7 +924,8 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   i += js_offset_length(ctx, s2.size, argc - i, argv + i, 0, &o2);
 
   if((n = MIN_NUM(offsetlength_size(o1, block_length(&s1)), offsetlength_size(o2, block_length(&s2)))))
-    return JS_NewInt32(ctx, memcmp(offsetlength_data(o1, block_data(&s1)), offsetlength_data(o2, block_data(&s2)), n));
+    return JS_NewInt32(ctx,
+                       memcmp(offsetlength_begin(o1, block_data(&s1)), offsetlength_begin(o2, block_data(&s2)), n));
 
   return JS_NULL;
 }
