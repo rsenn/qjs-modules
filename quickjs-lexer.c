@@ -185,7 +185,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     if(id == -1 && JS_IsNumber(argv[index])) {
       id = tok->id = js_toint32(ctx, argv[index]);
     } else if(!lex && (lex = js_lexer_data(argv[index]))) {
-      tok->opaque = JS_VALUE_GET_PTR(argv[index]);
+      tok->opaque = js_value_obj2(ctx, argv[index]);
     } else if(!loc && (loc = js_location_data(argv[index]))) {
       if(tok->loc) {
         location_free(tok->loc, JS_GetRuntime(ctx));
@@ -388,7 +388,15 @@ js_token_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
 static JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_NewObject(ctx);
+  Token* tok;
+
+  if(!(tok = js_token_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  JSValue str = tok->lexeme ? JS_NewStringLen(ctx, tok->lexeme, tok->byte_length) : JS_UNDEFINED;
+  JSValue ret = js_global_new(ctx, "String", 1, &str);
+
+  JS_FreeValue(ctx, str);
 
   js_set_tostringtag_value(ctx, ret, js_get_tostringtag_value(ctx, this_val));
 
@@ -425,7 +433,6 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("lexer", js_token_get, 0, TOKEN_LEXER),
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, 0, TOKEN_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, 0, TOKEN_LEXEME),
-    JS_CGETSET_MAGIC_DEF("value", js_token_get, 0, TOKEN_LEXEME),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_token_toprimitive),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
@@ -1418,7 +1425,7 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if((tok = lexer_token(lex, id, ctx))) {
         ret = js_token_wrap(ctx, token_ctor, tok);
 
-        tok->opaque = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
+        tok->opaque = js_value_obj2(ctx, this_val);
       }
     } else {
       ret = JS_NewInt32(ctx, id);

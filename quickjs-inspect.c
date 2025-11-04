@@ -1025,8 +1025,6 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
-  JSObject* obj = JS_VALUE_GET_OBJ(value);
-
   JSValue val = JS_DupValue(ctx, value), proto;
 
   for(proto = JS_DupValue(ctx, val);; proto = JS_GetPrototype(ctx, val)) {
