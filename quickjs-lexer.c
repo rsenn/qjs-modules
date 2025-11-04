@@ -318,9 +318,10 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case TOKEN_CHARPOS: {
       Lexer* lex;
 
-      if(tok->loc)
+      /*if(tok->loc)
         ret = JS_NewInt64(ctx, tok->loc->char_offset);
-      else if(tok->lexeme && (lex = token_lexer(tok))) {
+      else*/
+      if(tok->lexeme && (lex = token_lexer(tok))) {
         ptrdiff_t n = tok->lexeme - LEXER_DATA(lex);
         if(n > 0)
           ret = JS_NewInt64(ctx, utf8_strlen(LEXER_DATA(lex), n));
