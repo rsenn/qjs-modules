@@ -1,4 +1,5 @@
 #!/usr/bin/env qjsm
+/* äöü */
 import { renameSync, unlinkSync, closeSync, openSync, readFileSync, sizeSync, statSync, writeSync } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
