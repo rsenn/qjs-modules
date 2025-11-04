@@ -42,8 +42,22 @@ LOCATION_API Location* location_new(JSContext*);
 LOCATION_API Location* location_dup(Location*);
 LOCATION_API void location_set_file(Location*, int32_t, JSContext*);
 LOCATION_API void location_set_byteoffset(Location*, const void*, size_t);
-LOCATION_API void location_set_charoffset(Location*, const void*,size_t, size_t);
+LOCATION_API void location_set_charoffset(Location*, const void*, size_t, size_t);
 LOCATION_API void* location_pointer(const Location*, const void*);
+
+static inline int64_t
+location_byteoffset(const Location* loc) {
+  if(loc)
+    return loc->byte_offset;
+  return -1;
+}
+
+static inline int64_t
+location_charoffset(const Location* loc) {
+  if(loc)
+    return loc->char_offset;
+  return -1;
+}
 
 /**
  * @}

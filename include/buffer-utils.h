@@ -299,12 +299,12 @@ range_init(PointerRange* pr) {
 }
 
 static inline char*
-range_begin(PointerRange* pr) {
+range_begin(const PointerRange* pr) {
   return (char*)pr->start;
 }
 
 static inline char*
-range_end(PointerRange* pr) {
+range_end(const PointerRange* pr) {
   return (char*)pr->end;
 }
 
@@ -345,9 +345,15 @@ range_offset_length(PointerRange pr, OffsetLength ol) {
   return (PointerRange){base, base + offsetlength_size(ol, size)};
 }
 
+static inline IndexRange
+range_toslice(PointerRange pr, const void* base) {
+  const uint8_t* const ptr = base;
+  return (IndexRange){(const uint8_t*)pr.start - ptr, (const uint8_t*)pr.end - ptr};
+}
+
 static inline int
 range_in(const PointerRange* r, const void* ptr) {
-  return (const uint8_t*)ptr >= (const uint8_t*)r->start && (const uint8_t*)ptr <= (const uint8_t*)r->end;
+  return (const uint8_t*)ptr >= (const uint8_t*)r->start && (const uint8_t*)ptr < (const uint8_t*)r->end;
 }
 
 static inline ssize_t

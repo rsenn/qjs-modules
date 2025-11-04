@@ -36,9 +36,9 @@ token_char_range(Token* tok) {
   return (OffsetLength){tok->loc ? tok->loc->char_offset : -1, token_char_length(tok)};
 }
 
-static inline OffsetLength
+static inline PointerRange
 token_byte_range(Token* tok) {
-  return (OffsetLength){tok->loc ? tok->loc->byte_offset : -1, tok->byte_length};
+  return (PointerRange){tok->lexeme, tok->lexeme + tok->byte_length};
 }
 
 static inline Token*

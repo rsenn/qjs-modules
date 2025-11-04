@@ -124,13 +124,13 @@ token_byte_pos(Token* tok) {
   Lexer* lex;
 
   if((tok->lexeme && (lex = token_lexer(tok)))) {
-    uint8_t* data = LEXER_DATA(lex);
+    PointerRange r = inputbuffer_range(&lex->input);
 
-    if(tok->lexeme >= data)
-      return tok->lexeme - data;
+    if(range_in(&r, tok->lexeme))
+      return (char*)tok->lexeme - range_begin(&r);
   }
 
-  return tok->loc ? tok->loc->byte_offset : -1;
+  return location_byteoffset(tok->loc);
 }
 
 static int64_t
@@ -138,13 +138,13 @@ token_char_pos(Token* tok) {
   Lexer* lex;
 
   if((tok->lexeme && (lex = token_lexer(tok)))) {
-    uint8_t* data = LEXER_DATA(lex);
+    PointerRange r = inputbuffer_range(&lex->input);
 
-    if(tok->lexeme >= data)
-      return utf8_strlen(data, tok->lexeme - data);
+    if(range_in(&r, tok->lexeme))
+      return utf8_strlen(r.start, (char*)tok->lexeme - (char*)r.start);
   }
 
-  return tok->loc ? tok->loc->char_offset : -1;
+  return location_charoffset(tok->loc);
 }
 
 JSValue
@@ -317,7 +317,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        OffsetLength ol = {token_byte_pos(tok), tok->byte_length};
+        PointerRange ol = token_byte_range(tok);
         ret = offsetlength_toarray(ol, ctx);
       }
 
