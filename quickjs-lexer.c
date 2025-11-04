@@ -133,6 +133,23 @@ token_char_pos(Token* tok) {
   return location_charoffset(tok->loc);
 }
 
+static void*
+token_buf(Token* tok) {
+  if(tok->lexeme) {
+    int64_t pos;
+
+    if((pos = token_byte_pos(tok)) >= 0)
+      return tok->lexeme - pos;
+  }
+
+  return 0;
+}
+
+static IndexRange
+token_index_range(Token* tok) {
+  return range_to_indexrange(token_byte_range(tok), token_buf(tok));
+}
+
 JSValue
 js_token_new(JSContext* ctx, JSValueConst new_target) {
   Token* tok;
@@ -300,11 +317,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_BYTERANGE: {
-      const uint8_t* base = tok->lexeme - token_byte_pos(tok);
-
-      PointerRange pr = token_byte_range(tok); // range_from_block(block_new(tok->lexeme, tok->byte_length));
-
-      ret = indexrange_toarray(range_to_indexrange(pr, base), ctx);
+      ret = indexrange_toarray(token_index_range(tok), ctx);
       break;
     }
 
