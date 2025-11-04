@@ -290,15 +290,12 @@ typedef struct {
   void *start, *end;
 } PointerRange;
 
-#define RANGE(s, e) \
-  (PointerRange) { \
-    (s), (e) \
-  }
+#define RANGE_INIT(s, e) \
+  { (s), (e) }
 
-#define RANGE_0() \
-  (PointerRange) { \
-    0, 0 \
-  }
+#define RANGE(s, e) (PointerRange) RANGE_INIT(s, e)
+
+#define RANGE_0() (PointerRange) RANGE_INIT(0, 0)
 
 int range_overlap(const PointerRange*, const PointerRange*);
 PointerRange range_null(void);
