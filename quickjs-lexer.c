@@ -1435,7 +1435,6 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   if(JS_IsNumber(result)) {
     int32_t id;
-
     JS_ToInt32(ctx, &id, result);
 
     if(magic & YIELD_OBJ) {
@@ -1595,8 +1594,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_DEF("tokens", js_lexer_tokens, 0),
     JS_CGETSET_DEF("states", js_lexer_states, 0),
     JS_CGETSET_DEF("stateStack", js_lexer_statestack, 0),
-    JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_lexer_iterator, YIELD_ID | YIELD_DONE_VALUE),
-    JS_CFUNC_MAGIC_DEF("values", 0, js_lexer_iterator, YIELD_OBJ | YIELD_DONE_VALUE),
+    JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_lexer_iterator, YIELD_OBJ | YIELD_DONE_VALUE),
+    // JS_CFUNC_MAGIC_DEF("values", 0, js_lexer_iterator, YIELD_OBJ | YIELD_DONE_VALUE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_CONFIGURABLE),
 };
 
