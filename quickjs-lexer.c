@@ -205,7 +205,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
       }
       tok->loc = location_dup(loc);
 
-    } else if((r = inputbuffer_fromargv(&in, argc - index, argv + index, ctx)) > 0) {
+    } else if((r = inputbuffer_from_argv(&in, argc - index, argv + index, ctx)) > 0) {
 
       index += r;
       continue;
@@ -312,7 +312,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case TOKEN_BYTERANGE: {
       const uint8_t* base = tok->lexeme - token_byte_pos(tok);
 
-      PointerRange pr = range_fromblock(MEMORY_BLOCK(tok->lexeme, tok->byte_length));
+      PointerRange pr = range_from_block(MEMORY_BLOCK(tok->lexeme, tok->byte_length));
 
       ret = indexrange_toarray(range_to_indexrange(pr, base), ctx);
       break;
@@ -761,7 +761,7 @@ js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     location_copy(&lex->loc, &other->loc, ctx);
   } else if(argc > 1 && js_is_null_or_undefined(argv[0])) {
     const char* file = JS_ToCString(ctx, argv[1]);
-    lex->input = inputbuffer_fromfile(file, ctx);
+    lex->input = inputbuffer_from_file(file, ctx);
     JS_FreeCString(ctx, file);
   } else {
     lex->input = js_input_chars(ctx, argv[0]);

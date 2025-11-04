@@ -581,7 +581,7 @@ block_munmap(MemoryBlock* mb) {
 }
 
 int
-block_fromfile(MemoryBlock* mb, const char* filename, JSContext* ctx) {
+block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
   int fd;
   void* ptr;
   struct stat st;
@@ -693,13 +693,13 @@ range_null() {
 }
 
 PointerRange
-range_frombuf(const void* x, uintptr_t n) {
+range_from_buf(const void* x, uintptr_t n) {
   return (PointerRange){(char*)x, (char*)x + n};
 }
 
 PointerRange
-range_fromstr(const char* s) {
-  return range_frombuf(s, strlen(s));
+range_from_str(const char* s) {
+  return range_from_buf(s, strlen(s));
 }
 
 int
@@ -745,7 +745,7 @@ range_append(PointerRange* r, PointerRange other) {
 }
 
 int
-inputbuffer_fromargv(InputBuffer* in, int argc, JSValueConst argv[], JSContext* ctx) {
+inputbuffer_from_argv(InputBuffer* in, int argc, JSValueConst argv[], JSContext* ctx) {
   int ret = 0;
 
   if(argc > 0) {
@@ -875,10 +875,10 @@ inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
 }
 
 InputBuffer
-inputbuffer_fromfile(const char* filename, JSContext* ctx) {
+inputbuffer_from_file(const char* filename, JSContext* ctx) {
   InputBuffer in = {0};
 
-  block_fromfile(&in.block, filename, ctx);
+  block_from_file(&in.block, filename, ctx);
 
   in.range = OFFSET_LENGTH_0();
 

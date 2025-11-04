@@ -99,7 +99,7 @@ int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 int block_mmap(MemoryBlock*, const char*);
 void block_munmap(MemoryBlock*);
-int block_fromfile(MemoryBlock*, const char*, JSContext*);
+int block_from_file(MemoryBlock*, const char*, JSContext*);
 
 static inline void
 block_init(MemoryBlock* mb) {
@@ -278,6 +278,11 @@ indexrange_block(IndexRange ir, MemoryBlock b) {
   };
 }
 
+static inline OffsetLength
+indexrange_to_offsetlength(IndexRange ir, size_t n) {
+  return (OffsetLength){indexrange_start(ir, n), indexrange_size(ir, n)};
+}
+
 static inline JSValue
 indexrange_toarray(IndexRange ir, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
@@ -299,8 +304,8 @@ typedef struct {
 
 int range_overlap(const PointerRange*, const PointerRange*);
 PointerRange range_null(void);
-PointerRange range_frombuf(const void*, uintptr_t);
-PointerRange range_fromstr(const char*);
+PointerRange range_from_buf(const void*, uintptr_t);
+PointerRange range_from_str(const char*);
 int range_resize(PointerRange*, uintptr_t);
 int range_write(PointerRange*, const void*, uintptr_t);
 int range_puts(PointerRange*, const void*);
@@ -338,7 +343,7 @@ range_size(PointerRange pr) {
 }
 
 static inline PointerRange
-range_fromindex(IndexRange ir, const void* base, size_t n) {
+range_from_indexrange(IndexRange ir, const void* base, size_t n) {
   uint8_t* data = indexrange_data(ir, base, n);
   size_t size = indexrange_size(ir, n);
 
@@ -346,7 +351,7 @@ range_fromindex(IndexRange ir, const void* base, size_t n) {
 }
 
 static inline PointerRange
-range_fromblock(MemoryBlock mb) {
+range_from_block(MemoryBlock mb) {
   return (PointerRange){mb.base, mb.base + mb.size};
 }
 
@@ -424,7 +429,7 @@ InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 
-int inputbuffer_fromargv(InputBuffer*, int, JSValueConst[], JSContext*);
+int inputbuffer_from_argv(InputBuffer*, int, JSValueConst[], JSContext*);
 BOOL inputbuffer_valid(const InputBuffer*);
 void inputbuffer_clone2(InputBuffer*, const InputBuffer*, JSContext*);
 InputBuffer inputbuffer_clone(const InputBuffer*, JSContext*);
@@ -436,7 +441,7 @@ const char* inputbuffer_currentline(InputBuffer*, size_t*);
 size_t inputbuffer_column(InputBuffer*, size_t*);
 JSValue inputbuffer_tostring_free(InputBuffer*, JSContext*);
 JSValue inputbuffer_toarraybuffer_free(InputBuffer*, JSContext*);
-InputBuffer inputbuffer_fromfile(const char*, JSContext*);
+InputBuffer inputbuffer_from_file(const char*, JSContext*);
 
 static inline void*
 inputbuffer_data(const InputBuffer* in) {

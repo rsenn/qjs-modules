@@ -53,7 +53,7 @@ static int glob_brace2(PointerRange, struct glob_state*);
 
 int
 my_glob(const char* pattern, struct glob_state* g) {
-  g->pat = range_fromstr(pattern);
+  g->pat = range_from_str(pattern);
   g->buf = range_null();
 
   char *x = range_begin(&g->pat), *y = range_end(&g->pat);
@@ -354,7 +354,7 @@ glob_expand(PointerRange pat, struct glob_state* g) {
       // if(y == range_begin(&g->pat).end) printf("result: '%.*s' x: '%.*s'\n",
       // (int)range_size(g->buf), range_begin(&g->buf), (int)range_size(pat), x);
 
-      PointerRange rest = range_fromstr(y + sep);
+      PointerRange rest = range_from_str(y + sep);
       glob_components(rest, g);
 
       range_resize(&g->buf, oldsize);
