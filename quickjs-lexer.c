@@ -399,8 +399,12 @@ static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok;
 
-  if((tok = js_token_data(val)))
+  if((tok = js_token_data(val))) {
+    if(tok->opaque)
+      JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_OBJECT, tok->opaque));
+
     token_free(tok, rt);
+  }
 }
 
 static JSClassDef js_token_class = {
@@ -1411,10 +1415,11 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(magic & YIELD_OBJ) {
       Token* tok;
 
-      if((tok = lexer_token(lex, id, ctx)))
+      if((tok = lexer_token(lex, id, ctx))) {
         ret = js_token_wrap(ctx, token_ctor, tok);
 
-      // ret = js_token_new(ctx, token_ctor);
+        tok->opaque = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
+      }
     } else {
       ret = JS_NewInt32(ctx, id);
     }

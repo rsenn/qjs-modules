@@ -1099,16 +1099,16 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   }
 
   if(!is_function) {
-    BOOL is_default_obj = js_global_instanceof(ctx, value, "Object");
-    BOOL has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom);
+    BOOL has_class_key;
 
-    if(has_class_key || is_default_obj) {
+    if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) ||
+                     js_global_instanceof(ctx, value, "Object"))) {
       char* tag = 0;
 
-      if(is_default_obj)
-        tag = js_strdup(ctx, "Object");
-      else if(has_class_key)
+      if(has_class_key)
         tag = js_get_property_string(ctx, value, opts->class_key.atom);
+      else
+        tag = js_strdup(ctx, "Object");
 
       if(tag) {
         writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
