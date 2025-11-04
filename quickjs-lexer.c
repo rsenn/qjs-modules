@@ -147,7 +147,13 @@ token_buf(Token* tok) {
 
 static IndexRange
 token_byte_indexrange(Token* tok) {
-  return range_to_indexrange(token_byte_range(tok), token_buf(tok));
+  return indexrange_from_offsetlength((OffsetLength){token_byte_pos(tok), tok->byte_length});
+  // return range_to_indexrange(token_byte_range(tok), token_buf(tok));
+}
+
+static IndexRange
+token_char_indexrange(Token* tok) {
+  return indexrange_from_offsetlength((OffsetLength){token_char_pos(tok), token_char_length(tok)});
 }
 
 JSValue
