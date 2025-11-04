@@ -252,9 +252,11 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
 enum {
   TOKEN_BYTELENGTH = 0,
-  TOKEN_LENGTH,
+  TOKEN_CHARLENGTH,
   TOKEN_BYTERANGE,
-  TOKEN_RANGE,
+  TOKEN_CHARRANGE,
+  TOKEN_BYTEPOS,
+  TOKEN_CHARPOS,
   TOKEN_LEXEME,
   TOKEN_LOC,
   TOKEN_ID,
@@ -278,7 +280,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case TOKEN_LENGTH: {
+    case TOKEN_CHARLENGTH: {
       ret = JS_NewInt64(ctx, tok->char_length);
       break;
     }
@@ -292,12 +294,30 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case TOKEN_RANGE: {
+    case TOKEN_CHARRANGE: {
       Location* loc;
 
       if((loc = tok->loc))
         ret = offsetlength_toarray(token_char_range(tok), ctx);
 
+      break;
+    }
+
+    case TOKEN_BYTEPOS: {
+      Lexer* lex;
+
+      /*if(tok->loc)
+        ret = JS_NewInt64(ctx, tok->loc->byte_offset);
+      else*/
+      if(tok->lexeme && (lex = token_lexer(tok))) {
+        ret = JS_NewInt64(ctx, tok->lexeme - LEXER_DATA(lex));
+      }
+      break;
+    }
+
+    case TOKEN_CHARPOS: {
+      if(tok->loc)
+        ret = JS_NewInt64(ctx, tok->loc->char_offset);
       break;
     }
 
@@ -411,10 +431,12 @@ static JSClassDef js_token_class = {
 };
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("length", js_token_get, 0, TOKEN_LENGTH),
+    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, 0, TOKEN_CHARLENGTH),
     JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, 0, TOKEN_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("range", js_token_get, 0, TOKEN_RANGE),
+    JS_CGETSET_MAGIC_DEF("charRange", js_token_get, 0, TOKEN_CHARRANGE),
     JS_CGETSET_MAGIC_DEF("byteRange", js_token_get, 0, TOKEN_BYTERANGE),
+    JS_CGETSET_MAGIC_DEF("charPos", js_token_get, 0, TOKEN_CHARPOS),
+    JS_CGETSET_MAGIC_DEF("bytePos", js_token_get, 0, TOKEN_BYTEPOS),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, js_token_set, TOKEN_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, 0, TOKEN_ID),
     JS_CGETSET_MAGIC_FLAGS_DEF("seq", js_token_get, 0, TOKEN_SEQ, JS_PROP_CONFIGURABLE),
@@ -1580,14 +1602,14 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("next", 0, js_lexer_nextfn, YIELD_ID),
     JS_CFUNC_MAGIC_DEF("nextToken", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, 0, LEXER_SIZE),
-    JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_POSITION),
+    JS_CGETSET_MAGIC_DEF("charPos", js_lexer_get, js_lexer_set, LEXER_POSITION),
     JS_CGETSET_MAGIC_DEF("bytePos", js_lexer_get, 0, LEXER_BYTEPOSITION),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_LOCATION),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_ENDOFFILE),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_MODE),
     JS_CGETSET_MAGIC_DEF("seq", js_lexer_get, 0, LEXER_SEQUENCE),
     JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, LEXER_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("length", js_lexer_get, 0, LEXER_LENGTH),
+    JS_CGETSET_MAGIC_DEF("charLength", js_lexer_get, 0, LEXER_LENGTH),
     JS_CGETSET_MAGIC_DEF("state", js_lexer_get, js_lexer_set, LEXER_STATE),
     JS_CGETSET_MAGIC_DEF("states", js_lexer_get, 0, LEXER_STATES),
     JS_CGETSET_MAGIC_DEF("stateDepth", js_lexer_get, 0, LEXER_STATE_DEPTH),
