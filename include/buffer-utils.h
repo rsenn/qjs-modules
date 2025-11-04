@@ -492,8 +492,7 @@ inputbuffer_end(const InputBuffer* in) {
 
 static inline PointerRange
 inputbuffer_range(const InputBuffer* in) {
-  uint8_t* data = inputbuffer_data(in);
-  return (PointerRange){data, data + inputbuffer_length(in)};
+  return (PointerRange){inputbuffer_begin(in), inputbuffer_end(in)};
 }
 
 static inline MemoryBlock
