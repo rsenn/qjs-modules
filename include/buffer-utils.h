@@ -177,6 +177,7 @@ typedef struct OffsetLength {
 
 int offsetlength_from_argv(OffsetLength*, int64_t, int, JSValueConst[], JSContext*);
 OffsetLength offsetlength_char2byte(const OffsetLength src, const void* buf, size_t len);
+OffsetLength offsetlength_byte2char(const OffsetLength src, const void* buf, size_t len);
 JSValue offsetlength_typedarray(OffsetLength*, JSValueConst, JSContext*);
 
 static inline void

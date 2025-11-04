@@ -642,12 +642,28 @@ OffsetLength
 offsetlength_char2byte(OffsetLength src, const void* x, size_t len) {
   OffsetLength dst;
   const uint8_t* buf = x;
-  dst.offset = src.offset > 0 ? len > 0 ? utf8_countchars3(buf, len, src.offset) : 0 : src.offset;
+  dst.offset = src.offset > 0 ? len > 0 ? utf8_byteoffset(buf, len, src.offset) : 0 : src.offset;
 
   buf += dst.offset;
   len -= dst.offset;
 
-  dst.length = src.length > 0 ? len > 0 ? utf8_countchars3(buf, len, src.length) : 0 : src.length;
+  dst.length = src.length > 0 ? len > 0 ? utf8_byteoffset(buf, len, src.length) : 0 : src.length;
+  return dst;
+}
+
+OffsetLength
+offsetlength_byte2char(OffsetLength src, const void* x, size_t len) {
+  OffsetLength dst;
+  const uint8_t* buf = x;
+
+  dst.offset = src.offset > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, src.offset)) : 0 : src.offset;
+
+  if(dst.offset > 0) {
+    buf += dst.offset;
+    len -= dst.offset;
+  }
+
+  dst.length = src.length > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, src.length)) : 0 : src.length;
   return dst;
 }
 

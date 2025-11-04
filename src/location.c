@@ -205,8 +205,9 @@ location_set_byteoffset(Location* loc, const void* str, size_t ofs) {
 }
 
 void
-location_set_charoffset(Location* loc, const void* str, size_t ofs) {
-  location_set_byteoffset(loc, str, utf8_countchars2(str, ofs));
+location_set_charoffset(Location* loc, const void* buf, size_t len, size_t ofs) {
+  loc->char_offset = ofs;
+  loc->byte_offset = utf8_byteoffset(buf, len, ofs);
 }
 
 void*

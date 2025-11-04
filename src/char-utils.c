@@ -495,34 +495,33 @@ scan_eolskip(const char* s, size_t limit) {
 
 size_t
 utf8_strlen(const void* in, size_t len) {
-  uint8_t* next;
+  const uint8_t* next;
   size_t i = 0;
 
-  for(uint8_t *pos = (void*)in, *end = (void*)in + len; pos < end; pos = next, ++i)
-    unicode_from_utf8(pos, end - pos, (const uint8_t**)&next);
+  for(const uint8_t *pos = in, *end = in + len; pos < end; pos = next, ++i)
+    unicode_from_utf8(pos, end - pos, &next);
 
   return i;
 }
 
 size_t
-utf8_countchars2(const void* in, size_t chars) {
-  uint8_t *pos, *next;
-  size_t i = 0;
+utf8_byteoffset(const void* in, size_t len, size_t pos) {
+  const uint8_t *x = in, *y = (const uint8_t*)in + len, *next;
 
-  for(pos = (void*)in; *pos && i < chars; pos = next, ++i)
-    unicode_from_utf8(pos, 6, (const uint8_t**)&next);
+  if(len == 0)
+    return 0;
+  if(pos == 0)
+    return 0;
 
-  return pos - (uint8_t*)in;
-}
+  for(size_t i = 0; x < y; x = next, ++i) {
+    if(i == pos)
+      return x - (const uint8_t*)in;
 
-size_t
-utf8_countchars3(const void* in, size_t len, size_t chars) {
-  uint8_t *pos = (void*)in, *end = (uint8_t*)in + len, *next;
+    size_t n = y - x;
+    unicode_from_utf8(x, MIN_NUM(n, 6), &next);
+  }
 
-  for(size_t i = 0; i < chars && pos < end; pos = next, ++i)
-    unicode_from_utf8(pos, MIN_NUM((end - pos), 6), (const uint8_t**)&next);
-
-  return pos - (uint8_t*)in;
+  return x - (const uint8_t*)in;
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)

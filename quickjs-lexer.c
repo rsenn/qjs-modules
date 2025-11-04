@@ -217,7 +217,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   if(char_offset != -1)
     if(loc && lex) {
-      loc->byte_offset = utf8_countchars3(lex->data, lex->size, char_offset);
+      loc->byte_offset = utf8_byteoffset(lex->data, lex->size, char_offset);
       loc->char_offset = char_offset;
     }
 
