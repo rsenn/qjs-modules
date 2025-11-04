@@ -120,25 +120,13 @@ token_lexer(Token* tok) {
 }
 
 JSValue
-js_token_new2(JSContext* ctx, JSValueConst new_target) {
+js_token_new(JSContext* ctx, JSValueConst new_target) {
   Token* tok;
-  JSValue obj = JS_UNDEFINED;
 
   if(!(tok = token_new(ctx)))
     return JS_EXCEPTION;
 
-  obj = js_token_wrap(ctx, new_target, tok);
-
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, tok);
-  return obj;
-
-fail:
-  js_free(ctx, tok);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
+  return js_token_wrap(ctx, new_target, tok);
 }
 
 JSValue
@@ -167,7 +155,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   Location* loc = 0;
   Token* tok;
   int32_t id = -1;
-  JSValue obj = js_token_new2(ctx, new_target);
+  JSValue obj = js_token_new(ctx, new_target);
 
   if(JS_IsException(obj))
     goto fail;
@@ -1542,7 +1530,7 @@ js_lexer_fromfile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   Lexer* lex;
 
   if((lex = js_lexer_data(ret))) {
-    JSValueConst args[] = {JS_UNDEFINED, argv[0], argv[1]};
+    JSValueConst args[] = {JS_UNDEFINED, argv[0]};
 
     js_lexer_set_input(ctx, ret, countof(args), args);
   }

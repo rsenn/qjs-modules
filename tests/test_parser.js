@@ -87,12 +87,17 @@ function main(...args) {
 
     optind++;
   }
-  let file = args[optind] ?? path.join(path.dirname(process.argv[1]), '..', 'tests/Shell-Grammar.y');
+  let file = args[optind] ?? 'tests/Shell-Grammar.y';
+
+  console.log('file', file);
 
   let parser = new EBNFParser(null);
 
-  parser.lexer = new BNFLexer(std.loadFile(file, null), file);
+  const buf = readFileSync(file, null);
+  parser.lexer = new BNFLexer(buf, file);
   let grammar = parser.parse();
+
+  Object.assign(globalThis, { buf, file, parser, grammar });
 
   // parser.setInput();
 
