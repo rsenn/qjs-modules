@@ -51,7 +51,7 @@ typedef struct {
     InputBuffer input;
     struct {
       uint8_t* data;
-      size_t size;
+      size_t byte_length;
       union {
         OffsetLength range;
         struct {
@@ -61,7 +61,6 @@ typedef struct {
     };
   };
   enum lexer_mode mode;
-  size_t byte_length;
   int32_t token_id, state;
   Vector defines;
   Vector rules;

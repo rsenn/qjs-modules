@@ -217,7 +217,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   if(char_offset != -1)
     if(loc && lex) {
-      loc->byte_offset = utf8_byteoffset(lex->data, lex->size, char_offset);
+      loc->byte_offset = utf8_byteoffset(lex->data, lex->byte_length, char_offset);
       loc->char_offset = char_offset;
     }
 
@@ -541,7 +541,6 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
         id = LEXER_ERROR_NOMATCH;
       }
     }
-
     break;
   }
 
@@ -853,7 +852,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         if(!JS_IsFunction(ctx, pred))
           return JS_ThrowTypeError(ctx, "argument 1 is not a function");
 
-        while(lex->byte_offset < lex->size) {
+        while(lex->byte_offset < lex->byte_length) {
           size_t n;
           const uint8_t* p;
 
@@ -1000,6 +999,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 enum {
   LEXER_SIZE = 0,
   LEXER_POSITION,
+  LEXER_BYTEPOSITION,
   LEXER_ENDOFFILE,
   LEXER_FILENAME,
   LEXER_LOCATION,
@@ -1030,9 +1030,13 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, lex->char_offset);
       break;
     }
+    case LEXER_BYTEPOSITION: {
+      ret = JS_NewInt64(ctx, lex->byte_offset);
+      break;
+    }
 
     case LEXER_SIZE: {
-      ret = JS_NewInt64(ctx, lex->size);
+      ret = JS_NewInt64(ctx, lex->byte_length);
       break;
     }
 
@@ -1183,10 +1187,10 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       } else {
         JS_ToIndex(ctx, &newpos, value);
 
-        size_t offset = utf8_byteoffset(lex->data, lex->size, newpos);
+        size_t offset = utf8_byteoffset(lex->data, lex->byte_length, newpos);
 
-        if(offset > lex->size)
-          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->size);
+        if(offset > lex->byte_length)
+          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->byte_length);
 
         lex->byte_offset = offset;
         lex->char_offset = newpos;
@@ -1375,7 +1379,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
           lexer_state_top(lex, 0),
           lexer_state_name(lex, lexer_state_top(lex, 0)),
           /*   lexeme,*/
-          (int)(byte_chr((const char*)&lex->data[lex->byte_offset], lex->size - lex->byte_offset, '\n') +
+          (int)(byte_chr((const char*)&lex->data[lex->byte_offset], lex->byte_length - lex->byte_offset, '\n') +
                 lex->loc.column),
           &lex->data[lex->byte_offset - lex->loc.column],
           lex->loc.column + 1,
@@ -1548,6 +1552,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("nextToken", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, 0, LEXER_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_POSITION),
+    JS_CGETSET_MAGIC_DEF("bytePos", js_lexer_get, 0, LEXER_BYTEPOSITION),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_LOCATION),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_ENDOFFILE),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_MODE),

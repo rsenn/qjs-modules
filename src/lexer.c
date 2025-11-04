@@ -184,7 +184,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
   // fprintf(stderr, "lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
-  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, lex->byte_offset, lex->size, 0, ctx);
+  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, lex->byte_offset, lex->byte_length, 0, ctx);
 }
 
 int
@@ -412,7 +412,7 @@ size_t
 lexer_skip_n(Lexer* lex, size_t bytes) {
   size_t len;
 
-  assert(bytes <= lex->size - lex->byte_offset);
+  assert(bytes <= lex->byte_length - lex->byte_offset);
 
   lex->loc.byte_offset = LEXER_POS(lex);
 
@@ -444,7 +444,7 @@ lexer_charlen(Lexer* lex) {
   if(lex->byte_length == 0)
     return 0;
 
-  assert((lex->size - LEXER_POS(lex)) >= lex->byte_length);
+  assert((lex->byte_length - LEXER_POS(lex)) >= lex->byte_length);
 
   return utf8_strlen(LEXER_PTR(lex), lex->byte_length);
 }
@@ -565,7 +565,7 @@ lexer_current_line(Lexer* lex, JSContext* ctx) {
   while(start > 0 && lex->data[start - 1] != '\n')
     start--;
 
-  size = byte_chr((const char*)&lex->data[start], lex->size - start, '\n');
+  size = byte_chr((const char*)&lex->data[start], lex->byte_length - start, '\n');
 
   return js_strndup(ctx, (const char*)&lex->data[start], size);
 }
