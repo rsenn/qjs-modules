@@ -546,15 +546,14 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   if(!(tok = token_create(id, lexeme, len, ctx)))
     return 0;
 
-  tok->lexer = lexer_dup(lex);
+  /*tok->lexer = lexer_dup(lex);*/
   tok->seq = lex->seq;
 
   if(!tok->loc)
     tok->loc = location_new(ctx);
 
-  if(tok->loc) {
+  if(tok->loc)
     location_copy(tok->loc, &lex->loc, ctx);
-  }
 
   return tok;
 }

@@ -1099,14 +1099,22 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   }
 
   if(!is_function) {
-    if(opts->class_key.atom != 1 && JS_HasProperty(ctx, value, opts->class_key.atom)) {
-      char* tostring_tag;
+    BOOL is_default_obj = js_global_instanceof(ctx, value, "Object");
+    BOOL has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom);
 
-      if((tostring_tag = js_get_property_string(ctx, value, opts->class_key.atom))) {
+    if(has_class_key || is_default_obj) {
+      char* tag = 0;
+
+      if(is_default_obj)
+        tag = js_strdup(ctx, "Object");
+      else if(has_class_key)
+        tag = js_get_property_string(ctx, value, opts->class_key.atom);
+
+      if(tag) {
         writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
-        writer_puts(wr, tostring_tag);
+        writer_puts(wr, tag);
         writer_puts(wr, opts->colors ? COLOR_NONE " " : " ");
-        js_free(ctx, tostring_tag);
+        js_free(ctx, tag);
       }
     } else if(!is_array) {
       const char* s = 0;
@@ -1128,6 +1136,11 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
       if(s)
         JS_FreeCString(ctx, s);
     }
+
+    if(js_global_instanceof(ctx, value, "String"))
+      return inspect_string(insp, value, depth);
+    if(js_global_instanceof(ctx, value, "Number"))
+      return inspect_number(insp, value, depth);
 
   } else {
     JSValue name = JS_GetPropertyStr(ctx, value, "name");

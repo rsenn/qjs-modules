@@ -1040,10 +1040,7 @@ js_global_get_atom(JSContext* ctx, JSAtom prop) {
 
 JSValue
 js_global_prototype(JSContext* ctx, const char* class_name) {
-  JSValue ctor = js_global_get_str(ctx, class_name);
-  JSValue ret = JS_GetPropertyStr(ctx, ctor, "prototype");
-  JS_FreeValue(ctx, ctor);
-  return ret;
+  return js_global_static_func(ctx, class_name, "prototype");
 }
 
 JSValue

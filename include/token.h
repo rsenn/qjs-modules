@@ -13,9 +13,9 @@ typedef struct Token {
   uint8_t* lexeme;
   int32_t id;
   uint32_t byte_length, char_length;
-  Lexer* lexer;
   Location* loc;
   uint64_t seq;
+  void* opaque;
 } Token;
 
 Token* token_new(JSContext*);

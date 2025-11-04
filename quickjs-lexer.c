@@ -111,34 +111,12 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   return ret;
 }
 
-JSValue
-js_token_new(JSContext* ctx, JSValueConst new_target, JSValueConst id, JSValueConst lexeme) {
-  Token* tok;
-  JSValue obj = JS_UNDEFINED;
-  int32_t n = -1;
-  InputBuffer buf = {0};
+static inline Lexer*
+token_lexer(Token* tok) {
+  if(tok->opaque)
+    return js_lexer_data(JS_MKPTR(JS_TAG_OBJECT, tok->opaque));
 
-  if(JS_IsNumber(id))
-    JS_ToInt32(ctx, &n, id);
-
-  if(!js_is_null_or_undefined(lexeme))
-    buf = js_input_chars(ctx, lexeme);
-
-  if(!(tok = token_create(n, buf.data, buf.size, ctx)))
-    return JS_EXCEPTION;
-
-  obj = js_token_wrap(ctx, new_target, tok);
-
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, tok);
-  return obj;
-
-fail:
-  js_free(ctx, tok);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
+  return 0;
 }
 
 JSValue
@@ -207,7 +185,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     if(id == -1 && JS_IsNumber(argv[index])) {
       id = tok->id = js_toint32(ctx, argv[index]);
     } else if(!lex && (lex = js_lexer_data(argv[index]))) {
-      tok->lexer = lexer_dup(lex);
+      tok->opaque = JS_VALUE_GET_PTR(argv[index]);
     } else if(!loc && (loc = js_location_data(argv[index]))) {
       if(tok->loc) {
         location_free(tok->loc, JS_GetRuntime(ctx));
@@ -227,11 +205,11 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     index++;
   }
 
-  if(tok->loc == 0) {
-    if(tok->lexer) {
-      tok->loc = location_new(ctx);
-      location_copy(tok->loc, &tok->lexer->loc, ctx);
-    }
+  if(tok->loc == 0 && tok->opaque) {
+    tok->loc = location_new(ctx);
+
+    if((lex = token_lexer(tok)))
+      location_copy(tok->loc, &lex->loc, ctx);
   }
 
   if(loc == 0)
@@ -295,6 +273,7 @@ enum {
   TOKEN_SEQ,
   TOKEN_RULE,
   TOKEN_TYPE,
+  TOKEN_LEXER,
 };
 
 static JSValue
@@ -355,16 +334,30 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_RULE: {
-      LexerRule* rule = lexer_rule_at(tok->lexer, tok->id);
+      Lexer* lex;
 
-      ret = rule ? js_lexer_rule_new(ctx, tok->lexer, rule) : JS_NULL;
+      if((lex = token_lexer(tok))) {
+        LexerRule* rule = lexer_rule_at(lex, tok->id);
+
+        ret = rule ? js_lexer_rule_new(ctx, lex, rule) : JS_NULL;
+      }
+
       break;
     }
 
     case TOKEN_TYPE: {
-      LexerRule* rule = lexer_rule_at(tok->lexer, tok->id);
+      Lexer* lex;
 
-      ret = rule ? JS_NewString(ctx, rule->name) : JS_NULL;
+      if((lex = token_lexer(tok))) {
+        LexerRule* rule = lexer_rule_at(lex, tok->id);
+
+        ret = rule ? JS_NewString(ctx, rule->name) : JS_NULL;
+      }
+      break;
+    }
+
+    case TOKEN_LEXER: {
+      ret = tok->opaque ? JS_DupValue(ctx, js_value_mkobj(tok->opaque)) : JS_NULL;
       break;
     }
   }
@@ -393,6 +386,15 @@ js_token_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   return ret;
 }
 
+static JSValue
+js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_NewObject(ctx);
+
+  js_set_tostringtag_value(ctx, ret, js_get_tostringtag_value(ctx, this_val));
+
+  return ret;
+}
+
 static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok;
@@ -416,6 +418,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("id", js_token_get, 0, TOKEN_ID),
     JS_CGETSET_MAGIC_FLAGS_DEF("seq", js_token_get, 0, TOKEN_SEQ, JS_PROP_CONFIGURABLE),
     JS_CGETSET_MAGIC_DEF("type", js_token_get, 0, TOKEN_TYPE),
+    JS_CGETSET_MAGIC_DEF("lexer", js_token_get, 0, TOKEN_LEXER),
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, 0, TOKEN_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, 0, TOKEN_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, 0, TOKEN_LEXEME),
@@ -1406,9 +1409,12 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_ToInt32(ctx, &id, result);
 
     if(magic & YIELD_OBJ) {
-      /*Token* tok = lexer_token(lex, id, ctx);
-      ret = js_token_wrap(ctx, token_ctor, tok);*/
-      ret = js_token_new(ctx, token_ctor, result, JS_UNDEFINED);
+      Token* tok;
+
+      if((tok = lexer_token(lex, id, ctx)))
+        ret = js_token_wrap(ctx, token_ctor, tok);
+
+      // ret = js_token_new(ctx, token_ctor);
     } else {
       ret = JS_NewInt32(ctx, id);
     }
@@ -1589,6 +1595,8 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, token_ctor, token_proto);
   JS_SetPropertyFunctionList(ctx, token_ctor, js_token_static_funcs, countof(js_token_static_funcs));
+
+  js_set_inspect_method(ctx, token_proto, js_token_inspect);
 
   JS_NewClassID(&js_lexer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_lexer_class_id, &js_lexer_class);

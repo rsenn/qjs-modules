@@ -26,10 +26,10 @@ token_release(Token* tok, JSRuntime* rt) {
   js_free_rt(rt, tok->lexeme);
   tok->lexeme = 0;
 
-  if(tok->lexer) {
+  /*if(tok->lexer) {
     lexer_free(tok->lexer, rt);
     tok->lexer = 0;
-  }
+  }*/
 
   if(tok->loc) {
     location_free(tok->loc, rt);
