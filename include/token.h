@@ -12,7 +12,7 @@ typedef struct Token {
   int ref_count;
   uint8_t* lexeme;
   int32_t id;
-  uint32_t byte_length, char_length;
+  uint32_t byte_length /*, char_length*/;
   Location* loc;
   uint64_t seq;
   void* opaque;
@@ -26,9 +26,14 @@ void token_set_lexeme(Token*, void*, size_t);
 void token_set_location(Token*, Location*, JSContext*);
 void token_copy_location(Token*, const Location*, JSContext*);
 
+static inline int64_t
+token_char_length(Token* tok) {
+  return tok->lexeme ? utf8_strlen(tok->lexeme, tok->byte_length) : -1;
+}
+
 static inline OffsetLength
 token_char_range(Token* tok) {
-  return (OffsetLength){tok->loc ? tok->loc->char_offset : -1, tok->char_length};
+  return (OffsetLength){tok->loc ? tok->loc->char_offset : -1, token_char_length(tok)};
 }
 
 static inline OffsetLength

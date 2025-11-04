@@ -45,10 +45,10 @@ void
 token_set_lexeme(Token* tok, void* lexeme, size_t len) {
   if((tok->lexeme = lexeme)) {
     tok->byte_length = len;
-    tok->char_length = utf8_strlen(lexeme, len);
+    // tok->char_length = utf8_strlen(lexeme, len);
   } else {
     tok->byte_length = 0;
-    tok->char_length = 0;
+    // tok->char_length = 0;
   }
 }
 

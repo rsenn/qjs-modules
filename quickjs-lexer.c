@@ -308,7 +308,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_CHARLENGTH: {
-      ret = JS_NewInt64(ctx, tok->char_length);
+      ret = JS_NewInt64(ctx, token_char_length(tok));
       break;
     }
 
@@ -327,7 +327,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        OffsetLength ol = {token_char_pos(tok), tok->char_length};
+        OffsetLength ol = {token_char_pos(tok), token_char_length(tok)};
         ret = offsetlength_toarray(ol, ctx);
       }
 
