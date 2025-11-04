@@ -497,7 +497,7 @@ inputbuffer_range(const InputBuffer* in) {
 }
 
 static inline MemoryBlock
-inputbuffer_block(InputBuffer* in) {
+inputbuffer_block(const InputBuffer* in) {
   return (MemoryBlock){inputbuffer_data(in), inputbuffer_length(in)};
 }
 
