@@ -600,8 +600,10 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   char* name;
   int index = 1;
   int64_t mask = -1, skip = 0;
+  int do_skip = -1;
   RegExp expr;
   JSLexerRule* jsrule = 0;
+  JSValue fn = JS_UNDEFINED;
 
   if(!(lex = js_lexer_data2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -609,8 +611,19 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   name = (magic || JS_IsString(argv[0])) ? js_tostring(ctx, argv[0]) : 0;
   index += regexp_from_argv(&expr, argc - index, &argv[index], ctx);
 
-  if(index < argc && JS_IsNumber(argv[index])) {
-    JS_ToInt64(ctx, &mask, argv[index]);
+  while(index < argc) {
+    if(JS_IsNumber(argv[index])) {
+      JS_ToInt64(ctx, &mask, argv[index]);
+
+    } else if(JS_IsBool(argv[index])) {
+      do_skip = JS_ToBool(ctx, argv[index]);
+
+    } else if(JS_IsFunction(ctx, argv[index])) {
+      fn = JS_DupValue(ctx, argv[index]);
+
+    } else {
+      break;
+    }
 
     index++;
   }
@@ -622,10 +635,10 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   JS_FreeValue(ctx, skipv);
 
-  if(index < argc && JS_IsFunction(ctx, argv[index])) {
+  if(JS_IsFunction(ctx, fn) || (do_skip > 0 || (mask & skip))) {
     jsrule = js_malloc(ctx, sizeof(JSLexerRule));
-    jsrule->action = JS_DupValue(ctx, argv[index]);
-    jsrule->skip = !!(mask & skip);
+    jsrule->action = fn;
+    jsrule->skip = do_skip > 0 || !!(mask & skip);
   }
 
   if(magic) {
@@ -1218,7 +1231,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
           }*/
 
     case LEXER_STATE: {
-      int32_t state = js_toint32(ctx, value);
+      int32_t state = lexer_to_state(lex, value, ctx);
       uint32_t num_states = vector_size(&lex->states, sizeof(int32_t));
 
       if(!(state >= 0 && state < num_states))
