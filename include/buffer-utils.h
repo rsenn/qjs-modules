@@ -109,7 +109,7 @@ block_zero(MemoryBlock* mb) {
 
 static inline MemoryBlock
 block_new(const void* buf, size_t len) {
-  return (MemoryBlock){(void*)buf, len};
+  return MEMORY_BLOCK((void*)buf, len);
 }
 
 /* clang-format off */
@@ -139,7 +139,7 @@ block_slice(MemoryBlock mb, int64_t start, int64_t end) {
   start = CLAMP_NUM(WRAP_NUM(start, n), 0, n);
   end = CLAMP_NUM(WRAP_NUM(end, n), 0, n);
 
-  return (MemoryBlock){mb.base + start, end - start};
+  return MEMORY_BLOCK(mb.base + start, end - start);
 }
 
 static inline MemoryBlock
@@ -147,7 +147,7 @@ block_range(MemoryBlock mb, size_t offset, size_t length) {
   offset = MIN_NUM(mb.size, offset);
   length = MIN_NUM((mb.size - offset), length);
 
-  return (MemoryBlock){mb.base + offset, length};
+  return MEMORY_BLOCK(mb.base + offset, length);
 }
 
 static inline uint8_t*
@@ -257,7 +257,7 @@ indexrange_zero(IndexRange* ir) {
 }
 
 static inline IndexRange
-indexrange_from_int(int64_t s, int64_t e) {
+indexrange_new(int64_t s, int64_t e) {
   return INDEX_RANGE(s, e);
 }
 
@@ -273,7 +273,7 @@ indexrange_is_default(IndexRange ir) {
 
 static inline IndexRange
 indexrange_from_offsetlength(OffsetLength ol) {
-  return (IndexRange){ol.offset, ol.length == SIZE_MAX ? INT64_MAX : ol.offset + ol.length};
+  return INDEX_RANGE(ol.offset, ol.length == SIZE_MAX ? INT64_MAX : ol.offset + ol.length);
 }
 
 static inline int64_t
@@ -303,20 +303,17 @@ indexrange_size(IndexRange ir, size_t len) {
 
 static inline MemoryBlock
 indexrange_block(IndexRange ir, MemoryBlock b) {
-  return (MemoryBlock){
-      indexrange_begin(ir, b.base, b.size),
-      indexrange_size(ir, b.size),
-  };
+  return MEMORY_BLOCK(indexrange_begin(ir, b.base, b.size), indexrange_size(ir, b.size));
 }
 
 static inline OffsetLength
 indexrange_to_offsetlength(IndexRange ir, size_t len) {
-  return (OffsetLength){indexrange_head(ir, len), indexrange_size(ir, len)};
+  return OFFSET_LENGTH(indexrange_head(ir, len), indexrange_size(ir, len));
 }
 
 static inline MemoryBlock
 indexrange_to_block(IndexRange ir, const void* buf, size_t len) {
-  return (MemoryBlock){indexrange_begin(ir, buf, len), indexrange_size(ir, len)};
+  return MEMORY_BLOCK(indexrange_begin(ir, buf, len), indexrange_size(ir, len));
 }
 
 static inline JSValue
@@ -375,37 +372,37 @@ range_size(PointerRange pr) {
 
 static inline PointerRange
 range_from_indexrange(IndexRange ir, const void* buf, size_t len) {
-  return (PointerRange){indexrange_begin(ir, buf, len), indexrange_end(ir, buf, len)};
+  return RANGE(indexrange_begin(ir, buf, len), indexrange_end(ir, buf, len));
 }
 
 static inline PointerRange
 range_from_offsetlength(OffsetLength ol, const void* buf) {
-  return (PointerRange){offsetlength_begin(ol, buf), offsetlength_end(ol, buf)};
+  return RANGE(offsetlength_begin(ol, buf), offsetlength_end(ol, buf));
 }
 
 static inline PointerRange
 range_from_block(MemoryBlock mb) {
-  return (PointerRange){mb.base, mb.base + mb.size};
+  return RANGE(mb.base, mb.base + mb.size);
 }
 
 static inline PointerRange
 range_offset_length(PointerRange pr, OffsetLength ol) {
-  return (PointerRange){offsetlength_begin(ol, pr.start), offsetlength_end(ol, pr.start)};
+  return RANGE(offsetlength_begin(ol, pr.start), offsetlength_end(ol, pr.start));
 }
 
 static inline MemoryBlock
 range_to_block(PointerRange pr) {
-  return (MemoryBlock){(void*)range_begin(pr), range_size(pr)};
+  return MEMORY_BLOCK((void*)range_begin(pr), range_size(pr));
 }
 
 static inline IndexRange
 range_to_indexrange(PointerRange pr, const void* base) {
-  return (IndexRange){range_begin(pr) - (char*)base, range_end(pr) - (char*)base};
+  return INDEX_RANGE(range_begin(pr) - (char*)base, range_end(pr) - (char*)base);
 }
 
 static inline OffsetLength
 range_to_offsetlength(PointerRange pr, const void* base) {
-  return (OffsetLength){range_begin(pr) - (char*)base, range_size(pr)};
+  return OFFSET_LENGTH(range_begin(pr) - (char*)base, range_size(pr));
 }
 
 static inline int
@@ -492,12 +489,12 @@ inputbuffer_end(const InputBuffer* in) {
 
 static inline PointerRange
 inputbuffer_range(const InputBuffer* in) {
-  return (PointerRange){inputbuffer_begin(in), inputbuffer_end(in)};
+  return RANGE(inputbuffer_begin(in), inputbuffer_end(in));
 }
 
 static inline MemoryBlock
 inputbuffer_block(const InputBuffer* in) {
-  return (MemoryBlock){inputbuffer_data(in), inputbuffer_length(in)};
+  return MEMORY_BLOCK(inputbuffer_data(in), inputbuffer_length(in));
 }
 
 static inline MemoryBlock*
