@@ -52,12 +52,7 @@ typedef struct {
     struct {
       uint8_t* data;
       size_t size;
-      union {
-        OffsetLength range;
-        struct {
-          size_t start;
-        };
-      };
+      OffsetLength range;
     };
   };
   enum lexer_mode mode;
