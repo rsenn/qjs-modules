@@ -395,7 +395,7 @@ range_offset_length(PointerRange pr, OffsetLength ol) {
 
 static inline MemoryBlock
 range_to_block(PointerRange pr) {
-  return (MemoryBlock){pr.start, range_size(pr)};
+  return (MemoryBlock){(void*)range_begin(&pr), range_size(pr)};
 }
 
 static inline IndexRange
