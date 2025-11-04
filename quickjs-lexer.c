@@ -217,7 +217,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   if(char_offset != -1)
     if(loc && lex) {
-      loc->byte_offset = utf8_byteoffset(lex->data, lex->byte_length, char_offset);
+      loc->byte_offset = utf8_byteoffset(lex->data, lex->size, char_offset);
       loc->char_offset = char_offset;
     }
 
@@ -467,6 +467,31 @@ lexer_to_state(Lexer* lex, JSValueConst value, JSContext* ctx) {
   return -1;
 }
 
+static int64_t
+lexer_to_mask(Lexer* lex, JSValueConst value, JSContext* ctx) {
+  size_t len;
+  char* str = js_tostringlen(ctx, &len, value);
+  size_t p = 0, n;
+  int64_t mask = 0;
+
+  while(p < len) {
+    n = byte_chr(&str[p], len - p, ',');
+
+    if(n < (len - p))
+      str[p + n++] = '\0';
+
+    int num = lexer_state_find(lex, &str[p]);
+
+    if(num >= 0)
+      mask |= 1ll << num;
+
+    p += n;
+  }
+
+  js_free(ctx, str);
+  return mask;
+}
+
 static BOOL
 lexer_handle(Lexer* lex, JSValueConst this_val, JSValueConst handler, JSContext* ctx) {
   BOOL result = FALSE;
@@ -540,7 +565,9 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
 
         id = LEXER_ERROR_NOMATCH;
       }
+    } else if(id == LEXER_EOF) {
     }
+
     break;
   }
 
@@ -852,7 +879,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         if(!JS_IsFunction(ctx, pred))
           return JS_ThrowTypeError(ctx, "argument 1 is not a function");
 
-        while(lex->byte_offset < lex->byte_length) {
+        while(lex->byte_offset < lex->size) {
           size_t n;
           const uint8_t* p;
 
@@ -1036,7 +1063,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_SIZE: {
-      ret = JS_NewInt64(ctx, lex->byte_length);
+      ret = JS_NewInt64(ctx, lex->size);
       break;
     }
 
@@ -1187,10 +1214,10 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       } else {
         JS_ToIndex(ctx, &newpos, value);
 
-        size_t offset = utf8_byteoffset(lex->data, lex->byte_length, newpos);
+        size_t offset = utf8_byteoffset(lex->data, lex->size, newpos);
 
-        if(offset > lex->byte_length)
-          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->byte_length);
+        if(offset > lex->size)
+          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->size);
 
         lex->byte_offset = offset;
         lex->char_offset = newpos;
@@ -1379,7 +1406,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
           lexer_state_top(lex, 0),
           lexer_state_name(lex, lexer_state_top(lex, 0)),
           /*   lexeme,*/
-          (int)(byte_chr((const char*)&lex->data[lex->byte_offset], lex->byte_length - lex->byte_offset, '\n') +
+          (int)(byte_chr((const char*)&lex->data[lex->byte_offset], lex->size - lex->byte_offset, '\n') +
                 lex->loc.column),
           &lex->data[lex->byte_offset - lex->loc.column],
           lex->loc.column + 1,
