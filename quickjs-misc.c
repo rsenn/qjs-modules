@@ -699,7 +699,6 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   uintptr_t addr = 0, len = 0;
   BOOL is_bigint = JS_IsBigInt(ctx, argv[0]);
 
@@ -717,29 +716,9 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     return JS_NewArrayBuffer(ctx, (void*)(size_t)addr, len, 0, 0, 0);
   }
 
-  InputBuffer input = js_input_chars(ctx, argv[0]);
+  InputBuffer input = js_input_args(ctx, argc, argv);
 
-  if(!input.block.size && !input.block.base)
-    return JS_NULL;
-
-  /*if(!input.size) {
-    size_t len=0;
-    const char* str = JS_ToCStringLen(ctx,&len, argv[0]);
-
-    ret = JS_ThrowInternalError(ctx, "zero size: '%s' %lu", str, (unsigned long)len);
-
-    JS_FreeCString(ctx, str);
-    return ret;
-  }*/
-
-  if(input.data) {
-    input.range = OFFSETLENGTH_INIT();
-    js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
-    MemoryBlock b = inputbuffer_block(&input);
-    ret = inputbuffer_toarraybuffer_free(&input, ctx); // js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
-  }
-
-  return ret;
+  return inputbuffer_toarraybuffer_free(&input, ctx);
 }
 
 static JSValue

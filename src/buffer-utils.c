@@ -507,8 +507,12 @@ InputBuffer
 js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
 
-  if(argc > 1)
+  if(argc > 1) {
     js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
+
+    if(JS_IsString(input.value))
+      input.range = offsetlength_char2byte(input.range, input.data, input.size);
+  }
 
   return input;
 }
@@ -604,6 +608,61 @@ block_fromfile(MemoryBlock* mb, const char* filename, JSContext* ctx) {
   }
 
   return -1;
+}
+
+int
+offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
+  int64_t offset = 0, length = size;
+  int i = 0;
+
+  if(i < argc) {
+    if(JS_IsNumber(argv[i]))
+      if(JS_ToInt64Clamp(ctx, &offset, argv[i], 0, size, size))
+        return -1;
+
+    if(++i < argc) {
+      if(JS_IsNumber(argv[i]))
+        if(JS_ToInt64Clamp(ctx, &length, argv[i], 0, size - offset, size))
+          return -2;
+
+      ++i;
+    }
+  }
+
+  if(ol) {
+    ol->offset = offset;
+    ol->length = length;
+  }
+
+  return i;
+}
+
+OffsetLength
+offsetlength_char2byte(OffsetLength src, const void* x, size_t len) {
+  OffsetLength dst;
+  const uint8_t* buf = x;
+  dst.offset = src.offset > 0 ? len > 0 ? utf8_countchars3(buf, len, src.offset) : 0 : src.offset;
+
+  buf += dst.offset;
+  len -= dst.offset;
+
+  dst.length = src.length > 0 ? len > 0 ? utf8_countchars3(buf, len, src.length) : 0 : src.length;
+  return dst;
+}
+
+JSValue
+offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
+  JSValue ret;
+  size_t offset, length;
+
+  ret = JS_GetTypedArrayBuffer(ctx, array, &offset, &length, NULL);
+
+  if(!JS_IsException(ret)) {
+    ol->offset = offset;
+    ol->length = length;
+  }
+
+  return ret;
 }
 
 int
@@ -807,33 +866,6 @@ inputbuffer_fromfile(const char* filename, JSContext* ctx) {
   in.range = OFFSETLENGTH_INIT();
 
   return in;
-}
-
-int
-offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
-  int64_t offset = 0, length = size;
-  int i = 0;
-
-  if(i < argc) {
-    if(JS_IsNumber(argv[i]))
-      if(JS_ToInt64Clamp(ctx, &offset, argv[i], 0, size, size))
-        return -1;
-
-    if(++i < argc) {
-      if(JS_IsNumber(argv[i]))
-        if(JS_ToInt64Clamp(ctx, &length, argv[i], 0, size - offset, size))
-          return -2;
-
-      ++i;
-    }
-  }
-
-  if(ol) {
-    ol->offset = offset;
-    ol->length = length;
-  }
-
-  return i;
 }
 
 int

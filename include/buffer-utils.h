@@ -176,6 +176,8 @@ typedef struct OffsetLength {
 #define offsetlength_in_range(ol, num) ((num) >= (ol).offset && (num) < ((ol).offset + (ol).length))
 
 int offsetlength_from_argv(OffsetLength*, int64_t, int, JSValueConst[], JSContext*);
+OffsetLength offsetlength_char2byte(const OffsetLength src, const void* buf, size_t len);
+JSValue offsetlength_typedarray(OffsetLength*, JSValueConst, JSContext*);
 
 static inline void
 offsetlength_init(OffsetLength* ol) {
@@ -211,21 +213,6 @@ offsetlength_size(OffsetLength ol, size_t n) {
 static inline MemoryBlock
 offsetlength_block(OffsetLength ol, MemoryBlock mb) {
   return block_range(mb, ol.offset, ol.length);
-}
-
-static inline JSValue
-offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
-  JSValue ret;
-  size_t offset, length;
-
-  ret = JS_GetTypedArrayBuffer(ctx, array, &offset, &length, NULL);
-
-  if(!JS_IsException(ret)) {
-    ol->offset = offset;
-    ol->length = length;
-  }
-
-  return ret;
 }
 
 typedef struct IndexRange {
