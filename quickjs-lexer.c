@@ -999,10 +999,17 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LEXER_PEEKTOKEN: {
       int32_t id = lexer_peek(lex, 0, ctx);
 
+      if(id == LEXER_EOF)
+        break;
+      if(id == LEXER_EXCEPTION)
+        return JS_ThrowInternalError(ctx, "Lexer exception");
+      if(id <= LEXER_ERROR_NOMATCH)
+        return JS_ThrowInternalError(ctx, "Lexer error %" PRId32, id);
+
       if(magic == LEXER_PEEKTOKEN) {
         Token* tok;
 
-        if((tok = lexer_token(lex, id, ctx))) {
+        if((tok = lexer_token(lex, id, ctx)) >= 0) {
           ret = js_token_wrap(ctx, token_ctor, tok);
 
           tok->opaque = js_value_obj2(ctx, this_val);
