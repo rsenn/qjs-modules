@@ -263,14 +263,12 @@ indexrange_offsetlength(OffsetLength ol) {
 
 static inline int64_t
 indexrange_head(IndexRange ir, size_t n) {
-  int64_t l = n;
-  return CLAMP_NUM(WRAP_NUM(ir.start, l), 0, l);
+  return CLAMP_NUM(WRAP_NUM(ir.start, n), 0, n);
 }
 
 static inline int64_t
 indexrange_tail(IndexRange ir, size_t n) {
-  int64_t l = n;
-  return CLAMP_NUM(WRAP_NUM(ir.end, l), 0, l);
+  return CLAMP_NUM(WRAP_NUM(ir.end, n), 0, n);
 }
 
 static inline void*
