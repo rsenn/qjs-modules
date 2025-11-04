@@ -506,11 +506,12 @@ js_input_chars(JSContext* ctx, JSValueConst value) {
 InputBuffer
 js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
+  BOOL is_str = JS_IsString(input.value);
 
   if(argc > 1) {
-    js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
+    js_offset_length(ctx, is_str ? utf8_strlen(input.data, input.size) : input.size, argc, argv, 1, &input.range);
 
-    if(JS_IsString(input.value))
+    if(is_str)
       input.range = offsetlength_char2byte(input.range, input.data, input.size);
   }
 
