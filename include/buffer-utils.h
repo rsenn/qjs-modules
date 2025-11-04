@@ -381,6 +381,11 @@ range_in(const PointerRange* r, const void* ptr) {
   return (const uint8_t*)ptr >= (const uint8_t*)r->start && (const uint8_t*)ptr < (const uint8_t*)r->end;
 }
 
+static inline int64_t
+range_index(PointerRange r, const void* ptr) {
+  return (const uint8_t*)ptr - (const uint8_t*)r.start;
+}
+
 typedef struct InputBuffer {
   union {
     MemoryBlock block;
