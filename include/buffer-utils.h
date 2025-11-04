@@ -262,23 +262,23 @@ indexrange_offsetlength(OffsetLength ol) {
 }
 
 static inline int64_t
-indexrange_head(IndexRange ir, size_t n) {
-  return CLAMP_NUM(WRAP_NUM(ir.start, n), 0, n);
+indexrange_head(IndexRange ir, size_t len) {
+  return CLAMP_NUM(WRAP_NUM(ir.start, len), 0, len);
 }
 
 static inline int64_t
-indexrange_tail(IndexRange ir, size_t n) {
-  return CLAMP_NUM(WRAP_NUM(ir.end, n), 0, n);
+indexrange_tail(IndexRange ir, size_t len) {
+  return CLAMP_NUM(WRAP_NUM(ir.end, len), 0, len);
 }
 
 static inline void*
-indexrange_begin(IndexRange ir, const void* x, size_t n) {
-  return (uint8_t*)x + indexrange_head(ir, n);
+indexrange_begin(IndexRange ir, const void* buf, size_t len) {
+  return (uint8_t*)buf + indexrange_head(ir, len);
 }
 
 static inline void*
-indexrange_end(IndexRange ir, const void* x, size_t n) {
-  return (uint8_t*)x + indexrange_tail(ir, n);
+indexrange_end(IndexRange ir, const void* buf, size_t len) {
+  return (uint8_t*)buf + indexrange_tail(ir, len);
 }
 
 static inline int64_t
