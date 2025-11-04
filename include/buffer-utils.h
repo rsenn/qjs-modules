@@ -223,10 +223,10 @@ typedef struct IndexRange {
   int64_t start, end;
 } IndexRange;
 
-#define INDEXRANGE_INIT() \
-  (IndexRange) { \
-    0, INT64_MAX \
-  }
+#define INDEX_RANGE_DATA(s, e) \
+  { (s), (e) }
+#define INDEX_RANGE_INIT() INDEX_RANGE_DATA(0, INT64_MAX)
+#define INDEX_RANGE(s, e) (IndexRange) INDEX_RANGE_DATA(s, e)
 
 #define indexrange_in_range(ir, num) ((num) >= (ir).start && (num) < ((ir).end))
 
@@ -286,6 +286,11 @@ indexrange_block(IndexRange ir, MemoryBlock b) {
 static inline OffsetLength
 indexrange_to_offsetlength(IndexRange ir, size_t n) {
   return (OffsetLength){indexrange_head(ir, n), indexrange_size(ir, n)};
+}
+
+static inline MemoryBlock
+indexrange_to_block(IndexRange ir, const void* x, size_t n) {
+  return (MemoryBlock){indexrange_begin(ir, x, n), indexrange_size(ir, n)};
 }
 
 static inline JSValue

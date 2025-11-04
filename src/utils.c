@@ -4047,7 +4047,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], in
 
 int
 js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, struct IndexRange* ir) {
-  IndexRange tmp = INDEXRANGE_INIT();
+  IndexRange tmp = INDEX_RANGE_INIT();
   int ret;
 
   if((ret = indexrange_from_argv(ir ? ir : &tmp, size, argc, argv, ctx)) < 0) {
