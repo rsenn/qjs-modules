@@ -31,10 +31,10 @@ token_char_length(Token* tok) {
   return tok->lexeme ? utf8_strlen(tok->lexeme, tok->byte_length) : -1;
 }
 
-static inline OffsetLength
+/*static inline OffsetLength
 token_char_range(Token* tok) {
   return (OffsetLength){tok->loc ? tok->loc->char_offset : -1, token_char_length(tok)};
-}
+}*/
 
 static inline PointerRange
 token_byte_range(Token* tok) {
