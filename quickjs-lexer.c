@@ -525,7 +525,7 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
   if(argc > 0) {
     int64_t i;
 
-    if(!JS_ToInt64Ext(ctx, &i, argv[0]))
+    if(!JS_IsString(argv[0]) && !JS_IsArray(ctx, argv[0]) && !JS_ToInt64Ext(ctx, &i, argv[0]))
       flags = i;
     else
       flags = lexer_to_mask(lex, argv[0], ctx);
