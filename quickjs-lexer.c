@@ -522,11 +522,13 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
   uint64_t flags = 0;
   int id = 0;
 
-  if(argc > 0 && JS_IsNumber(argv[0])) {
-    int st = lexer_to_state(lex, argv[0], ctx);
+  if(argc > 0) {
+    int64_t i;
 
-    if(st != -1)
-      flags = ~(1llu << st);
+    if(!JS_ToInt64Ext(ctx, &i, argv[0]))
+      flags = i;
+    else
+      flags = lexer_to_mask(lex, argv[0], ctx);
   }
 
   if(lex->byte_length > 0 && lex->token_id != -1)
