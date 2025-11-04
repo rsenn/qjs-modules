@@ -3056,9 +3056,8 @@ js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
   const char* x;
   size_t n;
 
-  if((x = JS_ToCStringLen(ctx, &n, str))) {
+  if((x = JS_ToCStringLen(ctx, &n, str)))
     return JS_NewArrayBufferCopy(ctx, (uint8_t*)x, n);
-  }
 
   return JS_ThrowInternalError(ctx, "Cannot convert value to string");
 }

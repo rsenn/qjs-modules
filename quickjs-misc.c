@@ -732,11 +732,11 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     return ret;
   }*/
 
-  if(!JS_IsException(input.value)) {
-    OffsetLength o = OFFSETLENGTH_INIT();
-    js_offset_length(ctx, input.size, argc, argv, 1, &o);
-    MemoryBlock b = offsetlength_block(o, inputbuffer_block(&input));
-    ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
+  if(input.data) {
+    input.range = OFFSETLENGTH_INIT();
+    js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
+    MemoryBlock b = inputbuffer_block(&input);
+    ret = inputbuffer_toarraybuffer_free(&input, ctx); // js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
 
   return ret;
