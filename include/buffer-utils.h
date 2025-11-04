@@ -200,8 +200,13 @@ offsetlength_offset(OffsetLength ol, size_t n) {
 }
 
 static inline void*
-offsetlength_data(OffsetLength ol, const void* x) {
+offsetlength_begin(OffsetLength ol, const void* x) {
   return (uint8_t*)x + ol.offset;
+}
+
+static inline void*
+offsetlength_end(OffsetLength ol, const void* x) {
+  return (uint8_t*)x + ol.offset + ol.length;
 }
 
 static inline size_t
@@ -366,10 +371,8 @@ range_from_indexrange(IndexRange ir, const void* base, size_t n) {
 }
 
 static inline PointerRange
-range_from_offsetlength(OffsetLength ol, const void* base, size_t n) {
-  uint8_t* ptr = offsetlength_data(ol, base);
-
-  return (PointerRange){ptr, ptr + offsetlength_size(ol, n)};
+range_from_offsetlength(OffsetLength ol, const void* base) {
+  return (PointerRange){offsetlength_begin(ol, base), offsetlength_end(ol, base)};
 }
 
 static inline PointerRange
@@ -467,7 +470,7 @@ InputBuffer inputbuffer_from_file(const char*, JSContext*);
 
 static inline void*
 inputbuffer_data(const InputBuffer* in) {
-  return offsetlength_data(in->range, in->data);
+  return offsetlength_begin(in->range, in->data);
 }
 
 static inline uint8_t*
