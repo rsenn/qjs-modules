@@ -146,7 +146,7 @@ token_buf(Token* tok) {
 }
 
 static IndexRange
-token_index_range(Token* tok) {
+token_byte_indexrange(Token* tok) {
   return range_to_indexrange(token_byte_range(tok), token_buf(tok));
 }
 
@@ -317,7 +317,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_BYTERANGE: {
-      ret = indexrange_toarray(token_index_range(tok), ctx);
+      ret = indexrange_toarray(token_byte_indexrange(tok), ctx);
       break;
     }
 
