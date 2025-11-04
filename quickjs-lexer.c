@@ -138,12 +138,8 @@ static int64_t
 token_char_pos(Token* tok) {
   Lexer* lex;
 
-  if((tok->lexeme && (lex = token_lexer(tok)))) {
-    PointerRange r = inputbuffer_range(&lex->input);
-
-    if(range_in(&r, tok->lexeme))
-      return utf8_strlen(r.start, range_index(r, tok->lexeme));
-  }
+  if((tok->lexeme && (lex = token_lexer(tok))))
+    return utf8_strlen(lex->data, token_byte_pos(tok));
 
   return location_charoffset(tok->loc);
 }
