@@ -264,9 +264,9 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
 enum {
   TOKEN_BYTELENGTH = 0,
-  TOKEN_CHARLENGTH,
+  TOKEN_LENGTH,
   TOKEN_BYTERANGE,
-  TOKEN_CHARRANGE,
+  TOKEN_RANGE,
   TOKEN_LEXEME,
   TOKEN_LOC,
   TOKEN_ID,
@@ -290,7 +290,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case TOKEN_CHARLENGTH: {
+    case TOKEN_LENGTH: {
       ret = JS_NewInt64(ctx, tok->char_length);
       break;
     }
@@ -304,7 +304,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case TOKEN_CHARRANGE: {
+    case TOKEN_RANGE: {
       Location* loc;
 
       if((loc = tok->loc))
@@ -314,7 +314,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_LEXEME: {
-      ret = JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
+      ret = tok->lexeme ? JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length) : JS_NULL;
       break;
     }
 
@@ -393,7 +393,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(!(tok = js_token_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue str = tok->lexeme ? JS_NewStringLen(ctx, tok->lexeme, tok->byte_length) : JS_UNDEFINED;
+  JSValue str = tok->lexeme ? JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length) : JS_UNDEFINED;
   JSValue ret = js_global_new(ctx, "String", 1, &str);
 
   JS_FreeValue(ctx, str);
@@ -423,9 +423,9 @@ static JSClassDef js_token_class = {
 };
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("length", js_token_get, 0, TOKEN_CHARLENGTH),
+    JS_CGETSET_MAGIC_DEF("length", js_token_get, 0, TOKEN_LENGTH),
     JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, 0, TOKEN_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("range", js_token_get, 0, TOKEN_CHARRANGE),
+    JS_CGETSET_MAGIC_DEF("range", js_token_get, 0, TOKEN_RANGE),
     JS_CGETSET_MAGIC_DEF("byteRange", js_token_get, 0, TOKEN_BYTERANGE),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, js_token_set, TOKEN_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, 0, TOKEN_ID),
@@ -994,8 +994,8 @@ enum {
   LEXER_RULES,
   LEXER_MODE,
   LEXER_SEQUENCE,
-  LEXER_BYTE_LENGTH,
-  LEXER_CHAR_LENGTH,
+  LEXER_BYTELENGTH,
+  LEXER_LENGTH,
   LEXER_STATE,
   LEXER_STATES,
   LEXER_STATE_DEPTH,
@@ -1083,12 +1083,12 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case LEXER_BYTE_LENGTH: {
+    case LEXER_BYTELENGTH: {
       ret = JS_NewUint32(ctx, lex->byte_length);
       break;
     }
 
-    case LEXER_CHAR_LENGTH: {
+    case LEXER_LENGTH: {
       ret = JS_NewUint32(ctx, lexer_charlen(lex));
       break;
     }
@@ -1180,7 +1180,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       break;
     }
 
-    case LEXER_BYTE_LENGTH: {
+    case LEXER_BYTELENGTH: {
       Token* tok;
 
       if(JS_IsNumber(value))
@@ -1545,8 +1545,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_ENDOFFILE),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_MODE),
     JS_CGETSET_MAGIC_DEF("seq", js_lexer_get, 0, LEXER_SEQUENCE),
-    JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, LEXER_BYTE_LENGTH),
-    JS_CGETSET_MAGIC_DEF("charLength", js_lexer_get, 0, LEXER_CHAR_LENGTH),
+    JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, LEXER_BYTELENGTH),
+    JS_CGETSET_MAGIC_DEF("length", js_lexer_get, 0, LEXER_LENGTH),
     JS_CGETSET_MAGIC_DEF("state", js_lexer_get, js_lexer_set, LEXER_STATE),
     JS_CGETSET_MAGIC_DEF("states", js_lexer_get, 0, LEXER_STATES),
     JS_CGETSET_MAGIC_DEF("stateDepth", js_lexer_get, 0, LEXER_STATE_DEPTH),
