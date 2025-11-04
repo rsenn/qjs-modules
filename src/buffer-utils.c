@@ -639,32 +639,32 @@ offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst ar
 }
 
 OffsetLength
-offsetlength_char2byte(OffsetLength src, const void* x, size_t len) {
-  OffsetLength dst;
+offsetlength_char2byte(OffsetLength ol, const void* x, size_t len) {
   const uint8_t* buf = x;
-  dst.offset = src.offset > 0 ? len > 0 ? utf8_byteoffset(buf, len, src.offset) : 0 : src.offset;
+  size_t offset = ol.offset > 0 ? len > 0 ? utf8_byteoffset(buf, len, ol.offset) : 0 : ol.offset;
 
-  buf += dst.offset;
-  len -= dst.offset;
+  if(offset > 0) {
+    buf += offset;
+    len -= offset;
+  }
 
-  dst.length = src.length > 0 ? len > 0 ? utf8_byteoffset(buf, len, src.length) : 0 : src.length;
-  return dst;
+  size_t length = ol.length > 0 ? len > 0 ? utf8_byteoffset(buf, len, ol.length) : 0 : ol.length;
+  return (OffsetLength){offset, length};
 }
 
 OffsetLength
-offsetlength_byte2char(OffsetLength src, const void* x, size_t len) {
-  OffsetLength dst;
+offsetlength_byte2char(OffsetLength ol, const void* x, size_t len) {
   const uint8_t* buf = x;
 
-  dst.offset = src.offset > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, src.offset)) : 0 : src.offset;
+  size_t offset = ol.offset > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, ol.offset)) : 0 : ol.offset;
 
-  if(dst.offset > 0) {
-    buf += dst.offset;
-    len -= dst.offset;
+  if(ol.offset > 0) {
+    buf += ol.offset;
+    len -= ol.offset;
   }
 
-  dst.length = src.length > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, src.length)) : 0 : src.length;
-  return dst;
+  size_t length = ol.length > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, ol.length)) : 0 : ol.length;
+  return (OffsetLength){offset, length};
 }
 
 JSValue

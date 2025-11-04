@@ -1164,9 +1164,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       Token* tok;
       Location* loc;
 
-      if((tok = js_token_data(value))) {
-        newpos = tok->loc->byte_offset;
-      } else if((loc = js_location_data(value))) {
+      if(((tok = js_token_data(value)) && (loc = tok->loc)) || (loc = js_location_data(value))) {
         newpos = loc->byte_offset;
       } else {
         JS_ToIndex(ctx, &newpos, value);
