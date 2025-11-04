@@ -1181,10 +1181,10 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     case LEXER_BYTELENGTH: {
       Token* tok;
 
-      if(JS_IsNumber(value))
-        js_value_tosize(ctx, &lex->byte_length, value);
-      else if((tok = js_token_data(value)))
+      if((tok = js_token_data(value)))
         lex->byte_length = tok->byte_length;
+      else
+        JS_ToIndex(ctx, &lex->byte_length, value);
 
       break;
     }
