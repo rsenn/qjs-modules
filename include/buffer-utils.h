@@ -351,6 +351,13 @@ range_from_indexrange(IndexRange ir, const void* base, size_t n) {
 }
 
 static inline PointerRange
+range_from_offsetlength(OffsetLength ol, const void* base, size_t n) {
+  const uint8_t* ptr = base + offsetlength_offset(ol, n);
+
+  return (PointerRange){ptr, ptr + offsetlength_size(ol, n)};
+}
+
+static inline PointerRange
 range_from_block(MemoryBlock mb) {
   return (PointerRange){mb.base, mb.base + mb.size};
 }
