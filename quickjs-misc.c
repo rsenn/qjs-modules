@@ -732,7 +732,7 @@ js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValu
     js_index_range(ctx, len, argc - 1, argv + 1, 0, &ir);
 
     return JS_NewArrayBuffer(ctx,
-                             indexrange_data(ir, data, len),
+                             indexrange_begin(ir, data, len),
                              indexrange_size(ir, len),
                              js_arraybuffer_free_object,
                              js_value_obj2(ctx, argv[0]),

@@ -249,38 +249,43 @@ indexrange_offsetlength(OffsetLength ol) {
 }
 
 static inline int64_t
-indexrange_start(IndexRange ir, size_t n) {
+indexrange_head(IndexRange ir, size_t n) {
   int64_t l = n;
   return CLAMP_NUM(WRAP_NUM(ir.start, l), 0, l);
 }
 
 static inline int64_t
-indexrange_end(IndexRange ir, size_t n) {
+indexrange_tail(IndexRange ir, size_t n) {
   int64_t l = n;
   return CLAMP_NUM(WRAP_NUM(ir.end, l), 0, l);
 }
 
 static inline void*
-indexrange_data(IndexRange ir, const void* x, size_t n) {
-  return (uint8_t*)x + indexrange_start(ir, n);
+indexrange_begin(IndexRange ir, const void* x, size_t n) {
+  return (uint8_t*)x + indexrange_head(ir, n);
+}
+
+static inline void*
+indexrange_end(IndexRange ir, const void* x, size_t n) {
+  return (uint8_t*)x + indexrange_tail(ir, n);
 }
 
 static inline int64_t
 indexrange_size(IndexRange ir, size_t n) {
-  return indexrange_end(ir, n) - indexrange_start(ir, n);
+  return indexrange_tail(ir, n) - indexrange_head(ir, n);
 }
 
 static inline MemoryBlock
 indexrange_block(IndexRange ir, MemoryBlock b) {
   return (MemoryBlock){
-      indexrange_data(ir, b.base, b.size),
+      indexrange_begin(ir, b.base, b.size),
       indexrange_size(ir, b.size),
   };
 }
 
 static inline OffsetLength
 indexrange_to_offsetlength(IndexRange ir, size_t n) {
-  return (OffsetLength){indexrange_start(ir, n), indexrange_size(ir, n)};
+  return (OffsetLength){indexrange_head(ir, n), indexrange_size(ir, n)};
 }
 
 static inline JSValue
@@ -344,15 +349,12 @@ range_size(PointerRange pr) {
 
 static inline PointerRange
 range_from_indexrange(IndexRange ir, const void* base, size_t n) {
-  uint8_t* data = indexrange_data(ir, base, n);
-  size_t size = indexrange_size(ir, n);
-
-  return (PointerRange){data, data + size};
+  return (PointerRange){indexrange_begin(ir, base, n), indexrange_end(ir, base, n)};
 }
 
 static inline PointerRange
 range_from_offsetlength(OffsetLength ol, const void* base, size_t n) {
-  const uint8_t* ptr = base + offsetlength_offset(ol, n);
+  uint8_t* ptr = offsetlength_data(ol, base);
 
   return (PointerRange){ptr, ptr + offsetlength_size(ol, n)};
 }

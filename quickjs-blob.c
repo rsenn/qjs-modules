@@ -241,7 +241,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         type = js_tostring(ctx, argv[index]);
 
       ret = js_blob_new(ctx,
-                        indexrange_data(rng, blob->data, blob->size),
+                        indexrange_begin(rng, blob->data, blob->size),
                         indexrange_size(rng, blob->size),
                         type ? type : blob->type);
 
