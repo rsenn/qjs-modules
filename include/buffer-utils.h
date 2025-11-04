@@ -364,9 +364,9 @@ range_to_block(PointerRange pr) {
 }
 
 static inline IndexRange
-range_to_indexrange(PointerRange pr, const void* base) {
-  const uint8_t* const ptr = base;
-  return (IndexRange){(const uint8_t*)pr.start - ptr, (const uint8_t*)pr.end - ptr};
+range_to_indexrange(PointerRange pr, const void* x) {
+  const uint8_t* const base = x;
+  return (IndexRange){(const uint8_t*)pr.start - base, (const uint8_t*)pr.end - base};
 }
 
 static inline OffsetLength
