@@ -313,11 +313,10 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        PointerRange pr = token_byte_range(tok);
+        int64_t pos = token_byte_pos(tok);
+        // uint8_t* base = tok->lexeme - pos;
 
-        uint8_t* base = tok->lexeme - token_byte_pos(tok);
-
-        ret = indexrange_toarray(range_to_indexrange(pr, base), ctx);
+        ret = indexrange_toarray((IndexRange){pos, pos + tok->byte_length}, ctx);
       }
 
       break;
@@ -327,9 +326,9 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        int64_t pos = token_char_pos(tok), len = token_char_length(tok);
+        int64_t pos = token_char_pos(tok);
 
-        ret = indexrange_toarray((IndexRange){pos, pos + len}, ctx);
+        ret = indexrange_toarray((IndexRange){pos, pos + token_char_length(tok)}, ctx);
       }
 
       break;
