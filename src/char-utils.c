@@ -494,6 +494,16 @@ scan_eolskip(const char* s, size_t limit) {
 }
 
 size_t
+utf8_charlen(const void* in, size_t len) {
+  const uint8_t *x = in, *y = (const uint8_t*)in + len, *next;
+  size_t n = y - x;
+
+  unicode_from_utf8(x, MIN_NUM(n, 6), &next);
+
+  return next - x;
+}
+
+size_t
 utf8_strlen(const void* in, size_t len) {
   const uint8_t* next;
   size_t i = 0;
@@ -513,12 +523,11 @@ utf8_byteoffset(const void* in, size_t len, size_t pos) {
   if(pos == 0)
     return 0;
 
-  for(size_t i = 0; x < y; x = next, ++i) {
+  for(size_t i = 0; x < y; ++i) {
     if(i == pos)
       return x - (const uint8_t*)in;
 
-    size_t n = y - x;
-    unicode_from_utf8(x, MIN_NUM(n, 6), &next);
+    x += utf8_charlen(x, y - x);
   }
 
   return x - (const uint8_t*)in;
