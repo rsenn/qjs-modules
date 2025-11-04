@@ -357,7 +357,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_LEXER: {
-      ret = tok->opaque ? JS_DupValue(ctx, js_value_mkobj(tok->opaque)) : JS_NULL;
+      ret = js_value_mkobj2(ctx, tok->opaque);
       break;
     }
   }

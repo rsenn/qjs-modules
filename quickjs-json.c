@@ -271,7 +271,7 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case JSON_PARSER_CALLBACK: {
-      ret = parser->opaque ? JS_DupValue(ctx, js_value_mkobj(parser->opaque)) : JS_NULL;
+      ret = js_value_mkobj2(ctx, parser->opaque);
       break;
     }
 
@@ -335,13 +335,13 @@ js_json_parser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
 
       if(parser->opaque) {
         op = parser->opaque;
-        JS_FreeValue(ctx, js_value_mkobj(op->obj));
+        js_freeobj(ctx, op->obj);
       }
 
       op = parser->opaque ? parser->opaque : js_malloc(ctx, sizeof(struct js_json_parser_opaque));
 
       if(op) {
-        *op = (struct js_json_parser_opaque){ctx, js_value_obj(this_val), js_value_obj(JS_DupValue(ctx, value))};
+        *op = (struct js_json_parser_opaque){ctx, js_value_obj(this_val), js_value_obj2(ctx, value)};
 
         parser->callback = js_json_parser_callback;
         parser->opaque = op;

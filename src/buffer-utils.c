@@ -779,14 +779,14 @@ inputbuffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
   js_free_rt(rt, ptr);
 
   if(opaque)
-    JS_FreeValueRT(rt, js_value_mkobj(opaque));
+    js_freeobj_rt(rt, opaque);
 }
 
 JSValue
 inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
-  JSObject* obj = js_is_null_or_undefined(in->value) || !JS_IsObject(in->value) ? 0 : js_value_obj(in->value);
   JSValue ret =
-      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, inputbuffer_free_pointer, obj, FALSE) : JS_UNDEFINED;
+      in->data ? JS_NewArrayBuffer(ctx, in->data, in->size, inputbuffer_free_pointer, js_value_obj(in->value), FALSE)
+               : JS_UNDEFINED;
 
   in->data = 0;
   in->size = 0;

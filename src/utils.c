@@ -975,7 +975,7 @@ js_trampoline3(JSContext* ctx, JSTrampoline* ret, JSValueConst arg) {
     return FALSE;
   }
 
-  *ret = (JSTrampoline){JS_DupContext(ctx), js_value_obj(JS_DupValue(ctx, arg))};
+  *ret = (JSTrampoline){JS_DupContext(ctx), js_value_obj2(ctx, arg)};
   return TRUE;
 }
 
@@ -1000,7 +1000,7 @@ js_trampoline_free(JSTrampoline* cb) {
 
   if((ctx = cb->ctx)) {
     if(cb->obj) {
-      JS_FreeValue(ctx, js_value_mkobj(cb->obj));
+      js_freeobj(ctx, cb->obj);
       cb->obj = NULL;
     }
 
@@ -3003,7 +3003,7 @@ js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
 
 void
 js_arraybuffer_freeobj(JSRuntime* rt, void* opaque, void* ptr) {
-  JS_FreeValueRT(rt, js_value_mkobj(opaque));
+  js_freeobj_rt(rt, opaque);
 }
 
 JSValue
@@ -3013,7 +3013,7 @@ js_arraybuffer_fromobj(JSContext* ctx, void* x, size_t n, JSValueConst val) {
   if(!JS_IsObject(val))
     return JS_ThrowTypeError(ctx, "Not an object");
 
-  return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freeobj, js_value_obj(JS_DupValue(ctx, val)), FALSE);
+  return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freeobj, js_value_obj2(ctx, val), FALSE);
 }
 
 void
