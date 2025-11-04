@@ -168,6 +168,11 @@ typedef struct OffsetLength {
   size_t offset, length;
 } OffsetLength;
 
+#define OFFSETLENGTH(o, l) \
+  (OffsetLength) { \
+    (o), (l) \
+  }
+
 #define OFFSETLENGTH_INIT() \
   (OffsetLength) { \
     0, SIZE_MAX \
@@ -287,7 +292,12 @@ typedef struct {
   void *start, *end;
 } PointerRange;
 
-#define RANGE_INIT() \
+#define RANGE(s, e) \
+  (PointerRange) { \
+    (s), (e) \
+  }
+
+#define RANGE_0() \
   (PointerRange) { \
     0, 0 \
   }
