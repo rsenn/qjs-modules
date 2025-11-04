@@ -364,13 +364,13 @@ range_size(PointerRange pr) {
 }
 
 static inline PointerRange
-range_from_indexrange(IndexRange ir, const void* base, size_t n) {
-  return (PointerRange){indexrange_begin(ir, base, n), indexrange_end(ir, base, n)};
+range_from_indexrange(IndexRange ir, const void* buf, size_t len) {
+  return (PointerRange){indexrange_begin(ir, buf, len), indexrange_end(ir, buf, len)};
 }
 
 static inline PointerRange
-range_from_offsetlength(OffsetLength ol, const void* base) {
-  return (PointerRange){offsetlength_begin(ol, base), offsetlength_end(ol, base)};
+range_from_offsetlength(OffsetLength ol, const void* buf) {
+  return (PointerRange){offsetlength_begin(ol, buf), offsetlength_end(ol, buf)};
 }
 
 static inline PointerRange
