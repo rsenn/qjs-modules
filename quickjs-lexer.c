@@ -321,7 +321,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
         uint8_t* base = tok->lexeme - token_byte_pos(tok);
 
-        ret = indexrange_toarray(range_toslice(pr, base), ctx);
+        ret = indexrange_toarray(range_to_indexrange(pr, base), ctx);
       }
 
       break;
@@ -333,7 +333,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       if((loc = tok->loc)) {
         OffsetLength ol = {token_char_pos(tok), token_char_length(tok)};
 
-        ret = indexrange_toarray(indexrange_from_offset(ol), ctx);
+        ret = indexrange_toarray(indexrange_offsetlength(ol), ctx);
       }
 
       break;

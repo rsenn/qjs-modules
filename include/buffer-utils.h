@@ -246,7 +246,7 @@ indexrange_is_default(IndexRange ir) {
 }
 
 static inline IndexRange
-indexrange_from_offset(OffsetLength ol) {
+indexrange_offsetlength(OffsetLength ol) {
   return (IndexRange){ol.offset, ol.length == SIZE_MAX ? INT64_MAX : ol.offset + ol.length};
 }
 
@@ -364,7 +364,7 @@ range_offset_length(PointerRange pr, OffsetLength ol) {
 }
 
 static inline IndexRange
-range_toslice(PointerRange pr, const void* base) {
+range_to_indexrange(PointerRange pr, const void* base) {
   const uint8_t* const ptr = base;
   return (IndexRange){(const uint8_t*)pr.start - ptr, (const uint8_t*)pr.end - ptr};
 }
