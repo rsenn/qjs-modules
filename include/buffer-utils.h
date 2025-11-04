@@ -278,8 +278,8 @@ indexrange_block(IndexRange ir, MemoryBlock b) {
 static inline JSValue
 indexrange_toarray(IndexRange ir, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
-  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(i.start));
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(i.end));
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ir.start));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ir.end));
   return ret;
 }
 

@@ -317,8 +317,12 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        PointerRange ol = token_byte_range(tok);
-        IndexRange ir = range_toslice(&ol, ) ret = offsetlength_toarray(ol, ctx);
+        PointerRange pr = token_byte_range(tok);
+
+        uint8_t* base = (const uint8_t*)pr.start - token_byte_pos(tok);
+
+        IndexRange ir = range_toslice(pr, base);
+        ret = indexrange_toarray(ir, ctx);
       }
 
       break;
@@ -336,27 +340,12 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_BYTEPOS: {
-      Lexer* lex;
-
-      if(tok->loc) {
-        ret = JS_NewInt64(ctx, tok->loc->byte_offset);
-      } else if(tok->lexeme && (lex = token_lexer(tok))) {
-        ret = JS_NewInt64(ctx, tok->lexeme - LEXER_DATA(lex));
-      }
+      ret = JS_NewInt64(ctx, token_byte - _pos(tok));
       break;
     }
 
     case TOKEN_CHARPOS: {
-      Lexer* lex;
-
-      if(tok->loc) {
-        ret = JS_NewInt64(ctx, tok->loc->char_offset);
-      } else if(tok->lexeme && (lex = token_lexer(tok))) {
-        ptrdiff_t n = tok->lexeme - LEXER_DATA(lex);
-        if(n > 0)
-          ret = JS_NewInt64(ctx, utf8_strlen(LEXER_DATA(lex), n));
-      }
-
+      ret = JS_NewInt64(ctx, token_char_pos(tok));
       break;
     }
 
