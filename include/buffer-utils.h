@@ -95,6 +95,10 @@ typedef struct {
 
 #define MEMORY_BLOCK(buf, len) (MemoryBlock) BLOCK_INIT_DATA(buf, len)
 
+#define block_from_indexrange indexrange_to_block
+#define block_from_range range_to_block
+#define block_to_range range_from_block
+
 int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 int block_mmap(MemoryBlock*, const char*);
@@ -183,6 +187,11 @@ typedef struct OffsetLength {
 
 #define offsetlength_in_range(ol, num) ((num) >= (ol).offset && (num) < ((ol).offset + (ol).length))
 
+#define offsetlength_from_indexrange indexrange_to_offsetlength
+#define offsetlength_from_range range_to_offsetlength
+#define offsetlength_to_indexrange indexrange_from_offsetlength
+#define offsetlength_to_range range_from_offsetlength
+
 int offsetlength_from_argv(OffsetLength*, int64_t, int, JSValueConst[], JSContext*);
 OffsetLength offsetlength_char2byte(const OffsetLength src, const void* buf, size_t len);
 OffsetLength offsetlength_byte2char(const OffsetLength src, const void* buf, size_t len);
@@ -247,6 +256,9 @@ typedef struct IndexRange {
 #define INDEX_RANGE(s, e) (IndexRange) INDEX_RANGE_DATA(s, e)
 
 #define indexrange_in_range(ir, num) ((num) >= (ir).start && (num) < ((ir).end))
+
+#define indexrange_from_range range_to_indexrange
+#define indexrange_to_range range_from_indexrange
 
 int indexrange_from_argv(IndexRange*, int64_t, int, JSValueConst[], JSContext*);
 
