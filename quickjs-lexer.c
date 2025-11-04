@@ -141,7 +141,7 @@ token_char_pos(Token* tok) {
     PointerRange r = inputbuffer_range(&lex->input);
 
     if(range_in(&r, tok->lexeme))
-      return utf8_strlen(r.start, (char*)tok->lexeme - (char*)r.start);
+      return utf8_strlen(r.start, tok->lexeme - (uint8_t*)r.start);
   }
 
   return location_charoffset(tok->loc);
