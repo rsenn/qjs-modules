@@ -14,7 +14,7 @@ extern VISIBLE JSClassID js_token_class_id, js_lexer_class_id;
 JSValue js_token_new(JSContext*, JSValueConst);
 JSValue js_token_wrap(JSContext*, JSValueConst, Token*);
 JSValue js_token_constructor(JSContext*, JSValueConst, int, JSValueConst[]);
-JSValue js_lexer_new(JSContext*, JSValueConst, JSValueConst, JSValueConst);
+JSValue js_lexer_new(JSContext*, JSValueConst);
 JSValue js_lexer_wrap(JSContext*, JSValueConst, Lexer*);
 JSValue js_lexer_constructor(JSContext*, JSValueConst, int, JSValueConst[]);
 

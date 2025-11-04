@@ -565,7 +565,7 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
 }
 
 JSValue
-js_lexer_new(JSContext* ctx, JSValueConst new_target, JSValueConst in, JSValueConst arg) {
+js_lexer_new(JSContext* ctx, JSValueConst new_target) {
   Lexer* lex;
   int32_t mode = 0;
   JSValue obj = JS_UNDEFINED;
@@ -573,25 +573,7 @@ js_lexer_new(JSContext* ctx, JSValueConst new_target, JSValueConst in, JSValueCo
   if(!(lex = lexer_new(ctx)))
     return JS_EXCEPTION;
 
-  obj = js_lexer_wrap(ctx, new_target, lex);
-
-  if(JS_IsNumber(arg))
-    lex->mode = js_toint32(ctx, arg);
-
-  if(JS_IsException(obj))
-    goto fail;
-
-  if(!js_is_null_or_undefined(in)) {
-    lex->input = js_input_chars(ctx, in);
-    JS_GetException(ctx);
-  }
-
-  return obj;
-
-fail:
-  js_free(ctx, lex);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
+  return js_lexer_wrap(ctx, new_target, lex);
 }
 
 JSValue
@@ -678,24 +660,32 @@ JSValue
 js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Lexer* lex;
   int64_t mask = MASK_ALL;
-  JSValue ret = js_lexer_new(ctx, new_target, argc > 0 ? argv[0] : JS_UNDEFINED, argc > 1 ? argv[1] : JS_UNDEFINED);
+  JSValue ret = js_lexer_new(ctx, new_target);
 
-  if((lex = JS_GetOpaque(ret, js_lexer_class_id))) {
-    int i = 2;
+  if(!(lex = JS_GetOpaque(ret, js_lexer_class_id)))
+    return JS_EXCEPTION;
 
-    if(lex->loc.file == -1 && i < argc && JS_IsString(argv[i]))
-      lex->loc.file = JS_ValueToAtom(ctx, argv[i++]);
+  if(!js_is_null_or_undefined(argv[0])) {
+    InputBuffer input = js_input_chars(ctx, argv[0]);
 
-    if(i < argc && JS_IsNumber(argv[i])) {
-      uint32_t mode = 0;
-
-      JS_ToUint32(ctx, &mode, argv[i++]);
-      lex->mode |= mode;
-    }
-
-    if(i < argc && JS_IsNumber(argv[i]))
-      JS_ToInt64(ctx, &mask, argv[i++]);
+    if(input.data)
+      lex->input = input;
   }
+
+  int i = 1;
+
+  if(i < argc && JS_IsNumber(argv[i])) {
+    uint32_t mode = 0;
+
+    JS_ToUint32(ctx, &mode, argv[i++]);
+    lex->mode |= mode;
+  }
+
+  if(i < argc && lex->loc.file == -1 && JS_IsString(argv[i]))
+    lex->loc.file = JS_ValueToAtom(ctx, argv[i++]);
+
+  if(i < argc && JS_IsNumber(argv[i]))
+    JS_ToInt64(ctx, &mask, argv[i++]);
 
   JS_SetPropertyStr(ctx, ret, "mask", JS_NewInt64(ctx, mask));
   return ret;
