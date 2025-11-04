@@ -102,9 +102,14 @@ void block_munmap(MemoryBlock*);
 int block_from_file(MemoryBlock*, const char*, JSContext*);
 
 static inline void
-block_init(MemoryBlock* mb) {
+block_zero(MemoryBlock* mb) {
   mb->base = 0;
   mb->size = 0;
+}
+
+static inline MemoryBlock
+block_new(const void* buf, size_t len) {
+  return (MemoryBlock){(void*)buf, len};
 }
 
 /* clang-format off */
@@ -184,7 +189,7 @@ OffsetLength offsetlength_byte2char(const OffsetLength src, const void* buf, siz
 JSValue offsetlength_typedarray(OffsetLength*, JSValueConst, JSContext*);
 
 static inline void
-offsetlength_init(OffsetLength* ol) {
+offsetlength_zero(OffsetLength* ol) {
   ol->offset = 0;
   ol->length = SIZE_MAX;
 }
@@ -246,9 +251,19 @@ typedef struct IndexRange {
 int indexrange_from_argv(IndexRange*, int64_t, int, JSValueConst[], JSContext*);
 
 static inline void
-indexrange_init(IndexRange* ir) {
+indexrange_zero(IndexRange* ir) {
   ir->start = 0;
   ir->end = INT64_MAX;
+}
+
+static inline IndexRange
+indexrange_from_int(int64_t s, int64_t e) {
+  return INDEX_RANGE(s, e);
+}
+
+static inline BOOL
+indexrange_is_null(IndexRange ir) {
+  return ir.start == 0 && ir.end == 0;
 }
 
 static inline BOOL
@@ -257,7 +272,7 @@ indexrange_is_default(IndexRange ir) {
 }
 
 static inline IndexRange
-indexrange_offsetlength(OffsetLength ol) {
+indexrange_from_offsetlength(OffsetLength ol) {
   return (IndexRange){ol.offset, ol.length == SIZE_MAX ? INT64_MAX : ol.offset + ol.length};
 }
 
@@ -282,8 +297,8 @@ indexrange_end(IndexRange ir, const void* buf, size_t len) {
 }
 
 static inline int64_t
-indexrange_size(IndexRange ir, size_t n) {
-  return indexrange_tail(ir, n) - indexrange_head(ir, n);
+indexrange_size(IndexRange ir, size_t len) {
+  return indexrange_tail(ir, len) - indexrange_head(ir, len);
 }
 
 static inline MemoryBlock
@@ -295,13 +310,13 @@ indexrange_block(IndexRange ir, MemoryBlock b) {
 }
 
 static inline OffsetLength
-indexrange_to_offsetlength(IndexRange ir, size_t n) {
-  return (OffsetLength){indexrange_head(ir, n), indexrange_size(ir, n)};
+indexrange_to_offsetlength(IndexRange ir, size_t len) {
+  return (OffsetLength){indexrange_head(ir, len), indexrange_size(ir, len)};
 }
 
 static inline MemoryBlock
-indexrange_to_block(IndexRange ir, const void* x, size_t n) {
-  return (MemoryBlock){indexrange_begin(ir, x, n), indexrange_size(ir, n)};
+indexrange_to_block(IndexRange ir, const void* buf, size_t len) {
+  return (MemoryBlock){indexrange_begin(ir, buf, len), indexrange_size(ir, len)};
 }
 
 static inline JSValue
@@ -331,11 +346,6 @@ int range_resize(PointerRange*, uintptr_t);
 int range_write(PointerRange*, const void*, uintptr_t);
 int range_puts(PointerRange*, const void*);
 int range_append(PointerRange*, PointerRange);
-
-static inline void
-range_init(PointerRange* pr) {
-  pr->end = pr->start = 0;
-}
 
 static inline char*
 range_begin(const PointerRange* pr) {
@@ -389,26 +399,24 @@ range_to_block(PointerRange pr) {
 }
 
 static inline IndexRange
-range_to_indexrange(PointerRange pr, const void* x) {
-  const uint8_t* const base = x;
-  return (IndexRange){(const uint8_t*)pr.start - base, (const uint8_t*)pr.end - base};
+range_to_indexrange(PointerRange pr, const void* base) {
+  char* x = (void*)base;
+  return (IndexRange){range_begin(&pr) - x, range_end(&pr) - x};
 }
 
 static inline OffsetLength
 range_to_offsetlength(PointerRange pr, const void* base) {
-  const uint8_t* const ptr = base;
-
-  return (OffsetLength){(const uint8_t*)pr.start - ptr, range_size(pr)};
+  return (OffsetLength){range_begin(&pr) - (char*)base, range_size(pr)};
 }
 
 static inline int
 range_in(const PointerRange* r, const void* ptr) {
-  return (const uint8_t*)ptr >= (const uint8_t*)r->start && (const uint8_t*)ptr < (const uint8_t*)r->end;
+  return (char*)ptr >= range_begin(r) && (char*)ptr < range_end(r);
 }
 
 static inline int64_t
 range_index(PointerRange r, const void* ptr) {
-  return (const uint8_t*)ptr - (const uint8_t*)r.start;
+  return (char*)ptr - range_begin(&r);
 }
 
 typedef struct InputBuffer {
