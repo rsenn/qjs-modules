@@ -1014,7 +1014,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case LEXER_POSITION: {
-      ret = JS_NewInt64(ctx, lex->byte_offset);
+      ret = JS_NewInt64(ctx, lex->char_offset);
       break;
     }
 
@@ -1165,15 +1165,19 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       Location* loc;
 
       if(((tok = js_token_data(value)) && (loc = tok->loc)) || (loc = js_location_data(value))) {
-        newpos = loc->byte_offset;
+        lex->byte_offset = loc->byte_offset;
+        lex->char_offset = loc->char_offset;
       } else {
         JS_ToIndex(ctx, &newpos, value);
+
+        size_t offset = utf8_byteoffset(lex->data, lex->size, newpos);
+
+        if(offset > lex->size)
+          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->size);
+
+        lex->byte_offset = offset;
+        lex->char_offset = newpos;
       }
-
-      if(newpos > lex->size)
-        return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->size);
-
-      lex->byte_offset = newpos;
 
       break;
     }

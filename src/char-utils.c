@@ -515,7 +515,7 @@ utf8_strlen(const void* in, size_t len) {
 }
 
 size_t
-utf8_byteoffset(const void* in, size_t len, size_t pos) {
+utf8_byteoffset(const void* in, size_t len, int pos) {
   const uint8_t *x = in, *y = (const uint8_t*)in + len, *next;
 
   if(len == 0)
@@ -523,8 +523,11 @@ utf8_byteoffset(const void* in, size_t len, size_t pos) {
   if(pos == 0)
     return 0;
 
-  for(size_t i = 0; x < y; ++i) {
-    if(i == pos)
+  if(pos < 0)
+    pos = utf8_strlen(in, len) + pos;
+
+  for(int i = 0; x <= y; ++i) {
+    if(i >= pos)
       return x - (const uint8_t*)in;
 
     x += utf8_charlen(x, y - x);
