@@ -340,7 +340,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_BYTEPOS: {
-      ret = JS_NewInt64(ctx, token_byte - _pos(tok));
+      ret = JS_NewInt64(ctx, token_byte_pos(tok));
       break;
     }
 
