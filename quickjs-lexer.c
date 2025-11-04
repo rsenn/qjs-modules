@@ -302,7 +302,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case TOKEN_BYTERANGE: {
       const uint8_t* base = tok->lexeme - token_byte_pos(tok);
 
-      PointerRange pr = range_from_block(block_new(tok->lexeme, tok->byte_length));
+      PointerRange pr = token_byte_range(tok); // range_from_block(block_new(tok->lexeme, tok->byte_length));
 
       ret = indexrange_toarray(range_to_indexrange(pr, base), ctx);
       break;
