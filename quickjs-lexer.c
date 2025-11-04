@@ -128,7 +128,6 @@ token_byte_pos(Token* tok) {
 
     if(range_in(&r, tok->lexeme))
       return range_index(r, tok->lexeme);
-    ;
   }
 
   return location_byteoffset(tok->loc);
@@ -328,9 +327,11 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc)) {
-        OffsetLength ol = {token_char_pos(tok), token_char_length(tok)};
+        int64_t pos = token_char_pos(tok);
+        int64_t len = token_char_length(tok);
 
-        ret = indexrange_toarray(indexrange_offsetlength(ol), ctx);
+        IndexRange ir = {pos, pos + len};
+        ret = indexrange_toarray(ir, ctx);
       }
 
       break;
