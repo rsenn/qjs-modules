@@ -54,7 +54,10 @@ if(NOT DEFINED BUILTINS_COMPILED)
   set(BUILTINS_COMPILED assert console events fs io perf_hooks process repl require stack tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
-set(BUILTINS_COMPILED "${BUILTINS_COMPILED}" CACHE STRING "Compiled .js modules to include in 'qjsm' binary")
+if(NOT DEFINED BUILTINS_NATIVE)
+  set(BUILTINS_NATIVE arraybuffer-sink blob child-process deep directory inspect lexer location misc path pointer
+                      predicate repeater syscallerror textcode tree-walker virtual xml)
+endif(NOT DEFINED BUILTINS_NATIVE)
 
 include(FindPkgConfig)
 
@@ -690,6 +693,8 @@ install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
+set(BUILTINS_COMPILED "${BUILTINS_COMPILED}" CACHE STRING "Compiled .js modules to include in 'qjsm' binary")
+
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${BUILTINS_COMPILED}")
 
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
@@ -845,13 +850,6 @@ if(TARGET qjs-serial)
 endif(TARGET qjs-serial)
 
 set(QJSM_SOURCES src/qjsm.c)
-
-if(NOT DEFINED BUILTINS_NATIVE)
-  set(BUILTINS_NATIVE 
-    child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml
-    )
-  list(APPEND BUILTINS_NATIVE syscallerror)
-endif(NOT DEFINED BUILTINS_NATIVE)
 
 set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
 

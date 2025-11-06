@@ -112,7 +112,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         for(i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 2) {
           uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->endian), 0};
           /*size_t ns = 2;*/
-          
+
           if(utf16_multiword(u16)) {
             if(i + 2 >= n)
               break;
@@ -693,7 +693,7 @@ js_code_init(JSContext* ctx, JSModuleDef* m) {
 #ifdef JS_TEXTCODE_MODULE
 #define JS_INIT_MODULE js_init_module
 #else
-#define JS_INIT_MODULE js_init_module_textdecoder
+#define JS_INIT_MODULE js_init_module_textcode
 #endif
 
 VISIBLE JSModuleDef*
