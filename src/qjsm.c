@@ -148,58 +148,43 @@ typedef struct {
   BOOL initialized;
 } BuiltinModule;
 
-#define jsm_module_extern_compiled(name) \
+#define jsm_builtin_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*);
+
+#define jsm_builtin_compiled(name) \
   extern const uint8_t qjsc_##name[]; \
   extern const uint32_t qjsc_##name##_size;
 
-#define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
+#include "quickjs-builtins.h"
+
+#ifdef CONFIG_BIGNUM
+#if HAVE_QJSCALC
+jsm_builtin_compiled(qjscalc);
+#endif
+static int bignum_ext = 1;
+#endif
+
+#undef jsm_builtin_native
+#undef jsm_builtin_compiled
 
 #define jsm_module_record_compiled(name) \
-  (BuiltinModule) { \
-    #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE \
-  }
+  { #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE }
 
 #define jsm_module_record_native(name) \
-  (BuiltinModule) { \
-    #name, js_init_module_##name, 0, 0, 0, FALSE \
-  }
-
-jsm_module_extern_native(std);
-jsm_module_extern_native(os);
-jsm_module_extern_native(child_process);
-jsm_module_extern_native(deep);
-jsm_module_extern_native(inspect);
-jsm_module_extern_native(lexer);
-jsm_module_extern_native(misc);
-// jsm_module_extern_native(mmap);
-jsm_module_extern_native(path);
-jsm_module_extern_native(pointer);
-jsm_module_extern_native(predicate);
-jsm_module_extern_native(repeater);
-jsm_module_extern_native(tree_walker);
-jsm_module_extern_native(xml);
-
-jsm_module_extern_compiled(console);
-jsm_module_extern_compiled(events);
-jsm_module_extern_compiled(fs);
-jsm_module_extern_compiled(io);
-jsm_module_extern_compiled(perf_hooks);
-jsm_module_extern_compiled(process);
-jsm_module_extern_compiled(repl);
-jsm_module_extern_compiled(require);
-jsm_module_extern_compiled(tty);
-jsm_module_extern_compiled(util);
+  { #name, js_init_module_##name, 0, 0, 0, FALSE }
 
 static thread_local Vector jsm_stack = VECTOR_INIT();
 static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
 
-#ifdef CONFIG_BIGNUM
-#if HAVE_QJSCALC
-jsm_module_extern_compiled(qjscalc);
-#endif
-static int bignum_ext = 1;
-#endif
+/*#define jsm_builtin_compiled(name) jsm_module_record_compiled(name),
+#define jsm_builtin_native(name) jsm_module_record_native(name),
+
+BuiltinModule jsm_builtin_list[] = {
+#include "quickjs-builtins.h"
+};
+
+#undef jsm_builtin_native
+#undef jsm_builtin_compiled*/
 
 void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
@@ -398,17 +383,6 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   return 0;
 }
 
-JSModuleDef* js_init_module_deep(JSContext*, const char*);
-JSModuleDef* js_init_module_inspect(JSContext*, const char*);
-JSModuleDef* js_init_module_lexer(JSContext*, const char*);
-JSModuleDef* js_init_module_misc(JSContext*, const char*);
-JSModuleDef* js_init_module_path(JSContext*, const char*);
-JSModuleDef* js_init_module_pointer(JSContext*, const char*);
-JSModuleDef* js_init_module_predicate(JSContext*, const char*);
-JSModuleDef* js_init_module_repeater(JSContext*, const char*);
-JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
-JSModuleDef* js_init_module_xml(JSContext*, const char*);
-
 void
 jsm_init_modules(JSContext* ctx) {
   if(jsm_modules_initialized)
@@ -418,35 +392,11 @@ jsm_init_modules(JSContext* ctx) {
 
   dbuf_init2(&jsm_builtin_modules, 0, &vector_realloc);
 
-#define jsm_builtin_native(name) vector_push(&jsm_builtin_modules, jsm_module_record_native(name));
+#define jsm_builtin_native(name) vector_push(&jsm_builtin_modules, (BuiltinModule)jsm_module_record_native(name));
 
-  jsm_builtin_native(std);
-  jsm_builtin_native(os);
-  jsm_builtin_native(child_process);
-  jsm_builtin_native(deep);
-  jsm_builtin_native(inspect);
-  jsm_builtin_native(lexer);
-  jsm_builtin_native(misc);
-  // jsm_builtin_native(mmap);
-  jsm_builtin_native(path);
-  jsm_builtin_native(pointer);
-  jsm_builtin_native(predicate);
-  jsm_builtin_native(repeater);
-  jsm_builtin_native(tree_walker);
-  jsm_builtin_native(xml);
+#define jsm_builtin_compiled(name) vector_push(&jsm_builtin_modules, (BuiltinModule)jsm_module_record_compiled(name));
 
-#define jsm_builtin_compiled(name) vector_push(&jsm_builtin_modules, jsm_module_record_compiled(name));
-
-  jsm_builtin_compiled(console);
-  jsm_builtin_compiled(events);
-  jsm_builtin_compiled(fs);
-  jsm_builtin_compiled(io);
-  jsm_builtin_compiled(perf_hooks);
-  jsm_builtin_compiled(process);
-  jsm_builtin_compiled(repl);
-  jsm_builtin_compiled(require);
-  jsm_builtin_compiled(tty);
-  jsm_builtin_compiled(util);
+#include "quickjs-builtins.h"
 }
 
 static BuiltinModule*
@@ -1470,7 +1420,7 @@ jsm_help(void) {
          "\n"
          "  USR1 signal starts interactive mode\n"
 #endif
-         ,
+         "-l  --list         list modules\n",
          exename);
   exit(1);
 }
@@ -1950,7 +1900,7 @@ main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
   char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1,
-       dump_unhandled_promise_rejection = 0;
+       dump_unhandled_promise_rejection = 0, list_modules = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -2056,6 +2006,11 @@ main(int argc, char** argv) {
         break;
       }
 
+      if(opt == 'l' || !strcmp(longopt, "list")) {
+        list_modules++;
+        break;
+      }
+
       if(opt == 'd' || !strcmp(longopt, "dump")) {
         dump_memory++;
         break;
@@ -2131,6 +2086,17 @@ main(int argc, char** argv) {
   }
 
   jsm_init_modules(jsm_ctx);
+
+  if(list_modules) {
+    BuiltinModule* rec;
+
+    printf("Builtin modules:\n");
+    vector_foreach_t(&jsm_builtin_modules, rec) {
+      printf("  %s%s\n", rec->module_name, rec->module_func ? "" : ".js");
+    }
+
+    return 0;
+  }
 
 #if HAVE_JS_GETMODULELOADERFUNC
   JSModuleLoaderFunc* module_loader = js_std_get_module_loader_func();

@@ -707,12 +707,17 @@ set(stack_MODULES inspect location)
 set(util_MODULES inspect path misc)
 set(inspect_MODULES pointer)
 
+set(COMPILED_BUILTIN_HEADER "")
+
+
 foreach(LIB_MODULE ${LIB_MODULES})
   #message("Compile Module: ${LIB_MODULE}")
 
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
 
   compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
+
+  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${LIB_MODULE})\n")
 endforeach(LIB_MODULE ${LIB_MODULES})
 
 #[[function(WATCH_INTERNAL_MODIFIED VAR VALUE UNKNOWN)
@@ -879,9 +884,24 @@ set(QJSM_SOURCES src/qjsm.c)
 set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
 list(APPEND NATIVE_BUILTINS syscallerror)
 
+set(NATIVE_BUILTIN_HEADER "")
+
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
+  string(REGEX REPLACE "-" "_" NATIVE_MODULE "${NATIVE_BUILTIN}")
+  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${NATIVE_MODULE})\n")
 endforeach()
+
+ 
+
+message("Builtins definitions:\n${BUILTIN_HEADER}")
+
+set(BUILTIN_HEADER "#ifndef jsm_builtin_native\n#define jsm_builtin_native(x)\n#endif\n")
+set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef jsm_builtin_compiled\n#define jsm_builtin_compiled(x)\n#endif\n")
+
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h" "${BUILTIN_HEADER}\n${NATIVE_BUILTIN_HEADER}\n${COMPILED_BUILTIN_HEADER}")
+
 
 add_executable(qjsm ${QJSM_SOURCES})
 
