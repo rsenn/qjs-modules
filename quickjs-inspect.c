@@ -1042,7 +1042,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
 
   JS_FreeValue(ctx, val);
 
-  BOOL is_array = js_is_array(ctx, value);
+  BOOL is_array = JS_IsArray(ctx, value);
   BOOL is_function = JS_IsFunction(ctx, value);
 
   if(opts->depth != INT32_MAX && depth > opts->depth) {

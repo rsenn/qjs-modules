@@ -328,8 +328,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_CHARRANGE: {
-      const OffsetLength ol = {token_char_pos(tok), token_char_length(tok)};
-      ret = indexrange_toarray(indexrange_from_offsetlength(ol), ctx);
+      ret = indexrange_toarray(token_char_indexrange(tok), ctx);
       break;
     }
 
