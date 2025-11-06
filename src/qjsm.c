@@ -506,6 +506,7 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
       ++i;
   }
 
+  js_free(ctx, t);
   return 0;
 }
 
@@ -628,8 +629,8 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 
   for(; *path; ++path) {
     switch(*path) {
-      case '!':    
-          if(!star)
+      case '!':
+        if(!star)
           mode = EXEC;
         continue;
       case '*':
@@ -696,6 +697,9 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
   while(*name == '!' || *name == '*')
     ++name;
 
+  if(debug_module_loader >= 2)
+    printf("%-20s [1](name=\"%s\", start_pos=%d)\n", __FUNCTION__, name, start_pos);
+
   if((m = js_module_find_from(ctx, name, start_pos)))
     return m;
 
@@ -706,6 +710,9 @@ static JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* path, const char* name) {
   JSModuleDef* last_module = 0;
   DynBuf dbuf;
+
+  if(debug_module_loader >= 2)
+    printf("%-20s [1](path=\"%s\", name=\"%s\")\n", __FUNCTION__, path, name);
 
 #if QUICKJS_INTERNAL
   last_module = module_last(ctx);
@@ -747,14 +754,17 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 }
 
 JSModuleDef*
-jsm_module_json(JSContext* ctx, const char* name) {
+jsm_module_json(JSContext* ctx, const char* path) {
   DynBuf db;
   JSValue ret;
   JSModuleDef* m = 0;
   uint8_t* ptr;
   size_t len, i;
 
-  if(!(ptr = js_load_file(ctx, &len, name)))
+  if(debug_module_loader >= 2)
+    printf("%-20s [1](path=\"%s\")\n", __FUNCTION__, path);
+
+  if(!(ptr = js_load_file(ctx, &len, path)))
     return 0;
 
   js_dbuf_init(ctx, &db);
@@ -766,7 +776,7 @@ jsm_module_json(JSContext* ctx, const char* name) {
   js_free(ctx, ptr);
   dbuf_0(&db);
 
-  ret = JS_Eval(ctx, (const char*)db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  ret = JS_Eval(ctx, (const char*)db.buf, db.size, path, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
     m = JS_VALUE_GET_PTR(ret);
   JS_FreeValue(ctx, ret);
@@ -778,10 +788,11 @@ jsm_module_json(JSContext* ctx, const char* name) {
 char*
 jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
   char *file = 0, *s = js_strdup(ctx, module_name);
+  int i = 0;
 
   for(;;) {
-    if(debug_module_loader - !strcmp(module_name, s) >= 3)
-      printf("%-20s [1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
+    if(debug_module_loader >= 2)
+      printf("%-20s [%d](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, i++, module_name, opaque, s);
 
     if(has_dot_or_slash(s))
       if(path_isfile1(s))
@@ -863,8 +874,12 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *s = 0, *name = js_strdup(ctx, module_name);
   JSModuleDef* m = 0;
   ModuleLoaderContext** lptr = opaque;
+  int i = 0;
 
 again:
+  if(debug_module_loader >= 2)
+    printf("%-16s [%d] (module_name=\"%s\", opaque=%p)\n", __FUNCTION__, i++, module_name, opaque);
+
   if(str_start(name, "file://"))
     name += 7;
 
@@ -1045,6 +1060,7 @@ restart:
 
       JS_FreeValue(ctx, exception);
     }*/
+
     js_free(ctx, s);
 
   } else {
@@ -2168,10 +2184,14 @@ main(int argc, char** argv) {
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 
     if(load_std) {
-      const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = "
-                        "std;\nglobalThis.os = os;\nglobalThis.setTimeout = "
-                        "os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
-      dbuf_putstr(&db, str);
+      dbuf_putstr(&db,
+                  "import * as std from 'std';\n"
+                  "import * as os from 'os';\n"
+                  "\n"
+                  "globalThis.std = std;\n"
+                  "globalThis.os = os;\n"
+                  "globalThis.setTimeout = os.setTimeout;\n"
+                  "globalThis.clearTimeout = os.clearTimeout;\n");
     }
 
     sargs = js_global_get_str(jsm_ctx, "scriptArgs");
