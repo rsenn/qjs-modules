@@ -68,7 +68,7 @@ typedef struct ModuleLoaderContext {
 } ModuleLoaderContext;
 
 static thread_local int debug_module_loader = 0;
-static thread_local Vector module_debug = VECTOR_INIT();
+static thread_local Vector debug_list = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
 static thread_local ModuleLoaderContext* module_loaders = NULL;
 
@@ -628,18 +628,15 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 
   for(; *path; ++path) {
     switch(*path) {
-      case '!':
-        if(!star)
+      case '!':    
+          if(!star)
           mode = EXEC;
-
         continue;
       case '*':
         if(!name)
           mode = ALL;
-
         continue;
     }
-
     break;
   }
 
@@ -2097,13 +2094,13 @@ main(int argc, char** argv) {
 
       for(size_t i = 0; modules[i]; i += len) {
         len = str_chr(&modules[i], ',');
-        vector_putptr(&module_debug, str_ndup(&modules[i], len));
+        vector_putptr(&debug_list, str_ndup(&modules[i], len));
 
         if(modules[i + len] == ',')
           len++;
       }
 
-      debug_module_loader = vector_counts(&module_debug, "modules");
+      debug_module_loader = vector_counts(&debug_list, "modules");
     }
   }
 
