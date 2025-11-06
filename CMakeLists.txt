@@ -51,7 +51,7 @@ option(MODULE_SERIAL "Build 'serial' module" OFF)
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED console db events fs io parser perf_hooks process repl require stack tty util)
+  set(BUILTINS_COMPILED assert console events fs io perf_hooks process repl require stack tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 set(BUILTINS_COMPILED "${BUILTINS_COMPILED}" CACHE STRING "Compiled .js modules to include in 'qjsm' binary")
@@ -694,17 +694,21 @@ string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${BUILTINS_COMPILED}")
 
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
-set(COMMON_MODULES util)
-set(console_MODULES inspect)
+set(COMMON_MODULES "")
+
+set(assert_MODULES deep inspect)
+set(console_MODULES util inspect)
 set(db_MODULES list)
 set(fs_MODULES syscallerror stream events path mmap misc textcode)
-set(io_MODULES misc)
+set(io_MODULES util misc)
 set(parser_MODULES path list)
-set(process_MODULES path misc)
-set(repl_MODULES inspect path io process)
-set(require_MODULES path)
+set(process_MODULES path util misc)
+set(repl_MODULES util inspect path io process)
+set(require_MODULES util path)
 set(perf_hooks_MODULES misc)
 set(stack_MODULES inspect location)
+set(tty_MODULES util)
+set(url_MODULES util path)
 set(util_MODULES inspect path misc)
 set(inspect_MODULES pointer)
 
@@ -843,7 +847,9 @@ endif(TARGET qjs-serial)
 set(QJSM_SOURCES src/qjsm.c)
 
 if(NOT DEFINED BUILTINS_NATIVE)
-  set(BUILTINS_NATIVE child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
+  set(BUILTINS_NATIVE 
+    child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml
+    )
   list(APPEND BUILTINS_NATIVE syscallerror)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
