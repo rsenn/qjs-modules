@@ -80,7 +80,6 @@ static thread_local ModuleLoaderContext* module_loaders = NULL;
 
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
-// static JSModuleLoaderFunc* module_loader = 0;
 static JSValue package_json;
 static char* exename;
 static size_t exelen;
@@ -89,8 +88,9 @@ static JSContext* jsm_ctx;
 static int interactive = 0;
 
 static const char* const module_extensions[] = {
-    CONFIG_SHEXT, ".js", "/index.js",
-    //    "/package.json",
+    CONFIG_SHEXT,
+    ".js",
+    "/index.js",
 };
 
 static inline BOOL
@@ -1246,7 +1246,7 @@ jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
 
 /* default memory allocation functions with memory limitation */
 static inline size_t
-jsm_trace_malloc_usable_size(void* ptr) {
+jsm_trace_malloc_usable_size(const void* ptr) {
 #if defined(__APPLE__)
   return malloc_size(ptr);
 #elif defined(_WIN32)
@@ -1376,20 +1376,7 @@ static const JSMallocFunctions trace_mf = {
     jsm_trace_malloc,
     jsm_trace_free,
     jsm_trace_realloc,
-#if defined(__APPLE__)
-    malloc_size,
-#elif defined(_WIN32)
-    (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
-    0,
-#elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
-    (size_t(*)(const void*))malloc_usable_size,
-#else
-#warning change this to `0,` if compilation fails
-    /* change this to `0,` if compilation fails */
-    malloc_usable_size,
-#endif
+    jsm_trace_malloc_usable_size,
 };
 
 void
