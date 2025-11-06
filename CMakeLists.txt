@@ -50,10 +50,11 @@ option(MODULE_SERIAL "Build 'serial' module" OFF)
 #option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
-set(LIB_MODULES
-    console db events fs io
-    #lexer/csv lexer/ecmascript
-    parser perf_hooks process repl require stack tty util)
+if(NOT DEFINED BUILTINS_COMPILED)
+  set(BUILTINS_COMPILED console db events fs io parser perf_hooks process repl require stack tty util)
+endif(NOT DEFINED BUILTINS_COMPILED)
+
+set(BUILTINS_COMPILED "${BUILTINS_COMPILED}" CACHE STRING "Compiled .js modules to include in 'qjsm' binary")
 
 include(FindPkgConfig)
 
@@ -689,7 +690,7 @@ install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
-string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
+string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${BUILTINS_COMPILED}")
 
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
@@ -707,59 +708,19 @@ set(stack_MODULES inspect location)
 set(util_MODULES inspect path misc)
 set(inspect_MODULES pointer)
 
-set(COMPILED_BUILTIN_HEADER "")
-
-
-foreach(LIB_MODULE ${LIB_MODULES})
-  #message("Compile Module: ${LIB_MODULE}")
-
-  set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
-
-  compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
-
-  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${LIB_MODULE})\n")
-endforeach(LIB_MODULE ${LIB_MODULES})
-
-#[[function(WATCH_INTERNAL_MODIFIED VAR VALUE UNKNOWN)
-  set(OLD_VALUE "${${VAR}_VALUE}")
-  message(STATUS "[1;34mMODIFIED[0m ${VAR} VALUE=${VALUE} OLD_VALUE=${OLD_VALUE} ${UNKNOWN}")
-  set("${VAR}_VALUE" "${VALUE}" PARENT_SCOPE)
-endfunction(WATCH_INTERNAL_MODIFIED VAR VALUE UNKNOWN)
-
-function(WATCH_INTERNAL_READ VAR VALUE UNKNOWN)
-  set(OLD_VALUE "${${VAR}_VALUE}")
-  if(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
-    set("${VAR}_VALUE" "${VALUE}" PARENT_SCOPE)
-    #message(STATUS "[1;32mREAD[0m     ${VAR} VALUE=${VALUE} OLD_VALUE=${OLD_VALUE}")
-  endif(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
-endfunction(WATCH_INTERNAL_READ VAR VALUE UNKNOWN)
-
-function(WATCH_INTERNAL_DEFINED VAR VALUE UNKNOWN)
-  set(OLD_VALUE "${${VAR}_VALUE}")
-  if(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
-    set("${VAR}_VALUE" "${VALUE}" PARENT_SCOPE)
-    message(STATUS "[1;32mDEINED[0m     ${VAR} VALUE=${VALUE} OLD_VALUE=${OLD_VALUE}")
-  endif(NOT "${OLD_VALUE}" STREQUAL "${VALUE}")
-endfunction(WATCH_INTERNAL_DEFINED VAR VALUE UNKNOWN)
-
-function(WATCH_INTERNAL_REMOVED VAR VALUE UNKNOWN)
-  set("${VAR}_VALUE" "" PARENT_SCOPE)
-  message(STATUS "[1;31mREMOVED [0m     ${VAR}")
-endfunction(WATCH_INTERNAL_REMOVED VAR VALUE UNKNOWN)
-
-function(WATCH_INTERNAL VAR ACCESS VALUE)
-  string(REPLACE "_ACCESS" "" B "${ACCESS}")
-  string(REPLACE "UNKNOWN_" "" A "${B}")
-  set(UNKNOWN "")
-  if(NOT "${A}" STREQUAL "${B}")
-    set(UNKNOWN "UNKNOWN")
-  endif(NOT "${A}" STREQUAL "${B}")
-  cmake_language(CALL "WATCH_INTERNAL_${A}" "${VAR}" "${VALUE}" "${UNKNOWN}")
-endfunction(WATCH_INTERNAL VAR ACCESS VALUE)
-
-variable_watch(QUICKJS_SOURCES_ROOT watch_internal)]]
-
 if(NOT DEFINED QUICKJS_SOURCES_ROOT)
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
+    set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+    include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
+    include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
+
+    unset(QUICKJS_INCLUDE_DIR CACHE)
+    set(QUICKJS_INCLUDE_DIR "${QUICKJS_SOURCES_ROOT}")
+
+    include_directories(${QUICKJS_INCLUDE_DIR})
+  endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
+
   if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
       set(QUICKJS_SOURCES_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
@@ -788,7 +749,7 @@ else(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
   unset(QUICKJS_INTERNAL CACHE)
 endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
-dump(QUICKJS_SOURCES_ROOT QUICKJS_INTERNAL)
+#dump(QUICKJS_SOURCES_ROOT QUICKJS_INTERNAL)
 
 if(QUICKJS_INTERNAL)
   add_definitions(-DQUICKJS_INTERNAL=1)
@@ -828,6 +789,18 @@ if(QUICKJS_INTERNAL)
   endif(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
 endif(QUICKJS_INTERNAL)
 
+set(COMPILED_BUILTIN_HEADER "")
+
+foreach(LIB_MODULE ${BUILTINS_COMPILED})
+  #message("Compile Module: ${LIB_MODULE}")
+
+  set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
+
+  compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
+
+  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${LIB_MODULE})\n")
+endforeach(LIB_MODULE ${BUILTINS_COMPILED})
+
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
 add_library(compiled STATIC ${COMPILED_MODULES})
@@ -837,7 +810,8 @@ set(COMMON_LIBRARIES modules compiled)
 get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
-  make_module(${JS_MODULE})
+  file(GLOB MODULE_SOURCE quickjs-${JS_MODULE}.[ch])
+  make_module(${JS_MODULE} ${MODULE_SOURCE})
 
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
 
@@ -866,42 +840,30 @@ if(TARGET qjs-serial)
   target_link_libraries(qjs-serial PRIVATE Serial::Port)
 endif(TARGET qjs-serial)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
-  set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
-
-  include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
-  include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
-
-  unset(QUICKJS_INCLUDE_DIR CACHE)
-  set(QUICKJS_INCLUDE_DIR "${QUICKJS_SOURCES_ROOT}")
-
-  include_directories(${QUICKJS_INCLUDE_DIR})
-endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
-
 set(QJSM_SOURCES src/qjsm.c)
-#set(QJSM_LDADD qjs-syscallerror-static)
 
-set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
-list(APPEND NATIVE_BUILTINS syscallerror)
+if(NOT DEFINED BUILTINS_NATIVE)
+  set(BUILTINS_NATIVE child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
+  list(APPEND BUILTINS_NATIVE syscallerror)
+endif(NOT DEFINED BUILTINS_NATIVE)
+
+set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
 
 set(NATIVE_BUILTIN_HEADER "")
 
-foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
+foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
   string(REGEX REPLACE "-" "_" NATIVE_MODULE "${NATIVE_BUILTIN}")
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${NATIVE_MODULE})\n")
 endforeach()
-
- 
 
 message("Builtins definitions:\n${BUILTIN_HEADER}")
 
 set(BUILTIN_HEADER "#ifndef jsm_builtin_native\n#define jsm_builtin_native(x)\n#endif\n")
 set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef jsm_builtin_compiled\n#define jsm_builtin_compiled(x)\n#endif\n")
 
-
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h" "${BUILTIN_HEADER}\n${NATIVE_BUILTIN_HEADER}\n${COMPILED_BUILTIN_HEADER}")
-
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h"
+     "${BUILTIN_HEADER}\n${NATIVE_BUILTIN_HEADER}\n${COMPILED_BUILTIN_HEADER}")
 
 add_executable(qjsm ${QJSM_SOURCES})
 
