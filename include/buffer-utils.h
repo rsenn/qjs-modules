@@ -95,6 +95,7 @@ typedef struct {
 
 #define MEMORY_BLOCK(buf, len) (MemoryBlock) BLOCK_INIT_DATA(buf, len)
 
+#define block_indexrange(block, ir) indexrange_block(ir, block)
 #define block_from_indexrange(ir, buf, len) indexrange_to_block(ir, buf, len)
 #define block_from_range(pr) range_to_block(pr)
 #define block_to_range(mb) range_from_block(mb)
@@ -117,10 +118,10 @@ block_new(const void* buf, size_t len) {
 }
 
 /* clang-format off */
-static inline void* block_data(const MemoryBlock* mb) { return mb->base; }
-static inline size_t block_length(const MemoryBlock* mb) { return mb->size; }
-static inline void* block_begin(const MemoryBlock* mb) { return mb->base; }
-static inline void* block_end(const MemoryBlock* mb) { return mb->base + mb->size; }
+static inline void* block_data(MemoryBlock mb) { return mb.base; }
+static inline size_t block_length(MemoryBlock mb) { return mb.size; }
+static inline void* block_begin(MemoryBlock mb) { return mb.base; }
+static inline void* block_end(MemoryBlock mb) { return mb.base + mb.size; }
 /* clang-format on */
 
 static inline BOOL
@@ -156,7 +157,7 @@ block_range(MemoryBlock mb, size_t offset, size_t length) {
 
 static inline uint8_t*
 block_grow(MemoryBlock* mb, size_t add_size, JSContext* ctx) {
-  uint8_t* ptr = block_end(mb);
+  uint8_t* ptr = block_end(*mb);
 
   if(block_realloc(mb, mb->size + add_size, ctx))
     return 0;
@@ -326,6 +327,11 @@ indexrange_block(IndexRange ir, MemoryBlock b) {
 static inline OffsetLength
 indexrange_to_offsetlength(IndexRange ir, size_t len) {
   return OFFSET_LENGTH(indexrange_head(ir, len), indexrange_size(ir, len));
+}
+
+static inline OffsetLength
+offsetlength_indexrange(IndexRange ir) {
+  return OFFSET_LENGTH(ir.start, ir.end == INT64_MAX ? SIZE_MAX : ir.end);
 }
 
 static inline MemoryBlock

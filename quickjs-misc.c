@@ -879,6 +879,7 @@ int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_
 static JSValue
 js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()}, w[2];
+  IndexRange r[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
   int i = 0;
 
   for(int k = 0; k < countof(m); k++) {
@@ -887,21 +888,22 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
     i++;
 
-    IndexRange r = INDEX_RANGE_INIT();
+    int64_t* const slice = r[k].arr;
 
-    for(int j = 0; j < countof(r.arr); j++) {
+    for(int j = 0; j < countof(slice); j++) {
       if(i == argc || js_is_arraybuffer(ctx, argv[i]))
         break;
 
-      js_toint64clamp(ctx, &r.arr[j], argv[i++], j ? r.arr[0] : 0, m[k].size, m[k].size);
+      js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
     }
-
-    w[k] = indexrange_block(r, m[k]);
   }
 
-  size_t n = MIN_NUM(w[0].size, w[1].size);
+  MemoryBlock dst = block_indexrange(m[0], r[0]);
+  MemoryBlock src = block_indexrange(m[1], r[1]);
 
-  memcpy(w[0].base, w[1].base, n);
+  size_t n = MIN_NUM(dst.size, src.size);
+
+  memcpy(dst.base, src.base, n);
 
   return JS_NewInt64(ctx, n);
 }
@@ -925,9 +927,8 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ++i;
   i += js_offset_length(ctx, s2.size, argc - i, argv + i, 0, &o2);
 
-  if((n = MIN_NUM(offsetlength_size(o1, block_length(&s1)), offsetlength_size(o2, block_length(&s2)))))
-    return JS_NewInt32(ctx,
-                       memcmp(offsetlength_begin(o1, block_data(&s1)), offsetlength_begin(o2, block_data(&s2)), n));
+  if((n = MIN_NUM(offsetlength_size(o1, block_length(s1)), offsetlength_size(o2, block_length(s2)))))
+    return JS_NewInt32(ctx, memcmp(offsetlength_begin(o1, block_data(s1)), offsetlength_begin(o2, block_data(s2)), n));
 
   return JS_NULL;
 }

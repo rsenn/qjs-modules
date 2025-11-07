@@ -433,8 +433,8 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
     }
 
     case UTF16: {
-      ptr = block_begin(&in.block);
-      end = block_end(&in.block);
+      ptr = block_begin(in.block);
+      end = block_end(in.block);
 
       for(size_t i = 0; ptr < end; ptr = next, i++) {
         uint_least16_t u16[2];
@@ -461,8 +461,8 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
     }
 
     case UTF32: {
-      ptr = block_begin(&in.block);
-      end = block_end(&in.block);
+      ptr = block_begin(in.block);
+      end = block_end(in.block);
 
       for(size_t i = 0; ptr < end; ptr = next, i++) {
 
