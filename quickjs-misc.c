@@ -877,29 +877,31 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
 static JSValue
-js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock blocks[2] = {BLOCK_INIT(), BLOCK_INIT()};
-  IndexRange ranges[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
+js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()};
   int i = 0;
 
-  for(int k = 0; k < 2; k++) {
-    if(i == argc || !block_arraybuffer(&blocks[k], argv[i], ctx))
+  for(int k = 0; k < countof(m); k++) {
+    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
       return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
 
     i++;
 
-    for(int j = 0; j < 2; j++) {
+    IndexRange r = INDEX_RANGE_INIT();
+
+    for(int j = 0; j < countof(r.arr); j++) {
       if(i == argc || js_is_arraybuffer(ctx, argv[i]))
         break;
 
-      JS_ToInt64Clamp(ctx, &ranges[k].arr[j], argv[i++], j ? ranges[k].arr[0] : 0, blocks[k].size, blocks[k].size);
+      JS_ToInt64Clamp(ctx, &r.arr[j], argv[i++], j ? r.arr[0] : 0, m[k].size, m[k].size);
     }
+
+    m[k] = indexrange_block(r, m[k]);
   }
 
-  MemoryBlock dst = indexrange_block(ranges[0], blocks[0]), src = indexrange_block(ranges[1], blocks[1]);
-  size_t n = MIN_NUM(dst.size, src.size);
+  size_t n = MIN_NUM(m[0].size, m[1].size);
 
-  memcpy(dst.base, src.base, n);
+  memcpy(m[0].base, m[1].base, n);
 
   return JS_NewInt64(ctx, n);
 }
@@ -3727,7 +3729,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("concat", 1, js_misc_concat),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     // JS_ALIAS_DEF("search", "searchArrayBuffer"),
-    JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
+    JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),
     JS_CFUNC_DEF("memcmp", 2, js_misc_memcmp),
 #if HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
