@@ -129,7 +129,7 @@ queue_peek(Queue* q, void* x, size_t n) {
   uint8_t* p = x;
   struct list_head* el;
 
-  list_for_each(el, &q->list) {
+  list_for_each_prev(el, &q->list) {
     if(n == 0)
       break;
 
@@ -140,9 +140,8 @@ queue_peek(Queue* q, void* x, size_t n) {
     p += bytes;
     n -= bytes;
     ret += bytes;
-    b->pos += bytes;
 
-    if(b->pos < b->size)
+    if(b->pos + bytes < b->size)
       break;
   }
 
@@ -184,7 +183,7 @@ queue_next(Queue* q) {
   list_del(&chunk->link);
 
   --q->nchunks;
-  q->nbytes -= chunk->size;
+  q->nbytes -= chunk->size - chunk->pos;
 
   return chunk;
 }
@@ -214,7 +213,7 @@ queue_chunk(Queue* q, ssize_t pos) {
   ssize_t i = 0;
 
   if(pos >= 0 && (size_t)pos < q->nchunks) {
-    list_for_each(el, &q->list) {
+    list_for_each_prev(el, &q->list) {
 
       if(i == pos)
         return list_entry(el, Chunk, link);
@@ -223,7 +222,7 @@ queue_chunk(Queue* q, ssize_t pos) {
     }
 
   } else if(pos < 0 && pos >= -(ssize_t)q->nchunks) {
-    list_for_each_prev(el, &q->list) {
+    list_for_each(el, &q->list) {
       --i;
 
       if(i == pos)
@@ -240,7 +239,7 @@ queue_at(Queue* q, ssize_t offset, size_t* skip) {
   ssize_t i = 0;
 
   if(offset >= 0 && (size_t)offset < q->nbytes) {
-    list_for_each(el, &q->list) {
+    list_for_each_prev(el, &q->list) {
       Chunk* chunk = list_entry(el, Chunk, link);
       ssize_t end = i + chunk_size(chunk);
 
@@ -256,7 +255,7 @@ queue_at(Queue* q, ssize_t offset, size_t* skip) {
     }
 
   } else if(offset < 0 && offset >= -(ssize_t)q->nbytes) {
-    list_for_each_prev(el, &q->list) {
+    list_for_each(el, &q->list) {
       Chunk* chunk = list_entry(el, Chunk, link);
       ssize_t start = i - chunk_size(chunk);
 
