@@ -613,26 +613,59 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
 
 int
 offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
-  int64_t offset = 0, length = size;
+  int64_t tmp;
   int i = 0;
 
+  ol->offset = 0;
+  ol->length = size;
+
   if(i < argc) {
-    if(JS_IsNumber(argv[i]))
-      if(JS_ToInt64Clamp(ctx, &offset, argv[i], 0, size, size))
+    if(!js_is_null_or_undefined(argv[i])) {
+      tmp = 0;
+
+      if(JS_ToInt64Ext(ctx, &tmp, argv[i]))
         return -1;
 
-    if(++i < argc) {
-      if(JS_IsNumber(argv[i]))
-        if(JS_ToInt64Clamp(ctx, &length, argv[i], 0, size - offset, size))
+      if((tmp + size) < 0 || tmp > size) {
+        JS_ThrowRangeError(ctx, "offset argument %" PRId64 " out of range (size is %" PRId64 ")", tmp, size);
+        return -1;
+      }
+
+      /* if argument is negative, it counts from the end */
+      if(tmp < 0)
+        tmp += size;
+
+      ol->offset += tmp;
+      ol->length -= tmp;
+    }
+
+    i++;
+
+    if(i < argc) {
+      tmp = ol->length;
+
+      if(!js_is_null_or_undefined(argv[i])) {
+        if(JS_ToInt64Ext(ctx, &tmp, argv[i]))
           return -2;
 
-      ++i;
-    }
-  }
+        /* if argument is negative, it indicates the end position, not a length */
+        if(tmp < 0)
+          tmp += size - ol->offset;
 
-  if(ol) {
-    ol->offset = offset;
-    ol->length = length;
+        if(tmp < 0 /*|| tmp > ol->length*/) {
+          JS_ThrowRangeError(ctx,
+                             "length argument %" PRId64 " out of range (offset is %" PRId64 ", size is %" PRId64 ")",
+                             tmp,
+                             ol->offset,
+                             size);
+          return -1;
+        }
+
+        ol->length = MIN_NUM(tmp, ol->length);
+      }
+
+      i++;
+    }
   }
 
   return i;

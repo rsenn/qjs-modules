@@ -750,9 +750,11 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   size_t len;
 
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-    OffsetLength ol = {0, -1};
+    OffsetLength ol = OFFSET_LENGTH_0();
 
-    js_offset_length(ctx, len, argc - 1, argv + 1, 0, &ol);
+    if(argc > 1)
+      offsetlength_from_argv(&ol, len, argc - 1, argv + 1, ctx);
+    // js_offset_length(ctx, len, argc, argv, 1, &ol);
 
     return JS_NewArrayBuffer(ctx,
                              offsetlength_begin(ol, data),
@@ -803,36 +805,35 @@ fail:
 static JSValue
 js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock haystack, needle, mask;
-  size_t n_size, h_end;
+  OffsetLength h_ol = OFFSET_LENGTH_0();
+  int i = 0, n;
 
-  if(!block_arraybuffer(&haystack, argv[0], ctx))
+  if(i >= argc || !block_arraybuffer(&haystack, argv[i++], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
 
-  if(!block_arraybuffer(&needle, argv[1], ctx))
-    return JS_ThrowTypeError(ctx, "argument 2 (needle) must be an ArrayBuffer");
+  if(i >= argc || !block_arraybuffer(&needle, argv[i++], ctx))
+    return JS_ThrowTypeError(ctx, "argument %d (needle) must be an ArrayBuffer", i + 1);
 
-  if(argc < 3 || (JS_IsNumber(argv[2]) || JS_IsBigInt(ctx, argv[2]))) {
+  if(needle.size == 0)
+    return JS_ThrowRangeError(ctx, "needle size is 0");
+  if(needle.size > haystack.size)
+    return JS_ThrowRangeError(ctx, "needle size %zu is greater than haystack size %zu", needle.size, haystack.size);
+
+  if((n = offsetlength_from_argv(&h_ol, haystack.size, argc - i, argv + i, ctx)) < 0)
+    return JS_EXCEPTION;
+
+  if(n) {
+    i += n;
+  }
+
+  if(i == argc) {
     uint8_t* ptr;
-    ptrdiff_t ofs;
-    int64_t start_pos = 0;
+    MemoryBlock range = offsetlength_block(h_ol, haystack);
 
-    if(argc >= 3) {
-      JS_ToInt64Ext(ctx, &start_pos, argv[2]);
+    if(needle.size <= range.size && (ptr = memmem(range.base, range.size, needle.base, needle.size))) {
+      ptrdiff_t ofs = ptr - haystack.base;
 
-      if(start_pos >= (int64_t)haystack.size)
-        return JS_NULL;
-
-      if(start_pos > 0) {
-        haystack.base += start_pos;
-        haystack.size -= start_pos;
-      }
-    }
-
-    if(needle.size <= haystack.size && (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
-      ofs = ptr - haystack.base;
-      ofs += start_pos;
-
-      if(ofs > MAX_SAFE_INTEGER || (argc > 2 && JS_IsBigInt(ctx, argv[2])))
+      if(ofs > MAX_SAFE_INTEGER || (n && JS_IsBigInt(ctx, argv[i - n])))
         return JS_NewBigUint64(ctx, ofs);
 
       return JS_NewInt64(ctx, ofs);
@@ -844,8 +845,8 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(!block_arraybuffer(&mask, argv[2], ctx))
     return JS_ThrowTypeError(ctx, "argument 3 (mask) must be an ArrayBuffer");
 
-  n_size = MIN_NUM(needle.size, mask.size);
-  h_end = haystack.size - n_size;
+  size_t n_size = MIN_NUM(needle.size, mask.size);
+  size_t h_end = haystack.size - n_size;
 
   // naive searching algorithm (slow)
   for(size_t i = 0; i < h_end; i++) {
@@ -866,7 +867,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
         printf("%02x AND %02x = %02x\n", xorval, mask.base[j], xorval & mask.base[j]);
       }*/
 
-      return JS_NewInt64(ctx, (int64_t)i);
+      return JS_NewInt64(ctx, (int64_t)i + h_ol.offset);
     }
   }
 
