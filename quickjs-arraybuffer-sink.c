@@ -38,6 +38,7 @@ js_arraybuffer_sink_constructor(JSContext* ctx, JSValueConst new_target, int arg
   JS_SetOpaque(obj, s);
 
   return obj;
+
 fail:
   js_free(ctx, s);
   JS_FreeValue(ctx, obj);
@@ -83,6 +84,7 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
       inputbuffer_free(&buf, ctx);
       break;
     }
+
     case METHOD_FLUSH: {
       if(s->buf && s->size) {
         ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
@@ -92,9 +94,12 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
 
       break;
     }
+
     case METHOD_END: {
       if(s->buf && s->size) {
         ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
+
+        s->buf = 0;
 
         dbuf_free(s);
       }

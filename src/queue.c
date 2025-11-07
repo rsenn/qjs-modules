@@ -125,17 +125,22 @@ queue_read(Queue* q, void* x, size_t n) {
 
 ssize_t
 queue_peek(Queue* q, void* x, size_t n) {
-  Chunk* b;
   ssize_t ret = 0;
   uint8_t* p = x;
+  struct list_head* el;
 
-  while(n > 0 && (b = queue_tail(q))) {
+  list_for_each(el, &q->list) {
+    if(n == 0)
+      break;
+
+    Chunk* b = list_entry(el, Chunk, link);
     size_t bytes = MIN_NUM((b->size - b->pos), n);
 
     memcpy(p, &b->data[b->pos], bytes);
     p += bytes;
     n -= bytes;
     ret += bytes;
+    b->pos += bytes;
 
     if(b->pos < b->size)
       break;

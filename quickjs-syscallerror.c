@@ -174,7 +174,7 @@ js_syscallerror_throw_free(JSContext* ctx, const char* syscall, JSValue val) {
 
 static JSValue
 js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj=JS_UNDEFINED;
+  JSValue proto, obj = JS_UNDEFINED;
   SyscallError* err;
 
   if(!(err = js_mallocz(ctx, sizeof(SyscallError))))
@@ -189,17 +189,18 @@ js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, J
   if(JS_IsException(obj))
     goto fail;
 
-  if(argc >= 2) {
-    err->syscall = js_tostring(ctx, argv[0]);
+  while(argc > 0) {
+    if(JS_IsString(argv[0])) {
+      err->syscall = js_tostring(ctx, argv[0]);
+    } else {
+      int32_t number;
+
+      JS_ToInt32(ctx, &number, argv[0]);
+      err->number = number;
+    }
+
     argc--;
     argv++;
-  }
-
-  if(argc >= 1) {
-    int32_t number;
-
-    JS_ToInt32(ctx, &number, argv[0]);
-    err->number = number;
   }
 
   err->stack = js_error_stack(ctx);
@@ -262,7 +263,10 @@ enum {
 static JSValue
 js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
-  SyscallError* err = js_syscallerror_data(this_val);
+  SyscallError* err;
+
+  if(!(err = js_syscallerror_data2(ctx, this_val)))
+    return JS_EXCEPTION;
 
   switch(magic) {
     case PROP_SYSCALL: {

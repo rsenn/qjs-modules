@@ -2482,53 +2482,56 @@ enum {
 
 static JSValue
 js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
-  size_t i;
-  struct {
-    uint8_t* x;
-    size_t n;
-  } ab[2] = {{0, 0}, {0, 0}};
+  MemoryBlock m[2];
+  int i = 0;
+  size_t num_bufs = magic == BITOP_NOT ? 1 : countof(m);
 
-  if(argc >= 1) {
-    ab[0].x = JS_GetArrayBuffer(ctx, &ab[0].n, argv[0]);
+  for(int k = 0; k < num_bufs; k++) {
+    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
 
-    if(argc >= 2)
-      ab[1].x = JS_GetArrayBuffer(ctx, &ab[1].n, argv[1]);
+    i++;
+
+    IndexRange ir = INDEX_RANGE(0, m[k].size);
+    int64_t* const slice = ir.arr;
+
+    for(int j = 0; j < countof(ir.arr); j++) {
+      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
+        break;
+
+      js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
+    }
+
+    m[k] = block_indexrange(m[k], ir);
   }
 
-  if(ab[0].x == 0)
-    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
-
-  if(magic > BITOP_NOT && ab[1].x == 0)
-    return JS_ThrowTypeError(ctx, "argument 2 must be an ArrayBuffer");
-
-  ret = JS_DupValue(ctx, argv[0]);
+  JSValue ret = JS_DupValue(ctx, argv[0]);
 
   switch(magic) {
     case BITOP_NOT: {
-      for(i = 0; i < ab[0].n; i++)
-        ab[0].x[i] ^= 0xffu;
+      for(i = 0; i < m[0].size; i++)
+        m[0].base[i] ^= 0xffu;
 
       break;
     }
 
     case BITOP_XOR: {
-      for(i = 0; i < ab[0].n; i++)
-        ab[0].x[i] ^= ab[1].x[i % ab[1].n];
+      for(i = 0; i < m[0].size; i++)
+        m[0].base[i] ^= m[1].base[i % m[1].size];
 
       break;
     }
 
     case BITOP_AND: {
-      for(i = 0; i < ab[0].n; i++)
-        ab[0].x[i] &= ab[1].x[i % ab[1].n];
+      for(i = 0; i < m[0].size; i++)
+        m[0].base[i] &= m[1].base[i % m[1].size];
 
       break;
     }
 
     case BITOP_OR: {
-      for(i = 0; i < ab[0].n; i++)
-        ab[0].x[i] |= ab[1].x[i % ab[1].n];
+      for(i = 0; i < m[0].size; i++)
+        m[0].base[i] |= m[1].base[i % m[1].size];
 
       break;
     }
@@ -2541,6 +2544,7 @@ enum {
   RANDOM_RAND = 0,
   RANDOM_RANDI,
   RANDOM_SRAND,
+  RANDOM_RANDB,
 };
 
 static JSValue
@@ -2548,8 +2552,10 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   uint32_t bound = 0;
   JSValue ret = JS_UNDEFINED;
 
-  if(argc > 0 && JS_IsNumber(argv[0]))
-    JS_ToUint32(ctx, &bound, argv[0]);
+  if(magic <= RANDOM_SRAND) {
+    if(argc > 0 && JS_IsNumber(argv[0]))
+      JS_ToUint32(ctx, &bound, argv[0]);
+  }
 
   switch(magic) {
     case RANDOM_RAND: {
@@ -2572,6 +2578,26 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       JS_ToInt64Ext(ctx, &st, argv[0]);
       pcg32_init_state(st);
       ret = JS_UNDEFINED;
+      break;
+    }
+
+    case RANDOM_RANDB: {
+      InputBuffer buf = js_output_args(ctx, argc, argv);
+
+      if(!buf.data)
+        return JS_ThrowTypeError(ctx, "argument must be an ArrayBuffer");
+
+      uint8_t* data = inputbuffer_data(&buf);
+      size_t size = inputbuffer_length(&buf);
+      uint32_t val = 0;
+
+      for(size_t i = 0; i < size; i++) {
+        if((i & 0x3) == 0)
+          val = pcg32_random();
+        data[i] = val;
+        val >>= 8;
+      }
+
       break;
     }
   }
@@ -2761,7 +2787,7 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc >= 2)
     syscall = JS_ToCString(ctx, argv[1]);
 
-  err = JS_NewObject(ctx);
+  err = JS_NewError(ctx);
 
   JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, errnum));
 
@@ -3845,6 +3871,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, RANDOM_SRAND),
+    JS_CFUNC_MAGIC_DEF("randb", 1, js_misc_random, RANDOM_RANDB),
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
     JS_CFUNC_DEF("unescape", 1, js_misc_unescape),
     JS_CFUNC_MAGIC_DEF("quote", 1, js_misc_quote, 0),
