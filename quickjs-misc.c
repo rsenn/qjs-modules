@@ -896,14 +896,10 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
   }
 
-  MemoryBlock dst = indexrange_block(ranges[0], blocks[0]);
-  MemoryBlock src = indexrange_block(ranges[1], blocks[1]);
+  MemoryBlock dst = indexrange_block(ranges[0], blocks[0]), src = indexrange_block(ranges[1], blocks[1]);
   size_t n = MIN_NUM(dst.size, src.size);
 
   memcpy(dst.base, src.base, n);
-
-  /*  if((n = MIN_NUM(offsetlength_size(d_offs, block_length(&dst)), offsetlength_size(s_offs, block_length(&src)))))
-      memcpy(offsetlength_begin(d_offs, block_data(&dst)), offsetlength_begin(s_offs, block_data(&src)), n);*/
 
   return JS_NewInt64(ctx, n);
 }
