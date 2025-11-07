@@ -15,7 +15,7 @@ VISIBLE
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-    JSClassID js_pointer_class_id = 0;
+JSClassID js_pointer_class_id = 0;
 static JSValue pointer_proto, pointer_ctor;
 
 enum {
@@ -295,7 +295,7 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   switch(magic) {
     case METHOD_SLICE: {
-      IndexRange rng = {0, INT64_MAX};
+      IndexRange rng = INDEX_RANGE_INIT();
 
       js_index_range(ctx, ptr->n, argc, argv, 0, &rng);
 
@@ -305,7 +305,7 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case METHOD_SPLICE: {
       // int64_t s, l;
-      IndexRange rng = {0, INT64_MAX};
+      IndexRange rng = INDEX_RANGE_INIT();
 
       js_index_range(ctx, ptr->n, argc, argv, 0, &rng);
 

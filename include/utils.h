@@ -1310,10 +1310,10 @@ JSValue js_stack_get(JSContext*);
 void js_stack_print(JSContext*, JSValueConst);
 
 struct OffsetLength;
-struct IndexRange;
+union IndexRange;
 
 int js_offset_length(JSContext*, int64_t, int, JSValueConst[], int, struct OffsetLength*);
-int js_index_range(JSContext*, int64_t, int, JSValueConst[], int, struct IndexRange*);
+int js_index_range(JSContext*, int64_t, int, JSValueConst[], int, union IndexRange*);
 
 /**
  * @}

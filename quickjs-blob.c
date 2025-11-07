@@ -233,7 +233,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case BLOB_SLICE: {
-      IndexRange rng = {0, INT64_MAX};
+      IndexRange rng = INDEX_RANGE_INIT();
       char* type = 0;
       int index = js_index_range(ctx, blob->size, argc, argv, 0, &rng);
 

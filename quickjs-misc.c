@@ -729,7 +729,7 @@ js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   size_t len;
 
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-    IndexRange ir = {0, INT64_MAX};
+    IndexRange ir = INDEX_RANGE_INIT();
 
     js_index_range(ctx, len, argc - 1, argv + 1, 0, &ir);
 
@@ -874,35 +874,31 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return JS_NULL;
 }
 
+int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
+
 static JSValue
 js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock dst = {0, 0}, src = {0, 0};
-  OffsetLength s_offs = {0, -1}, d_offs = {0, -1};
+  MemoryBlock blocks[2] = {BLOCK_INIT(), BLOCK_INIT()};
+  IndexRange ranges[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
   size_t n;
-  int i = 0;
+  int i = 0, j, k;
 
-  if(!block_arraybuffer(&dst, argv[0], ctx))
-    return JS_ThrowTypeError(ctx, "argument 1 (dst) must be an ArrayBuffer");
+  for(k = 0; k < 2; k++) {
+    if(i == argc || !block_arraybuffer(&blocks[k], argv[i++], ctx))
+      return JS_ThrowTypeError(ctx,
+                               "argument %d (%s) must be an ArrayBuffer",
+                               i,
+                               (const char* const[]){"src", "dst"}[k]);
+    for(j = 0; j < 2; j++) {
+      if(i + 1 == argc || js_is_arraybuffer(ctx, argv[i]))
+        break;
 
-  ++i;
-  i += js_offset_length(ctx, dst.size, argc - i, argv + i, 0, &s_offs);
+      JS_ToInt64Clamp(ctx, &ranges[k].arr[j], argv[i++], 0, blocks[k].size, blocks[k].size);
+    }
+  }
 
-  /*dst.base += s_offs.offset;
-  dst.size -= s_offs.offset;
-  dst.size = MIN_NUM(dst.size, s_offs.length);*/
-
-  if(i == argc || !block_arraybuffer(&src, argv[i], ctx))
-    return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
-
-  ++i;
-  i += js_offset_length(ctx, dst.size, argc - i, argv + i, 0, &d_offs);
-
-  /*src.base += d_offs.offset;
-  src.size -= d_offs.offset;
-  src.size = MIN_NUM(src.size, d_offs.length);*/
-
-  if((n = MIN_NUM(offsetlength_size(d_offs, block_length(&dst)), offsetlength_size(s_offs, block_length(&src)))))
-    memcpy(offsetlength_begin(d_offs, block_data(&dst)), offsetlength_begin(s_offs, block_data(&src)), n);
+  /*  if((n = MIN_NUM(offsetlength_size(d_offs, block_length(&dst)), offsetlength_size(s_offs, block_length(&src)))))
+      memcpy(offsetlength_begin(d_offs, block_data(&dst)), offsetlength_begin(s_offs, block_data(&src)), n);*/
 
   return JS_NewInt64(ctx, n);
 }

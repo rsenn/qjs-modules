@@ -4015,7 +4015,7 @@ js_stack_print(JSContext* ctx, JSValueConst stack) {
 }
 
 int
-js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, struct OffsetLength* out) {
+js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, OffsetLength* out) {
   int ret;
 
   if((ret = offsetlength_from_argv(out, size, argc - start_arg, argv + start_arg, ctx)) < 0) {
@@ -4033,7 +4033,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], in
 }
 
 int
-js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, struct IndexRange* ir) {
+js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, IndexRange* ir) {
   IndexRange tmp = INDEX_RANGE_INIT();
   int ret;
 
