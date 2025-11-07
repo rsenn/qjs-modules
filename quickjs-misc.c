@@ -2345,10 +2345,13 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_ToInt64Ext(ctx, &offset, argv[1]);
 
       if(argc >= 1 && (buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-        size_t i, j = 0, bits = len * 8;
+        OffsetLength ol = OFFSET_LENGTH(0, len * 8);
         ret = JS_NewArray(ctx);
 
-        for(i = 0; i < bits; i++) {
+        if(argc >= 2)
+          offsetlength_from_argv(&ol, len * 8, argc - 1, argv + 1, ctx);
+
+        for(size_t j = 0, i = ol.offset; j < ol.length; i++) {
           BOOL value = !!(buf[i >> 3] & (1u << (i & 0x7)));
           JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt32(ctx, value));
         }
@@ -2383,17 +2386,17 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       const uint8_t* buf;
       size_t len;
 
-      if(argc >= 2)
-        JS_ToInt64Ext(ctx, &offset, argv[1]);
-
       if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-        size_t i, bits = len * 8;
+        OffsetLength ol = OFFSET_LENGTH(0, len * 8);
         ret = JS_NewArray(ctx);
 
-        for(i = 0; i < bits; i++) {
+        if(argc >= 2)
+          offsetlength_from_argv(&ol, len * 8, argc - 1, argv + 1, ctx);
+
+        for(size_t j = 0, i = ol.offset; j < ol.length; i++) {
           BOOL value = buf[i >> 3] & (1u << (i & 0x7));
 
-          JS_SetPropertyUint32(ctx, ret, i, JS_NewBool(ctx, value));
+          JS_SetPropertyUint32(ctx, ret, j++, JS_NewBool(ctx, value));
         }
       }
 
@@ -2417,7 +2420,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         size_t bufsize;
 
         if(JS_IsBool(prop)) {
-
           bufsize = (len + 7) >> 3;
 
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
