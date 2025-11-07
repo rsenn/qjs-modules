@@ -235,7 +235,7 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     case JSON_PARSER_PARSE: {
       JsonValueType type = json_parse(parser, ctx);
       ret = JS_NewString(ctx,
-                         (const char*[]){"NONE",
+                         CONST_STRARRAY("NONE",
                                          "OBJECT",
                                          "OBJECT_END",
                                          "ARRAY",
@@ -245,7 +245,7 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
                                          "TRUE",
                                          "FALSE",
                                          "NULL",
-                                         "NUMBER"}[type + 1]);
+                                         "NUMBER")[type + 1]);
       break;
     }
   }

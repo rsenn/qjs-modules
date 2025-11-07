@@ -880,22 +880,27 @@ static JSValue
 js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock blocks[2] = {BLOCK_INIT(), BLOCK_INIT()};
   IndexRange ranges[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
-  size_t n;
-  int i = 0, j, k;
+  int i = 0;
 
-  for(k = 0; k < 2; k++) {
-    if(i == argc || !block_arraybuffer(&blocks[k], argv[i++], ctx))
-      return JS_ThrowTypeError(ctx,
-                               "argument %d (%s) must be an ArrayBuffer",
-                               i,
-                               (const char* const[]){"src", "dst"}[k]);
-    for(j = 0; j < 2; j++) {
-      if(i + 1 == argc || js_is_arraybuffer(ctx, argv[i]))
+  for(int k = 0; k < 2; k++) {
+    if(i == argc || !block_arraybuffer(&blocks[k], argv[i], ctx))
+      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
+
+    i++;
+
+    for(int j = 0; j < 2; j++) {
+      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
         break;
 
-      JS_ToInt64Clamp(ctx, &ranges[k].arr[j], argv[i++], 0, blocks[k].size, blocks[k].size);
+      JS_ToInt64Clamp(ctx, &ranges[k].arr[j], argv[i++], j ? ranges[k].arr[0] : 0, blocks[k].size, blocks[k].size);
     }
   }
+
+  MemoryBlock dst = indexrange_block(ranges[0], blocks[0]);
+  MemoryBlock src = indexrange_block(ranges[1], blocks[1]);
+  size_t n = MIN_NUM(dst.size, src.size);
+
+  memcpy(dst.base, src.base, n);
 
   /*  if((n = MIN_NUM(offsetlength_size(d_offs, block_length(&dst)), offsetlength_size(s_offs, block_length(&src)))))
       memcpy(offsetlength_begin(d_offs, block_data(&dst)), offsetlength_begin(s_offs, block_data(&src)), n);*/
@@ -1911,19 +1916,17 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
   }
 
-  js_syscall_throw(((const char* const[]){
-                       "getpid",
-                       "getppid",
-                       "getsid",
-                       "getuid",
-                       "getgid",
-                       "geteuid",
-                       "getegid",
-                       "setuid",
-                       "setgid",
-                       "seteuid",
-                       "setegid",
-                   })[magic - FUNC_GETPID],
+  js_syscall_throw(CONST_STRARRAY("getpid",
+                                  "getppid",
+                                  "getsid",
+                                  "getuid",
+                                  "getgid",
+                                  "geteuid",
+                                  "getegid",
+                                  "setuid",
+                                  "setgid",
+                                  "seteuid",
+                                  "setegid")[magic - FUNC_GETPID],
                    ret);
 }
 

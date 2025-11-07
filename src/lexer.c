@@ -361,10 +361,10 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
       break;
     } else */
     if(result < LEXER_ERROR_NOMATCH) {
-      const char* t = ((const char*[]){
+      const char* t = CONST_STRARRAY(
           "executing",
           "compiling",
-      })[result - LEXER_ERROR_EXEC];
+      )[result - LEXER_ERROR_EXEC];
 
       JS_ThrowInternalError(ctx, "Error %s regex /%s/", t, rule->expr);
       fprintf(stderr, "Error %s regex /%s/\n", t, rule->expr);

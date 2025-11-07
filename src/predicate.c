@@ -469,12 +469,39 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 
 const char*
 predicate_typename(const Predicate* pr) {
-  return ((const char*[]){
-      "type",  "charset", "string",     "notnot",      "not",   "bnot",     "sqrt",  "add",    "sub",
-      "mul",   "div",     "mod",        "bor",         "band",  "pow",      "atan2", "or",     "and",
-      "xor",   "regexp",  "instanceof", "prototypeis", "equal", "property", "has",   "member", "shift",
-      "slice", "index",   "function",   "some",        "every", 0,
-  })[pr->id];
+  return CONST_STRARRAY("type",
+                        "charset",
+                        "string",
+                        "notnot",
+                        "not",
+                        "bnot",
+                        "sqrt",
+                        "add",
+                        "sub",
+                        "mul",
+                        "div",
+                        "mod",
+                        "bor",
+                        "band",
+                        "pow",
+                        "atan2",
+                        "or",
+                        "and",
+                        "xor",
+                        "regexp",
+                        "instanceof",
+                        "prototypeis",
+                        "equal",
+                        "property",
+                        "has",
+                        "member",
+                        "shift",
+                        "slice",
+                        "index",
+                        "function",
+                        "some",
+                        "every",
+                        0)[pr->id];
 }
 
 void
@@ -489,21 +516,21 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_putstr(dbuf, "type == ");
       dbuf_bitflags(dbuf,
                     pr->type.flags,
-                    ((const char* const[]){"UNDEFINED",
-                                           "NULL",
-                                           "BOOL",
-                                           "INT",
-                                           "OBJECT",
-                                           "STRING",
-                                           "SYMBOL",
-                                           "BIG_FLOAT",
-                                           "BIG_INT",
-                                           "BIG_DECIMAL",
-                                           "FLOAT64",
-                                           "FUNCTION",
-                                           "SOME",
-                                           "EVERY",
-                                           0}));
+                    CONST_STRARRAY("UNDEFINED",
+                                   "NULL",
+                                   "BOOL",
+                                   "INT",
+                                   "OBJECT",
+                                   "STRING",
+                                   "SYMBOL",
+                                   "BIG_FLOAT",
+                                   "BIG_INT",
+                                   "BIG_DECIMAL",
+                                   "FLOAT64",
+                                   "FUNCTION",
+                                   "SOME",
+                                   "EVERY",
+                                   0));
       break;
     }
 
@@ -798,9 +825,9 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       predicate_inspect(pr->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(dbuf,
-                  ((const char* const[]){
-                      " + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id - PREDICATE_ADD]);
+      dbuf_putstr(
+          dbuf,
+          CONST_STRARRAY(" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 ")[pr->id - PREDICATE_ADD]);
 
       predicate_inspect(pr->binary.right, ctx, dbuf, args, parens[1]);
       break;
@@ -821,7 +848,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
             parens = FALSE;
 
         if(i > 0)
-          dbuf_putstr(dbuf, ((const char* const[]){" || ", " && ", " ^ "})[pr->id - PREDICATE_OR]);
+          dbuf_putstr(dbuf, CONST_STRARRAY(" || ", " && ", " ^ ")[pr->id - PREDICATE_OR]);
 
         predicate_inspect(pr->boolean.predicates[i], ctx, dbuf, args, parens);
       }

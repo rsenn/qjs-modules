@@ -4024,7 +4024,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], in
     JS_ThrowTypeError(ctx,
                       "argument %d is not %s (type: %s)",
                       ret + 1,
-                      (const char*[]){"an offset", "a length"}[ret],
+                      CONST_STRARRAY("an offset", "a length")[ret],
                       js_value_typeof(argv[ret]));
     return -1;
   }

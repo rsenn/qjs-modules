@@ -1464,20 +1464,15 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(!(m = js_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
-                               ((const char* const[]){
-                                   "normalizeModule",
-                                   "resolveModule",
-                                   "getModuleName",
-                                   "getModuleValue",
-                                   "getModuleObject",
-                                   "getModuleExports",
-                                   "getModuleImports",
-                                   "getModuleReqModules",
-                                   "getModuleNamespace",
-                                   "getModuleFunction",
-                                   "getModuleException",
-                                   "getModuleMetaObject",
-                               })[magic - NORMALIZE_MODULE]);
+                               CONST_STRARRAY("normalizeModule",
+                                              "resolveModule",
+                                              "getModuleName",
+                                              "getModuleValue",
+                                              "getModuleObject",
+                                              "getModuleExports",
+                                              "getModuleImports",
+                                              "getModuleReqModules"
+                                              "getModuleMetaObject")[magic - NORMALIZE_MODULE]);
   } else {
     name = js_tostring(ctx, argv[0]);
   }
