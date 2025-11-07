@@ -23,8 +23,6 @@
 #include <alloca.h>
 #endif
 
-int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
-
 JSModuleLoaderFunc* JS_GetModuleLoaderFunc(JSRuntime*);
 void* JS_GetModuleLoaderOpaque(JSRuntime*);
 
@@ -2499,7 +2497,7 @@ module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
 
 JSValue
 module_exports(JSContext* ctx, JSModuleDef* m) {
-  JSValue exports = JS_NewObject(ctx);
+  JSValue exports = JS_NewObjectProto(ctx, JS_NULL);
 
   if(module_exports_get(ctx, m, FALSE, exports) == 0) {
     JS_FreeValue(ctx, exports);
@@ -3086,12 +3084,9 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
   if(JS_IsException(obj))
     return obj;
 
-  // printf("js_eval_binary obj=%s\n", js_value_typestr(ctx, obj));
-
   if(!load_only) {
     JSValue tmp = js_eval_module(ctx, obj, load_only);
     int tag = JS_VALUE_GET_TAG(tmp);
-    // printf("js_eval_binary tmp=%s\n", js_value_typestr(ctx, tmp));
 
     if(!JS_IsException(tmp) && !JS_IsUndefined(tmp))
       if(tag >= JS_TAG_FIRST && tag <= JS_TAG_FLOAT64)
@@ -3339,15 +3334,6 @@ js_error_stack(JSContext* ctx) {
 
   return stack;
 }
-
-/*JSValue
-js_error_uncatchable(JSContext* ctx) {
-  JSValue obj;
-
-  obj = JS_NewError(ctx);
-  JS_SetUncatchableError(ctx, obj, TRUE);
-  return obj;
-}*/
 
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
@@ -3682,6 +3668,8 @@ int64_t
 js_toindex(JSContext* ctx, JSValueConst value, size_t range) {
   return js_toindex_name(ctx, value, range, "value");
 }
+
+int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
 int64_t
 js_tosize_name(JSContext* ctx, JSValueConst value, size_t max, size_t range, const char* name) {

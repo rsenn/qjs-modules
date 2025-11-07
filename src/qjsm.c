@@ -273,10 +273,7 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
       size_t i = 0;
       ret = JS_NewArray(ctx);
 
-      vector_foreach_t(&jsm_stack, ptr) {
-        JSValue str = JS_NewString(ctx, *ptr);
-        JS_SetPropertyUint32(ctx, ret, i++, str);
-      }
+      vector_foreach_t(&jsm_stack, ptr) JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *ptr));
 
       break;
     }
@@ -336,8 +333,8 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   errno = 0;
   val = js_eval_file(ctx, file, module ? JS_EVAL_TYPE_MODULE : 0);
 
-  if(jsm_stack_count() > 1)
-    jsm_stack_pop(ctx);
+  // if(jsm_stack_count() > 1)
+  jsm_stack_pop(ctx);
 
 #if defined(HAVE_JS_PROMISE_STATE) && defined(HAVE_JS_PROMISE_RESULT)
   if(js_is_promise(ctx, val)) {
@@ -2144,10 +2141,9 @@ main(int argc, char** argv) {
       vector_freestrings(&module_list);
     }
 
-    for(size_t i = 0; i < include_count; i++) {
+    for(size_t i = 0; i < include_count; i++)
       if(jsm_stack_load(jsm_ctx, include_list[i], FALSE, FALSE) == -1)
         goto fail;
-    }
 
     js_eval_str(jsm_ctx,
                 "import { Console } from 'console';\n"
