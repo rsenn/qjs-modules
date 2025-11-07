@@ -494,11 +494,14 @@ scan_eolskip(const char* s, size_t limit) {
 }
 
 size_t
-utf8_charlen(const void* in, size_t len) {
+utf8_decode(const void* in, size_t len, int32_t* char_ptr) {
   const uint8_t *x = in, *y = (const uint8_t*)in + len, *next;
   size_t n = y - x;
 
-  unicode_from_utf8(x, MIN_NUM(n, 6), &next);
+  int32_t c = unicode_from_utf8(x, MIN_NUM(n, 6), &next);
+
+  if(char_ptr)
+    *char_ptr = c;
 
   return next - x;
 }

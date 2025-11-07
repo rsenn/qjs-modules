@@ -604,15 +604,10 @@ js_misc_charcode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_misc_u8dec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_args(ctx, argc, argv);
-  size_t size = inputbuffer_length(&input);
-  const uint8_t* data = inputbuffer_data(&input);
   int32_t code = -1;
-  int64_t len = 0;
+  size_t len = 0;
 
-  if(size) {
-    code = utf8_charcode((const char*)data, size);
-    len = utf8_charlen((const char*)data, size);
-  }
+  len = utf8_decode(inputbuffer_data(&input), inputbuffer_length(&input), &code);
 
   inputbuffer_free(&input, ctx);
 
@@ -768,38 +763,47 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 static JSValue
-js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  size_t buf_size = 0, pos = 0;
-  uint8_t* buf;
-  InputBuffer* buffers = js_mallocz(ctx, sizeof(InputBuffer) * argc);
+js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  MemoryBlock m[argc];
+  int i = 0, k = 0;
 
-  for(int i = 0; i < argc; i++) {
-    buffers[i] = js_input_buffer(ctx, argv[i]);
+  for(k = 0; i < argc; k++) {
+    m[k] = MEMORY_BLOCK(0, 0);
 
-    if(!buffers[i].data) {
-      ret = JS_ThrowTypeError(ctx, "argument %d is not ArrayBuffer", i + 1);
-      goto fail;
+    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
+
+    i++;
+
+    IndexRange slice = INDEX_RANGE(0, m[k].size);
+
+    for(int j = 0; j < countof(slice.arr); j++) {
+      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
+        break;
+
+      js_toint64clamp(ctx, &slice.arr[j], argv[i++], j ? slice.start : 0, slice.end, slice.end);
     }
 
-    buf_size += buffers[i].size;
+    m[k] = indexrange_block(slice, m[k]);
   }
 
-  buf = js_malloc(ctx, buf_size);
+  size_t total_size = 0, pos = 0;
+  uint8_t* buf;
 
-  for(int i = 0; i < argc; i++) {
-    memcpy(&buf[pos], buffers[i].data, buffers[i].size);
-    pos += buffers[i].size;
+  for(int j = 0; j < k; j++) {
+    total_size += m[j].size;
   }
 
-  ret = JS_NewArrayBuffer(ctx, buf, buf_size, js_arraybuffer_free_pointer, 0, FALSE);
+  if(!(buf = js_malloc(ctx, total_size)))
+    return JS_EXCEPTION;
 
-fail:
-  for(int i = 0; i < argc; i++)
-    if(buffers[i].data)
-      inputbuffer_free(&buffers[i], ctx);
+  for(int j = 0; j < k; j++) {
+    size_t n = m[j].size;
+    memcpy(&buf[pos], m[j].base, n);
+    pos += n;
+  }
 
-  return ret;
+  return JS_NewArrayBuffer(ctx, buf, total_size, js_arraybuffer_free_pointer, 0, FALSE);
 }
 
 static JSValue
@@ -878,8 +882,7 @@ int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_
 
 static JSValue
 js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()}, w[2];
-  IndexRange r[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
+  MemoryBlock m[2];
   int i = 0;
 
   for(int k = 0; k < countof(m); k++) {
@@ -888,30 +891,29 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
     i++;
 
-    int64_t* const slice = r[k].arr;
+    IndexRange ir = INDEX_RANGE(0, m[k].size);
+    int64_t* const slice = ir.arr;
 
-    for(int j = 0; j < countof(slice); j++) {
+    for(int j = 0; j < countof(ir.arr); j++) {
       if(i == argc || js_is_arraybuffer(ctx, argv[i]))
         break;
 
       js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
     }
+
+    m[k] = block_indexrange(m[k], ir);
   }
 
-  MemoryBlock dst = block_indexrange(m[0], r[0]);
-  MemoryBlock src = block_indexrange(m[1], r[1]);
+  size_t n = MIN_NUM(m[0].size, m[1].size);
 
-  size_t n = MIN_NUM(dst.size, src.size);
-
-  memcpy(dst.base, src.base, n);
+  memcpy(m[0].base, m[1].base, n);
 
   return JS_NewInt64(ctx, n);
 }
 
 static JSValue
 js_misc_comparearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()}, w[2];
-  IndexRange r[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
+  MemoryBlock m[2];
   int i = 0;
 
   for(int k = 0; k < countof(m); k++) {
@@ -920,19 +922,20 @@ js_misc_comparearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVa
 
     i++;
 
-    int64_t* const slice = r[k].arr;
+    IndexRange ir = INDEX_RANGE(0, m[k].size);
+    int64_t* const slice = ir.arr;
 
-    for(int j = 0; j < countof(slice); j++) {
+    for(int j = 0; j < countof(ir.arr); j++) {
       if(i == argc || js_is_arraybuffer(ctx, argv[i]))
         break;
 
       js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
     }
+
+    m[k] = block_indexrange(m[k], ir);
   }
 
-  MemoryBlock s[] = {block_indexrange(m[0], r[0]), block_indexrange(m[1], r[1])};
-
-  return JS_NewInt32(ctx, memcmp(s[0].base, s[1].base, MIN_NUM(s[0].size, s[1].size)));
+  return JS_NewInt32(ctx, memcmp(m[0].base, m[1].base, MIN_NUM(m[0].size, m[1].size)));
 }
 
 #if HAVE_FMEMOPEN
@@ -3729,7 +3732,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slicearraybuffer),
     // JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
-    JS_CFUNC_DEF("concat", 1, js_misc_concat),
+    JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),

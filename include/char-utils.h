@@ -469,7 +469,7 @@ size_t scan_lineskip_escaped(const char*, size_t);
 size_t scan_eolskip(const char*, size_t);
 size_t scan_charsetnskip(const char*, const char*, size_t);
 size_t scan_noncharsetnskip(const char*, const char*, size_t);
-size_t utf8_charlen(const void*, size_t);
+size_t utf8_decode(const void*, size_t, int32_t*);
 size_t utf8_strlen(const void*, size_t);
 size_t utf8_byteoffset(const void*, size_t, int);
 wchar_t* utf8_towcs(const char*);
@@ -500,20 +500,16 @@ scan_8long(const char* src, uint32_t* dest) {
   return scan_8longn(src, (size_t)-1, dest);
 }
 
-/*static inline size_t
-utf8_charlen(const char* in, size_t len) {
-  const uint8_t* next = (const void*)in;
-  int r = unicode_from_utf8((const uint8_t*)in, len, &next);
-  return r == -1 ? 0 : next - (const uint8_t*)in;
-}
-*/
 static inline int
 utf8_charcode(const char* in, size_t len) {
-  const uint8_t* next = (const void*)in;
+  int32_t c = -1;
+  utf8_decode(in, len, &c);
+  return c;
+}
 
-  int r = unicode_from_utf8((const uint8_t*)in, len, &next);
-
-  return (const char*)next > in ? r : -1;
+static inline size_t
+utf8_charlen(const void* in, size_t len) {
+  return utf8_decode(in, len, 0);
 }
 
 BOOL utf16_multiword(const void*);
