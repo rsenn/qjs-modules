@@ -625,17 +625,21 @@ static JSValue
 js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_args(ctx, argc - 1, argv + 1);
   uint32_t code = 0;
+  JSValue ret = JS_UNDEFINED;
 
   JS_ToUint32(ctx, &code, argv[0]);
 
   size_t size = inputbuffer_length(&input);
   uint8_t* data = inputbuffer_data(&input);
 
-  int len = unicode_to_utf8(data, code);
+  if(size < UTF8_CHAR_LEN_MAX)
+    ret = JS_ThrowInternalError(ctx, "need at least %zu bytes (you have %zu)", UTF8_CHAR_LEN_MAX, size);
+  else
+    ret = JS_NewUint32(ctx, unicode_to_utf8(data, code));
 
   inputbuffer_free(&input, ctx);
 
-  return JS_NewInt32(ctx, len);
+  return ret;
 }
 
 static JSValue
