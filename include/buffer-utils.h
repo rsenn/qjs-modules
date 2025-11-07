@@ -247,10 +247,10 @@ offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
 }
 
 typedef union IndexRange {
+  int64_t arr[2];
   struct {
     int64_t start, end;
   };
-  int64_t arr[2];
 } IndexRange;
 
 #define INDEX_RANGE_DATA(s, e) \

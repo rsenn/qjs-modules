@@ -893,7 +893,7 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       if(i == argc || js_is_arraybuffer(ctx, argv[i]))
         break;
 
-      JS_ToInt64Clamp(ctx, &r.arr[j], argv[i++], j ? r.arr[0] : 0, m[k].size, m[k].size);
+      js_toint64clamp(ctx, &r.arr[j], argv[i++], j ? r.arr[0] : 0, m[k].size, m[k].size);
     }
 
     w[k] = indexrange_block(r, m[k]);

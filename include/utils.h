@@ -558,6 +558,7 @@ js_toint64(JSContext* ctx, JSValueConst value) {
 }
 
 uint64_t js_touint64(JSContext*, JSValueConst);
+int js_toint64clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 void* js_topointer(JSContext*, JSValueConst);
 int64_t js_toindex_name(JSContext*, JSValueConst, size_t, const char*);
 int64_t js_toindex(JSContext*, JSValueConst, size_t);

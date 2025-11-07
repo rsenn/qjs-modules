@@ -3639,6 +3639,22 @@ js_touint64(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+int
+js_toint64clamp(JSContext* ctx, int64_t* pres, JSValueConst val, int64_t min, int64_t max, int64_t neg_offset) {
+  int res;
+
+  if(!(res = JS_ToInt64Ext(ctx, pres, val))) {
+    if(*pres < 0)
+      *pres += neg_offset;
+    if(*pres < min)
+      *pres = min;
+    else if(*pres > max)
+      *pres = max;
+  }
+
+  return res;
+}
+
 void*
 js_topointer(JSContext* ctx, JSValueConst value) {
   if(js_is_null_or_undefined(value))

@@ -918,15 +918,15 @@ int
 indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
   int i = 0;
 
-  ir->start = 0;
-  ir->end = size;
+  ir->arr[0] = 0;
+  ir->arr[1] = size;
 
   if(i < argc) {
-    if(JS_ToInt64Clamp(ctx, &ir->start, argv[i], 0, size, size))
+    if(JS_ToInt64Clamp(ctx, &ir->arr[0], argv[i], 0, size, size))
       return -1;
 
     if(++i < argc) {
-      if(JS_ToInt64Clamp(ctx, &ir->end, argv[i], ir->start, size, size))
+      if(JS_ToInt64Clamp(ctx, &ir->arr[1], argv[i], ir->arr[0], size, size))
         return -2;
 
       ++i;
