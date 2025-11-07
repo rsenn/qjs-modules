@@ -981,6 +981,7 @@ BOOL js_is_arraybuffer(JSContext*, JSValueConst);
 BOOL js_is_sharedarraybuffer(JSContext*, JSValueConst);
 BOOL js_is_date(JSContext*, JSValueConst);
 BOOL js_is_map(JSContext*, JSValueConst);
+BOOL js_is_weakmap(JSContext*, JSValueConst);
 BOOL js_is_set(JSContext*, JSValueConst);
 BOOL js_is_generator(JSContext*, JSValueConst);
 BOOL js_is_asyncgenerator(JSContext*, JSValueConst);

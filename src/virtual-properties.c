@@ -24,11 +24,11 @@ static const int method_arity[] = {
     [METHOD_KEYS] = 0,
 };
 
-struct VWrapper {
+typedef struct {
   struct VProps props;
   int ref_count;
   JSContext* ctx;
-};
+} VirtualWrapper;
 
 static VirtualWrapper*
 wrapper_new(const VirtualProperties* virt, JSContext* ctx) {
@@ -74,11 +74,11 @@ atoms_dup(JSContext* ctx, void* ptr) {
 
 typedef struct {
   JSAtom has, get, set, delete, keys;
-} MethodAtoms;
+} MapMethodAtoms;
 
 static BOOL
 map_has(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  MethodAtoms* atoms = vp->opaque;
+  MapMethodAtoms* atoms = vp->opaque;
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->has, 1, &prop);
 
   return JS_ToBool(ctx, ret);
@@ -86,14 +86,14 @@ map_has(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
 static JSValue
 map_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  MethodAtoms* atoms = vp->opaque;
+  MapMethodAtoms* atoms = vp->opaque;
 
   return JS_Invoke(ctx, vp->this_obj, atoms->get, 1, &prop);
 }
 
 static int
 map_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
-  MethodAtoms* atoms = vp->opaque;
+  MapMethodAtoms* atoms = vp->opaque;
   JSValueConst args[] = {
       prop,
       value,
@@ -112,7 +112,7 @@ map_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue 
 
 static BOOL
 map_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  MethodAtoms* atoms = vp->opaque;
+  MapMethodAtoms* atoms = vp->opaque;
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->delete, 1, &prop);
 
   return JS_ToBool(ctx, ret);
@@ -120,7 +120,7 @@ map_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
 static JSValue
 map_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
-  MethodAtoms* atoms = vp->opaque;
+  MapMethodAtoms* atoms = vp->opaque;
 
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->keys, 0, 0);
 
@@ -134,7 +134,7 @@ map_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
 static void
 map_finalizer(JSRuntime* rt, void* ptr) {
   VirtualProperties* vp = ptr;
-  MethodAtoms* atoms = vp->opaque;
+  MapMethodAtoms* atoms = vp->opaque;
 
   JS_FreeAtomRT(rt, atoms->has);
   JS_FreeAtomRT(rt, atoms->get);
@@ -149,13 +149,9 @@ map_finalizer(JSRuntime* rt, void* ptr) {
 
 VirtualProperties
 virtual_properties_map(JSContext* ctx, JSValueConst map) {
-  JSValue map_prototype, map_obj;
-  MethodAtoms* atoms = js_mallocz(ctx, sizeof(MethodAtoms) + sizeof(JSAtom));
+  MapMethodAtoms* atoms = js_mallocz(ctx, sizeof(MapMethodAtoms) + sizeof(JSAtom));
 
-  map_obj = JS_DupValue(ctx, map);
-  map_prototype = js_global_prototype(ctx, "Map");
-
-  *atoms = (MethodAtoms){
+  *atoms = (MapMethodAtoms){
       JS_NewAtom(ctx, "has"),
       JS_NewAtom(ctx, "get"),
       JS_NewAtom(ctx, "set"),
@@ -163,10 +159,8 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
       JS_NewAtom(ctx, "keys"),
   };
 
-  JS_FreeValue(ctx, map_prototype);
-
   return (VirtualProperties){
-      map_obj,
+      JS_DupValue(ctx, map),
       map_has,
       map_get,
       map_set,
@@ -190,7 +184,7 @@ object_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
 static int
 object_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
-  return js_set_property_value(ctx, vp->this_obj, prop, value);
+  return js_set_property_value(ctx, vp->this_obj, prop, JS_DupValue(ctx, value));
 }
 
 static BOOL
@@ -284,19 +278,31 @@ array_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
 static int
 array_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
-  JSValue entry = JS_NewArray(ctx);
+  ArrayMethodAtoms* atoms = vp->opaque;
+  JSValue entry;
+  int64_t pos;
+  int32_t result = 0;
 
-  JS_SetPropertyUint32(ctx, entry, 0, JS_DupValue(ctx, prop));
-  JS_SetPropertyUint32(ctx, entry, 1, value);
-  JSValue ret = js_invoke(ctx, vp->this_obj, "push", 1, &entry);
-  int32_t result = js_toint32(ctx, ret);
-  JS_FreeValue(ctx, ret);
+  if((pos = array_find(vp, ctx, prop)) != -1) {
+    entry = JS_GetPropertyUint32(ctx, vp->this_obj, pos);
+    JS_SetPropertyUint32(ctx, entry, 1, JS_DupValue(ctx, value));
+  } else {
+    entry = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, entry, 0, JS_DupValue(ctx, prop));
+    JS_SetPropertyUint32(ctx, entry, 1, JS_DupValue(ctx, value));
+    JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->push, 1, &entry);
+    result = !JS_IsException(ret);
+    JS_FreeValue(ctx, ret);
+  }
+
+  JS_FreeValue(ctx, entry);
 
   return result;
 }
 
 static BOOL
 array_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  ArrayMethodAtoms* atoms = vp->opaque;
   int64_t pos;
 
   if((pos = array_find(vp, ctx, prop)) != -1) {
@@ -304,7 +310,7 @@ array_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
         JS_NewInt64(ctx, pos),
         JS_NewInt32(ctx, 1),
     };
-    JSValue ret = js_invoke(ctx, vp->this_obj, "splice", countof(args), args);
+    JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->splice, countof(args), args);
     BOOL result = js_array_length(ctx, ret) == 1;
     JS_FreeValue(ctx, ret);
 
@@ -472,7 +478,7 @@ virtual_properties(JSContext* ctx, JSValueConst value) {
   if(js_is_array(ctx, value))
     return virtual_properties_array(ctx, value);
 
-  if(js_is_map(ctx, value))
+  if(js_is_map(ctx, value) || js_is_weakmap(ctx, value))
     return virtual_properties_map(ctx, value);
 
   if(js_is_object(ctx, value))
@@ -504,6 +510,7 @@ int
 virtual_set(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop, JSValue value) {
   return vprop->set(vprop, ctx, prop, value);
 }
+
 BOOL
 virtual_delete(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
   return vprop->delete(vprop, ctx, prop);

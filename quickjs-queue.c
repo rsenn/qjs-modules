@@ -135,7 +135,7 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if((chunk = queue_chunk(queue, pos))) {
         if(returnPos)
-          ret = JS_NewInt64(ctx, pos < 0 ? chunk_tailpos(chunk, queue) : chunk_headpos(chunk, queue));
+          ret = JS_NewInt64(ctx, pos < 0 ? chunk_headpos(chunk, queue) : chunk_tailpos(chunk, queue));
         else
           ret = chunk_arraybuffer(chunk, ctx);
       } else

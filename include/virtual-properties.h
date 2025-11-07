@@ -36,8 +36,6 @@ typedef struct VProps {
     JS_EXCEPTION, 0, 0, 0, 0, 0, 0, 0, 0 \
   }
 
-typedef struct VWrapper VirtualWrapper;
-
 VirtualProperties virtual_properties(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_map(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_object(JSContext*, JSValueConst);

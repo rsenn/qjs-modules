@@ -633,7 +633,7 @@ js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   uint8_t* data = inputbuffer_data(&input);
 
   if(size < UTF8_CHAR_LEN_MAX)
-    ret = JS_ThrowInternalError(ctx, "need at least %zu bytes (you have %zu)", UTF8_CHAR_LEN_MAX, size);
+    ret = JS_ThrowInternalError(ctx, "need at least %u bytes (you have %zu)", UTF8_CHAR_LEN_MAX, size);
   else
     ret = JS_NewUint32(ctx, unicode_to_utf8(data, code));
 

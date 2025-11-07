@@ -2673,6 +2673,12 @@ js_is_map(JSContext* ctx, JSValueConst value) {
 }
 
 BOOL
+js_is_weakmap(JSContext* ctx, JSValueConst value) {
+  return JS_IsObject(value) &&
+         (js_global_instanceof(ctx, value, "WeakMap") || js_object_is(ctx, value, "[object WeakMap]"));
+}
+
+BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Set") || js_object_is(ctx, value, "[object Set]"));
 }
