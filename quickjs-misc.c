@@ -753,8 +753,8 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     OffsetLength ol = OFFSET_LENGTH_0();
 
     if(argc > 1)
-      offsetlength_from_argv(&ol, len, argc - 1, argv + 1, ctx);
-    // js_offset_length(ctx, len, argc, argv, 1, &ol);
+      if(offsetlength_from_argv(&ol, len, argc - 1, argv + 1, ctx) < 0)
+        return JS_EXCEPTION;
 
     return JS_NewArrayBuffer(ctx,
                              offsetlength_begin(ol, data),
