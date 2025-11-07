@@ -850,21 +850,17 @@ inputbuffer_tostring_free(InputBuffer* in, JSContext* ctx) {
   return ret;
 }
 
-static void
-inputbuffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
-  // js_free_rt(rt, ptr);
-
-  if(opaque)
-    js_freeobj_rt(rt, opaque);
-}
-
 JSValue
 inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
   if(!in->data)
     return JS_UNDEFINED;
 
-  JSValue ret = JS_NewArrayBuffer(
-      ctx, inputbuffer_data(in), inputbuffer_length(in), inputbuffer_free_pointer, js_value_obj(in->value), FALSE);
+  JSValue ret = JS_NewArrayBuffer(ctx,
+                                  inputbuffer_data(in),
+                                  inputbuffer_length(in),
+                                  (JSFreeArrayBufferDataFunc*)&js_freeobj_rt,
+                                  js_value_obj(in->value),
+                                  FALSE);
 
   in->data = 0;
   in->size = 0;

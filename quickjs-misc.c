@@ -699,24 +699,26 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  uintptr_t addr = 0, len = 0;
   BOOL is_bigint = JS_IsBigInt(ctx, argv[0]);
 
   if(argc >= 2 && (JS_IsNumber(argv[0]) || is_bigint)) {
-    addr = (uintptr_t)js_topointer(ctx, argv[0]);
+    uintptr_t addr = (uintptr_t)js_topointer(ctx, argv[0]);
 
     if(addr == 0)
       return JS_NULL;
 
-    len = (uintptr_t)js_topointer(ctx, argv[1]);
+    uintptr_t len = (uintptr_t)js_topointer(ctx, argv[1]);
 
     if(len == 0)
       return JS_ThrowInternalError(ctx, "zero length given");
 
-    return JS_NewArrayBuffer(ctx, (void*)(size_t)addr, len, 0, 0, 0);
+    return JS_NewArrayBuffer(ctx, (void*)addr, len, 0, 0, 0);
   }
 
-  InputBuffer input = js_input_args(ctx, argc, argv);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+
+  if(argc > 1)
+    js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
   return inputbuffer_toarraybuffer_free(&input, ctx);
 }
