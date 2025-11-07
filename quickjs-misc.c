@@ -878,7 +878,7 @@ int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_
 
 static JSValue
 js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()};
+  MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()}, w[2];
   int i = 0;
 
   for(int k = 0; k < countof(m); k++) {
@@ -896,12 +896,12 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       JS_ToInt64Clamp(ctx, &r.arr[j], argv[i++], j ? r.arr[0] : 0, m[k].size, m[k].size);
     }
 
-    m[k] = indexrange_block(r, m[k]);
+    w[k] = indexrange_block(r, m[k]);
   }
 
-  size_t n = MIN_NUM(m[0].size, m[1].size);
+  size_t n = MIN_NUM(w[0].size, w[1].size);
 
-  memcpy(m[0].base, m[1].base, n);
+  memcpy(w[0].base, w[1].base, n);
 
   return JS_NewInt64(ctx, n);
 }
