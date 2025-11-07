@@ -909,28 +909,30 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static JSValue
-js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock s1 = {0, 0}, s2 = {0, 0};
-  OffsetLength o1 = {0, -1}, o2 = {0, -1};
-  size_t n;
+js_misc_comparearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  MemoryBlock m[] = {BLOCK_INIT(), BLOCK_INIT()}, w[2];
+  IndexRange r[2] = {INDEX_RANGE_INIT(), INDEX_RANGE_INIT()};
   int i = 0;
 
-  if(!block_arraybuffer(&s1, argv[0], ctx))
-    return JS_ThrowTypeError(ctx, "argument 1 (s1) must be an ArrayBuffer");
+  for(int k = 0; k < countof(m); k++) {
+    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("s2", "s1")[k]);
 
-  ++i;
-  i += js_offset_length(ctx, s1.size, argc - i, argv + i, 0, &o1);
+    i++;
 
-  if(i == argc || !block_arraybuffer(&s2, argv[i], ctx))
-    return JS_ThrowTypeError(ctx, "argument %d (s2) must be an ArrayBuffer", i + 1);
+    int64_t* const slice = r[k].arr;
 
-  ++i;
-  i += js_offset_length(ctx, s2.size, argc - i, argv + i, 0, &o2);
+    for(int j = 0; j < countof(slice); j++) {
+      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
+        break;
 
-  if((n = MIN_NUM(offsetlength_size(o1, block_length(s1)), offsetlength_size(o2, block_length(s2)))))
-    return JS_NewInt32(ctx, memcmp(offsetlength_begin(o1, block_data(s1)), offsetlength_begin(o2, block_data(s2)), n));
+      js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
+    }
+  }
 
-  return JS_NULL;
+  MemoryBlock s[] = {block_indexrange(m[0], r[0]), block_indexrange(m[1], r[1])};
+
+  return JS_NewInt32(ctx, memcmp(s[0].base, s[1].base, MIN_NUM(s[0].size, s[1].size)));
 }
 
 #if HAVE_FMEMOPEN
@@ -3731,7 +3733,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),
-    JS_CFUNC_DEF("memcmp", 2, js_misc_memcmp),
+    JS_CFUNC_DEF("compareArrayBuffer", 2, js_misc_comparearraybuffer),
 #if HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
 #endif
