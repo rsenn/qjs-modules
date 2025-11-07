@@ -92,7 +92,7 @@ map_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 }
 
 static int
-map_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+map_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValueConst value) {
   MapMethodAtoms* atoms = vp->opaque;
   JSValueConst args[] = {
       prop,
@@ -183,7 +183,7 @@ object_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 }
 
 static int
-object_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+object_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValueConst value) {
   return js_set_property_value(ctx, vp->this_obj, prop, JS_DupValue(ctx, value));
 }
 
@@ -277,7 +277,7 @@ array_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 }
 
 static int
-array_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+array_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValueConst value) {
   ArrayMethodAtoms* atoms = vp->opaque;
   JSValue entry;
   int64_t pos;
@@ -291,12 +291,11 @@ array_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValu
     JS_SetPropertyUint32(ctx, entry, 0, JS_DupValue(ctx, prop));
     JS_SetPropertyUint32(ctx, entry, 1, JS_DupValue(ctx, value));
     JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->push, 1, &entry);
-    result = !JS_IsException(ret);
+    result = JS_IsException(ret);
     JS_FreeValue(ctx, ret);
   }
 
   JS_FreeValue(ctx, entry);
-
   return result;
 }
 
