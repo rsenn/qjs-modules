@@ -169,7 +169,7 @@ path_isabsolute1(const char* x) {
   if(x[0] && x[0] == PATHSEP_C)
     return 1;
 #ifdef _WIN32
-  if(x[0] && x[1] && x[1] == ':')
+  if(x[0] && !path_issep(x[0]) && !path_isdot(x[0]) && x[1] == ':')
     return 1;
 #endif
   return 0;

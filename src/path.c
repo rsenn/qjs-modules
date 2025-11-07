@@ -24,30 +24,6 @@ static const char path_passwd[] =
  * \addtogroup path
  * @{
  */
-/*static int
-path_canonical_buf(DynBuf* db) {
-  db->size = path_normalize2((char*)db->buf, db->size);
-  dbuf_putc(db, '\0');
-  db->size--;
-  return 1;
-}*/
-
-/*static char*
-path_dirlen(const char* path, DynBuf* dir) {
-  size_t i = path_right2(path, strlen(path));
-
-  if(path == NULL || path[i] == '\0') {
-    dbuf_putstr(dir, ".");
-  } else {
-    while(i > 0 && path_issep(path[i - 1]))
-      --i;
-    dbuf_put(dir, (const uint8_t*)path, i);
-  }
-
-  dbuf_0(dir);
-  return (char*)dir->buf;
-}*/
-
 BOOL
 path_isdot1(const char* p) {
   return p[0] == '.' && p[1] == '\0';
@@ -67,18 +43,6 @@ BOOL
 path_isdotdot2(const char* p, size_t n) {
   return n == 2 && p[0] == '.' && p[1] == '.';
 }
-
-/*static char*
-path_dirname_alloc(const char* path) {
-  DynBuf dir;
-  dbuf_init2(&dir, 0, 0);
-  return path_dirlen(path, &dir);
-}*/
-
-/*char*
-path_dup2(const char* path, DynBuf* db) {
-  return path_dup3(path,strlen(path),db);
-}*/
 
 char*
 path_dup3(const char* path, size_t n, DynBuf* db) {
@@ -145,35 +109,6 @@ char*
 path_absolute1(const char* path) {
   return path_absolute2(path, strlen(path));
 }
-
-/*static int
-path_absolute_db(DynBuf* db) {
-  int ret = 0;
-  dbuf_putc(db, '\0');
-  db->size--;
-
-  if(!path_isabsolute2((const char*)db->buf, db->size)) {
-    DynBuf tmp;
-    dbuf_init(&tmp);
-    dbuf_append(&tmp, db->buf, db->size);
-    dbuf_realloc(db, PATH_MAX + 1);
-
-    if(getcwd((char*)db->buf, PATH_MAX))
-      db->size = strlen((const char*)db->buf);
-
-    dbuf_putc(db, PATHSEP_C);
-    dbuf_append(db, (const uint8_t*)tmp.buf, tmp.size);
-    dbuf_free(&tmp);
-    ret = 1;
-  }
-
-  if(db->size && path_issep(db->buf[db->size - 1]))
-    --db->size;
-
-  dbuf_putc(db, '\0');
-  db->size--;
-  return ret;
-}*/
 
 void
 path_append2(const char* x, DynBuf* db) {
@@ -463,30 +398,6 @@ path_slice3(const char* p, int start, int end) {
   return (char*)db.buf;
 }
 
-/*
-size_t
-path_size1(const char* p) {
-  size_t n = 0, len;
-  for(; *p; p += len) {
-    len = path_skip1(p);
-    ++n;
-  }
-
-  return n;
-}
-
-size_t
-path_size2(const char* p, size_t n) {
-  size_t len;
-  const char* q = p + n;
-  for(; p < q; p += len) {
-    len = path_skip2(p, q - p);
-    ++n;
-  }
-
-  return n;
-}*/
-
 int
 path_exists1(const char* p) {
   struct stat st;
@@ -742,7 +653,7 @@ start:
     }
 
     default:
-    match : {
+    match: {
       if(*pattern == *string) {
         pattern++;
         plen--;

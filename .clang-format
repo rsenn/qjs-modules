@@ -55,7 +55,7 @@ SpacesInSquareBrackets: false
 UseTab: Never
 ColumnLimit: 120
 ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
+  #ContinuationIndentWidth: 4
 IndentWidth: 2
 MaxEmptyLinesToKeep: 1
 PenaltyBreakBeforeFirstCallParameter: 120

@@ -2546,46 +2546,45 @@ module_entry(JSContext* ctx, JSModuleDef* m) {
 
 JSModuleDef*
 js_module_def(JSContext* ctx, JSValueConst value) {
+  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
+    return JS_VALUE_GET_PTR(value);
+
   if(JS_IsString(value)) {
     const char* name = JS_ToCString(ctx, value);
     JSModuleDef* m = js_module_find(ctx, name);
 
     JS_FreeCString(ctx, name);
-    return m;
+
+    if(m)
+      return m;
   }
 
-  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
-    return JS_VALUE_GET_PTR(value);
-
+#if QUICKJS_INTERNAL
   if(js_number_integral(value)) {
     int32_t num = -1;
 
     JS_ToInt32(ctx, &num, value);
 
-#if QUICKJS_INTERNAL
     return js_module_at(ctx, num);
-#endif
   }
+#endif
 
   if(JS_IsObject(value)) {
     JSAtom atom = js_symbol_static_atom(ctx, "toStringTag");
     uint64_t addrval = 0;
     const char *tag, *addr;
 
-    if(JS_HasProperty(ctx, value, atom) && js_has_propertystr(ctx, value, "address")) {
-      if((tag = js_get_property_cstring(ctx, value, atom))) {
-        if(!strcmp(tag, "Module")) {
-          if((addr = js_get_propertystr_cstring(ctx, value, "address"))) {
-            if(addr[0] == '0' && addr[1] == 'x')
-              if(scan_xlonglong(addr + 2, &addrval) == 0)
-                addrval = 0;
+    if(JS_HasProperty(ctx, value, atom) && js_has_propertystr(ctx, value, "address") &&
+       (tag = js_get_property_cstring(ctx, value, atom)) && !strcmp(tag, "Module")) {
+      if((addr = js_get_propertystr_cstring(ctx, value, "address"))) {
+        if(addr[0] == '0' && addr[1] == 'x')
+          if(scan_xlonglong(addr + 2, &addrval) == 0)
+            addrval = 0;
 
-            JS_FreeCString(ctx, addr);
-          }
-        }
-
-        JS_FreeCString(ctx, tag);
+        JS_FreeCString(ctx, addr);
       }
+
+      JS_FreeCString(ctx, tag);
     }
 
     JS_FreeAtom(ctx, atom);

@@ -714,7 +714,7 @@ set(perf_hooks_MODULES misc)
 set(stack_MODULES inspect location)
 set(tty_MODULES util)
 set(url_MODULES util path)
-set(util_MODULES inspect path misc)
+set(util_MODULES timers inspect path misc)
 set(inspect_MODULES pointer)
 
 if(NOT DEFINED QUICKJS_SOURCES_ROOT)

@@ -278,6 +278,33 @@ str_rchrs(const char* in, const char needles[], size_t nn) {
   return (size_t)((found ? found : s) - in);
 }
 
+static inline size_t
+str_nchr(const char* in, char needle) {
+  const char *t, c = needle;
+
+  for(t = in; *t; ++t)
+    if(*t != c)
+      break;
+
+  return (size_t)(t - in);
+}
+
+static inline size_t
+str_nchrs(const char* in, const char needles[], size_t nn) {
+  const char* t;
+  size_t i;
+
+  for(t = in; *t; ++t) {
+    for(i = 0; i < nn; i++)
+      if(*t == needles[i])
+        break;
+
+    if(i == nn)
+      break;
+  }
+
+  return (size_t)(t - in);
+}
 static inline int
 str_endb(const char* a, const char* x, size_t n) {
   size_t alen = strlen(a);
@@ -440,6 +467,8 @@ size_t scan_line(const char*, size_t);
 size_t scan_lineskip(const char*, size_t);
 size_t scan_lineskip_escaped(const char*, size_t);
 size_t scan_eolskip(const char*, size_t);
+size_t scan_charsetnskip(const char*, const char*, size_t);
+size_t scan_noncharsetnskip(const char*, const char*, size_t);
 size_t utf8_charlen(const void*, size_t);
 size_t utf8_strlen(const void*, size_t);
 size_t utf8_byteoffset(const void*, size_t, int);

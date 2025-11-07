@@ -38,8 +38,6 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
 
   JS_DefinePropertyValueStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved), 0);
   JS_DefinePropertyValueStr(ctx, obj, "funcCreated", JS_NewBool(ctx, m->func_created), 0);
-  // JS_DefinePropertyValueStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated), 0);
-  // JS_DefinePropertyValueStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated), 0);
 
   if(!JS_IsUndefined((tmp = module_ns(ctx, m))))
     JS_DefinePropertyValueStr(ctx, obj, "ns", tmp, 0);
@@ -51,11 +49,10 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
     JS_DefinePropertyValueStr(ctx, obj, "imports", tmp, 0);
 
   if(!JS_IsUndefined((tmp = module_reqmodules(ctx, m))))
-    JS_SetPropertyStr(ctx, obj, "reqModules", tmp);
+    JS_DefinePropertyValueStr(ctx, obj, "reqModules", tmp, 0);
 
-  if(m->init_func) {
+  if(m->init_func)
     JS_SetPropertyStr(ctx, obj, "native", JS_NewBool(ctx, m->init_func != NULL));
-  }
 
   if(!JS_IsUndefined((tmp = module_func(ctx, m)))) {
     if(m->init_func)
@@ -64,10 +61,10 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
       JS_SetPropertyStr(ctx, obj, "func", tmp);
   }
 
-  if(!js_is_null_or_undefined((tmp = JS_DupValue(ctx, m->meta_obj))))
+  if(!JS_IsUndefined((tmp = JS_DupValue(ctx, m->meta_obj))))
     JS_SetPropertyStr(ctx, obj, "metaObj", tmp);
 
-  if(!js_is_null_or_undefined((tmp = JS_DupValue(ctx, m->eval_exception))))
+  if(!JS_IsUndefined((tmp = JS_DupValue(ctx, m->eval_exception))))
     JS_SetPropertyStr(ctx, obj, "evalException", tmp);
 
   {
@@ -76,12 +73,9 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
     JS_FreeAtom(ctx, atom);
   }
 
-  {
+  buf[2 + fmt_xlonglong0(&buf[2], (long long)(uintptr_t)m, __SIZEOF_POINTER__ * 2)] = 0;
 
-    buf[2 + fmt_xlonglong0(&buf[2], (long long)(uintptr_t)m, __SIZEOF_POINTER__ * 2)] = 0;
-
-    JS_DefinePropertyValueStr(ctx, obj, "address", JS_NewString(ctx, buf), 0);
-  }
+  JS_DefinePropertyValueStr(ctx, obj, "address", JS_NewString(ctx, buf), 0);
 }
 
 JSValue
@@ -124,9 +118,6 @@ module_imports(JSContext* ctx, JSModuleDef* m) {
   for(i = 0; i < m->import_entries_count; i++) {
     JSImportEntry* entry = &m->import_entries[i];
     JSAtom name = entry->import_name;
-    /*JSReqModuleEntry* req_module = &m->req_module_entries[entry->req_module_idx];
-    JSAtom module_name = req_module->module_name;*/
-
     JSValue import_value = JS_NewArray(ctx);
 
     JS_SetPropertyUint32(ctx, import_value, 0, JS_AtomToValue(ctx, name));
@@ -140,17 +131,13 @@ module_imports(JSContext* ctx, JSModuleDef* m) {
 JSValue
 module_reqmodules(JSContext* ctx, JSModuleDef* m) {
   JSValue obj = m->req_module_entries_count > 0 ? JS_NewArray(ctx) : JS_UNDEFINED;
-  int i;
 
-  for(i = 0; i < m->req_module_entries_count; i++) {
-    JSReqModuleEntry* req_module = &m->req_module_entries[i];
-    JSAtom module_name = req_module->module_name;
-    JSModuleDef* module = req_module->module;
-
+  for(int i = 0; i < m->req_module_entries_count; i++) {
+    JSReqModuleEntry* r = &m->req_module_entries[i];
     JSValue req_module_value = JS_NewArray(ctx);
 
-    JS_SetPropertyUint32(ctx, req_module_value, 0, JS_AtomToValue(ctx, module_name));
-    JS_SetPropertyUint32(ctx, req_module_value, 1, JS_NewInt32(ctx, js_module_index(ctx, module)));
+    JS_SetPropertyUint32(ctx, req_module_value, 0, JS_AtomToValue(ctx, r->module_name));
+    JS_SetPropertyUint32(ctx, req_module_value, 1, JS_NewInt32(ctx, js_module_index(ctx, r->module)));
     JS_SetPropertyUint32(ctx, obj, i, req_module_value);
   }
 
@@ -161,19 +148,14 @@ JSValue
 module_default_export(JSContext* ctx, JSModuleDef* m) {
   JSAtom def = JS_NewAtom(ctx, "default");
   JSValue ret = JS_UNDEFINED;
-  int i;
 
-  for(i = 0; i < m->export_entries_count; i++) {
+  for(int i = 0; i < m->export_entries_count; i++) {
     JSExportEntry* entry = &m->export_entries[i];
     JSVarRef* ref = entry->u.local.var_ref;
-    JSAtom name = entry->export_name;
 
-    if(ref) {
-
-      if(name == def) {
-        ret = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
-        break;
-      }
+    if(ref && entry->export_name == def) {
+      ret = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
+      break;
     }
   }
 
@@ -241,11 +223,15 @@ module_func(JSContext* ctx, JSModuleDef* m) {
 
 JSValue
 module_nameval(JSContext* ctx, JSModuleDef* m) {
-
   if(m->module_name < (size_t)JS_GetRuntime(ctx)->atom_count)
     return JS_AtomToValue(ctx, m->module_name);
 
   return JS_UNDEFINED;
+}
+
+JSAtom
+module_name(JSContext* ctx, JSModuleDef* m) {
+  return JS_DupAtom(ctx, m->module_name);
 }
 
 const char*
