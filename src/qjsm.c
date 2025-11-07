@@ -808,6 +808,8 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
       }
     }*/
 
+    js_free(ctx, path);
+    path = 0;
     break;
   }
 
