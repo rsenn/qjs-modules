@@ -579,7 +579,7 @@ js_get_bytecode(JSContext* ctx, JSValueConst value) {
   JSValue ret = JS_UNDEFINED;
 
   if(JS_IsFunction(ctx, value)) {
-    JSObject* obj = JS_VALUE_GET_OBJ(value);
+    JSObject* obj = JS_VALUE_GET_PTR(value);
     JSFunctionBytecode* fnbc;
 
     if((fnbc = obj->u.func.function_bytecode)) {

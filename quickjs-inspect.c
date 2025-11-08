@@ -850,8 +850,13 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
     JS_FreeCString(ctx, str);
   }*/
 
+#ifdef CONFIG_BIGNUM
   if(tag <= JS_TAG_BIG_FLOAT)
     writer_putc(wr, tag == JS_TAG_BIG_DECIMAL ? 'm' : tag == JS_TAG_BIG_FLOAT ? 'l' : 'n');
+#else
+  if(tag == JS_TAG_BIG_INT)
+    writer_putc(wr, 'n');
+#endif
 
   if(opts->colors)
     writer_puts(wr, COLOR_NONE);
@@ -1175,10 +1180,12 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
   switch(tag) {
     case JS_TAG_FLOAT64:
+  #ifdef CONFIG_BIGNUM
+    case JS_TAG_BIG_FLOAT:
     case JS_TAG_BIG_DECIMAL:
+ #endif
     case JS_TAG_BIG_INT:
-    case JS_TAG_INT:
-    case JS_TAG_BIG_FLOAT: {
+    case JS_TAG_INT:  {
       return inspect_number(insp, value, level);
     }
 

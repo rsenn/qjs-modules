@@ -267,7 +267,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_PROTOTYPEIS: {
       JSValue proto = JS_GetPrototype(ctx, js_arguments_at(args, 0));
 
-      ret = JS_NewBool(ctx, JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(pr->unary.predicate));
+      ret = JS_NewBool(ctx, JS_VALUE_GET_PTR(proto) == JS_VALUE_GET_PTR(pr->unary.predicate));
       break;
     }
 
@@ -364,7 +364,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       if(JS_IsString(arg))
         ret = JS_NewStringLen(ctx, (const char*)block.base, block.size);
       else
-        ret = JS_NewArrayBuffer(ctx, block.base, block.size, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
+        ret = JS_NewArrayBuffer(ctx, block.base, block.size, &free_arraybuffer_slice, JS_VALUE_GET_PTR(arg), FALSE);
 
       inputbuffer_free(&buf, ctx);
       break;

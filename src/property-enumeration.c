@@ -33,7 +33,7 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
   size_t i;
 
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out, "%p", JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : NULL);
+  dbuf_printf(out, "%p", JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_PTR(it->obj) : NULL);
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
@@ -283,10 +283,10 @@ property_recursion_leave(Vector* vec, JSContext* ctx) {
 int
 property_recursion_insideof(Vector* vec, JSValueConst val) {
   PropertyEnumeration* it;
-  void* obj = JS_VALUE_GET_OBJ(val);
+  void* obj = JS_VALUE_GET_PTR(val);
 
   vector_foreach_t(vec, it) {
-    void* obj2 = JS_VALUE_GET_OBJ(it->obj);
+    void* obj2 = JS_VALUE_GET_PTR(it->obj);
 
     if(obj == obj2)
       return 1;

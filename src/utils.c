@@ -336,8 +336,10 @@ regexp_flags_fromstring(const char* s) {
   if(str_contains(s, 's'))
     flags |= LRE_FLAG_DOTALL;
 
+#ifdef LRE_FLAG_UTF16
   if(str_contains(s, 'u'))
     flags |= LRE_FLAG_UTF16;
+#endif
 
   if(str_contains(s, 'y'))
     flags |= LRE_FLAG_STICKY;
@@ -361,8 +363,10 @@ regexp_flags_tostring(int flags, char* buf) {
   if(flags & LRE_FLAG_DOTALL)
     *out++ = 's';
 
+#ifdef LRE_FLAG_UTF16
   if(flags & LRE_FLAG_UTF16)
     *out++ = 'u';
+#endif
 
   if(flags & LRE_FLAG_STICKY)
     *out++ = 'y';
@@ -1678,7 +1682,7 @@ js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueCon
 
     proto = JS_GetPrototype(ctx, obj);
 
-    if(JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(obj))
+    if(JS_VALUE_GET_PTR(proto) == JS_VALUE_GET_PTR(obj))
       break;
 
     JS_FreeValue(ctx, obj);
@@ -2053,9 +2057,11 @@ js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
 const char*
 js_value_tag_name(int tag) {
   switch(tag) {
+#ifdef CONFIG_BIGNUM
     case JS_TAG_BIG_DECIMAL: return "BIG_DECIMAL";
-    case JS_TAG_BIG_INT: return "BIG_INT";
     case JS_TAG_BIG_FLOAT: return "BIG_FLOAT";
+#endif
+    case JS_TAG_BIG_INT: return "BIG_INT";
     case JS_TAG_SYMBOL: return "SYMBOL";
     case JS_TAG_STRING: return "STRING";
     case JS_TAG_MODULE: return "MODULE";
@@ -2209,9 +2215,11 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
     case TYPE_UNDEFINED:
     case TYPE_NULL:
     case TYPE_SYMBOL:
+#ifdef CONFIG_BIGNUM
     case TYPE_BIG_DECIMAL:
-    case TYPE_BIG_INT:
-    case TYPE_BIG_FLOAT: {
+    case TYPE_BIG_FLOAT:
+#endif
+    case TYPE_BIG_INT: {
       ret = JS_DupValue(ctx, value);
       break;
     }
@@ -2292,10 +2300,12 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
 
       if(is_string)
         dbuf_putc(db, '"');
+#ifdef CONFIG_BIGNUM
       else if(JS_IsBigFloat(value))
         dbuf_putc(db, 'l');
       else if(JS_IsBigDecimal(value))
         dbuf_putc(db, 'm');
+#endif
       else if(JS_IsBigInt(ctx, value))
         dbuf_putc(db, 'n');
 
@@ -2313,7 +2323,7 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
     ret = FALSE;
   } else if(ta & tb & (TYPE_NULL | TYPE_UNDEFINED | TYPE_NAN)) {
     ret = TRUE;
-  } else if(ta & tb & (TYPE_BIG_INT | TYPE_BIG_FLOAT | TYPE_BIG_DECIMAL)) {
+  } else if(ta & tb & (TYPE_BIGNUM)) {
     const char *astr, *bstr = 0;
 
     if((astr = JS_ToCString(ctx, a)) && (bstr = JS_ToCString(ctx, b)))
@@ -2452,7 +2462,7 @@ js_value_mkobj(JSObject* obj) {
 
 JSObject*
 js_value_obj(JSValueConst v) {
-  return (JS_IsObject(v) && !JS_IsNull(v)) ? JS_VALUE_GET_OBJ(v) : 0;
+  return (JS_IsObject(v) && !JS_IsNull(v)) ? JS_VALUE_GET_PTR(v) : 0;
 }
 
 void
@@ -2635,9 +2645,11 @@ js_module_load(JSContext* ctx, const char* name) {
 BOOL
 js_is_primitive(JSValueConst obj) {
   switch(JS_VALUE_GET_TAG(obj)) {
+#ifdef CONFIG_BIGNUM
     case JS_TAG_BIG_DECIMAL:
-    case JS_TAG_BIG_INT:
     case JS_TAG_BIG_FLOAT:
+#endif
+    case JS_TAG_BIG_INT:
     case JS_TAG_SYMBOL:
     case JS_TAG_STRING:
     case JS_TAG_INT:

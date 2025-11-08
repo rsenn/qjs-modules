@@ -423,7 +423,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewString(ctx, buf);
       } else if((ptr = sockaddr_addr(a))) {
         size_t n = sockaddr_addrlen(a);
-        JSObject* obj = JS_VALUE_GET_OBJ(JS_DupValue(ctx, this_val));
+        JSObject* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
 
         ret = JS_NewArrayBuffer(ctx, ptr, n, js_sockaddr_free_buffer, obj, FALSE);
       }
@@ -457,7 +457,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case SOCKADDR_BUFFER: {
-      JSObject* obj = JS_VALUE_GET_OBJ(JS_DupValue(ctx, this_val));
+      JSObject* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
       size_t len = sockaddr_len(a);
 
       ret = JS_NewArrayBuffer(ctx, (uint8_t*)a, len, js_sockaddr_free_buffer, obj, FALSE);
@@ -1364,7 +1364,7 @@ js_asyncsocket_resolve(
   int argn = (magic & 0xe) == 0xa ? 5 : (magic & 0x8) ? 4 : 1;
 
   assert(JS_VALUE_GET_TAG(data[1]) == JS_TAG_OBJECT);
-  assert(JS_VALUE_GET_OBJ(data[1]));
+  assert(JS_VALUE_GET_PTR(data[1]));
 
   if((magic & 0x0f) == METHOD_CONNECT) {
     int err = 0;
@@ -1396,7 +1396,7 @@ js_asyncsocket_resolve(
 #ifdef DEBUG_OUTPUT
     printf("%s(): [%p] set%sHandler(%d, null)\n",
            __func__,
-           JS_VALUE_GET_OBJ(data[1]),
+           JS_VALUE_GET_PTR(data[1]),
            magic & 1 ? "Write" : "Read",
            socket_handle(*asock));
 #endif
@@ -1456,7 +1456,7 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 #ifdef DEBUG_OUTPUT
   printf(
-      "%s(): set%sHandler(%d, %p)\n", __func__, magic & 1 ? "Write" : "Read", socket_fd(*s), JS_VALUE_GET_OBJ(data[1]));
+      "%s(): set%sHandler(%d, %p)\n", __func__, magic & 1 ? "Write" : "Read", socket_fd(*s), JS_VALUE_GET_PTR(data[1]));
 #endif
 
   s->pending[magic & 1] = JS_DupValue(ctx, resolving_funcs[0]);

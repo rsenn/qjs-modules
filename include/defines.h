@@ -6,6 +6,10 @@
  * @{
  */
 
+#ifndef HAVE_DBUF_REALLOC
+#define dbuf_realloc dbuf_claim
+#endif
+
 #ifdef _WIN32
 #include <io.h>
 #define FD_TO_SOCKET(fd) ((SOCKET)_get_osfhandle((fd)))
@@ -172,23 +176,23 @@
 #if 0
 #define js_object_tmpmark_set(value) \
   do { \
-    ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; \
+    ((uint8_t*)JS_VALUE_GET_PTR((value)))[5] |= 0x40; \
   } while(0);
 #define js_object_tmpmark_clear(value) \
   do { \
-    ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; \
+    ((uint8_t*)JS_VALUE_GET_PTR((value)))[5] &= ~0x40; \
   } while(0);
-#define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
+#define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_PTR((value)))[5] & 0x40)
 #else
 #define js_object_tmpmark_set(value) \
   do { \
-    JS_VALUE_GET_OBJ((value))->tmp_mark |= 0x40; \
+    JS_VALUE_GET_PTR((value))->tmp_mark |= 0x40; \
   } while(0);
 #define js_object_tmpmark_clear(value) \
   do { \
-    JS_VALUE_GET_OBJ((value))->tmp_mark &= ~0x40; \
+    JS_VALUE_GET_PTR((value))->tmp_mark &= ~0x40; \
   } while(0);
-#define js_object_tmpmark_isset(value) (JS_VALUE_GET_OBJ((value))->tmp_mark & 0x40)
+#define js_object_tmpmark_isset(value) (JS_VALUE_GET_PTR((value))->tmp_mark & 0x40)
 #endif
 
 #define js_runtime_exception_set(rt, value) \

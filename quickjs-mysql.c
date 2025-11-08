@@ -409,7 +409,7 @@ js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   if(JS_IsException(obj))
     goto fail;
 
-  mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"JSObject*", (void*)JS_VALUE_GET_OBJ(obj));
+  mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"JSObject*", (void*)JS_VALUE_GET_PTR(obj));
 
   JS_SetOpaque(obj, my);
 

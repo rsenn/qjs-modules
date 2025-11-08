@@ -31,6 +31,10 @@ atomic_add_int(int* ptr, int v) {
  * @{
  */
 
+#ifndef PUBLIC_JSOBJECT_DEF
+typedef struct JSObject JSObject;
+#endif
+
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
 
 #define MAX_SAFE_INTEGER 9007199254740991
@@ -38,7 +42,7 @@ atomic_add_int(int* ptr, int v) {
 #define JS_EVAL_IS_MAIN (1 << 2)
 
 #define JS_EVAL_FLAG_MASK \
-  (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_STRIP | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | \
+  (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | \
    JS_EVAL_FLAG_ASYNC)
 
 char* basename(const char*);
@@ -350,9 +354,13 @@ typedef enum {
   FLAG_OBJECT,            // 4
   FLAG_STRING,            // 5
   FLAG_SYMBOL,            // 6
+#ifdef CONFIG_BIGNUM
   FLAG_BIG_FLOAT,         // 7
+#endif
   FLAG_BIG_INT,           // 8
+#ifdef CONFIG_BIGNUM
   FLAG_BIG_DECIMAL,       // 9
+#endif
   FLAG_FLOAT64,           // 10
   FLAG_NAN,               // 11
   FLAG_FUNCTION,          // 12
@@ -373,12 +381,19 @@ typedef enum {
   TYPE_OBJECT = (1 << FLAG_OBJECT),
   TYPE_STRING = (1 << FLAG_STRING),
   TYPE_SYMBOL = (1 << FLAG_SYMBOL),
+#ifdef CONFIG_BIGNUM
   TYPE_BIG_FLOAT = (1 << FLAG_BIG_FLOAT),
-  TYPE_BIG_INT = (1 << FLAG_BIG_INT),
   TYPE_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
+#endif
+  TYPE_BIG_INT = (1 << FLAG_BIG_INT),
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
-  TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64 | TYPE_NAN),
+#ifdef CONFIG_BIGNUM
+  TYPE_BIGNUM = (TYPE_BIG_FLOAT | TYPE_BIG_DECIMAL | TYPE_BIG_INT),
+#else
+  TYPE_BIGNUM = (TYPE_BIG_INT),
+#endif
+  TYPE_NUMBER = (TYPE_INT | TYPE_BIGNUM | TYPE_FLOAT64 | TYPE_NAN),
   TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_STRING | TYPE_SYMBOL | TYPE_NUMBER),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -393,9 +408,11 @@ typedef enum {
 static inline ValueTypeFlag
 js_value_type_flag(JSValueConst value) {
   switch(JS_VALUE_GET_TAG(value)) {
+#ifdef CONFIG_BIGNUM
     case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
-    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
     case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
+#endif
+    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
     case JS_TAG_SYMBOL: return FLAG_SYMBOL;
     case JS_TAG_STRING: return FLAG_STRING;
     case JS_TAG_MODULE: return FLAG_MODULE;
@@ -840,17 +857,17 @@ js_object_same(JSValueConst a, JSValueConst b) {
   if(!JS_IsObject(a) || !JS_IsObject(b))
     return FALSE;
 
-  aobj = JS_VALUE_GET_OBJ(a);
-  bobj = JS_VALUE_GET_OBJ(b);
+  aobj = JS_VALUE_GET_PTR(a);
+  bobj = JS_VALUE_GET_PTR(b);
 
   return aobj == bobj;
 }
 
 static inline BOOL
 js_has_prototype(JSContext* ctx, JSValueConst obj, JSValueConst proto) {
-  while(JS_IsObject(obj) && !JS_IsNull(obj) && JS_VALUE_GET_OBJ(obj)) {
+  while(JS_IsObject(obj) && !JS_IsNull(obj) && JS_VALUE_GET_PTR(obj)) {
 
-    if(((uintptr_t*)JS_VALUE_GET_OBJ(obj))[3] == 0)
+    if(((uintptr_t*)JS_VALUE_GET_PTR(obj))[3] == 0)
       break;
 
     JSValue val = JS_GetPrototype(ctx, obj);
@@ -1063,7 +1080,11 @@ BOOL js_is_input(JSContext*, JSValueConst value);
 
 static inline BOOL
 js_is_bignumber(JSContext* ctx, JSValueConst value) {
-  return JS_IsBigInt(ctx, value) || JS_IsBigDecimal(value) || JS_IsBigFloat(value);
+#ifdef CONFIG_BIGNUM
+   if(JS_IsBigDecimal(value) || JS_IsBigFloat(value))
+     return TRUE;
+#endif
+  return JS_IsBigInt(ctx, value);
 }
 
 static inline BOOL

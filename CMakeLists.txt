@@ -158,7 +158,7 @@ if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
         set(QJSC "${CMAKE_CURRENT_BINARY_DIR}/../qjsc")
       endif(NOT QJSC)
     endif()
-  endif()
+endif()
 endif()
 
 include(CheckFunctionExists)
@@ -166,6 +166,22 @@ include(CheckIncludeFile)
 include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
+
+check_include_def(libbf.h)
+
+set(CONFIG_BIGNUM OFF)
+
+if(HAVE_LIBBF_H)
+  set(CONFIG_BIGNUM ON)
+endif(HAVE_LIBBF_H)
+
+if(CONFIG_BIGNUM)
+  list(APPEND CONFIG_DEFS CONFIG_BIGNUM=1)
+endif(CONFIG_BIGNUM)
+
+dump(HAVE_LIBBF_H CONFIG_BIGNUM CONFIG_DEFS)
+
+set(CMAKE_REQUIRED_QUIET ON)
 
 check_functions_def(vfork fork waitpid execvpe setsid)
 
@@ -456,6 +472,63 @@ else()
   check_function_exists(inet_pton HAVE_INET_PTON)
 endif()
 
+set(CMAKE_REQUIRED_QUIET OFF)
+  
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
+
+set(CMAKE_REQUIRED_FLAGS "-DCOMPILE_DEFINITIONS=-I${QUICKJS_SOURCES_ROOT}")
+
+try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(void) { return 0; }" HAVE_JSOBJECT_POINTER OUTPUT_JSOBJECT_TEST "" "") 
+
+#try_code("try-jsval.c" "#include \"quickjs.h\"\nJSValue val = JS_UNDEFINED;\nint main(void) { return 0; }" HAVE_JSVALUE_TYPE OUTPUT_JSVALUE_TEST "" "") 
+
+compile_code(JS_MODULE_LOADER_SETTINGS "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0, JS_UNDEFINED); return 0; }")
+
+if(NOT JS_MODULE_LOADER_SETTINGS)
+compile_code(JS_MODULE_LOADER_OLD "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0); return 0; }")
+
+  if(NOT JS_MODULE_LOADER_OLD)
+    message(FATAL "Failed js_module_loader() arguments test!")
+  endif(NOT JS_MODULE_LOADER_OLD)
+endif(NOT JS_MODULE_LOADER_SETTINGS)
+
+if(JS_MODULE_LOADER_OLD)
+  add_definitions(-DJS_MODULE_LOADER_OLD)
+endif(JS_MODULE_LOADER_OLD)
+
+#dump(JS_MODULE_LOADER_SETTINGS JS_MODULE_LOADER_OLD)
+
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_INCLUDES)
+
+#message("OUTPUT_JSOBJECT_TEST: ${OUTPUT_JSOBJECT_TEST}")
+#message("OUTPUT_JSVALUE_TEST: ${OUTPUT_JSVALUE_TEST}")
+
+#dump(HAVE_JSOBJECT_POINTER HAVE_JSVALUE_TYPE)
+
+if(HAVE_JSOBJECT_POINTER)
+  add_definitions(-DPUBLIC_JSOBJECT_DEF)
+endif(HAVE_JSOBJECT_POINTER)
+
+check_library_exists(${QUICKJS_LIBRARY} JS_IsUncatchableError "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISUNCATCHABLEERROR)
+
+if(HAVE_JS_ISUNCATCHABLEERROR)
+  add_definitions(-DHAVE_JS_ISUNCATCHABLEERROR)
+endif(HAVE_JS_ISUNCATCHABLEERROR)
+
+check_library_exists(${QUICKJS_LIBRARY} dbuf_claim "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
+
+if(NOT HAVE_DBUF_CLAIM)
+  check_library_exists(${QUICKJS_LIBRARY} dbuf_realloc "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
+endif(NOT HAVE_DBUF_CLAIM)
+
+dump(HAVE_DBUF_CLAIM)
+
+if(HAVE_DBUF_REALLOC)
+  add_definitions(-DQUICKJS_DBUF_REALLOC)
+endif(HAVE_DBUF_REALLOC)
+
+
 #set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
 
 #set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES})
@@ -564,7 +637,7 @@ if(CACHE{CMAKE_BUILD_TYPE})
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 endif(CACHE{CMAKE_BUILD_TYPE})
 
-set(CMAKE_REQUIRED_QUIET TRUE)
+set(CMAKE_REQUIRED_QUIET ON)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
@@ -771,9 +844,9 @@ if(QUICKJS_INTERNAL)
 
   execute_process(
     COMMAND
-      sed -n
-      "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
-      ${QUICKJS_STRUCT_SOURCES}
+    sed -n
+      "/#define JS_STRING_ROPE/ p; /#define JS_PRINT_/ p; /#define SUM_PRECISE_ACC_LEN/ p;       /#if JS_LIMB_BITS/ { :limb; N; /#endif/! b limb; s|\\n\\n|\\n|g; s|^|\\n|; /typedef[^\\n]*limb_t;/ p }; /^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"  ${QUICKJS_STRUCT_SOURCES}
+      
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
     #OUTPUT_VARIABLE INTERNAL
@@ -896,7 +969,9 @@ target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LI
 
 target_compile_definitions(
   qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}" QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"
-               LIBMAGIC_DB="${LIBMAGIC_DB}" CONFIG_BIGNUM=1)
+               LIBMAGIC_DB="${LIBMAGIC_DB}" ${CONFIG_DEFS})
+
+
 install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)

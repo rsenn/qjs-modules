@@ -1135,7 +1135,7 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto);
       proto = JS_GetPrototype(ctx, proto)) {
-    BOOL circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
+    BOOL circular = (JS_VALUE_GET_PTR(proto) == JS_VALUE_GET_PTR(prev));
 
     JS_FreeValue(ctx, prev);
 
@@ -2842,8 +2842,10 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
 
   switch(magic) {
     case IS_ARRAY: r = JS_IsArray(ctx, arg); break;
+  #ifdef CONFIG_BIGNUM
     case IS_BIGDECIMAL: r = JS_IsBigDecimal(arg); break;
     case IS_BIGFLOAT: r = JS_IsBigFloat(arg); break;
+  #endif
     case IS_BIGINT: r = JS_IsBigInt(ctx, arg); break;
     case IS_BOOL: r = JS_IsBool(arg); break;
     // case IS_CFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_C_FUNCTION; break;
@@ -2862,7 +2864,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
     case IS_FUNCTION: r = JS_IsFunction(ctx, arg); break;
-    // case IS_HTMLDDA: r = JS_VALUE_GET_TAG(arg) == JS_TAG_OBJECT &&  JS_VALUE_GET_OBJ(arg)->is_HTMLDDA; break;
+    // case IS_HTMLDDA: r = JS_VALUE_GET_TAG(arg) == JS_TAG_OBJECT &&  JS_VALUE_GET_PTR(arg)->is_HTMLDDA; break;
     case IS_INSTANCEOF: r = JS_IsInstanceOf(ctx, arg, argv[1]); break;
     case IS_INTEGER: r = JS_IsNumber(arg) && JS_VALUE_GET_TAG(arg) != JS_TAG_FLOAT64; break;
     case IS_JOBPENDING: r = JS_IsJobPending(JS_GetRuntime(ctx)); break;
@@ -2873,7 +2875,9 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_REGISTEREDCLASS: r = !JS_ToInt32(ctx, &r, arg) && JS_IsRegisteredClass(JS_GetRuntime(ctx), r); break;
     case IS_STRING: r = JS_IsString(arg); break;
     case IS_SYMBOL: r = JS_IsSymbol(arg); break;
+#ifdef HAVE_JS_ISUNCATCHABLEERROR
     case IS_UNCATCHABLEERROR: r = JS_IsUncatchableError(ctx, arg); break;
+#endif
     case IS_UNDEFINED: r = JS_IsUndefined(arg); break;
     case IS_UNINITIALIZED: r = JS_IsUninitialized(arg); break;
     case IS_ARRAYBUFFER: r = js_is_arraybuffer(ctx, arg); break;
@@ -3916,7 +3920,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_TYPE_MASK),
     JS_CONSTANT(JS_EVAL_IS_MAIN),
     JS_CONSTANT(JS_EVAL_FLAG_STRICT),
+#ifdef JS_EVAL_FLAG_STRIP
     JS_CONSTANT(JS_EVAL_FLAG_STRIP),
+#endif
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
     JS_CONSTANT(JS_EVAL_FLAG_MASK),

@@ -1012,7 +1012,11 @@ restart:
     if(str_ends(s, ".json"))
       m = jsm_module_json(ctx, s);
     else
-      m = js_module_loader(ctx, s, opaque);
+      m = js_module_loader(ctx, s, opaque
+#ifndef JS_MODULE_LOADER_OLD
+          , JS_UNDEFINED
+#endif
+          );
 
     jsm_stack_pop(ctx);
 
@@ -1379,8 +1383,11 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(!JS_IsNumber(argv[1]) || JS_ToInt32(ctx, &flags, argv[1])) {
       flags = (js_get_propertystr_bool(ctx, argv[1], "backtrace_barrier") ? JS_EVAL_FLAG_BACKTRACE_BARRIER : 0) |
               (js_get_propertystr_bool(ctx, argv[1], "async") ? JS_EVAL_FLAG_ASYNC : 0) |
-              (js_get_propertystr_bool(ctx, argv[1], "strict") ? JS_EVAL_FLAG_STRICT : 0) |
-              (js_get_propertystr_bool(ctx, argv[1], "strip") ? JS_EVAL_FLAG_STRIP : 0);
+              (js_get_propertystr_bool(ctx, argv[1], "strict") ? JS_EVAL_FLAG_STRICT : 0)
+#ifdef JS_EVAL_FLAG_STRIP
+              | (js_get_propertystr_bool(ctx, argv[1], "strip") ? JS_EVAL_FLAG_STRIP : 0)
+#endif
+              ;
 
       if(js_has_propertystr(ctx, argv[1], "global"))
         tmp_global = JS_GetPropertyStr(ctx, argv[1], "global");
