@@ -117,7 +117,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
             if(i + 2 >= n)
               break;
 
-            u16[1] = uint16_get_endian(ptr + 1, dec->endian == BIG);
+            u16[1] = uint16_get_endian(ptr + 1, dec->endian);
             /*ns += 2;*/
           }
 

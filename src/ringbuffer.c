@@ -102,18 +102,29 @@ ringbuffer_normalize(RingBuffer* r) {
   if(ringbuffer_WRAPPED(r)) {
     size_t n = ringbuffer_TAILROOM(r);
 
-    if(n > r->head) {
-      void* x = alloca(r->head);
-
-      memcpy(x, r->data, r->head);
-      memmove(r->data, ringbuffer_TAIL(r), n);
-      memcpy(&r->data[n], x, r->head);
-    } else {
-      void* x = alloca(n);
-
-      memcpy(x, ringbuffer_TAIL(r), n);
+    /* Layout before:
+     *   BBBBBB HEAD 00000000 TAIL AAAAA
+     *
+     * Layout after:
+     *   TAIL AAAAA BBBBBB HEAD 00000000
+     *
+     * if length of AAAAA + HEAD <= TAIL then we can copy without temporary
+     */
+    if(n + r->head <= r->tail) {
       memmove(&r->data[n], r->data, r->head);
-      memcpy(r->data, x, n);
+      memcpy(r->data, ringbuffer_TAIL(r), n);
+    } else if(n > r->head) {
+      void* b = alloca(r->head);
+
+      memcpy(b, r->data, r->head);
+      memmove(r->data, ringbuffer_TAIL(r), n);
+      memcpy(&r->data[n], b, r->head);
+    } else {
+      void* a = alloca(n);
+
+      memcpy(a, ringbuffer_TAIL(r), n);
+      memmove(&r->data[n], r->data, r->head);
+      memcpy(r->data, a, n);
     }
   } else {
     memcpy(r->data, ringbuffer_TAIL(r), l);
