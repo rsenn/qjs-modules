@@ -1,4 +1,4 @@
-import { concat } from 'util';
+import { concatArrayBuffer as concat } from 'util';
 import { Console } from 'console';
 import * as std from 'std';
 import { TextDecoder, TextEncoder } from 'textcode';

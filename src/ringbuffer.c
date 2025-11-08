@@ -25,25 +25,7 @@ ringbuffer_avail(RingBuffer* rb) {
   return ringbuffer_AVAIL(rb);
 }
 
-BOOL
-ringbuffer_queue(RingBuffer* r, uint8_t data) {
-  BOOL overflow = FALSE;
-
-  assert(ringbuffer_AVAIL(r));
-
-  /* overwrite the oldest byte if the r is full */
-  if(ringbuffer_AVAIL(r) == 1) {
-    r->tail = ((r->tail + 1) % r->size);
-    overflow = TRUE;
-  }
-
-  r->data[r->head] = data;
-  r->head = ((r->head + 1) % r->size);
-
-  return overflow;
-}
-
-BOOL
+static BOOL
 ringbuffer_dequeue(RingBuffer* r, uint8_t* data) {
   if(ringbuffer_EMPTY(r))
     return FALSE;
@@ -57,22 +39,26 @@ ringbuffer_dequeue(RingBuffer* r, uint8_t* data) {
 ssize_t
 ringbuffer_write(RingBuffer* r, const void* x, size_t len) {
   const uint8_t* p = x;
-  size_t i;
+  size_t n = ringbuffer_HEADROOM(r);
 
-  if(ringbuffer_AVAIL(r) <= len)
+  if(ringbuffer_AVAIL(r) < len)
     return -1;
 
-  // ringbuffer_realloc(r, ringbuffer_LENGTH(r) + len);
+  memcpy(ringbuffer_HEAD(r), p, MIN_NUM(n, len));
 
-  for(i = 0; i < len; i++)
-    assert(!ringbuffer_queue(r, p[i]));
+  if(n >= len) {
+    r->head += len;
+  } else {
+    r->head = len - n;
+    memcpy(r->data, p + n, r->head);
+  }
 
-  return i;
+  return len;
 }
 
 ssize_t
 ringbuffer_append(RingBuffer* r, const void* x, size_t len) {
-  if(!ringbuffer_reserve(r, ringbuffer_LENGTH(r) + len))
+  if(!ringbuffer_reserve(r, len))
     return -1;
 
   return ringbuffer_write(r, x, len);
@@ -81,15 +67,24 @@ ringbuffer_append(RingBuffer* r, const void* x, size_t len) {
 ssize_t
 ringbuffer_read(RingBuffer* r, void* x, size_t len) {
   uint8_t* p = x;
-  size_t i;
+  size_t l, n = ringbuffer_TAILROOM(r);
 
   if(ringbuffer_EMPTY(r))
     return -1;
 
-  for(i = 0; i < len; i++)
-    ringbuffer_dequeue(r, &p[i]);
+  if(len > (l = ringbuffer_LENGTH(r)))
+    len = l;
 
-  return i;
+  memcpy(p, ringbuffer_TAIL(r), MIN_NUM(n, len));
+
+  if(n >= len) {
+    r->tail += len;
+  } else {
+    r->tail = len - n;
+    memcpy(p + n, r->data, r->tail);
+  }
+
+  return len;
 }
 
 uint8_t*
@@ -102,27 +97,36 @@ ringbuffer_peek(RingBuffer* r, size_t index) {
 
 void
 ringbuffer_normalize(RingBuffer* r) {
-  if(r->head < r->tail) {
-    size_t n = r->size - r->tail;
-    void* x = alloca(r->head);
+  size_t l = ringbuffer_LENGTH(r);
 
-    memcpy(x, r->data, r->head);
-    memmove(r->data, &r->data[r->tail], n);
-    memcpy(&r->data[n], x, r->head);
+  if(ringbuffer_WRAPPED(r)) {
+    size_t n = ringbuffer_TAILROOM(r);
 
-    r->tail = 0;
-    r->head += n;
-    return;
+    if(n > r->head) {
+      void* x = alloca(r->head);
+
+      memcpy(x, r->data, r->head);
+      memmove(r->data, ringbuffer_TAIL(r), n);
+      memcpy(&r->data[n], x, r->head);
+    } else {
+      void* x = alloca(n);
+
+      memcpy(x, ringbuffer_TAIL(r), n);
+      memmove(&r->data[n], r->data, r->head);
+      memcpy(r->data, x, n);
+    }
+  } else {
+    memcpy(r->data, ringbuffer_TAIL(r), l);
   }
 
-  memcpy(r->data, &r->data[r->tail], ringbuffer_LENGTH(r));
-  r->head -= r->tail;
+  r->head = l;
   r->tail = 0;
 }
 
 BOOL
 ringbuffer_resize(RingBuffer* r, size_t newsize) {
-  ringbuffer_normalize(r);
+  if(ringbuffer_WRAPPED(r))
+    ringbuffer_normalize(r);
 
   if(newsize > r->size)
     return vector_resize(&r->vec, 1, newsize);
@@ -133,29 +137,11 @@ ringbuffer_resize(RingBuffer* r, size_t newsize) {
 }
 
 BOOL
-ringbuffer_allocate(RingBuffer* r, size_t size) {
-  ssize_t n = ringbuffer_LENGTH(r);
-
-  if((r->size - n) < size)
-    return ringbuffer_resize(r, ringbuffer_LENGTH(r) + size);
+ringbuffer_reserve(RingBuffer* r, size_t size) {
+  if(ringbuffer_AVAIL(r) < size)
+    return ringbuffer_resize(r, ringbuffer_LENGTH(r) + size + 1);
 
   return TRUE;
-}
-
-uint8_t*
-ringbuffer_reserve(RingBuffer* rb, size_t min_bytes) {
-  ssize_t grow;
-
-  if((grow = min_bytes - ringbuffer_AVAIL(rb)) > 0)
-    if(!ringbuffer_resize(rb, vector_size(&rb->vec, 1) + grow))
-      return 0;
-
-  if(ringbuffer_HEADROOM(rb) < min_bytes)
-    ringbuffer_normalize(rb);
-
-  assert(ringbuffer_HEADROOM(rb) >= min_bytes);
-
-  return ringbuffer_END(rb);
 }
 
 /**

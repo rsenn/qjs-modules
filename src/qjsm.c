@@ -998,7 +998,7 @@ restart:
   if(is_searchable(name) && (tmp = jsm_module_locate(ctx, name, opaque))) {
     js_free(ctx, name);
     name = tmp;
-    goto restart;
+    // goto restart;
   }
 
   if(!s)
@@ -1012,11 +1012,14 @@ restart:
     if(str_ends(s, ".json"))
       m = jsm_module_json(ctx, s);
     else
-      m = js_module_loader(ctx, s, opaque
+      m = js_module_loader(ctx,
+                           s,
+                           opaque
 #ifndef JS_MODULE_LOADER_OLD
-          , JS_UNDEFINED
+                           ,
+                           JS_UNDEFINED
 #endif
-          );
+      );
 
     jsm_stack_pop(ctx);
 
@@ -1387,7 +1390,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 #ifdef JS_EVAL_FLAG_STRIP
               | (js_get_propertystr_bool(ctx, argv[1], "strip") ? JS_EVAL_FLAG_STRIP : 0)
 #endif
-              ;
+          ;
 
       if(js_has_propertystr(ctx, argv[1], "global"))
         tmp_global = JS_GetPropertyStr(ctx, argv[1], "global");
@@ -2190,7 +2193,7 @@ main(int argc, char** argv) {
 
   JSValue exception = JS_GetException(jsm_ctx);
 
-  if(!JS_IsNull(exception))
+  if(!JS_IsNull(exception) && !JS_IsUninitialized(exception))
     js_error_print(jsm_ctx, exception);
 
   if(dump_memory) {

@@ -1106,18 +1106,19 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
 
     if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) ||
                      js_global_instanceof(ctx, value, "Object"))) {
-      char* tag = 0;
+      if(!opts->reparseable) {
+        char* tag = 0;
 
-      if(has_class_key)
-        tag = js_get_property_string(ctx, value, opts->class_key.atom);
-      else
-        tag = js_strdup(ctx, "Object");
+        if(has_class_key)
+          tag = js_get_property_string(ctx, value, opts->class_key.atom);
+        else
+          tag = js_strdup(ctx, "Object");
 
-      if(tag) {
-        writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
-        writer_puts(wr, tag);
-        writer_puts(wr, opts->colors ? COLOR_NONE " " : " ");
-        js_free(ctx, tag);
+        if(tag) {
+          writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
+          writer_puts(wr, tag);
+          writer_puts(wr, opts->colors ? COLOR_NONE " " : " ");
+        }
       }
     } else if(!is_array) {
       const char* s = 0;
@@ -1180,12 +1181,12 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
   switch(tag) {
     case JS_TAG_FLOAT64:
-  #ifdef CONFIG_BIGNUM
+#ifdef CONFIG_BIGNUM
     case JS_TAG_BIG_FLOAT:
     case JS_TAG_BIG_DECIMAL:
- #endif
+#endif
     case JS_TAG_BIG_INT:
-    case JS_TAG_INT:  {
+    case JS_TAG_INT: {
       return inspect_number(insp, value, level);
     }
 
