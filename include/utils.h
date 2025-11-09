@@ -42,8 +42,7 @@ typedef struct JSObject JSObject;
 #define JS_EVAL_IS_MAIN (1 << 2)
 
 #define JS_EVAL_FLAG_MASK \
-  (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | \
-   JS_EVAL_FLAG_ASYNC)
+  (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | JS_EVAL_FLAG_ASYNC)
 
 char* basename(const char*);
 
@@ -348,18 +347,18 @@ BOOL js_global_instanceof(JSContext*, JSValueConst, const char* prop);
 
 typedef enum {
   FLAG_UNDEFINED = 0,
-  FLAG_NULL,              // 1
-  FLAG_BOOL,              // 2
-  FLAG_INT,               // 3
-  FLAG_OBJECT,            // 4
-  FLAG_STRING,            // 5
-  FLAG_SYMBOL,            // 6
+  FLAG_NULL,   // 1
+  FLAG_BOOL,   // 2
+  FLAG_INT,    // 3
+  FLAG_OBJECT, // 4
+  FLAG_STRING, // 5
+  FLAG_SYMBOL, // 6
 #ifdef CONFIG_BIGNUM
-  FLAG_BIG_FLOAT,         // 7
+  FLAG_BIG_FLOAT, // 7
 #endif
-  FLAG_BIG_INT,           // 8
+  FLAG_BIG_INT, // 8
 #ifdef CONFIG_BIGNUM
-  FLAG_BIG_DECIMAL,       // 9
+  FLAG_BIG_DECIMAL, // 9
 #endif
   FLAG_FLOAT64,           // 10
   FLAG_NAN,               // 11
@@ -1081,8 +1080,8 @@ BOOL js_is_input(JSContext*, JSValueConst value);
 static inline BOOL
 js_is_bignumber(JSContext* ctx, JSValueConst value) {
 #ifdef CONFIG_BIGNUM
-   if(JS_IsBigDecimal(value) || JS_IsBigFloat(value))
-     return TRUE;
+  if(JS_IsBigDecimal(value) || JS_IsBigFloat(value))
+    return TRUE;
 #endif
   return JS_IsBigInt(ctx, value);
 }
@@ -1166,13 +1165,11 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValueConst val);
-
 void js_arraybuffer_freeobj(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromobj(JSContext*, void* x, size_t n, JSValueConst val);
-
 void js_arraybuffer_freeptr(JSRuntime*, void* opaque, void* ptr);
-
 JSValue js_arraybuffer_fromstring(JSContext*, JSValueConst str);
+JSValue            js_arraybuffer_mmap(JSContext*, const char*, BOOL);
 
 static inline JSValue
 js_arraybuffer_constructor(JSContext* ctx) {

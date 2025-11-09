@@ -135,7 +135,7 @@ js_pointer_serialize(JSContext* ctx, JSValueConst this_val) {
   if(!(ptr = js_pointer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   Writer wr = writer_from_dynbuf(&dbuf);
   pointer_serialize(ptr, &wr, ctx);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
@@ -155,7 +155,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     reparseable = js_get_propertystr_bool(ctx, argv[1], "reparseable");
   }
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   Writer wr = writer_from_dynbuf(&dbuf);
 
   if(reparseable)

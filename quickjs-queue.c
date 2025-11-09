@@ -84,20 +84,20 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case QUEUE_READ: {
-      InputBuffer input = js_input_args(ctx, argc, argv);
-      int64_t r = queue_read(queue, inputbuffer_data(&input), inputbuffer_length(&input));
+      OutputBuffer output = js_output_args(ctx, argc, argv);
+      int64_t r = queue_read(queue, outputbuffer_data(&output), outputbuffer_length(&output));
 
       ret = JS_NewInt64(ctx, r);
-      inputbuffer_free(&input, ctx);
+      outputbuffer_free(&output, ctx);
       break;
     }
 
     case QUEUE_PEEK: {
-      InputBuffer input = js_input_args(ctx, argc, argv);
-      int64_t r = queue_peek(queue, inputbuffer_data(&input), inputbuffer_length(&input));
+      OutputBuffer output = js_output_args(ctx, argc, argv);
+      int64_t r = queue_peek(queue, outputbuffer_data(&output), outputbuffer_length(&output));
 
       ret = JS_NewInt64(ctx, r);
-      inputbuffer_free(&input, ctx);
+      outputbuffer_free(&output, ctx);
       break;
     }
 

@@ -26,7 +26,7 @@ location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
 char*
 location_tostring(const Location* loc, JSContext* ctx) {
   DynBuf dbuf;
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
 
   location_print(loc, &dbuf, ctx);
   dbuf_0(&dbuf);

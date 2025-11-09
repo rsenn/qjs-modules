@@ -232,7 +232,7 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     case SYSCALLERROR_TOSTRING: {
       DynBuf dbuf;
 
-      js_dbuf_init(ctx, &dbuf);
+      dbuf_init_ctx(ctx, &dbuf);
       syscallerror_dump(err, &dbuf, ctx);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
       dbuf_free(&dbuf);
@@ -294,7 +294,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_MESSAGE: {
       DynBuf dbuf;
 
-      js_dbuf_init(ctx, &dbuf);
+      dbuf_init_ctx(ctx, &dbuf);
       syscallerror_dump(err, &dbuf, ctx);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, byte_chr(dbuf.buf, dbuf.size, '\n'));
       break;

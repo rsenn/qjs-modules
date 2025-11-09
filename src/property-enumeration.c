@@ -202,7 +202,7 @@ property_recursion_pathstr_value(const Vector* vec, JSContext* ctx) {
   JSValue ret;
   DynBuf dbuf;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
 
   property_recursion_pathstr(vec, ctx, &dbuf);
 
@@ -299,7 +299,9 @@ void
 property_recursion_free(Vector* vec, JSRuntime* rt) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(vec, it) { property_enumeration_reset(it, rt); }
+  vector_foreach_t(vec, it) {
+    property_enumeration_reset(it, rt);
+  }
   vector_free(vec);
 }
 

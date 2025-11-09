@@ -49,6 +49,17 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
   return -1;
 }
 
+#undef js_realloc_rt
+void
+dbuf_init_ctx(JSContext* ctx, DynBuf* s) {
+  dbuf_init2(s, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+}
+
+void
+dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
+  dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
+}
+
 char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;
@@ -267,20 +278,6 @@ dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(con
   }
 }
 
-static inline int
-hexdigit(char c) {
-  if(c >= '0' && c <= '9')
-    return c - '0';
-
-  if(c >= 'a' && c <= 'f')
-    c -= 32;
-
-  if(c >= 'A' && c <= 'F')
-    return c - 'A' + 10;
-
-  return -1;
-}
-
 void
 dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
   size_t i = 0, j;
@@ -296,7 +293,7 @@ dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t 
       break;
 
     if(escape_char == '%') {
-      int hi = hexdigit(str[i + 1]), lo = hexdigit(str[i + 2]);
+      int hi = scan_fromhex(str[i + 1]), lo = scan_fromhex(str[i + 2]);
       uint8_t c = (hi << 4) | (lo & 0xf);
       dbuf_putc(db, c);
 
@@ -464,6 +461,42 @@ dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
   return 0;
 }
 
+size_t
+dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
+  size_t i, n = 0;
+
+  for(i = 0; i < sizeof(bits) * 8; i++) {
+    if(bits & (1 << i)) {
+      size_t len = strlen(names[i]);
+
+      if(n) {
+        n++;
+        dbuf_putstr(db, "|");
+      }
+
+      dbuf_append(db, names[i], len);
+      n += len;
+    }
+  }
+
+  return n;
+}
+
+size_t
+dbuf_encode(DynBuf* db, int (*fn)(uint8_t*, int, unsigned int), int in) {
+  size_t max_len = db->allocated_size - db->size;
+  int w;
+
+  while((w = fn(db->buf, max_len, in) == -1)) {
+
+    if(!dbuf_reserve(db, ++max_len))
+      return -1;
+  }
+
+  db->size += w;
+  return w;
+}
+
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
@@ -474,7 +507,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.value = JS_DupValue(ctx, value);
 
   if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
-    block_arraybuffer(&ret.block, ret.value, ctx);
+    block_from_arraybuffer(&ret.block, ret.value, ctx);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type (%s) for input buffer", js_value_typestr(ctx, ret.value));
     JS_FreeValue(ctx, ret.value);
@@ -492,7 +525,7 @@ js_output_typedarray(JSContext* ctx, JSValueConst value) {
     ret.value = offsetlength_typedarray(&ret.range, value, ctx);
 
   if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
-    block_arraybuffer(&ret.block, ret.value, ctx);
+    block_from_arraybuffer(&ret.block, ret.value, ctx);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type (%s) for output buffer", js_value_typestr(ctx, ret.value));
     JS_FreeValue(ctx, ret.value);
@@ -563,31 +596,23 @@ block_free(MemoryBlock* mb, JSRuntime* rt) {
   }
 }
 
-int
-block_mmap(MemoryBlock* mb, const char* filename) {
+MemoryBlock
+block_mmap(const char* filename, BOOL shared) {
   int fd;
-  void* ptr;
-  struct stat st;
+  MemoryBlock mb = BLOCK_INIT();
 
-  if((fd = open(filename, O_RDONLY)) == -1)
-    return -1;
+  if((fd = open(filename, O_RDONLY)) != -1) {
+    struct stat st;
 
-  if(fstat(fd, &st) == -1) {
+    if(fstat(fd, &st) != -1) {
+      mb.size = st.st_size;
+      if((mb.base = mmap(0, mb.size, PROT_READ, shared ? MAP_SHARED : MAP_PRIVATE, fd, 0)) == (void*)-1)
+        mb.base = 0;
+    }
     close(fd);
-    return -1;
   }
 
-  ptr = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-  close(fd);
-
-  if(ptr != 0 && ptr != (void*)-1) {
-    mb->base = ptr;
-    mb->size = st.st_size;
-    return 0;
-  }
-
-  return -1;
+  return mb;
 }
 
 void
@@ -626,6 +651,13 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
   }
 
   return -1;
+}
+
+MemoryBlock
+block_file(const char* filename, JSContext* ctx) {
+  MemoryBlock mb = BLOCK_INIT();
+  block_from_file(&mb, filename, ctx);
+  return mb;
 }
 
 int
@@ -847,7 +879,7 @@ inputbuffer_dump(const InputBuffer* in, DynBuf* db) {
 void
 inputbuffer_free(InputBuffer* in, JSContext* ctx) {
   if(in->data) {
-    in->free(ctx, (const char*)in->data, in->value);
+    in->free(ctx, in->value, in);
     in->data = 0;
     in->size = 0;
     in->pos = 0;
@@ -855,13 +887,13 @@ inputbuffer_free(InputBuffer* in, JSContext* ctx) {
   }
 }
 
-const uint8_t*
+const void*
 inputbuffer_peek(InputBuffer* in, size_t* lenp) {
   inputbuffer_peekc(in, lenp);
-  return inputbuffer_data(in) + in->pos;
+  return inputbuffer_pointer(in);
 }
 
-const uint8_t*
+const void*
 inputbuffer_get(InputBuffer* in, size_t* lenp) {
   const uint8_t* ret = inputbuffer_peek(in, lenp);
 
@@ -905,12 +937,17 @@ inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
   if(!in->data)
     return JS_UNDEFINED;
 
-  JSValue ret = JS_NewArrayBuffer(ctx,
-                                  (uint8_t*)inputbuffer_data(in),
-                                  inputbuffer_length(in),
-                                  (JSFreeArrayBufferDataFunc*)&js_freeobj_rt,
-                                  js_value_obj(in->value),
-                                  FALSE);
+  JSValue ret;
+
+  if(in->free == inputbuffer_free_default && js_is_arraybuffer(ctx, in->value))
+    ret = in->value;
+  else
+    ret = JS_NewArrayBuffer(ctx,
+                            (uint8_t*)inputbuffer_data(in),
+                            inputbuffer_length(in),
+                            (JSFreeArrayBufferDataFunc*)&js_freeobj_rt,
+                            js_value_obj(in->value),
+                            FALSE);
 
   in->data = 0;
   in->size = 0;
@@ -921,12 +958,13 @@ inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
 }
 
 InputBuffer
-inputbuffer_from_file(const char* filename, JSContext* ctx) {
-  InputBuffer in = {0};
+inputbuffer_file(const char* filename, JSContext* ctx) {
+  InputBuffer in = INPUTBUFFER();
 
-  block_from_file(&in.block, filename, ctx);
+  in.value = js_arraybuffer_mmap(ctx, filename, FALSE);
 
-  in.range = OFFSET_LENGTH_0();
+  if(!JS_IsException(in.value))
+    in.data = JS_GetArrayBuffer(ctx, &in.size, in.value);
 
   return in;
 }
@@ -945,12 +983,47 @@ inputbuffer_read(InputBuffer* ib, void* buf, size_t len) {
   return len;
 }
 
+size_t
+inputbuffer_decode(InputBuffer* in, int (*fn)(const uint8_t*, int, void*), void* out) {
+  const uint8_t *ptr = inputbuffer_pointer(in), *next = ptr;
+
+  int len = fn(ptr, inputbuffer_remain(in), out);
+
+  if(len >= 0) {
+    in->pos += len;
+    return len;
+  }
+
+  return 0;
+}
+
+size_t
+outputbuffer_encode(OutputBuffer* out, int (*fn)(uint8_t*, int, unsigned int), int in) {
+  int w;
+
+  if((w = fn(outputbuffer_pointer(out), outputbuffer_avail(out), in)) != -1)
+    out->pos += w;
+
+  return w >= 0 ? w : 0;
+}
+
 ssize_t
 outputbuffer_write(OutputBuffer* out, const void* ptr, size_t len) {
   size_t n = outputbuffer_avail(out);
 
   if(len > n)
     return -1;
+
+  memcpy(outputbuffer_pointer(out), ptr, len);
+  out->pos += len;
+  return len;
+}
+
+ssize_t
+outputbuffer_append(OutputBuffer* out, const void* ptr, size_t len, JSContext* ctx) {
+  if(outputbuffer_avail(out) < len)
+    if(!ctx || outputbuffer_reserve(out, len, ctx))
+      return -1;
 
   memcpy(outputbuffer_pointer(out), ptr, len);
   out->pos += len;
@@ -979,93 +1052,135 @@ indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[]
   return i;
 }
 
-int
-screen_size(int size[2]) {
-#ifdef _WIN32
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-
-  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-  size[0] = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-  size[1] = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-  return 0;
-
-#elif defined(HAVE_TERMIOS_H)
-  {
-    struct winsize w = {.ws_col = -1, .ws_row = -1};
-
-    if(isatty(STDIN_FILENO))
-      ioctl(STDIN_FILENO, TIOCGWINSZ, &w);
-    else if(isatty(STDOUT_FILENO))
-      ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    else if(isatty(STDERR_FILENO))
-      ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
-
-    size[0] = w.ws_col;
-    size[1] = w.ws_row;
-    return 0;
-  }
-#else
-  size[0] = 80;
-  size[1] = 25;
-  return 0;
-#endif
-  return -1;
-}
-
-#undef js_realloc_rt
-void
-js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
-  dbuf_init2(s, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
-}
-
 inline int
 inputbuffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *pos, *end, *next;
+  const uint8_t *ptr, *next;
   int cp;
 
-  pos = inputbuffer_data(in) + in->pos;
-  end = inputbuffer_data(in) + inputbuffer_length(in);
-  cp = unicode_from_utf8(pos, end - pos, &next);
+  next = ptr = inputbuffer_pointer(in);
+  cp = unicode_from_utf8(ptr, inputbuffer_remain(in), &next);
 
-  *lenp = next - pos;
+  *lenp = next - ptr;
 
   return cp;
 }
 
-inline int
-inputbuffer_putc(InputBuffer* in, unsigned int c, JSContext* ctx) {
-  int len;
+int
+outputbuffer_reserve(OutputBuffer* out, size_t len, JSContext* ctx) {
+  uint8_t *end = block_end(out->block), *newend = outputbuffer_pointer(out) + len;
 
-  if(in->pos + UTF8_CHAR_LEN_MAX > in->size)
-    if(block_realloc(&in->block, in->pos + UTF8_CHAR_LEN_MAX, ctx))
+  if(newend > end)
+    if(!block_grow(&out->block, newend - end, ctx))
       return -1;
 
-  len = unicode_to_utf8(&in->data[in->pos], c);
+  out->range.length = end - outputbuffer_begin(out);
 
-  in->pos += len;
+  return 0;
+}
 
+int
+outputbuffer_putc(OutputBuffer* out, unsigned int c, JSContext* ctx) {
+  int len = unicode_len_utf8(c);
+
+  if(outputbuffer_avail(out) < len)
+    if(!ctx || outputbuffer_reserve(out, len, ctx))
+      return -1;
+
+  unicode_to_utf8(outputbuffer_pointer(out), c);
+  out->pos += len;
   return len;
 }
 
-size_t
-dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
-  size_t i, n = 0;
+int
+uint16_decode_le(const uint8_t* p, int max_len, void* out) {
+  if(max_len >= 2) {
+    *(uint16_t*)out = uint16_get_le(p);
+    return 2;
+  }
+  return 0;
+}
 
-  for(i = 0; i < sizeof(bits) * 8; i++) {
-    if(bits & (1 << i)) {
-      size_t len = strlen(names[i]);
+int
+uint16_decode_be(const uint8_t* p, int max_len, void* out) {
+  if(max_len >= 2) {
+    *(uint16_t*)out = uint16_get_be(p);
+    return 2;
+  }
+  return 0;
+}
 
-      if(n) {
-        n++;
-        dbuf_putstr(db, "|");
-      }
+int
+uint32_decode_le(const uint8_t* p, int max_len, void* out) {
+  if(max_len >= 4) {
+    *(uint32_t*)out = uint32_get_le(p);
+    return 4;
+  }
+  return 0;
+}
 
-      dbuf_append(db, names[i], len);
-      n += len;
-    }
+int
+uint32_decode_be(const uint8_t* p, int max_len, void* out) {
+  if(max_len >= 4) {
+    *(uint32_t*)out = uint32_get_be(p);
+    return 4;
+  }
+  return 0;
+}
+
+int
+unicode_decode_utf8(const uint8_t* buf, int max_len, void* out) {
+  const uint8_t* next = buf;
+  int c = unicode_from_utf8(buf, max_len, &next);
+
+  if(next > buf) {
+    *((int*)out) = c;
+    return next - buf;
   }
 
-  return n;
+  return -1;
+}
+int
+unicode_encode_utf8(uint8_t* buf, int max_len, unsigned int c) {
+  int len = unicode_len_utf8(c);
+  if(len > 0 && len <= max_len)
+    return unicode_to_utf8(buf, c);
+  return len;
+}
+
+int
+uint16_encode_le(uint8_t* buf, int max_len, unsigned int u) {
+  if(max_len >= 2) {
+    uint16_put_le(buf, u);
+    return 2;
+  }
+  return -1;
+}
+
+int
+uint16_encode_be(uint8_t* buf, int max_len, unsigned int u) {
+  if(max_len >= 2) {
+    uint16_put_be(buf, u);
+    return 2;
+  }
+  return -1;
+}
+
+int
+uint32_encode_le(uint8_t* buf, int max_len, unsigned int u) {
+  if(max_len >= 4) {
+    uint32_put_le(buf, u);
+    return 4;
+  }
+  return -1;
+}
+
+int
+uint32_encode_be(uint8_t* buf, int max_len, unsigned int u) {
+  if(max_len >= 4) {
+    uint32_put_be(buf, u);
+    return 4;
+  }
+  return -1;
 }
 
 /**

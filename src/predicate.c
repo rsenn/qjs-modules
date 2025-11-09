@@ -699,7 +699,7 @@ char*
 predicate_tostring(const Predicate* pr, JSContext* ctx) {
   DynBuf dbuf;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   predicate_dump(pr, ctx, &dbuf);
   dbuf_0(&dbuf);
   return (char*)dbuf.buf;
@@ -710,7 +710,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
   Arguments tmp = {0, 0, 0, 0};
   DynBuf abuf;
 
-  js_dbuf_init(ctx, &abuf);
+  dbuf_init_ctx(ctx, &abuf);
 
   if(args == 0) {
     if(!arguments_alloc(&tmp, ctx, predicate_recursive_num_args(pr) + 1))

@@ -129,8 +129,7 @@ read_urldecoded(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
 
 static ssize_t
 read_range(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
-  const uint8_t* start = rd->opaque;
-  const uint8_t* end = rd->opaque2;
+  const uint8_t *start = rd->opaque, *end = rd->opaque2;
   size_t remain = end - start;
 
   if(len > remain)

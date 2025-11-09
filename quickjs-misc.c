@@ -9,7 +9,6 @@
 #include <cutils.h>
 #include <quickjs-libc.h>
 #include <quickjs-config.h>
-#include "quickjs-misc.h"
 #include "quickjs-location.h"
 #include "quickjs-textcode.h"
 #include "quickjs-syscallerror.h"
@@ -626,7 +625,7 @@ js_misc_strcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static JSValue
 js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_NULL;
-  uint8_t* ptr;
+  const uint8_t* ptr;
   char str[64];
   InputBuffer buf = js_input_chars(ctx, argv[0]);
 
@@ -718,7 +717,7 @@ js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   for(k = 0; i < argc; k++) {
     m[k] = MEMORY_BLOCK(0, 0);
 
-    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
       return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
 
     i++;
@@ -760,10 +759,10 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   OffsetLength h_ol = OFFSET_LENGTH_0();
   int i = 0, n;
 
-  if(i >= argc || !block_arraybuffer(&haystack, argv[i++], ctx))
+  if(i >= argc || !block_from_arraybuffer(&haystack, argv[i++], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
 
-  if(i >= argc || !block_arraybuffer(&needle, argv[i++], ctx))
+  if(i >= argc || !block_from_arraybuffer(&needle, argv[i++], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (needle) must be an ArrayBuffer", i + 1);
 
   if(needle.size == 0)
@@ -794,7 +793,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     return JS_NULL;
   }
 
-  if(!block_arraybuffer(&mask, argv[2], ctx))
+  if(!block_from_arraybuffer(&mask, argv[2], ctx))
     return JS_ThrowTypeError(ctx, "argument 3 (mask) must be an ArrayBuffer");
 
   size_t n_size = MIN_NUM(needle.size, mask.size);
@@ -834,7 +833,7 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   int i = 0;
 
   for(int k = 0; k < countof(m); k++) {
-    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
       return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
 
     i++;
@@ -865,7 +864,7 @@ js_misc_comparearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVa
   int i = 0;
 
   for(int k = 0; k < countof(m); k++) {
-    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
       return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("s2", "s1")[k]);
 
     i++;
@@ -1420,6 +1419,39 @@ js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return js_syscall_result(ctx, ioctl, fd, request, args[0], args[1]);
 }
 #endif
+
+static int
+screen_size(int size[2]) {
+#ifdef _WIN32
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+  size[0] = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+  size[1] = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+  return 0;
+
+#elif defined(HAVE_TERMIOS_H)
+  {
+    struct winsize w = {.ws_col = -1, .ws_row = -1};
+
+    if(isatty(STDIN_FILENO))
+      ioctl(STDIN_FILENO, TIOCGWINSZ, &w);
+    else if(isatty(STDOUT_FILENO))
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    else if(isatty(STDERR_FILENO))
+      ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
+
+    size[0] = w.ws_col;
+    size[1] = w.ws_row;
+    return 0;
+  }
+#else
+  size[0] = 80;
+  size[1] = 25;
+  return 0;
+#endif
+  return -1;
+}
 
 static JSValue
 js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2431,7 +2463,7 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   size_t num_bufs = magic == BITOP_NOT ? 1 : countof(m);
 
   for(int k = 0; k < num_bufs; k++) {
-    if(i == argc || !block_arraybuffer(&m[k], argv[i], ctx))
+    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
       return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
 
     i++;
@@ -2526,13 +2558,13 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case RANDOM_RANDB: {
-      InputBuffer buf = js_output_args(ctx, argc, argv);
+      OutputBuffer buf = js_output_args(ctx, argc, argv);
 
       if(!buf.data)
         return JS_ThrowTypeError(ctx, "argument must be an ArrayBuffer");
 
-      uint8_t* data = inputbuffer_data(&buf);
-      size_t size = inputbuffer_length(&buf);
+      uint8_t* data = outputbuffer_data(&buf);
+      size_t size = outputbuffer_length(&buf);
       uint32_t val = 0;
 
       for(size_t i = 0; i < size; i++) {
@@ -2542,6 +2574,7 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         val >>= 8;
       }
 
+      outputbuffer_free(&buf, ctx);
       break;
     }
   }
@@ -2586,7 +2619,7 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       }
     }
 
-    js_dbuf_init(ctx, &output);
+    dbuf_init_ctx(ctx, &output);
     dbuf_put_escaped_table(&output, (const char*)input.data, input.size, tab);
 
     return dbuf_tostring_free(&output, ctx);
@@ -2665,7 +2698,7 @@ js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
     }
 
-    js_dbuf_init(ctx, &output);
+    dbuf_init_ctx(ctx, &output);
     dbuf_put_unescaped_table(&output, (const char*)input.data, input.size, tab);
 
     return dbuf_tostring_free(&output, ctx);
@@ -2694,7 +2727,7 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
   };
 
-  js_dbuf_init(ctx, &output);
+  dbuf_init_ctx(ctx, &output);
   if(argc >= 2) {
     const char* str = JS_ToCString(ctx, argv[1]);
 

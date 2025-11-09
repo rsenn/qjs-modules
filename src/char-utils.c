@@ -494,19 +494,6 @@ scan_eolskip(const char* s, size_t limit) {
 }
 
 size_t
-utf8_decode(const void* in, size_t len, int32_t* char_ptr) {
-  const uint8_t *x = in, *y = (const uint8_t*)in + len, *next;
-  size_t n = y - x;
-
-  int32_t c = unicode_from_utf8(x, MIN_NUM(n, 6), &next);
-
-  if(char_ptr)
-    *char_ptr = c;
-
-  return next - x;
-}
-
-size_t
 utf8_strlen(const void* in, size_t len) {
   const uint8_t* next;
   size_t i = 0;
@@ -519,11 +506,9 @@ utf8_strlen(const void* in, size_t len) {
 
 size_t
 utf8_byteoffset(const void* in, size_t len, int pos) {
-  const uint8_t *x = in, *y = (const uint8_t*)in + len, *next;
+  const uint8_t *x = in, *y = (const uint8_t*)in + len;
 
-  if(len == 0)
-    return 0;
-  if(pos == 0)
+  if(len == 0 || pos == 0)
     return 0;
 
   if(pos < 0)
@@ -531,12 +516,49 @@ utf8_byteoffset(const void* in, size_t len, int pos) {
 
   for(int i = 0; x <= y; ++i) {
     if(i >= pos)
-      return x - (const uint8_t*)in;
+      break;
 
     x += utf8_char(x, y - x).len;
   }
 
   return x - (const uint8_t*)in;
+}
+
+/* Note: at most 31 bits are encoded. At most UTF8_CHAR_LEN_MAX bytes
+   are output. */
+int
+unicode_len_utf8(unsigned int c) {
+  int len = 0;
+
+  if(c < 0x80) {
+    len++;
+  } else {
+    if(c < 0x800) {
+      len++;
+    } else {
+      if(c < 0x10000) {
+        len++;
+      } else {
+        if(c < 0x00200000) {
+          len++;
+        } else {
+          if(c < 0x04000000) {
+            len++;
+          } else if(c < 0x80000000) {
+            len++;
+            len++;
+          } else {
+            return 0;
+          }
+          len++;
+        }
+        len++;
+      }
+      len++;
+    }
+    len++;
+  }
+  return len;
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)

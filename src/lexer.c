@@ -157,7 +157,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   if(rule->bytecode)
     return TRUE;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
 
   if(lexer_rule_expand(lex, lexer_rule_regex(rule), &dbuf)) {
     rule->expansion = js_strndup(ctx, (const char*)dbuf.buf, dbuf.size);
@@ -576,7 +576,7 @@ lexer_lexeme_s(Lexer* lex, JSContext* ctx, int (*escape_fn)(int)) {
   char* s;
   DynBuf output;
 
-  js_dbuf_init(ctx, &output);
+  dbuf_init_ctx(ctx, &output);
 
   if((s = lexer_lexeme(lex, &len)))
     dbuf_put_escaped_pred(&output, s, len, escape_fn);

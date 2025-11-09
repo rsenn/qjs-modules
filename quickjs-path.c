@@ -361,7 +361,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       b = JS_ToCStringLen(ctx, &blen, argv[1]);
   }
 
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
 
   switch(magic) {
     case PATH_ABSOLUTE: {
@@ -383,7 +383,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     case PATH_SEARCH: {
       const char* pathstr = a;
       /* DynBuf db = DBUF_INIT_0();
-       js_dbuf_allocator(ctx, &db);*/
+       dbuf_init_ctx(ctx, &db);*/
 
       for(;;) {
         char* file;
@@ -417,17 +417,17 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       }
 
       if(from == NULL) {
-        js_dbuf_allocator(ctx, &buf);
+        dbuf_init_ctx(ctx, &buf);
         from = path_getcwd1(&buf);
       } else if(path_isrelative(from)) {
-        js_dbuf_allocator(ctx, &buf);
+        dbuf_init_ctx(ctx, &buf);
         path_absolute3(a, alen, &buf);
         dbuf_0(&buf);
         from = (const char*)buf.buf;
       }
 
       if(path_isrelative(to)) {
-        js_dbuf_allocator(ctx, &buf2);
+        dbuf_init_ctx(ctx, &buf2);
         path_absolute3(b, blen, &buf2);
         dbuf_0(&buf2);
         to = (const char*)buf2.buf;
@@ -463,7 +463,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   size_t len = 0;
   JSValue ret = JS_UNDEFINED;
 
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
 
   for(i = 0; i < argc; i++) {
     str = JS_ToCStringLen(ctx, &len, argv[i]);
@@ -491,7 +491,7 @@ js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   int32_t start = 0, end = -1;
   JSValue ret = JS_UNDEFINED;
 
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
 
   if((str = JS_ToCString(ctx, argv[0]))) {
     int32_t len = path_length1(str);
@@ -557,7 +557,7 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   JSValue ret = JS_UNDEFINED;
   DynBuf db = DBUF_INIT_0();
 
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
 
   if((root = js_get_propertystr_cstring(ctx, obj, "root"))) {
     dbuf_putstr(&db, root);
@@ -600,7 +600,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSValue ret = JS_UNDEFINED;
   BOOL absolute = FALSE;
 
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
   dbuf_0(&db);
 
   for(i = argc - 1; i >= 0; i--) {
@@ -629,7 +629,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   if(!absolute) {
-    js_dbuf_init(ctx, &cwd);
+    dbuf_init_ctx(ctx, &cwd);
     str = path_getcwd1(&cwd);
     len = cwd.size;
 

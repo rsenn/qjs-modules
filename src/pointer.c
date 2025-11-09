@@ -170,7 +170,7 @@ pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContex
 char*
 pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext* ctx) {
   DynBuf db;
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
   Writer wr = writer_from_dynbuf(&db);
   pointer_dump(ptr, &wr, color, index, ctx);
   dbuf_0(&db);

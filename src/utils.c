@@ -16,6 +16,11 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#ifdef _WIN32
+#include "mmap-win32.h"
+#else
+#include <sys/mman.h>
+#endif
 #include <quickjs-libc.h>
 #include <float.h>
 
@@ -3075,6 +3080,21 @@ js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
     return JS_NewArrayBufferCopy(ctx, (uint8_t*)x, n);
 
   return JS_ThrowInternalError(ctx, "Cannot convert value to string");
+}
+
+static void
+js_arraybuffer_mmap_free(JSRuntime* rt, void* opaque, void* ptr) {
+  munmap(ptr, (size_t)opaque);
+}
+
+JSValue
+js_arraybuffer_mmap(JSContext* ctx, const char* filename, BOOL shared) {
+  MemoryBlock mb = block_mmap(filename, shared);
+
+  if(mb.base == 0)
+    return JS_ThrowInternalError(ctx, "Failed mmap() of '%s'", filename);
+
+  return JS_NewArrayBuffer(ctx, mb.base, mb.size, &js_arraybuffer_mmap_free, (void*)mb.size, shared);
 }
 
 JSValue

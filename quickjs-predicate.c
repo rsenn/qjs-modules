@@ -27,7 +27,7 @@ predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
   DynBuf dbuf = {0};
 
   dbuf_init2(&dbuf, 0, 0);
-  // js_dbuf_init(ctx, &dbuf);
+  // dbuf_init_ctx(ctx, &dbuf);
 
   dbuf_putstr(&dbuf, color ? "Predicate" COLOR_CYAN : "Predicate");
   dbuf_putstr(&dbuf, color ? "." COLOR_YELLOW : ".");
@@ -460,7 +460,7 @@ js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   Predicate* pr = 0;
   JSValue ret = JS_UNDEFINED;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
 
   if(!(pr = js_predicate_data2(ctx, this_val)))
     return JS_EXCEPTION;

@@ -763,7 +763,7 @@ jsm_module_json(JSContext* ctx, const char* path) {
   if(!(ptr = js_load_file(ctx, &len, path)))
     return 0;
 
-  js_dbuf_init(ctx, &db);
+  dbuf_init_ctx(ctx, &db);
   dbuf_putstr(&db, "export default ");
 
   i = scan_whitenskip((const void*)ptr, len);
@@ -1071,7 +1071,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     DynBuf dir;
     size_t dsl;
 
-    js_dbuf_allocator(ctx, &dir);
+    dbuf_init_ctx(ctx, &dir);
 
     if(!(dsl = path_dirlen1(path))[path])
       dbuf_putstr(&dir, ".");
@@ -1089,7 +1089,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   } else if(has_suffix(name, CONFIG_SHEXT) && !name[path_component1(name)]) {
     DynBuf db;
 
-    js_dbuf_init(ctx, &db);
+    dbuf_init_ctx(ctx, &db);
 
     path_append2(QUICKJS_C_MODULE_DIR, &db);
     path_append2(name, &db);
@@ -2096,7 +2096,7 @@ main(int argc, char** argv) {
 
   if(!empty_run) {
     DynBuf db;
-    js_dbuf_init(jsm_ctx, &db);
+    dbuf_init_ctx(jsm_ctx, &db);
 
 #if HAVE_QJSCALC
     if(load_jscalc) {

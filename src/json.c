@@ -50,7 +50,7 @@ json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
 
   json->stack = BITSET_INIT();
 
-  // js_dbuf_init(ctx, &json->token);
+  // dbuf_init_ctx(ctx, &json->token);
   dbuf_init2(&json->token, 0, 0);
 
   if(!json->reader.read)

@@ -46,161 +46,117 @@ enum {
   DECODER_BUFFERED,
 };
 
-static size_t
-textdecoder_try(const void* in, size_t len) {
-  const uint8_t *x, *y, *end;
-  size_t r = 0;
-  int ch;
+JSValue
+textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
+  uint32_t cp;
+  uint8_t* tmp;
+  size_t i = 0;
+  int len = 0;
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+  const uint8_t *ptr = inputbuffer_begin(&in), *end = inputbuffer_end(&in), *next;
 
-  for(x = in, end = x + len; x < end; r += x - y) {
-    y = x;
+  switch(dec->char_set) {
+    case UTF8: {
+      while(!inputbuffer_eof(&in)) {
+        if(inputbuffer_decode(&in, &unicode_decode_utf8, &cp) == 0)
+          break;
+      }
 
-    if((ch = unicode_from_utf8(x, end - x, &x)) == -1)
+      ret = JS_NewStringLen(ctx, inputbuffer_data(&in), in.pos);
       break;
+    }
+
+    case UTF16: {
+      Decoding* decode = dec->endian ? &uint16_decode_be : &uint16_decode_le;
+
+      while(!inputbuffer_eof(&in)) {
+        uint16_t u16[2];
+
+        if(inputbuffer_decode(&in, decode, &u16[0]) == 0)
+          break;
+
+        if(libutf_c16_type(u16[0]) > 0) {
+          if(inputbuffer_decode(&in, decode, &u16[1]) == 0)
+            break;
+        }
+
+        if(!libutf_c16_to_c32(u16, &cp)) {
+          ret = JS_ThrowInternalError(
+              ctx, "TextDecoder.decode: not a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %i", i, ptr[0], ptr[1], cp);
+          break;
+        }
+
+        dbuf_encode(&dbuf, &unicode_encode_utf8, cp);
+      }
+
+      break;
+    }
+
+    case UTF32: {
+      Decoding* decode = dec->endian ? &uint32_decode_be : &uint32_decode_le;
+
+      while(!inputbuffer_eof(&in)) {
+        if(inputbuffer_decode(&in, decode, &cp) == 0)
+          break;
+
+        if(!(tmp = dbuf_reserve(&dbuf, UTF8_CHAR_LEN_MAX)))
+          return JS_EXCEPTION;
+
+        cp = uint32_get_endian(ptr, dec->endian);
+
+        if(!libutf_c32_to_c8(cp, &len, (char*)tmp)) {
+          ret = JS_ThrowInternalError(
+              ctx, "TextDecoder.decode: not a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %i", i, ptr[0], ptr[1], cp);
+          break;
+        }
+
+        dbuf.size += len;
+      }
+
+      break;
+    }
+
+    default: {
+      TUTF8encoder encoder;
+
+      if((encoder = *tutf8e_coders[dec->type_code - 8])) {
+        size_t length = 0;
+
+        if(TUTF8E_OK == tutf8e_encoder_buffer_length(encoder, (const char*)ptr, 0, end - ptr, &length)) {
+          uint8_t* dst = dbuf_reserve(&dbuf, length);
+
+          if(TUTF8E_OK == tutf8e_encoder_buffer_encode(encoder, (const char*)ptr, end - ptr, 0, (char*)dst, &length)) {
+            dbuf.size += length;
+          }
+        }
+
+      } else {
+        ret = JS_ThrowInternalError(ctx,
+                                    "TextDecoder.decode: unknown encoding: %s",
+                                    textcode_encodings[dec->type_code & 0x3]);
+      }
+
+      break;
+    }
   }
 
-  return r;
-}
+  size_t remain = end - ptr;
 
-size_t
-textdecoder_length(TextDecoder* td) {
-  size_t len, r;
+  dec->buflen = 0;
 
-  r = textdecoder_try(ringbuffer_TAIL(&td->buffer), ringbuffer_CONTINUOUS(&td->buffer));
-  len = r;
+  if(remain > UTF8_CHAR_LEN_MAX) {
+    ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: %zu bytes remaining", remain);
 
-  if(len == ringbuffer_CONTINUOUS(&td->buffer))
-    if(td->buffer.head < td->buffer.tail) {
-      r = textdecoder_try(td->buffer.data, td->buffer.head);
-      len += r;
-    }
+  } else {
+    memcpy(dec->buf, ptr, remain);
+    dec->buflen = remain;
+  }
 
-  return len;
-}
-
-JSValue
-textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  size_t i = 0, blen;
-  uint_least32_t cp;
-  char tmp[UTF8_CHAR_LEN_MAX];
-  int len = 0;
-  DynBuf dbuf;
-
-  js_dbuf_init(ctx, &dbuf);
-
-  if((blen = ringbuffer_length(&dec->buffer)))
-    switch(dec->type_code & 0x3) {
-      case UTF8: {
-        size_t dlen, rlen = ringbuffer_length(&dec->buffer);
-
-        if((dlen = textdecoder_length(dec)) < rlen) {
-          ringbuffer_normalize(&dec->buffer);
-          dlen = textdecoder_length(dec);
-        }
-
-        dlen = MIN_NUM(dlen, ringbuffer_CONTINUOUS(&dec->buffer));
-
-        ret = JS_NewStringLen(ctx, (const char*)ringbuffer_peek(&dec->buffer, 0), dlen);
-        ringbuffer_skip(&dec->buffer, dlen);
-        break;
-      }
-
-      case UTF16: {
-        uint16_t* ptr = ringbuffer_TAIL(&dec->buffer);
-        size_t n = blen & ~(0x1);
-
-        for(i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 2) {
-          uint16_t u16[2] = {uint16_get_endian(ptr, dec->endian), 0};
-          /*size_t ns = 2;*/
-
-          if(utf16_multiword(u16)) {
-            if(i + 2 >= n)
-              break;
-
-            u16[1] = uint16_get_endian(ptr + 1, dec->endian);
-            /*ns += 2;*/
-          }
-
-          if(!libutf_c16_to_c32(u16, &cp)) {
-            ret = JS_ThrowInternalError(ctx,
-                                        "%s: TextDecoder: not a valid utf-16 code at (%lu: 0x%04x, 0x%04x): %lu",
-                                        __func__,
-                                        (unsigned long)i,
-                                        (unsigned int)ptr[0],
-                                        (unsigned int)ptr[1],
-                                        (unsigned long)cp);
-            break;
-          }
-
-          len = unicode_to_utf8((void*)tmp, cp);
-
-          if(dbuf_put(&dbuf, (const void*)tmp, len))
-            return JS_EXCEPTION;
-        }
-
-        break;
-      }
-
-      case UTF32: {
-        const uint_least32_t* ptr = ringbuffer_TAIL(&dec->buffer);
-        size_t n = blen & ~(0x3);
-
-        for(i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 4) {
-          cp = uint32_get_endian(ptr, dec->endian);
-
-          if(!libutf_c32_to_c8(cp, &len, tmp)) {
-            ret = JS_ThrowInternalError(ctx,
-                                        "%s: TextDecoder: not a valid utf-32 code at (%lu: 0x%04x, 0x%04x): %lu",
-                                        __func__,
-                                        (unsigned long)i,
-                                        (unsigned int)ptr[0],
-                                        (unsigned int)ptr[1],
-                                        (unsigned long)cp);
-            break;
-          }
-
-          if(dbuf_put(&dbuf, (const void*)tmp, len))
-            return JS_EXCEPTION;
-        }
-
-        break;
-      }
-
-      default: {
-        TUTF8encoder encoder;
-
-        if((encoder = *tutf8e_coders[dec->type_code - 8])) {
-
-          const char* ptr = ringbuffer_TAIL(&dec->buffer);
-          size_t n = 0;
-
-          if(TUTF8E_OK == tutf8e_encoder_buffer_length(encoder, ptr, 0, blen, &n)) {
-            uint8_t* dst = dbuf_reserve(&dbuf, n);
-
-            if(TUTF8E_OK == tutf8e_encoder_buffer_encode(encoder, ptr, blen, 0, (char*)dst, &n)) {
-              dbuf.size += n;
-              i = blen;
-            }
-          }
-
-        } else {
-          ret = JS_ThrowInternalError(ctx,
-                                      "%s: TextDecoder: unknown encoding: %s",
-                                      __func__,
-                                      textcode_encodings[dec->type_code & 0x3]);
-        }
-
-        break;
-      }
-    }
-
-  ringbuffer_skip(&dec->buffer, i);
-
-  if(JS_IsUndefined(ret) && dbuf.size > 0)
-    ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
-
-  dbuf_free(&dbuf);
+  if(JS_IsUndefined(ret))
+    ret = dbuf_tostring_free(&dbuf, ctx);
+  else
+    dbuf_free(&dbuf);
 
   return ret;
 }
@@ -225,7 +181,7 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case DECODER_BUFFERED: {
-      ret = JS_NewUint32(ctx, ringbuffer_length(&dec->buffer));
+      ret = JS_NewUint32(ctx, dec->buflen);
       break;
     }
   }
@@ -260,8 +216,6 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   if(argc > 1)
     JS_ToUint32(ctx, &defaultSize, argv[1]);
 
-  ringbuffer_init(&dec->buffer, defaultSize, ctx);
-
   if(argc >= 1) {
     const char* s = JS_ToCString(ctx, argv[0]);
 
@@ -272,7 +226,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
       dec->char_set = UTF8;
     else {
-      return JS_ThrowInternalError(ctx, "%s: TextDecoder: '%s' is invalid s", __func__, s);
+      return JS_ThrowInternalError(ctx, "TextDecoder.constructor: '%s' is invalid s", s);
     }
 
     if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
@@ -301,27 +255,11 @@ js_decoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     return JS_EXCEPTION;
 
   switch(magic) {
-    case DECODER_END: {
-      ret = ringbuffer_length(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
-
-      if(magic == DECODER_END)
-        ringbuffer_reset(&dec->buffer);
-
-      break;
-    }
-
     case DECODER_DECODE: {
-      InputBuffer in = argc == 0 ? (InputBuffer){0} : js_input_chars(ctx, argv[0]);
+      InputBuffer in = js_input_chars(ctx, argv[0]);
+      BOOL stream = argc > 1 && js_get_propertystr_bool(ctx, argv[1], "stream");
 
-      if(in.data)
-        if(ringbuffer_append(&dec->buffer, in.data, in.size) < 0)
-          return JS_EXCEPTION;
-
-      ret = ringbuffer_length(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
-
-      if(magic == DECODER_END)
-        ringbuffer_reset(&dec->buffer);
-
+      ret = textdecoder_decode(dec, in, ctx);
       break;
     }
   }
@@ -340,8 +278,7 @@ js_decoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   JS_DefinePropertyValueStr(
       ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->type_code]), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(
-      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, dec->buflen), JS_PROP_ENUMERABLE);
 
   return obj;
 }
@@ -351,7 +288,6 @@ js_decoder_finalizer(JSRuntime* rt, JSValue val) {
   TextDecoder* dec;
 
   if((dec = JS_GetOpaque(val, js_decoder_class_id))) {
-    ringbuffer_FREE(&dec->buffer);
     js_free_rt(rt, dec);
   }
 }
@@ -363,7 +299,6 @@ static JSClassDef js_decoder_class = {
 
 static const JSCFunctionListEntry js_decoder_methods[] = {
     JS_CFUNC_MAGIC_DEF("decode", 1, js_decoder_method, DECODER_DECODE),
-    JS_CFUNC_MAGIC_DEF("end", 1, js_decoder_method, DECODER_END),
     JS_CGETSET_ENUMERABLE_DEF("encoding", js_decoder_get, 0, DECODER_ENCODING),
     JS_CGETSET_MAGIC_DEF("endian", js_decoder_get, 0, DECODER_ENDIANNESS),
     JS_CGETSET_MAGIC_DEF("buffered", js_decoder_get, 0, DECODER_BUFFERED),
@@ -394,80 +329,58 @@ textencoder_typedarray(TextEncoding type_code, const void* x, size_t n, JSContex
   return ret;
 }
 
-static int
+static ssize_t
 textencoder_encode(TextEncoder* enc, InputBuffer in, Writer wr, JSContext* ctx) {
   uint8_t u8[UTF8_CHAR_LEN_MAX];
+  size_t i = 0, written = 0;
   const uint8_t *ptr = inputbuffer_begin(&in), *end = inputbuffer_end(&in), *next;
 
-  if(enc->char_set == UTF8) {
-    if(writer_write(&wr, ptr, end - ptr) < 0)
-      return -1;
+  for(i = 0; ptr < end; ptr = next, i++) {
+    int cp = unicode_from_utf8(ptr, end - ptr, &next);
 
-    return 0;
-  }
+    if(cp == -1)
+      break;
 
-  for(size_t i = 0; ptr < end; ptr = next, i++) {
-    uint32_t cp = unicode_from_utf8(ptr, end - ptr, &next);
-
-    if(cp == -1) {
-      if((end - ptr) < UTF8_CHAR_LEN_MAX) {
-        enc->buflen = (end - ptr);
-        memcpy(enc->buf, ptr, enc->buflen);
+    if(enc->char_set == UTF8) {
+      if(writer_write(&wr, ptr, next - ptr) < 0)
         break;
-      }
 
-      if(!libutf_c8_to_c32((const char*)ptr, &cp)) {
-        JS_ThrowInternalError(ctx,
-                              "%s: TextEncoder: not a valid code point at (%lu) [%lu]: %lu",
-                              __func__,
-                              (unsigned long)i,
-                              (unsigned long)(next - ptr),
-                              (long unsigned int)cp);
-        return -1;
-      }
+      continue;
     }
 
-    switch(enc->type_code) {
-      case UTF16: {
-        uint16_t u16[2];
-        int len;
+    if(enc->char_set == UTF16) {
+      uint16_t u16[2];
+      int len;
 
-        if(!libutf_c32_to_c16(cp, &len, u16)) {
-          JS_ThrowInternalError(ctx,
-                                "%s: TextEncoder: not a valid code point at (%lu) [%lu]: %lu",
-                                __func__,
-                                (unsigned long)i,
-                                (unsigned long)(next - ptr),
-                                (unsigned long)cp);
-          return -1;
-        }
-
-        for(int j = 0; j < len; j++)
-          uint16_put_endian(u8 + j * 2, u16[j], enc->endian);
-
-        if(writer_write(&wr, u8, len * sizeof(uint16_t)) < 0)
-          return -1;
-
-        break;
-      }
-
-      case UTF32: {
-        uint32_put_endian(u8, cp, enc->endian);
-
-        if(writer_write(&wr, u8, sizeof(uint32_t)) < 0)
-          return -1;
-
-        break;
-      }
-
-      default: {
-        JS_ThrowInternalError(ctx, "%s: TextEncoder: unknown encoding", __func__);
+      if(!libutf_c32_to_c16(cp, &len, u16)) {
+        JS_ThrowInternalError(
+            ctx, "TextEncoder.encode: not a valid code point at (%zu) [%ti]: %i", i, (next - ptr), cp);
         return -1;
       }
+
+      for(int j = 0; j < len; j++)
+        uint16_put_endian(u8 + j * 2, u16[j], enc->endian);
+
+      if(writer_write(&wr, u8, len * sizeof(uint16_t)) < 0)
+        break;
+
+      continue;
     }
+
+    if(enc->char_set == UTF32) {
+      uint32_put_endian(u8, cp, enc->endian);
+
+      if(writer_write(&wr, u8, sizeof(uint32_t)) < 0)
+        break;
+
+      continue;
+    }
+
+    JS_ThrowInternalError(ctx, "TextEncoder.encode: unknown encoding");
+    return -1;
   }
 
-  return 0;
+  return i;
 }
 
 static JSValue
@@ -525,8 +438,6 @@ js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   if(argc > 1)
     JS_ToUint32(ctx, &defaultSize, argv[1]);
 
-  ringbuffer_init(&enc->buffer, defaultSize, ctx);
-
   if(argc >= 1) {
     const char* s = JS_ToCString(ctx, argv[0]);
 
@@ -575,13 +486,10 @@ js_encoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       InputBuffer in = js_input_chars(ctx, argv[0]);
       DynBuf db = DBUF_INIT_CTX(ctx);
 
-      if(textencoder_encode(enc, in, writer_from_dynbuf(&db), ctx)) {
+      if(textencoder_encode(enc, in, writer_from_dynbuf(&db), ctx) < 0) {
         ret = JS_EXCEPTION;
         break;
       }
-
-      if(!(argc > 1 && js_get_propertystr_bool(ctx, argv[1], "stream")))
-        enc->buflen = 0;
 
       ret = textencoder_typedarray(enc->type_code, db.buf, db.size, ctx);
       dbuf_free(&db);
@@ -591,14 +499,16 @@ js_encoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case ENCODER_ENCODE_INTO: {
       InputBuffer in = js_input_chars(ctx, argv[0]);
       OutputBuffer out = js_output_typedarray(ctx, argv[1]);
+      ssize_t read;
 
-      if(textencoder_encode(enc, in, writer_from_buf(&out), ctx)) {
+      if((read = textencoder_encode(enc, in, writer_from_buf(&out), ctx)) < 0) {
         ret = JS_EXCEPTION;
         break;
       }
 
-      if(!(argc > 2 && js_get_propertystr_bool(ctx, argv[2], "stream")))
-        enc->buflen = 0;
+      ret = JS_NewObjectProto(ctx, JS_NULL);
+      JS_SetPropertyStr(ctx, ret, "read", JS_NewUint32(ctx, read));
+      JS_SetPropertyStr(ctx, ret, "written", JS_NewUint32(ctx, out.pos));
 
       inputbuffer_free(&in, ctx);
       outputbuffer_free(&out, ctx);
@@ -620,8 +530,7 @@ js_encoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   JS_DefinePropertyValueStr(
       ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[enc->type_code]), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(
-      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&enc->buffer)), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, enc->buflen), JS_PROP_ENUMERABLE);
 
   return obj;
 }
@@ -631,7 +540,6 @@ js_encoder_finalizer(JSRuntime* rt, JSValue val) {
   TextEncoder* enc;
 
   if((enc = JS_GetOpaque(val, js_encoder_class_id))) {
-    // ringbuffer_FREE(&enc->buffer);
     js_free_rt(rt, enc);
   }
 }

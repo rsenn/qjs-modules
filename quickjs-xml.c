@@ -869,7 +869,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   size_t len;
   BOOL flat = TRUE;
 
-  js_dbuf_init(ctx, &output);
+  dbuf_init_ctx(ctx, &output);
 
   if(argc >= 2)
     JS_ToInt32(ctx, &max_depth, argv[1]);

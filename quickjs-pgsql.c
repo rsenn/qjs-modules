@@ -483,7 +483,7 @@ pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, const char* field, const char* t
   DynBuf buf;
   char* ret = 0;
 
-  js_dbuf_init(ctx, &buf);
+  dbuf_init_ctx(ctx, &buf);
   dbuf_putstr(&buf, "SELECT ");
   dbuf_putstr(&buf, field);
   dbuf_putstr(&buf, " FROM ");

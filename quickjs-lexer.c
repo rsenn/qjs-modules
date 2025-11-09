@@ -68,7 +68,7 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   JSValue ret, states;
   DynBuf dbuf;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   lexer_rule_dump(lex, rule, &dbuf);
   dbuf_0(&dbuf);
 
@@ -771,7 +771,7 @@ js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     location_copy(&lex->loc, &other->loc, ctx);
   } else if(argc > 1 && js_is_null_or_undefined(argv[0])) {
     const char* file = JS_ToCString(ctx, argv[1]);
-    lex->input = inputbuffer_from_file(file, ctx);
+    lex->input = inputbuffer_file(file, ctx);
     JS_FreeCString(ctx, file);
   } else {
     lex->input = js_input_chars(ctx, argv[0]);
@@ -858,10 +858,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LEXER_PEEKC: {
       if(!inputbuffer_eof(&lex->input)) {
         size_t len;
-        const uint8_t* buf;
 
-        if((buf = inputbuffer_peek(&lex->input, &len)))
-          ret = JS_NewStringLen(ctx, (const char*)buf, len);
+        ret = JS_NewStringLen(ctx, inputbuffer_peek(&lex->input, &len), len);
       }
 
       break;
@@ -870,10 +868,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LEXER_GETC: {
       if(!inputbuffer_eof(&lex->input)) {
         size_t len;
-        const uint8_t* buf;
 
-        if((buf = inputbuffer_get(&lex->input, &len)))
-          ret = JS_NewStringLen(ctx, (const char*)buf, len);
+        ret = JS_NewStringLen(ctx, inputbuffer_get(&lex->input, &len), len);
       }
 
       break;
@@ -1229,7 +1225,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_INPUT: {
-      ret = block_toarraybuffer(&lex->input.block, ctx);
+      ret = block_to_arraybuffer(lex->input.block, ctx);
       break;
     }
 
@@ -1389,7 +1385,7 @@ static JSValue
 js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   InputBuffer in = js_input_chars(ctx, argv[0]);
   DynBuf out;
-  js_dbuf_init(ctx, &out);
+  dbuf_init_ctx(ctx, &out);
 
   magic ? dbuf_put_unescaped_pred(&out, (const char*)in.data, in.size, unescape_pred)
         : dbuf_put_escaped_pred(&out, (const char*)in.data, in.size, escape_pred);

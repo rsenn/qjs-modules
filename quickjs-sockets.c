@@ -367,14 +367,14 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
 #ifdef HAVE_AF_UNIX
       if(a->family == AF_UNIX) {
-        js_dbuf_init(ctx, &dbuf);
+        dbuf_init_ctx(ctx, &dbuf);
         dbuf_putstr(&dbuf, "unix://");
         dbuf_putstr(&dbuf, a->un.sun_path);
         ret = dbuf_tostring_free(&dbuf, ctx);
       } else
 #endif
       {
-        js_dbuf_init(ctx, &dbuf);
+        dbuf_init_ctx(ctx, &dbuf);
         dbuf_realloc(&dbuf, INET6_ADDRSTRLEN);
         inet_ntop(a->family, sockaddr_addr(a), (char*)dbuf.buf, INET6_ADDRSTRLEN);
         dbuf.size = strlen((const char*)dbuf.buf);

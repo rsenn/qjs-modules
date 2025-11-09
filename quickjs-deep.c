@@ -732,7 +732,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   uint32_t mask = TYPE_ALL;
   DynBuf dbuf;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
 
   JSValue ret = argc > 1 && JS_IsObject(argv[1]) ? JS_DupValue(ctx, argv[1]) : JS_NewObject(ctx);
   VirtualProperties vmap = virtual_properties(ctx, ret);

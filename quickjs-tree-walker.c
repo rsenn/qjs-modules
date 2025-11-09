@@ -193,7 +193,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   tree_walker_dump(w, ctx, &dbuf);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);

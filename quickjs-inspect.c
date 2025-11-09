@@ -1104,9 +1104,9 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   if(!is_function) {
     BOOL has_class_key;
 
-    if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) ||
-                     js_global_instanceof(ctx, value, "Object"))) {
-      if(!opts->reparseable) {
+    if(!opts->reparseable) {
+      if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) ||
+                       js_global_instanceof(ctx, value, "Object"))) {
         char* tag = 0;
 
         if(has_class_key)
@@ -1119,26 +1119,26 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
           writer_puts(wr, tag);
           writer_puts(wr, opts->colors ? COLOR_NONE " " : " ");
         }
-      }
-    } else if(!is_array) {
-      const char* s = 0;
+      } else if(!is_array) {
+        const char* s = 0;
 
-      if(s == 0 && JS_IsFunction(ctx, object_tostring))
-        s = js_object_tostring2(ctx, object_tostring, value);
+        if(s == 0 && JS_IsFunction(ctx, object_tostring))
+          s = js_object_tostring2(ctx, object_tostring, value);
 
-      if(s && !strncmp(s, "[object ", 8)) {
-        const char* e = strchr(s, ']');
-        size_t slen = e - (s + 8);
+        if(s && !strncmp(s, "[object ", 8)) {
+          const char* e = strchr(s, ']');
+          size_t slen = e - (s + 8);
 
-        if(slen != 6 || memcmp(s + 8, "Object", 6)) {
-          writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "[");
-          writer_write(wr, s + 8, e - (s + 8));
-          writer_puts(wr, opts->colors ? COLOR_NONE " " : "] ");
+          if(slen != 6 || memcmp(s + 8, "Object", 6)) {
+            writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "[");
+            writer_write(wr, s + 8, e - (s + 8));
+            writer_puts(wr, opts->colors ? COLOR_NONE " " : "] ");
+          }
         }
-      }
 
-      if(s)
-        JS_FreeCString(ctx, s);
+        if(s)
+          JS_FreeCString(ctx, s);
+      }
     }
 
     if(js_global_instanceof(ctx, value, "String"))
@@ -1527,7 +1527,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   int32_t level;
   int optind = 1;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   buf_wr = writer_from_dynbuf(&dbuf);
   Inspector insp = {{}, buf_wr, VECTOR(ctx)};
 
@@ -1564,7 +1564,7 @@ char*
 js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
 
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init_ctx(ctx, &dbuf);
   Inspector insp = {{}, writer_from_dynbuf(&dbuf), VECTOR(ctx)};
 
   options_init(&insp.opts, ctx);
