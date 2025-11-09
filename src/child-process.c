@@ -98,6 +98,8 @@ child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if((cp = child_process_get(pid))) {
     child_process_status(cp, status);
 
+    list_del(&cp->link);
+
     if(child_process_count() == 0) {
       child_process_signal(ctx, JS_NULL);
       child_process_handler = FALSE;
@@ -156,8 +158,6 @@ child_process_new(JSContext* ctx) {
     child->num_fds = 0;
 
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
-
-    list_add_tail(&child->link, &child_process_list);
 
     if(!child_process_handler) {
       JSValue fn = JS_NewCFunction(ctx, child_process_sigchld, "sigchld", 0);
@@ -346,19 +346,23 @@ child_process_spawn(ChildProcess* cp) {
 #ifdef DEBUG_OUTPUT
   printf("forked proc %d\n", pid);
 #endif
-
-  if(cp->child_fds)
-    for(i = 0; i < cp->num_fds; i++)
-      if(cp->child_fds[i] >= 0 && cp->child_fds[i] != i)
-        close(cp->child_fds[i]);
 #endif
+
+  if(cp->pipe_fds)
+    for(i = 0; i < cp->num_fds; i++)
+      if(cp->child_fds[i] >= 0 && cp->pipe_fds[i]) {
+        close(cp->child_fds[i]);
+        cp->child_fds[i] = -1;
+        cp->pipe_fds[i] = -1;
+      }
+
+  list_add_tail(&cp->link, &child_process_list);
 
   return cp->pid = pid;
 }
 
 void
 child_process_status(ChildProcess* cp, int status) {
-  cp->pid = -1;
   cp->status = status;
 
   cp->exited = WIFEXITED(status);
@@ -442,8 +446,6 @@ child_process_free(ChildProcess* cp, JSContext* ctx) {
 
 void
 child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
-  list_del(&cp->link);
-
   if(cp->file)
     js_free_rt(rt, cp->file);
 

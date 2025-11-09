@@ -1,4 +1,4 @@
-import { signal, spawn, WNOHANG } from 'child_process';
+import { spawn, WNOHANG } from 'child_process';
 import * as os from 'os';
 import { toString } from 'util';
 import Console from '../lib/console.js';
@@ -31,7 +31,7 @@ function ReadChild(args) {
     if(ret > 0) {
       const chunk = buf.slice(0, ret);
       const str = toString(chunk);
-      /* console.log('chunk:', str);*/
+      console.log('chunk:', str);
       data += str;
     }
 
@@ -47,12 +47,12 @@ function ReadChild(args) {
     data += chunk;
   }*/
 
-  let retval = child.wait();
-  console.log('retval', retval);
+  /* let retval = child.wait();
+  console.log('retval', retval);*/
 
   console.log('child', child);
 
-  return data;
+  return [child, data];
 }
 
 function main(...args) {
@@ -64,7 +64,7 @@ function main(...args) {
     },
   });
 
-  signal(() => {
+  /*signal(() => {
     const errfn = a => ({ pid: a[0] >= 0 ? a[0] : -1, errno: a[0] < 0 ? -a[0] : 0, status: a[1] });
     console.log('SIGCHLD');
     while(true) {
@@ -72,11 +72,11 @@ function main(...args) {
       console.log('waitpid() = ', pid, pid == -1 ? ` errno = ${std.strerror(errno)}` : ` status = ${status}`);
       if(pid == -1) break;
     }
-  });
+  });*/
 
-  let data = ReadChild(['sh', '-c', 'ls -latr | tail -n10']);
+  let [child, data] = ReadChild(['sh', '-c', 'ls -latr | tail -n10']);
 
-  console.log('data:', data);
+  console.log('ReadChild', { child, data });
 
   /*  data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
 
