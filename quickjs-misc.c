@@ -591,7 +591,7 @@ static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   InputBuffer buf = js_input_args(ctx, argc, argv);
-  uint8_t* s = inputbuffer_data(&buf);
+  const uint8_t* s = inputbuffer_data(&buf);
   size_t n = inputbuffer_length(&buf);
 
   if(s) {
@@ -604,7 +604,6 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   inputbuffer_free(&buf, ctx);
-
   return ret;
 }
 
