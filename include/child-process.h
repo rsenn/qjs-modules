@@ -31,16 +31,16 @@ typedef struct ChildProcess {
   struct list_head link;
 } ChildProcess;
 
-char** child_process_environment(JSContext*, JSValue object);
+size_t child_process_count(void);
+ChildProcess* child_process_get(int);
 ChildProcess* child_process_new(JSContext*);
-ChildProcess* child_process_get(int pid);
-void child_process_sigchld(int pid);
+char** child_process_environment(JSContext*, JSValueConst);
 int child_process_spawn(ChildProcess*);
+void child_process_status(ChildProcess*, int);
 int child_process_wait(ChildProcess*, int);
 int child_process_kill(ChildProcess*, int);
 void child_process_free(ChildProcess*, JSContext*);
 void child_process_free_rt(ChildProcess*, JSRuntime*);
-void child_process_status(ChildProcess*, int);
 
 extern const char* child_process_signals[32];
 

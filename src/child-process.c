@@ -39,12 +39,12 @@
 
 /* If WIFEXITED(STATUS), the low-order 8 bits of the status.  */
 #ifndef WEXITSTATUS
-#define WEXITSTATUS(status) (((status)&0xff00) >> 8)
+#define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #endif
 
 /* If WIFSIGNALED(STATUS), the terminating signal.  */
 #ifndef WTERMSIG
-#define WTERMSIG(status) ((status)&0x7f)
+#define WTERMSIG(status) ((status) & 0x7f)
 #endif
 
 /* If WIFSTOPPED(STATUS), the signal that stopped the child.  */
@@ -54,12 +54,12 @@
 
 /* Nonzero if STATUS indicates normal termination.  */
 #ifndef WIFEXITED
-#define WIFEXITED(status) (((status)&0x7f) == 0)
+#define WIFEXITED(status) (((status) & 0x7f) == 0)
 #endif
 
 /* Nonzero if STATUS indicates the child is stopped.  */
 #ifndef WIFSTOPPED
-#define WIFSTOPPED(status) (((status)&0xff) == 0x7f)
+#define WIFSTOPPED(status) (((status) & 0xff) == 0x7f)
 #endif
 
 /* Nonzero if STATUS indicates termination by a signal.  */
@@ -72,13 +72,54 @@
  * @{
  */
 static struct list_head child_process_list = LIST_HEAD_INIT(child_process_list);
+static BOOL child_process_handler;
 
-void
-child_process_sigchld(int pid) {
+static void
+child_process_signal(JSContext* ctx, JSValueConst handler) {
+  JSValue os = js_global_get_str(ctx, "os");
+  JSValue sig = JS_GetPropertyStr(ctx, os, "signal");
+  JS_FreeValue(ctx, os);
+  JSValueConst args[] = {
+      JS_NewInt32(ctx, SIGCHLD),
+      handler,
+  };
+
+  JSValue ret = JS_Call(ctx, sig, JS_NULL, countof(args), args);
+  JS_FreeValue(ctx, sig);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, ret);
+}
+
+static JSValue
+child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int status = 0, pid = waitpid(-1, &status, WNOHANG);
+  ChildProcess* cp;
+
+  if((cp = child_process_get(pid))) {
+    child_process_status(cp, status);
+
+    if(child_process_count() == 0) {
+      child_process_signal(ctx, JS_NULL);
+      child_process_handler = FALSE;
+    }
+  }
+
+  return JS_UNDEFINED;
 }
 
 size_t
 child_process_count(void) {
+  /*  struct list_head* el;
+    size_t count = 0;
+
+    list_for_each(el, &child_process_list) {
+      ChildProcess* cp = list_entry(el, ChildProcess, link);
+
+      if(cp->pid != -1)
+        count++;
+    }
+
+    return count;*/
   return list_size(&child_process_list);
 }
 
@@ -101,8 +142,6 @@ child_process_new(JSContext* ctx) {
   ChildProcess* child;
 
   if((child = js_mallocz(ctx, sizeof(ChildProcess)))) {
-    list_add_tail(&child->link, &child_process_list);
-
     child->use_path = true;
     child->exited = child->signaled = child->stopped = child->continued = false;
 
@@ -117,27 +156,18 @@ child_process_new(JSContext* ctx) {
     child->num_fds = 0;
 
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
+
+    list_add_tail(&child->link, &child_process_list);
+
+    if(!child_process_handler) {
+      JSValue fn = JS_NewCFunction(ctx, child_process_sigchld, "sigchld", 0);
+      child_process_signal(ctx, fn);
+      JS_FreeValue(ctx, fn);
+      child_process_handler = TRUE;
+    }
   }
 
   return child;
-}
-
-BOOL
-child_process_signal(JSContext* ctx, JSValueConst handler) {
-  JSValue os = js_global_get_str(ctx, "os");
-  JSValue sig = JS_GetPropertyStr(ctx, os, "signal");
-  JS_FreeValue(ctx, os);
-  JSValueConst args[] = {
-      JS_NewInt32(ctx, SIGCHLD),
-      handler,
-  };
-
-  JSValue ret = JS_Call(ctx, sig, JS_NULL, countof(args), args);
-  JS_FreeValue(ctx, sig);
-  JS_FreeValue(ctx, args[0]);
-  BOOL result = JS_ToBool(ctx, ret);
-  JS_FreeValue(ctx, ret);
-  return result;
 }
 
 char**
@@ -328,6 +358,7 @@ child_process_spawn(ChildProcess* cp) {
 
 void
 child_process_status(ChildProcess* cp, int status) {
+  cp->pid = -1;
   cp->status = status;
 
   cp->exited = WIFEXITED(status);
@@ -400,53 +431,13 @@ child_process_kill(ChildProcess* cp, int signum) {
     return 0;
   return -1;
 #else
-  int ret, status;
-
-  ret = kill(cp->pid, signum);
-
-  if(ret != -1 && waitpid(cp->pid, &status, WNOHANG) == cp->pid)
-    child_process_status(cp, status);
-
-  return ret;
+  return kill(cp->pid, signum);
 #endif
 }
 
 void
 child_process_free(ChildProcess* cp, JSContext* ctx) {
-  list_del(&cp->link);
-
-  if(cp->file)
-    js_free(ctx, cp->file);
-
-  if(cp->cwd)
-    js_free(ctx, cp->cwd);
-
-  if(cp->args)
-    js_strv_free(ctx, cp->args);
-
-  if(cp->env)
-    js_strv_free(ctx, cp->env);
-
-  if(cp->child_fds) {
-    for(int i = 0; i < cp->num_fds; i++)
-      if(cp->pipe_fds && cp->pipe_fds[i])
-        close(cp->child_fds[i]);
-
-    js_free(ctx, cp->child_fds);
-  }
-
-  if(cp->parent_fds) {
-    for(int i = 0; i < cp->num_fds; i++)
-      if(cp->pipe_fds && cp->pipe_fds[i])
-        close(cp->parent_fds[i]);
-
-    js_free(ctx, cp->parent_fds);
-  }
-
-  if(cp->pipe_fds)
-    js_free(ctx, cp->pipe_fds);
-
-  js_free(ctx, cp);
+  child_process_free_rt(cp, JS_GetRuntime(ctx));
 }
 
 void

@@ -325,14 +325,14 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
   int ret = LEXER_ERROR_NOMATCH;
   size_t len = 0;
 
+  if(lex->loc.byte_offset == -1)
+    location_zero(&lex->loc);
+
   if(lex->byte_offset >= lex->size)
     return LEXER_EOF;
 
   if(inputbuffer_eof(&lex->input))
     return LEXER_EOF;
-
-  if(lex->loc.byte_offset == -1)
-    location_zero(&lex->loc);
 
   assert(start_rule < vector_size(&lex->rules, sizeof(LexerRule)));
 
@@ -361,17 +361,14 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
       break;
     } else */
     if(result < LEXER_ERROR_NOMATCH) {
-      const char* t = CONST_STRARRAY(
-          "executing",
-          "compiling",
-      )[result - LEXER_ERROR_EXEC];
+      const char* t = CONST_STRARRAY("executing", "compiling", )[result - LEXER_ERROR_EXEC];
 
       JS_ThrowInternalError(ctx, "Error %s regex /%s/", t, rule->expr);
       fprintf(stderr, "Error %s regex /%s/\n", t, rule->expr);
 
       ret = result;
       break;
-    } else if(result > 0 && (capture[1] - capture[0]) > 0) {
+    } else if(result > 0 && (capture[1] - capture[0]) >= 0) {
 
 #ifdef DEBUG_OUTPUT
       const char* filename = lex->loc.file == -1 ? 0 : JS_AtomToCString(ctx, lex->loc.file);

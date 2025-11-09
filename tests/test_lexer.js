@@ -139,7 +139,7 @@ function AddExport(tokens) {
       type: tokens[1]?.lexeme,
       tokens,
       exported: ExportName(tokens),
-      range: [+tokens[0]?.loc, +tokens.last?.loc],
+      range: [+tokens[0]?.loc, +tokens.back?.loc],
     },
     { code, loc: tokens[0]?.loc },
   );
@@ -147,7 +147,7 @@ function AddExport(tokens) {
 }
 
 function AddImport(tokens) {
-  let range = [+tokens[0].loc, +tokens.last.loc];
+  let range = [+tokens[0].loc, +tokens.back.loc];
   let code = tokens.map(tok => tok.lexeme).join('');
   tokens = tokens.filter(tok => tok.type != 'whitespace');
   let type = ImportType(tokens);
@@ -245,6 +245,8 @@ function main(...args) {
     let type = extname(file).substring(1);
     log('data:', escape(str.slice(0, 100)));
 
+    log({ str, file });
+
     let lex = {
       js: () => new ECMAScriptLexer(str, file),
       c: () => new CLexer(str, CLexer.LONGEST, file),
@@ -289,10 +291,10 @@ function main(...args) {
     let match =
       include.length + exclude.length > 0
         ? id => {
-            if(exclude.contains(id)) return false;
+            if(exclude.includes(id)) return false;
 
             //  return (include.length == 0 || include.contains(id)) && !exclude.contains(id);
-            return include.contains(id) || exclude.length > 0;
+            return include.includes(id) || exclude.length > 0;
           }
         : null;
 
@@ -345,7 +347,7 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.back != table[tok.lexeme]) throw new Error(`top '${stack.back}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
             stack.pop();
             break;
           }
@@ -384,22 +386,30 @@ function main(...args) {
     console.log('match(0)', match(0));
     for(;;) {
       let { stateDepth } = lexer;
+      let oldState = lexer.topState();
       let nextTok = it.next();
       let { done, value } = nextTok;
+
       if(done) break;
+
+      if(value.type != 'whitespace') console.log('lex', oldState, console.config({ compact: true }), value);
+
       count++;
       let newState = lexer.topState();
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
       }
-      let n = balancers.last.depth;
-      if(!(tok = lexer.token)) break;
+      let n = balancers.back?.depth ?? 0;
+
+      //if(!(tok = lexer.token)) { throw new Error('no token'); }
+      tok = value;
+
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
-        lexer.popState();
+        //lexer.popState();
       } else {
         balancer(tok);
-        if(n > 0 && balancers.last.depth == 0) log('balancer');
+        if(n > 0 && balancers.back.depth == 0) log('balancer');
         if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
           impexp = What[tok.lexeme.toUpperCase()];
           let prev = tokens[tokens.length - 1];

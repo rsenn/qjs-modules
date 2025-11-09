@@ -427,6 +427,8 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   JS_FreeValue(ctx, str);
 
+  JS_DefinePropertyValueStr(ctx, ret, "id", JS_NewInt32(ctx, tok->id), JS_PROP_ENUMERABLE);
+
   js_set_tostringtag_value(ctx, ret, js_get_tostringtag_value(ctx, this_val));
 
   return ret;
@@ -459,12 +461,12 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("charPos", js_token_get, 0, TOKEN_CHARPOS),
     JS_CGETSET_MAGIC_DEF("bytePos", js_token_get, 0, TOKEN_BYTEPOS),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, js_token_set, TOKEN_LOC),
-    JS_CGETSET_MAGIC_DEF("id", js_token_get, 0, TOKEN_ID),
+    JS_CGETSET_MAGIC_FLAGS_DEF("id", js_token_get, 0, TOKEN_ID, JS_PROP_CONFIGURABLE /* | JS_PROP_ENUMERABLE*/),
     JS_CGETSET_MAGIC_FLAGS_DEF("seq", js_token_get, 0, TOKEN_SEQ, JS_PROP_CONFIGURABLE),
-    JS_CGETSET_MAGIC_DEF("type", js_token_get, 0, TOKEN_TYPE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("type", js_token_get, 0, TOKEN_TYPE, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("lexer", js_token_get, 0, TOKEN_LEXER),
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, 0, TOKEN_RULE),
-    JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, 0, TOKEN_LEXEME),
+    JS_CGETSET_MAGIC_FLAGS_DEF("lexeme", js_token_get, 0, TOKEN_LEXEME, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_token_toprimitive),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
@@ -1693,7 +1695,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, token_ctor, token_proto);
   JS_SetPropertyFunctionList(ctx, token_ctor, js_token_static_funcs, countof(js_token_static_funcs));
 
-  js_set_inspect_method(ctx, token_proto, js_token_inspect);
+  // js_set_inspect_method(ctx, token_proto, js_token_inspect);
 
   JS_NewClassID(&js_lexer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_lexer_class_id, &js_lexer_class);
