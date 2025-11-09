@@ -481,22 +481,6 @@ js_child_process_method(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return ret;
 }
 
-JSValue
-js_child_process_signal(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue os = js_global_get_str(ctx, "os");
-  JSValue sig = JS_GetPropertyStr(ctx, os, "signal");
-  JS_FreeValue(ctx, os);
-  JSValueConst args[] = {
-      JS_NewInt32(ctx, SIGCHLD),
-      argv[0],
-  };
-
-  JSValue ret = JS_Call(ctx, sig, JS_NULL, countof(args), args);
-  JS_FreeValue(ctx, sig);
-  JS_FreeValue(ctx, args[0]);
-  return ret;
-}
-
 static JSClassDef js_child_process_class = {
     .class_name = "ChildProcess",
     .finalizer = js_child_process_finalizer,
@@ -527,7 +511,6 @@ static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_CFUNC_MAGIC_DEF("spawn", 1, js_child_process_spawn, 0),
     JS_CFUNC_MAGIC_DEF("spawnSync", 1, js_child_process_spawn, 1),
     JS_CFUNC_MAGIC_DEF("kill", 1, js_child_process_kill, 1),
-    JS_CFUNC_DEF("signal", 1, js_child_process_signal),
 
     JS_PROP_INT32_DEF("WNOHANG", WNOHANG, JS_PROP_ENUMERABLE),
 #ifdef WNOWAIT
