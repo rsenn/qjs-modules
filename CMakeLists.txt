@@ -328,7 +328,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate
-                    queue repeater textcode sockets stream syscallerror inspect tree-walker virtual xml)
+                    queue repeater textcode sockets #stream
+                     syscallerror inspect tree-walker virtual xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -751,14 +752,8 @@ list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
 list(REMOVE_ITEM LIBJS lib/std.js)
 list(REMOVE_ITEM LIBJS lib/os.js)
-list(REMOVE_ITEM LIBJS lib/stream.js)
 
-list(
-  FILTER
-  LIBJS
-  EXCLUDE
-  REGEX
-  "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|stream|syscallerror|textcode|tree_walker|xml)\.js$"
+list(FILTER LIBJS EXCLUDE REGEX "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|syscallerror|textcode|tree_walker|xml)\.js$"
 )
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
@@ -776,7 +771,7 @@ set(COMMON_MODULES "")
 set(assert_MODULES deep inspect)
 set(console_MODULES util inspect)
 set(db_MODULES list)
-set(fs_MODULES syscallerror stream events path mmap misc textcode)
+set(fs_MODULES syscallerror events path mmap misc textcode)
 set(io_MODULES util misc)
 set(parser_MODULES path list)
 set(process_MODULES path util misc)

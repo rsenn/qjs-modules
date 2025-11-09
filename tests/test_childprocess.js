@@ -15,18 +15,13 @@ function ReadChild(args) {
   let child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
   let data = '';
 
-  /* console.log('child', child);*/
-
   let [stdin, stdout, stderr] = child.stdio;
-  /*console.log('stdio:', { stdin, stdout, stderr });*/
 
   let buf = new ArrayBuffer(4096);
   let ret;
 
   os.setReadHandler(stdout, () => {
     ret = os.read(stdout, buf, 0, buf.byteLength);
-    /*console.log('buf.byteLength:', buf.byteLength);
-    console.log('ret:', ret);*/
 
     if(ret > 0) {
       const chunk = buf.slice(0, ret);
@@ -40,15 +35,6 @@ function ReadChild(args) {
       os.setReadHandler(stdout, null);
     }
   });
-
-  /* while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
-    let chunk = toString(buf.slice(0, ret));
-    // console.log('chunk:', chunk);
-    data += chunk;
-  }*/
-
-  /* let retval = child.wait();
-  console.log('retval', retval);*/
 
   console.log('child', child);
 
@@ -64,31 +50,13 @@ function main(...args) {
     },
   });
 
-  /*signal(() => {
-    const errfn = a => ({ pid: a[0] >= 0 ? a[0] : -1, errno: a[0] < 0 ? -a[0] : 0, status: a[1] });
-    console.log('SIGCHLD');
-    while(true) {
-      const { pid, errno, status } = errfn(os.waitpid(-1, os.WNOHANG));
-      console.log('waitpid() = ', pid, pid == -1 ? ` errno = ${std.strerror(errno)}` : ` status = ${status}`);
-      if(pid == -1) break;
-    }
-  });*/
-
   let [child, data] = ReadChild(['sh', '-c', 'ls -latr | tail -n10']);
 
   console.log('ReadChild', { child, data });
-
-  /*  data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
-
-  console.log('data:', data.slice(0, 100));
-  data = ReadChild('lz4', '-dc', 'services.lz4');
-
-  console.log('data:', data.slice(0, 100));*/
 }
 
 try {
   main(...scriptArgs.slice(1));
-  //std.exit(0);
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);
