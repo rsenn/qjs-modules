@@ -500,16 +500,16 @@ scan_8long(const char* src, uint32_t* dest) {
   return scan_8longn(src, (size_t)-1, dest);
 }
 
-static inline int
-utf8_charcode(const char* in, size_t len) {
-  int32_t c = -1;
-  utf8_decode(in, len, &c);
-  return c;
-}
+typedef struct {
+  int code;
+  char len;
+} UTF8Char;
 
-static inline size_t
-utf8_charlen(const void* in, size_t len) {
-  return utf8_decode(in, len, 0);
+static inline UTF8Char
+utf8_char(const void* in, size_t len) {
+  const uint8_t* next;
+  int c = unicode_from_utf8(in, MIN_NUM(len, UTF8_CHAR_LEN_MAX), &next);
+  return (UTF8Char){c, next - (const uint8_t*)in};
 }
 
 BOOL utf16_multiword(const void*);

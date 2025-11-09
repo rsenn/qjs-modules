@@ -468,16 +468,33 @@ InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
 
-  if(js_is_typedarray(ctx, value)) {
+  if(js_is_typedarray(ctx, value))
     ret.value = offsetlength_typedarray(&ret.range, value, ctx);
-  } else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value)) {
+  else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
     ret.value = JS_DupValue(ctx, value);
-  }
 
   if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
     block_arraybuffer(&ret.block, ret.value, ctx);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type (%s) for input buffer", js_value_typestr(ctx, ret.value));
+    JS_FreeValue(ctx, ret.value);
+    ret.value = JS_EXCEPTION;
+  }
+
+  return ret;
+}
+
+OutputBuffer
+js_output_typedarray(JSContext* ctx, JSValueConst value) {
+  OutputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
+
+  if(js_is_typedarray(ctx, value))
+    ret.value = offsetlength_typedarray(&ret.range, value, ctx);
+
+  if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
+    block_arraybuffer(&ret.block, ret.value, ctx);
+  } else {
+    JS_ThrowTypeError(ctx, "Invalid type (%s) for output buffer", js_value_typestr(ctx, ret.value));
     JS_FreeValue(ctx, ret.value);
     ret.value = JS_EXCEPTION;
   }
@@ -518,9 +535,9 @@ js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   return input;
 }
 
-InputBuffer
+OutputBuffer
 js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
-  InputBuffer output = js_input_buffer(ctx, argv[0]);
+  OutputBuffer output = js_input_buffer(ctx, argv[0]);
 
   if(argc > 1)
     js_offset_length(ctx, output.size, argc, argv, 1, &output.range);
@@ -889,7 +906,7 @@ inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
     return JS_UNDEFINED;
 
   JSValue ret = JS_NewArrayBuffer(ctx,
-                                  inputbuffer_data(in),
+                                  (uint8_t*)inputbuffer_data(in),
                                   inputbuffer_length(in),
                                   (JSFreeArrayBufferDataFunc*)&js_freeobj_rt,
                                   js_value_obj(in->value),
@@ -912,6 +929,32 @@ inputbuffer_from_file(const char* filename, JSContext* ctx) {
   in.range = OFFSET_LENGTH_0();
 
   return in;
+}
+
+ssize_t
+inputbuffer_read(InputBuffer* ib, void* buf, size_t len) {
+  size_t remain = inputbuffer_remain(ib);
+
+  if(len > remain)
+    len = remain;
+
+  if(len)
+    memcpy(buf, inputbuffer_pointer(ib), len);
+
+  ib->pos += len;
+  return len;
+}
+
+ssize_t
+outputbuffer_write(OutputBuffer* out, const void* ptr, size_t len) {
+  size_t n = outputbuffer_avail(out);
+
+  if(len > n)
+    return -1;
+
+  memcpy(outputbuffer_pointer(out), ptr, len);
+  out->pos += len;
+  return len;
 }
 
 int

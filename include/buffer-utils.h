@@ -438,7 +438,7 @@ range_index(PointerRange r, const void* ptr) {
   return (char*)ptr - range_begin(r);
 }
 
-typedef struct InputBuffer {
+typedef struct Buffer {
   union {
     MemoryBlock block;
     struct {
@@ -446,10 +446,8 @@ typedef struct InputBuffer {
       size_t size;
     };
   };
-  union {
-    OffsetLength range;
-    size_t pos;
-  };
+  OffsetLength range;
+  size_t pos;
   void (*free)(JSContext*, const char*, JSValue);
   JSValue value;
 } InputBuffer;
@@ -459,7 +457,7 @@ typedef struct InputBuffer {
 #define INPUTBUFFER_DATA(buf, len) INPUTBUFFER_DATA_FREE(buf, len, &inputbuffer_free_default)
 #define INPUTBUFFER_DATA_FREE(buf, len, fn) \
   (InputBuffer) { \
-    {BLOCK_INIT_DATA(buf, len)}, {OFFSET_LENGTH_0()}, (fn), JS_UNDEFINED \
+    {BLOCK_INIT_DATA(buf, len)}, OFFSET_LENGTH_0(), 0, (fn), JS_UNDEFINED \
   }
 
 static inline void
@@ -474,7 +472,7 @@ inputbuffer_free_default(JSContext* ctx, const char* str, JSValue val) {
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
-InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
+InputBuffer js_input_string(JSContext* ctx, JSValueConst value);
 
 int inputbuffer_from_argv(InputBuffer*, int, JSValueConst[], JSContext*);
 BOOL inputbuffer_valid(const InputBuffer*);
@@ -490,12 +488,12 @@ JSValue inputbuffer_tostring_free(InputBuffer*, JSContext*);
 JSValue inputbuffer_toarraybuffer_free(InputBuffer*, JSContext*);
 InputBuffer inputbuffer_from_file(const char*, JSContext*);
 
-static inline void*
+static inline const void*
 inputbuffer_data(const InputBuffer* in) {
   return offsetlength_begin(in->range, in->data);
 }
 
-static inline uint8_t*
+static inline const uint8_t*
 inputbuffer_begin(const InputBuffer* in) {
   return inputbuffer_data(in);
 }
@@ -505,19 +503,19 @@ inputbuffer_length(const InputBuffer* in) {
   return offsetlength_size(in->range, in->size);
 }
 
-static inline uint8_t*
+static inline const uint8_t*
 inputbuffer_end(const InputBuffer* in) {
   return inputbuffer_data(in) + inputbuffer_length(in);
 }
 
 static inline PointerRange
 inputbuffer_range(const InputBuffer* in) {
-  return RANGE(inputbuffer_begin(in), inputbuffer_end(in));
+  return RANGE((uint8_t*)inputbuffer_begin(in), (uint8_t*)inputbuffer_end(in));
 }
 
 static inline MemoryBlock
 inputbuffer_block(const InputBuffer* in) {
-  return MEMORY_BLOCK(inputbuffer_data(in), inputbuffer_length(in));
+  return MEMORY_BLOCK((uint8_t*)inputbuffer_data(in), inputbuffer_length(in));
 }
 
 static inline MemoryBlock*
@@ -525,6 +523,7 @@ inputbuffer_blockptr(InputBuffer* in) {
   return &in->block;
 }
 
+ssize_t inputbuffer_read(InputBuffer*, void*, size_t);
 const uint8_t* inputbuffer_get(InputBuffer* in, size_t* lenp);
 const uint8_t* inputbuffer_peek(InputBuffer* in, size_t* lenp);
 const char* inputbuffer_currentline(InputBuffer*, size_t* len);
@@ -547,10 +546,44 @@ inputbuffer_eof(const InputBuffer* in) {
   return in->pos == in->size;
 }
 
+static inline void*
+inputbuffer_pointer(const InputBuffer* in) {
+  return (uint8_t*)inputbuffer_data(in) + in->pos;
+}
+
 static inline size_t
 inputbuffer_remain(const InputBuffer* in) {
   return inputbuffer_length(in) - in->pos;
 }
+
+#define outputbuffer_free inputbuffer_free
+
+typedef struct Buffer OutputBuffer;
+
+OutputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
+OutputBuffer js_output_typedarray(JSContext* ctx, JSValueConst value);
+
+static inline void*
+outputbuffer_data(const OutputBuffer* out) {
+  return offsetlength_begin(out->range, out->data);
+}
+
+static inline size_t
+outputbuffer_length(const OutputBuffer* out) {
+  return offsetlength_size(out->range, out->size);
+}
+
+static inline void*
+outputbuffer_pointer(const OutputBuffer* out) {
+  return (uint8_t*)outputbuffer_data(out) + out->pos;
+}
+
+static inline size_t
+outputbuffer_avail(const OutputBuffer* out) {
+  return outputbuffer_length(out) - out->pos;
+}
+
+ssize_t outputbuffer_write(OutputBuffer*, const void*, size_t);
 
 /**
  * @}

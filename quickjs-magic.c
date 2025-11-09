@@ -52,7 +52,7 @@ js_magic_load(JSContext* ctx, magic_t cookie, int argc, JSValueConst argv[]) {
     if(argc > 1)
       n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
-    void* buf[] = {inputbuffer_data(&input), NULL};
+    void* buf[] = {(void*)inputbuffer_data(&input), NULL};
     size_t siz[] = {inputbuffer_length(&input), 0};
 
     magic_load_buffers(cookie, buf, siz, 1);

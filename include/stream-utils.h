@@ -23,6 +23,7 @@ struct Writer {
 };
 
 Writer writer_from_dynbuf(DynBuf*);
+Writer writer_from_buf(OutputBuffer*);
 Writer writer_from_fd(intptr_t fd, bool close_on_end);
 Writer writer_tee(const Writer a, const Writer b);
 Writer writer_escaped(Writer*, const char[], size_t);

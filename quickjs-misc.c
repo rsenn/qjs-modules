@@ -572,74 +572,19 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 }
 
 static JSValue
-js_misc_charlen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_char(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   InputBuffer input = js_input_args(ctx, argc, argv);
   size_t size = inputbuffer_length(&input);
   const uint8_t* data = inputbuffer_data(&input);
   int64_t len = 0;
+  UTF8Char c;
 
   if(size)
-    len = utf8_charlen((const char*)data, size);
+    c = utf8_char((const char*)data, size);
 
   inputbuffer_free(&input, ctx);
 
-  return JS_NewInt64(ctx, len);
-}
-
-static JSValue
-js_misc_charcode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_args(ctx, argc, argv);
-  size_t size = inputbuffer_length(&input);
-  const uint8_t* data = inputbuffer_data(&input);
-  int32_t code = -1;
-
-  if(size)
-    code = utf8_charcode((const char*)data, size);
-
-  inputbuffer_free(&input, ctx);
-
-  return JS_NewInt32(ctx, code);
-}
-
-static JSValue
-js_misc_u8dec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_args(ctx, argc, argv);
-  int32_t code = -1;
-  size_t len = 0;
-
-  len = utf8_decode(inputbuffer_data(&input), inputbuffer_length(&input), &code);
-
-  inputbuffer_free(&input, ctx);
-
-  if(code == -1)
-    return JS_NULL;
-
-  JSValue ret = JS_NewArray(ctx);
-  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt32(ctx, code));
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, len));
-
-  return ret;
-}
-
-static JSValue
-js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_args(ctx, argc - 1, argv + 1);
-  uint32_t code = 0;
-  JSValue ret = JS_UNDEFINED;
-
-  JS_ToUint32(ctx, &code, argv[0]);
-
-  size_t size = inputbuffer_length(&input);
-  uint8_t* data = inputbuffer_data(&input);
-
-  if(size < UTF8_CHAR_LEN_MAX)
-    ret = JS_ThrowInternalError(ctx, "need at least %u bytes (you have %zu)", UTF8_CHAR_LEN_MAX, size);
-  else
-    ret = JS_NewUint32(ctx, unicode_to_utf8(data, code));
-
-  inputbuffer_free(&input, ctx);
-
-  return ret;
+  return JS_NewUint32(ctx, magic ? c.len : c.code);
 }
 
 static JSValue
@@ -2842,10 +2787,10 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
 
   switch(magic) {
     case IS_ARRAY: r = JS_IsArray(ctx, arg); break;
-  #ifdef CONFIG_BIGNUM
+#ifdef CONFIG_BIGNUM
     case IS_BIGDECIMAL: r = JS_IsBigDecimal(arg); break;
     case IS_BIGFLOAT: r = JS_IsBigFloat(arg); break;
-  #endif
+#endif
     case IS_BIGINT: r = JS_IsBigInt(ctx, arg); break;
     case IS_BOOL: r = JS_IsBool(arg); break;
     // case IS_CFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_C_FUNCTION; break;
@@ -3757,10 +3702,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("fstat", 1, js_misc_fstat),
     JS_CFUNC_MAGIC_DEF("_get_osfhandle", 1, js_misc_osfhandle, FUNC_GET_OSFHANDLE),
     JS_CFUNC_MAGIC_DEF("_open_osfhandle", 1, js_misc_osfhandle, FUNC_OPEN_OSFHANDLE),
-    JS_CFUNC_DEF("charLength", 1, js_misc_charlen),
-    JS_CFUNC_DEF("charCode", 1, js_misc_charcode),
-    JS_CFUNC_DEF("utf8Decode", 1, js_misc_u8dec),
-    JS_CFUNC_DEF("utf8Encode", 1, js_misc_u8enc),
+    JS_CFUNC_MAGIC_DEF("charCode", 1, js_misc_char, 0),
+    JS_CFUNC_MAGIC_DEF("charLength", 1, js_misc_char, 1),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),

@@ -59,6 +59,8 @@ typedef enum text_encoding {
 
 struct text_coder {
   RingBuffer buffer;
+  uint8_t buf[UTF8_CHAR_LEN_MAX];
+  uint8_t buflen;
   TextcodeType
 };
 

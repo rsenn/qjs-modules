@@ -128,21 +128,6 @@ read_urldecoded(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_inputbuffer(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
-  InputBuffer* ib = (InputBuffer*)p;
-  size_t remain = ib->size - ib->pos;
-
-  if(len > remain)
-    len = remain;
-
-  if(len)
-    memcpy(buf, &ib->data[ib->pos], len);
-
-  ib->pos += len;
-  return len;
-}
-
-static ssize_t
 read_range(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
   const uint8_t* start = rd->opaque;
   const uint8_t* end = rd->opaque2;
@@ -167,6 +152,11 @@ read_range(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
 Writer
 writer_from_dynbuf(DynBuf* db) {
   return (Writer){&write_dbuf, db, (WriterFinalizer*)(void*)&dbuf_free};
+}
+
+Writer
+writer_from_buf(OutputBuffer* ob) {
+  return (Writer){(WriteFunction*)&outputbuffer_write, ob, NULL};
 }
 
 Writer
@@ -236,10 +226,10 @@ writer_free(Writer* wr) {
 Reader
 reader_from_buf(InputBuffer* ib, JSContext* ctx) {
   return (Reader){
-      &read_inputbuffer,
+      (ReadFunction*)&inputbuffer_read,
       ib,
       ctx,
-      (ReaderFinalizer*)(void*)&inputbuffer_free,
+      0,
   };
 }
 

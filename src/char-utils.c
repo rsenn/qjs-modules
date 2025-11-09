@@ -533,7 +533,7 @@ utf8_byteoffset(const void* in, size_t len, int pos) {
     if(i >= pos)
       return x - (const uint8_t*)in;
 
-    x += utf8_charlen(x, y - x);
+    x += utf8_char(x, y - x).len;
   }
 
   return x - (const uint8_t*)in;
