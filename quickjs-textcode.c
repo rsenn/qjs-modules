@@ -141,15 +141,14 @@ textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
     }
   }
 
-  size_t remain = end - ptr;
-
+  size_t remain = inputbuffer_remain(&in);
   dec->buflen = 0;
 
   if(remain > UTF8_CHAR_LEN_MAX) {
     ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: %zu bytes remaining", remain);
 
   } else {
-    memcpy(dec->buf, ptr, remain);
+    memcpy(dec->buf, inputbuffer_pointer(&in), remain);
     dec->buflen = remain;
   }
 

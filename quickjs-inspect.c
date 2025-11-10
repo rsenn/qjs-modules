@@ -41,6 +41,8 @@ static thread_local JSValue object_tostring;
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define IS_COMPACT(d) ((d) > opts->compact)
 
+#define VALID_BASE(b) ((b) == 2 || (b) == 8 || (b) == 10 || (b) == 16)
+
 typedef struct {
   const char* name;
   JSAtom atom;
@@ -61,7 +63,7 @@ typedef struct {
   int32_t break_length;
   int32_t compact;
   int32_t proto_chain;
-  int32_t number_base;
+  int32_t number_base, number_precision;
   Vector hide_keys;
   PropertyKey class_key;
 } InspectOptions;
@@ -124,6 +126,7 @@ options_init(InspectOptions* opts, JSContext* ctx) {
   opts->compact = 5;
   opts->proto_chain = TRUE;
   opts->number_base = 10;
+  opts->number_precision = INT32_MAX;
 
   vector_init(&opts->hide_keys, ctx);
 
@@ -289,9 +292,17 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, object, "numberBase");
+  if(JS_IsNumber(value))
+    JS_ToInt32(ctx, &opts->number_base, value);
 
-  if(JS_ToInt32(ctx, &opts->number_base, value) || opts->number_base == 0)
+  if(!VALID_BASE(opts->number_base))
     opts->number_base = 10;
+
+  value = JS_GetPropertyStr(ctx, object, "numberPrecision");
+  if(JS_IsNumber(value)) {
+    double d;
+    opts->number_precision = (JS_ToFloat64(ctx, &d, value) || !isfinite(d)) ? INT32_MAX : d;
+  }
 
   JS_FreeValue(ctx, value);
 
@@ -335,6 +346,7 @@ options_object(InspectOptions* opts, JSContext* ctx) {
 
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
+  JS_SetPropertyStr(ctx, ret, "numberPrecision", js_number_new(ctx, opts->number_precision));
   JS_SetPropertyStr(ctx, ret, "classKey", JS_AtomToValue(ctx, opts->class_key.atom));
 
   return ret;
@@ -784,6 +796,9 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
   if(tag != JS_TAG_SYMBOL && opts->colors)
     writer_puts(wr, COLOR_YELLOW);
 
+  if(!VALID_BASE(opts->number_base))
+    opts->number_base = 10;
+
   if(opts->number_base != 10 && js_number_integral(value)) {
     int64_t num;
 
@@ -807,48 +822,65 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
     }
   } else {
     size_t len;
-    const char* str;
+    char* str;
+    JSValue num = JS_DupValue(ctx, value);
 
-    if((str = JS_ToCStringLen(ctx, &len, value)))
-      writer_write(wr, str, len);
-  }
-
-  /*if(opts->number_base == 16 && (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value))
-  && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) { int64_t num; char
-  buf[FMT_XLONG];
-
-    JS_ToInt64Ext(ctx, &num, value);
-
-    writer_puts(wr, "0x");
-    writer_write(wr, buf, fmt_xlonglong(buf, num));
-  } else {
-    const char* str;
-    size_t len;
-    JSValue number;
-    int base = 10;
-
-    if(opts->number_base && opts->number_base != 10 && tag != JS_TAG_FLOAT64) {
-      JSValue arg = JS_NewInt32(ctx, opts->number_base);
-      number = js_invoke(ctx, value, "toString", 1, &arg);
+    if(opts->number_precision != INT32_MAX) {
+      JSValue arg = JS_NewInt32(ctx, abs(opts->number_precision));
+      JSValue tmp = js_invoke(ctx, value, "toFixed", 1, &arg);
       JS_FreeValue(ctx, arg);
-      base = opts->number_base;
-    } else {
-      number = JS_DupValue(ctx, value);
+      JS_FreeValue(ctx, num);
+      num = tmp;
     }
 
-    str = JS_ToCStringLen(ctx, &len, number);
-    JS_FreeValue(ctx, number);
+    if((str = js_tostringlen(ctx, &len, num))) {
+      size_t pos;
+      int32_t exponent = 0;
 
-    switch(base) {
-      case 16: writer_puts(wr, "0x"); break;
-      case 2: writer_puts(wr, "0b"); break;
-      case 8: writer_puts(wr, "0"); break;
+      if((pos = byte_chrs(str, len, "eE", 2)) + 1 < len) {
+        scan_int(str + pos + 1, &exponent);
+        memset(&str[pos], '\0', len - pos);
+        len = pos;
+      }
+
+      if(exponent < 0) {
+        if((pos = byte_chr(str, len, '.')) < len) {
+          for(; pos > 0; --pos) {
+            str[pos] = str[pos - 1];
+            exponent++;
+          }
+          str[0] = '.';
+          pos = 1;
+        } else {
+          pos = 0;
+        }
+
+        int add = abs(exponent);
+        size_t newlen = len + add + pos;
+        str = js_realloc(ctx, str, newlen + 1);
+        char* bound = &str[pos + add];
+        memmove(bound, &str[pos], len);
+        str[newlen] = '\0';
+        if(pos == 0)
+          str[pos++] = '.';
+        memset(&str[pos], '0', bound - &str[pos]);
+        len = newlen;
+
+      } else if(opts->number_precision >= 0)
+        for(; len > 0; --len) {
+          switch(str[len - 1]) {
+            case '0': continue;
+            case '.': --len; break;
+          }
+          break;
+        }
+
+      writer_write(wr, str, len);
+      js_free(ctx, str);
     }
 
-    writer_write(wr, str, len);
-
-    JS_FreeCString(ctx, str);
-  }*/
+    JS_FreeValue(ctx, num);
+  }
 
 #ifdef CONFIG_BIGNUM
   if(tag <= JS_TAG_BIG_FLOAT)
@@ -1112,14 +1144,14 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
         if(has_class_key)
           tag = js_get_property_string(ctx, value, opts->class_key.atom);
         else
-          tag = js_strdup(ctx, "Object");
+          tag = 0; // js_strdup(ctx, "Object");
 
         if(tag) {
           writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
           writer_puts(wr, tag);
           writer_puts(wr, opts->colors ? COLOR_NONE " " : " ");
         }
-      } else if(!is_array) {
+      } /*else if(!is_array) {
         const char* s = 0;
 
         if(s == 0 && JS_IsFunction(ctx, object_tostring))
@@ -1138,7 +1170,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
 
         if(s)
           JS_FreeCString(ctx, s);
-      }
+      }*/
     }
 
     if(js_global_instanceof(ctx, value, "String"))
