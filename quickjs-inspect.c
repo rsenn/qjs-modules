@@ -301,7 +301,10 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
   value = JS_GetPropertyStr(ctx, object, "numberPrecision");
   if(JS_IsNumber(value)) {
     double d;
-    opts->number_precision = (JS_ToFloat64(ctx, &d, value) || !isfinite(d)) ? INT32_MAX : d;
+    if(!JS_ToFloat64(ctx, &d, value))
+      opts->number_precision = isfinite(d) ? d : d < 0 ? INT32_MIN : INT32_MAX;
+    else
+      opts->number_precision = INT32_MAX;
   }
 
   JS_FreeValue(ctx, value);
@@ -834,16 +837,17 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
     }
 
     if((str = js_tostringlen(ctx, &len, num))) {
+      /* XXX: stripping exponents - bad idea
       size_t pos;
       int32_t exponent = 0;
 
       if((pos = byte_chrs(str, len, "eE", 2)) + 1 < len) {
         scan_int(str + pos + 1, &exponent);
-        memset(&str[pos], '\0', len - pos);
-        len = pos;
       }
 
       if(exponent < 0) {
+        len = pos;
+
         if((pos = byte_chr(str, len, '.')) < len) {
           for(; pos > 0; --pos) {
             str[pos] = str[pos - 1];
@@ -866,11 +870,12 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
         memset(&str[pos], '0', bound - &str[pos]);
         len = newlen;
 
-      } else if(opts->number_precision >= 0)
-        for(; len > 0; --len) {
-          switch(str[len - 1]) {
+      } else */
+      if(len > 1 && opts->number_precision >= 0)
+        for(size_t i = len; i > 0; --i) {
+          switch(str[i - 1]) {
             case '0': continue;
-            case '.': --len; break;
+            case '.': len = --i; break;
           }
           break;
         }

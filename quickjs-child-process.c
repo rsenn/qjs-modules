@@ -418,7 +418,12 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(argc >= 1)
     JS_ToInt32(ctx, &flags, argv[0]);
 
-  return JS_NewInt32(ctx, child_process_wait(cp, flags));
+  int pid = child_process_wait(cp, flags);
+
+  if(pid != -1)
+    child_process_remove(cp, ctx);
+
+  return JS_NewInt32(ctx, pid);
 }
 
 static JSValue

@@ -17,11 +17,11 @@ typedef struct ChildProcess {
   char** args;
   char** env;
   intptr_t pid;
-  int status;
-  int exitcode;
-  int termsig, stopsig;
 
-  bool use_path /* : 1 */, exited /* : 1 */, signaled /* : 1 */, stopped /* : 1 */, continued /* : 1 */;
+  int status;
+  int exitcode, termsig, stopsig;
+
+  bool use_path, exited, signaled, stopped, continued;
 
   int uid, gid;
   int num_fds;
@@ -31,16 +31,16 @@ typedef struct ChildProcess {
   struct list_head link;
 } ChildProcess;
 
-size_t child_process_count(void);
 ChildProcess* child_process_get(int);
 ChildProcess* child_process_new(JSContext*);
 char** child_process_environment(JSContext*, JSValueConst);
 int child_process_spawn(ChildProcess*);
-void child_process_status(ChildProcess*, int);
+bool child_process_status(ChildProcess*, int);
 int child_process_wait(ChildProcess*, int);
 int child_process_kill(ChildProcess*, int);
 void child_process_free(ChildProcess*, JSContext*);
 void child_process_free_rt(ChildProcess*, JSRuntime*);
+void child_process_remove(ChildProcess*, JSContext*);
 
 extern const char* child_process_signals[32];
 

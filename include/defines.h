@@ -144,7 +144,7 @@
 #define COLOR_PURPLE "\x1b[0;35m"
 #define COLOR_MARINE "\x1b[0;36m"
 #define COLOR_LIGHTGRAY "\x1b[0;37m"
-#define COLOR_GRAY "\x1b[1;30m"
+#define COLOR_GRAY "\x1b[38;5;242m"
 #define COLOR_NONE "\x1b[0m"
 
 #define COLOR_LIGHTRED "\x1b[1;31m"

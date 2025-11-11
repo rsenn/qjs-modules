@@ -96,33 +96,11 @@ child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   ChildProcess* cp;
 
   if((cp = child_process_get(pid))) {
-    child_process_status(cp, status);
-
-    list_del(&cp->link);
-
-    if(child_process_count() == 0) {
-      child_process_signal(ctx, JS_NULL);
-      child_process_handler = FALSE;
-    }
+    if(child_process_status(cp, status))
+      child_process_remove(cp, ctx);
   }
 
   return JS_UNDEFINED;
-}
-
-size_t
-child_process_count(void) {
-  /*  struct list_head* el;
-    size_t count = 0;
-
-    list_for_each(el, &child_process_list) {
-      ChildProcess* cp = list_entry(el, ChildProcess, link);
-
-      if(cp->pid != -1)
-        count++;
-    }
-
-    return count;*/
-  return list_size(&child_process_list);
 }
 
 ChildProcess*
@@ -168,6 +146,16 @@ child_process_new(JSContext* ctx) {
   }
 
   return child;
+}
+
+void
+child_process_remove(ChildProcess* cp, JSContext* ctx) {
+  list_del(&cp->link);
+
+  if(list_empty(&child_process_list)) {
+    child_process_signal(ctx, JS_NULL);
+    child_process_handler = FALSE;
+  }
 }
 
 char**
@@ -361,7 +349,7 @@ child_process_spawn(ChildProcess* cp) {
   return cp->pid = pid;
 }
 
-void
+bool
 child_process_status(ChildProcess* cp, int status) {
   cp->status = status;
 
@@ -384,6 +372,8 @@ child_process_status(ChildProcess* cp, int status) {
 
   if(cp->stopped)
     cp->stopsig = WSTOPSIG(status);
+
+  return cp->signaled || cp->exited;
 }
 
 int
