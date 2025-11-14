@@ -26,8 +26,8 @@ typedef enum {
   NO_RECURSE = 2,
 } DeepIteratorStatus;
 
-#define STATUS_YIELD(status) ((status)&YIELD_MASK)
-#define STATUS_RECURSE(status) (!((status)&NO_RECURSE))
+#define STATUS_YIELD(status) ((status) & YIELD_MASK)
+#define STATUS_RECURSE(status) (!((status) & NO_RECURSE))
 
 typedef enum {
   RETURN_VALUE_PATH = 0 << 24,
@@ -47,11 +47,11 @@ typedef enum {
   MAXDEPTH_MASK = (1 << 24) - 1,
 } DeepIteratorFlags;
 
-#define FLAGS_RETURN(flags) ((flags)&RETURN_MASK)
-#define FLAGS_FILTER(flags) ((flags)&FILTER_MASK)
-#define FLAGS_NEGATE_FILTER(flags) (!!((flags)&FILTER_NEGATE))
-#define FLAGS_MAXDEPTH(flags) (((flags)&MAXDEPTH_MASK) ? (flags)&MAXDEPTH_MASK : MAXDEPTH_MASK)
-#define FLAGS_PATH_AS(flags) ((flags)&PATH_AS_MASK)
+#define FLAGS_RETURN(flags) ((flags) & RETURN_MASK)
+#define FLAGS_FILTER(flags) ((flags) & FILTER_MASK)
+#define FLAGS_NEGATE_FILTER(flags) (!!((flags) & FILTER_NEGATE))
+#define FLAGS_MAXDEPTH(flags) (((flags) & MAXDEPTH_MASK) ? (flags) & MAXDEPTH_MASK : MAXDEPTH_MASK)
+#define FLAGS_PATH_AS(flags) ((flags) & PATH_AS_MASK)
 
 typedef struct DeepIterator {
   Vector frames;
@@ -110,7 +110,9 @@ static void
 atoms_free(Vector* atoms, JSRuntime* rt) {
   JSAtom* ptr;
 
-  vector_foreach_t(atoms, ptr) { JS_FreeAtomRT(rt, *ptr); }
+  vector_foreach_t(atoms, ptr) {
+    JS_FreeAtomRT(rt, *ptr);
+  }
 
   vector_free(atoms);
 }
@@ -636,7 +638,7 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       JS_ToUint32(ctx, &flags, argv[2]);
 
     pointer_from(ptr, argv[1], ctx);
-    ret = pointer_deref(ptr, argv[0], ctx);
+    ret = pointer_deref(ptr, NULL, argv[0], ctx);
 
     if(JS_IsException(ret) && (flags & NO_THROW)) {
       JS_GetException(ctx);
@@ -672,8 +674,8 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     if(!js_pointer_from(&ptr, argv[1], ctx))
       return JS_EXCEPTION;
 
+    JSValue obj = pointer_acquire(&ptr, ptr.n - 1, argv[0], ctx);
     JSAtom prop = pointer_popatom(&ptr);
-    JSValue obj = pointer_acquire(&ptr, argv[0], ctx);
 
     if(!JS_IsException(obj))
       JS_SetProperty(ctx, obj, prop, JS_DupValue(ctx, argv[2]));
@@ -709,7 +711,7 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       return JS_EXCEPTION;
 
     JSAtom prop = pointer_popatom(&ptr);
-    JSValue obj = pointer_deref(&ptr, argv[0], ctx);
+    JSValue obj = pointer_deref(&ptr, NULL, argv[0], ctx);
 
     if(!JS_IsException(obj)) {
       if(0 > JS_DeleteProperty(ctx, obj, prop, argc > 2 && JS_ToBool(ctx, argv[2]) ? JS_PROP_THROW : 0)) {

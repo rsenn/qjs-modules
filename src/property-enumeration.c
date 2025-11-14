@@ -220,12 +220,15 @@ property_recursion_pointer(const Vector* vec, Pointer* ptr, JSContext* ctx) {
   if(pointer_allocate(ptr, vector_size(vec, sizeof(PropertyEnumeration)), ctx)) {
     int i = 0;
     PropertyEnumeration* it;
+
     vector_foreach_t(vec, it) {
       JSAtom atom = property_enumeration_atom(it);
+
       if(ptr->atoms[i] != atom) {
         JS_FreeAtom(ctx, ptr->atoms[i]);
         ptr->atoms[i] = JS_DupAtom(ctx, atom);
       }
+
       ++i;
     }
     return i;

@@ -159,6 +159,16 @@ token_length(const char* str, size_t len, char delim) {
 }
 
 size_t
+fmt_long(char* dest, int32_t i) {
+  if(i < 0) {
+    if(dest)
+      *dest++ = '-';
+    return fmt_ulong(dest, (uint32_t)-i) + 1;
+  } else
+    return fmt_ulong(dest, (uint32_t)i);
+}
+
+size_t
 fmt_ulong(char* dest, uint32_t i) {
   uint32_t len, tmp, len2;
 

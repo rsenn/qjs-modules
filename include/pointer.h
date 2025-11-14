@@ -11,6 +11,14 @@
  * @{
  */
 
+void atoms_dump(JSAtom const[], size_t, Writer*, BOOL, ssize_t, JSContext*);
+void atoms_serialize(JSAtom const[], size_t, Writer*, JSContext*);
+JSValue atoms_deref(JSAtom const[], size_t, size_t*, JSValueConst, JSContext*);
+JSValue atoms_acquire(JSAtom const[], size_t, size_t, JSValueConst, JSContext*);
+JSValue atoms_toarray(JSAtom const[], size_t, JSContext*);
+JSValue atoms_uint32array(JSAtom const[], size_t, JSContext*);
+BOOL atoms_equal(JSAtom const[], JSAtom const[], size_t);
+
 typedef struct Pointer {
   size_t n, a;
   JSAtom* atoms;
@@ -36,15 +44,15 @@ char* pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext*
 void pointer_serialize(Pointer const*, Writer* db, JSContext*);
 ssize_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
 Pointer* pointer_slice(Pointer*, int64_t start, int64_t end, JSContext*);
-Pointer* pointer_splice(Pointer*, int64_t start, int64_t count, JSAtom* atoms, size_t insert, JSContext*);
-BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
+Pointer* pointer_splice(Pointer*, int64_t start, int64_t count, JSAtom atoms[], size_t insert, JSContext*);
+BOOL pointer_fromatoms(Pointer*, JSAtom const vec[], size_t len, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*);
 JSValue pointer_pop(Pointer*, JSContext*);
 BOOL pointer_unshift(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_push(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_pushfree(Pointer*, JSValue item, JSContext*);
-JSValue pointer_deref(Pointer const*, JSValueConst, JSContext*);
-JSValue pointer_acquire(Pointer const*, JSValueConst, JSContext*);
+JSValue pointer_deref(Pointer const*, size_t*, JSValueConst, JSContext*);
+JSValue pointer_acquire(Pointer const*, size_t, JSValueConst, JSContext*);
 BOOL pointer_fromstring(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_fromarray(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_fromiterable(Pointer*, JSValueConst, JSContext*);
@@ -84,11 +92,10 @@ pointer_ptr(Pointer const* ptr, int32_t index) {
 
 static inline BOOL
 pointer_pushatom(Pointer* ptr, JSAtom atom, JSContext* ctx) {
-  size_t pos = ptr->n;
   BOOL ret;
 
-  if((ret = pointer_allocate(ptr, ptr->n + 1, ctx)))
-    ptr->atoms[pos] = atom;
+  if((ret = pointer_reserve(ptr, ptr->n + 1, ctx)))
+    ptr->atoms[ptr->n++] = atom;
 
   return ret;
 }

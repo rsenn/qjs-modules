@@ -11,11 +11,168 @@
  * @{
  */
 
-VISIBLE
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-JSClassID js_pointer_class_id = 0;
+VISIBLE JSClassID js_dereferenceerror_class_id = 0;
+static JSValue dereferenceerror_proto, dereferenceerror_ctor;
+
+typedef struct {
+  JSObject* pointer;
+  int32_t pos;
+  JSValue root, stack;
+} DereferenceError;
+
+static JSValue
+js_dereferenceerror_new(JSContext* ctx, JSValueConst pointer, int32_t pos, JSValueConst root) {
+  JSValue obj = JS_UNDEFINED;
+  DereferenceError* err;
+  Pointer* ptr;
+
+  if(!(err = js_mallocz(ctx, sizeof(DereferenceError))))
+    return JS_EXCEPTION;
+
+  obj = JS_NewObjectProtoClass(ctx, dereferenceerror_proto, js_dereferenceerror_class_id);
+  if(JS_IsException(obj))
+    goto fail;
+
+  err->pointer = js_value_obj2(ctx, pointer);
+  err->pos = pos;
+  err->root = JS_DupValue(ctx, root);
+  err->stack = js_error_stack(ctx);
+
+  JS_SetOpaque(obj, err);
+  return obj;
+
+fail:
+  js_free(ctx, err);
+  JS_FreeValue(ctx, obj);
+
+  return JS_EXCEPTION;
+}
+
+static JSValue
+js_dereferenceerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj = JS_UNDEFINED;
+  DereferenceError* err;
+  Pointer* ptr;
+
+  if(!(err = js_mallocz(ctx, sizeof(DereferenceError))))
+    return JS_EXCEPTION;
+
+  err->pos = -1;
+  err->root = JS_UNDEFINED;
+  err->stack = JS_UNDEFINED;
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    goto fail;
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_dereferenceerror_class_id);
+  JS_FreeValue(ctx, proto);
+  if(JS_IsException(obj))
+    goto fail;
+
+  while(argc > 0) {
+    if(JS_IsObject(argv[0]) && (ptr = js_pointer_data(argv[0]))) {
+      err->pointer = js_value_obj2(ctx, argv[0]);
+    } else if(JS_IsNumber(argv[0])) {
+      JS_ToInt32(ctx, &err->pos, argv[0]);
+    } else {
+      err->root = JS_DupValue(ctx, argv[0]);
+    }
+
+    argc--;
+    argv++;
+  }
+
+  err->stack = js_error_stack(ctx);
+
+  JS_SetOpaque(obj, err);
+  return obj;
+
+fail:
+  js_free(ctx, err);
+  JS_FreeValue(ctx, obj);
+
+  return JS_EXCEPTION;
+}
+
+enum {
+  PROP_MESSAGE = 0,
+  PROP_POINTER,
+  PROP_ROOT,
+  PROP_POS,
+};
+
+static JSValue
+js_dereferenceerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  DereferenceError* err;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(err = JS_GetOpaque2(ctx, this_val, js_dereferenceerror_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case PROP_MESSAGE: {
+      DynBuf db = DBUF_INIT_CTX(ctx);
+      char* str = pointer_tostring(js_pointer_data(js_value_mkobj(err->pointer)), TRUE, err->pos, ctx);
+
+      dbuf_putstr(&db, "error dereferencing ");
+      dbuf_putstr(&db, str);
+      js_free(ctx, str);
+      dbuf_putstr(&db, " at ");
+      dbuf_put_int32(&db, err->pos);
+
+      ret = dbuf_tostring_free(&db, ctx);
+      break;
+    }
+
+    case PROP_POINTER: {
+      ret = err->pointer ? js_value_mkobj2(ctx, err->pointer) : JS_NULL;
+      break;
+    }
+
+    case PROP_ROOT: {
+      ret = JS_DupValue(ctx, err->root);
+      break;
+    }
+
+    case PROP_POS: {
+      ret = JS_NewInt32(ctx, err->pos);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static void
+js_dereferenceerror_finalizer(JSRuntime* rt, JSValue val) {
+  DereferenceError* err;
+
+  if((err = JS_GetOpaque(val, js_dereferenceerror_class_id))) {
+
+    if(err->pointer)
+      JS_FreeValueRT(rt, js_value_mkobj(err->pointer));
+    JS_FreeValueRT(rt, err->stack);
+    JS_FreeValueRT(rt, err->root);
+    js_free_rt(rt, err);
+  }
+}
+
+static JSClassDef js_dereferenceerror_class = {
+    .class_name = "DereferenceError",
+    .finalizer = js_dereferenceerror_finalizer,
+};
+
+static const JSCFunctionListEntry js_dereferenceerror_proto_funcs[] = {
+    JS_CGETSET_MAGIC_DEF("message", js_dereferenceerror_get, 0, PROP_MESSAGE),
+    JS_CGETSET_MAGIC_DEF("pointer", js_dereferenceerror_get, 0, PROP_POINTER),
+    JS_CGETSET_MAGIC_DEF("root", js_dereferenceerror_get, 0, PROP_ROOT),
+    JS_CGETSET_MAGIC_DEF("pos", js_dereferenceerror_get, 0, PROP_POS),
+    JS_PROP_STRING_DEF("name", "DereferenceError", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "DereferenceError", JS_PROP_CONFIGURABLE),
+};
+
+VISIBLE JSClassID js_pointer_class_id = 0;
 static JSValue pointer_proto, pointer_ctor;
 
 enum {
@@ -104,7 +261,7 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
   for(int i = 0; i < argc; i++) {
     if(!js_pointer_from(ptr, argv[i], ctx)) {
-      JS_ThrowTypeError(ctx, "Pointer: argument %d unknown type", i);
+      JS_ThrowTypeError(ctx, "Pointer: argument %d unknown type", i + 1);
       goto fail;
     }
   }
@@ -195,7 +352,13 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   switch(magic) {
     case METHOD_DEREF: {
-      return pointer_deref(ptr, argv[0], ctx);
+      size_t pos;
+      JSValue ret = pointer_deref(ptr, &pos, argv[0], ctx);
+
+      if(JS_IsException(ret))
+        ret = JS_Throw(ctx, js_dereferenceerror_new(ctx, this_val, pos, argv[0]));
+
+      return ret;
     }
 
     case METHOD_TO_STRING: {
@@ -378,14 +541,17 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_NewBool(ctx, pointer_equal(ptr, other.ptr));
       break;
     }
+
     case METHOD_STARTSWITH: {
       ret = JS_NewBool(ctx, pointer_startswith(ptr, other.ptr));
       break;
     }
+
     case METHOD_ENDSWITH: {
       ret = JS_NewBool(ctx, pointer_endswith(ptr, other.ptr));
       break;
     }
+
     case METHOD_COMPARE: {
       int32_t aoffs = 0, boffs = 0;
       uint32_t len = MIN_NUM(ptr->n, other.ptr->n);
@@ -402,11 +568,13 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_NewInt32(ctx, pointer_compare(ptr, other.ptr, aoffs, boffs, len));
       break;
     }
+
     case METHOD_COMMON: {
       int r = pointer_compare(ptr, other.ptr, 0, 0, MIN_NUM(ptr->n, other.ptr->n));
       ret = JS_NewUint32(ctx, r < 0 ? -r - 1 : r);
       break;
     }
+
     case METHOD_RELATIVETO: {
       if(!pointer_startswith(ptr, other.ptr))
         return JS_ThrowInternalError(ctx, "path doesn't start with argument 1 path");
@@ -711,6 +879,27 @@ static JSClassDef js_pointer_class = {
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
+  JSValue reference_error = js_global_prototype(ctx, "ReferenceError");
+
+  assert(JS_IsObject(reference_error));
+
+  JS_NewClassID(&js_dereferenceerror_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_dereferenceerror_class_id, &js_dereferenceerror_class);
+
+  dereferenceerror_ctor =
+      JS_NewCFunction2(ctx, js_dereferenceerror_constructor, "DereferenceError", 1, JS_CFUNC_constructor, 0);
+  dereferenceerror_proto = JS_NewObjectProto(ctx, reference_error);
+
+  JS_FreeValue(ctx, reference_error);
+
+  JS_SetPropertyFunctionList(ctx,
+                             dereferenceerror_proto,
+                             js_dereferenceerror_proto_funcs,
+                             countof(js_dereferenceerror_proto_funcs));
+
+  JS_SetClassProto(ctx, js_dereferenceerror_class_id, dereferenceerror_proto);
+  JS_SetConstructor(ctx, dereferenceerror_ctor, dereferenceerror_proto);
+
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 
@@ -739,8 +928,10 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
   JS_SetConstructor(ctx, pointer_ctor, pointer_proto);
 
-  if(m)
+  if(m) {
+    JS_SetModuleExport(ctx, m, "DereferenceError", dereferenceerror_ctor);
     JS_SetModuleExport(ctx, m, "Pointer", pointer_ctor);
+  }
 
   return 0;
 }
@@ -755,8 +946,10 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_pointer_init)))
+  if((m = JS_NewCModule(ctx, module_name, js_pointer_init))) {
+    JS_AddModuleExport(ctx, m, "DereferenceError");
     JS_AddModuleExport(ctx, m, "Pointer");
+  }
 
   return m;
 }

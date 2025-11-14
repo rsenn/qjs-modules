@@ -446,6 +446,7 @@ void byte_copyr(void* out, size_t len, const void* in);
 size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
 char* str_escape(const char*);
 size_t token_length(const char*, size_t, char delim);
+size_t fmt_long(char*, int32_t);
 size_t fmt_ulong(char*, uint32_t);
 size_t scan_ushort(const char*, uint16_t*);
 size_t fmt_longlong(char*, int64_t);

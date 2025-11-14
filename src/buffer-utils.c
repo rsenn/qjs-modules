@@ -351,6 +351,13 @@ dbuf_put_uint32(DynBuf* db, uint32_t num) {
 }
 
 void
+dbuf_put_int32(DynBuf* db, int32_t num) {
+  char buf[FMT_LONG];
+
+  dbuf_put(db, (const uint8_t*)buf, fmt_long(buf, num));
+}
+
+void
 dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom) {
   const char* str;
 

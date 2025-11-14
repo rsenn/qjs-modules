@@ -49,6 +49,7 @@ void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t, int (*)(const char*, 
 void dbuf_put_unescaped_table(DynBuf*, const char*, size_t, const uint8_t[256]);
 void dbuf_put_escaped(DynBuf*, const char*, size_t);
 void dbuf_put_value(DynBuf*, JSContext*, JSValueConst);
+void dbuf_put_int32(DynBuf*, int32_t);
 void dbuf_put_uint32(DynBuf*, uint32_t);
 void dbuf_put_atom(DynBuf*, JSContext*, JSAtom);
 int dbuf_reserve_start(DynBuf*, size_t);
@@ -141,8 +142,8 @@ block_to_arraybuffer(MemoryBlock mb, JSContext* ctx) {
 static inline MemoryBlock
 block_slice(MemoryBlock mb, int64_t start, int64_t end) {
   int64_t n = (int64_t)mb.size;
-  start = CLAMP_NUM(WRAP_NUM(start, n), 0, n);
-  end = CLAMP_NUM(WRAP_NUM(end, n), 0, n);
+  start = RANGE_NUM(start, n);
+  end = RANGE_NUM(end, n);
 
   return MEMORY_BLOCK(mb.base + start, end - start);
 }
@@ -296,12 +297,12 @@ indexrange_from_offsetlength(OffsetLength ol) {
 
 static inline int64_t
 indexrange_head(IndexRange ir, size_t len) {
-  return CLAMP_NUM(WRAP_NUM(ir.start, len), 0, len);
+  return RANGE_NUM(ir.start, len);
 }
 
 static inline int64_t
 indexrange_tail(IndexRange ir, size_t len) {
-  return CLAMP_NUM(WRAP_NUM(ir.end, len), 0, len);
+  return RANGE_NUM(ir.end, len);
 }
 
 static inline void*

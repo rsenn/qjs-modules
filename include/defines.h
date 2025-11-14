@@ -114,6 +114,9 @@
 #ifndef WRAP_NUM
 #define WRAP_NUM(n, len) ((n) < 0 ? (n) + (len) : (n))
 #endif
+#ifndef RANGE_NUM
+#define RANGE_NUM(n, len) CLAMP_NUM(WRAP_NUM(n, (len)), 0, (len))
+#endif
 #ifndef SIGN_NUM
 #define SIGN_NUM(n) ((n) < 0)
 #endif
