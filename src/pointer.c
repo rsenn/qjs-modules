@@ -5,9 +5,6 @@
 #include "buffer-utils.h"
 #include "debug.h"
 
-static JSAtom deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom);
-static JSValue deref_value(JSContext* ctx, JSValueConst obj, JSAtom atom);
-
 /**
  * \addtogroup pointer
  * @{
@@ -660,57 +657,3 @@ pointer_endswith(Pointer const* ptr, Pointer const* other) {
 /**
  * @}
  */
-
-static JSAtom
-deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
-  const int flags = JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_SET_ENUM;
-
-  if(JS_HasProperty(ctx, obj, atom))
-    return atom;
-
-  JSValue value = JS_AtomToValue(ctx, atom);
-
-  if(JS_IsFunction(ctx, value)) {
-    JSPropertyEnum* tmp_tab;
-    uint32_t i, tmp_len;
-
-    if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, flags)) {
-      for(i = 0; i < tmp_len; i++) {
-        JSValueConst args[3] = {
-            JS_GetProperty(ctx, obj, tmp_tab[i].atom),
-            JS_AtomToValue(ctx, tmp_tab[i].atom),
-            obj,
-        };
-        JSValue ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
-        BOOL match = JS_ToBool(ctx, ret);
-        JS_FreeValue(ctx, ret);
-        JS_FreeValue(ctx, args[0]);
-        JS_FreeValue(ctx, args[1]);
-
-        if(match) {
-          JSAtom key = JS_DupAtom(ctx, tmp_tab[i].atom);
-          JS_FreeValue(ctx, value);
-          js_propertyenums_clear(ctx, tmp_tab, tmp_len);
-          orig_js_free(ctx, tmp_tab);
-          return key;
-        }
-      }
-
-      js_propertyenums_clear(ctx, tmp_tab, tmp_len);
-      orig_js_free(ctx, tmp_tab);
-    }
-  }
-
-  JS_FreeValue(ctx, value);
-  return 0;
-}
-
-static JSValue
-deref_value(JSContext* ctx, JSValueConst obj, JSAtom atom) {
-  JSAtom key;
-
-  if((key = deref_key(ctx, obj, atom)))
-    return JS_GetProperty(ctx, obj, key);
-
-  return JS_EXCEPTION;
-}
