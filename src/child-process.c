@@ -96,8 +96,12 @@ child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   ChildProcess* cp;
 
   if((cp = child_process_get(pid))) {
-    if(child_process_status(cp, status))
+    if(child_process_status(cp, status)) {
       child_process_remove(cp, ctx);
+
+      if(!js_is_null_or_undefined(cp->resolve[0]))
+        JS_Call(ctx, cp->resolve[0], JS_NULL, 0, 0);
+    }
   }
 
   return JS_UNDEFINED;
@@ -125,6 +129,7 @@ child_process_new(JSContext* ctx) {
     child->use_path = true;
     child->exited = child->signaled = child->stopped = child->continued = false;
 
+    child->status = -1;
     child->exitcode = -1;
     child->termsig = -1;
     child->stopsig = -1;
@@ -136,6 +141,9 @@ child_process_new(JSContext* ctx) {
     child->num_fds = 0;
 
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
+
+    child->resolve[0] = JS_UNDEFINED;
+    child->resolve[1] = JS_UNDEFINED;
 
     if(!child_process_handler) {
       JSValue fn = JS_NewCFunction(ctx, child_process_sigchld, "sigchld", 0);
@@ -467,14 +475,16 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
   if(cp->pipe_fds)
     js_free_rt(rt, cp->pipe_fds);
 
+  JS_FreeValueRT(rt, cp->resolve[0]);
+  JS_FreeValueRT(rt, cp->resolve[1]);
+
   js_free_rt(rt, cp);
 }
 
 const char* child_process_signals[32] = {
-    0,           "SIGHUP",  "SIGINT",    "SIGQUIT", "SIGILL",   "SIGTRAP", "SIGABRT", "SIGBUS",
-    "SIGFPE",    "SIGKILL", "SIGUSR1",   "SIGSEGV", "SIGUSR2",  "SIGPIPE", "SIGALRM", "SIGTERM",
-    "SIGSTKFLT", "SIGCHLD", "SIGCONT",   "SIGSTOP", "SIGTSTP",  "SIGTTIN", "SIGTTOU", "SIGURG",
-    "SIGXCPU",   "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
+    0,         "SIGHUP",  "SIGINT",  "SIGQUIT", "SIGILL",    "SIGTRAP",   "SIGABRT",  "SIGBUS",  "SIGFPE",  "SIGKILL", "SIGUSR1",
+    "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM",   "SIGSTKFLT", "SIGCHLD",  "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN",
+    "SIGTTOU", "SIGURG",  "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF",   "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
 };
 /**
  * @}

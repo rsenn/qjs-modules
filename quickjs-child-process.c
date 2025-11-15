@@ -419,10 +419,14 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(argc >= 1)
     JS_ToInt32(ctx, &flags, argv[0]);
 
-  int pid = child_process_wait(cp, flags);
+  int pid;
 
-  if(pid != -1)
-    child_process_remove(cp, ctx);
+  if(cp->exited || cp->signaled) {
+    pid = cp->pid;
+  } else {
+    if((pid = child_process_wait(cp, flags)) != -1)
+      child_process_remove(cp, ctx);
+  }
 
   return JS_NewInt32(ctx, pid);
 }

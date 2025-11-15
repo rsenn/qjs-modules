@@ -29,6 +29,8 @@ typedef struct ChildProcess {
   int *child_fds, *parent_fds, *pipe_fds;
 
   struct list_head link;
+
+  JSValue resolve[2];
 } ChildProcess;
 
 ChildProcess* child_process_get(int);
