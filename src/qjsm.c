@@ -534,12 +534,7 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   size_t n, len = strlen(module_name);
   char *s, *t = 0;
 
-  DEBUG_MODULE(4,
-               "(module_name: \"%s\", fn: %s)",
-               module_name,
-               fn == &is_module         ? "is_module"
-               : fn == &jsm_search_path ? "jsm_search_path"
-                                        : "<unknown>");
+  DEBUG_MODULE(4, "(module_name: \"%s\", fn: %s)", module_name, fn == &is_module ? "is_module" : fn == &jsm_search_path ? "jsm_search_path" : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + strlen(module_extensions) + 1))))
     return 0;
@@ -573,12 +568,7 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
   ModuleLoader* fn = search ? &jsm_search_path : &is_module;
   char* s = suffix ? fn(ctx, module_name) : jsm_search_suffix(ctx, module_name, fn);
 
-  DEBUG_MODULE(3,
-               "(module_name: \"%s\") search: %s suffix: %s result: %s",
-               module_name,
-               ((search) ? "TRUE" : "FALSE"),
-               ((suffix) ? "TRUE" : "FALSE"),
-               s);
+  DEBUG_MODULE(3, "(module_name: \"%s\") search: %s suffix: %s result: %s", module_name, ((search) ? "TRUE" : "FALSE"), ((suffix) ? "TRUE" : "FALSE"), s);
 
   return s;
 }
@@ -834,13 +824,8 @@ jsm_call_loader_method(JSContext* ctx, ModuleLoaderContext* loader, const char* 
 
     JSValue ret = JS_Call(ctx, fn, JS_UNDEFINED, argc, argv);
 
-    DEBUG_MODULE(3,
-                 "(i: %d, method_name: \"%s\", argc: %d, argv[0]: \"%s\", ret: \"%s\")",
-                 i++,
-                 method_name,
-                 argc,
-                 JS_ToCString(ctx, argv[0]),
-                 JS_ToCString(ctx, ret));
+    DEBUG_MODULE(
+        3, "(i: %d, method_name: \"%s\", argc: %d, argv[0]: \"%s\", ret: \"%s\")", i++, method_name, argc, JS_ToCString(ctx, argv[0]), JS_ToCString(ctx, ret));
 
     JS_FreeValue(ctx, fn);
     JS_FreeValue(ctx, argv[argc - 1]);
@@ -1009,17 +994,19 @@ restart:
 
     jsm_stack_push(ctx, s);
 
-    if(str_ends(s, ".json"))
+    if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
-    else
-      m = js_module_loader(ctx,
-                           s,
-                           opaque
+    } else {
+      if(!(m = js_module_find(ctx, s)))
+        m = js_module_loader(ctx,
+                             s,
+                             opaque
 #ifndef JS_MODULE_LOADER_OLD
-                           ,
-                           JS_UNDEFINED
+                             ,
+                             JS_UNDEFINED
 #endif
-      );
+        );
+    }
 
     jsm_stack_pop(ctx);
 
@@ -1197,8 +1184,7 @@ jsm_trace_malloc_usable_size(const void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size((void*)ptr);
@@ -1403,14 +1389,12 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   switch(magic) {
     case EVAL_FILE: {
-      ret = JS_IsUninitialized(tmp_global) ? js_eval_file(ctx, str, flags)
-                                           : js_eval_this_file(ctx, tmp_global, str, flags);
+      ret = JS_IsUninitialized(tmp_global) ? js_eval_file(ctx, str, flags) : js_eval_this_file(ctx, tmp_global, str, flags);
       break;
     }
 
     case EVAL_BUF: {
-      ret = JS_IsUninitialized(tmp_global) ? js_eval_buf(ctx, str, len, file, flags)
-                                           : js_eval_this_buf(ctx, tmp_global, str, len, file, flags);
+      ret = JS_IsUninitialized(tmp_global) ? js_eval_buf(ctx, str, len, file, flags) : js_eval_this_buf(ctx, tmp_global, str, len, file, flags);
       break;
     }
   }
@@ -1830,8 +1814,7 @@ int
 main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
-  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1,
-       dump_unhandled_promise_rejection = 0, list_modules = 0;
+  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, dump_unhandled_promise_rejection = 0, list_modules = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -2231,12 +2214,7 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
-           best[1] + best[2] + best[3] + best[4],
-           best[1],
-           best[2],
-           best[3],
-           best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
 
   return 0;

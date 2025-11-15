@@ -283,6 +283,16 @@ js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   return obj;
 }
 
+JSValue
+js_pointer_new(JSContext* ctx) {
+  Pointer* ptr;
+
+  if((ptr = pointer_new(ctx)))
+    return js_pointer_wrap(ctx, ptr);
+
+  return JS_EXCEPTION;
+}
+
 static JSValue
 js_pointer_serialize(JSContext* ctx, JSValueConst this_val) {
   Pointer* ptr;
@@ -840,8 +850,7 @@ js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_
 }
 
 static int
-js_pointer_set_property(
-    JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
+js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   Pointer* pointer;
 
   if((pointer = js_pointer_data2(ctx, obj))) {
@@ -886,16 +895,12 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_dereferenceerror_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_dereferenceerror_class_id, &js_dereferenceerror_class);
 
-  dereferenceerror_ctor =
-      JS_NewCFunction2(ctx, js_dereferenceerror_constructor, "DereferenceError", 1, JS_CFUNC_constructor, 0);
+  dereferenceerror_ctor = JS_NewCFunction2(ctx, js_dereferenceerror_constructor, "DereferenceError", 1, JS_CFUNC_constructor, 0);
   dereferenceerror_proto = JS_NewObjectProto(ctx, reference_error);
 
   JS_FreeValue(ctx, reference_error);
 
-  JS_SetPropertyFunctionList(ctx,
-                             dereferenceerror_proto,
-                             js_dereferenceerror_proto_funcs,
-                             countof(js_dereferenceerror_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, dereferenceerror_proto, js_dereferenceerror_proto_funcs, countof(js_dereferenceerror_proto_funcs));
 
   JS_SetClassProto(ctx, js_dereferenceerror_class_id, dereferenceerror_proto);
   JS_SetConstructor(ctx, dereferenceerror_ctor, dereferenceerror_proto);
@@ -908,14 +913,10 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
 
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
-  JS_DefinePropertyValueStr(
-      ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(
-      ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(
-      ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(
-      ctx, pointer_proto, "keys", JS_GetPropertyStr(ctx, array_proto, "keys"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "keys", JS_GetPropertyStr(ctx, array_proto, "keys"), JS_PROP_CONFIGURABLE);
 
   JS_FreeValue(ctx, array_proto);
 

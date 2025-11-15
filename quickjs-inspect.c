@@ -530,8 +530,7 @@ inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
   }
 
   writer_puts(wr,
-              opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Map" COLOR_CYAN "(" COLOR_NONE "["
-                                                : "new Map([")
+              opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Map" COLOR_CYAN "(" COLOR_NONE "[" : "new Map([")
                                 : (opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {"));
 
   if(IS_COMPACT(depth + 1))
@@ -598,8 +597,7 @@ inspect_set(Inspector* insp, JSValueConst obj, int32_t level) {
   }
 
   writer_puts(wr,
-              opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Set" COLOR_CYAN "(" COLOR_NONE "["
-                                                : "new Set([")
+              opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Set" COLOR_CYAN "(" COLOR_NONE "[" : "new Set([")
                                 : (opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set ["));
 
   if(IS_COMPACT(depth + 1))
@@ -1142,8 +1140,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
     BOOL has_class_key;
 
     if(!opts->reparseable) {
-      if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) ||
-                       js_global_instanceof(ctx, value, "Object"))) {
+      if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) || js_global_instanceof(ctx, value, "Object"))) {
         char* tag = 0;
 
         if(has_class_key)
@@ -1522,8 +1519,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
     }
 
     while(!(it = it ? it : property_recursion_top(&insp->hier),
-            it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
-                                    : property_enumeration_next(it)))) {
+            it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
 
       is_array = js_is_array(ctx, (it = property_recursion_top(&insp->hier))->obj);
 
@@ -1584,12 +1580,14 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
     level = 0;
   }
 
-  if(JS_IsObject(argv[0]) && level < insp.opts.depth)
-    inspect_recursive(&insp, argv[0], level);
-  else
-    inspect_value(&insp, argv[0], level);
+  int result;
 
-  JSValue ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+  if(JS_IsObject(argv[0]) && level < insp.opts.depth)
+    result = inspect_recursive(&insp, argv[0], level);
+  else
+    result = inspect_value(&insp, argv[0], level);
+
+  JSValue ret = result == -1 ? JS_EXCEPTION : JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
   writer_free(&insp.wr);
   options_free(&insp.opts, ctx);
@@ -1611,19 +1609,21 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   insp.opts.getters = TRUE;
   insp.opts.depth = 1024;
 
-  if(JS_IsObject(value))
-    inspect_recursive(&insp, value, 0);
-  else
-    inspect_value(&insp, value, 0);
+  int result;
 
-  JSValue result = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+  if(JS_IsObject(value))
+    result = inspect_recursive(&insp, value, 0);
+  else
+    result = inspect_value(&insp, value, 0);
+
+  JSValue rval = result == -1 ? JS_EXCEPTION : JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
   writer_free(&insp.wr);
   options_free(&insp.opts, ctx);
 
-  char* ret = js_tostring(ctx, result);
+  char* ret = js_tostring(ctx, JS_IsException(rval) ? JS_GetException(ctx) : rval);
 
-  JS_FreeValue(ctx, result);
+  JS_FreeValue(ctx, rval);
 
   return ret;
 }

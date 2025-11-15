@@ -13,8 +13,7 @@ static JSValue deref_value(JSContext* ctx, JSValueConst obj, JSAtom atom);
  * @{
  */
 
-#define pointer_color(s) \
-  (((index != -1) && (i) >= (size_t)(index)) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
+#define pointer_color(s) (((index != -1) && (i) >= (size_t)(index)) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
 atoms_dump(JSAtom const atoms[], size_t count, Writer* wr, BOOL color, ssize_t index, JSContext* ctx) {

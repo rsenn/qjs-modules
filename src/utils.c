@@ -897,8 +897,7 @@ js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[
 }
 
 static JSValue
-js_function_bound_this(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
   int bound_args = magic;
   JSValue args[argc + bound_args];
 
@@ -939,8 +938,7 @@ js_function_bind_this_args(JSContext* ctx, JSValueConst func, JSValueConst this_
 }
 
 static JSValue
-js_function_throw_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_function_throw_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
 
   if(!JS_IsUndefined(data[0]))
     return JS_Throw(ctx, data[0]);
@@ -956,8 +954,7 @@ js_function_throw(JSContext* ctx, JSValueConst err) {
 }
 
 static JSValue
-js_function_return_value_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_function_return_value_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   return data[0];
 }
 
@@ -1138,8 +1135,7 @@ js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
 }
 
 static JSValue
-js_iterator_then_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   JSValue ret = JS_NewObject(ctx);
 
   if(argc >= 1)
@@ -1408,8 +1404,7 @@ js_object_copy(JSContext* ctx, JSValueConst dst, JSValueConst src) {
   JSPropertyEnum* tmp_tab;
   uint32_t tmp_len;
 
-  if(JS_GetOwnPropertyNames(
-         ctx, &tmp_tab, &tmp_len, src, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_PRIVATE_MASK))
+  if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, src, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_PRIVATE_MASK))
     return -1;
 
   for(uint32_t i = 0; i < tmp_len; i++) {
@@ -1428,8 +1423,7 @@ js_object_keyof(JSContext* ctx, JSValueConst obj, JSValueConst value) {
   uint32_t tmp_len;
   int64_t ret = -1;
 
-  if(JS_GetOwnPropertyNames(
-         ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK /*| JS_GPN_ENUM_ONLY*/))
+  if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK /*| JS_GPN_ENUM_ONLY*/))
     return -1;
 
   for(uint32_t i = 0; i < tmp_len; i++) {
@@ -2205,8 +2199,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
 
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
 
-      if(!JS_GetOwnPropertyNames(
-             ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         for(uint32_t i = 0; i < tab_atom_len; i++) {
           JSValue prop = JS_GetProperty(ctx, value, tab_atom[i].atom);
 
@@ -2587,8 +2580,8 @@ js_module_def(JSContext* ctx, JSValueConst value) {
     uint64_t addrval = 0;
     const char *tag, *addr;
 
-    if(JS_HasProperty(ctx, value, atom) && js_has_propertystr(ctx, value, "address") &&
-       (tag = js_get_property_cstring(ctx, value, atom)) && !strcmp(tag, "Module")) {
+    if(JS_HasProperty(ctx, value, atom) && js_has_propertystr(ctx, value, "address") && (tag = js_get_property_cstring(ctx, value, atom)) &&
+       !strcmp(tag, "Module")) {
       if((addr = js_get_propertystr_cstring(ctx, value, "address"))) {
         if(addr[0] == '0' && addr[1] == 'x')
           if(scan_xlonglong(addr + 2, &addrval) == 0)
@@ -2669,14 +2662,12 @@ js_is_primitive(JSValueConst obj) {
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
 }
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") ||
-                                js_object_is(ctx, value, "[object SharedArrayBuffer]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") || js_object_is(ctx, value, "[object SharedArrayBuffer]"));
 }
 
 BOOL
@@ -2691,8 +2682,7 @@ js_is_map(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_weakmap(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_global_instanceof(ctx, value, "WeakMap") || js_object_is(ctx, value, "[object WeakMap]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "WeakMap") || js_object_is(ctx, value, "[object WeakMap]"));
 }
 
 BOOL
@@ -2835,14 +2825,7 @@ JSValue
 js_typedarray_newv(JSContext* ctx, int bits, BOOL floating, BOOL sign, int argc, JSValueConst argv[]) {
   char class_name[64] = {0};
 
-  snprintf(class_name,
-           sizeof(class_name),
-           "%s%s%dArray",
-           (!floating && bits >= 64) ? "Big" : "",
-           floating ? "Float"
-           : sign   ? "Int"
-                    : "Uint",
-           bits);
+  snprintf(class_name, sizeof(class_name), "%s%s%dArray", (!floating && bits >= 64) ? "Big" : "", floating ? "Float" : sign ? "Int" : "Uint", bits);
   {
     JSValue ctor = js_global_get_str(ctx, class_name);
     JSValue ret = JS_CallConstructor(ctx, ctor, argc, argv);
@@ -2852,8 +2835,7 @@ js_typedarray_newv(JSContext* ctx, int bits, BOOL floating, BOOL sign, int argc,
 }
 
 JSValue
-js_typedarray_new3(
-    JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer, size_t byteoffset, size_t length) {
+js_typedarray_new3(JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer, size_t byteoffset, size_t length) {
   JSValue argv[] = {
       buffer,
       JS_NewInt64(ctx, byteoffset),
@@ -3158,8 +3140,7 @@ js_eval_buf(JSContext* ctx, const void* buf, size_t buf_len, const char* filenam
 }
 
 JSValue
-js_eval_this_buf(
-    JSContext* ctx, JSValueConst this_obj, const void* buf, size_t buf_len, const char* filename, int eval_flags) {
+js_eval_this_buf(JSContext* ctx, JSValueConst this_obj, const void* buf, size_t buf_len, const char* filename, int eval_flags) {
   JSValue ret;
   BOOL as_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
   int flags = (eval_flags & (JS_EVAL_TYPE_MASK | JS_EVAL_FLAG_MASK)) | (as_module ? JS_EVAL_FLAG_COMPILE_ONLY : 0);
@@ -3365,7 +3346,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
 
 JSValue
 js_error_stack(JSContext* ctx) {
-  JSValue error = js_object_error(ctx, "");
+  JSValue error = JS_NewError(ctx); // js_object_error(ctx, "");
   JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
 
   JS_FreeValue(ctx, error);
@@ -3881,8 +3862,7 @@ js_cclosure_data2(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_cclosure_call(
-    JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+js_cclosure_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   CClosureRecord* ccr;
   JSValueConst* arg_buf;
 
@@ -3926,8 +3906,7 @@ static JSClassDef js_cclosure_class = {
 };
 
 JSValue
-js_function_cclosure(
-    JSContext* ctx, CClosureFunc* func, int length, int magic, void* opaque, FinalizerFunc* opaque_finalize) {
+js_function_cclosure(JSContext* ctx, CClosureFunc* func, int length, int magic, void* opaque, FinalizerFunc* opaque_finalize) {
   CClosureRecord* ccr;
   JSValue func_proto, func_obj;
 
@@ -4075,11 +4054,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], in
   if((ret = offsetlength_from_argv(out, size, argc - start_arg, argv + start_arg, ctx)) < 0) {
     ret = (-ret - 1) + start_arg;
 
-    JS_ThrowTypeError(ctx,
-                      "argument %d is not %s (type: %s)",
-                      ret + 1,
-                      CONST_STRARRAY("an offset", "a length")[ret],
-                      js_value_typeof(argv[ret]));
+    JS_ThrowTypeError(ctx, "argument %d is not %s (type: %s)", ret + 1, CONST_STRARRAY("an offset", "a length")[ret], js_value_typeof(argv[ret]));
     return -1;
   }
 
@@ -4092,10 +4067,7 @@ js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int 
   int ret;
 
   if((ret = indexrange_from_argv(ir ? ir : &tmp, size, argc, argv, ctx)) < 0) {
-    JS_ThrowTypeError(ctx,
-                      "argument %d is not an index (type: %s)",
-                      -ret + start_arg,
-                      js_value_typeof(argv[-ret - 1 + start_arg]));
+    JS_ThrowTypeError(ctx, "argument %d is not an index (type: %s)", -ret + start_arg, js_value_typeof(argv[-ret - 1 + start_arg]));
     return -1;
   }
 
