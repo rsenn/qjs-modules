@@ -350,8 +350,10 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     JSAtom atom = property_enumeration_atom(penum);
     ValueType obj_type = js_value_type(ctx, penum->obj);
 
-    if(!(obj_type & TYPE_ARRAY) && FLAGS_FILTER(iter->flags) == FILTER_KEY_OF && (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags)))
+    if(!(obj_type & TYPE_ARRAY) && FLAGS_FILTER(iter->flags) == FILTER_KEY_OF && (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags))) {
+      iter->status = NO_RECURSE;
       continue;
+    }
 
     JSValue value = property_recursion_value(&iter->frames, ctx);
     ValueType type = 1 << js_value_type_get(ctx, value);
@@ -554,8 +556,9 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       JSAtom atom = property_enumeration_atom(it);
       ValueType obj_type = js_value_type(ctx, it->obj);
 
-      if((obj_type & TYPE_ARRAY) ||
-         !(FLAGS_FILTER(flags) == FILTER_KEY_OF && !vector_empty(&atoms) && (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags)))) {
+      BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && /*!vector_empty(&atoms) &&*/ (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
+
+      if((obj_type & TYPE_ARRAY) || !filter) {
         JSValue value = property_recursion_value(&frames, ctx);
         ValueType type = 1 << js_value_type_get(ctx, value);
 
@@ -578,7 +581,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
         }
       }
 
-      if(property_recursion_depth(&frames) >= max_depth)
+      if(filter || property_recursion_depth(&frames) >= max_depth)
         property_recursion_skip(&frames, ctx);
       else
         property_recursion_next(&frames, ctx);
