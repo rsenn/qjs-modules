@@ -1996,7 +1996,7 @@ function ProcessFile(source, recursive, depth = 0) {
       if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
     }
 
-    let n = balancers.last.depth;
+    let n = balancers.last?.depth;
     const { token } = lexer;
 
     if(!token) break;
