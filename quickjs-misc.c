@@ -228,8 +228,7 @@ qjs_tempnam(const char* dir, const char* template) {
 #endif
 
 #define TextAttrColor(n) \
-  (((n) & 1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
-   (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
+  (((n) & 1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
 #define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
 #define ColorIsBold(c) ((c) >= 90)
@@ -238,8 +237,7 @@ qjs_tempnam(const char* dir, const char* template) {
 #define ColorGreen(c) ((ColorIndex(c) >> 1) & 1)
 #define ColorBlue(c) ((ColorIndex(c) >> 2) & 1)
 
-#define ColorToBits(c) \
-  ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | ColorRed(c) << 2)
+#define ColorToBits(c) ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | ColorRed(c) << 2)
 
 BOOL JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
 
@@ -510,14 +508,13 @@ set_text_attributes(intptr_t fd, uint32_t attr) {
   buf[pos++] = 27;
   buf[pos++] = '[';
 
-  fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) + ((attr & FOREGROUND_BLUE) ? 4 : 0) +
-       ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
+  fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) + ((attr & FOREGROUND_BLUE) ? 4 : 0) + ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
 
   pos += fmt_ulong(&buf[pos], fg);
   buf[pos++] = ';';
 
-  bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) + ((attr & BACKGROUND_BLUE) ? 4 : 0) +
-       ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
+  bg =
+      ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) + ((attr & BACKGROUND_BLUE) ? 4 : 0) + ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
 
   pos += fmt_ulong(&buf[pos], bg);
 
@@ -562,10 +559,7 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JSValue ret = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, "quickjs"));
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "sourceUrl",
-                    JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
+  JS_SetPropertyStr(ctx, ret, "sourceUrl", JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
 
   return ret;
 }
@@ -1047,8 +1041,7 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         l--;
 
       if(magic == 0 || l) {
-        JSValue item = magic >= FUNC_GETPROCMAPS ? js_misc_procline(ctx, (const char*)y, l, max_items[magic])
-                                                 : JS_NewStringLen(ctx, (const char*)y, l);
+        JSValue item = magic >= FUNC_GETPROCMAPS ? js_misc_procline(ctx, (const char*)y, l, max_items[magic]) : JS_NewStringLen(ctx, (const char*)y, l);
 
         JS_SetPropertyUint32(ctx, ret, j++, item);
       }
@@ -1076,8 +1069,7 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   ret = JS_NewArray(ctx);
   end = limit >= 0 ? start + limit : -1;
 
-  for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto);
-      proto = JS_GetPrototype(ctx, proto)) {
+  for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto); proto = JS_GetPrototype(ctx, proto)) {
     BOOL circular = (JS_VALUE_GET_PTR(proto) == JS_VALUE_GET_PTR(prev));
 
     JS_FreeValue(ctx, prev);
@@ -1688,8 +1680,7 @@ js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   else
     outlen = b64_decode(input.data, input.size, decbuf);
 
-  ret = output_string ? JS_NewStringLen(ctx, (const char*)decbuf, outlen)
-                      : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, outlen);
+  ret = output_string ? JS_NewStringLen(ctx, (const char*)decbuf, outlen) : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, outlen);
 
   js_free(ctx, decbuf);
   return ret;
@@ -1710,8 +1701,7 @@ js_misc_immutable_free(JSRuntime* rt, void* ptr) {
 }
 
 static JSValue
-js_misc_immutable_constructor(
-    JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_misc_immutable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int magic, void* ptr) {
   JSValue ret = JS_UNDEFINED;
 
   if(ptr) {
@@ -1900,18 +1890,9 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
   }
 
-  js_syscall_throw(CONST_STRARRAY("getpid",
-                                  "getppid",
-                                  "getsid",
-                                  "getuid",
-                                  "getgid",
-                                  "geteuid",
-                                  "getegid",
-                                  "setuid",
-                                  "setgid",
-                                  "seteuid",
-                                  "setegid")[magic - FUNC_GETPID],
-                   ret);
+  js_syscall_throw(
+      CONST_STRARRAY("getpid", "getppid", "getsid", "getuid", "getgid", "geteuid", "getegid", "setuid", "setgid", "seteuid", "setegid")[magic - FUNC_GETPID],
+      ret);
 }
 
 enum {
@@ -2713,18 +2694,15 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   DynBuf output;
   char quote = '"';
   uint8_t table[256] = {
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
-      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
+      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
   };
 
   dbuf_init_ctx(ctx, &output);
@@ -2913,8 +2891,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       JS_ToInt32(ctx, &flags, argv[2]);
 
     if((wd = inotify_add_watch(fd, filename, flags)) == -1)
-      return JS_ThrowInternalError(
-          ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
+      return JS_ThrowInternalError(ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
 
     // printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
 
