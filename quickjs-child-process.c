@@ -249,7 +249,7 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
       for(int i = 1; i < num; i++)
         if(cp->pipe_fds[i])
-          dbuf_init2(&db[i], 0, 0);
+          dbuf_init_ctx(ctx, &db[i]);
 
       for(int i = 1; i < num; i++)
         if(cp->pipe_fds[i]) {
@@ -275,8 +275,9 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
           };
 
           JSValue str = dbuf_tostring_free(&db[i], ctx);
-          JS_SetPropertyStr(ctx, obj, names[i], str);
-          JS_SetPropertyUint32(ctx, arr, arrlen++, JS_DupValue(ctx, str));
+
+          JS_DefinePropertyValueStr(ctx, obj, names[i], JS_DupValue(ctx, str), JS_PROP_CONFIGURABLE);
+          JS_SetPropertyUint32(ctx, arr, i, str);
         }
     }
 
@@ -511,49 +512,32 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_child_process_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("exec", 1, js_child_process_exec, 0),
-    JS_CFUNC_MAGIC_DEF("execSync", 1, js_child_process_exec, 1),
-    JS_CFUNC_MAGIC_DEF("spawn", 1, js_child_process_spawn, 0),
-    JS_CFUNC_MAGIC_DEF("spawnSync", 1, js_child_process_spawn, 1),
+    JS_CFUNC_MAGIC_DEF("exec", 1, js_child_process_exec, 0),       JS_CFUNC_MAGIC_DEF("execSync", 1, js_child_process_exec, 1),
+    JS_CFUNC_MAGIC_DEF("spawn", 1, js_child_process_spawn, 0),     JS_CFUNC_MAGIC_DEF("spawnSync", 1, js_child_process_spawn, 1),
     JS_CFUNC_MAGIC_DEF("kill", 1, js_child_process_kill, 1),
 
     JS_PROP_INT32_DEF("WNOHANG", WNOHANG, JS_PROP_ENUMERABLE),
 #ifdef WNOWAIT
     JS_PROP_INT32_DEF("WNOWAIT", WNOWAIT, JS_PROP_ENUMERABLE),
 #endif
-    JS_PROP_INT32_DEF("WUNTRACED", WUNTRACED, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGHUP", SIGHUP, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGINT", SIGINT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGQUIT", SIGQUIT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGILL", SIGILL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGTRAP", SIGTRAP, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGABRT", SIGABRT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGBUS", SIGBUS, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGFPE", SIGFPE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGKILL", SIGKILL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGUSR1", SIGUSR1, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGSEGV", SIGSEGV, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGUSR2", SIGUSR2, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGPIPE", SIGPIPE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGALRM", SIGALRM, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGTERM", SIGTERM, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("WUNTRACED", WUNTRACED, JS_PROP_ENUMERABLE), JS_PROP_INT32_DEF("SIGHUP", SIGHUP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGINT", SIGINT, JS_PROP_ENUMERABLE),       JS_PROP_INT32_DEF("SIGQUIT", SIGQUIT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGILL", SIGILL, JS_PROP_ENUMERABLE),       JS_PROP_INT32_DEF("SIGTRAP", SIGTRAP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGABRT", SIGABRT, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGBUS", SIGBUS, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGFPE", SIGFPE, JS_PROP_ENUMERABLE),       JS_PROP_INT32_DEF("SIGKILL", SIGKILL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGUSR1", SIGUSR1, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGSEGV", SIGSEGV, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGUSR2", SIGUSR2, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGPIPE", SIGPIPE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGALRM", SIGALRM, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGTERM", SIGTERM, JS_PROP_ENUMERABLE),
 #ifdef SIGSTKFLT
     JS_PROP_INT32_DEF("SIGSTKFLT", SIGSTKFLT, JS_PROP_ENUMERABLE),
 #endif
-    JS_PROP_INT32_DEF("SIGCHLD", SIGCHLD, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGCONT", SIGCONT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGSTOP", SIGSTOP, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGTSTP", SIGTSTP, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGTTIN", SIGTTIN, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGTTOU", SIGTTOU, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGURG", SIGURG, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGXCPU", SIGXCPU, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGXFSZ", SIGXFSZ, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGVTALRM", SIGVTALRM, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGPROF", SIGPROF, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGWINCH", SIGWINCH, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGIO", SIGIO, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SIGPWR", SIGPWR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGCHLD", SIGCHLD, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGCONT", SIGCONT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGSTOP", SIGSTOP, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGTSTP", SIGTSTP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGTTIN", SIGTTIN, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGTTOU", SIGTTOU, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGURG", SIGURG, JS_PROP_ENUMERABLE),       JS_PROP_INT32_DEF("SIGXCPU", SIGXCPU, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGXFSZ", SIGXFSZ, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGVTALRM", SIGVTALRM, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGPROF", SIGPROF, JS_PROP_ENUMERABLE),     JS_PROP_INT32_DEF("SIGWINCH", SIGWINCH, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGIO", SIGIO, JS_PROP_ENUMERABLE),         JS_PROP_INT32_DEF("SIGPWR", SIGPWR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGSYS", SIGSYS, JS_PROP_ENUMERABLE),
 };
 
@@ -563,10 +547,7 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_child_process_class_id, &js_child_process_class);
 
   child_process_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             child_process_proto,
-                             js_child_process_proto_funcs,
-                             countof(js_child_process_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, child_process_proto, js_child_process_proto_funcs, countof(js_child_process_proto_funcs));
   JS_SetClassProto(ctx, js_child_process_class_id, child_process_proto);
 
   child_process_ctor = JS_NewCFunction2(ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);

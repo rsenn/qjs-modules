@@ -36,8 +36,7 @@ void dbuf_init_rt(JSRuntime* rt, DynBuf* s);
 #define DBUF_DATA(db) ((void*)(db)->buf)
 #define DBUF_SIZE(db) ((db)->size)
 
-extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256],
-    escape_doublequote_tab[256], escape_backquote_tab[256];
+extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256], escape_doublequote_tab[256], escape_backquote_tab[256];
 
 char* dbuf_at_n(const DynBuf*, size_t, size_t*, char);
 const char* dbuf_last_line(DynBuf*, size_t*);
@@ -56,6 +55,7 @@ int dbuf_reserve_start(DynBuf*, size_t);
 uint8_t* dbuf_reserve(DynBuf*, size_t);
 size_t dbuf_token_pop(DynBuf*, char);
 size_t dbuf_token_push(DynBuf*, const char*, size_t, char);
+JSValue dbuf_tostring(DynBuf*, JSContext*);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);
 ssize_t dbuf_load(DynBuf*, const char*);
 int dbuf_vprintf(DynBuf*, const char*, va_list);
