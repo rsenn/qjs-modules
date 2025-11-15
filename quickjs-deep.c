@@ -42,13 +42,13 @@ typedef enum {
   FILTER_KEY_OF = 0 << 30,
   FILTER_HAS_KEY = 1 << 30,
   FILTER_NEGATE = 2 << 30,
-  FILTER_MASK = 3 << 30,
+  FILTER_MASK = 1 << 30,
   MAXDEPTH_MASK = (1 << 24) - 1,
 } DeepIteratorFlags;
 
 #define FLAGS_RETURN(flags) ((flags) & RETURN_MASK)
 #define FLAGS_FILTER(flags) ((flags) & FILTER_MASK)
-#define FLAGS_NEGATE_FILTER(flags) (!!((flags) & FILTER_NEGATE))
+#define FLAGS_NEGATE_FILTER(flags) (!!((uint32_t)(flags) & (uint32_t)FILTER_NEGATE))
 #define FLAGS_MAXDEPTH(flags) (((flags) & MAXDEPTH_MASK) ? (flags) & MAXDEPTH_MASK : MAXDEPTH_MASK)
 #define FLAGS_PATH_AS(flags) ((flags) & PATH_AS_MASK)
 
@@ -67,15 +67,12 @@ typedef struct DeepIterator {
 static const uint32_t js_deep_defaultflags = 0;
 
 static BOOL
-atom_skip(Vector* vec, JSAtom atom) {
-  if(vector_find(vec, sizeof(JSAtom), &atom) != -1)
-    return FALSE;
-
-  return TRUE;
+atom_skip(Vector const* vec, JSAtom atom) {
+  return vector_find(vec, sizeof(JSAtom), &atom) == -1;
 }
 
 static BOOL
-atoms_skip(Vector* vec, JSAtom* atoms, size_t len) {
+atoms_skip(Vector const* vec, JSAtom const atoms[], size_t len) {
   for(size_t i = 0; i < len; ++i)
     if(vector_find(vec, sizeof(JSAtom), &atoms[i]) != -1)
       return FALSE;
@@ -353,8 +350,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     JSAtom atom = property_enumeration_atom(penum);
     ValueType obj_type = js_value_type(ctx, penum->obj);
 
-    if(!(obj_type & TYPE_ARRAY) && FLAGS_FILTER(iter->flags) == FILTER_KEY_OF && !vector_empty(&iter->atoms) &&
-       (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags)))
+    if(!(obj_type & TYPE_ARRAY) && FLAGS_FILTER(iter->flags) == FILTER_KEY_OF && (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags)))
       continue;
 
     JSValue value = property_recursion_value(&iter->frames, ctx);
@@ -1053,45 +1049,45 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("iterate", 1, js_deep_iterate),
     JS_CFUNC_DEF("forEach", 2, js_deep_foreach),
     JS_CFUNC_DEF("clone", 1, js_deep_clone),
-    JS_CONSTANT(YIELD),
-    JS_CONSTANT(YIELD_NO_RECURSE),
-    JS_CONSTANT(RECURSE),
-    JS_CONSTANT(NO_RECURSE),
-    JS_CONSTANT(RETURN_VALUE_PATH),
-    JS_CONSTANT(RETURN_PATH),
-    JS_CONSTANT(RETURN_VALUE),
-    JS_CONSTANT(RETURN_PATH_VALUE),
-    JS_CONSTANT(PATH_AS_ARRAY),
-    JS_CONSTANT(PATH_AS_POINTER),
-    JS_CONSTANT(PATH_AS_STRING),
-    JS_CONSTANT(FILTER_KEY_OF),
-    JS_CONSTANT(FILTER_HAS_KEY),
-    JS_CONSTANT(FILTER_NEGATE),
-    JS_CONSTANT(NO_THROW),
-    JS_CONSTANT(TYPE_UNDEFINED),
-    JS_CONSTANT(TYPE_NULL),
-    JS_CONSTANT(TYPE_BOOL),
-    JS_CONSTANT(TYPE_INT),
-    JS_CONSTANT(TYPE_OBJECT),
-    JS_CONSTANT(TYPE_STRING),
-    JS_CONSTANT(TYPE_SYMBOL),
+    JS_CONSTANT_U32(YIELD),
+    JS_CONSTANT_U32(YIELD_NO_RECURSE),
+    JS_CONSTANT_U32(RECURSE),
+    JS_CONSTANT_U32(NO_RECURSE),
+    JS_CONSTANT_U32(RETURN_VALUE_PATH),
+    JS_CONSTANT_U32(RETURN_PATH),
+    JS_CONSTANT_U32(RETURN_VALUE),
+    JS_CONSTANT_U32(RETURN_PATH_VALUE),
+    JS_CONSTANT_U32(PATH_AS_ARRAY),
+    JS_CONSTANT_U32(PATH_AS_POINTER),
+    JS_CONSTANT_U32(PATH_AS_STRING),
+    JS_CONSTANT_U32(FILTER_KEY_OF),
+    JS_CONSTANT_U32(FILTER_HAS_KEY),
+    JS_CONSTANT_U32(FILTER_NEGATE),
+    JS_CONSTANT_U32(NO_THROW),
+    JS_CONSTANT_U32(TYPE_UNDEFINED),
+    JS_CONSTANT_U32(TYPE_NULL),
+    JS_CONSTANT_U32(TYPE_BOOL),
+    JS_CONSTANT_U32(TYPE_INT),
+    JS_CONSTANT_U32(TYPE_OBJECT),
+    JS_CONSTANT_U32(TYPE_STRING),
+    JS_CONSTANT_U32(TYPE_SYMBOL),
 #ifdef CONFIG_BIGNUM
-    JS_CONSTANT(TYPE_BIG_FLOAT),
-    JS_CONSTANT(TYPE_BIG_DECIMAL),
+    JS_CONSTANT_U32(TYPE_BIG_FLOAT),
+    JS_CONSTANT_U32(TYPE_BIG_DECIMAL),
 #endif
-    JS_CONSTANT(TYPE_BIG_INT),
-    JS_CONSTANT(TYPE_FLOAT64),
-    JS_CONSTANT(TYPE_NAN),
-    JS_CONSTANT(TYPE_NUMBER),
-    JS_CONSTANT(TYPE_PRIMITIVE),
-    JS_CONSTANT(TYPE_ALL),
-    JS_CONSTANT(TYPE_FUNCTION),
-    JS_CONSTANT(TYPE_ARRAY),
-    JS_CONSTANT(TYPE_MODULE),
-    JS_CONSTANT(TYPE_FUNCTION_BYTECODE),
-    JS_CONSTANT(TYPE_UNINITIALIZED),
-    JS_CONSTANT(TYPE_CATCH_OFFSET),
-    JS_CONSTANT(TYPE_EXCEPTION),
+    JS_CONSTANT_U32(TYPE_BIG_INT),
+    JS_CONSTANT_U32(TYPE_FLOAT64),
+    JS_CONSTANT_U32(TYPE_NAN),
+    JS_CONSTANT_U32(TYPE_NUMBER),
+    JS_CONSTANT_U32(TYPE_PRIMITIVE),
+    JS_CONSTANT_U32(TYPE_ALL),
+    JS_CONSTANT_U32(TYPE_FUNCTION),
+    JS_CONSTANT_U32(TYPE_ARRAY),
+    JS_CONSTANT_U32(TYPE_MODULE),
+    JS_CONSTANT_U32(TYPE_FUNCTION_BYTECODE),
+    JS_CONSTANT_U32(TYPE_UNINITIALIZED),
+    JS_CONSTANT_U32(TYPE_CATCH_OFFSET),
+    JS_CONSTANT_U32(TYPE_EXCEPTION),
 };
 
 static const JSCFunctionListEntry js_deep_iterator_proto_funcs[] = {
