@@ -426,20 +426,24 @@ function ListExports(file, output, params) {
 
   for(;;) {
     let { stateDepth } = lexer;
-    let value = lexer.next();
+    tok = lexer.nextToken();
+    let value = tok?.id;
     let done = value === undefined;
-    //if(debug >= 2) log('ListExports', console.config({ compact: 2 }), { value, done });
+
+    if(debug >= 2) log('ListExports', console.config({ compact: 2 }), { value, done });
 
     if(done) break;
     let newState = lexer.topState();
+
     //showToken(tok);
     if(newState != state) {
       if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
       if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
     }
 
-    let n = balancers.last.depth;
-    tok = lexer.token;
+    let n = balancers.last?.depth;
+
+    if(debug >= 2) log('ListExports', console.config({ compact: 2 }), { tok });
 
     if(tok == null) break;
     if(debug >= 4) log('ListExports', console.config({ compact: 2 }), tok);
