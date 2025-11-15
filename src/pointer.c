@@ -79,7 +79,7 @@ atoms_deref(JSAtom const atoms[], size_t n, size_t* pos, JSValueConst arg, JSCon
   JSValue obj = JS_DupValue(ctx, arg);
 
   for(size_t i = 0; i < n; i++) {
-    JSValue child = deref_value(ctx, obj, atoms[i]);
+    JSValue child = JS_GetProperty(ctx, obj, atoms[i]); // deref_value(ctx, obj, atoms[i]);
 
     JS_FreeValue(ctx, obj);
 
