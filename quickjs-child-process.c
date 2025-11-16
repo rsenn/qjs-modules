@@ -1,6 +1,7 @@
 #include "defines.h"
 #include "utils.h"
 #include "char-utils.h"
+#include "js-utils.h"
 #include "buffer-utils.h"
 #include "child-process.h"
 #include "property-enumeration.h"
@@ -219,6 +220,9 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(argc > 1 && JS_IsObject(argv[1]))
     js_child_process_options(ctx, cp, argv[1]);
 
+  if(magic == 0)
+    cp->promise = JS_NewPromiseCapability(ctx, cp->resolve);
+
   child_process_spawn(cp);
 
   /* spawnSync? */
@@ -409,12 +413,24 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
+js_child_process_return(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+  return JS_DupValue(ctx, func_data[0]);
+}
+
+static JSValue
 js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   int32_t flags = 0;
 
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
+
+  if(!js_is_null_or_undefined(cp->promise)) {
+    JSValue then = JS_NewCFunctionData(ctx, js_child_process_return, 0, 0, 1, &this_val);
+    JSValue ret = promise_then(ctx, cp->promise, then);
+    JS_FreeValue(ctx, then);
+    return ret;
+  }
 
   if(argc >= 1)
     JS_ToInt32(ctx, &flags, argv[0]);
@@ -423,9 +439,8 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   if(cp->exited || cp->signaled) {
     pid = cp->pid;
-  } else {
-    if((pid = child_process_wait(cp, flags)) != -1)
-      child_process_remove(cp, ctx);
+  } else if((pid = child_process_wait(cp, flags)) != -1) {
+    child_process_remove(cp, ctx);
   }
 
   return JS_NewInt32(ctx, pid);

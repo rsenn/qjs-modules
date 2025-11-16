@@ -763,6 +763,7 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
 
     JS_CFUNC_MAGIC_DEF("concat", 1, js_pointer_method1, METHOD_CONCAT),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_pointer_method1, METHOD_SLICE),
+
     JS_CFUNC_MAGIC_DEF("splice", 0, js_pointer_method1, METHOD_SPLICE),
     JS_CFUNC_MAGIC_DEF("up", 1, js_pointer_method1, METHOD_UP),
     JS_CFUNC_MAGIC_DEF("down", 0, js_pointer_method1, METHOD_DOWN),
@@ -908,21 +909,32 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 
-  pointer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
-
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
+  pointer_proto = JS_NewObjectProto(ctx, array_proto);
+  JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
+
+  //  JSValue array_ctor = js_global_get_str(ctx, "Array");
+
+  /*
+
+  //JS_DefinePropertyValueStr(ctx, pointer_proto, "concat", JS_GetPropertyStr(ctx, array_proto, "concat"), JS_PROP_CONFIGURABLE);
+  //JS_DefinePropertyValueStr(ctx, pointer_proto, "slice", JS_GetPropertyStr(ctx, array_proto, "slice"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "keys", JS_GetPropertyStr(ctx, array_proto, "keys"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "values", JS_GetPropertyStr(ctx, array_proto, "values"), JS_PROP_CONFIGURABLE);*/
 
   JS_FreeValue(ctx, array_proto);
 
   js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
 
   pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
+
+  JSAtom species = js_symbol_static_atom(ctx, "species");
+  JS_SetProperty(ctx, pointer_ctor, species, JS_DupValue(ctx, pointer_ctor));
+  JS_FreeAtom(ctx, species);
 
   JS_SetPropertyFunctionList(ctx, pointer_ctor, js_pointer_static_funcs, countof(js_pointer_static_funcs));
 

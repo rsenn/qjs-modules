@@ -602,6 +602,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   DeepIteratorFlags flags = js_deep_defaultflags;
   ValueType mask = TYPE_ALL;
   JSValue pointer = JS_UNDEFINED;
+  Vector frames = VECTOR(ctx), atoms = VECTOR(ctx);
 
   if(argc > 2)
     flags = js_touint32(ctx, argv[2]);
@@ -612,11 +613,13 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(argc > 3)
     JS_ToUint32(ctx, &mask, argv[3]);
 
+  if(argc > 4)
+    atoms_from_iterable(ctx, argv[4], &atoms);
+
   if(!predicate_callable(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
 
   JSValue ret = JS_NewArray(ctx);
-  Vector frames = VECTOR(ctx);
   PropertyEnumeration* it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
 
   if(flags & PATH_AS_POINTER)
@@ -625,16 +628,22 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   while(it) {
     JSValue value = property_recursion_value(&frames, ctx);
     ValueType type = 1 << js_value_type_get(ctx, value);
+    JSAtom atom = property_enumeration_atom(property_recursion_top(&frames));
 
     if(flags & PATH_AS_POINTER)
       property_recursion_pointer(&frames, js_pointer_data(pointer), ctx);
 
-    int r = (type & mask) ? js_deep_predicate(ctx, argv[1], value, &frames, pointer) : 0;
+    int r = 0;
+    BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && /*!vector_empty(&atoms) &&*/ (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
 
-    JS_FreeValue(ctx, value);
+    if(!filter) {
+      r = (type & mask) ? js_deep_predicate(ctx, argv[1], value, &frames, pointer) : 0;
 
-    if((r & YIELD))
-      JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK, 0));
+      JS_FreeValue(ctx, value);
+
+      if((r & YIELD))
+        JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK, 0));
+    }
 
     if(!STATUS_RECURSE(r) || property_recursion_depth(&frames) >= max_depth)
       property_recursion_skip(&frames, ctx);

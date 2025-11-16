@@ -30,7 +30,7 @@ typedef struct ChildProcess {
 
   struct list_head link;
 
-  JSValue resolve[2];
+  JSValue promise, resolve[2];
 } ChildProcess;
 
 ChildProcess* child_process_get(int);
