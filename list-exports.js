@@ -222,7 +222,7 @@ function AddExport(tokens) {
 
 function AddImport(tokens) {
   //console.log('tokens:', tokens);
-  let range = [+tokens[0].loc, +tokens.last.loc],
+  let range = [+tokens[0]?.loc, +tokens?.last?.loc],
     code = tokens.map(tok => tok.lexeme).join('');
   tokens = tokens.filter(tok => tok.type != 'whitespace');
   let type = ImportType(tokens),
