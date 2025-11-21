@@ -343,9 +343,7 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   arr = JS_NewArray(ctx);
   n = 0;
 
-  vector_foreach_t(&opts->hide_keys, key) {
-    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
-  }
+  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
 
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
@@ -430,7 +428,7 @@ put_escaped(Writer* wr, const char* str, size_t len) {
 
     if(c == 0x1b) {
       writer_puts(wr, "\\x1b");
-    } else if(r == 'u') {
+    } else if(r == 'u' || c >= 0x100) {
       writer_puts(wr, c > 0xffff ? "\\u{" : "\\u");
       writer_write(wr, buf, fmt_xlong0(buf, c, 4));
       writer_puts(wr, c > 0xffff ? "}" : "");
