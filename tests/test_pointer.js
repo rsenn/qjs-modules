@@ -3,7 +3,6 @@ import inspect from 'inspect';
 import { Pointer } from 'pointer';
 import * as std from 'std';
 import * as xml from 'xml';
-
 globalThis.inspect = inspect;
 
 function WriteFile(file, data) {

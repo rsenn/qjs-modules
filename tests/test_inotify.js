@@ -1,8 +1,31 @@
 import * as os from 'os';
-import { IN_ACCESS, IN_ATTRIB, IN_CLOSE, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_IGNORED, IN_ISDIR, IN_MASK_ADD, IN_MODIFY, IN_MOVE, IN_MOVE_SELF, IN_MOVED_FROM, IN_MOVED_TO, IN_NONBLOCK, IN_ONESHOT, IN_ONLYDIR, IN_OPEN, IN_Q_OVERFLOW, IN_UNMOUNT, inotify, } from '../lib/inotify.js';
+import { IN_ACCESS } from '../lib/inotify.js';
+import { IN_ATTRIB } from '../lib/inotify.js';
+import { IN_CLOSE } from '../lib/inotify.js';
+import { IN_CLOSE_NOWRITE } from '../lib/inotify.js';
+import { IN_CLOSE_WRITE } from '../lib/inotify.js';
+import { IN_CREATE } from '../lib/inotify.js';
+import { IN_DELETE } from '../lib/inotify.js';
+import { IN_DELETE_SELF } from '../lib/inotify.js';
+import { IN_DONT_FOLLOW } from '../lib/inotify.js';
+import { IN_EXCL_UNLINK } from '../lib/inotify.js';
+import { IN_IGNORED } from '../lib/inotify.js';
+import { IN_ISDIR } from '../lib/inotify.js';
+import { IN_MASK_ADD } from '../lib/inotify.js';
+import { IN_MODIFY } from '../lib/inotify.js';
+import { IN_MOVE } from '../lib/inotify.js';
+import { IN_MOVE_SELF } from '../lib/inotify.js';
+import { IN_MOVED_FROM } from '../lib/inotify.js';
+import { IN_MOVED_TO } from '../lib/inotify.js';
+import { IN_NONBLOCK } from '../lib/inotify.js';
+import { IN_ONESHOT } from '../lib/inotify.js';
+import { IN_ONLYDIR } from '../lib/inotify.js';
+import { IN_OPEN } from '../lib/inotify.js';
+import { IN_Q_OVERFLOW } from '../lib/inotify.js';
+import { IN_UNMOUNT } from '../lib/inotify.js';
+import { inotify } from '../lib/inotify.js';
 import { Console } from 'console';
 import * as std from 'std';
-
 let inotifyFlags = {
   IN_ACCESS,
   IN_ATTRIB,

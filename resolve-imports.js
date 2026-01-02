@@ -1,18 +1,44 @@
-#!/usr/bin/env qjsm
-/* äöü */
-import { renameSync, unlinkSync, closeSync, openSync, readFileSync, sizeSync, statSync, writeSync } from 'fs';
+import { closeSync } from 'fs';
+import { openSync } from 'fs';
+import { readFileSync } from 'fs';
+import { renameSync } from 'fs';
+import { sizeSync } from 'fs';
+import { statSync } from 'fs';
+import { unlinkSync } from 'fs';
+import { writeSync } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { camelize, curry, define, difference, error, escape, getOpt, getset, getTypeName, intersection, isObject, mapWrapper, memoize, padStartAnsi, quote, randInt, split, toArrayBuffer, toString, types, unique, nonenumerable, } from 'util';
+import { camelize } from 'util';
+import { curry } from 'util';
+import { define } from 'util';
+import { difference } from 'util';
+import { error } from 'util';
+import { escape } from 'util';
+import { getOpt } from 'util';
+import { getset } from 'util';
+import { getTypeName } from 'util';
+import { intersection } from 'util';
+import { isObject } from 'util';
+import { mapWrapper } from 'util';
+import { memoize } from 'util';
+import { nonenumerable } from 'util';
+import { quote } from 'util';
+import { randInt } from 'util';
+import { split } from 'util';
+import { toArrayBuffer } from 'util';
+import { toString } from 'util';
+import { types } from 'util';
+import { unique } from 'util';
+import { Console } from 'console';
 import extendArray from 'extendArray';
 import extendArrayBuffer from 'extendArrayBuffer';
-import { Console } from 'console';
 import inspect from 'inspect';
-import { Lexer, Token } from 'lexer';
+import { Lexer } from 'lexer';
+import { Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
-import { Location } from 'location';
-
+#!/usr/bin/env qjsm
+/* äöü */
 const inspectSymbol = Symbol.for('quickjs.inspect.custom');
 
 class ArgumentError extends Error {
@@ -75,6 +101,7 @@ const header = (globalThis.header = []),
   footer = (globalThis.footer = []);
 
 const dependencyTree = memoize(arg => [], dependencyMap);
+
 const bufferMap = getset(bufferRef);
 let identifiersUsed;
 

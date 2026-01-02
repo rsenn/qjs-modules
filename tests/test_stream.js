@@ -1,10 +1,12 @@
 import fs from 'fs';
 import { toString } from 'util';
 import { extendAsyncGenerator } from '../lib/extendAsyncGenerator.js';
-import { ByLineStream, FileSystemReadableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
+import { ByLineStream } from '../lib/streams.js';
+import { FileSystemReadableFileStream } from '../lib/streams.js';
+import { FileSystemReadableStream } from '../lib/streams.js';
+import { StreamReadIterator } from '../lib/streams.js';
 import { Console } from 'console';
 import { exit } from 'std';
-
 extendAsyncGenerator();
 
 async function main(...args) {

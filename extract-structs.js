@@ -1,12 +1,11 @@
-#!/usr/bin/env qjsm
 import * as os from 'os';
 import { define } from 'util';
-import extendArray from 'extendArray';
 import { getOpt } from 'util';
 import { Console } from 'console';
+import extendArray from 'extendArray';
 import CLexer from 'lexer/c.js';
 import * as std from 'std';
-
+#!/usr/bin/env qjsm
 extendArray();
 
 let jsCFuncs, noStructs;
@@ -14,6 +13,7 @@ let jsCFuncs, noStructs;
 const MaybeNumber = t => (Array.isArray(t) ? t.map(MaybeNumber) : isNaN(+t) ? t : +t);
 
 const NonWS = t => (Array.isArray(t) ? t.filter(NonWS) : t.type != 'whitespace');
+
 const TrimWS = t =>
   t.reduce((acc, item) => {
     if(acc.length == 0 && item.type == 'whitespace') return acc;
@@ -49,6 +49,7 @@ const CommaList = (toklist, t = tok => tok.lexeme) => {
   if(s != '') list.push(s);
   return list;
 };
+
 const CommaJoin = list => list.reduce((acc, item) => acc.concat(acc.length ? [',', item] : [item]), []);
 
 function parse(lexer, fn = (tok, arr) => {}, ...args) {

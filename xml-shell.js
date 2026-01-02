@@ -1,12 +1,30 @@
-#!/usr/bin/env qjsm
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync } from 'fs';
+import { writeFileSync } from 'fs';
 import { basename } from 'path';
 import { getOpt } from 'util';
 import Console from 'console';
+import { Attr } from 'dom';
+import { Comment } from 'dom';
+import { CSSStyleDeclaration } from 'dom';
+import { Document } from 'dom';
+import { Element } from 'dom';
+import { Entities } from 'dom';
+import { Factory } from 'dom';
+import { GetType } from 'dom';
+import { Interface } from 'dom';
+import { NamedNodeMap } from 'dom';
+import { Node } from 'dom';
+import { NodeList } from 'dom';
+import { nodeTypes } from 'dom';
+import { Parser } from 'dom';
+import { Prototypes } from 'dom';
+import { Serializer } from 'dom';
+import { Text } from 'dom';
+import { TokenList } from 'dom';
 import { REPL } from 'repl';
-import { read, write } from 'xml';
-import { Attr, CSSStyleDeclaration, Comment, Document, Element, Entities, Factory, GetType, Interface, NamedNodeMap, Node, NodeList, Parser, Prototypes, Serializer, Text, TokenList, nodeTypes, } from 'dom';
-
+import { read } from 'xml';
+import { write } from 'xml';
+#!/usr/bin/env qjsm
 let repl;
 
 function main(...args) {

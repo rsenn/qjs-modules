@@ -5,7 +5,6 @@ import readXML from '../lib/xml/read.js';
 import writeXML from '../lib/xml/write.js';
 import * as deep from 'deep';
 import * as std from 'std';
-
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);

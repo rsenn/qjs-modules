@@ -2,7 +2,6 @@ import * as os from 'os';
 import Console from '../lib/console.js';
 import inspect from 'inspect';
 import * as std from 'std';
-
 globalThis.inspect = inspect;
 
 Map.prototype.emplace = function emplace(key, handler) {

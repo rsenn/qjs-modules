@@ -1,9 +1,14 @@
 import * as os from 'os';
 import Console from '../lib/console.js';
 import inspect from 'inspect';
-import { equal, index, instanceOf, Predicate, PredicateOperators, PredicateOperatorSet, property } from 'predicate';
+import { equal } from 'predicate';
+import { index } from 'predicate';
+import { instanceOf } from 'predicate';
+import { Predicate } from 'predicate';
+import { PredicateOperators } from 'predicate';
+import { PredicateOperatorSet } from 'predicate';
+import { property } from 'predicate';
 import * as std from 'std';
-
 globalThis.inspect = inspect;
 
 function WriteFile(file, data) {

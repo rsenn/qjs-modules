@@ -1,11 +1,11 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync } from 'fs';
+import { writeFileSync } from 'fs';
+import * as path from 'path';
+import EBNFParser from '../lib/parser/ebnf.js';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import { Lexer } from 'lexer';
-import * as path from 'path';
 //import inspect from 'inspect';
-import EBNFParser from '../lib/parser/ebnf.js';
-
 extendArray(Array.prototype);
 
 let code = 'C';

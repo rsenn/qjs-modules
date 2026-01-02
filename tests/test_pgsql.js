@@ -1,9 +1,10 @@
-import { abbreviate, randStr, startInteractive } from 'util';
+import { abbreviate } from 'util';
+import { randStr } from 'util';
 import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
-import { PGconn, PGresult } from 'pgsql';
+import { PGconn } from 'pgsql';
+import { PGresult } from 'pgsql';
 import { exit } from 'std';
-
 extendArray();
 
 async function main(...args) {

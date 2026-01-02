@@ -1,13 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { getOpt, isObject } from 'util';
-import extendArray from 'extendArray';
+import { getOpt } from 'util';
+import { isObject } from 'util';
 import { parseSelectors } from '../lib/css3-selectors.js';
-import { Node, Parser } from '../lib/dom.js';
+import { Node } from '../lib/dom.js';
+import { Parser } from '../lib/dom.js';
 import Console from 'console';
+import extendArray from 'extendArray';
 import { REPL } from 'repl';
 import { write as writeXML } from 'xml';
-
 extendArray();
 
 let repl = {

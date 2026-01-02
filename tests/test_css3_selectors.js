@@ -1,9 +1,11 @@
 import { readFileSync } from 'fs';
-import { AttributeSelector, ClassSelector, parseSelectors, TypeSelector } from '../lib/css3-selectors.js';
+import { AttributeSelector } from '../lib/css3-selectors.js';
+import { ClassSelector } from '../lib/css3-selectors.js';
+import { parseSelectors } from '../lib/css3-selectors.js';
+import { TypeSelector } from '../lib/css3-selectors.js';
 import { Parser } from '../lib/dom.js';
 import { Console } from 'console';
 import { Predicate } from 'predicate';
-
 function main(...args) {
   globalThis.console = new Console({
     stdout: process.stdout,

@@ -1,6 +1,9 @@
-import { define, properties, isNumber } from 'util';
-import { NamedNodeMap, Factory, ListAdapter } from 'dom';
-
+import { define } from 'util';
+import { isNumber } from 'util';
+import { properties } from 'util';
+import { Factory } from 'dom';
+import { ListAdapter } from 'dom';
+import { NamedNodeMap } from 'dom';
 class EagleElement extends Element {
   constructor(...args) {
     super(...args);

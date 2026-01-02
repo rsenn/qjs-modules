@@ -1,15 +1,23 @@
-#!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { camelize, curry, define, escape, getOpt, split, startInteractive, toString, unique } from 'util';
-import extendArray from 'extendArray';
+import { camelize } from 'util';
+import { curry } from 'util';
+import { define } from 'util';
+import { escape } from 'util';
+import { getOpt } from 'util';
+import { split } from 'util';
+import { startInteractive } from 'util';
+import { toString } from 'util';
+import { unique } from 'util';
 import { Console } from 'console';
+import extendArray from 'extendArray';
 import inspect from 'inspect';
-import { Lexer, Token } from 'lexer';
+import { Lexer } from 'lexer';
+import { Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
-
+#!/usr/bin/env qjsm
 const buffers = {},
   modules = {};
 
@@ -117,6 +125,7 @@ const TokIs = curry((type, lexeme, tok) => {
 });
 
 const IsKeyword = TokIs('keyword');
+
 const IsPunctuator = TokIs('punctuator');
 const IsIdentifier = TokIs('identifier');
 const IsStringLiteral = TokIs('stringLiteral');

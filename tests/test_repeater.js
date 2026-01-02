@@ -1,7 +1,6 @@
 import { Console } from 'console';
 import { Repeater } from 'repeater';
 import { err as stderr } from 'std';
-
 async function main(...args) {
   globalThis.console = new Console(stderr, {
     inspectOptions: {

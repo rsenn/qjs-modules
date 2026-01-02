@@ -1,9 +1,8 @@
-import { spawn, WNOHANG } from 'child_process';
+import { spawn } from 'child_process';
 import * as os from 'os';
 import { toString } from 'util';
 import Console from '../lib/console.js';
 import * as std from 'std';
-
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);

@@ -1,12 +1,26 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import extendArray from 'extendArray';
 import { format } from 'util';
 import { Console } from 'console';
+import extendArray from 'extendArray';
 import { Location } from 'location';
-import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClass, getClassID, getClassName, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject, } from 'misc';
+import { arrayToBitfield } from 'misc';
+import { atob } from 'misc';
+import { atomToValue } from 'misc';
+import { bitfieldToArray } from 'misc';
+import { btoa } from 'misc';
+import { compileScript } from 'misc';
+import { getByteCode } from 'misc';
+import { getClass } from 'misc';
+import { getClassID } from 'misc';
+import { getClassName } from 'misc';
+import { getOpCodes } from 'misc';
+import { JS_EVAL_FLAG_COMPILE_ONLY } from 'misc';
+import { readObject } from 'misc';
+import { toArrayBuffer } from 'misc';
+import { valueToAtom } from 'misc';
+import { writeObject } from 'misc';
 import * as std from 'std';
-
 extendArray(Array.prototype);
 
 function main(...args) {

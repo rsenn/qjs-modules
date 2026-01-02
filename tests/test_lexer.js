@@ -1,19 +1,35 @@
 import fs from 'fs';
-import { open, O_RDONLY } from 'os';
-import { dirname, extname, join, normalize } from 'path';
-import { curry, define, getOpt, isObject, split, startInteractive, unique } from 'util';
-import extendArray from 'extendArray';
+import { O_RDONLY } from 'os';
+import { open } from 'os';
+import { dirname } from 'path';
+import { extname } from 'path';
+import { join } from 'path';
+import { normalize } from 'path';
+import { curry } from 'util';
+import { define } from 'util';
+import { getOpt } from 'util';
+import { isObject } from 'util';
+import { split } from 'util';
+import { startInteractive } from 'util';
+import { unique } from 'util';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CLexer from '../lib/lexer/c.js';
 import CSVLexer from '../lib/lexer/csv.js';
 import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
 import { Console } from 'console';
+import extendArray from 'extendArray';
 import inspect from 'inspect';
 import { Location } from 'lexer';
-import { escape, toString } from 'misc';
-import { MAP_PRIVATE, mmap, PROT_READ } from 'mmap';
-import { err, exit, gc, open as fopenSync, puts } from 'std';
-
+import { escape } from 'misc';
+import { toString } from 'misc';
+import { MAP_PRIVATE } from 'mmap';
+import { mmap } from 'mmap';
+import { PROT_READ } from 'mmap';
+import { err } from 'std';
+import { exit } from 'std';
+import { gc } from 'std';
+import { open as fopenSync } from 'std';
+import { puts } from 'std';
 let buffers = {},
   modules = {};
 
@@ -24,6 +40,7 @@ extendArray(Array.prototype);
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
 
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
+
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 const code = [
   "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",

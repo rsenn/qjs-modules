@@ -1,7 +1,6 @@
 import { Console } from 'console';
 import { Location } from 'location';
 import * as std from 'std';
-
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {

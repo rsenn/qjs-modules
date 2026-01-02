@@ -1,7 +1,6 @@
 import { toString } from 'util';
 import { TextEncoderStream } from '../lib/streams.js';
 import { Console } from 'console';
-
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
