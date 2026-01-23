@@ -433,7 +433,7 @@ scan_double(const char* in, double* dest) {
   char neg = 0;
 
   switch(*c) {
-    case '-': neg = 1; /* fall through */
+    case '-': neg = 1;
     case '+': c++; break;
     default: break;
   }
@@ -445,6 +445,7 @@ scan_double(const char* in, double* dest) {
 
   if(*c == '.') {
     double factor = .1;
+
     while(is_digit_char(*++c)) {
       d = d + (factor * (*c - '0'));
       factor /= 10;
@@ -452,12 +453,12 @@ scan_double(const char* in, double* dest) {
   }
 
   if((*c | 32) == 'e') {
-    int e = 0;
+    int exp = 0;
     char neg = 0;
 
     if(c[1] < '0') {
       switch(*c) {
-        case '-': neg = 1; /* fall through */
+        case '-': neg = 1;
         case '+': c++; break;
         default:
           d = 0;
@@ -467,20 +468,21 @@ scan_double(const char* in, double* dest) {
     }
 
     while(is_digit_char(*++c))
-      e = e * 10 + (*c - '0');
+      exp = exp * 10 + (*c - '0');
 
     if(neg)
-      while(e) { /* XXX: this introduces rounding errors */
+
+      while(exp) { /* XXX: this introduces rounding errors */
         d /= 10;
-        --e;
+        --exp;
       }
     else
-      while(e) { /* XXX: this introduces rounding errors */
+
+      while(exp) { /* XXX: this introduces rounding errors */
         d *= 10;
-        --e;
+        --exp;
       }
   }
-
 done:
   *dest = (neg ? -d : d);
   return (size_t)(c - in);

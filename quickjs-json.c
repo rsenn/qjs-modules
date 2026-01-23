@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "json.h"
 #include "vector.h"
+#define SJ_IMPL
 #include "sj.h"
 
 VISIBLE JSClassID js_json_parser_class_id = 0;
@@ -116,8 +117,8 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
     }
 
     case SJ_NUMBER: {
-      double num;
-      scan_double(val.start, &num);
+      double num = strtod(val.start, NULL);
+
       ret = JS_NewFloat64(ctx, num);
       break;
     }
