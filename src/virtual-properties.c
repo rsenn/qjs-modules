@@ -375,8 +375,7 @@ virtual_properties_array(JSContext* ctx, JSValueConst obj) {
 }
 
 static JSValue
-virtual_properties_getset(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
+virtual_properties_getset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
   VirtualWrapper* vw = opaque;
   JSValue ret = JS_UNDEFINED;
 
@@ -449,12 +448,10 @@ virtual_properties_wrap(VirtualProperties virt, JSContext* ctx) {
     JS_DefinePropertyValueStr(ctx, obj, "set", virtual_properties_method(virt, METHOD_SET, ctx), JS_PROP_CONFIGURABLE);
 
   if(virt.delete)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "delete", virtual_properties_method(virt, METHOD_DELETE, ctx), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "delete", virtual_properties_method(virt, METHOD_DELETE, ctx), JS_PROP_CONFIGURABLE);
 
   if(virt.keys)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "keys", virtual_properties_method(virt, METHOD_KEYS, ctx), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "keys", virtual_properties_method(virt, METHOD_KEYS, ctx), JS_PROP_CONFIGURABLE);
 
   return obj;
 }
@@ -517,8 +514,7 @@ virtual_delete(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop
 
 JSValue
 virtual_keys(const VirtualProperties* vprop, JSContext* ctx, int flags) {
-  return vprop->keys ? vprop->keys(vprop, ctx, flags)
-                     : JS_ThrowInternalError(ctx, "VirtualProperties has no 'keys' method");
+  return vprop->keys ? vprop->keys(vprop, ctx, flags) : JS_ThrowInternalError(ctx, "VirtualProperties has no 'keys' method");
 }
 /**
  * @}

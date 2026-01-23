@@ -17,9 +17,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0,
-                  js_mysqlresult_class_id = 0;
-static JSValue mysqlerror_proto, mysqlerror_ctor,               mysql_proto, mysql_ctor,                mysqlresult_proto, mysqlresult_ctor;
+VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
+static JSValue mysqlerror_proto, mysqlerror_ctor, mysql_proto, mysql_ctor, mysqlresult_proto, mysqlresult_ctor;
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
@@ -978,10 +977,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
       SOCKET s = _get_osfhandle(fd);
 
       if(s != sock) {
-        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n",
-               fd,
-               (void*)s,
-               (void*)sock);
+        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, (void*)s, (void*)sock);
         mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)(intptr_t)-1);
         has_fd = FALSE;
         continue;
@@ -1124,8 +1120,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   state = mysql_real_query_start(&err, my, query, i);
   fd = js_mysql_fd(ctx, this_val);
   as = to_asyncevent(state);
-  ac = asyncclosure_new(
-      ctx, fd, as, JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
+  ac = asyncclosure_new(ctx, fd, as, JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
@@ -1397,12 +1392,7 @@ result_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
 
   for(i = 0; i < num_fields; i++) {
 #ifdef DEBUG_OUTPUT_
-    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n",
-           __func__,
-           num_fields,
-           i,
-           (int)(field_lengths[i] > 32 ? 32 : field_lengths[i]),
-           row[i]);
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(field_lengths[i] > 32 ? 32 : field_lengths[i]), row[i]);
 #endif
     JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
   }
@@ -1557,8 +1547,7 @@ js_mysqlresult_fd(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_mysqlresult_next_continue(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   ResultIterator* ri = ac->opaque;
   MYSQL_RES* res = ri->res;
@@ -1639,9 +1628,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
         return JS_ThrowTypeError(ctx, "argument 1 must be a positive index");
 
       if(index >= mysql_num_fields(res))
-        return JS_ThrowRangeError(ctx,
-                                  "argument 1 must be smaller than total fields (%" PRIu32 ")",
-                                  mysql_num_fields(res));
+        return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", mysql_num_fields(res));
 
       if((field = mysql_fetch_field_direct(res, index)))
         ret = field_array(ctx, field);
@@ -1831,8 +1818,7 @@ field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields) {
 
   for(uint32_t i = 0; !eq && i < num_fields; i++)
     for(uint32_t j = 0; !eq && j < num_fields; j++)
-      if(i != j && fields[i].name_length == fields[j].name_length &&
-         byte_equal(fields[i].name, fields[i].name_length, fields[j].name))
+      if(i != j && fields[i].name_length == fields[j].name_length && byte_equal(fields[i].name, fields[i].name_length, fields[j].name))
         return field_id;
 
   return field_name;

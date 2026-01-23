@@ -36,7 +36,7 @@ asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val
   if(asyncclosure_list.prev == NULL && asyncclosure_list.next == NULL)
     init_list_head(&asyncclosure_list);
 
-  //assert((ac = asyncclosure_lookup(fd)) == NULL || ac->state == 0);
+  // assert((ac = asyncclosure_lookup(fd)) == NULL || ac->state == 0);
 
   if(!(ac = js_malloc(ctx, sizeof(AsyncClosure))))
     return 0;

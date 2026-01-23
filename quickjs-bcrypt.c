@@ -29,10 +29,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         InputBuffer salt = js_input_buffer(ctx, argv[0]);
 
         if(salt.size < BCRYPT_HASHSIZE)
-          return JS_ThrowInternalError(ctx,
-                                       "supplied buffer size (%lu) < %d",
-                                       (unsigned long)salt.size,
-                                       BCRYPT_HASHSIZE);
+          return JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)salt.size, BCRYPT_HASHSIZE);
 
         ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, (void*)salt.data));
 
@@ -95,10 +92,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       if(buf.size < (BCRYPT_HASHSIZE - 4)) {
         inputbuffer_free(&buf, ctx);
-        return JS_ThrowInternalError(ctx,
-                                     "supplied buffer size %lu < %u",
-                                     (unsigned long)buf.size,
-                                     BCRYPT_HASHSIZE - 4);
+        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %u", (unsigned long)buf.size, BCRYPT_HASHSIZE - 4);
       }
 
       memset(x, 0, sizeof(x));

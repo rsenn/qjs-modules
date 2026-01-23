@@ -18,7 +18,7 @@
  * \defgroup vector vector: Vector implementation
  * @{
  */
-#define roundto(n, mod) (((n) = (((n) + (mod) - 1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
+#define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
 
 typedef DynBuf Vector;
 
@@ -28,13 +28,9 @@ typedef DynBuf Vector;
 #define vector_init(vec, ctx) dbuf_init2((vec), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
 #define vector_init_rt(vec, rt) dbuf_init2((vec), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
 #define VECTOR(ctx) \
-  (Vector) { \
-    0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx \
-  }
+  (Vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx }
 #define VECTOR_RT(rt) \
-  (Vector) { \
-    0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt \
-  }
+  (Vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt }
 
 #define vector_begin(vec) ((void*)((vec)->buf))
 #define vector_end(vec) ((void*)((vec)->buf + (vec)->size))
@@ -43,8 +39,7 @@ typedef DynBuf Vector;
 #define vector_end_t(vec, t) ((t*)vector_end(vec))
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
-#define vector_foreach(a, msz, p) \
-  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
+#define vector_foreach(a, msz, p) for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
 #if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 static inline int

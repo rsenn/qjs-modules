@@ -41,8 +41,7 @@ typedef struct JSObject JSObject;
 
 #define JS_EVAL_IS_MAIN (1 << 2)
 
-#define JS_EVAL_FLAG_MASK \
-  (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | JS_EVAL_FLAG_ASYNC)
+#define JS_EVAL_FLAG_MASK (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | JS_EVAL_FLAG_ASYNC)
 
 char* basename(const char*);
 
@@ -947,8 +946,7 @@ JSAtom js_get_propertystr_atom(JSContext*, JSValueConst obj, const char* prop);
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_DefinePropertyValue(
-      ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
@@ -1043,8 +1041,7 @@ JSValue js_typedarray_prototype(JSContext*);
 JSValue js_typedarray_constructor(JSContext*);
 JSValue js_typedarray_newv(JSContext*, int bits, BOOL floating, BOOL sign, int argc, JSValueConst argv[]);
 JSValue js_typedarray_new(JSContext*, int bits, BOOL floating, BOOL sign, JSValue buffer);
-JSValue js_typedarray_new3(
-    JSContext*, int bits, BOOL floating, BOOL sign, JSValueConst buffer, size_t byteoffset, size_t length);
+JSValue js_typedarray_new3(JSContext*, int bits, BOOL floating, BOOL sign, JSValueConst buffer, size_t byteoffset, size_t length);
 
 static inline BOOL
 js_is_basic_array(JSContext* ctx, JSValueConst value) {
@@ -1146,8 +1143,7 @@ js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, c
 }
 
 static inline int
-js_find_cfunction_atom(
-    JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
+js_find_cfunction_atom(JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
   const char* name = JS_AtomToCString(ctx, atom);
   int i;
   i = js_find_cfunction_entry(entries, n_entries, name, def_type);
@@ -1169,7 +1165,7 @@ void js_arraybuffer_freeobj(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromobj(JSContext*, void* x, size_t n, JSValueConst val);
 void js_arraybuffer_freeptr(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromstring(JSContext*, JSValueConst str);
-JSValue            js_arraybuffer_mmap(JSContext*, const char*, BOOL);
+JSValue js_arraybuffer_mmap(JSContext*, const char*, BOOL);
 
 static inline JSValue
 js_arraybuffer_constructor(JSContext* ctx) {

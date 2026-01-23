@@ -39,12 +39,12 @@
 
 /* If WIFEXITED(STATUS), the low-order 8 bits of the status.  */
 #ifndef WEXITSTATUS
-#define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
+#define WEXITSTATUS(status) (((status)&0xff00) >> 8)
 #endif
 
 /* If WIFSIGNALED(STATUS), the terminating signal.  */
 #ifndef WTERMSIG
-#define WTERMSIG(status) ((status) & 0x7f)
+#define WTERMSIG(status) ((status)&0x7f)
 #endif
 
 /* If WIFSTOPPED(STATUS), the signal that stopped the child.  */
@@ -54,12 +54,12 @@
 
 /* Nonzero if STATUS indicates normal termination.  */
 #ifndef WIFEXITED
-#define WIFEXITED(status) (((status) & 0x7f) == 0)
+#define WIFEXITED(status) (((status)&0x7f) == 0)
 #endif
 
 /* Nonzero if STATUS indicates the child is stopped.  */
 #ifndef WIFSTOPPED
-#define WIFSTOPPED(status) (((status) & 0xff) == 0x7f)
+#define WIFSTOPPED(status) (((status)&0xff) == 0x7f)
 #endif
 
 /* Nonzero if STATUS indicates termination by a signal.  */

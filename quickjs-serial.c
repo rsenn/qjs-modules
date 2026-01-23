@@ -10,7 +10,7 @@
  * @{
  */
 VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-static JSValue serialport_proto, serialport_ctor,                 serial_ctor, serialerror_proto,                serialerror_ctor;
+static JSValue serialport_proto, serialport_ctor, serial_ctor, serialerror_proto, serialerror_ctor;
 
 static JSValue
 js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
@@ -68,18 +68,12 @@ js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) 
     }
 
     case SP_ERR_MEM: {
-      snprintf(msg,
-               sizeof(msg),
-               "%s: A memory allocation failed while executing the operation",
-               sp_get_port_name(port));
+      snprintf(msg, sizeof(msg), "%s: A memory allocation failed while executing the operation", sp_get_port_name(port));
       break;
     }
 
     case SP_ERR_SUPP: {
-      snprintf(msg,
-               sizeof(msg),
-               "%s: The requested operation is not supported by this system or device",
-               sp_get_port_name(port));
+      snprintf(msg, sizeof(msg), "%s: The requested operation is not supported by this system or device", sp_get_port_name(port));
       break;
     }
 
@@ -130,10 +124,7 @@ js_serialport_error(JSContext* ctx, struct sp_port* port, enum sp_return result)
     }
 
     case SP_ERR_FAIL: {
-      JS_ThrowInternalError(ctx,
-                            "libserialport OS error for port '%s': %s",
-                            sp_get_port_name(port),
-                            sp_last_error_message());
+      JS_ThrowInternalError(ctx, "libserialport OS error for port '%s': %s", sp_get_port_name(port), sp_last_error_message());
       break;
     }
 
@@ -326,10 +317,7 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       } else {
         if(baud_rate != -1)
           if(sp_set_baudrate(port, baud_rate) != SP_OK)
-            ret = JS_ThrowInternalError(ctx,
-                                        "Failed setting baud rate on port '%s' to %" PRId32,
-                                        sp_get_port_name(port),
-                                        baud_rate);
+            ret = JS_ThrowInternalError(ctx, "Failed setting baud rate on port '%s' to %" PRId32, sp_get_port_name(port), baud_rate);
 
         if(parity) {
           if(!strcmp(parity, "none"))
@@ -503,8 +491,7 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case SERIALPORT_TRANSPORT: {
-      ret = JS_NewString(
-          ctx, ((const char* [3]){"native", "usb", "bluetooth"})[sp_get_port_transport(port) - SP_TRANSPORT_NATIVE]);
+      ret = JS_NewString(ctx, ((const char* [3]){"native", "usb", "bluetooth"})[sp_get_port_transport(port) - SP_TRANSPORT_NATIVE]);
       break;
     }
 

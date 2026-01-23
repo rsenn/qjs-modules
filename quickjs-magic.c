@@ -299,13 +299,7 @@ js_magic_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc == 0)
     return JS_ThrowInternalError(ctx, "Magic(arg)");
 
-  return js_magic_function(ctx,
-                           this_val,
-                           argc,
-                           argv,
-                           JS_IsNumber(argv[0])   ? LIBMAGIC_DESCRIPTOR
-                           : JS_IsString(argv[0]) ? LIBMAGIC_FILE
-                                                  : LIBMAGIC_BUFFER);
+  return js_magic_function(ctx, this_val, argc, argv, JS_IsNumber(argv[0]) ? LIBMAGIC_DESCRIPTOR : JS_IsString(argv[0]) ? LIBMAGIC_FILE : LIBMAGIC_BUFFER);
 }
 
 static JSValue

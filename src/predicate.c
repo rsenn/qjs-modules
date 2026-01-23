@@ -825,9 +825,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       predicate_inspect(pr->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(
-          dbuf,
-          CONST_STRARRAY(" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 ")[pr->id - PREDICATE_ADD]);
+      dbuf_putstr(dbuf, CONST_STRARRAY(" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 ")[pr->id - PREDICATE_ADD]);
 
       predicate_inspect(pr->binary.right, ctx, dbuf, args, parens[1]);
       break;

@@ -11,8 +11,7 @@
  * @{
  */
 
-VISIBLE JSClassID js_archive_class_id = 0, js_archive_iterator_class_id = 0, js_archiveentry_class_id = 0,
-                  js_archivematch_class_id = 0;
+VISIBLE JSClassID js_archive_class_id = 0, js_archive_iterator_class_id = 0, js_archiveentry_class_id = 0, js_archivematch_class_id = 0;
 static JSValue archive_proto, archive_ctor, iterator_proto, entry_proto, entry_ctor, match_proto, match_ctor;
 
 typedef enum { READ = 0, WRITE = 1 } archive_mode;

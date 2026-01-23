@@ -844,8 +844,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(!(other = js_list_data2(ctx, argv[0])))
         return JS_EXCEPTION;
 
-      JSValue pred = argc > 1 ? JS_DupValue(ctx, argv[0])
-                              : JS_Eval(ctx, "(a, b) => a <= b", sizeof("(a, b) => a <= b") - 1, "-", 0);
+      JSValue pred = argc > 1 ? JS_DupValue(ctx, argv[0]) : JS_Eval(ctx, "(a, b) => a <= b", sizeof("(a, b) => a <= b") - 1, "-", 0);
 
       list_for_each(el, &other->node) {
         while(node != &list->node && js_call_pred(ctx, pred, node->value, el->value)) {
@@ -949,8 +948,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       BOOL result = FALSE;
 
       for(n1 = list->head, n2 = list->tail; n1 != &list->node && n2 != &list->node; n1 = n1->next, n2 = n2->prev) {
-        if(js_value_equals(ctx, n1->value, argv[0], FALSE) > 0 ||
-           (n1 != n2 && js_value_equals(ctx, n2->value, argv[0], FALSE) > 0)) {
+        if(js_value_equals(ctx, n1->value, argv[0], FALSE) > 0 || (n1 != n2 && js_value_equals(ctx, n2->value, argv[0], FALSE) > 0)) {
           result = TRUE;
           break;
         }
@@ -1300,8 +1298,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
     case LIST_SORT: {
-      JSValue pred =
-          argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_Eval(ctx, "(a, b) => a - b", sizeof("(a, b) => a - b") - 1, "-", 0);
+      JSValue pred = argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_Eval(ctx, "(a, b) => a - b", sizeof("(a, b) => a - b") - 1, "-", 0);
 
       list_sort(list, pred, ctx);
 
@@ -1454,8 +1451,7 @@ js_list_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
 }
 
 static int
-js_list_set_property(
-    JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
+js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   List* list;
   int64_t index, size;
 
@@ -1750,18 +1746,12 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
   if(JS_IsObject(array_proto)) {
-    JS_DefinePropertyValueStr(
-        ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(
-        ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(
-        ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(
-        ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(
-        ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(
-        ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
   }
 
   JS_FreeValue(ctx, array_proto);
@@ -1770,10 +1760,7 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_list_iterator_class_id, &js_list_iterator_class);
 
   list_iterator_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx,
-                             list_iterator_proto,
-                             js_list_iterator_proto_funcs,
-                             countof(js_list_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, list_iterator_proto, js_list_iterator_proto_funcs, countof(js_list_iterator_proto_funcs));
 
   JS_SetClassProto(ctx, js_list_iterator_class_id, list_iterator_proto);
 

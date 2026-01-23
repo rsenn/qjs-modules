@@ -406,8 +406,7 @@ js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
   size_t namelen = strlen(name);
 
-  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules;
-      el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
+  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     const char *x, *str;
 

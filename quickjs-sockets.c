@@ -34,8 +34,7 @@ typedef int SOCKET;
 #define JS_SOCKETCALL(socketcall_no, sock, result) \
   JS_SOCKETCALL_RETURN(socketcall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
 
-#define JS_SOCKETCALL_FAIL(socketcall_no, sock, on_fail) \
-  JS_SOCKETCALL_RETURN(socketcall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
+#define JS_SOCKETCALL_FAIL(socketcall_no, sock, on_fail) JS_SOCKETCALL_RETURN(socketcall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
 
 #define JS_SOCKETCALL_RETURN(socketcall_no, sock, result, on_success, on_fail) \
   do { \
@@ -89,11 +88,7 @@ socketcall_return(Socket* sock, int sysno, int retval) {
                              : 0;
 
 #ifdef DEBUG_OUTPUT
-  printf("%s(): syscall %s returned %d (%d)\n",
-         __func__,
-         (sock)->sysno ? socketcall_name((sock)->sysno) : "0",
-         (sock)->ret,
-         (sock)->error);
+  printf("%s(): syscall %s returned %d (%d)\n", __func__, (sock)->sysno ? socketcall_name((sock)->sysno) : "0", (sock)->ret, (sock)->error);
 #endif
 }
 
@@ -1062,27 +1057,21 @@ js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
     if((r = fdset_read(ctx, argv[1], &rfds)) >= fd_setsize)
       rset = &rfds;
     else if(r > 0)
-      return JS_ThrowTypeError(ctx,
-                               "argument 2 ArrayBuffer needs to be at least %lu bytes in size",
-                               (unsigned long)sizeof(fd_set));
+      return JS_ThrowTypeError(ctx, "argument 2 ArrayBuffer needs to be at least %lu bytes in size", (unsigned long)sizeof(fd_set));
   }
 
   if(argc >= 3) {
     if((r = fdset_read(ctx, argv[2], &wfds)) >= fd_setsize)
       wset = &wfds;
     else if(r > 0)
-      return JS_ThrowTypeError(ctx,
-                               "argument 3 ArrayBuffer needs to be at least %lu bytes in size",
-                               (unsigned long)sizeof(fd_set));
+      return JS_ThrowTypeError(ctx, "argument 3 ArrayBuffer needs to be at least %lu bytes in size", (unsigned long)sizeof(fd_set));
   }
 
   if(argc >= 4) {
     if((r = fdset_read(ctx, argv[3], &efds)) >= fd_setsize)
       eset = &efds;
     else if(r > 0)
-      return JS_ThrowTypeError(ctx,
-                               "argument 4 ArrayBuffer needs to be at least %lu bytes in size",
-                               (unsigned long)sizeof(fd_set));
+      return JS_ThrowTypeError(ctx, "argument 4 ArrayBuffer needs to be at least %lu bytes in size", (unsigned long)sizeof(fd_set));
   }
 
   if(argc >= 5)
@@ -1126,9 +1115,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
     JS_ToInt32(ctx, &timeout, argv[2]);
 
   if(nfds == 0)
-    nfds = is_array         ? js_array_length(ctx, argv[0])
-           : is_arraybuffer ? js_arraybuffer_bytelength(ctx, argv[0]) / (int64_t)sizeof(struct pollfd)
-                            : 0;
+    nfds = is_array ? js_array_length(ctx, argv[0]) : is_arraybuffer ? js_arraybuffer_bytelength(ctx, argv[0]) / (int64_t)sizeof(struct pollfd) : 0;
 
   assert(nfds);
   pfds = calloc(sizeof(struct pollfd), nfds);
@@ -1356,8 +1343,7 @@ enum {
  *   data[7]   addrlen
  */
 static JSValue
-js_asyncsocket_resolve(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_asyncsocket_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   AsyncSocket* asock = js_asyncsocket_data(data[0]);
   JSValueConst value = data[0];
   BOOL is_exception = FALSE;
@@ -1394,11 +1380,7 @@ js_asyncsocket_resolve(
     JS_Call(ctx, data[3], JS_UNDEFINED, 2, args);
 
 #ifdef DEBUG_OUTPUT
-    printf("%s(): [%p] set%sHandler(%d, null)\n",
-           __func__,
-           JS_VALUE_GET_PTR(data[1]),
-           magic & 1 ? "Write" : "Read",
-           socket_handle(*asock));
+    printf("%s(): [%p] set%sHandler(%d, null)\n", __func__, JS_VALUE_GET_PTR(data[1]), magic & 1 ? "Write" : "Read", socket_handle(*asock));
 #endif
 
     /* free ourselves */
@@ -1455,8 +1437,7 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   args[1] = JS_NewCFunctionData(ctx, js_asyncsocket_resolve, 0, magic, data_len, data);
 
 #ifdef DEBUG_OUTPUT
-  printf(
-      "%s(): set%sHandler(%d, %p)\n", __func__, magic & 1 ? "Write" : "Read", socket_fd(*s), JS_VALUE_GET_PTR(data[1]));
+  printf("%s(): set%sHandler(%d, %p)\n", __func__, magic & 1 ? "Write" : "Read", socket_fd(*s), JS_VALUE_GET_PTR(data[1]));
 #endif
 
   s->pending[magic & 1] = JS_DupValue(ctx, resolving_funcs[0]);
@@ -1488,8 +1469,7 @@ js_asyncsocket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       uint32_t mode = 0;
 
       JS_ToUint32(ctx, &mode, value);
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_FCNTL, (Socket*)s, fcntl(socket_handle(*s), F_SETFL, mode), JS_NewInt32(ctx, s->ret), JS_UNDEFINED);
+      JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, (Socket*)s, fcntl(socket_handle(*s), F_SETFL, mode), JS_NewInt32(ctx, s->ret), JS_UNDEFINED);
 #endif
       break;
     }
@@ -1595,9 +1575,8 @@ js_socket_error(JSContext* ctx, Socket sock) {
   int err;
 
   if((err = socket_error(sock)))
-    if(!(sock.nonblock &&
-         ((sock.sysno == SYSCALL_RECV && err == EAGAIN) || (sock.sysno == SYSCALL_SEND && err == EWOULDBLOCK) ||
-          (sock.sysno == SYSCALL_CONNECT && err == EINPROGRESS))))
+    if(!(sock.nonblock && ((sock.sysno == SYSCALL_RECV && err == EAGAIN) || (sock.sysno == SYSCALL_SEND && err == EWOULDBLOCK) ||
+                           (sock.sysno == SYSCALL_CONNECT && err == EINPROGRESS))))
       ret = JS_Throw(ctx, js_syscallerror_new(ctx, socket_syscall(sock), err));
 
   return ret;
@@ -1750,8 +1729,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
 
     case METHOD_BIND: {
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_BIND, s, bind(socket_handle(*s), &a->s, sockaddr_len(a)), JS_UNDEFINED, js_socket_error(ctx, *s));
+      JS_SOCKETCALL_RETURN(SYSCALL_BIND, s, bind(socket_handle(*s), &a->s, sockaddr_len(a)), JS_UNDEFINED, js_socket_error(ctx, *s));
 
       break;
     }
@@ -1769,11 +1747,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
                              socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)),
                              js_socket_error(ctx, *s));
       } else
-        JS_SOCKETCALL_RETURN(SYSCALL_ACCEPT,
-                             s,
-                             accept(socket_handle(*s), &a->s, &addrlen),
-                             socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)),
-                             js_socket_error(ctx, *s));
+        JS_SOCKETCALL_RETURN(
+            SYSCALL_ACCEPT, s, accept(socket_handle(*s), &a->s, &addrlen), socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)), js_socket_error(ctx, *s));
 
       break;
     }
@@ -1793,8 +1768,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(argc >= 1)
         JS_ToInt32(ctx, &backlog, argv[0]);
 
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_LISTEN, s, listen(socket_handle(*s), backlog), JS_UNDEFINED, js_socket_error(ctx, *s));
+      JS_SOCKETCALL_RETURN(SYSCALL_LISTEN, s, listen(socket_handle(*s), backlog), JS_UNDEFINED, js_socket_error(ctx, *s));
 
       break;
     }
@@ -1808,12 +1782,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, 0, &off);
 
 #ifdef DEBUG_OUTPUT_
-      printf("%s(): recv(%d, %zu, %zu, %zu)\n",
-             __func__,
-             socket_handle(*s),
-             off.offset,
-             off.length,
-             offsetlength_size(off, buf.size));
+      printf("%s(): recv(%d, %zu, %zu, %zu)\n", __func__, socket_handle(*s), off.offset, off.length, offsetlength_size(off, buf.size));
 #endif
 
       if(argc >= 4)
@@ -1823,19 +1792,12 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         if((a = argc >= 5 ? js_sockaddr_data(argv[4]) : 0))
           alen = sockaddr_len(a);
 
-        JS_SOCKETCALL(SYSCALL_RECVFROM,
-                      s,
-                      recvfrom(socket_handle(*s),
-                               offsetlength_begin(off, buf.data),
-                               offsetlength_size(off, buf.size),
-                               flags,
-                               a ? &a->s : NULL,
-                               a ? &alen : NULL));
-      } else {
         JS_SOCKETCALL(
-            SYSCALL_RECV,
+            SYSCALL_RECVFROM,
             s,
-            recv(socket_handle(*s), offsetlength_begin(off, buf.data), offsetlength_size(off, buf.size), flags));
+            recvfrom(socket_handle(*s), offsetlength_begin(off, buf.data), offsetlength_size(off, buf.size), flags, a ? &a->s : NULL, a ? &alen : NULL));
+      } else {
+        JS_SOCKETCALL(SYSCALL_RECV, s, recv(socket_handle(*s), offsetlength_begin(off, buf.data), offsetlength_size(off, buf.size), flags));
       }
 
       break;
@@ -1884,11 +1846,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       buf = optval_buf(ctx, argv[2], &tmp, &len);
 
-      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKOPT,
-                           s,
-                           getsockopt(socket_handle(*s), level, optname, (void*)buf, &len),
-                           JS_UNDEFINED,
-                           js_socket_error(ctx, *s));
+      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKOPT, s, getsockopt(socket_handle(*s), level, optname, (void*)buf, &len), JS_UNDEFINED, js_socket_error(ctx, *s));
 
       if(tmp) {
         js_array_clear(ctx, argv[2]);
@@ -1899,14 +1857,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         js_free(ctx, tmp);
 
 #ifdef DEBUG_OUTPUT_
-      printf("%s(): SYSCALL_GETSOCKOPT(%d, %d, %d (%d), %lu) = %d\n",
-             __func__,
-             socket_fd(*s),
-             level,
-             optname,
-             val,
-             (unsigned long int)len,
-             s->ret);
+      printf("%s(): SYSCALL_GETSOCKOPT(%d, %d, %d (%d), %lu) = %d\n", __func__, socket_fd(*s), level, optname, val, (unsigned long int)len, s->ret);
 #endif
 
       break;
@@ -1963,8 +1914,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       int32_t how;
 
       JS_ToInt32(ctx, &how, argv[0]);
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_SHUTDOWN, s, shutdown(socket_handle(*s), how), JS_UNDEFINED, js_socket_error(ctx, *s));
+      JS_SOCKETCALL_RETURN(SYSCALL_SHUTDOWN, s, shutdown(socket_handle(*s), how), JS_UNDEFINED, js_socket_error(ctx, *s));
       break;
     }
 
@@ -2172,8 +2122,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       SockAddr a;
       socklen_t len = sizeof(SockAddr);
 
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_GETSOCKNAME, &s, getsockname(socket_handle(s), &a.s, &len), js_sockaddr_clone(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, &s, getsockname(socket_handle(s), &a.s, &len), js_sockaddr_clone(ctx, a), JS_NULL);
 
       break;
     }
@@ -2182,8 +2131,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       SockAddr a;
       socklen_t len = sizeof(SockAddr);
 
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_GETPEERNAME, &s, getpeername(socket_handle(s), &a.s, &len), js_sockaddr_clone(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, &s, getpeername(socket_handle(s), &a.s, &len), js_sockaddr_clone(ctx, a), JS_NULL);
 
       break;
     }
@@ -2210,8 +2158,7 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 #else
       uint32_t mode = 0;
       JS_ToUint32(ctx, &mode, value);
-      JS_SOCKETCALL_RETURN(
-          SYSCALL_FCNTL, &s, fcntl(socket_handle(s), F_SETFL, mode), JS_NewInt32(ctx, s.ret), JS_UNDEFINED);
+      JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, &s, fcntl(socket_handle(s), F_SETFL, mode), JS_NewInt32(ctx, s.ret), JS_UNDEFINED);
 #endif
       break;
     }

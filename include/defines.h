@@ -120,9 +120,7 @@
 #endif
 
 #define CONST_STRARRAY(x...) \
-  (const char* const[]) { \
-    x \
-  }
+  (const char* const[]) { x }
 
 #if __SIZEOF_POINTER__ == 8
 #define DEF6432(v64, v32) v64
@@ -211,8 +209,8 @@
 #define JS_ATOM_TAG_INT (1U << 31)
 #define JS_ATOM_MAX_INT (JS_ATOM_TAG_INT - 1)
 
-#define JS_ATOM_ISINT(i) ((JSAtom)((i) & JS_ATOM_TAG_INT))
-#define JS_ATOM_FROMINT(i) ((JSAtom)((i) & JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
+#define JS_ATOM_ISINT(i) ((JSAtom)((i)&JS_ATOM_TAG_INT))
+#define JS_ATOM_FROMINT(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
 #define JS_ATOM_TOINT(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
 
 /**

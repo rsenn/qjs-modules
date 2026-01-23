@@ -32,9 +32,7 @@ typedef struct VProps {
 } VirtualProperties;
 
 #define VIRTUAL_PROPERTIES_INIT() \
-  (VirtualProperties) { \
-    JS_EXCEPTION, 0, 0, 0, 0, 0, 0, 0, 0 \
-  }
+  (VirtualProperties) { JS_EXCEPTION, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 VirtualProperties virtual_properties(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_map(JSContext*, JSValueConst);

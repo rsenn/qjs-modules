@@ -18,17 +18,11 @@ int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
 
 #define DBUF_INIT_0() \
-  (DynBuf) { \
-    0, 0, 0, 0, 0, 0 \
-  }
+  (DynBuf) { 0, 0, 0, 0, 0, 0 }
 #define DBUF_INIT_CTX(ctx) \
-  (DynBuf) { \
-    0, 0, 0, 0, (DynBufReallocFunc*)js_realloc, (ctx) \
-  }
+  (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc, (ctx) }
 #define DBUF_INIT_RT(rt) \
-  (DynBuf) { \
-    0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, (rt) \
-  }
+  (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, (rt) }
 
 void dbuf_init_ctx(JSContext* ctx, DynBuf* s);
 void dbuf_init_rt(JSRuntime* rt, DynBuf* s);
@@ -457,9 +451,7 @@ typedef struct Buffer {
 #define INPUTBUFFER_FREE(fn) INPUTBUFFER_DATA_FREE(0, 0, fn)
 #define INPUTBUFFER_DATA(buf, len) INPUTBUFFER_DATA_FREE(buf, len, &inputbuffer_free_default)
 #define INPUTBUFFER_DATA_FREE(buf, len, fn) \
-  (InputBuffer) { \
-    {BLOCK_INIT_DATA(buf, len)}, OFFSET_LENGTH_0(), 0, (fn), JS_UNDEFINED \
-  }
+  (InputBuffer) { {BLOCK_INIT_DATA(buf, len)}, OFFSET_LENGTH_0(), 0, (fn), JS_UNDEFINED }
 
 /*static inline void
 inputbuffer_free_default(JSContext* ctx, const char* str, JSValue val) {

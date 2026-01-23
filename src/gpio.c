@@ -69,8 +69,7 @@ gpio_open(struct gpio* gpio) {
     return false;
   }
 
-  if((gpio->map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, gpio->fd, PERIPHERALS_BASE_ADDR)) ==
-     MAP_FAILED) {
+  if((gpio->map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, gpio->fd, PERIPHERALS_BASE_ADDR)) == MAP_FAILED) {
     if(gpio->debug)
       fprintf(stderr, "Could not map gpio memory: %s\n", strerror(errno));
     return false;

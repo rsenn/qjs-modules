@@ -25,8 +25,8 @@ typedef enum {
   NO_RECURSE = 2,
 } DeepIteratorStatus;
 
-#define STATUS_YIELD(status) ((status) & YIELD)
-#define STATUS_RECURSE(status) (!((status) & NO_RECURSE))
+#define STATUS_YIELD(status) ((status)&YIELD)
+#define STATUS_RECURSE(status) (!((status)&NO_RECURSE))
 
 typedef enum {
   RETURN_VALUE_PATH = 0 << 24,
@@ -46,11 +46,11 @@ typedef enum {
   MAXDEPTH_MASK = (1 << 24) - 1,
 } DeepIteratorFlags;
 
-#define FLAGS_RETURN(flags) ((flags) & RETURN_MASK)
-#define FLAGS_FILTER(flags) ((flags) & FILTER_MASK)
+#define FLAGS_RETURN(flags) ((flags)&RETURN_MASK)
+#define FLAGS_FILTER(flags) ((flags)&FILTER_MASK)
 #define FLAGS_NEGATE_FILTER(flags) (!!((uint32_t)(flags) & (uint32_t)FILTER_NEGATE))
-#define FLAGS_MAXDEPTH(flags) (((flags) & MAXDEPTH_MASK) ? (flags) & MAXDEPTH_MASK : MAXDEPTH_MASK)
-#define FLAGS_PATH_AS(flags) ((flags) & PATH_AS_MASK)
+#define FLAGS_MAXDEPTH(flags) (((flags)&MAXDEPTH_MASK) ? (flags)&MAXDEPTH_MASK : MAXDEPTH_MASK)
+#define FLAGS_PATH_AS(flags) ((flags)&PATH_AS_MASK)
 
 typedef struct DeepIterator {
   Vector frames;
@@ -107,9 +107,7 @@ static void
 atoms_free(Vector* atoms, JSRuntime* rt) {
   JSAtom* ptr;
 
-  vector_foreach_t(atoms, ptr) {
-    JS_FreeAtomRT(rt, *ptr);
-  }
+  vector_foreach_t(atoms, ptr) { JS_FreeAtomRT(rt, *ptr); }
 
   vector_free(atoms);
 }

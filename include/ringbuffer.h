@@ -31,13 +31,13 @@ typedef union ringbuffer {
 #define ringbuffer_init(rb, size, ctx) \
   do { \
     vector_init(&(rb)->vec, ctx); \
-    vector_allocate(&(rb)->vec, 1, ((size) - 1)); \
+    vector_allocate(&(rb)->vec, 1, ((size)-1)); \
   } while(0)
 
 #define ringbuffer_init_rt(rb, size, rt) \
   do { \
     vector_init_rt(&(rb)->vec, rt); \
-    vector_allocate(&(rb)->vec, 1, ((size) - 1)); \
+    vector_allocate(&(rb)->vec, 1, ((size)-1)); \
   } while(0)
 
 #define RINGBUFFER(ctx) \
@@ -59,8 +59,7 @@ typedef union ringbuffer {
 #define ringbuffer_HEADROOM(rb) ((rb)->size - (rb)->head)
 #define ringbuffer_TAILROOM(rb) ((rb)->size - (rb)->tail)
 #define ringbuffer_AVAIL(rb) ((rb)->size - ringbuffer_LENGTH(rb) - 1)
-#define ringbuffer_LENGTH(rb) \
-  ((rb)->head >= (rb)->tail ? (rb)->head - (rb)->tail : (rb)->size - (rb)->tail + (rb)->head)
+#define ringbuffer_LENGTH(rb) ((rb)->head >= (rb)->tail ? (rb)->head - (rb)->tail : (rb)->size - (rb)->tail + (rb)->head)
 #define ringbuffer_CONTINUOUS(rb) (ringbuffer_WRAPPED(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
 // #define ringbuffer_IS_CONTINUOUS(rb) ((rb)->head >= (rb)->tail)
 // #define ringbuffer_SKIP(rb, n) ((rb)->tail += (n), (rb)->tail %= (rb)->size)

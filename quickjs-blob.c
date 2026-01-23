@@ -240,10 +240,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(argc > index)
         type = js_tostring(ctx, argv[index]);
 
-      ret = js_blob_new(ctx,
-                        indexrange_begin(rng, blob->data, blob->size),
-                        indexrange_size(rng, blob->size),
-                        type ? type : blob->type);
+      ret = js_blob_new(ctx, indexrange_begin(rng, blob->data, blob->size), indexrange_size(rng, blob->size), type ? type : blob->type);
 
       if(type)
         js_free(ctx, type);

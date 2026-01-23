@@ -13,9 +13,7 @@
  */
 
 VISIBLE JSClassID js_pgsqlerror_class_id = 0, js_pgconn_class_id = 0, js_pgresult_class_id = 0;
-static JSValue pgsqlerror_proto, pgsqlerror_ctor,
-                pgsql_proto, pgsql_ctor,
-                pgresult_proto, pgresult_ctor;
+static JSValue pgsqlerror_proto, pgsqlerror_ctor, pgsql_proto, pgsql_ctor, pgresult_proto, pgresult_ctor;
 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
@@ -142,7 +140,7 @@ connectparams_fromobj(JSContext* ctx, PGSQLConnectParameters* c, JSValueConst ob
   c->values[i] = NULL;
 
   js_propertyenums_free(ctx, tmp_tab, tmp_len);
- }
+}
 
 static void
 connectparams_init(JSContext* ctx, PGSQLConnectParameters* c, int argc, JSValueConst argv[]) {
@@ -316,8 +314,7 @@ js_pgconn_print_insert(JSContext* ctx, DynBuf* out) {
 }
 
 static void
-js_pgconn_print_iterable(
-    JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueConst iterable, PGSQLPrintFunction* fn) {
+js_pgconn_print_iterable(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueConst iterable, PGSQLPrintFunction* fn) {
   Iteration iter = ITERATION_INIT();
   int i = 0;
 
@@ -1028,8 +1025,7 @@ js_pgconn_unescape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 }
 
 static JSValue
-js_pgconn_connect_cont(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   int32_t fd;
   PGSQLConnection* pq;
   PostgresPollingStatusType newstate, oldstate;
@@ -1470,12 +1466,7 @@ result_array(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
     char* col = PQgetisnull(res, row, i) ? NULL : PQgetvalue(res, row, i);
 
 #ifdef DEBUG_OUTPUT_
-    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n",
-           __func__,
-           num_fields,
-           i,
-           (int)(len > 32 ? 32 : len),
-           col);
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(len > 32 ? 32 : len), col);
 #endif
 
     JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, opaque, i, col, len, rtype));
@@ -1792,10 +1783,7 @@ js_pgresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   *it = (PGSQLResultIterator){ctx, pgresult_dup(res), 0};
 
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "next",
-                    js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, it, js_pgresult_iterator_free));
+  JS_SetPropertyStr(ctx, ret, "next", js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, it, js_pgresult_iterator_free));
 
   return ret;
 }

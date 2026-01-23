@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "json.h"
 #include "vector.h"
+#include "sj.h"
 
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
@@ -20,12 +21,13 @@ typedef enum {
   ST_STRING,
   ST_NUMBER,
   ST_COMMA,
-  ST_COUNT
+  ST_COUNT,
 } JsonState;
 
 typedef struct {
   JsonState state;
   size_t index;
+  JSValue value;
 } JsonContext;
 
 #define WS 0x01
@@ -71,88 +73,160 @@ static const uint8_t character_classes[256] = {
 #define parse_is(c, classes) (character_classes[(uint8_t)(c)] & (classes))
 
 static JSValue
-js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
+parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
+  int line, col, count = 0;
+  sj_Value k, v;
   JSValue ret = JS_UNDEFINED;
-  const uint8_t *ptr = buf, *end = buf + len, *start = buf;
-  static const JsonState states[ST_COUNT][256] = {
-      [ST_UNDEFINED] =
-          {
-              ['{'] = ST_OBJECT,
-              ['['] = ST_ARRAY,
-              ['t'] = ST_BOOL,
-              ['f'] = ST_BOOL,
-              ['n'] = ST_NULL,
-              ['"'] = ST_STRING,
-              ['0'] = ST_NUMBER,
-              ['1'] = ST_NUMBER,
-              ['2'] = ST_NUMBER,
-              ['3'] = ST_NUMBER,
-              ['4'] = ST_NUMBER,
-              ['5'] = ST_NUMBER,
-              ['6'] = ST_NUMBER,
-              ['7'] = ST_NUMBER,
-              ['8'] = ST_NUMBER,
-              ['9'] = ST_NUMBER,
-              ['-'] = ST_NUMBER,
-              ['+'] = ST_NUMBER,
-          },
-      [ST_OBJECT] =
-          {
-              [','] = ST_COMMA,
-              ['}'] = ST_COUNT,
-          },
-      [ST_ARRAY] =
-          {
-              [','] = ST_COMMA,
-              [']'] = ST_COUNT,
-          },
-      [ST_BOOL] =
-          {
-              ['r'] = ST_BOOL,
-              ['u'] = ST_BOOL,
-              ['e'] = ST_BOOL,
-              ['a'] = ST_BOOL,
-              ['l'] = ST_BOOL,
-              ['s'] = ST_BOOL,
-              ['e'] = ST_BOOL,
-          },
-      [ST_NUMBER] =
-          {
-              ['0'] = ST_NUMBER,
-              ['1'] = ST_NUMBER,
-              ['2'] = ST_NUMBER,
-              ['3'] = ST_NUMBER,
-              ['4'] = ST_NUMBER,
-              ['5'] = ST_NUMBER,
-              ['6'] = ST_NUMBER,
-              ['7'] = ST_NUMBER,
-              ['8'] = ST_NUMBER,
-              ['9'] = ST_NUMBER,
-              ['-'] = ST_NUMBER,
-              ['+'] = ST_NUMBER,
-              ['.'] = ST_NUMBER,
-              ['E'] = ST_NUMBER,
-              ['e'] = ST_NUMBER,
-          },
-  };
-  BOOL done = FALSE;
-  uint32_t lineno = 1, column = 1;
-  Vector st = VECTOR(ctx);
-  JsonContext* frame = 0;
-  uint8_t c;
 
-  parse_skipspace();
+  sj_location(r, &line, &col);
 
-  while(ptr < end) {
-    parse_getc();
+  switch(val.type) {
+    case SJ_ERROR: {
+    error:
+      ret = JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error);
+      break;
+    }
 
-    JsonState oldstate = frame ? frame->state : 0;
-    JsonState newstate = states[oldstate][c];
-    JsonContext newctx = {newstate, 0};
+    case SJ_ARRAY: {
+      ret = JS_NewArray(ctx);
 
-    frame = newstate == ST_COUNT ? vector_pop(&st, sizeof(JsonContext)) : vector_push(&st, newctx);
+      while(sj_iter_array(r, val, &v)) {
+        JS_SetPropertyUint32(ctx, ret, count++, parse_val(ctx, r, v));
+      }
+
+      if(r->error)
+        goto error;
+
+      break;
+    }
+
+    case SJ_OBJECT: {
+      ret = JS_NewObject(ctx);
+
+      while(sj_iter_object(r, val, &k, &v)) {
+        JSAtom key = JS_NewAtomLen(ctx, k.start, k.end - k.start);
+        JS_SetProperty(ctx, ret, key, parse_val(ctx, r, v));
+        JS_FreeAtom(ctx, key);
+      }
+
+      if(r->error)
+        goto error;
+
+      break;
+    }
+
+    case SJ_NUMBER: {
+      double num;
+      scan_double(val.start, &num);
+      ret = JS_NewFloat64(ctx, num);
+      break;
+    }
+
+    case SJ_STRING: {
+      ret = JS_NewStringLen(ctx, val.start, val.end - val.start);
+      break;
+    }
+
+    case SJ_NULL: {
+      ret = JS_NULL;
+      break;
+    }
+
+    case SJ_BOOL: {
+      ret = val.start[0] == 't' ? JS_TRUE : JS_FALSE;
+      break;
+    }
   }
 
+  return ret;
+}
+
+static JSValue
+js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
+  JSValue ret = JS_UNDEFINED;
+
+  sj_Reader r = sj_reader(buf, len);
+  sj_Value val = sj_read(&r);
+
+  ret = parse_val(ctx, &r, val);
+
+  /* const uint8_t *ptr = buf, *end = buf + len, *start = buf;
+   static const JsonState states[ST_COUNT][256] = {
+       [ST_UNDEFINED] = {['{'] = ST_OBJECT,
+                         ['['] = ST_ARRAY,
+                         ['t'] = ST_BOOL,
+                         ['f'] = ST_BOOL,
+                         ['n'] = ST_NULL,
+                         ['"'] = ST_STRING,
+                         ['0'] = ST_NUMBER,
+                         ['1'] = ST_NUMBER,
+                         ['2'] = ST_NUMBER,
+                         ['3'] = ST_NUMBER,
+                         ['4'] = ST_NUMBER,
+                         ['5'] = ST_NUMBER,
+                         ['6'] = ST_NUMBER,
+                         ['7'] = ST_NUMBER,
+                         ['8'] = ST_NUMBER,
+                         ['9'] = ST_NUMBER,
+                         ['-'] = ST_NUMBER,
+                         ['+'] = ST_NUMBER},
+       [ST_OBJECT] = {[','] = ST_COMMA, ['}'] = ST_COUNT},
+       [ST_ARRAY] = {[','] = ST_COMMA, [']'] = ST_COUNT},
+       [ST_BOOL] = {['r'] = ST_BOOL, ['u'] = ST_BOOL, ['e'] = ST_BOOL, ['a'] = ST_BOOL, ['l'] = ST_BOOL, ['s'] = ST_BOOL, ['e'] = ST_BOOL},
+       [ST_NUMBER] = {['0'] = ST_NUMBER,
+                      ['1'] = ST_NUMBER,
+                      ['2'] = ST_NUMBER,
+                      ['3'] = ST_NUMBER,
+                      ['4'] = ST_NUMBER,
+                      ['5'] = ST_NUMBER,
+                      ['6'] = ST_NUMBER,
+                      ['7'] = ST_NUMBER,
+                      ['8'] = ST_NUMBER,
+                      ['9'] = ST_NUMBER,
+                      ['-'] = ST_NUMBER,
+                      ['+'] = ST_NUMBER,
+                      ['.'] = ST_NUMBER,
+                      ['E'] = ST_NUMBER,
+                      ['e'] = ST_NUMBER},
+   };
+   JsonState state = ST_UNDEFINED;
+
+   BOOL done = FALSE;
+   uint32_t lineno = 1, column = 1;
+   Vector st = VECTOR(ctx);
+   JsonContext* frame = 0;
+   uint8_t c;
+   const uint8_t* pp;
+
+   parse_skipspace();
+
+   while(ptr < end) {
+     JsonState newstate;
+
+     parse_getc();
+
+     switch(state) {
+       case ST_UNDEFINED: {
+         newstate = states[ST_UNDEFINED][c];
+         pp = ptr;
+         break;
+       }
+
+       case ST_STRING: {
+
+         if(c == '\\') {
+           parse_getc();
+         } else if(c == '"') {
+           newstate = ST_UNDEFINED;
+         }
+
+         break;
+       }
+     }
+
+     state = newstate;
+   }
+ */
   return ret;
 }
 
@@ -234,18 +308,8 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   switch(magic) {
     case JSON_PARSER_PARSE: {
       JsonValueType type = json_parse(parser, ctx);
-      ret = JS_NewString(ctx,
-                         CONST_STRARRAY("NONE",
-                                         "OBJECT",
-                                         "OBJECT_END",
-                                         "ARRAY",
-                                         "ARRAY_END",
-                                         "KEY",
-                                         "STRING",
-                                         "TRUE",
-                                         "FALSE",
-                                         "NULL",
-                                         "NUMBER")[type + 1]);
+      ret =
+          JS_NewString(ctx, CONST_STRARRAY("NONE", "OBJECT", "OBJECT_END", "ARRAY", "ARRAY_END", "KEY", "STRING", "TRUE", "FALSE", "NULL", "NUMBER")[type + 1]);
       break;
     }
   }

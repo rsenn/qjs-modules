@@ -209,7 +209,7 @@ fmt_ulonglong(char* dest, uint64_t i) {
   return len;
 }
 
-#define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
+#define tohex(c) (char)((c) >= 10 ? (c)-10 + 'a' : (c) + '0')
 
 size_t
 fmt_xlonglong(char* dest, uint64_t i) {
@@ -263,7 +263,7 @@ fmt_8long(char* dest, uint32_t i) {
   return len;
 }
 
-#define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
+#define tohex(c) (char)((c) >= 10 ? (c)-10 + 'a' : (c) + '0')
 
 size_t
 fmt_xlong(char* dest, uint32_t i) {
@@ -336,7 +336,7 @@ scan_int(const char* src, int32_t* dest) {
 }
 
 #ifndef MAXLONG
-#define MAXLONG (((uint32_t) - 1) >> 1)
+#define MAXLONG (((uint32_t)-1) >> 1)
 #endif
 
 size_t
@@ -424,6 +424,66 @@ scan_8longn(const char* src, size_t n, uint32_t* dest) {
 
   *dest = l;
   return (size_t)(tmp - src);
+}
+
+size_t
+scan_double(const char* in, double* dest) {
+  double d = 0;
+  const char* c = in;
+  char neg = 0;
+
+  switch(*c) {
+    case '-': neg = 1; /* fall through */
+    case '+': c++; break;
+    default: break;
+  }
+
+  while(is_digit_char(*c)) {
+    d = d * 10 + (*c - '0');
+    ++c;
+  }
+
+  if(*c == '.') {
+    double factor = .1;
+    while(is_digit_char(*++c)) {
+      d = d + (factor * (*c - '0'));
+      factor /= 10;
+    }
+  }
+
+  if((*c | 32) == 'e') {
+    int e = 0;
+    char neg = 0;
+
+    if(c[1] < '0') {
+      switch(*c) {
+        case '-': neg = 1; /* fall through */
+        case '+': c++; break;
+        default:
+          d = 0;
+          c = in;
+          goto done;
+      }
+    }
+
+    while(is_digit_char(*++c))
+      e = e * 10 + (*c - '0');
+
+    if(neg)
+      while(e) { /* XXX: this introduces rounding errors */
+        d /= 10;
+        --e;
+      }
+    else
+      while(e) { /* XXX: this introduces rounding errors */
+        d *= 10;
+        --e;
+      }
+  }
+
+done:
+  *dest = (neg ? -d : d);
+  return (size_t)(c - in);
 }
 
 size_t
@@ -606,8 +666,7 @@ utf16_multiword(const void* in) {
   const uint16_t* p16 = in;
   LibutfC16Type type = libutf_c16_type(p16[0]);
 
-  return !((LIBUTF_UTF16_NOT_SURROGATE == type) ||
-           (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
+  return !((LIBUTF_UTF16_NOT_SURROGATE == type) || (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
 }
 
 int

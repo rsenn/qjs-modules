@@ -32,12 +32,10 @@ typedef enum {
   TRANSFORM_FLUSH,
 } TransformCallback;
 
-/*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0,
-                      js_writer_class_id = 0, js_transform_class_id = 0;
-/*VISIBLE*/ JSValue readable_proto, readable_default_controller, readable_bytestream_controller, readable_ctor,
-    writable_proto, writable_controller, writable_ctor, transform_proto, transform_controller, transform_ctor,
-    default_reader_proto, default_reader_ctor, byob_reader_proto, byob_reader_ctor, byob_request_proto, writer_proto,
-    writer_ctor;
+/*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
+/*VISIBLE*/ JSValue readable_proto, readable_default_controller, readable_bytestream_controller, readable_ctor, writable_proto, writable_controller,
+    writable_ctor, transform_proto, transform_controller, transform_ctor, default_reader_proto, default_reader_ctor, byob_reader_proto, byob_reader_ctor,
+    byob_request_proto, writer_proto, writer_ctor;
 
 static int reader_update(ReadableStreamReader*, JSContext*);
 static BOOL reader_passthrough(ReadableStreamReader*, JSValueConst, JSContext*);
@@ -306,8 +304,7 @@ reader_free(ReadableStreamReader* rd, JSRuntime* rt) {
 }
 
 static JSValue
-js_reader_close_forward(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+js_reader_close_forward(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
   ReadableStreamReader* rd;
 
   if(!(rd = js_reader_data2(ctx, func_data[0])))
@@ -489,11 +486,7 @@ reader_update(ReadableStreamReader* rd, JSContext* ctx) {
   reader_clean(rd, ctx);
 
 #ifdef DEBUG_OUTPUT_
-  printf("%s(): [%zu] closed=%d queue.size=%zu\n",
-         __func__,
-         list_size(&rd->list),
-         readable_closed(st),
-         queue_size(&st->q));
+  printf("%s(): [%zu] closed=%d queue.size=%zu\n", __func__, list_size(&rd->list), readable_closed(st), queue_size(&st->q));
 #endif
 
   if(readable_closed(st)) {
@@ -677,8 +670,7 @@ readable_enqueue(ReadableStream* st, JSValueConst chunk, BOOL binary, JSContext*
   BOOL ok = FALSE;
 
   if(readable_locked(st) && (rd = st->reader)) {
-    JSValue buf = (!binary || js_is_arraybuffer(ctx, chunk)) ? JS_DupValue(ctx, chunk)
-                                                             : JS_NewArrayBufferCopy(ctx, input.data, input.size);
+    JSValue buf = (!binary || js_is_arraybuffer(ctx, chunk)) ? JS_DupValue(ctx, chunk) : JS_NewArrayBufferCopy(ctx, input.data, input.size);
 
     JSValue result = js_iterator_result(ctx, buf, FALSE);
     JS_FreeValue(ctx, buf);
@@ -1017,9 +1009,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       js_free(ctx, typestr);
     }
 
-    st->controller = JS_NewObjectProtoClass(ctx,
-                                            bytestream ? readable_bytestream_controller : readable_default_controller,
-                                            js_readable_class_id);
+    st->controller = JS_NewObjectProtoClass(ctx, bytestream ? readable_bytestream_controller : readable_default_controller, js_readable_class_id);
 
     JS_SetOpaque(st->controller, readable_dup(st));
 
@@ -1225,10 +1215,7 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       JS_ToInt64Ext(ctx, &bytes, argv[0]);
 
       if(bytes >= 0 && (size_t)bytes > length) {
-        ret = JS_ThrowRangeError(ctx,
-                                 "Supplied bytesWritten value (%ld) is bigger than view length (%lu).",
-                                 (long)bytes,
-                                 (unsigned long)length);
+        ret = JS_ThrowRangeError(ctx, "Supplied bytesWritten value (%ld) is bigger than view length (%lu).", (long)bytes, (unsigned long)length);
       } else if(bytes >= 0 && (size_t)bytes == length) {
         newa = JS_DupValue(ctx, view);
       } else {
@@ -2407,14 +2394,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_reader_class_id, &js_byob_reader_class);
 
   default_reader_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             default_reader_proto,
-                             js_default_reader_proto_funcs,
-                             countof(js_default_reader_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, default_reader_proto, js_default_reader_proto_funcs, countof(js_default_reader_proto_funcs));
   JS_SetClassProto(ctx, js_reader_class_id, default_reader_proto);
 
-  default_reader_ctor =
-      JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamDefaultReader", 1, JS_CFUNC_constructor, 0);
+  default_reader_ctor = JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamDefaultReader", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, default_reader_ctor, default_reader_proto);
 
@@ -2422,8 +2405,7 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, byob_reader_proto, js_byob_reader_proto_funcs, countof(js_byob_reader_proto_funcs));
   JS_SetClassProto(ctx, js_reader_class_id, byob_reader_proto);
 
-  byob_reader_ctor =
-      JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamBYOBReader", 1, JS_CFUNC_constructor, 0);
+  byob_reader_ctor = JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamBYOBReader", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, byob_reader_ctor, byob_reader_proto);
 
@@ -2439,24 +2421,15 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, readable_ctor, readable_proto);
 
   readable_default_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             readable_default_controller,
-                             js_readable_default_controller_funcs,
-                             countof(js_readable_default_controller_funcs));
+  JS_SetPropertyFunctionList(ctx, readable_default_controller, js_readable_default_controller_funcs, countof(js_readable_default_controller_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_default_controller);
 
   readable_bytestream_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             readable_bytestream_controller,
-                             js_readable_bytestream_controller_funcs,
-                             countof(js_readable_bytestream_controller_funcs));
+  JS_SetPropertyFunctionList(ctx, readable_bytestream_controller, js_readable_bytestream_controller_funcs, countof(js_readable_bytestream_controller_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_bytestream_controller);
 
   byob_request_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx,
-                             byob_request_proto,
-                             js_byob_request_proto_funcs,
-                             countof(js_byob_request_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, byob_request_proto, js_byob_request_proto_funcs, countof(js_byob_request_proto_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, byob_request_proto);
 
   JS_NewClassID(&js_writer_class_id);
@@ -2482,10 +2455,7 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
 
   writable_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             writable_controller,
-                             js_writable_controller_funcs,
-                             countof(js_writable_controller_funcs));
+  JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
 
   JS_NewClassID(&js_transform_class_id);
@@ -2500,10 +2470,7 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, transform_ctor, transform_proto);
 
   transform_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             transform_controller,
-                             js_transform_controller_funcs,
-                             countof(js_transform_controller_funcs));
+  JS_SetPropertyFunctionList(ctx, transform_controller, js_transform_controller_funcs, countof(js_transform_controller_funcs));
   JS_SetClassProto(ctx, js_transform_class_id, transform_controller);
 
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs,

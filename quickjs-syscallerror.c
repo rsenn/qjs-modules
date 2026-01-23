@@ -756,14 +756,8 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
   JS_FreeValue(ctx, error);
 
   JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defines, countof(js_syscallerror_defines));
-  JS_SetPropertyFunctionList(ctx,
-                             syscallerror_ctor,
-                             js_syscallerror_static_funcs,
-                             countof(js_syscallerror_static_funcs));
-  JS_SetPropertyFunctionList(ctx,
-                             syscallerror_proto,
-                             js_syscallerror_proto_funcs,
-                             countof(js_syscallerror_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_static_funcs, countof(js_syscallerror_static_funcs));
+  JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_proto_funcs, countof(js_syscallerror_proto_funcs));
 
   JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
   JS_SetConstructor(ctx, syscallerror_ctor, syscallerror_proto);

@@ -2061,9 +2061,7 @@ main(int argc, char** argv) {
     BuiltinModule* rec;
 
     printf("Builtin modules:\n");
-    vector_foreach_t(&jsm_builtin_modules, rec) {
-      printf("  %s%s\n", rec->module_name, rec->module_func ? "" : ".js");
-    }
+    vector_foreach_t(&jsm_builtin_modules, rec) { printf("  %s%s\n", rec->module_name, rec->module_func ? "" : ".js"); }
 
     return 0;
   }

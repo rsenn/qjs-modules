@@ -57,8 +57,7 @@ property_enumeration_length(const PropertyEnumeration* propenum) {
 
 static inline JSValue
 property_enumeration_value(const PropertyEnumeration* it, JSContext* ctx) {
-  return it->idx < it->tab_atom_len ? JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx])
-                                    : JS_ThrowRangeError(ctx, "PropertyEnumeration is at end");
+  return it->idx < it->tab_atom_len ? JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]) : JS_ThrowRangeError(ctx, "PropertyEnumeration is at end");
 }
 
 static inline const char*

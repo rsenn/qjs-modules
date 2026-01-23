@@ -175,14 +175,10 @@ js_arraybuffer_sink_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_arraybuffer_sink_class_id, &js_arraybuffer_sink_class);
 
   arraybuffer_sink_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             arraybuffer_sink_proto,
-                             js_arraybuffer_sink_proto_funcs,
-                             countof(js_arraybuffer_sink_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, arraybuffer_sink_proto, js_arraybuffer_sink_proto_funcs, countof(js_arraybuffer_sink_proto_funcs));
   JS_SetClassProto(ctx, js_arraybuffer_sink_class_id, arraybuffer_sink_proto);
 
-  arraybuffer_sink_ctor =
-      JS_NewCFunction2(ctx, js_arraybuffer_sink_constructor, "ArrayBufferSink", 1, JS_CFUNC_constructor, 0);
+  arraybuffer_sink_ctor = JS_NewCFunction2(ctx, js_arraybuffer_sink_constructor, "ArrayBufferSink", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, arraybuffer_sink_ctor, arraybuffer_sink_proto);
 
