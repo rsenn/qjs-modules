@@ -11,7 +11,9 @@ typedef struct {
 } BitSet;
 
 #define BITSET_INIT() \
-  (BitSet) { 0, 0 }
+  (BitSet) { \
+    0, 0 \
+  }
 
 #define bitset_size(bs) ((bs)->len)
 

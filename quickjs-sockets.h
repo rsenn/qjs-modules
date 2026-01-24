@@ -71,7 +71,9 @@ typedef union {
   signed ret : 32
 
 union PACK socket_state {
-  PACK struct { SOCKET_PROPS(); };
+  PACK struct {
+    SOCKET_PROPS();
+  };
   ENDPACK
   uint64_t u64;
   void* ptr;

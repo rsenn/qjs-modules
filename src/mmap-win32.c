@@ -60,7 +60,7 @@ getgranularity(void) {
   return granularity;
 }
 
-#define RoundUp(x, y) (((x) + ((y)-1)) / (y))
+#define RoundUp(x, y) (((x) + ((y) - 1)) / (y))
 
 /* inspired by cygwin */
 void*

@@ -15,7 +15,9 @@ typedef struct Iteration {
 } Iteration;
 
 #define ITERATION_INIT() \
-  (Iteration) { JS_UNINITIALIZED, JS_UNINITIALIZED, JS_UNINITIALIZED, FALSE }
+  (Iteration) { \
+    JS_UNINITIALIZED, JS_UNINITIALIZED, JS_UNINITIALIZED, FALSE \
+  }
 
 BOOL iteration_init(Iteration*, JSContext*, JSValueConst);
 BOOL iteration_method_atom(Iteration*, JSContext*, JSValueConst, JSAtom);

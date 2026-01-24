@@ -131,7 +131,8 @@ vector_put(Vector* vec, const void* bytes, size_t len) {
   return vec->buf + pos;
 }
 
-void __attribute__((format(printf, 2, 3))) vector_printf(Vector* vec, const char* fmt, ...) {
+void __attribute__((format(printf, 2, 3)))
+vector_printf(Vector* vec, const char* fmt, ...) {
   va_list ap;
   char buf[128];
   size_t len;

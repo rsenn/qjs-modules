@@ -615,6 +615,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
 static void
 jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
   enum { NAMED = 0, ALL, EXEC } mode = NAMED;
+  size_t pathlen = str_chr(path, '=');
 
   for(; *path; ++path) {
     switch(*path) {
@@ -638,7 +639,7 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
     dbuf_putstr(buf, "* as ");
 
   dbuf_putstr(buf, "tmp from '");
-  dbuf_putstr(buf, path);
+  dbuf_put(buf, path, pathlen);
   dbuf_putstr(buf, "';\n");
 
   switch(mode) {
@@ -655,6 +656,9 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
     default: {
       size_t len = 0;
       char* tmp;
+
+      if(path[pathlen] == '=')
+        name = &path[pathlen + 1];
 
       if(!name)
         name = basename(path);
