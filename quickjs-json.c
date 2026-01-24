@@ -13,7 +13,7 @@ struct js_json_parser_opaque {
   JSObject *parser, *obj;
 };
 
-typedef enum {
+/*typedef enum {
   ST_UNDEFINED = 0,
   ST_OBJECT,
   ST_ARRAY,
@@ -71,7 +71,7 @@ static const uint8_t character_classes[256] = {
 
 #define parse_until(cond) parse_skip(!(cond))
 #define parse_skipspace() parse_skip(character_classes[(uint8_t)(c)] & WS)
-#define parse_is(c, classes) (character_classes[(uint8_t)(c)] & (classes))
+#define parse_is(c, classes) (character_classes[(uint8_t)(c)] & (classes))*/
 
 static JSValue
 parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
@@ -144,87 +144,44 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
 
 static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
-  JSValue ret = JS_UNDEFINED;
-
   sj_Reader r = sj_reader(buf, len);
-  sj_Value val = sj_read(&r);
+  JSValue ret = parse_val(ctx, &r, sj_read(&r));
 
-  ret = parse_val(ctx, &r, val);
-
-  /* const uint8_t *ptr = buf, *end = buf + len, *start = buf;
+  /*const uint8_t *ptr = buf, *end = buf + len, *start = buf;
    static const JsonState states[ST_COUNT][256] = {
-       [ST_UNDEFINED] = {['{'] = ST_OBJECT,
-                         ['['] = ST_ARRAY,
-                         ['t'] = ST_BOOL,
-                         ['f'] = ST_BOOL,
-                         ['n'] = ST_NULL,
-                         ['"'] = ST_STRING,
-                         ['0'] = ST_NUMBER,
-                         ['1'] = ST_NUMBER,
-                         ['2'] = ST_NUMBER,
-                         ['3'] = ST_NUMBER,
-                         ['4'] = ST_NUMBER,
-                         ['5'] = ST_NUMBER,
-                         ['6'] = ST_NUMBER,
-                         ['7'] = ST_NUMBER,
-                         ['8'] = ST_NUMBER,
-                         ['9'] = ST_NUMBER,
-                         ['-'] = ST_NUMBER,
-                         ['+'] = ST_NUMBER},
-       [ST_OBJECT] = {[','] = ST_COMMA, ['}'] = ST_COUNT},
-       [ST_ARRAY] = {[','] = ST_COMMA, [']'] = ST_COUNT},
+       [ST_UNDEFINED] = {['{'] = ST_OBJECT, ['['] = ST_ARRAY, ['t'] = ST_BOOL, ['f'] = ST_BOOL, ['n'] = ST_NULL, ['"'] = ST_STRING, ['0'] = ST_NUMBER, ['1'] =
+   ST_NUMBER, ['2'] = ST_NUMBER, ['3'] = ST_NUMBER, ['4'] = ST_NUMBER, ['5'] = ST_NUMBER, ['6'] = ST_NUMBER, ['7'] = ST_NUMBER, ['8'] = ST_NUMBER, ['9'] =
+   ST_NUMBER, ['-'] = ST_NUMBER, ['+'] = ST_NUMBER}, [ST_OBJECT] = {[','] = ST_COMMA, ['}'] = ST_COUNT}, [ST_ARRAY] = {[','] = ST_COMMA, [']'] = ST_COUNT},
        [ST_BOOL] = {['r'] = ST_BOOL, ['u'] = ST_BOOL, ['e'] = ST_BOOL, ['a'] = ST_BOOL, ['l'] = ST_BOOL, ['s'] = ST_BOOL, ['e'] = ST_BOOL},
-       [ST_NUMBER] = {['0'] = ST_NUMBER,
-                      ['1'] = ST_NUMBER,
-                      ['2'] = ST_NUMBER,
-                      ['3'] = ST_NUMBER,
-                      ['4'] = ST_NUMBER,
-                      ['5'] = ST_NUMBER,
-                      ['6'] = ST_NUMBER,
-                      ['7'] = ST_NUMBER,
-                      ['8'] = ST_NUMBER,
-                      ['9'] = ST_NUMBER,
-                      ['-'] = ST_NUMBER,
-                      ['+'] = ST_NUMBER,
-                      ['.'] = ST_NUMBER,
-                      ['E'] = ST_NUMBER,
-                      ['e'] = ST_NUMBER},
+       [ST_NUMBER] = {['0'] = ST_NUMBER, ['1'] = ST_NUMBER, ['2'] = ST_NUMBER, ['3'] = ST_NUMBER, ['4'] = ST_NUMBER, ['5'] = ST_NUMBER, ['6'] = ST_NUMBER, ['7']
+   = ST_NUMBER, ['8'] = ST_NUMBER, ['9'] = ST_NUMBER, ['-'] = ST_NUMBER, ['+'] = ST_NUMBER, ['.'] = ST_NUMBER, ['E'] = ST_NUMBER, ['e'] = ST_NUMBER},
    };
    JsonState state = ST_UNDEFINED;
-
    BOOL done = FALSE;
    uint32_t lineno = 1, column = 1;
    Vector st = VECTOR(ctx);
    JsonContext* frame = 0;
    uint8_t c;
    const uint8_t* pp;
-
    parse_skipspace();
-
    while(ptr < end) {
      JsonState newstate;
-
      parse_getc();
-
      switch(state) {
        case ST_UNDEFINED: {
          newstate = states[ST_UNDEFINED][c];
          pp = ptr;
          break;
        }
-
        case ST_STRING: {
-
          if(c == '\\') {
            parse_getc();
          } else if(c == '"') {
            newstate = ST_UNDEFINED;
          }
-
          break;
        }
      }
-
      state = newstate;
    }
  */
