@@ -165,8 +165,7 @@ top:
 
 static void
 sj__discard_until(sj_Reader* r, int depth) {
-  sj_Value val;
-  val.type = SJ_NULL;
+  sj_Value val= { SJ_NULL };
 
   while(r->depth != depth && val.type != SJ_ERROR)
     val = sj_read(r);
@@ -175,6 +174,7 @@ sj__discard_until(sj_Reader* r, int depth) {
 bool
 sj_iter_array(sj_Reader* r, sj_Value arr, sj_Value* val) {
   sj__discard_until(r, arr.depth);
+  
   *val = sj_read(r);
 
   return !(val->type == SJ_ERROR || val->type == SJ_END);
