@@ -13,133 +13,58 @@ struct js_json_parser_opaque {
   JSObject *parser, *obj;
 };
 
-/*typedef enum {
-  ST_UNDEFINED = 0,
-  ST_OBJECT,
-  ST_ARRAY,
-  ST_BOOL,
-  ST_NULL,
-  ST_STRING,
-  ST_NUMBER,
-  ST_COMMA,
-  ST_COUNT,
-} JsonState;
-
-typedef struct {
-  JsonState state;
-  size_t index;
-  JSValue value;
-} JsonContext;
-
-#define WS 0x01
-#define STR 0x02
-#define OBJ 0x04
-#define ARR 0x08
-
-static const uint8_t character_classes[256] = {
-    [' '] = WS,
-    ['\t'] = WS,
-    ['\r'] = WS,
-    ['\n'] = WS,
-    ['"'] = STR,
-    ['{'] = OBJ,
-    ['['] = ARR,
-};
-
-#define parse_getc() \
-  do { \
-    parse_loc() c = *++ptr; \
-    if(ptr >= end) \
-      done = TRUE; \
-  } while(0)
-
-#define parse_loc() \
-  if(*ptr == '\n') { \
-    lineno++; \
-    column = 1; \
-  } else { \
-    column++; \
-  }
-
-#define parse_skip(cond) \
-  do { \
-    c = *ptr; \
-    if(!(cond)) \
-      break; \
-    parse_loc() if(++ptr >= end) done = TRUE; \
-  } while(!done)
-
-#define parse_until(cond) parse_skip(!(cond))
-#define parse_skipspace() parse_skip(character_classes[(uint8_t)(c)] & WS)
-#define parse_is(c, classes) (character_classes[(uint8_t)(c)] & (classes))*/
-
 static JSValue
 parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
-  int line, col, count = 0;
   sj_Value k, v;
   JSValue ret = JS_UNDEFINED;
 
-  sj_location(r, &line, &col);
-
   switch(val.type) {
     case SJ_ERROR: {
-    error:
-      ret = JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error);
-      break;
+      goto error;
     }
-
     case SJ_ARRAY: {
+      uint32_t count = 0;
       ret = JS_NewArray(ctx);
-
-      while(sj_iter_array(r, val, &v)) {
+      while(sj_iter_array(r, val, &v))
         JS_SetPropertyUint32(ctx, ret, count++, parse_val(ctx, r, v));
-      }
-
-      if(r->error)
-        goto error;
-
       break;
     }
-
     case SJ_OBJECT: {
       ret = JS_NewObject(ctx);
-
       while(sj_iter_object(r, val, &k, &v)) {
         JSAtom key = JS_NewAtomLen(ctx, k.start, k.end - k.start);
         JS_SetProperty(ctx, ret, key, parse_val(ctx, r, v));
         JS_FreeAtom(ctx, key);
       }
-
-      if(r->error)
-        goto error;
-
       break;
     }
-
     case SJ_NUMBER: {
-      double num = strtod(val.start, NULL);
-
+      double num;
+      scan_double(val.start, &num);
       ret = JS_NewFloat64(ctx, num);
       break;
     }
-
     case SJ_STRING: {
       ret = JS_NewStringLen(ctx, val.start, val.end - val.start);
       break;
     }
-
     case SJ_NULL: {
       ret = JS_NULL;
       break;
     }
-
     case SJ_BOOL: {
       ret = val.start[0] == 't' ? JS_TRUE : JS_FALSE;
       break;
     }
   }
 
-  return ret;
+  if(!r->error)
+    return ret;
+
+error:
+  int line, col;
+  sj_location(r, &line, &col);
+  return JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error);
 }
 
 static JSValue
@@ -147,44 +72,6 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
   sj_Reader r = sj_reader(buf, len);
   JSValue ret = parse_val(ctx, &r, sj_read(&r));
 
-  /*const uint8_t *ptr = buf, *end = buf + len, *start = buf;
-   static const JsonState states[ST_COUNT][256] = {
-       [ST_UNDEFINED] = {['{'] = ST_OBJECT, ['['] = ST_ARRAY, ['t'] = ST_BOOL, ['f'] = ST_BOOL, ['n'] = ST_NULL, ['"'] = ST_STRING, ['0'] = ST_NUMBER, ['1'] =
-   ST_NUMBER, ['2'] = ST_NUMBER, ['3'] = ST_NUMBER, ['4'] = ST_NUMBER, ['5'] = ST_NUMBER, ['6'] = ST_NUMBER, ['7'] = ST_NUMBER, ['8'] = ST_NUMBER, ['9'] =
-   ST_NUMBER, ['-'] = ST_NUMBER, ['+'] = ST_NUMBER}, [ST_OBJECT] = {[','] = ST_COMMA, ['}'] = ST_COUNT}, [ST_ARRAY] = {[','] = ST_COMMA, [']'] = ST_COUNT},
-       [ST_BOOL] = {['r'] = ST_BOOL, ['u'] = ST_BOOL, ['e'] = ST_BOOL, ['a'] = ST_BOOL, ['l'] = ST_BOOL, ['s'] = ST_BOOL, ['e'] = ST_BOOL},
-       [ST_NUMBER] = {['0'] = ST_NUMBER, ['1'] = ST_NUMBER, ['2'] = ST_NUMBER, ['3'] = ST_NUMBER, ['4'] = ST_NUMBER, ['5'] = ST_NUMBER, ['6'] = ST_NUMBER, ['7']
-   = ST_NUMBER, ['8'] = ST_NUMBER, ['9'] = ST_NUMBER, ['-'] = ST_NUMBER, ['+'] = ST_NUMBER, ['.'] = ST_NUMBER, ['E'] = ST_NUMBER, ['e'] = ST_NUMBER},
-   };
-   JsonState state = ST_UNDEFINED;
-   BOOL done = FALSE;
-   uint32_t lineno = 1, column = 1;
-   Vector st = VECTOR(ctx);
-   JsonContext* frame = 0;
-   uint8_t c;
-   const uint8_t* pp;
-   parse_skipspace();
-   while(ptr < end) {
-     JsonState newstate;
-     parse_getc();
-     switch(state) {
-       case ST_UNDEFINED: {
-         newstate = states[ST_UNDEFINED][c];
-         pp = ptr;
-         break;
-       }
-       case ST_STRING: {
-         if(c == '\\') {
-           parse_getc();
-         } else if(c == '"') {
-           newstate = ST_UNDEFINED;
-         }
-         break;
-       }
-     }
-     state = newstate;
-   }
- */
   return ret;
 }
 

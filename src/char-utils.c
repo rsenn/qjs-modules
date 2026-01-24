@@ -427,63 +427,74 @@ scan_8longn(const char* src, size_t n, uint32_t* dest) {
 }
 
 size_t
-scan_double(const char* in, double* dest) {
-  double d = 0;
-  const char* c = in;
-  char neg = 0;
+scan_double(const char* s, double* d) {
+  const char* p = s;
+  long double factor, value = 0.;
+  int sign = +1;
+  unsigned int expo;
 
-  switch(*c) {
-    case '-': neg = 1; /* fall through */
-    case '+': c++; break;
+  while(is_whitespace_char(*p))
+    p++;
+
+  switch(*p) {
+    case '-': sign = -1; /* fall through */
+    case '+': p++;
     default: break;
   }
 
-  while(is_digit_char(*c)) {
-    d = d * 10 + (*c - '0');
-    ++c;
-  }
+  while((unsigned int)(*p - '0') < 10u)
+    value = value * 10 + (*p++ - '0');
 
-  if(*c == '.') {
-    double factor = .1;
+  if(*p == '.') {
+    factor = 1.;
 
-    while(is_digit_char(*++c)) {
-      d = d + (factor * (*c - '0'));
-      factor /= 10;
+    p++;
+
+    while((unsigned int)(*p - '0') < 10u) {
+      factor *= 0.1;
+      value += (*p++ - '0') * factor;
     }
   }
 
-  if((*c | 32) == 'e') {
-    int exp = 0;
-    char neg = 0;
+  if((*p | 32) == 'e') {
+    expo = 0;
+    factor = 10.;
 
-    if(c[1] < '0') {
-      switch(*c) {
-        case '-': neg = 1; /* fall through */
-        case '+': c++; break;
-        default:
-          d = 0;
-          c = in;
-          goto done;
-      }
+    switch(*++p) {
+      case '-': factor = 0.1; /* fall through */
+      case '+': p++; break;
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9': break;
+      default:
+        value = 0.;
+        p = s;
+        goto done;
     }
-    while(is_digit_char(*++c))
-      exp = exp * 10 + (*c - '0');
 
-    if(neg)
-      while(exp) { /* XXX: this introduces rounding errors */
-        d /= 10;
-        --exp;
-      }
-    else
-      while(exp) { /* XXX: this introduces rounding errors */
-        d *= 10;
-        --exp;
-      }
+    while((unsigned int)(*p - '0') < 10u)
+      expo = 10 * expo + (*p++ - '0');
+
+    while(1) {
+      if(expo & 1)
+        value *= factor;
+      if((expo >>= 1) == 0)
+        break;
+      factor *= factor;
+    }
   }
 
 done:
-  *dest = (neg ? -d : d);
-  return (size_t)(c - in);
+  *d = value * sign;
+
+  return p - s;
 }
 
 size_t
