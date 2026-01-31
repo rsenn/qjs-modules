@@ -4,6 +4,7 @@ macro(find_mariadb)
   string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}" LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
   set(LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}" CACHE PATH "MariaDB library directory")
   link_directories(${LIBMARIADB_LIBRARY_DIR})
+  
   if(pkgcfg_lib_MARIADB_mariadb)
     message(STATUS "MariaDB found by pkg-config")
     set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
