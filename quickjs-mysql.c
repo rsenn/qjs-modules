@@ -11,6 +11,10 @@
 #include <io.h>
 #include <fcntl.h>
 #endif
+#ifdef MYSQL_NOT_MARIADB
+typedef BOOL my_bool;
+#define MARIADB_OPT_USERDATA  (MYSQL_OPT_SSL_SESSION_DATA+1)
+#endif
 
 /**
  * \addtogroup quickjs-mysql
@@ -65,6 +69,7 @@ static JSValue string_to_object(JSContext*, const char*, const char*);
 
 static JSValue js_mysqlerror_new(JSContext*, const char*);
 
+#ifndef MYSQL_NO_ASYNC
 static AsyncEvent
 to_asyncevent(int my_wait) {
   return ((my_wait & MYSQL_WAIT_WRITE) ? WANT_WRITE : 0) | ((my_wait & MYSQL_WAIT_READ) ? WANT_READ : 0);
@@ -74,6 +79,7 @@ static int
 to_mysql_wait(AsyncEvent e) {
   return ((e & WANT_WRITE) ? MYSQL_WAIT_WRITE : 0) | ((e & WANT_READ) ? MYSQL_WAIT_READ : 0);
 }
+#endif
 
 static void
 js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
@@ -375,6 +381,7 @@ js_connectparams_from(JSContext* ctx, int argc, JSValueConst argv[]) {
   return obj;
 }
 
+#ifndef MYSQL_NO_ASYNC
 static BOOL
 mysql_nonblock(MYSQL* my) {
   my_bool val;
@@ -382,6 +389,7 @@ mysql_nonblock(MYSQL* my) {
   mysql_get_option(my, MYSQL_OPT_NONBLOCK, &val);
   return val;
 }
+#endif
 
 MYSQL*
 js_mysql_data(JSValueConst value) {
@@ -408,7 +416,9 @@ js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   if(JS_IsException(obj))
     goto fail;
 
+#ifndef MYSQL_NOT_MARIADB
   mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"JSObject*", (void*)JS_VALUE_GET_PTR(obj));
+#endif
 
   JS_SetOpaque(obj, my);
 
@@ -483,17 +493,20 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         /* my_bool */
         case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
         case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
-        case MYSQL_OPT_GUESS_CONNECTION:
         case MYSQL_OPT_LOCAL_INFILE:
         case MYSQL_OPT_RECONNECT:
         case MYSQL_OPT_USE_RESULT:
+#ifndef MYSQL_NOT_MARIADB
+        case MYSQL_OPT_GUESS_CONNECTION:
         case MYSQL_OPT_SSL_ENFORCE:
         case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
         case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
         case MYSQL_OPT_USE_REMOTE_CONNECTION:
-        case MYSQL_REPORT_DATA_TRUNCATION:
         case MYSQL_SECURE_AUTH:
-        case MYSQL_OPT_NONBLOCK: {
+        case MYSQL_OPT_NONBLOCK:
+#endif
+        case MYSQL_REPORT_DATA_TRUNCATION:
+         {
           my_bool val;
           mysql_get_option(my, opt, &val);
           ret = JS_NewBool(ctx, val);
@@ -517,7 +530,9 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_SERVER_PUBLIC_KEY:
         case MYSQL_SET_CHARSET_DIR:
         case MYSQL_SET_CHARSET_NAME:
+#ifndef MYSQL_NOT_MARIADB
         case MYSQL_SET_CLIENT_IP:
+#endif
         case MYSQL_SHARED_MEMORY_BASE_NAME: {
           const char* val;
 
@@ -568,24 +583,28 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           break;
         }
 
+#ifndef MYSQL_NOT_MARIADB
         case MYSQL_OPT_NONBLOCK: {
           mysql_options(my, opt, 0);
           break;
         }
+#endif
 
         /* my_bool */
         case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
         case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
+#ifndef MYSQL_NOT_MARIADB
         case MYSQL_OPT_GUESS_CONNECTION:
-        case MYSQL_OPT_LOCAL_INFILE:
-        case MYSQL_OPT_RECONNECT:
-        case MYSQL_OPT_USE_RESULT:
         case MYSQL_OPT_SSL_ENFORCE:
         case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
         case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
         case MYSQL_OPT_USE_REMOTE_CONNECTION:
-        case MYSQL_REPORT_DATA_TRUNCATION:
-        case MYSQL_SECURE_AUTH: {
+        case MYSQL_SECURE_AUTH: 
+#endif
+        case MYSQL_OPT_LOCAL_INFILE:
+        case MYSQL_OPT_RECONNECT:
+        case MYSQL_OPT_USE_RESULT:
+        case MYSQL_REPORT_DATA_TRUNCATION:{
           my_bool val = JS_ToBool(ctx, argv[1]);
 
           mysql_options(my, opt, &val);
@@ -609,7 +628,9 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_SERVER_PUBLIC_KEY:
         case MYSQL_SET_CHARSET_DIR:
         case MYSQL_SET_CHARSET_NAME:
+#ifndef MYSQL_NOT_MARIADB
         case MYSQL_SET_CLIENT_IP:
+#endif
         case MYSQL_SHARED_MEMORY_BASE_NAME: {
           const char* val = JS_ToCString(ctx, argv[1]);
 
@@ -698,10 +719,12 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
+#ifndef MYSQL_NOT_MARIADB
     case PROP_SOCKET: {
       ret = JS_NewInt64(ctx, mysql_get_socket(my));
       break;
     }
+#endif
 
     case PROP_ERRNO: {
       ret = JS_NewInt32(ctx, mysql_errno(my));
@@ -734,6 +757,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
+#ifndef MYSQL_NOT_MARIADB
     case PROP_TIMEOUT: {
       ret = JS_NewUint32(ctx, mysql_get_timeout_value(my));
       break;
@@ -750,6 +774,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = name && *name ? JS_NewString(ctx, name) : JS_NULL;
       break;
     }
+#endif
 
     case PROP_SERVER_INFO: {
       const char* info = mysql_get_server_info(my);
@@ -800,6 +825,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
+#ifndef MYSQL_NO_ASYNC
     case PROP_PENDING: {
       AsyncClosure* ac;
       int32_t pending = 0;
@@ -810,6 +836,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, pending);
       break;
     }
+#endif
   }
 
   return ret;
@@ -938,8 +965,11 @@ js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(JS_IsException(proto))
     goto fail;
 
-  if((my = mysql_init(NULL)))
+  if((my = mysql_init(NULL))) {
+#ifndef MYSQL_NO_ASYNC
     mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
+#endif
+  }
 
   obj = js_mysql_new(ctx, proto, my);
   JS_FreeValue(ctx, proto);
@@ -958,6 +988,7 @@ fail:
   return JS_EXCEPTION;
 }
 
+#ifndef MYSQL_NO_ASYNC
 static int
 js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
   MYSQL* my = js_mysql_data(this_val);
@@ -1038,6 +1069,7 @@ js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   return JS_UNDEFINED;
 }
+#endif
 
 static JSValue
 js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1062,6 +1094,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     c = connectparams_new(ctx, argc, argv);
   }
 
+#ifndef MYSQL_NO_ASYNC
   state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
   fd = js_mysql_fd(ctx, this_val);
   as = to_asyncevent(state);
@@ -1070,8 +1103,13 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   asyncclosure_opaque(ac, c, connectparams_free);
 
   return asyncclosure_promise(ac);
+#else
+  ret = mysql_real_connect(my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
+  return ret ? JS_TRUE : JS_FALSE;
+#endif
 }
 
+#ifndef MYSQL_NO_ASYNC
 static JSValue
 js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
@@ -1104,6 +1142,7 @@ js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   return JS_UNDEFINED;
 }
+#endif
 
 static JSValue
 js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1117,6 +1156,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_EXCEPTION;
 
   query = JS_ToCStringLen(ctx, &i, argv[0]);
+#ifndef MYSQL_NO_ASYNC
   state = mysql_real_query_start(&err, my, query, i);
   fd = js_mysql_fd(ctx, this_val);
   as = to_asyncevent(state);
@@ -1129,6 +1169,10 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   asyncclosure_opaque(ac, my, NULL);
 
   return asyncclosure_promise(ac);
+#else
+  return JS_NewInt32(ctx, mysql_query(my, query));
+  
+#endif
 }
 
 static JSValue
@@ -1141,6 +1185,7 @@ js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
+#ifndef MYSQL_NO_ASYNC
 #ifdef _WIN32
   if(js_has_propertystr(ctx, this_val, "fd")) {
     fd = js_get_propertystr_int32(ctx, this_val, "fd");
@@ -1153,6 +1198,7 @@ js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(fd > -1)
     if((ac = asyncclosure_lookup(fd)))
       asyncclosure_done(ac);
+#endif
 
   mysql_close(my);
 
@@ -1226,33 +1272,43 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_TBLNAM", RESULT_TBLNAM, JS_PROP_CONFIGURABLE),
     JS_PROP_INT64_DEF("COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NOT_MARIADB
     JS_PROP_INT32_DEF("DATABASE_DRIVER", MYSQL_DATABASE_DRIVER, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("DEFAULT_AUTH", MYSQL_DEFAULT_AUTH, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("ENABLE_CLEARTEXT_PLUGIN", MYSQL_ENABLE_CLEARTEXT_PLUGIN, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("INIT_COMMAND", MYSQL_INIT_COMMAND, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_READY", MYSQL_STATUS_READY, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_GET_RESULT", MYSQL_STATUS_GET_RESULT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_USE_RESULT", MYSQL_STATUS_USE_RESULT, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NO_ASYNC
     JS_PROP_INT32_DEF("STATUS_QUERY_SENT", MYSQL_STATUS_QUERY_SENT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_SENDING_LOAD_DATA", MYSQL_STATUS_SENDING_LOAD_DATA, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_FETCHING_DATA", MYSQL_STATUS_FETCHING_DATA, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_NEXT_RESULT_PENDING", MYSQL_STATUS_NEXT_RESULT_PENDING, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_QUIT_SENT", MYSQL_STATUS_QUIT_SENT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_STMT_RESULT", MYSQL_STATUS_STMT_RESULT, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("OPT_BIND", MYSQL_OPT_BIND, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CAN_HANDLE_EXPIRED_PASSWORDS", MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_COMPRESS", MYSQL_OPT_COMPRESS, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_ADD", MYSQL_OPT_CONNECT_ATTR_ADD, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_DELETE", MYSQL_OPT_CONNECT_ATTR_DELETE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_RESET", MYSQL_OPT_CONNECT_ATTR_RESET, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NOT_MARIADB
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTRS", MYSQL_OPT_CONNECT_ATTRS, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("OPT_CONNECT_TIMEOUT", MYSQL_OPT_CONNECT_TIMEOUT, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NOT_MARIADB
     JS_PROP_INT32_DEF("OPT_GUESS_CONNECTION", MYSQL_OPT_GUESS_CONNECTION, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("OPT_LOCAL_INFILE", MYSQL_OPT_LOCAL_INFILE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_MAX_ALLOWED_PACKET", MYSQL_OPT_MAX_ALLOWED_PACKET, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_NAMED_PIPE", MYSQL_OPT_NAMED_PIPE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_NET_BUFFER_LENGTH", MYSQL_OPT_NET_BUFFER_LENGTH, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NO_ASYNC
     JS_PROP_INT32_DEF("OPT_NONBLOCK", MYSQL_OPT_NONBLOCK, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("OPT_PROTOCOL", MYSQL_OPT_PROTOCOL, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_READ_TIMEOUT", MYSQL_OPT_READ_TIMEOUT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_RECONNECT", MYSQL_OPT_RECONNECT, JS_PROP_CONFIGURABLE),
@@ -1262,24 +1318,30 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("OPT_SSL_CIPHER", MYSQL_OPT_SSL_CIPHER, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_SSL_CRL", MYSQL_OPT_SSL_CRL, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_SSL_CRLPATH", MYSQL_OPT_SSL_CRLPATH, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NOT_MARIADB
     JS_PROP_INT32_DEF("OPT_SSL_ENFORCE", MYSQL_OPT_SSL_ENFORCE, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("OPT_SSL_KEY", MYSQL_OPT_SSL_KEY, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_SSL_VERIFY_SERVER_CERT", MYSQL_OPT_SSL_VERIFY_SERVER_CERT, JS_PROP_CONFIGURABLE),
+#endif
+    JS_PROP_INT32_DEF("OPT_SSL_KEY", MYSQL_OPT_SSL_KEY, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_TLS_VERSION", MYSQL_OPT_TLS_VERSION, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NOT_MARIADB
     JS_PROP_INT32_DEF("OPT_USE_EMBEDDED_CONNECTION", MYSQL_OPT_USE_EMBEDDED_CONNECTION, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_USE_REMOTE_CONNECTION", MYSQL_OPT_USE_REMOTE_CONNECTION, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("OPT_USE_RESULT", MYSQL_OPT_USE_RESULT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_WRITE_TIMEOUT", MYSQL_OPT_WRITE_TIMEOUT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("PLUGIN_DIR", MYSQL_PLUGIN_DIR, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("PROGRESS_CALLBACK", MYSQL_PROGRESS_CALLBACK, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("READ_DEFAULT_FILE", MYSQL_READ_DEFAULT_FILE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("READ_DEFAULT_GROUP", MYSQL_READ_DEFAULT_GROUP, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("REPORT_DATA_TRUNCATION", MYSQL_REPORT_DATA_TRUNCATION, JS_PROP_CONFIGURABLE),
+#ifndef MYSQL_NOT_MARIADB
+    JS_PROP_INT32_DEF("PROGRESS_CALLBACK", MYSQL_PROGRESS_CALLBACK, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("SECURE_AUTH", MYSQL_SECURE_AUTH, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("SET_CLIENT_IP", MYSQL_SET_CLIENT_IP, JS_PROP_CONFIGURABLE),
+#endif
     JS_PROP_INT32_DEF("SERVER_PUBLIC_KEY", MYSQL_SERVER_PUBLIC_KEY, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("SET_CHARSET_DIR", MYSQL_SET_CHARSET_DIR, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("SET_CHARSET_NAME", MYSQL_SET_CHARSET_NAME, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("SET_CLIENT_IP", MYSQL_SET_CLIENT_IP, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("SHARED_MEMORY_BASE_NAME", MYSQL_SHARED_MEMORY_BASE_NAME, JS_PROP_CONFIGURABLE),
 };
 
@@ -1527,11 +1589,13 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
   JSValue ret = JS_UNDEFINED;
 
   if((my = js_mysqlresult_handle(ctx, value))) {
+#ifndef MYSQL_NOT_MARIADB
     void* ptr = 0;
     mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"JSObject*", (void*)&ptr);
 
     if(ptr)
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, ptr));
+#endif
   }
 
   return ret;
@@ -1540,12 +1604,17 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
 static int
 js_mysqlresult_fd(JSContext* ctx, JSValueConst value) {
   JSValue conn = js_mysqlresult_connection(ctx, value);
-  int fd = JS_IsObject(conn) ? js_mysql_fd(ctx, conn) : -1;
+  int fd = 
+#ifndef MYSQL_NO_ASYNC
+    JS_IsObject(conn) ? js_mysql_fd(ctx, conn) :
+#endif   
+    -1;
 
   JS_FreeValue(ctx, conn);
   return fd;
 }
 
+#ifndef MYSQL_NO_ASYNC
 static JSValue
 js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
@@ -1575,6 +1644,7 @@ js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JS
 
   return JS_UNDEFINED;
 }
+#endif
 
 static JSValue
 js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1586,6 +1656,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!mysql_eof(res)) {
     MYSQL_ROW row;
     MYSQL* my = js_mysqlresult_handle(ctx, this_val);
+#ifndef MYSQL_NO_ASYNC
     int state = mysql_fetch_row_start(&row, res);
     int fd = js_mysqlresult_fd(ctx, this_val);
     int as = to_asyncevent(state);
@@ -1601,6 +1672,12 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       result_iterator_value(ac->opaque, row, ac);
 
     return asyncclosure_promise(ac);
+#else
+   row = mysql_fetch_row(res);
+        JSValue  result = result_row(ctx, res, row, magic);
+
+        return result;
+#endif
   }
 
   return JS_ThrowRangeError(ctx, "MySQLResult is EOF");
@@ -1728,7 +1805,13 @@ js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   assert(my);
 
-  BOOL block = !mysql_nonblock(my);
+  BOOL block = 
+#ifndef MYSQL_NO_ASYNC
+    !mysql_nonblock(my)
+#else
+    TRUE
+#endif
+    ;
 
   switch(magic) {
     case METHOD_ASYNC_ITERATOR: {

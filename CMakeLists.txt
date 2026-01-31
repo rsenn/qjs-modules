@@ -390,6 +390,14 @@ if(MODULE_MYSQL)
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindMariaDB.cmake)
 
   find_mariadb()
+
+  if(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
+    add_definitions(-DMYSQL_NO_ASYNC)
+  endif(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
+
+  if(NOT HAVE_MYSQL_OPTIONSV)
+    add_definitions(-DMYSQL_NOT_MARIADB)
+  endif(NOT HAVE_MYSQL_OPTIONSV)
 endif(MODULE_MYSQL)
 
 if(MODULE_PGSQL)
