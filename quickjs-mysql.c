@@ -5,6 +5,7 @@
 #include "char-utils.h"
 #include "js-utils.h"
 #include "async-closure.h"
+#include <cutils.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
