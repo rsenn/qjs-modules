@@ -3,6 +3,7 @@ import { Console } from 'console';
 import * as std from 'std';
 import { TextDecoder } from 'textcode';
 import { TextEncoder } from 'textcode';
+
 function Decode(encoding, ...chunks) {
   let decoder = new TextDecoder(encoding),
     result = [];

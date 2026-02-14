@@ -1,7 +1,4 @@
-import { abbreviate } from 'util';
-import { ansiStyles } from 'util';
-import { className } from 'util';
-import { randStr } from 'util';
+import { abbreviate, ansiStyles, className, randStr } from 'util';
 import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
 import { MySQL } from 'mysql';

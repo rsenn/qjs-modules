@@ -1,15 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { camelize } from 'util';
-import { curry } from 'util';
-import { define } from 'util';
-import { escape } from 'util';
-import { getOpt } from 'util';
-import { split } from 'util';
-import { startInteractive } from 'util';
-import { toString } from 'util';
-import { unique } from 'util';
+import { camelize, curry, define, escape, getOpt, split, startInteractive, toString, unique } from 'util';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import inspect from 'inspect';

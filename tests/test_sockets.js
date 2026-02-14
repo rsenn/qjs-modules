@@ -6,25 +6,8 @@ import { quote } from 'misc';
 import { randi } from 'misc';
 import { srand } from 'misc';
 import { toString } from 'misc';
-import { AF_INET } from 'sockets';
-import { AsyncSocket } from 'sockets';
-import { fd_set } from 'sockets';
-import { IPPROTO_TCP } from 'sockets';
-import { SO_BROADCAST } from 'sockets';
-import { SO_DEBUG } from 'sockets';
-import { SO_DONTROUTE } from 'sockets';
-import { SO_ERROR } from 'sockets';
-import { SO_KEEPALIVE } from 'sockets';
-import { SO_OOBINLINE } from 'sockets';
-import { SO_RCVBUF } from 'sockets';
-import { SO_REUSEADDR } from 'sockets';
-import { SO_REUSEPORT } from 'sockets';
-import { SO_SNDBUF } from 'sockets';
-import { SOCK_STREAM } from 'sockets';
-import { SockAddr } from 'sockets';
-import { Socket } from 'sockets';
-import { socklen_t } from 'sockets';
-import { SOL_SOCKET } from 'sockets';
+import { AF_INET, AsyncSocket, fd_set, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_DONTROUTE, SO_ERROR, SO_KEEPALIVE, SO_OOBINLINE, SO_RCVBUF, SO_REUSEADDR, SO_REUSEPORT, SO_SNDBUF, SOCK_STREAM, SockAddr, Socket, socklen_t, SOL_SOCKET } from 'sockets';
+
 async function main() {
   globalThis.console = new Console({
     inspectOptions: {

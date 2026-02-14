@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { getOpt } from 'util';
-import { isObject } from 'util';
+import { getOpt, isObject } from 'util';
 import { parseSelectors } from '../lib/css3-selectors.js';
 import { Node } from '../lib/dom.js';
 import { Parser } from '../lib/dom.js';
