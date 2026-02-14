@@ -6,7 +6,7 @@
  * @{
  */
 
-#ifndef QUICKJS_DBUF_REALLOC
+#if 0 //ndef QUICKJS_DBUF_REALLOC
 #define dbuf_realloc dbuf_claim
 #endif
 
