@@ -497,7 +497,7 @@ try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(voi
 compile_code(JS_MODULE_LOADER_SETTINGS "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0, JS_UNDEFINED); return 0; }")
 
 if(NOT JS_MODULE_LOADER_SETTINGS)
-compile_code(JS_MODULE_LOADER_OLD "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0); return 0; }")
+  compile_code(JS_MODULE_LOADER_OLD "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0); return 0; }")
 
   if(NOT JS_MODULE_LOADER_OLD)
     message(FATAL "Failed js_module_loader() arguments test!")
