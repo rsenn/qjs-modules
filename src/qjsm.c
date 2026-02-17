@@ -1767,7 +1767,7 @@ jsm_start_interactive(JSContext* ctx, BOOL global) {
                 "%srepl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
                 "repl.loadSaveOptions();\n"
                 "repl.historyLoad();\n"
-                "repl.run();\n",
+                "repl.runSync();\n",
                 global ? "globalThis." : "const ",
                 (int)str_chr(exename, '.'),
                 exename);
