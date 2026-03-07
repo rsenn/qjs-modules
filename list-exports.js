@@ -1,3 +1,5 @@
+#!/usr/bin/env qjsm
+
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -5,11 +7,10 @@ import { camelize, curry, define, escape, getOpt, split, startInteractive, toStr
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import inspect from 'inspect';
-import { Lexer } from 'lexer';
-import { Token } from 'lexer';
+import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
-#!/usr/bin/env qjsm
+
 const buffers = {},
   modules = {};
 

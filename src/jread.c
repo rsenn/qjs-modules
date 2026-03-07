@@ -5,11 +5,11 @@
 
 #include "jread.h"
 
-#define JR_DISPATCH_NEXT() goto* go[(uint8_t)*cstr++]
+#define JR_DISPATCH_NEXT() goto* go[(uint8_t) * cstr++]
 #define JR_DISPATCH_THIS() goto* go[(uint8_t)cstr[-1]];
-#define JR_DISPATCH_NEXT_GO(x) goto* x[(uint8_t)*cstr++]
+#define JR_DISPATCH_NEXT_GO(x) goto* x[(uint8_t) * cstr++]
 #define JR_DISPATCH_THIS_GO(x) goto* x[(uint8_t)cstr[-1]];
-#define JR_DISPATCH_NEXT_MASK() goto* go_utf8[(uint8_t)*cstr++ & utf8_mask]
+#define JR_DISPATCH_NEXT_MASK() goto* go_utf8[(uint8_t) * cstr++ & utf8_mask]
 #define JR_PUSH(x) go_stack[go_stack_idx++] = go
 #define JR_PUSH_GO(x) \
   go_stack[go_stack_idx++] = go; \

@@ -1,11 +1,12 @@
+#!/usr/bin/env qjsm
+
 import * as os from 'os';
-import { define } from 'util';
-import { getOpt } from 'util';
+import { define, getOpt } from 'util';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import CLexer from 'lexer/c.js';
 import * as std from 'std';
-#!/usr/bin/env qjsm
+
 extendArray();
 
 let jsCFuncs, noStructs;

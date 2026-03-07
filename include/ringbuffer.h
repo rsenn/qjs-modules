@@ -31,13 +31,13 @@ typedef union ringbuffer {
 #define ringbuffer_init(rb, size, ctx) \
   do { \
     vector_init(&(rb)->vec, ctx); \
-    vector_allocate(&(rb)->vec, 1, ((size)-1)); \
+    vector_allocate(&(rb)->vec, 1, ((size) - 1)); \
   } while(0)
 
 #define ringbuffer_init_rt(rb, size, rt) \
   do { \
     vector_init_rt(&(rb)->vec, rt); \
-    vector_allocate(&(rb)->vec, 1, ((size)-1)); \
+    vector_allocate(&(rb)->vec, 1, ((size) - 1)); \
   } while(0)
 
 #define RINGBUFFER(ctx) \

@@ -1,11 +1,5 @@
-import { closeSync } from 'fs';
-import { openSync } from 'fs';
-import { readFileSync } from 'fs';
-import { renameSync } from 'fs';
-import { sizeSync } from 'fs';
-import { statSync } from 'fs';
-import { unlinkSync } from 'fs';
-import { writeSync } from 'fs';
+#!/usr/bin/env qjsm
+import { closeSync, openSync, readFileSync, renameSync, sizeSync, statSync, unlinkSync, writeSync } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { camelize, curry, define, difference, error, escape, getOpt, getset, getTypeName, intersection, isObject, mapWrapper, memoize, nonenumerable, quote, randInt, split, toArrayBuffer, toString, types, unique } from 'util';
@@ -13,11 +7,10 @@ import { Console } from 'console';
 import extendArray from 'extendArray';
 import extendArrayBuffer from 'extendArrayBuffer';
 import inspect from 'inspect';
-import { Lexer } from 'lexer';
-import { Token } from 'lexer';
+import { Lexer ,  Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
-#!/usr/bin/env qjsm
+
 /* äöü */
 const inspectSymbol = Symbol.for('quickjs.inspect.custom');
 
