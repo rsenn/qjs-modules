@@ -84,7 +84,7 @@ static thread_local ModuleLoaderContext* module_loaders = NULL;
 
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
-static JSValue package_json;
+static JSValue package_json, jsm_promise;
 static char* exename;
 static size_t exelen;
 static JSRuntime* jsm_rt;
@@ -192,6 +192,15 @@ BuiltinModule jsm_builtin_list[] = {
 #undef jsm_builtin_compiled*/
 
 void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
+
+static JSValue
+jsm_get_error(JSContext* ctx) {
+  if(JS_IsObject(jsm_promise))
+    if(JS_PromiseState(ctx, jsm_promise) == JS_PROMISE_REJECTED)
+      return JS_PromiseResult(ctx, jsm_promise);
+
+  return JS_GetException(jsm_ctx);
+}
 
 static void
 jsm_dump_error(JSContext* ctx) {
@@ -1761,16 +1770,16 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
 static void
 jsm_start_interactive(JSContext* ctx, BOOL global) {
   if(interactive == 1) {
-    js_eval_fmt(ctx,
-                JS_EVAL_TYPE_MODULE,
-                "import { REPL } from 'repl';\n"
-                "%srepl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
-                "repl.loadSaveOptions();\n"
-                "repl.historyLoad();\n"
-                "repl.run();\n",
-                global ? "globalThis." : "const ",
-                (int)str_chr(exename, '.'),
-                exename);
+    jsm_promise = js_eval_fmt(ctx,
+                              JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_ASYNC,
+                              "import { REPL } from 'repl';\n"
+                              "%srepl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
+                              "repl.loadSaveOptions();\n"
+                              "repl.historyLoad();\n"
+                              "await repl.run();\n",
+                              global ? "globalThis." : "const ",
+                              (int)str_chr(exename, '.'),
+                              exename);
 
     interactive = 2;
   }
@@ -2178,7 +2187,7 @@ main(int argc, char** argv) {
     js_std_loop(jsm_ctx);
   }
 
-  JSValue exception = JS_GetException(jsm_ctx);
+  JSValue exception = jsm_get_error(jsm_ctx);
 
   if(!JS_IsNull(exception) && !JS_IsUninitialized(exception))
     js_error_print(jsm_ctx, exception);
