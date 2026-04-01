@@ -2227,10 +2227,12 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
+
     printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
 
   return 0;
+
 fail:
   js_std_free_handlers(jsm_rt);
   JS_FreeContext(jsm_ctx);
