@@ -39,7 +39,7 @@ const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWor
 const bufferRef = new WeakMap();
 
 function compareFn() {
-  const compare = (a, b) => ('' + a).localeCompare('' + b);
+  let compare = (a, b) => ('' + a).localeCompare('' + b);
 
   if(!caseSensitive) {
     let fn = compare;

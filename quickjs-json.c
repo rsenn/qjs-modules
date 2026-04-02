@@ -1,5 +1,6 @@
 #include "stream-utils.h"
 #include "utils.h"
+#include "virtual-properties.h"
 #include "json.h"
 #include "vector.h"
 #define SJ_IMPL
@@ -22,36 +23,46 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
     case SJ_ERROR: {
       goto error;
     }
+
     case SJ_ARRAY: {
       uint32_t count = 0;
       ret = JS_NewArray(ctx);
+
       while(sj_iter_array(r, val, &v))
         JS_SetPropertyUint32(ctx, ret, count++, parse_val(ctx, r, v));
+
       break;
     }
+
     case SJ_OBJECT: {
-      ret = JS_NewObject(ctx);
+      ret = JS_NewObjectProto(ctx, JS_NULL);
+
       while(sj_iter_object(r, val, &k, &v)) {
         JSAtom key = JS_NewAtomLen(ctx, k.start, k.end - k.start);
         JS_SetProperty(ctx, ret, key, parse_val(ctx, r, v));
         JS_FreeAtom(ctx, key);
       }
+
       break;
     }
+
     case SJ_NUMBER: {
       double num;
       scan_double(val.start, &num);
       ret = JS_NewFloat64(ctx, num);
       break;
     }
+
     case SJ_STRING: {
       ret = JS_NewStringLen(ctx, val.start, val.end - val.start);
       break;
     }
+
     case SJ_NULL: {
       ret = JS_NULL;
       break;
     }
+
     case SJ_BOOL: {
       ret = val.start[0] == 't' ? JS_TRUE : JS_FALSE;
       break;
@@ -153,8 +164,20 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   switch(magic) {
     case JSON_PARSER_PARSE: {
       JsonValueType type = json_parse(parser, ctx);
-      ret =
-          JS_NewString(ctx, CONST_STRARRAY("NONE", "OBJECT", "OBJECT_END", "ARRAY", "ARRAY_END", "KEY", "STRING", "TRUE", "FALSE", "NULL", "NUMBER")[type + 1]);
+      ret = JS_NewString(ctx,
+                         (const char* const[]){
+                             "NONE",
+                             "OBJECT",
+                             "OBJECT_END",
+                             "ARRAY",
+                             "ARRAY_END",
+                             "KEY",
+                             "STRING",
+                             "TRUE",
+                             "FALSE",
+                             "NULL",
+                             "NUMBER",
+                         }[type + 1]);
       break;
     }
   }
