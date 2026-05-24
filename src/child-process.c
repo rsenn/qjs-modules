@@ -92,6 +92,7 @@ child_process_signal(JSContext* ctx, JSValueConst handler) {
 
 static JSValue
 child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+#ifdef HAVE_WAITPID
   int status = 0, pid;
   ChildProcess* cp;
 
@@ -106,6 +107,9 @@ child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
   return JS_UNDEFINED;
+#else
+  return JS_ThrowInternalError(ctx, "Have no waitpid() implementation!");
+#endif
 }
 
 ChildProcess*
