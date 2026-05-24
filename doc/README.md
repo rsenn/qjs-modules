@@ -53,4 +53,3 @@ source file (e.g. `quickjs-blob.c` → [blob](blob.md)).
 - [archive](archive.md) — libarchive reading/writing
 - [magic](magic.md) — libmagic content detection
 - [bcrypt](bcrypt.md) — bcrypt password hashing
-- [internal](internal.md) — C support helpers (no standalone JS module)
