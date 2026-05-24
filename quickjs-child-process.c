@@ -240,7 +240,9 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     if(cp->signaled || cp->stopped)
       JS_SetPropertyStr(ctx, obj, "signal", JS_NewInt32(ctx, cp->stopped ? cp->stopsig : cp->termsig));
 
+#ifdef HAVE_WAITPID
     JS_SetPropertyStr(ctx, obj, "status", WIFEXITED(cp->status) ? JS_NewInt32(ctx, WEXITSTATUS(cp->status)) : JS_NULL);
+#endif
 
     int num = cp->num_fds > 3 ? 3 : cp->num_fds;
     DynBuf db[num];

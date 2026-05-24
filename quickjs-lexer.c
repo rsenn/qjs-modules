@@ -1341,7 +1341,9 @@ js_lexer_states(JSContext* ctx, JSValueConst this_val) {
 
   ret = JS_NewArray(ctx);
 
-  vector_foreach_t(&lex->states, cond) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *cond)); }
+  vector_foreach_t(&lex->states, cond) {
+    JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *cond));
+  }
 
   return ret;
 }

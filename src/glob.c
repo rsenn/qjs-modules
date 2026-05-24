@@ -118,7 +118,7 @@ typedef char char_type;
 #define MAXPATHLEN PATH_MAX
 #endif
 
-#define CHAR(c) ((char_type)((c)&M_ASCII))
+#define CHAR(c) ((char_type)((c) & M_ASCII))
 #define META(c) ((char_type)((c) | M_QUOTE))
 #define M_ALL META('*')
 #define M_END META(']')
@@ -126,7 +126,7 @@ typedef char char_type;
 #define M_ONE META('?')
 #define M_RNG META('-')
 #define M_SET META('[')
-#define ismeta(c) (((c)&M_QUOTE) != 0)
+#define ismeta(c) (((c) & M_QUOTE) != 0)
 
 static int compare(const void*, const void*);
 static char* g_Ctoc(const char_type*, char*);

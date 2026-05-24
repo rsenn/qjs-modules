@@ -39,12 +39,12 @@
 
 /* If WIFEXITED(STATUS), the low-order 8 bits of the status.  */
 #ifndef WEXITSTATUS
-#define WEXITSTATUS(status) (((status)&0xff00) >> 8)
+#define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #endif
 
 /* If WIFSIGNALED(STATUS), the terminating signal.  */
 #ifndef WTERMSIG
-#define WTERMSIG(status) ((status)&0x7f)
+#define WTERMSIG(status) ((status) & 0x7f)
 #endif
 
 /* If WIFSTOPPED(STATUS), the signal that stopped the child.  */
@@ -54,12 +54,12 @@
 
 /* Nonzero if STATUS indicates normal termination.  */
 #ifndef WIFEXITED
-#define WIFEXITED(status) (((status)&0x7f) == 0)
+#define WIFEXITED(status) (((status) & 0x7f) == 0)
 #endif
 
 /* Nonzero if STATUS indicates the child is stopped.  */
 #ifndef WIFSTOPPED
-#define WIFSTOPPED(status) (((status)&0xff) == 0x7f)
+#define WIFSTOPPED(status) (((status) & 0xff) == 0x7f)
 #endif
 
 /* Nonzero if STATUS indicates termination by a signal.  */
@@ -92,17 +92,18 @@ child_process_signal(JSContext* ctx, JSValueConst handler) {
 
 static JSValue
 child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int status = 0, pid = waitpid(-1, &status, WNOHANG);
+  int status = 0, pid;
   ChildProcess* cp;
 
-  if((cp = child_process_get(pid))) {
-    if(child_process_status(cp, status)) {
-      child_process_remove(cp, ctx);
+  if((pid = waitpid(-1, &status, WNOHANG)) != -1)
+    if((cp = child_process_get(pid))) {
+      if(child_process_status(cp, status)) {
+        child_process_remove(cp, ctx);
 
-      if(!js_is_null_or_undefined(cp->resolve[0]))
-        JS_Call(ctx, cp->resolve[0], JS_NULL, 0, 0);
+        if(!js_is_null_or_undefined(cp->resolve[0]))
+          JS_Call(ctx, cp->resolve[0], JS_NULL, 0, 0);
+      }
     }
-  }
 
   return JS_UNDEFINED;
 }

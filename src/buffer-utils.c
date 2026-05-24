@@ -21,37 +21,37 @@
 #endif
 
 #ifndef O_ACCMODE
-#define O_ACCMODE          0003
+#define O_ACCMODE 0003
 #endif
 #ifndef O_RDONLY
-#define O_RDONLY             00
+#define O_RDONLY 00
 #endif
 #ifndef O_WRONLY
-#define O_WRONLY             01
+#define O_WRONLY 01
 #endif
 #ifndef O_RDWR
-#define O_RDWR               02
+#define O_RDWR 02
 #endif
 #ifndef O_CREAT
-#define O_CREAT            0100 /* not fcntl */
+#define O_CREAT 0100 /* not fcntl */
 #endif
 #ifndef O_EXCL
-#define O_EXCL             0200 /* not fcntl */
+#define O_EXCL 0200 /* not fcntl */
 #endif
 #ifndef O_NOCTTY
-#define O_NOCTTY           0400 /* not fcntl */
+#define O_NOCTTY 0400 /* not fcntl */
 #endif
 #ifndef O_TRUNC
-#define O_TRUNC           01000 /* not fcntl */
+#define O_TRUNC 01000 /* not fcntl */
 #endif
 #ifndef O_APPEND
-#define O_APPEND          02000
+#define O_APPEND 02000
 #endif
 #ifndef O_NONBLOCK
-#define O_NONBLOCK        04000
+#define O_NONBLOCK 04000
 #endif
 #ifndef O_NDELAY
-#define O_NDELAY        O_NONBLOCK
+#define O_NDELAY O_NONBLOCK
 #endif
 
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);

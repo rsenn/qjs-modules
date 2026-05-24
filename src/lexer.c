@@ -489,9 +489,15 @@ lexer_release(Lexer* lex, JSRuntime* rt) {
 
   inputbuffer_free(&lex->input, lex->rules.opaque);
 
-  vector_foreach_t(&lex->defines, rule) { lexer_rule_release_rt(rule, rt); }
-  vector_foreach_t(&lex->rules, rule) { lexer_rule_release_rt(rule, rt); }
-  vector_foreach_t(&lex->states, statep) { js_free_rt(rt, *statep); }
+  vector_foreach_t(&lex->defines, rule) {
+    lexer_rule_release_rt(rule, rt);
+  }
+  vector_foreach_t(&lex->rules, rule) {
+    lexer_rule_release_rt(rule, rt);
+  }
+  vector_foreach_t(&lex->states, statep) {
+    js_free_rt(rt, *statep);
+  }
 
   vector_free(&lex->defines);
   vector_free(&lex->rules);

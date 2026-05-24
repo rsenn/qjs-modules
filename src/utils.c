@@ -78,7 +78,9 @@ list_size(struct list_head* list) {
   struct list_head* el;
   size_t i = 0;
 
-  list_for_each(el, list) { ++i; }
+  list_for_each(el, list) {
+    ++i;
+  }
 
   return i;
 }

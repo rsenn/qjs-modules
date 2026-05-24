@@ -14,7 +14,7 @@
 #endif
 #ifdef MYSQL_NOT_MARIADB
 typedef BOOL my_bool;
-#define MARIADB_OPT_USERDATA  (MYSQL_OPT_SSL_SESSION_DATA+1)
+#define MARIADB_OPT_USERDATA (MYSQL_OPT_SSL_SESSION_DATA + 1)
 #endif
 
 /**
@@ -506,8 +506,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_SECURE_AUTH:
         case MYSQL_OPT_NONBLOCK:
 #endif
-        case MYSQL_REPORT_DATA_TRUNCATION:
-         {
+        case MYSQL_REPORT_DATA_TRUNCATION: {
           my_bool val;
           mysql_get_option(my, opt, &val);
           ret = JS_NewBool(ctx, val);
@@ -600,12 +599,12 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
         case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
         case MYSQL_OPT_USE_REMOTE_CONNECTION:
-        case MYSQL_SECURE_AUTH: 
+        case MYSQL_SECURE_AUTH:
 #endif
         case MYSQL_OPT_LOCAL_INFILE:
         case MYSQL_OPT_RECONNECT:
         case MYSQL_OPT_USE_RESULT:
-        case MYSQL_REPORT_DATA_TRUNCATION:{
+        case MYSQL_REPORT_DATA_TRUNCATION: {
           my_bool val = JS_ToBool(ctx, argv[1]);
 
           mysql_options(my, opt, &val);
@@ -1172,7 +1171,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return asyncclosure_promise(ac);
 #else
   return JS_NewInt32(ctx, mysql_query(my, query));
-  
+
 #endif
 }
 
@@ -1605,11 +1604,11 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
 static int
 js_mysqlresult_fd(JSContext* ctx, JSValueConst value) {
   JSValue conn = js_mysqlresult_connection(ctx, value);
-  int fd = 
+  int fd =
 #ifndef MYSQL_NO_ASYNC
-    JS_IsObject(conn) ? js_mysql_fd(ctx, conn) :
-#endif   
-    -1;
+      JS_IsObject(conn) ? js_mysql_fd(ctx, conn) :
+#endif
+                        -1;
 
   JS_FreeValue(ctx, conn);
   return fd;
@@ -1674,10 +1673,10 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     return asyncclosure_promise(ac);
 #else
-   row = mysql_fetch_row(res);
-        JSValue  result = result_row(ctx, res, row, magic);
+    row = mysql_fetch_row(res);
+    JSValue result = result_row(ctx, res, row, magic);
 
-        return result;
+    return result;
 #endif
   }
 
@@ -1806,13 +1805,13 @@ js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   assert(my);
 
-  BOOL block = 
+  BOOL block =
 #ifndef MYSQL_NO_ASYNC
-    !mysql_nonblock(my)
+      !mysql_nonblock(my)
 #else
-    TRUE
+      TRUE
 #endif
-    ;
+      ;
 
   switch(magic) {
     case METHOD_ASYNC_ITERATOR: {

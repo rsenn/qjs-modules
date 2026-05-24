@@ -299,7 +299,9 @@ void
 property_recursion_free(Vector* vec, JSRuntime* rt) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(vec, it) { property_enumeration_reset(it, rt); }
+  vector_foreach_t(vec, it) {
+    property_enumeration_reset(it, rt);
+  }
   vector_free(vec);
 }
 

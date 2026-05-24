@@ -548,6 +548,31 @@ dump(HAVE_DBUF_CLAIM HAVE_DBUF_REALLOC)
 #include(CheckSymbolExists)
 #check_library_exists(ws2_32 inet_pton "" HAVE_INET_PTON)
 
+check_library_exists("${socket_LIBRARIES}" recvmmsg "" HAVE_RECVMMSG)
+if(HAVE_RECVMMSG)
+  add_definitions(-DHAVE_RECVMMSG)
+endif()
+
+check_library_exists("${socket_LIBRARIES}" recvmsg "" HAVE_RECVMSG)
+if(HAVE_RECVMSG)
+  add_definitions(-DHAVE_RECVMSG)
+endif()
+
+check_library_exists("${socket_LIBRARIES}" sendmmsg "" HAVE_SENDMMSG)
+if(HAVE_SENDMMSG)
+  add_definitions(-DHAVE_SENDMMSG)
+endif()
+
+check_library_exists("${socket_LIBRARIES}" sendmsg "" HAVE_SENDMSG)
+if(HAVE_SENDMSG)
+  add_definitions(-DHAVE_SENDMSG)
+endif()
+
+check_library_exists("${socket_LIBRARIES}" accept4 "" HAVE_ACCEPT4)
+if(HAVE_ACCEPT4)
+  add_definitions(-DHAVE_ACCEPT4)
+endif()
+
 #if(NOT HAVE_INET_PTON)
 #  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
 #endif(NOT HAVE_INET_PTON)

@@ -541,6 +541,7 @@ static JSClassDef js_sockaddr_class = {
     .finalizer = js_sockaddr_finalizer,
 };
 
+#ifdef HAVE_SENDMSG
 static BOOL
 msg_read(JSContext* ctx, JSValueConst arg, struct msghdr* m) {
   if(js_is_array(ctx, arg) || js_is_iterable(ctx, arg)) {
@@ -593,10 +594,11 @@ msg_read(JSContext* ctx, JSValueConst arg, struct msghdr* m) {
 
   return TRUE;
 }
+#endif
 
+#ifdef HAVE_RECVMSG
 static BOOL
 msg_write(JSContext* ctx, JSValueConst ret, const struct msghdr* m) {
-
   if(m->msg_name)
     JS_SetPropertyStr(ctx, ret, "name", JS_NewStringLen(ctx, m->msg_name, m->msg_namelen));
 
@@ -617,7 +619,9 @@ msg_write(JSContext* ctx, JSValueConst ret, const struct msghdr* m) {
 
   return TRUE;
 }
+#endif
 
+#if defined(HAVE_SENDMMSG) && defined(HAVE_RECVMMSG)
 typedef struct {
   struct mmsghdr* msgvec;
   unsigned vlen;
@@ -704,6 +708,7 @@ mmsgs_write(JSContext* ctx, JSValueConst arg, MultiMessageHeader mm) {
 
   return TRUE;
 }
+#endif
 
 static BOOL
 timeval_read(JSContext* ctx, JSValueConst arg, struct timeval* tv) {
@@ -1737,6 +1742,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_ACCEPT: {
       socklen_t addrlen = sockaddr_len(a);
 
+#ifdef HAVE_ACCEPT4
       if(argc > 1) {
         int32_t flags = 0;
         JS_ToInt32(ctx, &flags, argv[1]);
@@ -1747,6 +1753,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
                              socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)),
                              js_socket_error(ctx, *s));
       } else
+#endif
         JS_SOCKETCALL_RETURN(
             SYSCALL_ACCEPT, s, accept(socket_handle(*s), &a->s, &addrlen), socket_adopt(ctx, s->ret, socket_is_nonblocking(*s)), js_socket_error(ctx, *s));
 
@@ -1929,6 +1936,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     case METHOD_RECVMSG:
     case METHOD_SENDMSG: {
+#if defined(HAVE_RECVMSG) && defined(HAVE_SENDMSG)
       int32_t flags = 0;
       struct msghdr mh = {};
 
@@ -1944,12 +1952,15 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_SOCKETCALL(SYSCALL_SENDMSG, s, sendmsg(socket_handle(*s), &mh, flags));
       else
         JS_SOCKETCALL(SYSCALL_RECVMSG, s, recvmsg(socket_handle(*s), &mh, flags));
-
+#else
+      ret = JS_ThrowInternalError(ctx, "No %s() method", magic == METHOD_SENDMSG ? "sendmsg" : "recvmsg");
+#endif
       break;
     }
 
     case METHOD_RECVMMSG:
     case METHOD_SENDMMSG: {
+#if defined(HAVE_RECVMMSG) && defined(HAVE_SENDMMSG)
       int r;
       int32_t flags = 0;
       MultiMessageHeader mmh = {0, 0};
@@ -1977,6 +1988,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         mmh.vlen = r;
         mmsgs_write(ctx, argv[0], mmh);
       }
+#else
+      ret = JS_ThrowInternalError(ctx, "No %s() method", magic == METHOD_SENDMMSG ? "sendmmsg" : "recvmmsg");
+#endif
 
       break;
     }
@@ -2261,10 +2275,18 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("close", 0, js_socket_method, METHOD_CLOSE),
     JS_CFUNC_MAGIC_DEF("getsockopt", 3, js_socket_method, METHOD_GETSOCKOPT),
     JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, METHOD_SETSOCKOPT),
+#ifdef HAVE_RECVMSG
     JS_CFUNC_MAGIC_DEF("recvmsg", 1, js_socket_method, METHOD_RECVMSG),
+#endif
+#ifdef HAVE_SENDMSG
     JS_CFUNC_MAGIC_DEF("sendmsg", 1, js_socket_method, METHOD_SENDMSG),
+#endif
+#ifdef HAVE_RECVMMSG
     JS_CFUNC_MAGIC_DEF("recvmmsg", 1, js_socket_method, METHOD_RECVMMSG),
+#endif
+#ifdef HAVE_SENDMMSG
     JS_CFUNC_MAGIC_DEF("sendmmsg", 1, js_socket_method, METHOD_SENDMMSG),
+#endif
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
@@ -3017,15 +3039,29 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_CONSTANT_NONENUMERABLE(SOL_IRDA),
 #endif
 
+#ifdef MSG_EOR
     JS_CONSTANT(MSG_EOR),
+#endif
+#ifdef MSG_TRUNC
     JS_CONSTANT(MSG_TRUNC),
+#endif
+#ifdef MSG_CTRUNC
     JS_CONSTANT(MSG_CTRUNC),
+#endif
     JS_CONSTANT(MSG_OOB),
+#ifdef MSG_ERRQUEUE
     JS_CONSTANT(MSG_ERRQUEUE),
+#endif
 
+#ifdef SHUT_RD
     JS_CONSTANT(SHUT_RD),
+#endif
+#ifdef SHUT_WR
     JS_CONSTANT(SHUT_WR),
+#endif
+#ifdef SHUT_RDWR
     JS_CONSTANT(SHUT_RDWR),
+#endif
 };
 
 static int
