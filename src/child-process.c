@@ -230,6 +230,7 @@ argv_to_string(char* const* argv, char delim) {
 
 int
 child_process_spawn(ChildProcess* cp) {
+  int i;
 #ifdef _WIN32
   intptr_t pid;
   DynBuf db;
@@ -272,7 +273,6 @@ child_process_spawn(ChildProcess* cp) {
   }
 
 #elif defined(POSIX_SPAWN)
-  int i;
   pid_t pid;
   posix_spawn_file_actions_t actions;
   posix_spawnattr_t attr;
@@ -292,7 +292,6 @@ child_process_spawn(ChildProcess* cp) {
   }
 
 #else
-  int i;
   pid_t pid;
 
   if((pid = fork()) == 0) {

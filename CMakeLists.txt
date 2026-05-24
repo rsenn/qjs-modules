@@ -247,7 +247,7 @@ check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
 check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
-check_functions_def(lstat fstat)
+check_functions_def(stat lstat fstat)
 check_function_def(access)
 check_functions_def(fnmatch daemon)
 

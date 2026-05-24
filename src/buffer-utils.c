@@ -20,6 +20,40 @@
 #include <sys/mman.h>
 #endif
 
+#ifndef O_ACCMODE
+#define O_ACCMODE          0003
+#endif
+#ifndef O_RDONLY
+#define O_RDONLY             00
+#endif
+#ifndef O_WRONLY
+#define O_WRONLY             01
+#endif
+#ifndef O_RDWR
+#define O_RDWR               02
+#endif
+#ifndef O_CREAT
+#define O_CREAT            0100 /* not fcntl */
+#endif
+#ifndef O_EXCL
+#define O_EXCL             0200 /* not fcntl */
+#endif
+#ifndef O_NOCTTY
+#define O_NOCTTY           0400 /* not fcntl */
+#endif
+#ifndef O_TRUNC
+#define O_TRUNC           01000 /* not fcntl */
+#endif
+#ifndef O_APPEND
+#define O_APPEND          02000
+#endif
+#ifndef O_NONBLOCK
+#define O_NONBLOCK        04000
+#endif
+#ifndef O_NDELAY
+#define O_NDELAY        O_NONBLOCK
+#endif
+
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
 ssize_t
@@ -604,6 +638,7 @@ block_mmap(const char* filename, BOOL shared) {
   int fd;
   MemoryBlock mb = BLOCK_INIT();
 
+#ifdef HAVE_FSTAT
   if((fd = open(filename, O_RDONLY)) != -1) {
     struct stat st;
 
@@ -614,6 +649,9 @@ block_mmap(const char* filename, BOOL shared) {
     }
     close(fd);
   }
+#else
+#warning no block_mmap() implementation!
+#endif
 
   return mb;
 }
@@ -629,6 +667,7 @@ int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
   int fd;
   void* ptr;
+#ifdef HAVE_FSTAT
   struct stat st;
 
   if((fd = open(filename, O_RDONLY)) == -1)
@@ -652,6 +691,9 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
     mb->size = st.st_size;
     return 0;
   }
+#else
+#warning No block_from_file() implementation!
+#endif
 
   return -1;
 }
