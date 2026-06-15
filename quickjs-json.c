@@ -3,8 +3,17 @@
 #include "virtual-properties.h"
 #include "json.h"
 #include "vector.h"
+#include "property-enumeration.h"
+#include <math.h>
 #define SJ_IMPL
 #include "sj.h"
+
+typedef struct {
+  JSValue obj;
+  sj_Value sj;
+  uint32_t index;
+  BOOL is_object;
+} ParseFrame;
 
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
@@ -15,67 +24,131 @@ struct js_json_parser_opaque {
 };
 
 static JSValue
-parse_val(JSContext* ctx, sj_Reader* r, sj_Value val) {
-  sj_Value k, v;
-  JSValue ret = JS_UNDEFINED;
-
+parse_primitive(JSContext* ctx, sj_Value val) {
   switch(val.type) {
-    case SJ_ERROR: {
-      goto error;
-    }
-
-    case SJ_ARRAY: {
-      uint32_t count = 0;
-      ret = JS_NewArray(ctx);
-
-      while(sj_iter_array(r, val, &v))
-        JS_SetPropertyUint32(ctx, ret, count++, parse_val(ctx, r, v));
-
-      break;
-    }
-
-    case SJ_OBJECT: {
-      ret = JS_NewObjectProto(ctx, JS_NULL);
-
-      while(sj_iter_object(r, val, &k, &v)) {
-        JSAtom key = JS_NewAtomLen(ctx, k.start, k.end - k.start);
-        JS_SetProperty(ctx, ret, key, parse_val(ctx, r, v));
-        JS_FreeAtom(ctx, key);
-      }
-
-      break;
-    }
-
     case SJ_NUMBER: {
       double num;
       scan_double(val.start, &num);
-      ret = JS_NewFloat64(ctx, num);
-      break;
+      return JS_NewFloat64(ctx, num);
     }
 
-    case SJ_STRING: {
-      ret = JS_NewStringLen(ctx, val.start, val.end - val.start);
-      break;
+    case SJ_STRING: return JS_NewStringLen(ctx, val.start, val.end - val.start);
+    case SJ_NULL: return JS_NULL;
+    case SJ_BOOL: return val.start[0] == 't' ? JS_TRUE : JS_FALSE;
+  }
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+parse_make_container(JSContext* ctx, int type) {
+  return type == SJ_OBJECT ? JS_NewObjectProto(ctx, JS_NULL) : JS_NewArray(ctx);
+}
+
+static JSValue
+parse_throw(JSContext* ctx, sj_Reader* r) {
+  int line, col;
+  sj_location(r, &line, &col);
+  return JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error ? r->error : "parse error");
+}
+
+static void
+parse_stack_free(JSContext* ctx, Vector* stack) {
+  ParseFrame* it;
+
+  vector_foreach_t(stack, it) { JS_FreeValue(ctx, it->obj); }
+
+  vector_free(stack);
+}
+
+static JSValue
+parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
+  Vector stack;
+  JSValue result = JS_UNDEFINED;
+  ParseFrame frame;
+
+  if(root.type == SJ_ERROR)
+    return parse_throw(ctx, r);
+
+  if(root.type != SJ_ARRAY && root.type != SJ_OBJECT)
+    return parse_primitive(ctx, root);
+
+  vector_init(&stack, ctx);
+
+  frame = (ParseFrame){parse_make_container(ctx, root.type), root, 0, root.type == SJ_OBJECT};
+
+  if(!vector_put(&stack, &frame, sizeof(ParseFrame))) {
+    JS_FreeValue(ctx, frame.obj);
+    return JS_EXCEPTION;
+  }
+
+  while(!vector_empty(&stack)) {
+    ParseFrame* top = vector_back(&stack, sizeof(ParseFrame));
+    sj_Value k, v;
+    BOOL more;
+
+    if(top->is_object)
+      more = sj_iter_object(r, top->sj, &k, &v);
+    else
+      more = sj_iter_array(r, top->sj, &v);
+
+    if(!more) {
+      if(r->error) {
+        parse_stack_free(ctx, &stack);
+        return parse_throw(ctx, r);
+      }
+
+      JSValue done = top->obj;
+      vector_pop(&stack, sizeof(ParseFrame));
+
+      if(vector_empty(&stack)) {
+        result = done;
+        break;
+      }
+
+      JS_FreeValue(ctx, done);
+      continue;
     }
 
-    case SJ_NULL: {
-      ret = JS_NULL;
-      break;
+    if(v.type == SJ_ERROR) {
+      parse_stack_free(ctx, &stack);
+      return parse_throw(ctx, r);
     }
 
-    case SJ_BOOL: {
-      ret = val.start[0] == 't' ? JS_TRUE : JS_FALSE;
-      break;
+    if(v.type == SJ_ARRAY || v.type == SJ_OBJECT) {
+      JSValue child = parse_make_container(ctx, v.type);
+
+      if(top->is_object) {
+        JSAtom atom = JS_NewAtomLen(ctx, k.start, k.end - k.start);
+        JS_SetProperty(ctx, top->obj, atom, JS_DupValue(ctx, child));
+        JS_FreeAtom(ctx, atom);
+      } else {
+        JS_SetPropertyUint32(ctx, top->obj, top->index++, JS_DupValue(ctx, child));
+      }
+
+      frame = (ParseFrame){child, v, 0, v.type == SJ_OBJECT};
+
+      if(!vector_put(&stack, &frame, sizeof(ParseFrame))) {
+        JS_FreeValue(ctx, child);
+        parse_stack_free(ctx, &stack);
+        return JS_EXCEPTION;
+      }
+
+    } else {
+      JSValue prim = parse_primitive(ctx, v);
+
+      if(top->is_object) {
+        JSAtom atom = JS_NewAtomLen(ctx, k.start, k.end - k.start);
+        JS_SetProperty(ctx, top->obj, atom, prim);
+        JS_FreeAtom(ctx, atom);
+      } else {
+        JS_SetPropertyUint32(ctx, top->obj, top->index++, prim);
+      }
     }
   }
 
-  if(!r->error)
-    return ret;
-
-error:
-  int line, col;
-  sj_location(r, &line, &col);
-  return JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error);
+  vector_free(&stack);
+  return result;
 }
 
 static JSValue
@@ -109,10 +182,174 @@ js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
+static void
+write_json_string(DynBuf* out, const char* s, size_t len) {
+  dbuf_putc(out, '"');
+
+  for(size_t i = 0; i < len; i++) {
+    unsigned char c = (unsigned char)s[i];
+
+    switch(c) {
+      case '"': dbuf_putstr(out, "\\\""); break;
+      case '\\': dbuf_putstr(out, "\\\\"); break;
+      case '\b': dbuf_putstr(out, "\\b"); break;
+      case '\f': dbuf_putstr(out, "\\f"); break;
+      case '\n': dbuf_putstr(out, "\\n"); break;
+      case '\r': dbuf_putstr(out, "\\r"); break;
+      case '\t': dbuf_putstr(out, "\\t"); break;
+      default:
+        if(c < 0x20)
+          dbuf_printf(out, "\\u%04x", c);
+        else
+          dbuf_putc(out, c);
+        break;
+    }
+  }
+
+  dbuf_putc(out, '"');
+}
+
+static void
+write_json_primitive(JSContext* ctx, DynBuf* out, JSValueConst val) {
+  if(JS_IsNull(val)) {
+    dbuf_putstr(out, "null");
+    return;
+  }
+
+  if(JS_IsUndefined(val) || JS_IsSymbol(val) || JS_IsFunction(ctx, val)) {
+    dbuf_putstr(out, "null");
+    return;
+  }
+
+  if(JS_IsBool(val)) {
+    dbuf_putstr(out, JS_ToBool(ctx, val) ? "true" : "false");
+    return;
+  }
+
+  if(JS_IsString(val)) {
+    size_t len;
+    const char* s = JS_ToCStringLen(ctx, &len, val);
+
+    if(s) {
+      write_json_string(out, s, len);
+      JS_FreeCString(ctx, s);
+    } else {
+      dbuf_putstr(out, "null");
+    }
+    return;
+  }
+
+  if(JS_IsNumber(val)) {
+    double d;
+
+    JS_ToFloat64(ctx, &d, val);
+
+    if(isnan(d) || isinf(d)) {
+      dbuf_putstr(out, "null");
+      return;
+    }
+  }
+
+  if(js_is_numeric(ctx, val)) {
+    size_t len;
+    const char* s = JS_ToCStringLen(ctx, &len, val);
+
+    if(s) {
+      dbuf_put(out, (const uint8_t*)s, len);
+      JS_FreeCString(ctx, s);
+    } else {
+      dbuf_putstr(out, "null");
+    }
+    return;
+  }
+
+  size_t len;
+  const char* s = JS_ToCStringLen(ctx, &len, val);
+
+  if(s) {
+    write_json_string(out, s, len);
+    JS_FreeCString(ctx, s);
+  } else {
+    dbuf_putstr(out, "null");
+  }
+}
+
 static JSValue
 js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+  JSValueConst root = argv[0];
+  DynBuf out;
+  Vector stack;
+  JSValue ret;
 
+  dbuf_init2(&out, 0, 0);
+
+  if(!JS_IsObject(root) || JS_IsFunction(ctx, root)) {
+    write_json_primitive(ctx, &out, root);
+    ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+    dbuf_free(&out);
+    return ret;
+  }
+
+  vector_init(&stack, ctx);
+
+  if(!property_recursion_push(&stack, ctx, JS_DupValue(ctx, root), JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
+    dbuf_free(&out);
+    vector_free(&stack);
+    return JS_ThrowOutOfMemory(ctx);
+  }
+
+  dbuf_putc(&out, JS_IsArray(ctx, root) ? '[' : '{');
+
+  while(!vector_empty(&stack)) {
+    PropertyEnumeration* top = property_recursion_top(&stack);
+    BOOL is_array = JS_IsArray(ctx, top->obj);
+
+    if(top->idx >= top->tab_atom_len) {
+      dbuf_putc(&out, is_array ? ']' : '}');
+      property_recursion_pop(&stack, ctx);
+      continue;
+    }
+
+    if(top->idx > 0)
+      dbuf_putc(&out, ',');
+
+    if(!is_array) {
+      size_t klen;
+      const char* kstr = js_atom_to_cstringlen(ctx, &klen, top->tab_atom[top->idx]);
+
+      if(kstr) {
+        write_json_string(&out, kstr, klen);
+        JS_FreeCString(ctx, kstr);
+      } else {
+        dbuf_putstr(&out, "\"\"");
+      }
+
+      dbuf_putc(&out, ':');
+    }
+
+    JSValue val = property_enumeration_value(top, ctx);
+    BOOL is_container = JS_IsObject(val) && !JS_IsFunction(ctx, val);
+
+    if(is_container && !property_recursion_circular(&stack, val)) {
+      dbuf_putc(&out, JS_IsArray(ctx, val) ? '[' : '{');
+      top->idx++;
+
+      if(!property_recursion_push(&stack, ctx, val, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
+        JS_FreeValue(ctx, val);
+        property_recursion_free(&stack, JS_GetRuntime(ctx));
+        dbuf_free(&out);
+        return JS_ThrowOutOfMemory(ctx);
+      }
+    } else {
+      write_json_primitive(ctx, &out, val);
+      JS_FreeValue(ctx, val);
+      top->idx++;
+    }
+  }
+
+  ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+  dbuf_free(&out);
+  vector_free(&stack);
   return ret;
 }
 
