@@ -166,7 +166,7 @@ js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   const char* input_name = 0;
 
   if(input.data == 0 || input.size == 0) {
-    JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
+    JS_ThrowReferenceError(ctx, "json.read(): expecting buffer or string");
     return JS_EXCEPTION;
   }
 
@@ -210,6 +210,14 @@ write_json_string(DynBuf* out, const char* s, size_t len) {
 }
 
 static void
+clear_pending_exception(JSContext* ctx) {
+  JSValue exc = JS_GetException(ctx);
+
+  if(!JS_IsNull(exc) && !JS_IsUndefined(exc))
+    JS_FreeValue(ctx, exc);
+}
+
+static void
 write_json_primitive(JSContext* ctx, DynBuf* out, JSValueConst val) {
   if(JS_IsNull(val)) {
     dbuf_putstr(out, "null");
@@ -235,6 +243,7 @@ write_json_primitive(JSContext* ctx, DynBuf* out, JSValueConst val) {
       JS_FreeCString(ctx, s);
     } else {
       dbuf_putstr(out, "null");
+      clear_pending_exception(ctx);
     }
     return;
   }
@@ -259,10 +268,18 @@ write_json_primitive(JSContext* ctx, DynBuf* out, JSValueConst val) {
       JS_FreeCString(ctx, s);
     } else {
       dbuf_putstr(out, "null");
+      clear_pending_exception(ctx);
     }
     return;
   }
 
+  /* Fallback: object-typed value that reached here (e.g. a circular
+   * container that we refuse to recurse into). JS_ToCString invokes
+   * the value's toString, which for arrays calls Array.prototype.join.
+   * That can throw — typically InternalError "stack overflow" when the
+   * referenced structure is deep, or TypeError when an element is a
+   * Symbol. We write "null" and discard the pending exception so it
+   * doesn't leak past the writer. */
   size_t len;
   const char* s = JS_ToCStringLen(ctx, &len, val);
 
@@ -271,7 +288,45 @@ write_json_primitive(JSContext* ctx, DynBuf* out, JSValueConst val) {
     JS_FreeCString(ctx, s);
   } else {
     dbuf_putstr(out, "null");
+    clear_pending_exception(ctx);
   }
+}
+
+static int
+write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
+  PropertyEnumeration* it;
+  JSPropertyEnum* tmp;
+  uint32_t len = 0;
+
+  if(JS_GetOwnPropertyNames(ctx, &tmp, &len, obj, flags)) {
+    JS_FreeValue(ctx, obj);
+    return -1;
+  }
+
+  if(!(it = vector_emplace(stack, sizeof(PropertyEnumeration)))) {
+    js_propertyenums_free(ctx, tmp, len);
+    JS_FreeValue(ctx, obj);
+    return -1;
+  }
+
+  *it = (PropertyEnumeration)PROPENUM_INIT();
+  it->obj = obj;
+  it->tab_atom_len = len;
+
+  if(len > 0) {
+    if(!(it->tab_atom = js_malloc(ctx, sizeof(JSAtom) * len))) {
+      js_propertyenums_free(ctx, tmp, len);
+      JS_FreeValue(ctx, obj);
+      vector_pop(stack, sizeof(PropertyEnumeration));
+      return -1;
+    }
+
+    for(uint32_t i = 0; i < len; i++)
+      it->tab_atom[i] = JS_DupAtom(ctx, tmp[i].atom);
+  }
+
+  js_propertyenums_free(ctx, tmp, len);
+  return 0;
 }
 
 static JSValue
@@ -280,6 +335,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   DynBuf out;
   Vector stack;
   JSValue ret;
+  const int flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
 
   dbuf_init2(&out, 0, 0);
 
@@ -292,21 +348,22 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   vector_init(&stack, ctx);
 
-  if(!property_recursion_push(&stack, ctx, JS_DupValue(ctx, root), JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
+  if(write_push(&stack, ctx, JS_DupValue(ctx, root), flags)) {
     dbuf_free(&out);
     vector_free(&stack);
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
   }
 
   dbuf_putc(&out, JS_IsArray(ctx, root) ? '[' : '{');
 
   while(!vector_empty(&stack)) {
-    PropertyEnumeration* top = property_recursion_top(&stack);
+    PropertyEnumeration* top = vector_back(&stack, sizeof(PropertyEnumeration));
     BOOL is_array = JS_IsArray(ctx, top->obj);
 
     if(top->idx >= top->tab_atom_len) {
       dbuf_putc(&out, is_array ? ']' : '}');
-      property_recursion_pop(&stack, ctx);
+      property_enumeration_reset(top, JS_GetRuntime(ctx));
+      vector_pop(&stack, sizeof(PropertyEnumeration));
       continue;
     }
 
@@ -334,11 +391,10 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       dbuf_putc(&out, JS_IsArray(ctx, val) ? '[' : '{');
       top->idx++;
 
-      if(!property_recursion_push(&stack, ctx, val, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
-        JS_FreeValue(ctx, val);
+      if(write_push(&stack, ctx, val, flags)) {
         property_recursion_free(&stack, JS_GetRuntime(ctx));
         dbuf_free(&out);
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
       }
     } else {
       write_json_primitive(ctx, &out, val);
