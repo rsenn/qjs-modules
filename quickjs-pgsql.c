@@ -326,7 +326,7 @@ js_pgconn_print_iterable(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSVal
   while(!iteration_next(&iter, ctx)) {
     JSValue item = iteration_value(&iter, ctx);
 
-    if(i > 0)
+    if(i++ > 0)
       dbuf_putstr(out, ", ");
 
     fn(ctx, pq, out, item);
