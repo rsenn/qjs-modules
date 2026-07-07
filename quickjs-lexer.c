@@ -1027,8 +1027,12 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 0 && JS_IsNumber(argv[0]))
         JS_ToInt32(ctx, &index, argv[0]);
 
-      if((id = index > 0 ? lexer_state_top(lex, index) : lex->state) >= 0)
-        ret = JS_NewString(ctx, lexer_state_name(lex, id));
+      if((id = index > 0 ? lexer_state_top(lex, index) : lex->state) >= 0) {
+        char* name = lexer_state_name(lex, id);
+        ret = name ? JS_NewString(ctx, name) : JS_NewString(ctx, "INITIAL");
+      } else {
+        ret = JS_NewString(ctx, "INITIAL");
+      }
 
       break;
     }
@@ -1209,15 +1213,15 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       for(; i < n; i++) {
         int32_t state = *(int32_t*)vector_at(&lex->state_stack, sizeof(int32_t), i);
-        char* name;
+        char* name = lexer_state_name(lex, state);
 
-        if((name = lexer_state_name(lex, state)) == 0)
-          break;
-
-        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, name));
+        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, name ? name : "INITIAL"));
       }
 
-      JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, lexer_state_name(lex, lex->state)));
+      {
+        char* name = lex->state >= 0 ? lexer_state_name(lex, lex->state) : 0;
+        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, name ? name : "INITIAL"));
+      }
       break;
     }
 

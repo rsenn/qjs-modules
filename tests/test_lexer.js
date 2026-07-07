@@ -390,11 +390,12 @@ function main(...args) {
     };
     let it = lexer[Symbol.iterator]();
 
-    console.log('it', it);
+    /*console.log('it', it);
     console.log('include', include);
     console.log('exclude', exclude);
     console.log('match', match);
-    console.log('match(0)', match(0));
+    console.log('match(0)', match(0));*/
+    
     for(;;) {
       let { stateDepth } = lexer;
       let oldState = lexer.topState();
@@ -403,7 +404,7 @@ function main(...args) {
 
       if(done) break;
 
-      if(value.type != 'whitespace') console.log('lex', oldState, console.config({ compact: true }), value);
+      //if(value.type != 'whitespace') console.log('lex', oldState, console.config({ compact: true }), value);
 
       count++;
       let newState = lexer.topState();
