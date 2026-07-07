@@ -1987,6 +1987,12 @@ function ProcessFile(source, recursive, depth = 0) {
     let value = lexer.next();
     let done = value === undefined;
 
+console.log('lexer.next()', {value,done});
+console.log('lexer.charPos',lexer.charPos);
+console.log('lexer.charLength',lexer.charLength);
+console.log('lexer.eof',lexer.eof);
+console.log('lexer.loc',lexer.loc);
+
     if(done) break;
 
     let newState = lexer.topState();
@@ -1998,6 +2004,7 @@ function ProcessFile(source, recursive, depth = 0) {
 
     let n = balancers.last?.depth;
     const { token } = lexer;
+console.log('token', token);
 
     if(!token) break;
     const { length, seq } = token;
