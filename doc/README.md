@@ -80,7 +80,7 @@ above.
 
 ## Parsing, DOM & selectors
 
-- [dom](dom.md) · [xpath](xpath.md) · [parser](parser.md) · [parsel](parsel.md) · [css-selectors](css-selectors.md) · [css3-selectors](css3-selectors.md) · [url](url.md) · [tree_walker](tree_walker.md)
+- [dom](dom.md) · [xpath](xpath.md) · [parser](parser.md) · [grammar](grammar.md) · [parsel](parsel.md) · [css-selectors](css-selectors.md) · [css3-selectors](css3-selectors.md) · [url](url.md) · [tree_walker](tree_walker.md)
 
 ## Tooling
 
