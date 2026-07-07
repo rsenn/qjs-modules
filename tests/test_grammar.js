@@ -1,9 +1,7 @@
-
-import { ParseNode, GrammarRule, Terminal, NonTerminal, Sequence, Alternatives, Optional, ZeroOrMore, OneOrMore, Not, Peek, Mapped, Empty, ParseContext, Grammar, coerce, t, ref, seq, alt, opt, many, some, not, peek, empty, default as grammar } from '../lib/parser/grammar.js'
-  import { TryCatch, EBNFParser, buildGrammar, default as ebnf } from '../lib/parser/ebnf.js'
-  import { readFileSync } from 'fs';  
-  import { Console } from 'console';  
-
+import { ParseNode, GrammarRule, Terminal, NonTerminal, Sequence, Alternatives, Optional, ZeroOrMore, OneOrMore, Not, Peek, Mapped, Empty, ParseContext, Grammar, coerce, t, ref, seq, alt, opt, many, some, not, peek, empty, default as grammar, } from '../lib/parser/grammar.js';
+import { TryCatch, EBNFParser, buildGrammar, default as ebnf } from '../lib/parser/ebnf.js';
+import { readFileSync } from 'fs';
+import { Console } from 'console';
 
 function main(...args) {
   globalThis.console = new Console({
@@ -15,10 +13,8 @@ function main(...args) {
       showHidden: false,
       customInspect: false,
     },
-  }); 
-const grammar=buildGrammar(readFileSync('./tests/Shell-Grammar.y','utf-8'),'./tests/Shell-Grammar.y');
-
-
+  });
+  const grammar = buildGrammar(readFileSync('./tests/Shell-Grammar.y', 'utf-8'), './tests/Shell-Grammar.y');
 }
 
 try {
