@@ -648,7 +648,7 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
     dbuf_putstr(buf, "* as ");
 
   dbuf_putstr(buf, "tmp from '");
-  dbuf_put(buf, path, pathlen);
+  dbuf_put(buf, (const void*)path, pathlen);
   dbuf_putstr(buf, "';\n");
 
   switch(mode) {
@@ -973,7 +973,6 @@ again:
     JS_FreeValue(ctx, module);
   }
 
-restart:
   if(jsm_stack_find(name) != 0)
     printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", name, jsm_stack_string());
 

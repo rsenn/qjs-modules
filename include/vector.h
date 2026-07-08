@@ -68,7 +68,7 @@ void* vector_realloc(void*, void* ptr, size_t size);
 void* vector_js_realloc(JSContext* ctx, void* ptr, size_t size);
 void* vector_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
-int32_t vector_find(const Vector* vec, size_t elsz, void* ptr);
+int32_t vector_find(const Vector* vec, size_t elsz, const void* ptr);
 int32_t vector_finds(const Vector* vec, const char* str);
 int vector_counts(const Vector* vec, const char* str);
 void* vector_put(Vector* vec, const void* bytes, size_t len);

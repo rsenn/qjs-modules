@@ -12,16 +12,30 @@
  * \defgroup stream-utils stream-utils: Utilities for stream I/O
  * @{
  */
-typedef struct Writer Writer;
+struct StreamWriter;
+struct StreamReader;
 
-typedef ssize_t WriteFunction(intptr_t, const void*, size_t, Writer*);
+enum {
+  STREAM_EOF = -2,
+  STREAM_ERROR = -1,
+};
+
+typedef ssize_t WriteFunction(intptr_t, const void*, size_t, struct StreamWriter*);
+typedef ssize_t ReadFunction(intptr_t, void*, size_t, struct StreamReader*);
 typedef void WriterFinalizer(void*);
+typedef void ReaderFinalizer(void*, void*);
 
-struct Writer {
+typedef struct StreamWriter {
   WriteFunction* write;
   void* opaque;
   WriterFinalizer* finalizer;
-};
+} Writer;
+
+typedef struct StreamReader {
+  ReadFunction* read;
+  void *opaque, *opaque2;
+  ReaderFinalizer* finalizer;
+} Reader;
 
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
@@ -36,34 +50,6 @@ Writer writer_urlencode(Writer*);
 Writer writer_track_location(Writer*, Location*);
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
-
-static inline ssize_t
-writer_puts(Writer* wr, const void* s) {
-  return writer_write(wr, s, strlen(s));
-}
-
-static inline ssize_t
-writer_putc(Writer* wr, int c) {
-  char ch = c;
-  return writer_write(wr, &ch, 1);
-}
-
-struct StreamReader;
-
-typedef ssize_t ReadFunction(intptr_t, void*, size_t, struct StreamReader*);
-typedef void ReaderFinalizer(void*, void*);
-
-typedef enum {
-  READER_EOF = -2,
-  READER_ERROR = -1,
-} ReaderStatus;
-
-typedef struct StreamReader {
-  ReadFunction* read;
-  void *opaque, *opaque2;
-  ReaderFinalizer* finalizer;
-} Reader;
-
 Reader reader_from_dynbuf(DynBuf*);
 Reader reader_from_buf(InputBuffer*, JSContext*);
 Reader reader_from_bytes(const void*, size_t);
@@ -76,6 +62,17 @@ Reader reader_urldecode(Reader*);
 Reader reader_track_location(Reader*, Location*);
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);
+
+static inline ssize_t
+writer_puts(Writer* wr, const void* s) {
+  return writer_write(wr, s, strlen(s));
+}
+
+static inline ssize_t
+writer_putc(Writer* wr, int c) {
+  char ch = c;
+  return writer_write(wr, &ch, 1);
+}
 
 static inline Reader
 reader_from_jsbuf(JSValueConst value, JSContext* ctx) {
@@ -97,7 +94,7 @@ reader_getc(Reader* rd) {
   if((ret = reader_read(rd, &ch, 1)) == 1)
     return (unsigned int)ch;
 
-  return ret == 0 ? READER_EOF : READER_ERROR;
+  return ret == 0 ? STREAM_EOF : STREAM_ERROR;
 }
 
 ssize_t transform_urldecode(Reader*, Writer*);

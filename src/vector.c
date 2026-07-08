@@ -66,7 +66,7 @@ vector_indexof(const Vector* vec, size_t elsz, void* ptr) {
 }
 
 int32_t
-vector_find(const Vector* vec, size_t elsz, void* ptr) {
+vector_find(const Vector* vec, size_t elsz, const void* ptr) {
   void* x;
   int32_t i = 0;
 
