@@ -195,7 +195,7 @@ read_urldecoded(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_range(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
+read_bytes(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
   const uint8_t *start = rd->opaque, *end = rd->opaque2;
   size_t remain = end - start;
 
@@ -310,14 +310,12 @@ writer_from_jsfunc(JSContext* ctx, JSValueConst fn) {
 }
 
 Writer
-writer_from_jsfunc2(JSContext* ctx, JSValueConst fn, JSValueConst thisObj) {
+writer_from_jsfunc2(JSContext* ctx, JSValueConst funcObj, JSValueConst thisObj) {
   JSFunc* jsfw = malloc(sizeof(JSFunc));
 
   assert(jsfw);
 
-  jsfw->ctx = JS_DupContext(ctx);
-  jsfw->funcObj = JS_DupValue(ctx, fn);
-  jsfw->thisObj = JS_DupValue(ctx, thisObj);
+  *jsfw = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, funcObj), JS_DupValue(ctx, thisObj)};
 
   return (Writer){
       &write_jsfunc,
@@ -397,19 +395,19 @@ writer_free(Writer* wr) {
 }
 
 Reader
-reader_from_buf(InputBuffer* ib, JSContext* ctx) {
+reader_from_buf(InputBuffer* buf, JSContext* ctx) {
   return (Reader){
       (ReadFunction*)&inputbuffer_read,
-      ib,
+      buf,
       ctx,
       0,
   };
 }
 
 Reader
-reader_from_range(const void* start, size_t len) {
+reader_from_bytes(const void* start, size_t len) {
   return (Reader){
-      &read_range,
+      &read_bytes,
       start,
       ((uint8_t*)start) + len,
       NULL,
@@ -437,9 +435,7 @@ reader_from_jsfunc2(JSContext* ctx, JSValueConst funcObj, JSValueConst thisObj) 
 
   assert(jsfr);
 
-  jsfr->ctx = JS_DupContext(ctx);
-  jsfr->funcObj = JS_DupValue(ctx, funcObj);
-  jsfr->thisObj = JS_DupValue(ctx, thisObj);
+  *jsfr = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, funcObj), JS_DupValue(ctx, thisObj)};
 
   return (Reader){
       &read_jsfunc,

@@ -15,6 +15,11 @@ typedef struct {
   BOOL is_object;
 } ParseFrame;
 
+#define STACK_SIZE(stack) vector_size((stack), sizeof(PropertyEnumeration))
+#define STACK_TOP(stack) vector_back((stack), sizeof(PropertyEnumeration))
+#define STACK_EMPLACE(stack) vector_emplace((stack), sizeof(PropertyEnumeration))
+#define STACK_POP(stack) vector_pop((stack), sizeof(PropertyEnumeration))
+
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
 
@@ -306,7 +311,7 @@ write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
     return -1;
   }
 
-  if(!(it = vector_emplace(stack, sizeof(PropertyEnumeration)))) {
+  if(!(it = STACK_EMPLACE(stack))) {
     js_propertyenums_free(ctx, tmp, len);
     JS_FreeValue(ctx, obj);
     return -1;
@@ -320,7 +325,7 @@ write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
     if(!(it->tab_atom = js_malloc(ctx, sizeof(JSAtom) * len))) {
       js_propertyenums_free(ctx, tmp, len);
       JS_FreeValue(ctx, obj);
-      vector_pop(stack, sizeof(PropertyEnumeration));
+      STACK_POP(stack);
       return -1;
     }
 
@@ -346,7 +351,7 @@ write_indent(Writer* wr, int indent, int n) {
 
 static JSValue
 js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  DynBuf out;
+  DynBuf out, space;
   Vector stack;
   JSValue ret;
   const int flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
@@ -356,6 +361,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_ToInt32(ctx, &indent, argv[1]);
 
   dbuf_init2(&out, 0, 0);
+  dbuf_init2(&space, 0, 0);
 
   Writer wr = writer_from_dynbuf(&out);
 
@@ -376,20 +382,18 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   writer_putc(&wr, JS_IsArray(ctx, argv[0]) ? '[' : '{');
 
-  write_indent(&wr, indent, vector_size(&stack, sizeof(PropertyEnumeration)));
+  write_indent(&wr, indent, STACK_SIZE(&stack));
 
   while(!vector_empty(&stack)) {
-    PropertyEnumeration* top = vector_back(&stack, sizeof(PropertyEnumeration));
+    PropertyEnumeration* top = STACK_TOP(&stack);
     BOOL is_array = JS_IsArray(ctx, top->obj);
 
     if(top->idx >= top->tab_atom_len) {
-
-      if(indent)
-        write_indent(&wr, indent, (vector_size(&stack, sizeof(PropertyEnumeration)) - 1));
+      write_indent(&wr, indent, STACK_SIZE(&stack) - 1);
 
       writer_putc(&wr, is_array ? ']' : '}');
       property_enumeration_reset(top, JS_GetRuntime(ctx));
-      vector_pop(&stack, sizeof(PropertyEnumeration));
+      STACK_POP(&stack);
       continue;
     }
 
@@ -397,7 +401,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       writer_putc(&wr, ',');
 
       if(indent)
-        write_indent(&wr, indent, vector_size(&stack, sizeof(PropertyEnumeration)));
+        write_indent(&wr, indent, STACK_SIZE(&stack));
     } else {
     }
 
@@ -431,8 +435,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
         return JS_EXCEPTION;
       }
 
-      if(indent)
-        write_indent(&wr, indent, vector_size(&stack, sizeof(PropertyEnumeration)));
+      write_indent(&wr, indent, STACK_SIZE(&stack));
 
     } else {
       write_json_primitive(ctx, &wr, val);

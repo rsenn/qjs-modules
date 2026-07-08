@@ -24,13 +24,13 @@ struct Writer {
 
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
-Writer writer_from_fd(intptr_t fd, bool close_on_end);
+Writer writer_from_fd(intptr_t, bool);
 Writer writer_from_jsfunc(JSContext*, JSValueConst);
 Writer writer_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
-Writer writer_tee(const Writer a, const Writer b);
+Writer writer_buffered(Writer*, size_t);
+Writer writer_tee(const Writer, const Writer);
 Writer writer_escaped(Writer*, const char[], size_t);
 Writer writer_urlencode(Writer*);
-
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
 
@@ -62,15 +62,17 @@ typedef struct StreamReader {
 } Reader;
 
 Reader reader_from_buf(InputBuffer*, JSContext*);
-Reader reader_from_range(const void*, size_t);
+Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
 Reader reader_from_jsfunc(JSContext*, JSValueConst);
 Reader reader_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
+Reader reader_buffered(Reader*, size_t);
+Reader reader_urldecode(Reader*);
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);
 
 static inline Reader
-reader_from_js(JSValueConst value, JSContext* ctx) {
+reader_from_jsbuf(JSValueConst value, JSContext* ctx) {
   InputBuffer* input;
 
   if(!(input = js_mallocz(ctx, sizeof(InputBuffer))))

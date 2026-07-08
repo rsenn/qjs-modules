@@ -39,7 +39,7 @@ json_getc_skipws(JsonParser* json) {
 BOOL
 json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
   /*json->ref_count = 1;*/
-  json->reader = reader_from_js(input, ctx);
+  json->reader = reader_from_jsbuf(input, ctx);
 
   json->callback = NULL;
   json->opaque = NULL;
