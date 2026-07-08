@@ -18,18 +18,12 @@ typedef struct ChildProcess {
   char** env;
   intptr_t pid;
 
-  int status;
-  int exitcode, termsig, stopsig;
-
-  bool use_path, exited, signaled, stopped, continued;
-
+  int status, exitcode, termsig, stopsig;
+  bool use_path : 1, exited : 1, signaled : 1, stopped : 1, continued : 1;
   int uid, gid;
   int num_fds;
-
   int *child_fds, *parent_fds, *pipe_fds;
-
   struct list_head link;
-
   JSValue promise, resolve[2];
 } ChildProcess;
 

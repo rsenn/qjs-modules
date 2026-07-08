@@ -234,8 +234,7 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     JS_SetPropertyStr(ctx, obj, "pid", JS_NewInt32(ctx, cp->pid));
 
     do {
-
-    } while((pid = child_process_wait(cp, 0)) && pid != cp->pid);
+    } while((pid = child_process_wait(cp, 0)) && (pid != -1 && pid != cp->pid));
 
     if(cp->signaled || cp->stopped)
       JS_SetPropertyStr(ctx, obj, "signal", JS_NewInt32(ctx, cp->stopped ? cp->stopsig : cp->termsig));

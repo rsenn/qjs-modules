@@ -2,12 +2,12 @@
 import { closeSync, openSync, readFileSync, renameSync, sizeSync, statSync, unlinkSync, writeSync } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { camelize, curry, define, difference, error, escape, getOpt, getset, getTypeName, intersection, isObject, mapWrapper, memoize, nonenumerable, quote, randInt, split, toArrayBuffer, toString, types, unique } from 'util';
+import { camelize, curry, define, difference, error, escape, getOpt, getset, getTypeName, intersection, isObject, mapWrapper, memoize, nonenumerable, quote, randInt, split, toArrayBuffer, toString, types, unique, } from 'util';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import extendArrayBuffer from 'extendArrayBuffer';
 import inspect from 'inspect';
-import { Lexer ,  Token } from 'lexer';
+import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
 
@@ -1987,11 +1987,11 @@ function ProcessFile(source, recursive, depth = 0) {
     let value = lexer.next();
     let done = value === undefined;
 
-console.log('lexer.next()', {value,done});
-console.log('lexer.charPos',lexer.charPos);
-console.log('lexer.charLength',lexer.charLength);
-console.log('lexer.eof',lexer.eof);
-console.log('lexer.loc',lexer.loc);
+    console.log('lexer.next()', { value, done });
+    console.log('lexer.charPos', lexer.charPos);
+    console.log('lexer.charLength', lexer.charLength);
+    console.log('lexer.eof', lexer.eof);
+    console.log('lexer.loc', lexer.loc);
 
     if(done) break;
 
@@ -2004,7 +2004,7 @@ console.log('lexer.loc',lexer.loc);
 
     let n = balancers.last?.depth;
     const { token } = lexer;
-console.log('token', token);
+    console.log('token', token);
 
     if(!token) break;
     const { length, seq } = token;
