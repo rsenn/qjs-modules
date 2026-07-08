@@ -220,8 +220,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(argc > 1 && JS_IsObject(argv[1]))
     js_child_process_options(ctx, cp, argv[1]);
 
-  if(magic == 0)
-    cp->promise = JS_NewPromiseCapability(ctx, cp->resolve);
+  /*if(magic == 0)
+    cp->promise = JS_NewPromiseCapability(ctx, cp->resolve);*/
 
   child_process_spawn(cp);
 
