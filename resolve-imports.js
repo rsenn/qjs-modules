@@ -249,7 +249,10 @@ function MergeImports(imports) {
   const result = [],
     filenames = unique(imports.map(i => i.file));
 
-  console.log('MergeImports(1)', compact(false, { hideKeys: [] }), { filenames, imports });
+  console.log('MergeImports(1)', compact(false, { hideKeys: [] }), {
+    filenames,
+    imports,
+  });
 
   for(let file of filenames) {
     //let byFile = imports.filter(i => i.file == file);
@@ -258,7 +261,10 @@ function MergeImports(imports) {
       imports.filter(i => i.file == file),
       file,
     );
-    console.log('MergeImports(2)', compact(true, { hideKeys: ['tokens'] }), { file, merged });
+    console.log('MergeImports(2)', compact(true, { hideKeys: ['tokens'] }), {
+      file,
+      merged,
+    });
 
     result.push(merged);
   }
@@ -657,7 +663,14 @@ function Import(tokens, relativePath = s => s, depth) {
   range[0] = loc.byteOffset;
   let code = toString(BufferFile(source).slice(...range));
 
-  if(debug > 3) console.log('\x1b[1;31mnew\x1b[1;33m Import\x1b[0m', compact(1), { source, file: ImportFile(tokens), code, loc, range });
+  if(debug > 3)
+    console.log('\x1b[1;31mnew\x1b[1;33m Import\x1b[0m', compact(1), {
+      source,
+      file: ImportFile(tokens),
+      code,
+      loc,
+      range,
+    });
   let imp = Object.setPrototypeOf(
     nonenumerable(
       {
@@ -1312,7 +1325,12 @@ class FileMap extends Array {
   }
 
   write(out, depth = 0, serial) {
-    if(debug > 3) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(1), { out, depth, serial });
+    if(debug > 3)
+      debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(1), {
+        out,
+        depth,
+        serial,
+      });
     let r,
       written = 0;
 
@@ -2210,8 +2228,20 @@ function ProcessFile(source, recursive, depth = 0) {
       const list = type == What.EXPORT ? footer : header;
       list.push(impexp);
 
-      if(debug > 2) log('impexp', compact(1), { code, file, range: new NumericRange(...range), replacement, loc });
-      else if(debug > 1) log('impexp', compact(true), { file, range: new NumericRange(...range), loc });
+      if(debug > 2)
+        log('impexp', compact(1), {
+          code,
+          file,
+          range: new NumericRange(...range),
+          replacement,
+          loc,
+        });
+      else if(debug > 1)
+        log('impexp', compact(true), {
+          file,
+          range: new NumericRange(...range),
+          loc,
+        });
 
       /*let str;
       if(range) str = toString(map.buffer.slice(...range));*/

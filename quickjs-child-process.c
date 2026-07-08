@@ -439,8 +439,14 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
+  if(!sync) {
+    cp->promise = JS_NewPromiseCapability(ctx, cp->resolve);
+  }
+
   if(!sync && JS_IsObject(cp->promise)) {
-    JSValue then = JS_NewCFunctionData(ctx, js_child_process_return, 0, 0, 1, &this_val);
+    JSValue args[] = {JS_NewInt32(ctx, cp->pid)};
+    JSValue then = JS_NewCFunctionData(ctx, js_child_process_return, 0, 0, countof(args), args);
+    JS_FreeValue(ctx, args[0]);
     ret = promise_then(ctx, cp->promise, then);
     JS_FreeValue(ctx, then);
   }
@@ -453,11 +459,18 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(cp->exited || cp->signaled) {
     pid = cp->pid;
   } else {
-    if((pid = child_process_wait(cp, flags)) != -1 && pid == cp->pid)
+    if((pid = child_process_wait(cp, flags)) != -1 && pid == cp->pid) {
+
+      if(!js_is_null_or_undefined(cp->resolve[0]))
+        JS_Call(ctx, cp->resolve[0], JS_NULL, 0, 0);
+      else
+        ret = JS_NewInt32(ctx, pid);
+
       child_process_remove(cp, ctx);
+    }
   }
 
-  return JS_NewInt32(ctx, pid);
+  return ret;
 }
 
 static JSValue
