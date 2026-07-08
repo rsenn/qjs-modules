@@ -167,6 +167,53 @@ writer_from_fd(intptr_t fd, bool close_on_end) {
   };
 }
 
+typedef struct {
+  JSContext* ctx;
+  JSValue func;
+} JSFunc;
+
+static ssize_t
+write_jsfunc(intptr_t p, const void* buf, size_t len, Writer* wr) {
+  JSFunc* jsfw = wr->opaque;
+  JSValueConst args[2] = {
+      JS_NewArrayBufferCopy(jsfw->ctx, buf, len),
+      JS_NewUint32(jsfw->ctx, len),
+  };
+
+  JSValue ret = JS_Call(jsfw->ctx, jsfw->func, JS_NULL, 2, args);
+  JS_FreeValue(jsfw->ctx, args[0]);
+  JS_FreeValue(jsfw->ctx, args[1]);
+
+  if(JS_IsException(ret))
+    return -1;
+
+  JS_FreeValue(jsfw->ctx, ret);
+
+  return len;
+}
+
+static void
+close_jsfunc(JSFunc* jsfw) {
+  JSContext* ctx = jsfw->ctx;
+  JS_FreeValue(ctx, jsfw->func);
+  js_free(ctx, jsfw);
+  JS_FreeContext(ctx);
+}
+
+Writer
+writer_from_jsfunc(JSContext* ctx, JSValueConst fn) {
+  JSFunc* jsfw = js_mallocz(ctx, sizeof(JSFunc));
+
+  jsfw->ctx = JS_DupContext(ctx);
+  jsfw->func = JS_DupValue(ctx, fn);
+
+  return (Writer){
+      (WriteFunction*)(void*)&write_jsfunc,
+      (void*)jsfw,
+      (WriterFinalizer*)(void*)&close_jsfunc,
+  };
+}
+
 Writer
 writer_tee(const Writer a, const Writer b) {
   Writer* opaque;
@@ -249,6 +296,43 @@ reader_from_fd(intptr_t fd, bool close_on_end) {
       (void*)fd,
       NULL,
       close_on_end ? (ReaderFinalizer*)(void*)&close : NULL,
+  };
+}
+
+static ssize_t
+read_jsfunc(intptr_t p, void* buf, size_t len, Reader* rd) {
+  JSFunc* jsfr = rd->opaque;
+  JSValueConst args[2] = {
+      JS_NewArrayBuffer(jsfr->ctx, buf, len, 0, 0, FALSE),
+      JS_NewUint32(jsfr->ctx, len),
+  };
+
+  JSValue ret = JS_Call(jsfr->ctx, jsfr->func, JS_NULL, 2, args);
+  JS_FreeValue(jsfr->ctx, args[0]);
+  JS_FreeValue(jsfr->ctx, args[1]);
+
+  if(JS_IsException(ret))
+    return -1;
+
+  int32_t r = -1;
+  JS_ToInt32(jsfr->ctx, &r, ret);
+  JS_FreeValue(jsfr->ctx, ret);
+
+  return r;
+}
+
+Reader
+reader_from_jsfunc(JSContext* ctx, JSValueConst func) {
+  JSFunc* jsfr = js_mallocz(ctx, sizeof(JSFunc));
+
+  jsfr->ctx = JS_DupContext(ctx);
+  jsfr->func = JS_DupValue(ctx, func);
+
+  return (Reader){
+      (ReadFunction*)(void*)&read_jsfunc,
+      (void*)jsfr,
+      NULL,
+      (ReaderFinalizer*)(void*)&close_jsfunc,
   };
 }
 
