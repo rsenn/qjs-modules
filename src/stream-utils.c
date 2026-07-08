@@ -1,6 +1,5 @@
 #include "stream-utils.h"
 #include "buffer-utils.h"
-#include "location.h"
 #include "defines.h"
 
 #include <assert.h>
@@ -37,7 +36,7 @@ typedef struct {
   uint8_t* buf;
   size_t len, pos;
   union {
-    void* other;
+    void* parent;
     Writer* writer;
     Reader* reader;
   };
@@ -45,20 +44,20 @@ typedef struct {
 
 typedef struct {
   Location* lo;
+  size_t buflen;
+  uint8_t buf[8];
   union {
-    void* other;
+    void* parent;
     Writer* writer;
     Reader* reader;
   };
-  size_t buflen;
-  uint8_t charbuf[8];
-} TrackLocation;
+} Tracker;
 
 typedef struct {
   Writer* parent;
   const char* chars;
   size_t nchars;
-} EscapedWriter;
+} Escaper;
 
 static ssize_t
 write_dynbuf(intptr_t fd, const void* buf, size_t len, Writer* wr) {
@@ -83,15 +82,15 @@ write_tee(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
 static ssize_t
 write_escaped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  EscapedWriter* ew = (EscapedWriter*)fd;
+  Escaper* esc = (Escaper*)fd;
   const uint8_t* x = buf;
   ssize_t r = 0;
 
   for(size_t i = 0; i < len; i++) {
-    if(byte_chr(ew->chars, ew->nchars, x[i]) < ew->nchars)
-      RESULT_LOOP(writer_putc(ew->parent, '\\'), r);
+    if(byte_chr(esc->chars, esc->nchars, x[i]) < esc->nchars)
+      RESULT_LOOP(writer_putc(esc->parent, '\\'), r);
 
-    RESULT_LOOP(writer_putc(ew->parent, x[i]), r);
+    RESULT_LOOP(writer_putc(esc->parent, x[i]), r);
   }
 
   return r;
@@ -129,11 +128,11 @@ write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   ssize_t ret = 0;
 
   if(b->pos) {
-    size_t remain = MAX_NUM(b->len - b->pos, len);
+    size_t remain = MIN_NUM(b->len - b->pos, len);
 
     memcpy(&b->buf[b->pos], buf, remain);
 
-    if(writer_write(b->other, b->buf, b->pos + remain) != b->pos + remain)
+    if(writer_write(b->parent, b->buf, b->pos + remain) != b->pos + remain)
       return -1;
 
     ret += b->pos + remain;
@@ -144,7 +143,7 @@ write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   }
 
   if(len > b->len) {
-    if(writer_write(b->other, buf, len) != len)
+    if(writer_write(b->parent, buf, len) != len)
       return -1;
   } else {
     memcpy(b->buf, buf, len);
@@ -209,29 +208,32 @@ write_jsfunc(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_track_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  TrackLocation* tlo = (TrackLocation*)fd;
+write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  Tracker* tlo = (Tracker*)fd;
   const uint8_t *ptr = buf, *next;
   ssize_t ret = 0;
   Location* lo = tlo->lo;
 
   for(;;) {
-    size_t buffered = tlo->buflen, remain = sizeof(tlo->charbuf) - tlo->buflen;
-    size_t n = MAX_NUM(len, remain);
+    size_t buffered = tlo->buflen, remain = sizeof(tlo->buf) - tlo->buflen;
+    size_t n = MIN_NUM(len, remain);
 
-    memcpy(&tlo->charbuf[tlo->buflen], ptr, n);
+    memcpy(&tlo->buf[tlo->buflen], ptr, n);
     tlo->buflen += n;
 
-    int codepoint = unicode_from_utf8(tlo->charbuf, tlo->buflen, &next);
-    size_t charlen = next - tlo->charbuf;
+    int codepoint = unicode_from_utf8(tlo->buf, tlo->buflen, &next);
+    size_t charlen = next - tlo->buf;
 
     if(codepoint == -1 || !charlen)
       break;
 
-    if(writer_write(tlo->writer, tlo->charbuf, charlen) != charlen)
+    if(writer_write(tlo->writer, tlo->buf, charlen) != charlen)
       return -1;
 
-    tlo->buflen = 0;
+    if(tlo->buflen > charlen) {
+      memmove(tlo->buf, &tlo->buf[charlen], tlo->buflen - charlen);
+      tlo->buflen -= charlen;
+    }
 
     n = charlen - buffered;
     ptr += n;
@@ -257,7 +259,7 @@ read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   DynBuf* db = (DynBuf*)fd;
 
   size_t pos = (size_t)rd->opaque2;
-  ssize_t n = MAX_NUM(len, db->size - pos);
+  ssize_t n = MIN_NUM(len, db->size - pos);
 
   if(n) {
     memcpy(buf, &db->buf[pos], n);
@@ -409,17 +411,17 @@ read_linebuffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
 }
 
 static ssize_t
-read_track_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
-  TrackLocation* tlo = (TrackLocation*)fd;
+read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  Tracker* tlo = (Tracker*)fd;
   const uint8_t *ptr = buf, *next;
   ssize_t ret = 0;
   Location* lo = tlo->lo;
 
   while(len > 0) {
-    size_t headroom = sizeof(tlo->charbuf) - tlo->buflen;
+    size_t headroom = sizeof(tlo->buf) - tlo->buflen;
     size_t remain = MIN_NUM(len, headroom);
 
-    ssize_t n = reader_read(tlo->reader, &tlo->charbuf[tlo->buflen], remain);
+    ssize_t n = reader_read(tlo->reader, &tlo->buf[tlo->buflen], remain);
 
     if(n < 0)
       return -1;
@@ -428,15 +430,15 @@ read_track_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
     tlo->buflen += n;
 
-    int codepoint = unicode_from_utf8(tlo->charbuf, tlo->buflen, &next);
-    size_t charlen = next - tlo->charbuf;
+    int codepoint = unicode_from_utf8(tlo->buf, tlo->buflen, &next);
+    size_t charlen = next - tlo->buf;
 
-    memcpy(buf, tlo->charbuf, charlen);
+    memcpy(buf, tlo->buf, charlen);
 
     buf = (uint8_t*)buf + charlen;
     len -= charlen;
 
-    memmove(tlo->charbuf, &tlo->charbuf[charlen], sizeof(tlo->charbuf) - charlen);
+    memmove(tlo->buf, &tlo->buf[charlen], sizeof(tlo->buf) - charlen);
     tlo->buflen -= charlen;
 
     if(codepoint == '\n') {
@@ -472,7 +474,7 @@ close_buffered(void* opaque, void* opaque2) {
   Buffered* b = opaque;
 
   if(b->pos > 0) {
-    writer_write(b->other, b->buf, b->pos);
+    writer_write(b->parent, b->buf, b->pos);
     b->pos = 0;
   }
 
@@ -523,12 +525,12 @@ writer_from_jsfunc2(JSContext* ctx, JSValueConst funcObj, JSValueConst thisObj) 
 }
 
 Writer
-writer_buffered(Writer* other, size_t buf_size) {
+writer_buffered(Writer* parent, size_t buf_size) {
   Buffered* b = malloc(sizeof(Buffered) + buf_size);
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {other}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
 
   return (Writer){
       &write_buffered,
@@ -538,12 +540,12 @@ writer_buffered(Writer* other, size_t buf_size) {
 }
 
 Writer
-writer_linebuffered(Writer* other, size_t buf_size) {
+writer_linebuffered(Writer* parent, size_t buf_size) {
   Buffered* b = malloc(sizeof(Buffered) + buf_size);
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {other}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
 
   return (Writer){
       &write_linebuffered,
@@ -571,18 +573,18 @@ writer_tee(const Writer a, const Writer b) {
 }
 
 Writer
-writer_escaped(Writer* out, const char chars[], size_t nchars) {
-  EscapedWriter* ew;
+writer_escaped(Writer* out, const char* chars, size_t nchars) {
+  Escaper* esc;
 
-  if((ew = malloc(sizeof(EscapedWriter)))) {
-    ew->parent = out;
-    ew->chars = chars;
-    ew->nchars = nchars;
+  if((esc = malloc(sizeof(Escaper)))) {
+    esc->parent = out;
+    esc->chars = chars;
+    esc->nchars = nchars;
   }
 
   return (Writer){
       &write_escaped,
-      ew,
+      esc,
       (WriterFinalizer*)&orig_free,
   };
 }
@@ -597,15 +599,15 @@ writer_urlencode(Writer* out) {
 }
 
 Writer
-writer_track_location(Writer* parent, Location* lo) {
-  TrackLocation* tlo = malloc(sizeof(TrackLocation));
+writer_location(Writer* parent, Location* lo) {
+  Tracker* tlo = malloc(sizeof(Tracker));
 
   assert(tlo);
 
-  *tlo = (TrackLocation){lo, {parent}, 0};
+  *tlo = (Tracker){lo, 0, {}, {parent}};
 
   return (Writer){
-      &write_track_location,
+      &write_location,
       tlo,
       (WriterFinalizer*)&free,
   };
@@ -679,12 +681,12 @@ reader_from_jsfunc2(JSContext* ctx, JSValueConst funcObj, JSValueConst thisObj) 
 }
 
 Reader
-reader_buffered(Reader* other, size_t buf_size) {
+reader_buffered(Reader* parent, size_t buf_size) {
   Buffered* b = malloc(sizeof(Buffered) + buf_size);
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {other}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
 
   return (Reader){
       &read_buffered,
@@ -695,12 +697,12 @@ reader_buffered(Reader* other, size_t buf_size) {
 }
 
 Reader
-reader_linebuffered(Reader* other, size_t buf_size) {
+reader_linebuffered(Reader* parent, size_t buf_size) {
   Buffered* b = malloc(sizeof(Buffered) + buf_size);
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {other}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
 
   return (Reader){
       &read_linebuffered,
@@ -721,15 +723,15 @@ reader_urldecode(Reader* parent) {
 }
 
 Reader
-reader_track_location(Reader* parent, Location* lo) {
-  TrackLocation* tlo = malloc(sizeof(TrackLocation));
+reader_location(Reader* parent, Location* lo) {
+  Tracker* tlo = malloc(sizeof(Tracker));
 
   assert(tlo);
 
-  *tlo = (TrackLocation){lo, {parent}, 0};
+  *tlo = (Tracker){lo, 0, {}, {parent}};
 
   return (Reader){
-      &read_track_location,
+      &read_location,
       tlo,
       NULL,
       (ReaderFinalizer*)&free,

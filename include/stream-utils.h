@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "buffer-utils.h"
+#include "location.h"
 
 /**
  * \defgroup stream-utils stream-utils: Utilities for stream I/O
@@ -30,8 +31,9 @@ Writer writer_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
 Writer writer_buffered(Writer*, size_t);
 Writer writer_linebuffered(Writer*, size_t);
 Writer writer_tee(const Writer, const Writer);
-Writer writer_escaped(Writer*, const char[], size_t);
+Writer writer_escaped(Writer*, const char*, size_t);
 Writer writer_urlencode(Writer*);
+Writer writer_track_location(Writer*, Location*);
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
 
@@ -71,6 +73,7 @@ Reader reader_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
 Reader reader_buffered(Reader*, size_t);
 Reader reader_linebuffered(Reader*, size_t);
 Reader reader_urldecode(Reader*);
+Reader reader_track_location(Reader*, Location*);
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);
 
