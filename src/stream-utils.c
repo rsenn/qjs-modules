@@ -211,36 +211,51 @@ write_function(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 static ssize_t
 write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Tracker* tr = (Tracker*)fd;
-  const uint8_t *ptr = buf, *next;
-  ssize_t written = 0;
+  const uint8_t *start = buf, *ptr = buf, *end;
   Location* lo = tr->lo;
+  size_t buffered = tr->buflen;
 
-  for(;;) {
-    size_t buffered = tr->buflen, remain = sizeof(tr->buf) - tr->buflen;
+  if(buffered) {
+    size_t remain = sizeof(tr->buf) - tr->buflen;
     size_t n = MIN_NUM(len, remain);
 
-    memcpy(&tr->buf[tr->buflen], ptr, n);
+    memcpy(&tr->buf[buffered], ptr, n);
     tr->buflen += n;
 
-    int codepoint = unicode_from_utf8(tr->buf, tr->buflen, &next);
-    size_t charlen = next - tr->buf;
+    int cp = unicode_from_utf8(tr->buf, tr->buflen, &end);
+    size_t charlen = end - tr->buf;
 
-    if(codepoint == -1 || !charlen)
-      break;
-
-    if(writer_write(tr->writer, tr->buf, charlen) != (ssize_t)charlen)
+    if(cp == -1 || !charlen)
       return -1;
 
-    if(tr->buflen > charlen) {
-      memmove(tr->buf, &tr->buf[charlen], tr->buflen - charlen);
-      tr->buflen -= charlen;
-    }
+    if(writer_write(tr->writer, tr->buf, buffered) != (ssize_t)buffered)
+      return -1;
 
-    n = charlen - buffered;
+    assert(n == tr->buflen - buffered);
+    tr->buflen = 0;
+
     ptr += n;
     len -= n;
 
-    if(codepoint == '\n') {
+    if(cp == '\n') {
+      lo->column = 0;
+      lo->line++;
+    } else {
+      lo->column++;
+    }
+  }
+
+  while(len > 0) {
+    int cp = unicode_from_utf8(ptr, len, &end);
+    size_t charlen = end - ptr;
+
+    if(cp == -1 || charlen == 0)
+      break;
+
+    if(writer_write(tr->writer, ptr, charlen) != (ssize_t)charlen)
+      return -1;
+
+    if(cp == '\n') {
       lo->column = 0;
       lo->line++;
     } else {
@@ -249,10 +264,22 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
     lo->char_offset++;
     lo->byte_offset += charlen;
-    written += charlen;
+
+    ptr += charlen;
+    len -= charlen;
   }
 
-  return written;
+  if(len > 0) {
+    size_t remain = sizeof(tr->buf) - tr->buflen;
+    size_t n = MIN_NUM(remain, len);
+
+    if(n) {
+      memcpy(&tr->buf[tr->buflen], ptr, n);
+      tr->buflen += n;
+    }
+  }
+
+  return ptr - start;
 }
 
 static void
@@ -586,12 +613,12 @@ read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
   while(len > 0) {
     size_t headroom = sizeof(tr->buf) - tr->buflen;
     size_t remain = MIN_NUM(len, headroom);
-
     ssize_t n = reader_read(tr->reader, &tr->buf[tr->buflen], remain);
 
     if(n < 0)
       return -1;
-    if(n == 0)
+
+    if(n == 0 && tr->buflen == 0)
       break;
 
     tr->buflen += n;

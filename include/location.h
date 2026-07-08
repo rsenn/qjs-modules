@@ -16,16 +16,21 @@
  */
 typedef struct {
   int ref_count;
-  int32_t file;
+  union {
+    int32_t file;
+    char* filename;
+  };
   int32_t line, column;
   int64_t char_offset, byte_offset;
-  BOOL read_only : 1;
+  BOOL read_only : 1, has_filename : 1;
 } Location;
 
-#define LOCATION() (Location){0, -1, 0, 0, 0, 0, FALSE};
-#define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, FALSE};
+#define LOCATION() (Location){0, {-1}, 0, 0, 0, 0, FALSE, FALSE};
+#define LOCATION_FILENAME(fn) (Location){0, {.filename = (fn)}, 0, 0, 0, 0, FALSE, TRUE};
+#define LOCATION_FILE(atom) (Location){0, {(atom)}, 0, 0, 0, 0, FALSE, FALSE};
 #define LOCATION_POS(l) ((l)->byte_offset)
 
+LOCATION_API void location_dump(const Location*, FILE*);
 LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
 LOCATION_API char* location_tostring(const Location*, JSContext*);
 LOCATION_API char* location_file(const Location*, JSContext*);

@@ -72,7 +72,7 @@ static JSValue
 parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
   Vector stack;
   JSValue ret = JS_UNDEFINED;
- 
+
   if(root.type == SJ_ERROR)
     return parse_throw(ctx, r);
 
@@ -681,7 +681,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_json_init))) {
     JS_AddModuleExport(ctx, m, "JsonParser");
     JS_AddModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
-^  }
+  }
 
   return m;
 }

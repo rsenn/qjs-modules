@@ -8,6 +8,15 @@
  * @{
  */
 void
+location_dump(const Location* loc, FILE* out) {
+  if(loc->has_filename)
+    fprintf(out, "%s:", loc->filename);
+
+  fprintf(out, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
+  fprintf(out, " @ %" PRId64, loc->char_offset);
+}
+
+void
 location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
   if(ctx && loc->file > -1) {
     const char* str;
@@ -64,6 +73,8 @@ location_init(Location* loc) {
   loc->column = -1;
   loc->char_offset = -1;
   loc->byte_offset = -1;
+  loc->read_only = FALSE;
+  loc->has_filename = FALSE;
 }
 
 void
