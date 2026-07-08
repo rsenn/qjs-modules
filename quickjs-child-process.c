@@ -233,16 +233,6 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     JS_SetPropertyStr(ctx, obj, "pid", JS_NewInt32(ctx, cp->pid));
 
-    do {
-    } while((pid = child_process_wait(cp, 0)) && (pid != -1 && pid != cp->pid));
-
-    if(cp->signaled || cp->stopped)
-      JS_SetPropertyStr(ctx, obj, "signal", JS_NewInt32(ctx, cp->stopped ? cp->stopsig : cp->termsig));
-
-#ifdef HAVE_WAITPID
-    JS_SetPropertyStr(ctx, obj, "status", WIFEXITED(cp->status) ? JS_NewInt32(ctx, WEXITSTATUS(cp->status)) : JS_NULL);
-#endif
-
     int num = cp->num_fds > 3 ? 3 : cp->num_fds;
     DynBuf db[num];
 
@@ -285,6 +275,16 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
           JS_SetPropertyUint32(ctx, arr, i, str);
         }
     }
+
+    do {
+    } while((pid = child_process_wait(cp, 0)) && (pid != -1 && pid != cp->pid));
+
+    if(cp->signaled || cp->stopped)
+      JS_SetPropertyStr(ctx, obj, "signal", JS_NewInt32(ctx, cp->stopped ? cp->stopsig : cp->termsig));
+
+#ifdef HAVE_WAITPID
+    JS_SetPropertyStr(ctx, obj, "status", WIFEXITED(cp->status) ? JS_NewInt32(ctx, WEXITSTATUS(cp->status)) : JS_NULL);
+#endif
 
     JS_FreeValue(ctx, ret);
     ret = obj;
@@ -422,26 +422,28 @@ static JSValue
 js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ChildProcess* cp;
   int32_t flags = 0;
+  JSValue ret = JS_UNDEFINED;
+  BOOL sync = magic > 0;
 
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(JS_IsObject(cp->promise)) {
+  if(!sync && JS_IsObject(cp->promise)) {
     JSValue then = JS_NewCFunctionData(ctx, js_child_process_return, 0, 0, 1, &this_val);
-    JSValue ret = promise_then(ctx, cp->promise, then);
+    ret = promise_then(ctx, cp->promise, then);
     JS_FreeValue(ctx, then);
-    return ret;
   }
 
   if(argc >= 1)
     JS_ToInt32(ctx, &flags, argv[0]);
 
-  int pid;
+  int pid = 0;
 
   if(cp->exited || cp->signaled) {
     pid = cp->pid;
-  } else if((pid = child_process_wait(cp, flags)) != -1) {
-    child_process_remove(cp, ctx);
+  } else {
+    if((pid = child_process_wait(cp, flags)) != -1 && pid == cp->pid)
+      child_process_remove(cp, ctx);
   }
 
   return JS_NewInt32(ctx, pid);
