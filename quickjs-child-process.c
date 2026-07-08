@@ -419,14 +419,14 @@ js_child_process_return(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static JSValue
-js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ChildProcess* cp;
   int32_t flags = 0;
 
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(!js_is_null_or_undefined(cp->promise)) {
+  if(JS_IsObject(cp->promise)) {
     JSValue then = JS_NewCFunctionData(ctx, js_child_process_return, 0, 0, 1, &this_val);
     JSValue ret = promise_then(ctx, cp->promise, then);
     JS_FreeValue(ctx, then);
@@ -525,7 +525,8 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_ENUMERABLE_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
     JS_CGETSET_ENUMERABLE_DEF("stopped", js_child_process_get, 0, CHILD_PROCESS_STOPPED),
     JS_CGETSET_ENUMERABLE_DEF("continued", js_child_process_get, 0, CHILD_PROCESS_CONTINUED),
-    JS_CFUNC_DEF("wait", 0, js_child_process_wait),
+    JS_CFUNC_MAGIC_DEF("wait", 0, js_child_process_wait, 0),
+    JS_CFUNC_MAGIC_DEF("waitSync", 0, js_child_process_wait, 1),
     JS_CFUNC_MAGIC_DEF("kill", 0, js_child_process_kill, 0),
     JS_CFUNC_MAGIC_DEF("[Symbol.toPrimitive]", 0, js_child_process_method, CHILD_PROCESS_TOPRIMITIVE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", 0),
