@@ -159,7 +159,8 @@ token_length(const char* str, size_t len, char delim) {
 }
 
 size_t
-fmt_long(char* dest, int32_t i) {
+fmt_long(void* x, int32_t i) {
+  char* dest = x;
   if(i < 0) {
     if(dest)
       *dest++ = '-';
@@ -169,7 +170,8 @@ fmt_long(char* dest, int32_t i) {
 }
 
 size_t
-fmt_ulong(char* dest, uint32_t i) {
+fmt_ulong(void* x, uint32_t i) {
+  char* dest = x;
   uint32_t len, tmp, len2;
 
   for(len = 1, tmp = i; tmp > 9; ++len)
@@ -183,7 +185,8 @@ fmt_ulong(char* dest, uint32_t i) {
 }
 
 size_t
-fmt_longlong(char* dest, int64_t i) {
+fmt_longlong(void* x, int64_t i) {
+  char* dest = x;
   if(i < 0) {
     if(dest)
       *dest++ = '-';
@@ -195,7 +198,8 @@ fmt_longlong(char* dest, int64_t i) {
 }
 
 size_t
-fmt_ulonglong(char* dest, uint64_t i) {
+fmt_ulonglong(void* x, uint64_t i) {
+  char* dest = x;
   size_t len;
   uint64_t tmp, len2;
 
@@ -212,7 +216,8 @@ fmt_ulonglong(char* dest, uint64_t i) {
 #define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
 
 size_t
-fmt_xlonglong(char* dest, uint64_t i) {
+fmt_xlonglong(void* x, uint64_t i) {
+  char* dest = x;
   uint64_t len, tmp;
 
   for(len = 1, tmp = i; tmp > 15ll; ++len)
@@ -230,7 +235,8 @@ fmt_xlonglong(char* dest, uint64_t i) {
 }
 
 size_t
-fmt_xlonglong0(char* dest, uint64_t num, size_t n) {
+fmt_xlonglong0(void* x, uint64_t num, size_t n) {
+  char* dest = x;
   size_t i = 0, len;
 
   if((len = fmt_xlonglong(NULL, num)) < n) {
@@ -245,7 +251,8 @@ fmt_xlonglong0(char* dest, uint64_t num, size_t n) {
 }
 
 size_t
-fmt_8long(char* dest, uint32_t i) {
+fmt_8long(void* x, uint32_t i) {
+  char* dest = x;
   uint32_t len, tmp;
 
   /* first count the number of bytes needed */
@@ -266,7 +273,8 @@ fmt_8long(char* dest, uint32_t i) {
 #define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
 
 size_t
-fmt_xlong(char* dest, uint32_t i) {
+fmt_xlong(void* x, uint32_t i) {
+  char* dest = x;
   uint32_t len, tmp;
 
   /* first count the number of bytes needed */
@@ -285,7 +293,8 @@ fmt_xlong(char* dest, uint32_t i) {
 }
 
 size_t
-fmt_xlong0(char* dest, uint32_t num, size_t n) {
+fmt_xlong0(void* x, uint32_t num, size_t n) {
+  char* dest = x;
   size_t i = 0, len;
 
   if((len = fmt_xlong(NULL, num)) < n) {

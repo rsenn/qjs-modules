@@ -86,12 +86,12 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
 #undef js_realloc_rt
 void
 dbuf_init_ctx(JSContext* ctx, DynBuf* s) {
-  dbuf_init2(s, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  dbuf_init2(s, ctx ? JS_GetRuntime(ctx) : 0, ctx ? (DynBufReallocFunc*)&js_realloc_rt : 0);
 }
 
 void
 dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
-  dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
+  dbuf_init2(s, rt, rt ? (DynBufReallocFunc*)&js_realloc_rt : 0);
 }
 
 char*

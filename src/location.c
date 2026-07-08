@@ -9,33 +9,37 @@
  */
 void
 location_dump(const Location* loc, FILE* out) {
-  if(loc->has_filename)
-    fprintf(out, "%s:", loc->filename);
+  char* s;
 
-  fprintf(out, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
-  fprintf(out, " @ %" PRId64, loc->char_offset);
+  if((s = location_tostring(loc, NULL))) {
+    fputs(s, out);
+    free(s);
+  }
+
+  fflush(out);
 }
 
 void
 location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
-  if(ctx && loc->file > -1) {
-    const char* str;
+  uint8_t buf[FMT_LONG];
+  char* file;
 
-    if((str = JS_AtomToCString(ctx, loc->file))) {
-      dbuf_putstr(dbuf, str);
-      dbuf_putc(dbuf, ':');
-
-      JS_FreeCString(ctx, str);
-    }
+  if((file = location_file(loc, ctx))) {
+    dbuf_putstr(dbuf, file);
+    dbuf_putc(dbuf, ':');
   }
 
-  char buf[FMT_LONG];
+  if(loc->line != -1) {
+    dbuf_put(dbuf, buf, fmt_long(buf, loc->line + 1));
 
-  dbuf_put(dbuf, buf, fmt_long(buf, loc->line + 1));
-  dbuf_putc(dbuf, ':');
-  dbuf_put(dbuf, buf, fmt_long(buf, loc->column + 1));
-  
-  // dbuf_printf(dbuf, loc->column >= 0 ? "%" PRId32 ":%" PRId32 : "%" PRId32, loc->line + 1, loc->column + 1);
+    if(loc->column >= 0) {
+      dbuf_putc(dbuf, ':');
+      dbuf_put(dbuf, buf, fmt_long(buf, loc->column + 1));
+    }
+  } else if(loc->char_offset != -1) {
+    dbuf_putc(dbuf, '@');
+    dbuf_put(dbuf, buf, fmt_longlong(buf, loc->char_offset));
+  }
 }
 
 char*
@@ -52,14 +56,16 @@ location_tostring(const Location* loc, JSContext* ctx) {
 char*
 location_file(const Location* loc, JSContext* ctx) {
   const char* file;
-  char* ret = 0;
+  char* s = 0;
 
-  if((file = JS_AtomToCString(ctx, loc->file))) {
-    ret = js_strdup(ctx, file);
+  if(loc->file > -1 && (file = JS_AtomToCString(ctx, loc->file))) {
+    s = ctx ? js_strdup(ctx, file) : strdup(file);
     JS_FreeCString(ctx, file);
+  } else if(loc->has_filename && (loc->filename && loc->filename[0])) {
+    s = ctx ? js_strdup(ctx, loc->filename) : strdup(loc->filename);
   }
 
-  return ret;
+  return s;
 }
 
 JSValue
