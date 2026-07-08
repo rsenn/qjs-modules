@@ -14,7 +14,7 @@
 typedef struct Writer Writer;
 
 typedef ssize_t WriteFunction(intptr_t, const void*, size_t, Writer*);
-typedef ssize_t WriterFinalizer(void*);
+typedef void WriterFinalizer(void*);
 
 struct Writer {
   WriteFunction* write;
@@ -25,6 +25,8 @@ struct Writer {
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
 Writer writer_from_fd(intptr_t fd, bool close_on_end);
+Writer writer_from_jsfunc(JSContext*, JSValueConst);
+Writer writer_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
 Writer writer_tee(const Writer a, const Writer b);
 Writer writer_escaped(Writer*, const char[], size_t);
 Writer writer_urlencode(Writer*);
@@ -46,7 +48,7 @@ writer_putc(Writer* wr, int c) {
 struct StreamReader;
 
 typedef ssize_t ReadFunction(intptr_t, void*, size_t, struct StreamReader*);
-typedef ssize_t ReaderFinalizer(void*, void*);
+typedef void ReaderFinalizer(void*, void*);
 
 typedef enum {
   READER_EOF = -2,
@@ -61,7 +63,9 @@ typedef struct StreamReader {
 
 Reader reader_from_buf(InputBuffer*, JSContext*);
 Reader reader_from_range(const void*, size_t);
-Reader reader_from_fd(intptr_t, _Bool);
+Reader reader_from_fd(intptr_t, bool);
+Reader reader_from_jsfunc(JSContext*, JSValueConst);
+Reader reader_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);
 
