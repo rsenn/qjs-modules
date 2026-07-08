@@ -28,6 +28,7 @@ Writer writer_from_fd(intptr_t, bool);
 Writer writer_from_jsfunc(JSContext*, JSValueConst);
 Writer writer_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
 Writer writer_buffered(Writer*, size_t);
+Writer writer_linebuffered(Writer*, size_t);
 Writer writer_tee(const Writer, const Writer);
 Writer writer_escaped(Writer*, const char[], size_t);
 Writer writer_urlencode(Writer*);
@@ -61,12 +62,14 @@ typedef struct StreamReader {
   ReaderFinalizer* finalizer;
 } Reader;
 
+Reader reader_from_dynbuf(DynBuf*);
 Reader reader_from_buf(InputBuffer*, JSContext*);
 Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
 Reader reader_from_jsfunc(JSContext*, JSValueConst);
 Reader reader_from_jsfunc2(JSContext*, JSValueConst, JSValueConst);
 Reader reader_buffered(Reader*, size_t);
+Reader reader_linebuffered(Reader*, size_t);
 Reader reader_urldecode(Reader*);
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);

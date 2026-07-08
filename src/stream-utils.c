@@ -34,7 +34,7 @@ typedef struct {
 
 typedef struct {
   uint8_t* buf;
-  size_t n, p;
+  size_t len, pos;
   union {
     void* other;
     Writer* writer;
@@ -49,8 +49,8 @@ typedef struct {
 } EscapedWriter;
 
 static ssize_t
-write_dbuf(intptr_t p, const void* buf, size_t len, Writer* wr) {
-  DynBuf* db = (DynBuf*)p;
+write_dynbuf(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  DynBuf* db = (DynBuf*)fd;
 
   if(dbuf_put(db, buf, len))
     return -1;
@@ -59,8 +59,8 @@ write_dbuf(intptr_t p, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_tee(intptr_t p, const void* buf, size_t len, Writer* wr) {
-  Writer* wptr = (Writer*)p;
+write_tee(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  Writer* wptr = (Writer*)fd;
   ssize_t r[2] = {0, 0};
 
   RESULT(writer_write(&wptr[0], buf, len), r[0]);
@@ -70,8 +70,8 @@ write_tee(intptr_t p, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_escaped(intptr_t p, const void* buf, size_t len, Writer* wr) {
-  EscapedWriter* ew = (EscapedWriter*)p;
+write_escaped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  EscapedWriter* ew = (EscapedWriter*)fd;
   const uint8_t* x = buf;
   ssize_t r = 0;
 
@@ -86,8 +86,8 @@ write_escaped(intptr_t p, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_urlencoded(intptr_t p, const void* buf, size_t len, Writer* wr) {
-  Writer* parent = (Writer*)p;
+write_urlencoded(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  Writer* parent = (Writer*)fd;
   const uint8_t* x = buf;
   ssize_t r = 0;
   static char const unescaped_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -96,7 +96,6 @@ write_urlencoded(intptr_t p, const void* buf, size_t len, Writer* wr) {
                                         "@*_+-./";
 
   for(size_t i = 0; i < len; i++) {
-
     if(!memchr(unescaped_chars, x[i], sizeof(unescaped_chars) - 1)) {
       char esc[4] = {'%'};
 
@@ -113,31 +112,31 @@ write_urlencoded(intptr_t p, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_buffered(intptr_t p, const void* buf, size_t len, Writer* wr) {
-  Buffered* b = wr->opaque;
+write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  Buffered* b = (Buffered*)fd;
   ssize_t ret = 0;
 
-  if(b->p) {
-    size_t remain = MAX_NUM(b->n - b->p, len);
+  if(b->pos) {
+    size_t remain = MAX_NUM(b->len - b->pos, len);
 
-    memcpy(&b->buf[b->p], buf, remain);
+    memcpy(&b->buf[b->pos], buf, remain);
 
-    if(writer_write(b->other, b->buf, b->p + remain) != b->p + remain)
+    if(writer_write(b->other, b->buf, b->pos + remain) != b->pos + remain)
       return -1;
 
-    ret += b->p + remain;
-    b->p = 0;
+    ret += b->pos + remain;
+    b->pos = 0;
 
     len -= remain;
     buf = (uint8_t*)buf + remain;
   }
 
-  if(len > b->n) {
+  if(len > b->len) {
     if(writer_write(b->other, buf, len) != len)
       return -1;
   } else {
     memcpy(b->buf, buf, len);
-    b->p = len;
+    b->pos = len;
   }
 
   ret += len;
@@ -146,27 +145,80 @@ write_buffered(intptr_t p, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_jsfunc(intptr_t p, const void* buf, size_t len, Writer* wr) {
-  JSFunc* jsfw = wr->opaque;
+write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  Buffered* b = (Buffered*)fd;
+  const uint8_t* x = buf;
+  ssize_t ret = 0;
+
+  for(size_t i = 0; i < len; i++) {
+    if(b->pos == b->len) {
+      if(writer_write(b->writer, b->buf, b->pos) != (ssize_t)b->pos)
+        return -1;
+
+      b->pos = 0;
+    }
+
+    b->buf[b->pos++] = x[i];
+
+    if(x[i] == '\n') {
+      if(writer_write(b->writer, b->buf, b->pos) != (ssize_t)b->pos)
+        return -1;
+
+      b->pos = 0;
+    }
+
+    ret++;
+  }
+
+  return ret;
+}
+
+static ssize_t
+write_jsfunc(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  JSFunc* jsfw = (JSFunc*)fd;
+  JSContext* ctx = jsfw->ctx;
   JSValueConst args[2] = {
-      JS_NewArrayBufferCopy(jsfw->ctx, buf, len),
-      JS_NewUint32(jsfw->ctx, len),
+      JS_NewArrayBuffer(ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+      JS_NewUint32(ctx, len),
   };
 
-  JSValue ret = JS_Call(jsfw->ctx, jsfw->funcObj, jsfw->thisObj, 2, args);
-  JS_FreeValue(jsfw->ctx, args[0]);
-  JS_FreeValue(jsfw->ctx, args[1]);
+  JSValue ret = JS_Call(ctx, jsfw->funcObj, jsfw->thisObj, 2, args);
+
+  JS_DetachArrayBuffer(ctx, args[0]);
+
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
 
   if(JS_IsException(ret))
     return -1;
 
-  JS_FreeValue(jsfw->ctx, ret);
+  JS_FreeValue(ctx, ret);
   return len;
 }
 
 static ssize_t
-read_urldecoded(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
-  Reader* parent = (Reader*)p;
+read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  DynBuf* db = (DynBuf*)fd;
+
+  size_t pos = (size_t)rd->opaque2;
+  ssize_t n = MAX_NUM(len, db->size - pos);
+
+  if(n) {
+    memcpy(buf, &db->buf[pos], n);
+    pos += n;
+  }
+
+  if(pos == db->size)
+    pos = 0;
+
+  rd->opaque2 = (void*)pos;
+
+  return n;
+}
+
+static ssize_t
+read_urldecoded(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
+  Reader* parent = (Reader*)fd;
   uint8_t* x = buf;
   uint8_t c, *y = x;
   ssize_t r = 0;
@@ -195,7 +247,7 @@ read_urldecoded(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_bytes(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
+read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
   const uint8_t *start = rd->opaque, *end = rd->opaque2;
   size_t remain = end - start;
 
@@ -212,37 +264,38 @@ read_bytes(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_jsfunc(intptr_t p, void* buf, size_t len, Reader* rd) {
-  JSFunc* jsfr = rd->opaque;
+read_jsfunc(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  JSFunc* jsfr = (JSFunc*)fd;
+  JSContext* ctx = jsfr->ctx;
   JSValueConst args[2] = {
-      JS_NewArrayBuffer(jsfr->ctx, buf, len, 0, 0, FALSE),
-      JS_NewUint32(jsfr->ctx, len),
+      JS_NewArrayBuffer(ctx, buf, len, 0, 0, FALSE),
+      JS_NewUint32(ctx, len),
   };
 
-  JSValue ret = JS_Call(jsfr->ctx, jsfr->funcObj, jsfr->thisObj, 2, args);
+  JSValue ret = JS_Call(ctx, jsfr->funcObj, jsfr->thisObj, 2, args);
 
-  JS_DetachArrayBuffer(jsfr->ctx, args[0]);
+  JS_DetachArrayBuffer(ctx, args[0]);
 
-  JS_FreeValue(jsfr->ctx, args[0]);
-  JS_FreeValue(jsfr->ctx, args[1]);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
 
   if(JS_IsException(ret))
     return -1;
 
   int32_t r = -1;
-  JS_ToInt32(jsfr->ctx, &r, ret);
-  JS_FreeValue(jsfr->ctx, ret);
+  JS_ToInt32(ctx, &r, ret);
+  JS_FreeValue(ctx, ret);
 
   return r;
 }
 
 static ssize_t
-read_buffered(intptr_t p, void* buf, size_t len, Reader* rd) {
-  Buffered* b = rd->opaque;
+read_buffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  Buffered* b = (Buffered*)fd;
   ssize_t ret = 0;
 
-  if(b->p < b->n) {
-    size_t remain = b->n - b->p;
+  if(b->pos < b->len) {
+    size_t remain = b->len - b->pos;
 
     if(reader_read(b->reader, b->buf, remain) != remain)
       return -1;
@@ -251,17 +304,57 @@ read_buffered(intptr_t p, void* buf, size_t len, Reader* rd) {
     len -= remain;
   }
 
-  if(b->p > 0) {
-    memcpy(buf, b->buf, b->p);
-    ret = b->p;
-    b->p = 0;
+  if(b->pos > 0) {
+    memcpy(buf, b->buf, b->pos);
+    ret = b->pos;
+    b->pos = 0;
   }
 
   return ret;
 }
 
+static ssize_t
+read_linebuffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  Buffered* b = (Buffered*)fd;
+  size_t eol;
+
+  for(;;) {
+    if((eol = byte_chr(b->buf, b->pos, '\n')) < b->pos) {
+      eol++;
+      break;
+    }
+
+    if(b->pos == b->len) {
+      eol = b->pos;
+      break;
+    }
+
+    ssize_t r = reader_read(b->reader, &b->buf[b->pos], b->len - b->pos);
+
+    if(r < 0)
+      return r;
+
+    if(r == 0) {
+      eol = b->pos;
+      break;
+    }
+
+    b->pos += r;
+  }
+
+  if(eol > len)
+    eol = len;
+
+  memcpy(buf, b->buf, eol);
+  memmove(b->buf, &b->buf[eol], b->pos - eol);
+  b->pos -= eol;
+
+  return eol;
+}
+
 static void
-close_jsfunc(JSFunc* jsf) {
+close_jsfunc(void* opaque, void* opaque2) {
+  JSFunc* jsf = opaque;
   JSContext* ctx = jsf->ctx;
 
   JS_FreeValue(ctx, jsf->funcObj);
@@ -272,10 +365,12 @@ close_jsfunc(JSFunc* jsf) {
 }
 
 static void
-close_buffered(Buffered* b) {
-  if(b->p > 0) {
-    writer_write(b->other, b->buf, b->p);
-    b->p = 0;
+close_buffered(void* opaque, void* opaque2) {
+  Buffered* b = opaque;
+
+  if(b->pos > 0) {
+    writer_write(b->other, b->buf, b->pos);
+    b->pos = 0;
   }
 
   free(b);
@@ -287,12 +382,12 @@ close_buffered(Buffered* b) {
  */
 Writer
 writer_from_dynbuf(DynBuf* db) {
-  return (Writer){&write_dbuf, db, (WriterFinalizer*)(void*)&dbuf_free};
+  return (Writer){&write_dynbuf, db, (WriterFinalizer*)(void*)&dbuf_free};
 }
 
 Writer
-writer_from_buf(OutputBuffer* ob) {
-  return (Writer){(WriteFunction*)&outputbuffer_write, ob, NULL};
+writer_from_buf(OutputBuffer* buf) {
+  return (Writer){(WriteFunction*)&outputbuffer_write, buf, NULL};
 }
 
 Writer
@@ -334,6 +429,21 @@ writer_buffered(Writer* other, size_t buf_size) {
 
   return (Writer){
       &write_buffered,
+      b,
+      (WriterFinalizer*)(void*)&close_buffered,
+  };
+}
+
+Writer
+writer_linebuffered(Writer* other, size_t buf_size) {
+  Buffered* b = malloc(sizeof(Buffered) + buf_size);
+
+  assert(b);
+
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {other}};
+
+  return (Writer){
+      &write_linebuffered,
       b,
       (WriterFinalizer*)(void*)&close_buffered,
   };
@@ -395,6 +505,11 @@ writer_free(Writer* wr) {
 }
 
 Reader
+reader_from_dynbuf(DynBuf* db) {
+  return (Reader){&read_dynbuf, db, NULL, (ReaderFinalizer*)(void*)&dbuf_free};
+}
+
+Reader
 reader_from_buf(InputBuffer* buf, JSContext* ctx) {
   return (Reader){
       (ReadFunction*)&inputbuffer_read,
@@ -408,7 +523,7 @@ Reader
 reader_from_bytes(const void* start, size_t len) {
   return (Reader){
       &read_bytes,
-      start,
+      (void*)start,
       ((uint8_t*)start) + len,
       NULL,
   };
@@ -441,7 +556,7 @@ reader_from_jsfunc2(JSContext* ctx, JSValueConst funcObj, JSValueConst thisObj) 
       &read_jsfunc,
       jsfr,
       NULL,
-      (ReaderFinalizer*)(void*)&close_jsfunc,
+      &close_jsfunc,
   };
 }
 
@@ -455,8 +570,25 @@ reader_buffered(Reader* other, size_t buf_size) {
 
   return (Reader){
       &read_buffered,
-      (void*)b,
-      (ReaderFinalizer*)(void*)&close_buffered,
+      b,
+      NULL,
+      &close_buffered,
+  };
+}
+
+Reader
+reader_linebuffered(Reader* other, size_t buf_size) {
+  Buffered* b = malloc(sizeof(Buffered) + buf_size);
+
+  assert(b);
+
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {other}};
+
+  return (Reader){
+      &read_linebuffered,
+      b,
+      NULL,
+      &close_buffered,
   };
 }
 
