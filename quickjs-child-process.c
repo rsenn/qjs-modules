@@ -285,6 +285,17 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 #ifdef HAVE_WAITPID
     JS_SetPropertyStr(ctx, obj, "status", WIFEXITED(cp->status) ? JS_NewInt32(ctx, WEXITSTATUS(cp->status)) : JS_NULL);
 #endif
+    JS_SetPropertyStr(ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode));
+
+    if(cp->termsig)
+      JS_SetPropertyStr(ctx, obj, "termsig", JS_NewInt32(ctx, cp->termsig));
+    if(cp->stopsig)
+      JS_SetPropertyStr(ctx, obj, "stopsig", JS_NewInt32(ctx, cp->stopsig));
+
+    JS_SetPropertyStr(ctx, obj, "exited", JS_NewBool(ctx, cp->exited));
+    JS_SetPropertyStr(ctx, obj, "signaled", JS_NewBool(ctx, cp->signaled));
+    JS_SetPropertyStr(ctx, obj, "stopped", JS_NewBool(ctx, cp->stopped));
+    JS_SetPropertyStr(ctx, obj, "continued", JS_NewBool(ctx, cp->continued));
 
     JS_FreeValue(ctx, ret);
     ret = obj;
