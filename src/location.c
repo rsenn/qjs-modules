@@ -151,9 +151,21 @@ location_count(Location* loc, const uint8_t* x, size_t n) {
 
 BOOL
 location_equal(const Location* loc, const Location* other) {
-  if(loc->file != -1 && other->file != -1)
+  char *a = 0, *b = 0;
+
+  if(loc->file != -1 && other->file != -1) {
     if(loc->file != other->file)
       return FALSE;
+
+  } else if((a = location_file(loc, 0)) && (b = location_file(other, 0))) {
+    if(strcmp(a, b))
+      return FALSE;
+
+    if(a)
+      free(a);
+    if(b)
+      free(b);
+  }
 
   if(loc->line != -1 && other->line != -1)
     if(loc->line != other->line)
@@ -178,7 +190,14 @@ Location*
 location_copy(Location* dst, const Location* src, JSContext* ctx) {
   location_release(dst, JS_GetRuntime(ctx));
 
-  dst->file = src->file >= 0 ? (int32_t)JS_DupAtom(ctx, src->file) : src->file;
+  dst->read_only = src->read_only;
+  dst->has_filename = src->has_filename;
+
+  if(src->has_filename)
+    dst->filename = ctx ? js_strdup(ctx, src->filename) : strdup(src->filename);
+  else if(src->file > -1)
+    dst->file = (int32_t)JS_DupAtom(ctx, src->file);
+
   dst->line = src->line;
   dst->column = src->column;
   dst->char_offset = src->char_offset;
@@ -219,6 +238,27 @@ location_set_file(Location* loc, int32_t file, JSContext* ctx) {
     JS_FreeAtom(ctx, loc->file);
 
   loc->file = file != -1 ? JS_DupAtom(ctx, file) : file;
+}
+
+void
+location_set_filename(Location* loc, const char* filename, JSContext* ctx) {
+  if(loc->has_filename && loc->filename) {
+    if(ctx)
+      js_free(ctx, loc->filename);
+    else
+      free(loc->filename);
+
+    loc->filename = NULL;
+    loc->has_filename = FALSE;
+  } else if(loc->file > -1) {
+    JS_FreeAtom(ctx, loc->file);
+    loc->file = -1;
+  }
+
+  loc->has_filename = !!filename;
+
+  if(loc->has_filename)
+    loc->filename = filename ? (ctx ? js_strdup(ctx, filename) : strdup(filename)) : 0;
 }
 
 void
