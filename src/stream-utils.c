@@ -187,7 +187,7 @@ write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_jsfunc(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+write_function(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   JSFunc* fw = (JSFunc*)fd;
   JSContext* ctx = fw->ctx;
   JSValueConst args[2] = {
@@ -256,7 +256,7 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static void
-close_jsfunc(void* opaque, void* opaque2) {
+close_function(void* opaque, void* opaque2) {
   JSFunc* jsf = opaque;
   JSContext* ctx = jsf->ctx;
 
@@ -303,12 +303,12 @@ writer_from_fd(intptr_t fd, bool close_on_end) {
 }
 
 Writer
-writer_from_jsfunc(JSContext* ctx, JSValueConst fn) {
-  return writer_from_jsfunc2(ctx, fn, JS_UNDEFINED);
+writer_from_function(JSContext* ctx, JSValueConst fn) {
+  return writer_from_method(ctx, fn, JS_UNDEFINED);
 }
 
 Writer
-writer_from_jsfunc2(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
+writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
   JSFunc* fw = malloc(sizeof(JSFunc));
 
   assert(fw);
@@ -316,9 +316,9 @@ writer_from_jsfunc2(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj
   *fw = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, func_obj), JS_DupValue(ctx, this_obj)};
 
   return (Writer){
-      &write_jsfunc,
+      &write_function,
       fw,
-      (WriterFinalizer*)&close_jsfunc,
+      (WriterFinalizer*)&close_function,
   };
 }
 
@@ -489,7 +489,7 @@ read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_jsfunc(intptr_t fd, void* buf, size_t len, Reader* rd) {
+read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
   JSFunc* fr = (JSFunc*)fd;
   JSContext* ctx = fr->ctx;
   JSValue args[2] = {
@@ -659,12 +659,12 @@ reader_from_fd(intptr_t fd, bool close_on_end) {
 }
 
 Reader
-reader_from_jsfunc(JSContext* ctx, JSValueConst func_obj) {
-  return reader_from_jsfunc2(ctx, func_obj, JS_UNDEFINED);
+reader_from_function(JSContext* ctx, JSValueConst func_obj) {
+  return reader_from_method(ctx, func_obj, JS_UNDEFINED);
 }
 
 Reader
-reader_from_jsfunc2(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
+reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
   JSFunc* fr = malloc(sizeof(JSFunc));
 
   assert(fr);
@@ -672,10 +672,10 @@ reader_from_jsfunc2(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj
   *fr = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, func_obj), JS_DupValue(ctx, this_obj)};
 
   return (Reader){
-      &read_jsfunc,
+      &read_function,
       fr,
       NULL,
-      &close_jsfunc,
+      &close_function,
   };
 }
 

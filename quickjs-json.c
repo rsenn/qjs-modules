@@ -8,17 +8,17 @@
 #define SJ_IMPL
 #include "sj.h"
 
+#define REC_DEPTH(v) vector_size((v), sizeof(PropertyEnumeration))
+#define REC_TOP(v) vector_back((v), sizeof(PropertyEnumeration))
+#define REC_EMPLACE(v) vector_emplace((v), sizeof(PropertyEnumeration))
+#define REC_POP(v) vector_pop((v), sizeof(PropertyEnumeration))
+
 typedef struct {
   JSValue obj;
   sj_Value sj;
   uint32_t index;
   BOOL is_object;
 } ParseFrame;
-
-#define STACK_SIZE(stack) vector_size((stack), sizeof(PropertyEnumeration))
-#define STACK_TOP(stack) vector_back((stack), sizeof(PropertyEnumeration))
-#define STACK_EMPLACE(stack) vector_emplace((stack), sizeof(PropertyEnumeration))
-#define STACK_POP(stack) vector_pop((stack), sizeof(PropertyEnumeration))
 
 VISIBLE JSClassID js_json_parser_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor;
@@ -71,9 +71,8 @@ parse_stack_free(JSContext* ctx, Vector* stack) {
 static JSValue
 parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
   Vector stack;
-  JSValue result = JS_UNDEFINED;
-  ParseFrame frame;
-
+  JSValue ret = JS_UNDEFINED;
+ 
   if(root.type == SJ_ERROR)
     return parse_throw(ctx, r);
 
@@ -82,7 +81,7 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
 
   vector_init(&stack, ctx);
 
-  frame = (ParseFrame){parse_make_container(ctx, root.type), root, 0, root.type == SJ_OBJECT};
+  ParseFrame frame = (ParseFrame){parse_make_container(ctx, root.type), root, 0, root.type == SJ_OBJECT};
 
   if(!vector_put(&stack, &frame, sizeof(ParseFrame))) {
     JS_FreeValue(ctx, frame.obj);
@@ -109,7 +108,7 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
       vector_pop(&stack, sizeof(ParseFrame));
 
       if(vector_empty(&stack)) {
-        result = done;
+        ret = done;
         break;
       }
 
@@ -155,7 +154,7 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
   }
 
   vector_free(&stack);
-  return result;
+  return ret;
 }
 
 static JSValue
@@ -311,7 +310,7 @@ write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
     return -1;
   }
 
-  if(!(it = STACK_EMPLACE(stack))) {
+  if(!(it = REC_EMPLACE(stack))) {
     js_propertyenums_free(ctx, tmp, len);
     JS_FreeValue(ctx, obj);
     return -1;
@@ -325,7 +324,7 @@ write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
     if(!(it->tab_atom = js_malloc(ctx, sizeof(JSAtom) * len))) {
       js_propertyenums_free(ctx, tmp, len);
       JS_FreeValue(ctx, obj);
-      STACK_POP(stack);
+      REC_POP(stack);
       return -1;
     }
 
@@ -375,7 +374,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   if(!JS_IsObject(argv[0]) || JS_IsFunction(ctx, argv[0])) {
     write_json_primitive(ctx, &wr, argv[0]);
-    JSValue ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+    JSValue ret = dbuf_tostring_free(&out, ctx);
     writer_free(&wr);
     return ret;
   }
@@ -390,18 +389,18 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   writer_putc(&wr, JS_IsArray(ctx, argv[0]) ? '[' : '{');
 
-  write_indent(&wr, indent, STACK_SIZE(&stack), &space);
+  write_indent(&wr, indent, REC_DEPTH(&stack), &space);
 
   while(!vector_empty(&stack)) {
-    PropertyEnumeration* top = STACK_TOP(&stack);
+    PropertyEnumeration* top = REC_TOP(&stack);
     BOOL is_array = JS_IsArray(ctx, top->obj);
 
     if(top->idx >= top->tab_atom_len) {
-      write_indent(&wr, indent, STACK_SIZE(&stack) - 1, &space);
+      write_indent(&wr, indent, REC_DEPTH(&stack) - 1, &space);
 
       writer_putc(&wr, is_array ? ']' : '}');
       property_enumeration_reset(top, JS_GetRuntime(ctx));
-      STACK_POP(&stack);
+      REC_POP(&stack);
       continue;
     }
 
@@ -409,7 +408,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       writer_putc(&wr, ',');
 
       if(indent)
-        write_indent(&wr, indent, STACK_SIZE(&stack), &space);
+        write_indent(&wr, indent, REC_DEPTH(&stack), &space);
     } else {
     }
 
@@ -443,7 +442,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
         return JS_EXCEPTION;
       }
 
-      write_indent(&wr, indent, STACK_SIZE(&stack), &space);
+      write_indent(&wr, indent, REC_DEPTH(&stack), &space);
 
     } else {
       write_json_primitive(ctx, &wr, val);
@@ -452,7 +451,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     }
   }
 
-  JSValue ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+  JSValue ret = dbuf_tostring_free(&out, ctx);
   writer_free(&wr);
   dbuf_free(&space);
   vector_free(&stack);
@@ -556,7 +555,7 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case JSON_PARSER_TOKEN: {
-      ret = JS_NewStringLen(ctx, (const char*)parser->token.buf, parser->token.size);
+      ret = dbuf_tostring(&parser->token, ctx);
       break;
     }
 
@@ -584,10 +583,8 @@ js_json_parser_callback(JsonParser* parser, JsonValueType type, void* ptr) {
       JS_NewInt32(ctx, type),
       ptr ? JS_NewString(ctx, ptr) : JS_UNDEFINED,
   };
-
   JSValue ret = JS_Call(ctx, fn, JS_UNDEFINED, countof(args), args);
   JS_FreeValue(ctx, ret);
-
   JS_FreeValue(ctx, args[0]);
   JS_FreeValue(ctx, args[1]);
   JS_FreeValue(ctx, args[2]);
@@ -661,7 +658,6 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, json_parser_proto, js_json_parser_proto_funcs, countof(js_json_parser_proto_funcs));
 
   json_parser_ctor = JS_NewCFunction2(ctx, js_json_parser_constructor, "JsonParser", 1, JS_CFUNC_constructor, 0);
-
   JS_SetClassProto(ctx, js_json_parser_class_id, json_parser_proto);
   JS_SetConstructor(ctx, json_parser_ctor, json_parser_proto);
 
@@ -669,13 +665,6 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "JsonParser", json_parser_ctor);
 
   JS_SetModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
-
-  /*JSValue defaultObj = JS_NewObject(ctx);
-
-  JS_SetPropertyStr(ctx, defaultObj, "read", JS_NewCFunction(ctx, js_json_read, "read", 1));
-  JS_SetPropertyStr(ctx, defaultObj, "write", JS_NewCFunction(ctx, js_json_write, "write", 2));
-  JS_SetModuleExport(ctx, m, "default", defaultObj);*/
-
   return 0;
 }
 
@@ -692,8 +681,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_json_init))) {
     JS_AddModuleExport(ctx, m, "JsonParser");
     JS_AddModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
-    // JS_AddModuleExport(ctx, m, "default");
-  }
+^  }
 
   return m;
 }

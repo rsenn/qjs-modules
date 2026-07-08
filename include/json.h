@@ -9,7 +9,6 @@
  * \defgroup json json: JSON parser
  * @{
  */
-
 typedef enum {
   JSON_TYPE_NONE = -1,
   JSON_TYPE_OBJECT,
@@ -25,11 +24,9 @@ typedef enum {
 } JsonValueType;
 
 typedef struct JsonParser JsonParser;
-
 typedef void JsonCallback(JsonParser*, JsonValueType value, void*);
 
 struct JsonParser {
-  /*int ref_count;*/
   int state;
   Reader reader;
   DynBuf token;

@@ -12,12 +12,7 @@ enum {
   EXPECTING_COMMA_OR_END = 0b1000,
   EXPECTING_COLON = 0b10000,
 };
-
-/*static int
-json_error(JsonParser* json) {
-  return -1;
-}*/
-
+ 
 static int
 json_getc_skipws(JsonParser* json) {
   int c;
@@ -38,16 +33,13 @@ json_getc_skipws(JsonParser* json) {
 
 BOOL
 json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
-  /*json->ref_count = 1;*/
-  json->reader = reader_from_jsbuf(input, ctx);
+   json->reader = reader_from_jsbuf(input, ctx);
 
   json->callback = NULL;
   json->opaque = NULL;
   json->pos = 0;
   json->pushback = -1;
-
   json->state = PARSING;
-
   json->stack = BITSET_INIT();
 
   // dbuf_init_ctx(ctx, &json->token);
@@ -92,7 +84,6 @@ json_getc(JsonParser* json) {
   if(json->pushback > -1) {
     c = json->pushback;
     json->pushback = -1;
-
   } else {
     c = reader_getc(&json->reader);
   }
