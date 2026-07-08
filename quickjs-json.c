@@ -338,14 +338,23 @@ write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
 }
 
 static void
-write_indent(Writer* wr, int indent, int n) {
+write_indent(Writer* wr, int indent, int n, DynBuf* ws) {
   if(indent) {
-    int x = indent * n;
+    int count = indent * n;
+    size_t oldsize = ws->size;
 
     writer_putc(wr, '\n');
 
-    for(int i = 0; i < x; i++)
-      writer_putc(wr, ' ');
+    if(oldsize != count) {
+      dbuf_realloc(ws, count);
+
+      if(count > oldsize)
+        memset(&ws->buf[oldsize], ' ', ws->allocated_size - oldsize);
+
+      ws->size = count;
+    }
+
+    writer_write(wr, ws->buf, count);
   }
 }
 
@@ -353,7 +362,6 @@ static JSValue
 js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf out, space;
   Vector stack;
-  JSValue ret;
   const int flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
   int32_t indent = 0;
 
@@ -367,7 +375,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   if(!JS_IsObject(argv[0]) || JS_IsFunction(ctx, argv[0])) {
     write_json_primitive(ctx, &wr, argv[0]);
-    ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+    JSValue ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
     writer_free(&wr);
     return ret;
   }
@@ -382,14 +390,14 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   writer_putc(&wr, JS_IsArray(ctx, argv[0]) ? '[' : '{');
 
-  write_indent(&wr, indent, STACK_SIZE(&stack));
+  write_indent(&wr, indent, STACK_SIZE(&stack), &space);
 
   while(!vector_empty(&stack)) {
     PropertyEnumeration* top = STACK_TOP(&stack);
     BOOL is_array = JS_IsArray(ctx, top->obj);
 
     if(top->idx >= top->tab_atom_len) {
-      write_indent(&wr, indent, STACK_SIZE(&stack) - 1);
+      write_indent(&wr, indent, STACK_SIZE(&stack) - 1, &space);
 
       writer_putc(&wr, is_array ? ']' : '}');
       property_enumeration_reset(top, JS_GetRuntime(ctx));
@@ -401,7 +409,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       writer_putc(&wr, ',');
 
       if(indent)
-        write_indent(&wr, indent, STACK_SIZE(&stack));
+        write_indent(&wr, indent, STACK_SIZE(&stack), &space);
     } else {
     }
 
@@ -435,7 +443,7 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
         return JS_EXCEPTION;
       }
 
-      write_indent(&wr, indent, STACK_SIZE(&stack));
+      write_indent(&wr, indent, STACK_SIZE(&stack), &space);
 
     } else {
       write_json_primitive(ctx, &wr, val);
@@ -444,8 +452,9 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     }
   }
 
-  ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+  JSValue ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
   writer_free(&wr);
+  dbuf_free(&space);
   vector_free(&stack);
   return ret;
 }
