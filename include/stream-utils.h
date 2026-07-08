@@ -74,6 +74,15 @@ writer_putc(Writer* wr, int c) {
   return writer_write(wr, &ch, 1);
 }
 
+static inline void
+reader_jsbuf_free(void* opaque, void* opaque2) {
+  InputBuffer* input = opaque;
+  JSContext* ctx = opaque2;
+
+  inputbuffer_free(input, ctx);
+  js_free(ctx, input);
+}
+
 static inline Reader
 reader_from_jsbuf(JSValueConst value, JSContext* ctx) {
   InputBuffer* input;
@@ -83,7 +92,9 @@ reader_from_jsbuf(JSValueConst value, JSContext* ctx) {
 
   *input = js_input_chars(ctx, value);
 
-  return reader_from_buf(input, ctx);
+  Reader rd = reader_from_buf(input, ctx);
+  rd.finalizer = &reader_jsbuf_free;
+  return rd;
 }
 
 static inline int
