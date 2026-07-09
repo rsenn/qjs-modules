@@ -2,7 +2,7 @@ import * as os from 'os';
 import Console from 'console';
 import inspect from 'inspect';
 import { error, quote, randi, srand, toString } from 'misc';
-import { AF_INET, AsyncSocket,  IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_DONTROUTE, SO_ERROR, SO_KEEPALIVE, SO_OOBINLINE, SO_RCVBUF, SO_REUSEADDR, SO_REUSEPORT, SO_SNDBUF, SOCK_STREAM, SockAddr, Socket,  SOL_SOCKET } from 'sockets';
+import { AF_INET, AsyncSocket, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_DONTROUTE, SO_ERROR, SO_KEEPALIVE, SO_OOBINLINE, SO_RCVBUF, SO_REUSEADDR, SO_REUSEPORT, SO_SNDBUF, SOCK_STREAM, SockAddr, Socket, SOL_SOCKET, } from 'sockets';
 
 async function main() {
   globalThis.console = new Console({
@@ -19,7 +19,7 @@ async function main() {
   let la = new SockAddr(AF_INET, new Uint8Array([192, 168, 8, 151]).buffer, 31337);
   la = new SockAddr(AF_INET, '0.0.0.0', randi() & 0xffff);
   let ra = new SockAddr(AF_INET, '127.0.0.1', 22);
-  console.log(`classes`, {  SockAddr, Socket });
+  console.log(`classes`, { SockAddr, Socket });
   console.log(`la.toString() =`, la.toString());
   console.log(`ra.toString() =`, ra.toString());
   let opt, ret, data, timeout, pfds, sock;

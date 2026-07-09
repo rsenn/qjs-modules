@@ -7,7 +7,6 @@ import { TextEncoder } from 'textcode';
 function Decode(encoding, ...chunks) {
   let decoder = new TextDecoder(encoding),
     result = [];
-  //console.log('decoder(' + encoding + ')', decoder);
 
   for(let buf of chunks) {
     console.log('decoder(' + encoding + ').decode(', buf, `)`);
@@ -26,16 +25,12 @@ function Decode(encoding, ...chunks) {
 function Encode(encoding, ...chunks) {
   let encoder = new TextEncoder(encoding),
     result = [];
-  //console.log('encoder(' + encoding + ')', encoder);
 
   for(let str of chunks) {
     console.log((`encoder(` + encoding + `).encode('${str}')`).padEnd(30));
 
     if(str !== undefined && str !== null) result.push(encoder.encode(str));
   }
-
-/*  let r = encoder.end();
-  if(r) result.push(r);*/
 
   if(result.length == 1) result = result[0];
   else result = concat(...result.map(typedArr => typedArr.buffer));
