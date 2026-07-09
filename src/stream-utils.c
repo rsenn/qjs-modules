@@ -930,6 +930,20 @@ reader_from_fd(intptr_t fd, bool close_on_end) {
 }
 
 Reader
+reader_from_jsbuf(JSContext* ctx, JSValueConst value) {
+  InputBuffer* input = js_mallocz(ctx, sizeof(InputBuffer));
+
+  assert(input);
+
+  *input = js_input_chars(ctx, value);
+
+  Reader rd = reader_from_buf(input);
+  rd.opaque2 = ctx;
+  rd.finalizer = &reader_jsbuf_free;
+  return rd;
+}
+
+Reader
 reader_from_function(JSContext* ctx, JSValueConst func_obj) {
   return reader_from_method(ctx, func_obj, JS_UNDEFINED);
 }

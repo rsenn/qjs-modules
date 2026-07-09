@@ -56,6 +56,7 @@ Reader reader_from_dynbuf(DynBuf*);
 Reader reader_from_buf(InputBuffer*);
 Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
+Reader reader_from_jsbuf(JSContext* ctx, JSValueConst value);
 Reader reader_from_function(JSContext*, JSValueConst);
 Reader reader_from_method(JSContext*, JSValueConst, JSValueConst);
 Reader reader_counted(Reader*, uint64_t*, uint64_t*);
@@ -84,21 +85,6 @@ reader_jsbuf_free(void* opaque, void* opaque2) {
 
   inputbuffer_free(input, ctx);
   js_free(ctx, input);
-}
-
-static inline Reader
-reader_from_jsbuf(JSContext* ctx, JSValueConst value) {
-  InputBuffer* input;
-
-  if(!(input = js_mallocz(ctx, sizeof(InputBuffer))))
-    return (Reader){};
-
-  *input = js_input_chars(ctx, value);
-
-  Reader rd = reader_from_buf(input);
-  rd.opaque2 = ctx;
-  rd.finalizer = &reader_jsbuf_free;
-  return rd;
 }
 
 static inline int
