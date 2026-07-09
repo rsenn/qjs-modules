@@ -730,7 +730,7 @@ if(DO_TESTS)
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum "${TEST}")
+             COMMAND env "QUICKJS_MODULE_PATH=${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib" "${QJSM}" --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
