@@ -52,7 +52,7 @@ Writer writer_location(Writer*, Location*);
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
 Reader reader_from_dynbuf(DynBuf*);
-Reader reader_from_buf(InputBuffer*, JSContext*);
+Reader reader_from_buf(InputBuffer*);
 Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
 Reader reader_from_function(JSContext*, JSValueConst);
