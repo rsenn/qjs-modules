@@ -181,7 +181,7 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
   if((r = writer_write(c->parent, ptr, len)) > 0) {
     if(c->bytes_ptr)
-      *c->bytes_ptr += r;
+      (*c->bytes_ptr) += r;
 
     if(c->characters_ptr) {
       ssize_t bytes;
@@ -640,7 +640,7 @@ read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
   if((r = reader_read(c->parent, ptr, len)) > 0) {
     if(c->bytes_ptr)
-      *c->bytes_ptr += r;
+      (*c->bytes_ptr) += r;
 
     if(c->characters_ptr) {
       ssize_t bytes;

@@ -159,7 +159,7 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
 
 static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
-  sj_Reader r = sj_reader(buf, len);
+  sj_Reader r = sj_reader((char*)buf, len);
   JSValue ret = parse_val(ctx, &r, sj_read(&r));
 
   return ret;
