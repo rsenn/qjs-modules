@@ -570,14 +570,14 @@ js_misc_char(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   size_t size = inputbuffer_length(&input);
   const uint8_t* data = inputbuffer_data(&input);
   int64_t len = 0;
-  UTF8Char c;
+  int32_t c = -1;
 
   if(size)
-    c = utf8_char((const char*)data, size);
+    c = magic ? utf8_charlen(data, size) : utf8_charcode(data, size);
 
   inputbuffer_free(&input, ctx);
 
-  return JS_NewUint32(ctx, magic ? c.len : c.code);
+  return JS_NewInt32(ctx, c);
 }
 
 static JSValue

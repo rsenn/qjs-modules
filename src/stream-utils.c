@@ -70,6 +70,44 @@ typedef struct {
   size_t nchars;
 } Escaper;
 
+static inline ssize_t
+buffer_character(uint8_t buf[8], size_t* buflen, const uint8_t* ptr, size_t len) {
+  const uint8_t* next;
+  int cp;
+  size_t buffered = *buflen;
+
+  if(buffered > 0) {
+    size_t headroom = 8 - *buflen;
+    size_t remain = MIN_NUM(headroom, len);
+
+    if(remain > 0)
+      memcpy(&buf[*buflen], ptr, remain);
+
+    cp = unicode_from_utf8(buf, *buflen + remain, &next);
+    size_t charlen = next - buf;
+
+    if(cp == -1 || charlen == 0)
+      return -1;
+
+    size_t advance = charlen - buffered;
+
+    *buflen = 0;
+
+    return advance;
+  }
+
+  cp = unicode_from_utf8(ptr, len, &next);
+  size_t charlen = next - ptr;
+
+  if(cp == -1 || charlen == 0) {
+    *buflen = MIN_NUM(len, 8);
+    memcpy(buf, ptr, *buflen);
+    return 0;
+  }
+
+  return charlen;
+}
+
 static ssize_t
 write_dynbuf(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   DynBuf* db = (DynBuf*)fd;
@@ -136,11 +174,23 @@ write_urlencoded(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 static ssize_t
 write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Counted* c = (Counted*)fd;
+  const uint8_t* ptr = buf;
   ssize_t r;
 
-  if((r = writer_write(c->writer, buf, len)) > 0) {
+  if((r = writer_write(c->writer, ptr, len)) > 0) {
     if(c->bytes_ptr)
       *c->bytes_ptr += r;
+
+    if(c->characters_ptr) {
+      ssize_t bytes;
+
+      while((bytes = buffer_character(c->buf, &c->buflen, ptr, r)) > 0) {
+        (*c->characters_ptr)++;
+
+        ptr += bytes;
+        len -= bytes;
+      }
+    }
   }
 
   return r;
@@ -370,7 +420,7 @@ writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Writer
-writer_counted(Writer* parent, size_t* bytes_ptr, size_t* characters_ptr) {
+writer_counted(Writer* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
   Counted* c = malloc(sizeof(Counted));
 
   assert(c);
@@ -583,11 +633,23 @@ read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
 static ssize_t
 read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
   Counted* c = (Counted*)fd;
+  uint8_t* ptr = buf;
   ssize_t r;
 
-  if((r = reader_read(c->reader, buf, len)) > 0) {
+  if((r = reader_read(c->reader, ptr, len)) > 0) {
     if(c->bytes_ptr)
       *c->bytes_ptr += r;
+
+    if(c->characters_ptr) {
+      ssize_t bytes;
+
+      while((bytes = buffer_character(c->buf, &c->buflen, ptr, r)) > 0) {
+        (*c->characters_ptr)++;
+
+        ptr += bytes;
+        len -= bytes;
+      }
+    }
   }
 
   return r;
@@ -773,7 +835,7 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Reader
-reader_counted(Reader* parent, size_t* bytes_ptr, size_t* characters_ptr) {
+reader_counted(Reader* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
   Counted* c = malloc(sizeof(Counted));
 
   assert(c);

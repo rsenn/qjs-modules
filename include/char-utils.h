@@ -467,6 +467,8 @@ size_t scan_lineskip_escaped(const char*, size_t);
 size_t scan_eolskip(const char*, size_t);
 size_t scan_charsetnskip(const char*, const char*, size_t);
 size_t scan_noncharsetnskip(const char*, const char*, size_t);
+int utf8_charlen(const void*, size_t);
+int utf8_charcode2(const void*, size_t, size_t* len);
 size_t utf8_strlen(const void*, size_t);
 size_t utf8_byteoffset(const void*, size_t, int);
 int unicode_len_utf8(unsigned int);
@@ -478,6 +480,11 @@ int case_starts(const char*, const char*);
 int case_diffb(const void*, size_t, const void* T);
 size_t case_findb(const void*, size_t, const void* what, size_t wlen);
 size_t case_finds(const void*, const char*);
+
+static inline int
+utf8_charcode(const void* in, size_t len) {
+  return utf8_charcode2(in, len, 0);
+}
 
 static inline int
 scan_fromhex(const char c) {
@@ -496,18 +503,6 @@ scan_fromhex(const char c) {
 static inline size_t
 scan_8long(const char* src, uint32_t* dest) {
   return scan_8longn(src, (size_t)-1, dest);
-}
-
-typedef struct {
-  int code;
-  char len;
-} UTF8Char;
-
-static inline UTF8Char
-utf8_char(const void* in, size_t len) {
-  const uint8_t* next;
-  int c = unicode_from_utf8(in, MIN_NUM(len, UTF8_CHAR_LEN_MAX), &next);
-  return (UTF8Char){c, next - (const uint8_t*)in};
 }
 
 BOOL utf16_multiword(const void*);

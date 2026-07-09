@@ -583,13 +583,35 @@ scan_eolskip(const char* s, size_t limit) {
   return n;
 }
 
+int
+utf8_charlen(const void* in, size_t len) {
+  const uint8_t* next;
+
+  if(unicode_from_utf8(in, len, &next) == -1)
+    return 0;
+
+  return next - (const uint8_t*)in;
+}
+
+int
+utf8_charcode2(const void* in, size_t len, size_t* bytes) {
+  const uint8_t* next;
+  int cp = unicode_from_utf8(in, len, &next);
+
+  if(bytes)
+    *bytes = next - (const uint8_t*)in;
+
+  return cp;
+}
+
 size_t
 utf8_strlen(const void* in, size_t len) {
   const uint8_t* next;
   size_t i = 0;
 
   for(const uint8_t *pos = in, *end = in + len; pos < end; pos = next, ++i)
-    unicode_from_utf8(pos, end - pos, &next);
+    if(unicode_from_utf8(pos, end - pos, &next) == -1)
+      break;
 
   return i;
 }
@@ -608,7 +630,7 @@ utf8_byteoffset(const void* in, size_t len, int pos) {
     if(i >= pos)
       break;
 
-    x += utf8_char(x, y - x).len;
+    x += utf8_charlen(x, y - x);
   }
 
   return x - (const uint8_t*)in;
