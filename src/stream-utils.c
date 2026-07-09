@@ -65,9 +65,9 @@ typedef struct {
 static inline ssize_t
 buffer_character(uint8_t buf[8], size_t* buflen, const uint8_t* ptr, size_t len) {
   const uint8_t* next;
-  size_t buffered = *buflen;
+  size_t buffered;
 
-  if(buffered > 0) {
+  if((buffered = *buflen) > 0) {
     size_t needed = utf8_needed(buf[0]);
 
     if(needed == 0)
@@ -264,7 +264,7 @@ write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_function(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+write_jsfunction(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   JSFunc* fw = (JSFunc*)fd;
   JSContext* ctx = fw->ctx;
   JSValueConst args[2] = {
@@ -290,10 +290,10 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Tracker* tr = (Tracker*)fd;
   const uint8_t *start = buf, *ptr = buf, *end;
   Location* lo = tr->lo;
-  size_t buffered = tr->buflen;
+  size_t buffered;
   int cp;
 
-  if(buffered) {
+  if((buffered = tr->buflen)) {
     size_t headroom = sizeof(tr->buf) - tr->buflen;
     size_t remain = MIN_NUM(len, headroom);
 
@@ -355,7 +355,7 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static void
-close_function(void* opaque, void* opaque2) {
+close_jsfunction(void* opaque, void* opaque2) {
   JSFunc* jsf = opaque;
   JSContext* ctx = jsf->ctx;
 
@@ -415,9 +415,9 @@ writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
   *fw = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, func_obj), JS_DupValue(ctx, this_obj)};
 
   return (Writer){
-      &write_function,
+      &write_jsfunction,
       fw,
-      (WriterFinalizer*)&close_function,
+      (WriterFinalizer*)&close_jsfunction,
   };
 }
 
@@ -608,7 +608,7 @@ read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
+read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
   JSFunc* fr = (JSFunc*)fd;
   JSContext* ctx = fr->ctx;
   JSValue args[2] = {
@@ -843,10 +843,10 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
   *fr = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, func_obj), JS_DupValue(ctx, this_obj)};
 
   return (Reader){
-      &read_function,
+      &read_jsfunction,
       fr,
       NULL,
-      &close_function,
+      &close_jsfunction,
   };
 }
 
