@@ -117,16 +117,6 @@ write_dynbuf(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_outputbuffer(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  return outputbuffer_write((OutputBuffer*)fd, buf, len);
-}
-
-static ssize_t
-write_fd(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  return write(fd, buf, len);
-}
-
-static ssize_t
 write_tee(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Writer* parent = (Writer*)fd;
   ssize_t written[2] = {0, 0};
@@ -381,22 +371,7 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static void
-close_fd(void* opaque) {
-  close((intptr_t)opaque);
-}
-
-static void
-close_fd_reader(void* opaque, void* opaque2) {
-  close((intptr_t)opaque);
-}
-
-static void
 close_dynbuf(void* opaque) {
-  dbuf_free(opaque);
-}
-
-static void
-close_dynbuf_reader(void* opaque, void* opaque2) {
   dbuf_free(opaque);
 }
 
@@ -410,11 +385,6 @@ close_jsfunction(void* opaque) {
   free(jsf);
 
   JS_FreeContext(ctx);
-}
-
-static void
-close_jsfunction_reader(void* opaque, void* opaque2) {
-  close_jsfunction(opaque);
 }
 
 static void
@@ -438,16 +408,6 @@ close_tee(void* opaque) {
   free(w);
 }
 
-static void
-close_free(void* opaque) {
-  free(opaque);
-}
-
-static void
-close_free_reader(void* opaque, void* opaque2) {
-  free(opaque);
-}
-
 /**
  * \addtogroup stream-utils
  * @{
@@ -459,15 +419,15 @@ writer_from_dynbuf(DynBuf* db) {
 
 Writer
 writer_from_buf(OutputBuffer* buf) {
-  return (Writer){&write_outputbuffer, buf, NULL};
+  return (Writer){(WriteFunction*)&outputbuffer_write, buf, NULL};
 }
 
 Writer
 writer_from_fd(intptr_t fd, bool close_on_end) {
   return (Writer){
-      &write_fd,
+      (WriteFunction*)&write,
       (void*)fd,
-      close_on_end ? &close_fd : NULL,
+      close_on_end ? (WriterFinalizer*)&close : NULL,
   };
 }
 
@@ -502,7 +462,7 @@ writer_counted(Writer* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
   return (Writer){
       &write_counted,
       c,
-      &close_free,
+      (WriterFinalizer*)&orig_free,
   };
 }
 
@@ -563,7 +523,7 @@ writer_escaped(Writer* out, const char* chars, size_t nchars) {
   return (Writer){
       &write_escaped,
       esc,
-      &close_free,
+      (WriterFinalizer*)&orig_free,
   };
 }
 
@@ -587,7 +547,7 @@ writer_location(Writer* parent, Location* lo) {
   return (Writer){
       &write_location,
       tr,
-      &close_free,
+      (WriterFinalizer*)&orig_free,
   };
 }
 
@@ -619,11 +579,6 @@ read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   }
 
   return remain;
-}
-
-static ssize_t
-read_fd(intptr_t fd, void* buf, size_t len, Reader* rd) {
-  return read(fd, buf, len);
 }
 
 static ssize_t
@@ -704,11 +659,6 @@ read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
   rd->opaque = (void*)start;
 
   return len;
-}
-
-static ssize_t
-read_inputbuffer(intptr_t fd, void* buf, size_t len, Reader* rd) {
-  return inputbuffer_read((InputBuffer*)fd, buf, len);
 }
 
 static ssize_t
@@ -932,13 +882,13 @@ read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
  */
 Reader
 reader_from_dynbuf(DynBuf* db) {
-  return (Reader){&read_dynbuf, db, NULL, &close_dynbuf_reader};
+  return (Reader){&read_dynbuf, db, NULL, (ReaderFinalizer*)&close_dynbuf};
 }
 
 Reader
 reader_from_buf(InputBuffer* buf) {
   return (Reader){
-      &read_inputbuffer,
+      (ReadFunction*)&inputbuffer_read,
       buf,
       NULL,
       NULL,
@@ -958,10 +908,10 @@ reader_from_bytes(const void* start, size_t len) {
 Reader
 reader_from_fd(intptr_t fd, bool close_on_end) {
   return (Reader){
-      &read_fd,
+      (ReadFunction*)&read,
       (void*)fd,
       NULL,
-      close_on_end ? &close_fd_reader : NULL,
+      close_on_end ? (ReaderFinalizer*)&close : NULL,
   };
 }
 
@@ -982,7 +932,7 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
       &read_jsfunction,
       fr,
       NULL,
-      &close_jsfunction_reader,
+      (ReaderFinalizer*)&close_jsfunction,
   };
 }
 
@@ -998,7 +948,7 @@ reader_counted(Reader* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
       &read_counted,
       c,
       NULL,
-      &close_free_reader,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
@@ -1014,7 +964,7 @@ reader_buffered(Reader* parent, size_t buf_size) {
       &read_buffered,
       b,
       NULL,
-      &close_free_reader,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
@@ -1030,7 +980,7 @@ reader_linebuffered(Reader* parent, size_t buf_size) {
       &read_linebuffered,
       b,
       NULL,
-      &close_free_reader,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
@@ -1046,7 +996,7 @@ reader_urldecode(Reader* parent) {
       &read_urldecoded,
       u,
       NULL,
-      &close_free_reader,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
@@ -1062,7 +1012,7 @@ reader_location(Reader* parent, Location* lo) {
       &read_location,
       tr,
       NULL,
-      &close_free_reader,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
