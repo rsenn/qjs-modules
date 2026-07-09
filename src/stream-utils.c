@@ -468,14 +468,12 @@ writer_linebuffered(Writer* parent, size_t buf_size) {
 
 Writer
 writer_tee(const Writer a, const Writer b) {
-  Writer* parent;
-
-  if((parent = malloc(sizeof(Writer) * 2))) {
-    parent[0] = a;
-    parent[1] = b;
-  }
+  Writer* parent = malloc(sizeof(Writer) * 2);
 
   assert(parent);
+
+  parent[0] = a;
+  parent[1] = b;
 
   return (Writer){
       &write_tee,
@@ -486,13 +484,11 @@ writer_tee(const Writer a, const Writer b) {
 
 Writer
 writer_escaped(Writer* out, const char* chars, size_t nchars) {
-  Escaper* esc;
+  Escaper* esc = malloc(sizeof(Escaper));
 
-  if((esc = malloc(sizeof(Escaper)))) {
-    esc->parent = out;
-    esc->chars = chars;
-    esc->nchars = nchars;
-  }
+  assert(esc);
+
+  *esc = (Escaper){out, chars, nchars};
 
   return (Writer){
       &write_escaped,
@@ -543,11 +539,10 @@ writer_free(Writer* wr) {
 static ssize_t
 read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   DynBuf* db = (DynBuf*)fd;
-  size_t pos = (size_t)rd->opaque2;
+  size_t remain, pos = (size_t)rd->opaque2;
   size_t headroom = db->size - pos;
-  size_t remain = MIN_NUM(len, headroom);
 
-  if(remain) {
+  if((remain = MIN_NUM(len, headroom))) {
     memcpy(buf, &db->buf[pos], remain);
     pos += remain;
   }
@@ -593,9 +588,9 @@ read_urldecoded(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
 static ssize_t
 read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
   const uint8_t *start = rd->opaque, *end = rd->opaque2;
-  size_t remain = end - start;
+  size_t remain;
 
-  if(len > remain)
+  if(len > (remain = end - start))
     len = remain;
 
   if(len)
