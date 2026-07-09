@@ -125,7 +125,7 @@ write_urlencoded(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 static ssize_t
 write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Buffered* b = (Buffered*)fd;
-  ssize_t written = 0, bytes;
+  ssize_t written = 0;
 
   if(b->pos) {
     size_t headroom = b->len - b->pos;
@@ -133,7 +133,7 @@ write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
     memcpy(&b->buf[b->pos], buf, remain);
 
-    bytes = b->pos + remain;
+    size_t bytes = b->pos + remain;
 
     if(writer_write(b->parent, b->buf, bytes) != (ssize_t)bytes)
       return -1;
@@ -445,6 +445,10 @@ writer_free(Writer* wr) {
     wr->finalizer(wr->opaque);
 }
 
+/**
+ * @}
+ */
+
 static ssize_t
 read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   DynBuf* db = (DynBuf*)fd;
@@ -656,6 +660,10 @@ read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
   return ret;
 }
 
+/**
+ * \addtogroup stream-utils
+ * @{
+ */
 Reader
 reader_from_dynbuf(DynBuf* db) {
   return (Reader){&read_dynbuf, db, NULL, (ReaderFinalizer*)&dbuf_free};
