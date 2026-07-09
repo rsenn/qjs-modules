@@ -2604,10 +2604,10 @@ js_module_def(JSContext* ctx, JSValueConst value) {
 
 JSModuleDef*
 js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
-  JSModuleDef *start = 0, *ret = 0;
+  JSModuleDef* ret = 0;
 
 #if QUICKJS_INTERNAL
-  start = js_module_at(ctx, start_pos);
+  JSModuleDef* start = js_module_at(ctx, start_pos);
   ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
 #endif
 

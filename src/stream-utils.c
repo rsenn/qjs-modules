@@ -125,16 +125,17 @@ write_urlencoded(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 static ssize_t
 write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Buffered* b = (Buffered*)fd;
-  ssize_t written = 0;
+  ssize_t written = 0, bytes;
 
   if(b->pos) {
-    size_t remain = MIN_NUM(b->len - b->pos, len);
+    size_t headroom = b->len - b->pos;
+    size_t remain = MIN_NUM(headroom, len);
 
     memcpy(&b->buf[b->pos], buf, remain);
 
-    size_t n = b->pos + remain;
+    bytes = b->pos + remain;
 
-    if(writer_write(b->parent, b->buf, n) != (ssize_t)n)
+    if(writer_write(b->parent, b->buf, bytes) != (ssize_t)bytes)
       return -1;
 
     written += b->pos + remain;
@@ -160,7 +161,7 @@ write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 static ssize_t
 write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Buffered* b = (Buffered*)fd;
-  const uint8_t* x = buf;
+  const uint8_t* ptr = buf;
   ssize_t written = 0;
 
   for(size_t i = 0; i < len; i++) {
@@ -171,9 +172,9 @@ write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
       b->pos = 0;
     }
 
-    b->buf[b->pos++] = x[i];
+    b->buf[b->pos++] = ptr[i];
 
-    if(x[i] == '\n') {
+    if(ptr[i] == '\n') {
       if(writer_write(b->writer, b->buf, b->pos) != (ssize_t)b->pos)
         return -1;
 
@@ -214,68 +215,63 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   const uint8_t *start = buf, *ptr = buf, *end;
   Location* lo = tr->lo;
   size_t buffered = tr->buflen;
+  int cp;
 
   if(buffered) {
-    size_t remain = sizeof(tr->buf) - tr->buflen;
-    size_t n = MIN_NUM(len, remain);
+    size_t headroom = sizeof(tr->buf) - tr->buflen;
+    size_t remain = MIN_NUM(len, headroom);
 
-    memcpy(&tr->buf[buffered], ptr, n);
-    tr->buflen += n;
+    memcpy(&tr->buf[tr->buflen], ptr, remain);
+    tr->buflen += remain;
 
-    int cp = unicode_from_utf8(tr->buf, tr->buflen, &end);
-    size_t charlen = end - tr->buf;
-
-    if(cp == -1 || !charlen)
+    if((cp = unicode_from_utf8(tr->buf, tr->buflen, &end)) == -1)
       return -1;
+
+    size_t bytes = end - tr->buf;
+    size_t charlen = location_nextchar(lo, cp);
+
+    assert(charlen == bytes);
 
     if(writer_write(tr->writer, tr->buf, buffered) != (ssize_t)buffered)
       return -1;
 
-    assert(n == tr->buflen - buffered);
     tr->buflen = 0;
 
-    ptr += n;
-    len -= n;
+    bytes -= buffered;
 
-    if(cp == '\n') {
-      lo->column = 0;
-      lo->line++;
-    } else {
-      lo->column++;
-    }
+    ptr += bytes;
+    len -= bytes;
   }
 
   while(len > 0) {
-    int cp = unicode_from_utf8(ptr, len, &end);
-    size_t charlen = end - ptr;
-
-    if(cp == -1 || charlen == 0)
+    if((cp = unicode_from_utf8(ptr, len, &end)) == -1)
       break;
 
-    if(writer_write(tr->writer, ptr, charlen) != (ssize_t)charlen)
-      return -1;
+    size_t bytes = end - ptr;
+    size_t charlen = location_nextchar(lo, cp);
 
-    if(cp == '\n') {
-      lo->column = 0;
-      lo->line++;
-    } else {
-      lo->column++;
-    }
-
-    lo->char_offset++;
-    lo->byte_offset += charlen;
+    assert(charlen == bytes);
 
     ptr += charlen;
     len -= charlen;
   }
 
-  if(len > 0) {
-    size_t remain = sizeof(tr->buf) - tr->buflen;
-    size_t n = MIN_NUM(remain, len);
+  if(ptr > start)
+    if(writer_write(tr->writer, start, ptr - start) < 0)
+      return -1;
 
-    if(n) {
-      memcpy(&tr->buf[tr->buflen], ptr, n);
-      tr->buflen += n;
+  if(len > 0) {
+    assert(tr->buflen == 0);
+    assert(len <= sizeof(tr->buf));
+
+    size_t remain = MIN_NUM(sizeof(tr->buf), len);
+
+    if(remain) {
+      memcpy(&tr->buf[tr->buflen], ptr, remain);
+      tr->buflen += remain;
+
+      ptr += remain;
+      len -= remain;
     }
   }
 
@@ -381,18 +377,18 @@ writer_linebuffered(Writer* parent, size_t buf_size) {
 
 Writer
 writer_tee(const Writer a, const Writer b) {
-  Writer* opaque;
+  Writer* parent;
 
-  if((opaque = malloc(sizeof(Writer) * 2))) {
-    opaque[0] = a;
-    opaque[1] = b;
+  if((parent = malloc(sizeof(Writer) * 2))) {
+    parent[0] = a;
+    parent[1] = b;
   }
 
-  assert(opaque);
+  assert(parent);
 
   return (Writer){
       &write_tee,
-      opaque,
+      parent,
       (WriterFinalizer*)&orig_free,
   };
 }
@@ -418,7 +414,7 @@ Writer
 writer_urlencode(Writer* out) {
   return (Writer){
       &write_urlencoded,
-      (void*)out,
+      out,
       NULL,
   };
 }
@@ -434,7 +430,7 @@ writer_location(Writer* parent, Location* lo) {
   return (Writer){
       &write_location,
       tr,
-      (WriterFinalizer*)&free,
+      (WriterFinalizer*)&orig_free,
   };
 }
 
@@ -453,11 +449,12 @@ static ssize_t
 read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   DynBuf* db = (DynBuf*)fd;
   size_t pos = (size_t)rd->opaque2;
-  ssize_t n = MIN_NUM(len, db->size - pos);
+  size_t headroom = db->size - pos;
+  size_t remain = MIN_NUM(len, headroom);
 
-  if(n) {
-    memcpy(buf, &db->buf[pos], n);
-    pos += n;
+  if(remain) {
+    memcpy(buf, &db->buf[pos], remain);
+    pos += remain;
   }
 
   if(pos == db->size)
@@ -465,7 +462,7 @@ read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
   rd->opaque2 = (void*)pos;
 
-  return n;
+  return remain;
 }
 
 static ssize_t
@@ -543,25 +540,40 @@ read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
 static ssize_t
 read_buffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
   Buffered* b = (Buffered*)fd;
-  ssize_t ret = 0;
+  uint8_t* ptr = buf;
+  ssize_t remain, bytes;
 
-  if(b->pos < b->len) {
-    size_t remain = b->len - b->pos;
+  while(len) {
+    if(b->pos > 0) {
+      size_t n = MIN_NUM(b->pos, len);
 
-    if(reader_read(b->reader, b->buf, remain) != (ssize_t)remain)
-      return -1;
+      memcpy(ptr, b->buf, n);
 
-    buf = (uint8_t*)buf + remain;
-    len -= remain;
+      ptr += n;
+      len -= n;
+
+      if((remain = b->pos - n) > 0)
+        memmove(b->buf, &b->buf[n], remain);
+
+      b->pos = remain;
+    }
+
+    if(len == 0)
+      break;
+
+    if((remain = b->len - b->pos) > 0) {
+      if((bytes = reader_read(b->reader, &b->buf[b->pos], remain)) < 0)
+        if(ptr == (uint8_t*)buf)
+          return -1;
+
+      b->pos += bytes;
+
+      if(bytes <= 0)
+        break;
+    }
   }
 
-  if(b->pos > 0) {
-    memcpy(buf, b->buf, b->pos);
-    ret = b->pos;
-    b->pos = 0;
-  }
-
-  return ret;
+  return ptr - (uint8_t*)buf;
 }
 
 static ssize_t
@@ -606,45 +618,39 @@ read_linebuffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
 static ssize_t
 read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
   Tracker* tr = (Tracker*)fd;
-  const uint8_t *ptr = buf, *next;
-  ssize_t ret = 0;
+  const uint8_t* next;
+  uint8_t* ptr = buf;
+  ssize_t ret = 0, bytes;
   Location* lo = tr->lo;
 
   while(len > 0) {
     size_t headroom = sizeof(tr->buf) - tr->buflen;
     size_t remain = MIN_NUM(len, headroom);
-    ssize_t n = reader_read(tr->reader, &tr->buf[tr->buflen], remain);
 
-    if(n < 0)
+    if((bytes = reader_read(tr->reader, &tr->buf[tr->buflen], remain)) < 0)
       return -1;
 
-    if(n == 0 && tr->buflen == 0)
+    if(bytes == 0 && tr->buflen == 0)
       break;
 
-    tr->buflen += n;
+    tr->buflen += bytes;
 
-    int codepoint = unicode_from_utf8(tr->buf, tr->buflen, &next);
-    size_t charlen = next - tr->buf;
+    int cp = unicode_from_utf8(tr->buf, tr->buflen, &next);
 
-    memcpy(buf, tr->buf, charlen);
+    if(cp == -1 || !(bytes = next - tr->buf))
+      break;
 
-    buf = (uint8_t*)buf + charlen;
-    len -= charlen;
+    memcpy(ptr, tr->buf, bytes);
 
-    memmove(tr->buf, &tr->buf[charlen], sizeof(tr->buf) - charlen);
-    tr->buflen -= charlen;
+    ptr += bytes;
+    len -= bytes;
 
-    if(codepoint == '\n') {
-      lo->column = 0;
-      lo->line++;
-    } else {
-      lo->column++;
-    }
+    memmove(tr->buf, &tr->buf[bytes], sizeof(tr->buf) - bytes);
+    tr->buflen -= bytes;
 
-    lo->char_offset++;
-    lo->byte_offset += charlen;
+    location_nextchar(lo, cp);
 
-    ret += charlen;
+    ret += bytes;
   }
 
   return ret;
@@ -760,7 +766,7 @@ reader_location(Reader* parent, Location* lo) {
       &read_location,
       tr,
       NULL,
-      (ReaderFinalizer*)&free,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 

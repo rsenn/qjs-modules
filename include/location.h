@@ -40,6 +40,7 @@ LOCATION_API void location_zero(Location*);
 LOCATION_API void location_release(Location*, JSRuntime*);
 LOCATION_API void location_free(Location*, JSRuntime*);
 LOCATION_API size_t location_count(Location*, const uint8_t*, size_t);
+LOCATION_API size_t location_nextchar(Location*, int c);
 LOCATION_API BOOL location_equal(const Location*, const Location*);
 LOCATION_API Location* location_copy(Location*, const Location*, JSContext*);
 LOCATION_API Location* location_clone(const Location*, JSContext*);

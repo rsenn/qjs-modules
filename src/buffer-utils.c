@@ -635,10 +635,10 @@ block_free(MemoryBlock* mb, JSRuntime* rt) {
 
 MemoryBlock
 block_mmap(const char* filename, BOOL shared) {
-  int fd;
   MemoryBlock mb = BLOCK_INIT();
-
 #ifdef HAVE_FSTAT
+  int fd;
+
   if((fd = open(filename, O_RDONLY)) != -1) {
     struct stat st;
 
@@ -665,9 +665,9 @@ block_munmap(MemoryBlock* mb) {
 
 int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
+#ifdef HAVE_FSTAT
   int fd;
   void* ptr;
-#ifdef HAVE_FSTAT
   struct stat st;
 
   if((fd = open(filename, O_RDONLY)) == -1)
@@ -1017,8 +1017,7 @@ inputbuffer_read(InputBuffer* ib, void* buf, size_t len) {
 
 size_t
 inputbuffer_decode(InputBuffer* in, int (*fn)(const uint8_t*, int, void*), void* out) {
-  const uint8_t *ptr = inputbuffer_pointer(in), *next = ptr;
-
+  const uint8_t* ptr = inputbuffer_pointer(in) /*, *next = ptr*/;
   int len = fn(ptr, inputbuffer_remain(in), out);
 
   if(len >= 0) {
