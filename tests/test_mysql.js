@@ -4,7 +4,7 @@ import { Console } from 'console';
 import { MySQL } from 'mysql';
 import { MySQLResult } from 'mysql';
 import { exit } from 'std';
-import { setReadHandler } from 'os';
+import { setReadHandler, setWriteHandler } from 'io';
 
 extendArray();
 
@@ -41,19 +41,21 @@ async function main(...args) {
 
   console.log('my.connect() =', await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web'));
 
-  q = globalThis.q = async s => (
-    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`),
-    result(
-      await my.query(s).then(
-        val => result(val),
-        err => {
-          const { redBright, reset } = ansiStyles;
-          console.log(`${redBright.open + className(err) + reset.close}:`, err.message);
-          return null;
-        },
-      ),
-    )
-  );
+  q = async s => {
+    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`);
+
+    const r = await my.query(s).then(
+      val => result(val),
+      err => {
+        const { redBright, reset } = ansiStyles;
+        console.log(`${redBright.open + className(err) + reset.close}:`, err.message);
+        return null;
+      },
+    );
+
+    console.log('q', { r });
+    return result(r);
+  };
 
   i = 0;
   let res = await q(`SELECT * FROM users LIMIT 0,10;`);

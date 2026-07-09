@@ -1156,6 +1156,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_EXCEPTION;
 
   query = JS_ToCStringLen(ctx, &i, argv[0]);
+
 #ifndef MYSQL_NO_ASYNC
   state = mysql_real_query_start(&err, my, query, i);
   fd = js_mysql_fd(ctx, this_val);
