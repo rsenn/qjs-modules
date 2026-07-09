@@ -2,7 +2,7 @@ macro(find_mariadb)
   pkg_check_modules(MARIADB libmariadb mariadb)
 
   link_directories(${LIBMARIADB_LIBRARY_DIR})
-  
+
   if(pkgcfg_lib_MARIADB_mariadb)
     message(STATUS "MariaDB found by pkg-config")
     set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")

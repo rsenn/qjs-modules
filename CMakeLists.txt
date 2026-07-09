@@ -159,7 +159,7 @@ if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
         set(QJSC "${CMAKE_CURRENT_BINARY_DIR}/../qjsc")
       endif(NOT QJSC)
     endif()
-endif()
+  endif()
 endif()
 
 include(CheckFunctionExists)
@@ -328,9 +328,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate
-                    queue repeater textcode sockets #stream
-                     syscallerror inspect tree-walker virtual xml)
+set(QUICKJS_MODULES
+    arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
+    textcode sockets #stream
+    syscallerror inspect tree-walker virtual xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -491,19 +492,26 @@ else()
 endif()
 
 set(CMAKE_REQUIRED_QUIET OFF)
-  
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
 set(CMAKE_REQUIRED_FLAGS "-DCOMPILE_DEFINITIONS=-I${QUICKJS_SOURCES_ROOT}")
 
-try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(void) { return 0; }" HAVE_JSOBJECT_POINTER OUTPUT_JSOBJECT_TEST "" "") 
+try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(void) { return 0; }" HAVE_JSOBJECT_POINTER
+         OUTPUT_JSOBJECT_TEST "" "")
 
-#try_code("try-jsval.c" "#include \"quickjs.h\"\nJSValue val = JS_UNDEFINED;\nint main(void) { return 0; }" HAVE_JSVALUE_TYPE OUTPUT_JSVALUE_TEST "" "") 
+#try_code("try-jsval.c" "#include \"quickjs.h\"\nJSValue val = JS_UNDEFINED;\nint main(void) { return 0; }" HAVE_JSVALUE_TYPE OUTPUT_JSVALUE_TEST "" "")
 
-compile_code(JS_MODULE_LOADER_SETTINGS "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0, JS_UNDEFINED); return 0; }")
+compile_code(
+  JS_MODULE_LOADER_SETTINGS
+  "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0, JS_UNDEFINED); return 0; }"
+)
 
 if(NOT JS_MODULE_LOADER_SETTINGS)
-  compile_code(JS_MODULE_LOADER_OLD "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0); return 0; }")
+  compile_code(
+    JS_MODULE_LOADER_OLD
+    "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0); return 0; }"
+  )
 
   if(NOT JS_MODULE_LOADER_OLD)
     message(FATAL "Failed js_module_loader() arguments test!")
@@ -543,7 +551,6 @@ endif(NOT HAVE_DBUF_CLAIM)
 if(HAVE_DBUF_REALLOC)
   add_definitions(-DQUICKJS_DBUF_REALLOC)
 endif(HAVE_DBUF_REALLOC)
-
 
 dump(HAVE_DBUF_CLAIM HAVE_DBUF_REALLOC)
 #set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
@@ -795,7 +802,12 @@ list(REMOVE_ITEM LIBJS lib/fs.js)
 list(REMOVE_ITEM LIBJS lib/std.js)
 list(REMOVE_ITEM LIBJS lib/os.js)
 
-list(FILTER LIBJS EXCLUDE REGEX "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|syscallerror|textcode|tree_walker|xml)\.js$"
+list(
+  FILTER
+  LIBJS
+  EXCLUDE
+  REGEX
+  "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|syscallerror|textcode|tree_walker|xml)\.js$"
 )
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
@@ -880,9 +892,9 @@ if(QUICKJS_INTERNAL)
 
   execute_process(
     COMMAND
-    sed -n
-      "/#define JS_STRING_ROPE/ p; /#define JS_PRINT_/ p; /#define SUM_PRECISE_ACC_LEN/ p;       /#if JS_LIMB_BITS/ { :limb; N; /#endif/! b limb; s|\\n\\n|\\n|g; s|^|\\n|; /typedef[^\\n]*limb_t;/ p }; /^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"  ${QUICKJS_STRUCT_SOURCES}
-      
+      sed -n
+      "/#define JS_STRING_ROPE/ p; /#define JS_PRINT_/ p; /#define SUM_PRECISE_ACC_LEN/ p;       /#if JS_LIMB_BITS/ { :limb; N; /#endif/! b limb; s|\\n\\n|\\n|g; s|^|\\n|; /typedef[^\\n]*limb_t;/ p }; /^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
+      ${QUICKJS_STRUCT_SOURCES}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
     #OUTPUT_VARIABLE INTERNAL
@@ -1006,7 +1018,6 @@ target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LI
 target_compile_definitions(
   qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}" QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"
                LIBMAGIC_DB="${LIBMAGIC_DB}" ${CONFIG_DEFS})
-
 
 install(TARGETS qjsm DESTINATION bin)
 

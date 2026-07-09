@@ -3,9 +3,11 @@ macro(find_libmagic)
   include(CheckLibraryExists)
   check_library_exists(magic magic_open "${LIBMAGIC_LIBRARY_DIR}" HAVE_LIBMAGIC)
   set(old_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
+
   if(LIBMAGIC_INCLUDE_DIR)
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMAGIC_INCLUDE_DIR}")
   endif(LIBMAGIC_INCLUDE_DIR)
+
   check_include_file(magic.h HAVE_MAGIC_H)
   set(CMAKE_REQUIRED_INCLUDES "${old_REQUIRED_INCLUDES}")
 
@@ -23,4 +25,9 @@ macro(find_libmagic)
   if(EXISTS /usr/share/file/magic)
     set(LIBMAGIC_DB /usr/share/file/magic)
   endif(EXISTS /usr/share/file/magic)
+
+  message(STATUS "\tlibmagic library: ${LIBMAGIC_LIBRARY}")
+  message(STATUS "\tlibmagic module: ${magic_MODULE}")
+  message(STATUS "\tlibmagic db: ${LIBMAGIC_DB}")
+
 endmacro(find_libmagic)
