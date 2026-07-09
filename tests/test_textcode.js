@@ -34,8 +34,8 @@ function Encode(encoding, ...chunks) {
     if(str !== undefined && str !== null) result.push(encoder.encode(str));
   }
 
-  let r = encoder.end();
-  if(r) result.push(r);
+/*  let r = encoder.end();
+  if(r) result.push(r);*/
 
   if(result.length == 1) result = result[0];
   else result = concat(...result.map(typedArr => typedArr.buffer));

@@ -8,7 +8,7 @@ function main(...args) {
   console.log('console.options:', console.options);
 
   console.log('regexp:', /TEST/);
-  
+
   console.log('process.hrtime():', process.hrtime());
   console.log('process.arch:', process.arch);
 }
