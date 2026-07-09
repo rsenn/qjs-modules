@@ -36,32 +36,20 @@ typedef struct {
   uint64_t *bytes_ptr, *characters_ptr;
   size_t buflen;
   uint8_t buf[8];
-  union {
-    void* parent;
-    Writer* writer;
-    Reader* reader;
-  };
+  void* parent;
 } Counted;
 
 typedef struct {
   uint8_t* buf;
   size_t len, pos;
-  union {
-    void* parent;
-    Writer* writer;
-    Reader* reader;
-  };
+  void* parent;
 } Buffered;
 
 typedef struct {
   Location* lo;
   size_t buflen;
   uint8_t buf[8];
-  union {
-    void* parent;
-    Writer* writer;
-    Reader* reader;
-  };
+  void* parent;
 } Tracker;
 
 typedef struct {
@@ -191,7 +179,7 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   const uint8_t* ptr = buf;
   ssize_t r;
 
-  if((r = writer_write(c->writer, ptr, len)) > 0) {
+  if((r = writer_write(c->parent, ptr, len)) > 0) {
     if(c->bytes_ptr)
       *c->bytes_ptr += r;
 
@@ -254,7 +242,7 @@ write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
   for(size_t i = 0; i < len; i++) {
     if(b->pos == b->len) {
-      if(writer_write(b->writer, b->buf, b->pos) != (ssize_t)b->pos)
+      if(writer_write(b->parent, b->buf, b->pos) != (ssize_t)b->pos)
         return -1;
 
       b->pos = 0;
@@ -263,7 +251,7 @@ write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
     b->buf[b->pos++] = ptr[i];
 
     if(ptr[i] == '\n') {
-      if(writer_write(b->writer, b->buf, b->pos) != (ssize_t)b->pos)
+      if(writer_write(b->parent, b->buf, b->pos) != (ssize_t)b->pos)
         return -1;
 
       b->pos = 0;
@@ -320,7 +308,7 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
     assert(charlen == bytes);
 
-    if(writer_write(tr->writer, tr->buf, buffered) != (ssize_t)buffered)
+    if(writer_write(tr->parent, tr->buf, buffered) != (ssize_t)buffered)
       return -1;
 
     tr->buflen = 0;
@@ -345,7 +333,7 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   }
 
   if(ptr > start)
-    if(writer_write(tr->writer, start, ptr - start) < 0)
+    if(writer_write(tr->parent, start, ptr - start) < 0)
       return -1;
 
   if(len > 0) {
@@ -650,7 +638,7 @@ read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
   uint8_t* ptr = buf;
   ssize_t r;
 
-  if((r = reader_read(c->reader, ptr, len)) > 0) {
+  if((r = reader_read(c->parent, ptr, len)) > 0) {
     if(c->bytes_ptr)
       *c->bytes_ptr += r;
 
@@ -708,7 +696,7 @@ read_buffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
       break;
 
     if((remain = b->len - b->pos) > 0) {
-      if((bytes = reader_read(b->reader, &b->buf[b->pos], remain)) < 0)
+      if((bytes = reader_read(b->parent, &b->buf[b->pos], remain)) < 0)
         if(ptr == (uint8_t*)buf)
           return -1;
 
@@ -738,7 +726,7 @@ read_linebuffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
       break;
     }
 
-    ssize_t r = reader_read(b->reader, &b->buf[b->pos], b->len - b->pos);
+    ssize_t r = reader_read(b->parent, &b->buf[b->pos], b->len - b->pos);
 
     if(r < 0)
       return r;
@@ -773,7 +761,7 @@ read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
     size_t headroom = sizeof(tr->buf) - tr->buflen;
     size_t remain = MIN_NUM(len, headroom);
 
-    if((bytes = reader_read(tr->reader, &tr->buf[tr->buflen], remain)) < 0)
+    if((bytes = reader_read(tr->parent, &tr->buf[tr->buflen], remain)) < 0)
       return -1;
 
     if(bytes == 0 && tr->buflen == 0)
