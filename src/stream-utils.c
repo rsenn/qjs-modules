@@ -33,6 +33,15 @@ typedef struct {
 } JSFunc;
 
 typedef struct {
+  size_t bytes;
+  union {
+    void* parent;
+    Writer* writer;
+    Reader* reader;
+  };
+} Counted;
+
+typedef struct {
   uint8_t* buf;
   size_t len, pos;
   union {
@@ -120,6 +129,17 @@ write_urlencoded(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   }
 
   return written;
+}
+
+static ssize_t
+write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  Counted* c = (Counted*)fd;
+  ssize_t r;
+
+  if((r = writer_write(c->writer, buf, len)) > 0)
+    c->bytes += r;
+
+  return r;
 }
 
 static ssize_t
@@ -346,6 +366,21 @@ writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Writer
+writer_counted(Writer* parent) {
+  Counted* c = malloc(sizeof(Counted));
+
+  assert(c);
+
+  *c = (Counted){0, {parent}};
+
+  return (Writer){
+      &write_counted,
+      c,
+      (WriterFinalizer*)&orig_free,
+  };
+}
+
+Writer
 writer_buffered(Writer* parent, size_t buf_size) {
   Buffered* b = malloc(sizeof(Buffered) + buf_size);
 
@@ -542,6 +577,17 @@ read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
 }
 
 static ssize_t
+read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  Counted* c = (Counted*)fd;
+  ssize_t r;
+
+  if((r = reader_read(c->reader, buf, len)) > 0)
+    c->bytes += r;
+
+  return r;
+}
+
+static ssize_t
 read_buffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
   Buffered* b = (Buffered*)fd;
   uint8_t* ptr = buf;
@@ -717,6 +763,22 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
       fr,
       NULL,
       &close_function,
+  };
+}
+
+Reader
+reader_counted(Reader* parent) {
+  Counted* c = malloc(sizeof(Counted));
+
+  assert(c);
+
+  *c = (Counted){0, {parent}};
+
+  return (Reader){
+      &read_counted,
+      c,
+      NULL,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
