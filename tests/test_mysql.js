@@ -58,9 +58,6 @@ async function main(...args) {
   };
 
   i = 0;
-  let res = await q(`SELECT * FROM users LIMIT 0,10;`);
-
-  console.log(`res =`, res);
 
   /*  await q(`CREATE DATABASE IF NOT EXISTS blah;`);
   await q(`USE blah;`);
@@ -70,8 +67,7 @@ async function main(...args) {
   );
 */
 
-
-  await q(`
+  q(`
     CREATE TABLE IF NOT EXISTS sessions ( 
        id int unsigned NOT NULL auto_increment,
        user_id int unsigned NOT NULL,
@@ -81,7 +77,7 @@ async function main(...args) {
     ) CHARACTER SET utf8;
   `);
 
-  await q(`
+  q(`
     CREATE TABLE IF NOT EXISTS users ( 
       id int unsigned NOT NULL auto_increment,
        username varchar(64) NOT NULL DEFAULT '',  
@@ -90,6 +86,9 @@ async function main(...args) {
     ) CHARACTER SET utf8;
   `);
 
+  let res = await q(`SELECT * FROM users LIMIT 0,10;`);
+
+  console.log(`res =`, res);
 
   for await(let row of res) console.log(`row[${i++}] =`, console.config({ compact: 0 }), row);
 
@@ -201,7 +200,7 @@ async function main(...args) {
 }
 
 try {
-  main(...scriptArgs.slice(1)).catch(err => console.log(`FAIL: ${err.message}\n${err.stack}`));
+  await main(...scriptArgs.slice(1)).catch(err => console.log(`FAIL: ${err.message}\n${err.stack}`));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   exit(1);

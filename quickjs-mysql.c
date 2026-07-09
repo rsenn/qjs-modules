@@ -1161,7 +1161,8 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   state = mysql_real_query_start(&err, my, query, i);
   fd = js_mysql_fd(ctx, this_val);
   as = to_asyncevent(state);
-  ac = asyncclosure_new(ctx, fd, as, JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
+  JSValue res_obj = JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id);
+  ac = asyncclosure_new(ctx, fd, as, res_obj, &js_mysql_query_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
