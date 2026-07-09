@@ -33,7 +33,7 @@ typedef struct {
 } JSFunc;
 
 typedef struct {
-  size_t bytes;
+  size_t* count_ptr;
   union {
     void* parent;
     Writer* writer;
@@ -137,7 +137,8 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   ssize_t r;
 
   if((r = writer_write(c->writer, buf, len)) > 0)
-    c->bytes += r;
+    if(c->count_ptr)
+      *c->count_ptr += r;
 
   return r;
 }
@@ -366,12 +367,12 @@ writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Writer
-writer_counted(Writer* parent) {
+writer_counted(Writer* parent, size_t* count_ptr) {
   Counted* c = malloc(sizeof(Counted));
 
   assert(c);
 
-  *c = (Counted){0, {parent}};
+  *c = (Counted){count_ptr, {parent}};
 
   return (Writer){
       &write_counted,
@@ -582,7 +583,8 @@ read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
   ssize_t r;
 
   if((r = reader_read(c->reader, buf, len)) > 0)
-    c->bytes += r;
+    if(c->count_ptr)
+      *c->count_ptr += r;
 
   return r;
 }
@@ -767,12 +769,12 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Reader
-reader_counted(Reader* parent) {
+reader_counted(Reader* parent, size_t* count_ptr) {
   Counted* c = malloc(sizeof(Counted));
 
   assert(c);
 
-  *c = (Counted){0, {parent}};
+  *c = (Counted){count_ptr, {parent}};
 
   return (Reader){
       &read_counted,
