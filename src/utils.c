@@ -3359,19 +3359,20 @@ JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSValue set_handler = JS_NULL;
-  JSModuleDef* io_module = NULL;
+  const char* module_name = global_obj ? global_obj : "os";
+  /* JSModuleDef* io_module = NULL;
 
-  if(!io_module)
-    io_module = js_module_load(ctx, "io");
+   if(!io_module)
+     io_module = js_module_load(ctx, "io");
 
-  if(!io_module)
-    io_module = js_module_load(ctx, "os");
+   if(!io_module)
+     io_module = js_module_load(ctx, "os");
 
-  if(io_module)
-    set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);
+   if(io_module)
+     set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);*/
 
   if(js_is_null_or_undefined(set_handler)) {
-    JSValue osval = js_global_get_str(ctx, global_obj ? global_obj : "os");
+    JSValue osval = js_global_get_str(ctx, module_name);
 
     if(!js_is_null_or_undefined(osval)) {
       set_handler = JS_GetPropertyStr(ctx, osval, handlers[!!write]);
@@ -3380,8 +3381,8 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
       JSModuleDef* os;
       JSAtom func_name;
 
-      if(!(os = js_module_find(ctx, global_obj ? global_obj : "os")))
-        return JS_ThrowReferenceError(ctx, "'os' module required");
+      if(!(os = js_module_find(ctx, module_name)))
+        return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);
 #if QUICKJS_INTERNAL
@@ -3392,7 +3393,7 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   }
 
   if(js_is_null_or_undefined(set_handler))
-    return JS_ThrowReferenceError(ctx, "no os.%s function", handlers[!!write]);
+    return JS_ThrowReferenceError(ctx, "no %s.%s function", module_name, handlers[!!write]);
 
   return set_handler;
 }
