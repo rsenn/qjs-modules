@@ -564,17 +564,16 @@ writer_free(Writer* wr) {
 
 ssize_t
 writer_flush(Writer* wr) {
-  ssize_t ret = 0;
-
   if(wr->finalizer == &close_buffered) {
     Buffered* b = wr->opaque;
+    ssize_t ret = 0;
 
     if(b->pos > 0)
       if((ret = writer_write(b->parent, b->buf, b->pos)) > 0)
         b->pos -= ret;
   }
 
-  return ret;
+  return -1;
 }
 
 /**
