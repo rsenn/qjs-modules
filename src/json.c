@@ -12,7 +12,7 @@ enum {
   EXPECTING_COMMA_OR_END = 0b1000,
   EXPECTING_COLON = 0b10000,
 };
- 
+
 static int
 json_getc_skipws(JsonParser* json) {
   int c;
@@ -33,7 +33,7 @@ json_getc_skipws(JsonParser* json) {
 
 BOOL
 json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
-   json->reader = reader_from_jsbuf(input, ctx);
+  json->reader = reader_from_jsbuf(ctx, input);
 
   json->callback = NULL;
   json->opaque = NULL;

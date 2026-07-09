@@ -87,7 +87,7 @@ reader_jsbuf_free(void* opaque, void* opaque2) {
 }
 
 static inline Reader
-reader_from_jsbuf(JSValueConst value, JSContext* ctx) {
+reader_from_jsbuf(JSContext* ctx, JSValueConst value) {
   InputBuffer* input;
 
   if(!(input = js_mallocz(ctx, sizeof(InputBuffer))))
