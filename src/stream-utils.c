@@ -33,7 +33,9 @@ typedef struct {
 } JSFunc;
 
 typedef struct {
-  uint64_t* count_ptr;
+  uint64_t *bytes_ptr, *characters_ptr;
+  size_t buflen;
+  uint8_t buf[8];
   union {
     void* parent;
     Writer* writer;
@@ -136,9 +138,10 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Counted* c = (Counted*)fd;
   ssize_t r;
 
-  if((r = writer_write(c->writer, buf, len)) > 0)
-    if(c->count_ptr)
-      *c->count_ptr += r;
+  if((r = writer_write(c->writer, buf, len)) > 0) {
+    if(c->bytes_ptr)
+      *c->bytes_ptr += r;
+  }
 
   return r;
 }
@@ -367,12 +370,12 @@ writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Writer
-writer_counted(Writer* parent, size_t* count_ptr) {
+writer_counted(Writer* parent, size_t* bytes_ptr, size_t* characters_ptr) {
   Counted* c = malloc(sizeof(Counted));
 
   assert(c);
 
-  *c = (Counted){count_ptr, {parent}};
+  *c = (Counted){bytes_ptr, characters_ptr, 0, {}, {parent}};
 
   return (Writer){
       &write_counted,
@@ -579,12 +582,13 @@ read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
 static ssize_t
 read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
-  uint64_t* count_ptr = rd->opaque2;
+  Counted* c = (Counted*)fd;
   ssize_t r;
 
-  if((r = reader_read((Reader*)fd, buf, len)) > 0)
-    if(count_ptr)
-      *count_ptr += r;
+  if((r = reader_read(c->reader, buf, len)) > 0) {
+    if(c->bytes_ptr)
+      *c->bytes_ptr += r;
+  }
 
   return r;
 }
@@ -769,12 +773,18 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 }
 
 Reader
-reader_counted(Reader* parent, size_t* count_ptr) {
+reader_counted(Reader* parent, size_t* bytes_ptr, size_t* characters_ptr) {
+  Counted* c = malloc(sizeof(Counted));
+
+  assert(c);
+
+  *c = (Counted){bytes_ptr, characters_ptr, 0, {}, {parent}};
+
   return (Reader){
       &read_counted,
-      parent,
-      count_ptr,
+      c,
       NULL,
+      (ReaderFinalizer*)&orig_free,
   };
 }
 
