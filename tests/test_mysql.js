@@ -39,7 +39,7 @@ async function main(...args) {
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
-  console.log('my.connect() =', await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web'));
+  console.log('my.connect() =', await my.connect('localhost', 'roman', 'r4eHuJ', 'roman'));
 
   q = async s => {
     console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`);
@@ -69,6 +69,27 @@ async function main(...args) {
     `CREATE TABLE IF NOT EXISTS article ( id int unsigned NOT NULL auto_increment, title char(64) NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',  PRIMARY KEY (id)) CHARACTER SET utf8`
   );
 */
+
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS sessions ( 
+       id int unsigned NOT NULL auto_increment,
+       user_id int unsigned NOT NULL,
+       cookie text NULL DEFAULT '',  
+       PRIMARY KEY (id),
+       INDEX (user_id)
+    ) CHARACTER SET utf8;
+  `);
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS users ( 
+      id int unsigned NOT NULL auto_increment,
+       username varchar(64) NOT NULL DEFAULT '',  
+       password varchar(64) NOT NULL DEFAULT '', 
+       PRIMARY KEY (id)
+    ) CHARACTER SET utf8;
+  `);
+
 
   for await(let row of res) console.log(`row[${i++}] =`, console.config({ compact: 0 }), row);
 
