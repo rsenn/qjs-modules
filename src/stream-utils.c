@@ -427,7 +427,7 @@ writer_counted(Writer* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
 
   assert(c);
 
-  *c = (Counted){bytes_ptr, characters_ptr, 0, {}, {parent}};
+  *c = (Counted){bytes_ptr, characters_ptr, 0, {}, parent};
 
   return (Writer){
       &write_counted,
@@ -442,7 +442,7 @@ writer_buffered(Writer* parent, size_t buf_size) {
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, parent};
 
   return (Writer){
       &write_buffered,
@@ -457,7 +457,7 @@ writer_linebuffered(Writer* parent, size_t buf_size) {
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, parent};
 
   return (Writer){
       &write_linebuffered,
@@ -516,7 +516,7 @@ writer_location(Writer* parent, Location* lo) {
 
   assert(tr);
 
-  *tr = (Tracker){lo, 0, {}, {parent}};
+  *tr = (Tracker){lo, 0, {}, parent};
 
   return (Writer){
       &write_location,
@@ -856,7 +856,7 @@ reader_counted(Reader* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
 
   assert(c);
 
-  *c = (Counted){bytes_ptr, characters_ptr, 0, {}, {parent}};
+  *c = (Counted){bytes_ptr, characters_ptr, 0, {}, parent};
 
   return (Reader){
       &read_counted,
@@ -872,7 +872,7 @@ reader_buffered(Reader* parent, size_t buf_size) {
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, parent};
 
   return (Reader){
       &read_buffered,
@@ -888,7 +888,7 @@ reader_linebuffered(Reader* parent, size_t buf_size) {
 
   assert(b);
 
-  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, {parent}};
+  *b = (Buffered){(uint8_t*)&b[1], buf_size, 0, parent};
 
   return (Reader){
       &read_linebuffered,
@@ -914,7 +914,7 @@ reader_location(Reader* parent, Location* lo) {
 
   assert(tr);
 
-  *tr = (Tracker){lo, 0, {}, {parent}};
+  *tr = (Tracker){lo, 0, {}, parent};
 
   return (Reader){
       &read_location,
