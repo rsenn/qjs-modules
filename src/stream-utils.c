@@ -390,11 +390,11 @@ close_jsfunction(void* opaque) {
 static void
 close_buffered(void* opaque) {
   Buffered* b = opaque;
+  ssize_t r;
 
-  if(b->pos > 0) {
-    writer_write(b->parent, b->buf, b->pos);
-    b->pos = 0;
-  }
+  if(b->pos > 0)
+    if((r = writer_write(b->parent, b->buf, b->pos)) > 0)
+      b->pos -= r;
 
   free(b);
 }
