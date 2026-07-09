@@ -51,6 +51,7 @@ Writer writer_urlencode(Writer*);
 Writer writer_location(Writer*, Location*);
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
+ssize_t writer_flush(Writer*);
 Reader reader_from_dynbuf(DynBuf*);
 Reader reader_from_buf(InputBuffer*);
 Reader reader_from_bytes(const void*, size_t);
