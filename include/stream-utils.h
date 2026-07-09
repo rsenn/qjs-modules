@@ -40,8 +40,8 @@ typedef struct StreamReader {
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
 Writer writer_from_fd(intptr_t, bool);
-Writer writer_from_function(JSContext*, JSValueConst);
-Writer writer_from_method(JSContext*, JSValueConst, JSValueConst);
+Writer writer_from_jsfunction(JSContext*, JSValueConst);
+Writer writer_from_jsmethod(JSContext*, JSValueConst, JSValueConst);
 Writer writer_counted(Writer*, uint64_t*, uint64_t*);
 Writer writer_buffered(Writer*, size_t);
 Writer writer_linebuffered(Writer*, size_t);
@@ -57,8 +57,8 @@ Reader reader_from_buf(InputBuffer*);
 Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
 Reader reader_from_jsbuf(JSContext* ctx, JSValueConst value);
-Reader reader_from_function(JSContext*, JSValueConst);
-Reader reader_from_method(JSContext*, JSValueConst, JSValueConst);
+Reader reader_from_jsfunction(JSContext*, JSValueConst);
+Reader reader_from_jsmethod(JSContext*, JSValueConst, JSValueConst);
 Reader reader_counted(Reader*, uint64_t*, uint64_t*);
 Reader reader_buffered(Reader*, size_t);
 Reader reader_linebuffered(Reader*, size_t);
@@ -76,15 +76,6 @@ static inline ssize_t
 writer_putc(Writer* wr, int c) {
   char ch = c;
   return writer_write(wr, &ch, 1);
-}
-
-static inline void
-reader_jsbuf_free(void* opaque, void* opaque2) {
-  InputBuffer* input = opaque;
-  JSContext* ctx = opaque2;
-
-  inputbuffer_free(input, ctx);
-  js_free(ctx, input);
 }
 
 static inline int

@@ -408,6 +408,22 @@ close_tee(void* opaque) {
   free(w);
 }
 
+static void
+reader_jsbuf_free(void* opaque, void* opaque2) {
+  InputBuffer* input = opaque;
+  JSContext* ctx = opaque2;
+
+  inputbuffer_free(input, ctx);
+  js_free(ctx, input);
+}
+
+static void
+writer_jsbuf_free(void* opaque) {
+  OutputBuffer* output = opaque;
+  outputbuffer_free(output, 0);
+  free(output);
+}
+
 /**
  * \addtogroup stream-utils
  * @{
@@ -432,12 +448,26 @@ writer_from_fd(intptr_t fd, bool close_on_end) {
 }
 
 Writer
-writer_from_function(JSContext* ctx, JSValueConst fn) {
-  return writer_from_method(ctx, fn, JS_UNDEFINED);
+writer_from_jsbuf(JSContext* ctx, JSValueConst value) {
+  OutputBuffer* output = malloc(sizeof(OutputBuffer));
+
+  assert(output);
+
+  *output = js_output_typedarray(ctx, value);
+
+  Writer wr = writer_from_buf(output);
+  // wr.opaque2 = ctx;
+  wr.finalizer = &writer_jsbuf_free;
+  return wr;
 }
 
 Writer
-writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
+writer_from_jsfunction(JSContext* ctx, JSValueConst fn) {
+  return writer_from_jsmethod(ctx, fn, JS_UNDEFINED);
+}
+
+Writer
+writer_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
   JSFunc* fw = malloc(sizeof(JSFunc));
 
   assert(fw);
@@ -944,12 +974,12 @@ reader_from_jsbuf(JSContext* ctx, JSValueConst value) {
 }
 
 Reader
-reader_from_function(JSContext* ctx, JSValueConst func_obj) {
-  return reader_from_method(ctx, func_obj, JS_UNDEFINED);
+reader_from_jsfunction(JSContext* ctx, JSValueConst func_obj) {
+  return reader_from_jsmethod(ctx, func_obj, JS_UNDEFINED);
 }
 
 Reader
-reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
+reader_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
   JSFunc* fr = malloc(sizeof(JSFunc));
 
   assert(fr);
