@@ -1002,16 +1002,16 @@ inputbuffer_file(const char* filename, JSContext* ctx) {
 }
 
 ssize_t
-inputbuffer_read(InputBuffer* ib, void* buf, size_t len) {
-  size_t remain = inputbuffer_remain(ib);
+inputbuffer_read(InputBuffer* in, void* buf, size_t len) {
+  size_t remain = inputbuffer_remain(in);
 
   if(len > remain)
     len = remain;
 
   if(len)
-    memcpy(buf, inputbuffer_pointer(ib), len);
+    memcpy(buf, inputbuffer_pointer(in), len);
 
-  ib->pos += len;
+  in->pos += len;
   return len;
 }
 

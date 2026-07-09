@@ -94,7 +94,7 @@ reader_from_jsbuf(JSValueConst value, JSContext* ctx) {
 
   *input = js_input_chars(ctx, value);
 
-  Reader rd = reader_from_buf(input, ctx);
+  Reader rd = reader_from_buf(input);
   rd.finalizer = &reader_jsbuf_free;
   return rd;
 }

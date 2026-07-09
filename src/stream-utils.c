@@ -15,17 +15,7 @@
     if(n < 0) \
       return n; \
     (acc) += (n); \
-  } while(0);
-
-#define RESULT_LOOP(r, acc) \
-  if(1) { \
-    ssize_t n = (r); \
-    if(n < 0) \
-      return n; \
-    if(n == 0) \
-      break; \
-    (acc) += (n); \
-  }
+  } while(0)
 
 typedef struct {
   JSContext* ctx;
@@ -57,6 +47,12 @@ typedef struct {
   const char* chars;
   size_t nchars;
 } Escaper;
+
+typedef struct {
+  Reader* parent;
+  uint8_t pending[2];
+  size_t npending;
+} URLDecoder;
 
 /* Completes the partial UTF-8 character in buf[]/(*buflen) with bytes from ptr/len.
  * Returns the number of bytes consumed from ptr once a complete character is
@@ -121,6 +117,16 @@ write_dynbuf(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
+write_outputbuffer(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  return outputbuffer_write((OutputBuffer*)fd, buf, len);
+}
+
+static ssize_t
+write_fd(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  return write(fd, buf, len);
+}
+
+static ssize_t
 write_tee(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Writer* parent = (Writer*)fd;
   ssize_t written[2] = {0, 0};
@@ -135,42 +141,46 @@ static ssize_t
 write_escaped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Escaper* esc = (Escaper*)fd;
   const uint8_t* x = buf;
-  ssize_t written = 0;
 
   for(size_t i = 0; i < len; i++) {
-    if(byte_chr(esc->chars, esc->nchars, x[i]) < esc->nchars)
-      RESULT_LOOP(writer_putc(esc->parent, '\\'), written);
+    ssize_t r;
 
-    RESULT_LOOP(writer_putc(esc->parent, x[i]), written);
+    if(byte_chr(esc->chars, esc->nchars, x[i]) < esc->nchars)
+      if((r = writer_putc(esc->parent, '\\')) <= 0)
+        return i ? (ssize_t)i : r;
+
+    if((r = writer_putc(esc->parent, x[i])) <= 0)
+      return i ? (ssize_t)i : r;
   }
 
-  return written;
+  return len;
 }
 
 static ssize_t
 write_urlencoded(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Writer* parent = (Writer*)fd;
   const uint8_t* x = buf;
-  ssize_t written = 0;
   static char const unescaped_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                         "abcdefghijklmnopqrstuvwxyz"
                                         "0123456789"
                                         "@*_+-./";
 
   for(size_t i = 0; i < len; i++) {
+    ssize_t r;
+
     if(!memchr(unescaped_chars, x[i], sizeof(unescaped_chars) - 1)) {
       char esc[4] = {'%'};
 
       fmt_xlong0(&esc[1], x[i], 2);
 
-      RESULT_LOOP(writer_write(parent, esc, 3), written);
-      continue;
+      if((r = writer_write(parent, esc, 3)) != 3)
+        return i ? (ssize_t)i : (r < 0 ? r : 0);
+    } else if((r = writer_putc(parent, x[i])) <= 0) {
+      return i ? (ssize_t)i : r;
     }
-
-    RESULT_LOOP(writer_putc(parent, x[i]), written);
   }
 
-  return written;
+  return len;
 }
 
 static ssize_t
@@ -185,12 +195,26 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 
     if(c->characters_ptr) {
       ssize_t bytes;
+      size_t remain = r;
 
-      while((bytes = buffer_character(c->buf, &c->buflen, ptr, r)) > 0) {
+      while((bytes = buffer_character(c->buf, &c->buflen, ptr, remain))) {
+        if(bytes < 0) {
+          /* invalid UTF-8: count the bogus sequence as one character and resync */
+          (*c->characters_ptr)++;
+
+          if(c->buflen > 0) {
+            c->buflen = 0;
+          } else {
+            ptr++;
+            remain--;
+          }
+
+          continue;
+        }
+
         (*c->characters_ptr)++;
-
         ptr += bytes;
-        len -= bytes;
+        remain -= bytes;
       }
     }
   }
@@ -201,37 +225,34 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 static ssize_t
 write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Buffered* b = (Buffered*)fd;
-  ssize_t written = 0;
+  const uint8_t* x = buf;
+  size_t consumed = 0;
 
-  if(b->pos) {
-    size_t headroom = b->len - b->pos;
-    size_t remain = MIN_NUM(headroom, len);
+  while(consumed < len) {
+    if(b->pos == b->len) {
+      if(writer_write(b->parent, b->buf, b->pos) != (ssize_t)b->pos)
+        return -1;
 
-    memcpy(&b->buf[b->pos], buf, remain);
+      b->pos = 0;
+    }
 
-    size_t bytes = b->pos + remain;
+    if(b->pos == 0 && len - consumed >= b->len) {
+      size_t n = len - consumed;
 
-    if(writer_write(b->parent, b->buf, bytes) != (ssize_t)bytes)
-      return -1;
+      if(writer_write(b->parent, &x[consumed], n) != (ssize_t)n)
+        return -1;
 
-    written += b->pos + remain;
-    b->pos = 0;
+      consumed += n;
+    } else {
+      size_t n = MIN_NUM(b->len - b->pos, len - consumed);
 
-    len -= remain;
-    buf = (uint8_t*)buf + remain;
+      memcpy(&b->buf[b->pos], &x[consumed], n);
+      b->pos += n;
+      consumed += n;
+    }
   }
 
-  if(len > b->len) {
-    if(writer_write(b->parent, buf, len) != (ssize_t)len)
-      return -1;
-  } else {
-    memcpy(b->buf, buf, len);
-    b->pos = len;
-  }
-
-  written += len;
-
-  return written;
+  return consumed;
 }
 
 static ssize_t
@@ -290,72 +311,97 @@ write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Tracker* tr = (Tracker*)fd;
   const uint8_t *start = buf, *ptr = buf, *end;
   Location* lo = tr->lo;
-  size_t buffered;
-  int cp;
+  int cp, invalid = 0;
 
-  if((buffered = tr->buflen)) {
-    size_t headroom = sizeof(tr->buf) - tr->buflen;
-    size_t remain = MIN_NUM(len, headroom);
+  if(tr->buflen) {
+    size_t buffered = tr->buflen;
+    size_t needed = utf8_needed(tr->buf[0]);
 
-    memcpy(&tr->buf[tr->buflen], ptr, remain);
-    tr->buflen += remain;
+    if(buffered + len < needed) { /* character still incomplete: buffer everything */
+      memcpy(&tr->buf[buffered], ptr, len);
+      tr->buflen += len;
+      return len;
+    }
 
-    if((cp = unicode_from_utf8(tr->buf, tr->buflen, &end)) == -1)
+    size_t take = needed - buffered;
+
+    memcpy(&tr->buf[buffered], ptr, take);
+
+    if((cp = unicode_from_utf8(tr->buf, needed, &end)) == -1)
       return -1;
 
-    size_t bytes = end - tr->buf;
-    size_t charlen = location_nextchar(lo, cp);
-
-    assert(charlen == bytes);
-
+    /* the completion bytes are part of the input and are covered by the bulk
+       write below; only the prefix buffered by previous calls is written here */
     if(writer_write(tr->parent, tr->buf, buffered) != (ssize_t)buffered)
       return -1;
 
+    location_nextchar(lo, cp);
+
     tr->buflen = 0;
-
-    bytes -= buffered;
-
-    ptr += bytes;
-    len -= bytes;
+    ptr += take;
+    len -= take;
   }
 
   while(len > 0) {
-    if((cp = unicode_from_utf8(ptr, len, &end)) == -1)
+    size_t needed = utf8_needed(*ptr);
+
+    if(needed == 0 || needed > len) {
+      invalid = needed == 0;
       break;
+    }
 
-    size_t bytes = end - ptr;
-    size_t charlen = location_nextchar(lo, cp);
+    if((cp = unicode_from_utf8(ptr, needed, &end)) == -1) {
+      invalid = 1;
+      break;
+    }
 
-    assert(charlen == bytes);
+    location_nextchar(lo, cp);
 
-    ptr += charlen;
-    len -= charlen;
+    ptr += needed;
+    len -= needed;
   }
 
   if(ptr > start)
-    if(writer_write(tr->parent, start, ptr - start) < 0)
+    if(writer_write(tr->parent, start, ptr - start) != (ssize_t)(ptr - start))
       return -1;
 
-  if(len > 0) {
+  if(invalid)
+    return ptr > start ? ptr - start : -1;
+
+  if(len > 0) { /* incomplete final character: keep it for the next write */
     assert(tr->buflen == 0);
-    assert(len <= sizeof(tr->buf));
+    assert(len < sizeof(tr->buf));
 
-    size_t remain = MIN_NUM(sizeof(tr->buf), len);
-
-    if(remain) {
-      memcpy(&tr->buf[tr->buflen], ptr, remain);
-      tr->buflen += remain;
-
-      ptr += remain;
-      len -= remain;
-    }
+    memcpy(tr->buf, ptr, len);
+    tr->buflen = len;
+    ptr += len;
   }
 
   return ptr - start;
 }
 
 static void
-close_jsfunction(void* opaque, void* opaque2) {
+close_fd(void* opaque) {
+  close((intptr_t)opaque);
+}
+
+static void
+close_fd_reader(void* opaque, void* opaque2) {
+  close((intptr_t)opaque);
+}
+
+static void
+close_dynbuf(void* opaque) {
+  dbuf_free(opaque);
+}
+
+static void
+close_dynbuf_reader(void* opaque, void* opaque2) {
+  dbuf_free(opaque);
+}
+
+static void
+close_jsfunction(void* opaque) {
   JSFunc* jsf = opaque;
   JSContext* ctx = jsf->ctx;
 
@@ -367,7 +413,12 @@ close_jsfunction(void* opaque, void* opaque2) {
 }
 
 static void
-close_buffered(void* opaque, void* opaque2) {
+close_jsfunction_reader(void* opaque, void* opaque2) {
+  close_jsfunction(opaque);
+}
+
+static void
+close_buffered(void* opaque) {
   Buffered* b = opaque;
 
   if(b->pos > 0) {
@@ -378,26 +429,45 @@ close_buffered(void* opaque, void* opaque2) {
   free(b);
 }
 
+static void
+close_tee(void* opaque) {
+  Writer* w = opaque;
+
+  writer_free(&w[0]);
+  writer_free(&w[1]);
+  free(w);
+}
+
+static void
+close_free(void* opaque) {
+  free(opaque);
+}
+
+static void
+close_free_reader(void* opaque, void* opaque2) {
+  free(opaque);
+}
+
 /**
  * \addtogroup stream-utils
  * @{
  */
 Writer
 writer_from_dynbuf(DynBuf* db) {
-  return (Writer){&write_dynbuf, db, (WriterFinalizer*)&dbuf_free};
+  return (Writer){&write_dynbuf, db, &close_dynbuf};
 }
 
 Writer
 writer_from_buf(OutputBuffer* buf) {
-  return (Writer){(WriteFunction*)&outputbuffer_write, buf, NULL};
+  return (Writer){&write_outputbuffer, buf, NULL};
 }
 
 Writer
 writer_from_fd(intptr_t fd, bool close_on_end) {
   return (Writer){
-      (WriteFunction*)&write,
+      &write_fd,
       (void*)fd,
-      close_on_end ? (WriterFinalizer*)&close : NULL,
+      close_on_end ? &close_fd : NULL,
   };
 }
 
@@ -417,7 +487,7 @@ writer_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
   return (Writer){
       &write_jsfunction,
       fw,
-      (WriterFinalizer*)&close_jsfunction,
+      &close_jsfunction,
   };
 }
 
@@ -432,7 +502,7 @@ writer_counted(Writer* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
   return (Writer){
       &write_counted,
       c,
-      (WriterFinalizer*)&orig_free,
+      &close_free,
   };
 }
 
@@ -447,7 +517,7 @@ writer_buffered(Writer* parent, size_t buf_size) {
   return (Writer){
       &write_buffered,
       b,
-      (WriterFinalizer*)&close_buffered,
+      &close_buffered,
   };
 }
 
@@ -462,7 +532,7 @@ writer_linebuffered(Writer* parent, size_t buf_size) {
   return (Writer){
       &write_linebuffered,
       b,
-      (WriterFinalizer*)&close_buffered,
+      &close_buffered,
   };
 }
 
@@ -478,7 +548,7 @@ writer_tee(const Writer a, const Writer b) {
   return (Writer){
       &write_tee,
       parent,
-      (WriterFinalizer*)&orig_free,
+      &close_tee,
   };
 }
 
@@ -493,7 +563,7 @@ writer_escaped(Writer* out, const char* chars, size_t nchars) {
   return (Writer){
       &write_escaped,
       esc,
-      (WriterFinalizer*)&orig_free,
+      &close_free,
   };
 }
 
@@ -517,7 +587,7 @@ writer_location(Writer* parent, Location* lo) {
   return (Writer){
       &write_location,
       tr,
-      (WriterFinalizer*)&orig_free,
+      &close_free,
   };
 }
 
@@ -545,34 +615,70 @@ read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   if((remain = MIN_NUM(len, headroom))) {
     memcpy(buf, &db->buf[pos], remain);
     pos += remain;
+    rd->opaque2 = (void*)pos;
   }
-
-  if(pos == db->size)
-    pos = 0;
-
-  rd->opaque2 = (void*)pos;
 
   return remain;
 }
 
 static ssize_t
+read_fd(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  return read(fd, buf, len);
+}
+
+static ssize_t
 read_urldecoded(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
-  Reader* parent = (Reader*)fd;
-  uint8_t* x = buf;
-  uint8_t hi, lo, c, *y = x;
-  ssize_t r = 0;
+  URLDecoder* u = (URLDecoder*)fd;
+  uint8_t *x = buf, *y = x;
 
   while(len > 0) {
-    RESULT_LOOP(reader_read(parent, &c, 1), r);
+    uint8_t c;
+    ssize_t r;
+
+    if(u->npending) {
+      *x++ = u->pending[0];
+      u->pending[0] = u->pending[1];
+      u->npending--;
+      len--;
+      continue;
+    }
+
+    if((r = reader_read(u->parent, &c, 1)) <= 0)
+      return x > y ? x - y : r;
 
     if(c == '%') {
-      RESULT_LOOP(reader_read(parent, &hi, 1), r);
+      uint8_t hi, lo;
+
+      if((r = reader_read(u->parent, &hi, 1)) < 0)
+        return x > y ? x - y : r;
+
+      if(r == 0) {
+        *x++ = '%';
+        len--;
+        continue;
+      }
 
       if(hi != '%') {
+        if((r = reader_read(u->parent, &lo, 1)) < 0)
+          return x > y ? x - y : r;
 
-        RESULT_LOOP(reader_read(parent, &lo, 1), r);
+        int h = scan_fromhex(hi);
+        int l = r == 0 ? -1 : scan_fromhex(lo);
 
-        c = (scan_fromhex(hi) << 4) | scan_fromhex(lo);
+        if(h >= 0 && l >= 0) {
+          c = (h << 4) | l;
+        } else {
+          /* not a valid escape: emit it literally */
+          u->pending[0] = hi;
+          u->npending = 1;
+
+          if(r > 0) {
+            u->pending[1] = lo;
+            u->npending = 2;
+          }
+
+          c = '%';
+        }
       }
     }
 
@@ -601,6 +707,11 @@ read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
+read_inputbuffer(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  return inputbuffer_read((InputBuffer*)fd, buf, len);
+}
+
+static ssize_t
 read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
   JSFunc* fr = (JSFunc*)fd;
   JSContext* ctx = fr->ctx;
@@ -621,6 +732,9 @@ read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
   int32_t r = -1;
   JS_ToInt32(ctx, &r, ret);
   JS_FreeValue(ctx, ret);
+
+  if(r > 0 && (size_t)r > len)
+    r = len;
 
   return r;
 }
@@ -690,13 +804,12 @@ read_buffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
     if((remain = b->len - b->pos) > 0) {
       if((bytes = reader_read(b->parent, &b->buf[b->pos], remain)) < 0)
-        if(ptr == (uint8_t*)buf)
-          return -1;
+        return ptr > (uint8_t*)buf ? ptr - (uint8_t*)buf : bytes;
+
+      if(bytes == 0)
+        break;
 
       b->pos += bytes;
-
-      if(bytes <= 0)
-        break;
     }
   }
 
@@ -745,42 +858,72 @@ read_linebuffered(intptr_t fd, void* buf, size_t len, Reader* rd) {
 static ssize_t
 read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
   Tracker* tr = (Tracker*)fd;
-  const uint8_t* next;
-  uint8_t* ptr = buf;
-  ssize_t ret = 0, bytes;
   Location* lo = tr->lo;
+  const uint8_t* end;
+  ssize_t r = reader_read(tr->parent, buf, len);
+  int cp;
 
-  while(len > 0) {
-    size_t headroom = sizeof(tr->buf) - tr->buflen;
-    size_t remain = MIN_NUM(len, headroom);
+  if(r <= 0)
+    return r;
 
-    if((bytes = reader_read(tr->parent, &tr->buf[tr->buflen], remain)) < 0)
-      return -1;
+  const uint8_t* ptr = buf;
+  size_t remain = r;
 
-    if(bytes == 0 && tr->buflen == 0)
+  while(remain > 0) {
+    if(tr->buflen > 0) { /* complete a character split across reads */
+      size_t buffered = tr->buflen;
+      size_t needed = utf8_needed(tr->buf[0]);
+      size_t take = needed - buffered;
+
+      if(take > remain) {
+        memcpy(&tr->buf[buffered], ptr, remain);
+        tr->buflen += remain;
+        break;
+      }
+
+      memcpy(&tr->buf[buffered], ptr, take);
+      tr->buflen = 0;
+
+      if((cp = unicode_from_utf8(tr->buf, needed, &end)) == -1) {
+        /* bad continuation: count the buffered prefix bytes, rescan the new ones */
+        lo->char_offset += buffered;
+        lo->column += buffered;
+        lo->byte_offset += buffered;
+        continue;
+      }
+
+      location_nextchar(lo, cp);
+
+      ptr += take;
+      remain -= take;
+      continue;
+    }
+
+    size_t needed = utf8_needed(*ptr);
+
+    if(needed > remain) { /* character split across reads: keep the prefix */
+      memcpy(tr->buf, ptr, remain);
+      tr->buflen = remain;
       break;
+    }
 
-    tr->buflen += bytes;
-
-    int cp = unicode_from_utf8(tr->buf, tr->buflen, &next);
-
-    if(cp == -1 || !(bytes = next - tr->buf))
-      break;
-
-    memcpy(ptr, tr->buf, bytes);
-
-    ptr += bytes;
-    len -= bytes;
-
-    memmove(tr->buf, &tr->buf[bytes], sizeof(tr->buf) - bytes);
-    tr->buflen -= bytes;
+    if(needed == 0 || (cp = unicode_from_utf8(ptr, needed, &end)) == -1) {
+      /* invalid byte: count it individually */
+      lo->char_offset++;
+      lo->column++;
+      lo->byte_offset++;
+      ptr++;
+      remain--;
+      continue;
+    }
 
     location_nextchar(lo, cp);
 
-    ret += bytes;
+    ptr += needed;
+    remain -= needed;
   }
 
-  return ret;
+  return r;
 }
 
 /**
@@ -789,16 +932,16 @@ read_location(intptr_t fd, void* buf, size_t len, Reader* rd) {
  */
 Reader
 reader_from_dynbuf(DynBuf* db) {
-  return (Reader){&read_dynbuf, db, NULL, (ReaderFinalizer*)&dbuf_free};
+  return (Reader){&read_dynbuf, db, NULL, &close_dynbuf_reader};
 }
 
 Reader
-reader_from_buf(InputBuffer* buf, JSContext* ctx) {
+reader_from_buf(InputBuffer* buf) {
   return (Reader){
-      (ReadFunction*)&inputbuffer_read,
+      &read_inputbuffer,
       buf,
-      ctx,
-      0,
+      NULL,
+      NULL,
   };
 }
 
@@ -815,10 +958,10 @@ reader_from_bytes(const void* start, size_t len) {
 Reader
 reader_from_fd(intptr_t fd, bool close_on_end) {
   return (Reader){
-      (ReadFunction*)&read,
+      &read_fd,
       (void*)fd,
       NULL,
-      close_on_end ? (ReaderFinalizer*)&close : NULL,
+      close_on_end ? &close_fd_reader : NULL,
   };
 }
 
@@ -839,7 +982,7 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
       &read_jsfunction,
       fr,
       NULL,
-      &close_jsfunction,
+      &close_jsfunction_reader,
   };
 }
 
@@ -855,7 +998,7 @@ reader_counted(Reader* parent, uint64_t* bytes_ptr, uint64_t* characters_ptr) {
       &read_counted,
       c,
       NULL,
-      (ReaderFinalizer*)&orig_free,
+      &close_free_reader,
   };
 }
 
@@ -871,7 +1014,7 @@ reader_buffered(Reader* parent, size_t buf_size) {
       &read_buffered,
       b,
       NULL,
-      &close_buffered,
+      &close_free_reader,
   };
 }
 
@@ -887,17 +1030,23 @@ reader_linebuffered(Reader* parent, size_t buf_size) {
       &read_linebuffered,
       b,
       NULL,
-      &close_buffered,
+      &close_free_reader,
   };
 }
 
 Reader
 reader_urldecode(Reader* parent) {
+  URLDecoder* u = malloc(sizeof(URLDecoder));
+
+  assert(u);
+
+  *u = (URLDecoder){parent, {0, 0}, 0};
+
   return (Reader){
       &read_urldecoded,
-      parent,
+      u,
       NULL,
-      NULL,
+      &close_free_reader,
   };
 }
 
@@ -913,7 +1062,7 @@ reader_location(Reader* parent, Location* lo) {
       &read_location,
       tr,
       NULL,
-      (ReaderFinalizer*)&orig_free,
+      &close_free_reader,
   };
 }
 
@@ -930,24 +1079,48 @@ reader_free(Reader* rd) {
 
 ssize_t
 transform_urldecode(Reader* rd, Writer* wr) {
-  int c, hi, lo;
+  int c;
   ssize_t ret = 0;
 
-  while((c = reader_getc(rd)) != -1) {
+  while((c = reader_getc(rd)) >= 0) {
     if(c == '%') {
-      if((hi = reader_getc(rd)) == -1)
+      int hi, lo;
+
+      if((hi = reader_getc(rd)) == STREAM_ERROR)
         return -1;
 
+      if(hi == STREAM_EOF) {
+        RESULT(writer_putc(wr, '%'), ret);
+        break;
+      }
+
       if(hi != '%') {
-        if((lo = reader_getc(rd)) == -1)
+        if((lo = reader_getc(rd)) == STREAM_ERROR)
           return -1;
 
-        c = (scan_fromhex(hi) << 4) | scan_fromhex(lo);
+        int h = scan_fromhex(hi);
+        int l = lo == STREAM_EOF ? -1 : scan_fromhex(lo);
+
+        if(h >= 0 && l >= 0) {
+          c = (h << 4) | l;
+        } else {
+          /* not a valid escape: emit it literally */
+          RESULT(writer_putc(wr, '%'), ret);
+          RESULT(writer_putc(wr, hi), ret);
+
+          if(lo == STREAM_EOF)
+            break;
+
+          c = lo;
+        }
       }
     }
 
     RESULT(writer_putc(wr, c), ret);
   }
+
+  if(c == STREAM_ERROR)
+    return -1;
 
   return ret;
 }
