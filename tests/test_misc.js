@@ -1,26 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { format } from 'util';
-import { Console } from 'console';
+ import { Console } from 'console';
 import extendArray from 'extendArray';
 import { Location } from 'location';
-import { arrayToBitfield } from 'misc';
-import { atob } from 'misc';
-import { atomToValue } from 'misc';
-import { bitfieldToArray } from 'misc';
-import { btoa } from 'misc';
-import { compileScript } from 'misc';
-import { getByteCode } from 'misc';
-import { getClass } from 'misc';
-import { getClassID } from 'misc';
-import { getClassName } from 'misc';
-import { getOpCodes } from 'misc';
-import { JS_EVAL_FLAG_COMPILE_ONLY } from 'misc';
-import { readObject } from 'misc';
-import { toArrayBuffer } from 'misc';
-import { valueToAtom } from 'misc';
-import { writeObject } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa,  getByteCode, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
 import * as std from 'std';
+
 extendArray(Array.prototype);
 
 function main(...args) {
@@ -57,18 +42,19 @@ function main(...args) {
     let script = path.join(path.dirname(process.argv[1]), '..', 'lib/fs.js');
     console.log('script', script);
 
-    let mod = compileScript(script, JS_EVAL_FLAG_COMPILE_ONLY);
-    console.log('misc.compileScript()', mod);
-    let modfn = getModuleFunction(mod);
-    console.log('getModuleFunction(mod)', modfn);
-    let bc = writeObject(mod);
+    /*let mod = compileScript(script, JS_EVAL_FLAG_COMPILE_ONLY);
+    console.log('misc.compileScript()', mod);*/
+
+    /*let modfn = getModuleFunction(mod);
+    console.log('getModuleFunction(mod)', modfn);*/
+
+   /* let bc = writeObject(mod);
     console.log('misc.writeObject(mod)', bc);
     let fbc = writeObject(modfn);
     console.log('misc.writeObject(modfn)', fbc);
-    let opcodes = getOpCodes(true);
+    let opcodes = getOpCodes(true);*/
 
-    //fs.writeFileSync('bytecode.bin', bc);
-    console.log('misc.readObject()', readObject(bc));
+    /*console.log('misc.readObject()', readObject(bc));
     let fnbc = getByteCode(main);
     console.log('misc.getByteCode()', fnbc);
     let ba = new Uint8Array(fnbc);
@@ -85,8 +71,10 @@ function main(...args) {
     } catch(e) {}
 
     console.log('ba.length', toHex(ba.length));
-    console.log('misc.opcodes', opcodes);
-    /*    console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));*/
+    console.log('misc.opcodes', opcodes);*/
+
+
+    //console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));
     let max;
 
     console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));
@@ -100,16 +88,7 @@ function main(...args) {
     console.log('valueToAtom()', valueToAtom(-3));
     console.log('atomToValue()', atomToValue(1));
 
-    if(0) {
-      console.log('misc.getClassID()', getClassID({}));
-      console.log('misc.getClassID()', getClassID(new Console()));
-      console.log('misc.getClassID()', getClassID(new ArrayBuffer(1024)));
-      console.log('misc.getClassID()', getClassID(new Map()));
-      console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
-      console.log('misc.getClassID()', getClassID(Symbol));
-      console.log('misc.getClassCount()', getClassCount());
-      console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClass(id)]])));
-    }
+  
     let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
     let arr = bitfieldToArray(bits, 0);
     console.log('bitfield', { bits, arr });
@@ -117,12 +96,12 @@ function main(...args) {
     console.log('ERROR', error + '', '\n' + error.stack);
   }
 
-  console.log('format()', { s: format('string %s', 'abcd') });
+  /*console.log('format()', { s: format('string %s', 'abcd') });
   console.log('format()', format('JSON %j', { str: 'abcd', num: 1234, bool: true }));
   console.log('format()', format('number %d', 123));
   console.log('format()', format('integer %i', '0x4d2'));
   console.log('format()', format('float %f', '.3141592653589793e+01'));
-  console.log('format()', format('object %o', { str: 'abcd', num: 1234, bool: true }));
+  console.log('format()', format('object %o', { str: 'abcd', num: 1234, bool: true }));*/
 
   function toHex(num) {
     let r = num.toString(16);
