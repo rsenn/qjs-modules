@@ -636,7 +636,8 @@ block_free(MemoryBlock* mb, JSRuntime* rt) {
 MemoryBlock
 block_mmap(const char* filename, BOOL shared) {
   MemoryBlock mb = BLOCK_INIT();
-#ifdef HAVE_FSTAT
+
+#if defined(HAVE_FSTAT) && !defined(_WIN32)
   int fd;
 
   if((fd = open(filename, O_RDONLY)) != -1) {
@@ -665,7 +666,7 @@ block_munmap(MemoryBlock* mb) {
 
 int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
-#ifdef HAVE_FSTAT
+#if defined(HAVE_FSTAT) && !defined(_WIN32)
   int fd;
   void* ptr;
   struct stat st;

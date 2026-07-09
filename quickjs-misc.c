@@ -762,7 +762,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(needle.size == 0)
     return JS_ThrowRangeError(ctx, "needle size is 0");
   if(needle.size > haystack.size)
-    return JS_ThrowRangeError(ctx, "needle size %zu is greater than haystack size %zu", needle.size, haystack.size);
+    return JS_ThrowRangeError(ctx, "needle size %"PRIu64" is greater than haystack size %"PRIu64, (uint64_t)needle.size, (uint64_t)haystack.size);
 
   if((n = offsetlength_from_argv(&h_ol, haystack.size, argc - i, argv + i, ctx)) < 0)
     return JS_EXCEPTION;
