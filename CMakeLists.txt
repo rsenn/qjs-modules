@@ -52,7 +52,7 @@ option(MODULE_SERIAL "Build 'serial' module" OFF)
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert console events fs io perf_hooks process repl require stack tty url util)
+  set(BUILTINS_COMPILED assert console events fs io perf_hooks process repl require stack timers tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
