@@ -559,15 +559,13 @@ static ssize_t
 read_urldecoded(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
   Reader* parent = (Reader*)fd;
   uint8_t* x = buf;
-  uint8_t c, *y = x;
+  uint8_t hi, lo, c, *y = x;
   ssize_t r = 0;
 
   while(len > 0) {
     RESULT_LOOP(reader_read(parent, &c, 1), r);
 
     if(c == '%') {
-      uint8_t hi, lo;
-
       RESULT_LOOP(reader_read(parent, &hi, 1), r);
 
       if(hi != '%') {
@@ -932,18 +930,15 @@ reader_free(Reader* rd) {
 
 ssize_t
 transform_urldecode(Reader* rd, Writer* wr) {
-  int c;
+  int c, hi, lo;
   ssize_t ret = 0;
 
   while((c = reader_getc(rd)) != -1) {
     if(c == '%') {
-      int hi, lo;
-
       if((hi = reader_getc(rd)) == -1)
         return -1;
 
       if(hi != '%') {
-
         if((lo = reader_getc(rd)) == -1)
           return -1;
 
