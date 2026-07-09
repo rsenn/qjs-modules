@@ -19,12 +19,12 @@ typedef struct ChildProcess {
   intptr_t pid;
 
   int status, exitcode, termsig, stopsig;
-  bool use_path : 1, exited : 1, signaled : 1, stopped : 1, continued : 1;
+  bool use_path : 1, exited : 1, signaled : 1, stopped : 1, continued : 1, killed : 1;
   int uid, gid;
   int num_fds;
   int *child_fds, *parent_fds, *pipe_fds;
   struct list_head link;
-  JSValue promise, resolve[2];
+  JSValue onexit;
 } ChildProcess;
 
 ChildProcess* child_process_get(int);
@@ -37,6 +37,9 @@ int child_process_kill(ChildProcess*, int);
 void child_process_free(ChildProcess*, JSContext*);
 void child_process_free_rt(ChildProcess*, JSRuntime*);
 void child_process_remove(ChildProcess*, JSContext*);
+void child_process_notify(JSContext*, ChildProcess*);
+JSValue child_process_exitcode(JSContext*, ChildProcess*);
+JSValue child_process_signalcode(JSContext*, ChildProcess*);
 
 extern const char* child_process_signals[32];
 

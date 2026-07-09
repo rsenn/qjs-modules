@@ -90,6 +90,37 @@ child_process_signal(JSContext* ctx, JSValueConst handler) {
   JS_FreeValue(ctx, ret);
 }
 
+JSValue
+child_process_exitcode(JSContext* ctx, ChildProcess* cp) {
+  if(cp->exitcode != -1 && !cp->signaled)
+    return JS_NewInt32(ctx, cp->exitcode);
+
+  return JS_NULL;
+}
+
+JSValue
+child_process_signalcode(JSContext* ctx, ChildProcess* cp) {
+  if(cp->signaled && cp->termsig > 0 && cp->termsig < 32)
+    return JS_NewString(ctx, child_process_signals[cp->termsig]);
+
+  return JS_NULL;
+}
+
+void
+child_process_notify(JSContext* ctx, ChildProcess* cp) {
+  if(js_is_null_or_undefined(cp->onexit))
+    return;
+
+  JSValue exitcode = child_process_exitcode(ctx, cp);
+  JSValue signalcode = child_process_signalcode(ctx, cp);
+  JSValueConst args[] = {exitcode, signalcode};
+
+  JSValue ret = JS_Call(ctx, cp->onexit, JS_UNDEFINED, countof(args), args);
+  JS_FreeValue(ctx, ret);
+  JS_FreeValue(ctx, exitcode);
+  JS_FreeValue(ctx, signalcode);
+}
+
 static JSValue
 child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
 #ifdef HAVE_WAITPID
@@ -100,9 +131,7 @@ child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     if((cp = child_process_get(pid))) {
       if(child_process_status(cp, status)) {
         child_process_remove(cp, ctx);
-
-        if(!js_is_null_or_undefined(cp->resolve[0]))
-          JS_Call(ctx, cp->resolve[0], JS_NULL, 0, 0);
+        child_process_notify(ctx, cp);
       }
     }
 
@@ -147,8 +176,7 @@ child_process_new(JSContext* ctx) {
 
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
 
-    child->resolve[0] = JS_UNDEFINED;
-    child->resolve[1] = JS_UNDEFINED;
+    child->onexit = JS_UNDEFINED;
 
     if(!child_process_handler) {
       JSValue fn = JS_NewCFunction(ctx, child_process_sigchld, "sigchld", 0);
@@ -448,6 +476,9 @@ child_process_free(ChildProcess* cp, JSContext* ctx) {
 
 void
 child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
+  if(cp->link.next)
+    list_del(&cp->link);
+
   if(cp->file)
     js_free_rt(rt, cp->file);
 
@@ -479,8 +510,7 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
   if(cp->pipe_fds)
     js_free_rt(rt, cp->pipe_fds);
 
-  JS_FreeValueRT(rt, cp->resolve[0]);
-  JS_FreeValueRT(rt, cp->resolve[1]);
+  JS_FreeValueRT(rt, cp->onexit);
 
   js_free_rt(rt, cp);
 }

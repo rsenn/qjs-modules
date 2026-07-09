@@ -1,10 +1,8 @@
 #include "defines.h"
 #include "utils.h"
 #include "char-utils.h"
-#include "js-utils.h"
 #include "buffer-utils.h"
 #include "child-process.h"
-#include "property-enumeration.h"
 #include "debug.h"
 
 /**
@@ -23,18 +21,17 @@
 #include <stdlib.h>
 
 enum {
-  CHILD_PROCESS_FILE = 0,
-  CHILD_PROCESS_CWD,
-  CHILD_PROCESS_ARGS,
-  CHILD_PROCESS_ENV,
+  CHILD_PROCESS_SPAWNFILE = 0,
+  CHILD_PROCESS_SPAWNARGS,
+  CHILD_PROCESS_STDIN,
+  CHILD_PROCESS_STDOUT,
+  CHILD_PROCESS_STDERR,
   CHILD_PROCESS_STDIO,
   CHILD_PROCESS_PID,
-  CHILD_PROCESS_EXITED,
   CHILD_PROCESS_EXITCODE,
-  CHILD_PROCESS_TERMSIG,
-  CHILD_PROCESS_SIGNALED,
-  CHILD_PROCESS_STOPPED,
-  CHILD_PROCESS_CONTINUED,
+  CHILD_PROCESS_SIGNALCODE,
+  CHILD_PROCESS_KILLED,
+  CHILD_PROCESS_ONEXIT,
 };
 
 VISIBLE JSClassID js_child_process_class_id = 0;
@@ -179,12 +176,80 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
     JS_FreeValue(ctx, value);
   }
 
+  value = JS_GetPropertyStr(ctx, obj, "onExit");
+  if(JS_IsFunction(ctx, value))
+    cp->onexit = value;
+  else
+    JS_FreeValue(ctx, value);
+
   return 0;
+}
+
+/* Blocks the calling thread until the child has exited or been signaled. */
+static void
+child_process_wait_blocking(ChildProcess* cp) {
+  int pid;
+
+  do {
+  } while((pid = child_process_wait(cp, 0)) != -1 && pid != cp->pid);
+}
+
+/* Builds a Node.js `spawnSync()`-shaped result: {pid, output, stdout, stderr, status, signal}. */
+static JSValue
+child_process_result(JSContext* ctx, ChildProcess* cp) {
+  JSValue obj = JS_NewObjectProto(ctx, JS_NULL);
+  int num = cp->num_fds > 3 ? 3 : cp->num_fds;
+  DynBuf db[3];
+  JSValue output = JS_NewArray(ctx);
+
+  JS_SetPropertyStr(ctx, obj, "pid", JS_NewInt32(ctx, cp->pid));
+  JS_SetPropertyUint32(ctx, output, 0, JS_NULL);
+
+  if(cp->pipe_fds) {
+    static const char* names[3] = {NULL, "stdout", "stderr"};
+
+    for(int i = 1; i < num; i++)
+      if(cp->pipe_fds[i])
+        dbuf_init_ctx(ctx, &db[i]);
+
+    for(int i = 1; i < num; i++)
+      if(cp->pipe_fds[i]) {
+        for(;;) {
+          char tmp[1024];
+          ssize_t bytes = read(cp->parent_fds[i], tmp, sizeof(tmp));
+
+          if(bytes > 0) {
+            dbuf_put(&db[i], (const void*)tmp, bytes);
+            continue;
+          }
+
+          break;
+        }
+      }
+
+    for(int i = 1; i < num; i++)
+      if(cp->pipe_fds[i]) {
+        JSValue str = dbuf_tostring_free(&db[i], ctx);
+
+        JS_DefinePropertyValueStr(ctx, obj, names[i], JS_DupValue(ctx, str), JS_PROP_CONFIGURABLE);
+        JS_SetPropertyUint32(ctx, output, i, str);
+      }
+  }
+
+  JS_DefinePropertyValueStr(ctx, obj, "output", output, JS_PROP_CONFIGURABLE);
+
+  child_process_wait_blocking(cp);
+  child_process_remove(cp, ctx);
+
+  JS_SetPropertyStr(ctx, obj, "status", child_process_exitcode(ctx, cp));
+  JS_SetPropertyStr(ctx, obj, "signal", child_process_signalcode(ctx, cp));
+
+  return obj;
 }
 
 static JSValue
 js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret;
   ChildProcess* cp;
 
   if(!(cp = child_process_new(ctx)))
@@ -220,85 +285,13 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(argc > 1 && JS_IsObject(argv[1]))
     js_child_process_options(ctx, cp, argv[1]);
 
-  /*if(magic == 0)
-    cp->promise = JS_NewPromiseCapability(ctx, cp->resolve);*/
-
   child_process_spawn(cp);
 
-  /* spawnSync? */
+  /* spawnSync */
   if(magic) {
-    int pid;
-
-    JSValue obj = JS_NewObjectProto(ctx, JS_NULL);
-
-    JS_SetPropertyStr(ctx, obj, "pid", JS_NewInt32(ctx, cp->pid));
-
-    int num = cp->num_fds > 3 ? 3 : cp->num_fds;
-    DynBuf db[num];
-
-    if(cp->pipe_fds) {
-      JSValue arr = JS_NewArray(ctx);
-      uint32_t arrlen = 0;
-
-      JS_DefinePropertyValueStr(ctx, obj, "output", arr, JS_PROP_CONFIGURABLE);
-
-      for(int i = 1; i < num; i++)
-        if(cp->pipe_fds[i])
-          dbuf_init_ctx(ctx, &db[i]);
-
-      for(int i = 1; i < num; i++)
-        if(cp->pipe_fds[i]) {
-          for(;;) {
-            char tmp[1024];
-            ssize_t bytes = read(cp->parent_fds[i], tmp, sizeof(tmp));
-
-            if(bytes > 0) {
-              dbuf_put(&db[i], (const void*)tmp, bytes);
-              continue;
-            }
-
-            break;
-          }
-        }
-
-      for(int i = 1; i < num; i++)
-        if(cp->pipe_fds[i]) {
-          static const char* names[3] = {
-              NULL,
-              "stdout",
-              "stderr",
-          };
-
-          JSValue str = dbuf_tostring_free(&db[i], ctx);
-
-          JS_DefinePropertyValueStr(ctx, obj, names[i], JS_DupValue(ctx, str), JS_PROP_CONFIGURABLE);
-          JS_SetPropertyUint32(ctx, arr, i, str);
-        }
-    }
-
-    do {
-    } while((pid = child_process_wait(cp, 0)) && (pid != -1 && pid != cp->pid));
-
-    if(cp->signaled || cp->stopped)
-      JS_SetPropertyStr(ctx, obj, "signal", JS_NewInt32(ctx, cp->stopped ? cp->stopsig : cp->termsig));
-
-#ifdef HAVE_WAITPID
-    JS_SetPropertyStr(ctx, obj, "status", WIFEXITED(cp->status) ? JS_NewInt32(ctx, WEXITSTATUS(cp->status)) : JS_NULL);
-#endif
-    JS_SetPropertyStr(ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode));
-
-    if(cp->termsig)
-      JS_SetPropertyStr(ctx, obj, "termsig", JS_NewInt32(ctx, cp->termsig));
-    if(cp->stopsig)
-      JS_SetPropertyStr(ctx, obj, "stopsig", JS_NewInt32(ctx, cp->stopsig));
-
-    JS_SetPropertyStr(ctx, obj, "exited", JS_NewBool(ctx, cp->exited));
-    JS_SetPropertyStr(ctx, obj, "signaled", JS_NewBool(ctx, cp->signaled));
-    JS_SetPropertyStr(ctx, obj, "stopped", JS_NewBool(ctx, cp->stopped));
-    JS_SetPropertyStr(ctx, obj, "continued", JS_NewBool(ctx, cp->continued));
-
+    JSValue result = child_process_result(ctx, cp);
     JS_FreeValue(ctx, ret);
-    ret = obj;
+    ret = result;
   }
 
   return ret;
@@ -306,7 +299,7 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
 static JSValue
 js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret;
   ChildProcess* cp;
 
   if(!(cp = child_process_new(ctx)))
@@ -331,7 +324,22 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   child_process_spawn(cp);
 
+  /* execSync */
+  if(magic) {
+    JSValue result = child_process_result(ctx, cp);
+    JS_FreeValue(ctx, ret);
+    ret = result;
+  }
+
   return ret;
+}
+
+static JSValue
+child_process_fd(JSContext* ctx, ChildProcess* cp, int idx) {
+  if(cp->parent_fds && idx < cp->num_fds && cp->parent_fds[idx] >= 0)
+    return JS_NewInt32(ctx, cp->parent_fds[idx]);
+
+  return JS_NULL;
 }
 
 static JSValue
@@ -343,36 +351,28 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case CHILD_PROCESS_FILE: {
+    case CHILD_PROCESS_SPAWNFILE: {
       ret = cp->file ? JS_NewString(ctx, cp->file) : JS_NULL;
       break;
     }
 
-    case CHILD_PROCESS_CWD: {
-      ret = cp->cwd ? JS_NewString(ctx, cp->cwd) : JS_NULL;
-      break;
-    }
-
-    case CHILD_PROCESS_ARGS: {
+    case CHILD_PROCESS_SPAWNARGS: {
       ret = cp->args ? js_strv_to_array(ctx, cp->args) : JS_NULL;
       break;
     }
 
-    case CHILD_PROCESS_ENV: {
-      if(cp->env) {
-        ret = JS_NewObject(ctx);
+    case CHILD_PROCESS_STDIN: {
+      ret = child_process_fd(ctx, cp, 0);
+      break;
+    }
 
-        for(char** ptr = cp->env; *ptr; ptr++) {
-          size_t namelen = str_chr(*ptr, '=');
-          JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
+    case CHILD_PROCESS_STDOUT: {
+      ret = child_process_fd(ctx, cp, 1);
+      break;
+    }
 
-          JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
-          JS_FreeAtom(ctx, key);
-        }
-      } else {
-        ret = JS_NULL;
-      }
-
+    case CHILD_PROCESS_STDERR: {
+      ret = child_process_fd(ctx, cp, 2);
       break;
     }
 
@@ -386,37 +386,23 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case CHILD_PROCESS_EXITED: {
-      ret = JS_NewBool(ctx, cp->exitcode != -1 || cp->signaled);
-      break;
-    }
-
     case CHILD_PROCESS_EXITCODE: {
-      if(cp->exitcode != -1)
-        ret = JS_NewInt32(ctx, cp->exitcode);
-
+      ret = child_process_exitcode(ctx, cp);
       break;
     }
 
-    case CHILD_PROCESS_SIGNALED: {
-      ret = JS_NewBool(ctx, cp->signaled);
+    case CHILD_PROCESS_SIGNALCODE: {
+      ret = child_process_signalcode(ctx, cp);
       break;
     }
 
-    case CHILD_PROCESS_STOPPED: {
-      ret = JS_NewBool(ctx, cp->stopped);
+    case CHILD_PROCESS_KILLED: {
+      ret = JS_NewBool(ctx, cp->killed);
       break;
     }
 
-    case CHILD_PROCESS_CONTINUED: {
-      ret = JS_NewBool(ctx, cp->continued);
-      break;
-    }
-
-    case CHILD_PROCESS_TERMSIG: {
-      if(cp->termsig != -1)
-        ret = JS_NewInt32(ctx, cp->termsig);
-
+    case CHILD_PROCESS_ONEXIT: {
+      ret = js_is_null_or_undefined(cp->onexit) ? JS_NULL : JS_DupValue(ctx, cp->onexit);
       break;
     }
   }
@@ -425,51 +411,50 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_child_process_return(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
-  return JS_DupValue(ctx, func_data[0]);
-}
-
-static JSValue
-js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_child_process_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   ChildProcess* cp;
-  int32_t flags = 0;
-  JSValue ret = JS_UNDEFINED;
-  BOOL sync = magic > 0;
 
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(!sync) {
-    cp->promise = JS_NewPromiseCapability(ctx, cp->resolve);
+  switch(magic) {
+    case CHILD_PROCESS_ONEXIT: {
+      JS_FreeValue(ctx, cp->onexit);
+      cp->onexit = JS_IsFunction(ctx, value) ? JS_DupValue(ctx, value) : JS_UNDEFINED;
+      break;
+    }
   }
 
-  if(!sync && JS_IsObject(cp->promise)) {
-    JSValue args[] = {JS_NewInt32(ctx, cp->pid)};
-    JSValue then = JS_NewCFunctionData(ctx, js_child_process_return, 0, 0, countof(args), args);
-    JS_FreeValue(ctx, args[0]);
-    ret = promise_then(ctx, cp->promise, then);
-    JS_FreeValue(ctx, then);
-  }
+  return JS_UNDEFINED;
+}
+
+/* Blocking wait for the child to change state; callers wanting async notification should use `onExit` instead. */
+static JSValue
+js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  ChildProcess* cp;
+  int32_t flags = 0;
+
+  if(!(cp = js_child_process_data2(ctx, this_val)))
+    return JS_EXCEPTION;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &flags, argv[0]);
 
-  int pid = 0;
+  if(!cp->exited && !cp->signaled) {
+    int pid;
 
-  if(cp->exited || cp->signaled) {
-    pid = cp->pid;
-  } else {
     if((pid = child_process_wait(cp, flags)) != -1 && pid == cp->pid) {
-
-      if(!js_is_null_or_undefined(cp->resolve[0]))
-        JS_Call(ctx, cp->resolve[0], JS_NULL, 0, 0);
-      else
-        ret = JS_NewInt32(ctx, pid);
-
       child_process_remove(cp, ctx);
+      child_process_notify(ctx, cp);
     }
   }
 
+  if(!cp->exited && !cp->signaled)
+    return JS_NULL;
+
+  JSValue ret = JS_NewObjectProto(ctx, JS_NULL);
+  JS_SetPropertyStr(ctx, ret, "exitCode", child_process_exitcode(ctx, cp));
+  JS_SetPropertyStr(ctx, ret, "signalCode", child_process_signalcode(ctx, cp));
   return ret;
 }
 
@@ -478,6 +463,7 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   ChildProcess* cp;
   int32_t signum = SIGTERM;
   JSValueConst sig = argv[magic], child = magic ? argv[0] : this_val;
+  int ret;
 
   if(!(cp = js_child_process_data2(ctx, child)))
     return JS_EXCEPTION;
@@ -500,7 +486,12 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
   }
 
-  return JS_NewInt32(ctx, child_process_kill(cp, signum));
+  ret = child_process_kill(cp, signum);
+
+  if(ret == 0)
+    cp->killed = TRUE;
+
+  return JS_NewBool(ctx, ret == 0);
 }
 
 enum {
@@ -539,20 +530,18 @@ static JSClassDef js_child_process_class = {
 };
 
 static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
-    JS_CGETSET_ENUMERABLE_DEF("file", js_child_process_get, 0, CHILD_PROCESS_FILE),
-    JS_CGETSET_MAGIC_DEF("cwd", js_child_process_get, 0, CHILD_PROCESS_CWD),
-    JS_CGETSET_ENUMERABLE_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
-    JS_CGETSET_MAGIC_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
+    JS_CGETSET_ENUMERABLE_DEF("spawnfile", js_child_process_get, 0, CHILD_PROCESS_SPAWNFILE),
+    JS_CGETSET_ENUMERABLE_DEF("spawnargs", js_child_process_get, 0, CHILD_PROCESS_SPAWNARGS),
+    JS_CGETSET_ENUMERABLE_DEF("stdin", js_child_process_get, 0, CHILD_PROCESS_STDIN),
+    JS_CGETSET_ENUMERABLE_DEF("stdout", js_child_process_get, 0, CHILD_PROCESS_STDOUT),
+    JS_CGETSET_ENUMERABLE_DEF("stderr", js_child_process_get, 0, CHILD_PROCESS_STDERR),
     JS_CGETSET_ENUMERABLE_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
     JS_CGETSET_ENUMERABLE_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
-    JS_CGETSET_ENUMERABLE_DEF("exitcode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
-    JS_CGETSET_ENUMERABLE_DEF("termsig", js_child_process_get, 0, CHILD_PROCESS_TERMSIG),
-    JS_CGETSET_ENUMERABLE_DEF("exited", js_child_process_get, 0, CHILD_PROCESS_EXITED),
-    JS_CGETSET_ENUMERABLE_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
-    JS_CGETSET_ENUMERABLE_DEF("stopped", js_child_process_get, 0, CHILD_PROCESS_STOPPED),
-    JS_CGETSET_ENUMERABLE_DEF("continued", js_child_process_get, 0, CHILD_PROCESS_CONTINUED),
-    JS_CFUNC_MAGIC_DEF("wait", 0, js_child_process_wait, 0),
-    JS_CFUNC_MAGIC_DEF("waitSync", 0, js_child_process_wait, 1),
+    JS_CGETSET_ENUMERABLE_DEF("exitCode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
+    JS_CGETSET_ENUMERABLE_DEF("signalCode", js_child_process_get, 0, CHILD_PROCESS_SIGNALCODE),
+    JS_CGETSET_ENUMERABLE_DEF("killed", js_child_process_get, 0, CHILD_PROCESS_KILLED),
+    JS_CGETSET_ENUMERABLE_DEF("onExit", js_child_process_get, js_child_process_set, CHILD_PROCESS_ONEXIT),
+    JS_CFUNC_DEF("wait", 0, js_child_process_wait),
     JS_CFUNC_MAGIC_DEF("kill", 0, js_child_process_kill, 0),
     JS_CFUNC_MAGIC_DEF("[Symbol.toPrimitive]", 0, js_child_process_method, CHILD_PROCESS_TOPRIMITIVE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", 0),
