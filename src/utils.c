@@ -740,7 +740,8 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
 
   value = JS_AtomToValue(ctx, atom);
 
-  if(JS_IsString(value)) {
+  if(JS_IsSymbol(value)) {
+  } else if(JS_IsString(value)) {
     const char* s = JS_ToCString(ctx, value);
 
     if(is_digit_char(s[s[0] == '-'])) {

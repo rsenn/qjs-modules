@@ -788,6 +788,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_iterator_new(ctx, q, &list->node, NORMAL);
       break;
     }
+
     case LIST_INSERT_BEFORE:
     case LIST_INSERT_AFTER: {
       Node *node, *tmp;
@@ -806,7 +807,8 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         ret = js_list_iterator_new(ctx, tmp->next, &list->node, REVERSE);
       } else {
         tmp = node->next;
-        for(int i = argc - 1; i >= 1; i++)
+
+        for(int i = argc - 1; i >= 1; i--)
           list_insert(list, argv[i], node, ctx);
 
         ret = js_list_iterator_new(ctx, tmp->prev, &list->node, NORMAL);
