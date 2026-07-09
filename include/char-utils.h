@@ -481,6 +481,24 @@ int case_diffb(const void*, size_t, const void* T);
 size_t case_findb(const void*, size_t, const void* what, size_t wlen);
 size_t case_finds(const void*, const char*);
 
+/* Total byte length of a UTF-8 sequence, judged by its lead byte (0 = invalid lead byte) */
+static inline size_t
+utf8_needed(uint8_t c) {
+  if(c < 0x80)
+    return 1;
+  if(c >= 0xc0 && c < 0xe0)
+    return 2;
+  if(c >= 0xe0 && c < 0xf0)
+    return 3;
+  if(c >= 0xf0 && c < 0xf8)
+    return 4;
+  if(c >= 0xf8 && c < 0xfc)
+    return 5;
+  if(c >= 0xfc && c < 0xfe)
+    return 6;
+  return 0;
+}
+
 static inline int
 utf8_charcode(const void* in, size_t len) {
   return utf8_charcode2(in, len, 0);

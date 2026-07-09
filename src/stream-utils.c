@@ -70,24 +70,6 @@ typedef struct {
   size_t nchars;
 } Escaper;
 
-/* Total byte length of a UTF-8 sequence, judged by its lead byte (0 = invalid lead byte) */
-static inline size_t
-utf8_needed(uint8_t c) {
-  if(c < 0x80)
-    return 1;
-  if(c >= 0xc0 && c < 0xe0)
-    return 2;
-  if(c >= 0xe0 && c < 0xf0)
-    return 3;
-  if(c >= 0xf0 && c < 0xf8)
-    return 4;
-  if(c >= 0xf8 && c < 0xfc)
-    return 5;
-  if(c >= 0xfc && c < 0xfe)
-    return 6;
-  return 0;
-}
-
 /* Completes the partial UTF-8 character in buf[]/(*buflen) with bytes from ptr/len.
  * Returns the number of bytes consumed from ptr once a complete character is
  * available (the buffer is reset), 0 if more input is needed (the partial bytes
@@ -217,7 +199,7 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
       ssize_t bytes;
 
       while((bytes = buffer_character(c->buf, &c->buflen, ptr, r)) > 0) {
-          (*c->characters_ptr)++;
+        (*c->characters_ptr)++;
 
         ptr += bytes;
         len -= bytes;
