@@ -33,7 +33,7 @@ typedef struct {
 } JSFunc;
 
 typedef struct {
-  size_t* count_ptr;
+  uint64_t* count_ptr;
   union {
     void* parent;
     Writer* writer;
@@ -579,12 +579,12 @@ read_function(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
 static ssize_t
 read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
-  Counted* c = (Counted*)fd;
+  uint64_t* count_ptr = rd->opaque2;
   ssize_t r;
 
-  if((r = reader_read(c->reader, buf, len)) > 0)
-    if(c->count_ptr)
-      *c->count_ptr += r;
+  if((r = reader_read((Reader*)fd, buf, len)) > 0)
+    if(count_ptr)
+      *count_ptr += r;
 
   return r;
 }
@@ -770,17 +770,11 @@ reader_from_method(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj)
 
 Reader
 reader_counted(Reader* parent, size_t* count_ptr) {
-  Counted* c = malloc(sizeof(Counted));
-
-  assert(c);
-
-  *c = (Counted){count_ptr, {parent}};
-
   return (Reader){
       &read_counted,
-      c,
+      parent,
+      count_ptr,
       NULL,
-      (ReaderFinalizer*)&orig_free,
   };
 }
 
