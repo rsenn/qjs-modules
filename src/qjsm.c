@@ -171,11 +171,9 @@ static int bignum_ext = 1;
 #undef jsm_builtin_native
 #undef jsm_builtin_compiled
 
-#define jsm_module_record_compiled(name) \
-  { #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE }
+#define jsm_module_record_compiled(name) {#name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE}
 
-#define jsm_module_record_native(name) \
-  { #name, js_init_module_##name, 0, 0, 0, FALSE }
+#define jsm_module_record_native(name) {#name, js_init_module_##name, 0, 0, 0, FALSE}
 
 static thread_local Vector jsm_stack = VECTOR_INIT();
 static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
@@ -450,6 +448,12 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       /* bytecode compiled module */
     } else {
       obj = JS_ReadObject(ctx, rec->byte_code, rec->byte_code_len, JS_READ_OBJ_BYTECODE);
+
+      if(JS_IsException(obj)) {
+        jsm_stack_pop(ctx);
+        return 0;
+      }
+
       m = js_value_ptr(obj);
 
 #if QUICKJS_INTERNAL
@@ -457,7 +461,12 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       module_rename(ctx, m, JS_NewAtom(ctx, rec->module_name));
 #endif
 
-      JS_ResolveModule(ctx, obj);
+      if(JS_ResolveModule(ctx, obj) < 0) {
+        JS_FreeValue(ctx, obj);
+        jsm_stack_pop(ctx);
+        return 0;
+      }
+
       JSValue ret = JS_EvalFunction(ctx, obj);
       JS_FreeValue(ctx, ret);
     }

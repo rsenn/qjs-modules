@@ -762,7 +762,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(needle.size == 0)
     return JS_ThrowRangeError(ctx, "needle size is 0");
   if(needle.size > haystack.size)
-    return JS_ThrowRangeError(ctx, "needle size %"PRIu64" is greater than haystack size %"PRIu64, (uint64_t)needle.size, (uint64_t)haystack.size);
+    return JS_ThrowRangeError(ctx, "needle size %" PRIu64 " is greater than haystack size %" PRIu64, (uint64_t)needle.size, (uint64_t)haystack.size);
 
   if((n = offsetlength_from_argv(&h_ol, haystack.size, argc - i, argv + i, ctx)) < 0)
     return JS_EXCEPTION;
@@ -3362,7 +3362,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   }
 
   new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
-  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
+  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue (*)(JSContext*, uint64_t))&JS_NewInt64;
 
 #if HAVE_FSTAT
   if((res = fstat(fd, &st)) == -1)
