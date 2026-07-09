@@ -917,7 +917,9 @@ js_mysql_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   dbuf_init2(&buf, 0, 0);
   js_mysql_print_insert(ctx, &buf);
+  dbuf_putc(&buf, '`');
   dbuf_put(&buf, (const uint8_t*)tbl, tbl_len);
+  dbuf_putc(&buf, '`');
   dbuf_putstr(&buf, " ");
 
   for(int i = 1; i < argc; i++) {
