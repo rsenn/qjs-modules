@@ -453,6 +453,7 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
   JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
   JS_SetClassProto(ctx, js_location_class_id, location_proto);
+  JS_SetConstructor(ctx, location_ctor, location_proto);
 
   if(m)
     JS_SetModuleExport(ctx, m, "Location", location_ctor);

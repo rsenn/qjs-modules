@@ -1,6 +1,7 @@
 import { Console } from 'console';
 import { Location } from 'location';
 import * as std from 'std';
+
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
@@ -11,9 +12,11 @@ function main(...args) {
       showHidden: false,
     },
   });
+
   console.log('Location', Location);
 
   let location = new Location('utf-8');
+
   console.log('location', location);
   console.log('location', Object.getPrototypeOf(location));
   console.log('location', Object.getOwnPropertyNames(Object.getPrototypeOf(location)));
