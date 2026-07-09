@@ -74,9 +74,9 @@ static inline ssize_t
 buffer_character(uint8_t buf[8], size_t* buflen, const uint8_t* ptr, size_t len) {
   const uint8_t* next;
   int cp;
-  size_t buffered = *buflen;
+  size_t buffered, charlen;
 
-  if(buffered > 0) {
+  if((buffered = *buflen) > 0) {
     size_t headroom = 8 - *buflen;
     size_t remain = MIN_NUM(headroom, len);
 
@@ -84,20 +84,18 @@ buffer_character(uint8_t buf[8], size_t* buflen, const uint8_t* ptr, size_t len)
       memcpy(&buf[*buflen], ptr, remain);
 
     cp = unicode_from_utf8(buf, *buflen + remain, &next);
-    size_t charlen = next - buf;
+    charlen = next - buf;
 
     if(cp == -1 || charlen == 0)
       return -1;
 
     size_t advance = charlen - buffered;
-
     *buflen = 0;
-
     return advance;
   }
 
   cp = unicode_from_utf8(ptr, len, &next);
-  size_t charlen = next - ptr;
+  charlen = next - ptr;
 
   if(cp == -1 || charlen == 0) {
     *buflen = MIN_NUM(len, 8);
