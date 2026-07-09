@@ -62,6 +62,8 @@ async function main(...args) {
   let id,
     res = await q(`SELECT * FROM test;`);
 
+console.log('res', res);
+
   for(let row of res) result(row);
 
   await q(pq.insertQuery('users', ['name', 'password', 'email'], [randStr(32), randStr(32), randStr(64)]));
