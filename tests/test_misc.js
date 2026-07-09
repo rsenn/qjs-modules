@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
- import { Console } from 'console';
+import { Console } from 'console';
 import extendArray from 'extendArray';
 import { Location } from 'location';
-import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa,  getByteCode, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, getByteCode, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
 import * as std from 'std';
 
 extendArray(Array.prototype);
@@ -48,7 +48,7 @@ function main(...args) {
     /*let modfn = getModuleFunction(mod);
     console.log('getModuleFunction(mod)', modfn);*/
 
-   /* let bc = writeObject(mod);
+    /* let bc = writeObject(mod);
     console.log('misc.writeObject(mod)', bc);
     let fbc = writeObject(modfn);
     console.log('misc.writeObject(modfn)', fbc);
@@ -73,7 +73,6 @@ function main(...args) {
     console.log('ba.length', toHex(ba.length));
     console.log('misc.opcodes', opcodes);*/
 
-
     //console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));
     let max;
 
@@ -88,7 +87,6 @@ function main(...args) {
     console.log('valueToAtom()', valueToAtom(-3));
     console.log('atomToValue()', atomToValue(1));
 
-  
     let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
     let arr = bitfieldToArray(bits, 0);
     console.log('bitfield', { bits, arr });

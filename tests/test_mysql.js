@@ -4,6 +4,8 @@ import { Console } from 'console';
 import { MySQL } from 'mysql';
 import { MySQLResult } from 'mysql';
 import { exit } from 'std';
+import { setReadHandler } from 'os';
+
 extendArray();
 
 let i,
