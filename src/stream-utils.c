@@ -456,7 +456,6 @@ writer_from_jsbuf(JSContext* ctx, JSValueConst value) {
   *output = js_output_typedarray(ctx, value);
 
   Writer wr = writer_from_buf(output);
-  // wr.opaque2 = ctx;
   wr.finalizer = &writer_jsbuf_free;
   return wr;
 }
