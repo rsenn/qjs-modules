@@ -1173,7 +1173,6 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return asyncclosure_promise(ac);
 #else
   return JS_NewInt32(ctx, mysql_query(my, query));
-
 #endif
 }
 
