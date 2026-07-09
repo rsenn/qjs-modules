@@ -70,40 +70,74 @@ typedef struct {
   size_t nchars;
 } Escaper;
 
+/* Total byte length of a UTF-8 sequence, judged by its lead byte (0 = invalid lead byte) */
+static inline size_t
+utf8_needed(uint8_t c) {
+  if(c < 0x80)
+    return 1;
+  if(c >= 0xc0 && c < 0xe0)
+    return 2;
+  if(c >= 0xe0 && c < 0xf0)
+    return 3;
+  if(c >= 0xf0 && c < 0xf8)
+    return 4;
+  if(c >= 0xf8 && c < 0xfc)
+    return 5;
+  if(c >= 0xfc && c < 0xfe)
+    return 6;
+  return 0;
+}
+
+/* Completes the partial UTF-8 character in buf[]/(*buflen) with bytes from ptr/len.
+ * Returns the number of bytes consumed from ptr once a complete character is
+ * available (the buffer is reset), 0 if more input is needed (the partial bytes
+ * from ptr have been added to the buffer), -1 on invalid UTF-8 (buffer unchanged). */
 static inline ssize_t
 buffer_character(uint8_t buf[8], size_t* buflen, const uint8_t* ptr, size_t len) {
   const uint8_t* next;
-  int cp;
-  size_t buffered, charlen;
+  size_t buffered = *buflen;
 
-  if((buffered = *buflen) > 0) {
-    size_t headroom = 8 - *buflen;
-    size_t remain = MIN_NUM(headroom, len);
+  if(buffered > 0) {
+    size_t needed = utf8_needed(buf[0]);
 
-    if(remain > 0)
-      memcpy(&buf[*buflen], ptr, remain);
-
-    cp = unicode_from_utf8(buf, *buflen + remain, &next);
-    charlen = next - buf;
-
-    if(cp == -1 || charlen == 0)
+    if(needed == 0)
       return -1;
 
-    size_t advance = charlen - buffered;
+    if(buffered + len < needed) {
+      memcpy(&buf[buffered], ptr, len);
+      *buflen += len;
+      return 0;
+    }
+
+    size_t take = needed - buffered;
+
+    memcpy(&buf[buffered], ptr, take);
+
+    if(unicode_from_utf8(buf, needed, &next) == -1)
+      return -1;
+
     *buflen = 0;
-    return advance;
+    return take;
   }
 
-  cp = unicode_from_utf8(ptr, len, &next);
-  charlen = next - ptr;
+  if(len == 0)
+    return 0;
 
-  if(cp == -1 || charlen == 0) {
-    *buflen = MIN_NUM(len, 8);
-    memcpy(buf, ptr, *buflen);
+  size_t needed = utf8_needed(ptr[0]);
+
+  if(needed == 0)
+    return -1;
+
+  if(needed > len) {
+    memcpy(buf, ptr, len);
+    *buflen = len;
     return 0;
   }
 
-  return charlen;
+  if(unicode_from_utf8(ptr, needed, &next) == -1)
+    return -1;
+
+  return needed;
 }
 
 static ssize_t
@@ -183,7 +217,7 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
       ssize_t bytes;
 
       while((bytes = buffer_character(c->buf, &c->buflen, ptr, r)) > 0) {
-        (*c->characters_ptr)++;
+          (*c->characters_ptr)++;
 
         ptr += bytes;
         len -= bytes;
@@ -640,12 +674,26 @@ read_counted(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
     if(c->characters_ptr) {
       ssize_t bytes;
+      size_t remain = r;
 
-      while((bytes = buffer_character(c->buf, &c->buflen, ptr, r)) > 0) {
+      while((bytes = buffer_character(c->buf, &c->buflen, ptr, remain))) {
+        if(bytes < 0) {
+          /* invalid UTF-8: count the bogus sequence as one character and resync */
+          (*c->characters_ptr)++;
+
+          if(c->buflen > 0) {
+            c->buflen = 0;
+          } else {
+            ptr++;
+            remain--;
+          }
+
+          continue;
+        }
+
         (*c->characters_ptr)++;
-
         ptr += bytes;
-        len -= bytes;
+        remain -= bytes;
       }
     }
   }
