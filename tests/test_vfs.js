@@ -3,9 +3,7 @@ import * as fs from 'fs';
 import { Archive, ArchiveEntry } from 'archive';
 import { toString } from 'util';
 import { UnionFS, ArchiveFS } from '../lib/vfs.js';
-import { assert } from './tinytest.js';
-import { eq } from './tinytest.js';
-import { tests } from './tinytest.js';
+import { assert, eq, tests } from './tinytest.js';
 
 /*
  * Fixture layout (built fresh under a scratch directory for every run):

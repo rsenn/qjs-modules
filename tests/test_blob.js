@@ -1,9 +1,5 @@
 import { ReadableStream } from 'stream';
-import { assert_equals } from '../lib/testharnessreport.js';
-import { assert_throws_js } from '../lib/testharnessreport.js';
-import { assert_true } from '../lib/testharnessreport.js';
-import { promise_test } from '../lib/testharnessreport.js';
-import { test } from '../lib/testharnessreport.js';
+import { assert_equals, assert_throws_js, assert_true, promise_test, test } from '../lib/testharnessreport.js';
 import { Blob } from 'blob';
 import { TextEncoder } from 'textcode';
 

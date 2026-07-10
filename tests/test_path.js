@@ -1,7 +1,5 @@
 import * as path from 'path';
-import { assert } from './tinytest.js';
-import { eq } from './tinytest.js';
-import { tests } from './tinytest.js';
+import { assert, eq, tests } from './tinytest.js';
 
 tests({
   'basename()'() {

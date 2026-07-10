@@ -1,8 +1,7 @@
 import { abbreviate, randStr } from 'util';
 import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
-import { SQLite3 } from 'sqlite';
-import { SQLite3Result } from 'sqlite';
+import { SQLite3, SQLite3Result } from 'sqlite';
 import { exit } from 'std';
 extendArray();
 

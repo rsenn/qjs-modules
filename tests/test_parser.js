@@ -1,5 +1,4 @@
-import { readFileSync } from 'fs';
-import { writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import EBNFParser from '../lib/parser/ebnf.js';
 import { Console } from 'console';

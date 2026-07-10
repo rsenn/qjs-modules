@@ -1,10 +1,6 @@
 import fs from 'fs';
-import { O_RDONLY } from 'os';
-import { open } from 'os';
-import { dirname } from 'path';
-import { extname } from 'path';
-import { join } from 'path';
-import { normalize } from 'path';
+import { O_RDONLY, open } from 'os';
+import { dirname, extname, join, normalize } from 'path';
 import { curry, define, getOpt, isObject, split, startInteractive, unique } from 'util';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CLexer from '../lib/lexer/c.js';
@@ -14,16 +10,9 @@ import { Console } from 'console';
 import extendArray from 'extendArray';
 import inspect from 'inspect';
 import { Location } from 'lexer';
-import { escape } from 'misc';
-import { toString } from 'misc';
-import { MAP_PRIVATE } from 'mmap';
-import { mmap } from 'mmap';
-import { PROT_READ } from 'mmap';
-import { err } from 'std';
-import { exit } from 'std';
-import { gc } from 'std';
-import { open as fopenSync } from 'std';
-import { puts } from 'std';
+import { escape, toString } from 'misc';
+import { MAP_PRIVATE, mmap, PROT_READ } from 'mmap';
+import { err, exit, gc, open as fopenSync, puts } from 'std';
 let buffers = {},
   modules = {};
 
