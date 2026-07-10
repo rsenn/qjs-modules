@@ -1085,7 +1085,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   BOOL is_array = JS_IsArray(ctx, value);
   BOOL is_function = JS_IsFunction(ctx, value);
 
-  if(opts->depth != INT32_MAX && depth > opts->depth) {
+  if(opts->depth != INT32_MAX && depth >= opts->depth) {
     writer_puts(wr,
                 is_function ? (opts->colors ? COLOR_MARINE "[Function]" COLOR_NONE : "[Function]")
                 : is_array  ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
