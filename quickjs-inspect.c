@@ -1376,6 +1376,134 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
   return 0;
 }
 
+typedef struct CompactAncestor {
+  JSValueConst obj;
+  const struct CompactAncestor* parent;
+} CompactAncestor;
+
+static BOOL
+compact_ancestor_has(const CompactAncestor* anc, JSValueConst value) {
+  for(; anc; anc = anc->parent)
+    if(js_object_same(anc->obj, value))
+      return TRUE;
+
+  return FALSE;
+}
+
+static BOOL inspect_compact_object(Inspector*, JSValueConst, int32_t, BOOL, const CompactAncestor*, DynBuf*);
+
+/* Renders `value` (a single entry's value) into `out`, recursing into nested
+   objects via inspect_compact_object. Returns FALSE if `value` can't be
+   rendered at all (exception); collapse ([Object]/[loop]/etc) always counts
+   as success since it produced valid, bounded text. */
+static BOOL
+inspect_compact_value(Inspector* insp, JSValueConst value, int32_t level, const CompactAncestor* ancestors, DynBuf* out) {
+  JSContext* const ctx = insp->hier.opaque;
+  InspectOptions* const opts = &insp->opts;
+  int ret;
+
+  if(!JS_IsObject(value)) {
+    Inspector scratch = {*opts, writer_from_dynbuf(out), VECTOR(ctx)};
+
+    ret = inspect_value(&scratch, value, level);
+    vector_free(&scratch.hier);
+
+    return ret != -1;
+  }
+
+  if(property_recursion_circular(&insp->hier, value) || compact_ancestor_has(ancestors, value)) {
+    Inspector scratch = {*opts, writer_from_dynbuf(out), VECTOR(ctx)};
+
+    writer_puts(&scratch.wr, opts->colors ? COLOR_LIGHTRED "[loop]" COLOR_NONE : "[loop]");
+    vector_free(&scratch.hier);
+
+    return TRUE;
+  }
+
+  {
+    Inspector scratch = {*opts, writer_from_dynbuf(out), VECTOR(ctx)};
+
+    ret = inspect_object(&scratch, value, level);
+    vector_free(&scratch.hier);
+  }
+
+  if(ret == -1)
+    return FALSE;
+
+  if(ret == 1)
+    return TRUE;
+
+  {
+    CompactAncestor node = {value, ancestors};
+
+    return inspect_compact_object(insp, value, level, js_is_array(ctx, value), &node, out);
+  }
+}
+
+/* Attempts to render obj's own body ("{ ... }"/"[ ... ]") entirely on one
+   line into `out`. Only eligible when its non-hidden entry count is within
+   opts->compact; bails (returns FALSE) as soon as the rendered width would
+   exceed opts->break_length, leaving `out`'s contents undefined. Used only
+   when opts->compact holds a plain finite number, never the true/false
+   sentinels (INT32_MIN/INT32_MAX), which keep their original all-or-nothing
+   behavior untouched. */
+static BOOL
+inspect_compact_object(Inspector* insp, JSValueConst obj, int32_t level, BOOL is_array, const CompactAncestor* ancestors, DynBuf* out) {
+  JSContext* const ctx = insp->hier.opaque;
+  InspectOptions* const opts = &insp->opts;
+  PropertyEnumeration pe = PROPENUM_INIT();
+  BOOL ok = TRUE, first = TRUE;
+
+  if(property_enumeration_init(&pe, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE) == -1)
+    return FALSE;
+
+  uint32_t nhidden = options_numhidden(opts, pe.tab_atom, pe.tab_atom_len);
+  uint32_t count = pe.tab_atom_len - nhidden;
+
+  if(count == 0 || count > (uint32_t)opts->compact) {
+    property_enumeration_reset(&pe, JS_GetRuntime(ctx));
+    return FALSE;
+  }
+
+  Inspector scratch = {*opts, writer_from_dynbuf(out), VECTOR(ctx)};
+  Writer* const wr = &scratch.wr;
+
+  writer_puts(wr, is_array ? "[ " : "{ ");
+
+  for(; ok && pe.idx < pe.tab_atom_len; pe.idx++) {
+    JSAtom atom = pe.tab_atom[pe.idx];
+
+    if(options_hidden(opts, atom))
+      continue;
+
+    if(!first)
+      writer_puts(wr, ", ");
+    first = FALSE;
+
+    if(!is_array) {
+      inspect_key(&scratch, atom);
+      writer_puts(wr, ": ");
+    }
+
+    JSValue value = JS_GetProperty(ctx, obj, atom);
+
+    ok = !JS_IsException(value) && inspect_compact_value(insp, value, level + 1, ancestors, out);
+
+    JS_FreeValue(ctx, value);
+
+    if(ok && out->size > (size_t)opts->break_length)
+      ok = FALSE;
+  }
+
+  if(ok)
+    writer_puts(wr, is_array ? " ]" : " }");
+
+  vector_free(&scratch.hier);
+  property_enumeration_reset(&pe, JS_GetRuntime(ctx));
+
+  return ok;
+}
+
 static int
 inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   JSContext* const ctx = insp->hier.opaque;
@@ -1386,12 +1514,29 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   int index = 0, ret;
   JSPromiseStateEnum state = -1;
+  BOOL numeric_compact = opts->compact != INT32_MIN && opts->compact != INT32_MAX;
 
   if((ret = inspect_object(insp, obj, depth)))
     return ret;
 
-  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
   is_array = js_is_array(ctx, obj);
+
+  if(numeric_compact && !js_is_promise(ctx, obj)) {
+    DynBuf scratch;
+    dbuf_init_ctx(ctx, &scratch);
+
+    CompactAncestor root = {obj, 0};
+
+    if(inspect_compact_object(insp, obj, depth, is_array, &root, &scratch)) {
+      writer_write(wr, scratch.buf, scratch.size);
+      dbuf_free(&scratch);
+      return 0;
+    }
+
+    dbuf_free(&scratch);
+  }
+
+  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
 
   writer_puts(wr, is_array ? "[" : "{");
 
@@ -1462,7 +1607,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
           writer_puts(wr, " ,");
       }
 
-      put_spacing(wr, opts, depth);
+      if(numeric_compact)
+        put_newline(wr, depth);
+      else
+        put_spacing(wr, opts, depth);
 
       uint32_t idx = property_enumeration_index(it);
 
@@ -1494,18 +1642,37 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
         }
 
         if(ret != 1 && is_object && !is_function) {
-          it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
-          is_array = js_is_array(ctx, value);
+          BOOL child_is_array = js_is_array(ctx, value);
+          BOOL compacted = FALSE;
 
-          if(it) {
-            index = 0;
-            writer_puts(wr, is_array ? "[" : "{");
+          if(numeric_compact && !js_is_promise(ctx, value)) {
+            DynBuf scratch;
+            dbuf_init_ctx(ctx, &scratch);
 
-            ++depth;
+            CompactAncestor root = {value, 0};
 
-            continue;
-          } else {
-            writer_puts(wr, is_array ? "[]" : "{}");
+            if(inspect_compact_object(insp, value, depth, child_is_array, &root, &scratch)) {
+              writer_write(wr, scratch.buf, scratch.size);
+              compacted = TRUE;
+            }
+
+            dbuf_free(&scratch);
+          }
+
+          if(!compacted) {
+            it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+            is_array = child_is_array;
+
+            if(it) {
+              index = 0;
+              writer_puts(wr, is_array ? "[" : "{");
+
+              ++depth;
+
+              continue;
+            } else {
+              writer_puts(wr, is_array ? "[]" : "{}");
+            }
           }
         }
 
@@ -1529,10 +1696,18 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       /* no more nested enumerations */
       it = property_recursion_pop(&insp->hier, ctx);
 
-      if(!(/*depth == 1 &&*/ prev_idx == 0))
-        adjust_spacing(wr, opts, &depth, -1);
-      else
+      if(numeric_compact) {
+        BOOL had_entries = !(prev_idx == 0);
+
         --depth;
+
+        if(had_entries)
+          put_newline(wr, depth);
+      } else if(!(/*depth == 1 &&*/ prev_idx == 0)) {
+        adjust_spacing(wr, opts, &depth, -1);
+      } else {
+        --depth;
+      }
 
 #ifdef DEBUG_OUTPUT
       printf("%s()[1] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
