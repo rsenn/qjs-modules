@@ -162,6 +162,17 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
   sj_Reader r = sj_reader((char*)buf, len);
   JSValue ret = parse_val(ctx, &r, sj_read(&r));
 
+  if(!JS_IsException(ret)) {
+    while(r.cur < r.end && (*r.cur == ' ' || *r.cur == '\n' || *r.cur == '\r' || *r.cur == '\t'))
+      r.cur++;
+
+    if(r.cur != r.end) {
+      JS_FreeValue(ctx, ret);
+      r.error = "unexpected trailing data";
+      return parse_throw(ctx, &r);
+    }
+  }
+
   return ret;
 }
 
