@@ -474,6 +474,7 @@ set(deep_LIBRARIES qjs-predicate qjs-pointer)
 #[[set(deep_LIBRARIES)
 unset(deep_LIBRARIES)]]
 set(xml_LIBRARIES qjs-location qjs-inspect)
+set(json_LIBRARIES qjs-location)
 
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/readlink.c)
