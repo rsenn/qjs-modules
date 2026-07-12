@@ -13,20 +13,37 @@ A streaming/extended JSON reader plus simple read/write helpers.
 
 ## JsonParser
 
-An incremental JSON parser.
+An incremental JSON tokenizer, built on `Reader`/`Location` from `stream-utils.h`. Each call
+to `.parse()` either advances one token (a state change), signals that the reader ran dry
+before a token was complete (`"NEED_DATA"`), or throws a `SyntaxError` (with the offending
+line:column) on malformed input.
 
 ```js
-new JsonParser(input)   // length 1
+new JsonParser(input, filename)   // length 1; filename is optional, reflected in .location.file
 ```
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `parse()` | 0 | method | Parses the next token/value from the input. |
-| `pos` | — | getter | Current parse position (enumerable). |
-| `token` | — | getter | The current token (enumerable). |
-| `state` | — | getter | Parser state (enumerable). |
+| `parse()` | 0 | method | Advances one token. Returns one of `"NEED_DATA"`, `"NONE"`, `"OBJECT"`, `"OBJECT_END"`, `"ARRAY"`, `"ARRAY_END"`, `"KEY"`, `"STRING"`, `"TRUE"`, `"FALSE"`, `"NULL"`, `"NUMBER"`. Throws on malformed input. |
+| `pos` | — | getter | Current parse position, in characters consumed (enumerable). |
+| `token` | — | getter | The current token's decoded text — e.g. string/key content has escapes and `\uXXXX` (including surrogate pairs) already resolved (enumerable). |
+| `state` | — | getter | Internal parser state bitmask (enumerable). |
 | `depth` | — | getter | Current nesting depth (enumerable). |
+| `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename); live, like `JsonPushParser`'s (enumerable). |
 | `callback` | — | getter/setter | Per-value callback invoked while parsing. |
+
+```js
+import { JsonParser } from 'json';
+
+let p = new JsonParser('{"a":1,"b":[2,3]}');
+let t;
+
+while((t = p.parse()) !== 'NEED_DATA') console.log(t, JSON.stringify(p.token));
+// OBJECT "{"  KEY "a"  NUMBER "1"  KEY "b"  ARRAY "["  NUMBER "2"  NUMBER "3"  ARRAY_END "]"  OBJECT_END "}"
+```
+
+`"NEED_DATA"` at the top level (after the root value is fully closed) simply means there's
+nothing left to parse — this class has no `.write()` to feed it more, unlike `JsonPushParser`.
 
 ## JsonPushParser
 

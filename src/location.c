@@ -55,14 +55,21 @@ location_tostring(const Location* loc, JSContext* ctx) {
 
 char*
 location_file(const Location* loc, JSContext* ctx) {
-  const char* file;
   char* s = 0;
 
-  if(ctx && loc->file > -1 && (file = JS_AtomToCString(ctx, loc->file))) {
-    s = ctx ? js_strdup(ctx, file) : strdup(file);
-    JS_FreeCString(ctx, file);
-  } else if(loc->has_filename && (loc->filename && loc->filename[0])) {
-    s = ctx ? js_strdup(ctx, loc->filename) : strdup(loc->filename);
+  /* loc->file/loc->filename are a union; has_filename says which is live. Checking
+     loc->file first (as this used to) reads filename's pointer bytes as an atom index
+     whenever has_filename is set, which usually isn't a valid atom. */
+  if(loc->has_filename) {
+    if(loc->filename && loc->filename[0])
+      s = ctx ? js_strdup(ctx, loc->filename) : strdup(loc->filename);
+  } else if(ctx && loc->file > -1) {
+    const char* file = JS_AtomToCString(ctx, loc->file);
+
+    if(file) {
+      s = ctx ? js_strdup(ctx, file) : strdup(file);
+      JS_FreeCString(ctx, file);
+    }
   }
 
   return s;
@@ -298,10 +305,10 @@ void
 location_set_filename(Location* loc, const char* filename, JSContext* ctx) {
   location_set_file(loc, -1, ctx);
 
-  if(loc->filename) {
-    loc->has_filename = TRUE;
-    loc->filename = ctx ? js_strdup(ctx, filename) : strdup(filename);
-  }
+  /* loc->filename is a union member with loc->file; it isn't live until has_filename
+     is set below, so it can't be checked beforehand - just assign it unconditionally */
+  loc->has_filename = TRUE;
+  loc->filename = ctx ? js_strdup(ctx, filename) : strdup(filename);
 }
 
 void

@@ -1659,9 +1659,21 @@ static JSValue
 js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
   JsonParser* parser;
+  Reader reader = reader_from_jsbuf(ctx, argc > 0 ? argv[0] : JS_UNDEFINED);
+  const char* filename = 0;
 
-  if(!(parser = json_new(argc > 0 ? argv[0] : JS_UNDEFINED, ctx)))
+  if(argc > 1)
+    filename = JS_ToCString(ctx, argv[1]);
+
+  parser = json_new(reader, filename, ctx);
+
+  if(filename)
+    JS_FreeCString(ctx, filename);
+
+  if(!parser) {
+    reader_free(&reader);
     return JS_EXCEPTION;
+  }
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -1671,16 +1683,14 @@ js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   obj = JS_NewObjectProtoClass(ctx, proto, js_json_parser_class_id);
   JS_FreeValue(ctx, proto);
 
-  if(JS_IsException(obj))
-    goto fail;
+  if(JS_IsException(obj)) {
+    json_free(parser, JS_GetRuntime(ctx));
+    return JS_EXCEPTION;
+  }
 
   JS_SetOpaque(obj, parser);
 
   return obj;
-
-fail:
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
 }
 
 enum {
@@ -1697,9 +1707,22 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case JSON_PARSER_PARSE: {
-      JsonValueType type = json_parse(parser, ctx);
+      int type = json_parse(parser);
+
+      if(type == JSON_ERROR) {
+        char* loc = location_tostring(parser->loc, ctx);
+
+        JS_ThrowSyntaxError(ctx, "%s%s%s", loc && *loc ? loc : "", loc && *loc ? ": " : "", parser->error ? parser->error : "parse error");
+
+        if(loc)
+          js_free(ctx, loc);
+
+        return JS_EXCEPTION;
+      }
+
       ret = JS_NewString(ctx,
                          (const char* const[]){
+                             "NEED_DATA",
                              "NONE",
                              "OBJECT",
                              "OBJECT_END",
@@ -1711,7 +1734,7 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
                              "FALSE",
                              "NULL",
                              "NUMBER",
-                         }[type + 1]);
+                         }[type + 2]);
       break;
     }
   }
@@ -1725,6 +1748,7 @@ enum {
   JSON_PARSER_TOKEN,
   JSON_PARSER_STATE,
   JSON_PARSER_DEPTH,
+  JSON_PARSER_LOCATION,
 };
 
 static JSValue
@@ -1758,6 +1782,11 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case JSON_PARSER_DEPTH: {
       ret = JS_NewUint32(ctx, parser->stack.len);
+      break;
+    }
+
+    case JSON_PARSER_LOCATION: {
+      ret = js_location_wrap(ctx, parser->loc);
       break;
     }
   }
@@ -1832,6 +1861,7 @@ static const JSCFunctionListEntry js_json_parser_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("token", js_json_parser_get, 0, JSON_PARSER_TOKEN, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("state", js_json_parser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_json_parser_get, 0, JSON_PARSER_DEPTH, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("location", js_json_parser_get, 0, JSON_PARSER_LOCATION, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("callback", js_json_parser_get, js_json_parser_set, JSON_PARSER_CALLBACK),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonParser", JS_PROP_CONFIGURABLE),
 };

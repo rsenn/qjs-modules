@@ -298,6 +298,134 @@ async function main() {
   /* ---------- JsonParser class is exported ---------- */
   assert('JsonParser is a constructor', typeof JsonParser === 'function');
 
+  function drainParser(input, filename) {
+    let p = filename !== undefined ? new JsonParser(input, filename) : new JsonParser(input);
+    let toks = [];
+
+    for(;;) {
+      let t = p.parse();
+
+      toks.push(t);
+
+      if(t === 'NEED_DATA' || t === 'NONE') break;
+    }
+
+    return { toks, parser: p };
+  }
+
+  /* ---------- JsonParser: basic token sequence ---------- */
+  {
+    let { toks } = drainParser('{"a":1}');
+
+    assertEq('JsonParser basic token sequence', toks, ['OBJECT', 'KEY', 'NUMBER', 'OBJECT_END', 'NEED_DATA']);
+  }
+
+  /* ---------- JsonParser: KEY vs STRING distinguished correctly across nesting ---------- */
+  /*   Regression test: closing a nested array/object must restore the *enclosing* context
+   *   (object-expects-key vs. array-expects-element), not the container's own type - the
+   *   bitset stack tracks what to restore, not what's being closed (that's already known
+   *   from which token, '}' or ']', triggered the close). */
+  {
+    let { toks } = drainParser('{"a":1,"b":[2,"x"],"c":null}');
+
+    assertEq(
+      'JsonParser KEY recognized after nested array closes',
+      toks,
+      ['OBJECT', 'KEY', 'NUMBER', 'KEY', 'ARRAY', 'NUMBER', 'STRING', 'ARRAY_END', 'KEY', 'NULL', 'OBJECT_END', 'NEED_DATA'],
+    );
+  }
+
+  /* ---------- JsonParser: string escapes and unicode (incl. surrogate pair) are decoded ---------- */
+  {
+    let { parser } = (() => {
+      let p = new JsonParser('"a\\nb\\tc\\"d\\\\e caf\\u00e9 \\ud83d\\ude00"');
+      let t = p.parse();
+
+      return { parser: p, t };
+    })();
+
+    assertEq('JsonParser decodes escapes and surrogate pairs', parser.token, 'a\nb\tc"d\\e café 😀');
+  }
+
+  /* ---------- JsonParser: numbers, literals, nested arrays of objects ---------- */
+  {
+    let { toks } = drainParser('[{"x":1},{"y":[2,3]},"end",-1.5e2,null,true,false]');
+
+    assertEq(
+      'JsonParser mixed array of objects/numbers/literals',
+      toks,
+      [
+        'ARRAY',
+        'OBJECT',
+        'KEY',
+        'NUMBER',
+        'OBJECT_END',
+        'OBJECT',
+        'KEY',
+        'ARRAY',
+        'NUMBER',
+        'NUMBER',
+        'ARRAY_END',
+        'OBJECT_END',
+        'STRING',
+        'NUMBER',
+        'NULL',
+        'TRUE',
+        'FALSE',
+        'ARRAY_END',
+        'NEED_DATA',
+      ],
+    );
+  }
+
+  /* ---------- JsonParser: deep nesting stays balanced ---------- */
+  {
+    const depth = 200;
+    let { toks } = drainParser('['.repeat(depth) + '1' + ']'.repeat(depth));
+    let opens = toks.filter(t => t === 'ARRAY').length;
+    let closes = toks.filter(t => t === 'ARRAY_END').length;
+
+    assert(`JsonParser deep nesting balanced (${depth} levels)`, opens === depth && closes === depth);
+  }
+
+  /* ---------- JsonParser: malformed input throws, with location in the message ---------- */
+  assertThrows('JsonParser throws on invalid token', () => drainParser('{"a": xyz}'));
+  assertThrows('JsonParser throws on invalid escape', () => drainParser('"a\\qb"'));
+
+  {
+    let threwWithLocation = false;
+
+    try {
+      drainParser('{"a": xyz}');
+    } catch(e) {
+      threwWithLocation = /^\d+:\d+:/.test(e.message);
+    }
+
+    assert('JsonParser error message includes line:column', threwWithLocation);
+  }
+
+  /* ---------- JsonParser: .pos and .depth track position ---------- */
+  {
+    let p = new JsonParser('{"a":[1,2]}');
+
+    p.parse(); // OBJECT
+    assertEq('JsonParser depth after entering object', p.depth, 1);
+
+    p.parse(); // KEY
+    p.parse(); // ARRAY
+    assertEq('JsonParser depth after entering nested array', p.depth, 2);
+
+    assert('JsonParser pos advances', p.pos > 0);
+  }
+
+  /* ---------- JsonParser: .location tracks line/column, .location.file reflects filename ---------- */
+  {
+    let { parser } = drainParser('{\n  "a": 1\n}', 'my-input.json');
+
+    assert('JsonParser location line/column are numbers', typeof parser.location.line === 'number' && typeof parser.location.column === 'number');
+    assertEq('JsonParser location.file reflects constructor filename', parser.location.file, 'my-input.json');
+  }
+
   /* ---------- JsonPushParser: whole document in one write() ---------- */
   {
     let p = new JsonPushParser();

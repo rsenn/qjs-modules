@@ -88,8 +88,17 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case LOCATION_PROP_FILE: {
-      if(loc->file > -1)
+      /* loc->file/loc->filename are a union; has_filename says which is live */
+      if(loc->has_filename) {
+        char* file;
+
+        if((file = location_file(loc, ctx))) {
+          ret = JS_NewString(ctx, file);
+          js_free(ctx, file);
+        }
+      } else if(loc->file > -1) {
         ret = JS_AtomToValue(ctx, loc->file);
+      }
 
       break;
     }
