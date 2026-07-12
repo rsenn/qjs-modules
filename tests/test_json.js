@@ -1,5 +1,5 @@
 import { Console } from 'console';
-import { read, write, JsonParser } from 'json';
+import { read, write, JsonParser, JsonPushParser, JsonSerializer } from 'json';
 import { exit } from 'std';
 
 let passed = 0,
@@ -297,6 +297,230 @@ async function main() {
 
   /* ---------- JsonParser class is exported ---------- */
   assert('JsonParser is a constructor', typeof JsonParser === 'function');
+
+  /* ---------- JsonPushParser: whole document in one write() ---------- */
+  {
+    let p = new JsonPushParser();
+    p.write('{"a":1,"b":[2,3,"x"],"c":{"d":null,"e":true}}');
+
+    assertEq('JsonPushParser whole-doc root', p.root, { a: 1, b: [2, 3, 'x'], c: { d: null, e: true } });
+    assertEq('JsonPushParser path empty when done', p.path, []);
+  }
+
+  /* ---------- JsonPushParser: fed one byte at a time ---------- */
+  {
+    let p = new JsonPushParser();
+    let doc = '{"name":"hello world","nums":[1,22,333],"flag":true,"nil":null,"nested":{"x":-1.5e2}}';
+
+    for(let i = 0; i < doc.length; i++) p.write(doc[i]);
+
+    assertEq('JsonPushParser byte-by-byte root', p.root, {
+      name: 'hello world',
+      nums: [1, 22, 333],
+      flag: true,
+      nil: null,
+      nested: { x: -150 },
+    });
+  }
+
+  /* ---------- JsonPushParser: .path tracks position mid-parse ---------- */
+  {
+    let p = new JsonPushParser();
+    p.write('{"a":{"b":[1,2,');
+
+    assertEq('JsonPushParser path mid-parse', p.path, ['a', 'b', 2]);
+
+    p.write('3]}}');
+
+    assertEq('JsonPushParser path after close', p.path, []);
+    assertEq('JsonPushParser root after close', p.root, { a: { b: [1, 2, 3] } });
+  }
+
+  /* ---------- JsonPushParser: close() flushes a trailing top-level scalar ---------- */
+  {
+    let p = new JsonPushParser();
+    p.write('42');
+
+    assert('JsonPushParser root undefined before close (ambiguous trailing number)', p.root === undefined);
+
+    p.close();
+
+    assertEq('JsonPushParser root after close', p.root, 42);
+  }
+
+  /* ---------- JsonPushParser: close() throws on an incomplete document ---------- */
+  assertThrows('JsonPushParser close() throws on unclosed container', () => {
+    let p = new JsonPushParser();
+    p.write('{"a":1');
+    p.close();
+  });
+
+  /* ---------- JsonPushParser: throws on malformed input, then resyncs and recovers ---------- */
+  {
+    let p = new JsonPushParser();
+
+    assertThrows('JsonPushParser write() throws on bad token', () => p.write('[1, xyz, 2]'));
+    assertEq('JsonPushParser recovers after resync', p.root, [1, 2]);
+  }
+
+  /* ---------- JsonPushParser: string escapes and unicode (incl. surrogate pair) are decoded ---------- */
+  {
+    let p = new JsonPushParser();
+    p.write('{"s":"a\\nb\\tc\\"d\\\\e caf\\u00e9 \\ud83d\\ude00"}');
+
+    assertEq('JsonPushParser decodes escapes and surrogate pairs', p.root.s, 'a\nb\tc"d\\e café 😀');
+  }
+
+  /* ---------- JsonPushParser: .location getter ---------- */
+  {
+    let p = new JsonPushParser();
+    let loc0 = p.location.clone();
+
+    assert('JsonPushParser location has line/column', typeof loc0.line === 'number' && typeof loc0.column === 'number');
+
+    p.write('{"a":1}');
+
+    let loc1 = p.location;
+
+    assert('JsonPushParser location advances after write()', loc1.charOffset > loc0.charOffset, [loc0.charOffset, loc1.charOffset]);
+  }
+
+  /* ---------- JsonSerializer: read(n) round-trips, arbitrary chunk size ---------- */
+  {
+    const cases = [
+      null,
+      true,
+      false,
+      0,
+      42,
+      -17,
+      3.14,
+      '',
+      'hello',
+      [],
+      {},
+      [1, 2, 3],
+      { a: 1 },
+      [1, 'two', true, null, [3]],
+      { name: 'Alice', age: 30, hobbies: ['reading', 'coding'], address: { city: 'NY', zip: 10001 } },
+    ];
+
+    let ok = 0;
+
+    for(let v of cases) {
+      let s = new JsonSerializer(v);
+      let out = '',
+        chunk;
+
+      while((chunk = s.read(3)) !== '') out += chunk;
+
+      if(JSON.stringify(JSON.parse(out)) === JSON.stringify(v)) ok++;
+      else console.log(`  JsonSerializer.read(3) diff: orig=${JSON.stringify(v)} got=${out}`);
+    }
+
+    assert(`JsonSerializer.read(3) round-trip ${ok}/${cases.length} cases`, ok === cases.length);
+  }
+
+  /* ---------- JsonSerializer: indent option ---------- */
+  {
+    let s = new JsonSerializer({ a: 1, b: [2, 3] }, 2);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(1000)) !== '') out += chunk;
+
+    assertEq('JsonSerializer indent matches write() options', out, write({ a: 1, b: [2, 3] }, 2));
+  }
+
+  /* ---------- JsonSerializer: read(buffer) writes directly into an ArrayBuffer/TypedArray ---------- */
+  {
+    function utf8decode(bytes) {
+      let out = '',
+        i = 0;
+
+      while(i < bytes.length) {
+        let b0 = bytes[i];
+
+        if(b0 < 0x80) {
+          out += String.fromCharCode(b0);
+          i += 1;
+        } else if((b0 & 0xe0) === 0xc0) {
+          out += String.fromCodePoint(((b0 & 0x1f) << 6) | (bytes[i + 1] & 0x3f));
+          i += 2;
+        } else if((b0 & 0xf0) === 0xe0) {
+          out += String.fromCodePoint(((b0 & 0x0f) << 12) | ((bytes[i + 1] & 0x3f) << 6) | (bytes[i + 2] & 0x3f));
+          i += 3;
+        } else {
+          out += String.fromCodePoint(((b0 & 0x07) << 18) | ((bytes[i + 1] & 0x3f) << 12) | ((bytes[i + 2] & 0x3f) << 6) | (bytes[i + 3] & 0x3f));
+          i += 4;
+        }
+      }
+
+      return out;
+    }
+
+    function readIntoBuffer(value, bufSize) {
+      let s = new JsonSerializer(value);
+      let buf = new Uint8Array(bufSize);
+      let out = [];
+      let n;
+
+      while((n = s.read(buf)) > 0) for(let i = 0; i < n; i++) out.push(buf[i]);
+
+      return utf8decode(out);
+    }
+
+    const cases = [
+      [1, 2, 3, 'four', { five: 5 }],
+      { name: 'Alice', age: 30, hobbies: ['reading', 'coding'], address: { city: 'NY', zip: 10001 } },
+      { s: 'quote:"  backslash:\\  nl:\n tab:\t  ctrl:\x01 unicode:café' },
+      [[[[1, 2], [3, 4]], [[5, 6]]], {}, [], '', 0, -3.5, true, false, null],
+      'just a bare string as the whole document',
+      42,
+    ];
+
+    let ok = 0,
+      total = 0;
+
+    for(let v of cases) {
+      for(let bufSize of [1, 2, 3, 7, 64]) {
+        total++;
+
+        let text = readIntoBuffer(v, bufSize);
+
+        try {
+          if(JSON.stringify(JSON.parse(text)) === JSON.stringify(JSON.parse(write(v)))) ok++;
+          else console.log(`  JsonSerializer.read(buf=${bufSize}) diff: orig=${write(v)} got=${text}`);
+        } catch(e) {
+          console.log(`  JsonSerializer.read(buf=${bufSize}) parse error: ${e.message} got=${text}`);
+        }
+      }
+    }
+
+    assert(`JsonSerializer.read(buffer) round-trip ${ok}/${total} cases (varying buffer sizes)`, ok === total);
+  }
+
+  /* ---------- JsonSerializer: read(buffer) returns bytes written and 0 at EOF ---------- */
+  {
+    let s = new JsonSerializer([1, 2, 3]);
+    let buf = new Uint8Array(64);
+    let n = s.read(buf);
+
+    assert('JsonSerializer.read(buffer) returns byte count', n === write([1, 2, 3]).length);
+    assert('JsonSerializer.read(buffer) returns 0 at EOF', s.read(buf) === 0);
+  }
+
+  /* ---------- JsonSerializer: .location getter ---------- */
+  {
+    let s = new JsonSerializer({ a: 1, b: 2 });
+    let loc0 = s.location.clone();
+
+    s.read(3);
+
+    let loc1 = s.location;
+
+    assert('JsonSerializer location advances after read()', loc1.charOffset >= loc0.charOffset, [loc0.charOffset, loc1.charOffset]);
+  }
 
   /* ---------- summary ---------- */
   console.log(`\n--- Results: ${passed} passed, ${failed} failed ---`);

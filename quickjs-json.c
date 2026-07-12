@@ -222,6 +222,9 @@ static ssize_t
 write_all(Writer* wr, const void* buf, size_t len) {
   const uint8_t* p = buf;
 
+  if(len == 0)
+    return 1; /* nothing to write is a trivial success, not the "blocked" 0 */
+
   for(size_t i = 0; i < len; i++) {
     ssize_t w = writer_putc(wr, p[i]);
 
