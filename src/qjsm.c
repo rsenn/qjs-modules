@@ -1031,18 +1031,43 @@ again:
 
     jsm_stack_pop(ctx);
 
-    /*if(!m) {
+    if(!m) {
       JSValue exception = JS_GetException(ctx);
 
       if(!js_is_null_or_undefined(exception)) {
-        char* top = jsm_stack_top();
+        const char* msg = JS_ToCString(ctx, exception);
+        char* chain = jsm_stack_string();
+        BOOL renamed = strcmp(s, module_name) != 0;
+        DynBuf db;
 
-        JS_ThrowInternalError(ctx, "%s: %s%scould not load module filename '%s'", __FUNCTION__, top ? top : "", top ? ":
-    " : "", s);
+        /* JS_Throw*() builds a fresh .stack backtrace automatically; the module import
+           chain (jsm_stack, tracked separately from the JS call stack) is appended to the
+           message itself since it's the more useful "which module led here" context for a
+           load failure, which a plain JS backtrace at the point of `import` won't show. */
+        dbuf_init2(&db, 0, vector_realloc);
+        dbuf_printf(&db, "could not load module '%s'", s);
+
+        if(renamed)
+          dbuf_printf(&db, " (requested as '%s')", module_name);
+
+        if(msg)
+          dbuf_printf(&db, ": %s", msg);
+
+        if(chain && *chain)
+          dbuf_printf(&db, "\nimported from:\n%s", chain);
+
+        dbuf_0(&db);
+        JS_ThrowReferenceError(ctx, "%s", (const char*)db.buf);
+        dbuf_free(&db);
+
+        if(msg)
+          JS_FreeCString(ctx, msg);
+
+        free(chain);
       }
 
       JS_FreeValue(ctx, exception);
-    }*/
+    }
 
     js_free(ctx, s);
 
@@ -1354,7 +1379,6 @@ jsm_help(void) {
          "-d  --dump         dump the memory usage stats\n"
          "    --memory-limit n       limit the memory usage to 'n' bytes\n"
          "    --stack-size n         limit the stack size to 'n' bytes\n"
-         "    --unhandled-rejection  dump unhandled promise rejections\n"
          "-q  --quit         just instantiate the interpreter and quit\n"
 #ifdef SIGUSR1
          "\n"
@@ -1835,7 +1859,7 @@ int
 main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
-  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, dump_unhandled_promise_rejection = 0, list_modules = 0;
+  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -1962,7 +1986,8 @@ main(int argc, char** argv) {
       }
 
       if(!strcmp(longopt, "unhandled-rejection")) {
-        dump_unhandled_promise_rejection = 1;
+        /* kept for backward compatibility with existing invocations: unhandled promise
+           rejections are now always dumped, so this flag is a no-op */
         break;
       }
 
@@ -2023,6 +2048,10 @@ main(int argc, char** argv) {
 #if HAVE_JS_GETMODULELOADERFUNC
   JSModuleLoaderFunc* module_loader = js_std_get_module_loader_func();
 #endif
+
+  /* set once a script/expr/include fails; with -i this no longer means an immediate exit
+     (see below), but the process must still report failure via its exit code */
+  BOOL had_error = FALSE;
 
   {
     const char* modules;
@@ -2091,8 +2120,9 @@ main(int argc, char** argv) {
 
   vector_init(&jsm_stack, jsm_ctx);
 
-  if(dump_unhandled_promise_rejection)
-    JS_SetHostPromiseRejectionTracker(jsm_rt, js_std_promise_rejection_tracker, 0);
+  /* always report unhandled rejections (message + stack), matching how an uncaught
+     exception is always reported - not just when explicitly asked for */
+  JS_SetHostPromiseRejectionTracker(jsm_rt, js_std_promise_rejection_tracker, 0);
 
   JS_SetInterruptHandler(jsm_rt, jsm_interrupt_handler, jsm_ctx);
 
@@ -2152,9 +2182,22 @@ main(int argc, char** argv) {
       vector_freestrings(&module_list);
     }
 
-    for(size_t i = 0; i < include_count; i++)
-      if(jsm_stack_load(jsm_ctx, include_list[i], FALSE, FALSE) == -1)
-        goto fail;
+    /* had_error (declared above, before this block) tracks a script/expr/include failure
+       across the "should we still drop into an interactive session" decision below: with -i
+       (or INTERACTIVE=1, or a USR1 signal already having flipped `interactive`), a failure no
+       longer tears the process down immediately - it's reported (see each site below) and the
+       runtime is left alive, with whatever got defined before the failure, so
+       jsm_start_interactive() further down can still open a REPL on it. Without -i, behavior
+       is unchanged: exit immediately. */
+    for(size_t i = 0; i < include_count; i++) {
+      if(jsm_stack_load(jsm_ctx, include_list[i], FALSE, FALSE) == -1) {
+        had_error = TRUE;
+        break;
+      }
+    }
+
+    if(had_error && !interactive)
+      goto fail;
 
     js_eval_str(jsm_ctx,
                 "import { Console } from 'console';\n"
@@ -2171,20 +2214,32 @@ main(int argc, char** argv) {
 #endif
     }
 
-    if(expr) {
-      if(js_eval_str(jsm_ctx, expr, "<cmdline>", 0) == -1)
-        goto fail;
-    } else if(optind >= argc) {
-      /* interactive mode */
-      interactive = 1;
-    } else {
-      const char* filename = argv[optind];
+    if(!had_error) {
+      if(expr) {
+        if(js_eval_str(jsm_ctx, expr, "<cmdline>", 0) == -1) {
+          JSValue exc = JS_GetException(jsm_ctx);
 
-      JS_DefinePropertyValueStr(jsm_ctx, sargs, "$", JS_NewString(jsm_ctx, filename), 0);
+          fprintf(stderr, "Error evaluating expression: ");
+          js_error_print(jsm_ctx, exc);
+          JS_FreeValue(jsm_ctx, exc);
 
-      if(jsm_stack_load(jsm_ctx, filename, module, TRUE) == -1)
-        goto fail;
+          had_error = TRUE;
+        }
+      } else if(optind >= argc) {
+        /* interactive mode */
+        interactive = 1;
+      } else {
+        const char* filename = argv[optind];
+
+        JS_DefinePropertyValueStr(jsm_ctx, sargs, "$", JS_NewString(jsm_ctx, filename), 0);
+
+        if(jsm_stack_load(jsm_ctx, filename, module, TRUE) == -1)
+          had_error = TRUE;
+      }
     }
+
+    if(had_error && !interactive)
+      goto fail;
 
     if(getenv("INTERACTIVE") && interactive != 2)
       interactive = 1;
@@ -2239,7 +2294,7 @@ main(int argc, char** argv) {
     printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
 
-  return 0;
+  return had_error ? 1 : 0;
 
 fail:
   js_std_free_handlers(jsm_rt);
