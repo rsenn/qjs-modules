@@ -869,7 +869,6 @@ enum {
   LIST_POP,
   LIST_UNSHIFT,
   LIST_SHIFT,
-  LIST_AT,
   LIST_INDEX_OF,
   LIST_INCLUDES,
   LIST_LAST_INDEX_OF,
@@ -896,7 +895,6 @@ enum {
 
 static JSValue
 js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int64_t index;
   List* list;
   JSValue ret = JS_UNDEFINED;
 
@@ -936,15 +934,6 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-    /*case LIST_AT: {
-      if((index = js_toindex_name(ctx, argv[0], list->size, "argument 1")) == -1)
-        return JS_EXCEPTION;
-
-      if((node = list_at(list, index)))
-        ret = JS_DupValue(ctx, node->value);
-
-      break;
-    }*/
     case LIST_INCLUDES: {
       Node *n1, *n2;
       BOOL result = FALSE;
@@ -1519,7 +1508,6 @@ static const JSCFunctionListEntry js_list_methods[] = {
     JS_CFUNC_MAGIC_DEF("pop", 0, js_list_method2, LIST_POP),
     JS_CFUNC_MAGIC_DEF("unshift", 1, js_list_method2, LIST_UNSHIFT),
     JS_CFUNC_MAGIC_DEF("shift", 0, js_list_method2, LIST_SHIFT),
-    JS_CFUNC_MAGIC_DEF("at", 1, js_list_method2, LIST_AT),
     JS_CFUNC_MAGIC_DEF("includes", 1, js_list_method2, LIST_INCLUDES),
     JS_CFUNC_MAGIC_DEF("indexOf", 1, js_list_method2, LIST_INDEX_OF),
     JS_CFUNC_MAGIC_DEF("lastIndexOf", 1, js_list_method2, LIST_LAST_INDEX_OF),

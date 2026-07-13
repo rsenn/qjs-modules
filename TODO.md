@@ -41,11 +41,6 @@ fixed the affected API silently does the wrong thing rather than failing loudly.
   (`quickjs-stream.c:2303`), so this is purely a matter of uncommenting. Matches the disabled
   `//await wr.close();` in `tests/test_stream.js:37`.
 
-- **`List.prototype.at(index)` always returns `undefined`** — `quickjs-list.c:939-947`:
-  the whole `case LIST_AT:` body is commented out, but `.at()` is registered
-  (`quickjs-list.c:1522`). `tests/test_list.js` doesn't exercise `.at()` (see Tier 4), so this
-  has no regression coverage at all.
-
 - **Native `xml.write()` silently truncates output whenever a node has an empty
   `children: []` array** *(this is the pre-existing `TODO` item "fix XML enumeration")* —
   `quickjs-xml.c:383-416`, in `xml_enumeration_next()`. On an empty children array,
@@ -118,8 +113,10 @@ fixed the affected API silently does the wrong thing rather than failing loudly.
 
 - **`tests/test_list.js` isn't a real test** — it's an ad-hoc script (not using the
   `assert`/`assertEq` pattern every other `test_*.js` file uses) that ends in an unguarded
-  `while(!skip()) {}` loop. It doesn't exercise `.at()`, which is exactly why Tier 1's
-  `List.at()` bug has no regression coverage. Worth rewriting properly.
+  `while(!skip()) {}` loop. It's exactly the kind of gap that let `List.prototype.at()`
+  (registered but its case body commented out, always returning `undefined`) go unnoticed —
+  since removed entirely (`quickjs-list.c`, `doc/list.md`). Worth rewriting properly so the
+  next dead/wrong method doesn't slip through the same way.
 
 - **`tests/test_xml.js` + `lib/xml/write.js` mishandle an Array root value** — found while
   investigating the Tier-1 XML bug: `lib/xml/write.js:3` only special-cases

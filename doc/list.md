@@ -28,7 +28,6 @@ new List([iterable])   // length 1
 | Method | Args | Description |
 | --- | --- | --- |
 | `push` / `pop` / `unshift` / `shift` | 0–1 | Add/remove at the ends. |
-| `at(index)` | 1 | Element at `index`. |
 | `includes(v)` / `indexOf(v)` / `lastIndexOf(v)` | 1 | Membership / search. |
 | `find` / `findLast` / `findIndex` / `findLastIndex` | 1 | Predicate search. |
 | `concat(other)` | 1 | Concatenation. |
