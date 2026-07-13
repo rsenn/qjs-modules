@@ -238,7 +238,7 @@ function main(...args) {
 
   function ProcessFile(file) {
     console.log(`Loading '${file}'...`);
-    const log = (...args) => console.log(`${file}:`,console.config({compact: true }), ...args);
+    const log = (...args) => console.log(`${file}:`, console.config({ compact: true }), ...args);
     let str = file ? BufferFile(file) : code[1];
 
     let len = str.length;
@@ -327,18 +327,18 @@ function main(...args) {
     log('lexer.skip', IntToBinary(lexer.skip));
     log('lexer.states', lexer.states);
     log(`new Location(10, 3, 28, 'file.txt')`, new Location(10, 3, 28, 'file.txt'));
-    
+
     let mask = IntToBinary(lexer.mask);
     let state = lexer.topState();
     lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
     let tokens = [];
     let start = Date.now();
- 
+
     const balancer = () => {
       let self;
       let stack = [];
       const table = { '}': '{', ']': '[', ')': '(' };
-   
+
       self = function ParentheseBalancer(tok) {
         switch (tok?.lexeme) {
           case '{':
@@ -391,7 +391,7 @@ function main(...args) {
     console.log('exclude', exclude);
     console.log('match', match);
     console.log('match(0)', match(0));*/
-    
+
     for(;;) {
       let { stateDepth } = lexer;
       let oldState = lexer.topState();
@@ -417,7 +417,7 @@ function main(...args) {
       } else {
         balancer(tok);
         if(n > 0 && balancers.back.depth == 0) log('balancer');
-      
+
         if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
           impexp = What[tok.lexeme.toUpperCase()];
           let prev = tokens[tokens.length - 1];
@@ -426,22 +426,20 @@ function main(...args) {
             imp = [];
           }
         }
-      
+
         if(cond == true) {
           imp.push(tok);
-       
+
           if([';', '\n'].indexOf(tok.lexeme) != -1) {
             cond = false;
 
-            if(imp.some(i => i.lexeme == 'from')) 
-              if(impexp == What.IMPORT) imports.push(AddImport(imp));
-            
+            if(imp.some(i => i.lexeme == 'from')) if (impexp == What.IMPORT) imports.push(AddImport(imp));
+
             if(impexp == What.EXPORT) exports.push(AddExport(imp));
           }
         }
 
-if(process.env.DEBUG)
-        if(match ? match(tok.id) : tok.type != 'whitespace') printTok(tok, newState);
+        if(process.env.DEBUG) if (match ? match(tok.id) : tok.type != 'whitespace') printTok(tok, newState);
         tokens.push(tok);
       }
       state = newState;
@@ -460,9 +458,9 @@ if(process.env.DEBUG)
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));
     let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
     buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
-  
+
     log(`splitPoints`, splitPoints);
-  
+
     log(
       'fileImports',
       fileImports.map(imp => imp.file),
@@ -475,7 +473,7 @@ if(process.env.DEBUG)
         log('p', p);
         AddUnique(files, p);
       });
-   
+
     let end = Date.now();
 
     log(`took ${end - start}ms (${count} tokens)`);
