@@ -365,6 +365,9 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       switch(sp_get_port_transport(port)) {
         case SP_TRANSPORT_USB: {
+          if(JS_IsUndefined(ret))
+            ret = JS_NewObject(ctx);
+
           JS_SetPropertyStr(ctx, ret, "usbManufacturer", JS_NewString(ctx, sp_get_port_usb_manufacturer(port)));
           JS_SetPropertyStr(ctx, ret, "usbProduct", JS_NewString(ctx, sp_get_port_usb_product(port)));
           JS_SetPropertyStr(ctx, ret, "usbSerial", JS_NewString(ctx, sp_get_port_usb_serial(port)));
@@ -372,6 +375,9 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         }
 
         case SP_TRANSPORT_BLUETOOTH: {
+          if(JS_IsUndefined(ret))
+            ret = JS_NewObject(ctx);
+
           JS_SetPropertyStr(ctx, ret, "bluetoothAddress", JS_NewString(ctx, sp_get_port_bluetooth_address(port)));
           break;
         }
@@ -653,6 +659,7 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, serialerror_proto, js_serialerror_funcs, countof(js_serialerror_funcs));
 
   JS_SetClassProto(ctx, js_serialerror_class_id, serialerror_proto);
+  JS_SetConstructor(ctx, serialerror_ctor, serialerror_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SerialPort", serialport_ctor);

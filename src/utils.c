@@ -2979,7 +2979,7 @@ js_date_timespec(JSContext* ctx, JSValue arg) {
   struct timespec ts;
 
   ts.tv_sec = r / 1000ull;
-  ts.tv_nsec = (r - ts.tv_sec) * 1000000ull;
+  ts.tv_nsec = (r % 1000ull) * 1000000ull;
 
   return ts;
 }

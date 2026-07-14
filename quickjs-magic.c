@@ -76,15 +76,18 @@ js_magic_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     argv++;
   }
 
-  cookie = magic_open(flags);
+  if(!(cookie = magic_open(flags)))
+    return JS_ThrowInternalError(ctx, "magic_open() failed");
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
 
-  if(!JS_IsObject(proto))
-    proto = magic_proto;
+  if(!JS_IsObject(proto)) {
+    JS_FreeValue(ctx, proto);
+    proto = JS_DupValue(ctx, magic_proto);
+  }
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_magic_class_id);
@@ -104,7 +107,7 @@ js_magic_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   return obj;
 
 fail:
-  js_free(ctx, cookie);
+  magic_close(cookie);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -393,6 +396,7 @@ js_magic_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, magic_ctor, js_magic_static, countof(js_magic_static));
 
   JS_SetClassProto(ctx, js_magic_class_id, magic_proto);
+  JS_SetConstructor(ctx, magic_ctor, magic_proto);
 
   if(m)
     JS_SetModuleExport(ctx, m, "Magic", magic_ctor);

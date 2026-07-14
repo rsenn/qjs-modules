@@ -155,14 +155,18 @@ js_gpio_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(JS_IsException(obj))
     goto fail;
 
-  if(!gpio_open(gpio))
+  if(!gpio_open(gpio)) {
+    JS_FreeValue(ctx, obj);
+    js_free(ctx, gpio);
     return JS_ThrowInternalError(ctx, "gpio_open() failed");
+  }
 
   JS_SetOpaque(obj, gpio);
   return obj;
 
 fail:
   JS_FreeValue(ctx, obj);
+  js_free(ctx, gpio);
   return JS_EXCEPTION;
 }
 

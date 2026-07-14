@@ -122,9 +122,8 @@ js_archive_set_mode(JSContext* ctx, JSValueConst this_val, int mode) {
 }
 
 static inline JSValue
-js_archive_return(JSContext* ctx, JSValueConst this_val, int result) {
+js_archive_return(JSContext* ctx, JSValueConst this_val, struct archive* ar, int result) {
   JSValue ret = JS_NewInt32(ctx, result);
-  struct archive* ar = js_archive_data2(ctx, this_val);
 
   switch(result) {
     case ARCHIVE_EOF: {
@@ -221,7 +220,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     }
 
     case METHOD_WRITE: {
-      int r;
+      int r = ARCHIVE_FATAL;
       const char* f;
 
       if(!(ar = archive_write_new()))
@@ -231,7 +230,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       if(JS_IsString(argv[0])) {
         f = JS_ToCString(ctx, argv[0]);
-        int r2 = archive_write_set_format_filter_by_ext(ar, f);
+        archive_write_set_format_filter_by_ext(ar, f);
         JS_FreeCString(ctx, f);
 
         wchar_t* filename = js_towstring(ctx, argv[0]);
@@ -442,7 +441,7 @@ fail:
 static JSValue
 js_archive_open(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct archive* ar;
-  int r;
+  int r = ARCHIVE_FATAL;
 
   if((ar = js_archive_data(this_val)))
     return JS_ThrowInternalError(ctx, "Archive already open");
@@ -630,7 +629,7 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     while(len > 0) {
       size_t nb = MIN_NUM(block_size, len);
 
-      r = archive_write_data(ar, buf, len);
+      r = archive_write_data(ar, buf, nb);
 
       if(r > 0) {
         len -= r;
@@ -661,7 +660,7 @@ js_archive_skip(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     return JS_EXCEPTION;
 
   if(js_archive_mode(ctx, this_val) == READ)
-    return js_archive_return(ctx, this_val, archive_read_data_skip(ar));
+    return js_archive_return(ctx, this_val, ar, archive_read_data_skip(ar));
 
   return JS_UNDEFINED;
 }
@@ -680,7 +679,7 @@ js_archive_seek(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   r = archive_seek_data(ar, offset, whence);
 
-  return js_archive_return(ctx, this_val, r);
+  return js_archive_return(ctx, this_val, ar, r);
 }
 
 static JSValue
@@ -715,7 +714,7 @@ js_archive_extract(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     archive_read_extract_set_progress_callback(ar, js_archive_progress_callback, aeref);
   }
 
-  ret = js_archive_return(ctx, this_val, archive_read_extract(ar, ent, flags));
+  ret = js_archive_return(ctx, this_val, ar, archive_read_extract(ar, ent, flags));
 
   if(aeref) {
     archive_read_extract_set_progress_callback(ar, 0, 0);
@@ -800,7 +799,7 @@ js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   switch(result) {
     case ARCHIVE_EOF:
     case ARCHIVE_FATAL: {
-      ret = eof ? JS_NULL : js_archive_return(ctx, this_val, result);
+      ret = eof ? JS_NULL : js_archive_return(ctx, this_val, ar, result);
       break;
     }
 
@@ -1450,7 +1449,14 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case ENTRY_LINK: {
-      // ret = JS_NewString(ctx, archive_entry_link_utf8(ent));
+      /* libarchive has no archive_entry_link_utf8() getter to match
+         archive_entry_set_link_utf8(); mirror the setter's own fallback
+         (hardlink, else symlink) instead of always returning undefined. */
+      const char* str;
+
+      if((str = archive_entry_hardlink_utf8(ent)) || (str = archive_entry_symlink_utf8(ent)))
+        ret = JS_NewString(ctx, str);
+
       break;
     }
 
@@ -1938,12 +1944,12 @@ js_archivematch_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   switch(magic) {
     case MATCH_INCLUDE: {
-      ret = js_archive_return(ctx, this_val, archive_match_include_pattern_w(ar, pattern));
+      ret = js_archive_return(ctx, this_val, ar, archive_match_include_pattern_w(ar, pattern));
       break;
     }
 
     case MATCH_EXCLUDE: {
-      ret = js_archive_return(ctx, this_val, archive_match_exclude_pattern_w(ar, pattern));
+      ret = js_archive_return(ctx, this_val, ar, archive_match_exclude_pattern_w(ar, pattern));
       break;
     }
   }
@@ -1981,6 +1987,7 @@ js_archive_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, archive_proto, js_archive_funcs, countof(js_archive_funcs));
   JS_SetPropertyFunctionList(ctx, archive_ctor, js_archive_static_funcs, countof(js_archive_static_funcs));
   JS_SetClassProto(ctx, js_archive_class_id, archive_proto);
+  JS_SetConstructor(ctx, archive_ctor, archive_proto);
 
   JS_NewClassID(&js_archive_iterator_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_archive_iterator_class_id, &js_archive_iterator_class);

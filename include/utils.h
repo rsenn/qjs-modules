@@ -1029,12 +1029,7 @@ js_is_truish(JSValueConst value) {
 
 static inline BOOL
 js_is_nullish(JSContext* ctx, JSValueConst value) {
-  int64_t i = -1;
-
-  if(JS_IsUndefined(value) || JS_IsNull(value))
-    return TRUE;
-  JS_ToInt64(ctx, &i, value);
-  return i == 0;
+  return JS_IsUndefined(value) || JS_IsNull(value);
 }
 
 JSValue js_typedarray_prototype(JSContext*);

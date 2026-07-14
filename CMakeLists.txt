@@ -48,6 +48,7 @@ option(MODULE_MYSQL "Build 'mysql' module" ON)
 option(MODULE_PGSQL "Build 'pgsql' module" ON)
 option(MODULE_SQLITE "Build 'sqlite' module" ON)
 option(MODULE_SERIAL "Build 'serial' module" OFF)
+option(MODULE_GPIO "Build 'gpio' module (Raspberry Pi only)" OFF)
 #option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
@@ -346,6 +347,14 @@ if(MODULE_SERIAL)
 
   list(APPEND QUICKJS_MODULES serial)
 endif(MODULE_SERIAL)
+
+if(MODULE_GPIO)
+  if(NOT HAVE_SYS_MMAN_H)
+    message(WARNING "MODULE_GPIO requires sys/mman.h, disabling")
+  else(NOT HAVE_SYS_MMAN_H)
+    list(APPEND QUICKJS_MODULES gpio)
+  endif(NOT HAVE_SYS_MMAN_H)
+endif(MODULE_GPIO)
 
 if(MODULE_ARCHIVE)
   option(BUILD_LIBARCHIVE "Build archive library" OFF)
