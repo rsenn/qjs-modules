@@ -33,7 +33,7 @@ new List([iterable])   // length 1
 | `insert(after, ...values)` | 1+ | Inserts after a `Node` reference (or the tail if omitted). |
 | `insertBefore(before, ...values)` | 1+ | Inserts before a `Node` reference. |
 | `unique()` | 0 | Removes consecutive duplicates. O(n): must compare every adjacent pair once. |
-| `merge(other)` | 1 | Merges another (sorted) list in, consuming it. O(n+m): must visit every element of both. |
+| `merge(other)` | 1 | Merges another (sorted) list's values in; `other` itself is left unmodified. O(n+m): must visit every element of both. |
 
 ### Array-style methods
 

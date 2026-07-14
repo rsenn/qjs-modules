@@ -687,11 +687,14 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         if(!(end = node_get(ctx, argv[1])))
           return JS_EXCEPTION;
 
-        for(; (q = p->next, (p != &list->node && p != end)); p = q) {
-          ;
+        while(p != &list->node && p != end) {
+          Node* next = p->next;
 
           list_erase(list, p, ctx);
+          p = next;
         }
+
+        q = end;
 
       } else {
         q = p->next;
@@ -738,7 +741,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
             JSValueConst args[] = {node->value, node->next->value};
             JSValue ret = JS_Call(ctx, argv[0], JS_UNDEFINED, countof(args), args);
 
-            if(js_toint32_free(ctx, ret))
+            if(!js_toint32_free(ctx, ret))
               break;
           } else {
             if(0 >= js_value_equals(ctx, node->value, node->next->value, FALSE))
@@ -760,7 +763,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(!(other = js_list_data2(ctx, argv[0])))
         return JS_EXCEPTION;
 
-      JSValue pred = argc > 1 ? JS_DupValue(ctx, argv[0]) : JS_Eval(ctx, "(a, b) => a <= b", sizeof("(a, b) => a <= b") - 1, "-", 0);
+      JSValue pred = argc > 1 ? JS_DupValue(ctx, argv[1]) : JS_Eval(ctx, "(a, b) => a <= b", sizeof("(a, b) => a <= b") - 1, "-", 0);
 
       list_for_each(el, &other->node) {
         while(node != &list->node && js_call_pred(ctx, pred, node->value, el->value)) {
