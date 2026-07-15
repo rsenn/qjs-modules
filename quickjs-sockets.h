@@ -183,10 +183,11 @@ sockaddr_addr(SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return &sa->ip4.sin_addr;
     case AF_INET6: return &sa->ip6.sin6_addr;
-#ifdef HAVE_LINUX_NETWORK_HEADERS
-
-    case AF_IPX: return &sa->ipx.sipx_node;
+#ifdef HAVE_AF_UNIX
     case AF_UNIX: return &sa->un.sun_path;
+#endif
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+    case AF_IPX: return &sa->ipx.sipx_node;
     case AF_NETLINK: return &sa->nl.nl_pid;
     case AF_CAN: return &sa->can.can_addr;
     case AF_NFC: return &sa->nfc.target_idx;
@@ -204,10 +205,12 @@ sockaddr_addrlen(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return sizeof(sa->ip4.sin_addr);
     case AF_INET6: return sizeof(sa->ip6.sin6_addr);
+#ifdef HAVE_AF_UNIX
+    case AF_UNIX: return sizeof(sa->un.sun_path);
+#endif
 #ifdef HAVE_LINUX_NETWORK_HEADERS
 
     case AF_IPX: return sizeof(sa->ipx.sipx_node);
-    case AF_UNIX: return sizeof(sa->un.sun_path);
     case AF_NETLINK: return sizeof(sa->nl.nl_pid);
     case AF_CAN: return sizeof(sa->can.can_addr);
     case AF_NFC: return sizeof(sa->nfc.target_idx);
@@ -226,9 +229,11 @@ sockaddr_size(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return sizeof(struct sockaddr_in);
     case AF_INET6: return sizeof(struct sockaddr_in6);
+#ifdef HAVE_AF_UNIX
+    case AF_UNIX: return sizeof(struct sockaddr_un);
+#endif
 #ifdef HAVE_LINUX_NETWORK_HEADERS
     case AF_IPX: return sizeof(struct sockaddr_ipx);
-    case AF_UNIX: return sizeof(struct sockaddr_un);
     case AF_NETLINK: return sizeof(struct sockaddr_nl);
     case AF_CAN: return sizeof(struct sockaddr_can);
     case AF_NFC: return sizeof(struct sockaddr_nfc);

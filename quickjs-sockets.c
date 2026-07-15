@@ -2828,6 +2828,9 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
 #ifdef POLLWRBAND
     JS_CONSTANT_NONENUMERABLE(POLLWRBAND),
 #endif
+#ifdef SHUT_RD
+    JS_CONSTANT_NONENUMERABLE(SHUT_RD),
+#endif
 #ifdef SHUT_WR
     JS_CONSTANT_NONENUMERABLE(SHUT_WR),
 #endif
@@ -3051,16 +3054,6 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_CONSTANT(MSG_OOB),
 #ifdef MSG_ERRQUEUE
     JS_CONSTANT(MSG_ERRQUEUE),
-#endif
-
-#ifdef SHUT_RD
-    JS_CONSTANT(SHUT_RD),
-#endif
-#ifdef SHUT_WR
-    JS_CONSTANT(SHUT_WR),
-#endif
-#ifdef SHUT_RDWR
-    JS_CONSTANT(SHUT_RDWR),
 #endif
 };
 
