@@ -1,31 +1,7 @@
 import * as os from 'os';
 import * as io from 'io';
 import { toString } from 'misc';
-import {
-  AF_INET,
-  AF_INET6,
-  AF_UNIX,
-  AsyncSocket,
-  IPPROTO_TCP,
-  IPPROTO_UDP,
-  POLLIN,
-  POLLOUT,
-  SHUT_RD,
-  SHUT_RDWR,
-  SHUT_WR,
-  SO_ERROR,
-  SO_REUSEADDR,
-  SO_TYPE,
-  SOCK_DGRAM,
-  SOCK_STREAM,
-  SockAddr,
-  Socket,
-  SOL_SOCKET,
-  SyscallError,
-  poll,
-  select,
-  socketpair,
-} from 'sockets';
+import { AF_INET, AF_INET6, AF_UNIX, AsyncSocket, IPPROTO_TCP, IPPROTO_UDP, POLLIN, POLLOUT, SHUT_RD, SHUT_RDWR, SHUT_WR, SO_ERROR, SO_REUSEADDR, SO_TYPE, SOCK_DGRAM, SOCK_STREAM, SockAddr, Socket, SOL_SOCKET, SyscallError, poll, select, socketpair, } from 'sockets';
 import { assert, eq, tests } from './tinytest.js';
 
 /* the async methods resolve via globalThis.io.set{Read,Write}Handler() */
@@ -146,9 +122,18 @@ tests({
   },
 
   'Socket constructor argument errors'() {
-    throws(() => new Socket(), e => assert(e instanceof TypeError, 'expected TypeError'));
-    throws(() => new Socket('foo'), e => assert(e instanceof TypeError, 'expected TypeError'));
-    throws(() => new Socket(AF_INET, 'bar'), e => assert(e instanceof TypeError, 'expected TypeError'));
+    throws(
+      () => new Socket(),
+      e => assert(e instanceof TypeError, 'expected TypeError'),
+    );
+    throws(
+      () => new Socket('foo'),
+      e => assert(e instanceof TypeError, 'expected TypeError'),
+    );
+    throws(
+      () => new Socket(AF_INET, 'bar'),
+      e => assert(e instanceof TypeError, 'expected TypeError'),
+    );
   },
 
   'getsockopt()/setsockopt()'() {
@@ -234,9 +219,12 @@ tests({
     eq(s.open, false);
     eq(s.fd, -1);
 
-    throws(() => s.close(), e => {
-      assert(/closed/.test(e.message), 'expected "already been closed", got: ' + e.message);
-    });
+    throws(
+      () => s.close(),
+      e => {
+        assert(/closed/.test(e.message), 'expected "already been closed", got: ' + e.message);
+      },
+    );
     throws(() => s.send('x'));
     throws(() => s.recv(new ArrayBuffer(4)));
   },
@@ -350,9 +338,12 @@ tests({
 
     /* nonblocking IO on the synchronous Socket class is rejected;
        AsyncSocket must be used instead */
-    throws(() => s.recv(new ArrayBuffer(4)), e => {
-      assert(/wait/.test(e.message), 'expected wait assert, got: ' + e.message);
-    });
+    throws(
+      () => s.recv(new ArrayBuffer(4)),
+      e => {
+        assert(/wait/.test(e.message), 'expected wait assert, got: ' + e.message);
+      },
+    );
 
     s.ndelay(false);
     eq(s.nonblock, false);
@@ -442,28 +433,40 @@ tests({
     srv.close();
 
     const s = new Socket(AF_INET, SOCK_STREAM);
-    throws(() => s.connect(loopback(port)), e => {
-      assert(e instanceof SyscallError, 'expected SyscallError, got: ' + e);
-      eq(e.syscall, 'connect');
-      assert(e.errno > 0, 'errno should be set');
-    });
+    throws(
+      () => s.connect(loopback(port)),
+      e => {
+        assert(e instanceof SyscallError, 'expected SyscallError, got: ' + e);
+        eq(e.syscall, 'connect');
+        assert(e.errno > 0, 'errno should be set');
+      },
+    );
     s.close();
   },
 
   'bind() on privileged/invalid address throws SyscallError'() {
     const s = new Socket(AF_INET, SOCK_STREAM);
     /* non-local address cannot be bound */
-    throws(() => s.bind(new SockAddr(AF_INET, '203.0.113.1', 0)), e => {
-      assert(e instanceof SyscallError, 'expected SyscallError, got: ' + e);
-      eq(e.syscall, 'bind');
-    });
+    throws(
+      () => s.bind(new SockAddr(AF_INET, '203.0.113.1', 0)),
+      e => {
+        assert(e instanceof SyscallError, 'expected SyscallError, got: ' + e);
+        eq(e.syscall, 'bind');
+      },
+    );
     s.close();
   },
 
   'bind()/connect() without address throw TypeError'() {
     const s = new Socket(AF_INET, SOCK_STREAM);
-    throws(() => s.bind(), e => assert(e instanceof TypeError, 'expected TypeError'));
-    throws(() => s.connect(), e => assert(e instanceof TypeError, 'expected TypeError'));
+    throws(
+      () => s.bind(),
+      e => assert(e instanceof TypeError, 'expected TypeError'),
+    );
+    throws(
+      () => s.connect(),
+      e => assert(e instanceof TypeError, 'expected TypeError'),
+    );
     s.close();
   },
 
