@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as io from 'io';
 import { toString } from 'misc';
-import { AF_INET, AF_INET6, AF_UNIX, AsyncSocket, IPPROTO_TCP, IPPROTO_UDP, POLLIN, POLLOUT, SHUT_RD, SHUT_RDWR, SHUT_WR, SO_ERROR, SO_REUSEADDR, SO_TYPE, SOCK_DGRAM, SOCK_STREAM, SockAddr, Socket, SOL_SOCKET, SyscallError, poll, select, socketpair, } from 'sockets';
+import { AF_INET, AF_INET6, AF_UNIX, AsyncSocket, ECONNREFUSED, IPPROTO_TCP, IPPROTO_UDP, POLLIN, POLLOUT, SHUT_RD, SHUT_RDWR, SHUT_WR, SO_ERROR, SO_REUSEADDR, SO_TYPE, SOCK_DGRAM, SOCK_STREAM, SockAddr, Socket, SOL_SOCKET, SyscallError, poll, select, socketpair, } from 'sockets';
 import { assert, eq, tests } from './tinytest.js';
 
 /* the async methods resolve via globalThis.io.set{Read,Write}Handler() */
@@ -438,7 +438,7 @@ tests({
       e => {
         assert(e instanceof SyscallError, 'expected SyscallError, got: ' + e);
         eq(e.syscall, 'connect');
-        assert(e.errno > 0, 'errno should be set');
+        eq(e.errno, ECONNREFUSED);
       },
     );
     s.close();
@@ -540,7 +540,7 @@ tests({
     }
     assert(caught, 'connect to closed port should reject');
     eq(caught.syscall, 'connect');
-    assert(caught.errno > 0, 'errno should be set');
+    eq(caught.errno, ECONNREFUSED);
     s.close();
   },
 
