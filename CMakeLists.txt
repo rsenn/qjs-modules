@@ -733,6 +733,8 @@ check_function_def(js_debugger_build_backtrace)
 file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 
+set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
+
 if(DO_TESTS)
   include(CTest)
 
@@ -791,18 +793,6 @@ set(lexer_DEPS qjs-predicate)
 file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
-
-set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
-
-include(CTest)
-
-foreach(TEST_SOURCE ${TESTS_SOURCES})
-  file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
-  basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND ${QJSM} --bignum
-                                                                                       "${TEST_SOURCE}")
-
-endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
 file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
 file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
