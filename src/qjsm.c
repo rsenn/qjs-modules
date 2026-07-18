@@ -1120,15 +1120,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
     file = (char*)dir.buf;
   } else if(has_suffix(name, CONFIG_SHEXT) && !name[path_component1(name)]) {
-    DynBuf db;
-
-    dbuf_init_ctx(ctx, &db);
-
-    path_append2(QUICKJS_C_MODULE_DIR, &db);
-    path_append2(name, &db);
-    dbuf_0(&db);
-
-    file = (char*)db.buf;
+    file = jsm_search_path(ctx, name);
   } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
     file = path_absolute1(name);
     path_normalize1(file);
