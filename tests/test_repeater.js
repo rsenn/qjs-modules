@@ -1,6 +1,61 @@
 import { Console } from 'console';
 import { Repeater } from 'repeater';
 import { err as stderr } from 'std';
+
+async function collect(iterable) {
+  const out = [];
+  for await(const value of iterable) out.push(value);
+  return out;
+}
+
+async function combinators() {
+  const a = new Repeater(async (push, stop) => {
+    await push(1);
+    await push(2);
+    await stop();
+  });
+  const b = new Repeater(async (push, stop) => {
+    await push('a');
+    await push('b');
+    await stop();
+  });
+  console.log('Repeater.zip', await collect(Repeater.zip([a, b])));
+
+  const c = new Repeater(async (push, stop) => {
+    await push('x');
+    await push('y');
+    await stop();
+  });
+  console.log('Repeater.merge', await collect(Repeater.merge([c, 42])));
+
+  const d = new Repeater(async (push, stop) => {
+    await push('fast1');
+    await push('fast2');
+    await stop();
+  });
+  const e = new Repeater(async (push, stop) => {
+    await push('slow1');
+    await stop();
+  });
+  console.log('Repeater.race', await collect(Repeater.race([d, e])));
+
+  const f = new Repeater(async (push, stop) => {
+    await push('f1');
+    await push('f2');
+    await stop();
+  });
+  const g = new Repeater(async (push, stop) => {
+    await push('g1');
+    await stop();
+  });
+  console.log('Repeater.latest', await collect(Repeater.latest([f, g])));
+
+  console.log('Repeater.zip([])', await collect(Repeater.zip([])));
+  console.log('Repeater.merge([])', await collect(Repeater.merge([])));
+  console.log('Repeater.race([])', await collect(Repeater.race([])));
+  console.log('Repeater.latest([])', await collect(Repeater.latest([])));
+}
+
 async function main(...args) {
   globalThis.console = new Console(stderr, {
     inspectOptions: {
@@ -54,6 +109,8 @@ async function main(...args) {
 
   for await(let value of r) console.log('value', value);
   console.log(`r`, r, r.state);
+
+  await combinators();
 }
 
 main();

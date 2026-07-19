@@ -14,11 +14,6 @@ static JSValue js_repeater_stop(JSContext*, JSValueConst, int, JSValueConst[]);
 VISIBLE JSClassID js_repeater_class_id = 0;
 static JSValue repeater_proto, repeater_ctor;
 
-enum repeater_functions {
-  STATIC_RACE = 0,
-  STATIC_MERGE,
-  STATIC_ZIP,
-};
 enum repeater_getters {
   PROP_LENGTH = 0,
   PROP_PATH,
@@ -445,23 +440,6 @@ js_repeater_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return JS_DupValue(ctx, this_val);
 }
 
-static JSValue
-js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Repeater* rpt;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case STATIC_RACE: break;
-    case STATIC_MERGE: break;
-    case STATIC_ZIP: break;
-  }
-
-  return ret;
-}
-
 enum { PROP_STATE };
 
 static JSValue
@@ -508,10 +486,190 @@ static const JSCFunctionListEntry js_repeater_static_funcs[] = {
     JS_PROP_INT32_DEF("STOPPED", REPEATER_STOPPED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("REJECTED", REPEATER_REJECTED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("DONE", REPEATER_DONE, JS_PROP_ENUMERABLE),
-    JS_CFUNC_MAGIC_DEF("race", 1, js_repeater_funcs, STATIC_RACE),
-    JS_CFUNC_MAGIC_DEF("merge", 1, js_repeater_funcs, STATIC_MERGE),
-    JS_CFUNC_MAGIC_DEF("zip", 1, js_repeater_funcs, STATIC_ZIP),
 };
+
+/* Combinators (race/merge/zip/latest) are ported from @repeaterjs/repeater's
+ * combinators.ts. They orchestrate Promise.race/Promise.all over async
+ * iterators, which is impractical to hand-roll with the QuickJS C API, so
+ * they're implemented in JS and attached as static methods at module init. */
+static const char js_repeater_combinators_src[] =
+    "(function(Repeater) {\n"
+    "  function toIterator(value, yieldValues, returnValues) {\n"
+    "    let state = 0;\n"
+    "    return {\n"
+    "      next() {\n"
+    "        if(state === 0) {\n"
+    "          state = yieldValues ? 1 : 2;\n"
+    "          if(yieldValues) return Promise.resolve({ value, done: false });\n"
+    "          if(returnValues) return Promise.resolve({ value, done: true });\n"
+    "          return Promise.resolve({ value: undefined, done: true });\n"
+    "        }\n"
+    "        if(state === 1) {\n"
+    "          state = 2;\n"
+    "          if(returnValues) return Promise.resolve({ value, done: true });\n"
+    "          return Promise.resolve({ value: undefined, done: true });\n"
+    "        }\n"
+    "        return Promise.resolve({ value: undefined, done: true });\n"
+    "      },\n"
+    "    };\n"
+    "  }\n"
+    "  function getIterators(values, yieldValues, returnValues) {\n"
+    "    const iters = [];\n"
+    "    for(const value of values) {\n"
+    "      if(value != null && typeof value[Symbol.asyncIterator] === 'function')\n"
+    "        iters.push(value[Symbol.asyncIterator]());\n"
+    "      else if(value != null && typeof value[Symbol.iterator] === 'function')\n"
+    "        iters.push(value[Symbol.iterator]());\n"
+    "      else\n"
+    "        iters.push(toIterator(value, yieldValues, returnValues));\n"
+    "    }\n"
+    "    return iters;\n"
+    "  }\n"
+    "  function race(contenders) {\n"
+    "    const iters = getIterators(contenders, false, true);\n"
+    "    return new Repeater(async (push, stop) => {\n"
+    "      if(!iters.length) { stop(); return; }\n"
+    "      let stopped = false, finalValue;\n"
+    "      const onStop = (err) => { stopped = true; stop(err); };\n"
+    "      try {\n"
+    "        while(!stopped) {\n"
+    "          const tagged = iters.map((iter) =>\n"
+    "            Promise.resolve(iter.next()).then(\n"
+    "              (iteration) => {\n"
+    "                if(iteration.done) {\n"
+    "                  if(finalValue === undefined) finalValue = iteration.value;\n"
+    "                  onStop();\n"
+    "                }\n"
+    "                return iteration;\n"
+    "              },\n"
+    "              (err) => { onStop(err); return { value: undefined, done: true }; },\n"
+    "            ),\n"
+    "          );\n"
+    "          const iteration = await Promise.race(tagged);\n"
+    "          if(stopped || iteration.done) break;\n"
+    "          await push(iteration.value);\n"
+    "        }\n"
+    "      } finally {\n"
+    "        stop();\n"
+    "      }\n"
+    "      return finalValue;\n"
+    "    });\n"
+    "  }\n"
+    "  function merge(contenders) {\n"
+    "    const iters = getIterators(contenders, true, false);\n"
+    "    return new Repeater(async (push, stop) => {\n"
+    "      if(!iters.length) { stop(); return; }\n"
+    "      let finalValue;\n"
+    "      try {\n"
+    "        await Promise.all(\n"
+    "          iters.map(async (iter) => {\n"
+    "            while(true) {\n"
+    "              let iteration;\n"
+    "              try {\n"
+    "                iteration = await iter.next();\n"
+    "              } catch(err) {\n"
+    "                stop(err);\n"
+    "                return;\n"
+    "              }\n"
+    "              if(iteration.done) {\n"
+    "                finalValue = iteration.value;\n"
+    "                return;\n"
+    "              }\n"
+    "              await push(iteration.value);\n"
+    "            }\n"
+    "          }),\n"
+    "        );\n"
+    "      } finally {\n"
+    "        stop();\n"
+    "      }\n"
+    "      return finalValue;\n"
+    "    });\n"
+    "  }\n"
+    "  function zip(contenders) {\n"
+    "    const iters = getIterators(contenders, false, true);\n"
+    "    return new Repeater(async (push, stop) => {\n"
+    "      if(!iters.length) { stop(); return []; }\n"
+    "      try {\n"
+    "        while(true) {\n"
+    "          let iterations;\n"
+    "          try {\n"
+    "            iterations = await Promise.all(iters.map((iter) => iter.next()));\n"
+    "          } catch(err) {\n"
+    "            stop(err);\n"
+    "            return;\n"
+    "          }\n"
+    "          const values = iterations.map((iteration) => iteration.value);\n"
+    "          if(iterations.some((iteration) => iteration.done)) return values;\n"
+    "          await push(values);\n"
+    "        }\n"
+    "      } finally {\n"
+    "        stop();\n"
+    "      }\n"
+    "    });\n"
+    "  }\n"
+    "  function latest(contenders) {\n"
+    "    const iters = getIterators(contenders, true, true);\n"
+    "    return new Repeater(async (push, stop) => {\n"
+    "      if(!iters.length) { stop(); return []; }\n"
+    "      try {\n"
+    "        let iterations;\n"
+    "        try {\n"
+    "          iterations = await Promise.all(iters.map((iter) => iter.next()));\n"
+    "        } catch(err) {\n"
+    "          stop(err);\n"
+    "          return;\n"
+    "        }\n"
+    "        const values = iterations.map((iteration) => iteration.value);\n"
+    "        if(iterations.every((iteration) => iteration.done)) return values;\n"
+    "        await push(values.slice());\n"
+    "        return await Promise.all(\n"
+    "          iters.map(async (iter, i) => {\n"
+    "            if(iterations[i].done) return iterations[i].value;\n"
+    "            while(true) {\n"
+    "              let iteration;\n"
+    "              try {\n"
+    "                iteration = await iter.next();\n"
+    "              } catch(err) {\n"
+    "                stop(err);\n"
+    "                return iterations[i].value;\n"
+    "              }\n"
+    "              if(iteration.done) return iteration.value;\n"
+    "              values[i] = iteration.value;\n"
+    "              await push(values.slice());\n"
+    "            }\n"
+    "          }),\n"
+    "        );\n"
+    "      } finally {\n"
+    "        stop();\n"
+    "      }\n"
+    "    });\n"
+    "  }\n"
+    "  return { race, merge, zip, latest };\n"
+    "})\n";
+
+static int
+js_repeater_init_combinators(JSContext* ctx, JSValueConst ctor) {
+  static const char* names[] = {"race", "merge", "zip", "latest"};
+  JSValue factory, combinators;
+  size_t i;
+
+  factory = JS_Eval(ctx, js_repeater_combinators_src, strlen(js_repeater_combinators_src), "<repeater-combinators>", JS_EVAL_TYPE_GLOBAL);
+  if(JS_IsException(factory))
+    return -1;
+
+  combinators = JS_Call(ctx, factory, JS_UNDEFINED, 1, &ctor);
+  JS_FreeValue(ctx, factory);
+  if(JS_IsException(combinators))
+    return -1;
+
+  for(i = 0; i < countof(names); i++) {
+    JSValue fn = JS_GetPropertyStr(ctx, combinators, names[i]);
+    JS_DefinePropertyValueStr(ctx, ctor, names[i], fn, JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  }
+
+  JS_FreeValue(ctx, combinators);
+  return 0;
+}
 
 static int
 js_repeater_init(JSContext* ctx, JSModuleDef* m) {
@@ -526,6 +684,9 @@ js_repeater_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, repeater_ctor, repeater_proto);
   JS_SetPropertyFunctionList(ctx, repeater_ctor, js_repeater_static_funcs, countof(js_repeater_static_funcs));
+
+  if(js_repeater_init_combinators(ctx, repeater_ctor))
+    return -1;
 
   if(m)
     JS_SetModuleExport(ctx, m, "Repeater", repeater_ctor);

@@ -28,3 +28,4 @@ new Repeater(executor)   // length 1
 | `race(repeaters)` | 1 | Yields from whichever input settles first. |
 | `merge(repeaters)` | 1 | Interleaves values from all inputs. |
 | `zip(repeaters)` | 1 | Yields tuples combining one value from each input. |
+| `latest(repeaters)` | 1 | Yields tuples of the latest value from each input whenever any input produces a value. |
