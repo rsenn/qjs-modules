@@ -22,6 +22,13 @@ line:column) on malformed input.
 new JsonParser(input, filename)   // length 1; filename is optional, reflected in .location.file
 ```
 
+`input` may be:
+- a buffer (string, `ArrayBuffer`, or typed array) holding the whole document, or
+- a pull function `(buf, len) => bytesRead`, called as needed to fill `buf` (up to `len` bytes), or
+- an object exposing such a function as its `read` method — called with the object as `this`, e.g. a file wrapper: `{ read(buf, len) { return f.read(buf, 0, len); } }`.
+
+The function/method forms let the parser pull raw bytes on demand (e.g. from an fd) instead of requiring the whole document up front.
+
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
 | `parse()` | 0 | method | Advances one token. Returns one of `"NEED_DATA"`, `"NONE"`, `"OBJECT"`, `"OBJECT_END"`, `"ARRAY"`, `"ARRAY_END"`, `"KEY"`, `"STRING"`, `"TRUE"`, `"FALSE"`, `"NULL"`, `"NUMBER"`. Throws on malformed input. |

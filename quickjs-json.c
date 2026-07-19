@@ -1659,8 +1659,30 @@ static JSValue
 js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
   JsonParser* parser;
-  Reader reader = reader_from_jsbuf(ctx, argc > 0 ? argv[0] : JS_UNDEFINED);
+  JSValueConst input = argc > 0 ? argv[0] : JS_UNDEFINED;
+  Reader reader;
   const char* filename = 0;
+
+  /* input is either a buffer (string/ArrayBuffer/TypedArray), a pull function
+   * called as fn(buf, len) -> bytesRead, or an object exposing such a function
+   * as its "read" method (called with the object as `this`). */
+  if(JS_IsFunction(ctx, input)) {
+    reader = reader_from_jsfunction(ctx, input);
+  } else if(JS_IsObject(input)) {
+    JSValue read_fn = JS_GetPropertyStr(ctx, input, "read");
+
+    if(JS_IsException(read_fn))
+      return JS_EXCEPTION;
+
+    if(JS_IsFunction(ctx, read_fn))
+      reader = reader_from_jsmethod(ctx, read_fn, input);
+    else
+      reader = reader_from_jsbuf(ctx, input);
+
+    JS_FreeValue(ctx, read_fn);
+  } else {
+    reader = reader_from_jsbuf(ctx, input);
+  }
 
   if(argc > 1)
     filename = JS_ToCString(ctx, argv[1]);

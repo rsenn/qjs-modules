@@ -1,8 +1,30 @@
 #!/usr/bin/env qjsm
-import { readFileSync } from 'fs';
 import { getOpt } from 'util';
 import * as std from 'std';
+import * as os from 'os';
 import { JsonParser } from 'json';
+
+/* Wraps a file (or stdin, fd 0) as a JsonParser reader method: JsonParser calls
+ * read(buf, len) to pull raw bytes on demand, straight off the fd via os.read()
+ * (a raw read(2), unlike std's FILE* which is buffered) — so the input is never
+ * read into one big string up front the way readAsString()/readFileSync() would,
+ * and nothing is held back in a stdio buffer either. */
+function fileReader(file) {
+  const fd = file === '-' ? 0 : os.open(file, os.O_RDONLY);
+
+  if(fd < 0) throw new Error(`cannot open '${file}'`);
+
+  return {
+    read(buf, len) {
+      const n = os.read(fd, buf, 0, len);
+      if(n < 0) throw new Error(`read '${file}' failed`);
+      return n;
+    },
+    close() {
+      if(file !== '-') os.close(fd);
+    },
+  };
+}
 
 function usage(exitCode) {
   std.puts(
@@ -20,8 +42,8 @@ function usage(exitCode) {
  * it never builds the parsed value in memory (unlike JSON.parse + JSON.stringify),
  * so output for the front of a document starts before the rest has been tokenized,
  * and numbers are copied verbatim instead of being rounded through a JS number. */
-function prettyPrint(input, filename, indent, put) {
-  const parser = new JsonParser(input, filename);
+function prettyPrint(reader, filename, indent, put) {
+  const parser = new JsonParser(reader, filename);
   const stack = [];
   let afterKey = false;
 
@@ -120,11 +142,15 @@ function main(...args) {
   let failed = false;
 
   for(const file of files) {
-    const input = file === '-' ? std.in.readAsString() : readFileSync(file, { encoding: 'utf-8' });
-
     try {
-      prettyPrint(input, file === '-' ? '<stdin>' : file, indent, put);
-      put('\n');
+      const reader = fileReader(file);
+
+      try {
+        prettyPrint(reader, file === '-' ? '<stdin>' : file, indent, put);
+        put('\n');
+      } finally {
+        reader.close();
+      }
     } catch(error) {
       std.err.puts(`${file}: ${error.message}\n`);
       failed = true;
