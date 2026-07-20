@@ -204,7 +204,7 @@ vector_copy(Vector* dst, const Vector* src) {
   dst->buf = 0;
   dst->allocated_size = 0;
 
-  if(!dbuf_realloc(dst, src->size)) {
+  if(!dbuf_claim(dst, src->size - dst->size)) {
     memcpy(dst->buf, src->buf, src->size);
     return 1;
   }
@@ -311,7 +311,7 @@ vector_ready(Vector* vec, size_t n) {
   size_t a = vec->allocated_size;
 
   if(n > a) {
-    if(dbuf_realloc(vec, n))
+    if(dbuf_claim(vec, n - vec->size))
       return 0;
 
     if(vec->allocated_size > a)

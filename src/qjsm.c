@@ -913,7 +913,7 @@ jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
       dbuf_putc(&code, '\n');
     } else if(is_base64) {
 
-      if(dbuf_realloc(&code, code.size + b64url_get_decoded_buffer_size(length)))
+      if(dbuf_claim(&code, b64url_get_decoded_buffer_size(length)))
         return 0;
 
       code.size += b64url_decode((const uint8_t*)&name[offset], length, &code.buf[code.size]);

@@ -320,12 +320,12 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "Directory", directory_ctor);
     JS_SetModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
 
-    const char* module_name = module_namecstr(ctx, m);
+    /*const char* module_name = module_namecstr(ctx, m);
 
     if(!strcmp(module_name, "directory"))
       JS_SetModuleExport(ctx, m, "default", directory_ctor);
 
-    JS_FreeCString(ctx, module_name);
+    JS_FreeCString(ctx, module_name);*/
   }
 
   return 0;

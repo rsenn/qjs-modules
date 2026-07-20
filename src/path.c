@@ -48,7 +48,7 @@ char*
 path_dup3(const char* path, size_t n, DynBuf* db) {
   size_t len = MIN_NUM(n, strlen(path));
 
-  dbuf_realloc(db, len + 1);
+  dbuf_claim(db, len + 1 - db->size);
   memcpy(db->buf, path, len);
   db->buf[len] = '\0';
   return (char*)db->buf;
@@ -73,7 +73,7 @@ path_dup2(const char* path, size_t n) {
 int
 path_absolute3(const char* path, size_t len, DynBuf* db) {
   if(!path_isabsolute2(path, len)) {
-    dbuf_realloc(db, PATH_MAX + 1);
+    dbuf_claim(db, PATH_MAX + 1 - db->size);
     if(getcwd((char*)db->buf, PATH_MAX + 1))
       db->size = strlen((const char*)db->buf);
     else
@@ -131,7 +131,7 @@ path_append3(const char* x, size_t len, DynBuf* db) {
 size_t
 path_normalize3(const char* path, size_t n, DynBuf* db) {
   size_t ret;
-  dbuf_realloc(db, n + 1);
+  dbuf_claim(db, n + 1 - db->size);
   memcpy(db->buf, path, n);
 
   db->buf[n] = '\0';
@@ -672,7 +672,7 @@ start:
 char*
 path_getcwd1(DynBuf* db) {
   dbuf_zero(db);
-  dbuf_realloc(db, PATH_MAX);
+  dbuf_claim(db, PATH_MAX - db->size);
 
   if(getcwd((char*)db->buf, db->allocated_size) == NULL) {
     dbuf_zero(db);
@@ -1249,7 +1249,7 @@ path_readlink2(const char* path, DynBuf* dir) {
 
   do {
     n <<= 1;
-    dbuf_realloc(dir, n);
+    dbuf_claim(dir, n - dir->size);
 
     if((sz = readlink(path, (char*)dir->buf, n)) == -1)
       return -1;

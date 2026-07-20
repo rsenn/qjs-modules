@@ -370,7 +370,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 #endif
       {
         dbuf_init_ctx(ctx, &dbuf);
-        dbuf_realloc(&dbuf, INET6_ADDRSTRLEN);
+        dbuf_claim(&dbuf, INET6_ADDRSTRLEN);
         inet_ntop(a->family, sockaddr_addr(a), (char*)dbuf.buf, INET6_ADDRSTRLEN);
         dbuf.size = strlen((const char*)dbuf.buf);
         dbuf_putc(&dbuf, ':');

@@ -108,7 +108,7 @@ vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
 
       assert(need >= 1000);
 
-      if(dbuf_realloc(vec, need))
+      if(dbuf_claim(vec, need - vec->size))
         return 0;
 
       if(vec->allocated_size > capacity)
