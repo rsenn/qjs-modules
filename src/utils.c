@@ -3219,7 +3219,7 @@ FORMAT_STRING(3, 4) JSValue js_eval_fmt(JSContext* ctx, int flags, const char* f
   len = vsnprintf((char*)buf.buf, 0, fmt, ap);
   va_end(ap);
 
-  dbuf_realloc(&buf, buf.size + len + 1);
+  dbuf_claim(&buf, len + 1);
 
   va_start(ap, fmt);
   dbuf_vprintf(&buf, fmt, ap);
@@ -3381,7 +3381,7 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
       JSModuleDef* os;
       JSAtom func_name;
 
-      if(!(os = js_module_loader(ctx, module_name, 0)))
+      if(!(os = js_module_loader(ctx, module_name, 0, JS_NULL)))
         return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);

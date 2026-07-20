@@ -395,7 +395,7 @@ dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom) {
 int
 dbuf_reserve_start(DynBuf* s, size_t len) {
   if(unlikely((s->size + len) > s->allocated_size)) {
-    if(dbuf_realloc(s, s->size + len))
+    if(dbuf_claim(s, len))
       return -1;
   }
 
@@ -409,7 +409,7 @@ dbuf_reserve_start(DynBuf* s, size_t len) {
 uint8_t*
 dbuf_reserve(DynBuf* s, size_t len) {
   if(unlikely((s->size + len) > s->allocated_size))
-    if(dbuf_realloc(s, s->size + len))
+    if(dbuf_claim(s, len))
       return 0;
 
   return &s->buf[s->size];

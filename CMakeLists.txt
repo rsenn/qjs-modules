@@ -562,6 +562,12 @@ if(HAVE_DBUF_REALLOC)
   add_definitions(-DQUICKJS_DBUF_REALLOC)
 endif(HAVE_DBUF_REALLOC)
 
+if(HAVE_DBUF_CLAIM AND NOT HAVE_DBUF_REALLOC)
+  # quickjs (between 2025-09-13 and 2026-06-04) renamed dbuf_realloc() to dbuf_claim() (same
+  # signature); this source still calls dbuf_realloc() directly.
+  add_definitions(-Ddbuf_realloc=dbuf_claim)
+endif(HAVE_DBUF_CLAIM AND NOT HAVE_DBUF_REALLOC)
+
 dump(HAVE_DBUF_CLAIM HAVE_DBUF_REALLOC)
 #set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
 
@@ -904,7 +910,7 @@ if(QUICKJS_INTERNAL)
 
   file(
     WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
-    "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
+    "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
   )
   list(APPEND LIBRARY_SOURCES quickjs-internal.c)
 
