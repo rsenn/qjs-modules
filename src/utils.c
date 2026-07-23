@@ -3381,7 +3381,14 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
       JSModuleDef* os;
       JSAtom func_name;
 
-      if(!(os = js_module_loader(ctx, module_name, 0, JS_NULL)))
+      if(!(os = js_module_loader(ctx,
+                                  module_name,
+                                  0
+#ifndef JS_MODULE_LOADER_OLD
+                                  ,
+                                  JS_NULL
+#endif
+                                  )))
         return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);
