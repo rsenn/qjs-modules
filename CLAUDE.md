@@ -24,9 +24,19 @@ before the session ends** — don't leave it for the user to transcribe later.
   here; if you touch something on this list, fold the item into `TODO.md` and note it as
   folded-in, same as the existing entries.
 - **`BUGS.md`** — bugs found *incidentally* while doing other work (e.g. while writing unit
-  tests) and deliberately left unfixed at the time. Each entry names the file/function, the
-  concrete failure, and how to reproduce it. Add to this file when you find a bug but the task
-  at hand isn't "fix bugs" — don't fix it out of scope, but don't lose it either.
+  tests) and deliberately left unfixed at the time. Add to this file when you find a bug but
+  the task at hand isn't "fix bugs" — don't fix it out of scope, but don't lose it either.
+  Append newly discovered bugs to the **end** of the file, in the order found, using the same
+  format as `../../shish/BUGS`:
+  ```
+  - <canonical-kebab-case-name>: <prose description, wrapped ~72 cols, covering what's
+    wrong, why, and where (file:line) it was found>
+
+      <minimal JS (or build/shell) snippet that triggers/reproduces it, tab- or
+      4-space-indented, with a comment showing the actual vs. expected result>
+  ```
+  If no isolated repro exists yet (e.g. a suspected leak or a build-only failure), say so
+  explicitly in the prose rather than inventing one.
 
 When in doubt about where an item goes: a verified, actionable fix → `TODO.md`; a bug noticed
 in passing that's out of scope for the current task → `BUGS.md`.

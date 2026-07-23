@@ -8,6 +8,22 @@ the code (and, where noted, by actually running it) — not just grepped.
 This supersedes the sparse root-level `TODO` file; its four items are folded in below (marked
 *(pre-existing)*).
 
+## Roadmap
+
+Four standing goals for this project, in priority order. Every tier below should be read
+against these — they're the "why" behind what gets picked up next. See `ASSESSMENT.md` for
+the full architecture/gap survey behind Tier 6-8.
+
+1. **Be the standard library QuickJS deserves** — WHATWG-spec'd web APIs (streams, URL,
+   events, encoding, DOM) and Deno/Bun-like runtime APIs (fs, process, timers, readline,
+   child_process, ...), with a coherent, documented JS surface over the native bindings.
+2. **Be a toolbox for working with QuickJS itself** — inspection/reflection/deep-object/pointer
+   utilities for debugging and metaprogramming.
+3. **Be a lexer/parser toolkit** — a general, reusable grammar/lexer framework, not just
+   glue code for one format.
+4. **Support archives, filesystem, sockets, serial, and databases** as first-class, ergonomic
+   JS APIs, not just raw native bindings.
+
 ## Tier 1 — silent correctness bugs, one disabled line each, wide blast radius
 
 These all follow the same shape: someone commented out a guard or a case while
@@ -174,3 +190,78 @@ next one.
   (`CMakeLists.txt:418-447`).
 - Minor hygiene: stray `src/utils.c.orig` backup file left in the tree; `quickjs-stream.c` has
   ~13 functions with unfilled Doxygen placeholder text (`{ function_description }` etc.).
+
+## Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment, see `ASSESSMENT.md`)
+
+- **No fallback if `HAVE_DBUF_CLAIM` is false against a given reference tree.** The
+  `dbuf_realloc()` → `dbuf_claim()` migration (commit `3e8d44cc`) converted all 15 call sites
+  to call `dbuf_claim(buf, delta)` directly, with `CMakeLists.txt:555-571` defining
+  `-Ddbuf_realloc=dbuf_claim` only for the `HAVE_DBUF_CLAIM` case. There's no inverse shim
+  (`#define dbuf_claim(...) ...` in terms of `dbuf_realloc`) for building against an older
+  reference tree that only has `dbuf_realloc()` — which is what
+  `/mnt/data/Projects/plot-cv/quickjs`'s current `cutils.h`/`cutils.c` actually expose. Worth
+  adding a small inline shim (delta → total-size wrapper) so the build works both ways instead
+  of only forward.
+- **Dead, now-backwards `#define dbuf_realloc dbuf_claim`** at `include/defines.h:9-11`
+  (already `#if 0`'d out) — safe to delete now that the CMake-level wiring is the real
+  mechanism; keeping it around next to live compat logic invites confusion about which one
+  actually does the job.
+- Additional disabled-code items found by the same pass, same shape as Tier 1/5 (commented-out
+  case/branch, feature silently missing rather than erroring): `quickjs-lexer.c:1611,1655`
+  (iterator `next`/`values` on `Lexer` disabled), `quickjs-list.c:567` (iterator `next`
+  disabled — verify this isn't already superseded by the `List.prototype.at()` removal noted
+  in Tier 4), `quickjs-misc.c:3592,3722,3725,3851` (+ matching disabled `case`s at `2806-2808`,
+  `2822`) — `realpath`, `resizeArrayBuffer`/`searchArrayBuffer` alias, and `isHTMLDDA`/
+  function-type magic dispatch all disabled, `quickjs-pgsql.c:1312,1855` (`escapeString` and
+  iterator `next` disabled), `quickjs-internal.c:558,571` (opcode-name introspection
+  properties disabled), `quickjs-tree-walker.c:167,486` (`setroot()`'s return value discarded
+  — minor, probably harmless but worth a look).
+- **Test coverage gaps**: no dedicated test file for `arraybuffer-sink`, `bcrypt`, `queue`,
+  `syscallerror`, or `virtual` (`bjson` is upstream-documented as test-only, lower priority).
+
+## Tier 7 — roadmap gaps: JS standard-library surface (goal 1) vs. what exists
+
+Native bindings that currently have **no `lib/*.js` wrapper at all**, so they're usable only as
+raw native modules rather than as part of a documented "standard library" surface: `blob`
+(despite `Blob.prototype.stream()` already being tracked in Tier 2 — there's no `lib/blob.js`
+at all, not just an incomplete method), `child-process`, `gpio`, `serial`, `mmap`, `directory`,
+`queue`, `repeater`, `virtual`, `magic`, `bcrypt`, `syscallerror`, `location`. `sockets` has only
+a low-level `lib/socklen_t.js` helper, not a `net`/`dgram`-style ergonomic wrapper.
+
+WHATWG/Deno/Bun API gaps in `lib/`:
+- `CustomEvent` — missing entirely, despite `EventTarget` (`lib/events.js`) existing.
+- `fetch` — missing; only appears in vendored test-infra comments (`lib/testharness.js`).
+- `structuredClone` — only feature-detected (`lib/stream.js:533`), never implemented.
+- `Worker` — missing; only referenced by vendored test-infra (`lib/testharness.js:254`).
+- `lib/readline.js` (9 lines: `cursorTo`/`clearLine` only), `lib/buffer.js` (12 lines:
+  `from`/`concat` only), `lib/perf_hooks.js` (12 lines: `now`/`timeOrigin` only, no marks or
+  measures) are all much thinner than their Node/Deno/Bun namesakes.
+- `lib/extendAsyncFunction.js:3` — declared but empty (`AsyncFunctionExtensions =
+  nonenumerable({})`, no members added yet).
+
+## Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)
+
+- **Three independent CSS-selector implementations**: `lib/parsel.js` (ported `parsel-js`),
+  `lib/css-selectors.js` (compiler built on `parsel.js`), and `lib/css3-selectors.js` (a
+  *second*, independent compiler with its own hand-rolled tokenizer, duplicating helper
+  functions nearly verbatim from `css-selectors.js`, e.g. `escapeRegExp`/`getAttribute`/
+  `hasAttribute`/`isElement`/`childElements`). `lib/css-selectors.js` appears dead: nothing in
+  the active source tree imports it (`lib/dom.js:3`, `tests/test_dom.js:4`, and
+  `tests/test_css3_selectors.js:2` all import `css3-selectors.js` instead; only stale build
+  output under `inst/` still references `css-selectors.js`/`parsel.js`). Worth either deleting
+  `css-selectors.js` or consolidating `css3-selectors.js` to build on the shared
+  `lib/lexer`/`lib/parser/grammar.js` toolkit (goal 3) instead of duplicating a tokenizer.
+- **Lexer/parser toolkit (goal 3) isn't dogfooded by the project's own hardest parsing
+  problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 4
+  independent grammars (`lib/lexer/{bnf,c,csv,ecmascript}.js`), which is good evidence of real
+  generality — but `css3-selectors.js` and `lib/xml/read.js` both hand-roll bespoke
+  parsers/tokenizers instead of building on the toolkit.
+- **Inconsistent non-enumerable-property idiom across `lib/extend*.js`.** Most files
+  (`extendArray.js`, `extendArrayBuffer.js`, `extendAsyncFunction.js`, `extendFunction.js`,
+  `extendMap.js`, `extendSet.js`) wrap their extension object in the shared `nonenumerable()`
+  helper from `lib/util.js`. `extendMath.js` and `extendGenerator.js`/`extendAsyncGenerator.js`
+  instead re-implement the same marking logic inline. `extendObject.js` uses a third helper,
+  `extend()`, with no non-enumerable marking at all. Worth converging on one convention.
+- Stray untracked working-tree files noticed during the survey (not a code bug, just hygiene):
+  `lib/blah.tmp*` (six 0-byte scratch files), `lib/repl.js.orig` (a stale backup that differs
+  from the current `lib/repl.js`).
