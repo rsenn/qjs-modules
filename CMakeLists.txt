@@ -331,7 +331,7 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
-    textcode sockets #stream
+    textcode sockets stream
     syscallerror inspect tree-walker virtual xml)
 
 if(MODULE_MAGIC)

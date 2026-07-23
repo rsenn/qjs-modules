@@ -1,2495 +1,1193 @@
 #include "quickjs-stream.h"
-#include "buffer-utils.h"
+#include "stream-utils.h"
 #include "utils.h"
-#include "debug.h"
-#include <list.h>
-#include <assert.h>
-
-extern const uint32_t qjsc_stream_size;
-extern const uint8_t qjsc_stream[];
+#include <string.h>
 
 /**
- * \defgroup quickjs-stream quickjs-stream: Buffered stream
+ * \defgroup quickjs-stream quickjs-stream: Streams
  * @{
  */
 
-typedef enum {
-  READABLE_START = 0,
-  READABLE_PULL,
-  READABLE_CANCEL,
-} ReadableCallback;
+/* ReadableStream/WritableStream/TransformStream and the two queuing-strategy
+ * classes are implemented in JS and evaluated here, rather than hand-rolled
+ * as C structs/classes. The previous C implementation shared one JSClassID
+ * (and repeatedly called JS_SetClassProto on it) across a stream and its
+ * controller; each later JS_SetClassProto call frees the previously
+ * registered proto, and controller-only prototypes (which nothing else
+ * holds a reference to) were dropped to a refcount of 0 and freed while
+ * this file's `static JSValue` globals still pointed at them - so
+ * `controller.enqueue()` dereferenced freed memory and silently failed
+ * (the exception was discarded), and the most basic
+ * `new ReadableStream({start(c){c.enqueue(x)}})` + `reader.read()` pattern
+ * hung forever. Implementing the state machine in ordinary JS classes
+ * sidesteps that whole bug class: real constructors/prototypes, correct
+ * `instanceof`, and cycle-safe GC via QuickJS's normal JS object marking
+ * (the old code had no `gc_mark` on any of its five classes either). */
+static const char js_stream_src[] =
+    "(function() {\n"
+    "/* Lean WHATWG Streams core: ReadableStream, WritableStream, TransformStream,\n"
+    " * CountQueuingStrategy, ByteLengthQueuingStrategy. */\n"
+    "\n"
+    "function makeDeferred() {\n"
+    "  let resolve, reject;\n"
+    "  const promise = new Promise((res, rej) => {\n"
+    "    resolve = v => {\n"
+    "      resolve = () => {};\n"
+    "      reject = () => {};\n"
+    "      res(v);\n"
+    "    };\n"
+    "    reject = e => {\n"
+    "      resolve = () => {};\n"
+    "      reject = () => {};\n"
+    "      rej(e);\n"
+    "    };\n"
+    "  });\n"
+    "  return {\n"
+    "    promise,\n"
+    "    resolve: v => resolve(v),\n"
+    "    reject: e => reject(e),\n"
+    "  };\n"
+    "}\n"
+    "\n"
+    "/* ==================== ReadableStream ==================== */\n"
+    "\n"
+    "class ReadableStreamDefaultController {\n"
+    "  constructor(stream) {\n"
+    "    this._stream = stream;\n"
+    "    this._queue = [];\n"
+    "    this._queueTotalSize = 0;\n"
+    "    this._closeRequested = false;\n"
+    "    this._pulling = false;\n"
+    "    this._pullAgain = false;\n"
+    "  }\n"
+    "\n"
+    "  get desiredSize() {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state === 'errored') return null;\n"
+    "    if(stream._state === 'closed') return 0;\n"
+    "    return stream._strategyHWM - this._queueTotalSize;\n"
+    "  }\n"
+    "\n"
+    "  enqueue(chunk) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!this._canCloseOrEnqueue()) throw new TypeError(\"Cannot enqueue a chunk into a readable stream that is closed or has been requested to be closed\");\n"
+    "\n"
+    "    if(stream._reader && stream._reader._readRequests.length > 0) {\n"
+    "      const req = stream._reader._readRequests.shift();\n"
+    "      req.resolve({ value: chunk, done: false });\n"
+    "    } else {\n"
+    "      let size = 1;\n"
+    "      try {\n"
+    "        size = stream._strategySizeAlgorithm(chunk);\n"
+    "      } catch(e) {\n"
+    "        this.error(e);\n"
+    "        throw e;\n"
+    "      }\n"
+    "      this._queue.push({ value: chunk, size });\n"
+    "      this._queueTotalSize += size;\n"
+    "    }\n"
+    "    this._callPullIfNeeded();\n"
+    "  }\n"
+    "\n"
+    "  close() {\n"
+    "    if(!this._canCloseOrEnqueue()) throw new TypeError('Cannot close a readable stream that is already closed or errored');\n"
+    "    this._closeRequested = true;\n"
+    "    if(this._queue.length === 0) this._finishClose();\n"
+    "  }\n"
+    "\n"
+    "  error(e) {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state !== 'readable') return;\n"
+    "    this._queue = [];\n"
+    "    this._queueTotalSize = 0;\n"
+    "    stream._state = 'errored';\n"
+    "    stream._storedError = e;\n"
+    "    const reader = stream._reader;\n"
+    "    if(reader) {\n"
+    "      for(const req of reader._readRequests) req.reject(e);\n"
+    "      reader._readRequests = [];\n"
+    "      reader._closedPromise.reject(e);\n"
+    "    }\n"
+    "  }\n"
+    "\n"
+    "  _canCloseOrEnqueue() {\n"
+    "    return !this._closeRequested && this._stream._state === 'readable';\n"
+    "  }\n"
+    "\n"
+    "  _finishClose() {\n"
+    "    const stream = this._stream;\n"
+    "    stream._state = 'closed';\n"
+    "    const reader = stream._reader;\n"
+    "    if(reader) {\n"
+    "      for(const req of reader._readRequests) req.resolve({ value: undefined, done: true });\n"
+    "      reader._readRequests = [];\n"
+    "      reader._closedPromise.resolve(undefined);\n"
+    "    }\n"
+    "  }\n"
+    "\n"
+    "  _shouldPull() {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state !== 'readable') return false;\n"
+    "    if(this._closeRequested) return false;\n"
+    "    const size = this.desiredSize;\n"
+    "    return size !== null && size > 0;\n"
+    "  }\n"
+    "\n"
+    "  _callPullIfNeeded() {\n"
+    "    if(!this._shouldPull()) return;\n"
+    "    if(this._pulling) {\n"
+    "      this._pullAgain = true;\n"
+    "      return;\n"
+    "    }\n"
+    "    this._pulling = true;\n"
+    "    const source = this._stream._underlyingSource;\n"
+    "    let result;\n"
+    "    try {\n"
+    "      result = source.pull ? source.pull(this) : undefined;\n"
+    "    } catch(e) {\n"
+    "      this._pulling = false;\n"
+    "      this.error(e);\n"
+    "      return;\n"
+    "    }\n"
+    "    Promise.resolve(result).then(\n"
+    "      () => {\n"
+    "        this._pulling = false;\n"
+    "        if(this._pullAgain) {\n"
+    "          this._pullAgain = false;\n"
+    "          this._callPullIfNeeded();\n"
+    "        }\n"
+    "      },\n"
+    "      e => {\n"
+    "        this._pulling = false;\n"
+    "        this.error(e);\n"
+    "      },\n"
+    "    );\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "function readableStreamCancel(stream, reason) {\n"
+    "  if(stream._state === 'closed') return Promise.resolve(undefined);\n"
+    "  if(stream._state === 'errored') return Promise.reject(stream._storedError);\n"
+    "\n"
+    "  const controller = stream._controller;\n"
+    "  controller._queue = [];\n"
+    "  controller._queueTotalSize = 0;\n"
+    "  stream._state = 'closed';\n"
+    "\n"
+    "  const reader = stream._reader;\n"
+    "  if(reader) {\n"
+    "    if(reader._readRequests) {\n"
+    "      for(const req of reader._readRequests) req.resolve({ value: undefined, done: true });\n"
+    "      reader._readRequests = [];\n"
+    "    }\n"
+    "    reader._closedPromise.resolve(undefined);\n"
+    "  }\n"
+    "  if(controller._pendingPullIntos) {\n"
+    "    for(const pullInto of controller._pendingPullIntos) pullInto.resolve({ value: viewFromBytes(pullInto.ctor, pullInto.buffer, pullInto.byteOffset, pullInto.bytesFilled), done: true });\n"
+    "    controller._pendingPullIntos = [];\n"
+    "  }\n"
+    "\n"
+    "  const source = stream._underlyingSource;\n"
+    "  let result;\n"
+    "  try {\n"
+    "    result = source.cancel ? source.cancel(reason) : undefined;\n"
+    "  } catch(e) {\n"
+    "    return Promise.reject(e);\n"
+    "  }\n"
+    "  return Promise.resolve(result).then(() => undefined);\n"
+    "}\n"
+    "\n"
+    "class ReadableStreamDefaultReader {\n"
+    "  constructor(stream) {\n"
+    "    if(!(stream instanceof ReadableStream)) throw new TypeError(\"Cannot construct a ReadableStreamDefaultReader from a value that isn't a ReadableStream\");\n"
+    "    if(stream._reader) throw new TypeError('ReadableStream is already locked to a reader');\n"
+    "\n"
+    "    this._stream = stream;\n"
+    "    stream._reader = this;\n"
+    "    this._readRequests = [];\n"
+    "    this._closedPromise = makeDeferred();\n"
+    "\n"
+    "    if(stream._state === 'closed') this._closedPromise.resolve(undefined);\n"
+    "    else if(stream._state === 'errored') this._closedPromise.reject(stream._storedError);\n"
+    "  }\n"
+    "\n"
+    "  get closed() {\n"
+    "    return this._closedPromise.promise;\n"
+    "  }\n"
+    "\n"
+    "  read() {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This readable stream reader has been released and cannot be used to read from its previous owner stream'));\n"
+    "\n"
+    "    if(stream._state === 'errored') return Promise.reject(stream._storedError);\n"
+    "    if(stream._state === 'closed') return Promise.resolve({ value: undefined, done: true });\n"
+    "\n"
+    "    const controller = stream._controller;\n"
+    "    if(controller._queue.length > 0) {\n"
+    "      const { value, size } = controller._queue.shift();\n"
+    "      controller._queueTotalSize -= size;\n"
+    "      if(controller._closeRequested && controller._queue.length === 0) controller._finishClose();\n"
+    "      else controller._callPullIfNeeded();\n"
+    "      return Promise.resolve({ value, done: false });\n"
+    "    }\n"
+    "\n"
+    "    const d = makeDeferred();\n"
+    "    this._readRequests.push(d);\n"
+    "    controller._callPullIfNeeded();\n"
+    "    return d.promise;\n"
+    "  }\n"
+    "\n"
+    "  cancel(reason) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This readable stream reader has been released'));\n"
+    "    return readableStreamCancel(stream, reason);\n"
+    "  }\n"
+    "\n"
+    "  releaseLock() {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return;\n"
+    "    if(this._readRequests.length > 0) {\n"
+    "      const e = new TypeError('Reader was released');\n"
+    "      for(const req of this._readRequests) req.reject(e);\n"
+    "      this._readRequests = [];\n"
+    "    }\n"
+    "    stream._reader = undefined;\n"
+    "    this._stream = undefined;\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "/* ==================== ReadableByteStreamController / BYOB ==================== */\n"
+    "\n"
+    "function viewFromBytes(ctor, buffer, byteOffset, byteLength) {\n"
+    "  if(ctor === DataView) return new DataView(buffer, byteOffset, byteLength);\n"
+    "  const bpe = ctor.BYTES_PER_ELEMENT || 1;\n"
+    "  return new ctor(buffer, byteOffset, byteLength / bpe);\n"
+    "}\n"
+    "\n"
+    "class ReadableStreamBYOBRequest {\n"
+    "  constructor(controller, view) {\n"
+    "    this._controller = controller;\n"
+    "    this._view = view;\n"
+    "  }\n"
+    "\n"
+    "  get view() {\n"
+    "    return this._view;\n"
+    "  }\n"
+    "\n"
+    "  respond(bytesWritten) {\n"
+    "    this._controller._respond(bytesWritten);\n"
+    "  }\n"
+    "\n"
+    "  respondWithNewView(view) {\n"
+    "    this._controller._respondWithNewView(view);\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "class ReadableByteStreamController {\n"
+    "  constructor(stream, autoAllocateChunkSize) {\n"
+    "    this._stream = stream;\n"
+    "    this._queue = [];\n"
+    "    this._queueTotalSize = 0;\n"
+    "    this._closeRequested = false;\n"
+    "    this._pulling = false;\n"
+    "    this._pullAgain = false;\n"
+    "    this._autoAllocateChunkSize = autoAllocateChunkSize;\n"
+    "    this._pendingPullIntos = [];\n"
+    "    this._byobRequest = null;\n"
+    "  }\n"
+    "\n"
+    "  get desiredSize() {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state === 'errored') return null;\n"
+    "    if(stream._state === 'closed') return 0;\n"
+    "    return stream._strategyHWM - this._queueTotalSize;\n"
+    "  }\n"
+    "\n"
+    "  get byobRequest() {\n"
+    "    if(this._byobRequest === null && this._pendingPullIntos.length > 0) {\n"
+    "      const pullInto = this._pendingPullIntos[0];\n"
+    "      const view = new Uint8Array(pullInto.buffer, pullInto.byteOffset + pullInto.bytesFilled, pullInto.byteLength - pullInto.bytesFilled);\n"
+    "      this._byobRequest = new ReadableStreamBYOBRequest(this, view);\n"
+    "    }\n"
+    "    return this._byobRequest;\n"
+    "  }\n"
+    "\n"
+    "  enqueue(chunk) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!this._canCloseOrEnqueue()) throw new TypeError('Cannot enqueue a chunk into a readable stream that is closed or has been requested to be closed');\n"
+    "    if(!ArrayBuffer.isView(chunk)) throw new TypeError('chunk must be an ArrayBufferView (e.g. Uint8Array)');\n"
+    "\n"
+    "    const bytes = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);\n"
+    "\n"
+    "    if(this._pendingPullIntos.length > 0) {\n"
+    "      this._fillPendingFromBytes(bytes);\n"
+    "    } else if(stream._reader && stream._reader._readRequests && stream._reader._readRequests.length > 0) {\n"
+    "      const req = stream._reader._readRequests.shift();\n"
+    "      req.resolve({ value: bytes, done: false });\n"
+    "    } else {\n"
+    "      this._queue.push({ value: bytes, size: bytes.byteLength });\n"
+    "      this._queueTotalSize += bytes.byteLength;\n"
+    "    }\n"
+    "    this._callPullIfNeeded();\n"
+    "  }\n"
+    "\n"
+    "  close() {\n"
+    "    if(!this._canCloseOrEnqueue()) throw new TypeError('Cannot close a readable stream that is already closed or errored');\n"
+    "    this._closeRequested = true;\n"
+    "\n"
+    "    if(this._queueTotalSize > 0) return;\n"
+    "\n"
+    "    if(this._pendingPullIntos.length > 0 && this._pendingPullIntos[0].bytesFilled > 0) {\n"
+    "      const e = new TypeError('Insufficient bytes to fill elements requested in a ReadableStream BYOB read');\n"
+    "      this.error(e);\n"
+    "      throw e;\n"
+    "    }\n"
+    "    this._finishClose();\n"
+    "  }\n"
+    "\n"
+    "  error(e) {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state !== 'readable') return;\n"
+    "    this._queue = [];\n"
+    "    this._queueTotalSize = 0;\n"
+    "    stream._state = 'errored';\n"
+    "    stream._storedError = e;\n"
+    "    const reader = stream._reader;\n"
+    "    if(reader) {\n"
+    "      if(reader._readRequests) {\n"
+    "        for(const req of reader._readRequests) req.reject(e);\n"
+    "        reader._readRequests = [];\n"
+    "      }\n"
+    "      reader._closedPromise.reject(e);\n"
+    "    }\n"
+    "    for(const pullInto of this._pendingPullIntos) pullInto.reject(e);\n"
+    "    this._pendingPullIntos = [];\n"
+    "  }\n"
+    "\n"
+    "  _canCloseOrEnqueue() {\n"
+    "    return !this._closeRequested && this._stream._state === 'readable';\n"
+    "  }\n"
+    "\n"
+    "  _finishClose() {\n"
+    "    const stream = this._stream;\n"
+    "    stream._state = 'closed';\n"
+    "    const reader = stream._reader;\n"
+    "    if(reader) {\n"
+    "      if(reader._readRequests) {\n"
+    "        for(const req of reader._readRequests) req.resolve({ value: undefined, done: true });\n"
+    "        reader._readRequests = [];\n"
+    "      }\n"
+    "      reader._closedPromise.resolve(undefined);\n"
+    "    }\n"
+    "    for(const pullInto of this._pendingPullIntos) pullInto.resolve({ value: viewFromBytes(pullInto.ctor, pullInto.buffer, pullInto.byteOffset, pullInto.bytesFilled), done: true });\n"
+    "    this._pendingPullIntos = [];\n"
+    "  }\n"
+    "\n"
+    "  _shouldPull() {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state !== 'readable') return false;\n"
+    "    if(this._closeRequested) return false;\n"
+    "    if(this._pendingPullIntos.length > 0) return true;\n"
+    "    if(this._autoAllocateChunkSize && stream._reader && stream._reader._readRequests && stream._reader._readRequests.length > 0) return true;\n"
+    "    const size = this.desiredSize;\n"
+    "    return size !== null && size > 0;\n"
+    "  }\n"
+    "\n"
+    "  _callPullIfNeeded() {\n"
+    "    if(!this._shouldPull()) return;\n"
+    "    if(this._pulling) {\n"
+    "      this._pullAgain = true;\n"
+    "      return;\n"
+    "    }\n"
+    "\n"
+    "    if(this._pendingPullIntos.length === 0 && this._autoAllocateChunkSize) {\n"
+    "      const buffer = new ArrayBuffer(this._autoAllocateChunkSize);\n"
+    "      this._pendingPullIntos.push({\n"
+    "        buffer,\n"
+    "        byteOffset: 0,\n"
+    "        byteLength: this._autoAllocateChunkSize,\n"
+    "        bytesFilled: 0,\n"
+    "        ctor: Uint8Array,\n"
+    "        resolve: result => this._deliverAutoAllocated(result),\n"
+    "        reject: e => this.error(e),\n"
+    "      });\n"
+    "    }\n"
+    "\n"
+    "    this._pulling = true;\n"
+    "    const source = this._stream._underlyingSource;\n"
+    "    let result;\n"
+    "    try {\n"
+    "      result = source.pull ? source.pull(this) : undefined;\n"
+    "    } catch(e) {\n"
+    "      this._pulling = false;\n"
+    "      this.error(e);\n"
+    "      return;\n"
+    "    }\n"
+    "    Promise.resolve(result).then(\n"
+    "      () => {\n"
+    "        this._pulling = false;\n"
+    "        if(this._pullAgain) {\n"
+    "          this._pullAgain = false;\n"
+    "          this._callPullIfNeeded();\n"
+    "        }\n"
+    "      },\n"
+    "      e => {\n"
+    "        this._pulling = false;\n"
+    "        this.error(e);\n"
+    "      },\n"
+    "    );\n"
+    "  }\n"
+    "\n"
+    "  _deliverAutoAllocated({ value, done }) {\n"
+    "    if(done) return;\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._reader && stream._reader._readRequests && stream._reader._readRequests.length > 0) {\n"
+    "      const req = stream._reader._readRequests.shift();\n"
+    "      req.resolve({ value, done: false });\n"
+    "    } else {\n"
+    "      this._queue.push({ value, size: value.byteLength });\n"
+    "      this._queueTotalSize += value.byteLength;\n"
+    "    }\n"
+    "  }\n"
+    "\n"
+    "  _fillViewFromQueue(view) {\n"
+    "    const dest = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);\n"
+    "    let filled = 0;\n"
+    "\n"
+    "    while(filled < dest.length && this._queue.length > 0) {\n"
+    "      const entry = this._queue[0];\n"
+    "      const src = entry.value;\n"
+    "      const toCopy = Math.min(dest.length - filled, src.byteLength);\n"
+    "\n"
+    "      dest.set(src.subarray(0, toCopy), filled);\n"
+    "      filled += toCopy;\n"
+    "\n"
+    "      if(toCopy >= src.byteLength) {\n"
+    "        this._queue.shift();\n"
+    "        this._queueTotalSize -= entry.size;\n"
+    "      } else {\n"
+    "        entry.value = src.subarray(toCopy);\n"
+    "        entry.size -= toCopy;\n"
+    "        this._queueTotalSize -= toCopy;\n"
+    "      }\n"
+    "    }\n"
+    "\n"
+    "    if(this._closeRequested && this._queue.length === 0) this._finishClose();\n"
+    "    else this._callPullIfNeeded();\n"
+    "\n"
+    "    return { value: viewFromBytes(view.constructor, view.buffer, view.byteOffset, filled), done: false };\n"
+    "  }\n"
+    "\n"
+    "  _fillPendingFromBytes(bytes) {\n"
+    "    let offset = 0;\n"
+    "\n"
+    "    while(this._pendingPullIntos.length > 0 && offset < bytes.byteLength) {\n"
+    "      const pullInto = this._pendingPullIntos[0];\n"
+    "      const destRemaining = pullInto.byteLength - pullInto.bytesFilled;\n"
+    "      const toCopy = Math.min(destRemaining, bytes.byteLength - offset);\n"
+    "\n"
+    "      new Uint8Array(pullInto.buffer, pullInto.byteOffset + pullInto.bytesFilled, toCopy).set(bytes.subarray(offset, offset + toCopy));\n"
+    "      pullInto.bytesFilled += toCopy;\n"
+    "      offset += toCopy;\n"
+    "\n"
+    "      if(pullInto.bytesFilled >= pullInto.byteLength) {\n"
+    "        this._pendingPullIntos.shift();\n"
+    "        this._byobRequest = null;\n"
+    "        pullInto.resolve({ value: viewFromBytes(pullInto.ctor, pullInto.buffer, pullInto.byteOffset, pullInto.bytesFilled), done: false });\n"
+    "      } else {\n"
+    "        break;\n"
+    "      }\n"
+    "    }\n"
+    "\n"
+    "    if(offset < bytes.byteLength) {\n"
+    "      const rest = bytes.subarray(offset);\n"
+    "      this._queue.push({ value: rest, size: rest.byteLength });\n"
+    "      this._queueTotalSize += rest.byteLength;\n"
+    "    }\n"
+    "  }\n"
+    "\n"
+    "  _respond(bytesWritten) {\n"
+    "    if(this._pendingPullIntos.length === 0) throw new TypeError('No pending BYOB read request to respond to');\n"
+    "    const pullInto = this._pendingPullIntos[0];\n"
+    "    this._byobRequest = null;\n"
+    "    pullInto.bytesFilled += bytesWritten;\n"
+    "\n"
+    "    if(bytesWritten === 0 && this._closeRequested) {\n"
+    "      this._pendingPullIntos.shift();\n"
+    "      pullInto.resolve({ value: viewFromBytes(pullInto.ctor, pullInto.buffer, pullInto.byteOffset, pullInto.bytesFilled), done: true });\n"
+    "      if(this._pendingPullIntos.length === 0) this._finishClose();\n"
+    "      return;\n"
+    "    }\n"
+    "\n"
+    "    if(pullInto.bytesFilled > 0 || bytesWritten > 0) {\n"
+    "      this._pendingPullIntos.shift();\n"
+    "      pullInto.resolve({ value: viewFromBytes(pullInto.ctor, pullInto.buffer, pullInto.byteOffset, pullInto.bytesFilled), done: false });\n"
+    "    }\n"
+    "  }\n"
+    "\n"
+    "  _respondWithNewView(view) {\n"
+    "    if(this._pendingPullIntos.length === 0) throw new TypeError('No pending BYOB read request to respond to');\n"
+    "    const pullInto = this._pendingPullIntos.shift();\n"
+    "    this._byobRequest = null;\n"
+    "    pullInto.resolve({ value: view, done: false });\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "class ReadableStreamBYOBReader {\n"
+    "  constructor(stream) {\n"
+    "    if(!(stream instanceof ReadableStream)) throw new TypeError(\"Cannot construct a ReadableStreamBYOBReader from a value that isn't a ReadableStream\");\n"
+    "    if(!(stream._controller instanceof ReadableByteStreamController))\n"
+    "      throw new TypeError('Cannot construct a ReadableStreamBYOBReader for a stream not constructed with {type: \"bytes\"}');\n"
+    "    if(stream._reader) throw new TypeError('ReadableStream is already locked to a reader');\n"
+    "\n"
+    "    this._stream = stream;\n"
+    "    stream._reader = this;\n"
+    "    this._closedPromise = makeDeferred();\n"
+    "\n"
+    "    if(stream._state === 'closed') this._closedPromise.resolve(undefined);\n"
+    "    else if(stream._state === 'errored') this._closedPromise.reject(stream._storedError);\n"
+    "  }\n"
+    "\n"
+    "  get closed() {\n"
+    "    return this._closedPromise.promise;\n"
+    "  }\n"
+    "\n"
+    "  read(view) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This readable stream BYOB reader has been released'));\n"
+    "    if(!ArrayBuffer.isView(view) || view.byteLength === 0) return Promise.reject(new TypeError('read(view) requires a non-empty ArrayBufferView'));\n"
+    "    if(stream._state === 'errored') return Promise.reject(stream._storedError);\n"
+    "\n"
+    "    const controller = stream._controller;\n"
+    "\n"
+    "    if(controller._queueTotalSize > 0) return Promise.resolve(controller._fillViewFromQueue(view));\n"
+    "\n"
+    "    if(stream._state === 'closed') return Promise.resolve({ value: viewFromBytes(view.constructor, view.buffer, view.byteOffset, 0), done: true });\n"
+    "\n"
+    "    const d = makeDeferred();\n"
+    "    controller._pendingPullIntos.push({\n"
+    "      buffer: view.buffer,\n"
+    "      byteOffset: view.byteOffset,\n"
+    "      byteLength: view.byteLength,\n"
+    "      bytesFilled: 0,\n"
+    "      ctor: view.constructor,\n"
+    "      resolve: d.resolve,\n"
+    "      reject: d.reject,\n"
+    "    });\n"
+    "    controller._callPullIfNeeded();\n"
+    "    return d.promise;\n"
+    "  }\n"
+    "\n"
+    "  cancel(reason) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This readable stream BYOB reader has been released'));\n"
+    "    return readableStreamCancel(stream, reason);\n"
+    "  }\n"
+    "\n"
+    "  releaseLock() {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return;\n"
+    "    const controller = stream._controller;\n"
+    "    if(controller._pendingPullIntos.length > 0) {\n"
+    "      const e = new TypeError('Reader was released');\n"
+    "      for(const p of controller._pendingPullIntos) p.reject(e);\n"
+    "      controller._pendingPullIntos = [];\n"
+    "    }\n"
+    "    stream._reader = undefined;\n"
+    "    this._stream = undefined;\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "function readableStreamAsyncIterator(stream, { preventCancel = false } = {}) {\n"
+    "  const reader = stream.getReader();\n"
+    "  return {\n"
+    "    next() {\n"
+    "      return reader.read().then(({ value, done }) => {\n"
+    "        if(done) reader.releaseLock();\n"
+    "        return { value, done };\n"
+    "      });\n"
+    "    },\n"
+    "    return(value) {\n"
+    "      const finish = () => {\n"
+    "        reader.releaseLock();\n"
+    "        return { value, done: true };\n"
+    "      };\n"
+    "      if(preventCancel) return Promise.resolve(finish());\n"
+    "      return reader.cancel().then(finish, finish);\n"
+    "    },\n"
+    "    [Symbol.asyncIterator]() {\n"
+    "      return this;\n"
+    "    },\n"
+    "  };\n"
+    "}\n"
+    "\n"
+    "class ReadableStream {\n"
+    "  constructor(underlyingSource = {}, strategy = {}) {\n"
+    "    const isBytes = underlyingSource.type === 'bytes';\n"
+    "\n"
+    "    this._state = 'readable';\n"
+    "    this._storedError = undefined;\n"
+    "    this._reader = undefined;\n"
+    "    this._underlyingSource = underlyingSource;\n"
+    "    this._strategyHWM = strategy.highWaterMark ?? (isBytes ? 0 : 1);\n"
+    "    this._strategySizeAlgorithm = strategy.size ?? (() => 1);\n"
+    "    this._controller = isBytes ? new ReadableByteStreamController(this, underlyingSource.autoAllocateChunkSize) : new ReadableStreamDefaultController(this);\n"
+    "\n"
+    "    const startResult = underlyingSource.start ? underlyingSource.start(this._controller) : undefined;\n"
+    "\n"
+    "    Promise.resolve(startResult).then(\n"
+    "      () => this._controller._callPullIfNeeded(),\n"
+    "      e => this._controller.error(e),\n"
+    "    );\n"
+    "  }\n"
+    "\n"
+    "  get locked() {\n"
+    "    return !!this._reader;\n"
+    "  }\n"
+    "\n"
+    "  getReader(options = {}) {\n"
+    "    if(options.mode === 'byob') return new ReadableStreamBYOBReader(this);\n"
+    "    return new ReadableStreamDefaultReader(this);\n"
+    "  }\n"
+    "\n"
+    "  cancel(reason) {\n"
+    "    if(this._reader) return Promise.reject(new TypeError('Cannot cancel a readable stream that is locked to a reader'));\n"
+    "    return readableStreamCancel(this, reason);\n"
+    "  }\n"
+    "\n"
+    "  [Symbol.asyncIterator](options) {\n"
+    "    return readableStreamAsyncIterator(this, options);\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "/* ==================== WritableStream ==================== */\n"
+    "\n"
+    "class WritableStreamDefaultController {\n"
+    "  constructor(stream) {\n"
+    "    this._stream = stream;\n"
+    "  }\n"
+    "\n"
+    "  error(e) {\n"
+    "    this._stream._error(e);\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "class WritableStreamDefaultWriter {\n"
+    "  constructor(stream) {\n"
+    "    if(!(stream instanceof WritableStream)) throw new TypeError(\"Cannot construct a WritableStreamDefaultWriter from a value that isn't a WritableStream\");\n"
+    "    if(stream._writer) throw new TypeError('WritableStream is already locked to a writer');\n"
+    "\n"
+    "    this._stream = stream;\n"
+    "    stream._writer = this;\n"
+    "\n"
+    "    this._closedPromise = makeDeferred();\n"
+    "    this._readyPromise = makeDeferred();\n"
+    "\n"
+    "    if(stream._state === 'errored') this._closedPromise.reject(stream._storedError);\n"
+    "    else if(stream._state === 'closed') this._closedPromise.resolve(undefined);\n"
+    "\n"
+    "    if(!stream._backpressure) this._readyPromise.resolve(undefined);\n"
+    "  }\n"
+    "\n"
+    "  get closed() {\n"
+    "    return this._closedPromise.promise;\n"
+    "  }\n"
+    "\n"
+    "  get ready() {\n"
+    "    return this._readyPromise.promise;\n"
+    "  }\n"
+    "\n"
+    "  get desiredSize() {\n"
+    "    const stream = this._stream;\n"
+    "    if(stream._state === 'errored') return null;\n"
+    "    if(stream._state === 'closed') return 0;\n"
+    "    return stream._strategyHWM - stream._queueTotalSize;\n"
+    "  }\n"
+    "\n"
+    "  write(chunk) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This writable stream writer has been released'));\n"
+    "    return writableStreamWrite(stream, chunk);\n"
+    "  }\n"
+    "\n"
+    "  close() {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This writable stream writer has been released'));\n"
+    "    return writableStreamClose(stream);\n"
+    "  }\n"
+    "\n"
+    "  abort(reason) {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return Promise.reject(new TypeError('This writable stream writer has been released'));\n"
+    "    return writableStreamAbort(stream, reason);\n"
+    "  }\n"
+    "\n"
+    "  releaseLock() {\n"
+    "    const stream = this._stream;\n"
+    "    if(!stream) return;\n"
+    "    stream._writer = undefined;\n"
+    "    this._stream = undefined;\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "function writableStreamWrite(stream, chunk) {\n"
+    "  if(stream._state === 'errored') return Promise.reject(stream._storedError);\n"
+    "  if(stream._state === 'closed' || stream._closeRequested) return Promise.reject(new TypeError('The stream is closing or closed and cannot be written to'));\n"
+    "\n"
+    "  let size = 1;\n"
+    "  try {\n"
+    "    size = stream._strategySizeAlgorithm(chunk);\n"
+    "  } catch(e) {\n"
+    "    stream._error(e);\n"
+    "    return Promise.reject(e);\n"
+    "  }\n"
+    "\n"
+    "  const d = makeDeferred();\n"
+    "  stream._queue.push({ type: 'chunk', chunk, size, resolve: d.resolve, reject: d.reject });\n"
+    "  stream._queueTotalSize += size;\n"
+    "  stream._checkBackpressure();\n"
+    "  stream._advanceQueue();\n"
+    "  return d.promise;\n"
+    "}\n"
+    "\n"
+    "function writableStreamClose(stream) {\n"
+    "  if(stream._state === 'errored') return Promise.reject(stream._storedError);\n"
+    "  if(stream._closeRequested || stream._state === 'closed') return Promise.reject(new TypeError('Cannot close an already-closing or closed writable stream'));\n"
+    "\n"
+    "  stream._closeRequested = true;\n"
+    "  const d = makeDeferred();\n"
+    "  stream._queue.push({ type: 'close', resolve: d.resolve, reject: d.reject });\n"
+    "  stream._advanceQueue();\n"
+    "  return d.promise;\n"
+    "}\n"
+    "\n"
+    "function writableStreamAbort(stream, reason) {\n"
+    "  if(stream._state === 'errored' || stream._state === 'closed') return Promise.resolve(undefined);\n"
+    "\n"
+    "  const source = stream._underlyingSink;\n"
+    "  stream._error(reason);\n"
+    "\n"
+    "  let result;\n"
+    "  try {\n"
+    "    result = source.abort ? source.abort(reason) : undefined;\n"
+    "  } catch(e) {\n"
+    "    return Promise.reject(e);\n"
+    "  }\n"
+    "  return Promise.resolve(result).then(() => undefined);\n"
+    "}\n"
+    "\n"
+    "class WritableStream {\n"
+    "  constructor(underlyingSink = {}, strategy = {}) {\n"
+    "    this._state = 'writable';\n"
+    "    this._storedError = undefined;\n"
+    "    this._writer = undefined;\n"
+    "    this._underlyingSink = underlyingSink;\n"
+    "    this._strategyHWM = strategy.highWaterMark ?? 1;\n"
+    "    this._strategySizeAlgorithm = strategy.size ?? (() => 1);\n"
+    "    this._queue = [];\n"
+    "    this._queueTotalSize = 0;\n"
+    "    this._writing = false;\n"
+    "    this._closeRequested = false;\n"
+    "    this._backpressure = false;\n"
+    "    this._controller = new WritableStreamDefaultController(this);\n"
+    "\n"
+    "    const startResult = underlyingSink.start ? underlyingSink.start(this._controller) : undefined;\n"
+    "    Promise.resolve(startResult).then(\n"
+    "      () => this._advanceQueue(),\n"
+    "      e => this._error(e),\n"
+    "    );\n"
+    "  }\n"
+    "\n"
+    "  get locked() {\n"
+    "    return !!this._writer;\n"
+    "  }\n"
+    "\n"
+    "  getWriter() {\n"
+    "    return new WritableStreamDefaultWriter(this);\n"
+    "  }\n"
+    "\n"
+    "  close() {\n"
+    "    if(this._writer) return Promise.reject(new TypeError('Cannot close a writable stream that is locked to a writer'));\n"
+    "    return writableStreamClose(this);\n"
+    "  }\n"
+    "\n"
+    "  abort(reason) {\n"
+    "    if(this._writer) return Promise.reject(new TypeError('Cannot abort a writable stream that is locked to a writer'));\n"
+    "    return writableStreamAbort(this, reason);\n"
+    "  }\n"
+    "\n"
+    "  _checkBackpressure() {\n"
+    "    const bp = this._strategyHWM - this._queueTotalSize <= 0;\n"
+    "    if(bp === this._backpressure) return;\n"
+    "    this._backpressure = bp;\n"
+    "    const writer = this._writer;\n"
+    "    if(!writer) return;\n"
+    "    if(bp) writer._readyPromise = makeDeferred();\n"
+    "    else writer._readyPromise.resolve(undefined);\n"
+    "  }\n"
+    "\n"
+    "  _advanceQueue() {\n"
+    "    if(this._writing) return;\n"
+    "    if(this._queue.length === 0) return;\n"
+    "    if(this._state !== 'writable') return;\n"
+    "\n"
+    "    const entry = this._queue[0];\n"
+    "    const sink = this._underlyingSink;\n"
+    "    this._writing = true;\n"
+    "\n"
+    "    if(entry.type === 'close') {\n"
+    "      let result;\n"
+    "      try {\n"
+    "        result = sink.close ? sink.close() : undefined;\n"
+    "      } catch(e) {\n"
+    "        this._writing = false;\n"
+    "        this._queue.shift();\n"
+    "        entry.reject(e);\n"
+    "        this._error(e);\n"
+    "        return;\n"
+    "      }\n"
+    "      Promise.resolve(result).then(\n"
+    "        () => {\n"
+    "          this._writing = false;\n"
+    "          this._queue.shift();\n"
+    "          this._state = 'closed';\n"
+    "          entry.resolve(undefined);\n"
+    "          if(this._writer) this._writer._closedPromise.resolve(undefined);\n"
+    "        },\n"
+    "        e => {\n"
+    "          this._writing = false;\n"
+    "          this._queue.shift();\n"
+    "          entry.reject(e);\n"
+    "          this._error(e);\n"
+    "        },\n"
+    "      );\n"
+    "      return;\n"
+    "    }\n"
+    "\n"
+    "    let result;\n"
+    "    try {\n"
+    "      result = sink.write ? sink.write(entry.chunk, this._controller) : undefined;\n"
+    "    } catch(e) {\n"
+    "      this._writing = false;\n"
+    "      this._queue.shift();\n"
+    "      this._queueTotalSize -= entry.size;\n"
+    "      entry.reject(e);\n"
+    "      this._error(e);\n"
+    "      return;\n"
+    "    }\n"
+    "    Promise.resolve(result).then(\n"
+    "      () => {\n"
+    "        this._writing = false;\n"
+    "        this._queue.shift();\n"
+    "        this._queueTotalSize -= entry.size;\n"
+    "        entry.resolve(undefined);\n"
+    "        this._checkBackpressure();\n"
+    "        this._advanceQueue();\n"
+    "      },\n"
+    "      e => {\n"
+    "        this._writing = false;\n"
+    "        this._queue.shift();\n"
+    "        this._queueTotalSize -= entry.size;\n"
+    "        entry.reject(e);\n"
+    "        this._error(e);\n"
+    "      },\n"
+    "    );\n"
+    "  }\n"
+    "\n"
+    "  _error(e) {\n"
+    "    if(this._state === 'errored' || this._state === 'closed') return;\n"
+    "    this._state = 'errored';\n"
+    "    this._storedError = e;\n"
+    "\n"
+    "    for(const entry of this._queue) entry.reject(e);\n"
+    "    this._queue = [];\n"
+    "    this._queueTotalSize = 0;\n"
+    "\n"
+    "    const writer = this._writer;\n"
+    "    if(writer) {\n"
+    "      writer._closedPromise.reject(e);\n"
+    "      writer._readyPromise.reject(e);\n"
+    "    }\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "/* ==================== TransformStream ==================== */\n"
+    "\n"
+    "class TransformStreamDefaultController {\n"
+    "  get desiredSize() {\n"
+    "    return this._readableController.desiredSize;\n"
+    "  }\n"
+    "\n"
+    "  enqueue(chunk) {\n"
+    "    this._readableController.enqueue(chunk);\n"
+    "  }\n"
+    "\n"
+    "  error(e) {\n"
+    "    this._readableController.error(e);\n"
+    "  }\n"
+    "\n"
+    "  terminate() {\n"
+    "    this._readableController.close();\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "class TransformStream {\n"
+    "  constructor(transformer = {}, writableStrategy = {}, readableStrategy = {}) {\n"
+    "    const controller = new TransformStreamDefaultController();\n"
+    "\n"
+    "    let readableController;\n"
+    "    const readable = new ReadableStream(\n"
+    "      {\n"
+    "        start(c) {\n"
+    "          readableController = c;\n"
+    "        },\n"
+    "      },\n"
+    "      readableStrategy,\n"
+    "    );\n"
+    "    controller._readableController = readableController;\n"
+    "\n"
+    "    const transformAlgorithm = transformer.transform ? chunk => transformer.transform(chunk, controller) : chunk => controller.enqueue(chunk);\n"
+    "\n"
+    "    const writable = new WritableStream(\n"
+    "      {\n"
+    "        write(chunk) {\n"
+    "          try {\n"
+    "            return Promise.resolve(transformAlgorithm(chunk)).catch(e => {\n"
+    "              controller.error(e);\n"
+    "              throw e;\n"
+    "            });\n"
+    "          } catch(e) {\n"
+    "            controller.error(e);\n"
+    "            throw e;\n"
+    "          }\n"
+    "        },\n"
+    "        close() {\n"
+    "          const flushResult = transformer.flush ? transformer.flush(controller) : undefined;\n"
+    "          return Promise.resolve(flushResult).then(\n"
+    "            () => readableController.close(),\n"
+    "            e => {\n"
+    "              controller.error(e);\n"
+    "              throw e;\n"
+    "            },\n"
+    "          );\n"
+    "        },\n"
+    "        abort(reason) {\n"
+    "          controller.error(reason);\n"
+    "        },\n"
+    "      },\n"
+    "      writableStrategy,\n"
+    "    );\n"
+    "\n"
+    "    this.readable = readable;\n"
+    "    this.writable = writable;\n"
+    "    this._controller = controller;\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "/* ==================== queuing strategies ==================== */\n"
+    "\n"
+    "class CountQueuingStrategy {\n"
+    "  constructor(init) {\n"
+    "    this.highWaterMark = init.highWaterMark;\n"
+    "  }\n"
+    "  size() {\n"
+    "    return 1;\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "class ByteLengthQueuingStrategy {\n"
+    "  constructor(init) {\n"
+    "    this.highWaterMark = init.highWaterMark;\n"
+    "  }\n"
+    "  size(chunk) {\n"
+    "    return chunk.byteLength;\n"
+    "  }\n"
+    "}\n"
+    "\n"
+    "  return { ReadableStream, WritableStream, TransformStream, CountQueuingStrategy, ByteLengthQueuingStrategy };\n"
+    "})\n";
 
-typedef enum {
-  WRITABLE_START = 0,
-  WRITABLE_WRITE,
-  WRITABLE_CLOSE,
-  WRITABLE_ABORT,
-} WritableCallback;
+/* Persisted after js_stream_init evaluates the JS factory, so other C code
+ * (via js_readable_stream_from_reader) and js_readable_stream_from_reader_ctor
+ * (the JS-visible ReadableStream.fromReader()) can construct instances without
+ * re-evaluating the script. */
+static JSValue readable_stream_ctor = JS_UNDEFINED;
 
-typedef enum {
-  TRANSFORM_START = 0,
-  TRANSFORM_TRANSFORM,
-  TRANSFORM_FLUSH,
-} TransformCallback;
+typedef struct {
+  Reader reader;
+  size_t chunk_size;
+} ReaderSource;
 
-/*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
-/*VISIBLE*/ JSValue readable_proto, readable_default_controller, readable_bytestream_controller, readable_ctor, writable_proto, writable_controller,
-    writable_ctor, transform_proto, transform_controller, transform_ctor, default_reader_proto, default_reader_ctor, byob_reader_proto, byob_reader_ctor,
-    byob_request_proto, writer_proto, writer_ctor;
+static void
+reader_source_finalizer(JSRuntime* rt, void* opaque) {
+  ReaderSource* rs = opaque;
 
-static int reader_update(ReadableStreamReader*, JSContext*);
-static BOOL reader_passthrough(ReadableStreamReader*, JSValueConst, JSContext*);
-static int readable_unlock(ReadableStream*, ReadableStreamReader*);
-static int writable_unlock(WritableStream*, WritableStreamWriter*);
-static JSValue js_readable_callback(JSContext*, ReadableStream*, ReadableCallback, int, JSValueConst[]);
-static JSValue js_writable_callback(JSContext*, WritableStream*, WritableCallback, int, JSValueConst[]);
-static JSValue js_reader_wrap(JSContext* ctx, ReadableStreamReader* rd);
-static JSValue js_byob_request_new(JSContext* ctx, JSValueConst this_val);
-
-/* clang-format off */
-static inline ReadableStreamReader* js_reader_data(JSValueConst v) { return JS_GetOpaque(v, js_reader_class_id); }
-static inline ReadableStreamReader* js_reader_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_reader_class_id); }
-static inline WritableStreamWriter* js_writer_data(JSValueConst v) { return JS_GetOpaque(v, js_writer_class_id); }
-static inline WritableStreamWriter* js_writer_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_writer_class_id); }
-static inline ReadableStream* js_readable_data(JSValueConst v) { return JS_GetOpaque(v, js_readable_class_id); }
-static inline ReadableStream* js_readable_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_readable_class_id); }
-static inline WritableStream* js_writable_data(JSValueConst v) { return JS_GetOpaque(v, js_writable_class_id); }
-static inline WritableStream* js_writable_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_writable_class_id); }
-static inline TransformStream* js_transform_data(JSValueConst v) { return JS_GetOpaque(v, js_transform_class_id); }
-static inline TransformStream* js_transform_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_transform_class_id); }
-/* clang-format on */
-
-static JSValue
-js_iterator_get_value(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  // BOOL done = js_get_propertystr_bool(ctx, argv[0], "done");
-  return JS_GetPropertyStr(ctx, argv[0], "value");
+  reader_free(&rs->reader);
+  js_free_rt(rt, rs);
 }
 
-static JSValue
-js_iterator_promise_value(JSContext* ctx, JSValueConst promise) {
-  JSValue fn = JS_NewCFunction(ctx, &js_iterator_get_value, "getIteratorValue", 1);
-  JSValue ret = promise_then(ctx, promise, fn);
+static void
+reader_source_buffer_free(JSRuntime* rt, void* opaque, void* ptr) {
+  js_free_rt(rt, ptr);
+}
 
+/* pull(controller): reads up to chunk_size bytes from the wrapped Reader into
+ * a fresh ArrayBuffer and enqueues it, or closes the stream on EOF (a 0
+ * return from reader_read). */
+static JSValue
+reader_source_pull(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
+  ReaderSource* rs = opaque;
+  JSValueConst controller = argc > 0 ? argv[0] : JS_UNDEFINED;
+  JSValue fn, ret, chunk, buffer;
+  uint8_t* buf;
+  ssize_t n;
+
+  if(!(buf = js_malloc(ctx, rs->chunk_size)))
+    return JS_EXCEPTION;
+
+  n = reader_read(&rs->reader, buf, rs->chunk_size);
+
+  if(n < 0) {
+    js_free(ctx, buf);
+    return JS_ThrowInternalError(ctx, "ReadableStream.fromReader(): read error");
+  }
+
+  if(n == 0) {
+    js_free(ctx, buf);
+    fn = JS_GetPropertyStr(ctx, controller, "close");
+    ret = JS_Call(ctx, fn, controller, 0, 0);
+    JS_FreeValue(ctx, fn);
+    return ret;
+  }
+
+  buffer = JS_NewArrayBuffer(ctx, buf, n, reader_source_buffer_free, NULL, FALSE);
+  chunk = js_typedarray_new(ctx, 8, FALSE, FALSE, buffer);
+  JS_FreeValue(ctx, buffer);
+
+  fn = JS_GetPropertyStr(ctx, controller, "enqueue");
+  ret = JS_Call(ctx, fn, controller, 1, &chunk);
   JS_FreeValue(ctx, fn);
-  return ret;
-}
-
-static JSValue
-js_to_arraybuffer(JSContext* ctx, JSValueConst chunk) {
-  if(JS_IsString(chunk)) {
-    InputBuffer input = js_input_chars(ctx, chunk);
-    return inputbuffer_toarraybuffer_free(&input, ctx);
-  }
-
-  return JS_DupValue(ctx, chunk);
-}
-
-static void
-chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
-  chunk_free(opaque);
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      ch    { parameter_description }
- * @param      ctx   The JSContext
- *
- * @return     { return value }
- */
-static JSValue
-chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
-  chunk_dup(ch);
-
-  return JS_NewArrayBuffer(ctx, ch->data + ch->pos, ch->size - ch->pos, chunk_unref, ch, FALSE);
-}
-
-/**
- * @brief      { function_description }
- *
- * @param      ch    { parameter_description }
- * @param      ctx   The JSContext
- *
- * @return     { return value }
- */
-static JSValue
-chunk_string(Chunk* ch, JSContext* ctx) {
-  return JS_NewStringLen(ctx, (const char*)ch->data + ch->pos, ch->size - ch->pos);
-}
-
-/**
- * @brief      Creates a new \ref ReadRequest
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     { description_of_the_return_value }
- */
-static ReadRequest*
-read_new(ReadableStreamReader* rd, JSContext* ctx) {
-  static int read_seq = 0;
-  ReadRequest* op;
-
-  if((op = js_mallocz(ctx, sizeof(struct read_next)))) {
-    op->seq = ++read_seq;
-    list_add((struct list_head*)op, &rd->list);
-
-    promise_init(ctx, &op->promise);
-  }
-
-  return op;
-}
-
-/**
- * @brief      Reads the next value
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     A Promise that resolves to a value when reading done
- */
-static JSValue
-read_next(ReadableStreamReader* rd, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  ReadRequest *el, *op = 0;
-
-  list_for_each_prev(el, &rd->reads) {
-    if(!JS_IsUndefined(el->promise.value)) {
-      op = el;
-      break;
-    }
-  }
-
-  if(!op)
-    if(!(op = read_new(rd, ctx)))
-      ret = JS_EXCEPTION;
-
-  if(op) {
-#ifdef DEBUG_OUTPUT_
-    printf("%s(): (%i/%zu)\n", __func__, op->seq, list_size(&rd->list));
-#endif
-
-    ret = op->promise.value;
-    op->promise.value = JS_UNDEFINED;
-  }
-
+  JS_FreeValue(ctx, chunk);
   return ret;
 }
 
 /**
- * @brief      Indicates whether reading is done
- *
- * @param      op    The operation
- *
- * @return     TRUE if done, FALSE if not
- */
-static BOOL
-read_done(ReadRequest* op) {
-  return JS_IsUndefined(op->promise.value) && promise_done(&op->promise.funcs);
-}
-
-/**
- * @brief      Frees a \ref ReadRequest
- *
- * @param      op    The operation
- * @param      rt    The JSRuntime
- */
-static void
-read_free_rt(ReadRequest* op, JSRuntime* rt) {
-  promise_free(rt, &op->promise);
-
-  list_del(&op->link);
-}
-
-/**
- * @brief      Creates a new \ref ReadableStreamReader
- *
- * @param      ctx   The JSContext
- * @param      st    A readable stream
- *
- * @return     A ReadableStreamReader struct or NULL on error
- */
-static ReadableStreamReader*
-reader_new(JSContext* ctx, ReadableStream* st) {
-  ReadableStreamReader* rd;
-
-  if((rd = js_mallocz(ctx, sizeof(ReadableStreamReader)))) {
-    atomic_store(&rd->stream, st);
-
-    promise_init(ctx, &rd->events.closed);
-    promise_zero(&rd->events.cancelled);
-
-    init_list_head(&rd->list);
-
-    rd->ref_count = 1;
-
-    JSValue ret = js_readable_callback(ctx, rd->stream, READABLE_START, 1, &rd->stream->controller);
-    JS_FreeValue(ctx, ret);
-  }
-
-  return rd;
-}
-
-/**
- * @brief      Duplicates a \ref ReadableStreamReader
- *
- * @param      rd    ReadableStreamReader
- *
- * @return     The same reader (with incremented reference count)
- */
-static ReadableStreamReader*
-reader_dup(ReadableStreamReader* rd) {
-  ++rd->ref_count;
-  return rd;
-}
-
-/**
- * @brief      Releases the \ref ReadableStreamReader from its \ref ReadableStream stream
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     TRUE on success, FALSE if failed
- */
-static BOOL
-reader_release_lock(ReadableStreamReader* rd, JSContext* ctx) {
-  BOOL ret = FALSE;
-  ReadableStream* r;
-
-  if((r = atomic_load(&rd->stream)))
-    if((ret = readable_unlock(r, rd)))
-      atomic_store(&rd->stream, (ReadableStream*)0);
-
-  return ret;
-}
-
-/**
- * @brief      Clears all queued reads on the \ref ReadableStreamReader
- *
- * @param      rd    ReadableStreamReader struct
- * @param      rt    The JSRuntime
- *
- * @return     How many reads have been cleared
- */
-static int
-reader_clear(ReadableStreamReader* rd, JSRuntime* rt) {
-  int ret = 0;
-  ReadRequest *el, *next;
-
-  list_for_each_prev_safe(el, next, &rd->reads) {
-    JS_FreeValueRT(rt, el->promise.funcs.resolve);
-    JS_FreeValueRT(rt, el->promise.funcs.reject);
-    JS_FreeValueRT(rt, el->promise.value);
-
-    read_free_rt(el, rt);
-
-    ++ret;
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Frees reader
- *
- * @param      rd    ReadableStreamReader struct
- * @param      rt    The JSRuntime
- */
-static void
-reader_free(ReadableStreamReader* rd, JSRuntime* rt) {
-  if(--rd->ref_count == 0) {
-    reader_clear(rd, rt);
-    js_free_rt(rt, rd);
-  }
-}
-
-static JSValue
-js_reader_close_forward(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
-  ReadableStreamReader* rd;
-
-  if(!(rd = js_reader_data2(ctx, func_data[0])))
-    return JS_EXCEPTION;
-
-  promise_resolve(ctx, &rd->events.closed.funcs, argv[0]);
-
-  return JS_UNDEFINED;
-}
-
-/**
- * @brief      Closes a \ref ReadableStreamReader
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     A Promise that resolves when the closing is done
- */
-static JSValue
-reader_close(ReadableStreamReader* rd, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-
-  if(!rd->stream)
-    return JS_ThrowInternalError(ctx, "no ReadableStream");
-
-  ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 0, 0);
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(1): promise=%i\n", __func__, js_is_promise(ctx, ret));
-#endif
-  rd->stream->closed = TRUE;
-
-  reader_update(rd, ctx);
-
-  if(js_is_promise(ctx, ret)) {
-    JSValue readerObj = js_reader_wrap(ctx, rd);
-    JSValue readerCloseForward = JS_NewCFunctionData(ctx, js_reader_close_forward, 1, 0, 1, &readerObj);
-    JS_FreeValue(ctx, readerObj);
-
-    JSValue tmp = promise_then(ctx, ret, readerCloseForward);
-
-    JS_FreeValue(ctx, ret);
-    JS_FreeValue(ctx, readerCloseForward);
-    ret = tmp;
-
-    //    ret = promise_forward(ctx, ret, &rd->events.closed);
-  }
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(2): promise=%i\n", __func__, js_is_promise(ctx, ret));
-#endif
-
-  return ret;
-}
-
-/**
- * @brief      Cancels a \ref ReadableStreamReader
- *
- * @param      rd      ReadableStreamReader struct
- * @param[in]  reason  The reason
- * @param      ctx     The JSContext
- *
- * @return     { return value }
- */
-static JSValue
-reader_cancel(ReadableStreamReader* rd, JSValueConst reason, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-
-  if(!rd->stream)
-    return JS_ThrowInternalError(ctx, "no WriteableStream");
-
-  ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 1, &reason);
-
-  if(js_is_promise(ctx, ret))
-    ret = promise_forward(ctx, ret, &rd->events.cancelled);
-
-  return ret;
-}
-
-/**
- * @brief      Reads from a \ref ReadableStreamReader
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     A Promise that resolves to data as soon as the read has completed
- */
-static JSValue
-reader_read(ReadableStreamReader* rd, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  ReadableStream* st;
-
-  ret = read_next(rd, ctx);
-
-  if(JS_IsException(ret))
-    return ret;
-
-  if((st = rd->stream)) {
-    if(queue_empty(&st->q)) {
-
-      if(st->autoallocatechunksize) {
-        JSValue byob_request = js_byob_request_new(ctx, st->controller);
-
-        JS_SetPropertyStr(ctx, st->controller, "byobRequest", byob_request);
-      }
-
-      JSValue tmp = js_readable_callback(ctx, st, READABLE_PULL, 1, &st->controller);
-
-      if(JS_IsException(tmp)) {
-        JS_FreeValue(ctx, ret);
-        return JS_EXCEPTION;
-      }
-
-      JS_FreeValue(ctx, tmp);
-    }
-  }
-
-  reader_update(rd, ctx);
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(): (2) [%zu] closed=%i\n", __func__, list_size(&rd->list), rd->stream->closed);
-#endif
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s():ReadRequest q2[%zu]\n", __func__, queue_size(&st->q));
-#endif
-
-  return ret;
-  // return js_iterator_promise_value(ctx, ret);
-}
-
-/**
- * @brief      Cleans all reads from a \ref ReadableStreamReader
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     How many reads that have been cleaned
- */
-static size_t
-reader_clean(ReadableStreamReader* rd, JSContext* ctx) {
-  ReadRequest *el, *next;
-  size_t ret = 0;
-
-  list_for_each_prev_safe(el, next, (ReadRequest*)&rd->reads) {
-    if(read_done(el)) {
-#ifdef DEBUG_OUTPUT_
-      printf("%s(): delete[%i]\n", __func__, el->seq);
-#endif
-
-      list_del(&el->link);
-      js_free(ctx, el);
-      ++ret;
-
-      continue;
-    }
-
-    break;
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Updates a \ref ReadableStreamReader state
- *
- * @param      rd    ReadableStreamReader struct
- * @param      ctx   The JSContext
- *
- * @return     How many chunks that have been processed
- */
-static int
-reader_update(ReadableStreamReader* rd, JSContext* ctx) {
-  JSValue result;
-  Chunk* ch;
-  ReadableStream* st = rd->stream;
-  int ret = 0;
-
-  reader_clean(rd, ctx);
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(): [%zu] closed=%d queue.size=%zu\n", __func__, list_size(&rd->list), readable_closed(st), queue_size(&st->q));
-#endif
-
-  if(readable_closed(st)) {
-    promise_resolve(ctx, &rd->events.closed.funcs, JS_UNDEFINED);
-
-    // reader_clear(rd, ctx);
-
-    result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
-
-    if(reader_passthrough(rd, result, ctx))
-      ++ret;
-  } else {
-    while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
-      JSValue chunk, value;
-
-#ifdef DEBUG_OUTPUT_
-      printf("%s(2): Chunk ptr=%p, size=%zu, pos=%zu\n", __func__, ch->data, ch->size, ch->pos);
-#endif
-
-      chunk = chunk_arraybuffer(ch, ctx);
-      value = js_iterator_result(ctx, chunk, FALSE);
-      JS_FreeValue(ctx, chunk);
-
-      if(!reader_passthrough(rd, value, ctx))
-        break;
-
-      ++ret;
-
-      JS_FreeValue(ctx, value);
-    }
-  }
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(3): closed=%d queue.size=%zu result = %d\n", __func__, readable_closed(st), queue_size(&st->q), ret);
-#endif
-
-  return ret;
-}
-
-/**
- * @brief      Passes through a chunk/result to an active \ref ReadableStreamReader
- *
- * @param      rd      The ReadableStreamReader
- * @param[in]  result  JS iterator object
- * @param      ctx     The JSContext
- *
- * @return     TRUE if succeeded, FALSE if not
- */
-static BOOL
-reader_passthrough(ReadableStreamReader* rd, JSValueConst result, JSContext* ctx) {
-  ReadRequest *op = 0, *el, *next;
-  BOOL ret = FALSE;
-
-  list_for_each_prev_safe(el, next, &rd->reads) {
-#ifdef DEBUG_OUTPUT_
-    printf("%s(1): el[%i]\n", __func__, el->seq);
-#endif
-
-    if(promise_pending(&el->promise.funcs)) {
-      op = el;
-      break;
-    }
-  }
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(2): result=%s\n", __func__, JS_ToCString(ctx, result));
-#endif
-
-  if(op) {
-    ret = promise_resolve(ctx, &op->promise.funcs, result);
-    reader_clean(rd, ctx);
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Creates a new \ref ReadableStream stream
- *
- * @param      ctx   The JSContext
- *
- * @return     A new ReadableStream stream
- */
-static ReadableStream*
-readable_new(JSContext* ctx) {
-  ReadableStream* st;
-
-  if((st = js_mallocz(ctx, sizeof(ReadableStream)))) {
-    st->ref_count = 1;
-    st->controller = JS_NULL;
-
-    queue_init(&st->q);
-  }
-
-  return st;
-}
-
-/**
- * @brief      Duplicates a \ref ReadableStream stream
- *
- * @param      st    A readable stream
- *
- * @return     The same readable stream (with incremented reference count)
- */
-static ReadableStream*
-readable_dup(ReadableStream* st) {
-  ++st->ref_count;
-  return st;
-}
-
-/**
- * @brief      Closes the \ref ReadableStream stream
- *
- * @param      st    A readable stream
- * @param      ctx   The JSContext
- *
- * @return     JS_UNDEFINED
- */
-static JSValue
-readable_close(ReadableStream* st, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  static BOOL expected = FALSE;
-
-#ifdef DEBUG_OUTPUT_
-  printf("%s(1): expected=%i, closed=%i\n", __func__, st->closed, expected);
-#endif
-
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-    if(readable_locked(st)) {
-      promise_resolve(ctx, &st->reader->events.closed.funcs, JS_UNDEFINED);
-      reader_close(st->reader, ctx);
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Cancels the \ref ReadableStream stream
- *
- * @param      st      A readable stream
- * @param[in]  reason  The reason
- * @param      ctx     The JSContext
- *
- * @return     A Promise which is resolved when the cancellation has completed
- */
-static JSValue
-readable_cancel(ReadableStream* st, JSValueConst reason, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  if(st->closed)
-    return ret;
-
-  /* static const BOOL expected = FALSE;
-
-    if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-      JS_ThrowInternalError(ctx, "No locked ReadableStream associated");*/
-
-  if(readable_locked(st)) {
-    promise_resolve(ctx, &st->reader->events.closed.funcs, JS_UNDEFINED);
-
-    ret = reader_cancel(st->reader, reason, ctx);
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Enqueues data on the \ref ReadableStream stream
- *
- * @param      st     A readable stream
- * @param[in]  chunk  The chunk
- * @param      ctx    The JSContext
- *
- * @return     JSValue: Number of bytes written
- */
-static JSValue
-readable_enqueue(ReadableStream* st, JSValueConst chunk, BOOL binary, JSContext* ctx) {
-  ReadableStreamReader* rd;
-  JSValue ret = JS_UNDEFINED;
-  InputBuffer input = js_input_chars(ctx, chunk);
-  BOOL ok = FALSE;
-
-  if(readable_locked(st) && (rd = st->reader)) {
-    JSValue buf = (!binary || js_is_arraybuffer(ctx, chunk)) ? JS_DupValue(ctx, chunk) : JS_NewArrayBufferCopy(ctx, input.data, input.size);
-
-    JSValue result = js_iterator_result(ctx, buf, FALSE);
-    JS_FreeValue(ctx, buf);
-
-    if((ok = reader_passthrough(rd, result, ctx)))
-      ret = JS_NewInt64(ctx, input.size);
-
-    JS_FreeValue(ctx, result);
-  }
-
-  if(!ok) {
-    int64_t r = queue_write(&st->q, input.data, input.size);
-
-    ret = r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %lu", (unsigned long)r) : JS_NewInt64(ctx, r);
-  }
-
-  inputbuffer_free(&input, ctx);
-  return ret;
-}
-
-/**
- * @brief      Locks the \ref ReadableStream stream
- *
- * @param      st    A readable stream
- * @param      rd    ReadableStreamReader struct
- *
- * @return     TRUE when locked, FALSE when failed
- */
-static BOOL
-readable_lock(ReadableStream* st, ReadableStreamReader* rd) {
-  ReadableStreamReader* expected = 0;
-
-  return atomic_compare_exchange_weak(&st->reader, &expected, rd);
-}
-
-/**
- * @brief      Unlocks the \ref ReadableStream stream
- *
- * @param      st    A readable stream
- * @param      rd    ReadableStreamReader struct
- *
- * @return     TRUE when unlocked, FALSE when failed
- */
-static BOOL
-readable_unlock(ReadableStream* st, ReadableStreamReader* rd) {
-  return atomic_compare_exchange_weak(&st->reader, &rd, 0);
-}
-
-/**
- * @brief      Gets the \ref ReadableStreamReader of the \ref ReadableStream stream
- *
- * @param      st    A readable stream
- * @param      ctx   The JSContext
- *
- * @return     { description_of_the_return_value }
- */
-static ReadableStreamReader*
-readable_get_reader(ReadableStream* st, JSContext* ctx) {
-  ReadableStreamReader* rd;
-
-  if(!(rd = reader_new(ctx, st)))
-    return 0;
-
-  if(!readable_lock(st, rd)) {
-    js_free(ctx, rd);
-    rd = 0;
-  }
-
-  return rd;
-}
-
-/**
- * @brief      Frees the \ref ReadableStream stream
- *
- * @param      st    A readable stream
- * @param      rt    The JSRuntime
- */
-static void
-readable_free(ReadableStream* st, JSRuntime* rt) {
-  if(--st->ref_count == 0) {
-    JS_FreeValueRT(rt, st->underlying_source);
-    JS_FreeValueRT(rt, st->controller);
-
-    for(size_t i = 0; i < countof(st->on); i++)
-      JS_FreeValueRT(rt, st->on[i]);
-
-    queue_clear(&st->q);
-    js_free_rt(rt, st);
-  }
-}
-
-enum {
-  FUNC_PEEK,
-};
-
-/**
- * @brief      Construct a JS ReadableStreamReader object
+ * @brief      Wraps a stream-utils.h Reader as a ReadableStream, pulling
+ *             chunk_size bytes at a time into a fresh ArrayBuffer per pull(),
+ *             closing the stream on EOF. Takes ownership of `reader` (freed
+ *             once the source is exhausted, cancelled, or errors). For use by
+ *             other C modules that already hold a Reader (e.g. from
+ *             reader_from_fd()); JS code gets the same capability through
+ *             ReadableStream.fromReader() below.
  *
  * @param      ctx         The JSContext
- * @param[in]  new_target  The constructor function
- * @param[in]  argc        Number of arguments
- * @param      argv        The arguments array
+ * @param[in]  reader      The reader (ownership transferred)
+ * @param[in]  chunk_size  Bytes requested per pull(); 0 uses a 64KiB default
  *
- * @return     JS ReadableStreamReader object
+ * @return     A new ReadableStream instance, or JS_EXCEPTION
  */
-static JSValue
-js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  ReadableStreamReader* rd;
-  ReadableStream* st;
+JSValue
+js_readable_stream_from_reader(JSContext* ctx, Reader reader, size_t chunk_size) {
+  ReaderSource* rs;
+  JSValue pull_fn, source, args[1], stream;
 
-  if(argc < 1 || !(st = js_readable_data(argv[0])))
-    return JS_ThrowTypeError(ctx, "argument 1 must be a ReadableStream");
-
-  if(!(rd = reader_new(ctx, st)))
-    return JS_EXCEPTION;
-
-  if(!readable_unlock(st, rd)) {
-    JS_ThrowInternalError(ctx, "unable to lock ReadableStream");
-    goto fail;
+  if(JS_IsUndefined(readable_stream_ctor)) {
+    reader_free(&reader);
+    return JS_ThrowInternalError(ctx, "stream module not initialized");
   }
 
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_reader_class_id);
-  JS_FreeValue(ctx, proto);
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, rd);
-  return obj;
-
-fail:
-  js_free(ctx, rd);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-/**
- * @brief      Wraps a \ref ReadableStreamReader struct in a JS ReadableStreamReader object
- *
- * @param      ctx   The JSContext
- * @param      rd    ReadableStreamReader struct
- *
- * @return     JS ReadableStreamReader object
- */
-static JSValue
-js_reader_wrap(JSContext* ctx, ReadableStreamReader* rd) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, default_reader_proto, js_reader_class_id);
-
-  reader_dup(rd);
-  JS_SetOpaque(obj, rd);
-  return obj;
-}
-
-enum {
-  READER_METHOD_CANCEL,
-  READER_METHOD_READ,
-  READER_RELEASE_LOCK,
-};
-
-/**
- * @brief      JS ReadableStreamReader object method function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the method
- */
-static JSValue
-js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
-  ReadableStreamReader* rd;
-
-  if(!(rd = js_reader_data2(ctx, this_val)))
+  if(!(rs = js_mallocz(ctx, sizeof(ReaderSource)))) {
+    reader_free(&reader);
     return JS_EXCEPTION;
-
-  switch(magic) {
-    case READER_METHOD_CANCEL: {
-      reader_close(rd, ctx);
-      ret = JS_DupValue(ctx, rd->events.cancelled.value);
-      break;
-    }
-
-    case READER_METHOD_READ: {
-      ret = reader_read(rd, ctx);
-      break;
-    }
-
-    case READER_RELEASE_LOCK: {
-      reader_release_lock(rd, ctx);
-      break;
-    }
   }
 
-  return ret;
+  rs->reader = reader;
+  rs->chunk_size = chunk_size ? chunk_size : 65536;
+
+  pull_fn = js_function_cclosure(ctx, reader_source_pull, 1, 0, rs, reader_source_finalizer);
+
+  source = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, source, "pull", pull_fn);
+
+  args[0] = source;
+  stream = JS_CallConstructor(ctx, readable_stream_ctor, 1, args);
+  JS_FreeValue(ctx, source);
+  return stream;
 }
 
-enum {
-  READER_PROP_CLOSED,
-};
-
-/**
- * @brief      JS ReadableStreamReader object getter function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  magic     Magic number
- *
- * @return     { return value }
- */
+/* ReadableStream.fromReader(source, chunkSize): dispatches `source` through
+ * reader_from_jsbuf/jsfunction/jsmethod exactly like JsonParser's
+ * constructor - a buffer, a pull function fn(buf,len)->bytesRead, or an
+ * object exposing that as its read() method - then wraps the resulting
+ * Reader via js_readable_stream_from_reader(). */
 static JSValue
-js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  ReadableStreamReader* rd;
-  JSValue ret = JS_UNDEFINED;
+js_readable_stream_from_reader_ctor(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValueConst input = argc > 0 ? argv[0] : JS_UNDEFINED;
+  Reader reader;
+  int64_t chunk_size = 0;
 
-  if(!(rd = js_reader_data2(ctx, this_val)))
+  if(argc > 1 && JS_ToInt64(ctx, &chunk_size, argv[1]))
     return JS_EXCEPTION;
 
-  switch(magic) {
-    case READER_PROP_CLOSED: {
-      // ret = JS_NewBool(ctx, promise_done(&rd->events.closed.funcs));
-      ret = JS_DupValue(ctx, rd->events.closed.value);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      JS ReadableStreamReader object finalizer
- *
- * @param      rt    The JSRuntime
- * @param[in]  val   The value
- */
-static void
-js_reader_finalizer(JSRuntime* rt, JSValue val) {
-  ReadableStreamReader* rd;
-
-  if((rd = JS_GetOpaque(val, js_reader_class_id)))
-    reader_free(rd, rt);
-}
-
-JSClassDef js_default_reader_class = {
-    .class_name = "ReadableStreamDefaultReader",
-    .finalizer = js_reader_finalizer,
-};
-
-const JSCFunctionListEntry js_default_reader_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("read", 0, js_reader_method, READER_METHOD_READ),
-    JS_CFUNC_MAGIC_DEF("cancel", 0, js_reader_method, READER_METHOD_CANCEL),
-    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_reader_method, READER_RELEASE_LOCK),
-    JS_CGETSET_MAGIC_DEF("closed", js_reader_get, 0, READER_PROP_CLOSED),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultReader", JS_PROP_CONFIGURABLE),
-};
-
-JSClassDef js_byob_reader_class = {
-    .class_name = "ReadableStreamBYOBReader",
-    .finalizer = js_reader_finalizer,
-};
-
-const JSCFunctionListEntry js_byob_reader_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("read", 0, js_reader_method, READER_METHOD_READ),
-    JS_CFUNC_MAGIC_DEF("cancel", 0, js_reader_method, READER_METHOD_CANCEL),
-    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_reader_method, READER_RELEASE_LOCK),
-    JS_CGETSET_MAGIC_DEF("closed", js_reader_get, 0, READER_PROP_CLOSED),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamBYOBReader", JS_PROP_CONFIGURABLE),
-};
-
-/**
- * @brief      { function_description }
- *
- * @param      ctx    The JSContext
- * @param      st     A readable stream
- * @param[in]  event  The event
- * @param[in]  argc   Number of arguments
- * @param      argv   The arguments array
- *
- * @return     { return value }
- */
-static JSValue
-js_readable_callback(JSContext* ctx, ReadableStream* st, ReadableCallback cb, int argc, JSValueConst argv[]) {
-  assert(cb >= 0);
-  assert(cb < countof(st->on));
-
-  if(JS_IsFunction(ctx, st->on[cb]))
-    return JS_Call(ctx, st->on[cb], st->underlying_source, argc, argv);
-
-  return JS_UNDEFINED;
-}
-
-/**
- * @brief      Constructs a JS ReadableStream object
- *
- * @param      ctx         The JSContext
- * @param[in]  new_target  The constructor function
- * @param[in]  argc        Number of arguments
- * @param      argv        The arguments array
- *
- * @return     JS ReadableStream object
- */
-static JSValue
-js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  ReadableStream* st = 0;
-  BOOL bytestream = FALSE;
-
-  if(!(st = readable_new(ctx)))
-    return JS_EXCEPTION;
-
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_readable_class_id);
-  JS_FreeValue(ctx, proto);
-  if(JS_IsException(obj))
-    goto fail;
-
-  if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
-    char* typestr;
-
-    st->on[READABLE_START] = JS_GetPropertyStr(ctx, argv[0], "start");
-    st->on[READABLE_PULL] = JS_GetPropertyStr(ctx, argv[0], "pull");
-    st->on[READABLE_CANCEL] = JS_GetPropertyStr(ctx, argv[0], "cancel");
-    st->underlying_source = JS_DupValue(ctx, argv[0]);
-
-    if((typestr = js_get_propertystr_string(ctx, argv[0], "type"))) {
-      bytestream = !strcmp(typestr, "bytes");
-      js_free(ctx, typestr);
-    }
-
-    st->controller = JS_NewObjectProtoClass(ctx, bytestream ? readable_bytestream_controller : readable_default_controller, js_readable_class_id);
-
-    JS_SetOpaque(st->controller, readable_dup(st));
-
-    if(bytestream) {
-      st->autoallocatechunksize = js_get_propertystr_uint64(ctx, argv[0], "autoAllocateChunkSize");
-
-      /* XXX: right? */
-      JS_SetPropertyStr(ctx, st->controller, "desiredSize", JS_NewInt64(ctx, st->autoallocatechunksize));
-    }
-  }
-
-  JS_SetOpaque(obj, st);
-  return obj;
-
-fail:
-  if(st)
-    js_free(ctx, st);
-
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-/**
- * @brief      Wraps a ReadableStream struct in a JS ReadableStream object
- *
- * @param      ctx   The JSContext
- * @param      st    A readable stream
- *
- * @return     JS ReadableStream object
- */
-static JSValue
-js_readable_wrap(JSContext* ctx, ReadableStream* st) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, readable_proto, js_readable_class_id);
-
-  readable_dup(st);
-  JS_SetOpaque(obj, st);
-  return obj;
-}
-
-enum {
-  READABLE_METHOD_ABORT = 0,
-  READABLE_METHOD_GET_READER,
-};
-
-/**
- * @brief      JS ReadableStream object method function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the method
- */
-static JSValue
-js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  ReadableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_readable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case READABLE_METHOD_ABORT: {
-      if(argc >= 1)
-        readable_cancel(st, argv[0], ctx);
-      else
-        readable_close(st, ctx);
-
-      break;
-    }
-
-    case READABLE_METHOD_GET_READER: {
-      ReadableStreamReader* rd;
-
-      if((rd = readable_get_reader(st, ctx)))
-        ret = js_reader_wrap(ctx, rd);
-      else
-        ret = JS_ThrowTypeError(ctx,
-                                "Failed to execute 'getReader' on 'ReadableStream': ReadableStreamDefaultReader "
-                                "constructor can only accept readable streams that are not yet locked to a reader");
-
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  READABLE_PROP_CLOSED = 0,
-  READABLE_PROP_LOCKED,
-};
-
-/**
- * @brief      JS ReadableStream object getter function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the getter
- */
-static JSValue
-js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  ReadableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_readable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case READABLE_PROP_CLOSED: {
-      ret = JS_NewBool(ctx, readable_closed(st));
-      break;
-    }
-
-    case READABLE_PROP_LOCKED: {
-      ret = JS_NewBool(ctx, !!readable_locked(st));
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  READABLE_CLOSE = 0,
-  READABLE_ENQUEUE,
-  READABLE_ERROR,
-};
-
-/**
- * @brief      JS ReadableStream controller functions
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the controller function
- */
-static JSValue
-js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  ReadableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_readable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case READABLE_CLOSE: {
-      readable_close(st, ctx);
-      break;
-    }
-
-    case READABLE_ENQUEUE: {
-      BOOL binary = FALSE;
-
-      if(argc > 1)
-        binary = JS_ToBool(ctx, argv[1]);
-
-      ret = readable_enqueue(st, argv[0], binary, ctx);
-      break;
-    }
-
-    case READABLE_ERROR: {
-      readable_cancel(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  BYOB_REQUEST_METHOD_RESPOND = 0,
-  BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW,
-};
-
-static JSValue
-js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  ReadableStream* st;
-  ReadableStreamReader* rd;
-  JSValue ret = JS_UNDEFINED;
-  BOOL success = FALSE;
-
-  if(!(st = js_readable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  if(!(rd = readable_locked(st)))
-    return JS_ThrowInternalError(ctx, "ReadableStreamBYOBRequest: ReadableStream is not locked");
-
-  switch(magic) {
-    case BYOB_REQUEST_METHOD_RESPOND: {
-      JSValue view = JS_GetPropertyStr(ctx, this_val, "view");
-      uint64_t length = js_get_propertystr_uint64(ctx, view, "length");
-      int64_t bytes = -1;
-      JSValue newa = JS_UNDEFINED;
-
-      JS_ToInt64Ext(ctx, &bytes, argv[0]);
-
-      if(bytes >= 0 && (size_t)bytes > length) {
-        ret = JS_ThrowRangeError(ctx, "Supplied bytesWritten value (%ld) is bigger than view length (%lu).", (long)bytes, (unsigned long)length);
-      } else if(bytes >= 0 && (size_t)bytes == length) {
-        newa = JS_DupValue(ctx, view);
-      } else {
-        uint64_t offset = js_get_propertystr_uint64(ctx, view, "byteOffset");
-        JSValue buf = JS_GetPropertyStr(ctx, view, "buffer");
-
-        newa = js_typedarray_new3(ctx, 8, FALSE, FALSE, buf, offset, MIN_NUM(bytes, (int64_t)length));
-        JS_FreeValue(ctx, buf);
-      }
-
-      JS_FreeValue(ctx, view);
-
-      if(!JS_IsUndefined(newa)) {
-        success = reader_passthrough(rd, newa, ctx);
-
-        JS_FreeValue(ctx, newa);
-      }
-
-      break;
-    }
-
-    case BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW: {
-
-      /* XXX: Safety checks:
-       *
-       * - same underlying ArrayBuffer
-       * - same byteOffset
-       * - smaller or equal length
-       */
-      success = reader_passthrough(rd, argv[0], ctx);
-      break;
-    }
-  }
-
-  if(!success) {
-    ret = JS_ThrowInternalError(ctx, "Passing through BYOB request failed because no pending read");
-  } else {
-    JSAtom va = JS_NewAtom(ctx, "view");
-    JS_DeleteProperty(ctx, this_val, va, 0);
-    JS_FreeAtom(ctx, va);
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Returns the desired size of a JS ReadableStream object
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- *
- * @return     JS Number
- */
-static JSValue
-js_readable_desired(JSContext* ctx, JSValueConst this_val) {
-  ReadableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_readable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  if(readable_locked(st)) {
-    ReadableStreamReader* rd;
-
-    if((rd = st->reader))
-      ret = JS_NewUint32(ctx, rd->desired_size);
-  }
-
-  return ret;
-}
-
-/**
- * @brief
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- *
- * @return     JS Number
- */
-static JSValue
-js_byob_request_new(JSContext* ctx, JSValueConst controller) {
-  ReadableStream* st;
-  JSValue byob_request = JS_UNDEFINED;
-
-  if(!(st = js_readable_data2(ctx, controller)))
-    return JS_EXCEPTION;
-
-  byob_request = JS_NewObjectProtoClass(ctx, byob_request_proto, js_readable_class_id);
-  JS_SetOpaque(byob_request, readable_dup(st));
-
-  JSValue size = JS_NewInt64(ctx, st->autoallocatechunksize);
-  JSValue view = js_typedarray_new(ctx, 8, FALSE, FALSE, size);
-  JS_FreeValue(ctx, size);
-
-  JS_DefinePropertyValueStr(ctx, byob_request, "view", view, JS_PROP_CONFIGURABLE);
-  /* XXX: Todo */
-
-  return byob_request;
-}
-
-static JSValue
-js_readable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  ReadableStream* st;
-
-  if(!(st = js_readable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  return JS_UNDEFINED;
-}
-
-/**
- * @brief      JS ReadableStream object finalizer
- *
- * @param      rt    The JSRuntime
- * @param[in]  val   The value
- */
-static void
-js_readable_finalizer(JSRuntime* rt, JSValue val) {
-  ReadableStream* st;
-
-  if((st = js_readable_data(val))) {
-    readable_free(st, rt);
-    JS_SetOpaque(val, 0);
-  }
-}
-
-JSClassDef js_readable_class = {
-    .class_name = "ReadableStream",
-    .finalizer = js_readable_finalizer,
-};
-
-const JSCFunctionListEntry js_readable_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_METHOD_ABORT),
-    JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_METHOD_GET_READER),
-    JS_CGETSET_MAGIC_FLAGS_DEF("closed", js_readable_get, 0, READABLE_PROP_CLOSED, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, READABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
-    // JS_CFUNC_DEF("[Symbol.asyncIterator]", 0, js_readable_iterator),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStream", JS_PROP_CONFIGURABLE),
-};
-
-const JSCFunctionListEntry js_readable_default_controller_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("close", 0, js_readable_controller, READABLE_CLOSE),
-    JS_CFUNC_MAGIC_DEF("enqueue", 1, js_readable_controller, READABLE_ENQUEUE),
-    JS_CFUNC_MAGIC_DEF("error", 1, js_readable_controller, READABLE_ERROR),
-    JS_CGETSET_DEF("desiredSize", js_readable_desired, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultController", JS_PROP_CONFIGURABLE),
-};
-
-const JSCFunctionListEntry js_readable_bytestream_controller_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("close", 0, js_readable_controller, READABLE_CLOSE),
-    JS_CFUNC_MAGIC_DEF("enqueue", 1, js_readable_controller, READABLE_ENQUEUE),
-    JS_CFUNC_MAGIC_DEF("error", 1, js_readable_controller, READABLE_ERROR),
-    JS_CGETSET_DEF("desiredSize", js_readable_desired, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableByteStreamController", JS_PROP_CONFIGURABLE),
-};
-
-const JSCFunctionListEntry js_byob_request_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("respond", 1, js_byob_request_method, BYOB_REQUEST_METHOD_RESPOND),
-    JS_CFUNC_MAGIC_DEF("respondWithNewView", 1, js_byob_request_method, BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamBYOBRequest", JS_PROP_CONFIGURABLE),
-};
-
-/**
- * @brief      Creates a new WritableStreamWriter struct
- *
- * @param      ctx   The JSContext
- * @param      st    A writable stream
- *
- * @return     Pointer to WritableStreamWriter struct or NULL on error
- */
-static WritableStreamWriter*
-writer_new(JSContext* ctx, WritableStream* st) {
-  WritableStreamWriter* wr;
-
-  if((wr = js_mallocz(ctx, sizeof(WritableStreamWriter)))) {
-    atomic_store(&wr->stream, st);
-    promise_init(ctx, &wr->events.closed);
-    promise_init(ctx, &wr->events.ready);
-
-    JSValue ret = js_writable_callback(ctx, st, WRITABLE_START, 1, &st->controller);
-
-    /*if(js_is_promise(ctx, ret))
-      ret = promise_forward(ctx, ret, &wr->events.ready);
+  if(JS_IsFunction(ctx, input)) {
+    reader = reader_from_jsfunction(ctx, input);
+  } else if(JS_IsObject(input)) {
+    JSValue read_fn = JS_GetPropertyStr(ctx, input, "read");
+
+    if(JS_IsException(read_fn))
+      return JS_EXCEPTION;
+
+    if(JS_IsFunction(ctx, read_fn))
+      reader = reader_from_jsmethod(ctx, read_fn, input);
     else
-      promise_resolve(ctx, &wr->events.ready.funcs, JS_TRUE);*/
+      reader = reader_from_jsbuf(ctx, input);
 
-    JS_FreeValue(ctx, ret);
+    JS_FreeValue(ctx, read_fn);
+  } else {
+    reader = reader_from_jsbuf(ctx, input);
   }
 
-  return wr;
+  return js_readable_stream_from_reader(ctx, reader, chunk_size > 0 ? (size_t)chunk_size : 0);
 }
 
-/**
- * @brief      Releases the \ref WritableStreamWriter from its \ref WritableStream stream
- *
- * @param      wr    The writer
- * @param      ctx   The JSContext
- *
- * @return     TRUE on success, FALSE on error
- */
-static BOOL
-writer_release_lock(WritableStreamWriter* wr, JSContext* ctx) {
-  BOOL ret = FALSE;
-  WritableStream* r;
 
-  if((r = atomic_load(&wr->stream)))
-    if((ret = writable_unlock(r, wr)))
-      atomic_store(&wr->stream, (WritableStream*)0);
-
-  return ret;
-}
-
-/**
- * @brief      Writes a chunk to the \ref WritableStreamWriter
- *
- * @param      wr     The writer
- * @param[in]  chunk  The chunk
- * @param      ctx    The JSContext
- *
- * @return     A Promise that is resolved when the writing is done
- */
-static JSValue
-writer_write(WritableStreamWriter* wr, JSValueConst chunk, JSContext* ctx) {
-  /*JSValue ret = JS_UNDEFINED;
-  ssize_t bytes;
-
-  if((bytes = queue_write(&wr->q, block->base, block->size)) == block->size) {
-    Chunk* chunk = queue_tail(&wr->q);
-
-    chunk->opaque = promise_new(ctx, &ret);
-  }*/
-
-  if(wr->stream) {
-    JSValueConst args[2] = {chunk, wr->stream->controller};
-    return js_writable_callback(ctx, wr->stream, WRITABLE_WRITE, 2, args);
-  }
-
-  return JS_ThrowInternalError(ctx, "no WriteableStream");
-}
-
-/**
- * @brief      Close a writer
- *
- * @param      wr    The writer
- * @param      ctx   The JSContext
- *
- * @return     A promise that is resolved when the closing is done
- */
-static JSValue
-writer_close(WritableStreamWriter* wr, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-
-  if(!wr->stream)
-    return JS_ThrowInternalError(ctx, "no WriteableStream");
-
-  ret = js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
-
-  if(js_is_promise(ctx, ret))
-    ret = promise_forward(ctx, ret, &wr->events.closed);
-
-  return ret;
-}
-
-/**
- * @brief      Abort a \ref WritableStreamWriter
- *
- * @param      wr      The writer
- * @param[in]  reason  The reason
- * @param      ctx     The JSContext
- *
- * @return     A promise that is resolved when the aborting is done
- */
-static JSValue
-writer_abort(WritableStreamWriter* wr, JSValueConst reason, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-
-  if(!wr->stream)
-    return JS_ThrowInternalError(ctx, "no WriteableStream");
-
-  ret = js_writable_callback(ctx, wr->stream, WRITABLE_ABORT, 1, &reason);
-
-  if(js_is_promise(ctx, ret))
-    ret = promise_forward(ctx, ret, &wr->events.closed);
-
-  return ret;
-}
-
-/**
- * @brief      Create a writable stream
- *
- * @param      ctx   The JSContext
- *
- * @return     a pointer to a WritableStream struct or NULL on error
- */
-static WritableStream*
-writable_new(JSContext* ctx) {
-  WritableStream* st;
-
-  if((st = js_mallocz(ctx, sizeof(WritableStream)))) {
-    st->ref_count = 1;
-    st->controller = JS_NULL;
-    queue_init(&st->q);
-
-    st->on[3] = st->on[2] = st->on[1] = st->on[0] = JS_NULL;
-    st->underlying_sink = JS_NULL;
-    st->controller = JS_NULL;
-  }
-
-  return st;
-}
-
-/**
- * @brief      Duplicate a writable stream
- *
- * @param      st    A writable stream
- *
- * @return     The same writable stream (with incremented reference count)
- */
-static WritableStream*
-writable_dup(WritableStream* st) {
-  ++st->ref_count;
-  return st;
-}
-
-/**
- * @brief      Abort a \ref WritableStream
- *
- * @param      st      A writable stream
- * @param[in]  reason  The reason
- * @param      ctx     The JSContext
- *
- * @return     A Promise that is resolved when the aborting is done
- */
-static JSValue
-writable_abort(WritableStream* st, JSValueConst reason, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  static BOOL expected = FALSE;
-
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-    st->reason = js_tostring(ctx, reason);
-
-    if(writable_locked(st)) {
-      promise_resolve(ctx, &st->writer->events.closed.funcs, JS_UNDEFINED);
-      ret = writer_abort(st->writer, reason, ctx);
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Close a writable stream
- *
- * @param      st    A writable stream
- * @param      ctx   The JSContext
- *
- * @return     a Promise which is resolved when the closing is done
- */
-static JSValue
-writable_close(WritableStream* st, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  static BOOL expected = FALSE;
-
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-    if(writable_locked(st)) {
-      promise_resolve(ctx, &st->writer->events.closed.funcs, JS_UNDEFINED);
-      ret = writer_close(st->writer, ctx);
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Lock a writable stream
- *
- * @param      st    A writable stream
- * @param      wr    The writer
- *
- * @return     TRUE when locked, FALSE when failed
- */
-static BOOL
-writable_lock(WritableStream* st, WritableStreamWriter* wr) {
-  WritableStreamWriter* expected = 0;
-
-  return atomic_compare_exchange_weak(&st->writer, &expected, wr);
-}
-
-/**
- * @brief      Unlock a writable stream
- *
- * @param      st    A writable stream
- * @param      wr    The writer
- *
- * @return     TRUE when unlocked, FALSE when failed
- */
-static BOOL
-writable_unlock(WritableStream* st, WritableStreamWriter* wr) {
-  return atomic_compare_exchange_weak(&st->writer, &wr, 0);
-}
-
-/**
- * @brief      Get the writer of a WritableStream Stream
- *
- * @param      st            A writable stream
- * @param[in]  desired_size  The desired size
- * @param      ctx           The JSContext
- *
- * @return     Pointer to WritableStreamWriter or NULL on error
- */
-static WritableStreamWriter*
-writable_get_writer(WritableStream* st, size_t desired_size, JSContext* ctx) {
-  WritableStreamWriter* wr;
-
-  if(!(wr = writer_new(ctx, st)))
-    return 0;
-
-  wr->desired_size = desired_size;
-
-  if(!writable_lock(st, wr)) {
-    js_free(ctx, wr);
-    wr = 0;
-  }
-
-  return wr;
-}
-
-/**
- * @brief      Free a writable stream
- *
- * @param      st    A writable stream
- * @param      rt    The JSRuntime
- */
-static void
-writable_free(WritableStream* st, JSRuntime* rt) {
-  if(--st->ref_count == 0) {
-    JS_FreeValueRT(rt, st->underlying_sink);
-    JS_FreeValueRT(rt, st->controller);
-
-    for(size_t i = 0; i < countof(st->on); i++)
-      JS_FreeValueRT(rt, st->on[i]);
-
-    queue_clear(&st->q);
-    js_free_rt(rt, st);
-  }
-}
-
-/**
- * @brief      Construct a WritableStreamWriter object
- *
- * @param      ctx         The JSContext
- * @param[in]  new_target  The constructor function
- * @param[in]  argc        Number of arguments
- * @param      argv        The arguments array
- *
- * @return     a JS WritableStreamWriter object
- */
-static JSValue
-js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  WritableStreamWriter* wr = 0;
-  WritableStream* st;
-
-  if(argc < 1 || !(st = js_writable_data(argv[0])))
-    return JS_ThrowTypeError(ctx, "argument 1 must be a WritableStream");
-
-  if(!(wr = writer_new(ctx, st)))
-    return JS_EXCEPTION;
-
-  if(!writable_lock(st, wr)) {
-    JS_ThrowInternalError(ctx, "unable to lock WritableStream");
-    goto fail;
-  }
-
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_writer_class_id);
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, wr);
-  return obj;
-
-fail:
-  if(wr)
-    js_free(ctx, wr);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-/**
- * @brief      Wraps a \ref WritableStreamWriter struct in a JS WritableStreamWriter object
- *
- * @param      ctx   The JSContext
- * @param      wr    The writer
- *
- * @return     JS WritableStreamWriter object
- */
-static JSValue
-js_writer_wrap(JSContext* ctx, WritableStreamWriter* wr) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, writer_proto, js_writer_class_id);
-
-  JS_SetOpaque(obj, wr);
-  return obj;
-}
-
-enum {
-  WRITER_METHOD_ABORT,
-  WRITER_METHOD_CLOSE,
-  WRITER_METHOD_WRITE,
-  WRITER_METHOD_RELEASE_LOCK,
-};
-
-/**
- * @brief      JS WritableStreamWriter object method function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the method
- */
-static JSValue
-js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
-  WritableStreamWriter* wr;
-
-  if(!(wr = js_writer_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case WRITER_METHOD_ABORT: {
-      ret = writer_abort(wr, argv[0], ctx);
-      break;
-    }
-
-    case WRITER_METHOD_CLOSE: {
-      ret = writer_close(wr, ctx);
-      break;
-    }
-
-    case WRITER_METHOD_WRITE: {
-      /*MemoryBlock b;
-      InputBuffer input;
-      input = js_input_args(ctx, argc, argv);
-      b = block_range(inputbuffer_blockptr(&input), &input.range);
-      ret = writer_write(wr, &b, ctx);
-      inputbuffer_free(&input, ctx);*/
-      ret = writer_write(wr, argv[0], ctx);
-      break;
-    }
-
-    case WRITER_METHOD_RELEASE_LOCK: {
-      writer_release_lock(wr, ctx);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  WRITER_PROP_CLOSED = 0,
-  WRITER_PROP_READY,
-};
-
-/**
- * @brief      JS WritableStreamWriter object getter function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  magic     Magic number
- *
- * @return     { return value }
- */
-static JSValue
-js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  WritableStreamWriter* wr;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(wr = js_writer_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case WRITER_PROP_CLOSED: {
-      // ret= promise_done(&wr->events.closed.funcs);
-      ret = JS_DupValue(ctx, wr->events.closed.value);
-      break;
-    }
-
-    case WRITER_PROP_READY: {
-      // ret= promise_done(&wr->events.ready.funcs);
-      ret = JS_DupValue(ctx, wr->events.ready.value);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      JS WritableStreamWriter object finalizer
- *
- * @param      rt    The JSRuntime
- * @param[in]  val   The value
- */
-static void
-js_writer_finalizer(JSRuntime* rt, JSValue val) {
-  WritableStreamWriter* wr;
-
-  if((wr = JS_GetOpaque(val, js_writer_class_id)))
-    js_free_rt(rt, wr);
-}
-
-JSClassDef js_writer_class = {
-    .class_name = "WritableStreamDefaultWriter",
-    .finalizer = js_writer_finalizer,
-};
-
-const JSCFunctionListEntry js_writer_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("write", 0, js_writer_method, WRITER_METHOD_WRITE),
-    JS_CFUNC_MAGIC_DEF("abort", 0, js_writer_method, WRITER_METHOD_ABORT),
-    JS_CFUNC_MAGIC_DEF("close", 0, js_writer_method, WRITER_METHOD_CLOSE),
-    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_METHOD_RELEASE_LOCK),
-    JS_CGETSET_MAGIC_DEF("closed", js_writer_get, 0, WRITER_PROP_CLOSED),
-    JS_CGETSET_MAGIC_DEF("ready", js_writer_get, 0, WRITER_PROP_READY),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultWriter", JS_PROP_CONFIGURABLE),
-};
-
-/**
- * @brief      { function_description }
- *
- * @param      ctx    The JSContext
- * @param      st     A writable stream
- * @param[in]  event  The event
- * @param[in]  argc   Number of arguments
- * @param      argv   The arguments array
- *
- * @return     { return value }
- */
-static JSValue
-js_writable_callback(JSContext* ctx, WritableStream* st, WritableCallback cb, int argc, JSValueConst argv[]) {
-  assert(cb >= 0);
-  assert(cb < countof(st->on));
-
-  if(JS_IsFunction(ctx, st->on[cb]))
-    return JS_Call(ctx, st->on[cb], st->underlying_sink, argc, argv);
-
-  return JS_UNDEFINED;
-}
-
-/**
- * @brief      Constructs a JS WritableStream object
- *
- * @param      ctx         The JSContext
- * @param[in]  new_target  The constructor function
- * @param[in]  argc        Number of arguments
- * @param      argv        The arguments array
- *
- * @return     JS WritableStream object
- */
-static JSValue
-js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  WritableStream* st;
-
-  if(!(st = writable_new(ctx)))
-    return JS_EXCEPTION;
-
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_writable_class_id);
-  if(JS_IsException(obj))
-    goto fail;
-
-  if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
-    st->on[WRITABLE_START] = JS_GetPropertyStr(ctx, argv[0], "start");
-    st->on[WRITABLE_WRITE] = JS_GetPropertyStr(ctx, argv[0], "write");
-    st->on[WRITABLE_CLOSE] = JS_GetPropertyStr(ctx, argv[0], "close");
-    st->on[WRITABLE_ABORT] = JS_GetPropertyStr(ctx, argv[0], "abort");
-    st->underlying_sink = JS_DupValue(ctx, argv[0]);
-    st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
-    JS_SetOpaque(st->controller, writable_dup(st));
-  }
-
-  JS_SetOpaque(obj, st);
-  return obj;
-
-fail:
-  if(st)
-    js_free(ctx, st);
-  JS_FreeValue(ctx, obj);
-
-  return JS_EXCEPTION;
-}
-
-/**
- * @brief      Wraps a WritableStream struct in a JS WritableStream object
- *
- * @param      ctx   The JSContext
- * @param      st    A writable stream
- *
- * @return     JS WritableStream object
- */
-static JSValue
-js_writable_wrap(JSContext* ctx, WritableStream* st) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
-
-  writable_dup(st);
-  JS_SetOpaque(obj, st);
-  return obj;
-}
-
-/**
- * @brief      Returns the JS object itself
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- *
- * @return     JS WritableStream object
- */
-static JSValue
-js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_DupValue(ctx, this_val);
-}
-
-enum {
-  WRITABLE_METHOD_CLOSE = 0,
-  WRITABLE_METHOD_ABORT,
-  WRITABLE_METHOD_GET_WRITER,
-};
-
-/**
- * @brief      JS WritableStream object method function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the method
- */
-static JSValue
-js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  WritableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = JS_GetOpaque2(ctx, this_val, js_writable_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case WRITABLE_METHOD_ABORT: {
-      ret = writable_abort(st, argv[0], ctx);
-      break;
-    }
-
-      /* case WRITABLE_METHOD_CLOSE: {
-         ret = writable_close(st,  ctx);
-         break;
-       }*/
-
-    case WRITABLE_METHOD_GET_WRITER: {
-      WritableStreamWriter* wr;
-
-      if((wr = writable_get_writer(st, 0, ctx)))
-        ret = js_writer_wrap(ctx, wr);
-      else
-        ret = JS_ThrowTypeError(ctx,
-                                "Failed to execute 'getWriter' on 'WritableStream': WritableStreamDefaultWriter "
-                                "constructor can only accept writable streams that are not yet locked to a writer");
-
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  WRITABLE_PROP_CLOSED,
-  WRITABLE_PROP_LOCKED,
-};
-
-/**
- * @brief      JS WritableStream object getter function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the getter
- */
-static JSValue
-js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  WritableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = JS_GetOpaque2(ctx, this_val, js_writable_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case WRITABLE_PROP_CLOSED: {
-      ret = JS_NewBool(ctx, writable_closed(st));
-      break;
-    }
-
-    case WRITABLE_PROP_LOCKED: {
-      ret = JS_NewBool(ctx, writable_locked(st) || writable_locked(st));
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  WRITABLE_ERROR = 0,
-};
-
-/**
- * @brief      JS WritableStream controller functions
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the controller function
- */
-static JSValue
-js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  WritableStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_writable_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case WRITABLE_ERROR: {
-      writable_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      JS WritableStream object finalizer
- *
- * @param      rt    The JSRuntime
- * @param[in]  val   The value
- */
-static void
-js_writable_finalizer(JSRuntime* rt, JSValue val) {
-  WritableStream* st;
-
-  if((st = js_writable_data(val)))
-    writable_free(st, rt);
-}
-
-JSClassDef js_writable_class = {
-    .class_name = "WritableStream",
-    .finalizer = js_writable_finalizer,
-};
-
-const JSCFunctionListEntry js_writable_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("abort", 1, js_writable_method, WRITABLE_METHOD_ABORT),
-    JS_CFUNC_MAGIC_DEF("close", 0, js_writable_method, WRITABLE_METHOD_CLOSE),
-    JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, WRITABLE_METHOD_GET_WRITER),
-    JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_writable_get, 0, WRITABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStream", JS_PROP_CONFIGURABLE),
-    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_writable_iterator),
-};
-
-const JSCFunctionListEntry js_writable_controller_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("error", 0, js_writable_controller, WRITABLE_ERROR),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
-};
-
-/**
- * @brief      Duplicates a \ref TransformStream stream
- *
- * @param      st    A transform stream
- *
- * @return     The same TransformStream stream (with incremented reference count)
- */
-static TransformStream*
-transform_dup(TransformStream* st) {
-  ++st->ref_count;
-
-  return st;
-}
-
-/**
- * @brief      Creates a new \ref TransformStream stream
- *
- * @param      ctx   The JSContext
- *
- * @return     A new TransformStream stream
- */
-static TransformStream*
-transform_new(JSContext* ctx) {
-  TransformStream* st;
-
-  if((st = js_mallocz(ctx, sizeof(TransformStream)))) {
-    st->ref_count = 1;
-    st->readable = readable_new(ctx);
-    st->writable = writable_new(ctx);
-
-    st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
-
-    JS_SetOpaque(st->controller, transform_dup(st));
-  }
-
-  return st;
-}
-
-/**
- * @brief      Terminates a \ref TransformStream stream
- *
- * @param      st    A transform stream
- * @param      ctx   The JSContext
- */
-static void
-transform_terminate(TransformStream* st, JSContext* ctx) {
-  readable_close(st->readable, ctx);
-  writable_abort(st->writable, JS_UNDEFINED, ctx);
-}
-
-/**
- * @brief      Signals an error on a \ref TransformStream stream
- *
- * @param      st     A transform stream
- * @param[in]  error  The error
- * @param      ctx    The JSContext
- */
-static void
-transform_error(TransformStream* st, JSValueConst error, JSContext* ctx) {
-  readable_cancel(st->readable, error, ctx);
-  writable_abort(st->writable, error, ctx);
-}
-
-/**
- * @brief      Constructs a JS TransformStream object
- *
- * @param      ctx         The JSContext
- * @param[in]  new_target  The constructor function
- * @param[in]  argc        Number of arguments
- * @param      argv        The arguments array
- *
- * @return     JS TransformStream object
- */
-static JSValue
-js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  TransformStream* st;
-
-  if(!(st = transform_new(ctx)))
-    return JS_EXCEPTION;
-
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_transform_class_id);
-  if(JS_IsException(obj))
-    goto fail;
-
-  if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
-    st->on[TRANSFORM_START] = JS_GetPropertyStr(ctx, argv[0], "start");
-    st->on[TRANSFORM_TRANSFORM] = JS_GetPropertyStr(ctx, argv[0], "transform");
-    st->on[TRANSFORM_FLUSH] = JS_GetPropertyStr(ctx, argv[0], "flush");
-    st->underlying_transform = JS_DupValue(ctx, argv[0]);
-
-    st->writable->on[WRITABLE_START] = JS_DupValue(ctx, st->on[TRANSFORM_START]);
-    st->writable->on[WRITABLE_WRITE] = JS_DupValue(ctx, st->on[TRANSFORM_TRANSFORM]);
-    st->writable->on[WRITABLE_CLOSE] = JS_DupValue(ctx, st->on[TRANSFORM_FLUSH]);
-
-    st->writable->controller = JS_DupValue(ctx, st->controller);
-  }
-
-  JS_SetOpaque(obj, st);
-  return obj;
-
-fail:
-  if(st)
-    js_free(ctx, st);
-  JS_FreeValue(ctx, obj);
-
-  return JS_EXCEPTION;
-}
-
-enum {
-  TRANSFORM_PROP_READABLE = 0,
-  TRANSFORM_PROP_WRITABLE,
-};
-
-/**
- * @brief      JS TransformStream object getter function
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the getter
- */
-static JSValue
-js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  TransformStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_transform_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case TRANSFORM_PROP_READABLE: {
-      ret = js_readable_wrap(ctx, st->readable);
-      break;
-    }
-
-    case TRANSFORM_PROP_WRITABLE: {
-      ret = js_writable_wrap(ctx, st->writable);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-enum {
-  TRANSFORM_TERMINATE = 0,
-  TRANSFORM_ENQUEUE,
-  TRANSFORM_ERROR,
-};
-
-/**
- * @brief      JS TransformStream controller functions
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  argc      Number of arguments
- * @param      argv      The arguments array
- * @param[in]  magic     Magic number
- *
- * @return     Return value of the controller function
- */
-static JSValue
-js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  TransformStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_transform_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case TRANSFORM_ENQUEUE: {
-      BOOL binary = FALSE;
-
-      if(argc > 1)
-        binary = JS_ToBool(ctx, argv[1]);
-
-      ret = readable_enqueue(st->readable, argv[0], binary, ctx);
-      break;
-    }
-
-    case TRANSFORM_ERROR: {
-      JS_FreeValue(ctx, readable_cancel(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx));
-      ret = writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
-      break;
-    }
-
-    case TRANSFORM_TERMINATE: {
-      JS_FreeValue(ctx, readable_close(st->readable, ctx));
-      ret = writable_close(st->writable, ctx);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-/**
- * @brief      Returns the desired size of a JS TransformStream object
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- *
- * @return     JS Number
- */
-static JSValue
-js_transform_desired(JSContext* ctx, JSValueConst this_val) {
-  TransformStream* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_transform_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  if(readable_locked(st->readable)) {
-    ReadableStreamReader* rd;
-
-    if((rd = st->readable->reader))
-      ret = JS_NewUint32(ctx, rd->desired_size);
-  }
-
-  return ret;
-}
-
-/**
- * @brief      JS TransformStream object finalizer
- *
- * @param      rt    The JSRuntime
- * @param[in]  val   The value
- */
-static void
-js_transform_finalizer(JSRuntime* rt, JSValue val) {
-  TransformStream* st;
-
-  if((st = JS_GetOpaque(val, js_transform_class_id))) {
-    if(--st->ref_count == 0) {
-      writable_free(st->writable, rt);
-      readable_free(st->readable, rt);
-
-      JS_FreeValueRT(rt, st->underlying_transform);
-      JS_FreeValueRT(rt, st->controller);
-
-      for(size_t i = 0; i < countof(st->on); i++)
-        JS_FreeValueRT(rt, st->on[i]);
-
-      js_free_rt(rt, st);
-    }
-  }
-}
-
-JSClassDef js_transform_class = {
-    .class_name = "TransformStream",
-    .finalizer = js_transform_finalizer,
-};
-
-const JSCFunctionListEntry js_transform_proto_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("readable", js_transform_get, 0, TRANSFORM_PROP_READABLE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("writable", js_transform_get, 0, TRANSFORM_PROP_WRITABLE, JS_PROP_ENUMERABLE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStream", JS_PROP_CONFIGURABLE),
-};
-
-const JSCFunctionListEntry js_transform_controller_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("terminate", 0, js_transform_controller, TRANSFORM_TERMINATE),
-    JS_CFUNC_MAGIC_DEF("enqueue", 1, js_transform_controller, TRANSFORM_ENQUEUE),
-    JS_CFUNC_MAGIC_DEF("error", 1, js_transform_controller, TRANSFORM_ERROR),
-    JS_CGETSET_DEF("desiredSize", js_transform_desired, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStreamDefaultController", JS_PROP_CONFIGURABLE),
-};
-
-/**
- * @brief      Initialize all stream classes
- *
- * @param      ctx   The JSContext
- * @param      m     Module definition
- *
- * @return     0 on success
- */
 int
 js_stream_init(JSContext* ctx, JSModuleDef* m) {
-  JS_NewClassID(&js_reader_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_reader_class_id, &js_default_reader_class);
-  JS_NewClass(JS_GetRuntime(ctx), js_reader_class_id, &js_byob_reader_class);
+  static const char* const names[] = {
+      "ReadableStream",
+      "WritableStream",
+      "TransformStream",
+      "CountQueuingStrategy",
+      "ByteLengthQueuingStrategy",
+  };
+  JSValue factory, exports, readable;
+  size_t i;
 
-  default_reader_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, default_reader_proto, js_default_reader_proto_funcs, countof(js_default_reader_proto_funcs));
-  JS_SetClassProto(ctx, js_reader_class_id, default_reader_proto);
+  factory = JS_Eval(ctx, js_stream_src, strlen(js_stream_src), "<stream>", JS_EVAL_TYPE_GLOBAL);
+  if(JS_IsException(factory))
+    return -1;
 
-  default_reader_ctor = JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamDefaultReader", 1, JS_CFUNC_constructor, 0);
+  exports = JS_Call(ctx, factory, JS_UNDEFINED, 0, 0);
+  JS_FreeValue(ctx, factory);
+  if(JS_IsException(exports))
+    return -1;
 
-  JS_SetConstructor(ctx, default_reader_ctor, default_reader_proto);
+  readable = JS_GetPropertyStr(ctx, exports, "ReadableStream");
+  JS_FreeValue(ctx, readable_stream_ctor);
+  readable_stream_ctor = JS_DupValue(ctx, readable);
+  JS_SetPropertyStr(ctx, readable, "fromReader", JS_NewCFunction(ctx, js_readable_stream_from_reader_ctor, "fromReader", 2));
+  JS_FreeValue(ctx, readable);
 
-  byob_reader_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, byob_reader_proto, js_byob_reader_proto_funcs, countof(js_byob_reader_proto_funcs));
-  JS_SetClassProto(ctx, js_reader_class_id, byob_reader_proto);
+  for(i = 0; i < countof(names); i++) {
+    JSValue v = JS_GetPropertyStr(ctx, exports, names[i]);
 
-  byob_reader_ctor = JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamBYOBReader", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, byob_reader_ctor, byob_reader_proto);
-
-  JS_NewClassID(&js_readable_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_readable_class_id, &js_readable_class);
-
-  readable_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, readable_proto, js_readable_proto_funcs, countof(js_readable_proto_funcs));
-  JS_SetClassProto(ctx, js_readable_class_id, readable_proto);
-
-  readable_ctor = JS_NewCFunction2(ctx, js_readable_constructor, "ReadableStream", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, readable_ctor, readable_proto);
-
-  readable_default_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, readable_default_controller, js_readable_default_controller_funcs, countof(js_readable_default_controller_funcs));
-  JS_SetClassProto(ctx, js_readable_class_id, readable_default_controller);
-
-  readable_bytestream_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, readable_bytestream_controller, js_readable_bytestream_controller_funcs, countof(js_readable_bytestream_controller_funcs));
-  JS_SetClassProto(ctx, js_readable_class_id, readable_bytestream_controller);
-
-  byob_request_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx, byob_request_proto, js_byob_request_proto_funcs, countof(js_byob_request_proto_funcs));
-  JS_SetClassProto(ctx, js_readable_class_id, byob_request_proto);
-
-  JS_NewClassID(&js_writer_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_writer_class_id, &js_writer_class);
-
-  writer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, writer_proto, js_writer_proto_funcs, countof(js_writer_proto_funcs));
-  JS_SetClassProto(ctx, js_writer_class_id, writer_proto);
-
-  writer_ctor = JS_NewCFunction2(ctx, js_writer_constructor, "WritableStreamDefaultWriter", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, writer_ctor, writer_proto);
-
-  JS_NewClassID(&js_writable_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_writable_class_id, &js_writable_class);
-
-  writable_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, writable_proto, js_writable_proto_funcs, countof(js_writable_proto_funcs));
-  JS_SetClassProto(ctx, js_writable_class_id, writable_proto);
-
-  writable_ctor = JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, writable_ctor, writable_proto);
-
-  writable_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
-  JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
-
-  JS_NewClassID(&js_transform_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_transform_class_id, &js_transform_class);
-
-  transform_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, transform_proto, js_transform_proto_funcs, countof(js_transform_proto_funcs));
-  JS_SetClassProto(ctx, js_transform_class_id, transform_proto);
-
-  transform_ctor = JS_NewCFunction2(ctx, js_transform_constructor, "TransformStream", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, transform_ctor, transform_proto);
-
-  transform_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, transform_controller, js_transform_controller_funcs, countof(js_transform_controller_funcs));
-  JS_SetClassProto(ctx, js_transform_class_id, transform_controller);
-
-  // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs,
-  // countof(js_stream_static_funcs));
-
-  if(m) {
-    JS_SetModuleExport(ctx, m, "ReadableStreamDefaultReader", default_reader_ctor);
-    JS_SetModuleExport(ctx, m, "ReadableStreamBYOBReader", byob_reader_ctor);
-    JS_SetModuleExport(ctx, m, "WritableStreamDefaultWriter", writer_ctor);
-    JS_SetModuleExport(ctx, m, "ReadableStream", readable_ctor);
-    JS_SetModuleExport(ctx, m, "ReadableStreamDefaultController", readable_default_controller);
-    JS_SetModuleExport(ctx, m, "ReadableByteStreamController", readable_bytestream_controller);
-    JS_SetModuleExport(ctx, m, "WritableStream", writable_ctor);
-    JS_SetModuleExport(ctx, m, "WritableStreamDefaultController", writable_controller);
-    JS_SetModuleExport(ctx, m, "TransformStream", transform_ctor);
+    if(m)
+      JS_SetModuleExport(ctx, m, names[i], v);
+    else
+      JS_FreeValue(ctx, v);
   }
 
-  // js_eval_binary(ctx, qjsc_stream, qjsc_stream_size, FALSE);
-
+  JS_FreeValue(ctx, exports);
   return 0;
 }
 
@@ -2502,19 +1200,21 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
+  static const char* const names[] = {
+      "ReadableStream",
+      "WritableStream",
+      "TransformStream",
+      "CountQueuingStrategy",
+      "ByteLengthQueuingStrategy",
+  };
+  size_t i;
 
   if(!(m = JS_NewCModule(ctx, module_name, js_stream_init)))
     return NULL;
 
-  JS_AddModuleExport(ctx, m, "ReadableStreamDefaultReader");
-  JS_AddModuleExport(ctx, m, "ReadableStreamBYOBReader");
-  JS_AddModuleExport(ctx, m, "WritableStreamDefaultWriter");
-  JS_AddModuleExport(ctx, m, "ReadableStream");
-  JS_AddModuleExport(ctx, m, "ReadableStreamDefaultController");
-  JS_AddModuleExport(ctx, m, "ReadableByteStreamController");
-  JS_AddModuleExport(ctx, m, "WritableStream");
-  JS_AddModuleExport(ctx, m, "WritableStreamDefaultController");
-  JS_AddModuleExport(ctx, m, "TransformStream");
+  for(i = 0; i < countof(names); i++)
+    JS_AddModuleExport(ctx, m, names[i]);
+
   return m;
 }
 
