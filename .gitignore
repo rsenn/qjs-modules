@@ -1,0 +1,71 @@
+# Build directories / CMake output
+/build/
+CMakeFiles/
+CMakeCache.txt
+CMakeLists.txt.user
+CMakeLists.txt.user.*
+CTestTestfile.cmake
+DartConfiguration.tcl
+cmake_install.cmake
+/Makefile
+
+# Compiled/linked output
+*.o
+*.so
+*.a
+a.out
+gmon.out
+
+# CMake configure-probe scratch files (try_code() etc.)
+/try-*.c
+
+# Logs
+*.log
+
+# Editor/IDE metadata
+.cproject
+.project
+.settings/
+*.sublime-workspace
+
+# Misc scratch/temp files
+*.tmp
+blah.tmp*
+*.orig
+.bash_history2
+
+# Local scratch/experiment files (not part of the project)
+/001.repl.js.patch
+/blah.txt
+/Filmliste-akt.xz
+/chars.txt
+/css-what/
+/desc.json
+/f1.txt
+/f2.txt
+/fail.txt
+/frame.txt
+/inst/
+/internal.h
+/main.es
+/mkstemp.c
+/out.txt
+/output.json
+/output.txt
+/output.xml
+/parsel/
+/prompts.txt
+/quickjs-internal.h
+/repl.diff
+/tab.txt
+/test-getdents.c
+/test-getdents64.c
+/test-stream-utils
+/test-stream-utils.c
+/test.sqlite3
+/test.txt
+/test1.json
+/test1.xml
+/tmp.txt
+/unicode2.txt
+/writer.txt
