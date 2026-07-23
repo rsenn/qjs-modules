@@ -6,8 +6,13 @@
  * @{
  */
 
-#if 0 // ndef QUICKJS_DBUF_REALLOC
-#define dbuf_realloc dbuf_claim
+/* quickjs (between 2025-09-13 and 2026-06-04) renamed dbuf_realloc(buf, new_size) to
+ * dbuf_claim(buf, additional_size), where additional_size = new_size - buf->size. Emulate
+ * whichever one -lquickjs doesn't export in terms of the one it does. */
+#if defined(QUICKJS_DBUF_CLAIM) && !defined(QUICKJS_DBUF_REALLOC)
+#define dbuf_realloc(b, n) dbuf_claim((b), (n) - (b)->size)
+#elif defined(QUICKJS_DBUF_REALLOC) && !defined(QUICKJS_DBUF_CLAIM)
+#define dbuf_claim(b, n) dbuf_realloc((b), (b)->size + (n))
 #endif
 
 #ifdef _WIN32

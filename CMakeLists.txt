@@ -562,11 +562,15 @@ if(HAVE_DBUF_REALLOC)
   add_definitions(-DQUICKJS_DBUF_REALLOC)
 endif(HAVE_DBUF_REALLOC)
 
-if(HAVE_DBUF_CLAIM AND NOT HAVE_DBUF_REALLOC)
-  # quickjs (between 2025-09-13 and 2026-06-04) renamed dbuf_realloc() to dbuf_claim() (same
-  # signature); this source still calls dbuf_realloc() directly.
-  add_definitions(-Ddbuf_realloc=dbuf_claim)
-endif(HAVE_DBUF_CLAIM AND NOT HAVE_DBUF_REALLOC)
+if(HAVE_DBUF_CLAIM)
+  add_definitions(-DQUICKJS_DBUF_CLAIM)
+endif(HAVE_DBUF_CLAIM)
+
+# quickjs (between 2025-09-13 and 2026-06-04) renamed dbuf_realloc(buf, new_size) to
+# dbuf_claim(buf, additional_size), where additional_size = new_size - buf->size. Whichever of
+# the two -lquickjs actually exports, include/defines.h emulates the other one in terms of it
+# (function-like macros can't be defined on the command line, so QUICKJS_DBUF_REALLOC /
+# QUICKJS_DBUF_CLAIM just flag which one is present).
 
 dump(HAVE_DBUF_CLAIM HAVE_DBUF_REALLOC)
 #set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
