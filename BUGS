@@ -50,30 +50,3 @@
   process lifetime -- needs confirming which before treating as a real bug. no
   isolated js repro yet (would require observing the singleton across repeated
   context teardown, not just normal use).
-
-- xml-yield-pop-macro-broken: quickjs-xml.c:97-105, the yield_pop() macro has
-  a syntax error (a stray `?` in the if-condition and a missing closing brace
-  before the trailing `while(0)`, so it wouldn't compile if expanded). found
-  while implementing XMLSerializer in quickjs-xml.c. currently harmless only
-  because the macro is never invoked anywhere in the file -- js_xml_parse()
-  closes elements via yield_return()/find_tag() instead. build-only issue, no
-  js repro; would only surface if someone starts using yield_pop().
-
-- xml-parse-stack-vector-leak: js_xml_parse() in quickjs-xml.c (the `Vector st
-  = VECTOR(ctx)` used to track open elements while parsing) is never
-  vector_free()'d before the function returns, on both the success and the
-  `!opts.tolerant` mismatched-closing-tag error path. the OutputValue records
-  themselves hold no separately-owned resources (their `.obj` JSValue is
-  already referenced by the parsed tree, and `.name`/`.namelen` are raw
-  pointers into the caller's input buffer), so this leaks only the vector's
-  backing array allocation (typically small), not JS objects or strings.
-  found while refactoring the parser's element-stack handling for
-  XMLSerializer's chunked reader. no isolated leak-counting repro yet; would
-  need to run js_xml_parse() many times under a leak counter (e.g.
-  valgrind/ASan) to observe the accumulation, since it's not visible from JS
-  alone.
-
-    xml.read('<a><b>x</b></a>');
-    // st's malloc'd backing array (from vector_emplace/vector_push while
-    // scanning <a> and <b>) is never vector_free()'d -- repeat in a loop
-    // under a leak counter to see it accumulate

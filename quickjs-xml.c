@@ -99,11 +99,11 @@ character_classes_init(int c[256]) {
   do { \
     OutputValue* top = vector_back(&st, sizeof(OutputValue)); \
     xml_debug("pop    %.*s\n", (int)top->namelen, top->name); \
-    if(vector_size(&st, sizeof(OutputValue)) >= 2 ?) { \
+    if(vector_size(&st, sizeof(OutputValue)) >= 2) { \
       vector_pop(&st, sizeof(OutputValue)); \
-      out = vector_back(&st, sizeof(OutputValue))); \
+      out = vector_back(&st, sizeof(OutputValue)); \
     } \
-    while(0)
+  } while(0)
 
 #define yield_add(val) \
   do { \
@@ -567,6 +567,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
               if(file)
                 js_free(ctx, file);
 
+              vector_free(&st);
               return ret;
             }
 
@@ -690,6 +691,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   }
 
   JS_FreeAtom(ctx, loc.file);
+  vector_free(&st);
 
   if(opts.location)
     return make_tuple(ctx, ret, vprop.this_obj);
