@@ -1409,7 +1409,49 @@ typedef struct PushParser {
   JSValue this_obj;
   struct xr_state xrs;
   JSValue attribute, element_start, element_end, error;
+  Vector obj;
 } XmlPushParser;
+
+static void
+xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
+  XmlPushParser* pp = user_data;
+
+  switch(type) {
+    case xr_type_attribute: {
+      JSValue element = *(JSValue*)vector_back(&pp->obj, sizeof(JSValue));
+      JSValue attrs = JS_GetPropertyStr(pp->ctx, element, "attributes");
+
+      JSAtom prop = JS_NewAtomLen(pp->ctx, name->cstr, name->len);
+      JS_SetProperty(pp->ctx, attrs, prop, JS_NewStringLen(pp->ctx, value->cstr, value->len));
+      JS_FreeAtom(pp->ctx, prop);
+      JS_FreeValue(pp->ctx, attrs);
+      break;
+    }
+    case xr_type_element_start: {
+      JSValue obj = JS_NewObjectProto(pp->ctx, JS_NULL);
+      JSValue parent = *(JSValue*)vector_back(&pp->obj, sizeof(JSValue));
+      JSValue children = JS_GetPropertyStr(pp->ctx, parent, "children");
+      js_invoke(pp->ctx, children, "push", 1, &obj);
+      JS_FreeValue(pp->ctx, children);
+      JS_FreeValue(pp->ctx, parent);
+
+      JS_SetPropertyStr(pp->ctx, obj, "tagName", JS_NewStringLen(pp->ctx, name->cstr, name->len));
+      JS_SetPropertyStr(pp->ctx, obj, "attributes", JS_NewObjectProto(pp->ctx, JS_NULL));
+      JS_SetPropertyStr(pp->ctx, obj, "children", JS_NewArray(pp->ctx));
+
+      vector_push(&pp->obj, obj);
+      break;
+    }
+    case xr_type_element_end: {
+      JS_FreeValue(pp->ctx, *(JSValue*)vector_pop(&pp->obj, sizeof(JSValue)));
+
+      break;
+    }
+    case xr_type_error: {
+      break;
+    }
+  }
+}
 
 static void
 xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
@@ -1502,6 +1544,8 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->error = JS_UNDEFINED;
 
   xr_state_init(&pp->xrs);
+
+  vector_init(&pp->obj, ctx);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
