@@ -5,6 +5,7 @@
 #include "utils.h"
 #include "vector.h"
 #include "buffer-utils.h"
+#include "stream-utils.h"
 #include "location.h"
 #include "debug.h"
 #include "virtual-properties.h"
@@ -895,6 +896,512 @@ static const JSCFunctionListEntry js_xml_funcs[] = {
     JS_CFUNC_DEF("write", 2, js_xml_write),
 };
 
+/**
+ * XMLSerializer: a pull serializer, modeled on JsonSerializer (quickjs-json.c). The
+ * constructor is given an object tree (root); read(buf, offset, length) writes as much
+ * serialized XML text as fits into the caller's buffer, resuming on the next call
+ * exactly where the last one left off. Traversal state (the open-element stack) is
+ * tracked in the XMLSerializer struct via property_recursion_push()/pop(), and is only
+ * ever pushed for a node's "children" array (list frames) or, transiently, its
+ * "attributes" object (xs->attrs) - never the generic, any-property
+ * property_recursion_next().
+ */
+static JSClassID js_xmlserializer_class_id;
+static JSValue xmlserializer_proto, xmlserializer_ctor;
+
+typedef struct {
+  uint8_t* dst;
+  size_t cap;
+  size_t pos;
+} XMLCappedBuf;
+
+/* All-or-nothing writer over a fixed caller-supplied buffer: a write either fits
+ * entirely (returns len) or is refused whole (returns 0, "no room yet") - the same
+ * zero-copy destination scheme as JsonSerializer.read(buffer)/write_capped(). */
+static ssize_t
+xml_write_capped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  XMLCappedBuf* c = (XMLCappedBuf*)fd;
+
+  if(c->pos + len > c->cap)
+    return 0;
+
+  memcpy(c->dst + c->pos, buf, len);
+  c->pos += len;
+  return (ssize_t)len;
+}
+
+typedef struct {
+  Vector stack;  /* Vector<PropertyEnumeration>: the root array, or some element's
+                    "children" array - one frame per open element. */
+  Vector owners; /* Vector<JSValue>, 1:1 with `stack`: the element each frame's
+                    "children" belongs to (JS_UNDEFINED for the root frame) - used to
+                    emit the matching closing tag once a frame is exhausted. */
+  PropertyEnumeration attrs; /* transient: the "attributes" of the element currently
+                                 being opened, valid only while in_attrs is set. */
+  JSValue cur_element;
+  BOOL in_attrs;
+  BOOL started;
+  BOOL finished;
+  BOOL error;
+  BOOL blocked;
+  size_t skip;      /* bytes of the (deterministic) replay to discard: already delivered previously */
+  size_t delivered;  /* bytes actually forwarded to the destination during the current step attempt */
+  JSValue root;
+  Writer dest_writer; /* the capped writer for the current read(buf, offset, length) call */
+  Writer skip_writer;  /* outermost: discards the first `skip` bytes of a step's replay */
+  XMLCappedBuf capped;
+} XMLSerializer;
+
+static ssize_t
+xml_write_skip(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  XMLSerializer* xs = (XMLSerializer*)fd;
+  ssize_t w;
+
+  if(xs->skip >= len) {
+    xs->skip -= len;
+    return (ssize_t)len;
+  }
+
+  if(xs->skip > 0) {
+    size_t skip = xs->skip;
+    size_t remain = len - skip;
+
+    if((w = writer_write(&xs->dest_writer, (const uint8_t*)buf + skip, remain)) <= 0)
+      return w;
+
+    xs->skip = 0;
+    xs->delivered += (size_t)w;
+    return (ssize_t)len;
+  }
+
+  w = writer_write(&xs->dest_writer, buf, len);
+
+  if(w > 0)
+    xs->delivered += (size_t)w;
+
+  return w;
+}
+
+/* Checked wrappers: on a blocked/error write, set xs->blocked/xs->error and return
+ * FALSE so the caller can bail out before mutating any traversal state. */
+
+static BOOL
+xsw_write(XMLSerializer* xs, const void* buf, size_t len) {
+  ssize_t w = writer_write(&xs->skip_writer, buf, len);
+
+  if(w < 0) {
+    xs->error = TRUE;
+    return FALSE;
+  }
+  if(w == 0) {
+    xs->blocked = TRUE;
+    return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOL
+xsw_putc(XMLSerializer* xs, int c) {
+  ssize_t w = writer_putc(&xs->skip_writer, c);
+
+  if(w < 0) {
+    xs->error = TRUE;
+    return FALSE;
+  }
+  if(w == 0) {
+    xs->blocked = TRUE;
+    return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOL
+xsw_puts(XMLSerializer* xs, const char* s) {
+  return xsw_write(xs, s, strlen(s));
+}
+
+/* Unlike xsw_write()/xsw_puts() (fine for short, fixed literals), this writes
+ * arbitrary-length, runtime-supplied content (tag names, text, attribute keys/values)
+ * one byte at a time - so a destination buffer far smaller than the content (even a
+ * single byte, as with .read(buf, offset, 1)) can still make forward progress, one
+ * xsw_putc() at a time, the same granularity write_json_string() uses in quickjs-json.c. */
+static BOOL
+xsw_raw(XMLSerializer* xs, const char* s, size_t len) {
+  size_t i;
+
+  for(i = 0; i < len; i++)
+    if(!xsw_putc(xs, (unsigned char)s[i]))
+      return FALSE;
+
+  return TRUE;
+}
+
+static JSValue
+xmlserializer_wrap_root(JSContext* ctx, JSValueConst root) {
+  if(JS_IsArray(ctx, root))
+    return JS_DupValue(ctx, root);
+
+  JSValue arr = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, arr, 0, JS_DupValue(ctx, root));
+  return arr;
+}
+
+/* Attributes of xs->cur_element are fully emitted (or it had none): decide
+ * self-closing vs. pushing a "children" frame, then hand control back to whichever
+ * list frame is (still) on top of xs->stack. */
+static void
+xmlserializer_finish_open(XMLSerializer* xs, JSContext* ctx) {
+  JSValue children = JS_GetPropertyStr(ctx, xs->cur_element, "children");
+  BOOL has_children = JS_IsArray(ctx, children) && js_array_length(ctx, children) > 0;
+
+  if(has_children) {
+    if(!xsw_putc(xs, '>')) {
+      JS_FreeValue(ctx, children);
+      return;
+    }
+
+    PropertyEnumeration* parent = vector_back(&xs->stack, sizeof(PropertyEnumeration));
+    parent->idx++;
+
+    if(!property_recursion_push(&xs->stack, ctx, children, PROPENUM_DEFAULT_FLAGS)) {
+      xs->error = TRUE;
+      return;
+    }
+
+    vector_push(&xs->owners, xs->cur_element);
+    xs->cur_element = JS_UNDEFINED;
+  } else {
+    JS_FreeValue(ctx, children);
+
+    if(!xsw_puts(xs, " />"))
+      return;
+
+    JS_FreeValue(ctx, xs->cur_element);
+    xs->cur_element = JS_UNDEFINED;
+
+    PropertyEnumeration* top = vector_back(&xs->stack, sizeof(PropertyEnumeration));
+    top->idx++;
+  }
+}
+
+static void
+xmlserializer_step_inner(XMLSerializer* xs, JSContext* ctx) {
+  if(!xs->started) {
+    JSValue undef = JS_UNDEFINED;
+    JSValue rootArr = xmlserializer_wrap_root(ctx, xs->root);
+
+    xs->started = TRUE;
+
+    /* an empty root list has nothing to serialize; property_recursion_push() on a
+     * zero-property object spuriously reports failure (see the property_enumeration_init()
+     * comment below), so short-circuit rather than mistaking this for a real error. */
+    if(js_array_length(ctx, rootArr) == 0) {
+      JS_FreeValue(ctx, rootArr);
+      xs->finished = TRUE;
+      return;
+    }
+
+    PropertyEnumeration* it = property_recursion_push(&xs->stack, ctx, rootArr, PROPENUM_DEFAULT_FLAGS);
+
+    if(!it) {
+      xs->error = TRUE;
+      return;
+    }
+
+    vector_push(&xs->owners, undef);
+    return;
+  }
+
+  if(xs->in_attrs) {
+    if(xs->attrs.idx >= xs->attrs.tab_atom_len) {
+      xmlserializer_finish_open(xs, ctx);
+
+      /* only leave in_attrs once finish_open() actually got all its bytes out - if it
+       * blocked partway (e.g. " />" not fitting), xs->attrs must stay alive so the next
+       * read() call retries finish_open() instead of falling through to the "list frame"
+       * code below and reopening this same element's tag from scratch. */
+      if(!xs->blocked && !xs->error) {
+        property_enumeration_reset(&xs->attrs, JS_GetRuntime(ctx));
+        xs->in_attrs = FALSE;
+      }
+
+      return;
+    }
+
+    size_t keylen;
+    const char* keystr = property_enumeration_keystrlen(&xs->attrs, &keylen, ctx);
+    JSValue value = property_enumeration_value(&xs->attrs, ctx);
+    BOOL boolTrue = JS_IsBool(value) && JS_ToBool(ctx, value);
+    BOOL ok = xsw_putc(xs, ' ') && xsw_raw(xs, keystr, keylen);
+
+    if(ok && !boolTrue) {
+      size_t valuelen;
+      const char* valuestr = JS_ToCStringLen(ctx, &valuelen, value);
+
+      ok = xsw_puts(xs, "=\"") && xsw_raw(xs, valuestr, valuelen) && xsw_putc(xs, '"');
+
+      JS_FreeCString(ctx, valuestr);
+    }
+
+    JS_FreeCString(ctx, keystr);
+    JS_FreeValue(ctx, value);
+
+    if(ok)
+      xs->attrs.idx++;
+
+    return;
+  }
+
+  PropertyEnumeration* top = vector_back(&xs->stack, sizeof(PropertyEnumeration));
+
+  if(top->idx >= top->tab_atom_len) {
+    JSValue* ownerp = vector_back(&xs->owners, sizeof(JSValue));
+
+    if(JS_IsUndefined(*ownerp)) {
+      xs->finished = TRUE;
+      return;
+    }
+
+    size_t tagLen;
+    const char* tagName = js_get_propertystr_cstringlen(ctx, *ownerp, "tagName", &tagLen);
+    BOOL ok = TRUE;
+
+    if(tagName && tagName[0] && tagName[0] != '!' && tagName[0] != '?')
+      ok = xsw_putc(xs, '<') && xsw_putc(xs, '/') && xsw_raw(xs, tagName, tagLen) && xsw_putc(xs, '>');
+
+    if(tagName)
+      JS_FreeCString(ctx, tagName);
+
+    if(!ok)
+      return;
+
+    property_enumeration_reset(top, JS_GetRuntime(ctx));
+    vector_pop(&xs->stack, sizeof(PropertyEnumeration));
+
+    JS_FreeValue(ctx, *ownerp);
+    vector_pop(&xs->owners, sizeof(JSValue));
+    return;
+  }
+
+  JSValue val = property_enumeration_value(top, ctx);
+
+  if(JS_IsString(val)) {
+    size_t slen;
+    const char* s = JS_ToCStringLen(ctx, &slen, val);
+    BOOL ok = xsw_raw(xs, s, slen);
+
+    JS_FreeCString(ctx, s);
+    JS_FreeValue(ctx, val);
+
+    if(ok)
+      top->idx++;
+
+    return;
+  }
+
+  if(!JS_IsObject(val)) {
+    JS_FreeValue(ctx, val);
+    top->idx++;
+    return;
+  }
+
+  size_t tagLen;
+  const char* tagName = js_get_propertystr_cstringlen(ctx, val, "tagName", &tagLen);
+
+  if(!tagName || !tagName[0]) {
+    if(tagName)
+      JS_FreeCString(ctx, tagName);
+
+    JS_FreeValue(ctx, val);
+    top->idx++;
+    return;
+  }
+
+  BOOL isComment = tagLen >= 3 && !strncmp(tagName, "!--", 3);
+  BOOL isPI = tagName[0] == '?';
+  BOOL isDecl = !isComment && tagName[0] == '!';
+
+  if(isComment || isDecl || isPI) {
+    BOOL ok = xsw_putc(xs, '<') && xsw_raw(xs, tagName, tagLen) && xsw_puts(xs, isPI ? "?>" : ">");
+
+    JS_FreeCString(ctx, tagName);
+
+    if(!ok) {
+      JS_FreeValue(ctx, val);
+      return;
+    }
+
+    JS_FreeValue(ctx, val);
+    top->idx++;
+    return;
+  }
+
+  BOOL ok = xsw_putc(xs, '<') && xsw_raw(xs, tagName, tagLen);
+
+  JS_FreeCString(ctx, tagName);
+
+  if(!ok) {
+    JS_FreeValue(ctx, val);
+    return;
+  }
+
+  JSValue attributes = JS_GetPropertyStr(ctx, val, "attributes");
+
+  if(!JS_IsObject(attributes)) {
+    JS_FreeValue(ctx, attributes);
+    attributes = JS_NewObject(ctx);
+  }
+
+  /* return value deliberately unchecked: property_enumeration_init() reports -1 even for
+   * the harmless "object has zero enumerable properties" case (js_object_properties()'s
+   * realloc-to-0 can return NULL there), matching xml_write_attributes()'s convention of
+   * ignoring it - xs->attrs.tab_atom_len is 0 either way, which the attrs-draining step
+   * below handles like any other empty attribute set. */
+  property_enumeration_init(&xs->attrs, ctx, attributes, PROPENUM_DEFAULT_FLAGS);
+
+  xs->cur_element = val;
+  xs->in_attrs = TRUE;
+}
+
+/* Wraps xmlserializer_step_inner() with the skip/replay bookkeeping: a step's writes
+ * are deterministic given unchanged traversal state, so on a blocked attempt we fold
+ * whatever was newly delivered into xs->skip (discarded on the next replay) instead of
+ * losing or duplicating it; a clean step clears xs->skip since it now applies to
+ * whatever step comes next. */
+static void
+xmlserializer_step(XMLSerializer* xs, JSContext* ctx) {
+  size_t skip_before = xs->skip;
+
+  xs->delivered = 0;
+  xmlserializer_step_inner(xs, ctx);
+
+  if(xs->blocked)
+    xs->skip = skip_before + xs->delivered;
+  else if(!xs->error)
+    xs->skip = 0;
+}
+
+static JSValue
+js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  XMLSerializer* xs;
+  InputBuffer buf;
+
+  if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
+    return JS_EXCEPTION;
+
+  xs->error = FALSE;
+  xs->blocked = FALSE;
+
+  buf = js_input_args(ctx, argc, argv);
+
+  xs->capped.dst = (uint8_t*)inputbuffer_data(&buf);
+  xs->capped.cap = inputbuffer_length(&buf);
+  xs->capped.pos = 0;
+  xs->dest_writer = (Writer){&xml_write_capped, &xs->capped, NULL};
+
+  while(!xs->finished && !xs->error && !xs->blocked && xs->capped.pos < xs->capped.cap)
+    xmlserializer_step(xs, ctx);
+
+  inputbuffer_free(&buf, ctx);
+
+  if(xs->error)
+    return JS_EXCEPTION;
+
+  return JS_NewInt64(ctx, (int64_t)xs->capped.pos);
+}
+
+static JSValue
+js_xmlserializer_get_root(JSContext* ctx, JSValueConst this_val) {
+  XMLSerializer* xs;
+
+  if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_DupValue(ctx, xs->root);
+}
+
+static JSValue
+js_xmlserializer_get_finished(JSContext* ctx, JSValueConst this_val) {
+  XMLSerializer* xs;
+
+  if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_NewBool(ctx, xs->finished);
+}
+
+static JSValue
+js_xmlserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj = JS_UNDEFINED;
+  XMLSerializer* xs;
+  JSValueConst root = argc > 0 ? argv[0] : JS_UNDEFINED;
+
+  if(!(xs = js_mallocz(ctx, sizeof(XMLSerializer))))
+    return JS_EXCEPTION;
+
+  xs->stack = VECTOR(ctx);
+  xs->owners = VECTOR(ctx);
+  xs->root = JS_DupValue(ctx, root);
+  xs->cur_element = JS_UNDEFINED;
+  xs->skip_writer = (Writer){&xml_write_skip, xs, NULL};
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    goto fail;
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_xmlserializer_class_id);
+  JS_FreeValue(ctx, proto);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, xs);
+  return obj;
+
+fail:
+  JS_FreeValue(ctx, xs->root);
+  vector_free(&xs->stack);
+  vector_free(&xs->owners);
+  js_free(ctx, xs);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+static void
+js_xmlserializer_finalizer(JSRuntime* rt, JSValue val) {
+  XMLSerializer* xs;
+
+  if((xs = JS_GetOpaque(val, js_xmlserializer_class_id))) {
+    JSValue* ownerp;
+
+    property_recursion_free(&xs->stack, rt);
+
+    vector_foreach_t(&xs->owners, ownerp) {
+      JS_FreeValueRT(rt, *ownerp);
+    }
+    vector_free(&xs->owners);
+
+    if(xs->in_attrs)
+      property_enumeration_reset(&xs->attrs, rt);
+
+    JS_FreeValueRT(rt, xs->cur_element);
+    JS_FreeValueRT(rt, xs->root);
+    orig_js_free_rt(rt, xs);
+  }
+}
+
+static JSClassDef js_xmlserializer_class = {
+    .class_name = "XMLSerializer",
+    .finalizer = js_xmlserializer_finalizer,
+};
+
+static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
+    JS_CFUNC_DEF("read", 1, js_xmlserializer_read),
+    JS_CGETSET_DEF("root", js_xmlserializer_get_root, 0),
+    JS_CGETSET_DEF("finished", js_xmlserializer_get_finished, 0),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLSerializer", JS_PROP_CONFIGURABLE),
+};
+
 static int
 js_xml_init(JSContext* ctx, JSModuleDef* m) {
   character_classes_init(chars);
@@ -909,6 +1416,18 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyStr(ctx, defaultObj, "read", JS_NewCFunction(ctx, js_xml_read, "read", 1));
   JS_SetPropertyStr(ctx, defaultObj, "write", JS_NewCFunction(ctx, js_xml_write, "write", 2));
   JS_SetModuleExport(ctx, m, "default", defaultObj);
+
+  JS_NewClassID(&js_xmlserializer_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_xmlserializer_class_id, &js_xmlserializer_class);
+
+  xmlserializer_ctor = JS_NewCFunction2(ctx, js_xmlserializer_constructor, "XMLSerializer", 1, JS_CFUNC_constructor, 0);
+  xmlserializer_proto = JS_NewObject(ctx);
+
+  JS_SetPropertyFunctionList(ctx, xmlserializer_proto, js_xmlserializer_funcs, countof(js_xmlserializer_funcs));
+  JS_SetClassProto(ctx, js_xmlserializer_class_id, xmlserializer_proto);
+  JS_SetConstructor(ctx, xmlserializer_ctor, xmlserializer_proto);
+
+  JS_SetModuleExport(ctx, m, "XMLSerializer", xmlserializer_ctor);
 
   return 0;
 }
@@ -926,6 +1445,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_xml_init))) {
     JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
     JS_AddModuleExport(ctx, m, "default");
+    JS_AddModuleExport(ctx, m, "XMLSerializer");
   }
 
   return m;
