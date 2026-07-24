@@ -10,7 +10,6 @@
 #include "debug.h"
 #include "virtual-properties.h"
 #include "quickjs-location.h"
-#include "include/xread.h"
 
 #include <stdint.h>
 
@@ -1403,19 +1402,35 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLSerializer", JS_PROP_CONFIGURABLE),
 };
 
+#include "include/xread.h"
+
 typedef struct PushParser {
-  //  struct xr_state xrs:
+  JSContext* ctx;
+  JSValue this_obj;
+  struct xr_state xrs;
+  JSValue attribute, element_start, element_end, error;
 } XmlPushParser;
 
 static void
 xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
-  switch(type) {
+  XmlPushParser* pp = user_data;
+  JSValue args[] = {
+      name ? JS_NewStringLen(pp->ctx, name->cstr, name->len) : JS_UNDEFINED,
+      value ? JS_NewStringLen(pp->ctx, value->cstr, value->len) : JS_UNDEFINED,
+  };
+  JSValue* cb;
 
-    case xr_type_attribute: break;
-    case xr_type_element_start: break;
-    case xr_type_element_end: break;
-    case xr_type_error: break;
+  switch(type) {
+    case xr_type_attribute: cb = &pp->attribute; break;
+    case xr_type_element_start: cb = &pp->element_start; break;
+    case xr_type_element_end: cb = &pp->element_end; break;
+    case xr_type_error: cb = &pp->error; break;
   }
+
+  JSValue ret = JS_Call(pp->ctx, *cb, pp->this_obj, countof(args), args);
+  JS_FreeValue(pp->ctx, ret);
+  JS_FreeValue(pp->ctx, args[0]);
+  JS_FreeValue(pp->ctx, args[1]);
 }
 
 static JSClassID js_xml_pushparser_class_id;
@@ -1436,6 +1451,7 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
   }
 
+  xr_read(xread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->xrs);
   inputbuffer_free(&input, ctx);
 
   return JS_UNDEFINED;
@@ -1447,6 +1463,8 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
+
+  xr_finish(xread_callback, pp, &pp->xrs);
 
   return JS_UNDEFINED;
 }
@@ -1476,6 +1494,15 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   if(!(pp = js_mallocz(ctx, sizeof(XmlPushParser))))
     return JS_EXCEPTION;
 
+  pp->ctx = ctx;
+  pp->this_obj = JS_UNDEFINED;
+  pp->attribute = JS_UNDEFINED;
+  pp->element_start = JS_UNDEFINED;
+  pp->element_end = JS_UNDEFINED;
+  pp->error = JS_UNDEFINED;
+
+  xr_state_init(&pp->xrs);
+
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, xml_pushparser_proto);
@@ -1492,6 +1519,12 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
   XmlPushParser* pp;
 
   if((pp = JS_GetOpaque(val, js_xml_pushparser_class_id))) {
+    xr_state_free(&pp->xrs);
+    JS_FreeValueRT(rt, pp->this_obj);
+    JS_FreeValueRT(rt, pp->attribute);
+    JS_FreeValueRT(rt, pp->element_start);
+    JS_FreeValueRT(rt, pp->element_end);
+    JS_FreeValueRT(rt, pp->error);
     js_free_rt(rt, pp);
   }
 }
