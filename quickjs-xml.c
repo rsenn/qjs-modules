@@ -1513,6 +1513,11 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
 enum {
   XML_PUSHPARSER_ROOT,
+  XML_PUSHPARSER_THIS,
+  XML_PUSHPARSER_ATTRIBUTE,
+  XML_PUSHPARSER_ELEMENT_START,
+  XML_PUSHPARSER_ELEMENT_END,
+  XML_PUSHPARSER_ERROR,
 };
 
 static JSValue
@@ -1523,9 +1528,38 @@ js_xml_pushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
 
-  switch(magic) {}
+  switch(magic) {
+    case XML_PUSHPARSER_THIS: ret = JS_DupValue(ctx, pp->this_obj); break;
+    case XML_PUSHPARSER_ATTRIBUTE: ret = JS_DupValue(ctx, pp->attribute); break;
+    case XML_PUSHPARSER_ELEMENT_START: ret = JS_DupValue(ctx, pp->element_start); break;
+    case XML_PUSHPARSER_ELEMENT_END: ret = JS_DupValue(ctx, pp->element_end); break;
+    case XML_PUSHPARSER_ERROR: ret = JS_DupValue(ctx, pp->error); break;
+  }
 
   return ret;
+}
+
+static JSValue
+js_xml_pushparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  XmlPushParser* pp;
+  JSValue* slot;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case XML_PUSHPARSER_THIS: slot = &pp->this_obj; break;
+    case XML_PUSHPARSER_ATTRIBUTE: slot = &pp->attribute; break;
+    case XML_PUSHPARSER_ELEMENT_START: slot = &pp->element_start; break;
+    case XML_PUSHPARSER_ELEMENT_END: slot = &pp->element_end; break;
+    case XML_PUSHPARSER_ERROR: slot = &pp->error; break;
+    default: return JS_UNDEFINED;
+  }
+
+  JS_FreeValue(ctx, *slot);
+  *slot = JS_DupValue(ctx, value);
+
+  return JS_UNDEFINED;
 }
 
 static JSValue
@@ -1576,6 +1610,11 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
 static const JSCFunctionListEntry js_xml_pushparser_proto_funcs[] = {
     JS_CFUNC_DEF("write", 1, js_xml_pushparser_write),
     JS_CFUNC_DEF("close", 0, js_xml_pushparser_close),
+    JS_CGETSET_MAGIC_FLAGS_DEF("thisArg", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_THIS, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("attribute", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ATTRIBUTE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("elementStart", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ELEMENT_START, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("elementEnd", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ELEMENT_END, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ERROR, JS_PROP_ENUMERABLE),
     /*  JS_CGETSET_MAGIC_FLAGS_DEF("root", js_xml_pushparser_get, 0, XML_PUSHPARSER_ROOT, JS_PROP_ENUMERABLE),
       JS_CGETSET_MAGIC_FLAGS_DEF("path", js_xml_pushparser_get, 0, XML_PUSHPARSER_PATH, JS_PROP_ENUMERABLE),
       JS_CGETSET_MAGIC_FLAGS_DEF("location", js_xml_pushparser_get, 0, XML_PUSHPARSER_LOCATION, JS_PROP_ENUMERABLE), */
