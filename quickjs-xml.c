@@ -1404,12 +1404,137 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
 
 #include "include/xread.h"
 
+/*
+ * XmlBuilder: builds a {tagName, attributes, children}-shaped JSValue tree from a
+ * stream of element_start/attribute/element_end calls (e.g. driven by xr_read()'s
+ * callback), independent of any particular parser's own bookkeeping.
+ *
+ * The path from the document root down to the currently-open element is a plain
+ * singly-linked list of XmlBuilderFrame, one per open element plus a synthetic root
+ * frame (element/attributes == JS_UNDEFINED) whose `children` is the top-level result
+ * array. xml_builder_push() pushes a new frame (and appends its `element`
+ * into the *parent* frame's `children`); xml_builder_pop() pops back to
+ * frame->parent.
+ */
+typedef struct XmlBuilderFrame {
+  struct XmlBuilderFrame* parent;
+  JSValue element;
+  JSValue attributes;
+  JSValue children;
+} XmlBuilderFrame;
+
+typedef struct XmlBuilder {
+  JSContext* ctx;
+  XmlBuilderFrame* top;
+} XmlBuilder;
+
+static void
+xml_builder_init(XmlBuilder* b, JSContext* ctx) {
+  XmlBuilderFrame* root = js_mallocz(ctx, sizeof(XmlBuilderFrame));
+
+  root->parent = 0;
+  root->element = JS_UNDEFINED;
+  root->attributes = JS_UNDEFINED;
+  root->children = JS_NewArray(ctx);
+
+  b->ctx = ctx;
+  b->top = root;
+}
+
+/* The top-level array of root elements/text built so far (a new reference). Typically
+ * called once the document is complete, before xml_builder_free(). */
+static JSValue
+xml_builder_root(XmlBuilder* b) {
+  XmlBuilderFrame* frame = b->top;
+
+  while(frame->parent)
+    frame = frame->parent;
+
+  return JS_DupValue(b->ctx, frame->children);
+}
+
+/* Releases every frame still on the stack, root included - so it's safe to call on an
+ * incomplete tree (e.g. after a truncated/errored parse whose element_end calls never
+ * caught up with its element_start calls). Callers that want the built tree must
+ * xml_builder_root() (or otherwise dup what they need out of it) first.
+ *
+ * Takes an explicit JSRuntime* (rather than using b->ctx, like the rest of XmlBuilder)
+ * so it's safe to call from a JSClassFinalizer, which only gets a JSRuntime* - the
+ * JSContext a builder was initialized with is not guaranteed to still be alive by
+ * then. */
+static void
+xml_builder_free(XmlBuilder* b, JSRuntime* rt) {
+  XmlBuilderFrame* frame = b->top;
+
+  while(frame) {
+    XmlBuilderFrame* parent = frame->parent;
+
+    JS_FreeValueRT(rt, frame->element);
+    JS_FreeValueRT(rt, frame->attributes);
+    JS_FreeValueRT(rt, frame->children);
+    js_free_rt(rt, frame);
+
+    frame = parent;
+  }
+
+  b->top = 0;
+}
+
+static void
+xml_builder_push(XmlBuilder* b, const char* name, size_t namelen) {
+  JSContext* ctx = b->ctx;
+  XmlBuilderFrame* frame = js_mallocz(ctx, sizeof(XmlBuilderFrame));
+  JSValue element = JS_NewObjectProto(ctx, JS_NULL);
+  JSValue attributes = JS_NewObjectProto(ctx, JS_NULL);
+  JSValue children = JS_NewArray(ctx);
+  JSValue ret;
+
+  JS_SetPropertyStr(ctx, element, "tagName", JS_NewStringLen(ctx, name, namelen));
+  JS_SetPropertyStr(ctx, element, "attributes", JS_DupValue(ctx, attributes));
+  JS_SetPropertyStr(ctx, element, "children", JS_DupValue(ctx, children));
+
+  ret = js_invoke(ctx, b->top->children, "push", 1, &element);
+  JS_FreeValue(ctx, ret);
+
+  frame->parent = b->top;
+  frame->element = element;
+  frame->attributes = attributes;
+  frame->children = children;
+
+  b->top = frame;
+}
+
+static void
+xml_builder_attribute(XmlBuilder* b, const char* name, size_t namelen, const char* value, size_t valuelen) {
+  JSContext* ctx = b->ctx;
+  JSAtom prop = JS_NewAtomLen(ctx, name, namelen);
+
+  JS_SetProperty(ctx, b->top->attributes, prop, JS_NewStringLen(ctx, value, valuelen));
+  JS_FreeAtom(ctx, prop);
+}
+
+/* Pops the currently-open element; a no-op at the (already-closed) root frame. */
+static void
+xml_builder_pop(XmlBuilder* b) {
+  XmlBuilderFrame* frame = b->top;
+
+  if(!frame->parent)
+    return;
+
+  b->top = frame->parent;
+
+  JS_FreeValue(b->ctx, frame->element);
+  JS_FreeValue(b->ctx, frame->attributes);
+  JS_FreeValue(b->ctx, frame->children);
+  js_free(b->ctx, frame);
+}
+
 typedef struct PushParser {
   JSContext* ctx;
   JSValue this_obj;
   struct xr_state xrs;
   JSValue attribute, element_start, element_end, error;
-  Vector obj;
+  XmlBuilder builder;
 } XmlPushParser;
 
 static void
@@ -1417,39 +1542,17 @@ xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value
   XmlPushParser* pp = user_data;
 
   switch(type) {
-    case xr_type_attribute: {
-      JSValue element = *(JSValue*)vector_back(&pp->obj, sizeof(JSValue));
-      JSValue attrs = JS_GetPropertyStr(pp->ctx, element, "attributes");
-
-      JSAtom prop = JS_NewAtomLen(pp->ctx, name->cstr, name->len);
-      JS_SetProperty(pp->ctx, attrs, prop, JS_NewStringLen(pp->ctx, value->cstr, value->len));
-      JS_FreeAtom(pp->ctx, prop);
-      JS_FreeValue(pp->ctx, attrs);
+    case xr_type_attribute:
+      xml_builder_attribute(&pp->builder, name->cstr, name->len, value->cstr, value->len);
       break;
-    }
-    case xr_type_element_start: {
-      JSValue obj = JS_NewObjectProto(pp->ctx, JS_NULL);
-      JSValue parent = *(JSValue*)vector_back(&pp->obj, sizeof(JSValue));
-      JSValue children = JS_GetPropertyStr(pp->ctx, parent, "children");
-      js_invoke(pp->ctx, children, "push", 1, &obj);
-      JS_FreeValue(pp->ctx, children);
-      JS_FreeValue(pp->ctx, parent);
-
-      JS_SetPropertyStr(pp->ctx, obj, "tagName", JS_NewStringLen(pp->ctx, name->cstr, name->len));
-      JS_SetPropertyStr(pp->ctx, obj, "attributes", JS_NewObjectProto(pp->ctx, JS_NULL));
-      JS_SetPropertyStr(pp->ctx, obj, "children", JS_NewArray(pp->ctx));
-
-      vector_push(&pp->obj, obj);
+    case xr_type_element_start:
+      xml_builder_push(&pp->builder, name->cstr, name->len);
       break;
-    }
-    case xr_type_element_end: {
-      JS_FreeValue(pp->ctx, *(JSValue*)vector_pop(&pp->obj, sizeof(JSValue)));
-
+    case xr_type_element_end:
+      xml_builder_pop(&pp->builder);
       break;
-    }
-    case xr_type_error: {
+    case xr_type_error:
       break;
-    }
   }
 }
 
@@ -1460,7 +1563,7 @@ xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void
       name ? JS_NewStringLen(pp->ctx, name->cstr, name->len) : JS_UNDEFINED,
       value ? JS_NewStringLen(pp->ctx, value->cstr, value->len) : JS_UNDEFINED,
   };
-  JSValue* cb;
+  JSValue* cb = 0;
 
   switch(type) {
     case xr_type_attribute: cb = &pp->attribute; break;
@@ -1469,8 +1572,14 @@ xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void
     case xr_type_error: cb = &pp->error; break;
   }
 
-  JSValue ret = JS_Call(pp->ctx, *cb, pp->this_obj, countof(args), args);
-  JS_FreeValue(pp->ctx, ret);
+  /* the options object passed to the constructor need not define every callback -
+   * silently skip whichever ones it left out, rather than trying to JS_Call() a
+   * non-function and leaving a pending exception behind. */
+  if(cb && JS_IsFunction(pp->ctx, *cb)) {
+    JSValue ret = JS_Call(pp->ctx, *cb, pp->this_obj, countof(args), args);
+    JS_FreeValue(pp->ctx, ret);
+  }
+
   JS_FreeValue(pp->ctx, args[0]);
   JS_FreeValue(pp->ctx, args[1]);
 }
@@ -1511,75 +1620,30 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return JS_UNDEFINED;
 }
 
-enum {
-  XML_PUSHPARSER_ROOT,
-  XML_PUSHPARSER_THIS,
-  XML_PUSHPARSER_ATTRIBUTE,
-  XML_PUSHPARSER_ELEMENT_START,
-  XML_PUSHPARSER_ELEMENT_END,
-  XML_PUSHPARSER_ERROR,
-};
-
-static JSValue
-js_xml_pushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  XmlPushParser* pp;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case XML_PUSHPARSER_THIS: ret = JS_DupValue(ctx, pp->this_obj); break;
-    case XML_PUSHPARSER_ATTRIBUTE: ret = JS_DupValue(ctx, pp->attribute); break;
-    case XML_PUSHPARSER_ELEMENT_START: ret = JS_DupValue(ctx, pp->element_start); break;
-    case XML_PUSHPARSER_ELEMENT_END: ret = JS_DupValue(ctx, pp->element_end); break;
-    case XML_PUSHPARSER_ERROR: ret = JS_DupValue(ctx, pp->error); break;
-  }
-
-  return ret;
-}
-
-static JSValue
-js_xml_pushparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  XmlPushParser* pp;
-  JSValue* slot;
-
-  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case XML_PUSHPARSER_THIS: slot = &pp->this_obj; break;
-    case XML_PUSHPARSER_ATTRIBUTE: slot = &pp->attribute; break;
-    case XML_PUSHPARSER_ELEMENT_START: slot = &pp->element_start; break;
-    case XML_PUSHPARSER_ELEMENT_END: slot = &pp->element_end; break;
-    case XML_PUSHPARSER_ERROR: slot = &pp->error; break;
-    default: return JS_UNDEFINED;
-  }
-
-  JS_FreeValue(ctx, *slot);
-  *slot = JS_DupValue(ctx, value);
-
-  return JS_UNDEFINED;
-}
-
 static JSValue
 js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
   XmlPushParser* pp;
+  JSValueConst options = argc > 0 ? argv[0] : JS_UNDEFINED;
 
   if(!(pp = js_mallocz(ctx, sizeof(XmlPushParser))))
     return JS_EXCEPTION;
 
   pp->ctx = ctx;
-  pp->this_obj = JS_UNDEFINED;
-  pp->attribute = JS_UNDEFINED;
-  pp->element_start = JS_UNDEFINED;
-  pp->element_end = JS_UNDEFINED;
-  pp->error = JS_UNDEFINED;
+
+  /* options is also this_obj: the object callbacks are invoked with, so an
+   * elementStart() etc. method can be defined directly on the options object passed
+   * to the constructor and use `this` to reach the others (or the parser itself, via
+   * a self-reference the caller stashes on it) without a separate thisArg. */
+  pp->this_obj = JS_DupValue(ctx, options);
+  pp->attribute = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "attribute") : JS_UNDEFINED;
+  pp->element_start = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementStart") : JS_UNDEFINED;
+  pp->element_end = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementEnd") : JS_UNDEFINED;
+  pp->error = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "error") : JS_UNDEFINED;
 
   xr_state_init(&pp->xrs);
 
-  vector_init(&pp->obj, ctx);
+  xml_builder_init(&pp->builder, ctx);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -1598,6 +1662,7 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
 
   if((pp = JS_GetOpaque(val, js_xml_pushparser_class_id))) {
     xr_state_free(&pp->xrs);
+    xml_builder_free(&pp->builder, rt);
     JS_FreeValueRT(rt, pp->this_obj);
     JS_FreeValueRT(rt, pp->attribute);
     JS_FreeValueRT(rt, pp->element_start);
@@ -1610,14 +1675,6 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
 static const JSCFunctionListEntry js_xml_pushparser_proto_funcs[] = {
     JS_CFUNC_DEF("write", 1, js_xml_pushparser_write),
     JS_CFUNC_DEF("close", 0, js_xml_pushparser_close),
-    JS_CGETSET_MAGIC_FLAGS_DEF("thisArg", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_THIS, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("attribute", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ATTRIBUTE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("elementStart", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ELEMENT_START, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("elementEnd", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ELEMENT_END, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_xml_pushparser_get, js_xml_pushparser_set, XML_PUSHPARSER_ERROR, JS_PROP_ENUMERABLE),
-    /*  JS_CGETSET_MAGIC_FLAGS_DEF("root", js_xml_pushparser_get, 0, XML_PUSHPARSER_ROOT, JS_PROP_ENUMERABLE),
-      JS_CGETSET_MAGIC_FLAGS_DEF("path", js_xml_pushparser_get, 0, XML_PUSHPARSER_PATH, JS_PROP_ENUMERABLE),
-      JS_CGETSET_MAGIC_FLAGS_DEF("location", js_xml_pushparser_get, 0, XML_PUSHPARSER_LOCATION, JS_PROP_ENUMERABLE), */
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLPushParser", JS_PROP_CONFIGURABLE),
 };
 
@@ -1659,7 +1716,7 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   xml_pushparser_proto = JS_NewObjectProto(ctx, JS_NULL);
   JS_SetPropertyFunctionList(ctx, xml_pushparser_proto, js_xml_pushparser_proto_funcs, countof(js_xml_pushparser_proto_funcs));
 
-  xml_pushparser_ctor = JS_NewCFunction2(ctx, js_xml_pushparser_constructor, "XMLPushParser", 0, JS_CFUNC_constructor, 0);
+  xml_pushparser_ctor = JS_NewCFunction2(ctx, js_xml_pushparser_constructor, "XMLPushParser", 1, JS_CFUNC_constructor, 0);
   JS_SetClassProto(ctx, js_xml_pushparser_class_id, xml_pushparser_proto);
   JS_SetConstructor(ctx, xml_pushparser_ctor, xml_pushparser_proto);
 
