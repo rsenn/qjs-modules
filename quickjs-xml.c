@@ -1535,6 +1535,9 @@ typedef struct PushParser {
   struct xr_state xrs;
   JSValue attribute, element_start, element_end, error;
   XmlBuilder builder;
+  BOOL use_builder; /* none of the constructor's callbacks was a function: fall back to
+                        building a {tagName, attributes, children} tree (via
+                        xread_callback_build()/builder) instead of forwarding events */
 } XmlPushParser;
 
 static void
@@ -1542,17 +1545,10 @@ xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value
   XmlPushParser* pp = user_data;
 
   switch(type) {
-    case xr_type_attribute:
-      xml_builder_attribute(&pp->builder, name->cstr, name->len, value->cstr, value->len);
-      break;
-    case xr_type_element_start:
-      xml_builder_push(&pp->builder, name->cstr, name->len);
-      break;
-    case xr_type_element_end:
-      xml_builder_pop(&pp->builder);
-      break;
-    case xr_type_error:
-      break;
+    case xr_type_attribute: xml_builder_attribute(&pp->builder, name->cstr, name->len, value->cstr, value->len); break;
+    case xr_type_element_start: xml_builder_push(&pp->builder, name->cstr, name->len); break;
+    case xr_type_element_end: xml_builder_pop(&pp->builder); break;
+    case xr_type_error: break;
   }
 }
 
@@ -1602,7 +1598,7 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
   }
 
-  xr_read(xread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->xrs);
+  xr_read(pp->use_builder ? xread_callback_build : xread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->xrs);
   inputbuffer_free(&input, ctx);
 
   return JS_UNDEFINED;
@@ -1615,9 +1611,19 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
 
-  xr_finish(xread_callback, pp, &pp->xrs);
+  xr_finish(pp->use_builder ? xread_callback_build : xread_callback, pp, &pp->xrs);
 
   return JS_UNDEFINED;
+}
+
+static JSValue
+js_xml_pushparser_get_root(JSContext* ctx, JSValueConst this_val) {
+  XmlPushParser* pp;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
+    return JS_EXCEPTION;
+
+  return xml_builder_root(&pp->builder);
 }
 
 static JSValue
@@ -1640,6 +1646,11 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->element_start = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementStart") : JS_UNDEFINED;
   pp->element_end = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementEnd") : JS_UNDEFINED;
   pp->error = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "error") : JS_UNDEFINED;
+
+  /* no real callback given at all: build a tree (retrievable via .root) instead of
+   * forwarding events that would just be dropped on the floor. */
+  pp->use_builder =
+      !JS_IsFunction(ctx, pp->attribute) && !JS_IsFunction(ctx, pp->element_start) && !JS_IsFunction(ctx, pp->element_end) && !JS_IsFunction(ctx, pp->error);
 
   xr_state_init(&pp->xrs);
 
@@ -1675,6 +1686,7 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
 static const JSCFunctionListEntry js_xml_pushparser_proto_funcs[] = {
     JS_CFUNC_DEF("write", 1, js_xml_pushparser_write),
     JS_CFUNC_DEF("close", 0, js_xml_pushparser_close),
+    JS_CGETSET_DEF("root", js_xml_pushparser_get_root, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLPushParser", JS_PROP_CONFIGURABLE),
 };
 
