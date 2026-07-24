@@ -16,6 +16,7 @@ option(BUILD_SHARED_MODULES "Build shared modules" ${BUILD_SHARED_LIBS})
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
+option(QUICKJS_INTERNAL "Use engine internals from quickjs.c" OFF)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 

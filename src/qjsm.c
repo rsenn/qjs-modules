@@ -1851,7 +1851,8 @@ int
 main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
-  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0;
+  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0,
+        dump_unhandled_promise_rejection = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -1978,8 +1979,7 @@ main(int argc, char** argv) {
       }
 
       if(!strcmp(longopt, "unhandled-rejection")) {
-        /* kept for backward compatibility with existing invocations: unhandled promise
-           rejections are now always dumped, so this flag is a no-op */
+        dump_unhandled_promise_rejection = 1;
         break;
       }
 
@@ -2112,8 +2112,7 @@ main(int argc, char** argv) {
 
   vector_init(&jsm_stack, jsm_ctx);
 
-  /* always report unhandled rejections (message + stack), matching how an uncaught
-     exception is always reported - not just when explicitly asked for */
+  if(dump_unhandled_promise_rejection)
   JS_SetHostPromiseRejectionTracker(jsm_rt, js_std_promise_rejection_tracker, 0);
 
   JS_SetInterruptHandler(jsm_rt, jsm_interrupt_handler, jsm_ctx);
