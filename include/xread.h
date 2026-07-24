@@ -14,15 +14,15 @@ extern "C" {
 #endif
 
 typedef enum xr_type {
-    xr_type_attribute,
-    xr_type_element_start,
-    xr_type_element_end,
-    xr_type_error,
+  xr_type_attribute,
+  xr_type_element_start,
+  xr_type_element_end,
+  xr_type_error,
 } xr_type_t;
 
 typedef struct xr_str {
-    const char* cstr;
-    int32_t     len;
+  const char* cstr;
+  int32_t len;
 } xr_str_t;
 
 typedef void (*xr_callback)(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data);
@@ -31,9 +31,9 @@ typedef void (*xr_callback)(xr_type_t type, const xr_str_t* name, const xr_str_t
  * since a token isn't necessarily contiguous in any single chunk the caller passes
  * to xr_read(). */
 typedef struct xr_accum {
-    char*  buf;
-    size_t len;
-    size_t cap;
+  char* buf;
+  size_t len;
+  size_t cap;
 } xr_accum_t;
 
 /*
@@ -48,15 +48,15 @@ typedef struct xr_accum {
  * Zero-initialize (or use xr_state_init()) before the first xr_read() call.
  */
 typedef struct xr_state {
-    void** go;
-    void*  resume;
-    void*  name_handle;
-    xr_accum_t tag_accum, name_accum, val_accum;
-    xr_accum_t* cur_accum;
-    int    accumulating;
-    int    at_root; /* go == go_root: nothing open, a clean place for xr_finish() to land */
-    int    done;
-    int    error;
+  void** go;
+  void* resume;
+  void* name_handle;
+  xr_accum_t tag_accum, name_accum, val_accum;
+  xr_accum_t* cur_accum;
+  int accumulating;
+  int at_root; /* go == go_root: nothing open, a clean place for xr_finish() to land */
+  int done;
+  int error;
 } xr_state_t;
 
 void xr_state_init(xr_state_t* state);
@@ -85,4 +85,4 @@ void xr_finish(xr_callback cb, void* user_data, xr_state_t* state);
 }
 #endif
 
-#endif //#ifndef XREAD_H
+#endif // #ifndef XREAD_H

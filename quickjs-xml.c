@@ -10,6 +10,7 @@
 #include "debug.h"
 #include "virtual-properties.h"
 #include "quickjs-location.h"
+#include "include/xread.h"
 
 #include <stdint.h>
 
@@ -931,11 +932,11 @@ xml_write_capped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 typedef struct {
-  Vector stack;  /* Vector<PropertyEnumeration>: the root array, or some element's
-                    "children" array - one frame per open element. */
-  Vector owners; /* Vector<JSValue>, 1:1 with `stack`: the element each frame's
-                    "children" belongs to (JS_UNDEFINED for the root frame) - used to
-                    emit the matching closing tag once a frame is exhausted. */
+  Vector stack;              /* Vector<PropertyEnumeration>: the root array, or some element's
+                                "children" array - one frame per open element. */
+  Vector owners;             /* Vector<JSValue>, 1:1 with `stack`: the element each frame's
+                                "children" belongs to (JS_UNDEFINED for the root frame) - used to
+                                emit the matching closing tag once a frame is exhausted. */
   PropertyEnumeration attrs; /* transient: the "attributes" of the element currently
                                  being opened, valid only while in_attrs is set. */
   JSValue cur_element;
@@ -945,10 +946,10 @@ typedef struct {
   BOOL error;
   BOOL blocked;
   size_t skip;      /* bytes of the (deterministic) replay to discard: already delivered previously */
-  size_t delivered;  /* bytes actually forwarded to the destination during the current step attempt */
+  size_t delivered; /* bytes actually forwarded to the destination during the current step attempt */
   JSValue root;
   Writer dest_writer; /* the capped writer for the current read(buf, offset, length) call */
-  Writer skip_writer;  /* outermost: discards the first `skip` bytes of a step's replay */
+  Writer skip_writer; /* outermost: discards the first `skip` bytes of a step's replay */
   XMLCappedBuf capped;
 } XMLSerializer;
 
@@ -1402,6 +1403,113 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLSerializer", JS_PROP_CONFIGURABLE),
 };
 
+typedef struct PushParser {
+  //  struct xr_state xrs:
+} XmlPushParser;
+
+static void
+xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
+  switch(type) {
+
+    case xr_type_attribute: break;
+    case xr_type_element_start: break;
+    case xr_type_element_end: break;
+    case xr_type_error: break;
+  }
+}
+
+static JSClassID js_xml_pushparser_class_id;
+static JSValue xml_pushparser_proto, xml_pushparser_ctor;
+
+static JSValue
+js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  XmlPushParser* pp;
+  InputBuffer input;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
+    return JS_EXCEPTION;
+
+  input = js_input_chars(ctx, argv[0]);
+
+  if(input.data == 0) {
+    JS_ThrowReferenceError(ctx, "XmlPushParser.write(): expecting buffer or string");
+    return JS_EXCEPTION;
+  }
+
+  inputbuffer_free(&input, ctx);
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  XmlPushParser* pp;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_UNDEFINED;
+}
+
+enum {
+  XML_PUSHPARSER_ROOT,
+};
+
+static JSValue
+js_xml_pushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  XmlPushParser* pp;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {}
+
+  return ret;
+}
+
+static JSValue
+js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue obj, proto;
+  XmlPushParser* pp;
+
+  if(!(pp = js_mallocz(ctx, sizeof(XmlPushParser))))
+    return JS_EXCEPTION;
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, xml_pushparser_proto);
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_xml_pushparser_class_id);
+  JS_FreeValue(ctx, proto);
+
+  JS_SetOpaque(obj, pp);
+  return obj;
+}
+
+static void
+js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
+  XmlPushParser* pp;
+
+  if((pp = JS_GetOpaque(val, js_xml_pushparser_class_id))) {
+    js_free_rt(rt, pp);
+  }
+}
+
+static const JSCFunctionListEntry js_xml_pushparser_proto_funcs[] = {
+    JS_CFUNC_DEF("write", 1, js_xml_pushparser_write),
+    JS_CFUNC_DEF("close", 0, js_xml_pushparser_close),
+    /*  JS_CGETSET_MAGIC_FLAGS_DEF("root", js_xml_pushparser_get, 0, XML_PUSHPARSER_ROOT, JS_PROP_ENUMERABLE),
+      JS_CGETSET_MAGIC_FLAGS_DEF("path", js_xml_pushparser_get, 0, XML_PUSHPARSER_PATH, JS_PROP_ENUMERABLE),
+      JS_CGETSET_MAGIC_FLAGS_DEF("location", js_xml_pushparser_get, 0, XML_PUSHPARSER_LOCATION, JS_PROP_ENUMERABLE), */
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLPushParser", JS_PROP_CONFIGURABLE),
+};
+
+static JSClassDef js_xml_pushparser_class = {
+    .class_name = "XMLPushParser",
+    .finalizer = js_xml_pushparser_finalizer,
+};
+
 static int
 js_xml_init(JSContext* ctx, JSModuleDef* m) {
   character_classes_init(chars);
@@ -1429,6 +1537,17 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetModuleExport(ctx, m, "XMLSerializer", xmlserializer_ctor);
 
+  JS_NewClassID(&js_xml_pushparser_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_xml_pushparser_class_id, &js_xml_pushparser_class);
+
+  xml_pushparser_proto = JS_NewObjectProto(ctx, JS_NULL);
+  JS_SetPropertyFunctionList(ctx, xml_pushparser_proto, js_xml_pushparser_proto_funcs, countof(js_xml_pushparser_proto_funcs));
+
+  xml_pushparser_ctor = JS_NewCFunction2(ctx, js_xml_pushparser_constructor, "XMLPushParser", 0, JS_CFUNC_constructor, 0);
+  JS_SetClassProto(ctx, js_xml_pushparser_class_id, xml_pushparser_proto);
+  JS_SetConstructor(ctx, xml_pushparser_ctor, xml_pushparser_proto);
+
+  JS_SetModuleExport(ctx, m, "XMLPushParser", xml_pushparser_ctor);
   return 0;
 }
 
@@ -1446,6 +1565,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
     JS_AddModuleExport(ctx, m, "default");
     JS_AddModuleExport(ctx, m, "XMLSerializer");
+    JS_AddModuleExport(ctx, m, "XMLPushParser");
   }
 
   return m;
