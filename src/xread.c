@@ -4,13 +4,90 @@
  */
 
 #include "xread.h"
+#include <stdlib.h>
+#include <string.h>
 
-#define XR_DISPATCH_NEXT()    goto *go[(uint8_t)*cstr++]
+/* Pastes __LINE__ into a label name, so each XR_DISPATCH_*() call site gets its own
+ * unique "resume here" label - see the comment above XR_DISPATCH_NEXT() below. */
+#define XR_PASTE_(a, b) a##b
+#define XR_PASTE(a, b) XR_PASTE_(a, b)
+#define XR_RESUME_LABEL XR_PASTE(l_resume_, __LINE__)
+
+/*
+ * Reads and dispatches on the next byte of `go` - exactly like the original
+ * goto*go[(uint8_t)*cstr++], except:
+ *
+ *  - bounds-checked against `end`: if the chunk is exhausted, this saves everything
+ *    needed to resume (go, and a label - XR_RESUME_LABEL - pointing at this exact
+ *    dispatch site) into `state` and returns, instead of reading past the buffer.
+ *    XR_RESUME_LABEL is unique per call site (via __LINE__), and is planted *inside*
+ *    the macro expansion, after any one-time setup code the enclosing l_xxx: label
+ *    may have (e.g. l_name_begin resetting the accumulator) - so resuming via `goto
+ *    *state->resume` at the top of xr_read() re-enters past that setup, without
+ *    re-running it.
+ *  - accumulates: if state->accumulating, the byte just read is appended to
+ *    *state->cur_accum, since a token's bytes aren't necessarily contiguous in any
+ *    one chunk. l_xxx_begin-style labels turn accumulating on (after resetting the
+ *    accumulator) and pick which of tag_accum/name_accum/val_accum is `cur_accum`;
+ *    l_xxx_end-style labels turn it off and trim the trailing (terminator) byte
+ *    that just got appended by the very dispatch that landed there.
+ */
+#define XR_DISPATCH_NEXT() \
+    XR_RESUME_LABEL: \
+    if (cstr >= end) { \
+        state->go = go; \
+        state->resume = &&XR_RESUME_LABEL; \
+        return; \
+    } \
+    { \
+        uint8_t xr_c__ = (uint8_t)*cstr++; \
+        if (state->accumulating) \
+            xr_accum_putc(state->cur_accum, (char)xr_c__); \
+        goto *go[xr_c__]; \
+    }
+
+/* Re-dispatch on the already-consumed cstr[-1]: no new byte is read, so this can
+ * never block on a chunk boundary and needs no resume handling. */
 #define XR_DISPATCH_THIS()    goto *go[(uint8_t)cstr[-1]];
 
-void xr_read(xr_callback cb, const char* cstr, void* user_data) {
+static void
+xr_accum_reset(xr_accum_t* a) {
+    a->len = 0;
+}
+
+static void
+xr_accum_putc(xr_accum_t* a, char c) {
+    if (a->len >= a->cap) {
+        size_t cap = a->cap ? a->cap * 2 : 64;
+        char* p = realloc(a->buf, cap);
+
+        if (!p)
+            return; /* OOM: silently truncate rather than crash */
+
+        a->buf = p;
+        a->cap = cap;
+    }
+
+    a->buf[a->len++] = c;
+}
+
+void
+xr_state_init(xr_state_t* state) {
+    memset(state, 0, sizeof(*state));
+    state->at_root = 1;
+}
+
+void
+xr_state_free(xr_state_t* state) {
+    free(state->tag_accum.buf);
+    free(state->name_accum.buf);
+    free(state->val_accum.buf);
+    memset(state, 0, sizeof(*state));
+}
+
+void xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t* state) {
     static void* go_root[] = {
-        ['\0']        = &&l_done,
+        [0]           = &&l_error,
         [1 ... 8]     = &&l_error,
         ['\t']        = &&l_next,
         ['\n']        = &&l_next,
@@ -129,69 +206,92 @@ void xr_read(xr_callback cb, const char* cstr, void* user_data) {
         [35 ... 255]  = &&l_next,
     };
 
-    xr_str_t tag  = { .cstr = 0, .len = 0 };
-    xr_str_t name = { .cstr = 0, .len = 0 };
-    xr_str_t val  = { .cstr = 0, .len = 0 };
+    const char* cstr = chunk;
+    const char* end  = chunk + len;
+    void**      go   = state->go ? state->go : go_root;
 
-    void**   go = go_root;
-    void*    name_handle = 0;
+    if (state->error || state->done)
+        return;
+
+    if (state->resume)
+        goto *state->resume;
 
 l_next:
     XR_DISPATCH_NEXT();
 
 l_error:
-    name = (xr_str_t){ .cstr = "Error!", .len = 6 };
-    val = (xr_str_t){ .cstr = cstr - 1, .len = 1 };
-    cb(xr_type_error, &name, &val, user_data);
+    {
+        xr_str_t name = { "Error!", 6 };
+        xr_str_t val  = { cstr - 1, 1 };
+        cb(xr_type_error, &name, &val, user_data);
+    }
+    state->error = 1;
     return;
 
 l_name_begin:
-    tag.cstr = cstr - 1;
+    xr_accum_reset(&state->tag_accum);
+    xr_accum_putc(&state->tag_accum, cstr[-1]);
+    state->cur_accum = &state->tag_accum;
+    state->accumulating = 1;
     go = go_name;
     XR_DISPATCH_NEXT();
 
 l_name_end:
-    goto *name_handle;
+    goto *state->name_handle;
 
 l_tag:
-    name_handle = &&l_stag_name;
+    state->at_root = 0;
+    state->name_handle = &&l_stag_name;
     go = go_stag;
     XR_DISPATCH_NEXT();
 
 l_etag:
-    name_handle = &&l_etag_name;
+    state->name_handle = &&l_etag_name;
     go = go_etag;
     XR_DISPATCH_NEXT();
 
 l_tag_end:
+    state->at_root = 1;
     go = go_root;
     XR_DISPATCH_NEXT();
 
 l_stag_name:
-    tag.len = (int32_t)(cstr - 1 - tag.cstr);
-    cb(xr_type_element_start, &tag, 0, user_data);
+    state->accumulating = 0;
+    {
+        xr_str_t tag = { state->tag_accum.buf, (int32_t)(state->tag_accum.len - 1) };
+        cb(xr_type_element_start, &tag, 0, user_data);
+    }
     go = go_attrib;
     XR_DISPATCH_THIS();
 
 l_etag_name:
-    tag.len = (int32_t)(cstr - 1 - tag.cstr);
-    cb(xr_type_element_end, &tag, 0, user_data);
+    state->accumulating = 0;
+    {
+        xr_str_t tag = { state->tag_accum.buf, (int32_t)(state->tag_accum.len - 1) };
+        cb(xr_type_element_end, &tag, 0, user_data);
+    }
     go = go_tag_close;
     XR_DISPATCH_THIS();
 
 l_empty_element_tag:
-    cb(xr_type_element_end, &tag, 0, user_data);
+    {
+        xr_str_t tag = { state->tag_accum.buf, (int32_t)(state->tag_accum.len - 1) };
+        cb(xr_type_element_end, &tag, 0, user_data);
+    }
     go = go_tag_close;
     XR_DISPATCH_NEXT();
 
 l_attrib:
-    name.cstr = cstr - 1;
-    name_handle = &&l_attrib_name;
+    xr_accum_reset(&state->name_accum);
+    xr_accum_putc(&state->name_accum, cstr[-1]);
+    state->cur_accum = &state->name_accum;
+    state->accumulating = 1;
+    state->name_handle = &&l_attrib_name;
     go = go_name;
     XR_DISPATCH_NEXT();
 
 l_attrib_name:
-    name.len = (int32_t)(cstr - 1 - name.cstr);
+    state->accumulating = 0;
     go = go_attrib_eq;
     XR_DISPATCH_THIS();
 
@@ -200,22 +300,43 @@ l_attrib_eq:
     XR_DISPATCH_NEXT();
 
 l_attrib_val_single:
-    val.cstr = cstr;
+    xr_accum_reset(&state->val_accum);
+    state->cur_accum = &state->val_accum;
+    state->accumulating = 1;
     go = go_attrib_val_single;
     XR_DISPATCH_NEXT();
 
 l_attrib_val_double:
-    val.cstr = cstr;
+    xr_accum_reset(&state->val_accum);
+    state->cur_accum = &state->val_accum;
+    state->accumulating = 1;
     go = go_attrib_val_double;
     XR_DISPATCH_NEXT();
 
 l_attrib_val:
-    val.len = (int32_t)(cstr - 1 - val.cstr);
-    cb(xr_type_attribute, &name, &val, user_data);
+    state->accumulating = 0;
+    {
+        xr_str_t name = { state->name_accum.buf, (int32_t)(state->name_accum.len - 1) };
+        xr_str_t val  = { state->val_accum.buf, (int32_t)(state->val_accum.len - 1) };
+        cb(xr_type_attribute, &name, &val, user_data);
+    }
     go = go_attrib;
     XR_DISPATCH_NEXT();
-
-l_done:
-    return;
 }
 
+void
+xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
+    if (state->error || state->done)
+        return;
+
+    if (!state->at_root) {
+        xr_str_t name = { "Error!", 6 };
+        xr_str_t val  = { "", 0 };
+
+        cb(xr_type_error, &name, &val, user_data);
+        state->error = 1;
+        return;
+    }
+
+    state->done = 1;
+}

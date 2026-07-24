@@ -4,26 +4,128 @@
  */
 
 #include "jread.h"
+#include <stdlib.h>
+#include <string.h>
 
-#define JR_DISPATCH_NEXT() goto* go[(uint8_t) * cstr++]
-#define JR_DISPATCH_THIS() goto* go[(uint8_t)cstr[-1]];
-#define JR_DISPATCH_NEXT_GO(x) goto* x[(uint8_t) * cstr++]
-#define JR_DISPATCH_THIS_GO(x) goto* x[(uint8_t)cstr[-1]];
-#define JR_DISPATCH_NEXT_MASK() goto* go_utf8[(uint8_t) * cstr++ & utf8_mask]
-#define JR_PUSH(x) go_stack[go_stack_idx++] = go
+/* Pastes __LINE__ into a label name, so each JR_DISPATCH_*() call site gets its own
+ * unique "resume here" label - see the comment above JR_DISPATCH_NEXT() below. */
+#define JR_PASTE_(a, b) a##b
+#define JR_PASTE(a, b) JR_PASTE_(a, b)
+#define JR_RESUME_LABEL JR_PASTE(l_resume_, __LINE__)
+
+#define JR_PUSH() (state->go_stack[state->go_stack_idx++] = go)
 #define JR_PUSH_GO(x) \
-  go_stack[go_stack_idx++] = go; \
-  go = x
-#define JR_POP_GO() go = go_stack[--go_stack_idx]
+  do { \
+    state->go_stack[state->go_stack_idx++] = go; \
+    go = (x); \
+  } while(0)
+#define JR_POP_GO() (go = state->go_stack[--state->go_stack_idx])
+
+/*
+ * Reads and dispatches on the next byte of `go` (or `x`/go_utf8, for the _GO/_MASK
+ * variants) - exactly like the original goto*go[(uint8_t)*cstr++], except:
+ *
+ *  - bounds-checked against `end`: if the chunk is exhausted, this saves everything
+ *    needed to resume (go, and a label - JR_RESUME_LABEL - pointing at this exact
+ *    dispatch site) into `state` and returns, instead of reading past the buffer.
+ *    JR_RESUME_LABEL is unique per call site (via __LINE__), and is planted *inside*
+ *    the macro expansion, after any one-time setup code the enclosing l_xxx: label may
+ *    have (e.g. l_num_s resetting the accumulator) - so resuming via `goto
+ *    *state->resume` at the top of jr_read() re-enters past that setup, without
+ *    re-running it.
+ *  - accumulates: if state->accumulating, the byte just read is appended to
+ *    state->accum, since a token's bytes aren't necessarily contiguous in any one
+ *    chunk. l_xxx_s labels turn accumulating on (after resetting the accumulator);
+ *    l_xxx_e labels turn it off and trim the trailing (terminator) byte that just
+ *    got appended by the very dispatch that landed on l_xxx_e.
+ */
+#define JR_DISPATCH_NEXT() \
+  JR_RESUME_LABEL: \
+  if(cstr >= end) { \
+    state->go = go; \
+    state->resume = &&JR_RESUME_LABEL; \
+    return; \
+  } \
+  { \
+    uint8_t jr_c__ = (uint8_t)*cstr++; \
+    if(state->accumulating) \
+      jr_accum_putc(state, (char)jr_c__); \
+    goto* go[jr_c__]; \
+  }
+
+#define JR_DISPATCH_NEXT_GO(x) \
+  JR_RESUME_LABEL: \
+  if(cstr >= end) { \
+    state->go = go; \
+    state->resume = &&JR_RESUME_LABEL; \
+    return; \
+  } \
+  { \
+    uint8_t jr_c__ = (uint8_t)*cstr++; \
+    if(state->accumulating) \
+      jr_accum_putc(state, (char)jr_c__); \
+    goto*(x)[jr_c__]; \
+  }
+
+#define JR_DISPATCH_NEXT_MASK() \
+  JR_RESUME_LABEL: \
+  if(cstr >= end) { \
+    state->go = go; \
+    state->resume = &&JR_RESUME_LABEL; \
+    return; \
+  } \
+  { \
+    uint8_t jr_c__ = (uint8_t)*cstr++; \
+    if(state->accumulating) \
+      jr_accum_putc(state, (char)jr_c__); \
+    goto* go_utf8[jr_c__ & state->utf8_mask]; \
+  }
+
+/* Re-dispatch on the already-consumed cstr[-1]: no new byte is read, so this can never
+ * block on a chunk boundary and needs no resume handling. */
+#define JR_DISPATCH_THIS() goto* go[(uint8_t)cstr[-1]];
+#define JR_DISPATCH_THIS_GO(x) goto*(x)[(uint8_t)cstr[-1]];
+
+static void
+jr_accum_reset(jr_state_t* state) {
+  state->accum_len = 0;
+}
+
+static void
+jr_accum_putc(jr_state_t* state, char c) {
+  if(state->accum_len >= state->accum_cap) {
+    size_t cap = state->accum_cap ? state->accum_cap * 2 : 64;
+    char* p = realloc(state->accum, cap);
+
+    if(!p)
+      return; /* OOM: silently truncate rather than crash */
+
+    state->accum = p;
+    state->accum_cap = cap;
+  }
+
+  state->accum[state->accum_len++] = c;
+}
 
 void
-jr_read(jr_callback cb, const char* cstr, void* user_data) {
+jr_state_init(jr_state_t* state) {
+  memset(state, 0, sizeof(*state));
+}
+
+void
+jr_state_free(jr_state_t* state) {
+  free(state->accum);
+  memset(state, 0, sizeof(*state));
+}
+
+void
+jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
   static void* go_doc[] = {
-      ['\0'] = &&l_done,       [1 ... 8] = &&l_err,    ['\t'] = &&l_next,       ['\n'] = &&l_next,         [11 ... 12] = &&l_err,
-      ['\r'] = &&l_next,       [14 ... 31] = &&l_err,  [' '] = &&l_next,        [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,
-      [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,      [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,
-      ['['] = &&l_arr_s,       [92 ... 101] = &&l_err, ['f'] = &&l_false_f,     [103 ... 109] = &&l_err,   ['n'] = &&l_null_n,
-      [111 ... 115] = &&l_err, ['t'] = &&l_true_t,     [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err,
+      [1 ... 8] = &&l_err,    ['\t'] = &&l_next,       ['\n'] = &&l_next,         [11 ... 12] = &&l_err,   ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,  [' '] = &&l_next,        [0] = &&l_err,             [33 ... 33] = &&l_err,   ['"'] = &&l_str_s,
+      [35 ... 44] = &&l_err,  ['-'] = &&l_num_s,       [46 ... 47] = &&l_err,     ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,
+      ['['] = &&l_arr_s,      [92 ... 101] = &&l_err,  ['f'] = &&l_false_f,       [103 ... 109] = &&l_err, ['n'] = &&l_null_n,
+      [111 ... 115] = &&l_err, ['t'] = &&l_true_t,     [117 ... 122] = &&l_err,   ['{'] = &&l_obj_s,       [124 ... 255] = &&l_err,
   };
 
   static void* go_val[] = {
@@ -191,43 +293,58 @@ jr_read(jr_callback cb, const char* cstr, void* user_data) {
       [33 ... 255] = &&l_val,
   };
 
-  jr_str_t data = {.cstr = 0, .len = 0};
+  const char* cstr = chunk;
+  const char* end = chunk + len;
+  void** go = state->go ? state->go : go_doc;
 
-  void** go = go_doc;
-  void** go_stack[JREAD_CONFIG_MAX_DEPTH];
-  int32_t go_stack_idx = 0;
-  int32_t utf8_mask = 0;
-  jr_type_t str_type = jr_type_string;
+  if(state->error || state->done)
+    return;
+
+  if(state->resume)
+    goto* state->resume;
 
 l_next:
   JR_DISPATCH_NEXT();
 
 l_err:
-  data.cstr = cstr - 1;
-  data.len = 1;
-  cb(jr_type_error, &data, user_data);
+  {
+    jr_str_t data = {cstr - 1, 1};
+    cb(jr_type_error, &data, user_data);
+  }
+  state->error = 1;
   return;
 
 l_num_s:
-  data.cstr = cstr - 1;
+  jr_accum_reset(state);
+  jr_accum_putc(state, cstr[-1]);
+  state->accumulating = 1;
+  state->in_number = 1;
   JR_PUSH_GO(go_num);
   JR_DISPATCH_NEXT();
 
 l_num_e:
-  data.len = (int32_t)(cstr - 1 - data.cstr);
-  cb(jr_type_number, &data, user_data);
+  state->accumulating = 0;
+  state->in_number = 0;
+  {
+    jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
+    cb(jr_type_number, &data, user_data);
+  }
   JR_POP_GO();
   JR_DISPATCH_THIS();
 
 l_str_s:
-  data.cstr = cstr;
+  jr_accum_reset(state);
+  state->accumulating = 1;
   JR_PUSH_GO(go_str);
-  str_type = jr_type_string;
+  state->str_type = jr_type_string;
   JR_DISPATCH_NEXT();
 
 l_str_e:
-  data.len = (int32_t)(cstr - 1 - data.cstr);
-  cb(str_type, &data, user_data);
+  state->accumulating = 0;
+  {
+    jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
+    cb(state->str_type, &data, user_data);
+  }
   JR_POP_GO();
   JR_DISPATCH_NEXT();
 
@@ -235,19 +352,19 @@ l_esc:
   JR_DISPATCH_NEXT_GO(go_esc);
 
 l_utf8:
-  utf8_mask >>= 8;
+  state->utf8_mask >>= 8;
   JR_DISPATCH_NEXT_MASK();
 
 l_utf8_2:
-  utf8_mask = 0x000000FF;
+  state->utf8_mask = 0x000000FF;
   JR_DISPATCH_NEXT_GO(go_utf8);
 
 l_utf8_3:
-  utf8_mask = 0x0000FFFF;
+  state->utf8_mask = 0x0000FFFF;
   JR_DISPATCH_NEXT_GO(go_utf8);
 
 l_utf8_4:
-  utf8_mask = 0x00FFFFFF;
+  state->utf8_mask = 0x00FFFFFF;
   JR_DISPATCH_NEXT_GO(go_utf8);
 
 l_utf8_valid:
@@ -322,11 +439,12 @@ l_obj_e:
   JR_DISPATCH_NEXT();
 
 l_kvp:
-  data.cstr = cstr;
+  jr_accum_reset(state);
+  state->accumulating = 1;
   JR_PUSH_GO(go_obj_val);
   JR_PUSH_GO(go_col);
   JR_PUSH_GO(go_str);
-  str_type = jr_type_key;
+  state->str_type = jr_type_key;
   JR_DISPATCH_NEXT();
 
 l_val:
@@ -336,7 +454,31 @@ l_val:
 l_col:
   JR_POP_GO();
   JR_DISPATCH_NEXT();
+}
 
-l_done:
-  return;
+void
+jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
+  if(state->error || state->done)
+    return;
+
+  if(state->in_number) {
+    jr_str_t data = {state->accum, (int32_t)state->accum_len};
+
+    cb(jr_type_number, &data, user_data);
+    state->in_number = 0;
+    state->accumulating = 0;
+
+    if(state->go_stack_idx > 0)
+      state->go = state->go_stack[--state->go_stack_idx];
+  }
+
+  if(state->go_stack_idx > 0 || state->accumulating) {
+    jr_str_t data = {0, 0};
+
+    cb(jr_type_error, &data, user_data);
+    state->error = 1;
+    return;
+  }
+
+  state->done = 1;
 }
