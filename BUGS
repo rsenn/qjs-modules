@@ -1,15 +1,3 @@
-- directory-default-export-missing: quickjs-directory.c:322-327 has the
-  "default" module export wired up but commented out, and even restoring it
-  wouldn't fully fix it -- unlike quickjs-child-process.c:597/618, quickjs-
-  deep.c:1137/1156, quickjs-xml.c:911/928 (which all declare "default" via
-  js_addmoduleexport *and* set it via js_setmoduleexport), quickjs-directory.c
-  never calls js_addmoduleexport(ctx, m, "default") at all, so the export slot
-  doesn't exist for js_setmoduleexport to fill even once uncommented.
-
-    import Directory from 'directory';
-    console.log(Directory);
-    // undefined -- should be the Directory constructor
-
 - sockets-default-export-undeclared: js_sockets_init (quickjs-
   sockets.c:3107-3111) unconditionally runs js_setmoduleexport(ctx, m,
   "default", socket_ctor) when the module is loaded as "socket", but the

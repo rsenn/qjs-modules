@@ -819,6 +819,16 @@ endif(HAVE_INET_NTOP)
 if(NOT mmap_SOURCES)
   list(REMOVE_ITEM LIBRARY_SOURCES src/mmap-win32.c)
 endif(NOT mmap_SOURCES)
+if(NOT WIN32 AND NOT CYGWIN AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux") AND NOT ANDROID)
+  # src/getdents.c's non-Windows backend only works on Linux/Android (it needs
+  # a linkable getdents64()/getdents(), __dietlibc__, or the raw
+  # syscall(SYS_getdents64, ...) fallback, none of which exist elsewhere, e.g.
+  # on Emscripten's musl libc) - quickjs-directory.c provides its own portable
+  # opendir()/readdir()-based Directory implementation for every other
+  # platform instead of linking this file. See BUGS
+  # (getdents-emscripten-no-syscall).
+  list(REMOVE_ITEM LIBRARY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/getdents.c")
+endif()
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 

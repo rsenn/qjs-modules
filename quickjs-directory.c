@@ -9,6 +9,185 @@
  * \defgroup quickjs-directory quickjs-directory: Directory reader
  * @{
  */
+
+/*
+ * src/getdents.c only implements the getdents_*() API declared in getdents.h
+ * for Windows (FindFirstFile/FindNextFile) and Linux/Android (getdents64()/
+ * getdents()/__dietlibc__/the raw syscall(SYS_getdents64, ...) fallback,
+ * which needs Linux's syscall numbers and struct linux_dirent64 - see BUGS,
+ * getdents-emscripten-no-syscall) - src/getdents.c is excluded from the
+ * build on every other platform (CMakeLists.txt), so this module provides
+ * its own portable opendir()/readdir()/fdopendir() backend instead, for
+ * anything that isn't Windows/Linux/Android (macOS, BSD, WASI, Emscripten's
+ * musl libc, ...). This is the *only* getdents_*() implementation linked in
+ * on those platforms, so src/glob2.c (the other consumer of getdents.h)
+ * resolves against it too.
+ */
+#if !(defined(_WIN32) || defined(__MSYS__) || defined(__CYGWIN__) || defined(__linux__) || defined(__ANDROID__))
+#define DIRECTORY_PORTABLE_BACKEND 1
+#include <dirent.h>
+#include <stdlib.h>
+
+struct getdents_reader {
+  DIR* dirp;
+  struct dirent* cur;
+  int nread; /* number of readdir() calls made so far - mirrors the getdents.c
+                Linux backend's d->nread==0 meaning "getdents_read() never
+                called yet" (see getdents_initialized() below), since a plain
+                DIR* / readdir() has no equivalent byte-buffer state */
+};
+
+size_t
+getdents_size(void) {
+  return sizeof(Directory);
+}
+
+void
+getdents_clear(Directory* d) {
+  d->dirp = 0;
+  d->cur = 0;
+  d->nread = 0;
+}
+
+intptr_t
+getdents_handle(Directory* d) {
+  return d->dirp ? dirfd(d->dirp) : -1;
+}
+
+int
+getdents_open(Directory* d, const char* path) {
+  getdents_clear(d);
+
+  if(!(d->dirp = opendir(path)))
+    return -1;
+
+  return 0;
+}
+
+int
+getdents_adopt(Directory* d, intptr_t fd) {
+  getdents_clear(d);
+
+  if(!(d->dirp = fdopendir((int)fd)))
+    return -1;
+
+  return 0;
+}
+
+int
+getdents_initialized(Directory* d) {
+  return d->nread == 0;
+}
+
+DirEntry*
+getdents_read(Directory* d) {
+  d->nread++;
+  d->cur = readdir(d->dirp);
+
+  return (DirEntry*)d->cur;
+}
+
+const void*
+getdents_cname(const DirEntry* e) {
+  return ((struct dirent*)e)->d_name;
+}
+
+char*
+getdents_name(const DirEntry* e) {
+  return strdup(getdents_cname(e));
+}
+
+const uint8_t*
+getdents_namebuf(const DirEntry* e, size_t* len) {
+  const char* name = ((struct dirent*)e)->d_name;
+
+  if(len)
+    *len = strlen(name);
+
+  return (const uint8_t*)name;
+}
+
+void
+getdents_close(Directory* d) {
+  if(d->dirp)
+    closedir(d->dirp);
+
+  d->dirp = 0;
+}
+
+int
+getdents_isblk(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_BLK;
+}
+
+int
+getdents_ischr(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_CHR;
+}
+
+int
+getdents_isdir(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_DIR;
+}
+
+int
+getdents_isfifo(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_FIFO;
+}
+
+int
+getdents_islnk(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_LNK;
+}
+
+int
+getdents_isreg(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_REG;
+}
+
+int
+getdents_issock(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_SOCK;
+}
+
+int
+getdents_type(const DirEntry* e) {
+  if(getdents_isblk(e))
+    return TYPE_BLK;
+
+  if(getdents_ischr(e))
+    return TYPE_CHR;
+
+  if(getdents_isdir(e))
+    return TYPE_DIR;
+
+  if(getdents_isfifo(e))
+    return TYPE_FIFO;
+
+  if(getdents_islnk(e))
+    return TYPE_LNK;
+
+  if(getdents_issock(e))
+    return TYPE_SOCK;
+
+  if(getdents_isreg(e))
+    return TYPE_REG;
+
+  return 0;
+}
+
+Directory*
+getdents_new(void) {
+  Directory* dir;
+
+  if((dir = malloc(sizeof(Directory))))
+    getdents_clear(dir);
+
+  return dir;
+}
+
+#endif /* DIRECTORY_PORTABLE_BACKEND */
+
 VISIBLE JSClassID js_directory_class_id = 0;
 static JSValue directory_proto, directory_ctor;
 
@@ -318,14 +497,8 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Directory", directory_ctor);
+    JS_SetModuleExport(ctx, m, "default", directory_ctor);
     JS_SetModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
-
-    /*const char* module_name = module_namecstr(ctx, m);
-
-    if(!strcmp(module_name, "directory"))
-      JS_SetModuleExport(ctx, m, "default", directory_ctor);
-
-    JS_FreeCString(ctx, module_name);*/
   }
 
   return 0;
@@ -343,6 +516,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   if((m = JS_NewCModule(ctx, module_name, js_directory_init))) {
     JS_AddModuleExport(ctx, m, "Directory");
+    JS_AddModuleExport(ctx, m, "default");
     JS_AddModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
   }
 
