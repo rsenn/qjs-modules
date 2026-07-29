@@ -1,4 +1,5 @@
 #include "xml.h"
+#include "xml_entities.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -143,7 +144,7 @@ xml_nextbyte(XMLParser* p) {
   if(c >= 0) {
     if(c == '\n') {
       p->loc.line++;
-      p->loc.column = 1;
+      p->loc.column = 0;
     } else {
       p->loc.column++;
     }
@@ -378,8 +379,9 @@ xml_parser_init(XMLParser* p, Reader* reader) {
   memset(p, 0, sizeof(*p));
 
   p->reader = reader;
-  p->loc.line = 1;
-  p->loc.column = 1;
+  /* p->loc.line/column start at 0 (memset above) and count up from there, same
+   * convention as location_zero()/location_nextchar() (src/location.c): 0-based
+   * internally, +1 applied only at display time by location_print(). */
   p->self_closing_tags = xml_default_self_closing_tags;
 
   dbuf_init(&p->peek);
@@ -502,6 +504,9 @@ xml_parser_run(XMLParser* p) {
       p->text_pos += real_len;
 
       if(n > 0)
+        n = xml_decode_entities((char*)pos, n);
+
+      if(n > 0)
         yield_add(pos, n);
     }
 
@@ -547,11 +552,24 @@ xml_parser_run(XMLParser* p) {
       if(p->closing) {
         parse_skipspace();
 
-        if(parse_is(p->c, CLOSE))
-          parse_getc();
-
+        /* Checked *before* consuming the closing '>' below, not after: input
+         * truncated before we ever saw it (e.g. "<a></a" with no final '>') is
+         * the "real EOF, don't synthesize events for what's still open" case
+         * this bails out for. But once parse_is() below has confirmed p->c
+         * *is* '>', we've already seen a complete, valid closing tag - the
+         * parse_getc() that consumes it may itself set p->done (if '>' was the
+         * very last byte of input), and that must NOT stop this closing tag's
+         * XML_ELEMENT_END from being yielded. Checking p->done here, before
+         * that parse_getc(), used to instead bail out right after consuming a
+         * legitimately-terminated final closing tag - silently dropping its
+         * event (and only its event; the frame stays open forever, since
+         * yield_return() never got a chance to run) whenever that tag's '>'
+         * happened to be the last byte of the whole document. */
         if(p->done)
           break;
+
+        if(parse_is(p->c, CLOSE))
+          parse_getc();
 
         /* Resuming mid yield_return() (a previous call yielded one of possibly
          * several XML_ELEMENT_END events and returned) jumps directly into its
@@ -672,6 +690,8 @@ xml_parser_run(XMLParser* p) {
 
             if(p->quote && parse_is(p->c, QUOTE))
               parse_getc();
+
+            p->text.size = xml_decode_entities((char*)p->text.buf, p->text.size);
 
             XML_YIELD(XML_ATTRIBUTE, p->attr.buf, p->attr.size, 1, p->text.buf, p->text.size);
           }

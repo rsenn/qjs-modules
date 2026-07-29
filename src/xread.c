@@ -4,6 +4,7 @@
  */
 
 #include "xread.h"
+#include "xml_entities.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -82,6 +83,7 @@ xr_state_free(xr_state_t* state) {
   free(state->tag_accum.buf);
   free(state->name_accum.buf);
   free(state->val_accum.buf);
+  free(state->text_accum.buf);
   memset(state, 0, sizeof(*state));
 }
 
@@ -96,9 +98,21 @@ xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_error,
       [' '] = &&l_next,
-      [33 ... 59] = &&l_error,
+      [33 ... 59] = &&l_text_begin,
       ['<'] = &&l_tag,
-      [61 ... 255] = &&l_error,
+      [61 ... 255] = &&l_text_begin,
+  };
+
+  /* Entered once inside a run of text content (l_text_begin), after the first
+   * non-whitespace byte - unlike go_root, every byte except '<' (including
+   * whitespace) continues accumulating here, so interior whitespace is preserved;
+   * only leading whitespace before the first non-whitespace byte is skipped (via
+   * go_root's own l_next), matching how insignificant inter-tag whitespace was
+   * already silently dropped before this table existed. */
+  static void* go_text[] = {
+      [0 ... 59] = &&l_next,
+      ['<'] = &&l_text_end,
+      [61 ... 255] = &&l_next,
   };
 
   static void* go_name[] = {
@@ -165,6 +179,11 @@ xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state
       [123 ... 255] = &&l_error,
   };
 
+  /* After an attribute name: '=' begins its value as usual, but '/' (self-closing),
+   * '>' (tag end), or the first byte of another attribute's name means the just-
+   * scanned name was a valueless/boolean attribute (e.g. `<input disabled>`) -
+   * dispatched to l_attrib_bool, which emits it with no value and re-dispatches the
+   * same byte through go_attrib, same as go_attrib itself handles those bytes. */
   static void* go_attrib_eq[] = {
       [0 ... 8] = &&l_error,
       ['\t'] = &&l_next,
@@ -173,9 +192,18 @@ xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_error,
       [' '] = &&l_next,
-      [33 ... 60] = &&l_error,
+      [33 ... 46] = &&l_error,
+      ['/'] = &&l_attrib_bool,
+      [48 ... 60] = &&l_error,
       ['='] = &&l_attrib_eq,
-      [62 ... 255] = &&l_error,
+      ['>'] = &&l_attrib_bool,
+      [63 ... 64] = &&l_error,
+      ['A' ... 'Z'] = &&l_attrib_bool,
+      [91 ... 94] = &&l_error,
+      ['_'] = &&l_attrib_bool,
+      [96] = &&l_error,
+      ['a' ... 'z'] = &&l_attrib_bool,
+      [123 ... 255] = &&l_error,
   };
 
   static void* go_attrib_val_begin[] = {
@@ -238,6 +266,23 @@ l_name_begin:
 
 l_name_end:
   goto * state->name_handle;
+
+l_text_begin:
+  xr_accum_reset(&state->text_accum);
+  xr_accum_putc(&state->text_accum, cstr[-1]);
+  state->cur_accum = &state->text_accum;
+  state->accumulating = 1;
+  go = go_text;
+  XR_DISPATCH_NEXT();
+
+l_text_end:
+  state->accumulating = 0;
+  {
+    xr_str_t text = {state->text_accum.buf, (int32_t)(state->text_accum.len - 1)};
+    text.len = (int32_t)xml_decode_entities(state->text_accum.buf, (size_t)text.len);
+    cb(xr_type_text, 0, &text, user_data);
+  }
+  goto l_tag;
 
 l_tag:
   state->at_root = 0;
@@ -317,10 +362,18 @@ l_attrib_val:
   {
     xr_str_t name = {state->name_accum.buf, (int32_t)(state->name_accum.len - 1)};
     xr_str_t val = {state->val_accum.buf, (int32_t)(state->val_accum.len - 1)};
+    val.len = (int32_t)xml_decode_entities(state->val_accum.buf, (size_t)val.len);
     cb(xr_type_attribute, &name, &val, user_data);
   }
   go = go_attrib;
   XR_DISPATCH_NEXT();
+
+l_attrib_bool: {
+  xr_str_t name = {state->name_accum.buf, (int32_t)(state->name_accum.len - 1)};
+  cb(xr_type_attribute, &name, 0, user_data);
+}
+  go = go_attrib;
+  XR_DISPATCH_THIS();
 }
 
 void

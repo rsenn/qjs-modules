@@ -18,6 +18,7 @@ typedef enum xr_type {
   xr_type_element_start,
   xr_type_element_end,
   xr_type_error,
+  xr_type_text,
 } xr_type_t;
 
 typedef struct xr_str {
@@ -38,12 +39,15 @@ typedef struct xr_accum {
 
 /*
  * Everything xr_read() needs to resume parsing exactly where a previous call left
- * off, including in the middle of a tag/attribute name or an attribute value: which
- * lexer state to re-enter (go/resume/name_handle), and three independent
- * accumulators - tag_accum, name_accum, val_accum - since a self-closing tag's
- * element_end event reuses the *tag* name captured for its element_start event
- * (needing its own buffer that outlives attribute scanning), and an attribute
- * callback delivers its name and value together (needing two more, live at once).
+ * off, including in the middle of a tag/attribute name, an attribute value, or a
+ * run of text content: which lexer state to re-enter (go/resume/name_handle), and
+ * four independent accumulators - tag_accum, name_accum, val_accum, text_accum -
+ * since a self-closing tag's element_end event reuses the *tag* name captured for
+ * its element_start event (needing its own buffer that outlives attribute
+ * scanning), an attribute callback delivers its name and value together (needing
+ * two more, live at once), and text content between tags needs a buffer of its
+ * own since it can't reuse tag_accum/name_accum/val_accum without clobbering
+ * whichever of those the surrounding tag is still using.
  *
  * Zero-initialize (or use xr_state_init()) before the first xr_read() call.
  */
@@ -51,7 +55,7 @@ typedef struct xr_state {
   void** go;
   void* resume;
   void* name_handle;
-  xr_accum_t tag_accum, name_accum, val_accum;
+  xr_accum_t tag_accum, name_accum, val_accum, text_accum;
   xr_accum_t* cur_accum;
   int accumulating;
   int at_root; /* go == go_root: nothing open, a clean place for xr_finish() to land */

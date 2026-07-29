@@ -50,3 +50,52 @@
   process lifetime -- needs confirming which before treating as a real bug. no
   isolated js repro yet (would require observing the singleton across repeated
   context teardown, not just normal use).
+
+- getdents-emscripten-no-syscall: src/getdents.c:299 falls back to a raw
+  `syscall(SYS_getdents64, ...)` plus a hand-rolled `struct linux_dirent64`
+  cast (getdents.c:322) whenever neither a linkable getdents64()/getdents()
+  nor __dietlibc__ is detected. found while bringing up the
+  build/wasm32-unknown-emscripten configuration added in this session:
+  Emscripten's musl-based libc has neither getdents64() nor getdents() as a
+  linkable symbol (so HAVE_GETDENTS64/HAVE_GETDENTS are both unset) and
+  provides no syscall() function or <linux/dirent.h>-style struct at all, so
+  the fallback branch fails to compile with "implicit declaration of function
+  'syscall'" and "incomplete definition of type 'struct linux_dirent64'".
+  mitigated (not fixed) later in the same session by excluding 'directory'
+  (and src/getdents.c) from the build entirely on WASI/Emscripten, in
+  CMakeLists.txt -- so this no longer blocks the default wasm build, but the
+  underlying source-level bug in getdents.c is still there for anyone who
+  force-enables 'directory' on Emscripten (e.g. by overriding
+  BUILTINS_NATIVE/QUICKJS_MODULES by hand). A real fix would still mean
+  adding a portable opendir()/readdir()-based fallback.
+
+    cmake -B build/wasm32-unknown-emscripten -S . \
+      -DQUICKJS_BUILD_ROOT=<path-to-emscripten-built-quickjs> \
+      -DQUICKJS_SOURCES_ROOT=<path-to-quickjs-source-root> \
+      -DBUILTINS_NATIVE="...;directory;..."
+    cmake --build build/wasm32-unknown-emscripten
+    # expected: builds cleanly
+    # actual: CMakeFiles/modules.dir/src/getdents.c.o fails with the two
+    # errors above
+
+- test-path-stream-preexisting-failures: tests/test_path.js's `skipSeparator()`,
+  `isSeparator()`, `isin()`, `equal()`, `toArray()` tests fail, and
+  `equal()`/`toArray()` additionally throw "not a function" (suggesting a
+  path.js API those tests expect no longer exists under that name);
+  tests/test_stream.js's `tee(): both branches independently observe every
+  chunk` test also throws "not a function". These assertion failures were
+  always there, just never surfaced via exit code until tinytest.js's run()
+  (exported as `tests`) was fixed to call std.exit(1) on any test failure
+  (tests/tinytest.js:68-75) - before that, every consumer called
+  `tests({...})` fire-and-forget at module scope without awaiting the
+  returned promise, and run() itself never propagated failure past its own
+  console output, so the qjsm process always exited 0 regardless of how many
+  assertions failed, silently passing `ctest`. Left unfixed: out of scope
+  (neither path.js/stream.js nor their tests have been touched to investigate
+  the "not a function" root cause).
+
+    ctest --test-dir build/<arch> -R 'test_path|test_stream'
+    # expected: both FAIL, matching the failures their own console output
+    # already reports
+    # actual: both FAIL (ctest correctly surfaces this now - previously both
+    # reported PASSED despite printing "N out of 41 tests failed" to stdout)
