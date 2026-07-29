@@ -65,3 +65,44 @@
     # already reports
     # actual: both FAIL (ctest correctly surfaces this now - previously both
     # reported PASSED despite printing "N out of 41 tests failed" to stdout)
+
+- quickjs-stack-size-flag-ineffective: qjsm's `--stack-size n` CLI option (and
+  the underlying JS_SetMaxStackSize(), quickjs.c:2408-2412) has no observable
+  effect on how deep JS recursion can actually go before "stack overflow" is
+  thrown - the effective limit is a constant ~164 nested calls of a trivial
+  `function f(n){ return n<=0 ? 0 : 1+f(n-1); }`, identical whether
+  `--stack-size` is omitted, set to 10000, or set to 500000000. Binary-searched
+  the exact threshold at several flag values (10000, 20000, 50000, 256000,
+  5000000, 500000000, and unset) and got 164 every time - ruling out
+  under/overflow of the strtod() parse or a too-small value by accident.
+  update_stack_limit() (quickjs.c:2399-2406) recomputes rt->stack_limit from
+  the *already-captured* rt->stack_top and the new rt->stack_size, which looks
+  correct on paper, so either js_check_stack_overflow() (quickjs.c:1648-1664)
+  isn't actually gating the interpreter's function-call path the way it
+  appears to, or something else in this build (debug/sanitizer flags? a much
+  larger per-JS_CallInternal-frame C stack footprint than usual?) is causing a
+  real C-level stack exhaustion (caught via SIGSEGV/guard page and reported as
+  a catchable "stack overflow", rather than js_check_stack_overflow's own
+  proactive check firing first) well before rt->stack_limit would ever be
+  reached - 8MB (`ulimit -s`) / 164 frames implies roughly 50KB of C stack per
+  JS call frame, which is abnormally large for a single trivial recursive
+  function call. Found while running lib/parser.js's Rule-based recursive-
+  descent matching against a grammar compiled from tests/Shell-Grammar.y
+  (tests/test_grammar.js) - a moderately nested grammar (if/then/else,
+  ~15 chained non-terminals deep, tried 3x for condition/then-branch/else-
+  branch) hits this same ~164-frame ceiling and throws "stack overflow" with
+  no way to raise it via the documented `--stack-size` flag. Worked around in
+  tests/test_grammar.js by using a shallower fantasy script (a pipeline and a
+  `;`-separated command list, not an if/then/else) that stays within the
+  ~164-frame budget; left unfixed here since the actual defect (if it's not
+  simply an artifact of this build's compiler flags) is in the vendored
+  ../quickjs/quickjs.c, out of scope for qjs-modules itself.
+
+    function f(n) { return n <= 0 ? 0 : 1 + f(n - 1); }
+    console.log(f(150));                 // 150, fine
+    console.log(f(200));                 // expected: 200 (well under 256KB
+                                          // default/any --stack-size budget)
+                                          // actual: uncaught "stack overflow"
+                                          // - and passing e.g.
+                                          // `--stack-size 500000000` first
+                                          // changes nothing
