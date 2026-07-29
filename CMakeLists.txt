@@ -85,12 +85,6 @@ if(NOT DEFINED BUILTINS_NATIVE)
                       predicate repeater syscallerror textcode tree-walker virtual xml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
-if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-  # 'directory' (quickjs-directory.c) depends on src/getdents.c, which
-  # doesn't compile under Emscripten. See BUGS (getdents-emscripten-no-syscall).
-  list(REMOVE_ITEM BUILTINS_NATIVE directory)
-endif()
-
 include(FindPkgConfig)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
@@ -368,12 +362,6 @@ set(QUICKJS_MODULES
     arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
     textcode sockets stream
     syscallerror inspect tree-walker virtual xml)
-
-if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-  # 'directory' (quickjs-directory.c) depends on src/getdents.c, which
-  # doesn't compile under Emscripten. See BUGS (getdents-emscripten-no-syscall).
-  list(REMOVE_ITEM QUICKJS_MODULES directory)
-endif()
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -831,14 +819,6 @@ endif(HAVE_INET_NTOP)
 if(NOT mmap_SOURCES)
   list(REMOVE_ITEM LIBRARY_SOURCES src/mmap-win32.c)
 endif(NOT mmap_SOURCES)
-if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-  # src/getdents.c's final fallback (no linkable getdents64()/getdents() and
-  # not __dietlibc__) shells out to a raw syscall(SYS_getdents64, ...) plus a
-  # hand-rolled struct linux_dirent64 cast; Emscripten's musl libc has none
-  # of getdents64()/getdents()/syscall()/linux_dirent64, so it fails to
-  # compile. See BUGS (getdents-emscripten-no-syscall).
-  list(REMOVE_ITEM LIBRARY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/getdents.c")
-endif()
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 

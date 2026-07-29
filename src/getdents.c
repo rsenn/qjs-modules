@@ -194,7 +194,7 @@ getdents_issock(const DirEntry* e) {
   return 0;
 }
 
-#else
+#elif defined(__linux__) || defined(__ANDROID__)
 #include <dirent.h> /* Defines DT_* constants */
 #include <fcntl.h>
 #include <stdio.h>
@@ -388,6 +388,139 @@ getdents_isreg(const DirEntry* e) {
 int
 getdents_issock(const DirEntry* e) {
   return getdents_gettype(e) == DT_SOCK;
+}
+
+#else /* not _WIN32/__MSYS__/__CYGWIN__, and not __linux__/__ANDROID__ */
+
+/* Portable opendir()/readdir()-based backend, for every non-Windows target that
+ * isn't Linux/Android (e.g. macOS, BSD, WASI, Emscripten's musl libc) - none of
+ * those have a linkable getdents()/getdents64(), nor the raw SYS_getdents64
+ * syscall (or even syscall() itself) the Linux/Android branch above falls back
+ * to, but all of them have plain POSIX opendir()/readdir()/fdopendir()/dirfd().
+ * See BUGS (getdents-emscripten-no-syscall). */
+#include <dirent.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct getdents_reader {
+  DIR* dirp;
+  struct dirent* cur;
+  int nread; /* number of readdir() calls made so far - mirrors the Linux/Android
+                backend's d->nread==0 meaning "getdents_read() never called yet",
+                since a plain DIR* / readdir() has no equivalent byte-buffer state */
+};
+
+size_t
+getdents_size() {
+  return sizeof(Directory);
+}
+
+void
+getdents_clear(Directory* d) {
+  d->dirp = 0;
+  d->cur = 0;
+  d->nread = 0;
+}
+
+intptr_t
+getdents_handle(Directory* d) {
+  return d->dirp ? dirfd(d->dirp) : -1;
+}
+
+int
+getdents_open(Directory* d, const char* path) {
+  getdents_clear(d);
+
+  if(!(d->dirp = opendir(path)))
+    return -1;
+
+  return 0;
+}
+
+int
+getdents_adopt(Directory* d, intptr_t fd) {
+  getdents_clear(d);
+
+  if(!(d->dirp = fdopendir((int)fd)))
+    return -1;
+
+  return 0;
+}
+
+int
+getdents_initialized(Directory* d) {
+  return d->nread == 0;
+}
+
+DirEntry*
+getdents_read(Directory* d) {
+  d->nread++;
+  d->cur = readdir(d->dirp);
+
+  return (DirEntry*)d->cur;
+}
+
+const void*
+getdents_cname(const DirEntry* e) {
+  return ((struct dirent*)e)->d_name;
+}
+
+char*
+getdents_name(const DirEntry* e) {
+  return strdup(getdents_cname(e));
+}
+
+const uint8_t*
+getdents_namebuf(const DirEntry* e, size_t* len) {
+  const char* name = ((struct dirent*)e)->d_name;
+
+  if(len)
+    *len = strlen(name);
+
+  return (const uint8_t*)name;
+}
+
+void
+getdents_close(Directory* d) {
+  if(d->dirp)
+    closedir(d->dirp);
+
+  d->dirp = 0;
+}
+
+int
+getdents_isblk(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_BLK;
+}
+
+int
+getdents_ischr(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_CHR;
+}
+
+int
+getdents_isdir(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_DIR;
+}
+
+int
+getdents_isfifo(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_FIFO;
+}
+
+int
+getdents_islnk(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_LNK;
+}
+
+int
+getdents_isreg(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_REG;
+}
+
+int
+getdents_issock(const DirEntry* e) {
+  return ((struct dirent*)e)->d_type == DT_SOCK;
 }
 
 #endif /* defined(_WIN32) */
