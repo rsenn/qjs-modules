@@ -486,6 +486,8 @@ js_deep_iterator_return(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   iter->pred = JS_UNDEFINED;
   // pointer_free(iter->pointer, JS_GetRuntime(ctx));
   JS_FreeValue(ctx, iter->pointer_value);
+  iter->pointer_value = JS_UNDEFINED;
+  iter->pointer = 0;
   atoms_free(&iter->atoms, JS_GetRuntime(ctx));
 
   *pdone = TRUE;

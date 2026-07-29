@@ -20,17 +20,6 @@
     console.log(Socket);
     // likely undefined or ub -- export slot was never declared
 
-- deep-iterator-pointer-leak: quickjs-deep.c:487 has a commented-out
-  pointer_free() call in deepiterator's cleanup path. not yet confirmed as a
-  real leak -- needs a full ownership trace of iter->pointer (it may be
-  intentionally unowned at this point) before treating as more than a
-  suspicion.
-
-    let it = deep.iterate({ a: { b: { c: 1 } } });
-    for (const _ of it) {}
-    // suspected: iter->pointer never freed, not yet confirmed via a
-    // leak-counting repro
-
 - getdents-emscripten-no-syscall: src/getdents.c:299 falls back to a raw
   `syscall(SYS_getdents64, ...)` plus a hand-rolled `struct linux_dirent64`
   cast (getdents.c:322) whenever neither a linkable getdents64()/getdents()
