@@ -20,18 +20,6 @@
     console.log(Socket);
     // likely undefined or ub -- export slot was never declared
 
-- vector-copy-size-underflow: vector_copy() (src/vector.c:207) resets dst->buf
-  and dst->allocated_size to 0 but not dst->size, then computes the
-  dbuf_claim() delta as src->size - dst->size -- a size_t subtraction that
-  underflows to a huge value if dst is a reused (non-zero-initialized) vector.
-  introduced by the mechanical dbuf_realloc -> dbuf_claim conversion (commit
-  3e8d44cc), which changed the second argument from a total size to a delta.
-  currently safe only because the sole call site, src/predicate.c:1263
-  (vector_copy(&ret->charset.chars, &pr->charset.chars)), passes a
-  js_mallocz'd (zeroed) struct -- not yet isolated to a concrete js repro,
-  since no current caller reuses a non-zeroed vector as the destination. fix:
-  add dst->size = 0; alongside the other two resets.
-
 - deep-iterator-pointer-leak: quickjs-deep.c:487 has a commented-out
   pointer_free() call in deepiterator's cleanup path. not yet confirmed as a
   real leak -- needs a full ownership trace of iter->pointer (it may be

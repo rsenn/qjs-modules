@@ -203,9 +203,11 @@ vector_copy(Vector* dst, const Vector* src) {
   dst->opaque = src->opaque;
   dst->buf = 0;
   dst->allocated_size = 0;
+  dst->size = 0;
 
   if(!dbuf_claim(dst, src->size - dst->size)) {
     memcpy(dst->buf, src->buf, src->size);
+    dst->size = src->size;
     return 1;
   }
 
