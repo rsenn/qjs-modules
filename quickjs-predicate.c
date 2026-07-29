@@ -402,6 +402,25 @@ enum {
   OPERATOR_POW,
 };
 
+/* Backs every overloaded arithmetic/bitwise operator on Predicate (+ - * / %
+ * | & **, via Symbol.operatorSet - see js_predicate_init() below) as well as
+ * their function-call equivalents (Predicate.add()/.mul()/... in
+ * js_predicate_function()). It only *composes* a new Predicate node out of
+ * its two arguments - argv[0]/argv[1], in the exact order the caller passed
+ * them (so `5 * p` and `p * 5` produce differently-ordered nodes) - it never
+ * evaluates anything. Each argument becomes one of predicate_eval()'s
+ * (src/predicate.c) three operand kinds, resolved later, at eval() time:
+ *   - another Predicate: evaluated recursively, so trees nest arbitrarily
+ *     (`Predicate.mul(Predicate.add(a, b), c)` is `(a + b) * c`);
+ *   - a plain function: called with the live arguments;
+ *   - anything else (number, string, ...): used as a literal constant;
+ *   - explicitly `null`/`undefined`: replaced with the composed predicate's
+ *     own i-th call argument (0=left, 1=right) - this is what turns
+ *     `Predicate.add(undefined, 5)` into `value => value + 5` instead of a
+ *     constant. See doc/predicate.md for the full writeup, including a
+ *     caveat: this only works when the operand is *explicitly* undefined,
+ *     not when the argument is simply left out of the call (BUGS:
+ *     predicate-omitted-arg-not-undefined). */
 static JSValue
 js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -907,6 +926,13 @@ static JSClassDef js_predicate_class = {
     .call = js_predicate_call,
 };
 
+/* Installed three times, unmodified, in js_predicate_init() below - as the
+ * "self" operators (Predicate + Predicate), and twice more for Predicate
+ * mixed with Number (Number + Predicate / Predicate + Number). Same C
+ * function every time (js_predicate_operator() above): which cross-type
+ * table QuickJS's operator-overload dispatch had to consult to *find* it
+ * doesn't matter, since it always composes its result from argv[0]/argv[1]
+ * in the order actually written in the expression. */
 static const JSCFunctionListEntry js_predicate_operator_funcs[] = {
     JS_CFUNC_MAGIC_DEF("+", 2, js_predicate_operator, OPERATOR_PLUS),
     JS_CFUNC_MAGIC_DEF("-", 2, js_predicate_operator, OPERATOR_MINUS),
@@ -1039,6 +1065,20 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 
   js_set_inspect_method(ctx, predicate_proto, js_predicate_inspect);
 
+  /* Builds Predicate.prototype[Symbol.operatorSet] via the same
+   * Operators.create(selfOps, leftDef, rightDef, ...) mechanism user code
+   * uses (see doc/operator-overloading.md) - just called from C instead of
+   * JS. args[0] (selfOps) is used verbatim as self_ops: both operands are
+   * Predicate. args[1]/args[2] each carry the *same* js_predicate_operator_
+   * funcs table again, plus a "left"/"right" property naming the *other*
+   * type (Number) - but note the JS-facing property name is the inverse of
+   * which internal cross-type table it ends up in: quickjs.c's
+   * js_operators_create_internal() reads a `left` property into
+   * opset->right (used when Predicate is on the right, Number on the left -
+   * `5 * predicate`) and a `right` property into opset->left (Predicate on
+   * the left - `predicate * 5`). Both still resolve to the same
+   * js_predicate_operator(), which doesn't care which table found it - see
+   * doc/predicate.md for the full explanation. */
   JSValue operators, operators_create;
   JSAtom operators_set = js_symbol_operatorset_atom(ctx);
 
@@ -1049,10 +1089,12 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 
   JSValueConst args[3] = {predicate_operators, JS_NewObject(ctx), JS_NewObject(ctx)};
 
+  /* args[1]: { left: Number, +, -, ... } -> opset->right -> "Number OP predicate" */
   JS_SetPropertyFunctionList(ctx, args[1], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JS_SetPropertyStr(ctx, args[1], "left", js_global_get_str(ctx, "Number"));
 
+  /* args[2]: { right: Number, +, -, ... } -> opset->left -> "predicate OP Number" */
   JS_SetPropertyFunctionList(ctx, args[2], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JS_SetPropertyStr(ctx, args[2], "right", js_global_get_str(ctx, "Number"));
