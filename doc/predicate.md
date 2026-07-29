@@ -81,28 +81,16 @@ tested value rather than a constant-folded expression:
 ```js
 Predicate.add(undefined, 5)   // value => value + 5
 Predicate.mul(undefined, 2)   // value => value * 2  (left omitted -> arg[0])
+Predicate.mul(2)              // value => 2 * value  (right omitted -> arg[1])
 ```
 
-Passing both operands as `undefined` makes the predicate a binary function of
-its own two call arguments (`(a, b) => a + b`) — in principle; see the
-caveat below.
-
-> [!WARNING]
-> The convention above only works when the omitted operand is *explicitly*
-> passed as `null`/`undefined` — **not** when the trailing argument is left
-> out of the call entirely, e.g. `Predicate.mul(2)` instead of
-> `Predicate.mul(2, undefined)`. `js_predicate_function()`/
-> `js_predicate_constructor()` (`quickjs-predicate.c`) pull operands via
-> `predicate_nextarg()`, which shifts them off with `js_arguments_shift()`
-> (`include/utils.h`) — and that function's "no more arguments" sentinel is
-> `JS_EXCEPTION`, not `JS_UNDEFINED`. `predicate_duparg()`'s
-> `js_is_null_or_undefined()` check doesn't recognize `JS_EXCEPTION`, so the
-> raw exception value ends up stored as the operand instead of being
-> normalized — evaluating it later silently produces `NaN` rather than
-> reading the positional argument (confirmed: `Predicate.mul(2).toSource()`
-> prints `int 2 * uninitialized [exception]`, and `Predicate.mul(2).eval(10)`
-> is `NaN`, not `20`). Always pass `undefined` explicitly for an omitted
-> operand you want filled in from the call arguments.
+Passing both operands as `undefined` (or simply omitting both) makes the
+predicate a binary function of its own two call arguments
+(`(a, b) => a + b`). Leaving a *trailing* operand out of the call works the
+same as passing `undefined` explicitly — both go through `predicate_nextarg()`
+(`quickjs-predicate.c`), which normalizes `js_arguments_shift()`'s (
+`include/utils.h`) "no more arguments" sentinel the same way it normalizes an
+explicit `null`/`undefined`.
 
 ### JS operators: `+ - * / % | & **`
 

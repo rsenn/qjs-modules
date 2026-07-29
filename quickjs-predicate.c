@@ -37,9 +37,21 @@ predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
   return dbuf_tostring_free(&dbuf, ctx);
 }
 
+/* value is null/undefined (an explicit omitted-operand marker - see
+ * predicate_eval()'s PREDICATE_ADD/SUB/MUL/... case, src/predicate.c) or
+ * JS_EXCEPTION (js_arguments_shift()'s "no more arguments" sentinel,
+ * include/utils.h - reached whenever a caller simply leaves a trailing
+ * operand out of the call instead of passing undefined explicitly, e.g.
+ * `Predicate.mul(2)` instead of `Predicate.mul(2, undefined)`): both must
+ * normalize to JS_UNDEFINED here, since that's the only sentinel
+ * predicate_eval() actually checks for. Before this normalized JS_EXCEPTION
+ * too, an omitted trailing operand was stored as-is and later converted to
+ * NaN, instead of reading the predicate's own matching positional call
+ * argument like an explicit undefined does (BUGS:
+ * predicate-omitted-arg-not-undefined). */
 static JSValue
 predicate_duparg(JSContext* ctx, JSValueConst value) {
-  if(js_is_null_or_undefined(value))
+  if(js_is_null_or_undefined(value) || JS_IsException(value))
     return JS_UNDEFINED;
 
   return JS_DupValue(ctx, value);
@@ -414,13 +426,10 @@ enum {
  *     (`Predicate.mul(Predicate.add(a, b), c)` is `(a + b) * c`);
  *   - a plain function: called with the live arguments;
  *   - anything else (number, string, ...): used as a literal constant;
- *   - explicitly `null`/`undefined`: replaced with the composed predicate's
- *     own i-th call argument (0=left, 1=right) - this is what turns
- *     `Predicate.add(undefined, 5)` into `value => value + 5` instead of a
- *     constant. See doc/predicate.md for the full writeup, including a
- *     caveat: this only works when the operand is *explicitly* undefined,
- *     not when the argument is simply left out of the call (BUGS:
- *     predicate-omitted-arg-not-undefined). */
+ *   - omitted, or explicitly `null`/`undefined`: replaced with the composed
+ *     predicate's own i-th call argument (0=left, 1=right) - this is what
+ *     turns `Predicate.add(undefined, 5)` into `value => value + 5` instead
+ *     of a constant. See doc/predicate.md for the full writeup. */
 static JSValue
 js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;

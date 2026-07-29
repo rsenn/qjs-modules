@@ -1,28 +1,3 @@
-- predicate-omitted-arg-not-undefined: predicate_nextarg()/predicate_duparg()
-  (quickjs-predicate.c) shift constructor operands off with
-  js_arguments_shift() (include/utils.h:180-189), whose "no more arguments"
-  sentinel is JS_EXCEPTION -- not JS_UNDEFINED. predicate_duparg()'s
-  js_is_null_or_undefined() check doesn't recognize JS_EXCEPTION, so it isn't
-  normalized to JS_UNDEFINED the way an explicit `null`/`undefined` argument
-  is. This breaks the arithmetic predicates' "omitted operand reads the
-  matching positional call argument" convention (see doc/predicate.md) for a
-  trailing argument left out of the call entirely, as opposed to one passed
-  explicitly as `undefined`: found while documenting quickjs-predicate.c's
-  operator composition, verifying `Predicate.mul(2, undefined)` (works,
-  right operand reads args[1]) against `Predicate.mul(2)` (same intent,
-  should behave identically) and getting different results. Left unfixed --
-  out of scope for a documentation task; the fix likely belongs in
-  predicate_duparg() itself (treat JS_EXCEPTION the same as
-  null/undefined) rather than at each of the ~9 call sites that use
-  predicate_nextarg().
-
-    import { Predicate } from 'predicate';
-    console.log(Predicate.mul(2, undefined).eval(10)); // 20 (correct)
-    console.log(Predicate.mul(2).eval(10));             // NaN (should also be 20)
-    console.log(Predicate.mul(2).toSource());
-    // " int 2 * uninitialized [exception]" -- the raw JS_EXCEPTION sentinel
-    // ends up stored as the operand instead of being normalized
-
 - sockets-default-export-undeclared: js_sockets_init (quickjs-
   sockets.c:3107-3111) unconditionally runs js_setmoduleexport(ctx, m,
   "default", socket_ctor) when the module is loaded as "socket", but the
