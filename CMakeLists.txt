@@ -42,14 +42,37 @@ else(HAVE_POSIX_SPAWN)
   option(USE_SPAWN "Use POSIX spawn()" OFF)
 endif(HAVE_POSIX_SPAWN)
 
-option(MODULE_ARCHIVE "Build 'archive' module" ON)
-option(MODULE_MAGIC "Build 'magic' module" ON)
+# archive/magic/mysql/pgsql/sqlite all bind to native system libraries
+# (libarchive, libmagic, libmariadb, libpq, libsqlite3) that pkg-config
+# happily "finds" on the host even while cross-compiling for wasm (it isn't
+# sysroot-aware here), which would link host x86_64 .so files into an
+# Emscripten build and fail. None of them have a wasm-usable counterpart set
+# up in this tree, so default them off for WASI/Emscripten targets.
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  option(MODULE_ARCHIVE "Build 'archive' module" OFF)
+  option(MODULE_MAGIC "Build 'magic' module" OFF)
+  option(MODULE_MYSQL "Build 'mysql' module" OFF)
+  option(MODULE_PGSQL "Build 'pgsql' module" OFF)
+  option(MODULE_SQLITE "Build 'sqlite' module" OFF)
+else()
+  option(MODULE_ARCHIVE "Build 'archive' module" ON)
+  option(MODULE_MAGIC "Build 'magic' module" ON)
+  option(MODULE_MYSQL "Build 'mysql' module" ON)
+  option(MODULE_PGSQL "Build 'pgsql' module" ON)
+  option(MODULE_SQLITE "Build 'sqlite' module" ON)
+endif()
 option(MODULE_BCRYPT "Build 'bcrypt' module" ON)
-option(MODULE_MYSQL "Build 'mysql' module" ON)
-option(MODULE_PGSQL "Build 'pgsql' module" ON)
-option(MODULE_SQLITE "Build 'sqlite' module" ON)
 option(MODULE_SERIAL "Build 'serial' module" OFF)
 option(MODULE_GPIO "Build 'gpio' module (Raspberry Pi only)" OFF)
+
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  # 'serial' (libserialport, needs termios/native tty ioctls) and 'gpio'
+  # (raw /dev/mem + mmap register access) have no meaning in a wasm sandbox;
+  # force them off even if the cache already has them enabled from a
+  # previous non-wasm configure.
+  set(MODULE_SERIAL OFF CACHE BOOL "Build 'serial' module" FORCE)
+  set(MODULE_GPIO OFF CACHE BOOL "Build 'gpio' module (Raspberry Pi only)" FORCE)
+endif()
 #option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
@@ -62,6 +85,12 @@ if(NOT DEFINED BUILTINS_NATIVE)
                       predicate repeater syscallerror textcode tree-walker virtual xml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  # 'directory' (quickjs-directory.c) depends on src/getdents.c, which
+  # doesn't compile under Emscripten. See BUGS (getdents-emscripten-no-syscall).
+  list(REMOVE_ITEM BUILTINS_NATIVE directory)
+endif()
+
 include(FindPkgConfig)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
@@ -69,9 +98,14 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-if(WASI OR EMSCRIPTEN)
+if(WASI)
+  # WASI has no JS glue concept, so the build product is the raw .wasm
+  # module (see the parent quickjs project's CMakeLists.txt for the same
+  # reasoning). Emscripten, by contrast, wants its default .js suffix so
+  # emcc emits the JS runtime glue alongside the .wasm -- that's what
+  # actually makes qjsm runnable under Node or a browser.
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
-endif(WASI OR EMSCRIPTEN)
+endif(WASI)
 
 #if(NOT BUILD_SHARED_LIBS)
 #  option(BUILD_SHARED_MODULES "Build shared modules" OFF)
@@ -334,6 +368,12 @@ set(QUICKJS_MODULES
     arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
     textcode sockets stream
     syscallerror inspect tree-walker virtual xml)
+
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  # 'directory' (quickjs-directory.c) depends on src/getdents.c, which
+  # doesn't compile under Emscripten. See BUGS (getdents-emscripten-no-syscall).
+  list(REMOVE_ITEM QUICKJS_MODULES directory)
+endif()
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -791,6 +831,14 @@ endif(HAVE_INET_NTOP)
 if(NOT mmap_SOURCES)
   list(REMOVE_ITEM LIBRARY_SOURCES src/mmap-win32.c)
 endif(NOT mmap_SOURCES)
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  # src/getdents.c's final fallback (no linkable getdents64()/getdents() and
+  # not __dietlibc__) shells out to a raw syscall(SYS_getdents64, ...) plus a
+  # hand-rolled struct linux_dirent64 cast; Emscripten's musl libc has none
+  # of getdents64()/getdents()/syscall()/linux_dirent64, so it fails to
+  # compile. See BUGS (getdents-emscripten-no-syscall).
+  list(REMOVE_ITEM LIBRARY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/getdents.c")
+endif()
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 
@@ -981,16 +1029,75 @@ if(TARGET qjs-serial)
   target_link_libraries(qjs-serial PRIVATE Serial::Port)
 endif(TARGET qjs-serial)
 
+# Same inter-module dependencies as above, wired up for the '-static' variants
+# that make_module() produces when BUILD_STATIC is on.
+if(TARGET qjs-inspect-static)
+  target_link_libraries(qjs-inspect-static PRIVATE qjs-pointer-static)
+endif(TARGET qjs-inspect-static)
+
+if(TARGET qjs-tree-walker-static)
+  target_link_libraries(qjs-tree-walker-static PRIVATE qjs-pointer-static)
+endif(TARGET qjs-tree-walker-static)
+
+if(TARGET qjs-xml-static)
+  target_link_libraries(qjs-xml-static PRIVATE qjs-pointer-static)
+endif(TARGET qjs-xml-static)
+
+if(TARGET qjs-child-process-static)
+  target_link_libraries(qjs-child-process-static PRIVATE qjs-pointer-static)
+endif(TARGET qjs-child-process-static)
+
+if(TARGET qjs-serial-static)
+  target_link_directories(qjs-serial-static PRIVATE ${LIBSERIALPORT_LIBRARY_DIR})
+  target_link_libraries(qjs-serial-static PRIVATE Serial::Port)
+endif(TARGET qjs-serial-static)
+
 set(QJSM_SOURCES src/qjsm.c)
 
 set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
 
+# Names of externally-built native modules to statically link into qjsm, each
+# providing a js_init_module_<name>(JSContext*, const char*) entry point
+# (see the JS_SHARED_LIBRARY / JS_INIT_MODULE convention used by every
+# quickjs-*.c in this tree). For each entry "foo" in this list, <foo>_LIBRARY
+# must be set to the static library (target name or full path) that defines
+# js_init_module_foo -- e.g.:
+#   -DEXTERNAL_MODULES=foo -Dfoo_LIBRARY=/path/to/libfoo.a
+set(EXTERNAL_MODULES "" CACHE STRING "Externally-built native modules to statically link into qjsm")
+
 set(NATIVE_BUILTIN_HEADER "")
+set(QJSM_STATIC_LIBS "")
 
 foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
   string(REGEX REPLACE "-" "_" NATIVE_MODULE "${NATIVE_BUILTIN}")
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${NATIVE_MODULE})\n")
+endforeach()
+
+# Modules built as qjs-<name>-static libraries (BUILD_STATIC) that aren't
+# already compiled directly into qjsm via BUILTINS_NATIVE above: link the
+# library in and register it the same way.
+foreach(STATIC_MODULE_NAME ${STATIC_MODULE_NAMES})
+  list(FIND BUILTINS_NATIVE "${STATIC_MODULE_NAME}" _NATIVE_BUILTIN_INDEX)
+  if(_NATIVE_BUILTIN_INDEX EQUAL -1)
+    string(REGEX REPLACE "-" "_" STATIC_MODULE_SYMBOL "${STATIC_MODULE_NAME}")
+    set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${STATIC_MODULE_SYMBOL})\n")
+    list(APPEND QJSM_STATIC_LIBS "qjs-${STATIC_MODULE_NAME}-static")
+  endif()
+endforeach()
+
+foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
+  string(REGEX REPLACE "-" "_" EXTERNAL_MODULE_SYMBOL "${EXTERNAL_MODULE}")
+  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${EXTERNAL_MODULE_SYMBOL})\n")
+
+  if(DEFINED ${EXTERNAL_MODULE}_LIBRARY)
+    list(APPEND QJSM_STATIC_LIBS "${${EXTERNAL_MODULE}_LIBRARY}")
+  else()
+    message(
+      WARNING
+      "EXTERNAL_MODULES contains '${EXTERNAL_MODULE}' but ${EXTERNAL_MODULE}_LIBRARY is not set -- qjsm will fail to link"
+    )
+  endif()
 endforeach()
 
 message("Builtins definitions:\n${BUILTIN_HEADER}")
@@ -1016,6 +1123,20 @@ link_directories(${QJSM_LIBDIR})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
 set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w")
 
+if(EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  # -lquickjs pulls in quickjs-libc.c's js_std_file/std.popen(), which calls
+  # the real popen() -- something the wasm sandbox has no equivalent for.
+  # Mirrors the same allowance the parent quickjs project makes for its own
+  # qjs/qjsm executables: leave the symbol unresolved at link time instead of
+  # failing the build; std.popen() will simply be unavailable at runtime.
+  # Scoped to just this target (not CMAKE_EXE_LINKER_FLAGS) so it doesn't
+  # also mask undefined symbols in the check_library_exists()/
+  # check_function_exists() probes done earlier in this file. Must come
+  # after the set_target_properties(... LINK_OPTIONS ...) above, which
+  # overwrites (not appends to) that property.
+  target_link_options(qjsm PRIVATE -sERROR_ON_UNDEFINED_SYMBOLS=0)
+endif()
+
 if(BUILD_SHARED_LIBS)
   set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
                                         INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
@@ -1023,8 +1144,8 @@ endif(BUILD_SHARED_LIBS)
 
 target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
 
-target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY} ${LIBPTHREAD} ${LIBM}
-                                  ${LIBWS2_32})
+target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QJSM_STATIC_LIBS} ${QUICKJS_LIBRARY}
+                                  ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
 target_compile_definitions(
   qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}" QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"

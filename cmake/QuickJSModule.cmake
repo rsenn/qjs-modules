@@ -305,23 +305,83 @@ function(make_module FNAME)
   list(APPEND MODULES_SOURCES quickjs-${NAME}.c)
   set(MODULES_SOURCES "${MODULES_SOURCES}" PARENT_SCOPE)
 
-  #[[add_library(${TARGET_NAME}-static STATIC ${SOURCES})
-  set(MODULES_STATIC "${QJS_MODULES_STATIC}")
-  list(APPEND MODULES_STATIC "${TARGET_NAME}-static")
-  set(QJS_MODULES_STATIC "${MODULES_STATIC}" PARENT_SCOPE)
-  set_target_properties(${TARGET_NAME}-static PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "quickjs-" SUFFIX "${LIBRARY_SUFFIX}" COMPILE_FLAGS "")
-  target_compile_definitions(${TARGET_NAME}-static PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
-  target_link_directories(${TARGET_NAME}-static PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-  target_link_libraries(${TARGET_NAME}-static INTERFACE ${QUICKJS_LIBRARY})]]
+  if(BUILD_STATIC)
+    set(STATIC_TARGET_NAME "${TARGET_NAME}-static")
+
+    add_library(${STATIC_TARGET_NAME} STATIC ${SOURCES})
+
+    # Deliberately no JS_SHARED_LIBRARY define here: every quickjs-*.c ends
+    # with `#if defined(JS_SHARED_LIBRARY) && defined(JS_*_MODULE) /
+    # define JS_INIT_MODULE js_init_module / #else / js_init_module_<name>`,
+    # so leaving it undefined is what makes the entry point come out named
+    # js_init_module_${VNAME} instead of the dlopen-convention js_init_module
+    # (which would collide across every statically-linked module).
+    set_target_properties(${STATIC_TARGET_NAME} PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "quickjs-"
+                                                            COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+
+    target_compile_definitions(
+      ${STATIC_TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"
+                                    LIBMAGIC_DB="${LIBMAGIC_DB}")
+
+    # LIBRARIES/DEPS come from shared variables like ${VNAME}_LIBRARIES (e.g.
+    # lexer_LIBRARIES=qjs-location) that name the *shared* module target;
+    # under BUILD_STATIC only "<that>-static" actually exists, so rewrite
+    # in-tree "qjs-*" references to their static counterpart. Anything else
+    # (e.g. serial_DEPS=libserialport, an ExternalProject target) is left
+    # alone.
+    set(STATIC_LIBRARIES "")
+    foreach(LIB ${${VNAME}_LIBRARIES})
+      if(LIB MATCHES "^qjs-")
+        list(APPEND STATIC_LIBRARIES "${LIB}-static")
+      else()
+        list(APPEND STATIC_LIBRARIES "${LIB}")
+      endif()
+    endforeach()
+    if(STATIC_LIBRARIES)
+      target_link_libraries(${STATIC_TARGET_NAME} PRIVATE ${STATIC_LIBRARIES})
+    endif(STATIC_LIBRARIES)
+    set(LINK_DIRECTORIES ${${VNAME}_LINK_DIRECTORIES})
+    if(LINK_DIRECTORIES)
+      target_link_directories(${STATIC_TARGET_NAME} PRIVATE ${LINK_DIRECTORIES})
+    endif(LINK_DIRECTORIES)
+    set(STATIC_DEPS "")
+    foreach(DEP ${DEPS})
+      if(DEP MATCHES "^qjs-")
+        list(APPEND STATIC_DEPS "${DEP}-static")
+      else()
+        list(APPEND STATIC_DEPS "${DEP}")
+      endif()
+    endforeach()
+    if(STATIC_DEPS)
+      add_dependencies(${STATIC_TARGET_NAME} ${STATIC_DEPS})
+    endif(STATIC_DEPS)
+
+    list(APPEND STATIC_MODULE_TARGETS "${STATIC_TARGET_NAME}")
+    list(APPEND STATIC_MODULE_NAMES "${NAME}")
+    set(STATIC_MODULE_TARGETS "${STATIC_MODULE_TARGETS}" PARENT_SCOPE)
+    set(STATIC_MODULE_NAMES "${STATIC_MODULE_NAMES}" PARENT_SCOPE)
+  endif(BUILD_STATIC)
 
 endfunction()
 
-if(WASI OR EMSCRIPTEN)
+if(WASI)
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
+endif(WASI)
+
+if(WASI OR EMSCRIPTEN)
   option(BUILD_SHARED_MODULES "Build shared modules" OFF)
 else(WASI OR EMSCRIPTEN)
   option(BUILD_SHARED_MODULES "Build shared modules" ON)
 endif(WASI OR EMSCRIPTEN)
+
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  # There's no dlopen()-able shared-module story on wasm (BUILD_SHARED_MODULES
+  # is forced off there), so statically linking every module straight into
+  # qjsm is the only way to get them at all.
+  option(BUILD_STATIC "Build modules as static libraries linked into qjsm" ON)
+else()
+  option(BUILD_STATIC "Build modules as static libraries linked into qjsm" OFF)
+endif()
 
 if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

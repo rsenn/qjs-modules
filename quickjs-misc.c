@@ -3511,7 +3511,11 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       if(tcgetattr(fd, &tty) == -1)
         return js_syscallerror_throw(ctx, "tcgetattr");
 
-      tty.c_iflag = IGNPAR | IMAXBEL | IUTF8;
+      tty.c_iflag = IGNPAR | IMAXBEL 
+#ifdef IUTF8
+        | IUTF8
+#endif 
+        ;
       tty.c_oflag = OPOST | ONLCR;
       tty.c_cflag = B38400 | CSIZE | CREAD;
       tty.c_lflag = ISIG | ECHOE | ECHOK | ECHOCTL | ECHOKE;

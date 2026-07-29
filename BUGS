@@ -31,14 +31,6 @@
     // suspected: iter->pointer never freed, not yet confirmed via a
     // leak-counting repro
 
-- predicate-operators-leak: quickjs-predicate.c:1065 has a commented-out
-  js_freevalue(ctx, predicate_operators). predicate_operators looks like a
-  module-level singleton table; if it's meant to be freed on module teardown
-  this is a leak, but tables like this are often intentionally kept for the
-  process lifetime -- needs confirming which before treating as a real bug. no
-  isolated js repro yet (would require observing the singleton across repeated
-  context teardown, not just normal use).
-
 - getdents-emscripten-no-syscall: src/getdents.c:299 falls back to a raw
   `syscall(SYS_getdents64, ...)` plus a hand-rolled `struct linux_dirent64`
   cast (getdents.c:322) whenever neither a linkable getdents64()/getdents()

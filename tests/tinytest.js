@@ -53,12 +53,26 @@ const TinyTest = {
         console.error('Test:', testName, 'FAILED', e);
         console.error(e.stack);
       }
-      console.log('Test:', testName, 'OK');
       count++;
     }
 
     if(failures) console.log(`${failures} out of ${count} tests failed.`);
     else console.log(`${count} tests succeeded.`);
+
+    /* Callers invoke run() (exported as `tests`) fire-and-forget at module scope,
+     * without awaiting it - so a failure has to end the process itself (nonzero
+     * exit code, for ctest/CI) rather than rely on anything downstream noticing
+     * a rejected promise. std.exit() is only available under qjs/qjsm, not a
+     * browser (see this file's own header comment) - skip it if unavailable
+     * rather than making tinytest itself unusable outside this repo. */
+    if(failures) {
+      try {
+        const { exit } = await import('std');
+        exit(1);
+      } catch(e) {
+        /* not running under qjs/qjsm (e.g. a browser) - nothing more to do */
+      }
+    }
   },
 
   fail(msg) {
