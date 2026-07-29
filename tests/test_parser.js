@@ -134,21 +134,27 @@ try {
 
 /* ---------- lib/parser.js: boost::spirit-style operator overloading ----------
  *
- * Rule/Terminal/OneOrMore/Optional/Sequence all share one [Symbol.operatorSet]
- * (installed on Rule.prototype, inherited down the prototype chain), so `>>`
- * (sequence, also usable as `<<` - spirit's own karma/generator-side spelling
- * of the same idea), unary `+` (one-or-more), and unary `-` (optional /
- * "zero-or-one-time") all compose regardless of which concrete subclass
- * either operand is. See doc/predicate.md for how the underlying
- * Operators.create()/cross-type dispatch mechanism works in general, and the
- * comments in lib/parser.js itself for the specifics of this module's use of
- * it (in particular why Number, but not String, can be mixed into a `>>`
- * chain as a bare literal).
+ * Rule/Terminal/OneOrMore/Optional/ZeroOrMore/Sequence/Expect all share one
+ * [Symbol.operatorSet] (installed on Rule.prototype, inherited down the
+ * prototype chain), so `>>` (sequence), `<<` (the expectation operator -
+ * spirit's `>`, which can't be spelled that way here since real `>` can only
+ * ever return a boolean, never a parser object), unary `+` (one-or-more),
+ * and unary `-` (optional / "zero-or-one-time") all compose regardless of
+ * which concrete subclass either operand is. `.many()` (zero-or-more /
+ * Kleene star) is a method, not unary `~`, the operator that would
+ * otherwise be the natural spelling - see BUGS:
+ * quickjs-unary-not-overload-abort for why that one is off the table
+ * entirely (it crashes the process, not just "doesn't work"). See
+ * doc/predicate.md for how the underlying Operators.create()/cross-type
+ * dispatch mechanism works in general, and the comments in lib/parser.js
+ * itself for the specifics of this module's use of it (in particular why
+ * Number, but not String, can be mixed into a `>>`/`<<` chain as a bare
+ * literal).
  *
  * _char()/stringInput() let these be exercised directly against a plain
  * character stream, without needing the token-oriented Lexer class
  * (quickjs-lexer.c) at all. */
-import { _char, stringInput, Rule, Terminal, OneOrMore, Optional, Sequence } from '../lib/parser.js';
+import { _char, stringInput, Rule, Terminal, OneOrMore, Optional, ZeroOrMore, Sequence, Expect, ExpectationError } from '../lib/parser.js';
 import { assert, eq, tests } from './tinytest.js';
 
 function matches(rule, input) {
@@ -156,6 +162,15 @@ function matches(rule, input) {
   const ok = rule.match(in_);
 
   return { ok, consumed: in_.charPos, eof: in_.eof };
+}
+
+function assertThrows(fn, msg) {
+  try {
+    fn();
+  } catch(e) {
+    return e;
+  }
+  throw new Error('assertThrows(): did not throw' + (msg ? ' - ' + msg : ''));
 }
 
 tests({
@@ -194,11 +209,107 @@ tests({
     eq(3, rule.rules.length);
   },
 
-  '<< is spirit-karma-style sequence, same as >>'() {
-    const r = matches(_char('a') << _char('b') << _char('c'), 'abc');
+  /* ---------- << : expectation operator ---------- */
+  '<< matches when both sides match'() {
+    const r = matches(_char('a') << _char('b'), 'ab');
 
     assert(r.ok);
     assert(r.eof);
+  },
+
+  '<< builds an Expect, not a Sequence'() {
+    const rule = _char('a') << _char('b');
+
+    assert(rule instanceof Expect);
+    assert(!(rule instanceof Sequence));
+  },
+
+  '<< is a soft no-match (no throw) when the left side fails'() {
+    const in_ = stringInput('xb');
+    const rule = _char('a') << _char('b');
+    let result;
+
+    result = rule.match(in_); // must not throw
+
+    assert(!result, 'should not match');
+    eq(0, in_.charPos); // backtracks, same as a failed >>
+  },
+
+  '<< throws an ExpectationError (does not backtrack) when the right side fails'() {
+    const in_ = stringInput('ax');
+    const rule = _char('a') << _char('b');
+
+    assert(assertThrows(() => rule.match(in_)) instanceof ExpectationError);
+    eq(1, in_.charPos); // NOT rewound - unlike a failed >>, this is a hard error
+  },
+
+  'chained << : failure of the first operand is still soft'() {
+    const in_ = stringInput('xbc');
+    const rule = _char('a') << _char('b') << _char('c');
+
+    assert(!rule.match(in_)); // must not throw
+  },
+
+  'chained << : failure of a middle operand still throws'() {
+    const in_ = stringInput('axc');
+    const rule = _char('a') << _char('b') << _char('c');
+
+    assert(assertThrows(() => rule.match(in_)) instanceof ExpectationError);
+  },
+
+  'chained << : failure of the last operand still throws'() {
+    const in_ = stringInput('abx');
+    const rule = _char('a') << _char('b') << _char('c');
+
+    assert(assertThrows(() => rule.match(in_)) instanceof ExpectationError);
+  },
+
+  '(a >> b) << c : a soft-sequence as the left side of an expectation'() {
+    // a itself fails -> (a >> b) fails -> soft no-match for the whole thing
+    const in_ = stringInput('xy');
+    const rule = (_char('a') >> _char('b')) << _char('c');
+
+    assert(!rule.match(in_)); // must not throw
+  },
+
+  '(a >> b) << c : once a >> b succeeds, a failing c still throws'() {
+    const in_ = stringInput('abx');
+    const rule = (_char('a') >> _char('b')) << _char('c');
+
+    assert(assertThrows(() => rule.match(in_)) instanceof ExpectationError);
+  },
+
+  /* ---------- .many() : zero-or-more (Kleene star) ----------
+   * Not an operator: unary `~` (the natural spirit-flavored spelling, since
+   * unary `*` isn't an overloadable JS operator) crashes the whole process
+   * for *any* object with an operator set - see BUGS:
+   * quickjs-unary-not-overload-abort. Never write `~someRule` anywhere,
+   * including here - it is not a catchable failure, it's a SIGABRT. */
+  '.many() builds a ZeroOrMore'() {
+    assert(_char('a').many() instanceof ZeroOrMore);
+  },
+
+  '.many() greedily matches every occurrence'() {
+    const in_ = stringInput('aaab');
+    const rule = _char('a').many();
+
+    assert(rule.match(in_));
+    eq(3, in_.charPos);
+  },
+
+  '.many() succeeds on zero occurrences (unlike .some()/OneOrMore)'() {
+    const in_ = stringInput('b');
+    const rule = _char('a').many();
+
+    assert(rule.match(in_));
+    eq(0, in_.charPos);
+  },
+
+  '{ a* } matches both an empty and a populated block'() {
+    const rule = () => _char('{') >> _char('a').many() >> _char('}');
+
+    assert(matches(rule(), '{}').ok);
+    assert(matches(rule(), '{aaa}').ok);
   },
 
   '>> composes across Rule subclasses (Terminal, Sequence, ...)'() {

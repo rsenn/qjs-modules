@@ -1,3 +1,39 @@
+- quickjs-unary-not-overload-abort: applying unary `~` (bitwise NOT) to *any*
+  object whose [Symbol.operatorSet] resolves to a non-primitive operator set
+  crashes the whole process with abort() - not a catchable JS exception -
+  regardless of whether that operator set defines a `~` handler at all. Root
+  cause is in the vendored ../quickjs/quickjs.c (a separate project/repo this
+  one builds against, not qjs-modules' own code): js_not_slow()
+  (quickjs.c:12730) calls js_call_unary_op_fallback() (quickjs.c:12421) for
+  every OP_not, which unconditionally calls get_ovop_from_opcode(OP_not)
+  (quickjs.c:12189-12214) before ever checking whether the operator set has
+  a `~` entry - and that function's switch has no `case OP_not:` at all, so
+  it falls through to `default: abort();`. doc/operator-overloading.md's own
+  operator table lists `~` / `JS_OVOP_NOT` as a supported overloadable
+  unary operator ("bitwise NOT") - that entry is simply wrong for this
+  vendored quickjs.c, at least as currently built.
+  Found while trying to wire lib/parser.js's unary `~` up to a Kleene-star
+  combinator (ZeroOrMore) - confirmed not specific to Rule/lib/parser.js by
+  reproducing the same crash against an unrelated Predicate instance (from
+  quickjs-predicate.c, already shipped) with no `~` handler defined for it
+  either. This means *any* class in this codebase that installs a
+  Symbol.operatorSet (Predicate, and now Rule/Terminal/OneOrMore/Optional/
+  Sequence/ZeroOrMore in lib/parser.js) is already exposed to this crash the
+  moment user code applies unary `~` to an instance of it - not limited to
+  code that deliberately tries to overload `~` itself. Left unfixed: the fix
+  belongs in ../quickjs/quickjs.c (add a `case OP_not: return JS_OVOP_NOT;`
+  to get_ovop_from_opcode(), matching the JS_OVOP_NOT enum value that
+  already exists at quickjs.c:708 and is already listed in
+  js_overloadable_operator_names - the pieces are all there except this one
+  switch case), which is out of scope for qjs-modules itself.
+
+    import { Predicate } from 'predicate';
+    const p = Predicate.type(0);
+    ~p;
+    // expected: TypeError (no overloaded operator ~) or 0/-1 (no-op numeric
+    // bitwise-not fallback), since Predicate's operator set has no '~' entry
+    // actual: process aborts (SIGABRT), no JS-catchable exception at all
+
 - sockets-default-export-undeclared: js_sockets_init (quickjs-
   sockets.c:3107-3111) unconditionally runs js_setmoduleexport(ctx, m,
   "default", socket_ctor) when the module is loaded as "socket", but the
