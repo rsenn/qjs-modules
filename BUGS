@@ -106,3 +106,47 @@
                                           // - and passing e.g.
                                           // `--stack-size 500000000` first
                                           // changes nothing
+
+- wasm-node-glue-fetch-crash: qjsm.wasm's Emscripten-generated glue
+  (build/wasm32-unknown-emscripten/qjsm.js, emitted by emsdk's bundled
+  emscripten 2.0.10) picks the wasm-loading path in `instantiateAsync()`
+  by checking only `typeof fetch === 'function'`, with no
+  `ENVIRONMENT_IS_NODE` guard (qjsm.js:1534-1554). Node 18+ ships a global
+  `fetch`, so under any modern Node this branch runs `fetch(wasmBinaryFile,
+  ...)` with a plain filesystem path instead of the Node-native
+  `readFileSync` path a few lines below, and `fetch()` throws immediately
+  because the argument isn't a URL. This is a known compatibility gap
+  between old Emscripten releases and Node's newer global fetch, fixed in
+  more recent Emscripten by adding the environment check; upgrading emsdk
+  (or patching the generated glue) would fix it properly. Found while
+  smoke-testing qjsm.wasm after enabling QUICKJS_INTERNAL for the wasm
+  build. Workaround below unblocks manual testing but isn't a real fix.
+
+    node -e "delete globalThis.fetch;
+             process.argv=[process.argv[0],'qjsm.js','-e','console.log(1)'];
+             require('./qjsm.js')"
+    // without the `delete globalThis.fetch`: TypeError: Failed to parse
+    // URL from qjsm.wasm
+    // with it: prints 1 as expected
+
+- wasm-qjsm-no-real-file-imports: qjsm.wasm has no filesystem wired up to
+  the host when run under Node (`-sNODERAWFS` was never set, see
+  ../CMakeLists.txt:43-68, and no `--preload-file`/NODEFS mount is done
+  either) -- only `MEMFS`, which starts empty. Every native/JS builtin
+  module registered via BUILTINS_NATIVE/BUILTINS_COMPILED loads fine
+  (`--list` shows all 27 native + 14 compiled-JS modules, and `-e` can
+  import and use them), but `-m <realfile.js>` for any file that actually
+  lives on disk fails because that file was never copied into MEMFS. This
+  means qjsm.wasm today can only run inline `-e` scripts (or scripts naming
+  a builtin module by name) under Node, not arbitrary local .js files --
+  the primary way qjs-modules' own lib/*.js wrappers are normally loaded.
+  Found in the same wasm smoke-test session as the entry above.
+
+    // From build/wasm32-unknown-emscripten, with a file test.js sitting
+    // right next to qjsm.js/qjsm.wasm:
+    node -e "delete globalThis.fetch;
+             process.argv=[process.argv[0],'qjsm.js','-m','test.js'];
+             require('./qjsm.js')"
+    // expected: test.js runs
+    // actual: ReferenceError: could not load module 'test.js': ReferenceError:
+    //         could not load module filename 'test.js'

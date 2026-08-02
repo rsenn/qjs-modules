@@ -173,10 +173,7 @@ tests({
   'tokenizeShell() splits a fantasy script into WORD/reserved-word/operator tokens'() {
     const tokens = tokenizeShell('if true\nthen\n    echo yes\nfi');
 
-    eq(
-      tokens.map(t => t.type).join(','),
-      ['IF', 'WORD', 'NEWLINE', 'THEN', 'NEWLINE', 'WORD', 'WORD', 'NEWLINE', 'FI'].join(','),
-    );
+    eq(tokens.map(t => t.type).join(','), ['IF', 'WORD', 'NEWLINE', 'THEN', 'NEWLINE', 'WORD', 'WORD', 'NEWLINE', 'FI'].join(','));
     eq(tokens[1].lexeme, 'true');
   },
 
