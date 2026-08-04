@@ -191,6 +191,32 @@ BuiltinModule jsm_builtin_list[] = {
 
 void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
+static void
+jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst reason, BOOL is_handled, void* opaque) {
+  /* A single top-level throw in a module can settle more than one internal promise, so
+     the engine invokes this tracker more than once for what is really the same error.
+     Raw JSValue pointers can't be compared across calls (a freed reason can have its
+     address reused by an unrelated later rejection), so dedupe on the rendered
+     message/stack text instead. */
+  static char* last_msg = 0;
+  char* msg;
+
+  if(is_handled)
+    return;
+
+  msg = js_error_tostring(ctx, reason);
+
+  if(msg && last_msg && !strcmp(msg, last_msg)) {
+    js_free(ctx, msg);
+    return;
+  }
+
+  js_free(ctx, last_msg);
+  last_msg = msg;
+
+  js_std_promise_rejection_tracker(ctx, promise, reason, is_handled, opaque);
+}
+
 static JSValue
 jsm_get_error(JSContext* ctx) {
   if(JS_IsObject(jsm_promise))
@@ -349,8 +375,12 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     JSValue result = JS_PromiseResult(ctx, val);
 
     if(state == JS_PROMISE_REJECTED) {
+      /* Already reported by the host promise rejection tracker (see
+         JS_SetHostPromiseRejectionTracker() in main()); don't print it again. */
+      JS_FreeValue(ctx, result);
       JS_FreeValue(ctx, val);
-      val = JS_Throw(ctx, result);
+      JS_FreeValue(ctx, global_obj);
+      return -1;
     } else if(state == JS_PROMISE_FULFILLED) {
       JS_FreeValue(ctx, val);
       val = JS_DupValue(ctx, result);
@@ -1851,7 +1881,7 @@ int
 main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
-  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0, dump_unhandled_promise_rejection = 0;
+  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0;
   const char* include_list[32];
   size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -1974,11 +2004,6 @@ main(int argc, char** argv) {
 
       if(!strcmp(longopt, "std")) {
         load_std = 1;
-        break;
-      }
-
-      if(!strcmp(longopt, "unhandled-rejection")) {
-        dump_unhandled_promise_rejection = 1;
         break;
       }
 
@@ -2111,8 +2136,7 @@ main(int argc, char** argv) {
 
   vector_init(&jsm_stack, jsm_ctx);
 
-  if(dump_unhandled_promise_rejection)
-    JS_SetHostPromiseRejectionTracker(jsm_rt, js_std_promise_rejection_tracker, 0);
+  JS_SetHostPromiseRejectionTracker(jsm_rt, jsm_promise_rejection_tracker, 0);
 
   JS_SetInterruptHandler(jsm_rt, jsm_interrupt_handler, jsm_ctx);
 

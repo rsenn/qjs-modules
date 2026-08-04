@@ -150,3 +150,29 @@
     // expected: test.js runs
     // actual: ReferenceError: could not load module 'test.js': ReferenceError:
     //         could not load module filename 'test.js'
+
+- missing-line-number-single-line-function: a stack frame for a function whose
+  entire body (declaration through the throwing statement) sits on one
+  source line prints with no `:<line>` at all - just the bare filename -
+  while every enclosing/enclosed frame on its own line gets a correct line
+  number. Root cause is in the vendored ../quickjs/quickjs.c (not
+  qjs-modules' own code): build_backtrace() (quickjs.c:6497) calls
+  find_line_num(ctx, b, sf->cur_pc - b->byte_code_buf - 1) for each stack
+  frame and only appends `:%d` `if(line_num1 != -1)` (quickjs.c:6553); for a
+  one-line function body find_line_num() apparently can't resolve a line for
+  that pc and returns -1, silently dropping the position instead of falling
+  back to the function's declaration line. Splitting the exact same code
+  across multiple lines produces a fully located trace. Found via
+  tests/test_exceptions.js's 'synchronous throw inside a single-line
+  function body' case, which documents this as a known-failing test (same
+  convention as the pre-existing test_path.js/test_stream.js failures).
+
+    // tests/test_exceptions.js spawns qjsm on this exact script:
+    function foo() { throw new Error("boom"); }
+    function bar() { foo(); }
+    bar();
+    // actual stack (foo/bar frames have no line number):
+    //   at foo (script.js)
+    //   at bar (script.js)
+    //   at <anonymous> (script.js:3)
+    // expected: every frame carries a `:<line>`, e.g. "at foo (script.js:1)"
