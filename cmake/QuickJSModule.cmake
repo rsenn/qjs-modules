@@ -8,14 +8,24 @@ function(compile_code RESULT_VAR CODE)
   if(NOT DEFINED "${RESULT_VAR}")
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" "${CODE}")
 
+    # must match the include search order the real qjsm.c/quickjs-*.c translation units get
+    # (see include_directories(${QUICKJS_INCLUDE_DIRS}) / include_directories(${QUICKJS_INCLUDE_DIR})
+    # in CMakeLists.txt) - otherwise this probe can silently detect a different header than the one
+    # actually compiled against (js-module-loader-detection-vs-actual-headers)
+    set(_compile_code_includes "${QUICKJS_INCLUDE_DIRS}" "${QUICKJS_SOURCES_ROOT}")
+    set(_compile_code_iflags "")
+
+    foreach(_dir ${_compile_code_includes})
+      set(_compile_code_iflags "${_compile_code_iflags} -I${_dir}")
+    endforeach(_dir ${_compile_code_includes})
+
     try_compile(
       RESULT "${CMAKE_CURRENT_BINARY_DIR}"
       "${CMAKE_CURRENT_BINARY_DIR}/${FILE}"
       LINK_OPTIONS "-L${QUICKJS_LIBRARY_DIR}"
-      COMPILE_DEFINITIONS "-I${QUICKJS_SOURCES_ROOT}"
+      COMPILE_DEFINITIONS "${_compile_code_iflags}"
       CMAKE_FLAGS
-        #"-DCOMPILE_DEFINITIONS=-I${QUICKJS_SOURCES_ROOT}"
-        "-DINCLUDE_DIRECTORIES=${QUICKJS_SOURCES_ROOT}" "-DLINK_DIRECTORIES=${QUICKJS_LIBRARY_DIR}" LINK_DIRECTORIES
+        "-DINCLUDE_DIRECTORIES=${_compile_code_includes}" "-DLINK_DIRECTORIES=${QUICKJS_LIBRARY_DIR}" LINK_DIRECTORIES
         "${QUICKJS_LIBRARY_DIR}"
       LINK_LIBRARIES "${QUICKJS_LIBRARY}"
       OUTPUT_VARIABLE OUTPUT)

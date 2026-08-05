@@ -2040,12 +2040,12 @@ main(int argc, char** argv) {
       }
 
       if(!strcmp(longopt, "stack-size")) {
-        if(optind >= argc) {
+        if(optind + 1 >= argc) {
           fprintf(stderr, "expecting stack size");
           exit(1);
         }
 
-        stack_size = (size_t)strtod(argv[optind++], 0);
+        stack_size = (size_t)strtod(argv[++optind], 0);
         break;
       }
 

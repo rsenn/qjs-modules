@@ -176,3 +176,160 @@
     //   at bar (script.js)
     //   at <anonymous> (script.js:3)
     // expected: every frame carries a `:<line>`, e.g. "at foo (script.js:1)"
+
+- js-module-loader-detection-vs-actual-headers (CMakeLists.txt:544, cmake/QuickJSModule.cmake:4):
+  the configure-time probe that decides whether qjsm.c should call the 3-arg
+  or 4-arg js_module_loader() compiles its test snippet against
+  ${QUICKJS_SOURCES_ROOT} (the sibling ../quickjs checkout, which this
+  monorepo edits/rebuilds continuously) via compile_code()'s
+  "-DINCLUDE_DIRECTORIES=${QUICKJS_SOURCES_ROOT}", but the real qjsm.c
+  translation units are compiled with "-I/usr/local/include/quickjs" (the
+  separately installed, not-necessarily-in-sync system headers). when the
+  sibling source's js_module_loader() signature has been edited but
+  /usr/local hasn't been reinstalled yet, the probe result no longer
+  matches what qjsm.c actually sees, so JS_MODULE_LOADER_OLD gets set
+  wrong for the real build - this can either fail the build outright
+  ("too many arguments to function js_module_loader") or, worse, compile
+  cleanly with a mismatched signature. same root pattern as the
+  QUICKJS_INTERNAL segfault entry below: probes/generation steps trust the
+  live sibling source tree while actual compilation/linking trusts the
+  separately installed /usr/local quickjs, and nothing checks the two
+  agree.
+
+    // rm -rf build/x86_64-linux-gnu && cmake -B build/x86_64-linux-gnu -S .
+    // && cmake --build build/x86_64-linux-gnu --target qjsm
+    // actual (intermittent, depends on how ../quickjs/quickjs-libc.h
+    // currently reads vs. what's installed under /usr/local/include/quickjs):
+    //   error: too many arguments to function 'js_module_loader'
+    // expected: consistent, correct macro selection every configure
+
+- qjsm-quickjs-internal-struct-drift-segfault (src/qjsm.c:457 jsm_builtin_init,
+  quickjs-internal.c): when qjs-modules is built with QUICKJS_INTERNAL=1 (the
+  default whenever a sibling ../quickjs/quickjs.c is found), CMakeLists.txt
+  generates quickjs-internal.h by sed-extracting internal struct layouts
+  (JSModuleDef, JSFunctionBytecode, etc.) out of ${QUICKJS_SOURCES_ROOT}/quickjs.c
+  at configure time. qjsm.c and quickjs-internal.c then use those offsets to
+  poke JSModuleDef internals directly (module_rename(), module_exports_get(),
+  js_module_at()). if the currently-installed /usr/local/lib/.../libquickjs.so.1.1
+  was built from a *different* revision of quickjs.c than the one the struct
+  layout was snapshotted from (routine in this monorepo, since many sibling
+  projects rebuild+reinstall the shared quickjs core), the offsets silently
+  desync from the real ABI - there is no version/ABI check anywhere in this
+  path. confirmed via valgrind: loading the native "inspect" module (pulled
+  in transitively by lib/console.js's `import inspect from 'inspect'`)
+  produces a corrupted JSModuleDef/function-bytecode object, later
+  dereferenced as a bogus pointer (observed at address 0x82) inside
+  libquickjs.so.1.1's js_create_module_function(), segfaulting the process
+  before any user script code runs. reproduced with a stale build dir
+  (build/x86_64-linux-gnu) and with the then-current /usr/local/bin/qjsm;
+  confirmed fixed only after a full `rm -rf build/x86_64-linux-gnu` +
+  reconfigure + rebuild (a `--target clean` rebuild in place was NOT
+  sufficient - see the js-module-loader-detection-vs-actual-headers entry
+  above for why a plain reconfigure of a long-lived shared build dir can
+  still land on the wrong macros/headers).
+
+    // env QUICKJS_MODULE_PATH="build/x86_64-linux-debug;." qjsm -e "std.exit(0)"
+    // actual: Segmentation fault (confirmed via valgrind: invalid read at a
+    //         bogus small address inside js_create_module_function, called
+    //         from jsm_module_loader while loading the "inspect" module)
+    // expected: script runs (or, at worst, a clean JS-catchable error - not
+    //           a segfault before user code executes)
+
+- process-js-scriptargs-undefined-under-dash-e (lib/process.js:18,62): once the
+  qjsm-quickjs-internal-struct-drift-segfault entry above is fixed, `qjsm -e
+  "<expr>"` still throws an unhandled ReferenceError while initializing the
+  "process" builtin module. scriptIndex()'s default parameter `a = scriptArgs`
+  (line 18) and the `argv`/`argv0`/`execArgv` properties (lines 60-62)
+  reference the global `scriptArgs`, but qjsm only defines that global for
+  file/script execution, not for `-e` expression evaluation - so the IIFE
+  building `execArgv` (line 62) throws immediately when the process module's
+  exports are constructed. because this happens inside a module
+  initialization promise, it surfaces as an "unhandled promise rejection"
+  (per the recent "always track rejected promises" change) rather than as a
+  normal catchable exception, and leaves `globalThis.std`/`globalThis.process`
+  etc. never assigned - so any expression that follows and uses `std` (e.g.
+  `std.exit(0)`) then fails with a second, unrelated-looking
+  "ReferenceError: 'std' is not defined".
+
+    // qjsm -e "std.exit(0)"
+    // actual: Possibly unhandled promise rejection: ReferenceError:
+    //         'scriptArgs' is not defined (lib/process.js:18), followed by
+    //         Error evaluating expression: ReferenceError: 'std' is not
+    //         defined
+    // expected: std.exit(0) runs and exits cleanly
+
+- quickjs-internal-h-design (CMakeLists.txt:909-969, quickjs-internal.c,
+  include/utils.h): the whole QUICKJS_INTERNAL feature - not just the
+  configure-time drift covered by qjsm-quickjs-internal-struct-drift-segfault
+  above - is bad design and should be untangled/removed. summary of what
+  depends on it and why, for whoever does that work:
+
+  generation: when a sibling ../quickjs/quickjs.c is found next to this repo,
+  CMakeLists.txt (909-920) force-enables QUICKJS_INTERNAL and (939-969) runs
+  a `sed` one-liner over ${QUICKJS_SOURCES_ROOT}/quickjs.c and quickjs-libc.c
+  at *configure* time, scraping out struct/enum/typedef definitions by
+  pattern-matching brace-balanced blocks, and writes the result verbatim into
+  build/.../quickjs-internal.h. there is no parser here, just line-oriented
+  sed heuristics against whatever the sibling source currently looks like -
+  fragile by construction, and the reason the segfault above was possible at
+  all (the snapshot silently goes stale the moment ../quickjs/quickjs.c
+  changes and this project isn't reconfigured, or is reconfigured but not
+  cleanly rebuilt).
+
+  direct includers of quickjs-internal.h: only quickjs-internal.c itself and
+  src/qjsm.c.
+
+  everything else reaches its ~30 exported symbols (module_name,
+  module_nameval, module_namecstr, module_ns, module_exports_get,
+  module_imports, module_reqmodules, module_rename, module_next/prev/last,
+  module_indexof, js_module_at, js_module_find_fwd/rev, js_modules_entries,
+  js_modules_object, js_cstring_ptr/dup/len/value, js_get_bytecode,
+  js_opcode_list/array/object, js_sab_alloc/free/dup, js_std_file) only via
+  prototypes unconditionally declared in include/utils.h (no QUICKJS_INTERNAL
+  guard there) - so every call site elsewhere has to guard itself with
+  `#if QUICKJS_INTERNAL` or the link fails when it's off. that split (header
+  declares unconditionally, only the .c defines conditionally, every caller
+  re-derives the same guard) is itself a design smell: the "is this feature
+  available" decision is duplicated at every call site instead of living in
+  one place.
+
+  who actually uses it, and for what:
+    - src/qjsm.c (jsm_builtin_init, jsm_module_load, jsm_module_loader,
+      js_eval_buf): renames/looks up/copies-exports-of builtin modules while
+      bootstrapping (module_rename, js_module_at, module_exports_get,
+      module_next/last) - this is on the qjsm startup path, i.e. exactly
+      the code that segfaulted.
+    - src/qjsm.c (~1580-1820): implements a JS-visible `Module` reflection
+      object (moduleLoader/findModule/loadModule/addModule/resolveModule/
+      getModuleName/getModuleExports/getModuleImports/getModuleNamespace/
+      getModuleFunction/... CFUNC table) - a debug/introspection API with no
+      other implementation path than poking JSModuleDef directly.
+    - quickjs-misc.c (~2018-2090, 3574-3798): misc.pointer()/misc.length()
+      fast-path over raw JSString internals (js_cstring_ptr), better error
+      messages naming the module that failed to resolve, and
+      getOpcodes()/getBytecode() raw bytecode/opcode introspection.
+    - quickjs-inspect.c (~1353): console/util.inspect() prints a `[module
+      '<name>']` label for JS_TAG_MODULE values - falls back to an unnamed
+      `[module '']` when QUICKJS_INTERNAL is off, so this one degrades
+      gracefully.
+    - src/utils.c (~2497-2620, 3395): module_exports_find_str/module_exports/
+      js_modules_map/module_value/module_entry/js_module_def/
+      js_module_find_from/js_module_find - helper glue shared by the above,
+      also used by src/utils.c:3395's std/os module-getter fallback path.
+
+  why this is worth untangling: this is a large, security/stability-relevant
+  surface (direct struct pokes into a JS engine's internal module/bytecode
+  representation) bought entirely to implement a handful of introspection
+  conveniences (module listing/renaming/name-lookup, raw bytecode dumping,
+  a console.log label), gated behind a feature flag that CMake silently
+  force-enables whenever it happens to find a sibling checkout, generated by
+  a sed script with no versioning or ABI check against whatever
+  libquickjs.so is actually linked. every caller re-implements its own
+  `#if QUICKJS_INTERNAL` fallback, so the "public API" surface of this
+  project quietly changes shape depending on an environment detail the user
+  never asked about. untangling should mean: either upstream the small set
+  of genuinely missing QuickJS C-API entry points this needs (module name/
+  exports/list-by-index accessors are reasonable public API asks) and drop
+  quickjs-internal.h entirely, or at minimum stop auto-enabling it from
+  CMake and require an explicit, documented opt-in with a real ABI/version
+  check instead of blind struct-offset trust.
