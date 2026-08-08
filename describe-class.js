@@ -1,4 +1,4 @@
-function describeClass(Ctor, opts = {}) {
+export function describeClass(Ctor, opts = {}) {
   if(typeof Ctor !== 'function') throw new TypeError('describeClass expects a class/constructor function');
 
   function paramNames(fn) {

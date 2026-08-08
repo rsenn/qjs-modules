@@ -3,6 +3,7 @@ import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
 import { SQLite3, SQLite3Result } from 'sqlite';
 import { exit } from 'std';
+
 extendArray();
 
 async function main(...args) {

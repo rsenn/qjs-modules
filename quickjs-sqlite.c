@@ -533,8 +533,28 @@ js_sqlite_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     const char* filename = JS_ToCString(ctx, argv[0]);
     int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
-    if(argc > 1)
-      JS_ToInt32(ctx, &flags, argv[1]);
+    if(argc > 1) {
+      if(JS_IsObject(argv[1])) {
+        if(js_has_propertystr(ctx, argv[1], "create")) {
+          if(js_get_propertystr_bool(ctx, argv[1], "create"))
+            flags |= SQLITE_OPEN_CREATE;
+          else
+            flags &= ~SQLITE_OPEN_CREATE;
+        }
+
+        if(js_has_propertystr(ctx, argv[1], "readonly")) {
+          flags &= ~(SQLITE_OPEN_READONLY | SQLITE_OPEN_READWRITE);
+
+          if(js_get_propertystr_bool(ctx, argv[1], "readonly"))
+            flags |= SQLITE_OPEN_READONLY;
+          else
+            flags |= SQLITE_OPEN_READWRITE;
+        }
+
+      } else /*if(JS_IsNumber(argv[1]))*/ {
+        JS_ToInt32(ctx, &flags, argv[1]);
+      }
+    }
 
     if(sqlite3_open_v2(filename, &db->db, flags, NULL) != SQLITE_OK) {
       JSValue err = js_sqliteerror_new(ctx, sqlite_error(db));

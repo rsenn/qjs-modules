@@ -49,22 +49,24 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
     case BCRYPT_HASHPW: {
       const char* pw;
-      InputBuffer salt = js_input_chars(ctx, argv[1]);
-      // InputBuffer buf = js_input_buffer(ctx, argv[2]);
+      InputBuffer salt = {0};
       char tmp[BCRYPT_HASHSIZE], out[BCRYPT_HASHSIZE], *s;
 
       memset(tmp, 0, sizeof(tmp));
       memset(out, 0, sizeof(out));
 
+      if(argc > 1)
+        salt=js_input_chars(ctx, argv[1])
+
       if(!salt.size) {
         int32_t workfactor = 12;
-        JS_ToInt32(ctx, &workfactor, argv[1]);
+        if(argc > 1)
+          JS_ToInt32(ctx, &workfactor, argv[1]);
         bcrypt_gensalt(workfactor, s = tmp);
       } else if(salt.size < BCRYPT_SALTSIZE) {
         JS_ThrowInternalError(ctx, "supplied salt size (%lu) < %d", (unsigned long)salt.size, BCRYPT_SALTSIZE);
         inputbuffer_free(&salt, ctx);
-        // inputbuffer_free(&buf, ctx);
-        return JS_EXCEPTION;
+         return JS_EXCEPTION;
       } else if(salt.size >= BCRYPT_SALTSIZE) {
         s = (void*)salt.data;
       }
