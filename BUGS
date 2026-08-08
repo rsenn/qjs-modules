@@ -34,15 +34,23 @@
     // bitwise-not fallback), since Predicate's operator set has no '~' entry
     // actual: process aborts (SIGABRT), no JS-catchable exception at all
 
-- sockets-default-export-undeclared: js_sockets_init (quickjs-
-  sockets.c:3107-3111) unconditionally runs js_setmoduleexport(ctx, m,
-  "default", socket_ctor) when the module is loaded as "socket", but the
-  matching js_addmoduleexport(ctx, m, "default") is commented out (quickjs-
-  sockets.c:3145). pre-existing (predates the 2026-07-20 dbuf_claim commit).
+- serial-default-export-broken: js_serial_init (quickjs-serial.c:669-672)
+  gates JS_SetModuleExport(ctx, m, "default", serial_ctor) behind
+  `!strcmp(module_name, "cookie")` - "cookie" isn't this module's name under
+  any registration in this codebase (looks copy-pasted from an unrelated
+  module), so the condition is always false. Worse, JS_INIT_MODULE
+  (quickjs-serial.c:687-694) never calls JS_AddModuleExport(ctx, m,
+  "default") at all, unlike every other module with a default export
+  (quickjs-directory.c:499/519, quickjs-deep.c, quickjs-xml.c, etc., which
+  declare+set "default" unconditionally) - so even fixing the name check
+  wouldn't be enough, the export slot itself is never declared. Found while
+  fixing the analogous sockets-default-export-undeclared bug in
+  quickjs-sockets.c, which had the same shape.
 
-    import Socket from 'socket';
-    console.log(Socket);
-    // likely undefined or ub -- export slot was never declared
+    import Serial from 'serial';
+    console.log(Serial);
+    // expected: the Serial constructor
+    // actual: SyntaxError: Could not find export 'default' in module 'serial'
 
 - test-path-stream-preexisting-failures: tests/test_path.js's `skipSeparator()`,
   `isSeparator()`, `isin()`, `equal()`, `toArray()` tests fail, and

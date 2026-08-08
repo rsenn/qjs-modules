@@ -3103,13 +3103,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
     JS_SetModuleExport(ctx, m, "AsyncSocket", asyncsocket_ctor);
-
-    const char* module_name = module_namecstr(ctx, m);
-
-    if(!strcmp(module_name, "socket"))
-      JS_SetModuleExport(ctx, m, "default", socket_ctor);
-
-    JS_FreeCString(ctx, module_name);
+    JS_SetModuleExport(ctx, m, "default", socket_ctor);
     JS_SetModuleExportList(ctx, m, js_sockets_funcs, countof(js_sockets_funcs));
     JS_SetModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
     JS_SetModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
@@ -3133,6 +3127,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "SockAddr");
     JS_AddModuleExport(ctx, m, "Socket");
     JS_AddModuleExport(ctx, m, "AsyncSocket");
+    JS_AddModuleExport(ctx, m, "default");
 
     size_t n = str_rchr(module_name, '/');
 
@@ -3142,7 +3137,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     size_t len = str_rchr(&module_name[n], '.');
 
     if(!strncmp(&module_name[n], "sockets", len)) {
-      // JS_AddModuleExport(ctx, m, "default");
       JS_AddModuleExportList(ctx, m, js_sockets_funcs, countof(js_sockets_funcs));
       JS_AddModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
       JS_AddModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
