@@ -297,7 +297,7 @@ getdents_read(Directory* d) {
       d->nread = getdents64(d->fd, d->buf, sizeof(d->buf));
 #else
 
-#if  1 || __SIZEOF_POINTER__ == 8
+#if 1 || __SIZEOF_POINTER__ == 8
 #define syscall_no SYS_getdents64
 #else
 #define syscall_no SYS_getdents

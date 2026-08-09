@@ -258,7 +258,7 @@ xml_check_comment_end(XMLParser* p) {
   do { \
     if(p->accum) \
       dbuf_putc(p->accum, (uint8_t)p->c); \
-    XML_RESUME_LABEL: \
+  XML_RESUME_LABEL: \
     p->c = xml_nextbyte(p); \
     if(p->c == STREAM_ERROR) { \
       p->resume = &&XML_RESUME_LABEL; \
@@ -292,7 +292,7 @@ xml_check_comment_end(XMLParser* p) {
  * ({ ... }) expression. */
 #define XML_TRY(var, call) \
   do { \
-    XML_RESUME_LABEL: \
+  XML_RESUME_LABEL: \
     (var) = (call); \
     if((var) == XML_FILL_AGAIN) { \
       p->resume = &&XML_RESUME_LABEL; \
@@ -313,7 +313,7 @@ xml_check_comment_end(XMLParser* p) {
     p->event_value.len = (size_t)(vallen_); \
     p->resume = &&XML_RESUME_LABEL; \
     return (event_); \
-    XML_RESUME_LABEL:; \
+  XML_RESUME_LABEL:; \
   } while(0)
 
 #define yield_push() \

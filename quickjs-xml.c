@@ -1004,7 +1004,7 @@ typedef struct {
   size_t skip;      /* bytes of the (deterministic) replay to discard: already delivered previously */
   size_t delivered; /* bytes actually forwarded to the destination during the current step attempt */
   JSValue root;
-  DynBuf out;   /* internal buffer, only used as the destination for .read(n) (string mode) */
+  DynBuf out; /* internal buffer, only used as the destination for .read(n) (string mode) */
   size_t out_pos;
   Writer out_writer;  /* wraps xs->out, used for .read(n) */
   Writer dest_writer; /* swappable slot: out_writer for .read(n), the capped writer for .read(buf) */
@@ -2110,10 +2110,10 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   } else if(JS_IsObject(input)) {
     JSValue read_fn = JS_GetPropertyStr(ctx, input, "read");
 
-    if(JS_IsException(read_fn)) {
+    /*if(JS_IsException(read_fn)) {
       js_free(ctx, p);
       return JS_EXCEPTION;
-    }
+    }*/
 
     if(JS_IsFunction(ctx, read_fn))
       p->reader = reader_from_jsmethod(ctx, read_fn, input);
@@ -2132,12 +2132,24 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   }
 
   if(argc > 1) {
-    const char* filename = JS_ToCString(ctx, argv[1]);
+    JSValue filename = JS_UNDEFINED;
 
-    if(filename) {
-      location_set_filename(p->loc, filename, ctx);
-      JS_FreeCString(ctx, filename);
+    if(JS_IsObject(argv[1])) {
+      filename = JS_GetPropertyStr(ctx, argv[1], "filename");
+    } else {
+      filename = JS_DupValue(ctx, argv[1]);
     }
+
+    if(JS_IsString(filename)) {
+      const char* file = JS_ToCString(ctx, filename);
+
+      if(file) {
+        location_set_filename(p->loc, file, ctx);
+        JS_FreeCString(ctx, file);
+      }
+    }
+
+    JS_FreeValue(ctx, filename);
   }
 
   /* p->xp.reader is a borrowed pointer (include/xml.h doesn't own/copy the Reader

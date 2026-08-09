@@ -302,7 +302,7 @@ globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
           for(pl = pe + 1; (*lm++ = *pl++) != '\0';)
             continue;
 
-            /* Expand the current pattern */
+        /* Expand the current pattern */
 #ifdef DEBUG
           qprintf("globexp2:", patbuf);
 #endif

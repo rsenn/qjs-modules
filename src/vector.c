@@ -19,7 +19,7 @@ js_realloc_rt_helper(vector_js_realloc_rt);
 
 #define HAVE_UINT128
 
-#if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
+#if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 
 /*#elif defined(HAVE_UINT128)
 #warning No umult64 implementation*/

@@ -185,24 +185,15 @@ xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state
    * dispatched to l_attrib_bool, which emits it with no value and re-dispatches the
    * same byte through go_attrib, same as go_attrib itself handles those bytes. */
   static void* go_attrib_eq[] = {
-      [0 ... 8] = &&l_error,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
-      [11 ... 12] = &&l_error,
-      ['\r'] = &&l_next,
-      [14 ... 31] = &&l_error,
-      [' '] = &&l_next,
-      [33 ... 46] = &&l_error,
-      ['/'] = &&l_attrib_bool,
-      [48 ... 60] = &&l_error,
-      ['='] = &&l_attrib_eq,
-      ['>'] = &&l_attrib_bool,
-      [63 ... 64] = &&l_error,
-      ['A' ... 'Z'] = &&l_attrib_bool,
-      [91 ... 94] = &&l_error,
-      ['_'] = &&l_attrib_bool,
-      [96] = &&l_error,
-      ['a' ... 'z'] = &&l_attrib_bool,
+      [0 ... 8] = &&l_error,     ['\t'] = &&l_next,
+      ['\n'] = &&l_next,         [11 ... 12] = &&l_error,
+      ['\r'] = &&l_next,         [14 ... 31] = &&l_error,
+      [' '] = &&l_next,          [33 ... 46] = &&l_error,
+      ['/'] = &&l_attrib_bool,   [48 ... 60] = &&l_error,
+      ['='] = &&l_attrib_eq,     ['>'] = &&l_attrib_bool,
+      [63 ... 64] = &&l_error,   ['A' ... 'Z'] = &&l_attrib_bool,
+      [91 ... 94] = &&l_error,   ['_'] = &&l_attrib_bool,
+      [96] = &&l_error,          ['a' ... 'z'] = &&l_attrib_bool,
       [123 ... 255] = &&l_error,
   };
 

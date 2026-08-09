@@ -23,7 +23,7 @@
 #include <dlfcn.h>
 #endif
 
-#if 1 //:def HAVE_QUICKJS_CONFIG_H
+#if 1 //: def HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
 #endif
 
@@ -730,7 +730,7 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 
 static JSModuleDef*
 jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
-  JSModuleDef* m =0;
+  JSModuleDef* m = 0;
 
   while(*name == '!' || *name == '*')
     ++name;
@@ -746,16 +746,17 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 #endif
 
   list_for_each(el, &loaded_modules) {
-    if(i < start_pos) continue;
+    if(i < start_pos)
+      continue;
 
     LoadedModule* lm = list_entry(el, LoadedModule, link);
 
     if(str_equal(name, lm->name)) {
-     m = lm->module;
-     break;
+      m = lm->module;
+      break;
     }
 
-     i++;
+    i++;
   }
 
   return m;
@@ -768,7 +769,7 @@ jsm_modules_entries(JSContext* ctx, JSValueConst this_val) {
   uint32_t i = 0;
 
   list_for_each(el, &loaded_modules) {
-   LoadedModule* lm = list_entry(el, LoadedModule, link);
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
     JSModuleDef* m = lm->module;
     const char* name = lm->name;
 
@@ -1482,7 +1483,8 @@ jsm_help(void) {
          "  USR1 signal starts interactive mode\n"
 #endif
          "-l  --list         list modules\n",
-         CONFIG_VERSION, exename);
+         CONFIG_VERSION,
+         exename);
   exit(1);
 }
 
