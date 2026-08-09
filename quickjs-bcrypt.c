@@ -56,7 +56,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       memset(out, 0, sizeof(out));
 
       if(argc > 1)
-        salt=js_input_chars(ctx, argv[1])
+        salt = js_input_chars(ctx, argv[1]);
 
       if(!salt.size) {
         int32_t workfactor = 12;
@@ -66,7 +66,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       } else if(salt.size < BCRYPT_SALTSIZE) {
         JS_ThrowInternalError(ctx, "supplied salt size (%lu) < %d", (unsigned long)salt.size, BCRYPT_SALTSIZE);
         inputbuffer_free(&salt, ctx);
-         return JS_EXCEPTION;
+        return JS_EXCEPTION;
       } else if(salt.size >= BCRYPT_SALTSIZE) {
         s = (void*)salt.data;
       }

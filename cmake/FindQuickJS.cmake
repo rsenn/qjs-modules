@@ -128,6 +128,25 @@ macro(find_quickjs)
     pkg_search_module(QUICKJS REQUIRED quickjs)
   endif(NOT QUICKJS_LIBRARY)
 
+
+  string(REGEX REPLACE "\\.so.*$" ".a" TMP "${QUICKJS_LIBRARY}")
+
+  if(EXISTS "${TMP}")
+    set(QUICKJS_STATIC_LIBRARY "${TMP}" CACHE PATH "QuickJS static library (.a)")
+  endif(EXISTS "${TMP}")
+  unset(TMP)
+  set(QUICKJS_SHARED_LIBRARY "${QUICKJS_LIBRARY}" CACHE PATH "QuickJS shared library (.so/.dll/.dylib)")
+
+  unset(QUICKJS_LIBRARY)
+  unset(QUICKJS_LIBRARY CACHE)
+  if(LINK_STATIC)
+    set(QUICKJS_LIBRARY "${QUICKJS_STATIC_LIBRARY}" CACHE PATH "QuickJS library")
+  else(LINK_STATIC)
+    set(QUICKJS_LIBRARY "${QUICKJS_SHARED_LIBRARY}" CACHE PATH "QuickJS library")
+  endif(LINK_STATIC)
+
+  dump(QUICKJS_SHARED_LIBRARY QUICKJS_STATIC_LIBRARY QUICKJS_LIBRARY)
+
   if(NOT QUICKJS_INCLUDE_DIRS)
     set(QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIR}")
   endif()

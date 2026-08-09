@@ -10,7 +10,13 @@ if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
 
+if(NOT BUILD_SHARED_LIBS)
+  set(BUILD_STATIC_LIBS TRUE)
+endif(NOT BUILD_SHARED_LIBS)
+
+option(LINK_STATIC "Link static libraries" OFF)
 option(BUILD_SHARED_MODULES "Build shared modules" ${BUILD_SHARED_LIBS})
+option(BUILD_STATIC_MODULES "Build static modules" ${BUILD_STATIC_LIBS})
 
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
@@ -144,10 +150,12 @@ include(CheckLibraryExists)
 
 #check_function_def(JS_PROMISE_STATE JS_PromiseState)
 
-check_library_exists(m atan2 "" HAVE_LIBMATH)
+check_library_exists(m sqrt "" HAVE_LIBMATH)
 if(HAVE_LIBMATH)
+  set(LIBM m)
   link_libraries(m)
 endif(HAVE_LIBMATH)
+dump(LIBM)
 
 check_library_exists(quickjs js_std_file "${QUICKJS_LIBRARY_DIR}" HAVE_JS_STD_FILE)
 
@@ -245,7 +253,7 @@ check_include_def(sys/mman.h)
 
 check_function_def(mmap)
 
-check_includes_def(sys/param.h sys/stat.h errno.h unistd.h dirent.h)
+check_includes_def(sys/param.h sys/stat.h unistd.h dirent.h)
 
 check_functions_def(issetugid)
 
@@ -522,7 +530,7 @@ set(lexer_LIBRARIES qjs-location)
 
 if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
-  set(sockets_SOURCES ${sockets_SOURCES} quickjs-internal.c src/socketpair_win32.c)
+  set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
   set(HAVE_INET_PTON TRUE)
 
   check_include_def(afunix.h)
@@ -557,10 +565,17 @@ if(NOT JS_MODULE_LOADER_SETTINGS)
   endif(NOT JS_MODULE_LOADER_OLD)
 endif(NOT JS_MODULE_LOADER_SETTINGS)
 
-if(JS_MODULE_LOADER_OLD)
-  add_definitions(-DJS_MODULE_LOADER_OLD)
-endif(JS_MODULE_LOADER_OLD)
+set(JS_MODULE_LOADER_SETTINGS "${JS_MODULE_LOADER_SETTINGS}" CACHE BOOL "New js_module_loader() with 4 arguments")
+set(JS_MODULE_LOADER_OLD "${JS_MODULE_LOADER_OLD}" CACHE BOOL "Old js_module_loader() with 3 arguments")
 
+dump(JS_MODULE_LOADER_SETTINGS JS_MODULE_LOADER_OLD)
+#if(JS_MODULE_LOADER_SETTINGS)
+#  add_definitions(-DJS_MODULE_LOADER_SETTINGS)
+#endif(JS_MODULE_LOADER_SETTINGS)
+
+if(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
+  add_definitions(-DJS_MODULE_LOADER_OLD)
+endif(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
 #dump(JS_MODULE_LOADER_SETTINGS JS_MODULE_LOADER_OLD)
 
 unset(CMAKE_REQUIRED_FLAGS)
@@ -575,16 +590,16 @@ if(HAVE_JSOBJECT_POINTER)
   add_definitions(-DPUBLIC_JSOBJECT_DEF)
 endif(HAVE_JSOBJECT_POINTER)
 
-check_library_exists(${QUICKJS_LIBRARY} JS_IsUncatchableError "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISUNCATCHABLEERROR)
+check_library_exists("${QUICKJS_LIBRARY}" JS_IsUncatchableError "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISUNCATCHABLEERROR)
 
 if(HAVE_JS_ISUNCATCHABLEERROR)
   add_definitions(-DHAVE_JS_ISUNCATCHABLEERROR)
 endif(HAVE_JS_ISUNCATCHABLEERROR)
 
-check_library_exists(${QUICKJS_LIBRARY} dbuf_claim "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
+check_library_exists("${QUICKJS_LIBRARY}" dbuf_claim "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
 
 if(NOT HAVE_DBUF_CLAIM)
-  check_library_exists(${QUICKJS_LIBRARY} dbuf_realloc "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_REALLOC)
+  check_library_exists("${QUICKJS_LIBRARY}" dbuf_realloc "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_REALLOC)
 endif(NOT HAVE_DBUF_CLAIM)
 
 if(HAVE_DBUF_REALLOC)
@@ -832,9 +847,7 @@ endif()
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 
-if(LIBM)
-  set(predicate_LIBRARIES ${LIBM})
-endif(LIBM)
+set(predicate_LIBRARIES ${LIBM})
 
 set(deep_LIBRARIES qjs-pointer qjs-predicate ${LIBM})
 set(lexer_DEPS qjs-predicate)
@@ -959,7 +972,9 @@ if(QUICKJS_INTERNAL)
     VERBATIM)
   add_custom_target(quickjs_internal_header DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h")
 
-  list(APPEND LIBRARY_SOURCES quickjs-internal.c)
+  if(QUICKJS_INTERNAL)
+    list(APPEND LIBRARY_SOURCES quickjs-internal.c)
+  endif(QUICKJS_INTERNAL)
 
   if(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
     set(HAVE_QJSCALC TRUE CACHE BOOL "Have qjscalc.js")
@@ -986,6 +1001,9 @@ endforeach(LIB_MODULE ${BUILTINS_COMPILED})
 
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
+
+target_link_libraries(modules PUBLIC m)
+
 if(QUICKJS_INTERNAL)
   add_dependencies(modules quickjs_internal_header)
 endif(QUICKJS_INTERNAL)
@@ -998,11 +1016,14 @@ get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
 foreach(JS_MODULE ${QUICKJS_MODULES})
   file(GLOB MODULE_SOURCE quickjs-${JS_MODULE}.[ch])
   make_module(${JS_MODULE} ${MODULE_SOURCE})
-
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
 
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
+
+if(TARGET qjs-predicate)
+  target_link_libraries(qjs-predicate PRIVATE m)
+endif(TARGET qjs-predicate)
 
 if(TARGET qjs-inspect)
   target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
@@ -1027,7 +1048,7 @@ if(TARGET qjs-serial)
 endif(TARGET qjs-serial)
 
 # Same inter-module dependencies as above, wired up for the '-static' variants
-# that make_module() produces when BUILD_STATIC is on.
+# that make_module() produces when BUILD_STATIC_MODULES is on.
 if(TARGET qjs-inspect-static)
   target_link_libraries(qjs-inspect-static PRIVATE qjs-pointer-static)
 endif(TARGET qjs-inspect-static)
@@ -1050,6 +1071,14 @@ if(TARGET qjs-serial-static)
 endif(TARGET qjs-serial-static)
 
 set(QJSM_SOURCES src/qjsm.c)
+  
+set(json_SOURCES ${json_SOURCES} src/json.c)
+set(mysql_SOURCES ${mysql_SOURCES} src/async-closure.c)
+set(mysql_LIBS ${mysql_LIBS} modules)
+if(LINK_STATIC)
+  link_libraries(modules)
+endif(LINK_STATIC)
+
 
 set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
 
@@ -1071,7 +1100,7 @@ foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${NATIVE_MODULE})\n")
 endforeach()
 
-# Modules built as qjs-<name>-static libraries (BUILD_STATIC) that aren't
+# Modules built as qjs-<name>-static libraries (BUILD_STATIC_MODULES) that aren't
 # already compiled directly into qjsm via BUILTINS_NATIVE above: link the
 # library in and register it the same way.
 foreach(STATIC_MODULE_NAME ${STATIC_MODULE_NAMES})
@@ -1106,6 +1135,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h"
      "${BUILTIN_HEADER}\n${NATIVE_BUILTIN_HEADER}\n${COMPILED_BUILTIN_HEADER}")
 
 add_executable(qjsm ${QJSM_SOURCES})
+target_link_libraries(qjsm PUBLIC ${LIBM})
 
 if(COMPILED_TARGETS)
   add_dependencies(qjsm ${COMPILED_TARGETS})
@@ -1145,7 +1175,7 @@ endif(BUILD_SHARED_LIBS)
 
 target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
 
-target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QJSM_STATIC_LIBS} ${QUICKJS_LIBRARY}
+target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${QJSM_STATIC_LIBS} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY}
                                   ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
 target_compile_definitions(
@@ -1154,7 +1184,7 @@ target_compile_definitions(
 
 install(TARGETS qjsm DESTINATION bin)
 
-file(GLOB INSTALL_SCRIPTS [!.]*.js)
+file(GLOB INSTALL_SCRIPTS extract-structs.js jsonpp.js list-exports.js resolve-imports.js xml-shell.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)

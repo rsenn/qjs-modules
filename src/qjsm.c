@@ -23,7 +23,7 @@
 #include <dlfcn.h>
 #endif
 
-#ifdef HAVE_QUICKJS_CONFIG_H
+#if 1 //:def HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
 #endif
 
@@ -71,10 +71,17 @@ typedef struct ModuleLoaderContext {
   struct ModuleLoaderContext* next;
 } ModuleLoaderContext;
 
+typedef struct LoadedModule {
+  struct list_head link;
+  char* name;
+  JSModuleDef* module;
+} LoadedModule;
+
 static thread_local int DEBUG_MODULE = 0;
 static thread_local Vector debug_list = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
 static thread_local ModuleLoaderContext* module_loaders = NULL;
+static thread_local struct list_head loaded_modules;
 
 #ifndef QUICKJS_MODULE_PATH
 #ifdef QUICKJS_PREFIX
@@ -178,16 +185,6 @@ static int bignum_ext = 1;
 static thread_local Vector jsm_stack = VECTOR_INIT();
 static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
-
-/*#define jsm_builtin_compiled(name) jsm_module_record_compiled(name),
-#define jsm_builtin_native(name) jsm_module_record_native(name),
-
-BuiltinModule jsm_builtin_list[] = {
-#include "quickjs-builtins.h"
-};
-
-#undef jsm_builtin_native
-#undef jsm_builtin_compiled*/
 
 void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
@@ -733,17 +730,59 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 
 static JSModuleDef*
 jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
-  JSModuleDef* m;
+  JSModuleDef* m =0;
 
   while(*name == '!' || *name == '*')
     ++name;
 
   DEBUG_MODULE(2, "[1](name: \"%s\", start_pos: %d)", name, start_pos);
 
+  struct list_head* el;
+  uint32_t i = 0;
+
+#if QUICKJS_INTERNAL
   if((m = js_module_find_from(ctx, name, start_pos)))
     return m;
+#endif
 
-  return 0;
+  list_for_each(el, &loaded_modules) {
+    if(i < start_pos) continue;
+
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+    if(str_equal(name, lm->name)) {
+     m = lm->module;
+     break;
+    }
+
+     i++;
+  }
+
+  return m;
+}
+
+static JSValue
+jsm_modules_entries(JSContext* ctx, JSValueConst this_val) {
+  struct list_head* el;
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+
+  list_for_each(el, &loaded_modules) {
+   LoadedModule* lm = list_entry(el, LoadedModule, link);
+    JSModuleDef* m = lm->module;
+    const char* name = lm->name;
+
+    JSValue entry = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, name));
+    JS_SetPropertyUint32(ctx, entry, 1, module_value(ctx, m));
+
+    if(name[0] != '<')
+      JS_SetPropertyUint32(ctx, ret, i++, entry);
+    else
+      JS_FreeValue(ctx, entry);
+  }
+
+  return ret;
 }
 
 static JSModuleDef*
@@ -987,8 +1026,10 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 again:
   DEBUG_MODULE(2, "(i: %d, name: \"%s\", opaque: %p)", i++, name, opaque);
 
-  if(str_start(name, "data:"))
-    return jsm_module_data(ctx, name, opaque);
+  if(str_start(name, "data:")) {
+    m = jsm_module_data(ctx, name, opaque);
+    goto end;
+  }
 
   if(str_start(name, "file://"))
     name += 7;
@@ -1024,10 +1065,9 @@ again:
     BuiltinModule* rec;
 
     if((rec = jsm_builtin_find(name))) {
-      js_free(ctx, name);
-
       DEBUG_MODULE(1, "(i: %d) \"%s\" -> \"%s\" (builtin)", i, module_name, rec->module_name);
-      return jsm_builtin_init(ctx, rec);
+      m = jsm_builtin_init(ctx, rec);
+      goto end;
     }
   }
 
@@ -1048,7 +1088,7 @@ again:
     if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
     } else {
-      if(!(m = js_module_find(ctx, s)))
+      if(!(m = jsm_module_find(ctx, s, 0)))
         m = js_module_loader(ctx,
                              s,
                              opaque
@@ -1106,7 +1146,13 @@ again:
   }
 
 end:
-  js_free(ctx, name);
+  LoadedModule* lm;
+  if((lm = js_malloc(ctx, sizeof(LoadedModule)))) {
+    lm->name = name;
+    lm->module = m;
+    list_add(&lm->link, &loaded_modules);
+  } else
+    js_free(ctx, name);
   return m;
 }
 
@@ -1208,23 +1254,52 @@ jsm_context_new(JSRuntime* rt) {
 }
 
 static JSValue
+jsm_builtins(JSContext* ctx, JSValueConst this_val) {
+  JSValue ret = JS_NewArray(ctx);
+  BuiltinModule* rec;
+  uint32_t i = 0;
+
+  vector_foreach_t(&jsm_builtin_modules, rec) {
+    JSValue entry = JS_NewObjectProto(ctx, JS_NULL);
+
+    JS_SetPropertyStr(ctx, entry, "name", JS_NewString(ctx, rec->module_name));
+    JS_SetPropertyStr(ctx, entry, rec->module_func ? "native" : "compiled", JS_TRUE);
+    JS_SetPropertyUint32(ctx, ret, i++, entry);
+  }
+
+  return ret;
+}
+
+static JSValue
 jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
   JSModuleDef *m, **list;
   JSValue ret = JS_NewArray(ctx);
 
 #if QUICKJS_INTERNAL
   if(!(list = js_modules_vector(ctx)))
-#endif
     return JS_EXCEPTION;
 
-  for(uint32_t i = 0; (m = list[i]); i++) {
+  for(uint32_t i = 0; (m = list[i]);) {
+#else
+  struct list_head* el;
+  uint32_t i = 0;
+
+  list_for_each(el, &loaded_modules) {
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+    JSModuleDef* m = lm->module;
+
+#endif
     JSValue obj = JS_NewObject(ctx);
 
     JS_DefinePropertyValueStr(ctx, obj, "builtin", jsm_module_is_builtin(m) ? JS_TRUE : JS_FALSE, JS_PROP_CONFIGURABLE);
 
+#if QUICKJS_INTERNAL
     module_make_object(ctx, m, obj);
+#else
+    JS_SetPropertyStr(ctx, obj, "name", JS_NewString(ctx, lm->name));
+#endif
 
-    JS_SetPropertyUint32(ctx, ret, i, obj);
+    JS_SetPropertyUint32(ctx, ret, i++, obj);
   }
 
   return ret;
@@ -1381,7 +1456,7 @@ static const JSMallocFunctions trace_mf = {
 
 static void
 jsm_help(void) {
-  printf("QuickJS version " CONFIG_VERSION "\n"
+  printf("QuickJS version %s\n"
          "usage: %s [options] [file [args]]\n"
          "-h  --help         list options\n"
          "-e  --eval EXPR    evaluate EXPR\n"
@@ -1407,7 +1482,7 @@ jsm_help(void) {
          "  USR1 signal starts interactive mode\n"
 #endif
          "-l  --list         list modules\n",
-         exename);
+         CONFIG_VERSION, exename);
   exit(1);
 }
 
@@ -1515,6 +1590,41 @@ enum {
   MODULE_LOADER,
 };
 
+JSModuleDef*
+jsm_module_def(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* m;
+
+  if((m = js_module_def(ctx, value)))
+    return m;
+
+  struct list_head* el;
+  int32_t id = -1, i = 0;
+  const char* name = 0;
+
+  if(JS_IsNumber(value))
+    JS_ToInt32(ctx, &id, value);
+  else
+    name = JS_ToCString(ctx, value);
+
+  list_for_each(el, &loaded_modules) {
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+    m = lm->module;
+
+    if(name) {
+      if(str_equal(lm->name, name))
+        break;
+
+    } else if(id == i)
+      break;
+    i++;
+  }
+
+  if(name)
+    JS_FreeCString(ctx, name);
+
+  return m;
+}
+
 static JSValue
 jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue val = JS_EXCEPTION;
@@ -1522,7 +1632,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   const char* name = 0;
 
   if((magic >= RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) && magic < MODULE_LOADER) {
-    if(!(m = js_module_def(ctx, argv[0])))
+    if(!(m = jsm_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
                                CONST_STRARRAY("normalizeModule",
@@ -1788,11 +1898,13 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, EVAL_FILE),
     JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
+    JS_CGETSET_DEF("builtins", jsm_builtins, 0),
     JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
 #if QUICKJS_INTERNAL
     JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
-#endif
     JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
+#endif
+    JS_CGETSET_DEF("moduleEntries", jsm_modules_entries, 0),
     JS_CFUNC_MAGIC_DEF("moduleLoader", 1, jsm_module_func, MODULE_LOADER),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
     JS_CGETSET_MAGIC_DEF("scriptFile", jsm_stack_get, 0, SCRIPT_FILE),
@@ -1807,6 +1919,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
     JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
     JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
+#if QUICKJS_INTERNAL
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleValue", 1, jsm_module_func, GET_MODULE_VALUE),
     JS_CFUNC_MAGIC_DEF("getModuleIndex", 1, jsm_module_func, GET_MODULE_INDEX),
@@ -1818,6 +1931,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
     JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),
     JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
+#endif
     JS_CFUNC_DEF("startInteractive", 0, jsm_start_interactive4),
 };
 
@@ -1887,6 +2001,8 @@ main(int argc, char** argv) {
 #if HAVE_QJSCALC
   int load_jscalc;
 #endif
+
+  init_list_head(&loaded_modules);
 
   package_json = JS_UNDEFINED;
   // replObj = JS_UNDEFINED;

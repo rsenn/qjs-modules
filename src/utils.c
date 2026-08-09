@@ -2515,7 +2515,6 @@ module_exports(JSContext* ctx, JSModuleDef* m) {
 
   return exports;
 }
-#endif
 
 JSValue
 js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -2527,15 +2526,6 @@ js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
 
   JS_FreeValue(ctx, entries);
   return map;
-}
-
-JSValue
-module_value(JSContext* ctx, JSModuleDef* m) {
-  return
-#if QUICKJS_INTERNAL
-      m != NULL ? JS_NewInt32(ctx, module_indexof(ctx, m)) :
-#endif
-                JS_NULL;
 }
 
 JSValue
@@ -2552,10 +2542,77 @@ module_entry(JSContext* ctx, JSModuleDef* m) {
 }
 
 JSModuleDef*
+js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
+  JSModuleDef* ret = 0;
+
+#if QUICKJS_INTERNAL
+  JSModuleDef* start = js_module_at(ctx, start_pos);
+  ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
+#endif
+
+  return ret;
+}
+
+JSModuleDef*
+js_module_find(JSContext* ctx, const char* name) {
+#if QUICKJS_INTERNAL
+  return js_module_find_fwd(ctx, name, NULL);
+#else
+  return 0;
+#endif
+}
+#endif
+
+JSValue
+module_value(JSContext* ctx, JSModuleDef* m) {
+  return m != NULL ?
+#if QUICKJS_INTERNAL
+                   JS_NewInt32(ctx, module_indexof(ctx, m))
+#else
+                   JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m))
+#endif
+                   : JS_NULL;
+}
+
+JSValue
+module_nameval(JSContext* ctx, JSModuleDef* m) {
+  return JS_AtomToValue(ctx,
+#if QUICKJS_INTERNAL
+                        m->module_name
+#else
+                        *(JSAtom*)((int*)m + 1)
+#endif
+  );
+}
+
+JSAtom
+module_name(JSContext* ctx, JSModuleDef* m) {
+  return JS_DupAtom(ctx,
+#if QUICKJS_INTERNAL
+                    m->module_name
+#else
+                    *(JSAtom*)((int*)m + 1)
+#endif
+  );
+}
+
+const char*
+module_namecstr(JSContext* ctx, JSModuleDef* m) {
+  return JS_AtomToCString(ctx,
+#if QUICKJS_INTERNAL
+                          m->module_name
+#else
+                          *(JSAtom*)((int*)m + 1)
+#endif
+  );
+}
+
+JSModuleDef*
 js_module_def(JSContext* ctx, JSValueConst value) {
   if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
     return JS_VALUE_GET_PTR(value);
 
+#if QUICKJS_INTERNAL
   if(JS_IsString(value)) {
     const char* name = JS_ToCString(ctx, value);
     JSModuleDef* m = js_module_find(ctx, name);
@@ -2566,7 +2623,6 @@ js_module_def(JSContext* ctx, JSValueConst value) {
       return m;
   }
 
-#if QUICKJS_INTERNAL
   if(js_number_integral(value)) {
     int32_t num = -1;
 
@@ -2601,27 +2657,6 @@ js_module_def(JSContext* ctx, JSValueConst value) {
   }
 
   return 0;
-}
-
-JSModuleDef*
-js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
-  JSModuleDef* ret = 0;
-
-#if QUICKJS_INTERNAL
-  JSModuleDef* start = js_module_at(ctx, start_pos);
-  ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
-#endif
-
-  return ret;
-}
-
-JSModuleDef*
-js_module_find(JSContext* ctx, const char* name) {
-#if QUICKJS_INTERNAL
-  return js_module_find_fwd(ctx, name, NULL);
-#else
-  return 0;
-#endif
 }
 
 JSModuleDef*

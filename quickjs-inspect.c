@@ -1350,9 +1350,7 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
       JSModuleDef* def = JS_VALUE_GET_PTR(value);
       const char* name = 0;
 
-#if QUICKJS_INTERNAL
       name = module_namecstr(ctx, def);
-#endif
 
       writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[module '" : "[module '");
       writer_puts(wr, name);

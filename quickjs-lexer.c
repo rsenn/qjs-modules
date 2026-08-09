@@ -1276,7 +1276,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       if((tok = js_token_data(value)))
         lex->byte_length = tok->byte_length;
       else
-        JS_ToIndex(ctx, &lex->byte_length, value);
+        lex->byte_length = js_touint64(ctx, value);
 
       break;
     }

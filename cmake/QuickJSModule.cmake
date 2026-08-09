@@ -315,7 +315,7 @@ function(make_module FNAME)
   list(APPEND MODULES_SOURCES quickjs-${NAME}.c)
   set(MODULES_SOURCES "${MODULES_SOURCES}" PARENT_SCOPE)
 
-  if(BUILD_STATIC)
+  if(BUILD_STATIC_MODULES)
     set(STATIC_TARGET_NAME "${TARGET_NAME}-static")
 
     add_library(${STATIC_TARGET_NAME} STATIC ${SOURCES})
@@ -335,7 +335,7 @@ function(make_module FNAME)
 
     # LIBRARIES/DEPS come from shared variables like ${VNAME}_LIBRARIES (e.g.
     # lexer_LIBRARIES=qjs-location) that name the *shared* module target;
-    # under BUILD_STATIC only "<that>-static" actually exists, so rewrite
+    # under BUILD_STATIC_MODULES only "<that>-static" actually exists, so rewrite
     # in-tree "qjs-*" references to their static counterpart. Anything else
     # (e.g. serial_DEPS=libserialport, an ExternalProject target) is left
     # alone.
@@ -370,7 +370,7 @@ function(make_module FNAME)
     list(APPEND STATIC_MODULE_NAMES "${NAME}")
     set(STATIC_MODULE_TARGETS "${STATIC_MODULE_TARGETS}" PARENT_SCOPE)
     set(STATIC_MODULE_NAMES "${STATIC_MODULE_NAMES}" PARENT_SCOPE)
-  endif(BUILD_STATIC)
+  endif(BUILD_STATIC_MODULES)
 
 endfunction()
 
@@ -388,9 +388,9 @@ if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   # There's no dlopen()-able shared-module story on wasm (BUILD_SHARED_MODULES
   # is forced off there), so statically linking every module straight into
   # qjsm is the only way to get them at all.
-  option(BUILD_STATIC "Build modules as static libraries linked into qjsm" ON)
+  option(BUILD_STATIC_MODULES "Build modules as static libraries linked into qjsm" ON)
 else()
-  option(BUILD_STATIC "Build modules as static libraries linked into qjsm" OFF)
+  option(BUILD_STATIC_MODULES "Build modules as static libraries linked into qjsm" OFF)
 endif()
 
 if(WIN32 OR MINGW)

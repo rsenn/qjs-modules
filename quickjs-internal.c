@@ -230,24 +230,6 @@ module_func(JSContext* ctx, JSModuleDef* m) {
 }
 
 JSValue
-module_nameval(JSContext* ctx, JSModuleDef* m) {
-  if(m->module_name < (size_t)JS_GetRuntime(ctx)->atom_count)
-    return JS_AtomToValue(ctx, m->module_name);
-
-  return JS_UNDEFINED;
-}
-
-JSAtom
-module_name(JSContext* ctx, JSModuleDef* m) {
-  return JS_DupAtom(ctx, m->module_name);
-}
-
-const char*
-module_namecstr(JSContext* ctx, JSModuleDef* m) {
-  return JS_AtomToCString(ctx, m->module_name);
-}
-
-JSValue
 module_exports_find(JSContext* ctx, JSModuleDef* m, JSAtom atom) {
   for(int i = 0; i < m->export_entries_count; i++) {
     JSExportEntry* entry = &m->export_entries[i];

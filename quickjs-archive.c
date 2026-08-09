@@ -560,7 +560,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       return JS_ThrowInternalError(ctx, "Failed getting ArrayBuffer data");
 
     if(argc >= 2 && JS_IsNumber(argv[1])) {
-      JS_ToIndex(ctx, &offset, argv[1]);
+      offset =js_touint64(ctx, argv[1]);
 
       if(offset > len)
         offset = len;
@@ -569,7 +569,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     length = len - offset;
 
     if(argc >= 3 && JS_IsNumber(argv[2])) {
-      JS_ToIndex(ctx, &length, argv[2]);
+      length =js_touint64(ctx, argv[2]);
 
       if(length > (len - offset))
         length = (len - offset);

@@ -296,7 +296,13 @@ getdents_read(Directory* d) {
 #elif defined(__dietlibc__)
       d->nread = getdents64(d->fd, d->buf, sizeof(d->buf));
 #else
-      d->nread = syscall(SYS_getdents64, d->fd, d->buf, sizeof(d->buf));
+
+#if  1 || __SIZEOF_POINTER__ == 8
+#define syscall_no SYS_getdents64
+#else
+#define syscall_no SYS_getdents
+#endif
+      d->nread = syscall(syscall_no, d->fd, d->buf, sizeof(d->buf));
 #endif
 
       if(d->nread <= 0)
