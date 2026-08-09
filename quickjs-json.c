@@ -561,7 +561,7 @@ typedef struct {
   JSValue obj;
   BOOL is_array;
   uint32_t index; /* next array index, or count of committed object pairs */
-  JSAtom key;      /* current object key atom; JS_ATOM_NULL for array frames / no key yet */
+  JSAtom key;     /* current object key atom; JS_ATOM_NULL for array frames / no key yet */
 } PPFrame;
 
 #define PPF_TOP(v) ((PPFrame*)vector_back((v), sizeof(PPFrame)))
@@ -916,9 +916,7 @@ pp_structural_char(JsonPushParser* pp, JSContext* ctx, uint8_t c) {
     return 0;
 
   switch(pp->state) {
-    case PP_DONE:
-      pp_throw(pp, ctx, "unexpected data after end of input");
-      return 1;
+    case PP_DONE: pp_throw(pp, ctx, "unexpected data after end of input"); return 1;
 
     case PP_EXPECT_COLON:
       if(c != ':') {
@@ -1222,24 +1220,24 @@ write_capped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 typedef struct {
   JSContext* ctx;
   Vector stack;
-  DynBuf out;   /* internal buffer, only used as the destination for .read(n) (string mode) */
+  DynBuf out; /* internal buffer, only used as the destination for .read(n) (string mode) */
   DynBuf space;
   size_t out_pos;
   int32_t indent;
   BOOL finished;
-  BOOL started;  /* root's opening bracket/primitive already emitted */
+  BOOL started; /* root's opening bracket/primitive already emitted */
   BOOL is_primitive;
-  BOOL error;    /* fatal (e.g. OOM) */
-  BOOL blocked;  /* destination ran out of room this attempt; retry later */
-  size_t skip;   /* bytes of the (deterministic) replay to discard: already delivered previously */
+  BOOL error;       /* fatal (e.g. OOM) */
+  BOOL blocked;     /* destination ran out of room this attempt; retry later */
+  size_t skip;      /* bytes of the (deterministic) replay to discard: already delivered previously */
   size_t delivered; /* bytes actually forwarded to the destination during the current step attempt */
   JSValue root;
-  Location* loc; /* advanced explicitly via location_count() on bytes actually delivered, not via a wrapping Writer:
-                    write_location() (stream-utils.c) treats any non-full write from its parent as a hard error,
-                    which would turn a benign "destination full, retry" (0) signal into a fatal one */
+  Location* loc;      /* advanced explicitly via location_count() on bytes actually delivered, not via a wrapping Writer:
+                         write_location() (stream-utils.c) treats any non-full write from its parent as a hard error,
+                         which would turn a benign "destination full, retry" (0) signal into a fatal one */
   Writer out_writer;  /* wraps js->out, used for .read(n) */
-  Writer dest_writer;  /* swappable slot: out_writer for .read(n), a capped writer for .read(buf) */
-  Writer skip_writer;  /* outermost: discards the first `skip` bytes of a step's replay */
+  Writer dest_writer; /* swappable slot: out_writer for .read(n), a capped writer for .read(buf) */
+  Writer skip_writer; /* outermost: discards the first `skip` bytes of a step's replay */
   CappedBuf capped;
 } JsonSerializer;
 

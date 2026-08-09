@@ -345,7 +345,7 @@ scan_int(const char* src, int32_t* dest) {
 }
 
 #ifndef MAXLONG
-#define MAXLONG (((uint32_t) - 1) >> 1)
+#define MAXLONG (((uint32_t)-1) >> 1)
 #endif
 
 size_t

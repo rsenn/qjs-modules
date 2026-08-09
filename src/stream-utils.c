@@ -1,6 +1,8 @@
 #include "stream-utils.h"
 #include "buffer-utils.h"
 #include "defines.h"
+#include "queue.h"
+#include "js-utils.h"
 
 #include <assert.h>
 #ifdef _WIN32
@@ -20,6 +22,8 @@
 typedef struct {
   JSContext* ctx;
   JSValue func_obj, this_obj;
+  int ref_count;
+  void* rd_wr;
 } JSFunc;
 
 typedef struct {
@@ -53,6 +57,86 @@ typedef struct {
   uint8_t pending[2];
   size_t npending;
 } URLDecoder;
+
+static JSFunc*
+jsfunc_new(void) {
+  JSFunc* fw;
+
+  if((fw = malloc(sizeof(JSFunc)))) {
+    fw->ctx = NULL;
+    fw->func_obj = JS_UNDEFINED;
+    fw->this_obj = JS_UNDEFINED;
+    fw->ref_count = 1;
+    fw->rd_wr = NULL;
+  }
+
+  return fw;
+}
+
+static void
+jsfunc_free(void* opaque) {
+  JSFunc* fw = opaque;
+
+  if(--fw->ref_count == 0) {
+    JS_FreeValue(fw->ctx, fw->func_obj);
+    fw->func_obj = JS_UNDEFINED;
+
+    JS_FreeValue(fw->ctx, fw->this_obj);
+    fw->this_obj = JS_UNDEFINED;
+
+    if(fw->ctx) {
+      JS_FreeContext(fw->ctx);
+      fw->ctx = NULL;
+    }
+
+    free(fw);
+  }
+}
+
+static void
+jsfunc_finalizer(JSRuntime* rt, void* opaque) {
+  jsfunc_free(opaque);
+}
+
+static JSFunc*
+jsfunc_dup(JSFunc* fw) {
+  ++fw->ref_count;
+  return fw;
+}
+
+static JSValue
+jsfunc_invoke(JSFunc* fw, void* buf, size_t len, BOOL copy) {
+  JSValueConst args[2] = {
+      copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+      JS_NewUint32(fw->ctx, len),
+  };
+  JSAtom method = JS_ValueToAtom(fw->ctx, fw->func_obj);
+  JSValue ret = JS_Invoke(fw->ctx, fw->this_obj, method, 2, args);
+  JS_FreeAtom(fw->ctx, method);
+
+  if(!copy)
+    JS_DetachArrayBuffer(fw->ctx, args[0]);
+
+  JS_FreeValue(fw->ctx, args[0]);
+  JS_FreeValue(fw->ctx, args[1]);
+  return ret;
+}
+
+static JSValue
+jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
+  JSValueConst args[2] = {
+      copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+      JS_NewUint32(fw->ctx, len),
+  };
+  JSValue ret = JS_Call(fw->ctx, fw->func_obj, fw->this_obj, 2, args);
+
+  if(!copy)
+    JS_DetachArrayBuffer(fw->ctx, args[0]);
+
+  JS_FreeValue(fw->ctx, args[0]);
+  JS_FreeValue(fw->ctx, args[1]);
+  return ret;
+}
 
 /* Completes the partial UTF-8 character in buf[]/(*buflen) with bytes from ptr/len.
  * Returns the number of bytes consumed from ptr once a complete character is
@@ -213,28 +297,45 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
+empty_buffered(Buffered* b) {
+  ssize_t r;
+
+  if((r = writer_write(b->parent, b->buf, b->pos)) <= 0)
+    return r;
+
+  if(r < b->pos)
+    memmove(b->buf, &b->buf[r], b->pos - r);
+
+  b->pos -= r;
+  return r;
+}
+
+static ssize_t
 write_buffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Buffered* b = (Buffered*)fd;
   const uint8_t* x = buf;
   size_t consumed = 0;
 
   while(consumed < len) {
-    if(b->pos == b->len) {
-      if(writer_write(b->parent, b->buf, b->pos) != (ssize_t)b->pos)
-        return -1;
+    ssize_t r;
 
-      b->pos = 0;
-    }
+    if(b->pos == b->len)
+      if((r = empty_buffered(b)) <= 0)
+        return consumed ? consumed : r;
 
-    if(b->pos == 0 && len - consumed >= b->len) {
-      size_t n = len - consumed;
+    size_t remain = len - consumed;
 
-      if(writer_write(b->parent, &x[consumed], n) != (ssize_t)n)
-        return -1;
+    /* if Buffered* is empty and remaining bytes are bigger
+       than Buffered, then write directly to the parent */
+    if(b->pos == 0 && remain >= b->len) {
+      if((r = writer_write(b->parent, &x[consumed], remain)) <= 0)
+        return consumed ? consumed : r;
 
-      consumed += n;
+      consumed += r;
     } else {
-      size_t n = MIN_NUM(b->len - b->pos, len - consumed);
+      /* Buffered* is partially filled */
+      size_t headroom = b->len - b->pos;
+      size_t n = MIN_NUM(headroom, remain);
 
       memcpy(&b->buf[b->pos], &x[consumed], n);
       b->pos += n;
@@ -249,51 +350,59 @@ static ssize_t
 write_linebuffered(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Buffered* b = (Buffered*)fd;
   const uint8_t* ptr = buf;
-  ssize_t written = 0;
+  ssize_t consumed = 0;
 
   for(size_t i = 0; i < len; i++) {
-    if(b->pos == b->len) {
-      if(writer_write(b->parent, b->buf, b->pos) != (ssize_t)b->pos)
-        return -1;
+    ssize_t r;
 
-      b->pos = 0;
-    }
+    if(b->pos == b->len)
+      if((r = empty_buffered(b)) <= 0)
+        return consumed ? consumed : r;
 
     b->buf[b->pos++] = ptr[i];
 
-    if(ptr[i] == '\n') {
-      if(writer_write(b->parent, b->buf, b->pos) != (ssize_t)b->pos)
-        return -1;
+    if(ptr[i] == '\n')
+      if((r = empty_buffered(b)) <= 0)
+        return consumed ? consumed : r;
 
-      b->pos = 0;
-    }
-
-    written++;
+    consumed++;
   }
 
-  return written;
+  return consumed;
+}
+
+static ssize_t
+write_jsinvoke(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  JSFunc* fw = (JSFunc*)fd;
+  JSValue ret = jsfunc_invoke(fw, (void*)buf, len, TRUE);
+
+  if(JS_IsException(ret))
+    return -1;
+
+  JS_FreeValue(fw->ctx, ret);
+  return len;
 }
 
 static ssize_t
 write_jsfunction(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   JSFunc* fw = (JSFunc*)fd;
-  JSContext* ctx = fw->ctx;
-  JSValueConst args[2] = {
-      JS_NewArrayBuffer(ctx, (uint8_t*)buf, len, 0, 0, FALSE),
-      JS_NewUint32(ctx, len),
-  };
-  JSValue ret = JS_Call(ctx, fw->func_obj, fw->this_obj, 2, args);
-
-  JS_DetachArrayBuffer(ctx, args[0]);
-
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
+  JSValue ret = jsfunc_call(fw, (void*)buf, len, TRUE);
 
   if(JS_IsException(ret))
     return -1;
 
-  JS_FreeValue(ctx, ret);
+  JS_FreeValue(fw->ctx, ret);
   return len;
+}
+
+static ssize_t
+write_jsstream(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  JSFunc* fr = (JSFunc*)fd;
+  JSValue ret = jsfunc_call(fr, (void*)buf, len, TRUE);
+
+  ssize_t r = JS_IsException(ret) ? -1 : len;
+  JS_FreeValue(fr->ctx, ret);
+  return r;
 }
 
 static ssize_t
@@ -376,15 +485,20 @@ close_dynbuf(void* opaque) {
 }
 
 static void
-close_jsfunction(void* opaque) {
+close_jsstream(void* opaque, void* opaque2) {
   JSFunc* jsf = opaque;
   JSContext* ctx = jsf->ctx;
 
-  JS_FreeValue(ctx, jsf->func_obj);
-  JS_FreeValue(ctx, jsf->this_obj);
-  free(jsf);
+  JSAtom release_method = JS_NewAtom(ctx, "releaseLock");
+  JS_FreeValue(ctx, JS_Invoke(ctx, jsf->this_obj, release_method, 0, 0));
+  JS_FreeAtom(ctx, release_method);
 
-  JS_FreeContext(ctx);
+  if(opaque2) {
+    queue_clear(opaque2);
+    js_free(ctx, opaque2);
+  }
+
+  jsfunc_free(opaque);
 }
 
 static void
@@ -448,6 +562,30 @@ writer_from_fd(intptr_t fd, bool close_on_end) {
 }
 
 Writer
+writer_from_js(JSContext* ctx, JSValueConst value) {
+  if(JS_IsObject(value)) {
+    if(JS_IsFunction(ctx, value))
+      return writer_from_jsfunction(ctx, value);
+
+    if(js_has_propertystr(ctx, value, "getWriter"))
+      return writer_from_jsstream(ctx, value);
+
+    if(js_has_propertystr(ctx, value, "write"))
+      return writer_from_jsinvoke(ctx, "write", value);
+
+    if(js_is_typedarray(ctx, value) || js_is_arraybuffer(ctx, value) || js_is_dataview(ctx, value))
+      return writer_from_jsbuf(ctx, value);
+
+  } else if(JS_IsNumber(value)) {
+    intptr_t fd = js_toint64(ctx, value);
+
+    return writer_from_fd(fd, FALSE);
+  }
+
+  return (Writer){NULL};
+}
+
+Writer
 writer_from_jsbuf(JSContext* ctx, JSValueConst value) {
   OutputBuffer* output = malloc(sizeof(OutputBuffer));
 
@@ -461,13 +599,28 @@ writer_from_jsbuf(JSContext* ctx, JSValueConst value) {
 }
 
 Writer
+writer_from_jsinvoke(JSContext* ctx, const char* method, JSValueConst this_obj) {
+  JSFunc* fw = jsfunc_new();
+
+  assert(fw);
+
+  *fw = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, method), JS_DupValue(ctx, this_obj)};
+
+  return (Writer){
+      &write_jsinvoke,
+      fw,
+      &jsfunc_free,
+  };
+}
+
+Writer
 writer_from_jsfunction(JSContext* ctx, JSValueConst fn) {
   return writer_from_jsmethod(ctx, fn, JS_UNDEFINED);
 }
 
 Writer
 writer_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
-  JSFunc* fw = malloc(sizeof(JSFunc));
+  JSFunc* fw = jsfunc_new();
 
   assert(fw);
 
@@ -476,8 +629,27 @@ writer_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
   return (Writer){
       &write_jsfunction,
       fw,
-      &close_jsfunction,
+      &jsfunc_free,
   };
+}
+
+Writer
+writer_from_jsstream(JSContext* ctx, JSValueConst stream) {
+  JSFunc* fr = jsfunc_new();
+
+  assert(fr);
+
+  JSValue writer = JS_GetPropertyStr(ctx, stream, "getWriter");
+
+  *fr = (JSFunc){JS_DupContext(ctx), JS_GetPropertyStr(ctx, writer, "write"), writer, 1, NULL};
+
+  Writer ret = (Writer){
+      &write_jsstream,
+      fr,
+      (WriterFinalizer*)&close_jsstream,
+  };
+
+  return ret;
 }
 
 Writer
@@ -588,7 +760,7 @@ writer_write(Writer* wr, const void* buf, size_t len) {
 void
 writer_free(Writer* wr) {
   if(wr->finalizer)
-    wr->finalizer(wr->opaque);
+    ((ReaderFinalizer*)wr->finalizer)(wr->opaque, NULL);
 }
 
 ssize_t
@@ -705,29 +877,86 @@ read_bytes(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
 }
 
 static ssize_t
-read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
+read_jsinvoke(intptr_t fd, void* buf, size_t len, Reader* rd) {
   JSFunc* fr = (JSFunc*)fd;
-  JSContext* ctx = fr->ctx;
-  JSValue args[2] = {
-      JS_NewArrayBuffer(ctx, buf, len, 0, 0, FALSE),
-      JS_NewUint32(ctx, len),
-  };
-  JSValue ret = JS_Call(ctx, fr->func_obj, fr->this_obj, 2, args);
-
-  JS_DetachArrayBuffer(ctx, args[0]);
-
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
+  JSValue ret = jsfunc_invoke(fr, buf, len, FALSE);
 
   if(JS_IsException(ret))
     return -1;
 
-  int32_t r = -1;
-  JS_ToInt32(ctx, &r, ret);
-  JS_FreeValue(ctx, ret);
+  int32_t r = js_toint32_free(fr->ctx, ret);
 
   if(r > 0 && (size_t)r > len)
     r = len;
+
+  return r;
+}
+
+static ssize_t
+read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  JSFunc* fr = (JSFunc*)fd;
+  JSValue ret = jsfunc_call(fr, buf, len, FALSE);
+  int32_t r = JS_IsException(ret) ? -1 : js_toint32_free(fr->ctx, ret);
+
+  if(r > 0 && (size_t)r > len)
+    r = len;
+
+  return r;
+}
+
+static JSValue
+then_jsstream(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
+  JSFunc* fr = opaque;
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case JS_PROMISE_FULFILLED: {
+      InputBuffer input = js_input_chars(ctx, argv[0]);
+      size_t len = inputbuffer_length(&input);
+
+      if(len > 0) {
+        ssize_t r;
+
+        if((r = queue_write(fr->rd_wr, inputbuffer_data(&input), len)) <= 0)
+          ret = JS_ThrowInternalError(ctx, "queue_write() returned %zd", r);
+      }
+
+      inputbuffer_free(&input, ctx);
+      break;
+    }
+
+    case JS_PROMISE_REJECTED: {
+      JS_FreeValue(ctx, fr->func_obj);
+      fr->func_obj = JS_DupValue(ctx, argv[0]);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static void
+invoke_jsstream(JSFunc* fr) {
+  JSValue promise = JS_Call(fr->ctx, fr->func_obj, fr->this_obj, 0, 0);
+
+  JSValue then = js_function_cclosure(fr->ctx, then_jsstream, 1, JS_PROMISE_FULFILLED, jsfunc_dup(fr), jsfunc_finalizer);
+  JSValue reject = js_function_cclosure(fr->ctx, then_jsstream, 1, JS_PROMISE_REJECTED, jsfunc_dup(fr), jsfunc_finalizer);
+
+  JS_FreeValue(fr->ctx, promise_then2(fr->ctx, promise, then, reject));
+  JS_FreeValue(fr->ctx, then);
+  JS_FreeValue(fr->ctx, reject);
+}
+
+static ssize_t
+read_jsstream(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  JSFunc* fr = (JSFunc*)fd;
+  ssize_t r = -1;
+
+  if(queue_size(fr->rd_wr) > 0)
+    r = queue_read(fr->rd_wr, buf, len);
+
+  if(queue_empty(fr->rd_wr) && JS_IsFunction(fr->ctx, fr->func_obj))
+    invoke_jsstream(fr);
 
   return r;
 }
@@ -959,6 +1188,33 @@ reader_from_fd(intptr_t fd, bool close_on_end) {
 }
 
 Reader
+reader_from_js(JSContext* ctx, JSValueConst value) {
+  if(JS_IsObject(value)) {
+    if(JS_IsFunction(ctx, value))
+      return reader_from_jsfunction(ctx, value);
+
+    if(js_has_propertystr(ctx, value, "getReader"))
+      return reader_from_jsstream(ctx, value);
+
+    if(js_has_propertystr(ctx, value, "read"))
+      return reader_from_jsinvoke(ctx, "read", value);
+
+    if(js_is_typedarray(ctx, value) || js_is_arraybuffer(ctx, value) || js_is_dataview(ctx, value))
+      return reader_from_jsbuf(ctx, value);
+
+  } else if(JS_IsString(value)) {
+    return reader_from_jsbuf(ctx, value);
+
+  } else if(JS_IsNumber(value)) {
+    intptr_t fd = js_toint64(ctx, value);
+
+    return reader_from_fd(fd, FALSE);
+  }
+
+  return (Reader){NULL};
+}
+
+Reader
 reader_from_jsbuf(JSContext* ctx, JSValueConst value) {
   InputBuffer* input = js_mallocz(ctx, sizeof(InputBuffer));
 
@@ -973,13 +1229,29 @@ reader_from_jsbuf(JSContext* ctx, JSValueConst value) {
 }
 
 Reader
+reader_from_jsinvoke(JSContext* ctx, const char* method, JSValueConst this_obj) {
+  JSFunc* fw = jsfunc_new();
+
+  assert(fw);
+
+  *fw = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, method), JS_DupValue(ctx, this_obj)};
+
+  return (Reader){
+      &read_jsinvoke,
+      fw,
+      NULL,
+      (ReaderFinalizer*)&jsfunc_free,
+  };
+}
+
+Reader
 reader_from_jsfunction(JSContext* ctx, JSValueConst func_obj) {
   return reader_from_jsmethod(ctx, func_obj, JS_UNDEFINED);
 }
 
 Reader
 reader_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_obj) {
-  JSFunc* fr = malloc(sizeof(JSFunc));
+  JSFunc* fr = jsfunc_new();
 
   assert(fr);
 
@@ -989,8 +1261,33 @@ reader_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
       &read_jsfunction,
       fr,
       NULL,
-      (ReaderFinalizer*)&close_jsfunction,
+      (ReaderFinalizer*)&jsfunc_free,
   };
+}
+
+Reader
+reader_from_jsstream(JSContext* ctx, JSValueConst stream) {
+  JSFunc* fr = jsfunc_new();
+
+  assert(fr);
+
+  JSValue reader = JS_GetPropertyStr(ctx, stream, "getReader");
+  Queue* q;
+
+  if((q = js_malloc(ctx, sizeof(Queue))))
+    queue_init(q);
+
+  *fr = (JSFunc){JS_DupContext(ctx), JS_GetPropertyStr(ctx, reader, "read"), reader, 1, q};
+
+  Reader ret = (Reader){
+      &read_jsstream,
+      fr,
+      q,
+      (ReaderFinalizer*)&close_jsstream,
+  };
+
+  reader_read(&ret, 0, 0);
+  return ret;
 }
 
 Reader

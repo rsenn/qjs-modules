@@ -20,7 +20,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   }
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSAtom), (int (*)(const void*, const void*)) & compare_jsatom);
+    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSAtom), (int (*)(const void*, const void*))&compare_jsatom);
 
   it->idx = 0;
   it->obj = obj;

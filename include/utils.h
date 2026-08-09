@@ -572,6 +572,13 @@ js_toint64(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+static inline int64_t
+js_toint64_free(JSContext* ctx, JSValue value) {
+  int64_t ret = js_toint64(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 uint64_t js_touint64(JSContext*, JSValueConst);
 int js_toint64clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 void* js_topointer(JSContext*, JSValueConst);
