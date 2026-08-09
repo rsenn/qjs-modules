@@ -40,7 +40,7 @@ typedef struct StreamReader {
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
 Writer writer_from_fd(intptr_t, bool);
-Writer writer_from_js(JSContext* , JSValueConst );
+int writer_from_js(JSContext* ctx, JSValueConst value, Writer*wr);
 Writer writer_from_jsbuf(JSContext* , JSValueConst );
 Writer writer_from_jsfunction(JSContext*, JSValueConst);
 Writer writer_from_jsinvoke(JSContext*, const char*, JSValueConst);
@@ -60,7 +60,7 @@ Reader reader_from_dynbuf(DynBuf*);
 Reader reader_from_buf(InputBuffer*);
 Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
-Reader reader_from_js(JSContext* ctx, JSValueConst value);
+int reader_from_js(JSContext* ctx, JSValueConst value, Reader*rd) ;
 Reader reader_from_jsbuf(JSContext* ctx, JSValueConst value);
 Reader reader_from_jsfunction(JSContext*, JSValueConst);
 Reader reader_from_jsinvoke(JSContext* , const char* , JSValueConst);

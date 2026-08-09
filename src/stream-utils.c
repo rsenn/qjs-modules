@@ -5,6 +5,7 @@
 #include "js-utils.h"
 
 #include <assert.h>
+#include <errno.h>
 #ifdef _WIN32
 #include <io.h>
 #else
@@ -296,6 +297,27 @@ write_counted(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   return r;
 }
 
+ssize_t
+write_stubborn(WriteFunction* wr, intptr_t fd, const char* x, size_t n, void* b) {
+  errno = 0;
+
+  while(n) {
+    ssize_t w;
+
+    if((w = wr(fd, (void*)x, n, b)) <= 0) {
+      if(errno == EINTR)
+        continue;
+
+      return -1;
+    }
+
+    x += w;
+    n -= (size_t)w;
+  }
+
+  return 0;
+}
+
 static ssize_t
 empty_buffered(Buffered* b) {
   ssize_t r;
@@ -396,16 +418,6 @@ write_jsfunction(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_jsstream(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  JSFunc* fr = (JSFunc*)fd;
-  JSValue ret = jsfunc_call(fr, (void*)buf, len, TRUE);
-
-  ssize_t r = JS_IsException(ret) ? -1 : len;
-  JS_FreeValue(fr->ctx, ret);
-  return r;
-}
-
-static ssize_t
 write_location(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Tracker* tr = (Tracker*)fd;
   const uint8_t *start = buf, *ptr = buf, *end;
@@ -485,23 +497,6 @@ close_dynbuf(void* opaque) {
 }
 
 static void
-close_jsstream(void* opaque, void* opaque2) {
-  JSFunc* jsf = opaque;
-  JSContext* ctx = jsf->ctx;
-
-  JSAtom release_method = JS_NewAtom(ctx, "releaseLock");
-  JS_FreeValue(ctx, JS_Invoke(ctx, jsf->this_obj, release_method, 0, 0));
-  JS_FreeAtom(ctx, release_method);
-
-  if(opaque2) {
-    queue_clear(opaque2);
-    js_free(ctx, opaque2);
-  }
-
-  jsfunc_free(opaque);
-}
-
-static void
 close_buffered(void* opaque) {
   Buffered* b = opaque;
   ssize_t r;
@@ -561,28 +556,36 @@ writer_from_fd(intptr_t fd, bool close_on_end) {
   };
 }
 
-Writer
-writer_from_js(JSContext* ctx, JSValueConst value) {
+int
+writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr) {
   if(JS_IsObject(value)) {
-    if(JS_IsFunction(ctx, value))
-      return writer_from_jsfunction(ctx, value);
+    if(JS_IsFunction(ctx, value)) {
+      *wr = writer_from_jsfunction(ctx, value);
+      return 1;
+    }
 
-    if(js_has_propertystr(ctx, value, "getWriter"))
-      return writer_from_jsstream(ctx, value);
+    if(js_has_propertystr(ctx, value, "getWriter")) {
+      *wr = writer_from_jsstream(ctx, value);
+      return 1;
+    }
+    if(js_has_propertystr(ctx, value, "write")) {
+      *wr = writer_from_jsinvoke(ctx, "write", value);
+      return 1;
+    }
 
-    if(js_has_propertystr(ctx, value, "write"))
-      return writer_from_jsinvoke(ctx, "write", value);
-
-    if(js_is_typedarray(ctx, value) || js_is_arraybuffer(ctx, value) || js_is_dataview(ctx, value))
-      return writer_from_jsbuf(ctx, value);
+    if(js_is_typedarray(ctx, value) || js_is_arraybuffer(ctx, value) || js_is_dataview(ctx, value)) {
+      *wr = writer_from_jsbuf(ctx, value);
+      return 1;
+    }
 
   } else if(JS_IsNumber(value)) {
     intptr_t fd = js_toint64(ctx, value);
 
-    return writer_from_fd(fd, FALSE);
+    *wr = writer_from_fd(fd, FALSE);
+    return 1;
   }
 
-  return (Writer){NULL};
+  return 0;
 }
 
 Writer
@@ -631,25 +634,6 @@ writer_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
       fw,
       &jsfunc_free,
   };
-}
-
-Writer
-writer_from_jsstream(JSContext* ctx, JSValueConst stream) {
-  JSFunc* fr = jsfunc_new();
-
-  assert(fr);
-
-  JSValue writer = JS_GetPropertyStr(ctx, stream, "getWriter");
-
-  *fr = (JSFunc){JS_DupContext(ctx), JS_GetPropertyStr(ctx, writer, "write"), writer, 1, NULL};
-
-  Writer ret = (Writer){
-      &write_jsstream,
-      fr,
-      (WriterFinalizer*)&close_jsstream,
-  };
-
-  return ret;
 }
 
 Writer
@@ -781,6 +765,10 @@ writer_flush(Writer* wr) {
  * @}
  */
 
+/**
+ * \addtogroup stream-utils
+ * @{
+ */
 static ssize_t
 read_dynbuf(intptr_t fd, void* buf, size_t len, Reader* rd) {
   DynBuf* db = (DynBuf*)fd;
@@ -900,63 +888,6 @@ read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
 
   if(r > 0 && (size_t)r > len)
     r = len;
-
-  return r;
-}
-
-static JSValue
-then_jsstream(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
-  JSFunc* fr = opaque;
-  JSValue ret = JS_UNDEFINED;
-
-  switch(magic) {
-    case JS_PROMISE_FULFILLED: {
-      InputBuffer input = js_input_chars(ctx, argv[0]);
-      size_t len = inputbuffer_length(&input);
-
-      if(len > 0) {
-        ssize_t r;
-
-        if((r = queue_write(fr->rd_wr, inputbuffer_data(&input), len)) <= 0)
-          ret = JS_ThrowInternalError(ctx, "queue_write() returned %zd", r);
-      }
-
-      inputbuffer_free(&input, ctx);
-      break;
-    }
-
-    case JS_PROMISE_REJECTED: {
-      JS_FreeValue(ctx, fr->func_obj);
-      fr->func_obj = JS_DupValue(ctx, argv[0]);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-static void
-invoke_jsstream(JSFunc* fr) {
-  JSValue promise = JS_Call(fr->ctx, fr->func_obj, fr->this_obj, 0, 0);
-
-  JSValue then = js_function_cclosure(fr->ctx, then_jsstream, 1, JS_PROMISE_FULFILLED, jsfunc_dup(fr), jsfunc_finalizer);
-  JSValue reject = js_function_cclosure(fr->ctx, then_jsstream, 1, JS_PROMISE_REJECTED, jsfunc_dup(fr), jsfunc_finalizer);
-
-  JS_FreeValue(fr->ctx, promise_then2(fr->ctx, promise, then, reject));
-  JS_FreeValue(fr->ctx, then);
-  JS_FreeValue(fr->ctx, reject);
-}
-
-static ssize_t
-read_jsstream(intptr_t fd, void* buf, size_t len, Reader* rd) {
-  JSFunc* fr = (JSFunc*)fd;
-  ssize_t r = -1;
-
-  if(queue_size(fr->rd_wr) > 0)
-    r = queue_read(fr->rd_wr, buf, len);
-
-  if(queue_empty(fr->rd_wr) && JS_IsFunction(fr->ctx, fr->func_obj))
-    invoke_jsstream(fr);
 
   return r;
 }
@@ -1186,32 +1117,45 @@ reader_from_fd(intptr_t fd, bool close_on_end) {
       close_on_end ? (ReaderFinalizer*)&close : NULL,
   };
 }
-
-Reader
-reader_from_js(JSContext* ctx, JSValueConst value) {
+/* input is either a buffer (string/ArrayBuffer/TypedArray), a pull function
+ * called as fn(buf, len) -> bytesRead, or an object exposing such a function as
+ * its "read" method (called with the object as `this`) - same convention as
+ * JsonParser's constructor (quickjs-json.c). */
+int
+reader_from_js(JSContext* ctx, JSValueConst value, Reader* rd) {
   if(JS_IsObject(value)) {
-    if(JS_IsFunction(ctx, value))
-      return reader_from_jsfunction(ctx, value);
+    /* a pull function called as fn(buf, len) -> bytesRead */
+    if(JS_IsFunction(ctx, value)) {
+      *rd = reader_from_jsfunction(ctx, value);
+      return 1;
+    }
 
-    if(js_has_propertystr(ctx, value, "getReader"))
-      return reader_from_jsstream(ctx, value);
+    /*  an object exposing such a function as its "read" method (called with the object as `this`) */
+    if(js_has_propertystr(ctx, value, "read")) {
+      *rd = reader_from_jsinvoke(ctx, "read", value);
+      return 1;
+    }
 
-    if(js_has_propertystr(ctx, value, "read"))
-      return reader_from_jsinvoke(ctx, "read", value);
-
-    if(js_is_typedarray(ctx, value) || js_is_arraybuffer(ctx, value) || js_is_dataview(ctx, value))
-      return reader_from_jsbuf(ctx, value);
-
-  } else if(JS_IsString(value)) {
-    return reader_from_jsbuf(ctx, value);
-
-  } else if(JS_IsNumber(value)) {
-    intptr_t fd = js_toint64(ctx, value);
-
-    return reader_from_fd(fd, FALSE);
+    /* a ReadableStream */
+    if(js_has_propertystr(ctx, value, "getReader")) {
+      *rd = reader_from_jsstream(ctx, value);
+      return 1;
+    }
   }
 
-  return (Reader){NULL};
+  /* a buffer (string/ArrayBuffer/TypedArray) */
+  if(JS_IsString(value) || js_is_typedarray(ctx, value) || js_is_arraybuffer(ctx, value) || js_is_dataview(ctx, value)) {
+    *rd = reader_from_jsbuf(ctx, value);
+    return 1;
+  }
+
+  /* an fd number */
+  if(JS_IsNumber(value)) {
+    *rd = reader_from_fd(js_toint64(ctx, value), FALSE);
+    return 1;
+  }
+
+  return 0;
 }
 
 Reader
@@ -1263,31 +1207,6 @@ reader_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
       NULL,
       (ReaderFinalizer*)&jsfunc_free,
   };
-}
-
-Reader
-reader_from_jsstream(JSContext* ctx, JSValueConst stream) {
-  JSFunc* fr = jsfunc_new();
-
-  assert(fr);
-
-  JSValue reader = JS_GetPropertyStr(ctx, stream, "getReader");
-  Queue* q;
-
-  if((q = js_malloc(ctx, sizeof(Queue))))
-    queue_init(q);
-
-  *fr = (JSFunc){JS_DupContext(ctx), JS_GetPropertyStr(ctx, reader, "read"), reader, 1, q};
-
-  Reader ret = (Reader){
-      &read_jsstream,
-      fr,
-      q,
-      (ReaderFinalizer*)&close_jsstream,
-  };
-
-  reader_read(&ret, 0, 0);
-  return ret;
 }
 
 Reader
@@ -1429,6 +1348,143 @@ transform_urldecode(Reader* rd, Writer* wr) {
   return ret;
 }
 
+/**
+ * @}
+ */
+
+/**
+ * \addtogroup stream-utils-async
+ * @{
+ *
+ * Interfaces WritableStream/ReadableStream from JS. Implication is that their method calls are async
+ */
+static ssize_t
+write_jsstream(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  JSFunc* fr = (JSFunc*)fd;
+  JSValue ret = jsfunc_call(fr, (void*)buf, len, TRUE);
+
+  ssize_t r = JS_IsException(ret) ? -1 : len;
+  JS_FreeValue(fr->ctx, ret);
+  return r;
+}
+
+static void
+close_jsstream(void* opaque, void* opaque2) {
+  JSFunc* jsf = opaque;
+  JSContext* ctx = jsf->ctx;
+
+  JSAtom release_method = JS_NewAtom(ctx, "releaseLock");
+  JS_FreeValue(ctx, JS_Invoke(ctx, jsf->this_obj, release_method, 0, 0));
+  JS_FreeAtom(ctx, release_method);
+
+  if(opaque2) {
+    queue_clear(opaque2);
+    js_free(ctx, opaque2);
+  }
+
+  jsfunc_free(opaque);
+}
+
+Writer
+writer_from_jsstream(JSContext* ctx, JSValueConst stream) {
+  JSFunc* fr = jsfunc_new();
+
+  assert(fr);
+
+  JSValue writer = JS_GetPropertyStr(ctx, stream, "getWriter");
+
+  *fr = (JSFunc){JS_DupContext(ctx), JS_GetPropertyStr(ctx, writer, "write"), writer, 1, NULL};
+
+  Writer ret = (Writer){
+      &write_jsstream,
+      fr,
+      (WriterFinalizer*)&close_jsstream,
+  };
+
+  return ret;
+}
+
+static JSValue
+then_jsstream(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
+  JSFunc* fr = opaque;
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case JS_PROMISE_FULFILLED: {
+      InputBuffer input = js_input_chars(ctx, argv[0]);
+      size_t len = inputbuffer_length(&input);
+
+      if(len > 0) {
+        ssize_t r;
+
+        if((r = queue_write(fr->rd_wr, inputbuffer_data(&input), len)) <= 0)
+          ret = JS_ThrowInternalError(ctx, "queue_write() returned %zd", r);
+      }
+
+      inputbuffer_free(&input, ctx);
+      break;
+    }
+
+    case JS_PROMISE_REJECTED: {
+      JS_FreeValue(ctx, fr->func_obj);
+      fr->func_obj = JS_DupValue(ctx, argv[0]);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static void
+invoke_jsstream(JSFunc* fr) {
+  JSValue promise = JS_Call(fr->ctx, fr->func_obj, fr->this_obj, 0, 0);
+
+  JSValue then = js_function_cclosure(fr->ctx, then_jsstream, 1, JS_PROMISE_FULFILLED, jsfunc_dup(fr), jsfunc_finalizer);
+  JSValue reject = js_function_cclosure(fr->ctx, then_jsstream, 1, JS_PROMISE_REJECTED, jsfunc_dup(fr), jsfunc_finalizer);
+
+  JS_FreeValue(fr->ctx, promise_then2(fr->ctx, promise, then, reject));
+  JS_FreeValue(fr->ctx, then);
+  JS_FreeValue(fr->ctx, reject);
+}
+
+static ssize_t
+read_jsstream(intptr_t fd, void* buf, size_t len, Reader* rd) {
+  JSFunc* fr = (JSFunc*)fd;
+  ssize_t r = -1;
+
+  if(queue_size(fr->rd_wr) > 0)
+    r = queue_read(fr->rd_wr, buf, len);
+
+  if(queue_empty(fr->rd_wr) && JS_IsFunction(fr->ctx, fr->func_obj))
+    invoke_jsstream(fr);
+
+  return r;
+}
+
+Reader
+reader_from_jsstream(JSContext* ctx, JSValueConst stream) {
+  JSFunc* fr = jsfunc_new();
+
+  assert(fr);
+
+  JSValue reader = JS_GetPropertyStr(ctx, stream, "getReader");
+  Queue* q;
+
+  if((q = js_malloc(ctx, sizeof(Queue))))
+    queue_init(q);
+
+  *fr = (JSFunc){JS_DupContext(ctx), JS_GetPropertyStr(ctx, reader, "read"), reader, 1, q};
+
+  Reader ret = (Reader){
+      &read_jsstream,
+      fr,
+      q,
+      (ReaderFinalizer*)&close_jsstream,
+  };
+
+  reader_read(&ret, 0, 0);
+  return ret;
+}
 /**
  * @}
  */

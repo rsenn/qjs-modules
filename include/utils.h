@@ -588,6 +588,13 @@ int64_t js_tosize_name(JSContext*, JSValueConst, size_t, size_t, const char*);
 size_t js_tosize(JSContext*, JSValueConst, size_t, size_t);
 char* js_tostringlen(JSContext*, size_t* lenp, JSValueConst value);
 char* js_tostring(JSContext*, JSValueConst value);
+
+static inline char* js_tostring_free(JSContext*ctx, JSValue value) {
+  char* s=js_tostring(ctx, value);
+  JS_FreeValue(ctx, value);
+  return s;
+}
+
 wchar_t* js_towstringlen(JSContext*, size_t* lenp, JSValueConst value);
 JSValue js_newpointer(JSContext*, void*);
 
