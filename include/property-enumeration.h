@@ -21,8 +21,7 @@ typedef struct {
   int32_t a, b;
 } IndexTuple;
 
-#define PROPENUM_INIT() \
-  { 0, 0, NULL, JS_UNDEFINED }
+#define PROPENUM_INIT() {0, 0, NULL, JS_UNDEFINED}
 
 #define PROPENUM_SORT_ATOMS (1 << 6)
 #define PROPENUM_PROTOTYPE JS_GPN_RECURSIVE

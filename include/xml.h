@@ -58,8 +58,8 @@ typedef enum xml_event {
                             once per XML_ELEMENT_START, even for elements the input
                             never explicitly closed (tolerant recovery implicitly
                             closes them when an ancestor's closing tag is found) */
-  XML_TEXT,              /* event_name unset, event_has_value = 1, event_value = the
-                            text run */
+  XML_TEXT,             /* event_name unset, event_has_value = 1, event_value = the
+                           text run */
 } xml_event_t;
 
 /* One entry per still-open element, oldest-first via ->parent; owns its own name
@@ -111,8 +111,8 @@ typedef struct xml_parser {
   unsigned self_closing : 1;
   int c;
   int quote;
-  size_t text_pos;       /* how much of `text` xml_yield_text()'s inlined splitting
-                             loop has already turned into XML_TEXT events */
+  size_t text_pos;          /* how much of `text` xml_yield_text()'s inlined splitting
+                                loop has already turned into XML_TEXT events */
   XMLFrame* closing_target; /* mid closing-tag handling: which frame yield_return()
                                 is popping its way down to */
 } XMLParser;

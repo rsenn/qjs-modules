@@ -379,14 +379,6 @@ options_numhidden(InspectOptions* opts, const JSAtom atoms[], size_t n) {
 }
 
 static void
-put_newline(Writer* wr, int32_t depth) {
-  writer_putc(wr, '\n');
-
-  while(depth-- > 0)
-    writer_puts(wr, "  ");
-}
-
-static void
 adjust_spacing(Writer* wr, const InspectOptions* opts, int32_t* depth, int32_t incdec) {
   int32_t d = *depth;
   *depth += incdec;
@@ -394,7 +386,7 @@ adjust_spacing(Writer* wr, const InspectOptions* opts, int32_t* depth, int32_t i
   if(IS_COMPACT(d))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, *depth);
+    writer_putnl_indent(wr, *depth);
 }
 
 static void
@@ -536,7 +528,7 @@ inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth);
+    writer_putnl_indent(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
@@ -545,7 +537,7 @@ inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
       if(i) {
         writer_puts(wr, ",");
         if(!IS_COMPACT(depth + 1))
-          put_newline(wr, depth);
+          writer_putnl_indent(wr, depth);
       }
 
       writer_puts(wr, IS_COMPACT(depth + 1) ? " " : "  ");
@@ -572,7 +564,7 @@ inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth);
+    writer_putnl_indent(wr, depth);
 
   writer_puts(wr, opts->reparseable ? (opts->colors ? "]" COLOR_CYAN ")" COLOR_NONE : "])") : "}");
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
@@ -603,7 +595,7 @@ inspect_set(Inspector* insp, JSValueConst obj, int32_t level) {
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth);
+    writer_putnl_indent(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
@@ -612,7 +604,7 @@ inspect_set(Inspector* insp, JSValueConst obj, int32_t level) {
       if(i) {
         writer_puts(wr, ",");
         if(!IS_COMPACT(depth + 1))
-          put_newline(wr, depth);
+          writer_putnl_indent(wr, depth);
       }
 
       writer_puts(wr, IS_COMPACT(depth + 1) ? " " : "  ");
@@ -624,7 +616,7 @@ inspect_set(Inspector* insp, JSValueConst obj, int32_t level) {
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth);
+    writer_putnl_indent(wr, depth);
 
   writer_puts(wr, opts->reparseable ? (opts->colors ? "]" COLOR_CYAN ")" COLOR_NONE : "])") : "]");
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
@@ -676,7 +668,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
     if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
     else
-      put_newline(wr, depth + 2);
+      writer_putnl_indent(wr, depth + 2);
 
     writer_puts(wr, "byteLength: ");
     writer_write(wr, buf, fmt_ulong(buf, size));
@@ -686,7 +678,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
   if(IS_COMPACT(depth + 2))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth + 3);
+    writer_putnl_indent(wr, depth + 3);
 
   break_len -= (depth + 3) * 2;
   column = 0;
@@ -699,7 +691,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
       if(IS_COMPACT(depth + 2))
         writer_putc(wr, ' ');
       else
-        put_newline(wr, depth + 3);
+        writer_putnl_indent(wr, depth + 3);
 
       column = 0;
     }
@@ -733,7 +725,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
     if(IS_COMPACT(depth + 2))
       writer_putc(wr, ' ');
     else
-      put_newline(wr, depth + 2);
+      writer_putnl_indent(wr, depth + 2);
 
     writer_puts(wr, "]).buffer");
   } else {
@@ -741,7 +733,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
       if(IS_COMPACT(depth + 3))
         writer_putc(wr, ' ');
       else
-        put_newline(wr, depth + 3);
+        writer_putnl_indent(wr, depth + 3);
 
       writer_puts(wr, "... ");
       writer_write(wr, buf, fmt_ulong(buf, size - i));
@@ -751,14 +743,14 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
     if(IS_COMPACT(depth + 2))
       writer_putc(wr, ' ');
     else
-      put_newline(wr, depth + 2);
+      writer_putnl_indent(wr, depth + 2);
 
     writer_puts(wr, "]");
 
     if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
     else
-      put_newline(wr, depth);
+      writer_putnl_indent(wr, depth);
 
     writer_puts(wr, "}");
   }
@@ -925,7 +917,7 @@ inspect_string(Inspector* insp, JSValueConst value, int32_t level) {
       if(pos > 0) {
         writer_puts(wr, opts->colors ? "'" COLOR_NONE " +" : "' +");
         max_len = opts->break_length - column_start - 8;
-        put_newline(wr, depth + 1);
+        writer_putnl_indent(wr, depth + 1);
         writer_puts(wr, opts->colors ? COLOR_GREEN "'" : "'");
       }
 
@@ -1021,7 +1013,7 @@ inspect_error(Inspector* insp, JSValueConst value, int32_t level) {
     writer_puts(wr, "{");
 
   if((str = js_get_propertystr_cstring(ctx, value, "message"))) {
-    put_newline(wr, depth + 1);
+    writer_putnl_indent(wr, depth + 1);
     writer_puts(wr, "message: ");
     writer_puts(wr, str);
     JS_FreeCString(ctx, str);
@@ -1035,14 +1027,14 @@ inspect_error(Inspector* insp, JSValueConst value, int32_t level) {
 
     if((s = JS_ToCStringLen(ctx, &len, stack))) {
 
-      put_newline(wr, depth + 1);
+      writer_putnl_indent(wr, depth + 1);
       writer_puts(wr, "stack:");
 
       for(p = s, e = s + len; p < e;) {
         size_t ll = scan_line(p, e - p);
         size_t next = ll + scan_lineskip(&p[ll], e - p - ll);
 
-        put_newline(wr, depth + 2);
+        writer_putnl_indent(wr, depth + 2);
         writer_write(wr, "|", 1);
         writer_write(wr, p, ll);
 
@@ -1053,7 +1045,7 @@ inspect_error(Inspector* insp, JSValueConst value, int32_t level) {
     }
   }
 
-  put_newline(wr, depth);
+  writer_putnl_indent(wr, depth);
   writer_puts(wr, opts->colors ? COLOR_NONE "}" : "}");
 
   return 1;
@@ -1606,7 +1598,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       }
 
       if(numeric_compact)
-        put_newline(wr, depth);
+        writer_putnl_indent(wr, depth);
       else
         put_spacing(wr, opts, depth);
 
@@ -1700,7 +1692,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
         --depth;
 
         if(had_entries)
-          put_newline(wr, depth);
+          writer_putnl_indent(wr, depth);
       } else if(!(/*depth == 1 &&*/ prev_idx == 0)) {
         adjust_spacing(wr, opts, &depth, -1);
       } else {

@@ -17,10 +17,7 @@ int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
 
-#define DBUF_INIT_0() \
-  (DynBuf) { \
-    0, 0, 0, 0, 0, 0 \
-  }
+#define DBUF_INIT_0() (DynBuf){0, 0, 0, 0, 0, 0}
 #define DBUF_INIT_CTX(ctx) \
   (DynBuf) { \
     0, 0, 0, 0, (DynBufReallocFunc*)js_realloc, (ctx) \
@@ -87,11 +84,9 @@ typedef struct {
   size_t size;
 } MemoryBlock;
 
-#define BLOCK_INIT() \
-  { 0, 0 }
+#define BLOCK_INIT() {0, 0}
 
-#define BLOCK_INIT_DATA(buf, len) \
-  { (buf), (len) }
+#define BLOCK_INIT_DATA(buf, len) {(buf), (len)}
 
 #define MEMORY_BLOCK(buf, len) (MemoryBlock) BLOCK_INIT_DATA(buf, len)
 
@@ -181,8 +176,7 @@ typedef struct OffsetLength {
   size_t offset, length;
 } OffsetLength;
 
-#define OFFSET_LENGTH_DATA(o, l) \
-  { (o), (l) }
+#define OFFSET_LENGTH_DATA(o, l) {(o), (l)}
 
 #define OFFSET_LENGTH_0() (OffsetLength) OFFSET_LENGTH_DATA(0, SIZE_MAX)
 #define OFFSET_LENGTH(o, l) (OffsetLength) OFFSET_LENGTH_DATA(o, l)
@@ -257,7 +251,9 @@ typedef union IndexRange {
 
 #define INDEX_RANGE_DATA(s, e) \
   { \
-    { (s), (e) } \
+    { \
+      (s), (e) \
+    } \
   }
 #define INDEX_RANGE_INIT() INDEX_RANGE_DATA(0, INT64_MAX)
 #define INDEX_RANGE(s, e) (IndexRange) INDEX_RANGE_DATA(s, e)
@@ -352,8 +348,7 @@ typedef struct {
   void *start, *end;
 } PointerRange;
 
-#define RANGE_INIT(s, e) \
-  { (s), (e) }
+#define RANGE_INIT(s, e) {(s), (e)}
 
 #define RANGE(s, e) (PointerRange) RANGE_INIT(s, e)
 

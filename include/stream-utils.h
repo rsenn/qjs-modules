@@ -40,12 +40,12 @@ typedef struct StreamReader {
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
 Writer writer_from_fd(intptr_t, bool);
-int writer_from_js(JSContext* ctx, JSValueConst value, Writer*wr);
-Writer writer_from_jsbuf(JSContext* , JSValueConst );
+int writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr);
+Writer writer_from_jsbuf(JSContext*, JSValueConst);
 Writer writer_from_jsfunction(JSContext*, JSValueConst);
 Writer writer_from_jsinvoke(JSContext*, const char*, JSValueConst);
 Writer writer_from_jsmethod(JSContext*, JSValueConst, JSValueConst);
-Writer writer_from_jsstream(JSContext*, JSValueConst );
+Writer writer_from_jsstream(JSContext*, JSValueConst);
 Writer writer_counted(Writer*, uint64_t*, uint64_t*);
 Writer writer_buffered(Writer*, size_t);
 Writer writer_linebuffered(Writer*, size_t);
@@ -60,11 +60,11 @@ Reader reader_from_dynbuf(DynBuf*);
 Reader reader_from_buf(InputBuffer*);
 Reader reader_from_bytes(const void*, size_t);
 Reader reader_from_fd(intptr_t, bool);
-int reader_from_js(JSContext* ctx, JSValueConst value, Reader*rd) ;
+int reader_from_js(JSContext* ctx, JSValueConst value, Reader* rd);
 Reader reader_from_jsbuf(JSContext* ctx, JSValueConst value);
 Reader reader_from_jsfunction(JSContext*, JSValueConst);
-Reader reader_from_jsinvoke(JSContext* , const char* , JSValueConst);
-Reader reader_from_jsmethod(JSContext* , JSValueConst, JSValueConst);
+Reader reader_from_jsinvoke(JSContext*, const char*, JSValueConst);
+Reader reader_from_jsmethod(JSContext*, JSValueConst, JSValueConst);
 Reader reader_from_jsstream(JSContext*, JSValueConst);
 Reader reader_counted(Reader*, uint64_t*, uint64_t*);
 Reader reader_buffered(Reader*, size_t);
@@ -83,6 +83,24 @@ static inline ssize_t
 writer_putc(Writer* wr, int c) {
   char ch = c;
   return writer_write(wr, &ch, 1);
+}
+
+static inline ssize_t
+writer_putnl_indent(Writer* wr, int32_t depth) {
+  ssize_t r = writer_putc(wr, '\n');
+
+  while(depth-- > 0)
+    r += writer_putc(wr, ' ');
+
+  return r;
+}
+
+static inline ssize_t
+writer_putjs(Writer* wr, JSValueConst value, JSContext* ctx) {
+  InputBuffer input = js_input_chars(ctx, value);
+  ssize_t r = writer_write(wr, inputbuffer_data(&input), inputbuffer_length(&input));
+  inputbuffer_free(&input, ctx);
+  return r;
 }
 
 static inline int

@@ -10,10 +10,7 @@ typedef struct {
   size_t len;
 } BitSet;
 
-#define BITSET_INIT() \
-  (BitSet) { \
-    0, 0 \
-  }
+#define BITSET_INIT() (BitSet){0, 0}
 
 #define bitset_size(bs) ((bs)->len)
 

@@ -1992,6 +1992,7 @@ xml_parser_build(XmlParser* p, xml_event_t ev) {
       if(p->xp.event_has_value)
         xml_builder_text(&p->builder, p->xp.event_value.data, p->xp.event_value.len);
       break;
+    default: break;
   }
 }
 
@@ -2029,6 +2030,8 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
       JS_FreeValue(ctx, value);
       break;
     }
+
+    default: break;
   }
 }
 
@@ -2142,16 +2145,19 @@ js_xml_parser_callback(JSContext* ctx, JSValueConst this_val, JSValueConst value
       p->element_start = JS_DupValue(ctx, value);
       break;
     }
+
     case XML_ELEMENT_END: {
       JS_FreeValue(ctx, p->element_end);
       p->element_end = JS_DupValue(ctx, value);
       break;
     }
+
     case XML_ATTRIBUTE: {
       JS_FreeValue(ctx, p->attribute);
       p->attribute = JS_DupValue(ctx, value);
       break;
     }
+
     case XML_TEXT: {
       JS_FreeValue(ctx, p->text);
       p->text = JS_DupValue(ctx, value);
@@ -2184,7 +2190,12 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   }
 
   JSValue filename = argc > 1 && JS_IsString(argv[1]) ? JS_DupValue(ctx, argv[1]) : JS_GetPropertyStr(ctx, options, "filename");
-  location_set_filename(p->loc, js_tostring_free(ctx, filename), ctx);
+
+  char* file = js_tostring_free(ctx, filename);
+  if(file) {
+    location_set_filename(p->loc, file, ctx);
+    js_free(ctx, file);
+  }
 
   p->attribute = JS_GetPropertyStr(ctx, options, "attribute");
   p->element_start = JS_GetPropertyStr(ctx, options, "elementStart");
@@ -2261,6 +2272,199 @@ static JSClassDef js_xml_parser_class = {
     .finalizer = js_xml_parser_finalizer,
 };
 
+typedef struct {
+  Writer writer;
+  size_t written;
+  xml_event_t event;
+  int indent, level;
+} XMLWriter;
+
+static JSClassID js_xmlwriter_class_id;
+static JSValue xmlwriter_proto, xmlwriter_ctor;
+
+static JSValue
+js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  XMLWriter* wr;
+  ssize_t w = 0;
+
+  if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
+    return JS_EXCEPTION;
+
+  if(wr->event) {
+    switch(wr->event) {
+      case XML_ELEMENT_START:
+      case XML_ATTRIBUTE: {
+        if(magic != XML_ATTRIBUTE)
+          w += writer_putc(&wr->writer, '>');
+        break;
+      }
+    }
+
+    switch(magic) {
+      case XML_ELEMENT_END: --wr->level;
+      case XML_TEXT:
+      case XML_ELEMENT_START: {
+        w += writer_putnl_indent(&wr->writer, wr->indent * wr->level);
+        break;
+      }
+    }
+  }
+
+  switch(magic) {
+    case XML_ATTRIBUTE: {
+      w += writer_putc(&wr->writer, ' ');
+      w += writer_putjs(&wr->writer, argv[0], ctx);
+
+      if(argc > 1 && !(js_is_null_or_undefined(argv[1]) && JS_IsBool(argv[1]))) {
+        w += writer_puts(&wr->writer, "=\"");
+        w += writer_putjs(&wr->writer, argv[1], ctx);
+        w += writer_putc(&wr->writer, '"');
+      }
+
+      break;
+    }
+
+    case XML_ELEMENT_START: {
+      ++wr->level;
+      w += writer_putc(&wr->writer, '<');
+      w += writer_putjs(&wr->writer, argv[0], ctx);
+      break;
+    }
+
+    case XML_ELEMENT_END: {
+      w += writer_puts(&wr->writer, "</");
+      w += writer_putjs(&wr->writer, argv[0], ctx);
+      w += writer_putc(&wr->writer, '>');
+      break;
+    }
+
+    case XML_TEXT: {
+      w += writer_putjs(&wr->writer, argv[0], ctx);
+      break;
+    }
+  }
+
+  wr->event = magic;
+  wr->written += w;
+  return JS_NewInt64(ctx, w);
+}
+
+enum {
+  WRITER_STATE,
+  WRITER_WRITTEN,
+  WRITER_INDENT,
+};
+
+static JSValue
+js_xmlwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  XMLWriter* wr;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case WRITER_STATE: {
+      ret = JS_NewInt32(ctx, wr->event);
+      break;
+    }
+    case WRITER_WRITTEN: {
+      ret = JS_NewInt64(ctx, wr->written);
+      break;
+    }
+    case WRITER_INDENT: {
+      ret = JS_NewInt32(ctx, wr->indent);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static JSValue
+js_xmlwriter_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  XMLWriter* wr;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case WRITER_INDENT: {
+      wr->indent = js_toint32(ctx, value);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static JSValue
+js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj = JS_UNDEFINED;
+  XMLWriter* wr;
+  int i = 0;
+
+  if(!(wr = js_mallocz(ctx, sizeof(XMLWriter))))
+    return JS_EXCEPTION;
+
+  if(writer_from_js(ctx, argv[i], &wr->writer))
+    i++;
+
+  JSValue options = i < argc ? argv[i] : argv[0];
+
+  if(js_has_propertystr(ctx, options, "indent")) {
+    wr->indent = js_toint32_free(ctx, JS_GetPropertyStr(ctx, options, "indent"));
+  } else {
+    wr->indent = 2;
+  }
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    goto fail;
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_xmlwriter_class_id);
+  JS_FreeValue(ctx, proto);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, wr);
+  return obj;
+
+fail:
+  writer_free(&wr->writer);
+  js_free(ctx, wr);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+static void
+js_xmlwriter_finalizer(JSRuntime* rt, JSValue val) {
+  XMLWriter* wr;
+
+  if((wr = JS_GetOpaque(val, js_xmlwriter_class_id))) {
+    writer_free(&wr->writer);
+    js_free_rt(rt, wr);
+  }
+}
+
+static JSClassDef js_xmlwriter_class = {
+    .class_name = "XMLWriter",
+    .finalizer = js_xmlwriter_finalizer,
+};
+
+static const JSCFunctionListEntry js_xmlwriter_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("attribute", 2, js_xmlwriter_method, XML_ATTRIBUTE),
+    JS_CFUNC_MAGIC_DEF("elementStart", 1, js_xmlwriter_method, XML_ELEMENT_START),
+    JS_CFUNC_MAGIC_DEF("elementEnd", 1, js_xmlwriter_method, XML_ELEMENT_END),
+    JS_CFUNC_MAGIC_DEF("text", 1, js_xmlwriter_method, XML_TEXT),
+    JS_CGETSET_MAGIC_DEF("state", js_xmlwriter_get, 0, WRITER_STATE),
+    JS_CGETSET_MAGIC_DEF("written", js_xmlwriter_get, 0, WRITER_WRITTEN),
+    JS_CGETSET_MAGIC_DEF("indent", js_xmlwriter_get, js_xmlwriter_set, WRITER_INDENT),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLWriter", JS_PROP_CONFIGURABLE),
+};
+
 static int
 js_xml_init(JSContext* ctx, JSModuleDef* m) {
   character_classes_init(chars);
@@ -2321,6 +2525,16 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "TEXT", JS_NewInt32(ctx, XML_TEXT), JS_PROP_ENUMERABLE);
 
   JS_SetModuleExport(ctx, m, "XMLParser", xml_parser_ctor);
+
+  xmlwriter_ctor = JS_NewCFunction2(ctx, js_xmlwriter_constructor, "XMLWriter", 1, JS_CFUNC_constructor, 0);
+  xmlwriter_proto = JS_NewObject(ctx);
+
+  JS_SetPropertyFunctionList(ctx, xmlwriter_proto, js_xmlwriter_funcs, countof(js_xmlwriter_funcs));
+  JS_SetClassProto(ctx, js_xmlwriter_class_id, xmlwriter_proto);
+  JS_SetConstructor(ctx, xmlwriter_ctor, xmlwriter_proto);
+
+  JS_SetModuleExport(ctx, m, "XMLWriter", xmlwriter_ctor);
+
   return 0;
 }
 
@@ -2340,6 +2554,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "XMLSerializer");
     JS_AddModuleExport(ctx, m, "XMLPushParser");
     JS_AddModuleExport(ctx, m, "XMLParser");
+    JS_AddModuleExport(ctx, m, "XMLWriter");
   }
 
   return m;

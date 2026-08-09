@@ -22,8 +22,7 @@
 
 typedef DynBuf Vector;
 
-#define VECTOR_INIT() \
-  { 0, 0, 0, 0, &vector_realloc, 0 }
+#define VECTOR_INIT() {0, 0, 0, 0, &vector_realloc, 0}
 
 #define vector_init(vec, ctx) dbuf_init2((vec), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
 #define vector_init_rt(vec, rt) dbuf_init2((vec), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
@@ -45,7 +44,7 @@ typedef DynBuf Vector;
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
 #define vector_foreach(a, msz, p) for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
-#if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
+#if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 static inline int
 umult64(uint64_t a, uint64_t b, uint64_t* c) {
   return !__builtin_mul_overflow(a, b, c);
