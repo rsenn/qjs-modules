@@ -1,4 +1,5 @@
-import xml, { XMLParser, XMLPushParser, XMLSerializer } from 'xml';
+import xml, { XMLParser, XMLWriter, XMLPushParser, XMLSerializer } from 'xml';
+import { toString } from 'util';
 import { assert, eq, tests } from './tinytest.js';
 
 /* tinytest's eq() uses !=, which does reference comparison for arrays/objects -
@@ -97,20 +98,24 @@ tests({
       {
         tagName: 'div',
         attributes: {},
-        children: [{ tagName: 'br', attributes: {} }, { tagName: 'p', attributes: {}, children: ['x'] }],
+        children: [
+          { tagName: 'br', attributes: {} },
+          { tagName: 'p', attributes: {}, children: ['x'] },
+        ],
       },
     ]);
   },
   'xml.read: custom selfClosingTags option'() {
-    eqArr(xml.read('<div><custom-void/></div>', 'f.xml', { selfClosingTags: ['custom-void'] }), [
-      { tagName: 'div', attributes: {}, children: [{ tagName: 'custom-void', attributes: {} }] },
-    ]);
+    eqArr(xml.read('<div><custom-void/></div>', 'f.xml', { selfClosingTags: ['custom-void'] }), [{ tagName: 'div', attributes: {}, children: [{ tagName: 'custom-void', attributes: {} }] }]);
   },
   'xml.read: whitespace-only text between tags is dropped'() {
     eqArr(xml.read('<a>\n  <b>x</b>\n</a>'), [{ tagName: 'a', attributes: {}, children: [{ tagName: 'b', attributes: {}, children: ['x'] }] }]);
   },
   'xml.read: multiple root-level siblings'() {
-    eqArr(xml.read('<a/><b/>'), [{ tagName: 'a', attributes: {} }, { tagName: 'b', attributes: {} }]);
+    eqArr(xml.read('<a/><b/>'), [
+      { tagName: 'a', attributes: {} },
+      { tagName: 'b', attributes: {} },
+    ]);
   },
   'xml.read: mismatched closing tag with a matching ancestor auto-closes intervening elements'() {
     /* </a> doesn't match the innermost open element (b), but does match an
@@ -163,7 +168,14 @@ tests({
   /* ---------- XMLSerializer (pull, .read()) ---------- */
   'XMLSerializer: read(n) round-trips a tree, any chunk size'() {
     let tree = [
-      { tagName: 'root', attributes: { a: '1' }, children: [{ tagName: 'child', attributes: {}, children: ['hello'] }, { tagName: 'empty', attributes: {} }] },
+      {
+        tagName: 'root',
+        attributes: { a: '1' },
+        children: [
+          { tagName: 'child', attributes: {}, children: ['hello'] },
+          { tagName: 'empty', attributes: {} },
+        ],
+      },
     ];
 
     for(let bufSize of [1, 2, 3, 7, 1000]) {
@@ -266,7 +278,10 @@ tests({
       {
         tagName: 'a',
         attributes: { x: '1' },
-        children: [{ tagName: 'b', attributes: { y: '2' }, children: [] }, { tagName: 'c', attributes: {}, children: [] }],
+        children: [
+          { tagName: 'b', attributes: { y: '2' }, children: [] },
+          { tagName: 'c', attributes: {}, children: [] },
+        ],
       },
     ]);
   },
@@ -340,7 +355,13 @@ tests({
     pp.write('<a x="1"><b/></a>');
     pp.close();
 
-    eqArr(events, [['start', 'a'], ['attr', 'x', '1'], ['start', 'b'], ['end', 'b'], ['end', 'a']]);
+    eqArr(events, [
+      ['start', 'a'],
+      ['attr', 'x', '1'],
+      ['start', 'b'],
+      ['end', 'b'],
+      ['end', 'a'],
+    ]);
   },
   'XMLPushParser: custom callbacks mean .root stays empty (builder not fed)'() {
     let pp = new XMLPushParser({ elementStart() {} });
@@ -495,7 +516,10 @@ tests({
     }
 
     assert(locs[0].line === 1, JSON.stringify(locs));
-    assert(locs.some(l => l.line === 2), JSON.stringify(locs));
+    assert(
+      locs.some(l => l.line === 2),
+      JSON.stringify(locs),
+    );
   },
   'XMLParser: .location.file reflects the constructor filename argument'() {
     let { parser } = drain('<a/>', 'my-input.xml');
@@ -529,7 +553,7 @@ tests({
     p.tolerant = true;
     eq(p.tolerant, true);
   },
-  'XMLParser: constructor accepts a pull function (fn(buffer, len) -> bytesRead)'() {
+  'XMLParser: constructor accepts a pull function(fn(buffer, len) -> bytesRead)'() {
     let p = new XMLParser(makeReader('<a>x</a>'));
     let toks = [];
 
@@ -580,7 +604,10 @@ tests({
       {
         tagName: 'root',
         attributes: { id: 'x1', class: 'main' },
-        children: [{ tagName: 'child', attributes: { n: '1' }, children: ['plain text'] }, { tagName: 'empty', attributes: {}, children: [] }],
+        children: [
+          { tagName: 'child', attributes: { n: '1' }, children: ['plain text'] },
+          { tagName: 'empty', attributes: {}, children: [] },
+        ],
       },
     ];
 
@@ -606,5 +633,16 @@ tests({
     let { parser } = drain(out);
 
     eqArr(parser.root, tree);
+  },
+  'XMLParser plugs into XMLWriter'() {
+    let s = '';
+    let xw = new XMLWriter(data => (s += toString(data)), -1);
+    let p = new XMLParser('<html><body><div><p><img src="blah.jpg" />test blah</p>goes a loong way</div></body></html>', xw);
+    let tok;
+
+    while((tok = p.parse())) {
+      console.log('tok', tok);
+      console.log(`s='${s}'`);
+    }
   },
 });

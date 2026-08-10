@@ -87,10 +87,11 @@ writer_putc(Writer* wr, int c) {
 
 static inline ssize_t
 writer_putnl_indent(Writer* wr, int32_t depth) {
-  ssize_t r = writer_putc(wr, '\n');
+  ssize_t r = depth >= 0 ? writer_putc(wr, '\n') : 0;
 
-  while(depth-- > 0)
-    r += writer_putc(wr, ' ');
+  if(depth > 0)
+    while(depth-- > 0)
+      r += writer_putc(wr, ' ');
 
   return r;
 }

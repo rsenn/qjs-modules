@@ -1947,6 +1947,7 @@ typedef struct {
   XmlBuilder builder;
   BOOL use_builder;
   JSValue element_start, element_end, attribute, text, error;
+  JSValue this_obj;
 } XmlParser;
 
 static JSClassID js_xml_parser_class_id;
@@ -2001,7 +2002,7 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
   switch(ev) {
     case XML_ELEMENT_START: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
-      JS_FreeValue(ctx, JS_Call(ctx, p->element_start, JS_NULL, 1, &name));
+      JS_FreeValue(ctx, JS_Call(ctx, p->element_start, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
@@ -2011,7 +2012,7 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
           JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len),
           p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED,
       };
-      JS_FreeValue(ctx, JS_Call(ctx, p->attribute, JS_NULL, countof(argv), argv));
+      JS_FreeValue(ctx, JS_Call(ctx, p->attribute, p->this_obj, countof(argv), argv));
       JS_FreeValue(ctx, argv[0]);
       JS_FreeValue(ctx, argv[1]);
       break;
@@ -2019,14 +2020,14 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
 
     case XML_ELEMENT_END: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
-      JS_FreeValue(ctx, JS_Call(ctx, p->element_end, JS_NULL, 1, &name));
+      JS_FreeValue(ctx, JS_Call(ctx, p->element_end, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
 
     case XML_TEXT: {
       JSValue value = p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED;
-      JS_FreeValue(ctx, JS_Call(ctx, p->text, JS_NULL, 1, &value));
+      JS_FreeValue(ctx, JS_Call(ctx, p->text, p->this_obj, 1, &value));
       JS_FreeValue(ctx, value);
       break;
     }
@@ -2203,6 +2204,8 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   p->error = JS_GetPropertyStr(ctx, options, "error");
   p->text = JS_GetPropertyStr(ctx, options, "text");
 
+  p->this_obj = JS_DupValue(ctx, options);
+
   /* no real callback given at all: build a tree (retrievable via .root) instead of
    * forwarding events that would just be dropped on the floor. */
   p->use_builder = !JS_IsFunction(ctx, p->attribute) && !JS_IsFunction(ctx, p->element_start) && !JS_IsFunction(ctx, p->element_end) &&
@@ -2247,6 +2250,7 @@ js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
     if(p->loc)
       location_free(p->loc, rt);
 
+    JS_FreeValueRT(rt, p->this_obj);
     js_free_rt(rt, p);
   }
 }
@@ -2276,7 +2280,7 @@ typedef struct {
   Writer writer;
   size_t written;
   xml_event_t event;
-  int indent, level;
+  int32_t indent, level;
 } XMLWriter;
 
 static JSClassID js_xmlwriter_class_id;
@@ -2286,6 +2290,7 @@ static JSValue
 js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   XMLWriter* wr;
   ssize_t w = 0;
+  BOOL self_closing = FALSE;
 
   if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
     return JS_EXCEPTION;
@@ -2294,7 +2299,10 @@ js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     switch(wr->event) {
       case XML_ELEMENT_START:
       case XML_ATTRIBUTE: {
-        if(magic != XML_ATTRIBUTE)
+        if(magic == XML_ELEMENT_END)
+          self_closing = TRUE;
+
+        if(magic != XML_ATTRIBUTE && !self_closing)
           w += writer_putc(&wr->writer, '>');
         break;
       }
@@ -2304,7 +2312,8 @@ js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       case XML_ELEMENT_END: --wr->level;
       case XML_TEXT:
       case XML_ELEMENT_START: {
-        w += writer_putnl_indent(&wr->writer, wr->indent * wr->level);
+        if(!self_closing)
+          w += writer_putnl_indent(&wr->writer, wr->indent * wr->level);
         break;
       }
     }
@@ -2332,9 +2341,14 @@ js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case XML_ELEMENT_END: {
-      w += writer_puts(&wr->writer, "</");
-      w += writer_putjs(&wr->writer, argv[0], ctx);
-      w += writer_putc(&wr->writer, '>');
+      if(self_closing) {
+        w += writer_puts(&wr->writer, " />");
+      } else {
+        w += writer_puts(&wr->writer, "</");
+        w += writer_putjs(&wr->writer, argv[0], ctx);
+        w += writer_putc(&wr->writer, '>');
+      }
+
       break;
     }
 
@@ -2413,7 +2427,9 @@ js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   JSValue options = i < argc ? argv[i] : argv[0];
 
-  if(js_has_propertystr(ctx, options, "indent")) {
+  if(JS_IsNumber(options)) {
+    wr->indent = js_toint32(ctx, options);
+  } else if(js_has_propertystr(ctx, options, "indent")) {
     wr->indent = js_toint32_free(ctx, JS_GetPropertyStr(ctx, options, "indent"));
   } else {
     wr->indent = 2;
