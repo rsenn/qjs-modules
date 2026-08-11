@@ -119,6 +119,25 @@ class ObjectDependencyGraph {
 
 ObjectDependencyGraph.prototype[Symbol.toStringTag] = 'ObjectDependencyGraph';
 
+Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph });
+
+main(...scriptArgs.slice(1));
+
+function main(...args) {
+  const symbols = parseNmSymbols(args);
+
+  console.log(symbols);
+  const dependencies = new ObjectDependencyGraph(symbols).compute('js_init_module');
+
+  const { includedObjects, unusedObjects, unresolvedSymbols } = dependencies;
+
+  console.log({ includedObjects, unresolvedSymbols });
+
+  startInteractive();
+
+  os.kill(os.getpid(), os.SIGUSR1);
+}
+
 function* searchPaths(paths) {
   if(typeof paths == 'string') paths = [paths];
 
@@ -127,7 +146,7 @@ function* searchPaths(paths) {
     const [entries, err] = readdir(p);
 
     if(!err && entries) {
-      // It is a directory; filter entries matching /\.[ao]$/i
+      // It is a directory; filter entries matching pattern
       for(const entry of entries) if(/\.(a|o|obj|lib)$/i.test(entry)) yield `${p}/${entry}`;
     } else {
       // Treat as a direct file path
@@ -143,7 +162,7 @@ function runCommand(...args) {
 
   const [fd, stdout] = p;
 
-  // Run 'nm -A' non-blocking (`block: false`), redirecting stdout to the pipe's write end
+  // Run command non-blocking (`block: false`), redirecting stdout to the pipe's write end
   const pid = exec(args, {
     stdout,
     block: false,
@@ -240,7 +259,7 @@ function parseNmSymbols(paths, symbolType) {
 
 /**
  * Runs 'objdump -t -r' on a batch of files (object files first, then archives),
- * tracking archive/object headers, symbol tables, and relocation tables to build 
+ * tracking archive/object headers, symbol tables, and relocation tables to build
  * a plain-object hash containing symbol definitions and relocation arrays for undefined references.
  *
  * @param {string[]} paths - Array of file paths or directory paths
@@ -256,13 +275,11 @@ function parseObjdumpSymbols(paths) {
   const archiveFiles = [];
 
   for(const f of resolvedFiles) {
-    if(/\.(a|lib)$/i.test(f)) 
-      archiveFiles.push(f);
-     else 
-      objectFiles.push(f);
+    if(/\.(a|lib)$/i.test(f)) archiveFiles.push(f);
+    else objectFiles.push(f);
   }
 
-  const lines = runCommand('objdump', '-t', '-r',...objectFiles, ...archiveFiles);
+  const lines = runCommand('objdump', '-t', '-r', ...objectFiles, ...archiveFiles);
   const fileDataMap = new Map();
 
   let archiveName = null;
@@ -296,107 +313,97 @@ function parseObjdumpSymbols(paths) {
       continue;
     }
 
-    if(line.startsWith('RELOCATION RECORDS FOR')) {
+    let tmp;
+    if((tmp = /RELOCATION RECORDS FOR \[(.*)\]:/.exec(line))) {
       inSymbolTable = false;
-      inRelocTable = true;
+      inRelocTable = tmp[1];
       continue;
     }
 
     const getKey = () => (archiveName ? `${archiveName}:${objectName}` : objectName);
 
-    if(inSymbolTable) {
-      if(line == 'no symbols') continue;
+    try {
+      if(inSymbolTable) {
+        if(line == 'no symbols') continue;
 
-      const matches = line.matchAll(/[0-9A-Fa-f]{8,16}/g);
-      const matchArr = [...matches];
-      if(matchArr.length < 2) continue;
+        const matches = line.matchAll(/[0-9A-Fa-f]{8,16}/g);
+        const matchArr = [...matches];
+        if(matchArr.length < 2) continue;
 
-      const [[addrPos, addrEnd], [sizePos, sizeEnd]] = matchArr.map(m => [m.index, m.index + m[0].length]);
+        const [[addrPos, addrEnd], [sizePos, sizeEnd]] = matchArr.map(m => [m.index, m.index + m[0].length]);
 
-      const obj = {
-        symbol: line.slice(sizeEnd + 1).trim(),
-        section: line.slice(addrEnd + 9, line.indexOf('\t', addrEnd + 9)).trim(),
-      };
+        const obj = {
+          symbol: line.slice(sizeEnd + 1).trim(),
+          section: line.slice(addrEnd + 9, line.indexOf('\t', addrEnd + 9)).trim(),
+        };
 
-      if(/^\*?UND\*?$/.test(obj.section)) {
-        obj.type = 'U';
-        delete obj.section;
-        obj.relocs = [];
-      } else {
-        obj.type = line[addrEnd + 1];
-        obj.start = line.slice(addrPos, addrEnd).replace(/^0+/, '') || '0';
-        obj.size = line.slice(sizePos, sizeEnd).replace(/^0+/, '') || '0';
-      }
+        if(/^\*?UND\*?$/.test(obj.section)) {
+          obj.type = 'U';
+          delete obj.section;
+        } else {
+          if(obj.symbol.startsWith('.hidden')) {
+            obj.symbol = obj.symbol.slice(7).trimStart();
+            obj.hidden = true;
+          }
+          obj.type = line[addrEnd + 1];
 
-      const key = getKey();
-      if(!key) continue;
+          if(/\w/.test(line[addrEnd + 1 + 6])) obj.f = line[addrEnd + 1 + 6];
+          if(/\w/.test(line[addrEnd + 1 + 5])) obj.d = line[addrEnd + 1 + 5];
 
-      const entry = fileDataMap.get(key) ?? { symbols: [] };
-      entry.symbols.push(obj);
-      fileDataMap.set(key, entry);
-    } else if(inRelocTable) {
-      const parts = line.trim().split(/\s+/);
-      if(parts.length < 3) continue;
-
-      const offset = parts[0];
-      const type = parts[1];
-      const targetExpr = parts.slice(2).join(' ');
-
-      let symbol = targetExpr;
-      let addend = '0x0';
-      const addendMatch = targetExpr.match(/^(.+?)([+-])(0x[0-9a-fA-F]+|[0-9]+)$/);
-      if(addendMatch) {
-        symbol = addendMatch[1].trim();
-        addend = addendMatch[3];
-      } else {
-        symbol = targetExpr.trim();
-      }
-
-      const key = getKey();
-      if(!key) continue;
-
-      const entry = fileDataMap.get(key);
-
-      if(entry && entry.symbols) {
-        const sym = entry.symbols.find(s => s.symbol === symbol && s.type === 'U');
-
-        if(sym) {
-          if(!sym.relocs) sym.relocs = [];
-
-          sym.relocs.push({
-            offset,
-            type,
-            addend,
-          });
+          obj.start = BigInt('0x' + (line.slice(addrPos, addrEnd) || '0'));
+          obj.size = BigInt('0x' + (line.slice(sizePos, sizeEnd) || '0'));
         }
+
+        if(obj.start == 0n && obj.size == 0n) continue;
+
+        const key = getKey();
+        if(!key) continue;
+
+        const entry = fileDataMap.getOrInsertComputed(key, () => ({ symbols: [], relocs: [] }));
+
+        entry.symbols.push(obj);
+      } else if(inRelocTable) {
+        if(/^OFFSET\s*TYPE\s*VALUE/.test(line)) continue;
+
+        const parts = line.trim().split(/\s+/);
+        if(parts.length < 3) continue;
+
+        const offset = BigInt('0x' + parts[0]);
+        const type = parts[1];
+        const targetExpr = parts.slice(2).join(' ');
+
+        let symbol = targetExpr;
+        let addend = '0x0';
+
+        const addendMatch = targetExpr.match(/^(.+?)([+-])(0x[0-9a-fA-F]+|[0-9]+)$/);
+        if(addendMatch) {
+          symbol = addendMatch[1].trim();
+          addend = BigInt(addendMatch[3]);
+        } else {
+          symbol = targetExpr.trim();
+        }
+
+        const key = getKey();
+        if(!key) continue;
+
+        const entry = fileDataMap.get(key);
+
+        (entry.relocs ??= []).push({
+          symbol,
+          offset,
+          type,
+          addend,
+          section: inRelocTable,
+        });
       }
+    } catch(e) {
+      throw new Error(`Parse error for line: ${line}: ${e.message} ${e.stack}`);
     }
   }
 
   const result = {};
 
-  for(const [key, entry] of fileDataMap.entries()) 
-    result[key] = entry.symbols;
+  for(const [key, entry] of fileDataMap.entries()) result[key] = entry;
 
   return result;
 }
-
-
-Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph });
-
-function main(...args) {
-  const symbols = parseNmSymbols(args);
-
-  console.log(symbols);
-  const dependencies = new ObjectDependencyGraph(symbols).compute('js_init_module');
-
-  const { includedObjects, unusedObjects, unresolvedSymbols } = dependencies;
-
-  console.log({ includedObjects, unresolvedSymbols });
-
-  startInteractive();
-
-  os.kill(os.getpid(), os.SIGUSR1);
-}
-
-main(...scriptArgs.slice(1));
