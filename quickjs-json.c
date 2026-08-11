@@ -778,12 +778,18 @@ typedef struct PushParser {
   JsonBuilder builder;
   JSValue callback_fn;
   JSValue callbacks_obj;
+  JSValue cb_array_start;
+  JSValue cb_array_end;
+  JSValue cb_object_start;
+  JSValue cb_object_end;
+  JSValue cb_key;
+  JSValue cb_value;
+  JSValue cb_error;
 } JsonPushParser;
 
 static void
 jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
   JsonPushParser* pp = user_data;
-  JSContext* ctx = pp->ctx;
 
   switch(type) {
     case jr_type_object_start:
@@ -805,13 +811,14 @@ jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
 
     case jr_type_error: break;
   }
+}
 
-  JSValue val = JS_UNDEFINED;
-
+static JSValue
+jread_value_to_js(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
   switch(type) {
-    case jr_type_null: val = JS_NULL; break;
-    case jr_type_true: val = JS_TRUE; break;
-    case jr_type_false: val = JS_FALSE; break;
+    case jr_type_null: return JS_NULL;
+    case jr_type_true: return JS_TRUE;
+    case jr_type_false: return JS_FALSE;
     case jr_type_number: {
       double num = 0;
 
@@ -826,21 +833,29 @@ jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
         }
       }
 
-      val = JS_NewFloat64(ctx, num);
-      break;
+      return JS_NewFloat64(ctx, num);
     }
 
     case jr_type_string:
     case jr_type_key:
-    case jr_type_error: val = (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, ""); break;
+    case jr_type_error: return (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, "");
 
-    default: val = JS_UNDEFINED; break;
+    default: return JS_UNDEFINED;
   }
+}
+
+static void
+jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
+  JsonPushParser* pp = user_data;
+  JSContext* ctx = pp->ctx;
+
+  jread_callback_build(type, data, user_data);
 
   if(!JS_IsUndefined(pp->callback_fn)) {
+    JSValue val = jread_value_to_js(ctx, type, data);
     JSValue args[2];
     args[0] = JS_NewInt32(ctx, type);
-    args[1] = JS_DupValue(ctx, val);
+    args[1] = val;
     JSValue ret = JS_Call(ctx, pp->callback_fn, JS_UNDEFINED, 2, args);
     JS_FreeValue(ctx, args[0]);
     JS_FreeValue(ctx, args[1]);
@@ -851,41 +866,33 @@ jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
       clear_pending_exception(ctx);
   }
 
-  if(!JS_IsUndefined(pp->callbacks_obj)) {
-    const char* method_name = NULL;
+  JSValue cb = JS_UNDEFINED;
 
-    switch(type) {
-      case jr_type_object_start: method_name = "objectStart"; break;
-      case jr_type_object_end: method_name = "objectEnd"; break;
-      case jr_type_array_start: method_name = "arrayStart"; break;
-      case jr_type_array_end: method_name = "arrayEnd"; break;
-      case jr_type_key: method_name = "key"; break;
-      case jr_type_null:
-      case jr_type_true:
-      case jr_type_false:
-      case jr_type_number:
-      case jr_type_string: method_name = "value"; break;
-      case jr_type_error: method_name = "error"; break;
-      default: break;
-    }
-
-    if(method_name) {
-      JSValue fn = JS_GetPropertyStr(ctx, pp->callbacks_obj, method_name);
-
-      if(JS_IsFunction(ctx, fn)) {
-        JSValue ret = JS_Call(ctx, fn, pp->callbacks_obj, 1, &val);
-
-        if(!JS_IsException(ret))
-          JS_FreeValue(ctx, ret);
-        else
-          clear_pending_exception(ctx);
-      }
-
-      JS_FreeValue(ctx, fn);
-    }
+  switch(type) {
+    case jr_type_object_start: cb = pp->cb_object_start; break;
+    case jr_type_object_end: cb = pp->cb_object_end; break;
+    case jr_type_array_start: cb = pp->cb_array_start; break;
+    case jr_type_array_end: cb = pp->cb_array_end; break;
+    case jr_type_key: cb = pp->cb_key; break;
+    case jr_type_null:
+    case jr_type_true:
+    case jr_type_false:
+    case jr_type_number:
+    case jr_type_string: cb = pp->cb_value; break;
+    case jr_type_error: cb = pp->cb_error; break;
+    default: break;
   }
 
-  JS_FreeValue(ctx, val);
+  if(!JS_IsUndefined(cb) && JS_IsFunction(ctx, cb)) {
+    JSValue val = jread_value_to_js(ctx, type, data);
+    JSValue ret = JS_Call(ctx, cb, pp->callbacks_obj, 1, &val);
+    JS_FreeValue(ctx, val);
+
+    if(!JS_IsException(ret))
+      JS_FreeValue(ctx, ret);
+    else
+      clear_pending_exception(ctx);
+  }
 }
 
 static JSValue
@@ -903,7 +910,7 @@ js_json_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValu
     return JS_EXCEPTION;
   }
 
-  jr_read(&jread_callback_build, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->jrs);
+  jr_read(&jread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->jrs);
 
   inputbuffer_free(&input, ctx);
 
@@ -917,7 +924,7 @@ js_json_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_json_pushparser_class_id)))
     return JS_EXCEPTION;
 
-  jr_finish(&jread_callback_build, pp, &pp->jrs);
+  jr_finish(&jread_callback, pp, &pp->jrs);
 
   if(!pp->jrs.done)
     return JS_ThrowSyntaxError(ctx, "unexpected end of input");
@@ -960,16 +967,16 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
   pp->ctx = ctx;
   jr_state_init(&pp->jrs);
   json_builder_init(&pp->builder, ctx);
+
   pp->callback_fn = JS_UNDEFINED;
   pp->callbacks_obj = JS_UNDEFINED;
-
-  if(argc > 0) {
-    if(JS_IsFunction(ctx, argv[0])) {
-      pp->callback_fn = JS_DupValue(ctx, argv[0]);
-    } else if(JS_IsObject(argv[0])) {
-      pp->callbacks_obj = JS_DupValue(ctx, argv[0]);
-    }
-  }
+  pp->cb_array_start = JS_UNDEFINED;
+  pp->cb_array_end = JS_UNDEFINED;
+  pp->cb_object_start = JS_UNDEFINED;
+  pp->cb_object_end = JS_UNDEFINED;
+  pp->cb_key = JS_UNDEFINED;
+  pp->cb_value = JS_UNDEFINED;
+  pp->cb_error = JS_UNDEFINED;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -987,6 +994,21 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
     return JS_EXCEPTION;
   }
 
+  if(argc > 0) {
+    if(JS_IsFunction(ctx, argv[0])) {
+      pp->callback_fn = JS_DupValue(ctx, argv[0]);
+    } else if(JS_IsObject(argv[0])) {
+      pp->callbacks_obj = JS_DupValue(ctx, argv[0]);
+      pp->cb_array_start = JS_GetPropertyStr(ctx, argv[0], "arrayStart");
+      pp->cb_array_end = JS_GetPropertyStr(ctx, argv[0], "arrayEnd");
+      pp->cb_object_start = JS_GetPropertyStr(ctx, argv[0], "objectStart");
+      pp->cb_object_end = JS_GetPropertyStr(ctx, argv[0], "objectEnd");
+      pp->cb_key = JS_GetPropertyStr(ctx, argv[0], "key");
+      pp->cb_value = JS_GetPropertyStr(ctx, argv[0], "value");
+      pp->cb_error = JS_GetPropertyStr(ctx, argv[0], "error");
+    }
+  }
+
   JS_SetOpaque(obj, pp);
   return obj;
 }
@@ -998,8 +1020,17 @@ js_json_pushparser_finalizer(JSRuntime* rt, JSValue val) {
   if((pp = JS_GetOpaque(val, js_json_pushparser_class_id))) {
     jr_state_free(&pp->jrs);
     json_builder_free(&pp->builder, rt);
+
     JS_FreeValueRT(rt, pp->callback_fn);
     JS_FreeValueRT(rt, pp->callbacks_obj);
+    JS_FreeValueRT(rt, pp->cb_array_start);
+    JS_FreeValueRT(rt, pp->cb_array_end);
+    JS_FreeValueRT(rt, pp->cb_object_start);
+    JS_FreeValueRT(rt, pp->cb_object_end);
+    JS_FreeValueRT(rt, pp->cb_key);
+    JS_FreeValueRT(rt, pp->cb_value);
+    JS_FreeValueRT(rt, pp->cb_error);
+
     js_free_rt(rt, pp);
   }
 }
