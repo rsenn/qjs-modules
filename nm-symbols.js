@@ -19,9 +19,9 @@ Map.prototype.getOrInsertComputed = function(key, callback) {
 
 class ObjectDependencyGraph {
   /**
-   * Map<string, string>
-   * A private index mapping a symbol name (String) to the single object file path (String)
-   * that defines/exports it. Throws an error if multiple object files define the same symbol.
+   * Map<string, Set<string>>
+   * A private index mapping a symbol name (String) to a Set of object file paths (String)
+   * that define/export it, allowing multiple object files to define the same symbol.
    */
   #symbolOwners = new Map();
   #symbolUsers = new Map();
@@ -30,17 +30,14 @@ class ObjectDependencyGraph {
   constructor(symbols) {
     this.#symbols = new Map(Object.entries(symbols));
 
-    // Populate and validate symbol owners; throw on duplicate symbols across different files
+    // Populate symbol owners; allow multiple object files to define the same symbol
     for(const [objFile, typesObj] of this.#symbols)
       for(const [type, names] of Object.entries(typesObj)) {
         if(type == 'U') {
           for(const name of names) this.#symbolUsers.getOrInsertComputed(name, () => new Set()).add(objFile);
         } else if(/^[A-TV-Z]$/.test(type))
           for(const name of names) {
-            if(this.#symbolOwners.has(name)) {
-              const existingFile = this.#symbolOwners.get(name);
-              if(existingFile !== objFile) throw new Error(`Duplicate symbol '${name}' defined in both '${existingFile}' and '${objFile}'`);
-            } else this.#symbolOwners.set(name, objFile);
+            this.#symbolOwners.getOrInsertComputed(name, () => new Set()).add(objFile);
           }
       }
   }
@@ -69,12 +66,14 @@ class ObjectDependencyGraph {
     const includedObjects = new Set();
     const worklist = [];
 
-    // Seed the graph with the entry point symbol's owner
-    const entryObj = this.#symbolOwners.get(entryPoint);
+    // Seed the graph with the entry point symbol's owners
+    const entryObjs = this.#symbolOwners.get(entryPoint);
 
-    if(entryObj) {
-      includedObjects.add(entryObj);
-      worklist.push(entryObj);
+    if(entryObjs) {
+      for(const obj of entryObjs) {
+        includedObjects.add(obj);
+        worklist.push(obj);
+      }
     }
 
     // Iteratively resolve dependencies (archive/object linking simulation)
@@ -89,11 +88,15 @@ class ObjectDependencyGraph {
 
       if(refs)
         for(const ref of refs) {
-          const defObj = this.#symbolOwners.get(ref);
+          const defObjs = this.#symbolOwners.get(ref);
 
-          if(defObj && !includedObjects.has(defObj)) {
-            includedObjects.add(defObj);
-            worklist.push(defObj);
+          if(defObjs) {
+            for(const defObj of defObjs) {
+              if(!includedObjects.has(defObj)) {
+                includedObjects.add(defObj);
+                worklist.push(defObj);
+              }
+            }
           }
         }
     }
@@ -338,6 +341,7 @@ function parseObjdumpSymbols(paths) {
       if(inSections) {
         if(line.trim().startsWith('Idx') || line.trim() === '') continue;
         const parts = line.trim().split(/\s+/);
+
         if(parts.length >= 7 && /^\d+$/.test(parts[0]) && parts[1].startsWith('.')) {
           const name = parts[1];
           const size = parseInt(parts[2], 16);
@@ -346,6 +350,7 @@ function parseObjdumpSymbols(paths) {
           let align = 1;
           const alignStr = parts[6];
           const alignMatch = alignStr.match(/^2\*\*(\d+)$/);
+
           if(alignMatch) {
             align = 1 << parseInt(alignMatch[1], 10);
           } else {
@@ -354,8 +359,8 @@ function parseObjdumpSymbols(paths) {
 
           const key = getKey();
           if(key) {
-            const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: [], symbols: [], relocs: [] }));
-            (entry.sections ??= []).push({ name, size, offset, align });
+            const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: {}, symbols: [], relocs: [] }));
+            (entry.sections ??= {})[name] = { size, offset, align };
           }
         }
       } else if(inSymbolTable) {
@@ -403,19 +408,22 @@ function parseObjdumpSymbols(paths) {
         const parts = line.trim().split(/\s+/);
         if(parts.length < 3) continue;
 
-        const offset = BigInt('0x' + parts[0]);
-        const type = parts[1];
+        if(parts[2].startsWith('.')) continue;
+
+        let reloc = {
+          symbol: '',
+          type: parts[1],
+          section: inRelocTable,
+          offset: BigInt('0x' + parts[0]),
+        };
+
         const targetExpr = parts.slice(2).join(' ');
-
-        let symbol = targetExpr;
-        let addend = '0x0';
-
         const addendMatch = targetExpr.match(/^(.+?)([+-])(0x[0-9a-fA-F]+|[0-9]+)$/);
         if(addendMatch) {
-          symbol = addendMatch[1].trim();
-          addend = BigInt(addendMatch[3]);
+          reloc.symbol = addendMatch[1].trim();
+          reloc.addend = BigInt(addendMatch[3]);
         } else {
-          symbol = targetExpr.trim();
+          reloc.symbol = targetExpr.trim();
         }
 
         const key = getKey();
@@ -423,22 +431,12 @@ function parseObjdumpSymbols(paths) {
 
         const entry = fileDataMap.get(key);
 
-        (entry.relocs ??= []).push({
-          symbol,
-          offset,
-          type,
-          addend,
-          section: inRelocTable,
-        });
+        (entry.relocs ??= []).push(reloc);
       }
     } catch(e) {
       throw new Error(`Parse error for line: ${line}: ${e.message} ${e.stack}`);
     }
   }
 
-  const result = {};
-
-  for(const [key, entry] of fileDataMap.entries()) result[key] = entry;
-
-  return result;
+  return Object.fromEntries(fileDataMap.entries());
 }
