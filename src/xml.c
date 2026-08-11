@@ -304,7 +304,7 @@ xml_check_comment_end(XMLParser* p) {
  * resuming (the next xml_parser_run() call) re-enters right after this macro's own
  * call site, same mechanism as parse_getc()'s XML_PARSE_AGAIN. `hasval_`/`valdata_`/
  * `vallen_` may be 0/0/0 for an event with no value.
- * 
+ *
  * Copies name/value data into dedicated ev_name/ev_value buffers so the pointers
  * remain stable until the next event is produced (unlike the old design where they
  * pointed into name/attr/text scan buffers that could be freed/reinit'd).
