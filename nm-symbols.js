@@ -237,19 +237,16 @@ function parseNmSymbols(paths, symbolType) {
 
   return result;
 }
+
 /**
- * Runs 'objdump -t' on a batch of files (object files first, then archives),
- * tracking archive and object headers to build a plain-object hash keyed by
- * <archive name>:<object name> or just <object name>.
+ * Runs 'objdump -t -r' on a batch of files (object files first, then archives),
+ * tracking archive/object headers, symbol tables, and relocation tables to build 
+ * a plain-object hash containing symbol definitions and relocation arrays for undefined references.
  *
  * @param {string[]} paths - Array of file paths or directory paths
  * @returns {Object} Hash keyed by file/archive member -> array of symbol objects
  */
 function parseObjdumpSymbols(paths) {
-  if(typeof paths == 'string') paths = [paths];
-
-  if(!paths || paths.length === 0) return {};
-
   const resolvedFiles = [...searchPaths(paths)];
 
   if(resolvedFiles.length === 0) return {};
@@ -257,21 +254,21 @@ function parseObjdumpSymbols(paths) {
   // Order arguments: object files first, then archives (.a or .lib)
   const objectFiles = [];
   const archiveFiles = [];
-  for(const f of resolvedFiles) {
-    if(/\.(a|lib)$/i.test(f)) {
-      archiveFiles.push(f);
-    } else {
-      objectFiles.push(f);
-    }
-  }
-  const orderedFiles = [...objectFiles, ...archiveFiles];
 
-  const lines = runCommand('objdump', '-t', ...orderedFiles);
-  const result = {};
+  for(const f of resolvedFiles) {
+    if(/\.(a|lib)$/i.test(f)) 
+      archiveFiles.push(f);
+     else 
+      objectFiles.push(f);
+  }
+
+  const lines = runCommand('objdump', '-t', '-r',...objectFiles, ...archiveFiles);
+  const fileDataMap = new Map();
 
   let archiveName = null;
   let objectName = null;
   let inSymbolTable = false;
+  let inRelocTable = false;
 
   for(const line of lines) {
     if(!line) continue;
@@ -281,6 +278,7 @@ function parseObjdumpSymbols(paths) {
       archiveName = archiveMatch[1];
       objectName = null;
       inSymbolTable = false;
+      inRelocTable = false;
       continue;
     }
 
@@ -288,45 +286,101 @@ function parseObjdumpSymbols(paths) {
     if(fileFormatMatch) {
       objectName = fileFormatMatch[1];
       inSymbolTable = false;
+      inRelocTable = false;
       continue;
     }
 
     if(line.includes('SYMBOL TABLE:')) {
       inSymbolTable = true;
+      inRelocTable = false;
       continue;
     }
 
-    if(!inSymbolTable) continue;
-
-    if(line == 'no symbols') continue;
-
-    const matches = line.matchAll(/[0-9A-Fa-f]{8,16}/g);
-
-    const [[addrPos, addrEnd], [sizePos, sizeEnd]] = [...matches].map(m => [m.index, m.index + m[0].length]);
-
-    const obj = {
-      symbol: line.slice(sizeEnd + 1),
-      section: line.slice(addrEnd + 9, line.indexOf('\t', addrEnd + 9)),
-    };
-
-    // Skip undefined (*UND* or UND) symbols
-    if(/^\*?UND\*?$/.test(obj.section)) {
-      obj.type='U';
-      delete obj.section;
-    } else {
-      obj.type = line[addrEnd + 1];
-      obj.start = line.slice(addrPos, addrEnd).replace(/^0+/, '') || '0';
-      obj.size = line.slice(sizePos, sizeEnd).replace(/^0+/, '') || '0';
+    if(line.startsWith('RELOCATION RECORDS FOR')) {
+      inSymbolTable = false;
+      inRelocTable = true;
+      continue;
     }
 
-    const key = archiveName ? `${archiveName}:${objectName}` : objectName;
-    if(!key) throw new Error('have no objectName');
+    const getKey = () => (archiveName ? `${archiveName}:${objectName}` : objectName);
 
-    (result[key] ??= []).push(obj);
+    if(inSymbolTable) {
+      if(line == 'no symbols') continue;
+
+      const matches = line.matchAll(/[0-9A-Fa-f]{8,16}/g);
+      const matchArr = [...matches];
+      if(matchArr.length < 2) continue;
+
+      const [[addrPos, addrEnd], [sizePos, sizeEnd]] = matchArr.map(m => [m.index, m.index + m[0].length]);
+
+      const obj = {
+        symbol: line.slice(sizeEnd + 1).trim(),
+        section: line.slice(addrEnd + 9, line.indexOf('\t', addrEnd + 9)).trim(),
+      };
+
+      if(/^\*?UND\*?$/.test(obj.section)) {
+        obj.type = 'U';
+        delete obj.section;
+        obj.relocs = [];
+      } else {
+        obj.type = line[addrEnd + 1];
+        obj.start = line.slice(addrPos, addrEnd).replace(/^0+/, '') || '0';
+        obj.size = line.slice(sizePos, sizeEnd).replace(/^0+/, '') || '0';
+      }
+
+      const key = getKey();
+      if(!key) continue;
+
+      const entry = fileDataMap.get(key) ?? { symbols: [] };
+      entry.symbols.push(obj);
+      fileDataMap.set(key, entry);
+    } else if(inRelocTable) {
+      const parts = line.trim().split(/\s+/);
+      if(parts.length < 3) continue;
+
+      const offset = parts[0];
+      const type = parts[1];
+      const targetExpr = parts.slice(2).join(' ');
+
+      let symbol = targetExpr;
+      let addend = '0x0';
+      const addendMatch = targetExpr.match(/^(.+?)([+-])(0x[0-9a-fA-F]+|[0-9]+)$/);
+      if(addendMatch) {
+        symbol = addendMatch[1].trim();
+        addend = addendMatch[3];
+      } else {
+        symbol = targetExpr.trim();
+      }
+
+      const key = getKey();
+      if(!key) continue;
+
+      const entry = fileDataMap.get(key);
+
+      if(entry && entry.symbols) {
+        const sym = entry.symbols.find(s => s.symbol === symbol && s.type === 'U');
+
+        if(sym) {
+          if(!sym.relocs) sym.relocs = [];
+
+          sym.relocs.push({
+            offset,
+            type,
+            addend,
+          });
+        }
+      }
+    }
   }
+
+  const result = {};
+
+  for(const [key, entry] of fileDataMap.entries()) 
+    result[key] = entry.symbols;
 
   return result;
 }
+
 
 Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph });
 
