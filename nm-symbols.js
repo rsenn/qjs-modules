@@ -258,12 +258,12 @@ function parseNmSymbols(paths, symbolType) {
 }
 
 /**
- * Runs 'objdump -t -r' on a batch of files (object files first, then archives),
- * tracking archive/object headers, symbol tables, and relocation tables to build
- * a plain-object hash containing symbol definitions and relocation arrays for undefined references.
+ * Runs 'objdump -h -t -r' on a batch of files (object files first, then archives),
+ * tracking archive/object headers, section headers, symbol tables, and relocation tables to build
+ * a plain-object hash containing sections, symbol definitions, and relocation arrays.
  *
  * @param {string[]} paths - Array of file paths or directory paths
- * @returns {Object} Hash keyed by file/archive member -> array of symbol objects
+ * @returns {Object} Hash keyed by file/archive member -> object with sections, symbols, and relocs
  */
 function parseObjdumpSymbols(paths) {
   const resolvedFiles = [...searchPaths(paths)];
@@ -279,13 +279,14 @@ function parseObjdumpSymbols(paths) {
     else objectFiles.push(f);
   }
 
-  const lines = runCommand('objdump', '-t', '-r', ...objectFiles, ...archiveFiles);
+  const lines = runCommand('objdump', '-h', '-t', '-r', ...objectFiles, ...archiveFiles);
   const fileDataMap = new Map();
 
   let archiveName = null;
   let objectName = null;
+  let inSections = false;
   let inSymbolTable = false;
-  let inRelocTable = false;
+  let inRelocTable = null;
 
   for(const line of lines) {
     if(!line) continue;
@@ -294,27 +295,38 @@ function parseObjdumpSymbols(paths) {
     if(archiveMatch) {
       archiveName = archiveMatch[1];
       objectName = null;
+      inSections = false;
       inSymbolTable = false;
-      inRelocTable = false;
+      inRelocTable = null;
       continue;
     }
 
     const fileFormatMatch = /^(.*):\s*file format (.*)$/.exec(line);
     if(fileFormatMatch) {
       objectName = fileFormatMatch[1];
+      inSections = false;
       inSymbolTable = false;
-      inRelocTable = false;
+      inRelocTable = null;
+      continue;
+    }
+
+    if(line.includes('Sections:')) {
+      inSections = true;
+      inSymbolTable = false;
+      inRelocTable = null;
       continue;
     }
 
     if(line.includes('SYMBOL TABLE:')) {
+      inSections = false;
       inSymbolTable = true;
-      inRelocTable = false;
+      inRelocTable = null;
       continue;
     }
 
     let tmp;
     if((tmp = /RELOCATION RECORDS FOR \[(.*)\]:/.exec(line))) {
+      inSections = false;
       inSymbolTable = false;
       inRelocTable = tmp[1];
       continue;
@@ -323,7 +335,30 @@ function parseObjdumpSymbols(paths) {
     const getKey = () => (archiveName ? `${archiveName}:${objectName}` : objectName);
 
     try {
-      if(inSymbolTable) {
+      if(inSections) {
+        if(line.trim().startsWith('Idx') || line.trim() === '') continue;
+        const parts = line.trim().split(/\s+/);
+        if(parts.length >= 7 && /^\d+$/.test(parts[0]) && parts[1].startsWith('.')) {
+          const name = parts[1];
+          const size = parseInt(parts[2], 16);
+          const offset = parseInt(parts[5], 16);
+
+          let align = 1;
+          const alignStr = parts[6];
+          const alignMatch = alignStr.match(/^2\*\*(\d+)$/);
+          if(alignMatch) {
+            align = 1 << parseInt(alignMatch[1], 10);
+          } else {
+            align = parseInt(alignStr, 10) || 1;
+          }
+
+          const key = getKey();
+          if(key) {
+            const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: [], symbols: [], relocs: [] }));
+            (entry.sections ??= []).push({ name, size, offset, align });
+          }
+        }
+      } else if(inSymbolTable) {
         if(line == 'no symbols') continue;
 
         const matches = line.matchAll(/[0-9A-Fa-f]{8,16}/g);
@@ -359,7 +394,7 @@ function parseObjdumpSymbols(paths) {
         const key = getKey();
         if(!key) continue;
 
-        const entry = fileDataMap.getOrInsertComputed(key, () => ({ symbols: [], relocs: [] }));
+        const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: [], symbols: [], relocs: [] }));
 
         entry.symbols.push(obj);
       } else if(inRelocTable) {
