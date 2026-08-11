@@ -989,7 +989,6 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
 
   BOOL all_callbacks_present = TRUE;
 
-  /* Note: the error() callback is not mandatory */
   for(int t = jr_type_null; t <= jr_type_key; t++) {
     if(!JS_IsFunction(ctx, pp->callbacks[t - jr_type_error])) {
       all_callbacks_present = FALSE;
@@ -1520,6 +1519,477 @@ static JSClassDef js_json_serializer_class = {
     .finalizer = js_json_serializer_finalizer,
 };
 
+/* ---------------------------------------------------------------------- */
+/* JsonWriter: push-based incremental JSON writer                         */
+/* ---------------------------------------------------------------------- */
+
+typedef struct {
+  BOOL is_object;
+  uint32_t count;
+  BOOL expecting_value;
+} JsonWriterFrame;
+
+typedef struct {
+  Writer writer;
+  size_t written;
+  int32_t indent;
+  int32_t level;
+  Vector stack;
+} JsonWriter;
+
+static JSClassID js_jsonwriter_class_id = 0;
+static JSValue jsonwriter_proto, jsonwriter_ctor;
+
+static ssize_t
+json_writer_putc(JsonWriter* wr, int c) {
+  ssize_t res = writer_putc(&wr->writer, c);
+
+  if(res > 0)
+    wr->written += res;
+
+  return res;
+}
+
+static ssize_t
+json_writer_write(JsonWriter* wr, const void* buf, size_t len) {
+  ssize_t res = write_all(&wr->writer, buf, len);
+
+  if(res > 0)
+    wr->written += res;
+
+  return res;
+}
+
+static ssize_t
+json_writer_indent(JsonWriter* wr) {
+  ssize_t w = 0;
+
+  if(wr->indent > 0) {
+    ssize_t res = json_writer_putc(wr, '\n');
+
+    if(res <= 0)
+      return res;
+    w += res;
+
+    for(int i = 0; i < wr->indent * wr->level; i++) {
+      res = json_writer_putc(wr, ' ');
+      if(res <= 0)
+        return res;
+      w += res;
+    }
+  }
+
+  return w;
+}
+
+static ssize_t
+json_writer_comma_indent(JsonWriter* wr, uint32_t count) {
+  ssize_t w = 0;
+
+  if(count > 0) {
+    ssize_t res = json_writer_putc(wr, ',');
+    if(res <= 0)
+      return -1;
+    w += res;
+  }
+
+  ssize_t res = json_writer_indent(wr);
+  if(res < 0)
+    return -1;
+  w += res;
+
+  return w;
+}
+
+/* Bookkeeping before writing an object/array/primitive value into the
+ * current container: validates key/value ordering, and for array
+ * containers emits the comma + indentation between items. */
+static ssize_t
+json_writer_before_value(JsonWriter* wr, JSContext* ctx) {
+  if(vector_empty(&wr->stack))
+    return 0;
+
+  JsonWriterFrame* top = vector_back(&wr->stack, sizeof(JsonWriterFrame));
+
+  if(top->is_object) {
+    if(!top->expecting_value) {
+      JS_ThrowTypeError(ctx, "JsonWriter: expected key");
+      return -1;
+    }
+
+    top->expecting_value = FALSE;
+    return 0;
+  }
+
+  ssize_t w = json_writer_comma_indent(wr, top->count);
+  if(w < 0)
+    return -1;
+
+  top->count++;
+  return w;
+}
+
+/* After a value is written, an enclosing object no longer expects a
+ * value (its next token must be a key or objectEnd). */
+static void
+json_writer_after_value(JsonWriter* wr) {
+  if(!vector_empty(&wr->stack)) {
+    JsonWriterFrame* parent = vector_back(&wr->stack, sizeof(JsonWriterFrame));
+
+    if(parent->is_object)
+      parent->expecting_value = FALSE;
+  }
+}
+
+static ssize_t
+json_writer_write_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
+  if(vector_empty(&wr->stack)) {
+    JS_ThrowTypeError(ctx, "JsonWriter: key cannot be at root level");
+    return -1;
+  }
+
+  JsonWriterFrame* top = vector_back(&wr->stack, sizeof(JsonWriterFrame));
+
+  if(!top->is_object) {
+    JS_ThrowTypeError(ctx, "JsonWriter: key cannot be used inside an array");
+    return -1;
+  }
+
+  if(top->expecting_value) {
+    JS_ThrowTypeError(ctx, "JsonWriter: expected value for previous key");
+    return -1;
+  }
+
+  ssize_t w = json_writer_comma_indent(wr, top->count);
+  if(w < 0)
+    return -1;
+
+  size_t klen;
+  const char* kstr;
+  if(!(kstr = JS_ToCStringLen(ctx, &klen, key_val)))
+    return -1;
+
+  DynBuf db;
+  dbuf_init2(&db, 0, 0);
+  Writer temp_wr = writer_from_dynbuf(&db);
+  write_json_string(&temp_wr, kstr, klen);
+
+  ssize_t res = json_writer_write(wr, db.buf, db.size);
+  writer_free(&temp_wr);
+  JS_FreeCString(ctx, kstr);
+
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  res = json_writer_putc(wr, ':');
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  if(wr->indent > 0) {
+    res = json_writer_putc(wr, ' ');
+    if(res <= 0)
+      return -1;
+    w += res;
+  }
+
+  top->expecting_value = TRUE;
+  top->count++;
+  return w;
+}
+
+static ssize_t
+json_writer_write_object_start(JsonWriter* wr, JSContext* ctx) {
+  ssize_t w = json_writer_before_value(wr, ctx);
+  if(w < 0)
+    return -1;
+
+  ssize_t res = json_writer_putc(wr, '{');
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  wr->level++;
+  res = json_writer_indent(wr);
+  if(res < 0)
+    return -1;
+  w += res;
+
+  JsonWriterFrame frame = {TRUE, 0, FALSE};
+  if(!vector_put(&wr->stack, &frame, sizeof(JsonWriterFrame)))
+    return -1;
+
+  return w;
+}
+
+static ssize_t
+json_writer_write_array_start(JsonWriter* wr, JSContext* ctx) {
+  ssize_t w = json_writer_before_value(wr, ctx);
+  if(w < 0)
+    return -1;
+
+  ssize_t res = json_writer_putc(wr, '[');
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  wr->level++;
+  res = json_writer_indent(wr);
+  if(res < 0)
+    return -1;
+  w += res;
+
+  JsonWriterFrame frame = {FALSE, 0, FALSE};
+  if(!vector_put(&wr->stack, &frame, sizeof(JsonWriterFrame)))
+    return -1;
+
+  return w;
+}
+
+static ssize_t
+json_writer_write_object_end(JsonWriter* wr, JSContext* ctx) {
+  if(vector_empty(&wr->stack)) {
+    JS_ThrowTypeError(ctx, "JsonWriter: unmatched objectEnd");
+    return -1;
+  }
+
+  JsonWriterFrame* top = vector_back(&wr->stack, sizeof(JsonWriterFrame));
+  if(!top->is_object) {
+    JS_ThrowTypeError(ctx, "JsonWriter: expected arrayEnd, got objectEnd");
+    return -1;
+  }
+  if(top->expecting_value) {
+    JS_ThrowTypeError(ctx, "JsonWriter: expected value for key");
+    return -1;
+  }
+
+  vector_pop(&wr->stack, sizeof(JsonWriterFrame));
+  wr->level--;
+
+  ssize_t w = 0;
+  if(top->count > 0) {
+    ssize_t res = json_writer_indent(wr);
+    if(res < 0)
+      return -1;
+    w += res;
+  }
+
+  ssize_t res = json_writer_putc(wr, '}');
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  json_writer_after_value(wr);
+  return w;
+}
+
+static ssize_t
+json_writer_write_array_end(JsonWriter* wr, JSContext* ctx) {
+  if(vector_empty(&wr->stack)) {
+    JS_ThrowTypeError(ctx, "JsonWriter: unmatched arrayEnd");
+    return -1;
+  }
+
+  JsonWriterFrame* top = vector_back(&wr->stack, sizeof(JsonWriterFrame));
+  if(top->is_object) {
+    JS_ThrowTypeError(ctx, "JsonWriter: expected objectEnd, got arrayEnd");
+    return -1;
+  }
+
+  vector_pop(&wr->stack, sizeof(JsonWriterFrame));
+  wr->level--;
+
+  ssize_t w = 0;
+  if(top->count > 0) {
+    ssize_t res = json_writer_indent(wr);
+    if(res < 0)
+      return -1;
+    w += res;
+  }
+
+  ssize_t res = json_writer_putc(wr, ']');
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  json_writer_after_value(wr);
+  return w;
+}
+
+static ssize_t
+json_writer_write_value(JsonWriter* wr, JSContext* ctx, JSValueConst val) {
+  ssize_t w = json_writer_before_value(wr, ctx);
+  if(w < 0)
+    return -1;
+
+  DynBuf db;
+  dbuf_init2(&db, 0, 0);
+  Writer temp_wr = writer_from_dynbuf(&db);
+  write_json_primitive(ctx, &temp_wr, val);
+
+  ssize_t res = json_writer_write(wr, db.buf, db.size);
+  writer_free(&temp_wr);
+
+  if(res <= 0)
+    return -1;
+  w += res;
+
+  json_writer_after_value(wr);
+  return w;
+}
+
+enum {
+  JSON_WRITER_OBJECT_START,
+  JSON_WRITER_OBJECT_END,
+  JSON_WRITER_ARRAY_START,
+  JSON_WRITER_ARRAY_END,
+  JSON_WRITER_KEY,
+  JSON_WRITER_VALUE,
+};
+
+static JSValue
+js_jsonwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JsonWriter* wr;
+  ssize_t w = 0;
+
+  if(!(wr = JS_GetOpaque2(ctx, this_val, js_jsonwriter_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case JSON_WRITER_OBJECT_START: w = json_writer_write_object_start(wr, ctx); break;
+    case JSON_WRITER_OBJECT_END: w = json_writer_write_object_end(wr, ctx); break;
+    case JSON_WRITER_ARRAY_START: w = json_writer_write_array_start(wr, ctx); break;
+    case JSON_WRITER_ARRAY_END: w = json_writer_write_array_end(wr, ctx); break;
+
+    case JSON_WRITER_KEY:
+      if(argc < 1)
+        return JS_ThrowTypeError(ctx, "JsonWriter.key() requires an argument");
+      w = json_writer_write_key(wr, ctx, argv[0]);
+      break;
+
+    case JSON_WRITER_VALUE:
+      if(argc < 1)
+        return JS_ThrowTypeError(ctx, "JsonWriter.value() requires an argument");
+      w = json_writer_write_value(wr, ctx, argv[0]);
+      break;
+  }
+
+  if(w < 0)
+    return JS_EXCEPTION;
+
+  return JS_NewInt64(ctx, w);
+}
+
+enum {
+  JSON_WRITER_WRITTEN,
+  JSON_WRITER_INDENT,
+};
+
+static JSValue
+js_jsonwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JsonWriter* wr;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(wr = JS_GetOpaque2(ctx, this_val, js_jsonwriter_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case JSON_WRITER_WRITTEN: ret = JS_NewInt64(ctx, wr->written); break;
+    case JSON_WRITER_INDENT: ret = JS_NewInt32(ctx, wr->indent); break;
+  }
+
+  return ret;
+}
+
+static JSValue
+js_jsonwriter_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  JsonWriter* wr;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(wr = JS_GetOpaque2(ctx, this_val, js_jsonwriter_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case JSON_WRITER_INDENT: wr->indent = js_toint32(ctx, value); break;
+  }
+
+  return ret;
+}
+
+static JSValue
+js_jsonwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj = JS_UNDEFINED;
+  JsonWriter* wr;
+  int i = 0;
+
+  if(!(wr = js_mallocz(ctx, sizeof(JsonWriter))))
+    return JS_EXCEPTION;
+
+  if(i < argc && writer_from_js(ctx, argv[i], &wr->writer))
+    i++;
+
+  vector_init(&wr->stack, ctx);
+
+  JSValue options = i < argc ? argv[i] : (argc > 0 ? argv[0] : JS_UNDEFINED);
+
+  if(JS_IsNumber(options)) {
+    wr->indent = js_toint32(ctx, options);
+  } else if(js_has_propertystr(ctx, options, "indent")) {
+    wr->indent = js_toint32_free(ctx, JS_GetPropertyStr(ctx, options, "indent"));
+  } else {
+    wr->indent = 0;
+  }
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    goto fail;
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_jsonwriter_class_id);
+  JS_FreeValue(ctx, proto);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, wr);
+  return obj;
+
+fail:
+  writer_free(&wr->writer);
+  vector_free(&wr->stack);
+  js_free(ctx, wr);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+static void
+js_jsonwriter_finalizer(JSRuntime* rt, JSValue val) {
+  JsonWriter* wr;
+
+  if((wr = JS_GetOpaque(val, js_jsonwriter_class_id))) {
+    writer_free(&wr->writer);
+    vector_free(&wr->stack);
+    js_free_rt(rt, wr);
+  }
+}
+
+static JSClassDef js_jsonwriter_class = {
+    .class_name = "JsonWriter",
+    .finalizer = js_jsonwriter_finalizer,
+};
+
+static const JSCFunctionListEntry js_jsonwriter_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("value", 1, js_jsonwriter_method, JSON_WRITER_VALUE),
+    JS_CFUNC_MAGIC_DEF("objectStart", 0, js_jsonwriter_method, JSON_WRITER_OBJECT_START),
+    JS_CFUNC_MAGIC_DEF("objectEnd", 0, js_jsonwriter_method, JSON_WRITER_OBJECT_END),
+    JS_CFUNC_MAGIC_DEF("arrayStart", 0, js_jsonwriter_method, JSON_WRITER_ARRAY_START),
+    JS_CFUNC_MAGIC_DEF("arrayEnd", 0, js_jsonwriter_method, JSON_WRITER_ARRAY_END),
+    JS_CFUNC_MAGIC_DEF("key", 1, js_jsonwriter_method, JSON_WRITER_KEY),
+    JS_CGETSET_MAGIC_DEF("written", js_jsonwriter_get, 0, JSON_WRITER_WRITTEN),
+    JS_CGETSET_MAGIC_DEF("indent", js_jsonwriter_get, js_jsonwriter_set, JSON_WRITER_INDENT),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonWriter", JS_PROP_CONFIGURABLE),
+};
+
 static JSValue
 js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
@@ -1789,10 +2259,21 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_json_serializer_class_id, json_serializer_proto);
   JS_SetConstructor(ctx, json_serializer_ctor, json_serializer_proto);
 
+  JS_NewClassID(&js_jsonwriter_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_jsonwriter_class_id, &js_jsonwriter_class);
+
+  jsonwriter_ctor = JS_NewCFunction2(ctx, js_jsonwriter_constructor, "JsonWriter", 1, JS_CFUNC_constructor, 0);
+  jsonwriter_proto = JS_NewObject(ctx);
+
+  JS_SetPropertyFunctionList(ctx, jsonwriter_proto, js_jsonwriter_funcs, countof(js_jsonwriter_funcs));
+  JS_SetClassProto(ctx, js_jsonwriter_class_id, jsonwriter_proto);
+  JS_SetConstructor(ctx, jsonwriter_ctor, jsonwriter_proto);
+
   if(m) {
     JS_SetModuleExport(ctx, m, "JsonParser", json_parser_ctor);
     JS_SetModuleExport(ctx, m, "JsonPushParser", json_pushparser_ctor);
     JS_SetModuleExport(ctx, m, "JsonSerializer", json_serializer_ctor);
+    JS_SetModuleExport(ctx, m, "JsonWriter", jsonwriter_ctor);
   }
 
   JS_SetModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
@@ -1813,6 +2294,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "JsonParser");
     JS_AddModuleExport(ctx, m, "JsonPushParser");
     JS_AddModuleExport(ctx, m, "JsonSerializer");
+    JS_AddModuleExport(ctx, m, "JsonWriter");
     JS_AddModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
   }
 
