@@ -1,4 +1,4 @@
-import xml, { XMLParser, XMLWriter, XMLPushParser, XMLSerializer } from 'xml';
+import xml, { XMLParser, XMLNodeParser, XMLWriter, XMLPushParser, XMLSerializer } from 'xml';
 import { toString } from 'util';
 import { assert, eq, tests } from './tinytest.js';
 
@@ -644,5 +644,963 @@ tests({
       console.log('tok', tok);
       console.log(`s='${s}'`);
     }
+  },
+
+  /* ========== XMLNodeParser ========== */
+  'XMLNodeParser: is a constructor'() {
+    assert(typeof XMLNodeParser === 'function');
+  },
+
+  'XMLNodeParser: parse() returns start tag objects with tagName and attributes'() {
+    let p = new XMLNodeParser('<a x="1"/>');
+    let node = p.parse();
+
+    assert(typeof node === 'object' && node !== null, 'expected object, got ' + typeof node);
+    eq(node.tagName, 'a');
+    assert(node.attributes !== undefined, 'expected attributes property');
+    eq(node.attributes.x, '1');
+  },
+
+  'XMLNodeParser: parse() returns end tag objects with tagName prefixed by /'() {
+    let p = new XMLNodeParser('<a></a>');
+    let start = p.parse();
+    let end = p.parse();
+
+    eq(start.tagName, 'a');
+    eq(end.tagName, '/a');
+  },
+
+  'XMLNodeParser: parse() returns strings for text content'() {
+    let p = new XMLNodeParser('<a>hello</a>');
+    p.parse(); // skip start tag
+    let text = p.parse();
+
+    eq(typeof text, 'string');
+    eq(text, 'hello');
+  },
+
+  'XMLNodeParser: parse() returns PARSE_OK at end of input'() {
+    let p = new XMLNodeParser('<a/>');
+    p.parse(); // start
+    let status = p.parse(); // should be PARSE_OK
+
+    eq(status, 0); // XML_PARSE_OK
+  },
+
+  'XMLNodeParser: .depth tracks nesting level'() {
+    let p = new XMLNodeParser('<a><b><c/></b></a>');
+    eq(p.depth, 0);
+
+    p.parse(); // <a>
+    eq(p.depth, 1);
+
+    p.parse(); // <b>
+    eq(p.depth, 2);
+
+    p.parse(); // <c/>
+    p.parse(); // </b>
+    eq(p.depth, 1);
+
+    p.parse(); // </a>
+    eq(p.depth, 0);
+  },
+
+  'XMLNodeParser: .location tracks line/column'() {
+    let p = new XMLNodeParser('<a>\n<b/>\n</a>');
+    let node = p.parse(); // <a>
+
+    assert(p.location !== undefined, 'expected location property');
+    assert(p.location.line !== undefined, 'expected line property');
+    assert(p.location.column !== undefined, 'expected column property');
+  },
+
+  'XMLNodeParser: handles boolean (valueless) attributes'() {
+    let p = new XMLNodeParser('<input disabled type="text"/>');
+    let node = p.parse();
+
+    eq(node.tagName, 'input');
+    eq(node.attributes.disabled, true);
+    eq(node.attributes.type, 'text');
+  },
+
+  'XMLNodeParser: handles multiple attributes'() {
+    let p = new XMLNodeParser('<a x="1" y="2" z="3"/>');
+    let node = p.parse();
+
+    eq(node.attributes.x, '1');
+    eq(node.attributes.y, '2');
+    eq(node.attributes.z, '3');
+  },
+
+  'XMLNodeParser: handles nested elements'() {
+    let p = new XMLNodeParser('<root><child>text</child></root>');
+    let nodes = [];
+
+    for(let i = 0; i < 10; i++) {
+      let node = p.parse();
+      if(node <= 0) break; // status code
+      nodes.push(node);
+    }
+
+    eq(nodes.length, 4); // start root, start child, text, end child, end root
+    eq(nodes[0].tagName, 'root');
+    eq(nodes[1].tagName, 'child');
+    eq(nodes[2], 'text');
+    eq(nodes[3].tagName, '/child');
+  },
+
+  'XMLNodeParser: handles self-closing tags'() {
+    let p = new XMLNodeParser('<a><b/><c/></a>');
+    let nodes = [];
+
+    for(let i = 0; i < 10; i++) {
+      let node = p.parse();
+      if(node <= 0) break;
+      nodes.push(node);
+    }
+
+    eq(nodes[0].tagName, 'a');
+    eq(nodes[1].tagName, 'b');
+    eq(nodes[2].tagName, '/b');
+    eq(nodes[3].tagName, 'c');
+    eq(nodes[4].tagName, '/c');
+    eq(nodes[5].tagName, '/a');
+  },
+
+  'XMLNodeParser: constructor accepts options with filename'() {
+    let p = new XMLNodeParser('<a/>', { filename: 'test.xml' });
+    p.parse();
+
+    assert(p.location !== undefined, 'expected location');
+  },
+
+  /* ========== XMLWriter (expanded) ========== */
+  'XMLWriter: is a constructor'() {
+    assert(typeof XMLWriter === 'function');
+  },
+
+  'XMLWriter: writes a simple element'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('a');
+    w.elementEnd('a');
+
+    eq(out, '<a></a>');
+  },
+
+  'XMLWriter: writes self-closing element when elementEnd() is called immediately'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('br');
+    w.elementEnd('br');
+
+    assert(out.includes('/>'), 'expected self-closing, got: ' + out);
+  },
+
+  'XMLWriter: writes attributes with values'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('a');
+    w.attribute('href', 'https://example.com');
+    w.elementEnd('a');
+
+    assert(out.includes('href="https://example.com"'), out);
+  },
+
+  'XMLWriter: writes boolean (valueless) attributes'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('input');
+    w.attribute('disabled');
+    w.elementEnd('input');
+
+    assert(out.includes('disabled'), out);
+    assert(!out.includes('disabled='), 'should not have = for boolean attr: ' + out);
+  },
+
+  'XMLWriter: writes text content'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('p');
+    w.text('hello world');
+    w.elementEnd('p');
+
+    assert(out.includes('>hello world<'), out);
+  },
+
+  'XMLWriter: writes nested elements'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('root');
+    w.elementStart('child');
+    w.text('text');
+    w.elementEnd('child');
+    w.elementEnd('root');
+
+    assert(out.includes('<root>'), out);
+    assert(out.includes('<child>'), out);
+    assert(out.includes('text'), out);
+    assert(out.includes('</child>'), out);
+    assert(out.includes('</root>'), out);
+  },
+
+  'XMLWriter: .written tracks bytes written'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    eq(w.written, 0);
+
+    w.elementStart('a');
+    let afterStart = w.written;
+
+    assert(afterStart > 0, 'expected bytes written after elementStart');
+
+    w.elementEnd('a');
+    let afterEnd = w.written;
+
+    assert(afterEnd > afterStart, 'expected more bytes after elementEnd');
+  },
+
+  'XMLWriter: .indent controls indentation'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)), 2);
+
+    w.elementStart('root');
+    w.elementStart('child');
+    w.elementEnd('child');
+    w.elementEnd('root');
+
+    assert(out.includes('\n'), 'expected newlines with indent: ' + out);
+    assert(out.includes('  '), 'expected spaces with indent: ' + out);
+  },
+
+  'XMLWriter: .indent getter/setter works'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    eq(w.indent, 2); // default
+    w.indent = 4;
+    eq(w.indent, 4);
+  },
+
+  'XMLWriter: .state reflects last operation'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('a');
+    eq(w.state, 1); // ELEMENT_START
+
+    w.attribute('x', '1');
+    eq(w.state, 2); // ATTRIBUTE
+
+    w.text('text');
+    eq(w.state, 4); // TEXT
+
+    w.elementEnd('a');
+    eq(w.state, 3); // ELEMENT_END
+  },
+
+  'XMLWriter: writes to ArrayBuffer'() {
+    let buf = new Uint8Array(1000);
+    let w = new XMLWriter(buf);
+
+    w.elementStart('a');
+    w.text('x');
+    w.elementEnd('a');
+
+    assert(w.written > 0, 'expected bytes written to buffer');
+  },
+
+  'XMLWriter: handles multiple attributes on one element'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('a');
+    w.attribute('x', '1');
+    w.attribute('y', '2');
+    w.attribute('z', '3');
+    w.elementEnd('a');
+
+    assert(out.includes('x="1"'), out);
+    assert(out.includes('y="2"'), out);
+    assert(out.includes('z="3"'), out);
+  },
+
+  'XMLWriter: complex nested structure'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('html');
+    w.elementStart('body');
+    w.elementStart('div');
+    w.attribute('class', 'container');
+    w.elementStart('p');
+    w.text('Hello ');
+    w.elementStart('strong');
+    w.text('world');
+    w.elementEnd('strong');
+    w.text('!');
+    w.elementEnd('p');
+    w.elementEnd('div');
+    w.elementEnd('body');
+    w.elementEnd('html');
+
+    assert(out.includes('<html>'), out);
+    assert(out.includes('class="container"'), out);
+    assert(out.includes('Hello '), out);
+    assert(out.includes('<strong>world</strong>'), out);
+    assert(out.includes('</html>'), out);
+  },
+
+  /* ========== XMLParser callbacks ========== */
+  'XMLParser: onelementstart callback fires'() {
+    let starts = [];
+    let p = new XMLParser('<a><b/></a>');
+
+    p.onelementstart = name => starts.push(name);
+
+    for(let i = 0; i < 10; i++) {
+      let tok = p.parse();
+      if(tok === XMLParser.PARSE_OK) break;
+    }
+
+    eqArr(starts, ['a', 'b']);
+  },
+
+  'XMLParser: onelementend callback fires'() {
+    let ends = [];
+    let p = new XMLParser('<a><b/></a>');
+
+    p.onelementend = name => ends.push(name);
+
+    for(let i = 0; i < 10; i++) {
+      let tok = p.parse();
+      if(tok === XMLParser.PARSE_OK) break;
+    }
+
+    eqArr(ends, ['b', 'a']);
+  },
+
+  'XMLParser: onattribute callback fires'() {
+    let attrs = [];
+    let p = new XMLParser('<a x="1" y="2"/>');
+
+    p.onattribute = (name, value) => attrs.push([name, value]);
+
+    for(let i = 0; i < 10; i++) {
+      let tok = p.parse();
+      if(tok === XMLParser.PARSE_OK) break;
+    }
+
+    eqArr(attrs, [['x', '1'], ['y', '2']]);
+  },
+
+  'XMLParser: ontext callback fires'() {
+    let texts = [];
+    let p = new XMLParser('<a>hello <b>world</b>!</a>');
+
+    p.ontext = value => texts.push(value);
+
+    for(let i = 0; i < 10; i++) {
+      let tok = p.parse();
+      if(tok === XMLParser.PARSE_OK) break;
+    }
+
+    eqArr(texts, ['hello ', 'world', '!']);
+  },
+
+  'XMLParser: all callbacks fire in document order'() {
+    let events = [];
+    let p = new XMLParser('<root x="1">text<child/></root>');
+
+    p.onelementstart = name => events.push(['start', name]);
+    p.onelementend = name => events.push(['end', name]);
+    p.onattribute = (name, value) => events.push(['attr', name, value]);
+    p.ontext = value => events.push(['text', value]);
+
+    for(let i = 0; i < 20; i++) {
+      let tok = p.parse();
+      if(tok === XMLParser.PARSE_OK) break;
+    }
+
+    eqArr(events, [['start', 'root'], ['attr', 'x', '1'], ['text', 'text'], ['start', 'child'], ['end', 'child'], ['end', 'root']]);
+  },
+
+  /* ========== XMLParser edge cases ========== */
+  'XMLParser: empty document returns PARSE_OK immediately'() {
+    let p = new XMLParser('');
+    let tok = p.parse();
+
+    eq(tok, XMLParser.PARSE_OK);
+  },
+
+  'XMLParser: whitespace-only document returns PARSE_OK'() {
+    let p = new XMLParser('   \n\t  ');
+    let tok = p.parse();
+
+    eq(tok, XMLParser.PARSE_OK);
+  },
+
+  'XMLParser: processing instruction comes through as start+end'() {
+    let { out } = drain('<?xml version="1.0"?><root/>');
+    let toks = out.map(e => e[0]);
+
+    assert(toks.includes(XMLParser.ELEMENT_START), JSON.stringify(toks));
+    assert(toks.includes(XMLParser.ELEMENT_END), JSON.stringify(toks));
+  },
+
+  'XMLParser: DOCTYPE declaration comes through as start+end'() {
+    let { out } = drain('<!DOCTYPE html><html/>');
+    let toks = out.map(e => e[0]);
+
+    assert(toks.includes(XMLParser.ELEMENT_START), JSON.stringify(toks));
+    assert(toks.includes(XMLParser.ELEMENT_END), JSON.stringify(toks));
+  },
+
+  'XMLParser: deeply nested structure'() {
+    let depth = 10;
+    let input = '<a>'.repeat(depth) + 'x' + '</a>'.repeat(depth);
+    let p = new XMLParser(input);
+    let maxDepth = 0;
+
+    for(let i = 0; i < 1000; i++) {
+      let tok = p.parse();
+      if(p.depth > maxDepth) maxDepth = p.depth;
+      if(tok === XMLParser.PARSE_OK) break;
+    }
+
+    eq(maxDepth, depth);
+  },
+
+  'XMLParser: mixed content (text + elements)'() {
+    let { parser } = drain('<p>before <b>bold</b> after</p>');
+    let root = parser.root[0];
+
+    eq(root.children.length, 3);
+    eq(root.children[0], 'before ');
+    eq(root.children[1].tagName, 'b');
+    eq(root.children[2], ' after');
+  },
+
+  'XMLParser: multiple root elements'() {
+    let { parser } = drain('<a/><b/><c/>');
+
+    eq(parser.root.length, 3);
+    eq(parser.root[0].tagName, 'a');
+    eq(parser.root[1].tagName, 'b');
+    eq(parser.root[2].tagName, 'c');
+  },
+
+  'XMLParser: eventName is undefined for TEXT events'() {
+    let p = new XMLParser('<a>text</a>');
+    p.parse(); // ELEMENT_START
+    p.parse(); // TEXT
+
+    eq(p.eventName, undefined);
+    eq(p.eventValue, 'text');
+  },
+
+  'XMLParser: eventValue is undefined for ELEMENT_START events'() {
+    let p = new XMLParser('<a/>');
+    p.parse(); // ELEMENT_START
+
+    eq(p.eventName, 'a');
+    eq(p.hasValue, false);
+  },
+
+  'XMLParser: hasValue is true for ATTRIBUTE events with values'() {
+    let p = new XMLParser('<a x="1"/>');
+    p.parse(); // ELEMENT_START
+    p.parse(); // ATTRIBUTE
+
+    eq(p.hasValue, true);
+    eq(p.eventValue, '1');
+  },
+
+  'XMLParser: hasValue is false for boolean ATTRIBUTE events'() {
+    let p = new XMLParser('<input disabled/>');
+    p.parse(); // ELEMENT_START
+    p.parse(); // ATTRIBUTE
+
+    eq(p.hasValue, false);
+    eq(p.eventName, 'disabled');
+  },
+
+  /* ========== XMLPushParser edge cases ========== */
+  'XMLPushParser: chunk boundary mid-tag-name'() {
+    let pp = new XMLPushParser();
+
+    pp.write('<div');
+    pp.write(' class="x">');
+    pp.write('</div>');
+    pp.close();
+
+    eqArr(pp.root, [{ tagName: 'div', attributes: { class: 'x' }, children: [] }]);
+  },
+
+  'XMLPushParser: chunk boundary mid-attribute-value'() {
+    let pp = new XMLPushParser();
+
+    pp.write('<a href="https://ex');
+    pp.write('ample.com"/>');
+    pp.close();
+
+    eqArr(pp.root, [{ tagName: 'a', attributes: { href: 'https://example.com' }, children: [] }]);
+  },
+
+  'XMLPushParser: chunk boundary mid-escape-sequence'() {
+    let pp = new XMLPushParser();
+
+    pp.write('<a>text with &am');
+    pp.write('p; entity</a>');
+    pp.close();
+
+    eqArr(pp.root, [{ tagName: 'a', attributes: {}, children: ['text with & entity'] }]);
+  },
+
+  'XMLPushParser: multiple root elements'() {
+    let pp = new XMLPushParser();
+
+    pp.write('<a/><b/><c/>');
+    pp.close();
+
+    eq(pp.root.length, 3);
+    eq(pp.root[0].tagName, 'a');
+    eq(pp.root[1].tagName, 'b');
+    eq(pp.root[2].tagName, 'c');
+  },
+
+  'XMLPushParser: empty document closes cleanly'() {
+    let pp = new XMLPushParser();
+
+    pp.close();
+
+    eqArr(pp.root, []);
+  },
+
+  'XMLPushParser: whitespace-only document closes cleanly'() {
+    let pp = new XMLPushParser();
+
+    pp.write('   \n\t  ');
+    pp.close();
+
+    eqArr(pp.root, []);
+  },
+
+  'XMLPushParser: nested text content'() {
+    let pp = new XMLPushParser();
+
+    pp.write('<a>outer <b>inner</b> outer</a>');
+    pp.close();
+
+    eqArr(pp.root, [{ tagName: 'a', attributes: {}, children: ['outer ', { tagName: 'b', attributes: {}, children: ['inner'] }, ' outer'] }]);
+  },
+
+  'XMLPushParser: deeply nested structure'() {
+    let pp = new XMLPushParser();
+    let depth = 10;
+
+    pp.write('<a>'.repeat(depth) + 'x' + '</a>'.repeat(depth));
+    pp.close();
+
+    let current = pp.root[0];
+    for(let i = 1; i < depth; i++) {
+      assert(current.children[0].tagName === 'a', 'expected nested structure');
+      current = current.children[0];
+    }
+  },
+
+  'XMLPushParser: large document'() {
+    let pp = new XMLPushParser();
+    let count = 100;
+    let doc = '<root>';
+
+    for(let i = 0; i < count; i++) doc += `<item id="${i}">text ${i}</item>`;
+    doc += '</root>';
+
+    pp.write(doc);
+    pp.close();
+
+    eq(pp.root[0].children.length, count);
+  },
+
+  /* ========== XMLSerializer edge cases ========== */
+  'XMLSerializer: empty root array produces no output'() {
+    let s = new XMLSerializer([]);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(100)) !== '') out += chunk;
+
+    eq(out, '');
+  },
+
+  'XMLSerializer: deeply nested structure round-trips'() {
+    let depth = 10;
+    let tree = [{ tagName: 'a', attributes: {}, children: [] }];
+    let current = tree[0];
+
+    for(let i = 1; i < depth; i++) {
+      let child = { tagName: 'a', attributes: {}, children: [] };
+      current.children.push(child);
+      current = child;
+    }
+
+    current.children.push('leaf');
+
+    let s = new XMLSerializer(tree);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(10)) !== '') out += chunk;
+
+    let { parser } = drain(out);
+
+    eqArr(parser.root, tree);
+  },
+
+  'XMLSerializer: large number of attributes'() {
+    let attrs = {};
+    for(let i = 0; i < 50; i++) attrs[`attr${i}`] = `value${i}`;
+
+    let tree = [{ tagName: 'a', attributes: attrs, children: [] }];
+    let s = new XMLSerializer(tree);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(100)) !== '') out += chunk;
+
+    for(let i = 0; i < 50; i++) {
+      assert(out.includes(`attr${i}="value${i}"`), out);
+    }
+  },
+
+  'XMLSerializer: boolean attributes render correctly'() {
+    let tree = [{ tagName: 'input', attributes: { disabled: true, type: 'text' }, children: [] }];
+    let s = new XMLSerializer(tree);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(100)) !== '') out += chunk;
+
+    assert(out.includes('disabled'), out);
+    assert(!out.includes('disabled='), 'boolean attr should not have =: ' + out);
+    assert(out.includes('type="text"'), out);
+  },
+
+  'XMLSerializer: read(n) with n=0 returns empty string'() {
+    let s = new XMLSerializer([{ tagName: 'a', attributes: {}, children: ['x'] }]);
+    let chunk = s.read(0);
+
+    eq(chunk, '');
+  },
+
+  'XMLSerializer: read(buffer) with empty buffer returns 0'() {
+    let s = new XMLSerializer([{ tagName: 'a', attributes: {}, children: ['x'] }]);
+    let buf = new Uint8Array(0);
+    let n = s.read(buf);
+
+    eq(n, 0);
+  },
+
+  'XMLSerializer: multiple elements at root level'() {
+    let tree = [
+      { tagName: 'a', attributes: {}, children: [] },
+      { tagName: 'b', attributes: {}, children: [] },
+      { tagName: 'c', attributes: {}, children: [] },
+    ];
+
+    let s = new XMLSerializer(tree);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(100)) !== '') out += chunk;
+
+    assert(out.includes('<a'), out);
+    assert(out.includes('<b'), out);
+    assert(out.includes('<c'), out);
+  },
+
+  /* ========== xml.read() additional tests ========== */
+  'xml.read: flat mode returns a flat list instead of nested tree'() {
+    let r = xml.read('<a><b>text</b></a>', 'f.xml', { flat: true });
+
+    assert(Array.isArray(r), 'expected array');
+    assert(r.length > 1, 'flat mode should produce multiple nodes');
+
+    let hasStartA = r.some(n => n.tagName === 'a');
+    let hasStartB = r.some(n => n.tagName === 'b');
+    let hasEndB = r.some(n => n.tagName === '/b');
+    let hasEndA = r.some(n => n.tagName === '/a');
+
+    assert(hasStartA, 'expected start tag a');
+    assert(hasStartB, 'expected start tag b');
+    assert(hasEndB, 'expected end tag /b');
+    assert(hasEndA, 'expected end tag /a');
+  },
+
+  'xml.read: tolerant mode ignores mismatched closing tags'() {
+    let r = xml.read('<a><b></c></a>', 'f.xml', { tolerant: true });
+
+    assert(Array.isArray(r), 'expected array');
+    assert(r.length > 0, 'expected at least one element');
+  },
+
+  'xml.read: handles processing instructions'() {
+    let r = xml.read('<?xml version="1.0"?><root/>');
+
+    assert(Array.isArray(r), 'expected array');
+    assert(r.length > 0, 'expected at least one element');
+  },
+
+  'xml.read: handles comments'() {
+    let r = xml.read('<root><!-- comment --><child/></root>');
+
+    assert(Array.isArray(r), 'expected array');
+    assert(r.length > 0, 'expected at least one element');
+  },
+
+  'xml.read: handles DOCTYPE'() {
+    let r = xml.read('<!DOCTYPE html><html/>');
+
+    assert(Array.isArray(r), 'expected array');
+    assert(r.length > 0, 'expected at least one element');
+  },
+
+  'xml.read: decodes numeric character references'() {
+    let r = xml.read('<a>&#65;&#66;&#67;</a>');
+
+    eq(r[0].children[0], 'ABC');
+  },
+
+  'xml.read: decodes hex character references'() {
+    let r = xml.read('<a>&#x41;&#x42;&#x43;</a>');
+
+    eq(r[0].children[0], 'ABC');
+  },
+
+  'xml.read: decodes named entities'() {
+    let r = xml.read('<a>&lt;&gt;&amp;&quot;</a>');
+
+    eq(r[0].children[0], '<>&"');
+  },
+
+  'xml.read: handles attributes with single quotes'() {
+    let r = xml.read("<a x='1' y='2'/>");
+
+    eq(r[0].attributes.x, '1');
+    eq(r[0].attributes.y, '2');
+  },
+
+  'xml.read: handles empty attribute values'() {
+    let r = xml.read('<a x="" y=""/>');
+
+    eq(r[0].attributes.x, '');
+    eq(r[0].attributes.y, '');
+  },
+
+  'xml.read: preserves whitespace in text content'() {
+    let r = xml.read('<a>  hello  world  </a>');
+
+    assert(r[0].children[0].includes('hello'), 'expected text content');
+    assert(r[0].children[0].includes('world'), 'expected text content');
+  },
+
+  /* ========== xml.write() additional tests ========== */
+  'xml.write: handles flat list input'() {
+    let flat = [
+      { tagName: 'a', attributes: { x: '1' } },
+      'text',
+      { tagName: '/a', attributes: {} },
+    ];
+
+    let out = xml.write(flat);
+
+    assert(out.includes('<a'), out);
+    assert(out.includes('text'), out);
+    assert(out.includes('</a>'), out);
+  },
+
+  'xml.write: maxDepth parameter limits traversal'() {
+    let tree = [{ tagName: 'a', attributes: {}, children: [{ tagName: 'b', attributes: {}, children: [{ tagName: 'c', attributes: {}, children: [] }] }] }];
+
+    let full = xml.write(tree);
+    let shallow = xml.write(tree, 1);
+
+    assert(full.includes('<c'), 'full output should include c: ' + full);
+  },
+
+  'xml.write: handles comments'() {
+    let tree = [{ tagName: '!-- comment --', attributes: {} }];
+    let out = xml.write(tree);
+
+    assert(out.includes('comment'), out);
+  },
+
+  'xml.write: handles processing instructions'() {
+    let tree = [{ tagName: '?xml version="1.0"', attributes: {} }];
+    let out = xml.write(tree);
+
+    assert(out.includes('<?xml'), out);
+  },
+
+  'xml.write: round-trips complex nested structure'() {
+    let tree = [
+      {
+        tagName: 'html',
+        attributes: { lang: 'en' },
+        children: [
+          {
+            tagName: 'body',
+            attributes: { class: 'main' },
+            children: [
+              { tagName: 'div', attributes: { id: 'content' }, children: ['Hello ', { tagName: 'strong', attributes: {}, children: ['world'] }, '!'] },
+              { tagName: 'br', attributes: {} },
+            ],
+          },
+        ],
+      },
+    ];
+
+    let written = xml.write(tree);
+    let parsed = xml.read(written);
+
+    eqArr(parsed, tree);
+  },
+
+  /* ========== Cross-class integration tests ========== */
+  'integration: XMLWriter output parses via XMLParser'() {
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('root');
+    w.attribute('id', '1');
+    w.elementStart('child');
+    w.text('hello');
+    w.elementEnd('child');
+    w.elementEnd('root');
+
+    let { parser } = drain(out);
+
+    eq(parser.root[0].tagName, 'root');
+    eq(parser.root[0].attributes.id, '1');
+    eq(parser.root[0].children[0].tagName, 'child');
+    eq(parser.root[0].children[0].children[0], 'hello');
+  },
+
+  'integration: XMLPushParser tree serializes via XMLSerializer'() {
+    let pp = new XMLPushParser();
+    pp.write('<root x="1"><child>text</child></root>');
+    pp.close();
+
+    let s = new XMLSerializer(pp.root);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(100)) !== '') out += chunk;
+
+    assert(out.includes('<root'), out);
+    assert(out.includes('x="1"'), out);
+    assert(out.includes('text'), out);
+  },
+
+  'integration: XMLNodeParser nodes reconstruct via manual assembly'() {
+    let p = new XMLNodeParser('<a x="1">text<b/></a>');
+    let nodes = [];
+
+    for(let i = 0; i < 20; i++) {
+      let node = p.parse();
+      if(node <= 0) break;
+      nodes.push(node);
+    }
+
+    eq(nodes[0].tagName, 'a');
+    eq(nodes[0].attributes.x, '1');
+    eq(nodes[1], 'text');
+    eq(nodes[2].tagName, 'b');
+    eq(nodes[3].tagName, '/b');
+    eq(nodes[4].tagName, '/a');
+  },
+
+  'integration: xml.read() tree serializes via XMLSerializer'() {
+    let tree = xml.read('<root><child attr="val">text</child></root>');
+
+    let s = new XMLSerializer(tree);
+    let out = '',
+      chunk;
+
+    while((chunk = s.read(100)) !== '') out += chunk;
+
+    let reparsed = xml.read(out);
+
+    eqArr(reparsed, tree);
+  },
+
+  'integration: xml.read() tree writes via XMLWriter'() {
+    let tree = xml.read('<a x="1">text</a>');
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+
+    w.elementStart('a');
+    w.attribute('x', '1');
+    w.text('text');
+    w.elementEnd('a');
+
+    assert(out.includes('<a'), out);
+    assert(out.includes('x="1"'), out);
+    assert(out.includes('text'), out);
+    assert(out.includes('</a>'), out);
+  },
+
+  /* ========== Error handling ========== */
+  'error: XMLParser on malformed tag throws or returns PARSE_ERROR'() {
+    let p = new XMLParser('<1invalid/>');
+    let tok = p.parse();
+
+    eq(tok, XMLParser.PARSE_ERROR);
+  },
+
+  'error: XMLPushParser write() on malformed input throws in builder mode'() {
+    let pp = new XMLPushParser();
+
+    assertThrows(() => pp.write('<1invalid/>'));
+  },
+
+  'error: XMLSerializer read(-1) throws RangeError'() {
+    let s = new XMLSerializer([{ tagName: 'a', attributes: {}, children: [] }]);
+
+    assertThrows(() => s.read(-1));
+  },
+
+  /* ========== Symbol.toStringTag ========== */
+  'XMLParser[Symbol.toStringTag] is "XMLParser"'() {
+    let p = new XMLParser('<a/>');
+    eq(p[Symbol.toStringTag], 'XMLParser');
+  },
+
+  'XMLPushParser[Symbol.toStringTag] is "XMLPushParser"'() {
+    let pp = new XMLPushParser();
+    eq(pp[Symbol.toStringTag], 'XMLPushParser');
+  },
+
+  'XMLSerializer[Symbol.toStringTag] is "XMLSerializer"'() {
+    let s = new XMLSerializer([]);
+    eq(s[Symbol.toStringTag], 'XMLSerializer');
+  },
+
+  'XMLWriter[Symbol.toStringTag] is "XMLWriter"'() {
+    let w = new XMLWriter(s => {});
+    eq(w[Symbol.toStringTag], 'XMLWriter');
+  },
+
+  'XMLNodeParser[Symbol.toStringTag] is "XMLNodeParser"'() {
+    let p = new XMLNodeParser('<a/>');
+    eq(p[Symbol.toStringTag], 'XMLNodeParser');
   },
 });

@@ -89,12 +89,16 @@ typedef struct xml_parser {
   DynBuf attr;   /* current attribute name */
   DynBuf text;   /* current attribute value, or text/script-content run */
 
+  DynBuf ev_name;  /* dedicated output buffer for event_name - stable until next event */
+  DynBuf ev_value; /* dedicated output buffer for event_value - stable until next event */
+
   XMLFrame* top; /* open-element stack; NULL at the document root */
 
   /* Set right before xml_parser_run() returns an xml_event_t (not for
    * XML_PARSE_OK/AGAIN/ERROR, except event_name is also set for XML_PARSE_ERROR).
-   * Points into name/attr/text above - valid only until the next xml_parser_run()
-   * call, same as a borrowed pointer handed to a callback would have been. */
+   * Points into ev_name/ev_value above - stable until the next event is produced,
+   * unlike the old design where these pointed into name/attr/text scan buffers
+   * which could be freed and re-initialized before the next xml_parser_run() call. */
   xml_str_t event_name;
   xml_str_t event_value;
   unsigned event_has_value : 1;

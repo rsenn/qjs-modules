@@ -2359,6 +2359,8 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     if(p->has_buffered_ev) {
       ev = p->buffered_ev;
       p->has_buffered_ev = FALSE;
+      /* event_name/event_value still point into p->xp.ev_name/ev_value,
+       * which haven't been touched since the event was buffered. */
     } else {
       ev = xml_parser_run(&p->xp);
       xml_nodeparser_sync_location(p);
@@ -2430,7 +2432,8 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       JS_FreeAtom(ctx, prop);
       JS_FreeValue(ctx, val);
     } else {
-      /* Attributes finished. Buffer the non-attribute event for the NEXT .parse() call */
+      /* Attributes finished. Buffer the non-attribute event for the NEXT .parse() call.
+       * event_name/event_value remain valid since they point into p->xp.ev_name/ev_value. */
       p->buffered_ev = next_ev;
       p->has_buffered_ev = TRUE;
 

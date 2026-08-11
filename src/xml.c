@@ -303,14 +303,35 @@ xml_check_comment_end(XMLParser* p) {
 /* The pull interface itself: stashes the event's name/value, then returns it -
  * resuming (the next xml_parser_run() call) re-enters right after this macro's own
  * call site, same mechanism as parse_getc()'s XML_PARSE_AGAIN. `hasval_`/`valdata_`/
- * `vallen_` may be 0/0/0 for an event with no value. */
+ * `vallen_` may be 0/0/0 for an event with no value.
+ * 
+ * Copies name/value data into dedicated ev_name/ev_value buffers so the pointers
+ * remain stable until the next event is produced (unlike the old design where they
+ * pointed into name/attr/text scan buffers that could be freed/reinit'd).
+ */
 #define XML_YIELD(event_, namedata_, namelen_, hasval_, valdata_, vallen_) \
   do { \
-    p->event_name.data = (const char*)(namedata_); \
-    p->event_name.len = (size_t)(namelen_); \
+    /* Copy name into ev_name buffer */ \
+    if((namelen_) > 0) { \
+      p->ev_name.size = 0; \
+      dbuf_put(&p->ev_name, (const uint8_t*)(namedata_), (namelen_)); \
+      p->event_name.data = (const char*)p->ev_name.buf; \
+      p->event_name.len = p->ev_name.size; \
+    } else { \
+      p->event_name.data = NULL; \
+      p->event_name.len = 0; \
+    } \
     p->event_has_value = (hasval_); \
-    p->event_value.data = (const char*)(valdata_); \
-    p->event_value.len = (size_t)(vallen_); \
+    /* Copy value into ev_value buffer */ \
+    if((hasval_) && (vallen_) > 0) { \
+      p->ev_value.size = 0; \
+      dbuf_put(&p->ev_value, (const uint8_t*)(valdata_), (vallen_)); \
+      p->event_value.data = (const char*)p->ev_value.buf; \
+      p->event_value.len = p->ev_value.size; \
+    } else { \
+      p->event_value.data = NULL; \
+      p->event_value.len = 0; \
+    } \
     p->resume = &&XML_RESUME_LABEL; \
     return (event_); \
   XML_RESUME_LABEL:; \
@@ -388,6 +409,8 @@ xml_parser_init(XMLParser* p, Reader* reader) {
   dbuf_init(&p->name);
   dbuf_init(&p->attr);
   dbuf_init(&p->text);
+  dbuf_init(&p->ev_name);
+  dbuf_init(&p->ev_value);
 }
 
 void
@@ -404,6 +427,8 @@ xml_parser_free(XMLParser* p) {
   dbuf_free(&p->name);
   dbuf_free(&p->attr);
   dbuf_free(&p->text);
+  dbuf_free(&p->ev_name);
+  dbuf_free(&p->ev_value);
 }
 
 void
