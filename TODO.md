@@ -265,3 +265,283 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 - Stray untracked working-tree files noticed during the survey (not a code bug, just hygiene):
   `lib/blah.tmp*` (six 0-byte scratch files), `lib/repl.js.orig` (a stale backup that differs
   from the current `lib/repl.js`).
+
+## Tier 9 — DOM API implementation priorities (browser sandbox, goal 1)
+
+The `lib/dom.js` DOM implementation is functional for XML/document manipulation but lacks critical
+browser APIs needed for interactive web apps. This tier orders DOM API implementations by
+leverage: highest impact first for enabling browser-like DOM scripting.
+
+### 9.1 EventTarget + Event System (CRITICAL - nothing interactive works without this)
+**Why:** Every interactive web app depends on events. Without this, no clicks, no form submission, no keyboard input.
+
+**Implementation:**
+- `EventTarget` class: `addEventListener()`, `removeEventListener()`, `dispatchEvent()`
+- `Event` base class: `type`, `bubbles`, `cancelable`, `target`, `currentTarget`, `eventPhase`, `preventDefault()`, `stopPropagation()`, `stopImmediatePropagation()`
+- Event subclasses (priority order):
+  - `MouseEvent` (click, dblclick, mousedown/up/move/over/out/enter/leave)
+  - `KeyboardEvent` (keydown, keyup, keypress)
+  - `InputEvent` (input, beforeinput)
+  - `FocusEvent` (focus, blur, focusin, focusout)
+  - `WheelEvent`, `TouchEvent`, `PointerEvent`
+- Event bubbling/capturing propagation through DOM tree
+- Element methods: `click()`, `focus()`, `blur()`
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented. `MutationObserver` exists but event system is missing.
+
+### 9.2 HTMLElement Base Class (CRITICAL - all HTML elements inherit from this)
+**Why:** Scripts check `instanceof HTMLElement` and use its properties. Currently all elements are just `Element`.
+
+**Implementation:**
+- `HTMLElement extends Element`
+- Properties: `dataset` (Proxy for `data-*` attributes), `innerHTML`, `outerHTML`, `hidden`, `tabIndex`, `title`, `lang`, `dir`, `draggable`, `contentEditable`, `style`
+- Methods: `click()`, `focus()`, `blur()`
+- Event handler properties: `onclick`, `onchange`, `onsubmit`, etc.
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented. `Element` exists but no `HTMLElement` subclass.
+
+### 9.3 Global Timer APIs (HIGH - every web script uses setTimeout/setInterval)
+**Why:** Async operations, animations, debouncing - all depend on timers.
+
+**Implementation:**
+- `setTimeout(callback, delay, ...args)` → returns timer ID
+- `clearTimeout(id)`
+- `setInterval(callback, delay, ...args)` → returns timer ID
+- `clearInterval(id)`
+- `requestAnimationFrame(callback)` → returns frame ID
+- `cancelAnimationFrame(id)`
+- Expose on `globalThis` / `Window`
+
+**Files:** `lib/dom.js` or separate `lib/timers.js`
+
+**Status:** Partially implemented in `lib/util.js` (exports `setInterval`/`clearInterval` from `timers` module) but not exposed globally.
+
+### 9.4 DocumentFragment (HIGH - performance-critical for batch DOM operations)
+**Why:** Used by virtually all DOM-heavy scripts for efficient batch operations.
+
+**Implementation:**
+- `DocumentFragment extends Node`
+- `Document.createDocumentFragment()`
+- Lightweight container for multiple nodes
+- When appended to DOM, children move (not the fragment itself)
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.5 HTMLElement Subclasses (HIGH - enables element-specific behavior)
+**Why:** Scripts use element-specific properties and check `instanceof`.
+
+**Priority subclasses:**
+1. `HTMLInputElement`: `value`, `checked`, `type`, `name`, `placeholder`, `disabled`, validation methods
+2. `HTMLButtonElement`: `type`, `disabled`, `form`
+3. `HTMLFormElement`: `submit()`, `reset()`, `elements` collection, validation
+4. `HTMLAnchorElement`: `href`, `target`, `rel`
+5. `HTMLImageElement`: `src`, `width`, `height`, `alt`, `onload`
+6. `HTMLTextAreaElement`: `value`, `rows`, `cols`, `placeholder`
+7. `HTMLSelectElement`: `value`, `selectedIndex`, `options`, `multiple`
+8. `HTMLOptionElement`: `value`, `text`, `selected`
+9. `HTMLScriptElement`: `src`, `type`, `async`, `defer`
+10. `HTMLStyleElement`, `HTMLLinkElement`: stylesheet handling
+11. `HTMLHeadElement`, `HTMLBodyElement`, `HTMLHtmlElement`: document structure
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented. All elements are generic `Element` instances.
+
+### 9.6 History API (MEDIUM - enables single-page applications)
+**Why:** SPAs depend on this for navigation without page reloads.
+
+**Implementation:**
+- `History` class: `pushState(state, title, url)`, `replaceState()`, `back()`, `forward()`, `go(delta)`, `length`, `state`
+- `Window.history` property
+- `popstate` event when history changes
+- `hashchange` event
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.7 DOMRect + Element Geometry (MEDIUM - layout calculations)
+**Why:** Scripts need element dimensions and positions for layout.
+
+**Implementation:**
+- `DOMRect` class: `x`, `y`, `width`, `height`, `top`, `right`, `bottom`, `left`
+- `Element.getBoundingClientRect()`
+- `Element.getClientRects()`
+- Layout properties: `offsetWidth`, `offsetHeight`, `offsetTop`, `offsetLeft`, `offsetParent`
+- Client properties: `clientWidth`, `clientHeight`, `clientTop`, `clientLeft`
+- Scroll properties: `scrollWidth`, `scrollHeight`, `scrollTop`, `scrollLeft`
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.8 Range + Selection API (LOWER - text selection and manipulation)
+**Why:** Text editors, highlights, selection-based operations.
+
+**Implementation:**
+- `Range` class: `startContainer`, `startOffset`, `endContainer`, `endOffset`, `commonAncestorContainer`
+- Range methods: `setStart()`, `setEnd()`, `collapse()`, `cloneContents()`, `extractContents()`, `deleteContents()`, `insertNode()`
+- `Document.createRange()`
+- `Selection` API: `window.getSelection()`, `Selection` object with `anchorNode`, `focusNode`, etc.
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.9 Fetch API (LOWER - modern HTTP client, see also Tier 7)
+**Why:** Network requests for dynamic content.
+
+**Implementation:**
+- `fetch(url, options)` function
+- `Request` class: `url`, `method`, `headers`, `body`, `mode`, `credentials`
+- `Response` class: `status`, `statusText`, `headers`, `body`, `ok`, `json()`, `text()`, `blob()`
+- `Headers` class: `get()`, `set()`, `has()`, `delete()`, `append()`, iteration
+- `AbortController` + `AbortSignal` for request cancellation
+- Promise-based API
+
+**Files:** `lib/fetch.js` or `lib/dom.js`
+
+**Status:** Not implemented (also tracked in Tier 7).
+
+### 9.10 FormData (LOWER - form data collection)
+**Why:** Collecting form data for submission.
+
+**Implementation:**
+- `FormData` class: `append()`, `delete()`, `get()`, `getAll()`, `has()`, `set()`
+- `FormData(form)` constructor to collect from `<form>` element
+- Iteration support: `entries()`, `keys()`, `values()`
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.11 CSSOM - CSS Object Model (LOWER - computed styles and media queries)
+**Why:** Reading computed styles and responsive design.
+
+**Implementation:**
+- `window.getComputedStyle(element)` → `CSSStyleDeclaration`
+- `window.matchMedia(query)` → `MediaQueryList`
+- `MediaQueryList`: `matches`, `media`, `addListener()`, `removeEventListener()`
+- `StyleSheet`, `CSSStyleSheet`, `CSSRule` classes (lower priority)
+
+**Files:** `lib/dom.js`
+
+**Status:** `CSSStyleDeclaration` exists but `getComputedStyle()` and `matchMedia()` not implemented.
+
+### 9.12 IntersectionObserver (LOWER - viewport visibility detection)
+**Why:** Lazy loading, infinite scroll, analytics.
+
+**Implementation:**
+- `IntersectionObserver` class: constructor with callback and options
+- `observe(element)`, `unobserve(element)`, `disconnect()`
+- `IntersectionObserverEntry`: `target`, `isIntersecting`, `intersectionRatio`
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.13 ResizeObserver (LOWER - element size change detection)
+**Why:** Responsive components, layout adjustments.
+
+**Implementation:**
+- `ResizeObserver` class: constructor with callback
+- `observe(element)`, `unobserve(element)`, `disconnect()`
+- `ResizeObserverEntry`: `target`, `contentRect`
+
+**Files:** `lib/dom.js`
+
+**Status:** Not implemented.
+
+### 9.14 File + Blob APIs (LOWER - file handling, see also Tier 2/7)
+**Why:** File uploads, downloads, binary data.
+
+**Implementation:**
+- `Blob` class: `size`, `type`, `slice()`, `text()`, `arrayBuffer()` (partial - `stream()` missing, see Tier 2)
+- `File extends Blob`: `name`, `lastModified`
+- `FileList`: array-like collection of Files
+- `FileReader`: `readAsText()`, `readAsDataURL()`, `readAsArrayBuffer()`, `onload`, `onerror`
+- `URL.createObjectURL(blob)`, `URL.revokeObjectURL(url)`
+
+**Files:** `lib/dom.js` or `lib/file.js`
+
+**Status:** `Blob` exists (native binding) but no `lib/blob.js` wrapper and `stream()` method is broken (Tier 2).
+
+### 9.15 WebSocket (LOWER - real-time communication)
+**Why:** Bidirectional real-time data.
+
+**Implementation:**
+- `WebSocket` class: constructor with URL
+- Properties: `readyState`, `bufferedAmount`, `protocol`
+- Methods: `send(data)`, `close()`
+- Events: `onopen`, `onmessage`, `onerror`, `onclose`
+
+**Files:** `lib/websocket.js`
+
+**Status:** Not implemented.
+
+### 9.16 Canvas API (LOWER - 2D graphics, games)
+**Why:** Image manipulation, games, visualizations.
+
+**Implementation:**
+- `HTMLCanvasElement`: `width`, `height`, `getContext()`
+- `CanvasRenderingContext2D`: drawing methods, transformations, gradients, patterns
+- This is large—implement incrementally based on usage
+
+**Files:** `lib/canvas.js`
+
+**Status:** Not implemented.
+
+### 9.17 Web Workers (LOWER - background threads, see also Tier 7)
+**Why:** Heavy computation without blocking main thread.
+
+**Implementation:**
+- `Worker` class: constructor with script URL
+- `postMessage(data)`, `terminate()`
+- Events: `onmessage`, `onerror`
+- Requires separate execution context
+
+**Files:** `lib/worker.js`
+
+**Status:** Not implemented (also tracked in Tier 7).
+
+### Implementation Strategy
+
+**Dependencies:**
+- Event system (9.1) must be implemented before HTMLElement (9.2) - elements need events
+- HTMLElement subclasses (9.5) depend on HTMLElement base (9.2)
+- History API (9.6) needs Event system for `popstate`/`hashchange`
+- Fetch API (9.9) is standalone but may need Promise polyfill (already available in QuickJS)
+
+**Testing Strategy:**
+- Write tests for each feature as implemented
+- Test browser compatibility (does it match real browser behavior?)
+- Test edge cases (null/undefined inputs, empty collections, etc.)
+
+**Estimated Effort:**
+- **9.1-9.3 (Critical):** ~2-3 days each (Event system is largest)
+- **9.4-9.7 (High):** ~1-2 days each
+- **9.8-9.17 (Lower):** ~0.5-1 day each (except Canvas which is large)
+
+**Recommended Order:**
+1. EventTarget + Event (9.1) - foundation for everything interactive
+2. HTMLElement base (9.2) - needed for element-specific behavior
+3. Global timers (9.3) - simple but high-value
+4. DocumentFragment (9.4) - easy win, high value
+5. HTMLElement subclasses (9.5) - Input, Button, Form first
+6. History API (9.6) - enables SPAs
+7. DOMRect + geometry (9.7) - layout calculations
+8. Range/Selection (9.8) - if text editing features needed
+9. Fetch API (9.9) - if network requests needed
+10. FormData (9.10) - if form handling needed
+11. CSSOM (9.11) - if computed styles needed
+12. Observers (9.12-9.13) - if viewport/resize detection needed
+13. File/Blob (9.14) - if file handling needed
+14. WebSocket (9.15) - if real-time communication needed
+15. Canvas (9.16) - if 2D graphics needed
+16. Workers (9.17) - if background threads needed
