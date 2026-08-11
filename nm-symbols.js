@@ -122,19 +122,98 @@ class ObjectDependencyGraph {
 
 ObjectDependencyGraph.prototype[Symbol.toStringTag] = 'ObjectDependencyGraph';
 
-Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph });
+/**
+ * Maps function callers to referenced symbols based on objdump section ranges and relocations.
+ */
+class FunctionDependencyGraph {
+  #fileData;
+  #callGraph = new Map();       // calleeSymbol -> Set of { fileName, caller }
+  #reverseCallGraph = new Map(); // `${fileName}:${callerName}` -> Set of calleeSymbols
+
+  constructor(parsedObjdumpData) {
+    this.#fileData = new Map(parsedObjdumpData);
+    this.#buildGraph();
+  }
+
+  #buildGraph() {
+    for(const [fileName, data] of this.#fileData)) {
+      const { symbols, relocs } = data;
+      if(!symbols || !relocs) continue;
+
+      // Group defined symbols by section for efficient range lookups
+      const symbolsBySection = new Map();
+      for(const sym of symbols) {
+        if(sym.type === 'U' || !sym.section) continue;
+        symbolsBySection.getOrInsertComputed(sym.section, () => []).push(sym);
+      }
+
+      // Match each relocation record to the function containing its offset
+      for(const reloc of relocs) {
+        const sectionSyms = symbolsBySection.get(reloc.section);
+        if(!sectionSyms) continue;
+
+        for(const sym of sectionSyms) {
+          // Check if the relocation offset falls within the symbol's address range
+          if(reloc.offset >= sym.start && reloc.offset < (sym.start + sym.size)) {
+            const callerName = sym.symbol;
+            const calleeName = reloc.symbol;
+
+            this.#callGraph.getOrInsertComputed(calleeName, () => new Set()).add({
+              fileName,
+              caller: callerName,
+            });
+
+            const callerKey = `${fileName}:${callerName}`;
+            this.#reverseCallGraph.getOrInsertComputed(callerKey, () => new Set()).add(calleeName);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Returns a list of callers referencing the given symbol.
+   * @param {string} symbolName 
+   * @returns {Array<{fileName: string, caller: string}>}
+   */
+  calledBy(symbolName) {
+    const callers = this.#callGraph.get(symbolName);
+    return callers ? Array.from(callers) : [];
+  }
+
+  /**
+   * Returns a list of symbols called/referenced by a specific function.
+   * @param {string} fileName 
+   * @param {string} functionName 
+   * @returns {string[]}
+   */
+  calls(fileName, functionName) {
+    const key = `${fileName}:${functionName}`;
+    const callees = this.#reverseCallGraph.get(key);
+    return callees ? Array.from(callees) : [];
+  }
+}
+
+FunctionDependencyGraph.prototype[Symbol.toStringTag] = 'FunctionDependencyGraph';
+
+Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph, FunctionDependencyGraph });
 
 main(...scriptArgs.slice(1));
 
 function main(...args) {
   const symbols = parseNmSymbols(args);
+  console.log('NM Symbols:', symbols);
 
-  console.log(symbols);
   const dependencies = new ObjectDependencyGraph(symbols).compute('js_init_module');
-
   const { includedObjects, unusedObjects, unresolvedSymbols } = dependencies;
+  console.log('Dependencies:', { includedObjects, unresolvedSymbols });
 
-  console.log({ includedObjects, unresolvedSymbols });
+  const objdumpData = parseObjdumpSymbols(args);
+  const funcGraph = new FunctionDependencyGraph(objdumpData);
+
+  // Example query: find what functions call '__JS_FreeValue'
+  console.log("Callers of __JS_FreeValue:", funcGraph.calledBy('__JS_FreeValue'));
 
   startInteractive();
 
@@ -341,7 +420,6 @@ function parseObjdumpSymbols(paths) {
       if(inSections) {
         if(line.trim().startsWith('Idx') || line.trim() === '') continue;
         const parts = line.trim().split(/\s+/);
-
         if(parts.length >= 7 && /^\d+$/.test(parts[0]) && parts[1].startsWith('.')) {
           const name = parts[1];
           const size = parseInt(parts[2], 16);
@@ -350,7 +428,6 @@ function parseObjdumpSymbols(paths) {
           let align = 1;
           const alignStr = parts[6];
           const alignMatch = alignStr.match(/^2\*\*(\d+)$/);
-
           if(alignMatch) {
             align = 1 << parseInt(alignMatch[1], 10);
           } else {
@@ -359,8 +436,8 @@ function parseObjdumpSymbols(paths) {
 
           const key = getKey();
           if(key) {
-            const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: {}, symbols: [], relocs: [] }));
-            (entry.sections ??= {})[name] = { size, offset, align };
+            const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: [], symbols: [], relocs: [] }));
+            (entry.sections ??= []).push({ name, size, offset, align });
           }
         }
       } else if(inSymbolTable) {
@@ -408,22 +485,19 @@ function parseObjdumpSymbols(paths) {
         const parts = line.trim().split(/\s+/);
         if(parts.length < 3) continue;
 
-        if(parts[2].startsWith('.')) continue;
-
-        let reloc = {
-          symbol: '',
-          type: parts[1],
-          section: inRelocTable,
-          offset: BigInt('0x' + parts[0]),
-        };
-
+        const offset = BigInt('0x' + parts[0]);
+        const type = parts[1];
         const targetExpr = parts.slice(2).join(' ');
+
+        let symbol = targetExpr;
+        let addend = '0x0';
+
         const addendMatch = targetExpr.match(/^(.+?)([+-])(0x[0-9a-fA-F]+|[0-9]+)$/);
         if(addendMatch) {
-          reloc.symbol = addendMatch[1].trim();
-          reloc.addend = BigInt(addendMatch[3]);
+          symbol = addendMatch[1].trim();
+          addend = BigInt(addendMatch[3]);
         } else {
-          reloc.symbol = targetExpr.trim();
+          symbol = targetExpr.trim();
         }
 
         const key = getKey();
@@ -431,12 +505,22 @@ function parseObjdumpSymbols(paths) {
 
         const entry = fileDataMap.get(key);
 
-        (entry.relocs ??= []).push(reloc);
+        (entry.relocs ??= []).push({
+          symbol,
+          offset,
+          type,
+          addend,
+          section: inRelocTable,
+        });
       }
     } catch(e) {
       throw new Error(`Parse error for line: ${line}: ${e.message} ${e.stack}`);
     }
   }
 
-  return Object.fromEntries(fileDataMap.entries());
+  const result = {};
+
+  for(const [key, entry] of fileDataMap.entries()) result[key] = entry;
+
+  return result;
 }
