@@ -120,7 +120,7 @@ class ObjectDependencyGraph {
 ObjectDependencyGraph.prototype[Symbol.toStringTag] = 'ObjectDependencyGraph';
 
 function* searchPaths(paths) {
-  const files = [];
+  if(typeof paths == 'string') paths = [paths];
 
   // Process arguments: if an argument is a directory, search it using os.readdir()[cite: 2]
   for(const p of paths) {
@@ -187,10 +187,6 @@ function runCommand(...args) {
  * @returns {Object} Nested hash of object files, symbol types, and symbol name arrays
  */
 function parseNmSymbols(paths, symbolType) {
-  if(typeof paths == 'string') paths = [paths];
-
-  if(!paths || paths.length === 0) return {};
-
   if(typeof symbolType == 'string') symbolType = new RegExp(symbolType, 'y');
 
   if(RegExp.prototype.isPrototypeOf(symbolType)) {
@@ -241,6 +237,98 @@ function parseNmSymbols(paths, symbolType) {
 
   return result;
 }
+/**
+ * Runs 'objdump -t' on a batch of files (object files first, then archives),
+ * tracking archive and object headers to build a plain-object hash keyed by
+ * <archive name>:<object name> or just <object name>.
+ *
+ * @param {string[]} paths - Array of file paths or directory paths
+ * @returns {Object} Hash keyed by file/archive member -> array of symbol objects
+ */
+function parseObjdumpSymbols(paths) {
+  if(typeof paths == 'string') paths = [paths];
+
+  if(!paths || paths.length === 0) return {};
+
+  const resolvedFiles = [...searchPaths(paths)];
+
+  if(resolvedFiles.length === 0) return {};
+
+  // Order arguments: object files first, then archives (.a or .lib)
+  const objectFiles = [];
+  const archiveFiles = [];
+  for(const f of resolvedFiles) {
+    if(/\.(a|lib)$/i.test(f)) {
+      archiveFiles.push(f);
+    } else {
+      objectFiles.push(f);
+    }
+  }
+  const orderedFiles = [...objectFiles, ...archiveFiles];
+
+  const lines = runCommand('objdump', '-t', ...orderedFiles);
+  const result = {};
+
+  let archiveName = null;
+  let objectName = null;
+  let inSymbolTable = false;
+
+  for(const line of lines) {
+    if(!line) continue;
+
+    const archiveMatch = /^In archive (.*):$/.exec(line);
+    if(archiveMatch) {
+      archiveName = archiveMatch[1];
+      objectName = null;
+      inSymbolTable = false;
+      continue;
+    }
+
+    const fileFormatMatch = /^(.*):\s*file format (.*)$/.exec(line);
+    if(fileFormatMatch) {
+      objectName = fileFormatMatch[1];
+      inSymbolTable = false;
+      continue;
+    }
+
+    if(line.includes('SYMBOL TABLE:')) {
+      inSymbolTable = true;
+      continue;
+    }
+
+    if(!inSymbolTable) continue;
+
+    if(line == 'no symbols') continue;
+
+    const matches = line.matchAll(/[0-9A-Fa-f]{8,16}/g);
+
+    const [[addrPos, addrEnd], [sizePos, sizeEnd]] = [...matches].map(m => [m.index, m.index + m[0].length]);
+
+    const obj = {
+      symbol: line.slice(sizeEnd + 1),
+      section: line.slice(addrEnd + 9, line.indexOf('\t', addrEnd + 9)),
+    };
+
+    // Skip undefined (*UND* or UND) symbols
+    if(/^\*?UND\*?$/.test(obj.section)) {
+      obj.type='U';
+      delete obj.section;
+    } else {
+      obj.type = line[addrEnd + 1];
+      obj.start = line.slice(addrPos, addrEnd).replace(/^0+/, '') || '0';
+      obj.size = line.slice(sizePos, sizeEnd).replace(/^0+/, '') || '0';
+    }
+
+    const key = archiveName ? `${archiveName}:${objectName}` : objectName;
+    if(!key) throw new Error('have no objectName');
+
+    (result[key] ??= []).push(obj);
+  }
+
+  return result;
+}
+
+Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph });
 
 function main(...args) {
   const symbols = parseNmSymbols(args);
@@ -251,6 +339,10 @@ function main(...args) {
   const { includedObjects, unusedObjects, unresolvedSymbols } = dependencies;
 
   console.log({ includedObjects, unresolvedSymbols });
+
+  startInteractive();
+
+  os.kill(os.getpid(), os.SIGUSR1);
 }
 
 main(...scriptArgs.slice(1));
