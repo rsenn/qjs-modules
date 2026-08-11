@@ -19,6 +19,16 @@ export function html2md(input) {
     return m ? +m[1] : 0;
   }
 
+  const INLINE_TAGS = new Set(['b', 'strong', 'i', 'em', 'a', 'img', 'code', 'span']);
+
+  function ensureSpaceBefore() {
+    if(md.length > 0 && !/\s/.test(md[md.length - 1])) md += ' ';
+  }
+
+  function ensureSpaceAfter() {
+    md += ' ';
+  }
+
   function top() {
     return stack.length > 0 ? stack[stack.length - 1] : null;
   }
@@ -29,75 +39,92 @@ export function html2md(input) {
   let ev;
 
   while((ev = p.parse()) > 0) {
-    if(ev === XMLParser.ELEMENT_START) {
-      const tag = p.eventName;
-      const frame = { tag, attrs: {} };
-      stack.push(frame);
+    switch (ev) {
+      case XMLParser.ELEMENT_START: {
+        const tag = p.eventName;
+        const frame = { tag, attrs: {} };
+        stack.push(frame);
 
-      const lvl = headingLevel(tag);
+        const lvl = headingLevel(tag);
 
-      if(lvl) {
-        md += '#'.repeat(lvl) + ' ';
-      } else if(tag === 'pre') {
-        md += '```\n';
-      } else if(tag === 'b' || tag === 'strong') {
-        md += '**';
-      } else if(tag === 'i' || tag === 'em') {
-        md += '*';
-      } else if(tag === 'li') {
-        const par = parent();
-        if(par && par.tag === 'ol') {
-          par.count = (par.count || 0) + 1;
-          md += par.count + '. ';
-        } else {
-          md += '- ';
+        if(lvl) {
+          md += '#'.repeat(lvl) + ' ';
+        } else if(tag === 'pre') {
+          md += '```\n';
+        } else if(tag === 'b' || tag === 'strong') {
+          ensureSpaceBefore();
+          md += '**';
+        } else if(tag === 'i' || tag === 'em') {
+          ensureSpaceBefore();
+          md += '*';
+        } else if(tag === 'li') {
+          const par = parent();
+          if(par && par.tag === 'ol') {
+            par.count = (par.count || 0) + 1;
+            md += par.count + '. ';
+          } else {
+            md += '- ';
+          }
+        } else if(tag === 'a') {
+          ensureSpaceBefore();
+          md += '[';
+        } else if(tag === 'img') {
+          ensureSpaceBefore();
         }
-      } else if(tag === 'a') {
-        md += '[';
+        /* p, ul, ol: no opening marker needed */
+        break;
       }
-      /* p, ul, ol, img: no opening marker needed */
-    } else if(ev === XMLParser.ATTRIBUTE) {
-      const name = p.eventName;
 
-      if(name === 'src' || name === 'href') {
+      case XMLParser.ATTRIBUTE: {
+        const name = p.eventName;
+
+        if(name === 'src' || name === 'href') {
+          const frame = top();
+          if(frame) frame.attrs[name] = p.eventValue;
+        }
+        break;
+      }
+
+      case XMLParser.TEXT: {
         const frame = top();
-        if(frame) frame.attrs[name] = p.eventValue;
+        const text = p.eventValue;
+
+        if(frame && frame.tag === 'pre') {
+          md += text; /* preserve whitespace inside <pre> */
+        } else {
+          md += text.replace(/\s+/g, ' '); /* collapse runs of whitespace */
+        }
+        break;
       }
-    } else if(ev === XMLParser.TEXT) {
-      const frame = top();
-      const text = p.eventValue;
 
-      if(frame && frame.tag === 'pre') {
-        md += text; /* preserve whitespace inside <pre> */
-      } else {
-        md += text.replace(/\s+/g, ' '); /* collapse runs of whitespace */
-      }
-    } else if(ev === XMLParser.ELEMENT_END) {
-      const frame = stack.pop();
-      if(!frame) continue;
+      case XMLParser.ELEMENT_END: {
+        const frame = stack.pop();
+        if(!frame) break;
 
-      const tag = frame.tag;
-      const lvl = headingLevel(tag);
+        const tag = frame.tag;
+        const lvl = headingLevel(tag);
 
-      if(lvl) {
-        md += '\n\n';
-      } else if(tag === 'p') {
-        md += '\n\n';
-      } else if(tag === 'pre') {
-        if(!md.endsWith('\n')) md += '\n';
-        md += '```\n\n';
-      } else if(tag === 'b' || tag === 'strong') {
-        md += '**';
-      } else if(tag === 'i' || tag === 'em') {
-        md += '*';
-      } else if(tag === 'li') {
-        md += '\n';
-      } else if(tag === 'ul' || tag === 'ol') {
-        md += '\n';
-      } else if(tag === 'a') {
-        md += '](' + (frame.attrs.href || '') + ')';
-      } else if(tag === 'img') {
-        md += '![](' + (frame.attrs.src || '') + ')';
+        if(lvl) {
+          md += '\n\n';
+        } else if(tag === 'p') {
+          md += '\n\n';
+        } else if(tag === 'pre') {
+          if(!md.endsWith('\n')) md += '\n';
+          md += '```\n\n';
+        } else if(tag === 'b' || tag === 'strong') {
+          md += '** ';
+        } else if(tag === 'i' || tag === 'em') {
+          md += '* ';
+        } else if(tag === 'li') {
+          md += '\n';
+        } else if(tag === 'ul' || tag === 'ol') {
+          md += '\n';
+        } else if(tag === 'a') {
+          md += '](' + (frame.attrs.href || '') + ') ';
+        } else if(tag === 'img') {
+          md += '![](' + (frame.attrs.src || '') + ')\n\n';
+        }
+        break;
       }
     }
   }

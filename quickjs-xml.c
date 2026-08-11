@@ -2112,7 +2112,7 @@ js_xml_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case XML_PARSER_EVENT_NAME: {
-      if(p->xp.event_has_value)
+      if(p->xp.event_name.data && p->xp.event_name.len > 0)
         ret = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       break;
     }
