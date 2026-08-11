@@ -2030,10 +2030,12 @@ xml_parser_build(XmlParser* p, xml_event_t ev) {
 
 static void
 xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
+
   switch(ev) {
     case XML_ELEMENT_START: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
-      JS_FreeValue(ctx, JS_Call(ctx, p->element_start, p->this_obj, 1, &name));
+      ret = (JS_Call(ctx, p->element_start, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
@@ -2043,7 +2045,7 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
           JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len),
           p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED,
       };
-      JS_FreeValue(ctx, JS_Call(ctx, p->attribute, p->this_obj, countof(argv), argv));
+      ret = (JS_Call(ctx, p->attribute, p->this_obj, countof(argv), argv));
       JS_FreeValue(ctx, argv[0]);
       JS_FreeValue(ctx, argv[1]);
       break;
@@ -2051,20 +2053,23 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
 
     case XML_ELEMENT_END: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
-      JS_FreeValue(ctx, JS_Call(ctx, p->element_end, p->this_obj, 1, &name));
+      ret = (JS_Call(ctx, p->element_end, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
 
     case XML_TEXT: {
       JSValue value = p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED;
-      JS_FreeValue(ctx, JS_Call(ctx, p->text, p->this_obj, 1, &value));
+      ret = (JS_Call(ctx, p->text, p->this_obj, 1, &value));
       JS_FreeValue(ctx, value);
       break;
     }
 
     default: break;
   }
+
+  if(JS_IsException(ret))
+    JS_GetException(ctx);
 }
 
 static JSValue
@@ -2237,10 +2242,13 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
   p->this_obj = JS_DupValue(ctx, options);
 
-  /* no real callback given at all: build a tree (retrievable via .root) instead of
-   * forwarding events that would just be dropped on the floor. */
-  p->use_builder = !JS_IsFunction(ctx, p->attribute) && !JS_IsFunction(ctx, p->element_start) && !JS_IsFunction(ctx, p->element_end) &&
-                   !JS_IsFunction(ctx, p->error) && !JS_IsFunction(ctx, p->text);
+  if(js_has_propertystr(ctx, options, "builder"))
+    p->use_builder = js_tobool_free(ctx, JS_GetPropertyStr(ctx, options, "builder"));
+  else
+    /* no real callback given at all: build a tree (retrievable via .root) instead of
+     * forwarding events that would just be dropped on the floor. */
+    p->use_builder = !JS_IsFunction(ctx, p->attribute) && !JS_IsFunction(ctx, p->element_start) && !JS_IsFunction(ctx, p->element_end) &&
+                     !JS_IsFunction(ctx, p->error) && !JS_IsFunction(ctx, p->text);
 
   /* p->xp.reader is a borrowed pointer (include/xml.h doesn't own/copy the Reader
    * it's given), valid as long as p->reader is - i.e. for XmlParser's whole
