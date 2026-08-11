@@ -270,32 +270,21 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 The `lib/dom.js` DOM implementation has the core browser APIs in place. The following
 classes are **done**: `EventTarget`, `Event`, `CustomEvent`, `UIEvent`, `MouseEvent`,
 `KeyboardEvent`, `FocusEvent`, `InputEvent`, `WheelEvent`, `Touch`, `TouchList`,
-`TouchEvent`, `PointerEvent`, `MutationObserver`, `HTMLElement` (with `dataset`, `style`,
-`hidden`, `tabIndex`, etc.), 50+ `HTMLElement` subclasses (Input, Button, Form, Anchor, Image,
-TextArea, Select, Option, Script, Style, Link, Media, Video, Audio, Table, etc.),
-`DocumentFragment`, `Navigator`, `Location`, `Storage`, `Window` (with
-`setTimeout`/`setInterval`/`requestAnimationFrame`/`cancelAnimationFrame`), `File` (in
-`lib/file.js`), `DOMStringMap`, `CSSStyleDeclaration`, `NodeList`, `HTMLCollection`.
+`TouchEvent`, `PointerEvent`, `PopStateEvent`, `HashChangeEvent`, `History`, `MutationObserver`,
+`HTMLElement` (with `dataset`, `style`, `hidden`, `tabIndex`, etc.), 50+ `HTMLElement`
+subclasses (Input, Button, Form, Anchor, Image, TextArea, Select, Option, Script, Style,
+Link, Media, Video, Audio, Table, etc.), `DocumentFragment`, `Navigator`, `Location`,
+`Storage`, `Window` (with `setTimeout`/`setInterval`/`requestAnimationFrame`/
+`cancelAnimationFrame`/`history`), `File` (in `lib/file.js`), `DOMStringMap`,
+`CSSStyleDeclaration`, `NodeList`, `HTMLCollection`.
 
 Comprehensive test suite exists in `tests/test_dom.js` (210 tests),
-`tests/test_event_and_fragment.js`, and `tests/test_event_subclasses.js` (50+ tests).
+`tests/test_event_and_fragment.js`, `tests/test_event_subclasses.js` (50+ tests),
+and `tests/test_history.js` (28 tests).
 
 Remaining items ordered by leverage:
 
-### 9.1 History API (MEDIUM - enables single-page applications)
-**Why:** SPAs depend on this for navigation without page reloads.
-
-**Implementation:**
-- `History` class: `pushState(state, title, url)`, `replaceState()`, `back()`, `forward()`, `go(delta)`, `length`, `state`
-- `Window.history` property
-- `popstate` event when history changes
-- `hashchange` event
-
-**Files:** `lib/dom.js`
-
-**Status:** Not implemented.
-
-### 9.2 DOMRect + Element Geometry (MEDIUM - layout calculations)
+### 9.1 DOMRect + Element Geometry (MEDIUM - layout calculations)
 **Why:** Scripts need element dimensions and positions for layout.
 
 **Implementation:**
@@ -310,7 +299,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.3 Range + Selection API (LOWER - text selection and manipulation)
+### 9.2 Range + Selection API (LOWER - text selection and manipulation)
 **Why:** Text editors, highlights, selection-based operations.
 
 **Implementation:**
@@ -323,7 +312,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.4 Fetch API (LOWER - modern HTTP client, see also Tier 7)
+### 9.3 Fetch API (LOWER - modern HTTP client, see also Tier 7)
 **Why:** Network requests for dynamic content.
 
 **Implementation:**
@@ -338,7 +327,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented (also tracked in Tier 7).
 
-### 9.5 FormData (LOWER - form data collection)
+### 9.4 FormData (LOWER - form data collection)
 **Why:** Collecting form data for submission.
 
 **Implementation:**
@@ -350,7 +339,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.6 CSSOM - CSS Object Model (LOWER - computed styles and media queries)
+### 9.5 CSSOM - CSS Object Model (LOWER - computed styles and media queries)
 **Why:** Reading computed styles and responsive design.
 
 **Implementation:**
@@ -363,7 +352,7 @@ Remaining items ordered by leverage:
 
 **Status:** `CSSStyleDeclaration` class exists. `getComputedStyle()` and `matchMedia()` are stubs returning empty values.
 
-### 9.7 IntersectionObserver (LOWER - viewport visibility detection)
+### 9.6 IntersectionObserver (LOWER - viewport visibility detection)
 **Why:** Lazy loading, infinite scroll, analytics.
 
 **Implementation:**
@@ -375,7 +364,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.8 ResizeObserver (LOWER - element size change detection)
+### 9.7 ResizeObserver (LOWER - element size change detection)
 **Why:** Responsive components, layout adjustments.
 
 **Implementation:**
@@ -387,7 +376,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.9 File + Blob remaining APIs (LOWER - see also Tier 2/7)
+### 9.8 File + Blob remaining APIs (LOWER - see also Tier 2/7)
 **Why:** File uploads, downloads, binary data.
 
 **Implementation:**
@@ -400,7 +389,7 @@ Remaining items ordered by leverage:
 
 **Status:** `File` class (in `lib/file.js`) and `Blob` (native binding) exist. `stream()`, `FileList`, `FileReader`, and object URL methods are missing.
 
-### 9.10 WebSocket (LOWER - real-time communication)
+### 9.9 WebSocket (LOWER - real-time communication)
 **Why:** Bidirectional real-time data.
 
 **Implementation:**
@@ -413,7 +402,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.11 Canvas API (LOWER - 2D graphics, games)
+### 9.10 Canvas API (LOWER - 2D graphics, games)
 **Why:** Image manipulation, games, visualizations.
 
 **Implementation:**
@@ -425,7 +414,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented. `HTMLCanvasElement` stub exists (just `width`/`height`).
 
-### 9.12 Web Workers (LOWER - background threads, see also Tier 7)
+### 9.11 Web Workers (LOWER - background threads, see also Tier 7)
 **Why:** Heavy computation without blocking main thread.
 
 **Implementation:**
