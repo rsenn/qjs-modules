@@ -470,7 +470,7 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
   return 0;
 }
 
-#ifdef JS_LOCATION_MODULE
+#ifdef JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_location

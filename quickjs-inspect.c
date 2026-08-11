@@ -1835,7 +1835,7 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   return 0;
 }
 
-#if defined(JS_SHARED_LIBRARY) && defined(JS_INSPECT_MODULE)
+#ifdef JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_inspect

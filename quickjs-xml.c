@@ -1962,13 +1962,13 @@ static JSClassDef js_xml_pushparser_class = {
 
 /* ----------------------------------------------------------------------
    XMLParser: pull (.parse()) parser over include/xml.h's xml_parser_run(),
-   modeled on JsonParser (quickjs-json.c) - a constructor taking a reader- 
+   modeled on JsonParser (quickjs-json.c) - a constructor taking a reader-
    like input, .parse() advancing one token at a time, and getters for the
-   current token/position - except .parse() returns the raw xml_event_t   
-   token id (an int) rather than a string, and, like XMLPushParser above, 
+   current token/position - except .parse() returns the raw xml_event_t
+   token id (an int) rather than a string, and, like XMLPushParser above,
    every element/attribute/text event is also fed into an XMLBuilder as it
-   happens, so .root optionally gives the tree built so far without the   
-   caller having to do that bookkeeping itself.                           
+   happens, so .root optionally gives the tree built so far without the
+   caller having to do that bookkeeping itself.
    ---------------------------------------------------------------------- */
 
 typedef struct {
@@ -2308,8 +2308,8 @@ static JSClassDef js_xml_parser_class = {
 };
 
 /* XMLNodeParser: pull (.parse()) parser that yields one "Flat List" node
-   per call. Returns JS strings for text, and JS objects for start/end   
-   tags (with end tags having a tagName prefixed with '/').              
+   per call. Returns JS strings for text, and JS objects for start/end
+   tags (with end tags having a tagName prefixed with '/').
    ---------------------------------------------------------------------- */
 
 static JSClassID js_xml_nodeparser_class_id;
@@ -2328,10 +2328,10 @@ typedef struct {
   BOOL has_buffered_ev;
 
   uint32_t depth;
-} XmlNodeParser;
+} XMLNodeParser;
 
 static void
-xml_nodeparser_sync_location(XmlNodeParser* p) {
+xml_nodeparser_sync_location(XMLNodeParser* p) {
   p->loc->line = p->xp.loc.line;
   p->loc->column = p->xp.loc.column;
   p->loc->char_offset = p->xp.loc.char_offset;
@@ -2340,7 +2340,7 @@ xml_nodeparser_sync_location(XmlNodeParser* p) {
 
 static JSValue
 js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XmlNodeParser* p;
+  XMLNodeParser* p;
   xml_event_t ev;
 
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_nodeparser_class_id)))
@@ -2356,7 +2356,7 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       xml_nodeparser_sync_location(p);
     }
 
-    if(ev <= XML_PARSE_OK) 
+    if(ev <= XML_PARSE_OK)
       return JS_NewInt32(ctx, ev);
 
     if(ev == XML_ELEMENT_START) {
@@ -2372,7 +2372,7 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     } else if(ev == XML_ELEMENT_END) {
       if(p->depth > 0)
         p->depth--;
-      
+
       JSValue node = JS_NewObjectProto(ctx, JS_NULL);
       char* closeStr = js_malloc(ctx, p->xp.event_name.len + 2);
       closeStr[0] = '/';
@@ -2383,7 +2383,7 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       return node;
 
     } else if(ev == XML_TEXT) {
-      if(p->xp.event_has_value) 
+      if(p->xp.event_has_value)
         return JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len);
 
       return JS_NewString(ctx, "");
@@ -2406,9 +2406,9 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     }
 
     /* Stream paused waiting for data; preserve state and return */
-    if(next_ev == XML_PARSE_AGAIN) 
+    if(next_ev == XML_PARSE_AGAIN)
       return JS_NewInt32(ctx, XML_PARSE_AGAIN);
-    
+
     if(next_ev == XML_PARSE_ERROR || next_ev == XML_PARSE_OK) {
       JS_FreeValue(ctx, p->pending_node);
       p->has_pending_node = FALSE;
@@ -2440,27 +2440,27 @@ enum {
 
 static JSValue
 js_xml_nodeparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  XmlNodeParser* p;
+  XMLNodeParser* p;
   JSValue ret = JS_UNDEFINED;
 
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_nodeparser_class_id)))
     return JS_EXCEPTION;
-  
+
   switch(magic) {
     case XML_NODEPARSER_DEPTH: ret = JS_NewUint32(ctx, p->depth); break;
     case XML_NODEPARSER_LOCATION: ret = js_location_wrap(ctx, p->loc); break;
   }
-  
+
   return ret;
 }
 
 static JSValue
 js_xml_nodeparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
-  XmlNodeParser* p;
+  XMLNodeParser* p;
   int i = 0;
 
-  if(!(p = js_mallocz(ctx, sizeof(XmlNodeParser))))
+  if(!(p = js_mallocz(ctx, sizeof(XMLNodeParser))))
     return JS_EXCEPTION;
 
   if(reader_from_js(ctx, argv[i], &p->reader)) {
@@ -2478,7 +2478,7 @@ js_xml_nodeparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   if(JS_IsObject(options)) {
     JSValue filename = JS_GetPropertyStr(ctx, options, "filename");
     char* file;
-    
+
     if((file = js_tostring_free(ctx, filename))) {
       location_set_filename(p->loc, file, ctx);
       js_free(ctx, file);
@@ -2514,7 +2514,7 @@ js_xml_nodeparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
 static void
 js_xml_nodeparser_finalizer(JSRuntime* rt, JSValue val) {
-  XmlNodeParser* p;
+  XMLNodeParser* p;
 
   if((p = JS_GetOpaque(val, js_xml_nodeparser_class_id))) {
     xml_parser_free(&p->xp);
@@ -2653,7 +2653,7 @@ js_xmlwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, wr->written);
       break;
     }
-    
+
     case WRITER_INDENT: {
       ret = JS_NewInt32(ctx, wr->indent);
       break;

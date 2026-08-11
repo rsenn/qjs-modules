@@ -3112,7 +3112,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   return 0;
 }
 
-#if defined(JS_SHARED_LIBRARY) && defined(JS_SOCKETS_MODULE)
+#ifdef JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_sockets

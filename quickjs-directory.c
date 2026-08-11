@@ -504,7 +504,7 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
   return 0;
 }
 
-#ifdef JS_DIRECTORY_MODULE
+#ifdef JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_directory

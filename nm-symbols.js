@@ -32,14 +32,12 @@ class ObjectDependencyGraph {
 
     // Populate symbol owners; allow multiple object files to define the same symbol
     for(const [objFile, typesObj] of this.#symbols)
-      for(const [type, names] of Object.entries(typesObj)) {
+      for(const [type, names] of Object.entries(typesObj))
         if(type == 'U') {
           for(const name of names) this.#symbolUsers.getOrInsertComputed(name, () => new Set()).add(objFile);
-        } else if(/^[A-TV-Z]$/.test(type))
-          for(const name of names) {
-            this.#symbolOwners.getOrInsertComputed(name, () => new Set()).add(objFile);
-          }
-      }
+        } else if(/^[A-TV-Z]$/.test(type)) {
+          for(const name of names) this.#symbolOwners.getOrInsertComputed(name, () => new Set()).add(objFile);
+        }
   }
 
   get objects() {
@@ -90,14 +88,12 @@ class ObjectDependencyGraph {
         for(const ref of refs) {
           const defObjs = this.#symbolOwners.get(ref);
 
-          if(defObjs) {
-            for(const defObj of defObjs) {
+          if(defObjs)
+            for(const defObj of defObjs)
               if(!includedObjects.has(defObj)) {
                 includedObjects.add(defObj);
                 worklist.push(defObj);
               }
-            }
-          }
         }
     }
 
@@ -127,54 +123,142 @@ ObjectDependencyGraph.prototype[Symbol.toStringTag] = 'ObjectDependencyGraph';
  */
 class FunctionDependencyGraph {
   #fileData;
-  #callGraph = new Map();       // calleeSymbol -> Set of { fileName, caller }
+  #symbolOwners = new Map(); // symbol -> Set of object files defining it
+  #fileRefs = new Map(); // fileName -> Set of referenced symbols (from relocs)
+  #allSymbols = new Set(); // all unique symbols found in symbol tables or relocs
+  #referencedInRelocs = new Set(); // symbols appearing in at least one relocation record
+
+  #callGraph = new Map(); // calleeSymbol -> Set of { fileName, caller }
   #reverseCallGraph = new Map(); // `${fileName}:${callerName}` -> Set of calleeSymbols
 
   constructor(parsedObjdumpData) {
-    this.#fileData = new Map(parsedObjdumpData);
-    this.#buildGraph();
+    this.#fileData = parsedObjdumpData;
+    this.#init();
   }
 
-  #buildGraph() {
-    for(const [fileName, data] of this.#fileData)) {
+  #init() {
+    for(const [fileName, data] of Object.entries(this.#fileData)) {
       const { symbols, relocs } = data;
-      if(!symbols || !relocs) continue;
+      if(!symbols) continue;
 
       // Group defined symbols by section for efficient range lookups
       const symbolsBySection = new Map();
       for(const sym of symbols) {
+        this.#allSymbols.add(sym.symbol);
         if(sym.type === 'U' || !sym.section) continue;
+
+        this.#symbolOwners.getOrInsertComputed(sym.symbol, () => new Set()).add(fileName);
         symbolsBySection.getOrInsertComputed(sym.section, () => []).push(sym);
       }
 
-      // Match each relocation record to the function containing its offset
+      if(!relocs) continue;
+
+      const fileReferencedSymbols = new Set();
       for(const reloc of relocs) {
+        this.#allSymbols.add(reloc.symbol);
+        this.#referencedInRelocs.add(reloc.symbol);
+        fileReferencedSymbols.add(reloc.symbol);
+
         const sectionSyms = symbolsBySection.get(reloc.section);
         if(!sectionSyms) continue;
 
-        for(const sym of sectionSyms) {
-          // Check if the relocation offset falls within the symbol's address range
-          if(reloc.offset >= sym.start && reloc.offset < (sym.start + sym.size)) {
+        // Check if the relocation offset falls within the symbol's address range
+        for(const sym of sectionSyms)
+          if(reloc.offset >= sym.start && reloc.offset < sym.start + sym.size) {
             const callerName = sym.symbol;
             const calleeName = reloc.symbol;
 
-            this.#callGraph.getOrInsertComputed(calleeName, () => new Set()).add({
-              fileName,
-              caller: callerName,
-            });
+            this.#callGraph
+              .getOrInsertComputed(calleeName, () => new Set())
+              .add({
+                fileName,
+                caller: callerName,
+              });
 
             const callerKey = `${fileName}:${callerName}`;
             this.#reverseCallGraph.getOrInsertComputed(callerKey, () => new Set()).add(calleeName);
             break;
           }
-        }
       }
+
+      this.#fileRefs.set(fileName, fileReferencedSymbols);
+    }
+  }
+
+  /**
+   * Computes the function dependency graph and object inclusions starting from an entry point symbol.
+   *
+   * @param {string} entryPoint - The starting symbol name
+   * @returns {Object} An object containing includedObjects, unusedObjects, and unusedSymbols arrays
+   */
+  compute(entryPoint) {
+    const allObjects = Object.keys(this.#fileData);
+    const includedObjects = new Set();
+    const worklist = [];
+
+    // Seed the graph with the entry point symbol's owners
+    const entryObjs = this.#symbolOwners.get(entryPoint);
+    if(entryObjs)
+      for(const obj of entryObjs) {
+        includedObjects.add(obj);
+        worklist.push(obj);
+      }
+
+    // Iteratively resolve dependencies via file references
+    const processedObjs = new Set();
+    while(worklist.length > 0) {
+      const obj = worklist.pop();
+      if(processedObjs.has(obj)) continue;
+      processedObjs.add(obj);
+
+      const refs = this.#fileRefs.get(obj);
+      if(refs)
+        for(const ref of refs) {
+          const defObjs = this.#symbolOwners.get(ref);
+
+          if(defObjs)
+            for(const defObj of defObjs)
+              if(!includedObjects.has(defObj)) {
+                includedObjects.add(defObj);
+                worklist.push(defObj);
+              }
+        }
+    }
+
+    const unusedObjects = allObjects.filter(obj => !includedObjects.has(obj));
+
+    // unusedSymbols are symbols never referenced in a reloc
+    const unusedSymbols = [];
+    for(const sym of this.#allSymbols) if(!this.#referencedInRelocs.has(sym)) unusedSymbols.push(sym);
+
+    return {
+      includedObjects: Array.from(includedObjects),
+      unusedObjects,
+      unusedSymbols,
+    };
+  }
+
+  *getSymbols(symbolName) {
+    if(typeof symbolName == 'string') {
+      const name = symbolName;
+      symbolName = s => s == name;
+    } else if(RegExp.prototype.isPrototypeOf(symbolName)) {
+      const re = symbolName;
+      symbolName = s => re.test(s);
+    }
+
+    for(const file in this.#fileData) {
+      const { sections, symbols, relocs } = this.#fileData[file];
+
+      const s = symbols.find(sym => /[^Ul]/.test(sym.type) && symbolName(sym.symbol));
+
+      if(s) yield [file, s];
     }
   }
 
   /**
    * Returns a list of callers referencing the given symbol.
-   * @param {string} symbolName 
+   * @param {string} symbolName
    * @returns {Array<{fileName: string, caller: string}>}
    */
   calledBy(symbolName) {
@@ -184,8 +268,8 @@ class FunctionDependencyGraph {
 
   /**
    * Returns a list of symbols called/referenced by a specific function.
-   * @param {string} fileName 
-   * @param {string} functionName 
+   * @param {string} fileName
+   * @param {string} functionName
    * @returns {string[]}
    */
   calls(fileName, functionName) {
@@ -211,9 +295,13 @@ function main(...args) {
 
   const objdumpData = parseObjdumpSymbols(args);
   const funcGraph = new FunctionDependencyGraph(objdumpData);
+  const funcDeps = funcGraph.compute('js_init_module');
+  console.log('Function Graph Dependencies:', funcDeps);
 
   // Example query: find what functions call '__JS_FreeValue'
-  console.log("Callers of __JS_FreeValue:", funcGraph.calledBy('__JS_FreeValue'));
+  console.log('Callers of __JS_FreeValue:', funcGraph.calledBy('__JS_FreeValue'));
+
+  Object.assign(globalThis, { symbols, dependencies, objdumpData, funcGraph, funcDeps });
 
   startInteractive();
 
