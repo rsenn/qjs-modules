@@ -64,24 +64,15 @@ location_file(const Location* loc, JSContext* ctx) {
     if(loc->filename && loc->filename[0])
       s = ctx ? js_strdup(ctx, loc->filename) : strdup(loc->filename);
   } else if(ctx && loc->file > -1) {
-    const char* file = JS_AtomToCString(ctx, loc->file);
+    const char* file;
 
-    if(file) {
+    if((file = JS_AtomToCString(ctx, loc->file))) {
       s = ctx ? js_strdup(ctx, file) : strdup(file);
       JS_FreeCString(ctx, file);
     }
   }
 
   return s;
-}
-
-JSValue
-location_tovalue(const Location* loc, JSContext* ctx) {
-  char* str = location_tostring(loc, ctx);
-  JSValue ret = JS_NewString(ctx, str);
-
-  js_free(ctx, str);
-  return ret;
 }
 
 void
@@ -112,6 +103,7 @@ location_release(Location* loc, JSRuntime* rt) {
       js_free_rt(rt, loc->filename);
       loc->filename = NULL;
     }
+
     loc->has_filename = FALSE;
   } else if(loc->file > -1) {
     JS_FreeAtomRT(rt, loc->file);
@@ -207,6 +199,7 @@ location_equal(const Location* loc, const Location* other) {
 
     if(a)
       free(a);
+
     if(b)
       free(b);
   }
