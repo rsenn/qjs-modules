@@ -340,24 +340,3 @@
     // expected: identical failure lists between builds
     // actual: differs by 2-3 tests
 
-- test-xml-lenient-tagname-not-a-bug (tests/test_xml.js): "error: XMLParser
-  on malformed tag throws or returns PARSE_ERROR" (line 1562) expects
-  `<1invalid/>` (a tag name starting with a digit, invalid per the XML Name
-  production) to raise PARSE_ERROR; it's silently accepted as ELEMENT_START
-  instead. Investigated and confirmed this is not a defect: no tag-name
-  validation exists anywhere in this codebase - not in xml.c's tokenizer,
-  not in quickjs-xml.c's other parser (js_xml_parse), not in xread.c (used
-  by XMLPushParser). All three uniformly accept any non-whitespace/non-
-  special sequence as a tag name; this is a consistent, deliberate
-  simplification, not an oversight in one function. Adding strict Name-
-  production validation would be a new feature (and would need to land in
-  all three parsers to stay consistent, not just xml.c) rather than a bug
-  fix - left as an open design question, not fixed. The test itself is left
-  failing/unmodified since correcting its hardcoded expectation wasn't part
-  of this investigation's scope.
-
-    let p = new XMLParser('<1invalid/>');
-    console.log(p.parse(), XMLParser.PARSE_ERROR);
-    // actual: 1 -1  (ELEMENT_START, not PARSE_ERROR - tag name "1invalid"
-    // accepted despite starting with a digit; not planned to change)
-
