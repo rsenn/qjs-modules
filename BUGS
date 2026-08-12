@@ -340,54 +340,6 @@
     // expected: identical failure lists between builds
     // actual: differs by 2-3 tests
 
-- test-xml-stale-selfclosing-tests (tests/test_xml.js): two pairs of tests
-  assert mutually-contradictory expectations for the same input pattern,
-  and in each pair the currently-failing test is the stale one - actual
-  behavior already matches its sibling test, consistently:
-  (1) "XMLNodeParser: parse() returns PARSE_OK at end of input" (line 682)
-  and "XMLNodeParser: .depth tracks nesting level" (line 690) both assume a
-  self-closing tag like `<a/>` produces exactly one parse() event, but
-  "XMLNodeParser: handles self-closing tags" (line 752, passes) correctly
-  documents and expects two events (start then end) per self-closing tag -
-  matching actual behavior (confirmed via direct repro: `<a/>` yields a
-  start-tag object, then an end-tag object `{tagName:'/a'}`, then PARSE_OK
-  only on the third parse() call). (2) "XMLWriter: writes a simple element"
-  (line 782) expects `w.elementStart('a'); w.elementEnd('a')` to produce
-  `<a></a>`, directly contradicting the very next test, "XMLWriter: writes
-  self-closing element when elementEnd() is called immediately" (line 792,
-  passes), which expects that exact same call sequence to self-close -
-  actual behavior self-closes, matching the second test. Likely just needs
-  the four stale assertions updated to match the already-correct, already-
-  tested-elsewhere behavior - not investigated as a code fix since the two
-  "handles self-closing tags"/"self-closing element" tests establish which
-  behavor is actually intended.
-
-    // (1):
-    let p = new XMLNodeParser('<a/>');
-    p.parse(); // start
-    console.log(p.parse()); // actual: {tagName:'/a'} (an object); test at
-                             // line 685-687 asserts this should already be
-                             // 0 (XML_PARSE_OK)
-    // (2):
-    let out = '';
-    let w = new XMLWriter(s => (out += s));
-    w.elementStart('a'); w.elementEnd('a');
-    console.log(out); // actual: "<a />"; test at line 789 asserts "<a></a>"
-
-  Also stale, same shape, found after fixing xml.c's boundary-whitespace-
-  eating bug (src/xml.c:759, formerly an unconditional parse_skipspace()
-  after every tag - removed, see TODO.md history/git log): "XMLParser:
-  .root optionally builds a tree (via the same XmlBuilder as XMLPushParser)"
-  (line 495) hardcodes `children: ['hello', {tagName:'b',...}]` for
-  `<child>hello <b>world</b></child>`, but "hello " (with its trailing
-  space, right before `<b>`) is the correct, spec-faithful text content -
-  the hardcoded value matches the old, buggy trimming behavior the fix
-  above removed.
-
-    let { parser } = drain('<root a="1"><child>hello <b>world</b></child></root>');
-    console.log(parser.root[0].children[0].children[0]);
-    // actual: "hello " (correct); test at line 502 asserts "hello"
-
 - test-xml-lenient-tagname-not-a-bug (tests/test_xml.js): "error: XMLParser
   on malformed tag throws or returns PARSE_ERROR" (line 1562) expects
   `<1invalid/>` (a tag name starting with a digit, invalid per the XML Name

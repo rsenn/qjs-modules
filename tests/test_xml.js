@@ -499,7 +499,7 @@ tests({
       {
         tagName: 'root',
         attributes: { a: '1' },
-        children: [{ tagName: 'child', attributes: {}, children: ['hello', { tagName: 'b', attributes: {}, children: ['world'] }] }],
+        children: [{ tagName: 'child', attributes: {}, children: ['hello ', { tagName: 'b', attributes: {}, children: ['world'] }] }],
       },
     ]);
   },
@@ -681,7 +681,8 @@ tests({
 
   'XMLNodeParser: parse() returns PARSE_OK at end of input'() {
     let p = new XMLNodeParser('<a/>');
-    p.parse(); // start
+    p.parse(); // start a
+    p.parse(); // end /a (self-closing tags yield a separate start + end pair)
     let status = p.parse(); // should be PARSE_OK
 
     eq(status, 0); // XML_PARSE_OK
@@ -697,7 +698,12 @@ tests({
     p.parse(); // <b>
     eq(p.depth, 2);
 
-    p.parse(); // <c/>
+    p.parse(); // <c> (self-closing tags yield a separate start + end pair)
+    eq(p.depth, 3);
+
+    p.parse(); // </c>
+    eq(p.depth, 2);
+
     p.parse(); // </b>
     eq(p.depth, 1);
 
@@ -780,13 +786,18 @@ tests({
   },
 
   'XMLWriter: writes a simple element'() {
+    /* elementStart() immediately followed by elementEnd(), with nothing in between,
+     * is the self-closing case - covered separately by the next test. A genuinely
+     * distinct "simple element" needs real content in between to exercise the
+     * non-self-closing "</name>" path at all. */
     let out = '';
     let w = new XMLWriter(s => (out += toString(s)));
 
     w.elementStart('a');
+    w.text('x');
     w.elementEnd('a');
 
-    eq(out, '<a></a>');
+    eq(out, '<a>x</a>');
   },
 
   'XMLWriter: writes self-closing element when elementEnd() is called immediately'() {
