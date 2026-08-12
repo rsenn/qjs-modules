@@ -112,16 +112,15 @@ static int
 jsfunc_detect_nargs(JSContext* ctx, JSValueConst func_obj) {
   JSValue length_val = JS_GetPropertyStr(ctx, func_obj, "length");
   int nargs = 2;  /* default to 2-arg signature */
-
+  
   if(!JS_IsException(length_val) && !JS_IsUndefined(length_val)) {
     int32_t length;
     if(JS_ToInt32(ctx, &length, length_val) == 0) {
       nargs = (length >= 3) ? 3 : 2;
-      fprintf(stderr, "DEBUG: jsfunc_detect_nargs: length=%d -> nargs=%d\n", length, nargs);
     }
   }
   JS_FreeValue(ctx, length_val);
-
+  
   return nargs;
 }
 
@@ -189,16 +188,13 @@ jsfunc_invoke(JSFunc* fw, void* buf, size_t len, BOOL copy) {
 static JSValue
 jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
   JSValue ret;
-
-  fprintf(stderr, "DEBUG jsfunc_call: nargs=%d, len=%zu\n", fw->nargs, len);
-
+  
   if (fw->nargs == 3) {
     JSValueConst args[3] = {
         copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
         JS_NewInt32(fw->ctx, 0),
         JS_NewInt32(fw->ctx, len),
     };
-    fprintf(stderr, "DEBUG jsfunc_call 3-arg: args[1]=%d, args[2]=%d\n", 0, (int)len);
     ret = JS_Call(fw->ctx, fw->func_obj, fw->this_obj, 3, args);
 
     if(!copy)
@@ -212,7 +208,6 @@ jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
         copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
         JS_NewInt32(fw->ctx, len),
     };
-    fprintf(stderr, "DEBUG jsfunc_call 2-arg: args[1]=%d\n", (int)len);
     ret = JS_Call(fw->ctx, fw->func_obj, fw->this_obj, 2, args);
 
     if(!copy)
@@ -221,7 +216,7 @@ jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
     JS_FreeValue(fw->ctx, args[0]);
     JS_FreeValue(fw->ctx, args[1]);
   }
-
+  
   return ret;
 }
 
@@ -738,8 +733,6 @@ writer_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
   fw->func_obj = JS_DupValue(ctx, func_obj);
   fw->this_obj = JS_DupValue(ctx, this_obj);
   fw->nargs = jsfunc_detect_nargs(ctx, func_obj);
-
-  fprintf(stderr, "DEBUG writer_from_jsmethod: nargs=%d\n", fw->nargs);
 
   return (Writer){
       &write_jsfunction,
