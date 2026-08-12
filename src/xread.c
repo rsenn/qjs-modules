@@ -5,6 +5,7 @@
 
 #include "xread.h"
 #include "xml_entities.h"
+#include "char-utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -92,23 +93,28 @@ xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state
   static void* go_root[] = {
       [0] = &&l_error,
       [1 ... 8] = &&l_error,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
+      ['\t'] = &&l_text_begin,
+      ['\n'] = &&l_text_begin,
       [11 ... 12] = &&l_error,
-      ['\r'] = &&l_next,
+      ['\r'] = &&l_text_begin,
       [14 ... 31] = &&l_error,
-      [' '] = &&l_next,
+      [' '] = &&l_text_begin,
       [33 ... 59] = &&l_text_begin,
       ['<'] = &&l_tag,
       [61 ... 255] = &&l_text_begin,
   };
 
-  /* Entered once inside a run of text content (l_text_begin), after the first
-   * non-whitespace byte - unlike go_root, every byte except '<' (including
-   * whitespace) continues accumulating here, so interior whitespace is preserved;
-   * only leading whitespace before the first non-whitespace byte is skipped (via
-   * go_root's own l_next), matching how insignificant inter-tag whitespace was
-   * already silently dropped before this table existed. */
+  /* Entered via go_root's l_text_begin, from the very first byte of a text run -
+   * including leading whitespace, so a run like " after" that starts with whitespace
+   * but has real content later keeps that whitespace instead of silently losing it
+   * (go_root used to route whitespace bytes to l_next, skip them without
+   * accumulating, and only start the run at the first non-whitespace byte - which
+   * meant leading whitespace right after a closing tag was always dropped, even when
+   * real text followed). Every byte except '<' continues accumulating here, so
+   * interior whitespace is preserved too; l_text_end (below) is what decides whether
+   * the whole run turns out to be nothing but whitespace, in which case it's dropped
+   * there instead - matching how insignificant inter-tag whitespace should be
+   * silently dropped, without also dropping whitespace that borders real content. */
   static void* go_text[] = {
       [0 ... 59] = &&l_next,
       ['<'] = &&l_text_end,
@@ -270,8 +276,26 @@ l_text_end:
   state->accumulating = 0;
   {
     xr_str_t text = {state->text_accum.buf, (int32_t)(state->text_accum.len - 1)};
-    text.len = (int32_t)xml_decode_entities(state->text_accum.buf, (size_t)text.len);
-    cb(xr_type_text, 0, &text, user_data);
+    BOOL all_whitespace = TRUE;
+
+    for(int32_t i = 0; i < text.len; i++) {
+      if(!is_whitespace_char(text.cstr[i])) {
+        all_whitespace = FALSE;
+        break;
+      }
+    }
+
+    /* Whitespace-only runs (e.g. pretty-printed indentation between sibling tags,
+     * or leading go_root whitespace that never turns into real content) carry no
+     * meaning - drop them entirely rather than emitting an insignificant text
+     * event, matching js_xml_parse()'s own "whitespace-only text between tags is
+     * dropped" behavior. A run with any real content is emitted verbatim, boundary
+     * whitespace included - see go_root's comment above for why leading
+     * whitespace needs accumulating from the start rather than being skipped. */
+    if(!all_whitespace) {
+      text.len = (int32_t)xml_decode_entities(state->text_accum.buf, (size_t)text.len);
+      cb(xr_type_text, 0, &text, user_data);
+    }
   }
   goto l_tag;
 

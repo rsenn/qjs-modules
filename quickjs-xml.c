@@ -577,19 +577,56 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     while(start < ptr) {
       size_t n, real_len;
 
-      start += scan_whitenskip((const char*)start, leading_ws);
-      real_len = n = ptr - start;
-
       if(inside_script) {
+        start += scan_whitenskip((const char*)start, leading_ws);
+        real_len = n = ptr - start;
+
         if((real_len = byte_chr(start, n, '\n')) < n)
           real_len++;
 
         n = real_len;
-      }
+      } else {
+        /* A run that's nothing but whitespace (e.g. pretty-printed indentation between
+         * sibling tags) carries no content - drop it entirely rather than yielding an
+         * empty/trimmed text node, matching "whitespace-only text between tags is
+         * dropped". A run with any real content is yielded with its boundary
+         * whitespace preserved, since inter-tag whitespace becomes literal text-node
+         * content once real text is present (unconditionally skipping leading and
+         * trimming trailing whitespace here used to corrupt inline mixed content -
+         * same class of bug already fixed in src/xml.c and src/xread.c, this is
+         * quickjs-xml.c's own third, independent parser).
+         *
+         * Round-tripped xml.write() output adds a further wrinkle: its pretty-printer
+         * glues a structural newline (plus, for nested elements, indent spaces)
+         * directly onto the real content with no separator - e.g. "\nHello \n    " is
+         * [newline]["Hello " - real text, including its own meaningful trailing
+         * space][newline][indent]. A plain "trim if not all-whitespace" can't tell
+         * those apart. Since the writer never emits a newline except as the first
+         * character of leading structural whitespace or the last newline of trailing
+         * structural whitespace, only that specific newline (and, on the leading
+         * side, any indent following it) is structural: strip through the first
+         * newline (inclusive) from the start if the run begins with one, and strip
+         * from the last newline (inclusive) to the end if one exists past the leading
+         * strip - everything strictly between is left untouched, including genuine
+         * boundary whitespace like the space in "Hello ". */
+        size_t total = ptr - start;
 
-      if(!inside_script)
-        while(n > 0 && is_whitespace_char(start[n - 1]))
-          n--;
+        if(scan_whitenskip((const char*)start, total) == total) {
+          start = ptr;
+          continue;
+        }
+
+        size_t lead_strip = 0;
+
+        if(total > 0 && start[0] == '\n')
+          lead_strip = scan_whitenskip((const char*)start, total);
+
+        size_t last_nl = byte_rchr(start, total, '\n');
+        size_t trail_strip = (last_nl < total && last_nl >= lead_strip) ? total - last_nl : 0;
+
+        start += lead_strip;
+        real_len = n = total - lead_strip - trail_strip;
+      }
 
       if(n > 0) {
         JSValue str = xml_new_string_decoded(ctx, (const char*)start, n);
@@ -778,8 +815,17 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         js_free(ctx, tagName);
       }
 
-      parse_skipspace();
-
+      /* No parse_skipspace() here: this ran unconditionally after every tag, but only
+       * has any effect after a *closing* tag - an opening tag's '>' is still
+       * unconsumed at this point (the CLOSE-class check right below consumes it), so
+       * `c` can't be whitespace yet, while a closing tag's own branch already
+       * consumed its '>' earlier, leaving `c` sitting on whatever text follows. That
+       * asymmetry meant leading whitespace of text right after a closing tag got
+       * silently eaten here, before the text-accumulation loop above ever saw it -
+       * same bug already fixed in src/xml.c's xml_parser_run(). Whitespace-only runs
+       * between sibling tags are already dropped by that loop, so this was redundant
+       * for its likely intent and actively harmful for genuine boundary whitespace in
+       * mixed content. */
       if(parse_is(c, CLOSE))
         parse_getc();
     }
