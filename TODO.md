@@ -30,6 +30,79 @@ These all follow the same shape: someone commented out a guard or a case while
 debugging/experimenting, and it was never restored. Each is a one-line-ish fix, but until
 fixed the affected API silently does the wrong thing rather than failing loudly.
 
+- **`XMLParser.on*` callbacks set after construction are silently never invoked** —
+  `quickjs-xml.c:2226-2268` (`js_xml_parser_constructor`) computes `p->use_builder` exactly
+  once, from whichever callback functions happen to be present in the constructor's `options`
+  object, and `js_xml_parser_parse()` (`quickjs-xml.c:2093-2105`) branches on that cached flag
+  forever after. Setting `parser.onelementstart = fn` (etc.) post-construction via the
+  `onelementstart`/`onelementend`/`onattribute`/`ontext` setters (`js_xml_parser_callback`,
+  `quickjs-xml.c:2189-2223`) correctly stores the function, but `.parse()` still takes the
+  builder branch, so the callback is never called. Found via `tests/test_xml.js`'s "XMLParser
+  callbacks" suite (5 tests: onelementstart/onelementend/onattribute/ontext/all-callbacks-in-
+  order), all of which construct `new XMLParser(input)` with no options object, then assign
+  callbacks afterward — every accumulator array stays `[]`.
+  ```js
+  let starts = [];
+  let p = new XMLParser('<a><b/></a>');
+  p.onelementstart = name => starts.push(name);
+  for(let i = 0; i < 10; i++) { if(p.parse() === XMLParser.PARSE_OK) break; }
+  // expected: starts = ['a', 'b']
+  // actual: starts = [] (use_builder was locked to true at construction time)
+  ```
+
+- **`XMLWriter` (streaming class) corrupts text content with injected indentation** —
+  `js_xmlwriter_method()`, `quickjs-xml.c:2604-2611`: the `XML_TEXT`/`XML_ELEMENT_START` case
+  unconditionally calls `writer_putnl_indent()` before writing, with no check for whether text
+  immediately follows an element start. `w.elementStart('p'); w.text('hello world');
+  w.elementEnd('p')` produces `"<p>\n  hello world\n</p>"` instead of `"<p>hello world</p>"` —
+  not just cosmetic, since re-parsing this output would read back different text than what was
+  written (the injected `\n  ` becomes part of the text node). Affects `tests/test_xml.js`'s
+  "writes text content" and "complex nested structure" (2 of the 20 currently-failing
+  assertions); likely affects every `XMLWriter.text()` call after `elementStart()`, not just
+  these two tests.
+
+- **`xml.c`'s tokenizer (used by `XMLParser`/`XMLNodeParser`) doesn't terminate boolean
+  attributes on `/`** — unlike `xread.c` (used by `XMLPushParser`), which was already fixed for
+  exactly this case (see `tests/test_xml.js`'s comment near "boolean (valueless) attributes"
+  referencing `go_attrib_eq[]`'s dispatch table). `xml.c` has its own, separate attribute
+  tokenizer that never got the equivalent fix.
+  ```js
+  let p = new XMLParser('<input disabled/>');
+  p.parse(); // ELEMENT_START "input"
+  p.parse(); // ATTRIBUTE
+  console.log(p.eventName);
+  // expected: "disabled"
+  // actual: "disabled/" (the self-closing slash gets folded into the attribute name)
+  ```
+
+- **`XMLParser` TEXT events drop a boundary space adjacent to a sibling element** — not yet
+  root-caused to an exact line (needs a closer look at `xml.c`'s text-event scanning/whitespace
+  handling, not `quickjs-xml.c` itself).
+  ```js
+  let { parser } = drain('<p>before <b>bold</b> after</p>'); // drain() defined in test_xml.js
+  // expected root.children: ['before ', {tagName:'b',...}, ' after']
+  // actual: ['before', {tagName:'b',...}, 'after']  (both boundary spaces silently dropped)
+  ```
+  Contributes to at least one `xml.write()` round-trip test failing too (space before "!" goes
+  missing when a parsed-then-rewritten document has text bordering an element).
+
+- **`js_xml_write_list()` mangles explicit `{tagName: '/x'}` end-marker objects** —
+  `quickjs-xml.c:891-908`: when serializing a flat list (as opposed to a nested tree), an
+  explicit closing-tag marker object is passed straight into `xml_write_element()`
+  (`quickjs-xml.c:371-415`), which has no special case for a tag name starting with `/` — it
+  writes it as if it were a normal (self-closing, since it has no children) start tag.
+  ```js
+  let out = xml.write([
+    { tagName: 'a', attributes: { x: '1' } },
+    'text',
+    { tagName: '/a', attributes: {} },
+  ]);
+  // expected: something like '<a x="1">text</a>'
+  // actual: '<a x="1" />text</a />' - 'a' wrongly self-closes despite having a following
+  // sibling and an explicit end marker, and the end marker itself renders as '</a />'
+  // instead of a real closing tag
+  ```
+
 ## Tier 2 — public API documented as working, but isn't
 
 - **`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`** —

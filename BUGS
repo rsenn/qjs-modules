@@ -324,26 +324,79 @@
   CMake and require an explicit, documented opt-in with a real ABI/version
   check instead of blind struct-offset trust.
 
-- test-xml-many-preexisting-assertion-failures (tests/test_xml.js): now that
-  test-xml-debug-build-heap-corruption (see below, fixed) no longer aborts
-  the suite partway through, running it to completion reveals 20-23 real
-  assertion failures (count varies slightly between the plain debug build
-  and the ASan build - 20 vs 23 in one comparison - suggesting at least one
-  of them is itself non-deterministic, e.g. object/Map key ordering) that
-  were previously masked by the early crash. Spans several distinct areas:
-  XMLNodeParser.depth under/over-counts nesting; XMLWriter emits `<a />`
-  self-closing tags where a separate `</a>` was expected (and undercounts
-  `.written`); XMLParser's onelementstart/onelementend/onattribute/ontext
-  callbacks appear not to fire at all in some tests (accumulator arrays stay
-  `[]`); a few text-content/whitespace-boundary mismatches (e.g. "before"
-  vs "before ", split around inline elements). Not investigated further or
-  root-caused - out of scope for the session that found it (was chasing the
-  heap-corruption crash, not test-logic correctness); each of these likely
-  needs its own separate root-cause pass.
+- test-xml-assertion-count-nondeterminism (tests/test_xml.js): the number of
+  failing assertions when running the full suite varies between builds - 20
+  under the plain glibc debug build, 23 under the ASan build - meaning at
+  least one test's pass/fail outcome is itself non-deterministic (candidates:
+  object-key or Map iteration order, or an uninitialized read that differs by
+  allocator). Not narrowed down to which specific test(s) flip; most of the
+  suite's failures were root-caused and moved to TODO.md's Tier 1 (see
+  XMLParser.on* callback / XMLWriter indentation / xml.c boolean-attribute /
+  text-boundary-space / js_xml_write_list end-marker entries), but this
+  count discrepancy itself wasn't chased down.
 
-    env QUICKJS_MODULE_PATH="build/x86_64-linux-debug;lib" \
-      ./build/x86_64-linux-debug/qjsm --bignum tests/test_xml.js
-    // expected: all 142 tests OK, process exits 0
-    // actual: process exits 1, "20 out of 142 tests failed" (or 23, under
-    // the ASan build) - see console output for the individual failures
+    diff <(env QUICKJS_MODULE_PATH="build/x86_64-linux-debug;lib" ./build/x86_64-linux-debug/qjsm --bignum tests/test_xml.js 2>&1 | grep FAILED) \
+         <(env QUICKJS_MODULE_PATH="build/x86_64-linux-asan;lib"  ./build/x86_64-linux-asan/qjsm  --bignum tests/test_xml.js 2>&1 | grep FAILED)
+    // expected: identical failure lists between builds
+    // actual: differs by 2-3 tests
+
+- test-xml-stale-selfclosing-tests (tests/test_xml.js): two pairs of tests
+  assert mutually-contradictory expectations for the same input pattern,
+  and in each pair the currently-failing test is the stale one - actual
+  behavior already matches its sibling test, consistently:
+  (1) "XMLNodeParser: parse() returns PARSE_OK at end of input" (line 682)
+  and "XMLNodeParser: .depth tracks nesting level" (line 690) both assume a
+  self-closing tag like `<a/>` produces exactly one parse() event, but
+  "XMLNodeParser: handles self-closing tags" (line 752, passes) correctly
+  documents and expects two events (start then end) per self-closing tag -
+  matching actual behavior (confirmed via direct repro: `<a/>` yields a
+  start-tag object, then an end-tag object `{tagName:'/a'}`, then PARSE_OK
+  only on the third parse() call). (2) "XMLWriter: writes a simple element"
+  (line 782) expects `w.elementStart('a'); w.elementEnd('a')` to produce
+  `<a></a>`, directly contradicting the very next test, "XMLWriter: writes
+  self-closing element when elementEnd() is called immediately" (line 792,
+  passes), which expects that exact same call sequence to self-close -
+  actual behavior self-closes, matching the second test. Likely just needs
+  the four stale assertions updated to match the already-correct, already-
+  tested-elsewhere behavior - not investigated as a code fix since the two
+  "handles self-closing tags"/"self-closing element" tests establish which
+  behavor is actually intended.
+
+    // (1):
+    let p = new XMLNodeParser('<a/>');
+    p.parse(); // start
+    console.log(p.parse()); // actual: {tagName:'/a'} (an object); test at
+                             // line 685-687 asserts this should already be
+                             // 0 (XML_PARSE_OK)
+    // (2):
+    let out = '';
+    let w = new XMLWriter(s => (out += s));
+    w.elementStart('a'); w.elementEnd('a');
+    console.log(out); // actual: "<a />"; test at line 789 asserts "<a></a>"
+
+- test-xml-writer-written-and-parse-error-unclear (tests/test_xml.js): two
+  more test_xml.js failures not yet classified as product bug vs. test bug -
+  (1) "XMLWriter: .written tracks bytes written" (line 853) - `.written`
+  stays 0 even after `elementStart()`/`elementEnd()` produce visible output
+  through the writer callback; suspect the test's callback (`s => (out +=
+  toString(s))`, whose implicit return value is the concatenated string, not
+  a byte count) doesn't satisfy whatever contract the Writer/byte-counting
+  plumbing (quickjs-xml.c's js_xmlwriter_method, wr->written +=w) expects
+  callbacks to return - not confirmed. (2) "error: XMLParser on malformed
+  tag throws or returns PARSE_ERROR" (line 1562) - `<1invalid/>` (a tag name
+  starting with a digit, invalid per the XML Name production) is silently
+  accepted as ELEMENT_START rather than raising PARSE_ERROR; may be
+  intentional tokenizer leniency rather than a defect - not confirmed either
+  way.
+
+    let out = '';
+    let w = new XMLWriter(s => (out += toString(s)));
+    w.elementStart('a'); w.elementEnd('a');
+    console.log(w.written, JSON.stringify(out));
+    // actual: 0 "<a />"  (out is non-empty but .written never left 0)
+
+    let p = new XMLParser('<1invalid/>');
+    console.log(p.parse(), XMLParser.PARSE_ERROR);
+    // actual: 1 -1  (ELEMENT_START, not PARSE_ERROR - tag name "1invalid"
+    // accepted despite starting with a digit)
 
