@@ -39,7 +39,7 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 static thread_local JSValue object_tostring;
 
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
-#define IS_COMPACT(d) ((d) > opts->compact)
+#define IS_COMPACT(d) (opts->compact == INT32_MIN ? 1 : opts->compact >= 0 ? (d) > opts->compact : 0)
 
 #define VALID_BASE(b) ((b) == 2 || (b) == 8 || (b) == 10 || (b) == 16)
 
@@ -72,6 +72,8 @@ typedef struct {
   InspectOptions opts;
   Writer wr;
   Vector hier;
+  DynBuf* dbuf;
+  Vector compact_stack;
 } Inspector;
 
 static int stdout_isatty, stderr_isatty;
@@ -392,6 +394,65 @@ adjust_spacing(Writer* wr, const InspectOptions* opts, int32_t* depth, int32_t i
 static void
 put_spacing(Writer* wr, const InspectOptions* opts, int32_t depth) {
   adjust_spacing(wr, opts, &depth, 0);
+}
+
+/* ========== Negative compact: leaf-relative compaction ========== */
+
+typedef struct {
+  size_t buf_offset;
+  BOOL has_sub_objects;
+  int32_t min_child_leaf;
+} CompactLevel;
+
+/* Compact whitespace in buf[start..end) in-place: replace '\n' followed by
+   spaces with a single space. Returns new end position. */
+static size_t
+compact_whitespace(uint8_t* buf, size_t start, size_t end) {
+  size_t r = start, w = start;
+
+  while(r < end) {
+    if(buf[r] == '\n') {
+      r++;
+      while(r < end && buf[r] == ' ') r++;
+      buf[w++] = ' ';
+    } else {
+      buf[w++] = buf[r++];
+    }
+  }
+
+  return w;
+}
+
+/* Propagate a child object's leaf_depth to the parent level on the stack. */
+static void
+compact_propagate_leaf(Vector* stack, int32_t leaf_depth) {
+  if(!vector_empty(stack)) {
+    CompactLevel* parent = vector_back(stack, sizeof(CompactLevel));
+    parent->has_sub_objects = TRUE;
+    if(parent->min_child_leaf == 0 || leaf_depth < parent->min_child_leaf)
+      parent->min_child_leaf = leaf_depth;
+  }
+}
+
+/* Pop a level off the compact stack, compute its leaf_depth, compact the
+   buffer region if it qualifies, and propagate to the parent level. */
+static void
+compact_close_level(Vector* stack, DynBuf* dbuf, int32_t compact_threshold) {
+  if(vector_empty(stack))
+    return;
+
+  CompactLevel* top = vector_back(stack, sizeof(CompactLevel));
+  CompactLevel cl = *top;
+  vector_pop(stack, sizeof(CompactLevel));
+
+  int32_t leaf_depth = cl.has_sub_objects ? (cl.min_child_leaf - 1) : -1;
+
+  if(leaf_depth >= compact_threshold && dbuf && cl.buf_offset <= dbuf->size) {
+    size_t new_end = compact_whitespace(dbuf->buf, cl.buf_offset, dbuf->size);
+    dbuf->size = new_end;
+  }
+
+  compact_propagate_leaf(stack, leaf_depth);
 }
 
 static void
@@ -1505,13 +1566,14 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   int index = 0, ret;
   JSPromiseStateEnum state = -1;
   BOOL numeric_compact = opts->compact != INT32_MIN && opts->compact != INT32_MAX;
+  BOOL negative_compact = opts->compact < 0 && numeric_compact;
 
   if((ret = inspect_object(insp, obj, depth)))
     return ret;
 
   is_array = js_is_array(ctx, obj);
 
-  if(numeric_compact && !js_is_promise(ctx, obj)) {
+  if(numeric_compact && !negative_compact && !js_is_promise(ctx, obj)) {
     DynBuf scratch;
     dbuf_init_ctx(ctx, &scratch);
 
@@ -1530,8 +1592,13 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
   writer_puts(wr, is_array ? "[" : "{");
 
-  if(it)
+  if(it) {
     ++depth;
+    if(negative_compact) {
+      CompactLevel cl = {insp->dbuf ? insp->dbuf->size : 0, FALSE, 0};
+      vector_push(&insp->compact_stack, cl);
+    }
+  }
 
   if(js_is_promise(ctx, obj)) {
     int level = it ? depth : depth + 1;
@@ -1554,7 +1621,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
     if(state != JS_PROMISE_PENDING) {
       JSValue result = JS_PromiseResult(ctx, obj);
-      Inspector nest = {*opts, *wr, VECTOR(ctx)};
+      Inspector nest = {*opts, *wr, VECTOR(ctx), insp->dbuf, insp->compact_stack};
 
       if(JS_IsObject(result) && level < opts->depth)
         inspect_recursive(&nest, result, level);
@@ -1570,8 +1637,12 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       put_spacing(wr, opts, depth);
   }
 
-  if(!it)
+  if(!it) {
     writer_puts(wr, is_array ? "]" : "}");
+    if(negative_compact) {
+      compact_close_level(&insp->compact_stack, insp->dbuf, opts->compact);
+    }
+  }
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
@@ -1635,7 +1706,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
           BOOL child_is_array = js_is_array(ctx, value);
           BOOL compacted = FALSE;
 
-          if(numeric_compact && !js_is_promise(ctx, value)) {
+          if(numeric_compact && !negative_compact && !js_is_promise(ctx, value)) {
             DynBuf scratch;
             dbuf_init_ctx(ctx, &scratch);
 
@@ -1659,9 +1730,17 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
               ++depth;
 
+              if(negative_compact) {
+                CompactLevel cl = {insp->dbuf ? insp->dbuf->size : 0, FALSE, 0};
+                vector_push(&insp->compact_stack, cl);
+              }
+
               continue;
             } else {
               writer_puts(wr, is_array ? "[]" : "{}");
+              if(negative_compact) {
+                compact_propagate_leaf(&insp->compact_stack, -1);
+              }
             }
           }
         }
@@ -1705,6 +1784,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
       writer_puts(wr, is_array ? "]" : "}");
 
+      if(negative_compact) {
+        compact_close_level(&insp->compact_stack, insp->dbuf, opts->compact);
+      }
+
       if(!it)
         break;
     }
@@ -1727,7 +1810,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 
   dbuf_init_ctx(ctx, &dbuf);
   buf_wr = writer_from_dynbuf(&dbuf);
-  Inspector insp = {{}, buf_wr, VECTOR(ctx)};
+  Inspector insp = {{}, buf_wr, VECTOR(ctx), &dbuf, VECTOR_INIT()};
 
   options_init(&insp.opts, ctx);
 
@@ -1754,6 +1837,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 
   JSValue ret = result == -1 ? JS_EXCEPTION : JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
+  vector_free(&insp.compact_stack);
   writer_free(&insp.wr);
   options_free(&insp.opts, ctx);
 
@@ -1765,7 +1849,7 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
 
   dbuf_init_ctx(ctx, &dbuf);
-  Inspector insp = {{}, writer_from_dynbuf(&dbuf), VECTOR(ctx)};
+  Inspector insp = {{}, writer_from_dynbuf(&dbuf), VECTOR(ctx), &dbuf, VECTOR_INIT()};
 
   options_init(&insp.opts, ctx);
 
@@ -1783,6 +1867,7 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
 
   JSValue rval = result == -1 ? JS_EXCEPTION : JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
+  vector_free(&insp.compact_stack);
   writer_free(&insp.wr);
   options_free(&insp.opts, ctx);
 
