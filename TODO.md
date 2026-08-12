@@ -24,26 +24,6 @@ the full architecture/gap survey behind Tier 6-8.
 4. **Support archives, filesystem, sockets, serial, and databases** as first-class, ergonomic
    JS APIs, not just raw native bindings.
 
-## Tier 1 — silent correctness bugs, one disabled line each, wide blast radius
-
-These all follow the same shape: someone commented out a guard or a case while
-debugging/experimenting, and it was never restored. Each is a one-line-ish fix, but until
-fixed the affected API silently does the wrong thing rather than failing loudly.
-
-- **`xml.c`'s tokenizer (used by `XMLParser`/`XMLNodeParser`) doesn't terminate boolean
-  attributes on `/`** — unlike `xread.c` (used by `XMLPushParser`), which was already fixed for
-  exactly this case (see `tests/test_xml.js`'s comment near "boolean (valueless) attributes"
-  referencing `go_attrib_eq[]`'s dispatch table). `xml.c` has its own, separate attribute
-  tokenizer that never got the equivalent fix.
-  ```js
-  let p = new XMLParser('<input disabled/>');
-  p.parse(); // ELEMENT_START "input"
-  p.parse(); // ATTRIBUTE
-  console.log(p.eventName);
-  // expected: "disabled"
-  // actual: "disabled/" (the self-closing slash gets folded into the attribute name)
-  ```
-
 ## Tier 2 — public API documented as working, but isn't
 
 - **`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`** —

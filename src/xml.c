@@ -693,7 +693,15 @@ xml_parser_run(XMLParser* p) {
           dbuf_free(&p->attr);
           dbuf_init(&p->attr);
           p->accum = &p->attr;
-          parse_until(parse_is(p->c, EQUAL | WS | SPECIAL | CLOSE));
+          /* SLASH must terminate the name scan too, not just EQUAL/WS/SPECIAL/CLOSE -
+           * otherwise a boolean attribute immediately followed by a self-closing '/'
+           * (e.g. "<input disabled/>") swallows the '/' into the attribute name
+           * itself ("disabled/") instead of stopping at it. The code right below
+           * already handles p->c landing on SLASH correctly (the WS|CLOSE|SLASH
+           * check yields the boolean attribute, and the outer loop's END check
+           * breaks out so the self-closing detection after the loop still sees
+           * it) - this scan just needs to stop there instead of consuming past it. */
+          parse_until(parse_is(p->c, EQUAL | WS | SPECIAL | CLOSE | SLASH));
           p->accum = 0;
 
           if(p->attr.size == 0)
