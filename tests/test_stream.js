@@ -4,8 +4,12 @@ import {
   TransformStream,
   ByteLengthQueuingStrategy,
   CountQueuingStrategy,
-} from 'stream';
+} from '../lib/stream.js';
+import { ReadableStream as NativeReadableStream } from 'stream';
 import { assert, eq, tests } from './tinytest.js';
+
+// Add QuickJS-specific fromReader extension to lib/stream.js's ReadableStream
+ReadableStream.fromReader = NativeReadableStream.fromReader;
 
 /* ---------- helpers ---------- */
 

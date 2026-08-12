@@ -61,6 +61,7 @@ enum {
   PATH_RELATIVE,
   PATH_ISIN,
   PATH_EQUAL,
+  PATH_TOARRAY,
 };
 
 static JSValue
@@ -331,6 +332,19 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     case PATH_EQUAL: {
       ret = JS_NewBool(ctx, path_equal4(a, alen, b, blen));
+      break;
+    }
+
+    case PATH_TOARRAY: {
+      ret = JS_NewArray(ctx);
+      uint32_t idx = 0;
+      for(int i = 0; ; i++) {
+        size_t len;
+        const char* p = path_at3(a, &len, i);
+        if(!p || (len == 0 && i > 0))
+          break;
+        JS_SetPropertyUint32(ctx, ret, idx++, JS_NewStringLen(ctx, p, len));
+      }
       break;
     }
   }
@@ -699,6 +713,9 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("at", 2, js_path_method, PATH_AT),
     JS_CFUNC_MAGIC_DEF("search", 2, js_path_method_dbuf, PATH_SEARCH),
     JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, PATH_RELATIVE),
+    JS_CFUNC_MAGIC_DEF("isin", 2, js_path_method, PATH_ISIN),
+    JS_CFUNC_MAGIC_DEF("equal", 2, js_path_method, PATH_EQUAL),
+    JS_CFUNC_MAGIC_DEF("toArray", 1, js_path_method, PATH_TOARRAY),
     JS_CFUNC_DEF("slice", 0, js_path_slice),
     JS_CFUNC_DEF("join", 1, js_path_join),
     JS_CFUNC_DEF("parse", 1, js_path_parse),
