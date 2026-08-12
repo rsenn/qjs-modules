@@ -34,24 +34,6 @@
     // bitwise-not fallback), since Predicate's operator set has no '~' entry
     // actual: process aborts (SIGABRT), no JS-catchable exception at all
 
-- serial-default-export-broken: js_serial_init (quickjs-serial.c:669-672)
-  gates JS_SetModuleExport(ctx, m, "default", serial_ctor) behind
-  `!strcmp(module_name, "cookie")` - "cookie" isn't this module's name under
-  any registration in this codebase (looks copy-pasted from an unrelated
-  module), so the condition is always false. Worse, JS_INIT_MODULE
-  (quickjs-serial.c:687-694) never calls JS_AddModuleExport(ctx, m,
-  "default") at all, unlike every other module with a default export
-  (quickjs-directory.c:499/519, quickjs-deep.c, quickjs-xml.c, etc., which
-  declare+set "default" unconditionally) - so even fixing the name check
-  wouldn't be enough, the export slot itself is never declared. Found while
-  fixing the analogous sockets-default-export-undeclared bug in
-  quickjs-sockets.c, which had the same shape.
-
-    import Serial from 'serial';
-    console.log(Serial);
-    // expected: the Serial constructor
-    // actual: SyntaxError: Could not find export 'default' in module 'serial'
-
 - test-path-stream-preexisting-failures: tests/test_path.js's `skipSeparator()`,
   `isSeparator()`, `isin()`, `equal()`, `toArray()` tests fail, and
   `equal()`/`toArray()` additionally throw "not a function" (suggesting a
@@ -341,4 +323,27 @@
   quickjs-internal.h entirely, or at minimum stop auto-enabling it from
   CMake and require an explicit, documented opt-in with a real ABI/version
   check instead of blind struct-offset trust.
+
+- xmlpushparser-builder-fallback-crash (quickjs-xml.c, XMLPushParser): building
+  a tree via the no-callbacks/.root builder fallback segfaults with heap
+  corruption ("malloc(): unaligned tcache chunk detected") inside .write()/
+  .close(). Confirmed pre-existing and unrelated to deep.c's FILTER_KEY_OF fix
+  (same session, different task): reproduces identically with quickjs-deep.c
+  reverted to its prior (buggy, always-skip) state, so this isn't a
+  side effect of that change - it was just never exercised by ctest before
+  because tests/test_xml.js's earlier tests all passed and nothing upstream
+  of this one happened to trigger it. Not root-caused yet (out of scope for
+  the task that found it); worth checking the builder-fallback push/pop of
+  tree nodes in the push-parser path for a use-after-free or double-free.
+
+    import { XMLPushParser } from 'xml';
+    let pp = new XMLPushParser();
+    pp.write('<a x="1"><b/></a>');
+    pp.close();
+    console.log(pp.root);
+    // expected: [{ tagName: 'a', attributes: { x: '1' }, children: [{
+    // tagName: 'b', attributes: {}, children: [] }] }]
+    // actual: malloc(): unaligned tcache chunk detected, SIGABRT/SIGSEGV
+    // (also reproduced via `ctest -R test_xml.js`, which aborts partway
+    // through the suite at the same test)
 

@@ -30,33 +30,6 @@ These all follow the same shape: someone commented out a guard or a case while
 debugging/experimenting, and it was never restored. Each is a one-line-ish fix, but until
 fixed the affected API silently does the wrong thing rather than failing loudly.
 
-- **`deep.select()`/`deep.find()` return `[]`/skip everything when called without an explicit
-  key filter (the common case)** — `quickjs-deep.c:559` and `:637`:
-  ```c
-  BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && /*!vector_empty(&atoms) &&*/ (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
-  ```
-  `FILTER_KEY_OF == 0` is also the *default* (no-filter) flag value, and `atom_skip()` against
-  an empty allow-list returns `TRUE` — so with the `!vector_empty(&atoms)` guard disabled,
-  `filter` is `TRUE` for every property whenever the caller didn't pass an explicit key list.
-  Confirmed via gdb: the predicate callback is never invoked at all in the default-flags case.
-  Used by `lib/deep.js`, `lib/dom.js`, `lib/assert.js`, and exercised by `tests/test_deep.js`
-  and `tests/test_xml.js`. Fix: restore the `!vector_empty(&atoms) &&` guard at both sites.
-
-- **`WritableStream.prototype.close()` is a silent no-op** — `quickjs-stream.c:1984-1987`:
-  ```c
-  /* case WRITABLE_METHOD_CLOSE: {
-     ret = writable_close(st,  ctx);
-     break;
-   }*/
-  ```
-  The case is commented out but the method is still registered
-  (`quickjs-stream.c:2097`, `JS_CFUNC_MAGIC_DEF("close", 0, ...)`), so calling
-  `writableStream.close()` returns `undefined` and does nothing — `ret` stays
-  `JS_UNDEFINED` from the top of `js_writable_method`. `writable_close()` itself works fine and
-  is already called correctly from the transform-stream teardown path
-  (`quickjs-stream.c:2303`), so this is purely a matter of uncommenting. Matches the disabled
-  `//await wr.close();` in `tests/test_stream.js:37`.
-
 - **Native `xml.write()` silently truncates output whenever a node has an empty
   `children: []` array** *(this is the pre-existing `TODO` item "fix XML enumeration")* —
   `quickjs-xml.c:383-416`, in `xml_enumeration_next()`. On an empty children array,
@@ -271,37 +244,25 @@ The `lib/dom.js` DOM implementation has the core browser APIs in place. The foll
 classes are **done**: `EventTarget`, `Event`, `CustomEvent`, `UIEvent`, `MouseEvent`,
 `KeyboardEvent`, `FocusEvent`, `InputEvent`, `WheelEvent`, `Touch`, `TouchList`,
 `TouchEvent`, `PointerEvent`, `PopStateEvent`, `HashChangeEvent`, `History`, `DOMRect`,
-`DOMRectReadOnly`, `MutationObserver`, `HTMLElement` (with `dataset`, `style`, `hidden`,
-`tabIndex`, `offsetWidth`/`offsetHeight`/`offsetTop`/`offsetLeft`/`offsetParent`,
+`DOMRectReadOnly`, `Range`, `Selection`, `MutationObserver`, `HTMLElement` (with `dataset`,
+`style`, `hidden`, `tabIndex`, `offsetWidth`/`offsetHeight`/`offsetTop`/`offsetLeft`/`offsetParent`,
 `clientWidth`/`clientHeight`/`clientTop`/`clientLeft`,
 `scrollWidth`/`scrollHeight`/`scrollTop`/`scrollLeft`, etc.), 50+ `HTMLElement` subclasses
 (Input, Button, Form, Anchor, Image, TextArea, Select, Option, Script, Style, Link, Media,
 Video, Audio, Table, etc.), `DocumentFragment`, `Navigator`, `Location`, `Storage`, `Window`
-(with `setTimeout`/`setInterval`/`requestAnimationFrame`/`cancelAnimationFrame`/`history`),
+(with `setTimeout`/`setInterval`/`requestAnimationFrame`/`cancelAnimationFrame`/`history`/`getSelection`),
 `File` (in `lib/file.js`), `DOMStringMap`, `CSSStyleDeclaration`, `NodeList`, `HTMLCollection`.
 
 Element geometry: `getBoundingClientRect()` and `getClientRects()` implemented on Element.
 
 Comprehensive test suite exists in `tests/test_dom.js` (210 tests),
 `tests/test_event_and_fragment.js`, `tests/test_event_subclasses.js` (50+ tests),
-`tests/test_history.js` (28 tests), and `tests/test_geometry.js` (30 tests).
+`tests/test_history.js` (28 tests), `tests/test_geometry.js` (30 tests),
+and `tests/test_range_selection.js` (60+ tests).
 
 Remaining items ordered by leverage:
 
-### 9.1 Range + Selection API (LOWER - text selection and manipulation)
-**Why:** Text editors, highlights, selection-based operations.
-
-**Implementation:**
-- `Range` class: `startContainer`, `startOffset`, `endContainer`, `endOffset`, `commonAncestorContainer`
-- Range methods: `setStart()`, `setEnd()`, `collapse()`, `cloneContents()`, `extractContents()`, `deleteContents()`, `insertNode()`
-- `Document.createRange()`
-- `Selection` API: `window.getSelection()`, `Selection` object with `anchorNode`, `focusNode`, etc.
-
-**Files:** `lib/dom.js`
-
-**Status:** Not implemented.
-
-### 9.2 Fetch API (LOWER - modern HTTP client, see also Tier 7)
+### 9.1 Fetch API (LOWER - modern HTTP client, see also Tier 7)
 **Why:** Network requests for dynamic content.
 
 **Implementation:**
@@ -316,7 +277,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented (also tracked in Tier 7).
 
-### 9.3 FormData (LOWER - form data collection)
+### 9.2 FormData (LOWER - form data collection)
 **Why:** Collecting form data for submission.
 
 **Implementation:**
@@ -328,7 +289,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.4 CSSOM - CSS Object Model (LOWER - computed styles and media queries)
+### 9.3 CSSOM - CSS Object Model (LOWER - computed styles and media queries)
 **Why:** Reading computed styles and responsive design.
 
 **Implementation:**
@@ -341,7 +302,7 @@ Remaining items ordered by leverage:
 
 **Status:** `CSSStyleDeclaration` class exists. `getComputedStyle()` and `matchMedia()` are stubs returning empty values.
 
-### 9.5 IntersectionObserver (LOWER - viewport visibility detection)
+### 9.4 IntersectionObserver (LOWER - viewport visibility detection)
 **Why:** Lazy loading, infinite scroll, analytics.
 
 **Implementation:**
@@ -353,7 +314,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.6 ResizeObserver (LOWER - element size change detection)
+### 9.5 ResizeObserver (LOWER - element size change detection)
 **Why:** Responsive components, layout adjustments.
 
 **Implementation:**
@@ -365,7 +326,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.7 File + Blob remaining APIs (LOWER - see also Tier 2/7)
+### 9.6 File + Blob remaining APIs (LOWER - see also Tier 2/7)
 **Why:** File uploads, downloads, binary data.
 
 **Implementation:**
@@ -378,7 +339,7 @@ Remaining items ordered by leverage:
 
 **Status:** `File` class (in `lib/file.js`) and `Blob` (native binding) exist. `stream()`, `FileList`, `FileReader`, and object URL methods are missing.
 
-### 9.8 WebSocket (LOWER - real-time communication)
+### 9.7 WebSocket (LOWER - real-time communication)
 **Why:** Bidirectional real-time data.
 
 **Implementation:**
@@ -391,7 +352,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.9 Canvas API (LOWER - 2D graphics, games)
+### 9.8 Canvas API (LOWER - 2D graphics, games)
 **Why:** Image manipulation, games, visualizations.
 
 **Implementation:**
@@ -403,7 +364,7 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented. `HTMLCanvasElement` stub exists (just `width`/`height`).
 
-### 9.10 Web Workers (LOWER - background threads, see also Tier 7)
+### 9.9 Web Workers (LOWER - background threads, see also Tier 7)
 **Why:** Heavy computation without blocking main thread.
 
 **Implementation:**

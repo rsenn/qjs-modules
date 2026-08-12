@@ -558,7 +558,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       JSAtom atom = property_enumeration_atom(it);
       ValueType obj_type = js_value_type(ctx, it->obj);
 
-      BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && /*!vector_empty(&atoms) &&*/ (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
+      BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && !vector_empty(&atoms) && (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
 
       if((obj_type & TYPE_ARRAY) || !filter) {
         JSValue value = property_recursion_value(&frames, ctx);
@@ -636,7 +636,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       property_recursion_pointer(&frames, js_pointer_data(pointer), ctx);
 
     int r = 0;
-    BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && /*!vector_empty(&atoms) &&*/ (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
+    BOOL filter = FLAGS_FILTER(flags) == FILTER_KEY_OF && !vector_empty(&atoms) && (atom_skip(&atoms, atom) ^ FLAGS_NEGATE_FILTER(flags));
 
     if(!filter) {
       r = (type & mask) ? js_deep_predicate(ctx, argv[1], value, &frames, pointer) : 0;

@@ -665,13 +665,7 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "SerialPort", serialport_ctor);
     JS_SetModuleExport(ctx, m, "Serial", serial_ctor);
     JS_SetModuleExport(ctx, m, "SerialError", serialerror_ctor);
-
-    const char* module_name = module_namecstr(ctx, m);
-
-    if(!strcmp(module_name, "cookie"))
-      JS_SetModuleExport(ctx, m, "default", serial_ctor);
-
-    JS_FreeCString(ctx, module_name);
+    JS_SetModuleExport(ctx, m, "default", serial_ctor);
   }
 
   return 0;
@@ -691,6 +685,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "Serial");
     JS_AddModuleExport(ctx, m, "SerialPort");
     JS_AddModuleExport(ctx, m, "SerialError");
+    JS_AddModuleExport(ctx, m, "default");
   }
 
   return m;
