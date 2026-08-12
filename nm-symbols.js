@@ -142,7 +142,7 @@ class FunctionDependencyGraph {
 
   #init() {
     for(const [fileName, data] of Object.entries(this.#fileData)) {
-      const { symbols, relocs } = data;
+      const { symbols, relocs, calls } = data;
       if(!symbols) continue;
 
       // Group defined symbols by section for efficient range lookups
@@ -151,39 +151,66 @@ class FunctionDependencyGraph {
         this.#allSymbols.add(sym.symbol);
         if(sym.type === 'U' || !sym.section) continue;
 
-        this.#symbolOwners.getOrInsertComputed(sym.symbol, () => new Set()).add(fileName);
+        // Only a global ('g') binding makes a file a valid cross-file dependency target.
+        // A local ('l', i.e. `static`) symbol is private to its own translation unit - many
+        // files can each have their own same-named local copy (e.g. `static inline` helpers
+        // from quickjs.h like JS_FreeValue), and an unrelated file's copy must never be
+        // treated as satisfying a reference resolved elsewhere. symbolsBySection stays
+        // unrestricted since it's only used to find the caller within *this* file's own
+        // relocations/calls, where local symbols are perfectly valid callers.
+        if(sym.type === 'g') this.#symbolOwners.getOrInsertComputed(sym.symbol, () => new Set()).add(fileName);
         symbolsBySection.getOrInsertComputed(sym.section, () => []).push(sym);
       }
 
-      if(!relocs) continue;
-
       const fileReferencedSymbols = new Set();
-      for(const reloc of relocs) {
-        this.#allSymbols.add(reloc.symbol);
-        this.#referencedInRelocs.add(reloc.symbol);
-        fileReferencedSymbols.add(reloc.symbol);
 
-        const sectionSyms = symbolsBySection.get(reloc.section);
-        if(!sectionSyms) continue;
+      const addCall = (callerName, calleeName) => {
+        this.#callGraph.getOrInsertComputed(calleeName, () => new Set()).add({ fileName, caller: callerName });
 
-        // Check if the relocation offset falls within the symbol's address range
-        for(const sym of sectionSyms)
-          if(reloc.offset >= sym.start && reloc.offset < sym.start + sym.size) {
-            const callerName = sym.symbol;
-            const calleeName = reloc.symbol;
+        const callerKey = `${fileName}:${callerName}`;
+        this.#reverseCallGraph.getOrInsertComputed(callerKey, () => new Set()).add(calleeName);
+      };
 
-            this.#callGraph
-              .getOrInsertComputed(calleeName, () => new Set())
-              .add({
-                fileName,
-                caller: callerName,
-              });
+      if(relocs)
+        for(const reloc of relocs) {
+          // A reference to a local (static) symbol from data - e.g. a function pointer
+          // sitting in a JSCFunctionListEntry table built by JS_CFUNC_MAGIC_DEF/
+          // JS_CGETSET_MAGIC_DEF - is emitted section-relative ('.text+0x1234') rather
+          // than by name, since the assembler can't name a local symbol from another
+          // section/object. Resolve it back to whichever local symbol actually occupies
+          // that offset in this same file, so it isn't lost as a reference to '.text'.
+          let symbol = reloc.symbol;
 
-            const callerKey = `${fileName}:${callerName}`;
-            this.#reverseCallGraph.getOrInsertComputed(callerKey, () => new Set()).add(calleeName);
-            break;
+          if(symbol.startsWith('.') && symbolsBySection.has(symbol)) {
+            const resolved = symbolsBySection.get(symbol).find(sym => reloc.addend >= sym.start && reloc.addend < sym.start + sym.size);
+            if(resolved) symbol = resolved.symbol;
           }
-      }
+
+          this.#allSymbols.add(symbol);
+          this.#referencedInRelocs.add(symbol);
+          fileReferencedSymbols.add(symbol);
+
+          const sectionSyms = symbolsBySection.get(reloc.section);
+          if(!sectionSyms) continue;
+
+          // Check if the relocation offset falls within the symbol's address range
+          for(const sym of sectionSyms)
+            if(reloc.offset >= sym.start && reloc.offset < sym.start + sym.size) {
+              addCall(sym.symbol, symbol);
+              break;
+            }
+        }
+
+      // Direct calls to local/static symbols are resolved by the assembler and never show
+      // up as relocations (see parseObjdumpSymbols); the disassembly already gives us the
+      // caller and callee by name, so no section/offset lookup is needed here.
+      if(calls)
+        for(const { caller, callee } of calls) {
+          this.#allSymbols.add(callee);
+          this.#referencedInRelocs.add(callee);
+          fileReferencedSymbols.add(callee);
+          addCall(caller, callee);
+        }
 
       this.#fileRefs.set(fileName, fileReferencedSymbols);
     }
@@ -334,6 +361,35 @@ function compareGraphs(objGraph, funcGraph, objDeps, funcDeps) {
 }
 
 /**
+ * Walks FunctionDependencyGraph's reverseCallGraph (caller -> callees) from entryPoint,
+ * following each callee to its defining file(s) to keep descending, and returns every
+ * symbol name reached. A callee of a reached symbol is transitively reached too, so this
+ * is the actual "used" set - not just "has some caller in an included file".
+ *
+ * @returns {Set<string>}
+ */
+function computeReachableSymbols(funcGraph, entryPoint) {
+  const reached = new Set();
+  const worklist = [entryPoint];
+
+  while(worklist.length > 0) {
+    const symbol = worklist.pop();
+    if(reached.has(symbol)) continue;
+    reached.add(symbol);
+
+    const owners = funcGraph.symbolOwners.get(symbol);
+    if(!owners) continue;
+
+    for(const file of owners) {
+      const callees = funcGraph.reverseCallGraph.get(`${file}:${symbol}`);
+      if(callees) for(const callee of callees) if(!reached.has(callee)) worklist.push(callee);
+    }
+  }
+
+  return reached;
+}
+
+/**
  * For each included object, reports how many of its defined (non-'U') symbols are
  * actually reached by the call graph rooted at entryPoint - i.e. how much of the
  * object is "pulled in" versus dead weight linked alongside the one symbol that's used.
@@ -341,7 +397,7 @@ function compareGraphs(objGraph, funcGraph, objDeps, funcDeps) {
  * @returns {Array<{file, total, used, usedNames, unusedNames}>} sorted by usage ratio ascending
  */
 function objectSymbolCoverage(funcGraph, includedObjects, entryPoint) {
-  const includedSet = new Set(includedObjects);
+  const reachable = computeReachableSymbols(funcGraph, entryPoint);
   const report = [];
 
   for(const file of includedObjects) {
@@ -350,10 +406,7 @@ function objectSymbolCoverage(funcGraph, includedObjects, entryPoint) {
     const usedNames = [];
     const unusedNames = [];
 
-    for(const { symbol } of defined) {
-      const isUsed = symbol === entryPoint || funcGraph.calledBy(symbol).some(c => includedSet.has(c.fileName));
-      (isUsed ? usedNames : unusedNames).push(symbol);
-    }
+    for(const { symbol } of defined) (reachable.has(symbol) ? usedNames : unusedNames).push(symbol);
 
     report.push({ file, total: defined.length, used: usedNames.length, usedNames, unusedNames });
   }
@@ -394,6 +447,7 @@ function renderCoverageReport(coverage, { onlyPartial = true } = {}) {
   const lines = ['== Per-object symbol coverage =='];
 
   for(const { file, total, used, unusedNames } of coverage) {
+    if(used === 0) continue;
     if(onlyPartial && used === total) continue;
 
     lines.push(`${file}: ${used}/${total} symbols used`);
@@ -404,8 +458,57 @@ function renderCoverageReport(coverage, { onlyPartial = true } = {}) {
 }
 
 /**
+ * Renders a single-page, top-level summary: object/symbol counts for both graphs,
+ * consistency between them, aggregate call-graph size, aggregate function coverage, and
+ * the worst-covered objects - everything needed to judge the build at a glance without
+ * wading through the full per-object or call-graph dumps.
+ */
+function renderStatsSummary({ entryPoint, objGraph, objDeps, funcGraph, funcDeps, cmp, coverage }) {
+  const lines = ['== Summary =='];
+
+  let callEdges = 0;
+  for(const callers of funcGraph.callGraph.values()) callEdges += callers.size;
+
+  let localCalls = 0;
+  let relocs = 0;
+
+  for(const data of Object.values(funcGraph.fileData)) {
+    localCalls += data.calls?.length ?? 0;
+    relocs += data.relocs?.length ?? 0;
+  }
+
+  const totalDefined = coverage.reduce((sum, c) => sum + c.total, 0);
+  const totalUsed = coverage.reduce((sum, c) => sum + c.used, 0);
+  const pct = totalDefined ? ((totalUsed / totalDefined) * 100).toFixed(1) : '0.0';
+
+  lines.push(`entry point:                ${entryPoint}`);
+  lines.push(`object files scanned:       ${objGraph.objects.length}`);
+  lines.push('');
+  lines.push(`ObjectDependencyGraph (nm):        ${objDeps.includedObjects.length}/${objGraph.objects.length} objects included, ${objDeps.unresolvedSymbols.length} unresolved symbols`);
+  lines.push(`FunctionDependencyGraph (objdump): ${funcDeps.includedObjects.length}/${objGraph.objects.length} objects included, ${funcDeps.unusedSymbols.length} unused symbols`);
+  lines.push('');
+  lines.push(
+    `consistency: ${cmp.mismatchedFiles.length} symbol mismatches, ${cmp.missingFiles.length} missing files, ` +
+      `${cmp.onlyInObjectGraph.length} nm-only objects, ${cmp.onlyInFunctionGraph.length} objdump-only objects`,
+  );
+  lines.push('');
+  lines.push(`call graph: ${funcGraph.callGraph.size} distinct callees, ${callEdges} edges (${relocs} relocation-derived, ${localCalls} local/pointer-derived)`);
+  lines.push('');
+  lines.push(`function coverage of included objects: ${totalUsed}/${totalDefined} symbols reachable (${pct}%)`);
+
+  const worst = coverage.filter(c => c.total > 0).slice(0, 5);
+  if(worst.length) {
+    lines.push('worst-covered objects:');
+    for(const { file, used, total } of worst) lines.push(`  ${used}/${total}  ${file}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Renders the function-level call graph reachable from entryPoint as indented text,
- * following FunctionDependencyGraph's reverseCallGraph (caller -> callees).
+ * following FunctionDependencyGraph's reverseCallGraph (caller -> callees). Can be very
+ * large for a well-connected entry point - opt in explicitly rather than printing by default.
  */
 function renderCallGraphText(funcGraph, entryPoint, { maxDepth = 8 } = {}) {
   const lines = [];
@@ -453,9 +556,11 @@ Object.assign(globalThis, {
   FunctionDependencyGraph,
   compareGraphs,
   objectSymbolCoverage,
+  computeReachableSymbols,
   renderSummary,
   renderComparisonReport,
   renderCoverageReport,
+  renderStatsSummary,
   renderCallGraphText,
 });
 
@@ -464,11 +569,16 @@ main(...scriptArgs.slice(1));
 function main(...args) {
   const ENTRY_POINT = 'js_init_module';
 
-  const nmData = parseNmSymbols(args);
+  // The full call graph text dump can be huge for a well-connected entry point, so it's
+  // opt-in only via --graph, rather than printed unconditionally.
+  const showGraph = args.includes('--graph');
+  const paths = args.filter(a => a !== '--graph');
+
+  const nmData = parseNmSymbols(paths);
   const objGraph = new ObjectDependencyGraph(nmData);
   const objDeps = objGraph.compute(ENTRY_POINT);
 
-  const objdumpData = parseObjdumpSymbols(args);
+  const objdumpData = parseObjdumpSymbols(paths);
   const funcGraph = new FunctionDependencyGraph(objdumpData);
   const funcDeps = funcGraph.compute(ENTRY_POINT);
 
@@ -485,8 +595,13 @@ function main(...args) {
   console.log(renderCoverageReport(coverage));
   console.log();
 
-  console.log(`== Call graph from ${ENTRY_POINT} ==`);
-  console.log(renderCallGraphText(funcGraph, ENTRY_POINT, { maxDepth: 6 }));
+  console.log(renderStatsSummary({ entryPoint: ENTRY_POINT, objGraph, objDeps, funcGraph, funcDeps, cmp, coverage }));
+
+  if(showGraph) {
+    console.log();
+    console.log(`== Call graph from ${ENTRY_POINT} ==`);
+    console.log(renderCallGraphText(funcGraph, ENTRY_POINT, { maxDepth: 6 }));
+  }
 
   Object.assign(globalThis, { nmData, objGraph, objDeps, objdumpData, funcGraph, funcDeps, cmp, coverage });
 
@@ -622,10 +737,12 @@ function parseNmSymbols(paths, symbolType) {
 /**
  * Runs 'objdump -h -t -r' on a batch of files (object files first, then archives),
  * tracking archive/object headers, section headers, symbol tables, and relocation tables to build
- * a plain-object hash containing sections, symbol definitions, and relocation arrays.
+ * a plain-object hash containing sections, symbol definitions, and relocation arrays. A second
+ * pass (parseLocalCalls) adds a `calls` array of direct, unrelocated call edges to the same
+ * per-file entries - see its docstring for why that has to be a separate objdump invocation.
  *
  * @param {string[]} paths - Array of file paths or directory paths
- * @returns {Object} Hash keyed by file/archive member -> object with sections, symbols, and relocs
+ * @returns {Object} Hash keyed by file/archive member -> object with sections, symbols, relocs, calls
  */
 function parseObjdumpSymbols(paths) {
   const resolvedFiles = [...searchPaths(paths)];
@@ -643,6 +760,7 @@ function parseObjdumpSymbols(paths) {
 
   const lines = runCommand('objdump', '-h', '-t', '-r', ...objectFiles, ...archiveFiles);
   const fileDataMap = new Map();
+  const newEntry = () => ({ sections: [], symbols: [], relocs: [], calls: [] });
 
   let archiveName = null;
   let objectName = null;
@@ -716,7 +834,7 @@ function parseObjdumpSymbols(paths) {
 
           const key = getKey();
           if(key) {
-            const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: [], symbols: [], relocs: [] }));
+            const entry = fileDataMap.getOrInsertComputed(key, newEntry);
             (entry.sections ??= []).push({ name, size, offset, align });
           }
         }
@@ -756,7 +874,7 @@ function parseObjdumpSymbols(paths) {
         const key = getKey();
         if(!key) continue;
 
-        const entry = fileDataMap.getOrInsertComputed(key, () => ({ sections: [], symbols: [], relocs: [] }));
+        const entry = fileDataMap.getOrInsertComputed(key, newEntry);
 
         entry.symbols.push(obj);
       } else if(inRelocTable) {
@@ -798,9 +916,101 @@ function parseObjdumpSymbols(paths) {
     }
   }
 
+  parseLocalCalls(objectFiles, archiveFiles, fileDataMap);
+
   const result = {};
 
   for(const [key, entry] of fileDataMap.entries()) result[key] = entry;
 
   return result;
+}
+
+/**
+ * Adds direct, unrelocated call/reference edges to fileDataMap entries by running
+ * 'objdump -d' as its own invocation, separate from the '-h -t -r' pass above.
+ *
+ * References to symbols with external linkage (uppercase nm type) always go through a
+ * relocation, even when the target is defined in the same object file, so those are already
+ * captured by the RELOCATION RECORDS parsing. References to local/static symbols (lowercase
+ * nm type, i.e. an 'l' binding here) are resolved by the assembler at compile time and never
+ * appear in the relocation table - the only way to see them is in the disassembly:
+ *   - a 'call' instruction whose target address lands exactly on a symbol's start (no
+ *     '+offset') is a direct local call.
+ *   - any other instruction (lea, mov, ...) with a RIP-relative operand landing exactly on a
+ *     local *function* symbol's start is that function's address being taken to be passed
+ *     around as a pointer (e.g. the js_<name>_init handed to JS_NewCModule rather than
+ *     called directly) - not a call, but still a real dependency edge.
+ *
+ * This can't be folded into the '-h -t -r' pass by adding '-d' to that same objdump
+ * invocation: combining -d with -r makes objdump inline relocation annotations directly into
+ * the disassembly instead of printing separate RELOCATION RECORDS FOR tables, which would
+ * silently empty out every file's `relocs` array (and with it, all external call edges).
+ *
+ * @param {string[]} objectFiles
+ * @param {string[]} archiveFiles
+ * @param {Map<string, Object>} fileDataMap - populated by the '-h -t -r' pass; mutated in place
+ */
+function parseLocalCalls(objectFiles, archiveFiles, fileDataMap) {
+  if(objectFiles.length === 0 && archiveFiles.length === 0) return;
+
+  const lines = runCommand('objdump', '-d', ...objectFiles, ...archiveFiles);
+
+  const FUNC_LABEL_RE = /^[0-9A-Fa-f]+ <(.+)>:$/;
+  const CALL_RE = /\bcallq?\s+[0-9A-Fa-f]+\s*<([^>+]+)>\s*$/;
+  // Any RIP-relative operand (lea, mov, ...) that objdump could resolve gets an inline
+  // '# <addr> <name>' comment - this is how a function's address gets taken to be passed
+  // around as a pointer (e.g. the js_<name>_init passed to JS_NewCModule), not called directly.
+  const RIP_REF_RE = /#\s*[0-9A-Fa-f]+\s*<([^>+]+)>\s*$/;
+
+  let archiveName = null;
+  let objectName = null;
+  let currentFunction = null;
+
+  const getKey = () => (archiveName ? `${archiveName}:${objectName}` : objectName);
+
+  for(const line of lines) {
+    if(!line) continue;
+
+    const archiveMatch = /^In archive (.*):$/.exec(line);
+    if(archiveMatch) {
+      archiveName = archiveMatch[1];
+      objectName = null;
+      currentFunction = null;
+      continue;
+    }
+
+    const fileFormatMatch = /^(.*):\s*file format (.*)$/.exec(line);
+    if(fileFormatMatch) {
+      objectName = fileFormatMatch[1];
+      currentFunction = null;
+      continue;
+    }
+
+    const funcLabel = FUNC_LABEL_RE.exec(line);
+    if(funcLabel) {
+      currentFunction = funcLabel[1];
+      continue;
+    }
+
+    if(!currentFunction) continue;
+
+    const callMatch = CALL_RE.exec(line);
+    const refMatch = !callMatch && RIP_REF_RE.exec(line);
+    if(!callMatch && !refMatch) continue;
+
+    const callee = (callMatch ?? refMatch)[1];
+    const key = getKey();
+    const entry = key && fileDataMap.get(key);
+    if(!entry) continue;
+
+    // Only trust an exact-address target when it actually names a local symbol defined in
+    // this file - an unrelocated external call/reference's zeroed-out displacement can, by
+    // coincidence, disassemble to an exact match too. For a RIP_REF_RE match (pointer take,
+    // not a call), also require the target to actually be a function, not arbitrary local data.
+    const sym = entry.symbols.find(s => s.symbol === callee && s.type === 'l');
+    if(!sym) continue;
+    if(refMatch && sym.f !== 'F') continue;
+
+    (entry.calls ??= []).push({ caller: currentFunction, callee });
+  }
 }

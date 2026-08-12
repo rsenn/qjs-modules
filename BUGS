@@ -341,3 +341,4 @@
   quickjs-internal.h entirely, or at minimum stop auto-enabling it from
   CMake and require an explicit, documented opt-in with a real ABI/version
   check instead of blind struct-offset trust.
+
