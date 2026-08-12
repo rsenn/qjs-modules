@@ -60,15 +60,6 @@ the full architecture/gap survey behind Tier 6-8.
   since removed entirely (`quickjs-list.c`, `doc/list.md`). Worth rewriting properly so the
   next dead/wrong method doesn't slip through the same way.
 
-- **`tests/test_xml.js` + `lib/xml/write.js` mishandle an Array root value** — found while
-  investigating the Tier-1 XML bug: `lib/xml/write.js:3` only special-cases
-  `o.tagName === undefined` for the "not an element" fallback, so an Array (exactly what
-  `readXML()` always returns at the top level) falls through to
-  `Array.prototype.toString`/`join` instead of being serialized element-by-element. Running
-  `tests/test_xml.js` against a real file currently produces a corrupted, near-empty output
-  file rather than a visible failure — worth fixing `write.js` and adding an assertion so this
-  fails loudly instead of writing garbage silently.
-
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 
 Not urgent individually, but worth a pass since dead/disabled code in the same functions as
@@ -177,10 +168,13 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   `css-selectors.js` or consolidating `css3-selectors.js` to build on the shared
   `lib/lexer`/`lib/parser/grammar.js` toolkit (goal 3) instead of duplicating a tokenizer.
 - **Lexer/parser toolkit (goal 3) isn't dogfooded by the project's own hardest parsing
-  problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 4
-  independent grammars (`lib/lexer/{bnf,c,csv,ecmascript}.js`), which is good evidence of real
-  generality — but `css3-selectors.js` and `lib/xml/read.js` both hand-roll bespoke
-  parsers/tokenizers instead of building on the toolkit.
+  problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 5
+  independent grammars (`lib/lexer/{bnf,c,csv,ecmascript,xml}.js` — `lib/xml/read.js` was
+  rewritten to drive `XMLLexer`/`lib/lexer/xml.js` as a JS port of `js_xml_parse()`, verified
+  against the native `xml.read()`/`xml.write()` for tree shape, option surface, and formatting
+  quirks; `lib/xml/write.js` is a matching port of `js_xml_write()`), which is good evidence of
+  real generality — but `css3-selectors.js` still hand-rolls its own tokenizer instead of
+  building on the toolkit.
 - **Inconsistent non-enumerable-property idiom across `lib/extend*.js`.** Most files
   (`extendArray.js`, `extendArrayBuffer.js`, `extendAsyncFunction.js`, `extendFunction.js`,
   `extendMap.js`, `extendSet.js`) wrap their extension object in the shared `nonenumerable()`
