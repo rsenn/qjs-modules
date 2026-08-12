@@ -44,23 +44,6 @@ fixed the affected API silently does the wrong thing rather than failing loudly.
   // actual: "disabled/" (the self-closing slash gets folded into the attribute name)
   ```
 
-- **`js_xml_write_list()` mangles explicit `{tagName: '/x'}` end-marker objects** —
-  `quickjs-xml.c:891-908`: when serializing a flat list (as opposed to a nested tree), an
-  explicit closing-tag marker object is passed straight into `xml_write_element()`
-  (`quickjs-xml.c:371-415`), which has no special case for a tag name starting with `/` — it
-  writes it as if it were a normal (self-closing, since it has no children) start tag.
-  ```js
-  let out = xml.write([
-    { tagName: 'a', attributes: { x: '1' } },
-    'text',
-    { tagName: '/a', attributes: {} },
-  ]);
-  // expected: something like '<a x="1">text</a>'
-  // actual: '<a x="1" />text</a />' - 'a' wrongly self-closes despite having a following
-  // sibling and an explicit end marker, and the end marker itself renders as '</a />'
-  // instead of a real closing tag
-  ```
-
 ## Tier 2 — public API documented as working, but isn't
 
 - **`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`** —

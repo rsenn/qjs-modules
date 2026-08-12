@@ -370,8 +370,7 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOO
 
 static void
 xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth, BOOL self_closing) {
-  JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
-  int32_t num_children = -1;
+  JSValue attributes;
   size_t tagLen;
   const char* tagName;
   BOOL isComment;
@@ -379,6 +378,27 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   if(!(tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen)) || !tagName[0])
     return;
 
+  /* An explicit `{tagName: '/x', ...}` end-marker object (only ever produced/consumed by
+   * js_xml_write_list()'s flat-list format, which represents a closing tag as its own
+   * separate list entry rather than via a `children` array) isn't a start tag at all -
+   * write a real closing tag for it and return, rather than falling into the start-tag/
+   * self-closing logic below (which used to render it as e.g. "</a />": '<' + "/a" +
+   * a self-closing suffix, garbling both the slash's meaning and the sibling element it
+   * was supposed to close). */
+  if(tagName[0] == '/') {
+    if(depth > 0)
+      xml_write_indent(db, depth);
+
+    dbuf_putstr(db, "</");
+    dbuf_put(db, (const uint8_t*)tagName + 1, tagLen - 1);
+    dbuf_putc(db, '>');
+    dbuf_putc(db, '\n');
+
+    JS_FreeCString(ctx, tagName);
+    return;
+  }
+
+  attributes = JS_GetPropertyStr(ctx, element, "attributes");
   assert(tagName);
   isComment = !strncmp(tagName, "!--", 3);
 
@@ -402,11 +422,17 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
       xml_write_attributes(ctx, attributes, db);
   }
 
-  if(!self_closing)
-    num_children = xml_num_children(ctx, element);
-
+  /* self_closing is decided entirely by the caller (js_xml_write_tree: a real
+   * `children` array's length; js_xml_write_list: whether the next flat-list entry is
+   * this element's own end marker) - this function used to also self-close whenever
+   * xml_num_children() <= 0 regardless of what the caller passed, which is correct for
+   * the tree writer (where that's exactly how it computes self_closing anyway) but
+   * wrong for the list writer, whose elements never have a `children` property at all
+   * (content there is later list entries, not a property) - xml_num_children() is
+   * always -1 for them, so every non-self-closing list element used to render
+   * self-closed regardless of having real subsequent content. */
   if(tagName[0])
-    dbuf_putstr(db, tagName[0] == '?' ? "?>" : (self_closing || num_children <= 0) && !(tagName[0] == '!' || num_children > 0 || isComment) ? " />" : ">");
+    dbuf_putstr(db, tagName[0] == '?' ? "?>" : self_closing && !(tagName[0] == '!' || isComment) ? " />" : ">");
 
   dbuf_putc(db, '\n');
 
@@ -892,7 +918,16 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
       const char* tag;
 
       if((tag = js_get_propertystr_cstring(ctx, value, "tagName"))) {
-        BOOL self_closing = nextTag && nextTag[0] == '/' && !strcmp(tag, &nextTag[1]);
+        /* Self-close either when the very next list entry is this element's own
+         * end marker (no content between them), or when this is the last entry in
+         * the whole list with nothing after it at all - the flat-list format has no
+         * `children` property to fall back on (unlike the tree writer), so an
+         * element with truly nothing following it can never get a real closing tag
+         * and must self-close instead of being left open. A following non-object
+         * value (e.g. text) does *not* count as "nothing after" - see
+         * xml_write_element()'s own comment for why the old num_children<=0
+         * fallback there wrongly self-closed every element with real content. */
+        BOOL self_closing = (nextTag && nextTag[0] == '/' && !strcmp(tag, &nextTag[1])) || (tag[0] != '/' && i + 1 >= len);
 
         if(tag[0] == '/')
           depth--;
