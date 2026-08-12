@@ -30,17 +30,6 @@ These all follow the same shape: someone commented out a guard or a case while
 debugging/experimenting, and it was never restored. Each is a one-line-ish fix, but until
 fixed the affected API silently does the wrong thing rather than failing loudly.
 
-- **`XMLWriter` (streaming class) corrupts text content with injected indentation** —
-  `js_xmlwriter_method()`, `quickjs-xml.c:2604-2611`: the `XML_TEXT`/`XML_ELEMENT_START` case
-  unconditionally calls `writer_putnl_indent()` before writing, with no check for whether text
-  immediately follows an element start. `w.elementStart('p'); w.text('hello world');
-  w.elementEnd('p')` produces `"<p>\n  hello world\n</p>"` instead of `"<p>hello world</p>"` —
-  not just cosmetic, since re-parsing this output would read back different text than what was
-  written (the injected `\n  ` becomes part of the text node). Affects `tests/test_xml.js`'s
-  "writes text content" and "complex nested structure" (2 of the 20 currently-failing
-  assertions); likely affects every `XMLWriter.text()` call after `elementStart()`, not just
-  these two tests.
-
 - **`xml.c`'s tokenizer (used by `XMLParser`/`XMLNodeParser`) doesn't terminate boolean
   attributes on `/`** — unlike `xread.c` (used by `XMLPushParser`), which was already fixed for
   exactly this case (see `tests/test_xml.js`'s comment near "boolean (valueless) attributes"

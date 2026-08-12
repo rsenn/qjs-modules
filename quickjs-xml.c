@@ -2611,10 +2611,14 @@ js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     switch(magic) {
-      case XML_ELEMENT_END: --wr->level;
-      case XML_TEXT:
+      case XML_ELEMENT_END: --wr->level; /* fallthrough */
       case XML_ELEMENT_START: {
-        if(!self_closing)
+        /* Indenting is only safe purely between tags - if either side of this
+         * transition is text (this call is XML_TEXT, or the previous one was),
+         * inserting a newline/indent here would land inside what re-parses as
+         * that text node's own content, corrupting it (e.g. "<p>hello</p>"
+         * becoming "<p>\n  hello\n</p>"). */
+        if(!self_closing && wr->event != XML_TEXT)
           w += writer_putnl_indent(&wr->writer, wr->indent * wr->level);
         break;
       }
