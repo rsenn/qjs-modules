@@ -55,17 +55,6 @@ fixed the affected API silently does the wrong thing rather than failing loudly.
   // actual: "disabled/" (the self-closing slash gets folded into the attribute name)
   ```
 
-- **`XMLParser` TEXT events drop a boundary space adjacent to a sibling element** — not yet
-  root-caused to an exact line (needs a closer look at `xml.c`'s text-event scanning/whitespace
-  handling, not `quickjs-xml.c` itself).
-  ```js
-  let { parser } = drain('<p>before <b>bold</b> after</p>'); // drain() defined in test_xml.js
-  // expected root.children: ['before ', {tagName:'b',...}, ' after']
-  // actual: ['before', {tagName:'b',...}, 'after']  (both boundary spaces silently dropped)
-  ```
-  Contributes to at least one `xml.write()` round-trip test failing too (space before "!" goes
-  missing when a parsed-then-rewritten document has text bordering an element).
-
 - **`js_xml_write_list()` mangles explicit `{tagName: '/x'}` end-marker objects** —
   `quickjs-xml.c:891-908`: when serializing a flat list (as opposed to a nested tree), an
   explicit closing-tag marker object is passed straight into `xml_write_element()`

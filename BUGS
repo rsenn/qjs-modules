@@ -374,6 +374,33 @@
     w.elementStart('a'); w.elementEnd('a');
     console.log(out); // actual: "<a />"; test at line 789 asserts "<a></a>"
 
+  Also stale, same shape, found after fixing xml.c's boundary-whitespace-
+  eating bug (src/xml.c:759, formerly an unconditional parse_skipspace()
+  after every tag - removed, see TODO.md history/git log): "XMLParser:
+  .root optionally builds a tree (via the same XmlBuilder as XMLPushParser)"
+  (line 495) hardcodes `children: ['hello', {tagName:'b',...}]` for
+  `<child>hello <b>world</b></child>`, but "hello " (with its trailing
+  space, right before `<b>`) is the correct, spec-faithful text content -
+  the hardcoded value matches the old, buggy trimming behavior the fix
+  above removed.
+
+    let { parser } = drain('<root a="1"><child>hello <b>world</b></child></root>');
+    console.log(parser.root[0].children[0].children[0]);
+    // actual: "hello " (correct); test at line 502 asserts "hello"
+
+- test-xml-writer-indentation-corrupts-round-trip (tests/test_xml.js):
+  "integration: XMLWriter output parses via XMLParser" (fails) was
+  previously passing by accident - it round-trips text through XMLWriter
+  (which pretty-prints/indents, see TODO.md's "XMLWriter corrupts text
+  content with injected indentation" item) and then re-parses it with
+  XMLParser, and used to have that corruption silently absorbed by the
+  boundary-whitespace-eating bug just fixed above (xml.c ate the leading
+  whitespace XMLWriter had wrongly injected, accidentally producing the
+  right-looking answer for the wrong reason). Now that xml.c preserves
+  whitespace faithfully, this test correctly surfaces the still-open
+  XMLWriter indentation bug instead. No new root cause - same bug, already
+  tracked in TODO.md.
+
 - test-xml-writer-written-and-parse-error-unclear (tests/test_xml.js): two
   more test_xml.js failures not yet classified as product bug vs. test bug -
   (1) "XMLWriter: .written tracks bytes written" (line 853) - `.written`

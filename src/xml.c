@@ -503,18 +503,18 @@ xml_parser_run(XMLParser* p) {
      * restarting from the top. */
     while(p->text_pos < p->text.size) {
       const char* buf = (const char*)p->text.buf;
-      size_t leading_ws = scan_whitenskip(buf, p->text.size);
       const char* pos = buf + p->text_pos;
       size_t remain = p->text.size - p->text_pos;
-      size_t skip = scan_whitenskip(pos, leading_ws < remain ? leading_ws : remain);
       size_t n, real_len;
 
-      pos += skip;
-      remain -= skip;
-      p->text_pos += skip;
-      real_len = n = remain;
-
       if(parse_inside("script")) {
+        size_t leading_ws = scan_whitenskip(buf, p->text.size);
+        size_t skip = scan_whitenskip(pos, leading_ws < remain ? leading_ws : remain);
+
+        pos += skip;
+        remain -= skip;
+        p->text_pos += skip;
+
         size_t nl = byte_chr(pos, remain, '\n');
 
         if(nl < remain)
@@ -522,8 +522,20 @@ xml_parser_run(XMLParser* p) {
 
         real_len = n = nl;
       } else {
-        while(n > 0 && is_whitespace_char(pos[n - 1]))
-          n--;
+        /* A run that's nothing but whitespace (e.g. pretty-printed indentation between
+         * sibling tags) carries no content - drop it entirely rather than yielding an
+         * empty/trimmed text event, matching "whitespace-only text between tags is
+         * dropped" (tests/test_xml.js). A run with any real content is yielded verbatim,
+         * boundary whitespace included: unconditionally skipping leading and trimming
+         * trailing whitespace here used to corrupt inline mixed content - e.g.
+         * "before <b>x</b> after" came out as text events "before"/"after", silently
+         * eating both boundary spaces. */
+        if(scan_whitenskip(pos, remain) == remain) {
+          p->text_pos += remain;
+          continue;
+        }
+
+        real_len = n = remain;
       }
 
       p->text_pos += real_len;
@@ -744,8 +756,17 @@ xml_parser_run(XMLParser* p) {
       }
     }
 
-    parse_skipspace();
-
+    /* No parse_skipspace() here: this ran unconditionally after every tag, but only
+     * has any effect after a *closing* tag - an opening tag's '>' is still unconsumed
+     * at this point (the CLOSE-class check right below consumes it), so p->c can't be
+     * whitespace yet, while a closing tag's own branch already consumed its '>'
+     * earlier, leaving p->c sitting on whatever text follows. That asymmetry meant
+     * leading whitespace of text right after a closing tag got silently eaten here,
+     * before the text-accumulation loop above ever saw it - e.g.
+     * "<p>before <b>x</b> after</p>" lost the space before "after". Whitespace-only
+     * runs between sibling tags are already dropped by that loop (see its comment
+     * above), so this was redundant for its likely intent and actively harmful for
+     * genuine boundary whitespace in mixed content. */
     if(parse_is(p->c, CLOSE))
       parse_getc();
   }
