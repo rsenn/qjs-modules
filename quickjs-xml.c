@@ -2447,7 +2447,6 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       JSAtom prop = JS_NewAtomLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       JS_SetProperty(ctx, p->pending_attrs, prop, val);
       JS_FreeAtom(ctx, prop);
-      JS_FreeValue(ctx, val);
     } else {
       /* Attributes finished. Buffer the non-attribute event for the NEXT .parse() call.
        * event_name/event_value remain valid since they point into p->xp.ev_name/ev_value. */
