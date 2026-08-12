@@ -30,34 +30,7 @@ These all follow the same shape: someone commented out a guard or a case while
 debugging/experimenting, and it was never restored. Each is a one-line-ish fix, but until
 fixed the affected API silently does the wrong thing rather than failing loudly.
 
-- **Native `xml.write()` silently truncates output whenever a node has an empty
-  `children: []` array** *(this is the pre-existing `TODO` item "fix XML enumeration")* —
-  `quickjs-xml.c:383-416`, in `xml_enumeration_next()`. On an empty children array,
-  `property_recursion_push()` pushes a new (empty) enumeration frame, but
-  `property_enumeration_setpos(it2, 0)` fails (nothing to point at) and the function falls
-  through *without popping that empty frame* — leaving it stuck on top of the stack, orphaning
-  the real traversal state. Reproduced directly:
-  ```js
-  xml.write([{ tagName: 'a', children: [] }, 'some text', { tagName: 'b', children: [...] }]);
-  // -> "<a />"  (the text node and the whole second element are silently dropped)
-  ```
-  This matters because `lib/xml/read.js` always sets `children: []` on leaf elements, so any
-  parsed-then-rewritten document with a sibling after a leaf loses data. Fix: pop/free the
-  empty frame (mirror what the non-empty branch does) before falling through to the
-  `while(!property_enumeration_next(it))` loop.
-
 ## Tier 2 — public API documented as working, but isn't
-
-- **`assert.partialDeepStrictEqual()` always throws** — `lib/assert.js:120-123`:
-  ```js
-  export function partialDeepStrictEqual(actual, expected, message) {
-    /* XXX: implement */
-    throw new AssertionError(`partialDeepStrictEqual`, message);
-  }
-  ```
-  yet `doc/assert.md:23` documents it as "`expected` is a deep subset of `actual`". Needs an
-  actual partial-deep-equal implementation (probably reusing `deepEqual`'s traversal, once
-  Tier 1's `deep.select` bug is fixed, since `assert.js` itself imports from `deep`).
 
 - **`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`** —
   `quickjs-blob.c:251-254`:

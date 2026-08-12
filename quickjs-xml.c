@@ -448,14 +448,28 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
     children = JS_GetPropertyStr(ctx, value, "children");
     JS_FreeValue(ctx, value);
 
-    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth))
-      if((it2 = property_recursion_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
-        if(property_enumeration_setpos(it2, 0))
-          return it2;
+    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
+      if((it2 = property_recursion_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it2, 0))
+        return it2;
+
+      /* Either the push failed outright, or it pushed a frame for an empty children array
+       * with nothing to point at - in the latter case, pop that frame back off instead of
+       * leaving it orphaned on the stack (this used to silently truncate the rest of the
+       * traversal the moment any element had `children: []`). Either way,
+       * property_recursion_push() grows vec's backing storage before it can know whether
+       * the push will succeed, so `it` (captured before this call) may already be a stale
+       * pointer into freed memory - re-derive it fresh rather than reuse it. */
+      it = it2 ? property_recursion_pop(vec, ctx) : property_recursion_top(vec);
+    } else {
+      JS_FreeValue(ctx, children);
+    }
 
   } else {
     JS_FreeValue(ctx, value);
   }
+
+  if(!it)
+    return 0;
 
   while(!property_enumeration_next(it)) {
     int32_t depth;
@@ -1619,13 +1633,16 @@ xml_builder_push(XMLBuilder* b, const char* name, size_t namelen) {
   XMLBuilderFrame* frame = js_mallocz(ctx, sizeof(XMLBuilderFrame));
   frame->parent = b->top;
   frame->element = JS_DupValue(ctx, element);
+  /* attributes/children were already consumed by JS_SetPropertyStr() above (it steals the
+   * val argument, same convention xml_builder_attribute() follows) - element's own
+   * "attributes"/"children" properties are their one remaining owner from that point on, so
+   * frame->attributes/frame->children need a fresh dup here, but there is no separate local
+   * ref left over to free below (unlike `element`, whose local ref was never consumed). */
   frame->attributes = JS_DupValue(ctx, attributes);
   frame->children = JS_DupValue(ctx, children);
   b->top = frame;
 
   JS_FreeValue(ctx, element);
-  JS_FreeValue(ctx, attributes);
-  JS_FreeValue(ctx, children);
 }
 
 static void

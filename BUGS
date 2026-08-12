@@ -324,26 +324,35 @@
   CMake and require an explicit, documented opt-in with a real ABI/version
   check instead of blind struct-offset trust.
 
-- xmlpushparser-builder-fallback-crash (quickjs-xml.c, XMLPushParser): building
-  a tree via the no-callbacks/.root builder fallback segfaults with heap
-  corruption ("malloc(): unaligned tcache chunk detected") inside .write()/
-  .close(). Confirmed pre-existing and unrelated to deep.c's FILTER_KEY_OF fix
-  (same session, different task): reproduces identically with quickjs-deep.c
-  reverted to its prior (buggy, always-skip) state, so this isn't a
-  side effect of that change - it was just never exercised by ctest before
-  because tests/test_xml.js's earlier tests all passed and nothing upstream
-  of this one happened to trigger it. Not root-caused yet (out of scope for
-  the task that found it); worth checking the builder-fallback push/pop of
-  tree nodes in the push-parser path for a use-after-free or double-free.
+- test-xml-debug-build-heap-corruption (tests/test_xml.js, unknown origin):
+  running the full test_xml.js suite under a plain glibc-malloc debug build
+  (build/x86_64-linux-debug/qjsm) aborts partway through with glibc heap
+  corruption ("double free or corruption (fasttop)" or "malloc(): unaligned
+  tcache chunk detected", varies by run), detected deep inside generic
+  QuickJS engine code unrelated to xml - observed both inside
+  expand_fast_array()/add_fast_array_element() (quickjs.c:8286, reached via
+  js_build_rest() building a rest-parameter array) and at other unrelated
+  malloc call sites. The detection point (and even which test has most
+  recently printed OK) varies between runs, consistent with heap metadata
+  corrupted earlier by something else and only detected later, non-
+  deterministically, by whichever allocation happens to touch the damaged
+  chunk next. Confirmed pre-existing and unrelated to this session's
+  quickjs-xml.c fixes (xml_builder_push's double-free and
+  xml_enumeration_next's truncation/stale-pointer bugs): reproduces
+  identically with quickjs-xml.c fully reverted via `git stash`. Also does
+  NOT reproduce at all under the AddressSanitizer build
+  (build/x86_64-linux-asan/qjsm) - all 142 tests in test_xml.js pass cleanly
+  with zero ASan errors, which is unusual for real heap corruption and
+  suggests either a very subtle overflow ASan's allocator/redzones happen
+  not to catch, or a timing/allocation-pattern-dependent bug that ASan's
+  different allocator simply never triggers. Not root-caused (out of scope
+  for the session that found it - the actual corruption site could be
+  anywhere in the many modules test_xml.js exercises, not necessarily xml
+  code at all).
 
-    import { XMLPushParser } from 'xml';
-    let pp = new XMLPushParser();
-    pp.write('<a x="1"><b/></a>');
-    pp.close();
-    console.log(pp.root);
-    // expected: [{ tagName: 'a', attributes: { x: '1' }, children: [{
-    // tagName: 'b', attributes: {}, children: [] }] }]
-    // actual: malloc(): unaligned tcache chunk detected, SIGABRT/SIGSEGV
-    // (also reproduced via `ctest -R test_xml.js`, which aborts partway
-    // through the suite at the same test)
+    env QUICKJS_MODULE_PATH="build/x86_64-linux-debug;lib" \
+      ./build/x86_64-linux-debug/qjsm --bignum tests/test_xml.js
+    // expected: all tests print OK, process exits 0
+    // actual: aborts partway through (SIGABRT/SIGSEGV) with a glibc heap
+    // corruption message; exact test/location varies run to run
 
