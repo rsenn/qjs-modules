@@ -1,5 +1,7 @@
 import { fdopen } from 'std';
-import { exec, pipe, close, waitpid, readdir } from 'os';
+import * as os from 'os';
+import { exec, pipe, close, waitpid, readdir, isatty } from 'os';
+import { startInteractive } from 'util';
 import { Console } from 'console';
 
 globalThis.console = new Console({ inspectOptions: { maxArrayLength: Infinity } });
@@ -19,30 +21,34 @@ Map.prototype.getOrInsertComputed = function(key, callback) {
 
 class ObjectDependencyGraph {
   /**
-   * Map<string, Set<string>>
-   * A private index mapping a symbol name (String) to a Set of object file paths (String)
-   * that define/export it, allowing multiple object files to define the same symbol.
+   * Per-file symbol data, unified with FunctionDependencyGraph's shape:
+   * { [objFile]: { symbols: [{ symbol, type }] } }
    */
-  #symbolOwners = new Map();
-  #symbolUsers = new Map();
-  #symbols;
+  #fileData;
+  #symbolOwners = new Map(); // symbol -> Set of object files defining it
+  #fileRefs = new Map(); // objFile -> Set of referenced ('U') symbols
 
-  constructor(symbols) {
-    this.#symbols = new Map(Object.entries(symbols));
+  constructor(fileData) {
+    this.#fileData = fileData;
 
-    // Populate symbol owners; allow multiple object files to define the same symbol
-    for(const [objFile, typesObj] of this.#symbols)
-      for(const [type, names] of Object.entries(typesObj))
-        if(type == 'U') {
-          for(const name of names) this.#symbolUsers.getOrInsertComputed(name, () => new Set()).add(objFile);
-        } else if(/^[A-TV-Z]$/.test(type)) {
-          for(const name of names) this.#symbolOwners.getOrInsertComputed(name, () => new Set()).add(objFile);
-        }
+    for(const [objFile, { symbols }] of Object.entries(fileData)) {
+      const refs = new Set();
+
+      for(const { symbol, type } of symbols)
+        if(type === 'U') refs.add(symbol);
+        else if(/^[A-TV-Z]$/.test(type)) this.#symbolOwners.getOrInsertComputed(symbol, () => new Set()).add(objFile);
+
+      this.#fileRefs.set(objFile, refs);
+    }
   }
 
   get objects() {
-    return [...this.#symbols.keys()];
+    return Object.keys(this.#fileData);
   }
+
+  get fileData() { return this.#fileData; }
+  get symbolOwners() { return this.#symbolOwners; }
+  get fileRefs() { return this.#fileRefs; }
 
   /**
    * Computes the dependency graph lazily for a given entry point.
@@ -51,16 +57,6 @@ class ObjectDependencyGraph {
    * @returns {Object} An object containing includedObjects, unusedObjects, and unresolvedSymbols arrays
    */
   compute(entryPoint) {
-    const objRefs = new Map(); // object file -> Set of referenced symbols ('U')
-
-    for(const [objFile, typesObj] of this.#symbols) {
-      const refs = new Set();
-
-      for(const [type, names] of Object.entries(typesObj)) for (const name of names) if(type === 'U') refs.add(name);
-
-      objRefs.set(objFile, refs);
-    }
-
     const includedObjects = new Set();
     const worklist = [];
 
@@ -82,7 +78,7 @@ class ObjectDependencyGraph {
       if(processedObjs.has(obj)) continue;
       processedObjs.add(obj);
 
-      const refs = objRefs.get(obj);
+      const refs = this.#fileRefs.get(obj);
 
       if(refs)
         for(const ref of refs) {
@@ -101,7 +97,7 @@ class ObjectDependencyGraph {
     const unresolvedSymbols = new Set();
 
     for(const obj of includedObjects) {
-      const refs = objRefs.get(obj);
+      const refs = this.#fileRefs.get(obj);
 
       if(refs) for(const ref of refs) if (!this.#symbolOwners.has(ref)) unresolvedSymbols.add(ref);
     }
@@ -135,6 +131,14 @@ class FunctionDependencyGraph {
     this.#fileData = parsedObjdumpData;
     this.#init();
   }
+
+  get callGraph() { return this.#callGraph; }
+  get reverseCallGraph() { return this.#reverseCallGraph; }
+  get referencedInRelocs() { return this.#referencedInRelocs; }
+  get allSymbols() { return this.#allSymbols; }
+  get fileRefs() { return this.#fileRefs; }
+  get symbolOwners() { return this.#symbolOwners; }
+  get fileData() { return this.#fileData; }
 
   #init() {
     for(const [fileName, data] of Object.entries(this.#fileData)) {
@@ -247,6 +251,9 @@ class FunctionDependencyGraph {
       symbolName = s => re.test(s);
     }
 
+    if(typeof symbolName != 'function')
+      throw new TypeError(`argument 1  must be string|RegExp|Function`);
+
     for(const file in this.#fileData) {
       const { sections, symbols, relocs } = this.#fileData[file];
 
@@ -281,31 +288,212 @@ class FunctionDependencyGraph {
 
 FunctionDependencyGraph.prototype[Symbol.toStringTag] = 'FunctionDependencyGraph';
 
-Object.assign(globalThis, { parseNmSymbols, parseObjdumpSymbols, ObjectDependencyGraph, FunctionDependencyGraph });
+/**
+ * Cross-checks an ObjectDependencyGraph (nm -A) against a FunctionDependencyGraph
+ * (objdump) built from the same paths. Both store per-file data as { symbols: [{
+ * symbol, type }, ...] }, so the nm-derived symbol set for a file must be a subset
+ * of the objdump-derived one; and since FunctionDependencyGraph resolves references
+ * via relocations (a superset of nm's undefined-symbol references), its includedObjects
+ * must be a superset of ObjectDependencyGraph's.
+ *
+ * Symbols are compared as (defined-or-undefined, name) pairs rather than by raw type
+ * letter: nm's type alphabet (T/t/D/d/B/b/...) and objdump's raw symbol-table flags
+ * (binding chars l/g/!) aren't the same code, but both parsers agree on 'U' for
+ * undefined references, which is the only distinction either graph's compute() uses.
+ *
+ * @returns {Object} { missingFiles, mismatchedFiles, onlyInObjectGraph, onlyInFunctionGraph }
+ */
+function compareGraphs(objGraph, funcGraph, objDeps, funcDeps) {
+  const missingFiles = [];
+  const mismatchedFiles = [];
+  const key = s => `${s.type === 'U' ? 'U' : 'D'}:${s.symbol}`;
+
+  for(const [file, { symbols }] of Object.entries(objGraph.fileData)) {
+    const funcEntry = funcGraph.fileData[file];
+
+    if(!funcEntry) {
+      missingFiles.push(file);
+      continue;
+    }
+
+    const objdumpSet = new Set(funcEntry.symbols.map(key));
+    const onlyInNm = symbols.map(key).filter(s => !objdumpSet.has(s));
+
+    if(onlyInNm.length) mismatchedFiles.push({ file, onlyInNm });
+  }
+
+  const funcIncluded = new Set(funcDeps.includedObjects);
+  const objIncluded = new Set(objDeps.includedObjects);
+
+  return {
+    missingFiles,
+    mismatchedFiles,
+    onlyInObjectGraph: objDeps.includedObjects.filter(f => !funcIncluded.has(f)),
+    onlyInFunctionGraph: funcDeps.includedObjects.filter(f => !objIncluded.has(f)),
+  };
+}
+
+/**
+ * For each included object, reports how many of its defined (non-'U') symbols are
+ * actually reached by the call graph rooted at entryPoint - i.e. how much of the
+ * object is "pulled in" versus dead weight linked alongside the one symbol that's used.
+ *
+ * @returns {Array<{file, total, used, usedNames, unusedNames}>} sorted by usage ratio ascending
+ */
+function objectSymbolCoverage(funcGraph, includedObjects, entryPoint) {
+  const includedSet = new Set(includedObjects);
+  const report = [];
+
+  for(const file of includedObjects) {
+    const { symbols } = funcGraph.fileData[file];
+    const defined = symbols.filter(s => s.type !== 'U');
+    const usedNames = [];
+    const unusedNames = [];
+
+    for(const { symbol } of defined) {
+      const isUsed = symbol === entryPoint || funcGraph.calledBy(symbol).some(c => includedSet.has(c.fileName));
+      (isUsed ? usedNames : unusedNames).push(symbol);
+    }
+
+    report.push({ file, total: defined.length, used: usedNames.length, usedNames, unusedNames });
+  }
+
+  return report.sort((a, b) => a.used / (a.total || 1) - b.used / (b.total || 1));
+}
+
+function renderSummary(title, deps) {
+  const lines = [`== ${title} ==`, `included objects: ${deps.includedObjects.length}`, `unused objects:   ${deps.unusedObjects.length}`];
+
+  if(deps.unresolvedSymbols) lines.push(`unresolved symbols: ${deps.unresolvedSymbols.length}`);
+  if(deps.unusedSymbols) lines.push(`unused symbols:    ${deps.unusedSymbols.length}`);
+
+  if(deps.unusedObjects.length) lines.push('-- unused objects --', ...deps.unusedObjects.map(o => `  ${o}`));
+
+  return lines.join('\n');
+}
+
+function renderComparisonReport(cmp) {
+  const lines = ['== ObjectDependencyGraph vs FunctionDependencyGraph consistency =='];
+
+  lines.push(`files present in nm data but missing from objdump data: ${cmp.missingFiles.length}`);
+  lines.push(...cmp.missingFiles.map(f => `  ${f}`));
+
+  lines.push(`files where nm reports symbols objdump doesn't: ${cmp.mismatchedFiles.length}`);
+  lines.push(...cmp.mismatchedFiles.map(({ file, onlyInNm }) => `  ${file}: ${onlyInNm.join(', ')}`));
+
+  lines.push(`objects included only by the nm-based graph: ${cmp.onlyInObjectGraph.length}`);
+  lines.push(...cmp.onlyInObjectGraph.map(f => `  ${f}`));
+
+  lines.push(`objects included only by the objdump-based graph (finer call info): ${cmp.onlyInFunctionGraph.length}`);
+  lines.push(...cmp.onlyInFunctionGraph.map(f => `  ${f}`));
+
+  return lines.join('\n');
+}
+
+function renderCoverageReport(coverage, { onlyPartial = true } = {}) {
+  const lines = ['== Per-object symbol coverage =='];
+
+  for(const { file, total, used, unusedNames } of coverage) {
+    if(onlyPartial && used === total) continue;
+
+    lines.push(`${file}: ${used}/${total} symbols used`);
+    if(unusedNames.length) lines.push(`  unused: ${unusedNames.join(', ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Renders the function-level call graph reachable from entryPoint as indented text,
+ * following FunctionDependencyGraph's reverseCallGraph (caller -> callees).
+ */
+function renderCallGraphText(funcGraph, entryPoint, { maxDepth = 8 } = {}) {
+  const lines = [];
+  const visited = new Set();
+
+  function visit(symbol, depth) {
+    const owners = funcGraph.symbolOwners.get(symbol);
+    const indent = '  '.repeat(depth);
+
+    if(!owners || owners.size === 0) {
+      lines.push(`${indent}${symbol} (undefined)`);
+      return;
+    }
+
+    for(const file of owners) {
+      const key = `${file}:${symbol}`;
+      lines.push(`${indent}${symbol}  [${file}]`);
+
+      if(visited.has(key)) {
+        lines.push(`${indent}  ... (see above)`);
+        continue;
+      }
+
+      if(depth >= maxDepth) {
+        lines.push(`${indent}  ... (max depth)`);
+        continue;
+      }
+
+      visited.add(key);
+
+      const callees = funcGraph.reverseCallGraph.get(key);
+      if(callees) for(const callee of [...callees].sort()) visit(callee, depth + 1);
+    }
+  }
+
+  visit(entryPoint, 0);
+
+  return lines.join('\n');
+}
+
+Object.assign(globalThis, {
+  parseNmSymbols,
+  parseObjdumpSymbols,
+  ObjectDependencyGraph,
+  FunctionDependencyGraph,
+  compareGraphs,
+  objectSymbolCoverage,
+  renderSummary,
+  renderComparisonReport,
+  renderCoverageReport,
+  renderCallGraphText,
+});
 
 main(...scriptArgs.slice(1));
 
 function main(...args) {
-  const symbols = parseNmSymbols(args);
-  console.log('NM Symbols:', symbols);
+  const ENTRY_POINT = 'js_init_module';
 
-  const dependencies = new ObjectDependencyGraph(symbols).compute('js_init_module');
-  const { includedObjects, unusedObjects, unresolvedSymbols } = dependencies;
-  console.log('Dependencies:', { includedObjects, unresolvedSymbols });
+  const nmData = parseNmSymbols(args);
+  const objGraph = new ObjectDependencyGraph(nmData);
+  const objDeps = objGraph.compute(ENTRY_POINT);
 
   const objdumpData = parseObjdumpSymbols(args);
   const funcGraph = new FunctionDependencyGraph(objdumpData);
-  const funcDeps = funcGraph.compute('js_init_module');
-  console.log('Function Graph Dependencies:', funcDeps);
+  const funcDeps = funcGraph.compute(ENTRY_POINT);
 
-  // Example query: find what functions call '__JS_FreeValue'
-  console.log('Callers of __JS_FreeValue:', funcGraph.calledBy('__JS_FreeValue'));
+  console.log(renderSummary('ObjectDependencyGraph (nm)', objDeps));
+  console.log();
+  console.log(renderSummary('FunctionDependencyGraph (objdump)', funcDeps));
+  console.log();
 
-  Object.assign(globalThis, { symbols, dependencies, objdumpData, funcGraph, funcDeps });
+  const cmp = compareGraphs(objGraph, funcGraph, objDeps, funcDeps);
+  console.log(renderComparisonReport(cmp));
+  console.log();
 
-  startInteractive();
+  const coverage = objectSymbolCoverage(funcGraph, funcDeps.includedObjects, ENTRY_POINT);
+  console.log(renderCoverageReport(coverage));
+  console.log();
 
-  os.kill(os.getpid(), os.SIGUSR1);
+  console.log(`== Call graph from ${ENTRY_POINT} ==`);
+  console.log(renderCallGraphText(funcGraph, ENTRY_POINT, { maxDepth: 6 }));
+
+  Object.assign(globalThis, { nmData, objGraph, objDeps, objdumpData, funcGraph, funcDeps, cmp, coverage });
+
+  if(isatty(0)) {
+    startInteractive();
+    os.kill(os.getpid(), os.SIGUSR1);
+  }
 }
 
 function* searchPaths(paths) {
@@ -370,10 +558,14 @@ function runCommand(...args) {
 /**
  * Runs 'nm -A' on a list of archive or object files (.a or .o) using a non-blocking
  * os.exec process, reads the output line-by-line via std.fdopen and .getline(),
- * and builds a nested object hash: { objectFileName: { symbolType: [symbolNames...] } }
+ * and builds a nested object hash: { objectFileName: { symbols: [{ symbol, type }] } }
+ *
+ * This is the same per-file shape used by parseObjdumpSymbols()/FunctionDependencyGraph
+ * (minus sections/relocs), so an ObjectDependencyGraph and a FunctionDependencyGraph built
+ * from the same paths can be compared directly.
  *
  * @param {string[]} filePaths - Array of paths to .a or .o files
- * @returns {Object} Nested hash of object files, symbol types, and symbol name arrays
+ * @returns {Object} Nested hash of object files to { symbols } objects
  */
 function parseNmSymbols(paths, symbolType) {
   if(typeof symbolType == 'string') symbolType = new RegExp(symbolType, 'y');
@@ -420,8 +612,8 @@ function parseNmSymbols(paths, symbolType) {
     // Validate that the symbol type matches standard single-character nm types (e.g., U, T)
     if(!/^[A-Za-z?-]$/.test(type)) continue;
 
-    // Build the nested object hash structure
-    if(!symbolType || symbolType?.(type)) ((result[objFileName] ??= {})[type] ??= []).push(name);
+    // Build the nested object hash structure: { filename: { symbols: [{ symbol, type }] } }
+    if(!symbolType || symbolType?.(type)) (result[objFileName] ??= { symbols: [] }).symbols.push({ symbol: name, type });
   }
 
   return result;
