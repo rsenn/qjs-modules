@@ -104,7 +104,7 @@ property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
   if(idx < 0)
     idx += it->tab_atom_len;
 
-  if(idx > (int32_t)it->tab_atom_len)
+  if(idx < 0 || idx > (int32_t)it->tab_atom_len)
     return 0;
 
   assert((uint32_t)idx <= it->tab_atom_len);
