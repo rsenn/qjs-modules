@@ -851,8 +851,15 @@ tests({
   },
 
   'XMLWriter: .written tracks bytes written'() {
+    /* Per doc/xml.md, a callback output sink must return the number of bytes written
+     * (same contract as an object's write(buf, offset, length) method) - returning
+     * anything else (e.g. the accumulated string, as other XMLWriter tests in this
+     * file do for tests that don't check .written) makes .written stay stuck at 0. */
     let out = '';
-    let w = new XMLWriter(s => (out += toString(s)));
+    let w = new XMLWriter(s => {
+      out += toString(s);
+      return s.byteLength;
+    });
 
     eq(w.written, 0);
 

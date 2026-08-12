@@ -388,21 +388,6 @@
     console.log(parser.root[0].children[0].children[0]);
     // actual: "hello " (correct); test at line 502 asserts "hello"
 
-- test-xml-writer-written-unclear (tests/test_xml.js): "XMLWriter: .written
-  tracks bytes written" (line 853) - `.written` stays 0 even after
-  `elementStart()`/`elementEnd()` produce visible output through the writer
-  callback; suspect the test's callback (`s => (out += toString(s))`, whose
-  implicit return value is the concatenated string, not a byte count)
-  doesn't satisfy whatever contract the Writer/byte-counting plumbing
-  (quickjs-xml.c's js_xmlwriter_method, wr->written += w) expects callbacks
-  to return - not confirmed.
-
-    let out = '';
-    let w = new XMLWriter(s => (out += toString(s)));
-    w.elementStart('a'); w.elementEnd('a');
-    console.log(w.written, JSON.stringify(out));
-    // actual: 0 "<a />"  (out is non-empty but .written never left 0)
-
 - test-xml-lenient-tagname-not-a-bug (tests/test_xml.js): "error: XMLParser
   on malformed tag throws or returns PARSE_ERROR" (line 1562) expects
   `<1invalid/>` (a tag name starting with a digit, invalid per the XML Name
