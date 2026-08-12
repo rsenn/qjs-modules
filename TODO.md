@@ -30,26 +30,6 @@ These all follow the same shape: someone commented out a guard or a case while
 debugging/experimenting, and it was never restored. Each is a one-line-ish fix, but until
 fixed the affected API silently does the wrong thing rather than failing loudly.
 
-- **`XMLParser.on*` callbacks set after construction are silently never invoked** —
-  `quickjs-xml.c:2226-2268` (`js_xml_parser_constructor`) computes `p->use_builder` exactly
-  once, from whichever callback functions happen to be present in the constructor's `options`
-  object, and `js_xml_parser_parse()` (`quickjs-xml.c:2093-2105`) branches on that cached flag
-  forever after. Setting `parser.onelementstart = fn` (etc.) post-construction via the
-  `onelementstart`/`onelementend`/`onattribute`/`ontext` setters (`js_xml_parser_callback`,
-  `quickjs-xml.c:2189-2223`) correctly stores the function, but `.parse()` still takes the
-  builder branch, so the callback is never called. Found via `tests/test_xml.js`'s "XMLParser
-  callbacks" suite (5 tests: onelementstart/onelementend/onattribute/ontext/all-callbacks-in-
-  order), all of which construct `new XMLParser(input)` with no options object, then assign
-  callbacks afterward — every accumulator array stays `[]`.
-  ```js
-  let starts = [];
-  let p = new XMLParser('<a><b/></a>');
-  p.onelementstart = name => starts.push(name);
-  for(let i = 0; i < 10; i++) { if(p.parse() === XMLParser.PARSE_OK) break; }
-  // expected: starts = ['a', 'b']
-  // actual: starts = [] (use_builder was locked to true at construction time)
-  ```
-
 - **`XMLWriter` (streaming class) corrupts text content with injected indentation** —
   `js_xmlwriter_method()`, `quickjs-xml.c:2604-2611`: the `XML_TEXT`/`XML_ELEMENT_START` case
   unconditionally calls `writer_putnl_indent()` before writing, with no check for whether text

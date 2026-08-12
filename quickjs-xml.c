@@ -2219,6 +2219,15 @@ js_xml_parser_callback(JSContext* ctx, JSValueConst this_val, JSValueConst value
     }
   }
 
+  /* Assigning a real callback post-construction is an explicit request to switch out of
+   * builder mode - matches the "no real callback given at all" default computed in
+   * js_xml_parser_constructor(), which only defaults to use_builder=TRUE because none of
+   * these were set yet. Without this, use_builder stays whatever it was at construction
+   * time forever, and callbacks assigned afterward (the only way to assign them without
+   * passing an options object to the constructor) are silently never invoked. */
+  if(JS_IsFunction(ctx, value))
+    p->use_builder = FALSE;
+
   return JS_UNDEFINED;
 }
 
