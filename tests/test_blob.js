@@ -352,22 +352,38 @@ promise_test(async () => {
   assert_equals(new Uint8Array(await blob.arrayBuffer()) + '', source + '');
 }, '.arrayBuffer() returns the Blob content as ArrayBuffer when awaited');
 
-/* TODO: stream() */
-
-/*test(() => {
+test(() => {
   const stream = new Blob().stream();
 
   assert_true(stream instanceof ReadableStream);
 }, '.stream() returns ReadableStream');
 
 promise_test(async () => {
-  const source = Buffer.from("Some content")
+  const source = new TextEncoder().encode("Some content");
+  const blob = new Blob([source]);
+  const stream = blob.stream();
 
-  // ! Blob.stream() return type falls back to TypeScript typings for web which lacks Symbol.asyncIterator method, so we read stream with out readStream helper
-  const actual = await buffer(readStream(new Blob([source]).stream()))
+  const reader = stream.getReader();
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
 
-  assert_true(actual.equals(source))
-}, ".stream() allows to read Blob as a stream")
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(new Uint8Array(chunk), offset);
+    offset += chunk.byteLength;
+  }
+
+  assert_equals(result.length, source.length);
+  for (let i = 0; i < source.length; i++) {
+    assert_equals(result[i], source[i]);
+  }
+}, ".stream() allows to read Blob as a stream");
 
 promise_test(async () => {
   const stream = new Blob(['Some content']).stream();
@@ -382,4 +398,3 @@ promise_test(async () => {
   assert_true(done);
   assert_equals(chunk, undefined);
 }, '.stream() returned ReadableStream can be cancelled');
-*/

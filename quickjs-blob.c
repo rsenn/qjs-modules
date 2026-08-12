@@ -1,5 +1,6 @@
 #include "defines.h"
 #include "quickjs-blob.h"
+#include "quickjs-stream.h"
 #include "utils.h"
 #include "buffer-utils.h"
 #include "iteration.h"
@@ -45,6 +46,16 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
 static inline InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
   return INPUTBUFFER_DATA(blob->data, blob->size);
+}
+
+static void
+blob_stream_finalizer(JSRuntime* rt, void* opaque) {
+  InputBuffer* input = opaque;
+  if(input) {
+    if(input->data)
+      js_free_rt(rt, input->data);
+    js_free_rt(rt, input);
+  }
 }
 
 JSValue
@@ -249,7 +260,34 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case BLOB_STREAM: {
-      ret = JS_UNDEFINED;
+      /* Create a ReadableStream over the blob's data.
+       * We need to copy the blob data because the blob object may be
+       * garbage collected before the stream finishes reading. We also
+       * allocate the InputBuffer on the heap so the Reader can own it. */
+      uint8_t* data_copy = js_malloc(ctx, blob->size);
+      if(!data_copy) {
+        ret = JS_EXCEPTION;
+        break;
+      }
+      memcpy(data_copy, blob->data, blob->size);
+
+      InputBuffer* input = js_mallocz(ctx, sizeof(InputBuffer));
+      if(!input) {
+        js_free(ctx, data_copy);
+        ret = JS_EXCEPTION;
+        break;
+      }
+      *input = INPUTBUFFER_DATA(data_copy, blob->size);
+
+      /* Create a Reader that will free both the InputBuffer and the data copy */
+      Reader reader = (Reader){
+          (ReadFunction*)&inputbuffer_read,
+          input,
+          NULL,
+          (ReaderFinalizer*)blob_stream_finalizer,
+      };
+
+      ret = js_readable_stream_from_reader(ctx, reader, 0);
       break;
     }
   }

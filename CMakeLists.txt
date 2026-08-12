@@ -88,7 +88,7 @@ endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
   set(BUILTINS_NATIVE arraybuffer-sink blob child-process deep directory inspect lexer location misc path pointer
-                      predicate repeater syscallerror textcode tree-walker virtual xml)
+                      predicate repeater stream syscallerror textcode tree-walker virtual xml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
 include(FindPkgConfig)
@@ -1029,6 +1029,10 @@ if(TARGET qjs-inspect)
   target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
 endif(TARGET qjs-inspect)
 
+if(TARGET qjs-blob)
+  target_link_libraries(qjs-blob PRIVATE qjs-stream)
+endif(TARGET qjs-blob)
+
 if(TARGET qjs-tree-walker)
   target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
 endif(TARGET qjs-tree-walker)
@@ -1052,6 +1056,10 @@ endif(TARGET qjs-serial)
 if(TARGET qjs-inspect-static)
   target_link_libraries(qjs-inspect-static PRIVATE qjs-pointer-static)
 endif(TARGET qjs-inspect-static)
+
+if(TARGET qjs-blob-static)
+  target_link_libraries(qjs-blob-static PRIVATE qjs-stream-static)
+endif(TARGET qjs-blob-static)
 
 if(TARGET qjs-tree-walker-static)
   target_link_libraries(qjs-tree-walker-static PRIVATE qjs-pointer-static)

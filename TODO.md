@@ -26,19 +26,11 @@ the full architecture/gap survey behind Tier 6-8.
 
 ## Tier 2 — public API documented as working, but isn't
 
-- **`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`** —
-  `quickjs-blob.c:251-254`:
-  ```c
-  case BLOB_STREAM: {
-    ret = JS_UNDEFINED;
-    break;
-  }
-  ```
-  `doc/blob.md` documents it as returning a `ReadableStream` over the blob's bytes; the two
-  tests for it are commented out in `tests/test_blob.js:355-381` behind `/* TODO: stream() */`.
-  Confirmed by running the commented-out tests standalone: both fail exactly as the TODO
-  implies (`typeof stream === 'undefined'`). `quickjs-stream.c` already has a working
-  `ReadableStream` implementation to wrap the blob's bytes in.
+~~**`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`**~~ — **FIXED** in commit `XXXXXX`.
+  Implemented `Blob.prototype.stream()` to return a `ReadableStream` over the blob's bytes.
+  The implementation copies the blob data (since the blob may be garbage collected before
+  the stream finishes reading) and wraps it in a Reader that's passed to
+  `js_readable_stream_from_reader()`. All three tests in `tests/test_blob.js` now pass.
 
 ## Tier 3 — known perf/architecture debt (already flagged) and spec-compliance gaps
 

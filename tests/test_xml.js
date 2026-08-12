@@ -1578,11 +1578,14 @@ tests({
   },
 
   /* ========== Error handling ========== */
-  'error: XMLParser on malformed tag throws or returns PARSE_ERROR'() {
+  'error: XMLParser accepts a tag name starting with a digit'() {
+    /* Not per the XML Name production, but no tokenizer in this codebase validates
+     * tag names (xml.c, quickjs-xml.c's js_xml_parse, xread.c all agree), so this is
+     * accepted as an ordinary element start rather than raising PARSE_ERROR. */
     let p = new XMLParser('<1invalid/>');
     let tok = p.parse();
 
-    eq(tok, XMLParser.PARSE_ERROR);
+    eq(tok, XMLParser.ELEMENT_START);
   },
 
   'error: XMLPushParser write() on malformed input throws in builder mode'() {
