@@ -1,69 +1,8 @@
-import {
-  assert,
-  eq,
-  tests,
-} from './tinytest.js';
+import { assert, eq, tests } from './tinytest.js';
 
 import { clone } from 'deep';
 
-import {
-  Attr,
-  Classes,
-  Comment,
-  CSSStyleDeclaration,
-  CustomEvent,
-  Document,
-  DocumentFragment,
-  DOMException,
-  Element,
-  Entities,
-  Event,
-  EventTarget,
-  Factory,
-  HTMLAnchorElement,
-  HTMLAudioElement,
-  HTMLBodyElement,
-  HTMLButtonElement,
-  HTMLCanvasElement,
-  HTMLDialogElement,
-  HTMLDivElement,
-  HTMLElement,
-  HTMLFormElement,
-  HTMLHeadElement,
-  HTMLHeadingElement,
-  HTMLIFrameElement,
-  HTMLImageElement,
-  HTMLInputElement,
-  HTMLLabelElement,
-  HTMLLIElement,
-  HTMLLinkElement,
-  HTMLMediaElement,
-  HTMLMetaElement,
-  HTMLOListElement,
-  HTMLOptionElement,
-  HTMLParagraphElement,
-  HTMLScriptElement,
-  HTMLSelectElement,
-  HTMLStyleElement,
-  HTMLTableCellElement,
-  HTMLTableElement,
-  HTMLTableRowElement,
-  HTMLTextAreaElement,
-  HTMLVideoElement,
-  Location,
-  MutationObserver,
-  MutationRecord,
-  Navigator,
-  Node,
-  NodeList,
-  Parser,
-  Serializer,
-  Storage,
-  Text,
-  TokenList,
-  Window,
-  nodeTypes,
-} from '../lib/dom.js';
+import { Attr, Classes, Comment, CSSStyleDeclaration, CustomEvent, Document, DocumentFragment, DOMException, DOMRect, DOMRectReadOnly, Element, Entities, Event, EventTarget, Factory, FocusEvent, HashChangeEvent, History, HTMLAnchorElement, HTMLAudioElement, HTMLBodyElement, HTMLButtonElement, HTMLCanvasElement, HTMLDialogElement, HTMLDivElement, HTMLElement, HTMLFormElement, HTMLHeadElement, HTMLHeadingElement, HTMLIFrameElement, HTMLImageElement, HTMLInputElement, HTMLLabelElement, HTMLLIElement, HTMLLinkElement, HTMLMediaElement, HTMLMetaElement, HTMLOListElement, HTMLOptionElement, HTMLParagraphElement, HTMLScriptElement, HTMLSelectElement, HTMLStyleElement, HTMLTableCellElement, HTMLTableElement, HTMLTableRowElement, HTMLTextAreaElement, HTMLVideoElement, InputEvent, KeyboardEvent, Location, MouseEvent, MutationObserver, MutationRecord, Navigator, Node, NodeList, Parser, PointerEvent, PopStateEvent, Range, Selection, Serializer, Storage, Text, TokenList, Touch, TouchEvent, TouchList, UIEvent, WheelEvent, Window, nodeTypes, } from '../lib/dom.js';
 
 /* tinytest's eq() uses !=, which does reference comparison for arrays/objects —
  * deep-compare via JSON.stringify instead (same convention as test_xml.js). */
@@ -187,7 +126,9 @@ tests({
   'EventTarget: addEventListener and dispatchEvent'() {
     const target = new EventTarget();
     let fired = false;
-    target.addEventListener('click', () => { fired = true; });
+    target.addEventListener('click', () => {
+      fired = true;
+    });
     target.dispatchEvent(new Event('click'));
     eq(fired, true);
   },
@@ -201,7 +142,9 @@ tests({
     const div = doc.querySelector('div');
     const span = doc.querySelector('span');
     let count = 0;
-    const handler = () => { count++; };
+    const handler = () => {
+      count++;
+    };
     div.addEventListener('x', handler);
     span.dispatchEvent(new Event('x', { bubbles: true }));
     eq(count, 1);
@@ -215,7 +158,9 @@ tests({
     const div = doc.querySelector('div');
     const span = doc.querySelector('span');
     let count = 0;
-    const handler = () => { count++; };
+    const handler = () => {
+      count++;
+    };
     div.addEventListener('x', handler);
     div.addEventListener('x', handler);
     span.dispatchEvent(new Event('x', { bubbles: true }));
@@ -225,7 +170,13 @@ tests({
   'EventTarget: once option fires listener only once'() {
     const target = new EventTarget();
     let count = 0;
-    target.addEventListener('x', () => { count++; }, { once: true });
+    target.addEventListener(
+      'x',
+      () => {
+        count++;
+      },
+      { once: true },
+    );
     target.dispatchEvent(new Event('x'));
     target.dispatchEvent(new Event('x'));
     eq(count, 1);
@@ -244,7 +195,7 @@ tests({
 
   'EventTarget: dispatchEvent returns false when defaultPrevented'() {
     const target = new EventTarget();
-    target.addEventListener('x', (e) => e.preventDefault());
+    target.addEventListener('x', e => e.preventDefault());
     const result = target.dispatchEvent(new Event('x', { cancelable: true }));
     eq(result, false);
   },
@@ -261,8 +212,10 @@ tests({
     Object.defineProperty(child, 'parentNode', { value: parent, configurable: true });
 
     let parentFired = false;
-    parent.addEventListener('x', () => { parentFired = true; });
-    child.addEventListener('x', (e) => e.stopPropagation(), { capture: false });
+    parent.addEventListener('x', () => {
+      parentFired = true;
+    });
+    child.addEventListener('x', e => e.stopPropagation(), { capture: false });
     child.dispatchEvent(new Event('x', { bubbles: true }));
     eq(parentFired, false);
   },
@@ -270,8 +223,13 @@ tests({
   'EventTarget: stopImmediatePropagation halts subsequent listeners on same target'() {
     const target = new EventTarget();
     const log = [];
-    target.addEventListener('x', (e) => { log.push('first'); e.stopImmediatePropagation(); });
-    target.addEventListener('x', () => { log.push('second'); });
+    target.addEventListener('x', e => {
+      log.push('first');
+      e.stopImmediatePropagation();
+    });
+    target.addEventListener('x', () => {
+      log.push('second');
+    });
     target.dispatchEvent(new Event('x'));
     eqArr(log, ['first']);
   },
@@ -946,7 +904,9 @@ tests({
     const doc = parseDoc('<html/>');
     const el = doc.createElement('div');
     let clicked = false;
-    el.addEventListener('click', () => { clicked = true; });
+    el.addEventListener('click', () => {
+      clicked = true;
+    });
     el.click();
     eq(clicked, true);
   },
@@ -1170,7 +1130,9 @@ tests({
     const doc = parseDoc('<html/>');
     const form = doc.createElement('form');
     let submitted = false;
-    form.addEventListener('submit', () => { submitted = true; });
+    form.addEventListener('submit', () => {
+      submitted = true;
+    });
     form.submit();
     eq(submitted, true);
   },
@@ -1947,7 +1909,9 @@ tests({
   'Window: inherits EventTarget'() {
     const win = new Window();
     let fired = false;
-    win.addEventListener('load', () => { fired = true; });
+    win.addEventListener('load', () => {
+      fired = true;
+    });
     win.dispatchEvent(new Event('load'));
     eq(fired, true);
   },
@@ -2039,5 +2003,1247 @@ tests({
       const found = doc.getElementById('dynamic');
       assert(found !== null && found !== undefined, 'should find dynamically added element');
     }
+  },
+
+  /* ========== Event Subclasses ========== */
+  'UIEvent: constructor with default values'() {
+    const e = new UIEvent('click');
+    eq(e.type, 'click');
+    eq(e.bubbles, false);
+    eq(e.cancelable, false);
+    eq(e.detail, 0);
+    eq(e.view, null);
+  },
+
+  'UIEvent: constructor with options'() {
+    const view = { name: 'window' };
+    const e = new UIEvent('focus', { bubbles: true, cancelable: true, detail: 5, view });
+    eq(e.bubbles, true);
+    eq(e.cancelable, true);
+    eq(e.detail, 5);
+    eq(e.view, view);
+  },
+
+  'UIEvent: inherits from Event'() {
+    const e = new UIEvent('blur');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+  },
+
+  'MouseEvent: constructor with coordinates'() {
+    const e = new MouseEvent('click', {
+      clientX: 100,
+      clientY: 200,
+      screenX: 150,
+      screenY: 250,
+      button: 1,
+      buttons: 3,
+    });
+    eq(e.clientX, 100);
+    eq(e.clientY, 200);
+    eq(e.screenX, 150);
+    eq(e.screenY, 250);
+    eq(e.button, 1);
+    eq(e.buttons, 3);
+  },
+
+  'MouseEvent: modifier keys'() {
+    const e = new MouseEvent('click', {
+      ctrlKey: true,
+      shiftKey: true,
+      altKey: false,
+      metaKey: true,
+    });
+    eq(e.ctrlKey, true);
+    eq(e.shiftKey, true);
+    eq(e.altKey, false);
+    eq(e.metaKey, true);
+  },
+
+  'MouseEvent: relatedTarget'() {
+    const target = {};
+    const e = new MouseEvent('mouseover', { relatedTarget: target });
+    eq(e.relatedTarget, target);
+  },
+
+  'MouseEvent: inherits from UIEvent'() {
+    const e = new MouseEvent('click');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof MouseEvent);
+  },
+
+  'KeyboardEvent: constructor with key properties'() {
+    const e = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      location: 0,
+      repeat: true,
+    });
+    eq(e.key, 'Enter');
+    eq(e.code, 'Enter');
+    eq(e.keyCode, 13);
+    eq(e.location, 0);
+    eq(e.repeat, true);
+  },
+
+  'KeyboardEvent: location constants'() {
+    eq(KeyboardEvent.DOM_KEY_LOCATION_STANDARD, 0);
+    eq(KeyboardEvent.DOM_KEY_LOCATION_LEFT, 1);
+    eq(KeyboardEvent.DOM_KEY_LOCATION_RIGHT, 2);
+    eq(KeyboardEvent.DOM_KEY_LOCATION_NUMPAD, 3);
+  },
+
+  'KeyboardEvent: modifier keys'() {
+    const e = new KeyboardEvent('keypress', {
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: true,
+      metaKey: false,
+    });
+    eq(e.ctrlKey, true);
+    eq(e.shiftKey, false);
+    eq(e.altKey, true);
+    eq(e.metaKey, false);
+  },
+
+  'KeyboardEvent: inherits from UIEvent'() {
+    const e = new KeyboardEvent('keyup');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof KeyboardEvent);
+  },
+
+  'FocusEvent: constructor with relatedTarget'() {
+    const target = {};
+    const e = new FocusEvent('focus', { relatedTarget: target });
+    eq(e.type, 'focus');
+    eq(e.relatedTarget, target);
+  },
+
+  'FocusEvent: inherits from UIEvent'() {
+    const e = new FocusEvent('blur');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof FocusEvent);
+  },
+
+  'InputEvent: constructor with data'() {
+    const e = new InputEvent('input', {
+      data: 'hello',
+      inputType: 'insertText',
+      isComposing: false,
+    });
+    eq(e.data, 'hello');
+    eq(e.inputType, 'insertText');
+    eq(e.isComposing, false);
+  },
+
+  'InputEvent: inherits from UIEvent'() {
+    const e = new InputEvent('input');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof InputEvent);
+  },
+
+  'WheelEvent: constructor with delta properties'() {
+    const e = new WheelEvent('wheel', {
+      deltaX: 10,
+      deltaY: -20,
+      deltaZ: 5,
+      deltaMode: 1,
+    });
+    eq(e.deltaX, 10);
+    eq(e.deltaY, -20);
+    eq(e.deltaZ, 5);
+    eq(e.deltaMode, 1);
+  },
+
+  'WheelEvent: deltaMode constants'() {
+    eq(WheelEvent.DOM_DELTA_PIXEL, 0);
+    eq(WheelEvent.DOM_DELTA_LINE, 1);
+    eq(WheelEvent.DOM_DELTA_PAGE, 2);
+  },
+
+  'WheelEvent: inherits from MouseEvent'() {
+    const e = new WheelEvent('wheel');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof MouseEvent);
+    assert(e instanceof WheelEvent);
+  },
+
+  'Touch: constructor with properties'() {
+    const target = {};
+    const t = new Touch({
+      identifier: 1,
+      target,
+      clientX: 100,
+      clientY: 200,
+      pageX: 110,
+      pageY: 210,
+      screenX: 150,
+      screenY: 250,
+    });
+    eq(t.identifier, 1);
+    eq(t.target, target);
+    eq(t.clientX, 100);
+    eq(t.clientY, 200);
+    eq(t.pageX, 110);
+    eq(t.pageY, 210);
+    eq(t.screenX, 150);
+    eq(t.screenY, 250);
+  },
+
+  'TouchList: constructor and length'() {
+    const target = {};
+    const t1 = new Touch({ identifier: 1, target });
+    const t2 = new Touch({ identifier: 2, target });
+    const list = new TouchList([t1, t2]);
+    eq(list.length, 2);
+    eq(list.item(0), t1);
+    eq(list.item(1), t2);
+  },
+
+  'TouchList: item returns undefined for out of range'() {
+    const list = new TouchList([]);
+    eq(list.item(0), undefined);
+  },
+
+  'TouchEvent: constructor with touch lists'() {
+    const target = {};
+    const t1 = new Touch({ identifier: 1, target });
+    const t2 = new Touch({ identifier: 2, target });
+    const touches = new TouchList([t1, t2]);
+    const targetTouches = new TouchList([t1]);
+    const changedTouches = new TouchList([t2]);
+
+    const e = new TouchEvent('touchstart', {
+      touches,
+      targetTouches,
+      changedTouches,
+    });
+    eq(e.touches, touches);
+    eq(e.targetTouches, targetTouches);
+    eq(e.changedTouches, changedTouches);
+  },
+
+  'TouchEvent: modifier keys'() {
+    const e = new TouchEvent('touchmove', {
+      ctrlKey: true,
+      shiftKey: false,
+      altKey: true,
+      metaKey: false,
+    });
+    eq(e.ctrlKey, true);
+    eq(e.shiftKey, false);
+    eq(e.altKey, true);
+    eq(e.metaKey, false);
+  },
+
+  'TouchEvent: inherits from UIEvent'() {
+    const e = new TouchEvent('touchend');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof TouchEvent);
+  },
+
+  'PointerEvent: constructor with pointer properties'() {
+    const e = new PointerEvent('pointerdown', {
+      pointerId: 42,
+      width: 10,
+      height: 20,
+      pressure: 0.5,
+      tiltX: 15,
+      tiltY: -10,
+      pointerType: 'pen',
+      isPrimary: true,
+    });
+    eq(e.pointerId, 42);
+    eq(e.width, 10);
+    eq(e.height, 20);
+    eq(e.pressure, 0.5);
+    eq(e.tiltX, 15);
+    eq(e.tiltY, -10);
+    eq(e.pointerType, 'pen');
+    eq(e.isPrimary, true);
+  },
+
+  'PointerEvent: inherits from MouseEvent'() {
+    const e = new PointerEvent('pointerup');
+    assert(e instanceof Event);
+    assert(e instanceof UIEvent);
+    assert(e instanceof MouseEvent);
+    assert(e instanceof PointerEvent);
+  },
+
+  'PointerEvent: includes MouseEvent properties'() {
+    const e = new PointerEvent('pointermove', {
+      clientX: 100,
+      clientY: 200,
+      ctrlKey: true,
+    });
+    eq(e.clientX, 100);
+    eq(e.clientY, 200);
+    eq(e.ctrlKey, true);
+  },
+
+  /* ========== History API ========== */
+  'History: Window has history property'() {
+    const win = new Window({ href: 'https://example.com/' });
+    assert(win.history !== undefined);
+    assert(win.history instanceof History);
+  },
+
+  'History: initial state'() {
+    const win = new Window({ href: 'https://example.com/' });
+    eq(win.history.length, 1);
+    eq(win.history.state, null);
+  },
+
+  'History: pushState adds entry'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, 'Page 1', '/page1');
+    eq(win.history.length, 2);
+    eq(win.history.state.page, 1);
+    eq(win.location.pathname, '/page1');
+  },
+
+  'History: pushState with absolute URL'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 2 }, 'Page 2', 'https://example.com/page2');
+    eq(win.history.length, 2);
+    eq(win.location.href, 'https://example.com/page2')
+  },
+
+  'History: pushState clears forward history'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.pushState({ page: 2 }, '', '/page2');
+    win.history.pushState({ page: 3 }, '', '/page3');
+    eq(win.history.length, 4);
+
+    win.history.back();
+    win.history.back();
+    eq(win.history.state.page, 1);
+
+    win.history.pushState({ page: 4 }, '', '/page4');
+    eq(win.history.length, 3);
+    eq(win.history.state.page, 4);
+  },
+
+  'History: replaceState replaces current entry'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.replaceState({ page: 'replaced' }, '', '/replaced');
+    eq(win.history.length, 2);
+    eq(win.history.state.page, 'replaced');
+    eq(win.location.pathname, '/replaced');
+  },
+
+  'History: back() navigates backward'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.pushState({ page: 2 }, '', '/page2');
+
+    win.history.back();
+    eq(win.history.state.page, 1);
+    eq(win.location.pathname, '/page1');
+
+    win.history.back();
+    eq(win.history.state, null);
+    eq(win.location.pathname, '/');
+  },
+
+  'History: forward() navigates forward'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.pushState({ page: 2 }, '', '/page2');
+
+    win.history.back();
+    win.history.back();
+
+    win.history.forward();
+    eq(win.history.state.page, 1);
+    eq(win.location.pathname, '/page1');
+
+    win.history.forward();
+    eq(win.history.state.page, 2);
+    eq(win.location.pathname, '/page2');
+  },
+
+  'History: go(delta) navigates by delta'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.pushState({ page: 2 }, '', '/page2');
+    win.history.pushState({ page: 3 }, '', '/page3');
+
+    win.history.go(-2);
+    eq(win.history.state.page, 1);
+
+    win.history.go(2);
+    eq(win.history.state.page, 3);
+  },
+
+  'History: go(0) does nothing'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    const stateBefore = win.history.state;
+    win.history.go(0);
+    eq(win.history.state, stateBefore);
+  },
+
+  'History: back() at beginning does nothing'() {
+    const win = new Window({ href: 'https://example.com/' });
+    const urlBefore = win.location.href;
+    win.history.back();
+    eq(win.location.href, urlBefore);
+  },
+
+  'History: forward() at end does nothing'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    const urlBefore = win.location.href;
+    win.history.forward();
+    eq(win.location.href, urlBefore);
+  },
+
+  'History: go() with out-of-bounds delta does nothing'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    const stateBefore = win.history.state;
+
+    win.history.go(100);
+    eq(win.history.state, stateBefore);
+
+    win.history.go(-100);
+    eq(win.history.state, stateBefore);
+  },
+
+  'History: popstate event fired on navigation'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.pushState({ page: 2 }, '', '/page2');
+
+    let popstateFired = false;
+    let popstateState = null;
+    win.addEventListener('popstate', e => {
+      popstateFired = true;
+      popstateState = e.state;
+    });
+
+    win.history.back();
+    assert(popstateFired);
+    eq(popstateState.page, 1);
+  },
+
+  'History: popstate not fired on pushState/replaceState'() {
+    const win = new Window({ href: 'https://example.com/' });
+    let popstateCount = 0;
+    win.addEventListener('popstate', () => {
+      popstateCount++;
+    });
+
+    win.history.pushState({ page: 1 }, '', '/page1');
+    win.history.replaceState({ page: 2 }, '', '/page2');
+    eq(popstateCount, 0);
+  },
+
+  'History: hashchange event on hash change'() {
+    const win = new Window({ href: 'https://example.com/' });
+    let hashchangeFired = false;
+    let oldURL = '';
+    let newURL = '';
+
+    win.addEventListener('hashchange', e => {
+      hashchangeFired = true;
+      oldURL = e.oldURL;
+      newURL = e.newURL;
+    });
+
+console.log('win.location.href', win.location.href);
+
+console.log({oldURL,newURL});
+
+    win.history.pushState({ page: 1 }, '', '/page1#section');
+   console.log({oldURL,newURL});
+ assert(hashchangeFired);
+    eq(oldURL, 'https://example.com/');
+    eq(newURL, 'https://example.com/page1#section');
+  },
+
+  'History: no hashchange when hash unchanged'() {
+    const win = new Window({ href: 'https://example.com/' });
+    win.history.pushState({ page: 1 }, '', '/page1#section');
+
+    let hashchangeCount = 0;
+    win.addEventListener('hashchange', () => {
+      hashchangeCount++;
+    });
+
+    win.history.pushState({ page: 2 }, '', '/page2#section');
+    eq(hashchangeCount, 0);
+  },
+
+  'PopStateEvent: constructor and properties'() {
+    const event = new PopStateEvent('popstate', {
+      state: { page: 1 },
+    });
+    eq(event.type, 'popstate');
+    eq(event.state.page, 1);
+  },
+
+  'PopStateEvent: default values'() {
+    const event = new PopStateEvent('popstate');
+    eq(event.state, null);
+  },
+
+  'HashChangeEvent: constructor and properties'() {
+    const event = new HashChangeEvent('hashchange', {
+      oldURL: 'https://example.com/',
+      newURL: 'https://example.com/#section',
+    });
+    eq(event.type, 'hashchange');
+    eq(event.oldURL, 'https://example.com/');
+    eq(event.newURL, 'https://example.com/#section');
+  },
+
+  'HashChangeEvent: default values'() {
+    const event = new HashChangeEvent('hashchange');
+    eq(event.oldURL, '');
+    eq(event.newURL, '');
+  },
+
+  /* ========== DOMRect ========== */
+  'DOMRectReadOnly: constructor with default values'() {
+    const rect = new DOMRectReadOnly();
+    eq(rect.x, 0);
+    eq(rect.y, 0);
+    eq(rect.width, 0);
+    eq(rect.height, 0);
+  },
+
+  'DOMRectReadOnly: constructor with values'() {
+    const rect = new DOMRectReadOnly(10, 20, 100, 50);
+    eq(rect.x, 10);
+    eq(rect.y, 20);
+    eq(rect.width, 100);
+    eq(rect.height, 50);
+  },
+
+  'DOMRectReadOnly: computed properties'() {
+    const rect = new DOMRectReadOnly(10, 20, 100, 50);
+    eq(rect.left, 10);
+    eq(rect.top, 20);
+    eq(rect.right, 110);
+    eq(rect.bottom, 70);
+  },
+
+  'DOMRectReadOnly: toJSON'() {
+    const rect = new DOMRectReadOnly(10, 20, 100, 50);
+    const json = rect.toJSON();
+    eq(json.x, 10);
+    eq(json.y, 20);
+    eq(json.width, 100);
+    eq(json.height, 50);
+    eq(json.left, 10);
+    eq(json.top, 20);
+    eq(json.right, 110);
+    eq(json.bottom, 70);
+  },
+
+  'DOMRectReadOnly: fromRect static method'() {
+    const rect = DOMRectReadOnly.fromRect({ x: 5, y: 10, width: 50, height: 25 });
+    eq(rect.x, 5);
+    eq(rect.y, 10);
+    eq(rect.width, 50);
+    eq(rect.height, 25);
+    assert(rect instanceof DOMRectReadOnly);
+  },
+
+  'DOMRect: inherits from DOMRectReadOnly'() {
+    const rect = new DOMRect(10, 20, 100, 50);
+    assert(rect instanceof DOMRectReadOnly);
+    assert(rect instanceof DOMRect);
+  },
+
+  'DOMRect: writable properties'() {
+    const rect = new DOMRect(10, 20, 100, 50);
+    rect.x = 15;
+    rect.y = 25;
+    rect.width = 200;
+    rect.height = 75;
+    eq(rect.x, 15);
+    eq(rect.y, 25);
+    eq(rect.width, 200);
+    eq(rect.height, 75);
+  },
+
+  'DOMRect: fromRect static method'() {
+    const rect = DOMRect.fromRect({ x: 5, y: 10, width: 50, height: 25 });
+    eq(rect.x, 5);
+    eq(rect.y, 10);
+    eq(rect.width, 50);
+    eq(rect.height, 25);
+    assert(rect instanceof DOMRect);
+  },
+
+  'DOMRect: JSON.stringify works'() {
+    const rect = new DOMRect(10, 20, 100, 50);
+    const json = JSON.stringify(rect);
+    const parsed = JSON.parse(json);
+    eq(parsed.x, 10);
+    eq(parsed.y, 20);
+    eq(parsed.width, 100);
+    eq(parsed.height, 50);
+  },
+
+  'Element: getBoundingClientRect returns DOMRect'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    const rect = div.getBoundingClientRect();
+    assert(rect instanceof DOMRect);
+    eq(rect.x, 0);
+    eq(rect.y, 0);
+    eq(rect.width, 0);
+    eq(rect.height, 0);
+  },
+
+  'Element: getClientRects returns array with one rect'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    const rects = div.getClientRects();
+    assert(Array.isArray(rects));
+    eq(rects.length, 1);
+    assert(rects[0] instanceof DOMRect);
+  },
+
+  'HTMLElement: offset properties default to 0'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    eq(div.offsetWidth, 0);
+    eq(div.offsetHeight, 0);
+    eq(div.offsetTop, 0);
+    eq(div.offsetLeft, 0);
+  },
+
+  'HTMLElement: offset properties are writable'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    div.offsetWidth = 100;
+    div.offsetHeight = 50;
+    div.offsetTop = 10;
+    div.offsetLeft = 20;
+    eq(div.offsetWidth, 100);
+    eq(div.offsetHeight, 50);
+    eq(div.offsetTop, 10);
+    eq(div.offsetLeft, 20);
+  },
+
+  'HTMLElement: client properties default to 0'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    eq(div.clientWidth, 0);
+    eq(div.clientHeight, 0);
+    eq(div.clientTop, 0);
+    eq(div.clientLeft, 0);
+  },
+
+  'HTMLElement: client properties are writable'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    div.clientWidth = 95;
+    div.clientHeight = 45;
+    div.clientTop = 2;
+    div.clientLeft = 3;
+    eq(div.clientWidth, 95);
+    eq(div.clientHeight, 45);
+    eq(div.clientTop, 2);
+    eq(div.clientLeft, 3);
+  },
+
+  'HTMLElement: scroll properties default to 0'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    eq(div.scrollWidth, 0);
+    eq(div.scrollHeight, 0);
+    eq(div.scrollTop, 0);
+    eq(div.scrollLeft, 0);
+  },
+
+  'HTMLElement: scroll properties are writable'() {
+    const doc = parseDoc('<html><body><div></div></body></html>');
+    const div = doc.querySelector('div');
+    div.scrollWidth = 200;
+    div.scrollHeight = 150;
+    div.scrollTop = 50;
+    div.scrollLeft = 25;
+    eq(div.scrollWidth, 200);
+    eq(div.scrollHeight, 150);
+    eq(div.scrollTop, 50);
+    eq(div.scrollLeft, 25);
+  },
+
+  /* ========== Range ========== */
+  'Range: constructor creates empty range'() {
+    const range = new Range();
+    eq(range.startContainer, null);
+    eq(range.startOffset, 0);
+    eq(range.endContainer, null);
+    eq(range.endOffset, 0);
+    eq(range.collapsed, true);
+  },
+
+  'Range: setStart and setEnd'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const div = doc.querySelector('div');
+    const text = div.firstChild;
+
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    eq(range.startContainer, text);
+    eq(range.startOffset, 0);
+    eq(range.endContainer, text);
+    eq(range.endOffset, 5);
+    eq(range.collapsed, false);
+  },
+
+  'Range: collapse to start'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 2);
+    range.setEnd(text, 4);
+
+    range.collapse(true);
+    eq(range.startContainer, text);
+    eq(range.startOffset, 2);
+    eq(range.endContainer, text);
+    eq(range.endOffset, 2);
+    eq(range.collapsed, true);
+  },
+
+  'Range: collapse to end'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 2);
+    range.setEnd(text, 4);
+
+    range.collapse(false);
+    eq(range.startContainer, text);
+    eq(range.startOffset, 4);
+    eq(range.endContainer, text);
+    eq(range.endOffset, 4);
+    eq(range.collapsed, true);
+  },
+
+  'Range: toString returns selected text'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 6);
+    range.setEnd(text, 11);
+
+    eq(range.toString(), 'World');
+  },
+
+  'Range: toString returns empty for collapsed range'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 2);
+    range.collapse(true);
+
+    eq(range.toString(), '');
+  },
+
+  'Range: selectNodeContents'() {
+    const doc = parseDoc('<html><body><div><span>a</span><span>b</span></div></body></html>');
+    const div = doc.querySelector('div');
+    const range = new Range();
+    range.selectNodeContents(div);
+
+    eq(range.startContainer, div);
+    eq(range.startOffset, 0);
+    eq(range.endContainer, div);
+    eq(range.endOffset, 2);
+  },
+
+  'Range: cloneRange creates independent copy'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 1);
+    range.setEnd(text, 3);
+
+    const clone = range.cloneRange();
+    eq(clone.startContainer, text);
+    eq(clone.startOffset, 1);
+    eq(clone.endContainer, text);
+    eq(clone.endOffset, 3);
+
+    range.setStart(text, 0);
+    eq(clone.startOffset, 1);
+  },
+
+  'Range: deleteContents removes text'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 5);
+    range.setEnd(text, 11);
+
+    range.deleteContents();
+    eq(text.data, 'Hello');
+    eq(range.collapsed, true);
+  },
+
+  'Range: deleteContents removes child nodes'() {
+    const doc = parseDoc('<html><body><div><span>1</span><span>2</span><span>3</span></div></body></html>');
+    const div = doc.querySelector('div');
+    const range = new Range();
+    range.setStart(div, 1);
+    range.setEnd(div, 3);
+
+    range.deleteContents();
+    eq(div.childNodes.length, 1);
+  },
+
+  'Range: cloneContents returns DocumentFragment'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const fragment = range.cloneContents();
+    eq(fragment.nodeType, Node.prototype.DOCUMENT_FRAGMENT_NODE);
+    eq(fragment.childNodes.length, 1);
+    eq(fragment.childNodes[0].data, 'Hello');
+    eq(text.data, 'Hello World');
+  },
+
+  'Range: cloneContents returns empty fragment for collapsed range'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 2);
+    range.collapse(true);
+
+    const fragment = range.cloneContents();
+    eq(fragment.childNodes.length, 0);
+  },
+
+  'Range: extractContents clones and deletes'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 6);
+    range.setEnd(text, 11);
+
+    const fragment = range.extractContents();
+    eq(fragment.childNodes[0].data, 'World');
+    eq(text.data, 'Hello ');
+  },
+
+  'Range: insertNode into text node'() {
+    const doc = parseDoc('<html><body><div>HelloWorld</div></body></html>');
+    const div = doc.querySelector('div');
+    const text = div.firstChild;
+
+    const range = new Range();
+    range.setStart(text, 5);
+    range.setEnd(text, 5);
+
+    const space = doc.createTextNode(' ');
+    range.insertNode(space);
+
+    eq(div.childNodes.length, 3);
+    eq(div.childNodes[0].data, 'Hello');
+    eq(div.childNodes[1].data, ' ');
+    eq(div.childNodes[2].data, 'World');
+  },
+
+  'Range: insertNode into element'() {
+    const doc = parseDoc('<html><body><div><span>1</span><span>2</span></div></body></html>');
+    const div = doc.querySelector('div');
+    const range = new Range();
+    range.setStart(div, 1);
+    range.setEnd(div, 1);
+
+    const newSpan = doc.createElement('span');
+    range.insertNode(newSpan);
+
+    eq(div.childNodes.length, 3);
+    eq(div.childNodes[1], newSpan);
+  },
+
+  'Range: selectNode'() {
+    const doc = parseDoc('<html><body><div><span>test</span></div></body></html>');
+    const div = doc.querySelector('div');
+    const span = doc.querySelector('span');
+
+    const range = new Range();
+    range.selectNode(span);
+
+    eq(range.startContainer, div);
+    eq(range.startOffset, 0);
+    eq(range.endContainer, div);
+    eq(range.endOffset, 1);
+  },
+
+  'Range: selectNode throws if node has no parent'() {
+    const doc = parseDoc('<html><body></body></html>');
+    const span = doc.createElement('span');
+
+    const range = new Range();
+    assertThrows(() => range.selectNode(span));
+  },
+
+  'Range: setStartBefore and setStartAfter'() {
+    const doc = parseDoc('<html><body><div><span>1</span><span>2</span></div></body></html>');
+    const div = doc.querySelector('div');
+    const spans = [...div.querySelectorAll('span')];
+
+    const range = new Range();
+    range.setStartBefore(spans[1]);
+    eq(range.startOffset, 1);
+
+    range.setStartAfter(spans[0]);
+    eq(range.startOffset, 1);
+  },
+
+  'Range: setEndBefore and setEndAfter'() {
+    const doc = parseDoc('<html><body><div><span>1</span><span>2</span></div></body></html>');
+    const div = doc.querySelector('div');
+    const spans = [...div.querySelectorAll('span')];
+
+    const range = new Range();
+    range.setEndBefore(spans[1]);
+    eq(range.endOffset, 1);
+
+    range.setEndAfter(spans[0]);
+    eq(range.endOffset, 1);
+  },
+
+  'Range: commonAncestorContainer with same container'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    eq(range.commonAncestorContainer, text);
+  },
+
+  'Range: surroundContents wraps content'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const div = doc.querySelector('div');
+    const range = new Range();
+    range.selectNodeContents(div);
+
+    const wrapper = doc.createElement('span');
+    range.surroundContents(wrapper);
+
+    eq(div.childNodes.length, 1);
+    eq(div.childNodes[0], wrapper);
+    eq(wrapper.childNodes.length, 1);
+    eq(wrapper.childNodes[0].data, 'Hello');
+  },
+
+  'Range: detach is a no-op'() {
+    const range = new Range();
+    range.detach();
+    eq(range.collapsed, true);
+  },
+
+  'Document: createRange returns Range instance'() {
+    const doc = parseDoc('<html><body></body></html>');
+    const range = doc.createRange();
+    assert(range instanceof Range);
+    eq(range.collapsed, true);
+  },
+
+  /* ========== Selection ========== */
+  'Selection: constructor creates empty selection'() {
+    const selection = new Selection();
+    eq(selection.anchorNode, null);
+    eq(selection.anchorOffset, 0);
+    eq(selection.focusNode, null);
+    eq(selection.focusOffset, 0);
+    eq(selection.isCollapsed, true);
+    eq(selection.rangeCount, 0);
+    eq(selection.type, 'None');
+  },
+
+  'Selection: addRange sets anchor and focus'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 1);
+    range.setEnd(text, 3);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    eq(selection.anchorNode, text);
+    eq(selection.anchorOffset, 1);
+    eq(selection.focusNode, text);
+    eq(selection.focusOffset, 3);
+    eq(selection.rangeCount, 1);
+    eq(selection.type, 'Range');
+    eq(selection.isCollapsed, false);
+  },
+
+  'Selection: addRange with collapsed range creates caret'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 2);
+    range.collapse(true);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    eq(selection.rangeCount, 1);
+    eq(selection.type, 'Caret');
+    eq(selection.isCollapsed, true);
+  },
+
+  'Selection: getRangeAt returns range'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    const retrieved = selection.getRangeAt(0);
+    eq(retrieved, range);
+  },
+
+  'Selection: getRangeAt throws for invalid index'() {
+    const selection = new Selection();
+    assertThrows(() => selection.getRangeAt(0));
+  },
+
+  'Selection: removeRange removes specific range'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    selection.addRange(range);
+    eq(selection.rangeCount, 1);
+
+    selection.removeRange(range);
+    eq(selection.rangeCount, 0);
+    eq(selection.anchorNode, null);
+  },
+
+  'Selection: removeRange throws for non-existent range'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    assertThrows(() => selection.removeRange(range));
+  },
+
+  'Selection: removeAllRanges clears selection'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    selection.addRange(range);
+    eq(selection.rangeCount, 1);
+
+    selection.removeAllRanges();
+    eq(selection.rangeCount, 0);
+    eq(selection.anchorNode, null);
+    eq(selection.focusNode, null);
+  },
+
+  'Selection: empty is alias for removeAllRanges'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    selection.empty();
+    eq(selection.rangeCount, 0);
+  },
+
+  'Selection: collapse sets caret at position'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+
+    const selection = new Selection();
+    selection.collapse(text, 3);
+
+    eq(selection.rangeCount, 1);
+    eq(selection.anchorNode, text);
+    eq(selection.anchorOffset, 3);
+    eq(selection.isCollapsed, true);
+  },
+
+  'Selection: collapseToStart moves to start'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 1);
+    range.setEnd(text, 4);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    selection.collapseToStart();
+    eq(selection.anchorOffset, 1);
+    eq(selection.focusOffset, 1);
+    eq(selection.isCollapsed, true);
+  },
+
+  'Selection: collapseToEnd moves to end'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 1);
+    range.setEnd(text, 4);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    selection.collapseToEnd();
+    eq(selection.anchorOffset, 4);
+    eq(selection.focusOffset, 4);
+    eq(selection.isCollapsed, true);
+  },
+
+  'Selection: selectAllChildren selects all children'() {
+    const doc = parseDoc('<html><body><div><span>1</span><span>2</span></div></body></html>');
+    const div = doc.querySelector('div');
+
+    const selection = new Selection();
+    selection.selectAllChildren(div);
+
+    eq(selection.rangeCount, 1);
+    const range = selection.getRangeAt(0);
+    eq(range.startContainer, div);
+    eq(range.startOffset, 0);
+    eq(range.endContainer, div);
+    eq(range.endOffset, 2);
+  },
+
+  'Selection: setBaseAndExtent creates range'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+
+    const selection = new Selection();
+    selection.setBaseAndExtent(text, 0, text, 5);
+
+    eq(selection.anchorNode, text);
+    eq(selection.anchorOffset, 0);
+    eq(selection.focusNode, text);
+    eq(selection.focusOffset, 5);
+    eq(selection.rangeCount, 1);
+  },
+
+  'Selection: extend modifies focus'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+
+    const selection = new Selection();
+    selection.collapse(text, 0);
+    selection.extend(text, 5);
+
+    eq(selection.anchorOffset, 0);
+    eq(selection.focusOffset, 5);
+  },
+
+  'Selection: toString returns selected text'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    eq(selection.toString(), 'Hello');
+  },
+
+  'Selection: deleteFromDocument removes selected content'() {
+    const doc = parseDoc('<html><body><div>Hello World</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 5);
+    range.setEnd(text, 11);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    selection.deleteFromDocument();
+    eq(text.data, 'Hello');
+  },
+
+  'Selection: containsNode checks if node is in selection'() {
+    const doc = parseDoc('<html><body><div>Hello</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+    const range = new Range();
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+
+    const selection = new Selection();
+    selection.addRange(range);
+
+    eq(selection.containsNode(text), true);
+  },
+
+  'Window: getSelection returns Selection instance'() {
+    const win = new Window({ href: 'https://example.com/' });
+    const selection = win.getSelection();
+    assert(selection instanceof Selection);
+    eq(selection.rangeCount, 0);
+  },
+
+  'Window: getSelection returns same instance'() {
+    const win = new Window({ href: 'https://example.com/' });
+    const selection1 = win.getSelection();
+    const selection2 = win.getSelection();
+    eq(selection1, selection2);
+  },
+
+  'Integration: create range, add to selection, get text'() {
+    const doc = parseDoc('<html><body><div>The quick brown fox</div></body></html>');
+    const text = doc.querySelector('div').firstChild;
+
+    const range = doc.createRange();
+    range.setStart(text, 4);
+    range.setEnd(text, 9);
+
+    const win = new Window({ href: 'https://example.com/' });
+    const selection = win.getSelection();
+    selection.addRange(range);
+
+    eq(selection.toString(), 'quick');
+    eq(selection.rangeCount, 1);
   },
 });
