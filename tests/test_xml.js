@@ -744,15 +744,16 @@ tests({
 
     for(let i = 0; i < 10; i++) {
       let node = p.parse();
-      if(node <= 0) break; // status code
+      if(typeof node === 'number') break; // status code
       nodes.push(node);
     }
 
-    eq(nodes.length, 4); // start root, start child, text, end child, end root
+    eq(nodes.length, 5); // start root, start child, text, end child, end root
     eq(nodes[0].tagName, 'root');
     eq(nodes[1].tagName, 'child');
     eq(nodes[2], 'text');
     eq(nodes[3].tagName, '/child');
+    eq(nodes[4].tagName, '/root');
   },
 
   'XMLNodeParser: handles self-closing tags'() {
@@ -761,7 +762,7 @@ tests({
 
     for(let i = 0; i < 10; i++) {
       let node = p.parse();
-      if(node <= 0) break;
+      if(typeof node === 'number') break;
       nodes.push(node);
     }
 
@@ -1534,7 +1535,7 @@ tests({
 
     for(let i = 0; i < 20; i++) {
       let node = p.parse();
-      if(node <= 0) break;
+      if(typeof node === 'number') break;
       nodes.push(node);
     }
 
