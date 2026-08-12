@@ -40,12 +40,6 @@ the full architecture/gap survey behind Tier 6-8.
   check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling once
   Tier 1 is fixed and traffic patterns are trustworthy again.
 
-- **XML writer builds into a `DynBuf` instead of streaming via a callback** *(pre-existing
-  TODO item)* — architectural, would let large documents serialize without buffering the
-  whole thing in memory (same shape of improvement as this session's `JsonSerializer`).
-
-- **XML reader isn't streaming** *(pre-existing TODO item)* — same motivation, reader side.
-
 - **Streams `respondWithNewView()` (BYOB) is missing spec-required safety checks** —
   `quickjs-stream.c:1242-1247`: the comment lists exactly what's missing (same underlying
   `ArrayBuffer`, same `byteOffset`, length constraints) but none of it is implemented. Until
