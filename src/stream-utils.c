@@ -25,6 +25,7 @@ typedef struct {
   JSValue func_obj, this_obj;
   int ref_count;
   void* rd_wr;
+  int nargs;  /* 2 for (buf, len), 3 for (buf, offset, len) */
 } JSFunc;
 
 typedef struct {
@@ -69,6 +70,7 @@ jsfunc_new(void) {
     fw->this_obj = JS_UNDEFINED;
     fw->ref_count = 1;
     fw->rd_wr = NULL;
+    fw->nargs = 2;
   }
 
   return fw;
@@ -105,37 +107,121 @@ jsfunc_dup(JSFunc* fw) {
   return fw;
 }
 
+/* Detect the number of parameters a function expects */
+static int
+jsfunc_detect_nargs(JSContext* ctx, JSValueConst func_obj) {
+  JSValue length_val = JS_GetPropertyStr(ctx, func_obj, "length");
+  int nargs = 2;  /* default to 2-arg signature */
+
+  if(!JS_IsException(length_val) && !JS_IsUndefined(length_val)) {
+    int32_t length;
+    if(JS_ToInt32(ctx, &length, length_val) == 0) {
+      nargs = (length >= 3) ? 3 : 2;
+      fprintf(stderr, "DEBUG: jsfunc_detect_nargs: length=%d -> nargs=%d\n", length, nargs);
+    }
+  }
+  JS_FreeValue(ctx, length_val);
+
+  return nargs;
+}
+
+/* Check if a JS object is a std FILE object (from std.open) */
+static BOOL
+is_std_file_object(JSContext* ctx, JSValueConst obj) {
+  // Check if the object has both read and write methods, which is characteristic of std FILE
+  JSValue read_method = JS_GetPropertyStr(ctx, obj, "read");
+  JSValue write_method = JS_GetPropertyStr(ctx, obj, "write");
+  
+  BOOL has_read = JS_IsFunction(ctx, read_method);
+  BOOL has_write = JS_IsFunction(ctx, write_method);
+  
+  JS_FreeValue(ctx, read_method);
+  JS_FreeValue(ctx, write_method);
+  
+  // Also check if it has other std FILE characteristics like close method
+  JSValue close_method = JS_GetPropertyStr(ctx, obj, "close");
+  BOOL has_close = JS_IsFunction(ctx, close_method);
+  JS_FreeValue(ctx, close_method);
+  
+  // A std FILE object should have read, write, and close methods
+  return has_read && has_write && has_close;
+}
+
 static JSValue
 jsfunc_invoke(JSFunc* fw, void* buf, size_t len, BOOL copy) {
-  JSValueConst args[2] = {
-      copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
-      JS_NewUint32(fw->ctx, len),
-  };
-  JSAtom method = JS_ValueToAtom(fw->ctx, fw->func_obj);
-  JSValue ret = JS_Invoke(fw->ctx, fw->this_obj, method, 2, args);
-  JS_FreeAtom(fw->ctx, method);
+  JSValue ret;
+  
+  if (fw->nargs == 3) {
+    JSValueConst args[3] = {
+        copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+        JS_NewInt32(fw->ctx, 0),
+        JS_NewInt32(fw->ctx, len),
+    };
+    JSAtom method = JS_ValueToAtom(fw->ctx, fw->func_obj);
+    ret = JS_Invoke(fw->ctx, fw->this_obj, method, 3, args);
+    JS_FreeAtom(fw->ctx, method);
 
-  if(!copy)
-    JS_DetachArrayBuffer(fw->ctx, args[0]);
+    if(!copy)
+      JS_DetachArrayBuffer(fw->ctx, args[0]);
 
-  JS_FreeValue(fw->ctx, args[0]);
-  JS_FreeValue(fw->ctx, args[1]);
+    JS_FreeValue(fw->ctx, args[0]);
+    JS_FreeValue(fw->ctx, args[1]);
+    JS_FreeValue(fw->ctx, args[2]);
+  } else {
+    JSValueConst args[2] = {
+        copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+        JS_NewInt32(fw->ctx, len),
+    };
+    JSAtom method = JS_ValueToAtom(fw->ctx, fw->func_obj);
+    ret = JS_Invoke(fw->ctx, fw->this_obj, method, 2, args);
+    JS_FreeAtom(fw->ctx, method);
+
+    if(!copy)
+      JS_DetachArrayBuffer(fw->ctx, args[0]);
+
+    JS_FreeValue(fw->ctx, args[0]);
+    JS_FreeValue(fw->ctx, args[1]);
+  }
+  
   return ret;
 }
 
 static JSValue
 jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
-  JSValueConst args[2] = {
-      copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
-      JS_NewUint32(fw->ctx, len),
-  };
-  JSValue ret = JS_Call(fw->ctx, fw->func_obj, fw->this_obj, 2, args);
+  JSValue ret;
 
-  if(!copy)
-    JS_DetachArrayBuffer(fw->ctx, args[0]);
+  fprintf(stderr, "DEBUG jsfunc_call: nargs=%d, len=%zu\n", fw->nargs, len);
 
-  JS_FreeValue(fw->ctx, args[0]);
-  JS_FreeValue(fw->ctx, args[1]);
+  if (fw->nargs == 3) {
+    JSValueConst args[3] = {
+        copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+        JS_NewInt32(fw->ctx, 0),
+        JS_NewInt32(fw->ctx, len),
+    };
+    fprintf(stderr, "DEBUG jsfunc_call 3-arg: args[1]=%d, args[2]=%d\n", 0, (int)len);
+    ret = JS_Call(fw->ctx, fw->func_obj, fw->this_obj, 3, args);
+
+    if(!copy)
+      JS_DetachArrayBuffer(fw->ctx, args[0]);
+
+    JS_FreeValue(fw->ctx, args[0]);
+    JS_FreeValue(fw->ctx, args[1]);
+    JS_FreeValue(fw->ctx, args[2]);
+  } else {
+    JSValueConst args[2] = {
+        copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
+        JS_NewInt32(fw->ctx, len),
+    };
+    fprintf(stderr, "DEBUG jsfunc_call 2-arg: args[1]=%d\n", (int)len);
+    ret = JS_Call(fw->ctx, fw->func_obj, fw->this_obj, 2, args);
+
+    if(!copy)
+      JS_DetachArrayBuffer(fw->ctx, args[0]);
+
+    JS_FreeValue(fw->ctx, args[0]);
+    JS_FreeValue(fw->ctx, args[1]);
+  }
+
   return ret;
 }
 
@@ -398,11 +484,19 @@ write_jsinvoke(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   JSFunc* fw = (JSFunc*)fd;
   JSValue ret = jsfunc_invoke(fw, (void*)buf, len, TRUE);
 
-  if(JS_IsException(ret))
+  if(JS_IsException(ret)) {
+    JS_FreeValue(fw->ctx, JS_GetException(fw->ctx));
     return -1;
+  }
 
+  int32_t written;
+  if(JS_ToInt32(fw->ctx, &written, ret)) {
+    JS_FreeValue(fw->ctx, ret);
+    return -1;
+  }
   JS_FreeValue(fw->ctx, ret);
-  return len;
+
+  return written;
 }
 
 static ssize_t
@@ -410,11 +504,19 @@ write_jsfunction(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   JSFunc* fw = (JSFunc*)fd;
   JSValue ret = jsfunc_call(fw, (void*)buf, len, TRUE);
 
-  if(JS_IsException(ret))
+  if(JS_IsException(ret)) {
+    JS_FreeValue(fw->ctx, JS_GetException(fw->ctx));
     return -1;
+  }
 
+  int32_t written;
+  if(JS_ToInt32(fw->ctx, &written, ret)) {
+    JS_FreeValue(fw->ctx, ret);
+    return -1;
+  }
   JS_FreeValue(fw->ctx, ret);
-  return len;
+
+  return written;
 }
 
 static ssize_t
@@ -564,6 +666,11 @@ writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr) {
       return 1;
     }
 
+    if(is_std_file_object(ctx, value)) {
+      *wr = writer_from_jsstd(ctx, value);
+      return 1;
+    }
+
     if(js_has_propertystr(ctx, value, "getWriter")) {
       *wr = writer_from_jsstream(ctx, value);
       return 1;
@@ -627,10 +734,30 @@ writer_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
 
   assert(fw);
 
-  *fw = (JSFunc){JS_DupContext(ctx), JS_DupValue(ctx, func_obj), JS_DupValue(ctx, this_obj)};
+  fw->ctx = JS_DupContext(ctx);
+  fw->func_obj = JS_DupValue(ctx, func_obj);
+  fw->this_obj = JS_DupValue(ctx, this_obj);
+  fw->nargs = jsfunc_detect_nargs(ctx, func_obj);
+
+  fprintf(stderr, "DEBUG writer_from_jsmethod: nargs=%d\n", fw->nargs);
 
   return (Writer){
       &write_jsfunction,
+      fw,
+      &jsfunc_free,
+  };
+}
+
+Writer
+writer_from_jsstd(JSContext* ctx, JSValueConst file_obj) {
+  JSFunc* fw = jsfunc_new();
+
+  assert(fw);
+
+  *fw = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, "write"), JS_DupValue(ctx, file_obj), 3};
+
+  return (Writer){
+      &write_jsinvoke,
       fw,
       &jsfunc_free,
   };
@@ -869,27 +996,29 @@ read_jsinvoke(intptr_t fd, void* buf, size_t len, Reader* rd) {
   JSFunc* fr = (JSFunc*)fd;
   JSValue ret = jsfunc_invoke(fr, buf, len, FALSE);
 
-  if(JS_IsException(ret))
+  if(JS_IsException(ret)) {
+    JS_FreeValue(fr->ctx, JS_GetException(fr->ctx));
     return -1;
+  }
 
-  int32_t r = js_toint32_free(fr->ctx, ret);
+  int32_t n = js_toint32_free(fr->ctx, ret);
 
-  if(r > 0 && (size_t)r > len)
-    r = len;
-
-  return r;
+  return n;
 }
 
 static ssize_t
 read_jsfunction(intptr_t fd, void* buf, size_t len, Reader* rd) {
   JSFunc* fr = (JSFunc*)fd;
   JSValue ret = jsfunc_call(fr, buf, len, FALSE);
-  int32_t r = JS_IsException(ret) ? -1 : js_toint32_free(fr->ctx, ret);
 
-  if(r > 0 && (size_t)r > len)
-    r = len;
+  if(JS_IsException(ret)) {
+    JS_FreeValue(fr->ctx, JS_GetException(fr->ctx));
+    return -1;
+  }
 
-  return r;
+  int32_t n = js_toint32_free(fr->ctx, ret);
+
+  return n;
 }
 
 static ssize_t
@@ -1130,6 +1259,12 @@ reader_from_js(JSContext* ctx, JSValueConst value, Reader* rd) {
       return 1;
     }
 
+    /* a std FILE object (e.g., from std.open) with read(buf, offset, len) signature */
+    if(is_std_file_object(ctx, value)) {
+      *rd = reader_from_jsstd(ctx, value);
+      return 1;
+    }
+
     /*  an object exposing such a function as its "read" method (called with the object as `this`) */
     if(js_has_propertystr(ctx, value, "read")) {
       *rd = reader_from_jsinvoke(ctx, "read", value);
@@ -1203,6 +1338,22 @@ reader_from_jsmethod(JSContext* ctx, JSValueConst func_obj, JSValueConst this_ob
 
   return (Reader){
       &read_jsfunction,
+      fr,
+      NULL,
+      (ReaderFinalizer*)&jsfunc_free,
+  };
+}
+
+Reader
+reader_from_jsstd(JSContext* ctx, JSValueConst file_obj) {
+  JSFunc* fr = jsfunc_new();
+
+  assert(fr);
+
+  *fr = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, "read"), JS_DupValue(ctx, file_obj), 3};
+
+  return (Reader){
+      &read_jsinvoke,
       fr,
       NULL,
       (ReaderFinalizer*)&jsfunc_free,
