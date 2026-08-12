@@ -349,3 +349,129 @@ Remaining items ordered by leverage:
 **Files:** `lib/worker.js`
 
 **Status:** Not implemented (also tracked in Tier 7).
+
+## Tier 10 — C API consolidation and cleanup
+
+Low-usage or redundant C APIs in `include/` and `src/` that should be consolidated,
+inlined, or removed to reduce maintenance burden and code duplication.
+
+### 10.1 Duplicate JSON parsers (HIGH - consolidate to one)
+**Problem:** Three separate JSON parsing implementations exist:
+- `jread.h/jread.c` (483 lines) - resumable SAX parser, used only by `quickjs-json.c`
+- `json.h/json.c` (2 uses) - another JSON parser, used only by `quickjs-json.c`
+- `sj.h` (1 use) - simple JSON reader, used only by `quickjs-json.c`
+
+All three are only used by `quickjs-json.c`. This is excessive duplication for a single consumer.
+
+**Recommendation:** Consolidate to a single JSON parser. `jread.h` is the most complete
+(resumable, streaming), so keep that and remove `json.h/json.c` and `sj.h`. Update
+`quickjs-json.c` to use only `jread`.
+
+**Files:** `include/jread.h`, `include/json.h`, `include/sj.h`, `src/jread.c`, `src/json.c`
+
+**Impact:** Removes ~500 lines of duplicate code, simplifies JSON parsing architecture.
+
+### 10.2 Duplicate XML parsers (HIGH - consolidate to one)
+**Problem:** Two separate XML parsing implementations:
+- `xread.h/xread.c` (385 lines) - resumable SAX parser, used only by `quickjs-xml.c`
+- `xml.h/xml.c` (4 uses) - another XML parser
+
+Both are only used by `quickjs-xml.c` (and `xml_entities.h` which is part of the xml module).
+
+**Recommendation:** Consolidate to a single XML parser. `xread.h` is resumable and
+streaming-friendly, so keep that and remove `xml.h/xml.c` (or merge the best parts).
+Update `quickjs-xml.c` to use only `xread`.
+
+**Files:** `include/xread.h`, `include/xml.h`, `src/xread.c`, `src/xml.c`
+
+**Impact:** Removes ~400 lines of duplicate code, simplifies XML parsing architecture.
+
+### 10.3 RingBuffer essentially unused (MEDIUM - remove)
+**Problem:** `ringbuffer.h/ringbuffer.c` (163 lines) has only 2 uses:
+- Referenced in `quickjs-textcode.h` but **commented out** (`/*RingBuffer buffer;*/`)
+- Used only by itself (`src/ringbuffer.c`)
+
+The API is not actually used anywhere in the codebase.
+
+**Recommendation:** Remove `ringbuffer.h` and `ringbuffer.c` entirely. If ring buffer
+functionality is needed later, it can be reimplemented or imported from a well-tested library.
+
+**Files:** `include/ringbuffer.h`, `src/ringbuffer.c`
+
+**Impact:** Removes 163 lines of unused code.
+
+### 10.4 BitSet only used by one module (LOW - inline)
+**Problem:** `bitset.h/bitset.c` (106 lines) has only 2 uses:
+- Used only by `json.h` (which is itself only used by `quickjs-json.c`)
+- Used only by itself (`src/bitset.c`)
+
+This is a small utility that's only needed by one consumer.
+
+**Recommendation:** Inline `bitset.h/bitset.c` into `json.c` (or `jread.c` after consolidation).
+Remove the standalone header and source files.
+
+**Files:** `include/bitset.h`, `src/bitset.c`
+
+**Impact:** Removes 106 lines, simplifies JSON parser dependencies.
+
+### 10.5 ioctlcmd.h Windows-only and unused (LOW - remove)
+**Problem:** `ioctlcmd.h` (1 use) contains Windows-specific reparse point and symlink
+definitions. It's only included by `libarchive/` (an external dependency), not by any
+qjs-modules code.
+
+**Recommendation:** Remove `ioctlcmd.h`. If libarchive needs these definitions, they should
+come from libarchive's own headers or Windows SDK.
+
+**Files:** `include/ioctlcmd.h`
+
+**Impact:** Removes Windows-specific code that's not used by qjs-modules itself.
+
+### 10.6 async-closure.h only used by MySQL (LOW - inline)
+**Problem:** `async-closure.h/async-closure.c` (166 lines) has only 2 uses:
+- Used only by `quickjs-mysql.c`
+- Used only by itself (`src/async-closure.c`)
+
+This is a MySQL-specific async handler pattern.
+
+**Recommendation:** Inline `async-closure.h/async-closure.c` into `quickjs-mysql.c` or
+move to `quickjs-mysql.h`. This is MySQL-specific functionality that doesn't need to be
+a general-purpose API.
+
+**Files:** `include/async-closure.h`, `src/async-closure.c`
+
+**Impact:** Removes 166 lines, clarifies that this is MySQL-specific code.
+
+### 10.7 child-process.h only used by one module (LOW - inline)
+**Problem:** `child-process.h/child-process.c` (525 lines) has only 2 uses:
+- Used only by `quickjs-child-process.c`
+- Used only by itself (`src/child-process.c`)
+
+This is a large module that's only consumed by one binding.
+
+**Recommendation:** Inline `child-process.h/child-process.c` into `quickjs-child-process.c`.
+The header can remain as `quickjs-child-process.h` if needed for external use, but the
+internal implementation doesn't need to be a separate module.
+
+**Files:** `include/child-process.h`, `src/child-process.c`
+
+**Impact:** Simplifies module structure, though no line count reduction (just consolidation).
+
+### Summary
+
+**Total lines to remove:** ~1,340 lines of duplicate/unused code
+- JSON parsers: ~500 lines (keep jread, remove json.h and sj.h)
+- XML parsers: ~400 lines (keep xread, remove xml.h or merge)
+- RingBuffer: 163 lines (remove entirely)
+- BitSet: 106 lines (inline into JSON parser)
+- ioctlcmd.h: ~80 lines (remove)
+- async-closure: 166 lines (inline into MySQL)
+- child-process: 525 lines (inline into binding, no net reduction)
+
+**Priority order:**
+1. **HIGH:** Consolidate JSON parsers (10.1) - removes most duplication
+2. **HIGH:** Consolidate XML parsers (10.2) - removes second-most duplication
+3. **MEDIUM:** Remove RingBuffer (10.3) - completely unused
+4. **LOW:** Inline BitSet (10.4) - simplifies dependencies
+5. **LOW:** Remove ioctlcmd.h (10.5) - unused Windows code
+6. **LOW:** Inline async-closure (10.6) - clarifies MySQL-specific code
+7. **LOW:** Inline child-process (10.7) - simplifies structure
