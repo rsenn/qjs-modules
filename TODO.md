@@ -26,7 +26,7 @@ the full architecture/gap survey behind Tier 6-8.
 
 ## Tier 2 — public API documented as working, but isn't
 
-~~**`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`**~~ — **FIXED** in commit `XXXXXX`.
+~~**`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`**~~ — **FIXED** in commit `bfa9b603`.
   Implemented `Blob.prototype.stream()` to return a `ReadableStream` over the blob's bytes.
   The implementation copies the blob data (since the blob may be garbage collected before
   the stream finishes reading) and wraps it in a Reader that's passed to
