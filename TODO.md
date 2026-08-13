@@ -57,7 +57,7 @@ the full architecture/gap survey behind Tier 6-8.
   `assert`/`assertEq` pattern every other `test_*.js` file uses) that ends in an unguarded
   `while(!skip()) {}` loop. It's exactly the kind of gap that let `List.prototype.at()`
   (registered but its case body commented out, always returning `undefined`) go unnoticed —
-  since removed entirely (`quickjs-list.c`, `doc/list.md`). Worth rewriting properly so the
+  since removed entirely (`quickjs-list.c`, `doc/native/list.md`). Worth rewriting properly so the
   next dead/wrong method doesn't slip through the same way.
 
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)

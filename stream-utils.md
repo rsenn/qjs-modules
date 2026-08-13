@@ -10,7 +10,7 @@
 
 ## QuickJS Async I/O Model
 
-From `doc/quickjs.md`:
+From the QuickJS documentation (../quickjs/doc/quickjs.md):
 
 ```javascript
 os.setReadHandler(fd, func)

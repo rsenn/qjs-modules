@@ -11,7 +11,7 @@
  * otherwise be the natural spelling - see BUGS:
  * quickjs-unary-not-overload-abort for why that one is off the table
  * entirely (it crashes the process, not just "doesn't work"). See
- * doc/predicate.md for how the underlying Operators.create()/cross-type
+ * doc/js/predicate.md for how the underlying Operators.create()/cross-type
  * dispatch mechanism works in general, and the comments in lib/parser.js
  * itself for the specifics of this module's use of it (in particular why
  * Number, but not String, can be mixed into a `>>`/`<<` chain as a bare

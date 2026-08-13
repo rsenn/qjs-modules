@@ -1076,7 +1076,7 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 
   /* Builds Predicate.prototype[Symbol.operatorSet] via the same
    * Operators.create(selfOps, leftDef, rightDef, ...) mechanism user code
-   * uses (see doc/operator-overloading.md) - just called from C instead of
+   * uses (see doc/js/predicate.md) - just called from C instead of
    * JS. args[0] (selfOps) is used verbatim as self_ops: both operands are
    * Predicate. args[1]/args[2] each carry the *same* js_predicate_operator_
    * funcs table again, plus a "left"/"right" property naming the *other*
@@ -1087,7 +1087,7 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
    * `5 * predicate`) and a `right` property into opset->left (Predicate on
    * the left - `predicate * 5`). Both still resolve to the same
    * js_predicate_operator(), which doesn't care which table found it - see
-   * doc/predicate.md for the full explanation. */
+   * doc/js/predicate.md for the full explanation. */
   JSValue operators, operators_create;
   JSAtom operators_set = js_symbol_operatorset_atom(ctx);
 
