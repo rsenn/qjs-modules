@@ -192,19 +192,20 @@ This aligns with the stated goal: "be the standard library QuickJS deserves" and
   - ✅ BYOB: cancel() resolves pending reads - FIXED
 
 ### Remaining Stream Issues
-The 2 remaining test failures are not BYOB-related:
-1. "ReadableStream: breaking out of for-await-of releases/cancels the stream" - iterator cleanup issue
-2. "WritableStream: a rejecting write() errors the stream for subsequent writes" - error propagation issue
-
-These are lower priority and can be addressed separately from the BYOB work.
+All stream tests are now passing (100% pass rate)! The 2 previously failing tests have been fixed:
+1. "ReadableStream: breaking out of for-await-of releases/cancels the stream" - Fixed by correcting async iterator cleanup
+2. "WritableStream: a rejecting write() errors the stream for subsequent writes" - Fixed by handling undefined stream state
 
 ### Overall Test Status
 - **Total tests**: 41 stream tests
-- **Passing**: 39 tests (95%)
-- **Failing**: 2 tests (5%) - non-BYOB related
+- **Passing**: 41 tests (100%)
+- **Failing**: 0 tests (0%)
 - **Non-stream tests**: 35/41 passing (85%)
 
 ### Next Steps
-1. Fix remaining 2 non-BYOB test failures (for-await-of and WritableStream error handling)
-2. Implement Fetch API (Tier 9.1)
-3. Implement FormData (Tier 9.2)
+1. Implement Fetch API (Tier 9.1)
+2. Implement FormData (Tier 9.2)
+3. Implement WebSocket (Tier 9.7)
+4. Implement Canvas API (Tier 9.8)
+5. Implement Web Workers (Tier 9.9)
+6. Add URL.createObjectURL/revokeObjectURL (Tier 9.6)

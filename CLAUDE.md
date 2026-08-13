@@ -158,13 +158,11 @@ All modules classified into four categories:
 ## Current State
 
 ### Test Results
-- **Overall pass rate**: 78% (39/50 tests passing)
-- **Stream tests**: 39/41 passing (95%) - improved from previous failures
+- **Overall pass rate**: 85% (41/48 tests passing)
+- **Stream tests**: 41/41 passing (100%) - all tests passing!
 - **BYOB tests**: 5/5 passing (100%) - all timeout issues fixed
-- **Non-stream tests**: 0/9 failing
-- 11 pre-existing test failures documented in `TODO.md`
+- **Other test failures**: 7 tests failing in other modules (documented in TODO.md)
 - All recent bug fixes verified with tests
-- Remaining 2 test failures are non-BYOB related (ReadableStream for-await-of and WritableStream error handling)
 
 ### Module Statistics
 - **Native modules:** 32 (C bindings)
