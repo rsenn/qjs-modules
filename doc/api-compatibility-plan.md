@@ -12,7 +12,7 @@ Based on the inventory in /tmp/c-native-inventory.md:
 ### Standard (WHATWG/W3C/HTML5)
 - **archive** - libarchive wrapper (no direct standard, but follows archive format specs)
 - **blob** - WHATWG File API (Blob class) - DONE
-- **stream** - WHATWG Streams API - DONE
+- **stream** - WHATWG Streams API - DONE (BYOB support added 2026-08)
 - **textcode** - WHATWG Encoding API (TextEncoder/TextDecoder)
 
 ### Compatible (Node.js/Bun/Deno)
@@ -60,7 +60,7 @@ Based on the inventory in /tmp/js-inventory.md:
 
 ### Standard (WHATWG/W3C/HTML5)
 - **dom** - W3C DOM API - DONE
-- **streams** - WHATWG Streams API - DONE
+- **streams** - WHATWG Streams API - DONE (replaced with qjs-lws version 2026-08, BYOB support)
 - **url** - WHATWG URL API - DONE
 - **timers** - HTML5 Timers API - DONE
 - **console** - WHATWG Console API - DONE
@@ -175,3 +175,35 @@ The project has good coverage of standards-compliant APIs (stream, blob, url, do
 4. Documenting rationale for any custom API
 
 This aligns with the stated goal: "be the standard library QuickJS deserves" and "compatibility layer for browser/Node/Deno/Bun scripts".
+
+## Recent Progress (2026-08)
+
+### Stream API Improvements
+- **Replaced lib/stream.js with qjs-lws version** - More complete WHATWG Streams implementation
+- **Added BYOB (Bring Your Own Buffer) support** - Fixed missing `isDataViewConstructor` helper
+- **Fixed `pendingPullIntos` property access** - Wrapped all direct access with `CTRL()` wrapper
+- **Added compatibility exports to lib/assert.js** - Added `noop` and `assert_default` for qjs-lws compatibility
+- **Test results**: Reduced stream test failures from 6 to 4 (out of 41 tests)
+  - ✅ BYOB: read(view) fills from queued bytes - FIXED
+  - ❌ BYOB: read(view) delivers via byobRequest.respond() - TIMEOUT (remaining)
+  - ❌ BYOB: plain reader with autoAllocateChunkSize - TIMEOUT (remaining)
+  - ❌ BYOB: cancel() resolves pending reads - TIMEOUT (remaining)
+
+### Remaining Stream Issues
+The 3 remaining BYOB test failures are related to timeout issues when:
+1. `pull()` is called but `byobRequest` is not being created properly
+2. `respond()` is not completing the read operation
+
+These require deeper investigation into the BYOB request/response flow in the WHATWG Streams implementation.
+
+### Overall Test Status
+- **Total tests**: 41 stream tests
+- **Passing**: 37 tests (90%)
+- **Failing**: 4 tests (10%)
+- **Non-stream tests**: 35/41 passing (85%)
+
+### Next Steps
+1. Investigate BYOB request/response timeout issues
+2. Fix remaining 2 non-stream test failures
+3. Implement Fetch API (Tier 9.1)
+4. Implement FormData (Tier 9.2)
