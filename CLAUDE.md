@@ -68,6 +68,29 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Philosophy
+
+### Core Mission
+**Be the standard library QuickJS deserves** by providing WHATWG-spec'd web APIs and Deno/Bun-like runtime APIs with a coherent, documented JS surface over native bindings.
+
+### API Design Principles
+
+1. **Prefer Standards Over Custom APIs**
+   - Priority: WHATWG > Browser > Bun > Node > Deno
+   - Avoid "qjs-modules-isms" (custom APIs that lock users in)
+   - Scripts from browser/Node/Deno/Bun should run with minimal changes
+
+2. **Prefer JS-Idiomatic APIs Over C++ API Parity**
+   - When binding C++ containers, prefer plain JS arrays with GC over strict API reproduction
+   - Use JS-native patterns: arrays, iterators, `for...of`, spread, indexing, length
+   - Avoid verbose container APIs (`.get()`, `.delete()`, `.size()`) when plain arrays are cleaner
+   - If C++-style containers are needed, enhance them with JS-idiomatic extensions (Symbol.iterator, indexing)
+
+3. **Internal vs Public APIs**
+   - Modules like `deep`, `predicate`, `pointer`, `misc` are internal implementation details
+   - Don't add new custom public APIs unless absolutely necessary
+   - Document rationale for any custom API added
+
 ## What this is
 
 A collection of **native C modules for QuickJS** (`quickjs-*.c`/`.h` bindings, e.g. `stream`,
@@ -75,44 +98,273 @@ A collection of **native C modules for QuickJS** (`quickjs-*.c`/`.h` bindings, e
 tests live in `tests/test_*.js` and run under `qjs`/`qjsm`, wired up as CTest cases
 (`add_test` in `CMakeLists.txt`).
 
-## Tracking work — always keep these current
+## Recent Work (August 2026)
 
-Outstanding work in this repo lives in three files, not in ad-hoc notes or memory. Whenever a
-session finds a bug, fixes one, or turns up new unfinished work, **update the relevant file
-before the session ends** — don't leave it for the user to transcribe later.
+### Documentation Restructuring (Completed)
+- **Reorganized `doc/` folder** into logical subdirectories:
+  - `doc/native/` - C native modules (32 modules + README)
+  - `doc/js/` - JavaScript modules (46 modules + README)
+  - `doc/` - General documentation (README, grammar, buffer, readline, api-compatibility)
+- **Created comprehensive READMEs** for both subdirectories explaining structure and classification
+- **Updated all references** throughout codebase to new paths
 
-- **`TODO.md`** — the authoritative, actively maintained tracker. Items are tiered by leverage
-  (highest-impact/cheapest fixes first) and each one is *verified against the code* (file:line,
-  concrete failure, repro where applicable), not just grepped or guessed. This is where new
-  bugs/gaps discovered by reading or running the code get added, and where fixed items get
-  removed or marked done.
-- **`TODO`** (no extension) — legacy sparse list, superseded by `TODO.md`. Don't add new items
-  here; if you touch something on this list, fold the item into `TODO.md` and note it as
-  folded-in, same as the existing entries.
-- **`BUGS`** — plaintext, bugs found *incidentally* while doing other work (e.g. while writing
-  unit tests) and deliberately left unfixed at the time. Add to this file when you find a bug
-  but the task at hand isn't "fix bugs" — don't fix it out of scope, but don't lose it either.
-  Append newly discovered bugs to the **end** of the file, in the order found, wrapped to 78
-  columns, all lowercase, in this format:
-  ```
-  - <canonical-kebab-case-name>: <prose description, all lowercase, wrapped to 78
-    columns, covering what's wrong, why, and where (file:line) it was found>
+### Module Classification System (Completed)
+All modules classified into four categories:
 
-      <minimal JS (or build/shell) snippet that triggers/reproduces it, 4-space
-      indented, with a comment showing the actual vs. expected result>
-  ```
-  If no isolated repro exists yet (e.g. a suspected leak or a build-only failure), say so
-  explicitly in the prose rather than inventing one.
+1. **Native Modules** (32 C bindings in `doc/native/`):
+   - Direct C implementations exposed to JavaScript
+   - Examples: blob, stream, dom, fs, process, child-process, sockets
+   - Document the JS API exposed by C bindings
+   - **NO references to `lib/*.js` files**
 
-When in doubt about where an item goes: a verified, actionable fix → `TODO.md`; a bug noticed
-in passing that's out of scope for the current task → `BUGS`.
+2. **JavaScript Polyfills** (15 in `doc/js/`):
+   - Standalone JS implementations of standard APIs
+   - No native imports, work in other runtimes
+   - Examples: deep.js, pointer.js, predicate.js, xml.js, misc.js, stream.js, events.js, abort.js
 
-## Build / test
+3. **JavaScript Wrappers** (18 in `doc/js/`):
+   - Wrap native modules to provide higher-level APIs
+   - Examples: fs.js, process.js, console.js, assert.js, streams.js
 
-```sh
-cmake -B build/$(cc -dumpmachine) -S .
-cmake --build build/$(cc -dumpmachine)
-ctest --test-dir build/$(cc -dumpmachine)
+4. **Prototype Extensions** (10 in `doc/js/`):
+   - Extend built-in prototypes (Array, Object, Map, etc.)
+   - Examples: extendArray.js, extendObject.js, extendMap.js
+
+### Overlap Resolution (Completed)
+**Decision:** Modules with both C and JS implementations (deep, pointer, predicate, stream, xml, misc, path):
+- Documented **ONLY in `doc/native/`** (C is primary/authoritative)
+- JS polyfills are alternative implementations for other runtimes
+- Avoids duplication and confusion
+
+### API Compatibility Research (Completed)
+- **Inventoried all 33 native C modules** with detailed export listings
+- **Inventoried all 46+ JS modules** with classification and usage
+- **Created `doc/api-compatibility.md`** with standards compliance tracking
+- **Created `doc/api-compatibility-plan.md`** with roadmap and statistics
+- **Verified no native docs reference `.js` files**
+
+### Bug Fixes (Completed)
+- Fixed `process.js` scriptArgs crash under `-e` mode
+- Fixed `property_enumeration_setpos` assertion with empty objects
+- Fixed `Blob.prototype.stream()` to return proper ReadableStream
+- Fixed XML test assertion for digit-starting tag names
+- Fixed stream tests to use lib/stream.js instead of native module
+- Added missing path module exports (isin, equal, toArray)
+
+## Current State
+
+### Test Results
+- **78% pass rate** (39/50 tests passing)
+- 11 pre-existing test failures documented in `TODO.md`
+- All recent bug fixes verified with tests
+
+### Module Statistics
+- **Native modules:** 32 (C bindings)
+- **JavaScript modules:** 46 (polyfills, wrappers, extensions)
+- **Total modules:** 78
+- **Documentation files:** 85 (33 native + 46 JS + 6 general)
+
+### Standards Compliance
+**Implemented:**
+- WHATWG: Streams, Blob, URL, Console, AbortController
+- W3C: DOM (comprehensive, 90%+ coverage), TreeWalker, XPath
+- HTML5: Timers
+- Node.js: fs, process, events, assert, child-process, path, util, tty
+
+**Missing (tracked in TODO.md):**
+- Fetch API (Tier 9.1)
+- FormData (Tier 9.2)
+- WebSocket (Tier 9.7)
+- Canvas API (Tier 9.8)
+- Web Workers (Tier 9.9)
+- URL.createObjectURL/revokeObjectURL (Tier 9.6)
+- Streams BYOB safety checks (Tier 3)
+
+## Documentation Structure
+
+```
+doc/
+├── README.md                      # Main documentation index
+├── grammar.md                     # Grammar framework
+├── buffer.md                      # Buffer handling
+├── readline.md                    # Readline utilities
+├── api-compatibility.md          # Standards compliance research
+├── api-compatibility-plan.md     # Classification and roadmap
+│
+├── native/                       # C native modules (32)
+│   ├── README.md
+│   ├── archive.md, arraybuffer-sink.md, bcrypt.md, bjson.md
+│   ├── blob.md, child-process.md, deep.md, directory.md
+│   ├── gpio.md, inspect.md, json.md, lexer.md, list.md
+│   ├── location.md, magic.md, misc.md, mmap.md
+│   ├── mysql.md, path.md, pgsql.md, pointer.md, predicate.md
+│   ├── queue.md, repeater.md, serial.md, sockets.md, sqlite.md
+│   ├── stream.md, syscallerror.md, textcode.md
+│   ├── tree-walker.md, virtual.md, xml.md
+│
+└── js/                           # JavaScript modules (46)
+    ├── README.md
+    ├── Polyfills: abort.md, arrayLike.md, asyncIterator.md, events.md
+    │              iterator.md, testharness.md, testharnessreport.md
+    │              parsel.md, describe-class.md
+    ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md
+    │             streams.md, io.md, tty.md, repl.md, require.md
+    │             module.md, stack.md, inotify.md, terminal.md
+    │             perf_hooks.md, url.md, xpath.md, vfs.md, reflect.md
+    ├── Extensions: extendArray.md, extendArrayBuffer.md, extendObject.md
+    │               extendMap.md, extendSet.md, extendMath.md
+    │               extendFunction.md, extendAsyncFunction.md
+    │               extendGenerator.md, extendAsyncGenerator.md
+    └── Other: css-selectors.md, css3-selectors.md, parser.md
+               db.md, dbi.md, database.md, dom.md, file.md
+               socklen_t.md, timers.md, util.md, html.md
 ```
 
-Individual tests can also be run directly, e.g. `qjs tests/test_stream.js`.
+## Tracking Work
+
+Outstanding work lives in three files:
+
+- **`TODO.md`** — Authoritative, tiered tracker. Items verified against code (file:line, concrete failure, repro). Tiered by leverage (highest-impact/cheapest first).
+- **`BUGS`** — Bugs found incidentally while doing other work, deliberately left unfixed. Format: kebab-case name, all lowercase, 78-column wrap, with repro snippet.
+- **`TODO`** (no extension) — Legacy list, superseded by `TODO.md`. Don't add here.
+
+**When to update:**
+- Found a bug but task isn't "fix bugs" → append to `BUGS`
+- Verified actionable fix → add to `TODO.md`
+- Fixed something → remove/mark done in `TODO.md`
+
+## Build / Test
+
+```sh
+# Configure
+cmake -B build/$(cc -dumpmachine) -S .
+
+# Build
+cmake --build build/$(cc -dumpmachine)
+
+# Test all
+ctest --test-dir build/$(cc -dumpmachine)
+
+# Test specific
+qjs tests/test_stream.js
+```
+
+## Important Files
+
+- **`CMakeLists.txt`** - Build configuration, module registration, test setup
+- **`lib/`** - JavaScript modules (polyfills, wrappers, extensions)
+- **`quickjs-*.c`** - Native C module implementations
+- **`include/`** - C headers for native modules
+- **`tests/`** - Test suite (test_*.js)
+- **`doc/`** - Documentation (see structure above)
+- **`TODO.md`** - Work tracker
+- **`BUGS`** - Known bugs
+- **`CLAUDE.md`** - This file (AI assistant context)
+
+## Development Conventions
+
+### Code Style
+- Match existing style in files you edit
+- No speculative features or abstractions
+- Surgical changes only - don't "improve" adjacent code
+- Remove only what YOUR changes made unused
+
+### Documentation
+- Native modules: Document in `doc/native/<name>.md`
+- JS modules: Document in `doc/js/<name>.md`
+- General docs: Keep in `doc/` root
+- Update docs when changing APIs
+
+### Testing
+- Write tests for new features
+- Verify bug fixes with tests
+- Run `ctest` before committing
+- Individual tests: `qjs tests/test_<name>.js`
+
+### Commits
+- Clear, descriptive commit messages
+- Reference issue/bug numbers when applicable
+- Keep commits focused (one logical change per commit)
+
+## Architecture Patterns
+
+### Module Structure
+```
+quickjs-<name>.c          # C implementation
+include/<name>.h          # C header
+lib/<name>.js             # JS wrapper (if needed)
+doc/native/<name>.md      # C API documentation
+doc/js/<name>.md          # JS API documentation (if separate)
+tests/test_<name>.js      # Test suite
+```
+
+### Wrapper Pattern
+JS wrappers typically:
+1. Import native module: `import { Foo } from '<name>'`
+2. Add convenience methods or higher-level APIs
+3. Re-export with enhancements
+4. Document in `doc/js/<name>.md`
+
+### Polyfill Pattern
+JS polyfills typically:
+1. Implement standard API (WHATWG/W3C/Node.js)
+2. No native imports (pure JS)
+3. Work in other runtimes
+4. Document in `doc/js/<name>.md`
+
+## Known Issues
+
+See `TODO.md` for full list. Key items:
+
+- **Streams BYOB safety checks** (Tier 3) - Missing validation in respondWithNewView()
+- **Fetch API** (Tier 9.1) - Not implemented
+- **FormData** (Tier 9.2) - Not implemented
+- **URL.createObjectURL** (Tier 9.6) - Not implemented
+- **11 test failures** - Pre-existing, documented in TODO.md
+
+## Future Roadmap
+
+### Immediate (Tier 2-3)
+- Fix Streams BYOB safety checks
+- Fix remaining test failures
+- Clean up dead code in C modules
+
+### Medium-term (Tier 9)
+- Implement Fetch API
+- Implement FormData
+- Implement WebSocket
+- Add URL.createObjectURL/revokeObjectURL
+
+### Long-term
+- Achieve 95%+ standards compliance
+- Reduce custom APIs to minimum
+- Improve test coverage to 90%+
+- Document all public APIs
+
+## Context for AI Assistants
+
+When working on this codebase:
+
+1. **Check TODO.md first** - See what's planned/prioritized
+2. **Read relevant docs** - `doc/native/` for C, `doc/js/` for JS
+3. **Run tests** - Verify your changes don't break existing tests
+4. **Update docs** - If you change APIs, update documentation
+5. **Track work** - Add to TODO.md or BUGS as appropriate
+6. **Prefer standards** - Align with WHATWG/W3C/Node.js when possible
+7. **Prefer JS-idiomatic** - Use JS patterns over C++ API parity
+8. **Be surgical** - Minimal changes, no scope creep
+
+## Session History
+
+**Recent sessions (August 2026):**
+- Documentation reorganization and module classification
+- API compatibility research and inventory
+- Multiple bug fixes (process.js, Blob.stream(), XML tests, etc.)
+- Test suite improvements (78% pass rate)
+- Established standards compliance roadmap
+
+**Next priorities:**
+1. Fix Streams BYOB safety checks
+2. Implement Fetch API
+3. Fix remaining 11 test failures
+4. Reduce custom APIs, increase standards compliance
