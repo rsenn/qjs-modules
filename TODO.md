@@ -40,12 +40,13 @@ the full architecture/gap survey behind Tier 6-8.
   check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling once
   Tier 1 is fixed and traffic patterns are trustworthy again.
 
-- ~~**Streams `respondWithNewView()` (BYOB) is missing spec-required safety checks**~~ — **FIXED** in commit `312df027`.
+- ~~**Streams `respondWithNewView()` (BYOB) is missing spec-required safety checks**~~ — **FIXED** in commits `312df027` and `ae4f9992`.
   Replaced `lib/stream.js` with qjs-lws version which has complete BYOB implementation.
   Added `isDataViewConstructor` helper function and fixed all `pendingPullIntos` property
   access to use `CTRL()` wrapper. Added `noop` and `assert_default` exports to lib/assert.js
-  for compatibility. Stream tests now pass 37/41 (90%). Remaining 4 test failures are timeout
-  issues in BYOB request/response flow that need deeper investigation.
+  for compatibility. Fixed `ReadableByteStreamControllerCallPullIfNeeded` to pull when there
+  are pending read requests, even if desiredSize <= 0. All 5 BYOB tests now passing (100%).
+  Stream tests: 39/41 passing (95%), 2 non-BYOB failures remaining.
 
 ## Tier 4 — structural/maintenance risk and test-coverage gaps
 

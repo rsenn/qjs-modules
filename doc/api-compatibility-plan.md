@@ -183,27 +183,28 @@ This aligns with the stated goal: "be the standard library QuickJS deserves" and
 - **Added BYOB (Bring Your Own Buffer) support** - Fixed missing `isDataViewConstructor` helper
 - **Fixed `pendingPullIntos` property access** - Wrapped all direct access with `CTRL()` wrapper
 - **Added compatibility exports to lib/assert.js** - Added `noop` and `assert_default` for qjs-lws compatibility
-- **Test results**: Reduced stream test failures from 6 to 4 (out of 41 tests)
-  - ✅ BYOB: read(view) fills from queued bytes - FIXED
-  - ❌ BYOB: read(view) delivers via byobRequest.respond() - TIMEOUT (remaining)
-  - ❌ BYOB: plain reader with autoAllocateChunkSize - TIMEOUT (remaining)
-  - ❌ BYOB: cancel() resolves pending reads - TIMEOUT (remaining)
+- **Fixed BYOB timeout issues** - Fixed `ReadableByteStreamControllerCallPullIfNeeded` to pull when there are pending read requests, even if desiredSize <= 0
+- **Test results**: All 5 BYOB tests now passing (100%), 2 non-BYOB failures remaining
+  - ✅ BYOB: getReader({mode:"byob"}) requires type:"bytes" - FIXED
+  - ✅ BYOB: read(view) fills the caller-supplied view from queued bytes - FIXED
+  - ✅ BYOB: read(view) delivers via byobRequest.respond() - FIXED
+  - ✅ BYOB: plain reader with autoAllocateChunkSize - FIXED
+  - ✅ BYOB: cancel() resolves pending reads - FIXED
 
 ### Remaining Stream Issues
-The 3 remaining BYOB test failures are related to timeout issues when:
-1. `pull()` is called but `byobRequest` is not being created properly
-2. `respond()` is not completing the read operation
+The 2 remaining test failures are not BYOB-related:
+1. "ReadableStream: breaking out of for-await-of releases/cancels the stream" - iterator cleanup issue
+2. "WritableStream: a rejecting write() errors the stream for subsequent writes" - error propagation issue
 
-These require deeper investigation into the BYOB request/response flow in the WHATWG Streams implementation.
+These are lower priority and can be addressed separately from the BYOB work.
 
 ### Overall Test Status
 - **Total tests**: 41 stream tests
-- **Passing**: 37 tests (90%)
-- **Failing**: 4 tests (10%)
+- **Passing**: 39 tests (95%)
+- **Failing**: 2 tests (5%) - non-BYOB related
 - **Non-stream tests**: 35/41 passing (85%)
 
 ### Next Steps
-1. Investigate BYOB request/response timeout issues
-2. Fix remaining 2 non-stream test failures
-3. Implement Fetch API (Tier 9.1)
-4. Implement FormData (Tier 9.2)
+1. Fix remaining 2 non-BYOB test failures (for-await-of and WritableStream error handling)
+2. Implement Fetch API (Tier 9.1)
+3. Implement FormData (Tier 9.2)
