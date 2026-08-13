@@ -31,11 +31,22 @@ Results will be populated below as research completes.
 
 ### quickjs-archive.c
 **Module:** `archive`  
-**Status:** Researching...
+**Classification:** Custom (libarchive wrapper)  
+**Spec:** https://github.com/libarchive/libarchive/wiki/ManPageLibarchiveFormats3  
+**Exports:**
+- `Archive` class - Read/write compressed archives (tar, zip, cpio, etc.)
+- `ArchiveEntry` class - Entry metadata
+- `ArchiveMatch` class - Pattern matching for entries
+
+**Notes:** Wraps libarchive for reading/writing compressed archive formats. Not a standard API, but follows established archive format specifications. Useful for file management and distribution.
 
 ### quickjs-arraybuffer-sink.c
 **Module:** `arraybuffer-sink`  
-**Status:** Researching...
+**Classification:** Custom (internal utility)  
+**Exports:**
+- `ArrayBufferSink` class - Writable buffer sink backed by resizable ArrayBuffer
+
+**Notes:** Internal utility for accumulating written bytes. Used by other modules for buffer management.
 
 ### quickjs-bcrypt.c
 **Module:** `bcrypt`  
