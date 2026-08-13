@@ -67,7 +67,15 @@ Results will be populated below as research completes.
 
 ### quickjs-deep.c
 **Module:** `deep`  
-**Status:** Researching...
+**Classification:** Internal  
+**Exports:**
+- `deep.equal(a, b)` - Deep equality comparison
+- `deep.clone(value)` - Deep clone object
+- `deep.merge(target, source)` - Deep merge objects
+- `deep.diff(a, b)` - Compute differences
+- `deep.patch(target, patch)` - Apply diff patch
+
+**Notes:** Internal implementation detail used by lib/deep.js and test infrastructure. Provides low-level deep comparison and cloning. Not intended for direct use in user code - use lib/deep.js wrapper instead.
 
 ### quickjs-directory.c
 **Module:** `directory`  
@@ -79,7 +87,22 @@ Results will be populated below as research completes.
 
 ### quickjs-inspect.c
 **Module:** `inspect`  
-**Status:** Researching...
+**Classification:** Compatible (Node.js util.inspect)  
+**Spec:** https://nodejs.org/api/util.html#utilinspectobject-options  
+**Exports:**
+- `inspect(value, options)` - Format value for display
+- `inspect(value, depth)` - Format with depth limit
+- `inspect.compact` - Control whitespace (positive = entry limit, negative = leaf-relative compaction)
+- `inspect.colors` - Enable/disable ANSI colors
+- `inspect.maxArrayLength` - Limit array display
+- `inspect.maxStringLength` - Limit string display
+- `inspect.depth` - Recursion depth limit
+- `inspect.getters` - Show getter values
+- `inspect.showHidden` - Show non-enumerable properties
+- `inspect.custom` - Symbol for custom inspect methods
+
+**Runtime Compatibility:** Node.js util.inspect  
+**Notes:** Enhanced Node.js util.inspect with negative compact values for leaf-relative object compaction (see doc/native/inspect.md). Used by console.dir() and deep.equal() for formatting.
 
 ### quickjs-internal.c
 **Module:** `internal`  
@@ -207,7 +230,30 @@ Results will be populated below as research completes.
 
 ### lib/assert.js
 **Module:** `assert`  
-**Status:** Researching...
+**Classification:** Compatible (Node.js)  
+**Spec:** https://nodejs.org/api/assert.html  
+**Exports:**
+- `assert(value, message)` - Truthiness assertion
+- `assert.ok(value, message)` - Truthiness assertion
+- `assert.equal(actual, expected, message)` - Loose equality
+- `assert.notEqual(actual, expected, message)` - Loose inequality
+- `assert.strictEqual(actual, expected, message)` - Strict equality
+- `assert.notStrictEqual(actual, expected, message)` - Strict inequality
+- `assert.deepEqual(actual, expected, message)` - Deep loose equality
+- `assert.notDeepEqual(actual, expected, message)` - Deep loose inequality
+- `assert.deepStrictEqual(actual, expected, message)` - Deep strict equality
+- `assert.notDeepStrictEqual(actual, expected, message)` - Deep strict inequality
+- `assert.throws(fn, error, message)` - Expect exception
+- `assert.doesNotThrow(fn, error, message)` - Expect no exception
+- `assert.rejects(asyncFn, error, message)` - Expect promise rejection
+- `assert.doesNotReject(asyncFn, error, message)` - Expect no rejection
+- `assert.ifError(value)` - Throw if truthy
+- `assert.fail(message)` - Always fail
+- `assert.match(string, regexp, message)` - RegExp match
+- `assert.doesNotMatch(string, regexp, message)` - RegExp non-match
+
+**Runtime Compatibility:** Node.js, Bun, Deno  
+**Notes:** Comprehensive Node.js assert API. Used extensively in test suite.
 
 ### lib/asyncIterator.js
 **Module:** `asyncIterator`  
@@ -412,7 +458,37 @@ Results will be populated below as research completes.
 
 ### lib/fsPromises.js
 **Module:** `fsPromises`  
-**Status:** Researching...
+**Classification:** Compatible (Node.js)  
+**Spec:** https://nodejs.org/api/fs.html#fs_promises_api  
+**Exports:**
+- `fsPromises.readFile(path, options)` - Read file (Promise)
+- `fsPromises.writeFile(path, data, options)` - Write file (Promise)
+- `fsPromises.appendFile(path, data, options)` - Append to file (Promise)
+- `fsPromises.mkdir(path, options)` - Create directory (Promise)
+- `fsPromises.readdir(path, options)` - List directory (Promise)
+- `fsPromises.stat(path)` - File stats (Promise)
+- `fsPromises.lstat(path)` - Symlink stats (Promise)
+- `fsPromises.unlink(path)` - Delete file (Promise)
+- `fsPromises.rmdir(path, options)` - Remove directory (Promise)
+- `fsPromises.rm(path, options)` - Remove file/dir (Promise)
+- `fsPromises.rename(oldPath, newPath)` - Rename (Promise)
+- `fsPromises.copyFile(src, dest, mode)` - Copy file (Promise)
+- `fsPromises.chmod(path, mode)` - Change permissions (Promise)
+- `fsPromises.chown(path, uid, gid)` - Change ownership (Promise)
+- `fsPromises.link(existingPath, newPath)` - Create hard link (Promise)
+- `fsPromises.symlink(target, path, type)` - Create symlink (Promise)
+- `fsPromises.readlink(path)` - Read symlink (Promise)
+- `fsPromises.realpath(path, options)` - Resolve path (Promise)
+- `fsPromises.truncate(path, len)` - Truncate file (Promise)
+- `fsPromises.utimes(path, atime, mtime)` - Change timestamps (Promise)
+- `fsPromises.access(path, mode)` - Check access (Promise)
+- `fsPromises.open(path, flags, mode)` - Open file handle (Promise)
+- `fsPromises.cp(src, dest, options)` - Copy file/dir (Promise)
+- `fsPromises.glob(pattern, options)` - Glob pattern match (Promise)
+- `fsPromises.watch(filename, options)` - Watch file (AsyncIterator)
+
+**Runtime Compatibility:** Node.js 10+, Bun, Deno (with --unstable)  
+**Notes:** Promise-based fs API. Wraps lib/fs.js callback API with Promise interface.
 
 ### lib/html.js
 **Module:** `html`  
