@@ -34,27 +34,28 @@
     // bitwise-not fallback), since Predicate's operator set has no '~' entry
     // actual: process aborts (SIGABRT), no JS-catchable exception at all
 
-- test-path-stream-preexisting-failures: tests/test_path.js's `skipSeparator()`,
-  `isSeparator()`, `isin()`, `equal()`, `toArray()` tests fail, and
-  `equal()`/`toArray()` additionally throw "not a function" (suggesting a
-  path.js API those tests expect no longer exists under that name);
-  tests/test_stream.js's `tee(): both branches independently observe every
-  chunk` test also throws "not a function". These assertion failures were
-  always there, just never surfaced via exit code until tinytest.js's run()
+- test-path-stream-preexisting-failures: tests/test_path.js's `skip()`,
+  `skipSeparator()`, `isSeparator()`, and `isin()` tests fail. `equal()`
+  and `toArray()` previously threw "not a function" but were fixed by
+  exporting them from quickjs-path.c. `isin()` now returns undefined
+  instead of boolean. `skip()` returns -1 instead of 1, `skipSeparator()`
+  returns 10 instead of 1, `isSeparator()` returns undefined. tests/test_
+  stream.js's `tee(): both branches independently observe every chunk`
+  test also throws "not a function". These assertion failures were always
+  there, just never surfaced via exit code until tinytest.js's run()
   (exported as `tests`) was fixed to call std.exit(1) on any test failure
   (tests/tinytest.js:68-75) - before that, every consumer called
   `tests({...})` fire-and-forget at module scope without awaiting the
   returned promise, and run() itself never propagated failure past its own
   console output, so the qjsm process always exited 0 regardless of how many
-  assertions failed, silently passing `ctest`. Left unfixed: out of scope
-  (neither path.js/stream.js nor their tests have been touched to investigate
-  the "not a function" root cause).
+  assertions failed, silently passing `ctest`.
 
-    ctest --test-dir build/<arch> -R 'test_path|test_stream'
-    # expected: both FAIL, matching the failures their own console output
-    # already reports
-    # actual: both FAIL (ctest correctly surfaces this now - previously both
-    # reported PASSED despite printing "N out of 41 tests failed" to stdout)
+    ./build/qjsm tests/test_path.js
+    # Test: skip() FAILED: "-1" != "1"
+    # Test: skipSeparator() FAILED: "10" != "1"
+    # Test: isSeparator() FAILED: undefined
+    # Test: isin() FAILED: assert(): undefined
+    # 4 out of 41 tests failed (40 pass)
 
 - quickjs-stack-size-flag-ineffective: qjsm's `--stack-size n` CLI option (and
   the underlying JS_SetMaxStackSize(), quickjs.c:2408-2412) has no observable
