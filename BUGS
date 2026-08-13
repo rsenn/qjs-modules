@@ -35,26 +35,26 @@
     // actual: process aborts (SIGABRT), no JS-catchable exception at all
 
 - test-path-stream-preexisting-failures: tests/test_path.js's `skip()`,
-  `skipSeparator()`, `isSeparator()`, and `isin()` tests fail. `equal()`
-  and `toArray()` previously threw "not a function" but were fixed by
-  exporting them from quickjs-path.c. `isin()` now returns undefined
-  instead of boolean. `skip()` returns -1 instead of 1, `skipSeparator()`
-  returns 10 instead of 1, `isSeparator()` returns undefined. tests/test_
-  stream.js's `tee(): both branches independently observe every chunk`
-  test also throws "not a function". These assertion failures were always
-  there, just never surfaced via exit code until tinytest.js's run()
-  (exported as `tests`) was fixed to call std.exit(1) on any test failure
-  (tests/tinytest.js:68-75) - before that, every consumer called
-  `tests({...})` fire-and-forget at module scope without awaiting the
-  returned promise, and run() itself never propagated failure past its own
-  console output, so the qjsm process always exited 0 regardless of how many
-  assertions failed, silently passing `ctest`.
+  `skipSeparator()`, and `isSeparator()` tests fail. `isin()`, `equal()`,
+  and `toArray()` previously threw "not a function" or returned undefined,
+  but were fixed by exporting them from quickjs-path.c (commit 1d9822dc).
+  `skip()` returns -1 instead of 1, `skipSeparator()` returns 10 instead
+  of 1, `isSeparator()` returns undefined. tests/test_stream.js's `tee():
+  both branches independently observe every chunk` test also throws "not a
+  function". These assertion failures were always there, just never
+  surfaced via exit code until tinytest.js's run() (exported as `tests`)
+  was fixed to call std.exit(1) on any test failure (tests/tinytest.js:
+  68-75) - before that, every consumer called `tests({...})` fire-and-
+  forget at module scope without awaiting the returned promise, and run()
+  itself never propagated failure past its own console output, so the qjsm
+  process always exited 0 regardless of how many assertions failed,
+  silently passing `ctest`.
 
     ./build/qjsm tests/test_path.js
     # Test: skip() FAILED: "-1" != "1"
     # Test: skipSeparator() FAILED: "10" != "1"
     # Test: isSeparator() FAILED: undefined
-    # Test: isin() FAILED: assert(): undefined
+    # 3 out of 41 tests failed (38 pass)
     # 4 out of 41 tests failed (40 pass)
 
 - quickjs-stack-size-flag-ineffective: qjsm's `--stack-size n` CLI option (and
