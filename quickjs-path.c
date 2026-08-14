@@ -265,18 +265,19 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case PATH_SKIP:
     case PATH_SKIP_SEPARATOR:
     case PATH_IS_SEPARATOR: {
-      uint64_t n = alen;
+      uint64_t n = 0;
 
       if(argc > 1) {
         if(JS_ToIndex(ctx, &n, argv[1]))
-          n = alen;
+          n = 0;
         if(n > alen)
           n = alen;
       }
 
       switch(magic) {
         case PATH_RIGHT: {
-          ret = JS_NewUint32(ctx, utf8_strlen(a, path_right2(a, n)));
+          // PATH_RIGHT always operates on the full string, not from a position
+          ret = JS_NewUint32(ctx, utf8_strlen(a, path_right2(a, alen)));
           break;
         }
         case PATH_SKIP: {

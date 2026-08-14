@@ -422,17 +422,19 @@ path_exists2(const char* p, size_t len) {
 int
 path_isin4(const char* p, size_t len, const char* dir, size_t dirlen) {
   size_t i;
+  size_t plen = path_length2(p, len);
+  size_t dlen = path_length2(dir, dirlen);
 
-  if(len < dirlen)
+  if(plen < dlen)
     return 0;
 
-  for(i = 0; i < dirlen; i++) {
-    size_t plen, dlen;
+  for(i = 0; i < dlen; i++) {
+    size_t pcomplen, dcomplen;
     const char *q, *pdir;
-    q = path_at4(p, len, &plen, i);
-    pdir = path_at4(dir, dirlen, &dlen, i);
+    q = path_at4(p, len, &pcomplen, i);
+    pdir = path_at4(dir, dirlen, &dcomplen, i);
 
-    if(!(plen == dlen && !strncmp(q, pdir, plen)))
+    if(!(pcomplen == dcomplen && !strncmp(q, pdir, pcomplen)))
       return 0;
   }
 

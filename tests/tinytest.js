@@ -38,7 +38,16 @@
  * MIT License. See https://github.com/joewalnes/jstinytest/
  */
 const TinyTest = {
-  async run(tests) {
+  async run(nameOrTests, maybeTests) {
+    // Support both run(tests) and run(name, tests) signatures
+    let tests;
+    if(typeof nameOrTests === 'string') {
+      tests = maybeTests;
+      // console.log(`\n=== ${nameOrTests} ===`); // Optional: log the test suite name
+    } else {
+      tests = nameOrTests;
+    }
+
     let count = 0,
       failures = 0;
 
