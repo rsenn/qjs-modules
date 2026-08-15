@@ -1122,7 +1122,7 @@ again:
           dbuf_printf(&db, " (requested as '%s')", module_name);
 
         if(msg)
-          dbuf_printf(&db, ": %s", msg);
+          dbuf_printf(&db, ":\n%s", msg);
 
         if(chain && *chain)
           dbuf_printf(&db, "\nimported from:\n%s", chain);
