@@ -390,7 +390,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   if(JS_IsException(val)) {
     JSValue exception = JS_GetException(ctx);
 
-    fprintf(stderr, "Error evaluating '%s': ", file);
+    fprintf(stderr, "Error evaluating '%s':\n", file);
     js_error_print(ctx, exception);
 
     JS_FreeValue(ctx, exception);
