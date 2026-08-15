@@ -87,7 +87,9 @@ if(NOT DEFINED BUILTINS_COMPILED)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
-  set(BUILTINS_NATIVE arraybuffer-sink blob child-process deep directory inspect lexer location misc path pointer
+  set(BUILTINS_NATIVE arraybuffer-sink 
+    #blob 
+    child-process deep directory inspect lexer location misc path pointer
                       predicate repeater stream syscallerror textcode tree-walker virtual xml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
