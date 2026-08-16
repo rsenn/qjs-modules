@@ -101,9 +101,6 @@ next one.
   inside `js_path_method` (the live implementation is `js_path_method_dbuf` +
   `path_realpath3`, registered and working at `quickjs-path.c:698` — **not** a missing
   feature, just dead leftover code confusingly shaped like one).
-- `src/qjsm.c:1034-1045` — a disabled, more descriptive module-load error message
-  (`"could not load module filename '%s'"` with more context); currently module-load failures
-  surface with less detail than this dead code would have provided.
 - `src/glob.c:582` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
   ENOTDIR? */`, minor optimization.
 - `wasm` module was scaffolded in `CMakeLists.txt` (the `option(MODULE_WASM ...)` declaration
@@ -397,3 +394,56 @@ internal implementation doesn't need to be a separate module.
 - ~~10.1 JSON parsers~~ - Not duplicates: `json.h` is a pull parser, `jread.h` is a push/SAX parser, `sj.h` is a simple one-shot parser. They serve different APIs.
 - ~~10.2 XML parsers~~ - Not duplicates: `xml.h` is a pull parser, `xread.h` is a push/SAX parser. They serve different APIs.
 - ~~10.5 ioctlcmd.h~~ - Actually used by `src/readlink.c` for Windows symlink support.
+
+## Tier 11 — `src/qjsm.c` refactoring opportunities (found during 2026-08-16 read-through)
+
+A full read-through of `src/qjsm.c` (the `qjsm` entry point / module loader) turned up no
+correctness bugs, but several structural spots worth revisiting. Dead/commented-out code and
+one obscure reversed-subscript idiom (`(dsl = path_dirlen1(path))[path]`) were already cleaned
+up in place during this pass; what's left below is genuine restructuring, deliberately not
+done inline since each is either large or a judgment call on API shape.
+
+- **`main()` is a ~450-line monolith** doing CLI parsing, runtime/context setup, script and
+  `-I`/`-m` loading, REPL bootstrap, and (behind `--dump --quit`) an unrelated instantiation-time
+  microbenchmark, all in one function. Splitting into `jsm_parse_args()`,
+  `jsm_setup_runtime()`, `jsm_run_scripts()`, and `jsm_bench_instantiation()` would make each
+  piece testable/readable in isolation. Nontrivial: the pieces share a lot of local state
+  (`had_error`, `sargs`, `include_list`, ...) that would need to move into a small context
+  struct or be threaded through as parameters.
+- **`jsm_module_func()` is a single ~270-line function** dispatching on a 20-case `magic` enum
+  that mixes unrelated concerns: module bookkeeping (`ADD_MODULE`/`FIND_MODULE`/
+  `FIND_MODULE_INDEX`), path resolution (`NORMALIZE_MODULE`/`LOCATE_MODULE`/`LOAD_MODULE`), and
+  a block of ~11 near-identical `#if QUICKJS_INTERNAL` one-liner accessors
+  (`GET_MODULE_NAME`/`GET_MODULE_VALUE`/`GET_MODULE_INDEX`/...). The accessor block in
+  particular is repetitive enough to be table-driven (an array of `{magic, module_*_fn}`
+  pairs looked up once) instead of 11 near-identical `case:`/`#if`/`#endif` blocks.
+- **`jsm_module_loader()` (the `JSModuleLoaderFunc` implementation) does six distinct things
+  in one ~140-line function** with several `goto end;`/`goto again;` jumps: `data:` URL
+  handling, dispatch through the external loader chain (`jsm_call_loaders`), circular-import
+  detection, `package.json` alias resolution, builtin-module lookup, and filesystem
+  resolution + the "could not load module" error formatting. Worth splitting along those
+  seams (e.g. `jsm_resolve_data_url`, `jsm_run_external_loaders`, `jsm_warn_circular`) so each
+  piece can be reasoned about independently — risky to do without first having a test that
+  exercises each branch (see the `tests/test_list.js` gap noted in Tier 4 for why that
+  matters here).
+- **CLI flag variables in `main()` are declared `char`** (`dump_memory`, `trace_memory`,
+  `empty_run`, `module`, `load_std`, `list_modules` — e.g. `-d -d -d ...` increments
+  `dump_memory` via `dump_memory++`) rather than `int`/`BOOL`. Not currently reachable (argc
+  is bounded), but the type doesn't communicate "counter" and invites a subtle bug if the
+  parsing loop is ever restructured.
+- **The hand-rolled long-option parser in `main()`** (`/* cannot use getopt because we want to
+  pass the command line to the script */`) is a legitimate constraint, but the resulting loop
+  is a ~150-line sequence of `if(opt == 'x' || !strcmp(longopt, "xxx")) { ...; break; }`
+  blocks that's easy to get subtly wrong when adding a new flag. Could become a small
+  `{shortopt, longopt, handler}` table walked by one loop, without pulling in libc `getopt`.
+- **Global mutable state is spread across ~10 independent `thread_local`/`static` variables**
+  (`jsm_stack`, `jsm_builtin_modules`, `module_list`, `debug_list`, `module_loaders`,
+  `loaded_modules`, `package_json`, `exename`/`exelen`, `jsm_rt`/`jsm_ctx`, `interactive`,
+  `DEBUG_MODULE`) instead of one grouped `struct`. Not urgent, but would make the module's
+  state easier to audit and would be a prerequisite for ever running more than one `qjsm`
+  runtime per process.
+- **`jsm_search_suffix()`'s debug trace stringifies a function pointer by identity comparison**
+  (`fn == &is_module ? "is_module" : fn == &jsm_search_path ? "jsm_search_path" :
+  "<unknown>"`) to name the `ModuleLoader*` passed in. Silently prints `"<unknown>"` if a third
+  implementation is ever added. A small named-enum-plus-lookup (or just naming the parameter
+  at each call site in the trace) would stay correct automatically.
