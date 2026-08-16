@@ -348,7 +348,6 @@ jsm_stack_pop(JSContext* ctx) {
   DEBUG_MODULE(4, "%s", *ptr);
 
   js_free(ctx, *ptr);
-  //  vector_pop(&jsm_stack, sizeof(char*));
 }
 
 static int
@@ -363,7 +362,6 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   errno = 0;
   val = js_eval_file(ctx, file, module ? JS_EVAL_TYPE_MODULE : 0);
 
-  // if(jsm_stack_count() > 1)
   jsm_stack_pop(ctx);
 
 #if defined(HAVE_JS_PROMISE_STATE) && defined(HAVE_JS_PROMISE_RESULT)
@@ -590,9 +588,6 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
     s[len] = '\0';
 
     n = str_chrs(ext, ";\n", 2);
-
-    /* if(has_suffix(s, module_extensions[i]))
-       continue;*/
 
     str_copyn(&s[len], ext, n);
 
@@ -881,15 +876,6 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
       break;
     }
 
-    /*if(is_searchable(path)) {
-    } else {
-      if((tmp = jsm_search_suffix(ctx, path, is_module))) {
-        js_free(ctx, path);
-        path = js_strdup(ctx, tmp);
-        break;
-      }
-    }*/
-
     js_free(ctx, path);
     path = 0;
     break;
@@ -1000,12 +986,6 @@ jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
 
       m = JS_VALUE_GET_PTR(module);
 
-      /*JSValue meta_obj = JS_GetImportMeta(ctx, m);
-      if(!JS_IsException(meta_obj)) {
-        JS_DefinePropertyValueStr(ctx, meta_obj, "url", JS_NewString(ctx, name), JS_PROP_C_W_E);
-        JS_FreeValue(ctx, meta_obj);
-      }*/
-
 #if QUICKJS_INTERNAL
       module_rename(ctx, m, JS_NewAtom(ctx, "<data-url>"));
 #endif
@@ -1075,7 +1055,6 @@ again:
   if(is_searchable(name) && (tmp = jsm_module_locate(ctx, name, opaque))) {
     js_free(ctx, name);
     name = tmp;
-    // goto restart;
   }
 
   if(!s)
@@ -1183,7 +1162,9 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
     dbuf_init_ctx(ctx, &dir);
 
-    if(!(dsl = path_dirlen1(path))[path])
+    dsl = path_dirlen1(path);
+
+    if(!path[dsl])
       dbuf_putstr(&dir, ".");
     else
       path_append3(path, dsl, &dir);
@@ -1884,7 +1865,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
             m ? JS_NewInt32(ctx, module_indexof(ctx, m)) :
 #endif
               JS_NULL;
-        // val = m ? JS_DupValue(ctx, JS_MKVAL(JS_TAG_MODULE, m)) : JS_NULL;
       }
 
       break;
@@ -1999,7 +1979,7 @@ main(int argc, char** argv) {
   int optind;
   char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0;
   const char* include_list[32];
-  size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
+  size_t memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
   int load_jscalc;
 #endif
@@ -2007,12 +1987,9 @@ main(int argc, char** argv) {
   init_list_head(&loaded_modules);
 
   package_json = JS_UNDEFINED;
-  // replObj = JS_UNDEFINED;
 
   exename = strdup(argv[0] + path_basename1(argv[0]));
   exelen = strlen(exename);
-
-  // printf("n = %zu, exename = %s, exelen = %d\n", n, exename, (int)exelen);
 
   /* load jscalc runtime if invoked as 'qjscalc' */
 #if HAVE_QJSCALC
@@ -2273,8 +2250,6 @@ main(int argc, char** argv) {
     js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
     dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
-
-    // dbuf_putstr(&db, "import require from 'require';\nglobalThis.require = require;\n");
 
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 
