@@ -159,6 +159,17 @@ if(HAVE_LIBMATH)
 endif(HAVE_LIBMATH)
 dump(LIBM)
 
+# find_library() (rather than a bare "pthread" name) so CMAKE_FIND_ROOT_PATH
+# confines the search to the cross-compilation sysroot when one is active
+# (see the mingw LIBPTHREAD_LIBRARY use below): the box this is built on
+# also has an older, non-sysroot mingw lib directory containing a
+# same-named but outdated libpthread lacking the clock_gettime32/64
+# symbols pthread_time.h expects, and it comes first in the compiler's
+# own implicit link search order, so a bare "-lpthread" silently picks
+# the wrong copy there.
+find_library(LIBPTHREAD_LIBRARY NAMES pthread winpthread)
+dump(LIBPTHREAD_LIBRARY)
+
 check_library_exists(quickjs js_std_file "${QUICKJS_LIBRARY_DIR}" HAVE_JS_STD_FILE)
 
 var2define(HAVE_JS_STD_FILE)
@@ -1183,6 +1194,21 @@ if(BUILD_SHARED_LIBS)
 endif(BUILD_SHARED_LIBS)
 
 target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
+
+if(LIBPTHREAD_LIBRARY)
+  # Passing LIBPTHREAD_LIBRARY's path to target_link_libraries() directly
+  # would get collapsed back down to a bare "-lpthread" by CMake (its
+  # directory is also one of the compiler's own implicit link
+  # directories), reintroducing the wrong-copy problem find_library()
+  # above was trying to avoid. Passing "-L<dir>"/"-lpthread" as raw
+  # linker-flag strings (leading "-") instead makes CMake pass them
+  # through untouched, in the position given -- unlike
+  # target_link_options(), which always places its flags before the
+  # link libraries, too early to satisfy symbols the archives further
+  # below still need.
+  get_filename_component(LIBPTHREAD_DIR "${LIBPTHREAD_LIBRARY}" DIRECTORY)
+  set(LIBPTHREAD "-L${LIBPTHREAD_DIR}" -lpthread)
+endif(LIBPTHREAD_LIBRARY)
 
 target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${QJSM_STATIC_LIBS} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY}
                                   ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
