@@ -1,5 +1,5 @@
 macro(find_mariadb)
-  pkg_check_modules(MARIADB libmariadb mariadb)
+  pkg_search_module(MARIADB mariadb libmariadb mysqlclient)
 
   link_directories(${LIBMARIADB_LIBRARY_DIR})
 
@@ -17,8 +17,9 @@ macro(find_mariadb)
     endif(HAVE_LIBMARIADB)
   endif(pkgcfg_lib_MARIADB_mariadb)
 
-  #string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}" LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
-  #set(LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}" CACHE PATH "MariaDB library directory")
+  if(NOT LIBMARIADB_LIBRARY_DIR)
+    list(GET MARIADB_LIBRARY_DIRS 0 LIBMARIADB_LIBRARY_DIR)
+  endif(NOT LIBMARIADB_LIBRARY_DIR)
 
   if(NOT LIBMARIADB_LIBRARY_DIR)
     if(LIBMARIADB_LIBRARY)
@@ -29,13 +30,19 @@ macro(find_mariadb)
   if(NOT LIBMARIADB_LIBRARY)
     message(WARNING "No mariadb library")
   endif(NOT LIBMARIADB_LIBRARY)
-    
+
+  # Prefer the include directory pkg-config reports; the library-path
+  # regex guess below is only a fallback for the non-pkg-config case.
+  if(NOT LIBMARIADB_INCLUDE_DIR AND MARIADB_INCLUDE_DIRS)
+    list(GET MARIADB_INCLUDE_DIRS 0 LIBMARIADB_INCLUDE_DIR)
+  endif(NOT LIBMARIADB_INCLUDE_DIR AND MARIADB_INCLUDE_DIRS)
+
   if(NOT LIBMARIADB_INCLUDE_DIR)
     if(LIBMARIADB_LIBRARY_DIR)
       string(REGEX REPLACE "/lib.*" "/include" LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_LIBRARY_DIR}")
     endif(LIBMARIADB_LIBRARY_DIR)
   endif(NOT LIBMARIADB_INCLUDE_DIR)
-    
+
   if(NOT LIBMARIADB_INCLUDE_DIR)
     if(LIBMARIADB_LIBRARY)
       string(REGEX REPLACE "/lib.*" "/include" LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_LIBRARY}")
@@ -85,7 +92,7 @@ macro(find_mariadb)
     list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES "${LIBMARIADB_LIBRARY}")
     list(REMOVE_ITEM CMAKE_REQUIRED_LINK_DIRECTORIES "${LIBMARIADB_LIBRARY_DIR}")
   endif(LIBMARIADB_LIBRARY)
-  
+
   if(NOT LIBMARIADB_INCLUDE_DIR)
     message(WARNING "No mariadb include directory")
   endif(NOT LIBMARIADB_INCLUDE_DIR)

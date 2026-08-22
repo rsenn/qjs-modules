@@ -441,9 +441,6 @@ if(MODULE_MYSQL)
 
   find_mariadb()
 
-  dump(LIBMARIADB_INCLUDE_DIR)
-  include_directories(${LIBMARIADB_INCLUDE_DIR})
-
   if(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
     add_definitions(-DMYSQL_NO_ASYNC)
   endif(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
