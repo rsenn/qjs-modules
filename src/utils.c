@@ -2082,8 +2082,16 @@ js_value_tag_name(int tag) {
 }
 
 static const char* const js_value_typenames[] = {
-    "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-    "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
+    "undefined",     "null",         "bool",      "int",   "object", "string",
+    "symbol",
+#ifdef CONFIG_BIGNUM
+    "big_float",
+#endif
+    "big_int",
+#ifdef CONFIG_BIGNUM
+    "big_decimal",
+#endif
+    "float64",       "nan",          "function",  "array", "module", "function_bytecode",
     "uninitialized", "catch_offset", "exception", 0,
 };
 
@@ -2493,75 +2501,6 @@ js_map_iterator_prototype(JSContext* ctx) {
   JS_FreeValue(ctx, gen);
   return ret;
 }
-
-#if QUICKJS_INTERNAL
-JSValue
-module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
-  JSAtom atom = JS_NewAtom(ctx, name);
-  JSValue ret = module_exports_find(ctx, m, atom);
-
-  JS_FreeAtom(ctx, atom);
-  return ret;
-}
-
-JSValue
-module_exports(JSContext* ctx, JSModuleDef* m) {
-  JSValue exports = JS_NewObjectProto(ctx, JS_NULL);
-
-  if(module_exports_get(ctx, m, FALSE, exports) == 0) {
-    JS_FreeValue(ctx, exports);
-    return JS_UNDEFINED;
-  }
-
-  return exports;
-}
-
-JSValue
-js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
-  JSValue entries = JS_UNDEFINED;
-#if QUICKJS_INTERNAL
-  entries = js_modules_entries(ctx, this_val, magic);
-#endif
-  JSValue map = js_map_new(ctx, entries);
-
-  JS_FreeValue(ctx, entries);
-  return map;
-}
-
-JSValue
-module_entry(JSContext* ctx, JSModuleDef* m) {
-  JSValue entry = JS_NewArray(ctx);
-
-#if QUICKJS_INTERNAL
-  JS_SetPropertyUint32(ctx, entry, 0, module_ns(ctx, m));
-  JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, m));
-  JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, m));
-#endif
-
-  return entry;
-}
-
-JSModuleDef*
-js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
-  JSModuleDef* ret = 0;
-
-#if QUICKJS_INTERNAL
-  JSModuleDef* start = js_module_at(ctx, start_pos);
-  ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
-#endif
-
-  return ret;
-}
-
-JSModuleDef*
-js_module_find(JSContext* ctx, const char* name) {
-#if QUICKJS_INTERNAL
-  return js_module_find_fwd(ctx, name, NULL);
-#else
-  return 0;
-#endif
-}
-#endif
 
 JSValue
 module_value(JSContext* ctx, JSModuleDef* m) {
@@ -3395,16 +3334,6 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSValue set_handler = JS_NULL;
   const char* module_name = global_obj ? global_obj : "os";
-  /* JSModuleDef* io_module = NULL;
-
-   if(!io_module)
-     io_module = js_module_load(ctx, "io");
-
-   if(!io_module)
-     io_module = js_module_load(ctx, "os");
-
-   if(io_module)
-     set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);*/
 
   if(js_is_null_or_undefined(set_handler)) {
     JSValue osval = js_global_get_str(ctx, module_name);

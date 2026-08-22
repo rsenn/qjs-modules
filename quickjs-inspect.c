@@ -126,7 +126,7 @@ options_init(InspectOptions* opts, JSContext* ctx) {
   opts->max_string_length = INT32_MAX;
   opts->break_length = screen_width();
   opts->compact = 5;
-  opts->proto_chain = TRUE;
+  opts->proto_chain = FALSE;
   opts->number_base = 10;
   opts->number_precision = INT32_MAX;
 
@@ -339,8 +339,8 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "breakLength", js_number_new(ctx, opts->break_length));
   JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
 
-  if(opts->proto_chain)
-    JS_SetPropertyStr(ctx, ret, "protoChain", js_number_new(ctx, opts->proto_chain));
+  // if(opts->proto_chain)
+  JS_SetPropertyStr(ctx, ret, "protoChain", js_number_new(ctx, opts->proto_chain));
 
   arr = JS_NewArray(ctx);
   n = 0;
@@ -413,7 +413,8 @@ compact_whitespace(uint8_t* buf, size_t start, size_t end) {
   while(r < end) {
     if(buf[r] == '\n') {
       r++;
-      while(r < end && buf[r] == ' ') r++;
+      while(r < end && buf[r] == ' ')
+        r++;
       buf[w++] = ' ';
     } else {
       buf[w++] = buf[r++];
@@ -1505,7 +1506,7 @@ inspect_compact_object(Inspector* insp, JSValueConst obj, int32_t level, BOOL is
   PropertyEnumeration pe = PROPENUM_INIT();
   BOOL ok = TRUE, first = TRUE;
 
-  if(property_enumeration_init(&pe, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE) == -1)
+  if(property_enumeration_init(&pe, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | (opts->proto_chain ? JS_GPN_RECURSIVE : 0)) == -1)
     return FALSE;
 
   uint32_t nhidden = options_numhidden(opts, pe.tab_atom, pe.tab_atom_len);
@@ -1588,7 +1589,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
     dbuf_free(&scratch);
   }
 
-  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | (opts->proto_chain ? JS_GPN_RECURSIVE : 0));
 
   writer_puts(wr, is_array ? "[" : "{");
 
@@ -1721,7 +1722,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
           }
 
           if(!compacted) {
-            it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+            it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | (opts->proto_chain ? JS_GPN_RECURSIVE : 0));
             is_array = child_is_array;
 
             if(it) {

@@ -226,12 +226,16 @@ static int bignum_ext = 1;
 /* Needed because jsm_global_funcs[] (below) registers this as the "startInteractive"
    global before its own definition further down. */
 static JSValue jsm_start_interactive4(JSContext*, JSValueConst, int, JSValueConst[]);
+static int jsm_module_indexof(JSModuleDef* m);
+static JSModuleDef* jsm_module_at(int index);
 
 /* --- functions --- */
 
 /**
- * @brief Checks whether a module name should be resolved via QUICKJS_MODULE_PATH search.
+ * Checks whether a module name should be resolved via QUICKJS_MODULE_PATH search.
+ *
  * @param path Module name/specifier as given to the loader.
+ *
  * @returns TRUE if `path` has no explicit ("./", "../", or absolute) prefix.
  */
 static inline BOOL
@@ -240,8 +244,10 @@ is_searchable(const char* path) {
 }
 
 /**
- * @brief Checks whether a string contains a '.' or a path separator.
+ * Checks whether a string contains a '.' or a path separator.
+ *
  * @param s String to scan.
+ *
  * @returns TRUE if `s` contains '.' or PATHSEP_S.
  */
 static inline BOOL
@@ -250,9 +256,11 @@ has_dot_or_slash(const char* s) {
 }
 
 /**
- * @brief ModuleLoader-shaped wrapper around path_isfile1(): accepts a candidate path as-is.
+ * ModuleLoader-shaped wrapper around path_isfile1(): accepts a candidate path as-is.
+ *
  * @param ctx JS context (used only to allocate the returned copy).
  * @param module_name Candidate file path.
+ *
  * @returns A newly allocated copy of `module_name` if it names an existing file, else 0.
  */
 static char*
@@ -266,8 +274,10 @@ is_module(JSContext* ctx, const char* module_name) {
 }
 
 /**
- * @brief Checks whether a module name already ends in one of module_extensions.
+ * Checks whether a module name already ends in one of module_extensions.
+ *
  * @param module_name Candidate module name.
+ *
  * @returns The offset of the matching suffix within `module_name`, or 0 if none matched.
  */
 static int
@@ -285,7 +295,7 @@ module_has_suffix(const char* module_name) {
 }
 
 /**
- * @brief Host promise-rejection callback wired up via JS_SetHostPromiseRejectionTracker().
+ * Host promise-rejection callback wired up via JS_SetHostPromiseRejectionTracker().
  *
  * Dedupes on the rendered message/stack text, since a single top-level module throw can
  * settle more than one internal promise and the engine invokes this more than once for
@@ -324,9 +334,11 @@ jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst
 }
 
 /**
- * @brief Returns the top-level error to report at shutdown, preferring a rejected
- *        jsm_promise over the context's pending exception.
+ * Returns the top-level error to report at shutdown, preferring a rejected
+ * jsm_promise over the context's pending exception.
+ *
  * @param ctx JS context to read the pending exception from.
+ *
  * @returns The error value (may be JS_NULL/undefined if there is none).
  */
 static JSValue
@@ -339,7 +351,8 @@ jsm_get_error(JSContext* ctx) {
 }
 
 /**
- * @brief Prints the context's current pending exception to stderr.
+ * Prints the context's current pending exception to stderr.
+ *
  * @param ctx JS context to fetch and print the exception from.
  */
 static void
@@ -348,7 +361,9 @@ jsm_dump_error(JSContext* ctx) {
 }
 
 /**
- * @brief Number of entries currently on the module-load stack.
+ * Number of entries currently on the module-load stack.
+ *
+ *
  * @returns Depth of jsm_stack.
  */
 static size_t
@@ -357,8 +372,10 @@ jsm_stack_count(void) {
 }
 
 /**
- * @brief Address of the i-th entry of jsm_stack (Python-style negative indexing).
+ * Address of the i-th entry of jsm_stack (Python-style negative indexing).
+ *
  * @param i Index; negative counts back from the top of the stack.
+ *
  * @returns Pointer to the stored `char*` slot, or 0 if the stack is empty.
  */
 static char**
@@ -376,9 +393,11 @@ jsm_stack_ptr(int i) {
 }
 
 /**
- * @brief Looks for `module` already present on jsm_stack (used for circular-import
- *        detection).
+ * Looks for `module` already present on jsm_stack (used for circular-import
+ * detection).
+ *
  * @param module Module path to look for.
+ *
  * @returns Pointer to the matching slot, or 0 if not found.
  */
 static char**
@@ -393,8 +412,10 @@ jsm_stack_find(const char* module) {
 }
 
 /**
- * @brief Value of the i-th entry of jsm_stack.
+ * Value of the i-th entry of jsm_stack.
+ *
  * @param i Index; negative counts back from the top of the stack.
+ *
  * @returns The stored path, or 0 if out of range.
  */
 static char*
@@ -408,7 +429,9 @@ jsm_stack_at(int i) {
 }
 
 /**
- * @brief Path of the module/script currently being loaded.
+ * Path of the module/script currently being loaded.
+ *
+ *
  * @returns jsm_stack_at(-1).
  */
 static inline char*
@@ -417,8 +440,10 @@ jsm_stack_top(void) {
 }
 
 /**
- * @brief Renders the whole jsm_stack as a newline-separated "i: path" listing, innermost
- *        entry first.
+ * Renders the whole jsm_stack as a newline-separated "i: path" listing, innermost
+ * entry first.
+ *
+ *
  * @returns A newly malloc'd string (caller must free()); empty string if the stack is empty.
  */
 static char*
@@ -435,10 +460,12 @@ jsm_stack_string(void) {
 }
 
 /**
- * @brief Getter backing the scriptList/scriptFile/scriptDir/__filename/__dirname globals.
+ * Getter backing the scriptList/scriptFile/scriptDir/__filename/__dirname globals.
+ *
  * @param ctx JS context to allocate the result in.
  * @param this_val Unused (property getter receiver).
  * @param magic One of SCRIPT_LIST/SCRIPT_FILE/SCRIPT_FILENAME/SCRIPT_DIRNAME.
+ *
  * @returns The requested view of jsm_stack, or JS_UNDEFINED if unavailable.
  */
 static JSValue
@@ -483,7 +510,8 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 /**
- * @brief Pushes a file/module path onto jsm_stack.
+ * Pushes a file/module path onto jsm_stack.
+ *
  * @param ctx JS context (used to allocate the stored copy).
  * @param file Path to push; copied.
  */
@@ -495,7 +523,8 @@ jsm_stack_push(JSContext* ctx, const char* file) {
 }
 
 /**
- * @brief Pops and frees the top entry of jsm_stack.
+ * Pops and frees the top entry of jsm_stack.
+ *
  * @param ctx JS context (used to free the stored copy).
  */
 static void
@@ -508,14 +537,17 @@ jsm_stack_pop(JSContext* ctx) {
 }
 
 /**
- * @brief Evaluates a top-level script/module file, pushing it on jsm_stack for the
- *        duration and printing any resulting exception.
+ * Evaluates a top-level script/module file, pushing it on jsm_stack for the
+ * duration and printing any resulting exception.
+ *
  * @param ctx JS context to evaluate in.
  * @param file Path of the file to load.
  * @param module TRUE to evaluate as an ES module, FALSE as a plain script.
  * @param is_main Unused.
+ *
+ *
  * @returns 0 on success, -1 on failure (exception already printed, or a rejected top-level
- *          promise already reported by the host rejection tracker).
+ * promise already reported by the host rejection tracker).
  */
 static int
 jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
@@ -566,9 +598,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     JSModuleDef* m = 0;
 
     if(!JS_IsModule(val)) {
-#if QUICKJS_INTERNAL
-      m = js_module_at(ctx, -1);
-#endif
+      m = jsm_module_at(-1);
       val = module_value(ctx, m);
     } else {
       m = JS_VALUE_GET_PTR(val);
@@ -589,7 +619,8 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
 }
 
 /**
- * @brief Populates jsm_builtin_modules from quickjs-builtins.h (once per process).
+ * Populates jsm_builtin_modules from quickjs-builtins.h (once per process).
+ *
  * @param ctx JS context (unused beyond the assertion; kept for symmetry with callers).
  */
 static void
@@ -612,8 +643,11 @@ jsm_init_modules(JSContext* ctx) {
 }
 
 /**
- * @brief Looks up a builtin module record by name.
+ * Looks up a builtin module record by name.
+ *
  * @param name Builtin module name (e.g. "std", "os", "fs").
+ *
+ *
  * @returns Pointer into jsm_builtin_modules, or 0 if not found.
  */
 static BuiltinModule*
@@ -626,10 +660,13 @@ jsm_builtin_find(const char* name) {
 }
 
 /**
- * @brief Lazily initializes (native-calls or bytecode-loads) a builtin module the first
- *        time it's requested, caching the resulting JSModuleDef on `rec`.
+ * Lazily initializes (native-calls or bytecode-loads) a builtin module the first
+ * time it's requested, caching the resulting JSModuleDef on `rec`.
+ *
  * @param ctx JS context to initialize the module in.
  * @param rec Builtin module record to initialize.
+ *
+ *
  * @returns The module's JSModuleDef, or 0 on failure.
  */
 static JSModuleDef*
@@ -688,9 +725,12 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
 }
 
 /**
- * @brief Loads and parses a JSON file.
+ * Loads and parses a JSON file.
+ *
  * @param ctx JS context to parse in.
  * @param file Path of the JSON file.
+ *
+ *
  * @returns The parsed value, or an exception if the file couldn't be loaded/parsed.
  */
 static JSValue
@@ -705,10 +745,14 @@ jsm_load_json(JSContext* ctx, const char* file) {
 }
 
 /**
- * @brief Loads and caches package.json (in the `package_json` global), tolerating a
- *        missing/invalid file.
+ * Loads and caches package.json (in the `package_json` global), tolerating a
+ * missing/invalid file.
+ *
+ *
  * @param ctx JS context to parse in.
  * @param file Path to load if not already cached; NULL defaults to "package.json".
+ *
+ *
  * @returns The cached package_json value (JS_NULL if it couldn't be loaded).
  */
 static JSValue
@@ -726,10 +770,14 @@ jsm_load_package(JSContext* ctx, const char* file) {
 }
 
 /**
- * @brief Searches a ';'/'\n'-separated list of directories for `module_name`.
+ * Searches a ';'/'\n'-separated list of directories for `module_name`.
+ *
+ *
  * @param ctx JS context (used to allocate the result).
  * @param module_name File name to look for in each directory.
  * @param list ';'/'\n'-separated directory list.
+ *
+ *
  * @returns Newly allocated "dir/module_name" for the first directory that has it, or 0.
  */
 static char*
@@ -762,10 +810,14 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
 }
 
 /**
- * @brief ModuleLoader wrapper searching QUICKJS_MODULE_PATH (env var, else the compiled-in
- *        default) for `module_name`.
+ * ModuleLoader wrapper searching QUICKJS_MODULE_PATH (env var, else the compiled-in
+ * default) for `module_name`.
+ *
+ *
  * @param ctx JS context (used to allocate the result).
  * @param module_name File name to search for.
+ *
+ *
  * @returns Newly allocated resolved path, or 0 if not found.
  */
 static char*
@@ -783,11 +835,15 @@ jsm_search_path(JSContext* ctx, const char* module_name) {
 }
 
 /**
- * @brief Tries `module_name` with each of module_extensions appended in turn, calling `fn`
- *        on each candidate until one succeeds.
+ * Tries `module_name` with each of module_extensions appended in turn, calling `fn`
+ * on each candidate until one succeeds.
+ *
+ *
  * @param ctx JS context (used to allocate scratch/result strings).
  * @param module_name Base module name, without extension.
  * @param fn ModuleLoader to try each "module_name+ext" candidate against.
+ *
+ *
  * @returns Whatever the first successful `fn` call returned, or 0 if none matched.
  */
 static char*
@@ -820,10 +876,14 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
 }
 
 /**
- * @brief Resolves `module_name` to a file, either directly/via path search (if it already
- *        has a recognized suffix) or by trying each module_extensions suffix in turn.
+ * Resolves `module_name` to a file, either directly/via path search (if it already
+ * has a recognized suffix) or by trying each module_extensions suffix in turn.
+ *
+ *
  * @param ctx JS context (used to allocate the result).
  * @param module_name Module name/specifier to resolve.
+ *
+ *
  * @returns Newly allocated resolved path, or 0 if not found.
  */
 static char*
@@ -838,11 +898,54 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
   return s;
 }
 
+static int
+jsm_module_indexof(JSModuleDef* m) {
+  struct list_head* el;
+  int i = 0;
+
+  list_for_each_prev(el, &loaded_modules) {
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+    if(lm->module == m)
+      return i;
+
+    ++i;
+  }
+
+  return -1;
+}
+
+static JSModuleDef*
+jsm_module_at(int index) {
+  struct list_head* el;
+  int i = 0;
+
+  if(index < 0) {
+    list_for_each_prev(el, &loaded_modules) {
+      LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+      if(--i == index)
+        return lm->module;
+    }
+  } else {
+    list_for_each(el, &loaded_modules) {
+      LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+      if(i++ == index)
+        return lm->module;
+    }
+  }
+
+  return 0;
+}
+
 /* end of "new breed" module loader functions */
 
 /**
- * @brief Checks whether a JSModuleDef belongs to one of the builtin modules.
+ * Checks whether a JSModuleDef belongs to one of the builtin modules.
+ *
  * @param m Module to check.
+ *
  * @returns TRUE if `m` is the cached JSModuleDef of a jsm_builtin_modules entry.
  */
 static BOOL
@@ -855,9 +958,11 @@ jsm_module_is_builtin(JSModuleDef* m) {
 }
 
 /**
- * @brief Resolves `module` through package.json's "_moduleAliases" map, if present.
+ * Resolves `module` through package.json's "_moduleAliases" map, if present.
+ *
  * @param ctx JS context to read package.json in.
  * @param module Module specifier to look up (relativized before lookup if absolute).
+ *
  * @returns Newly allocated aliased path if an alias matched, else 0.
  */
 static char*
@@ -889,29 +994,33 @@ jsm_module_package(JSContext* ctx, const char* module) {
 }
 
 /**
- * @brief Builds the synthetic "import ... from 'path'; ..." source used by jsm_module_load
- *        to bring a module into scope and optionally invoke/assign it.
- * @param buf Output buffer; overwritten (buf->size reset to 0 first).
- * @param path Module specifier, optionally followed by "=name"/"!"/"*" modifiers.
- * @param name Explicit binding name; if NULL, derived from `path`'s basename.
- * @param star TRUE to force a namespace import ("import * as tmp ...") retry.
+ * Builds the synthetic "import ... from 'path'; ..." source used by jsm_module_load
+ * to bring a module into scope and optionally invoke/assign it.
+ *
+ * @param buf   Output buffer; overwritten (buf->size reset to 0 first).
+ * @param path  Module specifier, optionally followed by "=name"/"!"/"*" modifiers.
+ * @param name  Explicit binding name; if NULL, derived from `path`'s basename.
+ * @param star  TRUE to force a namespace import ("import * as tmp ...") retry.
  */
 static void
 jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
   enum { NAMED = 0, ALL, EXEC } mode = NAMED;
-  size_t pathlen = str_chr(path, '=');
 
   for(; *path; ++path) {
     switch(*path) {
-      case '!':
+      case '!': {
         if(!star)
           mode = EXEC;
         continue;
-      case '*':
+      }
+
+      case '*': {
         if(!name)
           mode = ALL;
         continue;
+      }
     }
+
     break;
   }
 
@@ -922,18 +1031,20 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
   if(star)
     dbuf_putstr(buf, "* as ");
 
+  size_t pathlen = str_chr(path, '=');
+
   dbuf_putstr(buf, "tmp from '");
   dbuf_put(buf, (const void*)path, pathlen);
-  dbuf_putstr(buf, "';\n");
+  dbuf_putstr(buf, "';");
 
   switch(mode) {
     case EXEC: {
-      dbuf_putstr(buf, "tmp();\n");
+      dbuf_putstr(buf, "tmp();");
       break;
     }
 
     case ALL: {
-      dbuf_putstr(buf, "Object.assign(globalThis, tmp);\n");
+      dbuf_putstr(buf, "Object.assign(globalThis, tmp);");
       break;
     }
 
@@ -959,7 +1070,7 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
       else
         dbuf_putstr(buf, name);
 
-      dbuf_putstr(buf, "'] = tmp;\n");
+      dbuf_putstr(buf, "'] = tmp;");
       break;
     }
   }
@@ -968,10 +1079,12 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 }
 
 /**
- * @brief Finds an already-loaded module by name, starting at `start_pos`.
+ * Finds an already-loaded module by name, starting at `start_pos`.
+ *
  * @param ctx JS context (used by the QUICKJS_INTERNAL fast path).
  * @param name Module name to look for (leading '!'/'*' modifiers skipped).
  * @param start_pos Index into the loaded-modules list to start searching from.
+ *
  * @returns The matching JSModuleDef, or 0 if not found.
  */
 static JSModuleDef*
@@ -992,27 +1105,27 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 #endif
 
   list_for_each(el, &loaded_modules) {
-    if(i < start_pos)
-      continue;
-
     LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+    if(i++ < start_pos)
+      continue;
 
     if(str_equal(name, lm->name)) {
       m = lm->module;
       break;
     }
-
-    i++;
   }
 
   return m;
 }
 
 /**
- * @brief Builds the `moduleEntries` array: [name, moduleValue] pairs for every
- *        non-synthetic (name doesn't start with '<') loaded module.
+ * Builds the `moduleEntries` array: [name, moduleValue] pairs for every
+ * non-synthetic (name doesn't start with '<') loaded module.
+ *
  * @param ctx JS context to build the array in.
  * @param this_val Unused (property getter receiver).
+ *
  * @returns A new JS array of [name, value] pairs.
  */
 static JSValue
@@ -1040,12 +1153,14 @@ jsm_modules_entries(JSContext* ctx, JSValueConst this_val) {
 }
 
 /**
- * @brief Implements the `loadModule` global: synthesizes and evaluates an
- *        import/assignment script for `path`, binding it as `name` (see
- *        jsm_module_script).
+ * Implements the `loadModule` global: synthesizes and evaluates an
+ * import/assignment script for `path`, binding it as `name` (see
+ * jsm_module_script).
+ *
  * @param ctx JS context to evaluate in.
  * @param path Module specifier, optionally with "=name"/"!"/"*" modifiers.
  * @param name Explicit binding name, or NULL to derive one.
+ *
  * @returns The resulting JSModuleDef, or 0 on failure.
  */
 static JSModuleDef*
@@ -1058,6 +1173,8 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 #if QUICKJS_INTERNAL
   last_module = module_last(ctx);
 #endif
+
+  size_t pos = list_size(&loaded_modules);
 
   dbuf_init2(&dbuf, 0, 0);
 
@@ -1095,9 +1212,11 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 }
 
 /**
- * @brief Loads a .json file as a synthetic module exporting its parsed content as default.
+ * Loads a .json file as a synthetic module exporting its parsed content as default.
+ *
  * @param ctx JS context to compile in.
  * @param path Path of the JSON file.
+ *
  * @returns The compiled module, or 0 on failure.
  */
 static JSModuleDef*
@@ -1132,11 +1251,13 @@ jsm_module_json(JSContext* ctx, const char* path) {
 }
 
 /**
- * @brief Resolves `module_name` to an existing file path (direct file, or via
- *        jsm_search_module).
+ * Resolves `module_name` to an existing file path (direct file, or via
+ * jsm_search_module).
+ *
  * @param ctx JS context (used to allocate the result).
  * @param module_name Module specifier to resolve.
  * @param opaque Unused (kept for DEBUG_MODULE tracing symmetry with other loader hooks).
+ *
  * @returns Newly allocated resolved path, or 0 if it couldn't be located.
  */
 static char*
@@ -1166,13 +1287,15 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 }
 
 /**
- * @brief Runs `method_name` (either "loader" or "normalize") through every hook in the
- *        `loader` chain, threading the previous result in as the last argument to the next.
+ * Runs `method_name` (either "loader" or "normalize") through every hook in the
+ * `loader` chain, threading the previous result in as the last argument to the next.
+ *
  * @param ctx JS context to call into.
  * @param loader Head of the loader-hook chain to run.
  * @param method_name Method to look up on each hook object ("loader" or "normalize").
  * @param argc Argument count of `argv`; the last slot is the value threaded through.
  * @param argv Arguments passed to each hook call; argv[argc-1] is updated after each call.
+ *
  * @returns The final value of argv[argc-1] after running the whole chain.
  */
 static JSValue
@@ -1211,10 +1334,12 @@ jsm_call_loader_method(JSContext* ctx, ModuleLoaderContext* loader, const char* 
 }
 
 /**
- * @brief Runs the JS-side "loader" hook chain over a module specifier/value.
+ * Runs the JS-side "loader" hook chain over a module specifier/value.
+ *
  * @param ctx JS context to call into.
  * @param loader Head of the loader-hook chain.
  * @param arg Initial value passed to the chain (typically the specifier string).
+ *
  * @returns The chain's final result (a string, a module value, or unchanged `arg`).
  */
 static JSValue
@@ -1225,11 +1350,13 @@ jsm_call_loaders(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst arg) 
 }
 
 /**
- * @brief Runs the JS-side "normalize" hook chain over a (base, module) specifier pair.
+ * Runs the JS-side "normalize" hook chain over a (base, module) specifier pair.
+ *
  * @param ctx JS context to call into.
  * @param loader Head of the loader-hook chain.
  * @param base Importing module's path.
  * @param module Specifier being normalized.
+ *
  * @returns The chain's final normalized value.
  */
 static JSValue
@@ -1240,13 +1367,15 @@ jsm_call_normalizers(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst b
 }
 
 /**
- * @brief Loads a "data:...,<content>[;base64]" module URL, decoding/unescaping its
- *        payload (and wrapping it in JSON.parse(...) for a "/json" media type).
+ * Loads a "data:...,<content>[;base64]" module URL, decoding/unescaping its
+ * payload (and wrapping it in JSON.parse(...) for a "/json" media type).
+ *
  * @param ctx JS context to compile in.
  * @param name Full "data:" URL.
  * @param opaque Unused.
+ *
  * @returns The compiled module, or 0 if `name` has no ',' payload separator or compilation
- *          failed.
+ * failed.
  */
 static JSModuleDef*
 jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
@@ -1313,14 +1442,16 @@ jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
 }
 
 /**
- * @brief The engine's JSModuleLoaderFunc: resolves and loads `module_name`, handling
- *        data: URLs, the external JS loader-hook chain, circular-import warnings,
- *        package.json aliasing, builtin modules, and filesystem resolution, in that order.
+ * The engine's JSModuleLoaderFunc: resolves and loads `module_name`, handling
+ * data: URLs, the external JS loader-hook chain, circular-import warnings,
+ * package.json aliasing, builtin modules, and filesystem resolution, in that order.
+ *
  * @param ctx JS context to load into.
  * @param module_name Module specifier as requested by the engine.
  * @param opaque Either a `ModuleLoaderContext**` (the external loader-hook chain) or NULL.
+ *
  * @returns The loaded JSModuleDef, or 0 on failure (exception left pending, augmented with
- *          the jsm_stack import chain).
+ * the jsm_stack import chain).
  */
 static JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
@@ -1462,15 +1593,17 @@ end:
 }
 
 /**
- * @brief The engine's module-name normalizer: resolves `name` (as imported from `path`)
- *        to a builtin name or absolute file path, then runs it through the external
- *        JS normalizer-hook chain if one is installed.
+ * The engine's module-name normalizer: resolves `name` (as imported from `path`)
+ * to a builtin name or absolute file path, then runs it through the external
+ * JS normalizer-hook chain if one is installed.
+ *
  * @param ctx JS context.
  * @param path Path of the importing module.
  * @param name Specifier being imported.
  * @param opaque Either a `ModuleLoaderContext**` (the external loader-hook chain) or NULL.
+ *
  * @returns Newly allocated normalized specifier (never NULL: falls back to a copy of
- *          `name`).
+ * `name`).
  */
 static char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
@@ -1550,9 +1683,11 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 }
 
 /**
- * @brief Creates a new JSContext with the bignum extensions and builtin-module registry
- *        wired up. Also used as the worker-thread new-context callback.
+ * Creates a new JSContext with the bignum extensions and builtin-module registry
+ * wired up. Also used as the worker-thread new-context callback.
+ *
  * @param rt Runtime to create the context in.
+ *
  * @returns The new context, or 0 on allocation failure.
  */
 static JSContext*
@@ -1577,9 +1712,11 @@ jsm_context_new(JSRuntime* rt) {
 }
 
 /**
- * @brief Getter backing the `builtins` global: lists every registered builtin module.
+ * Getter backing the `builtins` global: lists every registered builtin module.
+ *
  * @param ctx JS context to build the array in.
  * @param this_val Unused (property getter receiver).
+ *
  * @returns A new array of `{ name, native|compiled: true }` objects.
  */
 static JSValue
@@ -1600,10 +1737,12 @@ jsm_builtins(JSContext* ctx, JSValueConst this_val) {
 }
 
 /**
- * @brief Getter backing the `moduleList` global: lists every currently loaded module.
+ * Getter backing the `moduleList` global: lists every currently loaded module.
+ *
  * @param ctx JS context to build the array in.
  * @param this_val Unused (property getter receiver).
  * @param magic Unused.
+ *
  * @returns A new array of per-module info objects (shape depends on QUICKJS_INTERNAL).
  */
 static JSValue
@@ -1623,8 +1762,8 @@ jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
   list_for_each(el, &loaded_modules) {
     LoadedModule* lm = list_entry(el, LoadedModule, link);
     JSModuleDef* m = lm->module;
-
 #endif
+
     JSValue obj = JS_NewObject(ctx);
 
     JS_DefinePropertyValueStr(ctx, obj, "builtin", jsm_module_is_builtin(m) ? JS_TRUE : JS_FALSE, JS_PROP_CONFIGURABLE);
@@ -1642,10 +1781,12 @@ jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 /**
- * @brief Computes a pointer's offset from the tracing allocator's fixed base address, for
- *        compact "%p" trace output.
+ * Computes a pointer's offset from the tracing allocator's fixed base address, for
+ * compact "%p" trace output.
+ *
  * @param ptr Pointer to compute the offset of.
  * @param dp Tracing state holding the base address.
+ *
  * @returns `ptr - dp->base`.
  */
 static inline unsigned long long
@@ -1655,8 +1796,10 @@ jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
 
 /* default memory allocation functions with memory limitation */
 /**
- * @brief Platform-specific malloc_usable_size() wrapper used by the tracing allocator.
+ * Platform-specific malloc_usable_size() wrapper used by the tracing allocator.
+ *
  * @param ptr Pointer previously returned by malloc/realloc.
+ *
  * @returns The usable size of the allocation, or 0 on platforms without a way to ask.
  */
 static inline size_t
@@ -1677,8 +1820,9 @@ jsm_trace_malloc_usable_size(const void* ptr) {
 }
 
 /**
- * @brief printf-like tracer for -T/--trace allocator events; only understands "%p" and
- *        "%zd" conversions (everything else is copied through verbatim).
+ * printf-like tracer for -T/--trace allocator events; only understands "%p" and
+ * "%zd" conversions (everything else is copied through verbatim).
+ *
  * @param s Tracing state (supplies the base pointer for "%p" output).
  * @param fmt Restricted printf format string.
  * @param ... Arguments matching `fmt`.
@@ -1721,7 +1865,8 @@ FORMAT_STRING(2, 3) jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, .
 }
 
 /**
- * @brief Initializes the tracing allocator's base pointer for offset computation.
+ * Initializes the tracing allocator's base pointer for offset computation.
+ *
  * @param s Tracing state to initialize.
  */
 static void
@@ -1730,9 +1875,11 @@ jsm_trace_malloc_init(struct trace_malloc_data* s) {
 }
 
 /**
- * @brief Tracing malloc(): enforces the malloc_limit and logs "A size -> ptr".
+ * Tracing malloc(): enforces the malloc_limit and logs "A size -> ptr".
+ *
  * @param s Allocator state (byte counters, limit, tracing base).
  * @param size Number of bytes to allocate (must be nonzero).
+ *
  * @returns The allocated pointer, or 0 if it would exceed malloc_limit or malloc() failed.
  */
 static void*
@@ -1757,7 +1904,8 @@ jsm_trace_malloc(JSMallocState* s, size_t size) {
 }
 
 /**
- * @brief Tracing free(): updates byte counters and logs "F ptr".
+ * Tracing free(): updates byte counters and logs "F ptr".
+ *
  * @param s Allocator state.
  * @param ptr Pointer to free (a NULL pointer is a no-op).
  */
@@ -1773,10 +1921,12 @@ jsm_trace_free(JSMallocState* s, void* ptr) {
 }
 
 /**
- * @brief Tracing realloc(): enforces the malloc_limit and logs "R size ptr -> ptr".
+ * Tracing realloc(): enforces the malloc_limit and logs "R size ptr -> ptr".
+ *
  * @param s Allocator state.
  * @param ptr Existing allocation to resize, or NULL to allocate.
  * @param size New size in bytes; 0 frees `ptr` and returns 0.
+ *
  * @returns The (possibly moved) pointer, or 0 if it would exceed malloc_limit.
  */
 static void*
@@ -1825,7 +1975,7 @@ static const JSMallocFunctions trace_mf = {
 };
 
 /**
- * @brief Prints command-line usage and exits(1).
+ * Prints command-line usage and exits(1).
  */
 static void
 jsm_help(void) {
@@ -1861,17 +2011,19 @@ jsm_help(void) {
 }
 
 /**
+ *
  * @brief Implements the `evalFile`/`evalBuf` globals: evaluates a script/module from a
- *        file path or an in-memory string.
+ * file path or an in-memory string.
  * @param ctx JS context to evaluate in.
  * @param this_val Unused (native function receiver).
  * @param argc Argument count.
  * @param argv argv[0]: source (path for EVAL_FILE, code for EVAL_BUF); optional argv[1]:
- *             either a file name override / flags bitmask, or an options object
- *             ({backtrace_barrier, async, strict, strip, global}).
+ * either a file name override / flags bitmask, or an options object
+ * ({backtrace_barrier, async, strict, strip, global}).
  * @param magic EVAL_FILE or EVAL_BUF.
+ *
  * @returns The evaluation result (or a `{name, exports}` object if it's a module), or the
- *          exception on failure.
+ * exception on failure.
  */
 static JSValue
 jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1950,10 +2102,12 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 
 /**
- * @brief Resolves a JS value (module value, numeric index, or name string) to a
- *        JSModuleDef, for the various `*Module` globals.
+ * Resolves a JS value (module value, numeric index, or name string) to a
+ * JSModuleDef, for the various `*Module` globals.
+ *
  * @param ctx JS context.
  * @param value Module value / index / name to resolve.
+ *
  * @returns The matching JSModuleDef, or 0 if not found.
  */
 JSModuleDef*
@@ -1992,13 +2146,15 @@ jsm_module_def(JSContext* ctx, JSValueConst value) {
 }
 
 /**
- * @brief Dispatcher behind every `*Module` global and the `moduleLoader` hook registry
- *        (see the FIND_MODULE.../MODULE_LOADER magic enum).
+ * Dispatcher behind every `*Module` global and the `moduleLoader` hook registry
+ * (see the FIND_MODULE.../MODULE_LOADER magic enum).
+ *
  * @param ctx JS context.
  * @param this_val Unused (native function receiver).
  * @param argc Argument count.
  * @param argv Arguments; shape depends on `magic` (see each case).
  * @param magic Selects the operation to perform.
+ *
  * @returns The operation's result, or an exception/JS_NULL/JS_UNDEFINED as appropriate.
  */
 static JSValue
@@ -2062,10 +2218,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_ToInt32(ctx, &start, argv[1]);
 
       m = jsm_module_find(ctx, name, start);
-
-#if QUICKJS_INTERNAL
-      val = JS_NewInt32(ctx, module_indexof(ctx, m));
-#endif
+      val = JS_NewInt32(ctx, jsm_module_indexof(m));
       break;
     }
 
@@ -2076,7 +2229,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         key = JS_ToCString(ctx, argv[1]);
 
       if((m = jsm_module_load(ctx, name, key)))
-        val = module_value(ctx, m);
+        val = JS_NewInt32(ctx, jsm_module_indexof(m));
       else
         val = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
 
@@ -2108,11 +2261,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case NORMALIZE_MODULE: {
       const char *path, *module, *file;
 
-      path =
-#if QUICKJS_INTERNAL
-          m ? module_namecstr(ctx, m) :
-#endif
-            JS_ToCString(ctx, argv[0]);
+      path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
 
       module = JS_ToCString(ctx, argv[1]);
 
@@ -2132,9 +2281,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case GET_MODULE_NAME: {
-#if QUICKJS_INTERNAL
       val = module_nameval(ctx, m);
-#endif
       break;
     }
 
@@ -2144,65 +2291,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case GET_MODULE_INDEX: {
-#if QUICKJS_INTERNAL
-      val = JS_NewInt32(ctx, module_indexof(ctx, m));
-#endif
-      break;
-    }
-
-    case GET_MODULE_OBJECT: {
-#if QUICKJS_INTERNAL
-      val = module_object(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_IMPORTS: {
-#if QUICKJS_INTERNAL
-      val = module_imports(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_REQMODULES: {
-#if QUICKJS_INTERNAL
-      val = module_reqmodules(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_EXPORTS: {
-#if QUICKJS_INTERNAL
-      val = module_exports(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_NAMESPACE: {
-#if QUICKJS_INTERNAL
-      val = module_ns(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_FUNCTION: {
-#if QUICKJS_INTERNAL
-      val = module_func(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_EXCEPTION: {
-#if QUICKJS_INTERNAL
-      val = module_exception(ctx, m);
-#endif
-      break;
-    }
-
-    case GET_MODULE_META_OBJ: {
-#if QUICKJS_INTERNAL
-      val = module_meta_obj(ctx, m);
-#endif
+      val = JS_NewInt32(ctx, jsm_module_indexof(m));
       break;
     }
 
@@ -2253,11 +2342,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           chain = JS_ToBool(ctx, argv[1]);
 
         m = jsm_module_loader(ctx, module, chain ? &module_loaders : 0);
-        val =
-#if QUICKJS_INTERNAL
-            m ? JS_NewInt32(ctx, module_indexof(ctx, m)) :
-#endif
-              JS_NULL;
+        val = m ? JS_NewInt32(ctx, jsm_module_indexof(m)) : JS_NULL;
       }
 
       break;
@@ -2314,8 +2399,9 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
 };
 
 /**
- * @brief Evaluates the REPL bootstrap script (imports and starts `repl.REPL`) the first
- *        time `interactive` is 1.
+ * Evaluates the REPL bootstrap script (imports and starts `repl.REPL`) the first
+ * time `interactive` is 1.
+ *
  * @param ctx JS context to evaluate in.
  * @param global TRUE to bind the REPL instance as `globalThis.repl`, FALSE as `const repl`.
  */
@@ -2338,11 +2424,13 @@ jsm_start_interactive(JSContext* ctx, BOOL global) {
 }
 
 /**
- * @brief Implements the `startInteractive` global (JS-callable entry point).
+ * Implements the `startInteractive` global (JS-callable entry point).
+ *
  * @param ctx JS context.
  * @param this_val Unused (native function receiver).
  * @param argc Argument count.
  * @param argv Optional argv[0]: boolean, whether to bind as a global (default TRUE).
+ *
  * @returns JS_UNDEFINED.
  */
 static JSValue
@@ -2358,11 +2446,13 @@ jsm_start_interactive4(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 /**
- * @brief JSJobFunc-shaped wrapper around jsm_start_interactive4(), used to defer REPL
- *        startup to a job (see jsm_signal_handler).
+ * JSJobFunc-shaped wrapper around jsm_start_interactive4(), used to defer REPL
+ * startup to a job (see jsm_signal_handler).
+ *
  * @param ctx JS context.
  * @param argc Argument count.
  * @param argv Job arguments, forwarded as-is.
+ *
  * @returns Same as jsm_start_interactive4().
  */
 static JSValue
@@ -2372,7 +2462,8 @@ jsm_start_interactive3(JSContext* ctx, int argc, JSValueConst argv[]) {
 
 #ifndef _WIN32
 /**
- * @brief SIGUSR1 handler: schedules a job to enter interactive mode.
+ * SIGUSR1 handler: schedules a job to enter interactive mode.
+ *
  * @param arg Signal number.
  */
 static void
@@ -2389,9 +2480,11 @@ jsm_signal_handler(int arg) {
 #endif
 
 /**
- * @brief JS_SetInterruptHandler() callback; currently a no-op (never requests interruption).
+ * JS_SetInterruptHandler() callback; currently a no-op (never requests interruption).
+ *
  * @param rt Runtime being checked for interruption.
  * @param opaque The JSContext passed to JS_SetInterruptHandler (unused).
+ *
  * @returns 0 (never interrupt).
  */
 static int
@@ -2402,10 +2495,12 @@ jsm_interrupt_handler(JSRuntime* rt, void* opaque) {
 }
 
 /**
- * @brief qjsm entry point: parses CLI options, sets up the runtime/context, loads
- *        -I includes and preload modules, then runs -e/a script file/the REPL.
+ * qjsm entry point: parses CLI options, sets up the runtime/context, loads
+ * -I includes and preload modules, then runs -e/a script file/the REPL.
+ *
  * @param argc Argument count.
  * @param argv Argument vector.
+ *
  * @returns Process exit code (0 on success, 1 on a script/eval failure, 2 on setup failure).
  */
 int

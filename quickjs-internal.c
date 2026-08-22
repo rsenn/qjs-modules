@@ -414,6 +414,59 @@ js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
 
   return 0;
 }
+JSValue
+module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
+  JSAtom atom = JS_NewAtom(ctx, name);
+  JSValue ret = module_exports_find(ctx, m, atom);
+
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
+JSValue
+module_exports(JSContext* ctx, JSModuleDef* m) {
+  JSValue exports = JS_NewObjectProto(ctx, JS_NULL);
+
+  if(module_exports_get(ctx, m, FALSE, exports) == 0) {
+    JS_FreeValue(ctx, exports);
+    return JS_UNDEFINED;
+  }
+
+  return exports;
+}
+
+JSValue
+js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSValue entries = js_modules_entries(ctx, this_val, magic);
+  JSValue map = js_map_new(ctx, entries);
+
+  JS_FreeValue(ctx, entries);
+  return map;
+}
+
+JSValue
+module_entry(JSContext* ctx, JSModuleDef* m) {
+  JSValue entry = JS_NewArray(ctx);
+
+  JS_SetPropertyUint32(ctx, entry, 0, module_ns(ctx, m));
+  JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, m));
+  JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, m));
+
+  return entry;
+}
+
+JSModuleDef*
+js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
+  JSModuleDef* start = js_module_at(ctx, start_pos);
+  JSModuleDef* ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
+
+  return ret;
+}
+
+JSModuleDef*
+js_module_find(JSContext* ctx, const char* name) {
+  return js_module_find_fwd(ctx, name, NULL);
+}
 
 int
 module_indexof(JSContext* ctx, JSModuleDef* def) {

@@ -1908,9 +1908,6 @@ enum {
   CLASS_ATOM,
   CLASS_NAME,
   CLASS_ID,
-  STRING_POINTER,
-  STRING_LENGTH,
-  STRING_BUFFER,
 };
 
 static JSValue
@@ -2013,45 +2010,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         JS_FreeAtom(ctx, name);
       break;
     }
-
-    case STRING_POINTER: {
-#if QUICKJS_INTERNAL
-      if(JS_IsString(argv[0])) {
-        ret = js_newpointer(ctx, js_cstring_ptr(argv[0]));
-      } else
-#endif
-      {
-        void* ptr;
-
-        if((ptr = js_get_pointer(ctx, argv[0])))
-          ret = JS_NewString(ctx, ptr);
-      }
-
-      break;
-    }
-
-    case STRING_LENGTH: {
-#if QUICKJS_INTERNAL
-      if(JS_IsString(argv[0])) {
-        ret = JS_NewInt64(ctx, strlen(js_cstring_ptr(argv[0])));
-      } else
-#endif
-      {
-        void* ptr;
-
-        if((ptr = js_get_pointer(ctx, argv[0])))
-          ret = JS_NewInt64(ctx, strlen(ptr));
-      }
-
-      break;
-    }
-
-    case STRING_BUFFER: {
-      if(JS_IsString(argv[0]))
-        ret = js_arraybuffer_fromstring(ctx, argv[0]);
-
-      break;
-    }
   }
 
   return ret;
@@ -2087,13 +2045,11 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         JSModuleDef* m = JS_VALUE_GET_PTR(obj);
         const char* name = 0;
 
-#if QUICKJS_INTERNAL
         if((name = module_namecstr(ctx, m))) {
           ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
           JS_FreeCString(ctx, name);
           JS_FreeValue(ctx, obj);
         }
-#endif
 
         return ret;
       }
@@ -3571,25 +3527,6 @@ js_misc_enqueue_job(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return JS_NewInt32(ctx, JS_EnqueueJob(ctx, js_misc_job_function, argc, argv));
 }
 
-#if QUICKJS_INTERNAL
-static JSValue
-js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  BOOL as_object = FALSE;
-
-  if(argc >= 1)
-    as_object = JS_ToBool(ctx, argv[0]);
-
-  return js_opcode_list(ctx, as_object);
-}
-#endif
-
-#if QUICKJS_INTERNAL
-static JSValue
-js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return js_get_bytecode(ctx, argv[0]);
-}
-#endif
-
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
@@ -3795,10 +3732,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
-#if QUICKJS_INTERNAL
-    JS_CFUNC_DEF("getOpCodes", 0, js_misc_opcodes),
-    JS_CFUNC_DEF("getByteCode", 1, js_misc_get_bytecode),
-#endif
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("typeFlag", 1, js_misc_valuetype, VALUETYPE_FLAG),
     JS_CFUNC_MAGIC_DEF("typeName", 1, js_misc_valuetype, VALUETYPE_NAME),
@@ -3811,9 +3744,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("classAtom", 1, js_misc_valuetype, CLASS_ATOM),
     JS_CFUNC_MAGIC_DEF("className", 1, js_misc_valuetype, CLASS_NAME),
     JS_CFUNC_MAGIC_DEF("classId", 1, js_misc_valuetype, CLASS_ID),
-    JS_CFUNC_MAGIC_DEF("stringPointer", 1, js_misc_valuetype, STRING_POINTER),
-    JS_CFUNC_MAGIC_DEF("stringLength", 1, js_misc_valuetype, STRING_LENGTH),
-    JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
     JS_CFUNC_MAGIC_DEF("findAtom", 1, js_misc_atom, FIND_ATOM),

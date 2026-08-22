@@ -339,7 +339,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case PATH_TOARRAY: {
       ret = JS_NewArray(ctx);
       uint32_t idx = 0;
-      for(int i = 0; ; i++) {
+      for(int i = 0;; i++) {
         size_t len;
         const char* p = path_at3(a, &len, i);
         if(!p || (len == 0 && i > 0))
