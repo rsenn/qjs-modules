@@ -1,6 +1,7 @@
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
+int performance_counter_gettime(int, struct timespec*);
 #else
 #include <unistd.h>
 #endif
@@ -925,7 +926,11 @@ static JSValue
 js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
 
+#ifdef _WIN32
+  performance_counter_gettime(CLOCK_MONOTONIC, &ts);
+#else
   clock_gettime(CLOCK_MONOTONIC, &ts);
+#endif
 
   return JS_NewFloat64(ctx, (double)ts.tv_sec * 1000 + ((double)ts.tv_nsec / 1e06));
 }

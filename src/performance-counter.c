@@ -1,5 +1,6 @@
 #ifdef _WIN32
 #include <windows.h>
+#include <time.h>
 
 LARGE_INTEGER
 getFILETIMEoffset() {
@@ -22,7 +23,7 @@ getFILETIMEoffset() {
 }
 
 int
-clock_gettime(int X, struct timeval* tv) {
+performance_counter_gettime(int X, struct timespec* tv) {
   LARGE_INTEGER t;
   FILETIME f;
   double microseconds;
@@ -58,7 +59,7 @@ clock_gettime(int X, struct timeval* tv) {
   microseconds = (double)t.QuadPart / frequencyToMicroseconds;
   t.QuadPart = microseconds;
   tv->tv_sec = t.QuadPart / 1000000;
-  tv->tv_usec = t.QuadPart % 1000000;
+  tv->tv_nsec = (t.QuadPart % 1000000) * 1000;
 
   return (0);
 }
