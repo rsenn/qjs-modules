@@ -683,7 +683,22 @@ list(APPEND misc_LIBRARIES qjs-syscallerror)
 
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)")
+# CMAKE_SYSTEM_PROCESSOR alone isn't enough: it's left empty by the mingw
+# cross toolchain files here (they never set it), so it always evaluated
+# to X86=FALSE when cross-compiling, silently dropping libbcrypt's
+# x86.S -- while crypt_blowfish.c, compiled by the same i686-w64-mingw32
+# compiler, still declares BF_ASM=1 and references x86.S's
+# _BF_body_r whenever the compiler itself defines __i386__, causing an
+# undefined reference at link time. Ask the compiler directly instead,
+# matching crypt_blowfish.c's own condition.
+include(CheckCSourceCompiles)
+check_c_source_compiles("
+#ifndef __i386__
+#error not i386
+#endif
+int main(void) { return 0; }
+" HAVE_I386)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)" OR HAVE_I386)
   set(X86 TRUE)
 else()
   set(X86 FALSE)

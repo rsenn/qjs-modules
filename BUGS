@@ -353,18 +353,3 @@
     console.log(xml.read('<input disabled/>'));
     // actual: [{tagName:"input", attributes:{"disabled/": true}}]
     // expected: [{tagName:"input", attributes:{"disabled": true}}], self-closing
-
-
-- crypt-blowfish-asm-undefined-i686-mingw (libbcrypt/crypt_blowfish/crypt_blowfish.c:654):
-  building qjsm for the i686-w64-mingw32 cross target fails to link with
-  "undefined reference to `_BF_body_r'". crypt_blowfish.c declares and
-  calls the x86-optimized `_BF_body_r` (crypt_blowfish.c:522,654), whose
-  only definition is the GNU-assembler routine in
-  libbcrypt/crypt_blowfish/x86.S, but that .S file isn't being
-  assembled/linked into the qjsm build for this cross target (its plain C
-  fallback, BF_body(), is presumably what's meant to be used there
-  instead). Found while testing the LIBPTHREAD clock_gettime32/64 fix for
-  the mingw cross builds.
-
-    cmake -B build/i686-w64-mingw32 -S . -DCMAKE_TOOLCHAIN_FILE=/opt/cmake-toolchains/mingw32.cmake
-    cmake --build build/i686-w64-mingw32 --target qjsm
