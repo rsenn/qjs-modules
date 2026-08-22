@@ -782,6 +782,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
+add_definitions(-DNDEBUG)
+
 check_function_def(js_debugger_build_backtrace)
 
 #dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
