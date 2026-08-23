@@ -1136,7 +1136,7 @@ js_iterator_then(JSContext* ctx, BOOL done) {
 
 JSClassID
 js_object_classid(JSValueConst v) {
-  JSObject* p;
+  void* p;
 
   if((p = js_value_obj(v)))
     return ((uint16_t*)p)[3];
@@ -1146,7 +1146,7 @@ js_object_classid(JSValueConst v) {
 
 void*
 js_object_opaque(JSValueConst v) {
-  JSObject* p;
+  void* p;
 
   if((p = js_value_obj(v)))
     return ((void**)p)[DEF6432(6, 7)];
@@ -1156,7 +1156,7 @@ js_object_opaque(JSValueConst v) {
 
 int
 js_object_refcount(JSValueConst v) {
-  JSObject* p;
+  void* p;
 
   if((p = js_value_obj(v)))
     return ((int*)p)[0];
@@ -2442,11 +2442,11 @@ js_value_mkval(int tag, intptr_t val) {
 }
 
 JSValueConst
-js_value_mkobj(JSObject* obj) {
+js_value_mkobj(void* obj) {
   return JS_MKPTR(JS_TAG_OBJECT, obj);
 }
 
-JSObject*
+void*
 js_value_obj(JSValueConst v) {
   return (JS_IsObject(v) && !JS_IsNull(v)) ? JS_VALUE_GET_PTR(v) : 0;
 }

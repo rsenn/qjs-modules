@@ -418,7 +418,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewString(ctx, buf);
       } else if((ptr = sockaddr_addr(a))) {
         size_t n = sockaddr_addrlen(a);
-        JSObject* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
+        void* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
 
         ret = JS_NewArrayBuffer(ctx, ptr, n, js_sockaddr_free_buffer, obj, FALSE);
       }
@@ -452,7 +452,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case SOCKADDR_BUFFER: {
-      JSObject* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
+      void* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
       size_t len = sockaddr_len(a);
 
       ret = JS_NewArrayBuffer(ctx, (uint8_t*)a, len, js_sockaddr_free_buffer, obj, FALSE);

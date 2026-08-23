@@ -1125,7 +1125,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
     JS_FreeValue(ctx, val);
     val = proto;
 
-    JSObject* optr = js_value_obj(val);
+    void* optr = js_value_obj(val);
 
     if(optr == 0)
       break;

@@ -15,7 +15,7 @@ VISIBLE JSClassID js_dereferenceerror_class_id = 0;
 static JSValue dereferenceerror_proto, dereferenceerror_ctor;
 
 typedef struct {
-  JSObject* pointer;
+  void* pointer;
   int32_t pos;
   JSValue root, stack;
 } DereferenceError;

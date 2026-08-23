@@ -34,7 +34,7 @@ static JSValue json_serializer_proto, json_serializer_ctor;
 
 struct js_json_parser_opaque {
   JSContext* ctx;
-  JSObject *parser, *obj;
+  void *parser, *obj;
 };
 
 static JSValue

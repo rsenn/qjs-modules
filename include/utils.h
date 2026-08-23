@@ -467,22 +467,22 @@ BOOL         js_value_bool(JSValueConst v);
 double       js_value_float64(JSValueConst v);
 JSValueConst js_value_mkptr(int tag, void* ptr);
 JSValueConst js_value_mkval(int tag, intptr_t val);
-JSValueConst js_value_mkobj(JSObject*);
-JSObject*    js_value_obj(JSValueConst v);
+JSValueConst js_value_mkobj(void*);
+void*        js_value_obj(JSValueConst v);
 
-static inline JSObject*    js_value_obj2(JSContext*ctx, JSValueConst v) {
+static inline void*    js_value_obj2(JSContext* ctx, JSValueConst v) {
   return js_value_obj(JS_DupValue(ctx, v));
 }
 
-static inline JSValue  js_value_mkobj2(JSContext*ctx, JSObject*obj)  {
+static inline JSValue  js_value_mkobj2(JSContext* ctx, void* obj)  {
   return obj? JS_DupValue(ctx, js_value_mkobj(obj)): JS_NULL;
 }
 
-static inline void  js_freeobj(JSContext*ctx, JSObject*obj)  {
+static inline void  js_freeobj(JSContext*ctx, void*obj)  {
   if(obj) JS_FreeValue(ctx,  js_value_mkobj(obj));
 }
 
-static inline void  js_freeobj_rt(JSRuntime*rt, JSObject*obj)  {
+static inline void  js_freeobj_rt(JSRuntime*rt, void*obj)  {
   if(obj) JS_FreeValueRT(rt,  js_value_mkobj(obj));
 }
 /* clang-format on */
@@ -806,7 +806,7 @@ const char* js_object_tostring2(JSContext*, JSValueConst method, JSValueConst va
 
 typedef struct {
   JSContext* ctx;
-  JSObject* obj;
+  void* obj;
 } JSTrampoline;
 
 const char* js_function_name(JSContext*, JSValueConst value);
@@ -863,7 +863,7 @@ enum {
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
-  JSObject *aobj, *bobj;
+  void *aobj, *bobj;
 
   if(!JS_IsObject(a) || !JS_IsObject(b))
     return FALSE;

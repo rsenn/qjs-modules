@@ -2306,7 +2306,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, lc->func));
       } else if(JS_IsObject(argv[0])) {
         for(arg = 0; arg < argc; arg++) {
-          JSObject* func_obj;
+          void* func_obj;
+
           if(!JS_IsObject(argv[arg])) {
             val = JS_ThrowTypeError(ctx, "argument %d must be an object", arg);
             break;
@@ -2316,7 +2317,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           val = JS_NewArray(ctx);
 
           for(i = 0, lptr = &module_loaders; (lc = *lptr); ++i) {
-            JSObject* obj = js_value_obj(lc->func);
+            void* obj = js_value_obj(lc->func);
 
             if(obj == func_obj) {
               JS_FreeValue(ctx, (*lptr)->func);
