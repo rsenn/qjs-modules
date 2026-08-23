@@ -1,4 +1,4 @@
-import { fdopen } from 'std';
+import { fdopen, puts, exit } from 'std';
 import * as os from 'os';
 import { exec, pipe, close, waitpid, readdir, isatty } from 'os';
 import { startInteractive } from 'util';
@@ -565,6 +565,26 @@ Object.assign(globalThis, {
   renderCallGraphText,
 });
 
+const OPTIONS = {
+  help: [false, printHelp, 'h'],
+  graph: [false, null, 'g'],
+  '@': 'paths',
+};
+
+function printHelp() {
+  puts(
+    `Usage: ${scriptArgs[0]} [OPTIONS] <files-or-dirs...>\n\n` +
+      'Cross-checks nm/objdump symbol data to find which object files and symbols\n' +
+      `are pulled into a build by a given entry point (default: 'js_init_module'),\n` +
+      'and reports unused objects/symbols and per-object symbol coverage.\n\n' +
+      '<files-or-dirs...>  .a/.o/.obj/.lib files, or directories to search for them\n\n' +
+      'Options:\n' +
+      '  -g, --graph  also print the full call graph reached from the entry point\n' +
+      '  -h, --help   show this help\n',
+  );
+  exit(0);
+}
+
 main(...scriptArgs.slice(1));
 
 function main(...args) {
@@ -572,7 +592,7 @@ function main(...args) {
 
   // The full call graph text dump can be huge for a well-connected entry point, so it's
   // opt-in only via --graph, rather than printed unconditionally.
-  const params = getOpt({ graph: [false, null, 'g'], '@': 'paths' }, args);
+  const params = getOpt(OPTIONS, args);
   const showGraph = !!params.graph;
   const paths = params['@'];
 
