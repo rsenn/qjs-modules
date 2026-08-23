@@ -26,9 +26,6 @@ int performance_counter_gettime(int, struct timespec*);
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
-#ifdef HAVE_FNMATCH_H
-#include <fnmatch.h>
-#endif
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -1190,26 +1187,6 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   return JS_NewInt32(ctx, fd);
-}
-
-static JSValue
-js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  size_t plen, slen;
-  int32_t flags = 0, ret;
-  const char* pattern = JS_ToCStringLen(ctx, &plen, argv[0]);
-  const char* string = JS_ToCStringLen(ctx, &slen, argv[1]);
-
-  if(argc >= 3)
-    JS_ToInt32(ctx, &flags, argv[2]);
-
-#if HAVE_FNMATCH
-  ret = fnmatch(pattern, string, flags);
-#else
-  ret = path_fnmatch5(pattern, plen, string, slen, flags);
-#endif
-  JS_FreeCString(ctx, pattern);
-  JS_FreeCString(ctx, string);
-  return JS_NewInt32(ctx, ret);
 }
 
 static JSContext* js_misc_glob_errfunc_ctx;
@@ -3536,7 +3513,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
-    JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
 #if HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
@@ -3814,18 +3790,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
     JS_CONSTANT(JS_EVAL_FLAG_MASK),
-#if HAVE_FNMATCH
-    JS_CONSTANT(FNM_CASEFOLD),
-#ifdef FNM_EXTMATCH
-    JS_CONSTANT(FNM_EXTMATCH),
-#endif
-    JS_CONSTANT(FNM_FILE_NAME),
-    JS_CONSTANT(FNM_LEADING_DIR),
-    JS_CONSTANT(FNM_NOESCAPE),
-    JS_CONSTANT(FNM_NOMATCH),
-    JS_CONSTANT(FNM_PATHNAME),
-    JS_CONSTANT(FNM_PERIOD),
-#endif
     JS_CONSTANT(GLOB_APPEND),
     JS_CONSTANT(GLOB_DOOFFS),
     JS_CONSTANT(GLOB_ERR),
