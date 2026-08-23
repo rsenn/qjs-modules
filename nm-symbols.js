@@ -2,6 +2,7 @@ import { fdopen } from 'std';
 import * as os from 'os';
 import { exec, pipe, close, waitpid, readdir, isatty } from 'os';
 import { startInteractive } from 'util';
+import { getOpt } from './lib/util.js';
 import { Console } from 'console';
 
 globalThis.console = new Console({ inspectOptions: { maxArrayLength: Infinity } });
@@ -571,8 +572,9 @@ function main(...args) {
 
   // The full call graph text dump can be huge for a well-connected entry point, so it's
   // opt-in only via --graph, rather than printed unconditionally.
-  const showGraph = args.includes('--graph');
-  const paths = args.filter(a => a !== '--graph');
+  const params = getOpt({ graph: [false, null, 'g'], '@': 'paths' }, args);
+  const showGraph = !!params.graph;
+  const paths = params['@'];
 
   const nmData = parseNmSymbols(paths);
   const objGraph = new ObjectDependencyGraph(nmData);
