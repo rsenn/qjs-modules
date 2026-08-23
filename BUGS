@@ -369,3 +369,41 @@
     for (const tok of lex) {}
     // actual: throws InternalError: ...:4:5: No matching token (0: INITIAL)
     // expected: lexes the whole file without throwing
+
+- require-cjs-wrapper-misparses-esm-file (lib/require.js:111): loading an
+  ES module file (plain `import`/`export`, no CommonJS) via the plain
+  `qjsm script.js` positional-argument path prints a spurious "SyntaxError:
+  unexpected line terminator in regexp" pointing into an imported file,
+  even though that file loads and executes correctly (the printed output
+  is right, exit code 0). Suspected cause: CJSModule.load() reads the raw
+  file text with loadFile() and feeds it verbatim into
+  `new Function('exports', 'require', 'module', text)` without checking
+  whether the file is actually CommonJS - a module using real
+  `import`/`export` syntax fed through that Function constructor can't
+  parse as a function body, and the tokenizer's error-recovery scan after
+  the initial mismatch appears to wrongly land on an unrelated `/`
+  (division after a private field access, e.g. `this.#x / 1000` inside a
+  template literal) and report that as a regexp-literal error instead of
+  the real one. Only intermittently observed - a file that imports several
+  named exports from a larger module didn't trigger it in one run, while a
+  minimal 4-line repro did every time - so the exact trigger condition
+  isn't fully pinned down, but the misleading-error symptom itself is
+  reliably reproducible.
+
+    // __mini.js
+    class Foo {
+      #x = 4000;
+      bar() { return `${(this.#x / 1000).toFixed(0)}s`; }
+    }
+    export default Foo;
+
+    // main.js
+    import Foo from './__mini.js';
+    console.log(new Foo().bar());
+
+    // qjsm main.js
+    // actual: prints "4s" (correct), then also prints:
+    //   SyntaxError: unexpected line terminator in regexp
+    //   Stack:
+    //       at __mini.js:3
+    // expected: prints "4s", nothing else

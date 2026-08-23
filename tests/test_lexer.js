@@ -6,6 +6,7 @@ import CLexer from '../lib/lexer/c.js';
 import CMakeLexer from '../lib/lexer/cmake.js';
 import CSVLexer from '../lib/lexer/csv.js';
 import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
+import IniLexer from '../lib/lexer/ini.js';
 import { GNUMakeLexer } from '../lib/lexer/make.js';
 import ShellLexer from '../lib/lexer/shell.js';
 import XMLLexer from '../lib/lexer/xml.js';
