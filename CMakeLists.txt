@@ -192,8 +192,24 @@ set(CMAKE_REQUIRED_LIBRARIES_OLD "${CMAKE_REQUIRED_LIBRARIES}")
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 
-check_function_def(JS_GetModuleLoaderFunc)
-check_function_def(JS_GetModuleLoaderOpaque)
+# check_function_def() (check_function_exists() under the hood) only
+# checks that a symbol of this name links against CMAKE_REQUIRED_LIBRARIES
+# at all - not that it comes from THIS QUICKJS_LIBRARY. Its result is also
+# CACHE INTERNAL, so once true it stays true across reconfigures even if
+# QUICKJS_LIBRARY_DIR later points at a different, older quickjs lacking
+# the symbol (src/utils.c calls these unconditionally on #if HAVE_..., so
+# a stale true here is a link failure, not a harmless no-op). Check the
+# actual QUICKJS_LIBRARY file instead.
+check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADERFUNC)
+if(HAVE_JS_GETMODULELOADERFUNC)
+  add_definitions(-DHAVE_JS_GETMODULELOADERFUNC)
+endif(HAVE_JS_GETMODULELOADERFUNC)
+
+check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADEROPAQUE)
+if(HAVE_JS_GETMODULELOADEROPAQUE)
+  add_definitions(-DHAVE_JS_GETMODULELOADEROPAQUE)
+endif(HAVE_JS_GETMODULELOADEROPAQUE)
+
 check_function_def(js_debugger_build_backtrace HAVE_JS_DEBUGGERBUILDBACKTRACE)
 
 #dump(HAVE_JS_GETMODULELOADERFUNC HAVE_JS_GETMODULELOADEROPAQUE HAVE_JS_DEBUGGERBUILDBACKTRACE)
