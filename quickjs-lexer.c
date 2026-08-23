@@ -576,6 +576,7 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
 
       if((rule->mask & flags)) {
         lexer_skip(lex);
+        id = 0;
         continue;
       }
 
@@ -587,6 +588,7 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
 
         if(skip || jsrule->skip) {
           lexer_skip(lex);
+          id = 0;
           continue;
         }
       }
