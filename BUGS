@@ -353,3 +353,19 @@
     console.log(xml.read('<input disabled/>'));
     // actual: [{tagName:"input", attributes:{"disabled/": true}}]
     // expected: [{tagName:"input", attributes:{"disabled": true}}], self-closing
+
+- bnf-lexer-literal-newline-in-l-file (lib/lexer/bnf.js): BNFLexer throws
+  "No matching token" on tests/Shell-Grammar.l's definitions section
+  because a literal newline character inside a flex character-class
+  substitution (the `NL  \n` definition line) doesn't match any DIRECTIVE
+  or top-level rule - the escape sequence `\n` there is meant as the
+  regex metachar, but nothing in bnf.js's DIRECTIVE state rules matches a
+  bare `\` followed by `n` outside of `d_string`. Found while running the
+  new tests/test_lexer.js highlighter over tests/Shell-Grammar.l.
+
+    import BNFLexer from './lib/lexer/bnf.js';
+    import { readFileSync } from 'fs';
+    const lex = new BNFLexer(readFileSync('tests/Shell-Grammar.l', 'utf-8'), 'tests/Shell-Grammar.l');
+    for (const tok of lex) {}
+    // actual: throws InternalError: ...:4:5: No matching token (0: INITIAL)
+    // expected: lexes the whole file without throwing
