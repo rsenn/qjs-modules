@@ -444,22 +444,6 @@
     // expected: test file loads and its getByteCode-related assertions
     // run (pass or fail on their own merits)
 
-- jsonpushparser-location-undefined-before-write (quickjs-json.c, `.location`
-  getter, JSON_PARSER_LOCATION): `new JsonPushParser().location` is
-  `undefined` before the first `write()` call, instead of a Location at
-  the parser's initial (0,0)-ish position - so calling `.clone()` on it
-  (as tests/test_json.js:432 does) throws instead of asserting. Either
-  the getter needs to lazily construct/return a zero-position Location
-  before any input has been written, or the location state just isn't
-  initialized until the first write() touches it.
-
-    import { JsonPushParser } from 'json';
-    let p = new JsonPushParser();
-    console.log(p.location);
-    // actual: undefined
-    // expected: a Location object (line/column/charOffset all 0-ish),
-    // usable like the post-write() location
-
 - dom-documentfragment-childnodes-no-factory (lib/dom.js:254, `NodeFactory.for`):
   reading `.childNodes` on a `DocumentFragment` throws "No factory for
   <DocumentFragment>" from the `for...of` loop at lib/dom.js:254 (inside

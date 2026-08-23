@@ -780,6 +780,7 @@ typedef struct PushParser {
   JSValue callbacks_obj;
   JSValue callbacks[jr_type_key + 1 - jr_type_error];
   BOOL use_builder;
+  Location* loc;
 } JsonPushParser;
 
 static void
@@ -894,6 +895,9 @@ js_json_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
   jr_read(pp->use_builder ? &jread_callback_build : &jread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->jrs);
 
+  if(pp->loc)
+    location_count(pp->loc, inputbuffer_data(&input), inputbuffer_length(&input));
+
   inputbuffer_free(&input, ctx);
 
   return pp->jrs.error ? JS_ThrowSyntaxError(ctx, "parse error") : JS_UNDEFINED;
@@ -920,6 +924,7 @@ js_json_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 enum {
   JSON_PUSHPARSER_ROOT,
   JSON_PUSHPARSER_PATH,
+  JSON_PUSHPARSER_LOCATION,
 };
 
 static JSValue
@@ -933,6 +938,7 @@ js_json_pushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case JSON_PUSHPARSER_ROOT: ret = json_builder_root(&pp->builder); break;
     case JSON_PUSHPARSER_PATH: ret = json_builder_path(&pp->builder); break;
+    case JSON_PUSHPARSER_LOCATION: ret = pp->loc ? js_location_wrap(ctx, pp->loc) : JS_UNDEFINED; break;
   }
 
   return ret;
@@ -949,6 +955,15 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
   pp->ctx = ctx;
   jr_state_init(&pp->jrs);
   json_builder_init(&pp->builder, ctx);
+
+  if(!(pp->loc = location_new(ctx))) {
+    jr_state_free(&pp->jrs);
+    json_builder_free(&pp->builder, JS_GetRuntime(ctx));
+    js_free(ctx, pp);
+    return JS_EXCEPTION;
+  }
+
+  location_zero(pp->loc);
 
   pp->callback_fn = JS_UNDEFINED;
   pp->callbacks_obj = JS_UNDEFINED;
@@ -1034,6 +1049,10 @@ js_json_pushparser_finalizer(JSRuntime* rt, JSValue val) {
   if((pp = JS_GetOpaque(val, js_json_pushparser_class_id))) {
     jr_state_free(&pp->jrs);
     json_builder_free(&pp->builder, rt);
+
+    if(pp->loc)
+      location_free(pp->loc, rt);
+
     JS_FreeValueRT(rt, pp->callback_fn);
     JS_FreeValueRT(rt, pp->callbacks_obj);
 
@@ -1050,6 +1069,7 @@ static const JSCFunctionListEntry js_json_pushparser_proto_funcs[] = {
     JS_CFUNC_DEF("close", 0, js_json_pushparser_close),
     JS_CGETSET_MAGIC_FLAGS_DEF("root", js_json_pushparser_get, 0, JSON_PUSHPARSER_ROOT, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("path", js_json_pushparser_get, 0, JSON_PUSHPARSER_PATH, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("location", js_json_pushparser_get, 0, JSON_PUSHPARSER_LOCATION, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_ERROR", jr_type_error, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NULL", jr_type_null, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_TRUE", jr_type_true, JS_PROP_ENUMERABLE),
