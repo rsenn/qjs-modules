@@ -1,6 +1,6 @@
+#include <time.h>
 #ifdef _WIN32
 #include <windows.h>
-#include <time.h>
 
 LARGE_INTEGER
 getFILETIMEoffset() {
@@ -62,5 +62,10 @@ performance_counter_gettime(int X, struct timespec* tv) {
   tv->tv_nsec = (t.QuadPart % 1000000) * 1000;
 
   return (0);
+}
+#else
+int
+performance_counter_gettime(int X, struct timespec* tv) {
+  return clock_gettime(X, tv);
 }
 #endif

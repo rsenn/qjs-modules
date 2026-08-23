@@ -208,6 +208,14 @@ getdents_issock(const DirEntry* e) {
 #define DIRENT(d) ((dirent_struct*)&(d)->buf[(d)->bpos])
 
 #ifdef __linux__
+#ifndef __GLIBC__
+/* ino64_t/off64_t are glibc extensions; other libcs (e.g. musl) don't
+ * provide them. struct linux_dirent64 mirrors the raw getdents64(2)
+ * kernel ABI, which is always these fixed widths regardless of libc. */
+typedef uint64_t ino64_t;
+typedef int64_t off64_t;
+#endif
+
 struct linux_dirent {
   long d_ino;
   off_t d_off;

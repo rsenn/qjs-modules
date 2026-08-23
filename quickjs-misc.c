@@ -1,10 +1,11 @@
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
-int performance_counter_gettime(int, struct timespec*);
 #else
 #include <unistd.h>
 #endif
+#include <time.h>
+int performance_counter_gettime(int, struct timespec*);
 #include "defines.h"
 #include <quickjs.h>
 #include <cutils.h>
@@ -926,11 +927,7 @@ static JSValue
 js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
 
-#ifdef _WIN32
   performance_counter_gettime(CLOCK_MONOTONIC, &ts);
-#else
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-#endif
 
   return JS_NewFloat64(ctx, (double)ts.tv_sec * 1000 + ((double)ts.tv_nsec / 1e06));
 }
@@ -1105,7 +1102,7 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     argc--;
   }
 
-  clock_gettime(arg, &ts);
+  performance_counter_gettime(arg, &ts);
 
   if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
     uint64_t sec, nsec;
