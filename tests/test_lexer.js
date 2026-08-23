@@ -49,6 +49,7 @@ const Lexers = {
   sh: (str, file) => new ShellLexer(str, ShellLexer.LONGEST, file),
   cmake: (str, file) => new CMakeLexer(str, CMakeLexer.LONGEST, file),
   make: (str, file) => new GNUMakeLexer(str, GNUMakeLexer.LONGEST, file),
+  ini: (str, file) => new IniLexer(str, IniLexer.LONGEST, file),
 };
 
 Lexers.h = Lexers.hpp = Lexers.cc = Lexers.cpp = Lexers.c;
@@ -63,6 +64,7 @@ const MakeBasenames = /^(GNUmakefile|makefile|Makefile)$/;
 function lexerFor(file) {
   const base = basename(file);
 
+  if(/\.(ini|mc[wp])$/gi.test(base)) return Lexers.ini;
   if(MakeBasenames.test(base)) return Lexers.make;
   if(base == 'CMakeLists.txt') return Lexers.cmake;
 
