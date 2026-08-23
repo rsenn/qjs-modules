@@ -296,8 +296,6 @@ ssize_mod(ssize_t a, ssize_t b) {
   return (c < 0) ? c + b : c;
 }
 
-uint64_t time_us(void);
-
 typedef struct {
   char* source;
   size_t len;
@@ -1251,7 +1249,6 @@ JSValue js_eval_this_file(JSContext*, JSValueConst, const char*, int);
 int js_eval_str(JSContext*, const char*, const char*, int flags);
 JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) FORMAT_STRING(3, 4);
 
-int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);
 
 void js_call_handler(JSContext*, JSValueConst, JSValueConst, int, JSValueConst[]);

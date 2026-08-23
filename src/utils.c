@@ -52,27 +52,6 @@ int strverscmp(const char*, const char*);
 js_realloc_helper(utils_js_realloc);
 js_realloc_rt_helper(utils_js_realloc_rt);
 
-#if defined(__linux__) || defined(__APPLE__)
-uint64_t
-time_us(void) {
-  struct timespec ts;
-
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-
-  return (uint64_t)ts.tv_sec * 1000000 + (ts.tv_nsec / 1000);
-}
-#else
-/* more portable, but does not work if the date is updated */
-uint64_t
-time_us(void) {
-  struct timeval tv;
-
-  gettimeofday(&tv, 0);
-
-  return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-}
-#endif
-
 size_t
 list_size(struct list_head* list) {
   struct list_head* el;
@@ -3207,15 +3186,6 @@ FORMAT_STRING(3, 4) JSValue js_eval_fmt(JSContext* ctx, int flags, const char* f
 }
 
 thread_local uint64_t js_pending_signals = 0;
-
-int64_t
-js_time_ms(void) {
-  struct timespec ts;
-
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-
-  return (uint64_t)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000);
-}
 
 int
 js_interrupt_handler(JSRuntime* rt, void* opaque) {
