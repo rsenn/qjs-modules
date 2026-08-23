@@ -443,20 +443,3 @@
     // module 'misc'
     // expected: test file loads and its getByteCode-related assertions
     // run (pass or fail on their own merits)
-
-- dom-documentfragment-childnodes-no-factory (lib/dom.js:254, `NodeFactory.for`):
-  reading `.childNodes` on a `DocumentFragment` throws "No factory for
-  <DocumentFragment>" from the `for...of` loop at lib/dom.js:254 (inside
-  the `childNodes` getter, lib/dom.js:1196) - `NodeFactory.get()` has no
-  registered factory for a plain `DocumentFragment` node, only for the
-  Document-derived element/text/etc. factories. Found via
-  tests/test_event_and_fragment.js's "DocumentFragment appendChild" test,
-  which walks `frag2.childNodes` after appendChild.
-
-    import { DocumentFragment, Document } from 'dom';
-    const doc = new Document({ tagName: 'html', attributes: {}, children: [] });
-    const frag = doc.createDocumentFragment();
-    frag.appendChild(doc.createElement('div'));
-    console.log([...frag.childNodes]);
-    // actual: throws Error: No factory for <DocumentFragment> [[ ... ]]
-    // expected: an array containing the appended <div> element
