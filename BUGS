@@ -407,3 +407,72 @@
     //   Stack:
     //       at __mini.js:3
     // expected: prints "4s", nothing else
+
+- ctest-runs-disabled-optional-module-tests (CMakeLists.txt:830): the test
+  registration loop globs every tests/test_*.js and add_test()s it
+  unconditionally, with no check against MODULE_SERIAL/MODULE_GPIO (both
+  OFF by default, CMakeLists.txt:71-72) or any other optional-module
+  build flag. tests/test_serial.js and tests/test_gpio.js import a module
+  that was never built on a default configure, so they hard-fail every
+  ctest run instead of being skipped/excluded when their module is
+  disabled - can't distinguish "expected, module opted out" from "real
+  regression" in CI output. Found running `ctest` in build/x86_64-linux-gnu
+  (MODULE_SERIAL=OFF, MODULE_GPIO=OFF, the defaults).
+
+    cmake -B build -S . && cmake --build build && ctest --test-dir build
+    // actual: test_serial.js and test_gpio.js FAIL with
+    //   ReferenceError: could not load module 'serial'/'gpio'
+    // expected: skipped (or excluded from the test set) when
+    // MODULE_SERIAL/MODULE_GPIO are OFF
+
+- misc-getbytecode-missing-export (tests/test_misc.js:6): `import {
+  getByteCode, ... } from 'misc'` fails with "Could not find export
+  'getByteCode' in module 'misc'" against the quickjs build linked by
+  build/x86_64-linux-gnu - misc.js/quickjs-misc.c doesn't (or no longer)
+  export a function by this name, so the whole test file fails to load
+  before any assertion runs. Same class of issue as the
+  JS_GetModuleLoaderFunc/JS_GetModuleLoaderOpaque version-mismatch fixed
+  in CMakeLists.txt this session (a source/library expecting an API the
+  linked quickjs doesn't have) - not narrowed down to whether getByteCode
+  was renamed/removed upstream or never existed in this vendored
+  quickjs.c.
+
+    QUICKJS_MODULE_PATH="build/x86_64-linux-gnu;lib" \
+      ./build/x86_64-linux-gnu/qjsm --bignum tests/test_misc.js
+    // actual: SyntaxError: Could not find export 'getByteCode' in
+    // module 'misc'
+    // expected: test file loads and its getByteCode-related assertions
+    // run (pass or fail on their own merits)
+
+- jsonpushparser-location-undefined-before-write (quickjs-json.c, `.location`
+  getter, JSON_PARSER_LOCATION): `new JsonPushParser().location` is
+  `undefined` before the first `write()` call, instead of a Location at
+  the parser's initial (0,0)-ish position - so calling `.clone()` on it
+  (as tests/test_json.js:432 does) throws instead of asserting. Either
+  the getter needs to lazily construct/return a zero-position Location
+  before any input has been written, or the location state just isn't
+  initialized until the first write() touches it.
+
+    import { JsonPushParser } from 'json';
+    let p = new JsonPushParser();
+    console.log(p.location);
+    // actual: undefined
+    // expected: a Location object (line/column/charOffset all 0-ish),
+    // usable like the post-write() location
+
+- dom-documentfragment-childnodes-no-factory (lib/dom.js:254, `NodeFactory.for`):
+  reading `.childNodes` on a `DocumentFragment` throws "No factory for
+  <DocumentFragment>" from the `for...of` loop at lib/dom.js:254 (inside
+  the `childNodes` getter, lib/dom.js:1196) - `NodeFactory.get()` has no
+  registered factory for a plain `DocumentFragment` node, only for the
+  Document-derived element/text/etc. factories. Found via
+  tests/test_event_and_fragment.js's "DocumentFragment appendChild" test,
+  which walks `frag2.childNodes` after appendChild.
+
+    import { DocumentFragment, Document } from 'dom';
+    const doc = new Document({ tagName: 'html', attributes: {}, children: [] });
+    const frag = doc.createDocumentFragment();
+    frag.appendChild(doc.createElement('div'));
+    console.log([...frag.childNodes]);
+    // actual: throws Error: No factory for <DocumentFragment> [[ ... ]]
+    // expected: an array containing the appended <div> element
