@@ -447,3 +447,18 @@ done inline since each is either large or a judgment call on API shape.
   "<unknown>"`) to name the `ModuleLoader*` passed in. Silently prints `"<unknown>"` if a third
   implementation is ever added. A small named-enum-plus-lookup (or just naming the parameter
   at each call site in the trace) would stay correct automatically.
+
+## Tier 12 — deferred: `yaml` module `read()` (YAML → JS)
+
+`quickjs-yaml.c` currently only implements `write()` (JS value → block-YAML text), added for
+the eagle-agent EDA parts catalog export (see `doc/eagle-agent.md`). Parsing was explicitly
+out of scope for that work and is deferred:
+
+- A `read(text)` function, symmetric with `write()`, decoding the same block-YAML subset
+  back into a JS value.
+- If/when that's built, model it as a computed-goto push/SAX parser in
+  `src/yread.c`/`include/yread.h`, the same pattern `src/jread.c`/`include/jread.h` (JSON) and
+  `src/xread.c`/`include/xread.h` (XML) already use, rather than a recursive-descent parser
+  inline in `quickjs-yaml.c`.
+- Scope stays pinned to the writer's own subset (block style, plain/quoted scalars, no
+  anchors/aliases/multi-doc/flow/tags) — no need to handle full YAML 1.1/1.2.

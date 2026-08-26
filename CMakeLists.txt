@@ -90,7 +90,7 @@ if(NOT DEFINED BUILTINS_NATIVE)
   set(BUILTINS_NATIVE arraybuffer-sink 
     #blob 
     child-process deep directory inspect lexer location misc path pointer
-                      predicate repeater stream syscallerror textcode tree-walker virtual xml)
+                      predicate repeater stream syscallerror textcode tree-walker virtual xml yaml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
 include(FindPkgConfig)
@@ -399,7 +399,7 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 set(QUICKJS_MODULES
     arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
     textcode sockets stream
-    syscallerror inspect tree-walker virtual xml)
+    syscallerror inspect tree-walker virtual xml yaml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
