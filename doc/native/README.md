@@ -15,6 +15,7 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 - [list](list.md) — Doubly-linked list
 - [textcode](textcode.md) — TextEncoder/TextDecoder (WHATWG Encoding API)
 - [xml](xml.md) — XML/HTML parser and writer
+- [yaml](yaml.md) — Block-YAML writer
 
 ### System & I/O
 - [child-process](child-process.md) — Node.js child_process module
