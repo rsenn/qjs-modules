@@ -462,3 +462,64 @@ out of scope for that work and is deferred:
   inline in `quickjs-yaml.c`.
 - Scope stays pinned to the writer's own subset (block style, plain/quoted scalars, no
   anchors/aliases/multi-doc/flow/tags) — no need to handle full YAML 1.1/1.2.
+
+  **Superseded by Tier 13 below** if cyaml adoption goes ahead: cyaml's `cyaml_parse()` +
+  `cyaml_emit()` would cover both `read()` and `write()` (full YAML 1.2, not just this
+  writer's subset), making a hand-rolled `src/yread.c` push parser unnecessary. Leaving this
+  entry in place until that decision is made.
+
+## Tier 13 — adopt cyaml as the `yaml` module's backing library (plan only, not started)
+
+`quickjs-yaml.c` currently hand-rolls its own block-YAML writer (`js_yaml_write()`,
+`quickjs-yaml.c:301-335`, ~200 lines of DynBuf-based emission logic covering only a
+restricted subset — see Tier 12 above) and has no reader at all. Replace both with
+[cyaml](https://github.com/andrewmd5/cyaml) (MIT, C11, zero dependencies beyond libc,
+passes the full `yaml-test-suite`), vendored as a git submodule.
+
+**Submodule placement:** put it at `3rdparty/cyaml`, not the repo root (where every other
+submodule — `libarchive`, `pigpio`, `libutf`, `tutf8e`, `libserialport`, `libbcrypt` —
+currently lives; only `third_party/wasm3` is already namespaced, under the *old* directory
+name `third_party/`, not `3rdparty/`). This is meant to be the first of a broader cleanup:
+move all existing root-level submodules into `3rdparty/` (and fold `third_party/wasm3` in
+too, i.e. rename `third_party/` → `3rdparty/`) so vendored code stops cluttering the repo
+root — tracked here as a follow-up, not bundled into the cyaml change itself.
+
+**API shape — full-tree only, no evented/pull parser:** confirmed by reading `src/cyaml.h`
+(and the README's "Event stream output" feature) that cyaml has no SAX-style push parser
+(no read-callback/handler registration) and no incremental pull parser (no "get next
+event" call that holds cursor state across calls) comparable to this project's own
+`src/jread.c`/`src/xread.c` computed-goto push parsers or the pull-style primitives
+`XMLPushParser`/JSON's streaming reader expose. `cyaml_parse()`/`cyaml_parse_stream()`
+take the entire source buffer up front and return a fully-built `cyaml_doc_t*` node tree;
+there is no way to feed it chunks incrementally or stop after N events. `cyaml_events()`/
+`cyaml_stream_events()` sound like a streaming API from the name, but they are the
+opposite: they take an *already fully-parsed* `cyaml_doc_t*` and serialize it back out as
+a textual canonical event-log string (the same event-log format `yaml-test-suite` uses for
+its conformance fixtures) — a dump format, not a live callback/cursor API. Implication for
+this module: `read()` will have to be a whole-buffer-in, whole-JS-value-out conversion
+(`cyaml_parse()` → walk the `cyaml_node_t` tree → build the JS value), same shape as the
+existing JSON module's non-streaming `parse()`, not the incremental push/pull style used
+for XML. If an evented/pull YAML reader is ever wanted, cyaml won't provide it — would
+still need the hand-rolled `src/yread.c` design sketched in Tier 12, on top of or instead
+of cyaml.
+
+**Plan:**
+1. Add `3rdparty/cyaml` submodule (`https://github.com/andrewmd5/cyaml`), wire into
+   `CMakeLists.txt` (cyaml ships its own `CMakeLists.txt`; likely `add_subdirectory()` with
+   `CYAML_BUILD_TESTS`/`CYAML_BUILD_SHARED` off, static-link into `quickjs-yaml.c`'s module).
+2. Replace `js_yaml_write()`'s hand-rolled emission with `cyaml_doc_new()` +
+   `cyaml_new_*()`/`cyaml_map_set()`/`cyaml_seq_push()` tree construction from the JS value,
+   then `cyaml_emit()`. Drops the current subset restrictions (flow style, anchors/aliases,
+   multi-doc all become available "for free").
+3. Implement `read()` via `cyaml_parse()` + a `cyaml_node_t` → `JSValue` walk (using
+   `cyaml_scalar_kind()`/`cyaml_as_int()`/`cyaml_as_float()`/`cyaml_as_bool()`/
+   `cyaml_scalar_str()` for scalars, iterate seq/map nodes for containers).
+4. Decide whether to also expose YPATH (`cyaml_path()`/`cyaml_path_query()`) as a
+   `yaml`-module convenience, or leave that as a `deep`/`pointer`-module-style concern —
+   default to *not* exposing it initially (avoid growing custom API surface per the
+   "internal vs public APIs" project principle), revisit only if a concrete use case shows up.
+5. Update `doc/native/yaml.md` for the new `read()` export and the widened `write()`
+   compliance (full YAML 1.2 vs. today's documented subset).
+6. Remove/resolve the Tier 12 entry above once this lands (either fold its `read()` request
+   into this work, or explicitly drop the yread.c push-parser design if cyaml covers the
+   need without it).
