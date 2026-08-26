@@ -1,8 +1,10 @@
-import { fdopen, puts, exit } from 'std';
+#!/usr/bin/env qjsm
+
+import { fdopen, puts, exit, loadFile, open } from 'std';
 import * as os from 'os';
 import { exec, pipe, close, waitpid, readdir, isatty } from 'os';
-import { startInteractive } from 'util';
-import { getOpt } from './lib/util.js';
+import { startInteractive, getOpt, isMainModule } from 'util';
+import { findFunctionDefinitions } from 'c-functions';
 import { Console } from 'console';
 
 globalThis.console = new Console({ inspectOptions: { maxArrayLength: Infinity } });
@@ -568,6 +570,9 @@ Object.assign(globalThis, {
 const OPTIONS = {
   help: [false, printHelp, 'h'],
   graph: [false, null, 'g'],
+  'dead-code': [false, null, 'd'],
+  source: [true, (v, prev) => (prev ?? []).concat(v), 's'],
+  output: [true, null, 'o'],
   '@': 'paths',
 };
 
@@ -580,12 +585,40 @@ function printHelp() {
       '<files-or-dirs...>  .a/.o/.obj/.lib files, or directories to search for them\n\n' +
       'Options:\n' +
       '  -g, --graph  also print the full call graph reached from the entry point\n' +
-      '  -h, --help   show this help\n',
+      '  -h, --help   show this help\n\n' +
+      `Dead-code mode (${scriptArgs[0]} -d <so-dir-or-files...>):\n\n` +
+      'Finds functions defined in the given --source dirs (default: include, src)\n' +
+      "that never appear as a defined symbol in any of the given .so files' (or the\n" +
+      "build dir's qjsm executable, if present) local symbol table, i.e. functions\n" +
+      "-ffunction-sections/--gc-sections stripped as dead at link time. Requires a\n" +
+      'build compiled with -fno-inline, or successfully-inlined live functions will\n' +
+      'be misreported as dead. Writes a JSON report (array of { file, name,\n' +
+      'startLine, endLine }) meant to be reviewed/trimmed by hand before being fed\n' +
+      "to a removal script - name-only symbol matching can't distinguish two\n" +
+      'same-named static functions in different files, so a match against one\n' +
+      "used elsewhere can mask another same-named function that's truly dead.\n" +
+      'Scans include/, src/, and the repo-root quickjs-*.[ch] module sources. The\n' +
+      'report also lists notCompiledFiles (whole quickjs-*.c files this build never\n' +
+      "compiled, e.g. a disabled MODULE_* option - can't tell if they're used\n" +
+      'elsewhere, so excluded rather than reported dead) and platformGuarded\n' +
+      '(functions inside a #if/#ifdef mentioning another platform, e.g. _WIN32 -\n' +
+      'inactive on this build regardless of whether some other platform uses them,\n' +
+      'so kept separate from deadFunctions rather than folded in) and\n' +
+      'referencedButUnlinked (absent from every .so, but named in a relocation\n' +
+      "record in some .o file - e.g. `.finalizer = my_fn` in a struct that's never\n" +
+      'actually passed anywhere live, a real bug that would otherwise look exactly\n' +
+      "like dead code; this cross-check trusts the compiler's own relocation data\n" +
+      "over the linker's final reachability verdict, so it also catches cases this\n" +
+      "tool's own detection logic gets wrong in the future - kept separate rather\n" +
+      'than folded into deadFunctions).\n\n' +
+      '  -d, --dead-code     switch to dead-code report mode\n' +
+      '  -s, --source <dir>  source dir to scan (repeatable, default: include, src)\n' +
+      '  -o, --output <file> write JSON report to file instead of stdout\n',
   );
   exit(0);
 }
 
-main(...scriptArgs.slice(1));
+if(isMainModule(import.meta.url)) main(...scriptArgs.slice(1));
 
 function main(...args) {
   const ENTRY_POINT = 'js_init_module';
@@ -595,6 +628,20 @@ function main(...args) {
   const params = getOpt(OPTIONS, args);
   const showGraph = !!params.graph;
   const paths = params['@'];
+
+  if(params['dead-code']) {
+    const sourceDirs = params.source ?? ['include', 'src'];
+    const report = findDeadFunctions(sourceDirs, paths);
+    const json = JSON.stringify(report, null, 2);
+
+    if(params.output) {
+      const f = open(params.output, 'w+');
+      f.puts(json + '\n');
+      f.close();
+    } else puts(json + '\n');
+
+    return;
+  }
 
   const nmData = parseNmSymbols(paths);
   const objGraph = new ObjectDependencyGraph(nmData);
@@ -648,6 +695,289 @@ function* searchPaths(paths) {
       yield p;
     }
   }
+}
+
+function* searchSoFiles(paths) {
+  if(typeof paths == 'string') paths = [paths];
+
+  // Besides the .so modules, also pick up the qjsm executable if the build dir has
+  // one: it's the only other build target linking src/include utils, and functions
+  // it alone calls shouldn't be reported as dead just because no .so uses them.
+  for(const p of paths) {
+    const [entries, err] = readdir(p);
+
+    if(!err && entries) {
+      for(const entry of entries) if(/\.so(\.\d+)*$/i.test(entry) || /^qjsm(\.exe)?$/i.test(entry)) yield `${p}/${entry}`;
+    } else {
+      yield p;
+    }
+  }
+}
+
+/**
+ * Recursively walks a directory, yielding paths of files matching `re`. Directories are
+ * distinguished from files the same way searchPaths() does: try readdir() on the entry.
+ */
+function* walkFiles(dir, re) {
+  const [entries, err] = readdir(dir);
+  if(err || !entries) return;
+
+  for(const entry of entries) {
+    if(entry == '.' || entry == '..') continue;
+
+    const p = `${dir}/${entry}`;
+    const [subEntries, subErr] = readdir(p);
+
+    if(!subErr && subEntries) yield* walkFiles(p, re);
+    else if(re.test(entry)) yield p;
+  }
+}
+
+/**
+ * Runs a single 'nm -A' across all .so files (one exec, not one per file - os.exec()'s
+ * fork+exec closes every inherited fd up to the process's fd-table size first, which
+ * on a system with a large 'ulimit -n' makes each call noticeably slow, so batching
+ * matters) and collects the names of all defined text symbols (types T/t/W/w) across
+ * all of them - i.e. every function name that survived -ffunction-sections/
+ * --gc-sections in *some* build output.
+ *
+ * @param {string[]} soFiles
+ * @returns {Set<string>}
+ */
+function collectDefinedFunctionSymbols(soFiles) {
+  const symbols = new Set();
+  if(soFiles.length == 0) return symbols;
+
+  for(const line of runCommand('nm', '-A', ...soFiles)) {
+    if(!line) continue;
+
+    const { index } = / [A-Za-z?-] /.exec(line) ?? { index: -1 };
+    if(index == -1) continue;
+
+    const remainder = line.slice(index + 1).trim();
+    const parts = remainder.split(/\s+/);
+    if(parts.length < 2) continue;
+
+    const [type, name] = [parts[parts.length - 2], parts[parts.length - 1]];
+    if(/^[TtWw]$/.test(type)) symbols.add(name);
+  }
+
+  return symbols;
+}
+
+/**
+ * Cross-checks every function *defined* in `sourceDirs` (include/src, by default)
+ * against the union of defined-symbol names across all `soPaths` .so files, and
+ * reports the ones that never made it into any of them - i.e. dead-stripped by
+ * -ffunction-sections/-fdata-sections + --gc-sections, and therefore unreferenced
+ * anywhere in the built modules.
+ *
+ * Matching is by function name only (C has no mangling), so two identically-named
+ * static functions in different files are indistinguishable: if either is used
+ * anywhere, both are reported as alive. This report is meant for human review
+ * (trim entries you don't want removed) before being handed to a removal script.
+ *
+ * @param {string[]} sourceDirs
+ * @param {string[]} soPaths - .so files, or directories to search for them
+ * @returns {Object}
+ */
+function* rootModuleFiles() {
+  // The quickjs-<name>.c/.h module sources live flat in the repo root, alongside
+  // include/ and src/ - not nested under either, so sourceDirs' recursive walk
+  // never sees them; scan for them separately.
+  const [entries, err] = readdir('.');
+  if(err || !entries) return;
+
+  for(const entry of entries) if(/^quickjs-.*\.[ch]$/i.test(entry)) yield entry;
+}
+
+/**
+ * Returns the set of 1-based line numbers that fall inside a #if/#ifdef/#elif branch
+ * whose condition mentions a non-Linux platform macro. Doesn't evaluate conditions -
+ * just tracks nesting depth and flags any branch whose *own* condition text matches;
+ * an #else paired with a platform-gated #if is treated as still guarded (tolerable
+ * over-caution: worst case a removable function is merely skipped, never wrongly
+ * deleted).
+ */
+function findPlatformGuardedLines(source) {
+  // #if/#ifdef/#elif conditions mentioning these are almost always gating code for a
+  // platform other than "this build" (this tool only ever runs against a single Linux
+  // build) - a #if defined(_WIN32) block compiles to nothing here regardless of
+  // whether that code is actually dead on Windows, so it must never be reported dead.
+  const PLATFORM_MACRO_RE = /\b(_WIN32|_WIN64|__CYGWIN__|__MSYS__|__MINGW32__|__APPLE__|__ANDROID__)\b/;
+
+  const lines = source.split('\n');
+  const guarded = new Set();
+  const stack = [];
+
+  for(let ln = 0; ln < lines.length; ln++) {
+    const m = /^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b(.*)$/.exec(lines[ln]);
+
+    if(!m) {
+      if(stack.some(Boolean)) guarded.add(ln + 1);
+      continue;
+    }
+
+    const [, kw, rest] = m;
+
+    if(kw == 'if' || kw == 'ifdef' || kw == 'ifndef') stack.push(PLATFORM_MACRO_RE.test(rest));
+    else if(kw == 'elif') {
+      if(stack.length) stack[stack.length - 1] = PLATFORM_MACRO_RE.test(rest);
+    } else if(kw == 'endif') stack.pop();
+  }
+
+  return guarded;
+}
+
+/**
+ * Extracts the referenced function name from an objdump -r VALUE column, or null if
+ * it isn't a plain code symbol reference (e.g. a .rodata/.bss data reference). Local
+ * per-function-section symbols (-ffunction-sections gives every function its own
+ * `.text.<name>`/`.text.unlikely.<name>`/etc. section) show up as that section name
+ * rather than a plain symbol name, so the last '.'-separated segment is taken; a
+ * trailing '+0x...'/'-0x...' addend is stripped first either way.
+ */
+function relocationTargetName(value) {
+  value = value.replace(/[+-]0x[0-9a-fA-F]+$/, '');
+
+  if(value.startsWith('.text.')) value = value.split('.').pop();
+
+  return /^[A-Za-z_]\w*$/.test(value) ? value : null;
+}
+
+/**
+ * Runs a single batched 'objdump -r' across every .o file found under `soPaths` (not
+ * just the .so build outputs - every object file compiled for this build, including
+ * ones whose containing section --gc-sections later dropped from the final link) and
+ * collects every function name referenced by any relocation record, anywhere.
+ *
+ * This is deliberately broader/cheaper than a full reachability graph: a function
+ * referenced only via a data relocation (e.g. a `.finalizer = my_fn` field in a
+ * `static JSClassDef`) is exactly as "referenced" here whether or not the struct
+ * holding that relocation ended up reachable from js_init_module in the final .so -
+ * so this independently corroborates (or, more importantly, *refutes*) a "dead by
+ * absence from the .so" verdict from collectDefinedFunctionSymbols(), using the
+ * compiler's own relocation data instead of re-deriving reachability by hand.
+ *
+ * @param {string[]} soPaths - same dirs/files passed to findDeadFunctions()
+ * @returns {Set<string>}
+ */
+function collectRelocationReferencedSymbols(soPaths) {
+  const objFiles = soPaths.flatMap(p => [...walkFiles(p, /\.o$/i)]).filter(f => !/\/CMakeFiles\/CMakeTmp\//.test(f));
+
+  const symbols = new Set();
+  if(objFiles.length == 0) return symbols;
+
+  // DWARF sections (.debug_info, .debug_aranges, etc.) carry a relocation to every
+  // compiled function's own address for debug-metadata purposes, regardless of
+  // whether anything actually calls it - counting those would make this cross-check
+  // useless (every function would look "referenced"). Only relocations from a real
+  // code/data section count as a genuine usage signal.
+  // Allow-list, not a block-list: metadata sections that reference every function
+  // regardless of usage keep turning up (.debug_*, .eh_frame's unwind info, ...) -
+  // safer to only trust the section kinds that are actually code/data referencing
+  // something, rather than trying to enumerate every metadata section that isn't.
+  const REAL_SECTION_RE = /^\.(text|data|rodata|bss)(\.|$)/;
+  let inRealSection = false;
+
+  for(const line of runCommand('objdump', '-r', ...objFiles)) {
+    const header = /^RELOCATION RECORDS FOR \[(.+)\]:$/.exec(line);
+    if(header) {
+      inRealSection = REAL_SECTION_RE.test(header[1]);
+      continue;
+    }
+
+    if(!inRealSection) continue;
+
+    const m = /^[0-9a-fA-F]+\s+\S+\s+(\S+)/.exec(line);
+    if(!m) continue;
+
+    const name = relocationTargetName(m[1]);
+    if(name) symbols.add(name);
+  }
+
+  return symbols;
+}
+
+/**
+ * Basenames of .c files the given build dir's compile_commands.json actually compiles.
+ * A src/*.c or quickjs-*.c file missing here wasn't part of this build at all (e.g. a
+ * module disabled via a CMake MODULE_* option) - there's no data on whether its
+ * functions are used elsewhere, so it must be excluded rather than reported dead.
+ */
+function compiledFileNames(soPaths) {
+  for(const p of soPaths) {
+    const json = loadFile(`${p}/compile_commands.json`);
+    if(json == null) continue;
+
+    try {
+      return new Set(JSON.parse(json).map(({ file }) => file.replace(/^.*\//, '')));
+    } catch(e) {}
+  }
+
+  return null;
+}
+
+export function findDeadFunctions(sourceDirs, soPaths) {
+  const soFiles = [...searchSoFiles(soPaths)];
+  const definedSymbols = collectDefinedFunctionSymbols(soFiles);
+  const referencedSymbols = collectRelocationReferencedSymbols(soPaths);
+  const compiledNames = compiledFileNames(soPaths);
+
+  const files = [...sourceDirs.flatMap(dir => [...walkFiles(dir, /\.[ch]$/i)]), ...rootModuleFiles()];
+
+  const deadFunctions = [];
+  const notCompiled = [];
+  const platformGuarded = [];
+  const referencedButUnlinked = [];
+  let totalFunctions = 0,
+    skippedMacroAliases = 0;
+
+  for(const file of files) {
+    if(compiledNames && /\.c$/i.test(file) && !compiledNames.has(file.replace(/^.*\//, ''))) {
+      notCompiled.push(file);
+      continue;
+    }
+
+    const source = loadFile(file);
+    if(source == null) continue;
+
+    // A function whose name is itself #define'd in the same file (e.g. the
+    // `#define JS_INIT_MODULE js_init_module_foo` / `JS_INIT_MODULE(ctx, name) {...}`
+    // pattern every module uses for its entry point) links under the macro-expanded
+    // name, not the literal source text - can't check symbol presence without running
+    // the preprocessor, so these are skipped rather than misreported as dead.
+    const macroNames = new Set([...source.matchAll(/^#define\s+(\w+)\b/gm)].map(m => m[1]));
+    const guardedLines = findPlatformGuardedLines(source);
+
+    const defs = findFunctionDefinitions(source, file);
+    totalFunctions += defs.length;
+
+    for(const { name, startLine, endLine, declStartLine } of defs) {
+      if(macroNames.has(name)) {
+        skippedMacroAliases++;
+        continue;
+      }
+
+      if(definedSymbols.has(name)) continue;
+
+      if(guardedLines.has(declStartLine)) platformGuarded.push({ file, name, startLine, endLine });
+      else if(referencedSymbols.has(name)) referencedButUnlinked.push({ file, name, startLine, endLine });
+      else deadFunctions.push({ file, name, startLine, endLine });
+    }
+  }
+
+  return {
+    soFiles,
+    sourceDirs: [...sourceDirs, '<repo-root>/quickjs-*.[ch]'],
+    totalFunctions,
+    skippedMacroAliases,
+    notCompiledFiles: notCompiled,
+    platformGuarded,
+    referencedButUnlinked,
+    deadFunctionCount: deadFunctions.length,
+    deadFunctions,
+  };
 }
 
 function runCommand(...args) {

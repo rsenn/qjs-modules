@@ -1251,7 +1251,8 @@ target_compile_definitions(
 
 install(TARGETS qjsm DESTINATION bin)
 
-file(GLOB INSTALL_SCRIPTS extract-structs.js jsonpp.js list-exports.js resolve-imports.js xml-shell.js)
+file(GLOB INSTALL_SCRIPTS extract-structs.js jsonpp.js list-exports.js resolve-imports.js xml-shell.js nm-symbols.js
+     remove-dead-functions.js deadwood.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)
