@@ -2661,6 +2661,7 @@ static JSClassDef js_xml_nodeparser_class = {
 
 typedef struct {
   Writer writer;
+  DynBuf buf; /* backs `writer` when no output was given to the constructor */
   size_t written;
   xml_event_t event;
   int32_t indent, level;
@@ -2811,8 +2812,16 @@ js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   if(!(wr = js_mallocz(ctx, sizeof(XMLWriter))))
     return JS_EXCEPTION;
 
-  if(writer_from_js(ctx, argv[i], &wr->writer))
+  if(writer_from_js(ctx, argv[i], &wr->writer)) {
     i++;
+  } else {
+    /* No output given (or argv[i] isn't a recognized writer target): fall back to an
+     * internal buffer, as documented - leaving `wr->writer` zero-initialized instead
+     * would dispatch every write through a null function pointer and crash on the
+     * first elementStart()/attribute()/text() call. */
+    dbuf_init_ctx(ctx, &wr->buf);
+    wr->writer = writer_from_dynbuf(&wr->buf);
+  }
 
   JSValue options = i < argc ? argv[i] : argv[0];
 
@@ -2942,6 +2951,9 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, xml_nodeparser_ctor, xml_nodeparser_proto);
 
   JS_SetModuleExport(ctx, m, "XMLNodeParser", xml_nodeparser_ctor);
+
+  JS_NewClassID(&js_xmlwriter_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_xmlwriter_class_id, &js_xmlwriter_class);
 
   xmlwriter_ctor = JS_NewCFunction2(ctx, js_xmlwriter_constructor, "XMLWriter", 1, JS_CFUNC_constructor, 0);
   xmlwriter_proto = JS_NewObject(ctx);

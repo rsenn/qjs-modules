@@ -623,11 +623,19 @@ reader_jsbuf_free(void* opaque, void* opaque2) {
   js_free(ctx, input);
 }
 
+typedef struct {
+  OutputBuffer buf;
+  JSContext* ctx;
+} JSBufWriter;
+
 static void
 writer_jsbuf_free(void* opaque) {
-  OutputBuffer* output = opaque;
-  outputbuffer_free(output, 0);
-  free(output);
+  /* buf is JSBufWriter's first member, so opaque (== &jbw->buf, set by
+   * writer_from_buf()) aliases the whole struct - see writer_from_jsbuf(). */
+  JSBufWriter* jbw = opaque;
+  outputbuffer_free(&jbw->buf, jbw->ctx);
+  JS_FreeContext(jbw->ctx);
+  free(jbw);
 }
 
 /**
@@ -692,13 +700,14 @@ writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr) {
 
 Writer
 writer_from_jsbuf(JSContext* ctx, JSValueConst value) {
-  OutputBuffer* output = malloc(sizeof(OutputBuffer));
+  JSBufWriter* jbw = malloc(sizeof(JSBufWriter));
 
-  assert(output);
+  assert(jbw);
 
-  *output = js_output_typedarray(ctx, value);
+  jbw->buf = js_output_typedarray(ctx, value);
+  jbw->ctx = JS_DupContext(ctx);
 
-  Writer wr = writer_from_buf(output);
+  Writer wr = writer_from_buf(&jbw->buf);
   wr.finalizer = &writer_jsbuf_free;
   return wr;
 }
