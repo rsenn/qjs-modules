@@ -68,7 +68,7 @@ else()
   option(MODULE_SQLITE "Build 'sqlite' module" ON)
 endif()
 option(MODULE_BCRYPT "Build 'bcrypt' module" ON)
-option(MODULE_SERIAL "Build 'serial' module" OFF)
+option(MODULE_SERIAL "Build 'serial' module" ON)
 option(MODULE_GPIO "Build 'gpio' module (Raspberry Pi only)" OFF)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
