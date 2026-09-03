@@ -234,11 +234,9 @@ js_serialport_io(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   data[3] = set_handler;
   data_len = 4;
 
-  for(int i = 0; i < argc; i++) {
+  for(int i = 0; i < (int)countof(data) - 4; i++) {
     data[data_len] = i < argc ? argv[i] : JS_UNDEFINED;
-
-    if(++data_len == countof(data))
-      break;
+    ++data_len;
   }
 
   args[0] = JS_NewInt64(ctx, fd);
@@ -308,7 +306,6 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         if(result == SP_ERR_FAIL) {
           char* msg = sp_last_error_message();
 
-          sp_free_port(port);
           ret = JS_ThrowInternalError(ctx, "failed opening port '%s': %s", sp_get_port_name(port), msg);
           sp_free_error_message(msg);
         } else {
@@ -542,6 +539,134 @@ static JSClassDef js_serialport_class = {
     .finalizer = js_serialport_finalizer,
 };
 
+/* Node.js `serialport` compatibility: mirrors both documented constructor
+ * shapes - new SerialPort(path[, options]) and new SerialPort({ path, ...
+ * options }) - opening immediately (like Node's default autoOpen: true)
+ * unless options.autoOpen === false. */
+static JSValue
+js_serialport_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  struct sp_port* port;
+  const char* path;
+  JSValueConst options = JS_UNDEFINED;
+  JSValue proto, obj, err;
+  enum sp_return result;
+
+  if(argc > 0 && JS_IsObject(argv[0])) {
+    JSValue path_val = JS_GetPropertyStr(ctx, argv[0], "path");
+    path = JS_ToCString(ctx, path_val);
+    JS_FreeValue(ctx, path_val);
+
+    if(!path)
+      return JS_ThrowTypeError(ctx, "options.path must be a string");
+
+    options = argv[0];
+  } else {
+    if(argc < 1 || !(path = JS_ToCString(ctx, argv[0])))
+      return JS_ThrowTypeError(ctx, "expected a serial port path");
+
+    if(argc > 1)
+      options = argv[1];
+  }
+
+  result = sp_get_port_by_name(path, &port);
+
+  if(result != SP_OK) {
+    err = JS_ThrowInternalError(ctx, "Serial port '%s' not found", path);
+    JS_FreeCString(ctx, path);
+    return err;
+  }
+
+  JS_FreeCString(ctx, path);
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto)) {
+    sp_free_port(port);
+    return JS_EXCEPTION;
+  }
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_serialport_class_id);
+  JS_FreeValue(ctx, proto);
+
+  if(JS_IsException(obj)) {
+    sp_free_port(port);
+    return JS_EXCEPTION;
+  }
+
+  JS_SetOpaque(obj, port);
+
+  if(JS_IsObject(options)) {
+    JSValue auto_open = JS_GetPropertyStr(ctx, options, "autoOpen");
+    BOOL open_now = JS_IsUndefined(auto_open) ? TRUE : JS_ToBool(ctx, auto_open);
+
+    JS_FreeValue(ctx, auto_open);
+
+    if(open_now) {
+      JSValueConst open_args[1] = {options};
+      JSValue open_ret = js_serialport_method(ctx, obj, 1, open_args, SERIALPORT_OPEN);
+
+      if(JS_IsException(open_ret)) {
+        JS_FreeValue(ctx, obj);
+        return JS_EXCEPTION;
+      }
+
+      JS_FreeValue(ctx, open_ret);
+    }
+  }
+
+  return obj;
+}
+
+/* Node.js `serialport` compatibility: same field names/format as
+ * @serialport/bindings-cpp's PortInfo (path always present; manufacturer,
+ * serialNumber, vendorId, productId only for USB devices, as 4-digit lower-
+ * case hex strings with no "0x" prefix; pnpId/locationId aren't available
+ * from libserialport, so are simply omitted rather than guessed at). */
+static JSValue
+js_serialport_list(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  struct sp_port** ports;
+
+  if(sp_list_ports(&ports) == SP_OK) {
+    ret = JS_NewArray(ctx);
+
+    for(int i = 0; ports[i]; i++) {
+      struct sp_port* p = ports[i];
+      JSValue info = JS_NewObject(ctx);
+      const char* name = sp_get_port_name(p);
+
+      JS_SetPropertyStr(ctx, info, "path", JS_NewString(ctx, name ? name : ""));
+
+      if(sp_get_port_transport(p) == SP_TRANSPORT_USB) {
+        const char* manufacturer = sp_get_port_usb_manufacturer(p);
+        const char* serial = sp_get_port_usb_serial(p);
+        int vid = -1, pid = -1;
+
+        if(manufacturer)
+          JS_SetPropertyStr(ctx, info, "manufacturer", JS_NewString(ctx, manufacturer));
+
+        if(serial)
+          JS_SetPropertyStr(ctx, info, "serialNumber", JS_NewString(ctx, serial));
+
+        if(sp_get_port_usb_vid_pid(p, &vid, &pid) == SP_OK) {
+          char buf[8];
+
+          snprintf(buf, sizeof(buf), "%04x", vid);
+          JS_SetPropertyStr(ctx, info, "vendorId", JS_NewString(ctx, buf));
+
+          snprintf(buf, sizeof(buf), "%04x", pid);
+          JS_SetPropertyStr(ctx, info, "productId", JS_NewString(ctx, buf));
+        }
+      }
+
+      JS_SetPropertyUint32(ctx, ret, i, info);
+    }
+
+    sp_free_port_list(ports);
+  }
+
+  return ret;
+}
+
 static JSValue
 js_serial_getports(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -605,6 +730,7 @@ static const JSCFunctionListEntry js_serialport_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_serialport_static[] = {
+    JS_CFUNC_DEF("list", 0, js_serialport_list),
     JS_PROP_INT32_DEF("MODE_READ", SP_MODE_READ, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MODE_WRITE", SP_MODE_WRITE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MODE_READ_WRITE", SP_MODE_READ_WRITE, JS_PROP_ENUMERABLE),
@@ -633,11 +759,12 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_serialport_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_serialport_class_id, &js_serialport_class);
 
-  serialport_ctor = JS_NewObject(ctx);
   serialport_proto = JS_NewObject(ctx);
-
   JS_SetPropertyFunctionList(ctx, serialport_proto, js_serialport_funcs, countof(js_serialport_funcs));
+
+  serialport_ctor = JS_NewCFunction2(ctx, js_serialport_constructor, "SerialPort", 1, JS_CFUNC_constructor, 0);
   JS_SetPropertyFunctionList(ctx, serialport_ctor, js_serialport_static, countof(js_serialport_static));
+  JS_SetConstructor(ctx, serialport_ctor, serialport_proto);
 
   JS_SetClassProto(ctx, js_serialport_class_id, serialport_proto);
 
