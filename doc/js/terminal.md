@@ -23,7 +23,16 @@ to `process.stdout`.
 
 `eraseInDisplay(n)`, `eraseInLine(n)`, `scrollUp(n)`, `scrollDown(n)`,
 `setAlternateScreen()`, `setNormalScreen()`, `setScreen(alternate)`,
-`linewrapEnable()`, `linewrapDisable()`.
+`linewrapEnable()`, `linewrapDisable()`, `setScrollRegion(top, bottom, f)`,
+`resetScrollRegion(f)`.
+
+### Backbuffer
+
+`class Screen(f)` - accumulates draw calls (`write`, `moveTo`, `clear`,
+`clearLine`, `fg`, `bg`, `sgr`, `resetAttrs`) into an in-memory string and
+sends them to `f` in one `flush()` call, instead of writing straight to
+the tty per call - avoids flicker on a full-screen redraw (e.g. a
+scrollable list repainted every keypress).
 
 ### Color
 
