@@ -40,6 +40,26 @@ the full architecture/gap survey behind Tier 6-8.
   check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling once
   Tier 1 is fixed and traffic patterns are trustworthy again.
 
+- **`JsonParser.parse()` should resync past a run of bad bytes in one call, not one
+  byte per thrown exception** — see `BUGS`'s `json-parser-error-resync-is-per-byte-exceptions`.
+  `json_parse()` (`src/json.c:307-405`) returns `JSON_ERROR` after `json_getc_skipws()`
+  has consumed exactly one byte (the `default:` case at `src/json.c:395-399`, and the
+  expected-`:` check at `src/json.c:338-341`), and `js_json_parser_method()`
+  (`quickjs-json.c:2082-2094`) throws a fresh `JS_ThrowSyntaxError` every time. A
+  caller trying to skip a corrupted span therefore pays one construct-throw-catch
+  cycle per bad byte instead of per bad span — measured at ~200 exceptions to skip
+  200 garbage bytes, and pathological (never finishes in practice) across a
+  multi-hundred-MB document with many such spans. Fix belongs in `json_parse()`
+  itself: on hitting the `default:`/`expected ':'` error paths, keep consuming bytes
+  in a local loop (skip whitespace-or-not, doesn't matter) until reaching an
+  unambiguous resumption point — a structural character (`,` `{` `}` `[` `]` `"`) at
+  a depth/state where it's legal — before returning to the JS boundary with a single
+  `JSON_ERROR`, mirroring the resync `JsonPushParser.write()`'s doc comment already
+  claims (see also the `json-push-parser-resync-doc-untested` `BUGS` entry — that
+  claim needs its own regression test before being trusted as the model to copy).
+  Alternatively/additionally, expose a cheap `.resync()` method that does this
+  scanning without needing the caller to loop `.parse()` + try/catch at all.
+
 - ~~**Streams `respondWithNewView()` (BYOB) is missing spec-required safety checks**~~ — **FIXED** in commits `312df027`, `ae4f9992`, and `d209f470`.
   Replaced `lib/stream.js` with qjs-lws version which has complete BYOB implementation.
   Added `isDataViewConstructor` helper function and fixed all `pendingPullIntos` property

@@ -1,3 +1,56 @@
+- json-parser-error-resync-is-per-byte-exceptions: `JsonParser.parse()` has no
+  batch resync for a run of invalid bytes - each call that lands on malformed
+  input consumes exactly *one* byte before throwing, and the only way to make
+  further progress is for the caller to call `.parse()` again (and again, and
+  again). Root cause: `json_parse()` (`src/json.c:307-405`) resets
+  `json->error = NULL` at its own top (line 311) and, on hitting a byte that
+  isn't a valid value-start (`src/json.c:395-399`, the `default:` case, or the
+  colon-expected check at `src/json.c:338-341`), returns `JSON_ERROR`
+  immediately after `json_getc_skipws()` (`src/json.c:16-27`, itself built on
+  `json_getc()` at `src/json.c:97`) has consumed exactly one input byte via
+  the switch at line 346. `js_json_parser_method()`
+  (`quickjs-json.c:2074-2116`, case `JSON_PARSER_PARSE`) turns every such
+  return into a freshly-thrown `JS_ThrowSyntaxError` (line 2088) - there is no
+  internal loop that keeps consuming bytes past the first bad one before
+  handing control back to JS. For a JSON document whose corruption spans N
+  bytes (binary garbage, an unescaped control character breaking out of a
+  string, etc.), skipping it costs N `.parse()` calls and N thrown-and-caught
+  JS exceptions, not one scan.
+  Found while writing a streaming filter over `mediathek-list`'s JSON dump
+  (~700MB, some entries with genuinely corrupt trailing bytes): wrapping
+  `parser.parse()` in try/catch and calling it again in a loop, expecting the
+  resync behaviour `JsonPushParser.write()` documents (`doc/native/json.md`:
+  "the parser remains usable - it resyncs at the next structural boundary"),
+  instead advanced the error column by 1-2 at a time across *millions* of
+  thrown exceptions on a single corrupted span, never finishing within any
+  reasonable timeout. Had to work around it by re-scoping a fresh
+  `JsonParser` per already-known-good line instead of streaming one instance
+  across the whole document - see the `json-push-parser-resync-doc-untested`
+  entry below for the actual `JsonPushParser` behaviour this bug caused me to
+  conflate `JsonParser` with.
+
+    import { JsonParser } from 'json';
+    // 200 bytes of invalid input in a row (simulating corrupted mid-document bytes)
+    let p = new JsonParser('[1,' + '\x01'.repeat(200) + ',2]');
+    let calls = 0, t;
+    for(;;) {
+      try { t = p.parse(); } catch(e) { calls++; continue; }
+      if(t === 'NEED_DATA') break;
+    }
+    console.log(calls); // 201 - one thrown exception per bad byte (not one scan)
+
+- json-push-parser-resync-doc-untested: `doc/native/json.md`'s `JsonPushParser.write()`
+  entry claims "Throws a SyntaxError on malformed input, but the parser remains usable
+  - it resyncs at the next structural boundary (a comma or a closing bracket) and
+  subsequent .write() calls continue from there." I could not find this exercised by
+  any test in `tests/` (only `tests/test_json.js`'s happy-path builder-mode cases), and
+  given the `json-parser-error-resync-is-per-byte-exceptions` entry above turned out to
+  have no such resync at all despite superficially similar per-token error handling,
+  this claim is worth an explicit regression test rather than trusting the doc comment
+  - it's plausible `JsonPushParser` really does resync at a structural boundary (it's a
+  different code path, driven by `.write()` chunks rather than `json_parse()`'s
+  single-byte-at-a-time loop), but I did not verify it directly.
+
 - quickjs-unary-not-overload-abort: applying unary `~` (bitwise NOT) to *any*
   object whose [Symbol.operatorSet] resolves to a non-primitive operator set
   crashes the whole process with abort() - not a catchable JS exception -
