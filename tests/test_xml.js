@@ -93,6 +93,13 @@ tests({
     eq(r[0].attributes.disabled, true);
     eq(r[0].attributes.type, 'text');
   },
+  'xml.read: boolean attribute immediately followed by self-closing slash'() {
+    let r = xml.read('<input disabled/>');
+
+    eq(r[0].tagName, 'input');
+    eq(r[0].attributes.disabled, true);
+    eq('disabled/' in r[0].attributes, false);
+  },
   'xml.read: default self-closing tags (e.g. br) need no explicit slash'() {
     eqArr(xml.read('<div><br><p>x</p></div>'), [
       {

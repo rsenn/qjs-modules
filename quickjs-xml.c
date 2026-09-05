@@ -755,7 +755,14 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             break;
 
           attr = ptr;
-          parse_until(parse_is(c, EQUAL | WS | SPECIAL | CLOSE));
+          /* SLASH must terminate the name scan too, not just EQUAL/WS/SPECIAL/CLOSE -
+           * otherwise a boolean attribute immediately followed by a self-closing '/'
+           * (e.g. "<input disabled/>") swallows the '/' into the attribute name
+           * itself ("disabled/") instead of stopping at it. The code right below
+           * already handles c landing on SLASH correctly (the WS|CLOSE|SLASH
+           * check yields the boolean attribute) - this scan just needs to stop
+           * there instead of consuming past it. */
+          parse_until(parse_is(c, EQUAL | WS | SPECIAL | CLOSE | SLASH));
 
           if((alen = ptr - attr) == 0)
             break;

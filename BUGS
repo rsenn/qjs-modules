@@ -394,19 +394,6 @@
     // expected: identical failure lists between builds
     // actual: differs by 2-3 tests
 
-- quickjs-xml-attrname-swallows-slash (quickjs-xml.c:758): js_xml_parse()'s
-  attribute-name scan stops at EQUAL|WS|SPECIAL|CLOSE but not at SLASH
-  ('/'), so a self-closing tag's trailing slash gets absorbed into the
-  preceding boolean attribute's name instead of ending the tag. Same class
-  of bug already fixed in src/xml.c this session (see the "boolean
-  attribute slash bug" fix), but this is quickjs-xml.c's own separate
-  parser and still has it.
-
-    import xml from 'xml';
-    console.log(xml.read('<input disabled/>'));
-    // actual: [{tagName:"input", attributes:{"disabled/": true}}]
-    // expected: [{tagName:"input", attributes:{"disabled": true}}], self-closing
-
 - bnf-lexer-literal-newline-in-l-file (lib/lexer/bnf.js): BNFLexer throws
   "No matching token" on tests/Shell-Grammar.l's definitions section
   because a literal newline character inside a flex character-class
