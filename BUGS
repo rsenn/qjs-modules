@@ -87,29 +87,6 @@
     // bitwise-not fallback), since Predicate's operator set has no '~' entry
     // actual: process aborts (SIGABRT), no JS-catchable exception at all
 
-- test-path-stream-preexisting-failures: tests/test_path.js's `skip()`,
-  `skipSeparator()`, and `isSeparator()` tests fail. `isin()`, `equal()`,
-  and `toArray()` previously threw "not a function" or returned undefined,
-  but were fixed by exporting them from quickjs-path.c (commit 1d9822dc).
-  `skip()` returns -1 instead of 1, `skipSeparator()` returns 10 instead
-  of 1, `isSeparator()` returns undefined. tests/test_stream.js's `tee():
-  both branches independently observe every chunk` test also throws "not a
-  function". These assertion failures were always there, just never
-  surfaced via exit code until tinytest.js's run() (exported as `tests`)
-  was fixed to call std.exit(1) on any test failure (tests/tinytest.js:
-  68-75) - before that, every consumer called `tests({...})` fire-and-
-  forget at module scope without awaiting the returned promise, and run()
-  itself never propagated failure past its own console output, so the qjsm
-  process always exited 0 regardless of how many assertions failed,
-  silently passing `ctest`.
-
-    ./build/qjsm tests/test_path.js
-    # Test: skip() FAILED: "-1" != "1"
-    # Test: skipSeparator() FAILED: "10" != "1"
-    # Test: isSeparator() FAILED: undefined
-    # 3 out of 41 tests failed (38 pass)
-    # 4 out of 41 tests failed (40 pass)
-
 - quickjs-stack-size-flag-ineffective: qjsm's `--stack-size n` CLI option (and
   the underlying JS_SetMaxStackSize(), quickjs.c:2408-2412) has no observable
   effect on how deep JS recursion can actually go before "stack overflow" is
@@ -278,29 +255,6 @@
     //         from jsm_module_loader while loading the "inspect" module)
     // expected: script runs (or, at worst, a clean JS-catchable error - not
     //           a segfault before user code executes)
-
-- process-js-scriptargs-undefined-under-dash-e (lib/process.js:18,62): once the
-  qjsm-quickjs-internal-struct-drift-segfault entry above is fixed, `qjsm -e
-  "<expr>"` still throws an unhandled ReferenceError while initializing the
-  "process" builtin module. scriptIndex()'s default parameter `a = scriptArgs`
-  (line 18) and the `argv`/`argv0`/`execArgv` properties (lines 60-62)
-  reference the global `scriptArgs`, but qjsm only defines that global for
-  file/script execution, not for `-e` expression evaluation - so the IIFE
-  building `execArgv` (line 62) throws immediately when the process module's
-  exports are constructed. because this happens inside a module
-  initialization promise, it surfaces as an "unhandled promise rejection"
-  (per the recent "always track rejected promises" change) rather than as a
-  normal catchable exception, and leaves `globalThis.std`/`globalThis.process`
-  etc. never assigned - so any expression that follows and uses `std` (e.g.
-  `std.exit(0)`) then fails with a second, unrelated-looking
-  "ReferenceError: 'std' is not defined".
-
-    // qjsm -e "std.exit(0)"
-    // actual: Possibly unhandled promise rejection: ReferenceError:
-    //         'scriptArgs' is not defined (lib/process.js:18), followed by
-    //         Error evaluating expression: ReferenceError: 'std' is not
-    //         defined
-    // expected: std.exit(0) runs and exits cleanly
 
 - quickjs-internal-h-design (CMakeLists.txt:909-969, quickjs-internal.c,
   include/utils.h): the whole QUICKJS_INTERNAL feature - not just the
