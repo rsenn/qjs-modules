@@ -1697,6 +1697,23 @@ jsm_context_new(JSRuntime* rt) {
   if(!(ctx = JS_NewContext(rt)))
     return 0;
 
+  /* Main-thread startup sets this on jsm_rt directly (see main()), but a
+   * worker thread's JSRuntime (created fresh in worker_func(), see
+   * quickjs-libc.c) never goes through that path - this function is also
+   * registered as the worker new-context callback via
+   * js_std_set_worker_new_context_func(), so it must install the loader
+   * itself or bare specifiers (even 'os'/'std', already registered on this
+   * same rt) are unresolvable inside every worker. */
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, &module_loaders);
+
+  /* loaded_modules is thread_local (jsm_module_find() walks it via
+   * list_for_each) and main() only ever init_list_head()s the main thread's
+   * own copy - a worker thread's copy is zero-initialized, not a valid empty
+   * circular list, so the first jsm_module_find() call from a worker
+   * dereferences NULL. Safe to call again for the main thread too: this
+   * always runs before anything has been added to the list. */
+  init_list_head(&loaded_modules);
+
 #ifdef CONFIG_BIGNUM
   if(bignum_ext) {
     JS_AddIntrinsicBigFloat(ctx);
