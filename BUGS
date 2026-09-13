@@ -450,3 +450,53 @@
     ls doc/js/database.md doc/js/dbi.md doc/js/describe-class.md
     // No such file or directory (all three)
 
+- asyncIterator-from-undeclared-var (lib/asyncIterator.js:4):
+  `AsyncIterator.from()` references an undeclared variable `iterable`
+  instead of `iter`, so any call where the argument does NOT already
+  have `Symbol.asyncIterator` (e.g. a plain object with only a `next`
+  method) throws a ReferenceError instead of wrapping it. Found while
+  researching lib/asyncIterator.js for doc/api-compatibility.md.
+
+    import { AsyncIterator } from 'asyncIterator';
+    AsyncIterator.from({ next: () => ({ done: true, value: undefined }) });
+    // throws ReferenceError: iterable is not defined
+
+- extendMath-float64-debug-log (lib/extendMath.js:34): `Math.float64()`
+  unconditionally calls `console.log('float64', ...)` on every
+  invocation, printing a bit-field dump - looks like leftover debug
+  output rather than intentional behavior. Found while researching
+  lib/extendMath.js for doc/api-compatibility.md.
+
+    import 'extendMath';
+    Math.float64(0, 1023, 0);
+    // logs "float64 [ '0b0000...', ... ]" to stdout on every call
+
+- pointer-atom-index-ignores-leading-zero (include/utils.h:753,
+  js_atom_is_index): treats any atom whose string form parses as a
+  non-negative decimal (e.g. "01") as an array index, so
+  Pointer#toString()/toRFC6901()/atoms_serialize() render it as an
+  index (`[1]` / `/1`) instead of the literal string key ("01"),
+  losing the leading zero. ECMAScript's array-index canonical form (and
+  RFC 6901's array-index grammar) both require no leading zero except
+  for "0" itself, so "01" should stay a plain string key. Shared by
+  every module that reads array-index-ness off an atom via
+  js_atom_is_index, not pointer-specific. Found while adding RFC 6901
+  support to quickjs-pointer.c/src/pointer.c.
+
+    import { Pointer } from 'pointer';
+    Pointer.from(["01", "x"]).toString();
+    // "[1].x" -- should be ".01.x" (leading zero silently dropped)
+
+- lib-pointer-deref-stub (lib/pointer.js:78, Pointer.prototype.deref):
+  empty method body, so it silently returns `undefined` for every call
+  instead of dereferencing into the target object - the JS-side Pointer
+  polyfill can be constructed, parsed, and stringified but can't
+  actually be used for its stated purpose (its native counterpart,
+  quickjs-pointer.c's pointer_deref(), does implement this). Predates
+  and is unrelated to the RFC 6901 parser/toRFC6901() work in this
+  file; found while adding RFC 6901 support to lib/pointer.js.
+
+    import { Pointer } from '../lib/pointer.js';
+    new Pointer('/foo/0').deref({ foo: ['bar'] });
+    // undefined -- should be "bar"
+

@@ -30,8 +30,8 @@ Based on the inventory in /tmp/c-native-inventory.md:
 - **internal** - Module introspection - DONE
 - **json** - JSON streaming parser
 - **lexer** - Lexer framework
-- **pointer** - Pointer/memory utilities
-- **predicate** - Operator overloading support - DONE
+- **pointer** - JSAtom-backed deep-property path for Object/Array trees
+- **predicate** - Composable boolean predicates - DONE
 - **tree-walker** - AST traversal
 
 ### Custom (qjs-modules specific - minimize these)
@@ -48,7 +48,7 @@ Based on the inventory in /tmp/c-native-inventory.md:
 - **repeater** - Event repeater
 - **serial** - Serial port communication
 - **syscallerror** - System call error codes
-- **virtual** - Virtual filesystem
+- **virtual** - Virtual property backing store (wraps Object/Array/Map)
 
 ### Database (vendor-specific, acceptable)
 - **mysql** - MySQL client
@@ -76,8 +76,8 @@ Based on the inventory in /tmp/js-inventory.md:
 
 ### Internal (qjs-modules implementation details)
 - **deep** - Deep comparison wrapper
-- **predicate** - Operator overloading - DONE
-- **pointer** - Pointer utilities wrapper
+- **predicate** - Composable boolean predicates - DONE
+- **pointer** - Deep-property path wrapper
 - **parser** - Parser combinator framework
 - **xpath** - XPath implementation
 - **xml** - XML processing
@@ -136,11 +136,8 @@ Based on the inventory in /tmp/js-inventory.md:
    - Verify url module matches WHATWG spec
 
 3. **Document gaps** where standards exist but aren't implemented:
-   - fetch API (TODO Tier 9.1)
-   - FormData (TODO Tier 9.2)
-   - WebSocket (TODO Tier 9.7)
-   - Canvas API (TODO Tier 9.8)
    - Web Workers (TODO Tier 9.9)
+   - (fetch/FormData/WebSocket are out of scope here - see `../qjs-lws/`; Canvas - see `../qjs-nanovg/` + `../qjs-glfw/`)
 
 4. **Keep internal APIs** that are implementation details:
    - deep, predicate, inspect, etc. are fine as internal
@@ -169,7 +166,7 @@ Based on the inventory in /tmp/js-inventory.md:
 
 The project has good coverage of standards-compliant APIs (stream, blob, url, dom, console, timers) and Node.js-compatible APIs (fs, process, events, assert). However, there are many custom APIs that should be evaluated for standard alternatives. The roadmap should prioritize:
 
-1. Fixing spec compliance gaps (BYOB, fetch, FormData, etc.)
+1. Fixing spec compliance gaps (BYOB, etc.)
 2. Deprecating custom APIs with standard equivalents
 3. Not adding new custom APIs unless necessary
 4. Documenting rationale for any custom API
@@ -203,9 +200,7 @@ All stream tests are now passing (100% pass rate)! The 2 previously failing test
 - **Non-stream tests**: 35/41 passing (85%)
 
 ### Next Steps
-1. Implement Fetch API (Tier 9.1)
-2. Implement FormData (Tier 9.2)
-3. Implement WebSocket (Tier 9.7)
-4. Implement Canvas API (Tier 9.8)
-5. Implement Web Workers (Tier 9.9)
-6. Add URL.createObjectURL/revokeObjectURL (Tier 9.6)
+1. Implement Web Workers (Tier 9.9)
+2. Add URL.createObjectURL/revokeObjectURL (Tier 9.6)
+
+(Fetch/FormData/WebSocket are implemented separately in `../qjs-lws/`; Canvas in `../qjs-nanovg/` + `../qjs-glfw/` - not here.)
