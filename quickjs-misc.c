@@ -2798,7 +2798,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       for(size_t i = buf.pos + buf.range.offset; i + sizeof(struct inotify_event) <= end; i += reclen) {
         struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
-        size_t namelen = byte_chr(ev->name, '\0', ev->len);
+        size_t namelen = byte_chr(ev->name, ev->len, '\0');
         JSValue obj = JS_NewObject(ctx);
 
         reclen = sizeof(struct inotify_event) + ev->len;

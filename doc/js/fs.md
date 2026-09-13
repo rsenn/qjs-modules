@@ -68,7 +68,36 @@ variants of the corresponding sync calls.
 ## Event helpers
 
 `onRead(file, handler)`, `waitRead(file)`, `onWrite(file, handler)`,
-`waitWrite(file)`, `watch(filename, options, callback)`.
+`waitWrite(file)`.
+
+### `watch(filename, options, callback)`
+
+Node-compatible `fs.watch()`, backed by inotify (via the native `misc`
+module). Watches a single path (not recursive - matching Node's own
+Linux behavior) and returns an `FSWatcher` (`EventEmitter`) that emits
+`'change'`/`'rename'` with the affected entry's name, mirroring Node's
+`(eventType, filename)` callback shape:
+
+```js
+import { watch } from 'fs';
+
+const w = watch('./some-dir', {}, (eventType, filename) => {
+  console.log(eventType, filename); // 'rename' | 'change', e.g. "foo.txt"
+});
+
+w.close(); // stop watching
+```
+
+- `options.mask` — raw inotify event mask (default: all events).
+- `options.signal` — an `AbortSignal` (see the `abort` module); aborting
+  it closes the watcher, same as calling `.close()`.
+- The watcher emits `'error'` if the underlying inotify read fails, and
+  `'close'` once, whether closed explicitly, via `options.signal`, or
+  after an error.
+- An invalid path throws synchronously (matching Node), rather than
+  returning an error value.
+
+See also `fsPromises.watch()` for the async-iterator form.
 
 ## Constants
 

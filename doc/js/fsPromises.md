@@ -34,4 +34,20 @@ All functions return promises.
 | `chmod(path, mode)` / `lchmod(path, mode)` | 2 | Changes mode. |
 | `chown(path, uid, gid)` / `lchown(path, uid, gid)` | 3 | Changes ownership. |
 | `utimes(path, atime, mtime)` / `lutimes(path, atime, mtime)` | 3 | Sets timestamps. |
-| `watch(filename, options, callback)` | 1–3 | Watches a path for changes. |
+| `watch(filename, options)` | 1–2 | Returns an `AsyncIterable<{eventType, filename}>` (see below). |
+
+### `watch(filename, options)`
+
+Node-compatible `fsPromises.watch()`, wrapping `fs.watch()`'s `FSWatcher`
+as an async iterator instead of a callback:
+
+```js
+import { watch } from 'fsPromises';
+
+for await(const { eventType, filename } of watch('./some-dir')) {
+  console.log(eventType, filename);
+}
+```
+
+`options.signal` (an `AbortSignal`) ends the iteration when aborted,
+closing the underlying watcher.
