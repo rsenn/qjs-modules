@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JavaScript Modules — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="../native/index.html">Native modules overview</a></li><li><a href="../native/archive.html">archive</a></li><li><a href="../native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="../native/bcrypt.html">bcrypt</a></li><li><a href="../native/bjson.html">bjson</a></li><li><a href="../native/blob.html">blob</a></li><li><a href="../native/json.html">json</a></li><li><a href="../native/lexer.html">lexer</a></li><li><a href="../native/list.html">list</a></li><li><a href="../native/textcode.html">textcode</a></li><li><a href="../native/xml.html">xml</a></li><li><a href="../native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="../native/child-process.html">child-process</a></li><li><a href="../native/directory.html">directory</a></li><li><a href="../native/gpio.html">gpio</a></li><li><a href="../native/location.html">location</a></li><li><a href="../native/magic.html">magic</a></li><li><a href="../native/misc.html">misc</a></li><li><a href="../native/mmap.html">mmap</a></li><li><a href="../native/path.html">path</a></li><li><a href="../native/serial.html">serial</a></li><li><a href="../native/sockets.html">sockets</a></li><li><a href="../native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="../native/deep.html">deep</a></li><li><a href="../native/inspect.html">inspect</a></li><li><a href="../native/pointer.html">pointer</a></li><li><a href="../native/predicate.html">predicate</a></li><li><a href="../native/tree-walker.html">tree-walker</a></li><li><a href="../native/queue.html">queue</a></li><li><a href="../native/repeater.html">repeater</a></li><li><a href="../native/stream.html">stream</a></li><li><a href="../native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="../native/mysql.html">mysql</a></li><li><a href="../native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="index.html" class="here">JS modules overview</a></li><li><a href="util.html">util</a></li><li><a href="reflect.html">reflect</a></li><li><a href="iterator.html">iterator</a></li><li><a href="asyncIterator.html">asyncIterator</a></li><li><a href="arrayLike.html">arrayLike</a></li><li><a href="extendArray.html">extendArray</a></li><li><a href="extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="extendObject.html">extendObject</a></li><li><a href="extendMap.html">extendMap</a></li><li><a href="extendSet.html">extendSet</a></li><li><a href="extendMath.html">extendMath</a></li><li><a href="extendFunction.html">extendFunction</a></li><li><a href="extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="extendGenerator.html">extendGenerator</a></li><li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="assert.html">assert</a></li><li><a href="console.html">console</a></li><li><a href="process.html">process</a></li><li><a href="events.html">events</a></li><li><a href="abort.html">abort</a></li><li><a href="timers.html">timers</a></li><li><a href="perf_hooks.html">perf_hooks</a></li><li><a href="module.html">module</a></li><li><a href="require.html">require</a></li><li><a href="stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="fs.html">fs</a></li><li><a href="fsPromises.html">fsPromises</a></li><li><a href="io.html">io</a></li><li><a href="streams.html">streams</a></li><li><a href="vfs.html">vfs</a></li><li><a href="inotify.html">inotify</a></li><li><a href="tty.html">tty</a></li><li><a href="terminal.html">terminal</a></li><li><a href="socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="dom.html">dom</a></li><li><a href="xpath.html">xpath</a></li><li><a href="parser.html">parser</a></li><li><a href="parsel.html">parsel</a></li><li><a href="css-selectors.html">css-selectors</a></li><li><a href="css3-selectors.html">css3-selectors</a></li><li><a href="url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="db.html">db</a></li><li><a href="repl.html">repl</a></li><li><a href="testharness.html">testharness</a></li><li><a href="testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="javascript-modules"><a class="anchor" href="#javascript-modules" aria-hidden="true">#</a>JavaScript Modules</h1>
+<p>Pure JavaScript modules (<code>lib/*.js</code>) providing polyfills for standard APIs, wrappers around native modules, and prototype extensions.</p>
+<h2 id="complete-list"><a class="anchor" href="#complete-list" aria-hidden="true">#</a>Complete List</h2>
+<h3 id="core--language-extensions"><a class="anchor" href="#core--language-extensions" aria-hidden="true">#</a>Core &amp; Language Extensions</h3>
+<ul>
+<li><a href="util.html">util</a> — Central utility library</li>
+<li><a href="reflect.html">reflect</a> — Reflection and value serialization</li>
+<li><a href="iterator.html">iterator</a> — Base iterator class</li>
+<li><a href="asyncIterator.html">asyncIterator</a> — Async iterator base class</li>
+<li><a href="arrayLike.html">arrayLike</a> — Array-like base class</li>
+</ul>
+<h3 id="prototype-extensions"><a class="anchor" href="#prototype-extensions" aria-hidden="true">#</a>Prototype Extensions</h3>
+<ul>
+<li><a href="extendArray.html">extendArray</a> — Array prototype extensions</li>
+<li><a href="extendArrayBuffer.html">extendArrayBuffer</a> — ArrayBuffer prototype extensions</li>
+<li><a href="extendObject.html">extendObject</a> — Object prototype extensions</li>
+<li><a href="extendMap.html">extendMap</a> — Map prototype extensions</li>
+<li><a href="extendSet.html">extendSet</a> — Set prototype extensions</li>
+<li><a href="extendMath.html">extendMath</a> — Math object extensions</li>
+<li><a href="extendFunction.html">extendFunction</a> — Function prototype extensions</li>
+<li><a href="extendAsyncFunction.html">extendAsyncFunction</a> — AsyncFunction prototype extensions</li>
+<li><a href="extendGenerator.html">extendGenerator</a> — Generator prototype extensions</li>
+<li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a> — AsyncGenerator prototype extensions</li>
+</ul>
+<h3 id="runtime--nodejs-compatible"><a class="anchor" href="#runtime--nodejs-compatible" aria-hidden="true">#</a>Runtime / Node.js Compatible</h3>
+<ul>
+<li><a href="assert.html">assert</a> — Node.js assert module</li>
+<li><a href="console.html">console</a> — WHATWG Console API</li>
+<li><a href="process.html">process</a> — Node.js process object</li>
+<li><a href="events.html">events</a> — Node.js EventEmitter</li>
+<li><a href="abort.html">abort</a> — AbortController/AbortSignal</li>
+<li><a href="timers.html">timers</a> — HTML5 Timers API (setTimeout, setInterval, etc.)</li>
+<li><a href="perf_hooks.html">perf_hooks</a> — Performance hooks</li>
+<li><a href="module.html">module</a> — Module utilities</li>
+<li><a href="require.html">require</a> — CommonJS require</li>
+<li><a href="stack.html">stack</a> — Stack utilities</li>
+</ul>
+<h3 id="io--filesystem"><a class="anchor" href="#io--filesystem" aria-hidden="true">#</a>I/O &amp; Filesystem</h3>
+<ul>
+<li><a href="fs.html">fs</a> — Node.js fs module (wraps native modules)</li>
+<li><a href="fsPromises.html">fsPromises</a> — Promise-based fs API</li>
+<li><a href="io.html">io</a> — I/O utilities</li>
+<li><a href="streams.html">streams</a> — Stream utilities</li>
+<li><a href="vfs.html">vfs</a> — Virtual filesystem</li>
+<li><a href="inotify.html">inotify</a> — inotify wrapper</li>
+<li><a href="tty.html">tty</a> — TTY utilities</li>
+<li><a href="terminal.html">terminal</a> — Terminal utilities</li>
+<li><a href="socklen_t.html">socklen_t</a> — Socket length type</li>
+</ul>
+<h3 id="parsing-dom--selectors"><a class="anchor" href="#parsing-dom--selectors" aria-hidden="true">#</a>Parsing, DOM &amp; Selectors</h3>
+<ul>
+<li><a href="dom.html">dom</a> — W3C DOM API (wraps native modules)</li>
+<li><a href="xpath.html">xpath</a> — XPath implementation</li>
+<li><a href="parser.html">parser</a> — Parser combinator framework</li>
+<li><a href="../grammar.html">grammar</a> — Grammar utilities</li>
+<li><a href="parsel.html">parsel</a> — CSS selector parser</li>
+<li><a href="css-selectors.html">css-selectors</a> — CSS selector engine</li>
+<li><a href="css3-selectors.html">css3-selectors</a> — CSS3 selector engine</li>
+<li><a href="url.html">url</a> — WHATWG URL API (polyfill)</li>
+</ul>
+<h3 id="databases"><a class="anchor" href="#databases" aria-hidden="true">#</a>Databases</h3>
+<ul>
+<li><a href="db.html">db</a> — Database utilities</li>
+<li>database (<code>lib/database.js</code>) — Database abstraction (undocumented)</li>
+</ul>
+<h3 id="tooling"><a class="anchor" href="#tooling" aria-hidden="true">#</a>Tooling</h3>
+<ul>
+<li><a href="repl.html">repl</a> — REPL implementation</li>
+<li><a href="testharness.html">testharness</a> — W3C test harness</li>
+<li><a href="testharnessreport.html">testharnessreport</a> — Test harness reporting</li>
+</ul>
+<h3 id="utilities"><a class="anchor" href="#utilities" aria-hidden="true">#</a>Utilities</h3>
+<ul>
+<li><a href="../buffer.html">buffer</a> — Buffer utilities</li>
+<li><a href="../readline.html">readline</a> — Readline utilities</li>
+<li>describe-class (<code>lib/describe-class.js</code>) — Class description utilities (undocumented)</li>
+<li>dbi (<code>lib/dbi.js</code>) — Database interface (undocumented)</li>
+</ul>
+<h2 id="module-classification"><a class="anchor" href="#module-classification" aria-hidden="true">#</a>Module Classification</h2>
+<h3 id="polyfills-standalone-js"><a class="anchor" href="#polyfills-standalone-js" aria-hidden="true">#</a>Polyfills (Standalone JS)</h3>
+<p>Pure JavaScript implementations of standard APIs with no native dependencies:</p>
+<ul>
+<li><strong>WHATWG/W3C/HTML5:</strong> events, url, timers, abort, console</li>
+<li><strong>Node.js:</strong> assert, fs (partial), process (partial)</li>
+<li><strong>Utilities:</strong> iterator, asyncIterator, arrayLike</li>
+</ul>
+<h3 id="wrappers-wrap-native-modules"><a class="anchor" href="#wrappers-wrap-native-modules" aria-hidden="true">#</a>Wrappers (Wrap Native Modules)</h3>
+<p>JavaScript code that wraps native modules to provide higher-level APIs:</p>
+<ul>
+<li><strong>fs</strong> — Wraps misc, mmap, syscallerror</li>
+<li><strong>fsPromises</strong> — Wraps fs</li>
+<li><strong>dom</strong> — Wraps fs, util, timers, css3-selectors, deep, pointer, tree-walker, xml, url</li>
+<li><strong>console</strong> — Wraps os, util, inspect, std</li>
+<li><strong>process</strong> — Wraps os, path, util, misc, std</li>
+<li><strong>assert</strong> — Wraps util</li>
+<li><strong>util</strong> — Wraps misc, timers</li>
+</ul>
+<h3 id="prototype-extensions-1"><a class="anchor" href="#prototype-extensions-1" aria-hidden="true">#</a>Prototype Extensions</h3>
+<p>Extend built-in JavaScript prototypes (Array, Object, Map, etc.):</p>
+<ul>
+<li>extendArray, extendArrayBuffer, extendObject, extendMap, extendSet, extendMath</li>
+<li>extendFunction, extendAsyncFunction, extendGenerator, extendAsyncGenerator</li>
+</ul>
+<h2 id="statistics"><a class="anchor" href="#statistics" aria-hidden="true">#</a>Statistics</h2>
+<ul>
+<li><strong>Total JS modules:</strong> 60+</li>
+<li><strong>Polyfills:</strong> 25 (standalone JS implementations)</li>
+<li><strong>Wrappers:</strong> 32 (wrap native modules)</li>
+<li><strong>Extensions:</strong> 10 (prototype extensions)</li>
+</ul>
+<h2 id="standards-compliance"><a class="anchor" href="#standards-compliance" aria-hidden="true">#</a>Standards Compliance</h2>
+<ul>
+<li><strong>WHATWG/W3C/HTML5:</strong> events, url, timers, abort, console, dom</li>
+<li><strong>Node.js:</strong> assert, fs, fsPromises, process, events, util</li>
+<li><strong>Custom:</strong> Many utility modules (see api-compatibility.md)</li>
+</ul></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/js/README.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#complete-list">Complete List</a></li><li class="lvl3"><a href="#core--language-extensions">Core &amp; Language Extensions</a></li><li class="lvl3"><a href="#prototype-extensions">Prototype Extensions</a></li><li class="lvl3"><a href="#runtime--nodejs-compatible">Runtime / Node.js Compatible</a></li><li class="lvl3"><a href="#io--filesystem">I/O &amp; Filesystem</a></li><li class="lvl3"><a href="#parsing-dom--selectors">Parsing, DOM &amp; Selectors</a></li><li class="lvl3"><a href="#databases">Databases</a></li><li class="lvl3"><a href="#tooling">Tooling</a></li><li class="lvl3"><a href="#utilities">Utilities</a></li><li class="lvl2"><a href="#module-classification">Module Classification</a></li><li class="lvl3"><a href="#polyfills-standalone-js">Polyfills (Standalone JS)</a></li><li class="lvl3"><a href="#wrappers-wrap-native-modules">Wrappers (Wrap Native Modules)</a></li><li class="lvl3"><a href="#prototype-extensions-1">Prototype Extensions</a></li><li class="lvl2"><a href="#statistics">Statistics</a></li><li class="lvl2"><a href="#standards-compliance">Standards Compliance</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

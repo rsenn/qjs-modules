@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>testharness — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="../native/index.html">Native modules overview</a></li><li><a href="../native/archive.html">archive</a></li><li><a href="../native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="../native/bcrypt.html">bcrypt</a></li><li><a href="../native/bjson.html">bjson</a></li><li><a href="../native/blob.html">blob</a></li><li><a href="../native/json.html">json</a></li><li><a href="../native/lexer.html">lexer</a></li><li><a href="../native/list.html">list</a></li><li><a href="../native/textcode.html">textcode</a></li><li><a href="../native/xml.html">xml</a></li><li><a href="../native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="../native/child-process.html">child-process</a></li><li><a href="../native/directory.html">directory</a></li><li><a href="../native/gpio.html">gpio</a></li><li><a href="../native/location.html">location</a></li><li><a href="../native/magic.html">magic</a></li><li><a href="../native/misc.html">misc</a></li><li><a href="../native/mmap.html">mmap</a></li><li><a href="../native/path.html">path</a></li><li><a href="../native/serial.html">serial</a></li><li><a href="../native/sockets.html">sockets</a></li><li><a href="../native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="../native/deep.html">deep</a></li><li><a href="../native/inspect.html">inspect</a></li><li><a href="../native/pointer.html">pointer</a></li><li><a href="../native/predicate.html">predicate</a></li><li><a href="../native/tree-walker.html">tree-walker</a></li><li><a href="../native/queue.html">queue</a></li><li><a href="../native/repeater.html">repeater</a></li><li><a href="../native/stream.html">stream</a></li><li><a href="../native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="../native/mysql.html">mysql</a></li><li><a href="../native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="index.html">JS modules overview</a></li><li><a href="util.html">util</a></li><li><a href="reflect.html">reflect</a></li><li><a href="iterator.html">iterator</a></li><li><a href="asyncIterator.html">asyncIterator</a></li><li><a href="arrayLike.html">arrayLike</a></li><li><a href="extendArray.html">extendArray</a></li><li><a href="extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="extendObject.html">extendObject</a></li><li><a href="extendMap.html">extendMap</a></li><li><a href="extendSet.html">extendSet</a></li><li><a href="extendMath.html">extendMath</a></li><li><a href="extendFunction.html">extendFunction</a></li><li><a href="extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="extendGenerator.html">extendGenerator</a></li><li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="assert.html">assert</a></li><li><a href="console.html">console</a></li><li><a href="process.html">process</a></li><li><a href="events.html">events</a></li><li><a href="abort.html">abort</a></li><li><a href="timers.html">timers</a></li><li><a href="perf_hooks.html">perf_hooks</a></li><li><a href="module.html">module</a></li><li><a href="require.html">require</a></li><li><a href="stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="fs.html">fs</a></li><li><a href="fsPromises.html">fsPromises</a></li><li><a href="io.html">io</a></li><li><a href="streams.html">streams</a></li><li><a href="vfs.html">vfs</a></li><li><a href="inotify.html">inotify</a></li><li><a href="tty.html">tty</a></li><li><a href="terminal.html">terminal</a></li><li><a href="socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="dom.html">dom</a></li><li><a href="xpath.html">xpath</a></li><li><a href="parser.html">parser</a></li><li><a href="parsel.html">parsel</a></li><li><a href="css-selectors.html">css-selectors</a></li><li><a href="css3-selectors.html">css3-selectors</a></li><li><a href="url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="db.html">db</a></li><li><a href="repl.html">repl</a></li><li><a href="testharness.html" class="here">testharness</a></li><li><a href="testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="testharness"><a class="anchor" href="#testharness" aria-hidden="true">#</a>testharness</h1>
+<p>Source: <code>lib/testharness.js</code> (pure JS)</p>
+<p>A port of the W3C <strong>testharness.js</strong> (web-platform-tests) framework: define
+tests, make assertions, and collect results. See also
+<a href="testharnessreport.html"><code>testharnessreport</code></a> for output.</p>
+<p>&gt; Large module; functions grouped by role below.</p>
+<h2 id="defining--running-tests"><a class="anchor" href="#defining--running-tests" aria-hidden="true">#</a>Defining &amp; running tests</h2>
+<div class="tablewrap"><table><thead><tr><th>Function</th><th>Args</th><th>Description</th></tr></thead><tbody><tr><td><code id="defining--running-tests-test">test(func, name, properties)</code><a class="member-anchor" href="#defining--running-tests-test" aria-hidden="true">#</a></td><td>1–3</td><td>Defines a synchronous test.</td></tr><tr><td><code id="defining--running-tests-async_test">async_test(func, name, properties)</code><a class="member-anchor" href="#defining--running-tests-async_test" aria-hidden="true">#</a></td><td>1–3</td><td>Defines an async test (manual <code>done</code>).</td></tr><tr><td><code id="defining--running-tests-promise_test">promise_test(func, name, properties)</code><a class="member-anchor" href="#defining--running-tests-promise_test" aria-hidden="true">#</a></td><td>1–3</td><td>Defines a promise-returning test.</td></tr><tr><td><code id="defining--running-tests-generate_tests">generate_tests(func, args, properties)</code><a class="member-anchor" href="#defining--running-tests-generate_tests" aria-hidden="true">#</a></td><td>2–3</td><td>Generates many tests from argument tuples.</td></tr><tr><td><code id="defining--running-tests-setup">setup(func_or_properties, maybe_properties)</code><a class="member-anchor" href="#defining--running-tests-setup" aria-hidden="true">#</a></td><td>1–2</td><td>Configures the harness before tests run.</td></tr><tr><td><code id="defining--running-tests-promise_setup">promise_setup(func, properties)</code><a class="member-anchor" href="#defining--running-tests-promise_setup" aria-hidden="true">#</a></td><td>1–2</td><td>Async setup.</td></tr><tr><td><code id="defining--running-tests-done">done()</code><a class="member-anchor" href="#defining--running-tests-done" aria-hidden="true">#</a></td><td>0</td><td>Signals that all tests are defined/finished.</td></tr><tr><td><code id="defining--running-tests-timeout">timeout()</code><a class="member-anchor" href="#defining--running-tests-timeout" aria-hidden="true">#</a></td><td>0</td><td>Forces the harness timeout.</td></tr><tr><td><code id="defining--running-tests-step_timeout">step_timeout(func, timeout)</code><a class="member-anchor" href="#defining--running-tests-step_timeout" aria-hidden="true">#</a></td><td>2</td><td>Schedules a callback as a test step.</td></tr><tr><td><code id="defining--running-tests-on_event">on_event(object, event, callback)</code><a class="member-anchor" href="#defining--running-tests-on_event" aria-hidden="true">#</a></td><td>3</td><td>Adds an event listener (harness helper).</td></tr></tbody></table></div>
+<h2 id="promise-rejection-assertions"><a class="anchor" href="#promise-rejection-assertions" aria-hidden="true">#</a>Promise rejection assertions</h2>
+<p><code>promise_rejects_js(test, constructor, promise, description)</code>,
+<code>promise_rejects_dom(test, type, promiseOr, …)</code>,
+<code>promise_rejects_exactly(test, exception, promise, description)</code>.</p>
+<h2 id="assertions"><a class="anchor" href="#assertions" aria-hidden="true">#</a>Assertions</h2>
+<p>Truthiness / equality: <code>assert_true</code>, <code>assert_false</code>, <code>assert_equals</code>,
+<code>assert_not_equals</code>, <code>assert_in_array</code>, <code>assert_object_equals</code>,
+<code>assert_array_equals</code>, <code>assert_array_approx_equals</code>, <code>assert_approx_equals</code>.</p>
+<p>Ordering: <code>assert_less_than</code>, <code>assert_greater_than</code>, <code>assert_less_than_equal</code>,
+<code>assert_greater_than_equal</code>, <code>assert_between_exclusive</code>,
+<code>assert_between_inclusive</code>.</p>
+<p>Strings / classes: <code>assert_regexp_match</code>, <code>assert_class_string</code>.</p>
+<p>Properties: <code>assert_own_property</code>, <code>assert_not_own_property</code>, <code>assert_inherits</code>,
+<code>assert_idl_attribute</code>, <code>assert_readonly</code>.</p>
+<p>Throwing: <code>assert_throws_js</code>, <code>assert_throws_dom</code>, <code>assert_throws_exactly</code>.</p>
+<p>Control / combinators: <code>assert_unreached</code>, <code>assert_any</code>, <code>assert_implements</code>,
+<code>assert_implements_optional</code>.</p>
+<h2 id="result-callbacks"><a class="anchor" href="#result-callbacks" aria-hidden="true">#</a>Result callbacks</h2>
+<p><code>add_start_callback</code>, <code>add_test_state_callback</code>, <code>add_result_callback</code>,
+<code>add_completion_callback</code>.</p>
+<h2 id="cross-context-test-collection"><a class="anchor" href="#cross-context-test-collection" aria-hidden="true">#</a>Cross-context test collection</h2>
+<p><code>fetch_tests_from_worker(port)</code>, <code>fetch_tests_from_window(window)</code>,
+<code>fetch_tests_from_shadow_realm(realm)</code>, <code>begin_shadow_realm_tests(postMessage)</code>.</p>
+<h2 id="test-environments"><a class="anchor" href="#test-environments" aria-hidden="true">#</a>Test environments</h2>
+<p><code>WindowTestEnvironment</code>, <code>WorkerTestEnvironment</code>,
+<code>SharedWorkerTestEnvironment</code>, <code>ServiceWorkerTestEnvironment</code>,
+<code>ShadowRealmTestEnvironment</code>, <code>ShellTestEnvironment</code>.</p>
+<h2 id="core-types--helpers"><a class="anchor" href="#core-types--helpers" aria-hidden="true">#</a>Core types &amp; helpers</h2>
+<div class="tablewrap"><table><thead><tr><th>Export</th><th>Description</th></tr></thead><tbody><tr><td><code>Test</code>, <code>RemoteTest</code>, <code>RemoteContext</code></td><td>Test object and remote-test plumbing.</td></tr><tr><td><code>Tests</code>, <code>TestsStatus</code>, <code>AssertRecord</code></td><td>Test registry, overall status, recorded assertions.</td></tr><tr><td><code id="core-types--helpers-output">Output</code><a class="member-anchor" href="#core-types--helpers-output" aria-hidden="true">#</a></td><td>Result formatter/sink.</td></tr><tr><td><code id="core-types--helpers-eventwatcher">EventWatcher(test, node, eventTypes, timeoutPromise)</code><a class="member-anchor" href="#core-types--helpers-eventwatcher" aria-hidden="true">#</a></td><td>Awaits a sequence of events.</td></tr><tr><td><code id="core-types--helpers-format_value">format_value(val, seen)</code><a class="member-anchor" href="#core-types--helpers-format_value" aria-hidden="true">#</a></td><td>Renders a value for messages.</td></tr><tr><td><code id="core-types--helpers-assertionerror">AssertionError(message)</code><a class="member-anchor" href="#core-types--helpers-assertionerror" aria-hidden="true">#</a></td><td>Assertion failure error.</td></tr><tr><td><code id="core-types--helpers-optionalfeatureunsupportederror">OptionalFeatureUnsupportedError(message)</code><a class="member-anchor" href="#core-types--helpers-optionalfeatureunsupportederror" aria-hidden="true">#</a></td><td>Skipped-feature error.</td></tr><tr><td><code id="core-types--helpers-tests">tests</code><a class="member-anchor" href="#core-types--helpers-tests" aria-hidden="true">#</a></td><td>The live test list (<code>let</code>).</td></tr></tbody></table></div></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/js/testharness.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#defining--running-tests">Defining &amp; running tests</a></li><li class="lvl2"><a href="#promise-rejection-assertions">Promise rejection assertions</a></li><li class="lvl2"><a href="#assertions">Assertions</a></li><li class="lvl2"><a href="#result-callbacks">Result callbacks</a></li><li class="lvl2"><a href="#cross-context-test-collection">Cross-context test collection</a></li><li class="lvl2"><a href="#test-environments">Test environments</a></li><li class="lvl2"><a href="#core-types--helpers">Core types &amp; helpers</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

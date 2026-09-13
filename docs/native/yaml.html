@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>yaml — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="index.html">Native modules overview</a></li><li><a href="archive.html">archive</a></li><li><a href="arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="bcrypt.html">bcrypt</a></li><li><a href="bjson.html">bjson</a></li><li><a href="blob.html">blob</a></li><li><a href="json.html">json</a></li><li><a href="lexer.html">lexer</a></li><li><a href="list.html">list</a></li><li><a href="textcode.html">textcode</a></li><li><a href="xml.html">xml</a></li><li><a href="yaml.html" class="here">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="child-process.html">child-process</a></li><li><a href="directory.html">directory</a></li><li><a href="gpio.html">gpio</a></li><li><a href="location.html">location</a></li><li><a href="magic.html">magic</a></li><li><a href="misc.html">misc</a></li><li><a href="mmap.html">mmap</a></li><li><a href="path.html">path</a></li><li><a href="serial.html">serial</a></li><li><a href="sockets.html">sockets</a></li><li><a href="syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="deep.html">deep</a></li><li><a href="inspect.html">inspect</a></li><li><a href="pointer.html">pointer</a></li><li><a href="predicate.html">predicate</a></li><li><a href="tree-walker.html">tree-walker</a></li><li><a href="queue.html">queue</a></li><li><a href="repeater.html">repeater</a></li><li><a href="stream.html">stream</a></li><li><a href="virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="mysql.html">mysql</a></li><li><a href="pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="../js/index.html">JS modules overview</a></li><li><a href="../js/util.html">util</a></li><li><a href="../js/reflect.html">reflect</a></li><li><a href="../js/iterator.html">iterator</a></li><li><a href="../js/asyncIterator.html">asyncIterator</a></li><li><a href="../js/arrayLike.html">arrayLike</a></li><li><a href="../js/extendArray.html">extendArray</a></li><li><a href="../js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="../js/extendObject.html">extendObject</a></li><li><a href="../js/extendMap.html">extendMap</a></li><li><a href="../js/extendSet.html">extendSet</a></li><li><a href="../js/extendMath.html">extendMath</a></li><li><a href="../js/extendFunction.html">extendFunction</a></li><li><a href="../js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="../js/extendGenerator.html">extendGenerator</a></li><li><a href="../js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="../js/assert.html">assert</a></li><li><a href="../js/console.html">console</a></li><li><a href="../js/process.html">process</a></li><li><a href="../js/events.html">events</a></li><li><a href="../js/abort.html">abort</a></li><li><a href="../js/timers.html">timers</a></li><li><a href="../js/perf_hooks.html">perf_hooks</a></li><li><a href="../js/module.html">module</a></li><li><a href="../js/require.html">require</a></li><li><a href="../js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="../js/fs.html">fs</a></li><li><a href="../js/fsPromises.html">fsPromises</a></li><li><a href="../js/io.html">io</a></li><li><a href="../js/streams.html">streams</a></li><li><a href="../js/vfs.html">vfs</a></li><li><a href="../js/inotify.html">inotify</a></li><li><a href="../js/tty.html">tty</a></li><li><a href="../js/terminal.html">terminal</a></li><li><a href="../js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="../js/dom.html">dom</a></li><li><a href="../js/xpath.html">xpath</a></li><li><a href="../js/parser.html">parser</a></li><li><a href="../js/parsel.html">parsel</a></li><li><a href="../js/css-selectors.html">css-selectors</a></li><li><a href="../js/css3-selectors.html">css3-selectors</a></li><li><a href="../js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="../js/db.html">db</a></li><li><a href="../js/repl.html">repl</a></li><li><a href="../js/testharness.html">testharness</a></li><li><a href="../js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="yaml"><a class="anchor" href="#yaml" aria-hidden="true">#</a>yaml</h1>
+<p>Source: <code>quickjs-yaml.c</code> — module exports a flat list of functions.</p>
+<p>Serializes a plain JS value tree (object/array/string/number/boolean/null)
+to a small, deterministic block-YAML subset: nested mappings/sequences via
+indentation, plain or quoted scalars. No anchors/aliases, no multi-document
+streams, no flow style (except the two exceptions noted below), no custom
+tags. Written for the eagle-agent library indexer (<code>../eagle-agent.md</code>),
+which needs a compact, human- and LLM-readable source-of-truth text for the
+EAGLE parts catalog — but it's general-purpose for any plain data tree.</p>
+<p><strong>There is no <code>read()</code> yet.</strong> This module is write-only for now; parsing
+YAML back into a JS value is deferred (tracked as Tier 12 in <code>TODO.md</code>).
+Don't round-trip through this module until that lands.</p>
+<h2 id="functions"><a class="anchor" href="#functions" aria-hidden="true">#</a>Functions</h2>
+<div class="tablewrap"><table><thead><tr><th>Function</th><th>Args</th><th>Description</th></tr></thead><tbody><tr><td><code id="functions-write">write(value, indent?)</code><a class="member-anchor" href="#functions-write" aria-hidden="true">#</a></td><td>1</td><td>Serializes <code>value</code> to a YAML string. <code>indent</code> is the number of spaces per nesting level, default <code>2</code>. Non-positive values fall back to the default.</td></tr></tbody></table></div>
+<h2 id="translation-rules"><a class="anchor" href="#translation-rules" aria-hidden="true">#</a>Translation rules</h2>
+<div class="tablewrap"><table><thead><tr><th>JS value</th><th>YAML output</th></tr></thead><tbody><tr><td><code>null</code>, <code>undefined</code></td><td><code>null</code></td></tr><tr><td><code>true</code> / <code>false</code></td><td><code>true</code> / <code>false</code></td></tr><tr><td>number</td><td>its JS string form (<code>42</code>, <code>3.14</code>, …) — unquoted</td></tr><tr><td>string</td><td>plain if unambiguous, else double-quoted (see below)</td></tr><tr><td><code>{}</code> (empty object)</td><td><code>{}</code></td></tr><tr><td><code>[]</code> (empty array)</td><td><code>[]</code></td></tr><tr><td>non-empty object</td><td>block mapping, keys in <strong>JS insertion order</strong></td></tr><tr><td>non-empty array</td><td>block sequence</td></tr><tr><td>function / symbol</td><td>throws <code>TypeError</code></td></tr></tbody></table></div>
+<p><strong>Empty <code>{}</code>/<code>[]</code> are the one deliberate flow-style exception</strong> — block
+style has no way to represent zero entries, so an empty collection is
+always written as the flow literal, at any depth.</p>
+<h3 id="nesting"><a class="anchor" href="#nesting" aria-hidden="true">#</a>Nesting</h3>
+<p>Every level of nesting adds one <code>indent</code>-width block of leading spaces.
+A key's value starts on the same line if it's a scalar or empty
+collection; a non-empty nested object/array starts on the <strong>next</strong> line,
+indented one level deeper than the key. Array items that are themselves
+non-empty objects/arrays are written as a bare <code>-</code> on its own line,
+followed by the nested block indented one level deeper than the <code>-</code>:</p>
+<div class="codeblock" data-lang="yaml"><pre><code class="language-yaml">key: 1
+list:
+  - a
+  - b
+nested:
+  a: 1
+  b:
+    - 1
+    - 2
+listOfMaps:
+  -
+    x: 1
+  -
+    y: 2</code></pre></div>
+<p>from:</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-fn">write</span>({
+  <span class="t-id">key</span><span class="t-op">:</span> <span class="t-num">1</span>,
+  <span class="t-id">list</span><span class="t-op">:</span> [<span class="t-str">'a'</span>, <span class="t-str">'b'</span>],
+  <span class="t-id">nested</span><span class="t-op">:</span> { <span class="t-id">a</span><span class="t-op">:</span> <span class="t-num">1</span>, <span class="t-id">b</span><span class="t-op">:</span> [<span class="t-num">1</span>, <span class="t-num">2</span>] },
+  <span class="t-id">listOfMaps</span><span class="t-op">:</span> [{ <span class="t-id">x</span><span class="t-op">:</span> <span class="t-num">1</span> }, { <span class="t-id">y</span><span class="t-op">:</span> <span class="t-num">2</span> }],
+});</code></pre></div>
+<h3 id="scalar-quoting"><a class="anchor" href="#scalar-quoting" aria-hidden="true">#</a>Scalar quoting</h3>
+<p>A string is written <strong>plain</strong> (bare, no quotes) unless any of these hold,
+in which case it's written <strong>double-quoted</strong> with JSON-style escapes
+(<code>\"</code>, <code>\\</code>, <code>\n</code>, <code>\t</code>, <code>\r</code>, <code>\xHH</code> for other control bytes):</p>
+<ul>
+<li>empty string</li>
+<li>leading or trailing space</li>
+<li>starts with a YAML indicator character: <code>- ? : , [ ] { } # &amp; * ! | &gt; ' " % @</code> \<code> </code><code> </code> or whitespace</li>
+<li>contains <code>: </code> (colon-space) or a bare trailing <code>:</code>, or <code> #</code> (space-hash) — these are structurally significant in YAML</li>
+<li>contains any control character (byte &lt; 0x20)</li>
+<li>looks like a number (<code>123</code>, <code>-1.5e10</code>, …) — quoted so it stays a string on read-back</li>
+<li>matches a YAML 1.1 boolean/null keyword, case-sensitively against <code>null</code>/<code>Null</code>/<code>NULL</code>/<code>~</code>, <code>true</code>/<code>True</code>/<code>TRUE</code>, <code>false</code>/<code>False</code>/<code>FALSE</code>, <code>yes</code>/<code>Yes</code>/<code>YES</code>, <code>no</code>/<code>No</code>/<code>NO</code>, <code>on</code>/<code>On</code>/<code>ON</code>, <code>off</code>/<code>Off</code>/<code>OFF</code></li>
+</ul>
+<p>Everything else — including a string that merely <em>contains</em> a <code>"</code> or <code>'</code>
+mid-word (<code>a "quote" here</code>) — is left unquoted; those characters are only
+special at the start of a scalar.</p>
+<p><strong>Practical implication for pin names:</strong> EAGLE pin names like <code>RA0/AN0</code> or
+<code>RB7/KBI3/PGD</code> are plain (no leading indicator char, no <code>: </code>/<code>#</code>, not
+numeric/keyword-shaped) and come out unquoted. A bare pad number used as a
+pin name (e.g. <code>"1"</code>, <code>"2"</code> for a resistor) looks numeric and <strong>will</strong> be
+quoted — keep that in mind if a consumer expects a raw string.</p>
+<h2 id="worked-example-an-eagle-parts-catalog-entry"><a class="anchor" href="#worked-example-an-eagle-parts-catalog-entry" aria-hidden="true">#</a>Worked example: an EAGLE parts-catalog entry</h2>
+<p>Given a condensed deviceset record built as a plain JS object (matching
+the fields <code>eagle-agent.md</code> §1 wants — name, prefix, description, gate →
+pin list, package variants):</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">write</span> } <span class="t-kw">from</span> <span class="t-str">'yaml'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">catalog</span> <span class="t-op">=</span> {
+  <span class="t-str">'mcu.lbr'</span><span class="t-op">:</span> {
+    <span class="t-str">'PIC18F2550-I/SP'</span><span class="t-op">:</span> {
+      <span class="t-id">prefix</span><span class="t-op">:</span> <span class="t-str">'U'</span>,
+      <span class="t-id">packages</span><span class="t-op">:</span> [<span class="t-str">'SPDIP28'</span>],
+      <span class="t-id">pins</span><span class="t-op">:</span> [<span class="t-str">'RA0/AN0'</span>, <span class="t-str">'RA1/AN1'</span>, <span class="t-str">'VDD'</span>, <span class="t-str">'VSS'</span>],
+    },
+  },
+  <span class="t-str">'r.lbr'</span><span class="t-op">:</span> {
+    <span class="t-type">R</span><span class="t-op">:</span> { <span class="t-id">prefix</span><span class="t-op">:</span> <span class="t-str">'R'</span>, <span class="t-id">pins</span><span class="t-op">:</span> [<span class="t-str">'1'</span>, <span class="t-str">'2'</span>] },
+  },
+};
+
+<span class="t-fn">print</span>(<span class="t-fn">write</span>(<span class="t-id">catalog</span>));</code></pre></div>
+<p>produces:</p>
+<div class="codeblock" data-lang="yaml"><pre><code class="language-yaml">mcu.lbr:
+  PIC18F2550-I/SP:
+    prefix: U
+    packages:
+      - SPDIP28
+    pins:
+      - RA0/AN0
+      - RA1/AN1
+      - VDD
+      - VSS
+r.lbr:
+  R:
+    prefix: R
+    pins:
+      - "1"
+      - "2"</code></pre></div>
+<p>Note the quoted <code>"1"</code>/<code>"2"</code>: those pin names are digit-only strings, so
+the numeric-lookalike rule quotes them to keep them strings.</p>
+<h2 id="caveats-for-callers"><a class="anchor" href="#caveats-for-callers" aria-hidden="true">#</a>Caveats for callers</h2>
+<ul>
+<li>Build the plain object/array tree first (e.g. from <code>eagle.js</code>'s
+<code>EagleDocument</code> getters), then hand the finished tree to <code>write()</code> in
+one call — there's no streaming/incremental writer.</li>
+<li>Key order is whatever order you assigned object properties in; if
+ordering matters for the catalog's readability (e.g. <code>prefix</code> before
+<code>pins</code>), build the object literal in that order.</li>
+<li><code>write()</code> throws on functions/symbols in the tree — strip or convert
+those before calling it.</li>
+</ul></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/native/yaml.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#functions">Functions</a></li><li class="lvl2"><a href="#translation-rules">Translation rules</a></li><li class="lvl3"><a href="#nesting">Nesting</a></li><li class="lvl3"><a href="#scalar-quoting">Scalar quoting</a></li><li class="lvl2"><a href="#worked-example-an-eagle-parts-catalog-entry">Worked example: an EAGLE parts-catalog entry</a></li><li class="lvl2"><a href="#caveats-for-callers">Caveats for callers</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

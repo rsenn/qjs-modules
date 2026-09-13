@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qjs-modules — The standard library QuickJS deserves</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="landing" data-root="">
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="getting-started.html">Get started</a>
+    <a href="docs/index.html">Docs</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<main>
+
+<section class="hero">
+  <div>
+    <span class="eyebrow">Native + JS for QuickJS</span>
+    <h1>The standard library QuickJS deserves.</h1>
+    <p class="lede">
+      qjs-modules binds ~33 native <code>quickjs-*.c</code> modules — streams, XML/DOM,
+      archives, sockets, databases, deep object ops — and layers ~45 pure-JS modules on top:
+      WHATWG/W3C/Node-shaped APIs so scripts written for the browser, Bun, Node or Deno run here
+      with minimal changes.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="getting-started.html">Get started</a>
+      <a class="btn" href="docs/index.html">Read the docs</a>
+      <a class="btn" href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+
+  <div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">ReadableStream</span> } <span class="t-kw">from</span> <span class="t-str">'stream'</span>;
+<span class="t-kw">import</span> { <span class="t-type">XMLParser</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+<span class="t-kw">import</span> <span class="t-op">*</span> <span class="t-id">as</span> <span class="t-id">deep</span> <span class="t-kw">from</span> <span class="t-str">'deep'</span>;
+<span class="t-kw">import</span> { <span class="t-type">Pointer</span> } <span class="t-kw">from</span> <span class="t-str">'pointer'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">doc</span> <span class="t-op">=</span> { <span class="t-id">users</span><span class="t-op">:</span> [{ <span class="t-id">id</span><span class="t-op">:</span> <span class="t-num">1</span>, <span class="t-id">name</span><span class="t-op">:</span> <span class="t-str">'Ada'</span> }] };
+<span class="t-kw">const</span> <span class="t-id">ptr</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Pointer</span>([<span class="t-str">'users'</span>, <span class="t-num">0</span>, <span class="t-str">'name'</span>]);
+
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">ptr</span>.<span class="t-fn">deref</span>(<span class="t-id">doc</span>));           <span class="t-cm">// "Ada"</span>
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">deep</span>.<span class="t-fn">find</span>(<span class="t-id">doc</span>, <span class="t-id">v</span> <span class="t-op">=&gt;</span> <span class="t-id">v</span> <span class="t-op">===</span> <span class="t-num">1</span>)); <span class="t-cm">// 1</span>
+
+<span class="t-kw">for</span> (<span class="t-kw">const</span> <span class="t-id">ev</span> <span class="t-kw">of</span> <span class="t-kw">new</span> <span class="t-fn">XMLParser</span>(<span class="t-str">'&lt;a x="1"/&gt;'</span>))
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">ev</span>.<span class="t-prop">type</span>, <span class="t-id">ev</span>.<span class="t-prop">eventName</span>);</code></pre></div>
+</section>
+
+<section class="section">
+  <h2>Design principles</h2>
+  <p class="sub">
+    From the project's own <a href="https://github.com/rsenn/qjs-modules/blob/main/CLAUDE.md">CLAUDE.md</a> — the rules
+    that shape every binding added here.
+  </p>
+
+  <div class="grid">
+    <div class="card">
+      <span class="ico">◇</span>
+      <h3>Standards over custom APIs</h3>
+      <p>
+        Priority order: WHATWG &gt; Browser &gt; Bun &gt; Node &gt; Deno. Custom
+        "qjs-modules-isms" are avoided so scripts written for other runtimes run here with
+        minimal changes.
+      </p>
+    </div>
+    <div class="card">
+      <span class="ico">◇</span>
+      <h3>JS-idiomatic, not C++ parity</h3>
+      <p>
+        Bindings prefer plain arrays, iterators and <code>for...of</code> over verbose
+        <code>.get()</code>/<code>.delete()</code>/<code>.size()</code> container APIs —
+        GC does the cleanup a C++ API would make you do by hand.
+      </p>
+    </div>
+    <div class="card">
+      <span class="ico">◇</span>
+      <h3>Two layers, one surface</h3>
+      <p>
+        Native <code>quickjs-*.c</code> modules expose the primitives; <code>lib/*.js</code>
+        wraps them into higher-level, Node/WHATWG-shaped APIs (<code>fs</code>,
+        <code>process</code>, <code>console</code>, <code>dom</code>, …).
+      </p>
+    </div>
+    <div class="card">
+      <span class="ico">◇</span>
+      <h3>Internal vs. public</h3>
+      <p>
+        Modules like <code>deep</code>, <code>predicate</code>, <code>pointer</code> and
+        <code>misc</code> are implementation details other modules build on, not the primary
+        public surface — kept documented, but not layered with extra API just to be "friendly".
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2>What's in here</h2>
+  <p class="sub">
+    Every module below is documented in full — constructors, methods, properties and
+    constants each get their own linkable, searchable anchor.
+  </p>
+
+  <div class="split">
+    <div>
+      <h3>Native modules (~33)</h3>
+      <p>
+        <code>archive</code>, <code>blob</code>, <code>stream</code>, <code>xml</code>,
+        <code>json</code>, <code>bjson</code>, <code>deep</code>, <code>pointer</code>,
+        <code>predicate</code>, <code>tree-walker</code>, <code>child-process</code>,
+        <code>sockets</code>, <code>mysql</code>, <code>pgsql</code>, <code>mmap</code>,
+        <code>gpio</code>, <code>serial</code>, <code>lexer</code>, <code>inspect</code>
+        and more — direct C bindings, one per <code>quickjs-*.c</code> file.
+      </p>
+    </div>
+    <div>
+      <h3>JavaScript layer (~45)</h3>
+      <p>
+        WHATWG/Node polyfills and wrappers: <code>events</code>, <code>url</code>,
+        <code>timers</code>, <code>console</code>, <code>assert</code>, <code>fs</code>,
+        <code>fsPromises</code>, <code>dom</code>, <code>xpath</code>, plus prototype
+        extensions (<code>extendArray</code>, <code>extendMap</code>, …) and the central
+        <code>util</code> helper library.
+      </p>
+    </div>
+  </div>
+
+  <p class="note">
+    <strong>Full text search</strong> is built into every page (press <code>/</code>) —
+    it indexes every module, class and documented member across the whole site, not just
+    page titles.
+  </p>
+</section>
+
+<section class="section">
+  <h2>Get it running</h2>
+
+  <div class="codeblock" data-lang="sh"><pre><code class="language-sh"><span class="t-id">git</span> <span class="t-id">clone</span> <span class="t-id">https</span>://<span class="t-id">github.com</span>/<span class="t-id">rsenn</span>/<span class="t-id">qjs-modules</span>
+<span class="t-id">cd</span> <span class="t-id">qjs-modules</span>
+
+<span class="t-id">cmake</span> <span class="t-op">-B</span> <span class="t-id">build</span> .
+<span class="t-id">make</span> <span class="t-op">-C</span> <span class="t-id">build</span>
+
+<span class="t-id">QUICKJS_MODULE_PATH</span>=<span class="t-var">$PWD</span>/<span class="t-id">build</span> <span class="t-id">qjsm</span> <span class="t-op">-e</span> <span class="t-str">"import('deep').then(d =&gt; console.log(d.find({a:{b:1}}, v =&gt; v === 1)))"</span></code></pre></div>
+
+  <p class="note">
+    Needs <code>qjsm</code> from
+    <a href="https://github.com/rsenn/quickjs" target="_blank" rel="noopener">rsenn/quickjs</a>
+    (plain <code>qjs</code> lacks <code>process</code> and silently swallows uncaught module
+    errors). Database/serial/archive/magic modules are gated behind CMake options — see
+    <a href="getting-started.html">Getting started</a> for the full option matrix.
+  </p>
+</section>
+
+</main>
+
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="assets/search-index.js"></script>
+<script src="assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

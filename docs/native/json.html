@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>json — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="index.html">Native modules overview</a></li><li><a href="archive.html">archive</a></li><li><a href="arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="bcrypt.html">bcrypt</a></li><li><a href="bjson.html">bjson</a></li><li><a href="blob.html">blob</a></li><li><a href="json.html" class="here">json</a></li><li><a href="lexer.html">lexer</a></li><li><a href="list.html">list</a></li><li><a href="textcode.html">textcode</a></li><li><a href="xml.html">xml</a></li><li><a href="yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="child-process.html">child-process</a></li><li><a href="directory.html">directory</a></li><li><a href="gpio.html">gpio</a></li><li><a href="location.html">location</a></li><li><a href="magic.html">magic</a></li><li><a href="misc.html">misc</a></li><li><a href="mmap.html">mmap</a></li><li><a href="path.html">path</a></li><li><a href="serial.html">serial</a></li><li><a href="sockets.html">sockets</a></li><li><a href="syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="deep.html">deep</a></li><li><a href="inspect.html">inspect</a></li><li><a href="pointer.html">pointer</a></li><li><a href="predicate.html">predicate</a></li><li><a href="tree-walker.html">tree-walker</a></li><li><a href="queue.html">queue</a></li><li><a href="repeater.html">repeater</a></li><li><a href="stream.html">stream</a></li><li><a href="virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="mysql.html">mysql</a></li><li><a href="pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="../js/index.html">JS modules overview</a></li><li><a href="../js/util.html">util</a></li><li><a href="../js/reflect.html">reflect</a></li><li><a href="../js/iterator.html">iterator</a></li><li><a href="../js/asyncIterator.html">asyncIterator</a></li><li><a href="../js/arrayLike.html">arrayLike</a></li><li><a href="../js/extendArray.html">extendArray</a></li><li><a href="../js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="../js/extendObject.html">extendObject</a></li><li><a href="../js/extendMap.html">extendMap</a></li><li><a href="../js/extendSet.html">extendSet</a></li><li><a href="../js/extendMath.html">extendMath</a></li><li><a href="../js/extendFunction.html">extendFunction</a></li><li><a href="../js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="../js/extendGenerator.html">extendGenerator</a></li><li><a href="../js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="../js/assert.html">assert</a></li><li><a href="../js/console.html">console</a></li><li><a href="../js/process.html">process</a></li><li><a href="../js/events.html">events</a></li><li><a href="../js/abort.html">abort</a></li><li><a href="../js/timers.html">timers</a></li><li><a href="../js/perf_hooks.html">perf_hooks</a></li><li><a href="../js/module.html">module</a></li><li><a href="../js/require.html">require</a></li><li><a href="../js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="../js/fs.html">fs</a></li><li><a href="../js/fsPromises.html">fsPromises</a></li><li><a href="../js/io.html">io</a></li><li><a href="../js/streams.html">streams</a></li><li><a href="../js/vfs.html">vfs</a></li><li><a href="../js/inotify.html">inotify</a></li><li><a href="../js/tty.html">tty</a></li><li><a href="../js/terminal.html">terminal</a></li><li><a href="../js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="../js/dom.html">dom</a></li><li><a href="../js/xpath.html">xpath</a></li><li><a href="../js/parser.html">parser</a></li><li><a href="../js/parsel.html">parsel</a></li><li><a href="../js/css-selectors.html">css-selectors</a></li><li><a href="../js/css3-selectors.html">css3-selectors</a></li><li><a href="../js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="../js/db.html">db</a></li><li><a href="../js/repl.html">repl</a></li><li><a href="../js/testharness.html">testharness</a></li><li><a href="../js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="json"><a class="anchor" href="#json" aria-hidden="true">#</a>json</h1>
+<p>Source: <code>quickjs-json.c</code> — module exports <strong><code>JsonParser</code></strong>, <strong><code>JsonPushParser</code></strong>, <strong><code>JsonSerializer</code></strong>, <strong><code>JsonWriter</code></strong> and a function list.</p>
+<p>A streaming/extended JSON reader plus simple read/write helpers.</p>
+<h2 id="module-functions"><a class="anchor" href="#module-functions" aria-hidden="true">#</a>Module functions</h2>
+<div class="tablewrap"><table><thead><tr><th>Function</th><th>Args</th><th>Description</th></tr></thead><tbody><tr><td><code id="module-functions-read">read(input, inputName?)</code><a class="member-anchor" href="#module-functions-read" aria-hidden="true">#</a></td><td>1–2</td><td>Parses JSON text into a JS value. <code>input</code> is a string or buffer. <code>inputName</code> is an optional filename for error messages. Throws on trailing data after the root value.</td></tr><tr><td><code id="module-functions-write">write(value, indent?)</code><a class="member-anchor" href="#module-functions-write" aria-hidden="true">#</a></td><td>1–2</td><td>Serializes a JS value to JSON text. <code>indent</code> (default 0) controls pretty-printing — when positive, each nesting level adds that many spaces of indentation.</td></tr></tbody></table></div>
+<h2 id="jsonparser"><a class="anchor" href="#jsonparser" aria-hidden="true">#</a>JsonParser</h2>
+<p>An incremental JSON tokenizer, built on <code>Reader</code>/<code>Location</code> from <code>stream-utils.h</code>. Each call
+to <code>.parse()</code> either advances one token (a state change), signals that the reader ran dry
+before a token was complete (<code>"NEED_DATA"</code>), or throws a <code>SyntaxError</code> (with the offending
+line:column) on malformed input.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">JsonParser</span>(<span class="t-id">input</span>, <span class="t-id">filename</span><span class="t-op">?</span>)   <span class="t-cm">// length 1; filename is optional, reflected in .location.file</span></code></pre></div>
+<p><code>input</code> may be:</p>
+<ul>
+<li>a buffer (string, <code>ArrayBuffer</code>, or typed array) holding the whole document, or</li>
+<li>a pull function <code>(buf, len) =&gt; bytesRead</code>, called as needed to fill <code>buf</code> (up to <code>len</code> bytes), or</li>
+<li>an object exposing such a function as its <code>read</code> method — called with the object as <code>this</code>, e.g. a file wrapper: <code>{ read(buf, len) { return f.read(buf, 0, len); } }</code>.</li>
+</ul>
+<p>The function/method forms let the parser pull raw bytes on demand (e.g. from an fd) instead of requiring the whole document up front.</p>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="jsonparser-parse">parse()</code><a class="member-anchor" href="#jsonparser-parse" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Advances one token. Returns one of <code>"NEED_DATA"</code>, <code>"NONE"</code>, <code>"OBJECT"</code>, <code>"OBJECT_END"</code>, <code>"ARRAY"</code>, <code>"ARRAY_END"</code>, <code>"KEY"</code>, <code>"STRING"</code>, <code>"TRUE"</code>, <code>"FALSE"</code>, <code>"NULL"</code>, <code>"NUMBER"</code>. Throws on malformed input.</td></tr><tr><td><code id="jsonparser-pos">pos</code><a class="member-anchor" href="#jsonparser-pos" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Current parse position, in characters consumed (enumerable).</td></tr><tr><td><code id="jsonparser-token">token</code><a class="member-anchor" href="#jsonparser-token" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The current token's decoded text — e.g. string/key content has escapes and <code>\uXXXX</code> (including surrogate pairs) already resolved (enumerable).</td></tr><tr><td><code id="jsonparser-state">state</code><a class="member-anchor" href="#jsonparser-state" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Internal parser state bitmask (enumerable).</td></tr><tr><td><code id="jsonparser-depth">depth</code><a class="member-anchor" href="#jsonparser-depth" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Current nesting depth (enumerable).</td></tr><tr><td><code id="jsonparser-location">location</code><a class="member-anchor" href="#jsonparser-location" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>A <code>Location</code> reflecting the current input position (line/column/byte offset/filename); live, like <code>JsonPushParser</code>'s (enumerable).</td></tr><tr><td><code id="jsonparser-callback">callback</code><a class="member-anchor" href="#jsonparser-callback" aria-hidden="true">#</a></td><td>—</td><td>getter/setter</td><td>Per-value callback invoked while parsing. The function is called as <code>callback(parser, type, text)</code> where <code>type</code> is a <code>JsonValueType</code> integer and <code>text</code> is the token string (or <code>undefined</code>).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">JsonParser</span> } <span class="t-kw">from</span> <span class="t-str">'json'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">p</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">JsonParser</span>(<span class="t-str">'{"a":1,"b":[2,3]}'</span>);
+<span class="t-kw">let</span> <span class="t-id">t</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">t</span> <span class="t-op">=</span> <span class="t-id">p</span>.<span class="t-fn">parse</span>()) <span class="t-op">!==</span> <span class="t-str">'NEED_DATA'</span>) <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">t</span>, <span class="t-type">JSON</span>.<span class="t-fn">stringify</span>(<span class="t-id">p</span>.<span class="t-prop">token</span>));
+<span class="t-cm">// OBJECT "{"  KEY "a"  NUMBER "1"  KEY "b"  ARRAY "["  NUMBER "2"  NUMBER "3"  ARRAY_END "]"  OBJECT_END "}"</span></code></pre></div>
+<p><code>"NEED_DATA"</code> at the top level (after the root value is fully closed) simply means there's
+nothing left to parse — this class has no <code>.write()</code> to feed it more, unlike <code>JsonPushParser</code>.</p>
+<h2 id="jsonpushparser"><a class="anchor" href="#jsonpushparser" aria-hidden="true">#</a>JsonPushParser</h2>
+<p>A "push" JSON parser: instead of pulling from an input, data is fed to it via <code>.write()</code>,
+at any byte boundary — including mid-string, mid-number, or mid-escape. It builds the
+parsed value incrementally into <code>.root</code>, and while a container is still open, <code>.path</code>
+reports the current nesting as an array of keys/indices (e.g. <code>["a", "b", 2]</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">JsonPushParser</span>(<span class="t-id">callback</span><span class="t-op">?</span>)   <span class="t-cm">// length 0; optional callback function or options object</span></code></pre></div>
+<p>The optional argument may be:</p>
+<ul>
+<li>A single <strong>callback function</strong> <code>(type, value)</code> invoked for every token. <code>type</code> is a <code>jr_type_t</code> integer, <code>value</code> is the decoded JS value. The prototype's <code>TYPE_*</code> constants (see below) can be used to match against <code>type</code>.</li>
+<li>An <strong>options object</strong> with per-event callback methods. Recognized properties: <code>error</code>, <code>value</code> (for null/true/false/number/string), <code>objectStart</code>, <code>objectEnd</code>, <code>arrayStart</code>, <code>arrayEnd</code>, <code>key</code>. Each is invoked with a single decoded JS value argument. The options object is used as <code>this</code> for all callback invocations.</li>
+</ul>
+<p>When no callbacks are given (or not all are present), the parser operates in <strong>builder mode</strong>: it builds the parsed value internally, retrievable via <code>.root</code>.</p>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="jsonpushparser-write">write(chunk)</code><a class="member-anchor" href="#jsonpushparser-write" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Feeds a chunk of input text (string or buffer). Throws a <code>SyntaxError</code> on malformed input, but the parser remains usable — it resyncs at the next structural boundary (a comma or a closing bracket) and subsequent <code>.write()</code> calls continue from there.</td></tr><tr><td><code id="jsonpushparser-close">close()</code><a class="member-anchor" href="#jsonpushparser-close" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Signals end of input: flushes a trailing top-level scalar (e.g. a bare <code>42</code> with nothing after it) that couldn't otherwise be told apart from "more digits might follow". Throws if the document is incomplete (unclosed container, mid-token, or nothing written yet).</td></tr><tr><td><code id="jsonpushparser-root">root</code><a class="member-anchor" href="#jsonpushparser-root" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The value parsed so far. <code>undefined</code> until the top-level value is complete (enumerable).</td></tr><tr><td><code id="jsonpushparser-path">path</code><a class="member-anchor" href="#jsonpushparser-path" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Array of keys/indices describing where the next byte will land while a container is still open; empty once parsing is done (enumerable).</td></tr></tbody></table></div>
+<h3 id="prototype-constants"><a class="anchor" href="#prototype-constants" aria-hidden="true">#</a>Prototype constants</h3>
+<p>The following integer constants are exposed on the prototype for matching <code>type</code> values in callbacks:</p>
+<div class="tablewrap"><table><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody><tr><td><code id="prototype-constants-type_error">TYPE_ERROR</code><a class="member-anchor" href="#prototype-constants-type_error" aria-hidden="true">#</a></td><td>Parse error</td></tr><tr><td><code id="prototype-constants-type_null">TYPE_NULL</code><a class="member-anchor" href="#prototype-constants-type_null" aria-hidden="true">#</a></td><td><code>null</code> literal</td></tr><tr><td><code id="prototype-constants-type_true">TYPE_TRUE</code><a class="member-anchor" href="#prototype-constants-type_true" aria-hidden="true">#</a></td><td><code>true</code> literal</td></tr><tr><td><code id="prototype-constants-type_false">TYPE_FALSE</code><a class="member-anchor" href="#prototype-constants-type_false" aria-hidden="true">#</a></td><td><code>false</code> literal</td></tr><tr><td><code id="prototype-constants-type_number">TYPE_NUMBER</code><a class="member-anchor" href="#prototype-constants-type_number" aria-hidden="true">#</a></td><td>Numeric value</td></tr><tr><td><code id="prototype-constants-type_string">TYPE_STRING</code><a class="member-anchor" href="#prototype-constants-type_string" aria-hidden="true">#</a></td><td>String value</td></tr><tr><td><code>TYPE_OBJECT</code> / <code>TYPE_OBJECT_START</code></td><td>Object opening <code>{</code></td></tr><tr><td><code id="prototype-constants-type_object_end">TYPE_OBJECT_END</code><a class="member-anchor" href="#prototype-constants-type_object_end" aria-hidden="true">#</a></td><td>Object closing <code>}</code></td></tr><tr><td><code>TYPE_ARRAY</code> / <code>TYPE_ARRAY_START</code></td><td>Array opening <code>[</code></td></tr><tr><td><code id="prototype-constants-type_array_end">TYPE_ARRAY_END</code><a class="member-anchor" href="#prototype-constants-type_array_end" aria-hidden="true">#</a></td><td>Array closing <code>]</code></td></tr><tr><td><code id="prototype-constants-type_key">TYPE_KEY</code><a class="member-anchor" href="#prototype-constants-type_key" aria-hidden="true">#</a></td><td>Object key</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">JsonPushParser</span> } <span class="t-kw">from</span> <span class="t-str">'json'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">p</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">JsonPushParser</span>();
+
+<span class="t-id">p</span>.<span class="t-fn">write</span>(<span class="t-str">'{"a":{"b":[1,2,'</span>);
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">p</span>.<span class="t-prop">path</span>); <span class="t-cm">// ["a", "b", 2]</span>
+
+<span class="t-id">p</span>.<span class="t-fn">write</span>(<span class="t-str">'3]}}'</span>);
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">p</span>.<span class="t-prop">root</span>); <span class="t-cm">// { a: { b: [1, 2, 3] } }</span></code></pre></div>
+<h2 id="jsonserializer"><a class="anchor" href="#jsonserializer" aria-hidden="true">#</a>JsonSerializer</h2>
+<p>A "pull" JSON serializer: it traverses the value lazily, producing only as much text as
+requested per <code>.read()</code> call, rather than building the whole string up front.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">JsonSerializer</span>(<span class="t-id">value</span>, <span class="t-id">indent</span><span class="t-op">?</span>)   <span class="t-cm">// length 1; indent defaults to 0 (compact)</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="jsonserializer-read">read(n)</code><a class="member-anchor" href="#jsonserializer-read" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Returns a string of up to <code>n</code> characters of serialized JSON, <code>''</code> once exhausted.</td></tr><tr><td><code id="jsonserializer-read-1">read(buffer, offset?, length?)</code><a class="member-anchor" href="#jsonserializer-read-1" aria-hidden="true">#</a></td><td>1–3</td><td>method</td><td>Writes serialized bytes directly into the given <code>ArrayBuffer</code>/<code>TypedArray</code> (no intermediate copy), starting at <code>offset</code> for up to <code>length</code> bytes — or the whole buffer if omitted. Returns the number of bytes written, <code>0</code> once exhausted. Suited to chunking output straight into e.g. a network buffer.</td></tr><tr><td><code id="jsonserializer-location">location</code><a class="member-anchor" href="#jsonserializer-location" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>A <code>Location</code> reflecting how far into the output stream production has advanced (enumerable).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">JsonSerializer</span> } <span class="t-kw">from</span> <span class="t-str">'json'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">s</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">JsonSerializer</span>({ <span class="t-id">a</span><span class="t-op">:</span> <span class="t-num">1</span>, <span class="t-id">b</span><span class="t-op">:</span> [<span class="t-num">2</span>, <span class="t-num">3</span>] });
+<span class="t-kw">let</span> <span class="t-id">out</span> <span class="t-op">=</span> <span class="t-str">''</span>;
+<span class="t-kw">let</span> <span class="t-id">chunk</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">chunk</span> <span class="t-op">=</span> <span class="t-id">s</span>.<span class="t-fn">read</span>(<span class="t-num">4</span>)) <span class="t-op">!==</span> <span class="t-str">''</span>) <span class="t-id">out</span> <span class="t-op">+=</span> <span class="t-id">chunk</span>;
+
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">out</span>); <span class="t-cm">// {"a":1,"b":[2,3]}</span></code></pre></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-cm">// Zero-copy: write straight into a fixed-size buffer, e.g. for a socket.</span>
+<span class="t-kw">let</span> <span class="t-id">s</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">JsonSerializer</span>(<span class="t-id">bigValue</span>);
+<span class="t-kw">let</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>(<span class="t-num">4096</span>);
+<span class="t-kw">let</span> <span class="t-id">n</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">n</span> <span class="t-op">=</span> <span class="t-id">s</span>.<span class="t-fn">read</span>(<span class="t-id">buf</span>)) <span class="t-op">&gt;</span> <span class="t-num">0</span>) <span class="t-id">socket</span>.<span class="t-fn">send</span>(<span class="t-id">buf</span>.<span class="t-fn">subarray</span>(<span class="t-num">0</span>, <span class="t-id">n</span>));</code></pre></div>
+<h2 id="jsonwriter"><a class="anchor" href="#jsonwriter" aria-hidden="true">#</a>JsonWriter</h2>
+<p>A push-based incremental JSON writer: instead of serializing a JS value tree, the caller drives
+output by calling <code>objectStart()</code>, <code>arrayStart()</code>, <code>key()</code>, <code>value()</code>, <code>arrayEnd()</code>, and
+<code>objectEnd()</code> in document order. Output goes to a <code>Writer</code> (from <code>stream-utils.h</code>) — a buffer,
+fd, or any writable sink. Handles comma separation, indentation, and key/value ordering
+automatically, and throws <code>TypeError</code> on structural mistakes (e.g. a <code>key()</code> outside an object,
+a missing value after a key, mismatched end calls).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">JsonWriter</span>(<span class="t-id">output</span><span class="t-op">?</span>, <span class="t-id">options</span><span class="t-op">?</span>)   <span class="t-cm">// output is a buffer or writer; options may be a number (indent) or {indent}</span></code></pre></div>
+<p><code>output</code> may be:</p>
+<ul>
+<li>a writable buffer (<code>ArrayBuffer</code>, typed array), or</li>
+<li>an object exposing a <code>write(buf, offset, length)</code> method.</li>
+</ul>
+<p><code>options</code> is either a number (the indent width, default 0 = compact) or an object with an <code>indent</code> property.</p>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="jsonwriter-objectstart">objectStart()</code><a class="member-anchor" href="#jsonwriter-objectstart" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Writes <code>{</code> and opens a new object context. Increments the nesting level. Returns bytes written.</td></tr><tr><td><code id="jsonwriter-objectend">objectEnd()</code><a class="member-anchor" href="#jsonwriter-objectend" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Writes <code>}</code>, closing the current object. Throws if not inside an object, or if the last key has no value. Returns bytes written.</td></tr><tr><td><code id="jsonwriter-arraystart">arrayStart()</code><a class="member-anchor" href="#jsonwriter-arraystart" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Writes <code>[</code> and opens a new array context. Increments the nesting level. Returns bytes written.</td></tr><tr><td><code id="jsonwriter-arrayend">arrayEnd()</code><a class="member-anchor" href="#jsonwriter-arrayend" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Writes <code>]</code>, closing the current array. Throws if not inside an array. Returns bytes written.</td></tr><tr><td><code id="jsonwriter-key">key(name)</code><a class="member-anchor" href="#jsonwriter-key" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Writes <code>"name":</code> inside the current object. Throws if not inside an object, or if the previous key still expects a value. Returns bytes written.</td></tr><tr><td><code id="jsonwriter-value">value(val)</code><a class="member-anchor" href="#jsonwriter-value" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Writes a JSON primitive (string, number, boolean, null). Inside an object, must follow a <code>key()</code>. Inside an array, writes the next element. Returns bytes written.</td></tr><tr><td><code id="jsonwriter-written">written</code><a class="member-anchor" href="#jsonwriter-written" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Total number of bytes written so far.</td></tr><tr><td><code id="jsonwriter-indent">indent</code><a class="member-anchor" href="#jsonwriter-indent" aria-hidden="true">#</a></td><td>—</td><td>getter/setter</td><td>The indentation width (number of spaces per level). Default 0 (compact, no whitespace).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">JsonWriter</span> } <span class="t-kw">from</span> <span class="t-str">'json'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>(<span class="t-num">1024</span>);
+<span class="t-kw">let</span> <span class="t-id">w</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">JsonWriter</span>(<span class="t-id">buf</span>, <span class="t-num">2</span>);
+
+<span class="t-id">w</span>.<span class="t-fn">objectStart</span>();
+  <span class="t-id">w</span>.<span class="t-fn">key</span>(<span class="t-str">'name'</span>);   <span class="t-id">w</span>.<span class="t-fn">value</span>(<span class="t-str">'Alice'</span>);
+  <span class="t-id">w</span>.<span class="t-fn">key</span>(<span class="t-str">'scores'</span>); <span class="t-id">w</span>.<span class="t-fn">arrayStart</span>();
+    <span class="t-id">w</span>.<span class="t-fn">value</span>(<span class="t-num">95</span>);
+    <span class="t-id">w</span>.<span class="t-fn">value</span>(<span class="t-num">87</span>);
+    <span class="t-id">w</span>.<span class="t-fn">value</span>(<span class="t-num">92</span>);
+  <span class="t-id">w</span>.<span class="t-fn">arrayEnd</span>();
+<span class="t-id">w</span>.<span class="t-fn">objectEnd</span>();
+
+<span class="t-kw">let</span> <span class="t-id">text</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">TextDecoder</span>().<span class="t-fn">decode</span>(<span class="t-id">buf</span>.<span class="t-fn">subarray</span>(<span class="t-num">0</span>, <span class="t-id">w</span>.<span class="t-prop">written</span>));
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">text</span>);
+<span class="t-cm">// {</span>
+<span class="t-cm">//   "name": "Alice",</span>
+<span class="t-cm">//   "scores": [</span>
+<span class="t-cm">//     95,</span>
+<span class="t-cm">//     87,</span>
+<span class="t-cm">//     92</span>
+<span class="t-cm">//   ]</span>
+<span class="t-cm">// }</span></code></pre></div></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/native/json.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#module-functions">Module functions</a></li><li class="lvl2"><a href="#jsonparser">JsonParser</a></li><li class="lvl2"><a href="#jsonpushparser">JsonPushParser</a></li><li class="lvl3"><a href="#prototype-constants">Prototype constants</a></li><li class="lvl2"><a href="#jsonserializer">JsonSerializer</a></li><li class="lvl2"><a href="#jsonwriter">JsonWriter</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

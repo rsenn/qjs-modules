@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>util — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="../native/index.html">Native modules overview</a></li><li><a href="../native/archive.html">archive</a></li><li><a href="../native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="../native/bcrypt.html">bcrypt</a></li><li><a href="../native/bjson.html">bjson</a></li><li><a href="../native/blob.html">blob</a></li><li><a href="../native/json.html">json</a></li><li><a href="../native/lexer.html">lexer</a></li><li><a href="../native/list.html">list</a></li><li><a href="../native/textcode.html">textcode</a></li><li><a href="../native/xml.html">xml</a></li><li><a href="../native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="../native/child-process.html">child-process</a></li><li><a href="../native/directory.html">directory</a></li><li><a href="../native/gpio.html">gpio</a></li><li><a href="../native/location.html">location</a></li><li><a href="../native/magic.html">magic</a></li><li><a href="../native/misc.html">misc</a></li><li><a href="../native/mmap.html">mmap</a></li><li><a href="../native/path.html">path</a></li><li><a href="../native/serial.html">serial</a></li><li><a href="../native/sockets.html">sockets</a></li><li><a href="../native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="../native/deep.html">deep</a></li><li><a href="../native/inspect.html">inspect</a></li><li><a href="../native/pointer.html">pointer</a></li><li><a href="../native/predicate.html">predicate</a></li><li><a href="../native/tree-walker.html">tree-walker</a></li><li><a href="../native/queue.html">queue</a></li><li><a href="../native/repeater.html">repeater</a></li><li><a href="../native/stream.html">stream</a></li><li><a href="../native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="../native/mysql.html">mysql</a></li><li><a href="../native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="index.html">JS modules overview</a></li><li><a href="util.html" class="here">util</a></li><li><a href="reflect.html">reflect</a></li><li><a href="iterator.html">iterator</a></li><li><a href="asyncIterator.html">asyncIterator</a></li><li><a href="arrayLike.html">arrayLike</a></li><li><a href="extendArray.html">extendArray</a></li><li><a href="extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="extendObject.html">extendObject</a></li><li><a href="extendMap.html">extendMap</a></li><li><a href="extendSet.html">extendSet</a></li><li><a href="extendMath.html">extendMath</a></li><li><a href="extendFunction.html">extendFunction</a></li><li><a href="extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="extendGenerator.html">extendGenerator</a></li><li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="assert.html">assert</a></li><li><a href="console.html">console</a></li><li><a href="process.html">process</a></li><li><a href="events.html">events</a></li><li><a href="abort.html">abort</a></li><li><a href="timers.html">timers</a></li><li><a href="perf_hooks.html">perf_hooks</a></li><li><a href="module.html">module</a></li><li><a href="require.html">require</a></li><li><a href="stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="fs.html">fs</a></li><li><a href="fsPromises.html">fsPromises</a></li><li><a href="io.html">io</a></li><li><a href="streams.html">streams</a></li><li><a href="vfs.html">vfs</a></li><li><a href="inotify.html">inotify</a></li><li><a href="tty.html">tty</a></li><li><a href="terminal.html">terminal</a></li><li><a href="socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="dom.html">dom</a></li><li><a href="xpath.html">xpath</a></li><li><a href="parser.html">parser</a></li><li><a href="parsel.html">parsel</a></li><li><a href="css-selectors.html">css-selectors</a></li><li><a href="css3-selectors.html">css3-selectors</a></li><li><a href="url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="db.html">db</a></li><li><a href="repl.html">repl</a></li><li><a href="testharness.html">testharness</a></li><li><a href="testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="util"><a class="anchor" href="#util" aria-hidden="true">#</a>util</h1>
+<p>Source: <code>lib/util.js</code> (pure JS)</p>
+<p>The project's central utility library — a large collection of helpers for type
+checking, object/property manipulation, functional composition, collections,
+strings, numbers, time, async, and more. Re-exports everything from
+<a href="../native/misc.html"><code>misc</code></a> and <code>inspect</code> from <a href="../native/inspect.html"><code>inspect</code></a>.</p>
+<p>&gt; This module is large; functions are grouped by theme below. Argument lists are
+&gt; abbreviated — see the source for defaults.</p>
+<h2 id="type-checks--reflection"><a class="anchor" href="#type-checks--reflection" aria-hidden="true">#</a>Type checks &amp; reflection</h2>
+<p><code>isObject</code>, <code>typeIsObject</code>, <code>allObjects</code>, <code>isClass</code>, <code>isNative</code>,
+<code>isPropertyKey</code>, <code>isArrowFunction</code>, <code>isAsync</code>, <code>isNumeric</code>, <code>isIndex</code>,
+<code>inRange</code>, <code>isInstanceOf(c, o)</code>, <code>isPrototypeOf(p, o)</code>, <code>hasPrototype</code>,
+<code>hasBuiltIn</code>, <code>hasOwnProperty</code>, <code>hasOwn</code>, <code>hasProperty</code>, <code>hasFn</code>,
+<code>propertyIsEnumerable</code>, <code>getConstructorOf</code>, <code>getConstructorChain</code>. Type tables:
+<code>types</code>, <code>TypeIds</code>, <code>errors</code>. Constructor handles: <code>AsyncFunction</code>,
+<code>GeneratorFunction</code>, <code>AsyncGeneratorFunction</code>, <code>TypedArray</code>, <code>Generator</code>,
+<code>SetIterator</code>, <code>MapIterator</code>, and their prototypes.</p>
+<h2 id="object--property-utilities"><a class="anchor" href="#object--property-utilities" aria-hidden="true">#</a>Object / property utilities</h2>
+<p>Object reflection wrappers: <code>getPrototypeOf</code>, <code>setPrototypeOf</code>,
+<code>getOwnPropertyNames</code>, <code>getOwnPropertySymbols</code>, <code>getOwnPropertyDescriptor(s)</code>,
+<code>defineProperty</code>, <code>defineProperties</code>, <code>seal</code>, <code>freeze</code>, <code>isSealed</code>, <code>isFrozen</code>,
+<code>isExtensible</code>, <code>preventExtensions</code>, <code>assign</code>, <code>is</code>, <code>valueOf</code>, <code>toString</code>,
+<code>toLocaleString</code>.</p>
+<p>Accessor builders: <code>getset</code>, <code>getter</code>, <code>setter</code>, <code>gettersetter</code>, <code>modifier</code>,
+<code>wrapGetSet</code>, <code>weakGetSet</code>, <code>getSetArgument</code>, <code>hasGetSet</code>, <code>addremovehas</code>,
+<code>remover</code>, <code>getOrCreate</code>, <code>lookupObject</code>, <code>mapObject</code>, <code>propertyLookup</code>,
+<code>propertyLookupHandlers</code>, <code>bindProperties</code>.</p>
+<p>Definition helpers: <code>define</code>, <code>weakDefine</code>, <code>declare</code>, <code>extend</code>, <code>merge</code>,
+<code>nonenumerable</code>, <code>enumerable</code>, <code>defineGetter</code>, <code>defineGetterSetter</code>,
+<code>defineGettersSetters</code>, <code>lazyProperty</code>, <code>lazyProperties</code>, <code>observeProperties</code>,
+<code>decorate</code>, <code>decorateProperty</code>, <code>weakAssoc</code>.</p>
+<p>Property/method enumeration: <code>keys</code>, <code>values</code>, <code>entries</code>, <code>fromEntries</code>, <code>pick</code>,
+<code>omit</code>, <code>properties</code>, <code>getPropertyNames</code>, <code>getProperties</code>, <code>getMethodNames</code>,
+<code>getMethods</code>, <code>bindMethods</code>, <code>prototypeIterator</code>, <code>inherits</code>.</p>
+<h2 id="functional--composition"><a class="anchor" href="#functional--composition" aria-hidden="true">#</a>Functional / composition</h2>
+<p><code>memoize</code>, <code>once</code>, <code>curry</code>, <code>chain</code>, <code>chainRight</code>, <code>chainArray</code>, <code>mapFunctional</code>,
+<code>predicate</code>, <code>transformer</code>, <code>wrapFunction</code>, <code>catchFunction</code>, <code>finallyFunction</code>,
+<code>tryFunction</code>, <code>tryCatch</code>, <code>wrapGenerator</code>, <code>wrapGeneratorMethods</code>,
+<code>copyFunctionNameAndLength</code>, <code>setFunctionName</code>, <code>functionName</code> (alias <code>fnName</code>),
+<code>className</code>, <code>getFunctionArguments</code>, <code>instrument</code>, <code>catchable</code>.</p>
+<h2 id="collections--arrays"><a class="anchor" href="#collections--arrays" aria-hidden="true">#</a>Collections &amp; arrays</h2>
+<p><code>filter</code>, <code>filterKeys</code>, <code>map</code>, <code>range</code>, <code>split</code>, <code>chunkArray</code>, <code>partitionArray</code>,
+<code>partition</code>, <code>unique</code>, <code>uniquePred</code>, <code>pushUnique</code>, <code>push</code>, <code>eraseIf</code>, <code>inserter</code>,
+<code>generate</code>, <code>arraysInCommon</code>, <code>arrayFacade</code>. Set algebra: <code>intersect</code>,
+<code>intersection</code>, <code>union</code>, <code>difference</code>, <code>symmetricDifference</code>. <code>histogram</code>,
+<code>mapAdapter</code>, <code>mapFunction</code>, <code>mapWrapper</code>, <code>weakMapper</code>, <code>hash</code>.</p>
+<h2 id="strings--text"><a class="anchor" href="#strings--text" aria-hidden="true">#</a>Strings &amp; text</h2>
+<p><code>stripAnsi</code>, <code>padAnsi</code>, <code>padStartAnsi</code>, <code>padEndAnsi</code>, <code>pad</code>, <code>padFn</code>, <code>trim</code>,
+<code>abbreviate</code>, <code>shorten</code>, <code>ucfirst</code>, <code>lcfirst</code>, <code>camelize</code>, <code>decamelize</code>,
+<code>decodeHTMLEntities</code>, <code>bytesToUTF8</code>, <code>codePointsToString</code>, <code>bufferToString</code>,
+<code>matchAll</code>, <code>indexOf</code>, <code>searchAll</code>. ANSI styling: <code>ansiStyles</code>.</p>
+<h2 id="numbers--math"><a class="anchor" href="#numbers--math" aria-hidden="true">#</a>Numbers &amp; math</h2>
+<p><code>clamp</code>, <code>mod</code>, <code>roundTo</code>, <code>roundDigits</code>, <code>toBigInt</code>, <code>numericIndex</code>,
+<code>randInt</code>, <code>randFloat</code>, <code>randStr</code>. Curried operators: <code>add</code>, <code>sub</code>, <code>mul</code>,
+<code>div</code>, <code>pow</code>, <code>xor</code>, <code>or</code>, <code>and</code>. Length/slice helpers: <code>length</code>, <code>slice</code>.</p>
+<h2 id="time--dates"><a class="anchor" href="#time--dates" aria-hidden="true">#</a>Time &amp; dates</h2>
+<p><code>isoDate</code>, <code>toUnixTime</code>, <code>unixTime</code>, <code>fromUnixTime</code>.</p>
+<h2 id="async--scheduling"><a class="anchor" href="#async--scheduling" aria-hidden="true">#</a>Async &amp; scheduling</h2>
+<p><code>setImmediate</code>, <code>clearImmediate</code>, <code>queueMicrotask</code>, <code>waitFor</code>,
+<code>waitCancellable</code>, plus re-exported <code>setInterval</code>/<code>clearInterval</code> (from
+<a href="timers.html"><code>timers</code></a>).</p>
+<h2 id="assertions--errors"><a class="anchor" href="#assertions--errors" aria-hidden="true">#</a>Assertions &amp; errors</h2>
+<p><code>assert</code>, <code>assertEqual</code>, <code>getSystemErrorName</code>, <code>getSystemErrorMap</code>.</p>
+<h2 id="cli"><a class="anchor" href="#cli" aria-hidden="true">#</a>CLI</h2>
+<p><code>getOpt(options, args)</code> — parses command-line options; <code>showHelp(opts, exitCode)</code>
+— prints usage.</p>
+<h2 id="environment--misc"><a class="anchor" href="#environment--misc" aria-hidden="true">#</a>Environment &amp; misc</h2>
+<p><code>isBrowser</code>, <code>startInteractive</code>, <code>Membrane(instance, obj, proto, …)</code>,
+<code>repeat</code>, <code>repeater</code>, <code>inspectSymbol</code>.</p>
+<h2 id="re-exports"><a class="anchor" href="#re-exports" aria-hidden="true">#</a>Re-exports</h2>
+<p><code>inspect</code> (from <code>inspect</code>), everything from <a href="../native/misc.html"><code>misc</code></a>, and
+<code>setInterval</code>/<code>clearInterval</code> (from <code>timers</code>).</p></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/js/util.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#type-checks--reflection">Type checks &amp; reflection</a></li><li class="lvl2"><a href="#object--property-utilities">Object / property utilities</a></li><li class="lvl2"><a href="#functional--composition">Functional / composition</a></li><li class="lvl2"><a href="#collections--arrays">Collections &amp; arrays</a></li><li class="lvl2"><a href="#strings--text">Strings &amp; text</a></li><li class="lvl2"><a href="#numbers--math">Numbers &amp; math</a></li><li class="lvl2"><a href="#time--dates">Time &amp; dates</a></li><li class="lvl2"><a href="#async--scheduling">Async &amp; scheduling</a></li><li class="lvl2"><a href="#assertions--errors">Assertions &amp; errors</a></li><li class="lvl2"><a href="#cli">CLI</a></li><li class="lvl2"><a href="#environment--misc">Environment &amp; misc</a></li><li class="lvl2"><a href="#re-exports">Re-exports</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

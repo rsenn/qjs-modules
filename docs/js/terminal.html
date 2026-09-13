@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>terminal — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="../native/index.html">Native modules overview</a></li><li><a href="../native/archive.html">archive</a></li><li><a href="../native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="../native/bcrypt.html">bcrypt</a></li><li><a href="../native/bjson.html">bjson</a></li><li><a href="../native/blob.html">blob</a></li><li><a href="../native/json.html">json</a></li><li><a href="../native/lexer.html">lexer</a></li><li><a href="../native/list.html">list</a></li><li><a href="../native/textcode.html">textcode</a></li><li><a href="../native/xml.html">xml</a></li><li><a href="../native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="../native/child-process.html">child-process</a></li><li><a href="../native/directory.html">directory</a></li><li><a href="../native/gpio.html">gpio</a></li><li><a href="../native/location.html">location</a></li><li><a href="../native/magic.html">magic</a></li><li><a href="../native/misc.html">misc</a></li><li><a href="../native/mmap.html">mmap</a></li><li><a href="../native/path.html">path</a></li><li><a href="../native/serial.html">serial</a></li><li><a href="../native/sockets.html">sockets</a></li><li><a href="../native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="../native/deep.html">deep</a></li><li><a href="../native/inspect.html">inspect</a></li><li><a href="../native/pointer.html">pointer</a></li><li><a href="../native/predicate.html">predicate</a></li><li><a href="../native/tree-walker.html">tree-walker</a></li><li><a href="../native/queue.html">queue</a></li><li><a href="../native/repeater.html">repeater</a></li><li><a href="../native/stream.html">stream</a></li><li><a href="../native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="../native/mysql.html">mysql</a></li><li><a href="../native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="index.html">JS modules overview</a></li><li><a href="util.html">util</a></li><li><a href="reflect.html">reflect</a></li><li><a href="iterator.html">iterator</a></li><li><a href="asyncIterator.html">asyncIterator</a></li><li><a href="arrayLike.html">arrayLike</a></li><li><a href="extendArray.html">extendArray</a></li><li><a href="extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="extendObject.html">extendObject</a></li><li><a href="extendMap.html">extendMap</a></li><li><a href="extendSet.html">extendSet</a></li><li><a href="extendMath.html">extendMath</a></li><li><a href="extendFunction.html">extendFunction</a></li><li><a href="extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="extendGenerator.html">extendGenerator</a></li><li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="assert.html">assert</a></li><li><a href="console.html">console</a></li><li><a href="process.html">process</a></li><li><a href="events.html">events</a></li><li><a href="abort.html">abort</a></li><li><a href="timers.html">timers</a></li><li><a href="perf_hooks.html">perf_hooks</a></li><li><a href="module.html">module</a></li><li><a href="require.html">require</a></li><li><a href="stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="fs.html">fs</a></li><li><a href="fsPromises.html">fsPromises</a></li><li><a href="io.html">io</a></li><li><a href="streams.html">streams</a></li><li><a href="vfs.html">vfs</a></li><li><a href="inotify.html">inotify</a></li><li><a href="tty.html">tty</a></li><li><a href="terminal.html" class="here">terminal</a></li><li><a href="socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="dom.html">dom</a></li><li><a href="xpath.html">xpath</a></li><li><a href="parser.html">parser</a></li><li><a href="parsel.html">parsel</a></li><li><a href="css-selectors.html">css-selectors</a></li><li><a href="css3-selectors.html">css3-selectors</a></li><li><a href="url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="db.html">db</a></li><li><a href="repl.html">repl</a></li><li><a href="testharness.html">testharness</a></li><li><a href="testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="terminal"><a class="anchor" href="#terminal" aria-hidden="true">#</a>terminal</h1>
+<p>Source: <code>lib/terminal.js</code> (pure JS)</p>
+<p>ANSI/VT escape-sequence helpers for terminal control. Each function writes (or
+returns) the corresponding escape sequence; most accept an output <code>f</code> defaulting
+to <code>process.stdout</code>.</p>
+<h2 id="exports"><a class="anchor" href="#exports" aria-hidden="true">#</a>Exports</h2>
+<div class="tablewrap"><table><thead><tr><th>Export</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="exports-terminal">terminal</code><a class="member-anchor" href="#exports-terminal" aria-hidden="true">#</a></td><td>let</td><td>The default output target (<code>process.stdout</code>).</td></tr></tbody></table></div>
+<h3 id="cursor-movement"><a class="anchor" href="#cursor-movement" aria-hidden="true">#</a>Cursor movement</h3>
+<p><code>cursorHome(n)</code>, <code>cursorUp(n)</code>, <code>cursorDown(n)</code>, <code>cursorForward(n)</code>,
+<code>cursorBackward(n)</code>, <code>cursorNextLine(n)</code>, <code>cursorPreviousLine(n)</code>,
+<code>cursorHorizontalAbsolute(n)</code>, <code>cursorPosition(row, column)</code>, <code>cursorOrigin()</code>,
+<code>cursorSave()</code>, <code>cursorRestore()</code>, <code>cursorQuery()</code>.</p>
+<h3 id="screen--line-editing"><a class="anchor" href="#screen--line-editing" aria-hidden="true">#</a>Screen / line editing</h3>
+<p><code>eraseInDisplay(n)</code>, <code>eraseInLine(n)</code>, <code>scrollUp(n)</code>, <code>scrollDown(n)</code>,
+<code>setAlternateScreen()</code>, <code>setNormalScreen()</code>, <code>setScreen(alternate)</code>,
+<code>linewrapEnable()</code>, <code>linewrapDisable()</code>, <code>setScrollRegion(top, bottom, f)</code>,
+<code>resetScrollRegion(f)</code>.</p>
+<h3 id="backbuffer"><a class="anchor" href="#backbuffer" aria-hidden="true">#</a>Backbuffer</h3>
+<p><code>class Screen(f)</code> - accumulates draw calls (<code>write</code>, <code>moveTo</code>, <code>clear</code>,
+<code>clearLine</code>, <code>fg</code>, <code>bg</code>, <code>sgr</code>, <code>resetAttrs</code>) into an in-memory string and
+sends them to <code>f</code> in one <code>flush()</code> call, instead of writing straight to
+the tty per call - avoids flicker on a full-screen redraw (e.g. a
+scrollable list repainted every keypress).</p>
+<h3 id="color"><a class="anchor" href="#color" aria-hidden="true">#</a>Color</h3>
+<p><code>rgbForeground(f, r, g, b)</code>, <code>rgbBackground(f, r, g, b)</code>.</p>
+<h3 id="mouse--device--tabs"><a class="anchor" href="#mouse--device--tabs" aria-hidden="true">#</a>Mouse / device / tabs</h3>
+<p><code>mousetrackingEnable(f)</code>, <code>mousetrackingDisable(f)</code>, <code>devicecodeQuery()</code>,
+<code>devicestatusQuery()</code>, <code>deviceReset()</code>, <code>tabSet()</code>, <code>tabClear()</code>,
+<code>tabsClearall()</code>.</p>
+<h3 id="low-level-sequence-builders"><a class="anchor" href="#low-level-sequence-builders" aria-hidden="true">#</a>Low-level sequence builders</h3>
+<p><code>numberSequence(f, n, c)</code>, <code>numbersSequence(f, numbers, c)</code>,
+<code>escapeNumberChar(f, n, c)</code>, <code>escapeChar(f, c)</code>, <code>escapeSequence(f, seq)</code>,
+<code>commandSequence(f, seq)</code>, <code>commandNumberChar(n, c)</code>, <code>commandChar(c)</code>.</p></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/js/terminal.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#exports">Exports</a></li><li class="lvl3"><a href="#cursor-movement">Cursor movement</a></li><li class="lvl3"><a href="#screen--line-editing">Screen / line editing</a></li><li class="lvl3"><a href="#backbuffer">Backbuffer</a></li><li class="lvl3"><a href="#color">Color</a></li><li class="lvl3"><a href="#mouse--device--tabs">Mouse / device / tabs</a></li><li class="lvl3"><a href="#low-level-sequence-builders">Low-level sequence builders</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

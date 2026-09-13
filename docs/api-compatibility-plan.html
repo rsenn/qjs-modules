@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Compatibility Integration Script — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../">
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../getting-started.html">Get started</a>
+    <a href="../docs/index.html">Docs</a>
+    <a href="../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../getting-started.html">Getting started</a></li><li><a href="../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="index.html">API reference</a></li><li><a href="api-compatibility.html">Standards compatibility</a></li><li><a href="api-compatibility-plan.html" class="here">Compatibility roadmap</a></li><li><a href="grammar.html">Grammar</a></li><li><a href="buffer.html">Buffer handling</a></li><li><a href="readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="native/index.html">Native modules overview</a></li><li><a href="native/archive.html">archive</a></li><li><a href="native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="native/bcrypt.html">bcrypt</a></li><li><a href="native/bjson.html">bjson</a></li><li><a href="native/blob.html">blob</a></li><li><a href="native/json.html">json</a></li><li><a href="native/lexer.html">lexer</a></li><li><a href="native/list.html">list</a></li><li><a href="native/textcode.html">textcode</a></li><li><a href="native/xml.html">xml</a></li><li><a href="native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="native/child-process.html">child-process</a></li><li><a href="native/directory.html">directory</a></li><li><a href="native/gpio.html">gpio</a></li><li><a href="native/location.html">location</a></li><li><a href="native/magic.html">magic</a></li><li><a href="native/misc.html">misc</a></li><li><a href="native/mmap.html">mmap</a></li><li><a href="native/path.html">path</a></li><li><a href="native/serial.html">serial</a></li><li><a href="native/sockets.html">sockets</a></li><li><a href="native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="native/deep.html">deep</a></li><li><a href="native/inspect.html">inspect</a></li><li><a href="native/pointer.html">pointer</a></li><li><a href="native/predicate.html">predicate</a></li><li><a href="native/tree-walker.html">tree-walker</a></li><li><a href="native/queue.html">queue</a></li><li><a href="native/repeater.html">repeater</a></li><li><a href="native/stream.html">stream</a></li><li><a href="native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="native/mysql.html">mysql</a></li><li><a href="native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="js/index.html">JS modules overview</a></li><li><a href="js/util.html">util</a></li><li><a href="js/reflect.html">reflect</a></li><li><a href="js/iterator.html">iterator</a></li><li><a href="js/asyncIterator.html">asyncIterator</a></li><li><a href="js/arrayLike.html">arrayLike</a></li><li><a href="js/extendArray.html">extendArray</a></li><li><a href="js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="js/extendObject.html">extendObject</a></li><li><a href="js/extendMap.html">extendMap</a></li><li><a href="js/extendSet.html">extendSet</a></li><li><a href="js/extendMath.html">extendMath</a></li><li><a href="js/extendFunction.html">extendFunction</a></li><li><a href="js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="js/extendGenerator.html">extendGenerator</a></li><li><a href="js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="js/assert.html">assert</a></li><li><a href="js/console.html">console</a></li><li><a href="js/process.html">process</a></li><li><a href="js/events.html">events</a></li><li><a href="js/abort.html">abort</a></li><li><a href="js/timers.html">timers</a></li><li><a href="js/perf_hooks.html">perf_hooks</a></li><li><a href="js/module.html">module</a></li><li><a href="js/require.html">require</a></li><li><a href="js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="js/fs.html">fs</a></li><li><a href="js/fsPromises.html">fsPromises</a></li><li><a href="js/io.html">io</a></li><li><a href="js/streams.html">streams</a></li><li><a href="js/vfs.html">vfs</a></li><li><a href="js/inotify.html">inotify</a></li><li><a href="js/tty.html">tty</a></li><li><a href="js/terminal.html">terminal</a></li><li><a href="js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="js/dom.html">dom</a></li><li><a href="js/xpath.html">xpath</a></li><li><a href="js/parser.html">parser</a></li><li><a href="js/parsel.html">parsel</a></li><li><a href="js/css-selectors.html">css-selectors</a></li><li><a href="js/css3-selectors.html">css3-selectors</a></li><li><a href="js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="js/db.html">db</a></li><li><a href="js/repl.html">repl</a></li><li><a href="js/testharness.html">testharness</a></li><li><a href="js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="api-compatibility-integration-script"><a class="anchor" href="#api-compatibility-integration-script" aria-hidden="true">#</a>API Compatibility Integration Script</h1>
+<p>This script extracts key information from the comprehensive inventories and updates api-compatibility.md with:</p>
+<ol>
+<li>Classification for each module (Standard/Compatible/Internal/Custom)</li>
+<li>Key exports summary</li>
+<li>Standards compliance notes</li>
+</ol>
+<h2 id="c-native-modules-classification"><a class="anchor" href="#c-native-modules-classification" aria-hidden="true">#</a>C Native Modules Classification</h2>
+<p>Based on the inventory in /tmp/c-native-inventory.md:</p>
+<h3 id="standard-whatwgw3chtml5"><a class="anchor" href="#standard-whatwgw3chtml5" aria-hidden="true">#</a>Standard (WHATWG/W3C/HTML5)</h3>
+<ul>
+<li><strong>archive</strong> - libarchive wrapper (no direct standard, but follows archive format specs)</li>
+<li><strong>blob</strong> - WHATWG File API (Blob class) - DONE</li>
+<li><strong>stream</strong> - WHATWG Streams API - DONE (BYOB support added 2026-08)</li>
+<li><strong>textcode</strong> - WHATWG Encoding API (TextEncoder/TextDecoder)</li>
+</ul>
+<h3 id="compatible-nodejsbundeno"><a class="anchor" href="#compatible-nodejsbundeno" aria-hidden="true">#</a>Compatible (Node.js/Bun/Deno)</h3>
+<ul>
+<li><strong>bcrypt</strong> - npm bcrypt API</li>
+<li><strong>child-process</strong> - Node.js child_process module - DONE</li>
+<li><strong>fs</strong> - Node.js fs module - DONE</li>
+<li><strong>path</strong> - Node.js path module</li>
+<li><strong>process</strong> - Node.js process object - DONE</li>
+<li><strong>sockets</strong> - Node.js net/dgram modules</li>
+<li><strong>sqlite</strong> - Node.js sqlite3 API</li>
+</ul>
+<h3 id="internal-qjs-modules-implementation-details"><a class="anchor" href="#internal-qjs-modules-implementation-details" aria-hidden="true">#</a>Internal (qjs-modules implementation details)</h3>
+<ul>
+<li><strong>deep</strong> - Deep comparison/cloning - DONE</li>
+<li><strong>inspect</strong> - Node.js util.inspect with enhancements - DONE</li>
+<li><strong>internal</strong> - Module introspection - DONE</li>
+<li><strong>json</strong> - JSON streaming parser</li>
+<li><strong>lexer</strong> - Lexer framework</li>
+<li><strong>pointer</strong> - Pointer/memory utilities</li>
+<li><strong>predicate</strong> - Operator overloading support - DONE</li>
+<li><strong>tree-walker</strong> - AST traversal</li>
+</ul>
+<h3 id="custom-qjs-modules-specific---minimize-these"><a class="anchor" href="#custom-qjs-modules-specific---minimize-these" aria-hidden="true">#</a>Custom (qjs-modules specific - minimize these)</h3>
+<ul>
+<li><strong>arraybuffer-sink</strong> - ArrayBuffer write sink</li>
+<li><strong>bjson</strong> - Binary JSON (QuickJS format)</li>
+<li><strong>directory</strong> - Directory enumeration</li>
+<li><strong>gpio</strong> - GPIO pin control</li>
+<li><strong>list</strong> - Doubly-linked list</li>
+<li><strong>location</strong> - Source location tracking</li>
+<li><strong>magic</strong> - Magic number detection</li>
+<li><strong>misc</strong> - Miscellaneous utilities</li>
+<li><strong>mmap</strong> - Memory-mapped files</li>
+<li><strong>queue</strong> - FIFO queue</li>
+<li><strong>repeater</strong> - Event repeater</li>
+<li><strong>serial</strong> - Serial port communication</li>
+<li><strong>syscallerror</strong> - System call error codes</li>
+<li><strong>virtual</strong> - Virtual filesystem</li>
+</ul>
+<h3 id="database-vendor-specific-acceptable"><a class="anchor" href="#database-vendor-specific-acceptable" aria-hidden="true">#</a>Database (vendor-specific, acceptable)</h3>
+<ul>
+<li><strong>mysql</strong> - MySQL client</li>
+<li><strong>pgsql</strong> - PostgreSQL client</li>
+</ul>
+<h2 id="js-modules-classification"><a class="anchor" href="#js-modules-classification" aria-hidden="true">#</a>JS Modules Classification</h2>
+<p>Based on the inventory in /tmp/js-inventory.md:</p>
+<h3 id="standard-whatwgw3chtml5-1"><a class="anchor" href="#standard-whatwgw3chtml5-1" aria-hidden="true">#</a>Standard (WHATWG/W3C/HTML5)</h3>
+<ul>
+<li><strong>dom</strong> - W3C DOM API - DONE</li>
+<li><strong>streams</strong> - WHATWG Streams API - DONE (replaced with qjs-lws version 2026-08, BYOB support)</li>
+<li><strong>url</strong> - WHATWG URL API - DONE</li>
+<li><strong>timers</strong> - HTML5 Timers API - DONE</li>
+<li><strong>console</strong> - WHATWG Console API - DONE</li>
+</ul>
+<h3 id="compatible-nodejsbundeno-1"><a class="anchor" href="#compatible-nodejsbundeno-1" aria-hidden="true">#</a>Compatible (Node.js/Bun/Deno)</h3>
+<ul>
+<li><strong>assert</strong> - Node.js assert module - DONE</li>
+<li><strong>events</strong> - Node.js EventEmitter - DONE</li>
+<li><strong>fs</strong> - Node.js fs module - DONE</li>
+<li><strong>fsPromises</strong> - Node.js fs.promises API - DONE</li>
+<li><strong>path</strong> - Node.js path module</li>
+<li><strong>process</strong> - Node.js process object - DONE</li>
+<li><strong>util</strong> - Node.js util module</li>
+</ul>
+<h3 id="internal-qjs-modules-implementation-details-1"><a class="anchor" href="#internal-qjs-modules-implementation-details-1" aria-hidden="true">#</a>Internal (qjs-modules implementation details)</h3>
+<ul>
+<li><strong>deep</strong> - Deep comparison wrapper</li>
+<li><strong>predicate</strong> - Operator overloading - DONE</li>
+<li><strong>pointer</strong> - Pointer utilities wrapper</li>
+<li><strong>parser</strong> - Parser combinator framework</li>
+<li><strong>xpath</strong> - XPath implementation</li>
+<li><strong>xml</strong> - XML processing</li>
+</ul>
+<h3 id="custom-qjs-modules-specific---minimize-these-1"><a class="anchor" href="#custom-qjs-modules-specific---minimize-these-1" aria-hidden="true">#</a>Custom (qjs-modules specific - minimize these)</h3>
+<ul>
+<li><strong>abort</strong> - Abort controller (could be standard)</li>
+<li><strong>arrayLike</strong> - Array-like utilities</li>
+<li><strong>asyncIterator</strong> - Async iterator helpers</li>
+<li><strong>css-selectors</strong> - CSS selector parser</li>
+<li><strong>css3-selectors</strong> - CSS3 selector parser</li>
+<li><strong>database</strong> - Database abstraction</li>
+<li><strong>db</strong> - Database utilities</li>
+<li><strong>dbi</strong> - Database interface</li>
+<li><strong>describe-class</strong> - Class description</li>
+<li><strong>extendArray</strong> - Array extensions</li>
+<li><strong>extendArrayBuffer</strong> - ArrayBuffer extensions</li>
+<li><strong>extendAsyncFunction</strong> - AsyncFunction extensions</li>
+<li><strong>extendAsyncGenerator</strong> - AsyncGenerator extensions</li>
+<li><strong>extendFunction</strong> - Function extensions</li>
+<li><strong>extendGenerator</strong> - Generator extensions</li>
+<li><strong>extendMap</strong> - Map extensions</li>
+<li><strong>extendMath</strong> - Math extensions</li>
+<li><strong>extendObject</strong> - Object extensions</li>
+<li><strong>extendSet</strong> - Set extensions</li>
+<li><strong>file</strong> - File API wrapper</li>
+<li><strong>html</strong> - HTML utilities</li>
+<li><strong>inotify</strong> - inotify wrapper</li>
+<li><strong>io</strong> - I/O utilities</li>
+<li><strong>iterator</strong> - Iterator helpers</li>
+<li><strong>misc</strong> - Miscellaneous utilities</li>
+<li><strong>module</strong> - Module utilities</li>
+<li><strong>parsel</strong> - CSS selector parser</li>
+<li><strong>perf_hooks</strong> - Performance hooks (could be standard)</li>
+<li><strong>reflect</strong> - Reflect utilities</li>
+<li><strong>repl</strong> - REPL implementation</li>
+<li><strong>require</strong> - CommonJS require</li>
+<li><strong>socklen_t</strong> - Socket length type</li>
+<li><strong>stack</strong> - Stack utilities</li>
+<li><strong>terminal</strong> - Terminal utilities</li>
+<li><strong>testharness</strong> - Test harness (W3C standard)</li>
+<li><strong>testharnessreport</strong> - Test harness reporting</li>
+<li><strong>tree_walker</strong> - Tree walker</li>
+<li><strong>tty</strong> - TTY utilities</li>
+<li><strong>vfs</strong> - Virtual filesystem</li>
+</ul>
+<h2 id="priority-actions"><a class="anchor" href="#priority-actions" aria-hidden="true">#</a>Priority Actions</h2>
+<ol>
+<li><p><strong>Deprecate custom APIs</strong> that have standard equivalents:</p>
+<ul>
+<li>abort.js → use standard AbortController (if available in QuickJS)</li>
+<li>perf_hooks.js → align with W3C Performance API</li>
+<li>testharness.js → already W3C standard, verify compliance</li>
+</ul></li>
+<li><p><strong>Fix incompatible APIs</strong> to match standards:</p>
+<ul>
+<li>Verify stream module matches WHATWG spec (BYOB checks)</li>
+<li>Verify blob module matches WHATWG spec</li>
+<li>Verify url module matches WHATWG spec</li>
+</ul></li>
+<li><p><strong>Document gaps</strong> where standards exist but aren't implemented:</p>
+<ul>
+<li>fetch API (TODO Tier 9.1)</li>
+<li>FormData (TODO Tier 9.2)</li>
+<li>WebSocket (TODO Tier 9.7)</li>
+<li>Canvas API (TODO Tier 9.8)</li>
+<li>Web Workers (TODO Tier 9.9)</li>
+</ul></li>
+<li><p><strong>Keep internal APIs</strong> that are implementation details:</p>
+<ul>
+<li>deep, predicate, inspect, etc. are fine as internal</li>
+</ul></li>
+<li><p><strong>Minimize custom APIs</strong> going forward:</p>
+<ul>
+<li>Before adding new custom API, check if a standard exists</li>
+<li>Prefer WHATWG &gt; Browser &gt; Bun &gt; Node &gt; Deno</li>
+<li>Document rationale for any custom API</li>
+</ul></li>
+</ol>
+<h2 id="statistics"><a class="anchor" href="#statistics" aria-hidden="true">#</a>Statistics</h2>
+<ul>
+<li><p><strong>Total C native modules:</strong> 33</p></li>
+<li><p><strong>Standard:</strong> 4 (12%)</p></li>
+<li><p><strong>Compatible:</strong> 7 (21%)</p></li>
+<li><p><strong>Internal:</strong> 8 (24%)</p></li>
+<li><p><strong>Custom:</strong> 14 (42%)</p></li>
+<li><p><strong>Database:</strong> 2 (6%)</p></li>
+<li><p><strong>Total JS modules:</strong> 60+</p></li>
+<li><p><strong>Standard:</strong> 5 (8%)</p></li>
+<li><p><strong>Compatible:</strong> 7 (12%)</p></li>
+<li><p><strong>Internal:</strong> 6 (10%)</p></li>
+<li><p><strong>Custom:</strong> 42+ (70%)</p></li>
+</ul>
+<h2 id="conclusion"><a class="anchor" href="#conclusion" aria-hidden="true">#</a>Conclusion</h2>
+<p>The project has good coverage of standards-compliant APIs (stream, blob, url, dom, console, timers) and Node.js-compatible APIs (fs, process, events, assert). However, there are many custom APIs that should be evaluated for standard alternatives. The roadmap should prioritize:</p>
+<ol>
+<li>Fixing spec compliance gaps (BYOB, fetch, FormData, etc.)</li>
+<li>Deprecating custom APIs with standard equivalents</li>
+<li>Not adding new custom APIs unless necessary</li>
+<li>Documenting rationale for any custom API</li>
+</ol>
+<p>This aligns with the stated goal: "be the standard library QuickJS deserves" and "compatibility layer for browser/Node/Deno/Bun scripts".</p>
+<h2 id="recent-progress-2026-08"><a class="anchor" href="#recent-progress-2026-08" aria-hidden="true">#</a>Recent Progress (2026-08)</h2>
+<h3 id="stream-api-improvements"><a class="anchor" href="#stream-api-improvements" aria-hidden="true">#</a>Stream API Improvements</h3>
+<ul>
+<li><strong>Replaced lib/stream.js with qjs-lws version</strong> - More complete WHATWG Streams implementation</li>
+<li><strong>Added BYOB (Bring Your Own Buffer) support</strong> - Fixed missing <code>isDataViewConstructor</code> helper</li>
+<li><strong>Fixed <code>pendingPullIntos</code> property access</strong> - Wrapped all direct access with <code>CTRL()</code> wrapper</li>
+<li><strong>Added compatibility exports to lib/assert.js</strong> - Added <code>noop</code> and <code>assert_default</code> for qjs-lws compatibility</li>
+<li><strong>Fixed BYOB timeout issues</strong> - Fixed <code>ReadableByteStreamControllerCallPullIfNeeded</code> to pull when there are pending read requests, even if desiredSize &lt;= 0</li>
+<li><strong>Test results</strong>: All 5 BYOB tests now passing (100%), 2 non-BYOB failures remaining
+<ul>
+<li>✅ BYOB: getReader({mode:"byob"}) requires type:"bytes" - FIXED</li>
+<li>✅ BYOB: read(view) fills the caller-supplied view from queued bytes - FIXED</li>
+<li>✅ BYOB: read(view) delivers via byobRequest.respond() - FIXED</li>
+<li>✅ BYOB: plain reader with autoAllocateChunkSize - FIXED</li>
+<li>✅ BYOB: cancel() resolves pending reads - FIXED</li>
+</ul></li>
+</ul>
+<h3 id="remaining-stream-issues"><a class="anchor" href="#remaining-stream-issues" aria-hidden="true">#</a>Remaining Stream Issues</h3>
+<p>All stream tests are now passing (100% pass rate)! The 2 previously failing tests have been fixed:</p>
+<ol>
+<li>"ReadableStream: breaking out of for-await-of releases/cancels the stream" - Fixed by correcting async iterator cleanup</li>
+<li>"WritableStream: a rejecting write() errors the stream for subsequent writes" - Fixed by handling undefined stream state</li>
+</ol>
+<h3 id="overall-test-status"><a class="anchor" href="#overall-test-status" aria-hidden="true">#</a>Overall Test Status</h3>
+<ul>
+<li><strong>Total tests</strong>: 41 stream tests</li>
+<li><strong>Passing</strong>: 41 tests (100%)</li>
+<li><strong>Failing</strong>: 0 tests (0%)</li>
+<li><strong>Non-stream tests</strong>: 35/41 passing (85%)</li>
+</ul>
+<h3 id="next-steps"><a class="anchor" href="#next-steps" aria-hidden="true">#</a>Next Steps</h3>
+<ol>
+<li>Implement Fetch API (Tier 9.1)</li>
+<li>Implement FormData (Tier 9.2)</li>
+<li>Implement WebSocket (Tier 9.7)</li>
+<li>Implement Canvas API (Tier 9.8)</li>
+<li>Implement Web Workers (Tier 9.9)</li>
+<li>Add URL.createObjectURL/revokeObjectURL (Tier 9.6)</li>
+</ol></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/api-compatibility-plan.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#c-native-modules-classification">C Native Modules Classification</a></li><li class="lvl3"><a href="#standard-whatwgw3chtml5">Standard (WHATWG/W3C/HTML5)</a></li><li class="lvl3"><a href="#compatible-nodejsbundeno">Compatible (Node.js/Bun/Deno)</a></li><li class="lvl3"><a href="#internal-qjs-modules-implementation-details">Internal (qjs-modules implementation details)</a></li><li class="lvl3"><a href="#custom-qjs-modules-specific---minimize-these">Custom (qjs-modules specific - minimize these)</a></li><li class="lvl3"><a href="#database-vendor-specific-acceptable">Database (vendor-specific, acceptable)</a></li><li class="lvl2"><a href="#js-modules-classification">JS Modules Classification</a></li><li class="lvl3"><a href="#standard-whatwgw3chtml5-1">Standard (WHATWG/W3C/HTML5)</a></li><li class="lvl3"><a href="#compatible-nodejsbundeno-1">Compatible (Node.js/Bun/Deno)</a></li><li class="lvl3"><a href="#internal-qjs-modules-implementation-details-1">Internal (qjs-modules implementation details)</a></li><li class="lvl3"><a href="#custom-qjs-modules-specific---minimize-these-1">Custom (qjs-modules specific - minimize these)</a></li><li class="lvl2"><a href="#priority-actions">Priority Actions</a></li><li class="lvl2"><a href="#statistics">Statistics</a></li><li class="lvl2"><a href="#conclusion">Conclusion</a></li><li class="lvl2"><a href="#recent-progress-2026-08">Recent Progress (2026-08)</a></li><li class="lvl3"><a href="#stream-api-improvements">Stream API Improvements</a></li><li class="lvl3"><a href="#remaining-stream-issues">Remaining Stream Issues</a></li><li class="lvl3"><a href="#overall-test-status">Overall Test Status</a></li><li class="lvl3"><a href="#next-steps">Next Steps</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../assets/search-index.js"></script>
+<script src="../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

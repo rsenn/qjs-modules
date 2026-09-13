@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bcrypt — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="index.html">Native modules overview</a></li><li><a href="archive.html">archive</a></li><li><a href="arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="bcrypt.html" class="here">bcrypt</a></li><li><a href="bjson.html">bjson</a></li><li><a href="blob.html">blob</a></li><li><a href="json.html">json</a></li><li><a href="lexer.html">lexer</a></li><li><a href="list.html">list</a></li><li><a href="textcode.html">textcode</a></li><li><a href="xml.html">xml</a></li><li><a href="yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="child-process.html">child-process</a></li><li><a href="directory.html">directory</a></li><li><a href="gpio.html">gpio</a></li><li><a href="location.html">location</a></li><li><a href="magic.html">magic</a></li><li><a href="misc.html">misc</a></li><li><a href="mmap.html">mmap</a></li><li><a href="path.html">path</a></li><li><a href="serial.html">serial</a></li><li><a href="sockets.html">sockets</a></li><li><a href="syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="deep.html">deep</a></li><li><a href="inspect.html">inspect</a></li><li><a href="pointer.html">pointer</a></li><li><a href="predicate.html">predicate</a></li><li><a href="tree-walker.html">tree-walker</a></li><li><a href="queue.html">queue</a></li><li><a href="repeater.html">repeater</a></li><li><a href="stream.html">stream</a></li><li><a href="virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="mysql.html">mysql</a></li><li><a href="pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="../js/index.html">JS modules overview</a></li><li><a href="../js/util.html">util</a></li><li><a href="../js/reflect.html">reflect</a></li><li><a href="../js/iterator.html">iterator</a></li><li><a href="../js/asyncIterator.html">asyncIterator</a></li><li><a href="../js/arrayLike.html">arrayLike</a></li><li><a href="../js/extendArray.html">extendArray</a></li><li><a href="../js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="../js/extendObject.html">extendObject</a></li><li><a href="../js/extendMap.html">extendMap</a></li><li><a href="../js/extendSet.html">extendSet</a></li><li><a href="../js/extendMath.html">extendMath</a></li><li><a href="../js/extendFunction.html">extendFunction</a></li><li><a href="../js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="../js/extendGenerator.html">extendGenerator</a></li><li><a href="../js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="../js/assert.html">assert</a></li><li><a href="../js/console.html">console</a></li><li><a href="../js/process.html">process</a></li><li><a href="../js/events.html">events</a></li><li><a href="../js/abort.html">abort</a></li><li><a href="../js/timers.html">timers</a></li><li><a href="../js/perf_hooks.html">perf_hooks</a></li><li><a href="../js/module.html">module</a></li><li><a href="../js/require.html">require</a></li><li><a href="../js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="../js/fs.html">fs</a></li><li><a href="../js/fsPromises.html">fsPromises</a></li><li><a href="../js/io.html">io</a></li><li><a href="../js/streams.html">streams</a></li><li><a href="../js/vfs.html">vfs</a></li><li><a href="../js/inotify.html">inotify</a></li><li><a href="../js/tty.html">tty</a></li><li><a href="../js/terminal.html">terminal</a></li><li><a href="../js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="../js/dom.html">dom</a></li><li><a href="../js/xpath.html">xpath</a></li><li><a href="../js/parser.html">parser</a></li><li><a href="../js/parsel.html">parsel</a></li><li><a href="../js/css-selectors.html">css-selectors</a></li><li><a href="../js/css3-selectors.html">css3-selectors</a></li><li><a href="../js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="../js/db.html">db</a></li><li><a href="../js/repl.html">repl</a></li><li><a href="../js/testharness.html">testharness</a></li><li><a href="../js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="bcrypt"><a class="anchor" href="#bcrypt" aria-hidden="true">#</a>bcrypt</h1>
+<p>Source: <code>quickjs-bcrypt.c</code> — module exports a flat list of functions.</p>
+<p>Password hashing with the bcrypt algorithm (wraps <code>libbcrypt</code>).</p>
+<h2 id="functions"><a class="anchor" href="#functions" aria-hidden="true">#</a>Functions</h2>
+<div class="tablewrap"><table><thead><tr><th>Function</th><th>Args</th><th>Description</th></tr></thead><tbody><tr><td><code id="functions-gensalt">genSalt(rounds)</code><a class="member-anchor" href="#functions-gensalt" aria-hidden="true">#</a></td><td>0</td><td>Generates a new bcrypt salt; the optional <code>rounds</code> cost factor controls work.</td></tr><tr><td><code id="functions-hash">hash(password, salt)</code><a class="member-anchor" href="#functions-hash" aria-hidden="true">#</a></td><td>1</td><td>Hashes <code>password</code>; if a <code>salt</code> is omitted one is generated. Returns the encoded hash string.</td></tr><tr><td><code id="functions-compare">compare(password, hash)</code><a class="member-anchor" href="#functions-compare" aria-hidden="true">#</a></td><td>2</td><td>Verifies <code>password</code> against an existing bcrypt <code>hash</code>, returning a boolean.</td></tr></tbody></table></div>
+<h2 id="constants"><a class="anchor" href="#constants" aria-hidden="true">#</a>Constants</h2>
+<div class="tablewrap"><table><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody><tr><td><code id="constants-hashsize">HASHSIZE</code><a class="member-anchor" href="#constants-hashsize" aria-hidden="true">#</a></td><td>Size in bytes of an encoded hash.</td></tr><tr><td><code id="constants-saltsize">SALTSIZE</code><a class="member-anchor" href="#constants-saltsize" aria-hidden="true">#</a></td><td>Size in bytes of a generated salt.</td></tr></tbody></table></div></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/native/bcrypt.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#functions">Functions</a></li><li class="lvl2"><a href="#constants">Constants</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TODO — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="">
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="getting-started.html">Get started</a>
+    <a href="docs/index.html">Docs</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="getting-started.html">Getting started</a></li><li><a href="roadmap.html" class="here">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="docs/index.html">API reference</a></li><li><a href="docs/api-compatibility.html">Standards compatibility</a></li><li><a href="docs/api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="docs/grammar.html">Grammar</a></li><li><a href="docs/buffer.html">Buffer handling</a></li><li><a href="docs/readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="docs/native/index.html">Native modules overview</a></li><li><a href="docs/native/archive.html">archive</a></li><li><a href="docs/native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="docs/native/bcrypt.html">bcrypt</a></li><li><a href="docs/native/bjson.html">bjson</a></li><li><a href="docs/native/blob.html">blob</a></li><li><a href="docs/native/json.html">json</a></li><li><a href="docs/native/lexer.html">lexer</a></li><li><a href="docs/native/list.html">list</a></li><li><a href="docs/native/textcode.html">textcode</a></li><li><a href="docs/native/xml.html">xml</a></li><li><a href="docs/native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="docs/native/child-process.html">child-process</a></li><li><a href="docs/native/directory.html">directory</a></li><li><a href="docs/native/gpio.html">gpio</a></li><li><a href="docs/native/location.html">location</a></li><li><a href="docs/native/magic.html">magic</a></li><li><a href="docs/native/misc.html">misc</a></li><li><a href="docs/native/mmap.html">mmap</a></li><li><a href="docs/native/path.html">path</a></li><li><a href="docs/native/serial.html">serial</a></li><li><a href="docs/native/sockets.html">sockets</a></li><li><a href="docs/native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="docs/native/deep.html">deep</a></li><li><a href="docs/native/inspect.html">inspect</a></li><li><a href="docs/native/pointer.html">pointer</a></li><li><a href="docs/native/predicate.html">predicate</a></li><li><a href="docs/native/tree-walker.html">tree-walker</a></li><li><a href="docs/native/queue.html">queue</a></li><li><a href="docs/native/repeater.html">repeater</a></li><li><a href="docs/native/stream.html">stream</a></li><li><a href="docs/native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="docs/native/mysql.html">mysql</a></li><li><a href="docs/native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="docs/js/index.html">JS modules overview</a></li><li><a href="docs/js/util.html">util</a></li><li><a href="docs/js/reflect.html">reflect</a></li><li><a href="docs/js/iterator.html">iterator</a></li><li><a href="docs/js/asyncIterator.html">asyncIterator</a></li><li><a href="docs/js/arrayLike.html">arrayLike</a></li><li><a href="docs/js/extendArray.html">extendArray</a></li><li><a href="docs/js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="docs/js/extendObject.html">extendObject</a></li><li><a href="docs/js/extendMap.html">extendMap</a></li><li><a href="docs/js/extendSet.html">extendSet</a></li><li><a href="docs/js/extendMath.html">extendMath</a></li><li><a href="docs/js/extendFunction.html">extendFunction</a></li><li><a href="docs/js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="docs/js/extendGenerator.html">extendGenerator</a></li><li><a href="docs/js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="docs/js/assert.html">assert</a></li><li><a href="docs/js/console.html">console</a></li><li><a href="docs/js/process.html">process</a></li><li><a href="docs/js/events.html">events</a></li><li><a href="docs/js/abort.html">abort</a></li><li><a href="docs/js/timers.html">timers</a></li><li><a href="docs/js/perf_hooks.html">perf_hooks</a></li><li><a href="docs/js/module.html">module</a></li><li><a href="docs/js/require.html">require</a></li><li><a href="docs/js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="docs/js/fs.html">fs</a></li><li><a href="docs/js/fsPromises.html">fsPromises</a></li><li><a href="docs/js/io.html">io</a></li><li><a href="docs/js/streams.html">streams</a></li><li><a href="docs/js/vfs.html">vfs</a></li><li><a href="docs/js/inotify.html">inotify</a></li><li><a href="docs/js/tty.html">tty</a></li><li><a href="docs/js/terminal.html">terminal</a></li><li><a href="docs/js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="docs/js/dom.html">dom</a></li><li><a href="docs/js/xpath.html">xpath</a></li><li><a href="docs/js/parser.html">parser</a></li><li><a href="docs/js/parsel.html">parsel</a></li><li><a href="docs/js/css-selectors.html">css-selectors</a></li><li><a href="docs/js/css3-selectors.html">css3-selectors</a></li><li><a href="docs/js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="docs/js/db.html">db</a></li><li><a href="docs/js/repl.html">repl</a></li><li><a href="docs/js/testharness.html">testharness</a></li><li><a href="docs/js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="todo"><a class="anchor" href="#todo" aria-hidden="true">#</a>TODO</h1>
+<p>Unfinished work found by scanning the whole codebase (native <code>quickjs-*.c</code> bindings, <code>src/</code>,
+<code>include/</code>, <code>lib/*.js</code>, <code>doc/*.md</code>, <code>tests/test_*.js</code>), ordered by leverage: highest-impact,
+cheapest-to-fix items first, general cleanup last. Every item below was verified by reading
+the code (and, where noted, by actually running it) — not just grepped.</p>
+<p>This supersedes the sparse root-level <code>TODO</code> file; its four items are folded in below (marked
+<em>(pre-existing)</em>).</p>
+<h2 id="roadmap"><a class="anchor" href="#roadmap" aria-hidden="true">#</a>Roadmap</h2>
+<p>Four standing goals for this project, in priority order. Every tier below should be read
+against these — they're the "why" behind what gets picked up next. See <code>ASSESSMENT.md</code> for
+the full architecture/gap survey behind Tier 6-8.</p>
+<ol>
+<li><strong>Be the standard library QuickJS deserves</strong> — WHATWG-spec'd web APIs (streams, URL,
+events, encoding, DOM) and Deno/Bun-like runtime APIs (fs, process, timers, readline,
+child_process, ...), with a coherent, documented JS surface over the native bindings.</li>
+<li><strong>Be a toolbox for working with QuickJS itself</strong> — inspection/reflection/deep-object/pointer
+utilities for debugging and metaprogramming.</li>
+<li><strong>Be a lexer/parser toolkit</strong> — a general, reusable grammar/lexer framework, not just
+glue code for one format.</li>
+<li><strong>Support archives, filesystem, sockets, serial, and databases</strong> as first-class, ergonomic
+JS APIs, not just raw native bindings.</li>
+</ol>
+<h2 id="tier-2--public-api-documented-as-working-but-isnt"><a class="anchor" href="#tier-2--public-api-documented-as-working-but-isnt" aria-hidden="true">#</a>Tier 2 — public API documented as working, but isn't</h2>
+<p>~~<strong><code>Blob.prototype.stream()</code> returns <code>undefined</code> instead of a <code>ReadableStream</code></strong>~~ — <strong>FIXED</strong> in commit <code>bfa9b603</code>.
+Implemented <code>Blob.prototype.stream()</code> to return a <code>ReadableStream</code> over the blob's bytes.
+The implementation copies the blob data (since the blob may be garbage collected before
+the stream finishes reading) and wraps it in a Reader that's passed to
+<code>js_readable_stream_from_reader()</code>. All three tests in <code>tests/test_blob.js</code> now pass.</p>
+<h2 id="tier-3--known-perfarchitecture-debt-already-flagged-and-spec-compliance-gaps"><a class="anchor" href="#tier-3--known-perfarchitecture-debt-already-flagged-and-spec-compliance-gaps" aria-hidden="true">#</a>Tier 3 — known perf/architecture debt (already flagged) and spec-compliance gaps</h2>
+<ul>
+<li><p><strong><code>js_is_*</code> type-check helpers (<code>js_is_arraybuffer</code>, <code>js_is_date</code>, <code>js_is_map</code>, etc. in
+<code>src/utils.c:2664-2745</code>) are slow</strong> <em>(pre-existing TODO item)</em> — each does
+<code>instanceof || Object.prototype.toString comparison</code> via a string compare instead of a tag
+check. These sit on hot paths (serialization, <code>deep</code>, <code>inspect</code>), so worth profiling once
+Tier 1 is fixed and traffic patterns are trustworthy again.</p></li>
+<li><p><strong><code>JsonParser.parse()</code> should resync past a run of bad bytes in one call, not one
+byte per thrown exception</strong> — see <code>BUGS</code>'s <code>json-parser-error-resync-is-per-byte-exceptions</code>.
+<code>json_parse()</code> (<code>src/json.c:307-405</code>) returns <code>JSON_ERROR</code> after <code>json_getc_skipws()</code>
+has consumed exactly one byte (the <code>default:</code> case at <code>src/json.c:395-399</code>, and the
+expected-<code>:</code> check at <code>src/json.c:338-341</code>), and <code>js_json_parser_method()</code>
+(<code>quickjs-json.c:2082-2094</code>) throws a fresh <code>JS_ThrowSyntaxError</code> every time. A
+caller trying to skip a corrupted span therefore pays one construct-throw-catch
+cycle per bad byte instead of per bad span — measured at ~200 exceptions to skip
+200 garbage bytes, and pathological (never finishes in practice) across a
+multi-hundred-MB document with many such spans. Fix belongs in <code>json_parse()</code>
+itself: on hitting the <code>default:</code>/<code>expected ':'</code> error paths, keep consuming bytes
+in a local loop (skip whitespace-or-not, doesn't matter) until reaching an
+unambiguous resumption point — a structural character (<code>,</code> <code>{</code> <code>}</code> <code>[</code> <code>]</code> <code>"</code>) at
+a depth/state where it's legal — before returning to the JS boundary with a single
+<code>JSON_ERROR</code>, mirroring the resync <code>JsonPushParser.write()</code>'s doc comment already
+claims (see also the <code>json-push-parser-resync-doc-untested</code> <code>BUGS</code> entry — that
+claim needs its own regression test before being trusted as the model to copy).
+Alternatively/additionally, expose a cheap <code>.resync()</code> method that does this
+scanning without needing the caller to loop <code>.parse()</code> + try/catch at all.</p></li>
+<li><p>~~<strong>Streams <code>respondWithNewView()</code> (BYOB) is missing spec-required safety checks</strong>~~ — <strong>FIXED</strong> in commits <code>312df027</code>, <code>ae4f9992</code>, and <code>d209f470</code>.
+Replaced <code>lib/stream.js</code> with qjs-lws version which has complete BYOB implementation.
+Added <code>isDataViewConstructor</code> helper function and fixed all <code>pendingPullIntos</code> property
+access to use <code>CTRL()</code> wrapper. Added <code>noop</code> and <code>assert_default</code> exports to lib/assert.js
+for compatibility. Fixed <code>ReadableByteStreamControllerCallPullIfNeeded</code> to pull when there
+are pending read requests, even if desiredSize &lt;= 0. Fixed async iterator cleanup in
+<code>_returnSteps</code> to use <code>this._reader</code> instead of <code>STRM(this).reader</code>. Fixed
+<code>WritableStreamDefaultWriterWrite</code> to handle undefined stream and undefined
+<code>strategySizeAlgorithm</code> correctly. All 41 stream tests now passing (100%).</p></li>
+</ul>
+<h2 id="tier-4--structuralmaintenance-risk-and-test-coverage-gaps"><a class="anchor" href="#tier-4--structuralmaintenance-risk-and-test-coverage-gaps" aria-hidden="true">#</a>Tier 4 — structural/maintenance risk and test-coverage gaps</h2>
+<ul>
+<li><p><strong><code>internal.h</code> and <code>quickjs-internal.h</code> are two hand-forked copies of the same QuickJS
+internals header</strong>, both carrying matching <code>XXX:</code> design-debt comments at nearly the same
+line numbers. Any future fix to one needs manual re-application to the other; worth
+collapsing to a single source of truth (or confirming they've already diverged and
+documenting why two copies exist).</p></li>
+<li><p><strong><code>tests/test_list.js</code> isn't a real test</strong> — it's an ad-hoc script (not using the
+<code>assert</code>/<code>assertEq</code> pattern every other <code>test_*.js</code> file uses) that ends in an unguarded
+<code>while(!skip()) {}</code> loop. It's exactly the kind of gap that let <code>List.prototype.at()</code>
+(registered but its case body commented out, always returning <code>undefined</code>) go unnoticed —
+since removed entirely (<code>quickjs-list.c</code>, <code>doc/native/list.md</code>). Worth rewriting properly so the
+next dead/wrong method doesn't slip through the same way.</p></li>
+</ul>
+<h2 id="tier-5--lower-value-cleanup-dead-alternate-code-disabled-diagnostics-unfinished-scaffolding"><a class="anchor" href="#tier-5--lower-value-cleanup-dead-alternate-code-disabled-diagnostics-unfinished-scaffolding" aria-hidden="true">#</a>Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)</h2>
+<p>Not urgent individually, but worth a pass since dead/disabled code in the same functions as
+live logic is exactly what produced every Tier 1 bug above — cleaning it up now prevents the
+next one.</p>
+<ul>
+<li>Disabled alternate implementations with no remaining purpose: <code>src/js-utils.c:70-75</code>
+(old <code>promise_free(JSContext*, ...)</code> overload), <code>src/js-utils.c:153-159</code> (old
+<code>promise_forward()</code> body), <code>src/utils.c:2017-2023</code> (old <code>js_values_free(JSContext*, ...)</code>
+overload), <code>src/utils.c:3050-3057</code> + <code>:3363-3372</code> (abandoned zero-copy
+<code>js_arraybuffer_fromstring</code>/finalizer pair — current version always copies), <code>src/glob2.c:22-28</code>
+(<code>range_free()</code>, unused).</li>
+<li>Duplicated disabled <code>FROM_UNIXTIME(...)</code> date-formatting block in both
+<code>quickjs-mysql.c:109-120</code> and <code>quickjs-pgsql.c:220-231</code>, plus an unused
+<code>js_pgconn_print_fields()</code> in <code>quickjs-pgsql.c:296-309</code>.</li>
+<li><code>quickjs-misc.c:1267-1277</code> — disabled alternate glob implementation using the project's own
+<code>my_glob()</code>/<code>src/glob2.c</code> engine; the system <code>glob()</code> is used instead, meaning <code>glob2.c</code> is
+currently built but not actually wired up to <code>misc.glob()</code>. Worth confirming this is
+intentional or finishing the wiring.</li>
+<li><code>quickjs-sockets.c:2098-2133</code> — a whole abandoned `PROP_SYSCALL/PROP_ERRNO/PROP_ERROR/
+PROP_RET/PROP_AF<code>property block (enum + switch cases + both</code>Socket<code>/</code>AsyncSocket`
+registrations, all consistently disabled together) plus an unused <code>js_sockopt()</code> helper at
+<code>:2236-2239</code>.</li>
+<li><code>quickjs-pointer.c:919-927</code> — disabled forwarding of `Array.prototype.map/reduce/forEach/
+keys/values<code>onto</code>Pointer.prototype<code>; currently not exposed at all. </code>:707-713` — an
+abandoned <code>STATIC_COMMON</code> draft that was never wired into any function table.</li>
+<li><code>quickjs-predicate.c:754-758</code>, <code>quickjs-inspect.c:838-871</code> (34-line disabled exponent-
+stripping number formatter), <code>quickjs-inspect.c:1156-1175</code> (disabled <code>[ClassName]</code> fallback
+tag) — superseded alternates, safe to delete.</li>
+<li><code>quickjs-lexer.c:834-849</code> — <code>Lexer.prototype.back()</code> only accepts a token/location object;
+a disabled branch would have let callers pass a raw string instead (currently throws
+<code>TypeError</code> for that case).</li>
+<li><code>quickjs-path.c:140-152</code> — a disabled, superseded duplicate of <code>PATH_REALPATH</code> handling
+inside <code>js_path_method</code> (the live implementation is <code>js_path_method_dbuf</code> +
+<code>path_realpath3</code>, registered and working at <code>quickjs-path.c:698</code> — <strong>not</strong> a missing
+feature, just dead leftover code confusingly shaped like one).</li>
+<li><code>src/glob.c:582</code> <em>(pre-existing TODO-style comment)</em> — `/* TODO: don't call for ENOENT or
+ENOTDIR? */`, minor optimization.</li>
+<li><code>wasm</code> module was scaffolded in <code>CMakeLists.txt</code> (the <code>option(MODULE_WASM ...)</code> declaration
+itself is commented out at line 51, <code>BUILD_LIBWASM</code> defaults off) but no <code>quickjs-wasm.c</code>
+exists anywhere — either finish it or remove the dead <code>if(MODULE_WASM)</code> block
+(<code>CMakeLists.txt:418-447</code>).</li>
+<li>Minor hygiene: stray <code>src/utils.c.orig</code> backup file left in the tree; <code>quickjs-stream.c</code> has
+~13 functions with unfilled Doxygen placeholder text (<code>{ function_description }</code> etc.).</li>
+</ul>
+<h2 id="tier-6--quickjs-2026-forward-compatibility-found-during-2026-07-23-assessment-see-assessmentmd"><a class="anchor" href="#tier-6--quickjs-2026-forward-compatibility-found-during-2026-07-23-assessment-see-assessmentmd" aria-hidden="true">#</a>Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment, see <code>ASSESSMENT.md</code>)</h2>
+<ul>
+<li><strong>No fallback if <code>HAVE_DBUF_CLAIM</code> is false against a given reference tree.</strong> The
+<code>dbuf_realloc()</code> → <code>dbuf_claim()</code> migration (commit <code>3e8d44cc</code>) converted all 15 call sites
+to call <code>dbuf_claim(buf, delta)</code> directly, with <code>CMakeLists.txt:555-571</code> defining
+<code>-Ddbuf_realloc=dbuf_claim</code> only for the <code>HAVE_DBUF_CLAIM</code> case. There's no inverse shim
+(<code>#define dbuf_claim(...) ...</code> in terms of <code>dbuf_realloc</code>) for building against an older
+reference tree that only has <code>dbuf_realloc()</code> — which is what
+<code>/mnt/data/Projects/plot-cv/quickjs</code>'s current <code>cutils.h</code>/<code>cutils.c</code> actually expose. Worth
+adding a small inline shim (delta → total-size wrapper) so the build works both ways instead
+of only forward.</li>
+<li><strong>Dead, now-backwards <code>#define dbuf_realloc dbuf_claim</code></strong> at <code>include/defines.h:9-11</code>
+(already <code>#if 0</code>'d out) — safe to delete now that the CMake-level wiring is the real
+mechanism; keeping it around next to live compat logic invites confusion about which one
+actually does the job.</li>
+<li>Additional disabled-code items found by the same pass, same shape as Tier 1/5 (commented-out
+case/branch, feature silently missing rather than erroring): <code>quickjs-lexer.c:1611,1655</code>
+(iterator <code>next</code>/<code>values</code> on <code>Lexer</code> disabled), <code>quickjs-list.c:567</code> (iterator <code>next</code>
+disabled — verify this isn't already superseded by the <code>List.prototype.at()</code> removal noted
+in Tier 4), <code>quickjs-misc.c:3592,3722,3725,3851</code> (+ matching disabled <code>case</code>s at <code>2806-2808</code>,
+<code>2822</code>) — <code>realpath</code>, <code>resizeArrayBuffer</code>/<code>searchArrayBuffer</code> alias, and <code>isHTMLDDA</code>/
+function-type magic dispatch all disabled, <code>quickjs-pgsql.c:1312,1855</code> (<code>escapeString</code> and
+iterator <code>next</code> disabled), <code>quickjs-internal.c:558,571</code> (opcode-name introspection
+properties disabled), <code>quickjs-tree-walker.c:167,486</code> (<code>setroot()</code>'s return value discarded
+— minor, probably harmless but worth a look).</li>
+<li><strong>Test coverage gaps</strong>: no dedicated test file for <code>arraybuffer-sink</code>, <code>bcrypt</code>, <code>queue</code>,
+<code>syscallerror</code>, or <code>virtual</code> (<code>bjson</code> is upstream-documented as test-only, lower priority).</li>
+</ul>
+<h2 id="tier-7--roadmap-gaps-js-standard-library-surface-goal-1-vs-what-exists"><a class="anchor" href="#tier-7--roadmap-gaps-js-standard-library-surface-goal-1-vs-what-exists" aria-hidden="true">#</a>Tier 7 — roadmap gaps: JS standard-library surface (goal 1) vs. what exists</h2>
+<p>Native bindings that currently have <strong>no <code>lib/*.js</code> wrapper at all</strong>, so they're usable only as
+raw native modules rather than as part of a documented "standard library" surface: <code>blob</code>
+(despite <code>Blob.prototype.stream()</code> already being tracked in Tier 2 — there's no <code>lib/blob.js</code>
+at all, not just an incomplete method), <code>child-process</code>, <code>gpio</code>, <code>serial</code>, <code>mmap</code>, <code>directory</code>,
+<code>queue</code>, <code>repeater</code>, <code>virtual</code>, <code>magic</code>, <code>bcrypt</code>, <code>syscallerror</code>, <code>location</code>. <code>sockets</code> has only
+a low-level <code>lib/socklen_t.js</code> helper, not a <code>net</code>/<code>dgram</code>-style ergonomic wrapper.</p>
+<p>WHATWG/Deno/Bun API gaps in <code>lib/</code>:</p>
+<ul>
+<li><code>fetch</code> — missing; only appears in vendored test-infra comments (<code>lib/testharness.js</code>).</li>
+<li><code>structuredClone</code> — only feature-detected (<code>lib/stream.js:533</code>), never implemented.</li>
+<li><code>Worker</code> — missing; only referenced by vendored test-infra (<code>lib/testharness.js:254</code>).</li>
+<li><code>lib/readline.js</code> (9 lines: <code>cursorTo</code>/<code>clearLine</code> only), <code>lib/buffer.js</code> (12 lines:
+<code>from</code>/<code>concat</code> only), <code>lib/perf_hooks.js</code> (12 lines: <code>now</code>/<code>timeOrigin</code> only, no marks or
+measures) are all much thinner than their Node/Deno/Bun namesakes.</li>
+<li><code>lib/extendAsyncFunction.js:3</code> — declared but empty (`AsyncFunctionExtensions =
+nonenumerable({})`, no members added yet).</li>
+</ul>
+<h2 id="tier-8--architecture-cleanup-goal-3-dogfooding-code-duplication"><a class="anchor" href="#tier-8--architecture-cleanup-goal-3-dogfooding-code-duplication" aria-hidden="true">#</a>Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)</h2>
+<ul>
+<li><strong>Three independent CSS-selector implementations</strong>: <code>lib/parsel.js</code> (ported <code>parsel-js</code>),
+<code>lib/css-selectors.js</code> (compiler built on <code>parsel.js</code>), and <code>lib/css3-selectors.js</code> (a
+<em>second</em>, independent compiler with its own hand-rolled tokenizer, duplicating helper
+functions nearly verbatim from <code>css-selectors.js</code>, e.g. <code>escapeRegExp</code>/<code>getAttribute</code>/
+<code>hasAttribute</code>/<code>isElement</code>/<code>childElements</code>). <code>lib/css-selectors.js</code> appears dead: nothing in
+the active source tree imports it (<code>lib/dom.js:3</code>, <code>tests/test_dom.js:4</code>, and
+<code>tests/test_css3_selectors.js:2</code> all import <code>css3-selectors.js</code> instead; only stale build
+output under <code>inst/</code> still references <code>css-selectors.js</code>/<code>parsel.js</code>). Worth either deleting
+<code>css-selectors.js</code> or consolidating <code>css3-selectors.js</code> to build on the shared
+<code>lib/lexer</code>/<code>lib/parser/grammar.js</code> toolkit (goal 3) instead of duplicating a tokenizer.</li>
+<li><strong>Lexer/parser toolkit (goal 3) isn't dogfooded by the project's own hardest parsing
+problems.</strong> <code>lib/parser/grammar.js</code> + the native <code>lexer</code> module are genuinely reused across 5
+independent grammars (<code>lib/lexer/{bnf,c,csv,ecmascript,xml}.js</code> — <code>lib/xml/read.js</code> was
+rewritten to drive <code>XMLLexer</code>/<code>lib/lexer/xml.js</code> as a JS port of <code>js_xml_parse()</code>, verified
+against the native <code>xml.read()</code>/<code>xml.write()</code> for tree shape, option surface, and formatting
+quirks; <code>lib/xml/write.js</code> is a matching port of <code>js_xml_write()</code>), which is good evidence of
+real generality — but <code>css3-selectors.js</code> still hand-rolls its own tokenizer instead of
+building on the toolkit.</li>
+<li><strong>Inconsistent non-enumerable-property idiom across <code>lib/extend*.js</code>.</strong> Most files
+(<code>extendArray.js</code>, <code>extendArrayBuffer.js</code>, <code>extendAsyncFunction.js</code>, <code>extendFunction.js</code>,
+<code>extendMap.js</code>, <code>extendSet.js</code>) wrap their extension object in the shared <code>nonenumerable()</code>
+helper from <code>lib/util.js</code>. <code>extendMath.js</code> and <code>extendGenerator.js</code>/<code>extendAsyncGenerator.js</code>
+instead re-implement the same marking logic inline. <code>extendObject.js</code> uses a third helper,
+<code>extend()</code>, with no non-enumerable marking at all. Worth converging on one convention.</li>
+<li>Stray untracked working-tree files noticed during the survey (not a code bug, just hygiene):
+<code>lib/blah.tmp*</code> (six 0-byte scratch files), <code>lib/repl.js.orig</code> (a stale backup that differs
+from the current <code>lib/repl.js</code>).</li>
+</ul>
+<h2 id="tier-9--dom-api-implementation-priorities-browser-sandbox-goal-1"><a class="anchor" href="#tier-9--dom-api-implementation-priorities-browser-sandbox-goal-1" aria-hidden="true">#</a>Tier 9 — DOM API implementation priorities (browser sandbox, goal 1)</h2>
+<p>The <code>lib/dom.js</code> DOM implementation has the core browser APIs in place. The following
+classes are <strong>done</strong>: <code>EventTarget</code>, <code>Event</code>, <code>CustomEvent</code>, <code>UIEvent</code>, <code>MouseEvent</code>,
+<code>KeyboardEvent</code>, <code>FocusEvent</code>, <code>InputEvent</code>, <code>WheelEvent</code>, <code>Touch</code>, <code>TouchList</code>,
+<code>TouchEvent</code>, <code>PointerEvent</code>, <code>PopStateEvent</code>, <code>HashChangeEvent</code>, <code>History</code>, <code>DOMRect</code>,
+<code>DOMRectReadOnly</code>, <code>Range</code>, <code>Selection</code>, <code>MutationObserver</code>, <code>HTMLElement</code> (with <code>dataset</code>,
+<code>style</code>, <code>hidden</code>, <code>tabIndex</code>, <code>offsetWidth</code>/<code>offsetHeight</code>/<code>offsetTop</code>/<code>offsetLeft</code>/<code>offsetParent</code>,
+<code>clientWidth</code>/<code>clientHeight</code>/<code>clientTop</code>/<code>clientLeft</code>,
+<code>scrollWidth</code>/<code>scrollHeight</code>/<code>scrollTop</code>/<code>scrollLeft</code>, etc.), 50+ <code>HTMLElement</code> subclasses
+(Input, Button, Form, Anchor, Image, TextArea, Select, Option, Script, Style, Link, Media,
+Video, Audio, Table, etc.), <code>DocumentFragment</code>, <code>Navigator</code>, <code>Location</code>, <code>Storage</code>, <code>Window</code>
+(with <code>setTimeout</code>/<code>setInterval</code>/<code>requestAnimationFrame</code>/<code>cancelAnimationFrame</code>/<code>history</code>/<code>getSelection</code>),
+<code>File</code> (in <code>lib/file.js</code>), <code>DOMStringMap</code>, <code>CSSStyleDeclaration</code>, <code>NodeList</code>, <code>HTMLCollection</code>.</p>
+<p>Element geometry: <code>getBoundingClientRect()</code> and <code>getClientRects()</code> implemented on Element.</p>
+<p>Comprehensive test suite exists in <code>tests/test_dom.js</code> (210 tests),
+<code>tests/test_event_and_fragment.js</code>, <code>tests/test_event_subclasses.js</code> (50+ tests),
+<code>tests/test_history.js</code> (28 tests), <code>tests/test_geometry.js</code> (30 tests),
+and <code>tests/test_range_selection.js</code> (60+ tests).</p>
+<p>Remaining items ordered by leverage:</p>
+<h3 id="91-fetch-api-lower---modern-http-client-see-also-tier-7"><a class="anchor" href="#91-fetch-api-lower---modern-http-client-see-also-tier-7" aria-hidden="true">#</a>9.1 Fetch API (LOWER - modern HTTP client, see also Tier 7)</h3>
+<p><strong>Why:</strong> Network requests for dynamic content.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>fetch(url, options)</code> function</li>
+<li><code>Request</code> class: <code>url</code>, <code>method</code>, <code>headers</code>, <code>body</code>, <code>mode</code>, <code>credentials</code></li>
+<li><code>Response</code> class: <code>status</code>, <code>statusText</code>, <code>headers</code>, <code>body</code>, <code>ok</code>, <code>json()</code>, <code>text()</code>, <code>blob()</code></li>
+<li><code>Headers</code> class: <code>get()</code>, <code>set()</code>, <code>has()</code>, <code>delete()</code>, <code>append()</code>, iteration</li>
+<li><code>AbortController</code> + <code>AbortSignal</code> for request cancellation</li>
+<li>Promise-based API</li>
+</ul>
+<p><strong>Files:</strong> <code>lib/fetch.js</code> or <code>lib/dom.js</code></p>
+<p><strong>Status:</strong> Not implemented (also tracked in Tier 7).</p>
+<h3 id="92-formdata-lower---form-data-collection"><a class="anchor" href="#92-formdata-lower---form-data-collection" aria-hidden="true">#</a>9.2 FormData (LOWER - form data collection)</h3>
+<p><strong>Why:</strong> Collecting form data for submission.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>FormData</code> class: <code>append()</code>, <code>delete()</code>, <code>get()</code>, <code>getAll()</code>, <code>has()</code>, <code>set()</code></li>
+<li><code>FormData(form)</code> constructor to collect from <code>&lt;form&gt;</code> element</li>
+<li>Iteration support: <code>entries()</code>, <code>keys()</code>, <code>values()</code></li>
+</ul>
+<p><strong>Files:</strong> <code>lib/dom.js</code></p>
+<p><strong>Status:</strong> Not implemented.</p>
+<h3 id="93-cssom---css-object-model-lower---computed-styles-and-media-queries"><a class="anchor" href="#93-cssom---css-object-model-lower---computed-styles-and-media-queries" aria-hidden="true">#</a>9.3 CSSOM - CSS Object Model (LOWER - computed styles and media queries)</h3>
+<p><strong>Why:</strong> Reading computed styles and responsive design.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>window.getComputedStyle(element)</code> → full <code>CSSStyleDeclaration</code> (currently a stub)</li>
+<li><code>window.matchMedia(query)</code> → <code>MediaQueryList</code> (currently a stub)</li>
+<li><code>MediaQueryList</code>: <code>matches</code>, <code>media</code>, <code>addListener()</code>, <code>removeEventListener()</code></li>
+<li><code>StyleSheet</code>, <code>CSSStyleSheet</code>, <code>CSSRule</code> classes (lower priority)</li>
+</ul>
+<p><strong>Files:</strong> <code>lib/dom.js</code></p>
+<p><strong>Status:</strong> <code>CSSStyleDeclaration</code> class exists. <code>getComputedStyle()</code> and <code>matchMedia()</code> are stubs returning empty values.</p>
+<h3 id="94-intersectionobserver-lower---viewport-visibility-detection"><a class="anchor" href="#94-intersectionobserver-lower---viewport-visibility-detection" aria-hidden="true">#</a>9.4 IntersectionObserver (LOWER - viewport visibility detection)</h3>
+<p><strong>Why:</strong> Lazy loading, infinite scroll, analytics.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>IntersectionObserver</code> class: constructor with callback and options</li>
+<li><code>observe(element)</code>, <code>unobserve(element)</code>, <code>disconnect()</code></li>
+<li><code>IntersectionObserverEntry</code>: <code>target</code>, <code>isIntersecting</code>, <code>intersectionRatio</code></li>
+</ul>
+<p><strong>Files:</strong> <code>lib/dom.js</code></p>
+<p><strong>Status:</strong> Not implemented.</p>
+<h3 id="95-resizeobserver-lower---element-size-change-detection"><a class="anchor" href="#95-resizeobserver-lower---element-size-change-detection" aria-hidden="true">#</a>9.5 ResizeObserver (LOWER - element size change detection)</h3>
+<p><strong>Why:</strong> Responsive components, layout adjustments.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>ResizeObserver</code> class: constructor with callback</li>
+<li><code>observe(element)</code>, <code>unobserve(element)</code>, <code>disconnect()</code></li>
+<li><code>ResizeObserverEntry</code>: <code>target</code>, <code>contentRect</code></li>
+</ul>
+<p><strong>Files:</strong> <code>lib/dom.js</code></p>
+<p><strong>Status:</strong> Not implemented.</p>
+<h3 id="96-file--blob-remaining-apis-lower---see-also-tier-27"><a class="anchor" href="#96-file--blob-remaining-apis-lower---see-also-tier-27" aria-hidden="true">#</a>9.6 File + Blob remaining APIs (LOWER - see also Tier 2/7)</h3>
+<p><strong>Why:</strong> File uploads, downloads, binary data.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>Blob.prototype.stream()</code> — broken (see Tier 2)</li>
+<li><code>FileList</code>: array-like collection of Files</li>
+<li><code>FileReader</code>: <code>readAsText()</code>, <code>readAsDataURL()</code>, <code>readAsArrayBuffer()</code>, <code>onload</code>, <code>onerror</code></li>
+<li><code>URL.createObjectURL(blob)</code>, <code>URL.revokeObjectURL(url)</code></li>
+</ul>
+<p><strong>Files:</strong> <code>lib/dom.js</code>, <code>lib/file.js</code></p>
+<p><strong>Status:</strong> <code>File</code> class (in <code>lib/file.js</code>) and <code>Blob</code> (native binding) exist. <code>stream()</code>, <code>FileList</code>, <code>FileReader</code>, and object URL methods are missing.</p>
+<h3 id="97-websocket-lower---real-time-communication"><a class="anchor" href="#97-websocket-lower---real-time-communication" aria-hidden="true">#</a>9.7 WebSocket (LOWER - real-time communication)</h3>
+<p><strong>Why:</strong> Bidirectional real-time data.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>WebSocket</code> class: constructor with URL</li>
+<li>Properties: <code>readyState</code>, <code>bufferedAmount</code>, <code>protocol</code></li>
+<li>Methods: <code>send(data)</code>, <code>close()</code></li>
+<li>Events: <code>onopen</code>, <code>onmessage</code>, <code>onerror</code>, <code>onclose</code></li>
+</ul>
+<p><strong>Files:</strong> <code>lib/websocket.js</code></p>
+<p><strong>Status:</strong> Not implemented.</p>
+<h3 id="98-canvas-api-lower---2d-graphics-games"><a class="anchor" href="#98-canvas-api-lower---2d-graphics-games" aria-hidden="true">#</a>9.8 Canvas API (LOWER - 2D graphics, games)</h3>
+<p><strong>Why:</strong> Image manipulation, games, visualizations.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>HTMLCanvasElement</code>: <code>width</code>, <code>height</code>, <code>getContext()</code></li>
+<li><code>CanvasRenderingContext2D</code>: drawing methods, transformations, gradients, patterns</li>
+<li>This is large—implement incrementally based on usage</li>
+</ul>
+<p><strong>Files:</strong> <code>lib/canvas.js</code></p>
+<p><strong>Status:</strong> Not implemented. <code>HTMLCanvasElement</code> stub exists (just <code>width</code>/<code>height</code>).</p>
+<h3 id="99-web-workers-lower---background-threads-see-also-tier-7"><a class="anchor" href="#99-web-workers-lower---background-threads-see-also-tier-7" aria-hidden="true">#</a>9.9 Web Workers (LOWER - background threads, see also Tier 7)</h3>
+<p><strong>Why:</strong> Heavy computation without blocking main thread.</p>
+<p><strong>Implementation:</strong></p>
+<ul>
+<li><code>Worker</code> class: constructor with script URL</li>
+<li><code>postMessage(data)</code>, <code>terminate()</code></li>
+<li>Events: <code>onmessage</code>, <code>onerror</code></li>
+<li>Requires separate execution context</li>
+</ul>
+<p><strong>Files:</strong> <code>lib/worker.js</code></p>
+<p><strong>Status:</strong> Not implemented (also tracked in Tier 7).</p>
+<h2 id="tier-10--c-api-consolidation-and-cleanup"><a class="anchor" href="#tier-10--c-api-consolidation-and-cleanup" aria-hidden="true">#</a>Tier 10 — C API consolidation and cleanup</h2>
+<p>Low-usage or redundant C APIs in <code>include/</code> and <code>src/</code> that should be consolidated,
+inlined, or removed to reduce maintenance burden and code duplication.</p>
+<h3 id="101-bitset-only-used-by-one-module-low---inline"><a class="anchor" href="#101-bitset-only-used-by-one-module-low---inline" aria-hidden="true">#</a>10.1 BitSet only used by one module (LOW - inline)</h3>
+<p><strong>Problem:</strong> <code>bitset.h/bitset.c</code> (106 lines) has only 2 uses:</p>
+<ul>
+<li>Used only by <code>src/bitset.c</code> itself</li>
+<li>Used only by <code>include/json.h</code> (which is used by <code>quickjs-json.c</code>)</li>
+</ul>
+<p>This is a small utility that's only needed by one consumer.</p>
+<p><strong>Recommendation:</strong> Inline <code>bitset.h/bitset.c</code> into <code>json.c</code> or keep it as a simple
+dependency since it's small and well-isolated.</p>
+<p><strong>Files:</strong> <code>include/bitset.h</code>, <code>src/bitset.c</code></p>
+<p><strong>Impact:</strong> Removes 106 lines if inlined, or keep as-is (minor cleanup opportunity).</p>
+<h3 id="102-async-closureh-only-used-by-mysql-low---inline"><a class="anchor" href="#102-async-closureh-only-used-by-mysql-low---inline" aria-hidden="true">#</a>10.2 async-closure.h only used by MySQL (LOW - inline)</h3>
+<p><strong>Problem:</strong> <code>async-closure.h/async-closure.c</code> (166 lines) has only 2 uses:</p>
+<ul>
+<li>Used only by <code>quickjs-mysql.c</code></li>
+<li>Used only by itself (<code>src/async-closure.c</code>)</li>
+</ul>
+<p>This is a MySQL-specific async handler pattern.</p>
+<p><strong>Recommendation:</strong> Inline <code>async-closure.h/async-closure.c</code> into <code>quickjs-mysql.c</code> or
+move to <code>quickjs-mysql.h</code>. This is MySQL-specific functionality that doesn't need to be
+a general-purpose API.</p>
+<p><strong>Files:</strong> <code>include/async-closure.h</code>, <code>src/async-closure.c</code></p>
+<p><strong>Impact:</strong> Removes 166 lines, clarifies that this is MySQL-specific code.</p>
+<h3 id="103-child-processh-only-used-by-one-module-low---inline"><a class="anchor" href="#103-child-processh-only-used-by-one-module-low---inline" aria-hidden="true">#</a>10.3 child-process.h only used by one module (LOW - inline)</h3>
+<p><strong>Problem:</strong> <code>child-process.h/child-process.c</code> (525 lines) has only 2 uses:</p>
+<ul>
+<li>Used only by <code>quickjs-child-process.c</code></li>
+<li>Used only by itself (<code>src/child-process.c</code>)</li>
+</ul>
+<p>This is a large module that's only consumed by one binding.</p>
+<p><strong>Recommendation:</strong> Inline <code>child-process.h/child-process.c</code> into <code>quickjs-child-process.c</code>.
+The header can remain as <code>quickjs-child-process.h</code> if needed for external use, but the
+internal implementation doesn't need to be a separate module.</p>
+<p><strong>Files:</strong> <code>include/child-process.h</code>, <code>src/child-process.c</code></p>
+<p><strong>Impact:</strong> Simplifies module structure, though no line count reduction (just consolidation).</p>
+<h3 id="summary"><a class="anchor" href="#summary" aria-hidden="true">#</a>Summary</h3>
+<p><strong>Total lines to potentially consolidate:</strong> ~797 lines</p>
+<ul>
+<li>BitSet: 106 lines (inline into JSON parser or keep as-is)</li>
+<li>async-closure: 166 lines (inline into MySQL)</li>
+<li>child-process: 525 lines (inline into binding, no net reduction)</li>
+</ul>
+<p><strong>Priority order:</strong></p>
+<ol>
+<li><strong>LOW:</strong> Inline BitSet (10.1) - simplifies dependencies (minor)</li>
+<li><strong>LOW:</strong> Inline async-closure (10.2) - clarifies MySQL-specific code</li>
+<li><strong>LOW:</strong> Inline child-process (10.3) - simplifies structure</li>
+</ol>
+<p><strong>Completed:</strong></p>
+<ul>
+<li>~~10.3 RingBuffer~~ - Removed in commit <code>7cda4dec</code> (163 lines deleted)</li>
+</ul>
+<p><strong>Removed (incorrect assessment):</strong></p>
+<ul>
+<li>~~10.1 JSON parsers~~ - Not duplicates: <code>json.h</code> is a pull parser, <code>jread.h</code> is a push/SAX parser, <code>sj.h</code> is a simple one-shot parser. They serve different APIs.</li>
+<li>~~10.2 XML parsers~~ - Not duplicates: <code>xml.h</code> is a pull parser, <code>xread.h</code> is a push/SAX parser. They serve different APIs.</li>
+<li>~~10.5 ioctlcmd.h~~ - Actually used by <code>src/readlink.c</code> for Windows symlink support.</li>
+</ul>
+<h2 id="tier-11--srcqjsmc-refactoring-opportunities-found-during-2026-08-16-read-through"><a class="anchor" href="#tier-11--srcqjsmc-refactoring-opportunities-found-during-2026-08-16-read-through" aria-hidden="true">#</a>Tier 11 — <code>src/qjsm.c</code> refactoring opportunities (found during 2026-08-16 read-through)</h2>
+<p>A full read-through of <code>src/qjsm.c</code> (the <code>qjsm</code> entry point / module loader) turned up no
+correctness bugs, but several structural spots worth revisiting. Dead/commented-out code and
+one obscure reversed-subscript idiom (<code>(dsl = path_dirlen1(path))[path]</code>) were already cleaned
+up in place during this pass; what's left below is genuine restructuring, deliberately not
+done inline since each is either large or a judgment call on API shape.</p>
+<ul>
+<li><strong><code>main()</code> is a ~450-line monolith</strong> doing CLI parsing, runtime/context setup, script and
+<code>-I</code>/<code>-m</code> loading, REPL bootstrap, and (behind <code>--dump --quit</code>) an unrelated instantiation-time
+microbenchmark, all in one function. Splitting into <code>jsm_parse_args()</code>,
+<code>jsm_setup_runtime()</code>, <code>jsm_run_scripts()</code>, and <code>jsm_bench_instantiation()</code> would make each
+piece testable/readable in isolation. Nontrivial: the pieces share a lot of local state
+(<code>had_error</code>, <code>sargs</code>, <code>include_list</code>, ...) that would need to move into a small context
+struct or be threaded through as parameters.</li>
+<li><strong><code>jsm_module_func()</code> is a single ~270-line function</strong> dispatching on a 20-case <code>magic</code> enum
+that mixes unrelated concerns: module bookkeeping (<code>ADD_MODULE</code>/<code>FIND_MODULE</code>/
+<code>FIND_MODULE_INDEX</code>), path resolution (<code>NORMALIZE_MODULE</code>/<code>LOCATE_MODULE</code>/<code>LOAD_MODULE</code>), and
+a block of ~11 near-identical <code>#if QUICKJS_INTERNAL</code> one-liner accessors
+(<code>GET_MODULE_NAME</code>/<code>GET_MODULE_VALUE</code>/<code>GET_MODULE_INDEX</code>/...). The accessor block in
+particular is repetitive enough to be table-driven (an array of <code>{magic, module_*_fn}</code>
+pairs looked up once) instead of 11 near-identical <code>case:</code>/<code>#if</code>/<code>#endif</code> blocks.</li>
+<li><strong><code>jsm_module_loader()</code> (the <code>JSModuleLoaderFunc</code> implementation) does six distinct things
+in one ~140-line function</strong> with several <code>goto end;</code>/<code>goto again;</code> jumps: <code>data:</code> URL
+handling, dispatch through the external loader chain (<code>jsm_call_loaders</code>), circular-import
+detection, <code>package.json</code> alias resolution, builtin-module lookup, and filesystem
+resolution + the "could not load module" error formatting. Worth splitting along those
+seams (e.g. <code>jsm_resolve_data_url</code>, <code>jsm_run_external_loaders</code>, <code>jsm_warn_circular</code>) so each
+piece can be reasoned about independently — risky to do without first having a test that
+exercises each branch (see the <code>tests/test_list.js</code> gap noted in Tier 4 for why that
+matters here).</li>
+<li><strong>CLI flag variables in <code>main()</code> are declared <code>char</code></strong> (<code>dump_memory</code>, <code>trace_memory</code>,
+<code>empty_run</code>, <code>module</code>, <code>load_std</code>, <code>list_modules</code> — e.g. <code>-d -d -d ...</code> increments
+<code>dump_memory</code> via <code>dump_memory++</code>) rather than <code>int</code>/<code>BOOL</code>. Not currently reachable (argc
+is bounded), but the type doesn't communicate "counter" and invites a subtle bug if the
+parsing loop is ever restructured.</li>
+<li><strong>The hand-rolled long-option parser in <code>main()</code></strong> (`/* cannot use getopt because we want to
+pass the command line to the script */`) is a legitimate constraint, but the resulting loop
+is a ~150-line sequence of <code>if(opt == 'x' || !strcmp(longopt, "xxx")) { ...; break; }</code>
+blocks that's easy to get subtly wrong when adding a new flag. Could become a small
+<code>{shortopt, longopt, handler}</code> table walked by one loop, without pulling in libc <code>getopt</code>.</li>
+<li><strong>Global mutable state is spread across ~10 independent <code>thread_local</code>/<code>static</code> variables</strong>
+(<code>jsm_stack</code>, <code>jsm_builtin_modules</code>, <code>module_list</code>, <code>debug_list</code>, <code>module_loaders</code>,
+<code>loaded_modules</code>, <code>package_json</code>, <code>exename</code>/<code>exelen</code>, <code>jsm_rt</code>/<code>jsm_ctx</code>, <code>interactive</code>,
+<code>DEBUG_MODULE</code>) instead of one grouped <code>struct</code>. Not urgent, but would make the module's
+state easier to audit and would be a prerequisite for ever running more than one <code>qjsm</code>
+runtime per process.</li>
+<li><strong><code>jsm_search_suffix()</code>'s debug trace stringifies a function pointer by identity comparison</strong>
+(`fn == &amp;is_module ? "is_module" : fn == &amp;jsm_search_path ? "jsm_search_path" :
+"&lt;unknown&gt;"<code>) to name the </code>ModuleLoader*<code>passed in. Silently prints</code>"&lt;unknown&gt;"` if a third
+implementation is ever added. A small named-enum-plus-lookup (or just naming the parameter
+at each call site in the trace) would stay correct automatically.</li>
+</ul>
+<h2 id="tier-12--deferred-yaml-module-read-yaml--js"><a class="anchor" href="#tier-12--deferred-yaml-module-read-yaml--js" aria-hidden="true">#</a>Tier 12 — deferred: <code>yaml</code> module <code>read()</code> (YAML → JS)</h2>
+<p><code>quickjs-yaml.c</code> currently only implements <code>write()</code> (JS value → block-YAML text), added for
+the eagle-agent EDA parts catalog export (see <code>doc/eagle-agent.md</code>). Parsing was explicitly
+out of scope for that work and is deferred:</p>
+<ul>
+<li><p>A <code>read(text)</code> function, symmetric with <code>write()</code>, decoding the same block-YAML subset
+back into a JS value.</p></li>
+<li><p>If/when that's built, model it as a computed-goto push/SAX parser in
+<code>src/yread.c</code>/<code>include/yread.h</code>, the same pattern <code>src/jread.c</code>/<code>include/jread.h</code> (JSON) and
+<code>src/xread.c</code>/<code>include/xread.h</code> (XML) already use, rather than a recursive-descent parser
+inline in <code>quickjs-yaml.c</code>.</p></li>
+<li><p>Scope stays pinned to the writer's own subset (block style, plain/quoted scalars, no
+anchors/aliases/multi-doc/flow/tags) — no need to handle full YAML 1.1/1.2.</p>
+<p><strong>Superseded by Tier 13 below</strong> if cyaml adoption goes ahead: cyaml's <code>cyaml_parse()</code> +
+<code>cyaml_emit()</code> would cover both <code>read()</code> and <code>write()</code> (full YAML 1.2, not just this
+writer's subset), making a hand-rolled <code>src/yread.c</code> push parser unnecessary. Leaving this
+entry in place until that decision is made.</p></li>
+</ul>
+<h2 id="tier-13--adopt-cyaml-as-the-yaml-modules-backing-library-plan-only-not-started"><a class="anchor" href="#tier-13--adopt-cyaml-as-the-yaml-modules-backing-library-plan-only-not-started" aria-hidden="true">#</a>Tier 13 — adopt cyaml as the <code>yaml</code> module's backing library (plan only, not started)</h2>
+<p><code>quickjs-yaml.c</code> currently hand-rolls its own block-YAML writer (<code>js_yaml_write()</code>,
+<code>quickjs-yaml.c:301-335</code>, ~200 lines of DynBuf-based emission logic covering only a
+restricted subset — see Tier 12 above) and has no reader at all. Replace both with
+<a href="https://github.com/andrewmd5/cyaml" target="_blank" rel="noopener">cyaml</a> (MIT, C11, zero dependencies beyond libc,
+passes the full <code>yaml-test-suite</code>), vendored as a git submodule.</p>
+<p><strong>Submodule placement:</strong> put it at <code>3rdparty/cyaml</code>, not the repo root (where every other
+submodule — <code>libarchive</code>, <code>pigpio</code>, <code>libutf</code>, <code>tutf8e</code>, <code>libserialport</code>, <code>libbcrypt</code> —
+currently lives; only <code>third_party/wasm3</code> is already namespaced, under the <em>old</em> directory
+name <code>third_party/</code>, not <code>3rdparty/</code>). This is meant to be the first of a broader cleanup:
+move all existing root-level submodules into <code>3rdparty/</code> (and fold <code>third_party/wasm3</code> in
+too, i.e. rename <code>third_party/</code> → <code>3rdparty/</code>) so vendored code stops cluttering the repo
+root — tracked here as a follow-up, not bundled into the cyaml change itself.</p>
+<p><strong>API shape — full-tree only, no evented/pull parser:</strong> confirmed by reading <code>src/cyaml.h</code>
+(and the README's "Event stream output" feature) that cyaml has no SAX-style push parser
+(no read-callback/handler registration) and no incremental pull parser (no "get next
+event" call that holds cursor state across calls) comparable to this project's own
+<code>src/jread.c</code>/<code>src/xread.c</code> computed-goto push parsers or the pull-style primitives
+<code>XMLPushParser</code>/JSON's streaming reader expose. <code>cyaml_parse()</code>/<code>cyaml_parse_stream()</code>
+take the entire source buffer up front and return a fully-built <code>cyaml_doc_t*</code> node tree;
+there is no way to feed it chunks incrementally or stop after N events. <code>cyaml_events()</code>/
+<code>cyaml_stream_events()</code> sound like a streaming API from the name, but they are the
+opposite: they take an <em>already fully-parsed</em> <code>cyaml_doc_t*</code> and serialize it back out as
+a textual canonical event-log string (the same event-log format <code>yaml-test-suite</code> uses for
+its conformance fixtures) — a dump format, not a live callback/cursor API. Implication for
+this module: <code>read()</code> will have to be a whole-buffer-in, whole-JS-value-out conversion
+(<code>cyaml_parse()</code> → walk the <code>cyaml_node_t</code> tree → build the JS value), same shape as the
+existing JSON module's non-streaming <code>parse()</code>, not the incremental push/pull style used
+for XML. If an evented/pull YAML reader is ever wanted, cyaml won't provide it — would
+still need the hand-rolled <code>src/yread.c</code> design sketched in Tier 12, on top of or instead
+of cyaml.</p>
+<p><strong>Plan:</strong></p>
+<ol>
+<li>Add <code>3rdparty/cyaml</code> submodule (<code>https://github.com/andrewmd5/cyaml</code>), wire into
+<code>CMakeLists.txt</code> (cyaml ships its own <code>CMakeLists.txt</code>; likely <code>add_subdirectory()</code> with
+<code>CYAML_BUILD_TESTS</code>/<code>CYAML_BUILD_SHARED</code> off, static-link into <code>quickjs-yaml.c</code>'s module).</li>
+<li>Replace <code>js_yaml_write()</code>'s hand-rolled emission with <code>cyaml_doc_new()</code> +
+<code>cyaml_new_*()</code>/<code>cyaml_map_set()</code>/<code>cyaml_seq_push()</code> tree construction from the JS value,
+then <code>cyaml_emit()</code>. Drops the current subset restrictions (flow style, anchors/aliases,
+multi-doc all become available "for free").</li>
+<li>Implement <code>read()</code> via <code>cyaml_parse()</code> + a <code>cyaml_node_t</code> → <code>JSValue</code> walk (using
+<code>cyaml_scalar_kind()</code>/<code>cyaml_as_int()</code>/<code>cyaml_as_float()</code>/<code>cyaml_as_bool()</code>/
+<code>cyaml_scalar_str()</code> for scalars, iterate seq/map nodes for containers).</li>
+<li>Decide whether to also expose YPATH (<code>cyaml_path()</code>/<code>cyaml_path_query()</code>) as a
+<code>yaml</code>-module convenience, or leave that as a <code>deep</code>/<code>pointer</code>-module-style concern —
+default to <em>not</em> exposing it initially (avoid growing custom API surface per the
+"internal vs public APIs" project principle), revisit only if a concrete use case shows up.</li>
+<li>Update <code>doc/native/yaml.md</code> for the new <code>read()</code> export and the widened <code>write()</code>
+compliance (full YAML 1.2 vs. today's documented subset).</li>
+<li>Remove/resolve the Tier 12 entry above once this lands (either fold its <code>read()</code> request
+into this work, or explicitly drop the yread.c push-parser design if cyaml covers the
+need without it).</li>
+</ol></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/TODO.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#roadmap">Roadmap</a></li><li class="lvl2"><a href="#tier-2--public-api-documented-as-working-but-isnt">Tier 2 — public API documented as working, but isn't</a></li><li class="lvl2"><a href="#tier-3--known-perfarchitecture-debt-already-flagged-and-spec-compliance-gaps">Tier 3 — known perf/architecture debt (already flagged) and spec-compliance gaps</a></li><li class="lvl2"><a href="#tier-4--structuralmaintenance-risk-and-test-coverage-gaps">Tier 4 — structural/maintenance risk and test-coverage gaps</a></li><li class="lvl2"><a href="#tier-5--lower-value-cleanup-dead-alternate-code-disabled-diagnostics-unfinished-scaffolding">Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)</a></li><li class="lvl2"><a href="#tier-6--quickjs-2026-forward-compatibility-found-during-2026-07-23-assessment-see-assessmentmd">Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment, see ASSESSMENT.md)</a></li><li class="lvl2"><a href="#tier-7--roadmap-gaps-js-standard-library-surface-goal-1-vs-what-exists">Tier 7 — roadmap gaps: JS standard-library surface (goal 1) vs. what exists</a></li><li class="lvl2"><a href="#tier-8--architecture-cleanup-goal-3-dogfooding-code-duplication">Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)</a></li><li class="lvl2"><a href="#tier-9--dom-api-implementation-priorities-browser-sandbox-goal-1">Tier 9 — DOM API implementation priorities (browser sandbox, goal 1)</a></li><li class="lvl3"><a href="#91-fetch-api-lower---modern-http-client-see-also-tier-7">9.1 Fetch API (LOWER - modern HTTP client, see also Tier 7)</a></li><li class="lvl3"><a href="#92-formdata-lower---form-data-collection">9.2 FormData (LOWER - form data collection)</a></li><li class="lvl3"><a href="#93-cssom---css-object-model-lower---computed-styles-and-media-queries">9.3 CSSOM - CSS Object Model (LOWER - computed styles and media queries)</a></li><li class="lvl3"><a href="#94-intersectionobserver-lower---viewport-visibility-detection">9.4 IntersectionObserver (LOWER - viewport visibility detection)</a></li><li class="lvl3"><a href="#95-resizeobserver-lower---element-size-change-detection">9.5 ResizeObserver (LOWER - element size change detection)</a></li><li class="lvl3"><a href="#96-file--blob-remaining-apis-lower---see-also-tier-27">9.6 File + Blob remaining APIs (LOWER - see also Tier 2/7)</a></li><li class="lvl3"><a href="#97-websocket-lower---real-time-communication">9.7 WebSocket (LOWER - real-time communication)</a></li><li class="lvl3"><a href="#98-canvas-api-lower---2d-graphics-games">9.8 Canvas API (LOWER - 2D graphics, games)</a></li><li class="lvl3"><a href="#99-web-workers-lower---background-threads-see-also-tier-7">9.9 Web Workers (LOWER - background threads, see also Tier 7)</a></li><li class="lvl2"><a href="#tier-10--c-api-consolidation-and-cleanup">Tier 10 — C API consolidation and cleanup</a></li><li class="lvl3"><a href="#101-bitset-only-used-by-one-module-low---inline">10.1 BitSet only used by one module (LOW - inline)</a></li><li class="lvl3"><a href="#102-async-closureh-only-used-by-mysql-low---inline">10.2 async-closure.h only used by MySQL (LOW - inline)</a></li><li class="lvl3"><a href="#103-child-processh-only-used-by-one-module-low---inline">10.3 child-process.h only used by one module (LOW - inline)</a></li><li class="lvl3"><a href="#summary">Summary</a></li><li class="lvl2"><a href="#tier-11--srcqjsmc-refactoring-opportunities-found-during-2026-08-16-read-through">Tier 11 — src/qjsm.c refactoring opportunities (found during 2026-08-16 read-through)</a></li><li class="lvl2"><a href="#tier-12--deferred-yaml-module-read-yaml--js">Tier 12 — deferred: yaml module read() (YAML → JS)</a></li><li class="lvl2"><a href="#tier-13--adopt-cyaml-as-the-yaml-modules-backing-library-plan-only-not-started">Tier 13 — adopt cyaml as the yaml module's backing library (plan only, not started)</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="assets/search-index.js"></script>
+<script src="assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

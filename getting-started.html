@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qjs-modules — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="">
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="getting-started.html">Get started</a>
+    <a href="docs/index.html">Docs</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="getting-started.html" class="here">Getting started</a></li><li><a href="roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="docs/index.html">API reference</a></li><li><a href="docs/api-compatibility.html">Standards compatibility</a></li><li><a href="docs/api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="docs/grammar.html">Grammar</a></li><li><a href="docs/buffer.html">Buffer handling</a></li><li><a href="docs/readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="docs/native/index.html">Native modules overview</a></li><li><a href="docs/native/archive.html">archive</a></li><li><a href="docs/native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="docs/native/bcrypt.html">bcrypt</a></li><li><a href="docs/native/bjson.html">bjson</a></li><li><a href="docs/native/blob.html">blob</a></li><li><a href="docs/native/json.html">json</a></li><li><a href="docs/native/lexer.html">lexer</a></li><li><a href="docs/native/list.html">list</a></li><li><a href="docs/native/textcode.html">textcode</a></li><li><a href="docs/native/xml.html">xml</a></li><li><a href="docs/native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="docs/native/child-process.html">child-process</a></li><li><a href="docs/native/directory.html">directory</a></li><li><a href="docs/native/gpio.html">gpio</a></li><li><a href="docs/native/location.html">location</a></li><li><a href="docs/native/magic.html">magic</a></li><li><a href="docs/native/misc.html">misc</a></li><li><a href="docs/native/mmap.html">mmap</a></li><li><a href="docs/native/path.html">path</a></li><li><a href="docs/native/serial.html">serial</a></li><li><a href="docs/native/sockets.html">sockets</a></li><li><a href="docs/native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="docs/native/deep.html">deep</a></li><li><a href="docs/native/inspect.html">inspect</a></li><li><a href="docs/native/pointer.html">pointer</a></li><li><a href="docs/native/predicate.html">predicate</a></li><li><a href="docs/native/tree-walker.html">tree-walker</a></li><li><a href="docs/native/queue.html">queue</a></li><li><a href="docs/native/repeater.html">repeater</a></li><li><a href="docs/native/stream.html">stream</a></li><li><a href="docs/native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="docs/native/mysql.html">mysql</a></li><li><a href="docs/native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="docs/js/index.html">JS modules overview</a></li><li><a href="docs/js/util.html">util</a></li><li><a href="docs/js/reflect.html">reflect</a></li><li><a href="docs/js/iterator.html">iterator</a></li><li><a href="docs/js/asyncIterator.html">asyncIterator</a></li><li><a href="docs/js/arrayLike.html">arrayLike</a></li><li><a href="docs/js/extendArray.html">extendArray</a></li><li><a href="docs/js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="docs/js/extendObject.html">extendObject</a></li><li><a href="docs/js/extendMap.html">extendMap</a></li><li><a href="docs/js/extendSet.html">extendSet</a></li><li><a href="docs/js/extendMath.html">extendMath</a></li><li><a href="docs/js/extendFunction.html">extendFunction</a></li><li><a href="docs/js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="docs/js/extendGenerator.html">extendGenerator</a></li><li><a href="docs/js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="docs/js/assert.html">assert</a></li><li><a href="docs/js/console.html">console</a></li><li><a href="docs/js/process.html">process</a></li><li><a href="docs/js/events.html">events</a></li><li><a href="docs/js/abort.html">abort</a></li><li><a href="docs/js/timers.html">timers</a></li><li><a href="docs/js/perf_hooks.html">perf_hooks</a></li><li><a href="docs/js/module.html">module</a></li><li><a href="docs/js/require.html">require</a></li><li><a href="docs/js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="docs/js/fs.html">fs</a></li><li><a href="docs/js/fsPromises.html">fsPromises</a></li><li><a href="docs/js/io.html">io</a></li><li><a href="docs/js/streams.html">streams</a></li><li><a href="docs/js/vfs.html">vfs</a></li><li><a href="docs/js/inotify.html">inotify</a></li><li><a href="docs/js/tty.html">tty</a></li><li><a href="docs/js/terminal.html">terminal</a></li><li><a href="docs/js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="docs/js/dom.html">dom</a></li><li><a href="docs/js/xpath.html">xpath</a></li><li><a href="docs/js/parser.html">parser</a></li><li><a href="docs/js/parsel.html">parsel</a></li><li><a href="docs/js/css-selectors.html">css-selectors</a></li><li><a href="docs/js/css3-selectors.html">css3-selectors</a></li><li><a href="docs/js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="docs/js/db.html">db</a></li><li><a href="docs/js/repl.html">repl</a></li><li><a href="docs/js/testharness.html">testharness</a></li><li><a href="docs/js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="qjs-modules"><a class="anchor" href="#qjs-modules" aria-hidden="true">#</a>qjs-modules</h1>
+<p>A collection of native modules for <a href="https://bellard.org/quickjs/" target="_blank" rel="noopener">QuickJS</a>.</p>
+<p>Each module is built both as a shared library (importable at runtime by the
+interpreter) and as a static library that can be linked into an embedding
+application. Every <code>quickjs-*.c</code> file provides one module (except
+<code>quickjs-internal.c</code>, which contains shared support code compiled into other
+modules).</p>
+<h2 id="building"><a class="anchor" href="#building" aria-hidden="true">#</a>Building</h2>
+<div class="codeblock" data-lang="sh"><pre><code class="language-sh"><span class="t-id">cmake</span> <span class="t-op">-B</span> <span class="t-id">build</span> .
+<span class="t-id">make</span> <span class="t-op">-C</span> <span class="t-id">build</span></code></pre></div>
+<p>The core modules are always built. Some modules depend on external libraries
+and are gated by CMake options:</p>
+<div class="tablewrap"><table><thead><tr><th>Option</th><th>Module</th><th>Dependency</th></tr></thead><tbody><tr><td><code>MODULE_ARCHIVE</code></td><td><a href="#archive">archive</a></td><td>libarchive (<code>BUILD_LIBARCHIVE</code> builds the bundled one)</td></tr><tr><td><code>MODULE_BCRYPT</code></td><td><a href="#bcrypt">bcrypt</a></td><td>bundled libbcrypt</td></tr><tr><td><code>MODULE_MAGIC</code></td><td><a href="#magic">magic</a></td><td>libmagic</td></tr><tr><td><code>MODULE_MYSQL</code></td><td><a href="#mysql">mysql</a></td><td>MariaDB/MySQL client library</td></tr><tr><td><code>MODULE_PGSQL</code></td><td><a href="#pgsql">pgsql</a></td><td>libpq</td></tr><tr><td><code>MODULE_SQLITE</code></td><td><a href="#sqlite">sqlite</a></td><td>sqlite3</td></tr><tr><td><code>MODULE_SERIAL</code></td><td><a href="#serial">serial</a></td><td>libserialport (<code>BUILD_LIBSERIALPORT</code> builds the bundled one)</td></tr></tbody></table></div>
+<p>In addition to the native modules documented below, the <code>lib/</code> directory
+contains pure-JavaScript modules (<code>console</code>, <code>fs</code>, <code>process</code>, <code>repl</code>,
+<code>require</code>, <code>util</code>, parsers, …) built on top of them.</p>
+<h2 id="module-index"><a class="anchor" href="#module-index" aria-hidden="true">#</a>Module index</h2>
+<div class="tablewrap"><table><thead><tr><th>Module</th><th>Exports</th><th>Description</th></tr></thead><tbody><tr><td><a href="#archive">archive</a></td><td><code>Archive</code>, <code>ArchiveEntry</code>, <code>ArchiveMatch</code></td><td>Read/write archives via libarchive</td></tr><tr><td><a href="#arraybuffer_sink">arraybuffer_sink</a></td><td><code>ArrayBufferSink</code></td><td>Collect streamed writes into an ArrayBuffer</td></tr><tr><td><a href="#bcrypt">bcrypt</a></td><td><code>genSalt</code>, <code>hash</code>, <code>compare</code></td><td>bcrypt password hashing</td></tr><tr><td><a href="#bjson">bjson</a></td><td><code>read</code>, <code>write</code></td><td>Binary JSON (QuickJS object serialization)</td></tr><tr><td><a href="#blob">blob</a></td><td><code>Blob</code></td><td>W3C-style binary blob</td></tr><tr><td><a href="#child_process">child_process</a></td><td><code>exec</code>, <code>spawn</code>, <code>ChildProcess</code>, …</td><td>Spawn and control subprocesses</td></tr><tr><td><a href="#deep">deep</a></td><td><code>find</code>, <code>get</code>, <code>set</code>, <code>iterate</code>, …</td><td>Deep object-tree traversal and manipulation</td></tr><tr><td><a href="#directory">directory</a></td><td><code>Directory</code></td><td>Low-level directory reader (getdents)</td></tr><tr><td><a href="#gpio">gpio</a></td><td><code>GPIO</code></td><td>Memory-mapped GPIO (Raspberry Pi)</td></tr><tr><td><a href="#inspect">inspect</a></td><td><code>inspect</code></td><td>Pretty-print JS values (like Node's <code>util.inspect</code>)</td></tr><tr><td><a href="#json">json</a></td><td><code>read</code>, <code>write</code>, <code>JsonParser</code></td><td>JSON parser/serializer with location info</td></tr><tr><td><a href="#lexer">lexer</a></td><td><code>Lexer</code>, <code>Token</code>, <code>Location</code></td><td>Regex-rule based tokenizer</td></tr><tr><td><a href="#list">list</a></td><td><code>List</code>, <code>ListIterator</code>, <code>ListNode</code></td><td>Doubly-linked list with Array-like API</td></tr><tr><td><a href="#location">location</a></td><td><code>Location</code></td><td>Source position (file:line:column)</td></tr><tr><td><a href="#magic">magic</a></td><td><code>Magic</code></td><td>File type detection via libmagic</td></tr><tr><td><a href="#misc">misc</a></td><td>many functions</td><td>Grab-bag of OS, buffer, type and engine utilities</td></tr><tr><td><a href="#mmap">mmap</a></td><td><code>mmap</code>, <code>munmap</code>, …</td><td>Memory-mapped files as ArrayBuffers</td></tr><tr><td><a href="#mysql">mysql</a></td><td><code>MySQL</code>, <code>MySQLResult</code>, <code>MySQLError</code></td><td>Non-blocking (promise-based) MySQL/MariaDB client</td></tr><tr><td><a href="#path">path</a></td><td><code>join</code>, <code>basename</code>, <code>resolve</code>, …</td><td>Path manipulation and filesystem tests</td></tr><tr><td><a href="#pgsql">pgsql</a></td><td><code>PGconn</code>, <code>PGresult</code>, <code>PGerror</code></td><td>Non-blocking PostgreSQL client</td></tr><tr><td><a href="#pointer">pointer</a></td><td><code>Pointer</code>, <code>DereferenceError</code></td><td>Object-graph paths (JSON-pointer-like)</td></tr><tr><td><a href="#predicate">predicate</a></td><td><code>Predicate</code></td><td>Composable, callable predicate functions</td></tr><tr><td><a href="#queue">queue</a></td><td><code>Queue</code></td><td>Chunked byte FIFO</td></tr><tr><td><a href="#repeater">repeater</a></td><td><code>Repeater</code></td><td>Push-to-async-iterator bridge</td></tr><tr><td><a href="#serial">serial</a></td><td><code>Serial</code>, <code>SerialPort</code>, <code>SerialError</code></td><td>Serial ports via libserialport</td></tr><tr><td><a href="#sockets">sockets</a></td><td><code>Socket</code>, <code>AsyncSocket</code>, <code>SockAddr</code>, …</td><td>BSD sockets, sync and async</td></tr><tr><td><a href="#sqlite">sqlite</a></td><td><code>SQLite3</code>, <code>SQLite3Result</code>, <code>SQLite3Error</code></td><td>SQLite3 client</td></tr><tr><td><a href="#stream">stream</a></td><td><code>ReadableStream</code>, <code>WritableStream</code>, …</td><td>WHATWG-style streams (not built by default)</td></tr><tr><td><a href="#syscallerror">syscallerror</a></td><td><code>SyscallError</code></td><td>Error class carrying syscall name + errno</td></tr><tr><td><a href="#textcode">textcode</a></td><td><code>TextDecoder</code>, <code>TextEncoder</code></td><td>UTF-8/UTF-16/UTF-32 transcoding</td></tr><tr><td><a href="#tree_walker">tree_walker</a></td><td><code>TreeWalker</code>, <code>TreeIterator</code></td><td>DOM-TreeWalker-style object traversal</td></tr><tr><td><a href="#virtual">virtual</a></td><td><code>VirtualProperties</code></td><td>Uniform property access over Map/Array/Object</td></tr><tr><td><a href="#xml">xml</a></td><td><code>read</code>, <code>write</code></td><td>XML parser and serializer</td></tr></tbody></table></div>
+<hr>
+<h2 id="archive"><a class="anchor" href="#archive" aria-hidden="true">#</a>archive</h2>
+<p>Bindings to <a href="https://libarchive.org" target="_blank" rel="noopener">libarchive</a>. Read and write many archive
+formats (tar, zip, 7zip, iso9660, cpio, ar, …) with many compression filters
+(gzip, bzip2, xz, zstd, lz4, …).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Archive</span>, <span class="t-type">ArchiveEntry</span> } <span class="t-kw">from</span> <span class="t-str">'archive'</span>;
+
+<span class="t-cm">// Iterate entries of an existing archive</span>
+<span class="t-kw">const</span> <span class="t-id">ar</span> <span class="t-op">=</span> <span class="t-type">Archive</span>.<span class="t-fn">read</span>(<span class="t-str">'dist.tar.gz'</span>);
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> <span class="t-id">entry</span> <span class="t-kw">of</span> <span class="t-id">ar</span>) {
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">entry</span>.<span class="t-prop">pathname</span>, <span class="t-id">entry</span>.<span class="t-prop">size</span>, <span class="t-id">entry</span>.<span class="t-prop">mtime</span>);
+
+  <span class="t-kw">const</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">ArrayBuffer</span>(<span class="t-id">entry</span>.<span class="t-prop">size</span>);
+  <span class="t-id">ar</span>.<span class="t-fn">read</span>(<span class="t-id">buf</span>);       <span class="t-cm">// read current entry's data</span>
+}
+
+<span class="t-id">ar</span>.<span class="t-fn">close</span>();</code></pre></div>
+<ul>
+<li><strong><code>Archive</code></strong> — <code>Archive.read(file)</code> / <code>Archive.write(file)</code> open an
+archive for reading/writing. Instance: <code>next()</code> (next <code>ArchiveEntry</code>),
+<code>read(buf)</code>, <code>write(buf)</code>, <code>skip()</code>, <code>seek(offset, whence)</code>,
+<code>extract(entry[, flags])</code>, <code>filterBytes(n)</code>, <code>close()</code>,
+<code>[Symbol.iterator]()</code>; getters <code>format</code>, <code>compression</code>, <code>filters</code>,
+<code>position</code>, <code>fileCount</code>, <code>blockSize</code>, <code>hasEncryptedEntries</code>, <code>errno</code>,
+<code>error</code>.</li>
+<li><strong><code>ArchiveEntry</code></strong> — represents one archive member; read/write accessors
+for <code>pathname</code>, <code>size</code>, <code>mode</code>, <code>perm</code>, <code>filetype</code>/<code>type</code>, <code>uid</code>, <code>gid</code>,
+<code>uname</code>, <code>gname</code>, <code>atime</code>/<code>ctime</code>/<code>mtime</code>/<code>birthtime</code>, <code>symlink</code>,
+<code>hardlink</code>, <code>dev</code>/<code>rdev</code> (+ major/minor), <code>fflags</code>, <code>ino</code>, <code>nlink</code>;
+<code>isEncrypted</code>, <code>isDataEncrypted</code>, <code>isMetadataEncrypted</code>; <code>clone()</code>.</li>
+<li><strong><code>ArchiveMatch</code></strong> — <code>include()</code> / <code>exclude()</code> pattern matching for
+selective extraction.</li>
+<li>Constants on <code>Archive</code>: <code>FORMAT_*</code>, <code>FILTER_*</code>, <code>EXTRACT_*</code> (extraction
+flags like <code>EXTRACT_PERM</code>, <code>EXTRACT_TIME</code>, <code>EXTRACT_SECURE_SYMLINKS</code>),
+result codes (<code>OK</code>, <code>EOF</code>, <code>RETRY</code>, <code>WARN</code>, <code>FAILED</code>, <code>FATAL</code>),
+<code>SEEK_SET</code>/<code>SEEK_CUR</code>/<code>SEEK_END</code>, and <code>version</code>.</li>
+</ul>
+<h2 id="arraybuffer_sink"><a class="anchor" href="#arraybuffer_sink" aria-hidden="true">#</a>arraybuffer_sink</h2>
+<p>Collects a stream of writes into a single growing buffer.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">ArrayBufferSink</span> } <span class="t-kw">from</span> <span class="t-str">'arraybuffer_sink'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">sink</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">ArrayBufferSink</span>();
+<span class="t-id">sink</span>.<span class="t-fn">write</span>(<span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>([<span class="t-num">1</span>, <span class="t-num">2</span>, <span class="t-num">3</span>]));
+<span class="t-id">sink</span>.<span class="t-fn">write</span>(<span class="t-str">'more data'</span>);            <span class="t-cm">// strings and buffers accepted</span>
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">sink</span>.<span class="t-prop">size</span>);
+<span class="t-kw">const</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-id">sink</span>.<span class="t-fn">end</span>();             <span class="t-cm">// → ArrayBuffer with everything written</span></code></pre></div>
+<p>Methods: <code>write(data)</code>, <code>flush()</code>, <code>end()</code>; getter <code>size</code>.</p>
+<h2 id="bcrypt"><a class="anchor" href="#bcrypt" aria-hidden="true">#</a>bcrypt</h2>
+<p>Password hashing using the bundled libbcrypt.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">genSalt</span>, <span class="t-id">hash</span>, <span class="t-id">compare</span>, <span class="t-type">HASHSIZE</span>, <span class="t-type">SALTSIZE</span> } <span class="t-kw">from</span> <span class="t-str">'bcrypt'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">salt</span> <span class="t-op">=</span> <span class="t-fn">genSalt</span>(<span class="t-num">12</span>);            <span class="t-cm">// work factor, default 12</span>
+<span class="t-kw">const</span> <span class="t-id">digest</span> <span class="t-op">=</span> <span class="t-fn">hash</span>(<span class="t-str">'hunter2'</span>, <span class="t-id">salt</span>); <span class="t-cm">// or hash('hunter2', workFactor)</span>
+<span class="t-fn">compare</span>(<span class="t-str">'hunter2'</span>, <span class="t-id">digest</span>);          <span class="t-cm">// → true</span></code></pre></div>
+<ul>
+<li><code>genSalt([workFactor][, buffer])</code> — generate a salt string (or fill a
+supplied buffer of at least <code>HASHSIZE</code> bytes).</li>
+<li><code>hash(password, saltOrWorkFactor)</code> — returns the bcrypt digest string.</li>
+<li><code>compare(password, digest)</code> — constant-time check, returns boolean.</li>
+<li>Constants: <code>HASHSIZE</code> (64), <code>SALTSIZE</code> (29).</li>
+</ul>
+<h2 id="bjson"><a class="anchor" href="#bjson" aria-hidden="true">#</a>bjson</h2>
+<p>QuickJS's internal binary object serialization (<code>JS_ReadObject</code> /
+<code>JS_WriteObject</code>) exposed to scripts. Handles cyclic references and can
+serialize things JSON can't (typed arrays, Dates, …).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-op">*</span> <span class="t-id">as</span> <span class="t-id">bjson</span> <span class="t-kw">from</span> <span class="t-str">'bjson'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-id">bjson</span>.<span class="t-fn">write</span>({ <span class="t-id">a</span><span class="t-op">:</span> [<span class="t-num">1</span>, <span class="t-num">2</span>, <span class="t-num">3</span>] });   <span class="t-cm">// → ArrayBuffer</span>
+<span class="t-kw">const</span> <span class="t-id">obj</span> <span class="t-op">=</span> <span class="t-id">bjson</span>.<span class="t-fn">read</span>(<span class="t-id">buf</span>);                 <span class="t-cm">// → deep copy of the value</span></code></pre></div>
+<ul>
+<li><code>write(value[, flagsOrRefBool])</code> → ArrayBuffer.</li>
+<li><code>read(buffer[, , , flagsOrRefBool])</code> → value.</li>
+<li>Constants: <code>JS_READ_OBJ_BYTECODE</code>, <code>JS_READ_OBJ_REFERENCE</code>,
+<code>JS_READ_OBJ_SAB</code>, <code>JS_READ_OBJ_ROM_DATA</code>, <code>JS_WRITE_OBJ_BYTECODE</code>,
+<code>JS_WRITE_OBJ_REFERENCE</code>, <code>JS_WRITE_OBJ_SAB</code>, <code>JS_WRITE_OBJ_BSWAP</code>.
+Passing <code>true</code> instead of flags enables reference (cycle) support.</li>
+</ul>
+<h2 id="blob"><a class="anchor" href="#blob" aria-hidden="true">#</a>blob</h2>
+<p>A <a href="https://developer.mozilla.org/en-US/docs/Web/API/Blob" target="_blank" rel="noopener">W3C Blob</a>-style
+container for immutable binary data.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Blob</span> } <span class="t-kw">from</span> <span class="t-str">'blob'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">blob</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Blob</span>([<span class="t-str">'hello '</span>, <span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>([<span class="t-num">0x77</span>, <span class="t-num">0x6f</span>]), <span class="t-str">'rld'</span>],
+                      { <span class="t-id">type</span><span class="t-op">:</span> <span class="t-str">'text/plain'</span> });
+
+<span class="t-id">blob</span>.<span class="t-prop">size</span>;                  <span class="t-cm">// 11</span>
+<span class="t-kw">await</span> <span class="t-id">blob</span>.<span class="t-fn">text</span>();          <span class="t-cm">// 'hello world'</span>
+<span class="t-kw">await</span> <span class="t-id">blob</span>.<span class="t-fn">arrayBuffer</span>();   <span class="t-cm">// ArrayBuffer</span>
+<span class="t-kw">await</span> <span class="t-id">blob</span>.<span class="t-fn">bytes</span>();         <span class="t-cm">// Uint8Array</span>
+<span class="t-id">blob</span>.<span class="t-fn">slice</span>(<span class="t-num">0</span>, <span class="t-num">5</span>);           <span class="t-cm">// → new Blob</span></code></pre></div>
+<p>Constructor takes an iterable of parts (`Blob | ArrayBuffer | TypedArray |
+String<code>) and an options object with a </code>type` MIME string.</p>
+<h2 id="child_process"><a class="anchor" href="#child_process" aria-hidden="true">#</a>child_process</h2>
+<p>Spawn and manage subprocesses.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">exec</span>, <span class="t-id">execSync</span>, <span class="t-id">spawn</span>, <span class="t-id">spawnSync</span>, <span class="t-id">kill</span>, <span class="t-type">SIGINT</span> } <span class="t-kw">from</span> <span class="t-str">'child_process'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">cp</span> <span class="t-op">=</span> <span class="t-fn">spawn</span>(<span class="t-str">'ls'</span>, [<span class="t-str">'-la'</span>], {
+  <span class="t-id">cwd</span><span class="t-op">:</span> <span class="t-str">'/tmp'</span>,
+  <span class="t-id">env</span><span class="t-op">:</span> { <span class="t-type">PATH</span><span class="t-op">:</span> <span class="t-str">'/usr/bin:/bin'</span> },
+  <span class="t-id">stdio</span><span class="t-op">:</span> [<span class="t-str">'inherit'</span>, <span class="t-str">'pipe'</span>, <span class="t-str">'pipe'</span>],
+});
+
+<span class="t-id">cp</span>.<span class="t-prop">pid</span>;          <span class="t-cm">// process id</span>
+<span class="t-id">cp</span>.<span class="t-fn">wait</span>();       <span class="t-cm">// wait for termination → exit status</span>
+<span class="t-id">cp</span>.<span class="t-fn">kill</span>(<span class="t-type">SIGINT</span>); <span class="t-cm">// send a signal</span>
+
+<span class="t-id">cp</span>.<span class="t-prop">exitcode</span>;     <span class="t-cm">// exit code (or null)</span>
+<span class="t-id">cp</span>.<span class="t-prop">termsig</span>;      <span class="t-cm">// terminating signal (or null)</span>
+<span class="t-id">cp</span>.<span class="t-prop">exited</span>; <span class="t-id">cp</span>.<span class="t-prop">signaled</span>; <span class="t-id">cp</span>.<span class="t-prop">stopped</span>; <span class="t-id">cp</span>.<span class="t-prop">continued</span>;</code></pre></div>
+<ul>
+<li><code>spawn(file, args[, options])</code> / <code>spawnSync(...)</code> — start a process,
+returns a <code>ChildProcess</code>. Options: <code>cwd</code>, <code>env</code>, <code>stdio</code>
+(<code>'inherit'</code>/<code>'pipe'</code>/fd numbers, per stream), <code>usePath</code>.</li>
+<li><code>exec(file, args)</code> / <code>execSync(file, args)</code> — simple execution.</li>
+<li><code>kill(pid, signal)</code> — send a signal to any process.</li>
+<li><strong><code>ChildProcess</code></strong> properties: <code>file</code>, <code>cwd</code>, <code>args</code>, <code>env</code>, <code>stdio</code>,
+<code>pid</code>, <code>exitcode</code>, <code>termsig</code>, <code>exited</code>, <code>signaled</code>, <code>stopped</code>,
+<code>continued</code>; methods <code>wait([flags])</code>, <code>kill([signal])</code>.</li>
+<li>Constants: <code>WNOHANG</code>, <code>WNOWAIT</code>, <code>WUNTRACED</code> and signal numbers
+(<code>SIGINT</code>, <code>SIGCHLD</code>, <code>SIGSTOP</code>, <code>SIGUSR1</code>, …).</li>
+</ul>
+<h2 id="deep"><a class="anchor" href="#deep" aria-hidden="true">#</a>deep</h2>
+<p>Recursive traversal, search and manipulation of object trees. Paths are
+arrays of keys, <code>Pointer</code>s or <code>/</code>-separated strings; behaviour is controlled
+by a flags word.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-op">*</span> <span class="t-id">as</span> <span class="t-id">deep</span> <span class="t-kw">from</span> <span class="t-str">'deep'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">obj</span> <span class="t-op">=</span> { <span class="t-id">a</span><span class="t-op">:</span> { <span class="t-id">b</span><span class="t-op">:</span> { <span class="t-id">c</span><span class="t-op">:</span> <span class="t-num">42</span> } } };
+
+<span class="t-id">deep</span>.<span class="t-kw">get</span>(<span class="t-id">obj</span>, <span class="t-str">'a.b.c'</span>);                    <span class="t-cm">// 42</span>
+<span class="t-id">deep</span>.<span class="t-kw">set</span>(<span class="t-id">obj</span>, [<span class="t-str">'a'</span>, <span class="t-str">'b'</span>, <span class="t-str">'d'</span>], <span class="t-str">'hello'</span>);
+<span class="t-id">deep</span>.<span class="t-fn">unset</span>(<span class="t-id">obj</span>, <span class="t-str">'a.b.c'</span>);
+<span class="t-id">deep</span>.<span class="t-fn">equals</span>(<span class="t-id">x</span>, <span class="t-id">y</span>);                         <span class="t-cm">// deep equality</span>
+<span class="t-id">deep</span>.<span class="t-fn">clone</span>(<span class="t-id">obj</span>);                           <span class="t-cm">// deep copy</span>
+
+<span class="t-cm">// find first value matching a predicate; select() finds all</span>
+<span class="t-id">deep</span>.<span class="t-fn">find</span>(<span class="t-id">obj</span>, (<span class="t-id">v</span>, <span class="t-id">path</span>) <span class="t-op">=&gt;</span> <span class="t-id">v</span> <span class="t-op">===</span> <span class="t-num">42</span>, <span class="t-id">deep</span>.<span class="t-type">RETURN_PATH</span>);
+<span class="t-id">deep</span>.<span class="t-fn">select</span>(<span class="t-id">obj</span>, <span class="t-id">v</span> <span class="t-op">=&gt;</span> <span class="t-kw">typeof</span> <span class="t-id">v</span> <span class="t-op">==</span> <span class="t-str">'number'</span>);
+
+<span class="t-cm">// lazy traversal</span>
+<span class="t-kw">for</span>(<span class="t-kw">const</span> [<span class="t-id">value</span>, <span class="t-id">path</span>] <span class="t-kw">of</span> <span class="t-id">deep</span>.<span class="t-fn">iterate</span>(<span class="t-id">obj</span>, <span class="t-atom">null</span>, <span class="t-id">deep</span>.<span class="t-type">RETURN_VALUE_PATH</span>))
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">path</span>, <span class="t-id">value</span>);
+
+<span class="t-id">deep</span>.<span class="t-fn">flatten</span>(<span class="t-id">obj</span>);              <span class="t-cm">// → map of path → leaf value</span>
+<span class="t-id">deep</span>.<span class="t-fn">pathOf</span>(<span class="t-id">obj</span>, <span class="t-id">needleValue</span>);  <span class="t-cm">// → path of a value</span>
+<span class="t-id">deep</span>.<span class="t-fn">forEach</span>(<span class="t-id">obj</span>, (<span class="t-id">v</span>, <span class="t-id">path</span>) <span class="t-op">=&gt;</span> ...);</code></pre></div>
+<ul>
+<li><strong><code>DeepIterator</code></strong> — the iterator class behind <code>iterate()</code>; also
+constructible directly, with <code>next()</code>, <code>skip()</code>, <code>leave()</code>, <code>path</code>.</li>
+<li>Flags (combinable, exported as constants): what to yield
+(<code>RETURN_VALUE</code>, <code>RETURN_PATH</code>, <code>RETURN_VALUE_PATH</code>,
+<code>RETURN_PATH_VALUE</code>), path representation (<code>PATH_AS_ARRAY</code>,
+<code>PATH_AS_STRING</code>, <code>PATH_AS_POINTER</code>), traversal control (<code>RECURSE</code>,
+<code>NO_RECURSE</code>, <code>YIELD</code>, <code>YIELD_NO_RECURSE</code>), filtering (<code>FILTER_KEY_OF</code>,
+<code>FILTER_HAS_KEY</code>, <code>FILTER_NEGATE</code>, <code>NO_THROW</code>) and type masks
+(<code>TYPE_OBJECT</code>, <code>TYPE_STRING</code>, <code>TYPE_NUMBER</code>, <code>TYPE_ARRAY</code>,
+<code>TYPE_FUNCTION</code>, <code>TYPE_PRIMITIVE</code>, <code>TYPE_ALL</code>, …). The low 24 bits of the
+flags word are the maximum depth.</li>
+</ul>
+<h2 id="directory"><a class="anchor" href="#directory" aria-hidden="true">#</a>directory</h2>
+<p>Low-level directory reader built directly on the <code>getdents(2)</code> syscall (no
+libc <code>readdir</code>), usable as an iterator.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Directory</span> } <span class="t-kw">from</span> <span class="t-str">'directory'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">dir</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Directory</span>(<span class="t-str">'.'</span>);           <span class="t-cm">// or new Directory(fd)</span>
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> [<span class="t-id">name</span>, <span class="t-id">type</span>] <span class="t-kw">of</span> <span class="t-id">dir</span>)
+  <span class="t-kw">if</span>(<span class="t-id">type</span> <span class="t-op">==</span> <span class="t-type">Directory</span>.<span class="t-type">TYPE_REG</span>)
+    <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">name</span>);</code></pre></div>
+<ul>
+<li>Constructor: <code>new Directory(pathOrFd[, flags])</code>. Flags select what each
+iteration yields: <code>Directory.NAME</code>, <code>Directory.TYPE</code> or <code>Directory.BOTH</code>
+(default; yields <code>[name, type]</code>).</li>
+<li>Methods: <code>open(path)</code>, <code>adopt(fd)</code>, <code>close()</code>, <code>next()</code>, <code>valueOf()</code> (the
+fd), plus the iterator protocol.</li>
+<li>Entry type constants: <code>TYPE_REG</code>, <code>TYPE_DIR</code>, <code>TYPE_LNK</code>, <code>TYPE_BLK</code>,
+<code>TYPE_CHR</code>, <code>TYPE_FIFO</code>, <code>TYPE_SOCK</code>, <code>TYPE_MASK</code>.</li>
+</ul>
+<h2 id="gpio"><a class="anchor" href="#gpio" aria-hidden="true">#</a>gpio</h2>
+<p>Memory-mapped GPIO register access (Raspberry Pi style, via <code>/dev/gpiomem</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">GPIO</span> } <span class="t-kw">from</span> <span class="t-str">'gpio'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">gpio</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">GPIO</span>();
+<span class="t-id">gpio</span>.<span class="t-fn">initPin</span>(<span class="t-num">17</span>, <span class="t-type">GPIO</span>.<span class="t-type">OUTPUT</span>);
+<span class="t-id">gpio</span>.<span class="t-fn">setPin</span>(<span class="t-num">17</span>, <span class="t-type">GPIO</span>.<span class="t-type">HIGH</span>);
+<span class="t-id">gpio</span>.<span class="t-fn">getPin</span>(<span class="t-num">17</span>);                <span class="t-cm">// → 0 | 1</span>
+<span class="t-id">gpio</span>.<span class="t-prop">buffer</span>;                    <span class="t-cm">// raw register ArrayBuffer</span></code></pre></div>
+<p>Constants: <code>INPUT</code>, <code>OUTPUT</code>, <code>LOW</code>, <code>HIGH</code>.</p>
+<h2 id="inspect"><a class="anchor" href="#inspect" aria-hidden="true">#</a>inspect</h2>
+<p>Pretty-printer for arbitrary JS values, modeled on Node's <code>util.inspect</code>.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-id">inspect</span> <span class="t-kw">from</span> <span class="t-str">'inspect'</span>;
+
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-fn">inspect</span>(<span class="t-id">value</span>, {
+  <span class="t-id">depth</span><span class="t-op">:</span> <span class="t-num">4</span>,
+  <span class="t-id">colors</span><span class="t-op">:</span> <span class="t-atom">true</span>,
+  <span class="t-id">compact</span><span class="t-op">:</span> <span class="t-num">2</span>,
+  <span class="t-id">showHidden</span><span class="t-op">:</span> <span class="t-atom">false</span>,
+  <span class="t-id">customInspect</span><span class="t-op">:</span> <span class="t-atom">true</span>,     <span class="t-cm">// honors [Symbol.inspect] methods</span>
+  <span class="t-id">getters</span><span class="t-op">:</span> <span class="t-atom">false</span>,
+  <span class="t-id">reparseable</span><span class="t-op">:</span> <span class="t-atom">false</span>,      <span class="t-cm">// output re-evaluatable source</span>
+  <span class="t-id">maxArrayLength</span><span class="t-op">:</span> <span class="t-num">100</span>,
+  <span class="t-id">maxStringLength</span><span class="t-op">:</span> <span class="t-atom">Infinity</span>,
+  <span class="t-id">breakLength</span><span class="t-op">:</span> <span class="t-num">80</span>,
+  <span class="t-id">protoChain</span><span class="t-op">:</span> <span class="t-num">1</span>,
+}));</code></pre></div>
+<p>Objects can customize their output by defining a <code>[Symbol.inspect]</code> method.</p>
+<h2 id="json"><a class="anchor" href="#json" aria-hidden="true">#</a>json</h2>
+<p>JSON reader/writer with source-location error reporting, plus an
+incremental parser class.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">read</span>, <span class="t-id">write</span>, <span class="t-type">JsonParser</span> } <span class="t-kw">from</span> <span class="t-str">'json'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">value</span> <span class="t-op">=</span> <span class="t-fn">read</span>(<span class="t-str">'{"a": [1,2,3]}'</span>, <span class="t-str">'input.json'</span>);  <span class="t-cm">// filename for errors</span>
+<span class="t-kw">const</span> <span class="t-id">text</span> <span class="t-op">=</span> <span class="t-fn">write</span>(<span class="t-id">value</span>);
+
+<span class="t-kw">const</span> <span class="t-id">parser</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">JsonParser</span>(...);
+<span class="t-id">parser</span>.<span class="t-fn">parse</span>(...);
+<span class="t-id">parser</span>.<span class="t-prop">pos</span>; <span class="t-id">parser</span>.<span class="t-prop">token</span>; <span class="t-id">parser</span>.<span class="t-prop">state</span>; <span class="t-id">parser</span>.<span class="t-prop">depth</span>; <span class="t-id">parser</span>.<span class="t-prop">callback</span>;</code></pre></div>
+<h2 id="lexer"><a class="anchor" href="#lexer" aria-hidden="true">#</a>lexer</h2>
+<p>A rule-based tokenizer: define token rules as regular expressions, get
+<code>Token</code> objects with precise source locations. Used by the parser libraries
+in <code>lib/</code>.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Lexer</span>, <span class="t-type">Token</span> } <span class="t-kw">from</span> <span class="t-str">'lexer'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">lex</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Lexer</span>(<span class="t-id">source</span>, <span class="t-type">Lexer</span>.<span class="t-type">FIRST</span>, <span class="t-str">'file.js'</span>);
+
+<span class="t-id">lex</span>.<span class="t-fn">define</span>(<span class="t-str">'name'</span>, <span class="t-op">/</span><span class="t-id">regexp</span><span class="t-op">/</span>);   <span class="t-cm">// named sub-expressions</span>
+<span class="t-id">lex</span>.<span class="t-fn">addRule</span>(<span class="t-str">'identifier'</span>, <span class="t-op">/</span>[<span class="t-type">A</span><span class="t-op">-</span><span class="t-type">Za</span><span class="t-op">-</span><span class="t-id">z_</span>][<span class="t-type">A</span><span class="t-op">-</span><span class="t-type">Za</span><span class="t-op">-</span><span class="t-id">z0</span><span class="t-op">-</span><span class="t-num">9_</span>]<span class="t-op">*/</span>);
+<span class="t-id">lex</span>.<span class="t-fn">addRule</span>(<span class="t-str">'number'</span>, <span class="t-op">/</span>[<span class="t-num">0</span><span class="t-op">-</span><span class="t-num">9</span>]<span class="t-op">+/</span>);
+<span class="t-id">lex</span>.<span class="t-fn">addRule</span>(<span class="t-str">'ws'</span>, <span class="t-op">/</span>[ \<span class="t-id">t</span>\<span class="t-id">r</span>\<span class="t-id">n</span>]<span class="t-op">+/</span>);
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> <span class="t-id">tok</span> <span class="t-kw">of</span> <span class="t-id">lex</span>)
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">tok</span>.<span class="t-prop">type</span>, <span class="t-id">tok</span>.<span class="t-prop">lexeme</span>, <span class="t-str">`${tok.loc}`</span>);</code></pre></div>
+<ul>
+<li><strong><code>Lexer</code></strong> — constructor <code>new Lexer(input[, mode][, filename])</code>; mode is
+<code>Lexer.FIRST</code>, <code>Lexer.LONGEST</code> or <code>Lexer.LAST</code> (rule-matching strategy),
+optionally OR'ed with <code>YIELD_ID</code> / <code>YIELD_OBJ</code>. Rule management
+(<code>define</code>, <code>addRule</code>, <code>getRule</code>, <code>ruleNames</code>, <code>rules</code>), lexing
+(<code>next</code>/<code>nextToken</code>, <code>peek</code>/<code>peekToken</code>, <code>skipBytes</code>, <code>skipChars</code>,
+<code>skipToken</code>, <code>skipUntil</code>, <code>back</code>, <code>lex</code>, <code>tokens</code>, iterator protocol),
+start-condition states (<code>pushState</code>/<code>begin</code>, <code>popState</code>, <code>topState</code>,
+<code>states</code>, <code>stateDepth</code>, <code>stateStack</code>), position info (<code>loc</code>, <code>charPos</code>,
+<code>bytePos</code>, <code>currentLine</code>, <code>eof</code>, <code>fileName</code>, <code>input</code>, <code>lexeme</code>).
+Statics: <code>escape</code>, <code>unescape</code>, <code>toString</code>, <code>fromFile</code>.</li>
+<li><strong><code>Token</code></strong> — <code>id</code>, <code>type</code> (rule name), <code>lexeme</code>, <code>loc</code> (a <code>Location</code>),
+<code>charRange</code>/<code>byteRange</code>, <code>charLength</code>/<code>byteLength</code>, <code>seq</code>, <code>rule</code>,
+<code>lexer</code>.</li>
+<li>Also re-exports <strong><code>Location</code></strong> (see <a href="#location">location</a>).</li>
+</ul>
+<h2 id="list"><a class="anchor" href="#list" aria-hidden="true">#</a>list</h2>
+<p>A doubly-linked list with the full <code>Array</code> method repertoire, plus C++-style
+iterators that stay valid across mutation.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">List</span> } <span class="t-kw">from</span> <span class="t-str">'list'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">l</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">List</span>([<span class="t-num">1</span>, <span class="t-num">2</span>, <span class="t-num">3</span>]);
+<span class="t-id">l</span>.<span class="t-fn">push</span>(<span class="t-num">4</span>); <span class="t-id">l</span>.<span class="t-fn">unshift</span>(<span class="t-num">0</span>);
+<span class="t-id">l</span>.<span class="t-fn">splice</span>(<span class="t-num">2</span>, <span class="t-num">1</span>);
+<span class="t-id">l</span>.<span class="t-fn">sort</span>((<span class="t-id">a</span>, <span class="t-id">b</span>) <span class="t-op">=&gt;</span> <span class="t-id">a</span> <span class="t-op">-</span> <span class="t-id">b</span>);
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> <span class="t-id">v</span> <span class="t-kw">of</span> <span class="t-id">l</span>) <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">v</span>);
+
+<span class="t-kw">const</span> <span class="t-id">it</span> <span class="t-op">=</span> <span class="t-id">l</span>.<span class="t-fn">begin</span>();      <span class="t-cm">// ListIterator; also end(), rbegin(), rend()</span>
+<span class="t-id">l</span>.<span class="t-fn">insert</span>(<span class="t-id">it</span>, <span class="t-num">42</span>);
+<span class="t-id">l</span>.<span class="t-fn">erase</span>(<span class="t-id">it</span>);</code></pre></div>
+<ul>
+<li><strong><code>List</code></strong> — <code>push</code>, <code>pop</code>, <code>shift</code>, <code>unshift</code>, <code>at</code>, <code>includes</code>,
+<code>indexOf</code>, <code>lastIndexOf</code>, <code>find</code>, <code>findLast</code>, <code>findIndex</code>,
+<code>findLastIndex</code>, <code>concat</code>, <code>slice</code>, <code>splice</code>, <code>fill</code>, <code>reverse</code>,
+<code>toReversed</code>, <code>rotate</code>, <code>every</code>, <code>some</code>, <code>filter</code>, <code>map</code>, <code>forEach</code>,
+<code>reduce</code>, <code>reduceRight</code>, <code>sort</code>, <code>unique</code>, <code>merge</code>, <code>clear</code>, <code>keys</code>,
+<code>values</code>, <code>entries</code>, <code>length</code>; iterator accessors <code>begin</code>, <code>end</code>,
+<code>rbegin</code>, <code>rend</code>, <code>insert</code>, <code>insertBefore</code>, <code>erase</code>. Statics: <code>from</code>,
+<code>of</code>, <code>isList</code>.</li>
+<li><strong><code>ListIterator</code></strong> — bidirectional iterator; <code>next()</code>, <code>equals()</code>,
+<code>copy()</code>, <code>isAccessible</code>, <code>container</code>, <code>type</code>.</li>
+<li><strong><code>ListNode</code></strong> — a single node; <code>value</code>, <code>prev</code>, <code>next</code>, <code>linked</code>,
+<code>sentinel</code>, <code>equals()</code>, <code>valueOf()</code>.</li>
+</ul>
+<h2 id="location"><a class="anchor" href="#location" aria-hidden="true">#</a>location</h2>
+<p>A source position — file, line, column — as used by <a href="#lexer">lexer</a>,
+<a href="#json">json</a> and <a href="#xml">xml</a>.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Location</span> } <span class="t-kw">from</span> <span class="t-str">'location'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">loc</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Location</span>(<span class="t-str">'file.js'</span>, <span class="t-num">10</span>, <span class="t-num">4</span>);
+<span class="t-id">loc</span>.<span class="t-prop">file</span>; <span class="t-id">loc</span>.<span class="t-prop">line</span>; <span class="t-id">loc</span>.<span class="t-prop">column</span>;
+<span class="t-id">loc</span>.<span class="t-prop">charOffset</span>; <span class="t-id">loc</span>.<span class="t-prop">byteOffset</span>;
+<span class="t-str">`${loc}`</span>;                       <span class="t-cm">// 'file.js:10:4'</span>
+<span class="t-id">loc</span>.<span class="t-fn">clone</span>(); <span class="t-id">loc</span>.<span class="t-fn">equal</span>(<span class="t-id">other</span>);</code></pre></div>
+<h2 id="magic"><a class="anchor" href="#magic" aria-hidden="true">#</a>magic</h2>
+<p>File type detection using
+<a href="https://www.darwinsys.com/file/" target="_blank" rel="noopener">libmagic</a> (the library behind <code>file(1)</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Magic</span> } <span class="t-kw">from</span> <span class="t-str">'magic'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">m</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Magic</span>(<span class="t-type">Magic</span>.<span class="t-type">MIME_TYPE</span>);   <span class="t-cm">// flags, then optional db paths</span>
+<span class="t-id">m</span>.<span class="t-fn">file</span>(<span class="t-str">'picture.png'</span>);                  <span class="t-cm">// 'image/png'</span>
+<span class="t-id">m</span>.<span class="t-fn">buffer</span>(<span class="t-id">arrayBuffer</span>);                  <span class="t-cm">// detect from memory</span>
+<span class="t-id">m</span>.<span class="t-fn">descriptor</span>(<span class="t-id">fd</span>);                       <span class="t-cm">// detect from open fd</span></code></pre></div>
+<p>Methods: <code>file(path)</code>, <code>buffer(buf)</code>, <code>descriptor(fd)</code>, <code>check(path)</code>,
+<code>compile(path)</code>, <code>list(path)</code>, <code>load(path)</code>, <code>getflags()</code>/<code>setflags()</code>,
+<code>getparam()</code>/<code>setparam()</code>, <code>version()</code>, <code>error</code>, <code>errno</code>.
+Constants: <code>MIME_TYPE</code>, <code>MIME_ENCODING</code>, <code>MIME</code>, <code>SYMLINK</code>, <code>COMPRESS</code>,
+<code>DEVICES</code>, <code>CONTINUE</code>, <code>RAW</code>, <code>EXTENSION</code>, <code>NO_CHECK_*</code>, <code>PARAM_*</code>,
+<code>DEFAULT_DB</code>, <code>VERSION</code>, ….</p>
+<h2 id="misc"><a class="anchor" href="#misc" aria-hidden="true">#</a>misc</h2>
+<p>A large grab-bag of utilities. Highlights, by area:</p>
+<p><strong>Files &amp; processes</strong> —
+<code>realpath</code>, <code>tempnam</code>, <code>mkstemp</code>, <code>fnmatch</code>, <code>glob</code>, <code>wordexp</code>, <code>watch</code>
+(inotify), <code>daemon</code>, <code>fork</code>, <code>vfork</code>, <code>exec</code>, <code>kill</code>, <code>setsid</code>, <code>unlink</code>,
+<code>link(at)</code>, <code>symlink(at)</code>, <code>chmod</code>/<code>fchmod</code>, <code>chown</code>/<code>fchown</code>/<code>lchown</code>,
+<code>fsync</code>, <code>fdatasync</code>, <code>truncate</code>/<code>ftruncate</code>, <code>utime(s)</code>, <code>access</code>,
+<code>fcntl</code>, <code>fstat</code>, <code>ioctl</code>, <code>ttySetRaw</code>.</p>
+<p><strong>Process/system info</strong> —
+<code>getpid</code>, <code>getppid</code>, <code>gettid</code>, <code>getsid</code>, <code>getuid</code>/<code>geteuid</code>/<code>setuid</code>/…,
+<code>getgid</code>/<code>getegid</code>/…, <code>hrtime</code>, <code>uname</code>, <code>getRelease</code>, <code>getExecutable</code>,
+<code>getWorkingDirectory</code>, <code>getRootDirectory</code>, <code>getCommandLine</code>,
+<code>getEnvironment</code>, <code>getProcStat</code>, <code>getProcMaps</code>, <code>getProcMounts</code>,
+<code>getPerformanceCounter</code>, <code>getFileDescriptor</code>.</p>
+<p><strong>Terminal</strong> —
+<code>getScreenSize</code>, <code>clearScreen</code>, <code>clearLine</code>, <code>setCursorPosition</code>,
+<code>moveCursor</code>, <code>setTextAttribute</code>, <code>setTextColor</code>,
+<code>getConsoleMode</code>/<code>setConsoleMode</code>.</p>
+<p><strong>Buffers &amp; strings</strong> —
+<code>toString</code>, <code>toArrayBuffer</code>, <code>toPointer</code>, <code>dupArrayBuffer</code>,
+<code>sliceArrayBuffer</code>, <code>resizeArrayBuffer</code>, <code>concatArrayBuffer</code>,
+<code>copyArrayBuffer</code>, <code>compareArrayBuffer</code>, <code>searchArrayBuffer</code>/<code>search</code>,
+<code>fmemopen</code>, <code>strcmp</code>, <code>charCode</code>, <code>charLength</code>, <code>btoa</code>/<code>atob</code>,
+<code>escape</code>/<code>unescape</code>, <code>quote</code>/<code>dequote</code>, bit helpers (<code>and</code>, <code>or</code>, <code>xor</code>,
+<code>not</code>, <code>bits</code>, <code>bitfieldSet</code>, <code>bitfieldToArray</code>, <code>arrayToBitfield</code>).</p>
+<p><strong>Engine introspection</strong> —
+<code>valueType</code>, <code>typeName</code>, <code>valueTag</code>, <code>valuePointer</code>, <code>objectClassId</code>,
+<code>objectRefCount</code>, <code>objectOpaque</code>, <code>className</code>, <code>classId</code>, <code>classAtom</code>,
+<code>stringPointer</code>, <code>stringLength</code>, <code>stringBuffer</code>, atom functions
+(<code>findAtom</code>, <code>atomToString</code>, <code>valueToAtom</code>, …), <code>getPrototypeChain</code>,
+<code>getOpCodes</code>, <code>getByteCode</code>, <code>writeObject</code>/<code>readObject</code>/<code>evalBinary</code>,
+<code>promiseState</code>/<code>promiseResult</code>, <code>immutableClass</code>, <code>enqueueJob</code>,
+<code>atexit</code>, <code>rand</code>/<code>randi</code>/<code>randb</code>/<code>srand</code>, and a full set of <code>is*</code>
+type-testing functions (<code>isArray</code>, <code>isBigInt</code>, <code>isCFunction</code>,
+<code>isConstructor</code>, <code>isError</code>, <code>isInstanceOf</code>, <code>isNull</code>, <code>isNumber</code>, …).</p>
+<h2 id="mmap"><a class="anchor" href="#mmap" aria-hidden="true">#</a>mmap</h2>
+<p>Memory-map files (or anonymous memory) as ArrayBuffers.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">mmap</span>, <span class="t-id">munmap</span>, <span class="t-id">msync</span>, <span class="t-type">PROT_READ</span>, <span class="t-type">PROT_WRITE</span>, <span class="t-type">MAP_SHARED</span> } <span class="t-kw">from</span> <span class="t-str">'mmap'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-fn">mmap</span>(<span class="t-atom">null</span>, <span class="t-id">size</span>, <span class="t-type">PROT_READ</span> <span class="t-op">|</span> <span class="t-type">PROT_WRITE</span>, <span class="t-type">MAP_SHARED</span>, <span class="t-id">fd</span>, <span class="t-num">0</span>);
+<span class="t-cm">// ... use buf like any ArrayBuffer ...</span>
+<span class="t-fn">msync</span>(<span class="t-id">buf</span>);
+<span class="t-fn">munmap</span>(<span class="t-id">buf</span>);      <span class="t-cm">// detaches the ArrayBuffer</span></code></pre></div>
+<ul>
+<li><code>mmap(addr, length[, prot[, flags[, fd[, offset]]]])</code> — defaults:
+<code>PROT_READ|PROT_WRITE</code>, <code>MAP_ANONYMOUS</code>, <code>fd = -1</code>.</li>
+<li><code>munmap(buf)</code>, <code>msync(buf[, length[, flags]])</code>,
+<code>mprotect(buf, length, prot)</code>, <code>filename(buf)</code>, <code>toString(buf)</code>.</li>
+<li>Constants: <code>PROT_*</code> (<code>READ</code>, <code>WRITE</code>, <code>EXEC</code>, <code>NONE</code>, …) and <code>MAP_*</code>
+(<code>SHARED</code>, <code>PRIVATE</code>, <code>ANONYMOUS</code>, <code>FIXED</code>, <code>LOCKED</code>, <code>POPULATE</code>, …).</li>
+</ul>
+<h2 id="mysql"><a class="anchor" href="#mysql" aria-hidden="true">#</a>mysql</h2>
+<p>Non-blocking MySQL/MariaDB client. All I/O methods return promises
+(using the MariaDB async API).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">MySQL</span> } <span class="t-kw">from</span> <span class="t-str">'mysql'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">db</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">MySQL</span>();
+<span class="t-kw">await</span> <span class="t-id">db</span>.<span class="t-fn">connect</span>({ <span class="t-id">host</span><span class="t-op">:</span> <span class="t-str">'localhost'</span>, <span class="t-id">user</span><span class="t-op">:</span> <span class="t-str">'me'</span>, <span class="t-id">password</span><span class="t-op">:</span> <span class="t-str">'s3cret'</span>,
+                   <span class="t-id">db</span><span class="t-op">:</span> <span class="t-str">'mydb'</span>, <span class="t-id">port</span><span class="t-op">:</span> <span class="t-num">3306</span> });
+<span class="t-cm">// or: connect(host, user, password, db, port, socket, flags)</span>
+
+<span class="t-id">db</span>.<span class="t-prop">resultType</span> <span class="t-op">=</span> <span class="t-type">MySQL</span>.<span class="t-type">RESULT_OBJECT</span>;   <span class="t-cm">// rows as objects (or RESULT_STRING)</span>
+
+<span class="t-kw">const</span> <span class="t-id">res</span> <span class="t-op">=</span> <span class="t-kw">await</span> <span class="t-id">db</span>.<span class="t-fn">query</span>(<span class="t-str">`SELECT * FROM users`</span>);   <span class="t-cm">// → MySQLResult</span>
+
+<span class="t-kw">for</span> <span class="t-kw">await</span>(<span class="t-kw">const</span> <span class="t-id">row</span> <span class="t-kw">of</span> <span class="t-id">res</span>)
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">row</span>);
+
+<span class="t-id">db</span>.<span class="t-fn">close</span>();</code></pre></div>
+<ul>
+<li><strong><code>MySQL</code></strong> — <code>connect(...)</code>, <code>query(sql)</code>/<code>execute(sql)</code>, <code>close()</code>,
+<code>escapeString(s)</code>, <code>getOption</code>/<code>setOption</code>; getters <code>errno</code>, <code>error</code>,
+<code>info</code>, <code>insertId</code>, <code>affectedRows</code>, <code>warningCount</code>, <code>fieldCount</code>,
+<code>moreResults</code>, <code>fd</code>, <code>charset</code>, <code>timeout</code>, <code>serverName</code>, <code>serverInfo</code>,
+<code>serverVersion</code>, <code>user</code>, <code>host</code>, <code>port</code>, <code>db</code>, <code>status</code>, <code>pending</code>.
+Statics: <code>escapeString</code>, <code>valueString</code>, <code>valuesString</code>, <code>insertQuery</code>,
+<code>clientInfo</code>, <code>clientVersion</code>, <code>threadSafe</code>.</li>
+<li><strong><code>MySQLResult</code></strong> — <code>fetchRow()</code>, <code>fetchAssoc()</code>, <code>fetchField(i)</code>,
+<code>fetchFields()</code>, <code>next()</code>, <code>numRows</code>, <code>numFields</code>, <code>eof</code>; sync and async
+iterable.</li>
+<li><strong><code>MySQLError</code></strong> — error class used for failures.</li>
+<li>Constants: <code>RESULT_OBJECT</code>/<code>RESULT_STRING</code>/<code>RESULT_TBLNAM</code>, <code>OPT_*</code>
+connection options, <code>STATUS_*</code>.</li>
+</ul>
+<h2 id="path"><a class="anchor" href="#path" aria-hidden="true">#</a>path</h2>
+<p>Path manipulation and filesystem predicates.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-op">*</span> <span class="t-id">as</span> <span class="t-id">path</span> <span class="t-kw">from</span> <span class="t-str">'path'</span>;
+
+<span class="t-id">path</span>.<span class="t-fn">join</span>(<span class="t-str">'a'</span>, <span class="t-str">'b'</span>, <span class="t-str">'c.js'</span>);      <span class="t-cm">// 'a/b/c.js'</span>
+<span class="t-id">path</span>.<span class="t-fn">basename</span>(<span class="t-str">'/foo/bar.txt'</span>);    <span class="t-cm">// 'bar.txt'</span>
+<span class="t-id">path</span>.<span class="t-fn">dirname</span>(<span class="t-str">'/foo/bar.txt'</span>);     <span class="t-cm">// '/foo'</span>
+<span class="t-id">path</span>.<span class="t-fn">extname</span>(<span class="t-str">'file.txt'</span>);         <span class="t-cm">// '.txt'</span>
+<span class="t-id">path</span>.<span class="t-fn">resolve</span>(<span class="t-str">'rel/path'</span>);         <span class="t-cm">// absolute path</span>
+<span class="t-id">path</span>.<span class="t-fn">normalize</span>(<span class="t-str">'a//b/../c'</span>);      <span class="t-cm">// 'a/c'</span>
+<span class="t-id">path</span>.<span class="t-fn">relative</span>(<span class="t-str">'/from'</span>, <span class="t-str">'/to'</span>);
+<span class="t-id">path</span>.<span class="t-fn">parse</span>(<span class="t-str">'/a/b.c'</span>);             <span class="t-cm">// { root, dir, base, ext, name }</span>
+<span class="t-id">path</span>.<span class="t-fn">format</span>({ <span class="t-id">dir</span><span class="t-op">:</span> <span class="t-str">'/a'</span>, <span class="t-id">base</span><span class="t-op">:</span> <span class="t-str">'b.c'</span> });</code></pre></div>
+<p>Also: <code>absolute</code>, <code>canonical</code>, <code>realpath</code>, <code>readlink</code>, <code>exists</code>,
+<code>isAbsolute</code>, <code>isRelative</code>, <code>isDirectory</code>, <code>isFile</code>, <code>isSymlink</code>,
+<code>isCharDev</code>, <code>isBlockDev</code>, <code>isFIFO</code>, <code>isSocket</code>, <code>isSeparator</code>,
+<code>getcwd</code>, <code>gethome</code>, <code>getsep</code>, <code>components</code>, <code>at</code>, <code>length</code>, <code>right</code>,
+<code>skip</code>, <code>skipSeparator</code>, <code>search</code>, <code>slice</code>, <code>fnmatch</code>, and the
+constants <code>sep</code>, <code>delimiter</code>, <code>FNM_*</code>.</p>
+<h2 id="pgsql"><a class="anchor" href="#pgsql" aria-hidden="true">#</a>pgsql</h2>
+<p>Non-blocking PostgreSQL client on libpq; I/O methods return promises.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">PGconn</span> } <span class="t-kw">from</span> <span class="t-str">'pgsql'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">pg</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">PGconn</span>();
+<span class="t-kw">await</span> <span class="t-id">pg</span>.<span class="t-fn">connect</span>(<span class="t-str">'host=localhost dbname=mydb user=me'</span>); <span class="t-cm">// conninfo string</span>
+
+<span class="t-kw">const</span> <span class="t-id">res</span> <span class="t-op">=</span> <span class="t-kw">await</span> <span class="t-id">pg</span>.<span class="t-fn">query</span>(<span class="t-str">`SELECT * FROM users`</span>);      <span class="t-cm">// → PGresult</span>
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> <span class="t-id">row</span> <span class="t-kw">of</span> <span class="t-id">res</span>)
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">row</span>);
+
+<span class="t-id">pg</span>.<span class="t-fn">close</span>();</code></pre></div>
+<ul>
+<li><strong><code>PGconn</code></strong> — <code>connect(conninfo)</code>, <code>query(sql)</code>/<code>execute(sql)</code>,
+<code>close()</code>, escaping helpers (<code>escapeString</code>, <code>escapeLiteral</code>,
+<code>escapeIdentifier</code>, <code>escapeBytea</code>, <code>unescapeBytea</code>), SQL builders
+(<code>valueString</code>, <code>valuesString</code>, <code>insertQuery</code>); getters <code>fd</code>,
+<code>errorMessage</code>, <code>cmdTuples</code>/<code>affectedRows</code>, <code>insertId</code>, <code>nonblocking</code>,
+<code>options</code>, <code>conninfo</code>, <code>charset</code>, <code>protocolVersion</code>, <code>serverVersion</code>,
+<code>user</code>, <code>password</code>, <code>host</code>, <code>port</code>, <code>db</code>. Statics: <code>escapeString</code>,
+<code>escapeBytea</code>, <code>unescapeBytea</code>.</li>
+<li><strong><code>PGresult</code></strong> — <code>fetchRow()</code>, <code>fetchAssoc()</code>, <code>fetchField(i)</code>,
+<code>fetchFields()</code>, <code>next()</code>, <code>numRows</code>, <code>numFields</code>, <code>eof</code>; iterable.</li>
+<li><strong><code>PGerror</code></strong> — error class.</li>
+<li>Constants: <code>RESULT_OBJECT</code>, <code>RESULT_STRING</code>, <code>RESULT_TBLNAM</code>.</li>
+</ul>
+<h2 id="pointer"><a class="anchor" href="#pointer" aria-hidden="true">#</a>pointer</h2>
+<p>A path into an object graph (like a JSON Pointer), with path algebra.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Pointer</span> } <span class="t-kw">from</span> <span class="t-str">'pointer'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">p</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Pointer</span>(<span class="t-str">'a.b.c'</span>);          <span class="t-cm">// or ['a','b','c'] or '/a/b/c'</span>
+<span class="t-id">p</span>.<span class="t-fn">deref</span>(<span class="t-id">obj</span>);                            <span class="t-cm">// walk obj along the path</span>
+<span class="t-id">p</span>.<span class="t-fn">toArray</span>();                             <span class="t-cm">// ['a','b','c']</span>
+<span class="t-str">`${p}`</span>;                                  <span class="t-cm">// string form</span>
+
+<span class="t-id">p</span>.<span class="t-fn">concat</span>(<span class="t-id">other</span>); <span class="t-id">p</span>.<span class="t-fn">slice</span>(<span class="t-num">1</span>); <span class="t-id">p</span>.<span class="t-fn">up</span>(); <span class="t-id">p</span>.<span class="t-fn">down</span>(<span class="t-str">'d'</span>);
+<span class="t-id">p</span>.<span class="t-fn">startsWith</span>(<span class="t-id">q</span>); <span class="t-id">p</span>.<span class="t-fn">endsWith</span>(<span class="t-id">q</span>); <span class="t-id">p</span>.<span class="t-fn">common</span>(<span class="t-id">q</span>); <span class="t-id">p</span>.<span class="t-fn">relativeTo</span>(<span class="t-id">q</span>);
+<span class="t-id">p</span>.<span class="t-fn">equal</span>(<span class="t-id">q</span>); <span class="t-id">p</span>.<span class="t-fn">compare</span>(<span class="t-id">q</span>);</code></pre></div>
+<ul>
+<li><strong><code>Pointer</code></strong> — array-like ops (<code>push</code>, <code>pop</code>, <code>shift</code>, <code>unshift</code>, <code>at</code>,
+<code>slice</code>, <code>splice</code>, <code>concat</code>, <code>values</code>, <code>length</code>, iterator), navigation
+(<code>up</code>, <code>down</code>, <code>truncate</code>, <code>hier</code>), comparison (<code>equal</code>, <code>compare</code>,
+<code>common</code>, <code>relativeTo</code>, <code>startsWith</code>, <code>endsWith</code>), <code>deref(obj)</code>;
+getters <code>path</code>, <code>atoms</code>. Statics: <code>from</code>, <code>of</code>, <code>fromAtoms</code>, <code>ofAtoms</code>,
+<code>isPointer</code>.</li>
+<li><strong><code>DereferenceError</code></strong> — thrown when <code>deref()</code> fails; carries <code>pointer</code>,
+<code>root</code> and <code>pos</code> of the failure.</li>
+</ul>
+<h2 id="predicate"><a class="anchor" href="#predicate" aria-hidden="true">#</a>predicate</h2>
+<p>Composable, callable predicate objects. A <code>Predicate</code> instance is itself
+callable, and predicates combine into expression trees that can be printed
+(<code>toString</code>) or re-emitted as source (<code>toSource</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Predicate</span> } <span class="t-kw">from</span> <span class="t-str">'predicate'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">isFoo</span> <span class="t-op">=</span> <span class="t-type">Predicate</span>.<span class="t-fn">regexp</span>(<span class="t-op">/^</span><span class="t-id">foo</span><span class="t-op">/</span>);
+<span class="t-kw">const</span> <span class="t-id">nonEmptyString</span> <span class="t-op">=</span> <span class="t-type">Predicate</span>.<span class="t-fn">and</span>(<span class="t-type">Predicate</span>.<span class="t-fn">string</span>(), <span class="t-type">Predicate</span>.<span class="t-fn">not</span>(<span class="t-type">Predicate</span>.<span class="t-fn">equal</span>(<span class="t-str">''</span>)));
+
+<span class="t-fn">isFoo</span>(<span class="t-str">'foobar'</span>);       <span class="t-cm">// true — call directly</span>
+<span class="t-id">isFoo</span>.<span class="t-fn">eval</span>(<span class="t-str">'barbaz'</span>);  <span class="t-cm">// false</span></code></pre></div>
+<p>Factories (each returns a <code>Predicate</code>): type tests (<code>type(mask)</code>,
+<code>instanceOf(ctor)</code>, <code>prototypeIs(proto)</code>), values (<code>string(s)</code>,
+<code>charset(chars)</code>, <code>regexp(re)</code>, <code>equal(v)</code>), logic (<code>and</code>, <code>or</code>, <code>xor</code>,
+<code>not</code>, <code>notnot</code>), arithmetic (<code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>mod</code>, <code>bor</code>,
+<code>band</code>, <code>bnot</code>, <code>pow</code>, <code>sqrt</code>, <code>atan2</code>), structure (<code>has(prop)</code>,
+<code>property(prop[, pred])</code>, <code>member(obj)</code>, <code>index(pos[, pred])</code>, <code>some(pred)</code>,
+<code>every(pred)</code>), argument plumbing (<code>shift(n[, pred])</code>, <code>slice(start, end)</code>,
+<code>function(fn[, this][, arity])</code>).</p>
+<p>Instances: <code>eval(...args)</code> / <code>call(...args)</code>, <code>toString()</code>, <code>toSource()</code>,
+<code>id</code> (type id, matching exported constants <code>Predicate.TYPE</code>,
+<code>Predicate.REGEXP</code>, …), <code>length</code> (arity), <code>keys()</code>, <code>values()</code>. Arithmetic
+operators (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code>|</code>, <code>&amp;</code>, <code>**</code>) are overloaded via
+<code>Symbol.operatorSet</code> where available.</p>
+<h2 id="queue"><a class="anchor" href="#queue" aria-hidden="true">#</a>queue</h2>
+<p>A chunked byte FIFO: write buffers/strings in, read bytes out.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Queue</span> } <span class="t-kw">from</span> <span class="t-str">'queue'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">q</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Queue</span>();
+<span class="t-id">q</span>.<span class="t-fn">write</span>(<span class="t-str">'hello'</span>);                    <span class="t-cm">// string | ArrayBuffer | TypedArray</span>
+<span class="t-id">q</span>.<span class="t-fn">write</span>(<span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>([<span class="t-num">1</span>, <span class="t-num">2</span>, <span class="t-num">3</span>]));
+
+<span class="t-kw">const</span> <span class="t-id">out</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>(<span class="t-num">4</span>);
+<span class="t-id">q</span>.<span class="t-fn">read</span>(<span class="t-id">out</span>);                         <span class="t-cm">// dequeue into buffer → bytes read</span>
+<span class="t-id">q</span>.<span class="t-fn">peek</span>(<span class="t-id">out</span>);                         <span class="t-cm">// read without consuming</span>
+<span class="t-id">q</span>.<span class="t-fn">skip</span>(<span class="t-id">n</span>);                           <span class="t-cm">// discard n bytes</span>
+
+<span class="t-id">q</span>.<span class="t-prop">size</span>;    <span class="t-cm">// total bytes queued</span>
+<span class="t-id">q</span>.<span class="t-prop">empty</span>;   <span class="t-cm">// boolean</span>
+<span class="t-id">q</span>.<span class="t-prop">chunks</span>;  <span class="t-cm">// number of chunks</span></code></pre></div>
+<p>Also: <code>clear()</code>, <code>next()</code>, <code>chunk(i)</code>, <code>at(i)</code>, <code>head</code>, <code>tail</code>, and
+iteration over chunks.</p>
+<h2 id="repeater"><a class="anchor" href="#repeater" aria-hidden="true">#</a>repeater</h2>
+<p>An implementation of the
+<a href="https://repeater.js.org/" target="_blank" rel="noopener">Repeater</a> pattern — turn push-based sources
+(callbacks, events) into pull-based async iterators with backpressure.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Repeater</span> } <span class="t-kw">from</span> <span class="t-str">'repeater'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">numbers</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Repeater</span>(<span class="t-kw">async</span> (<span class="t-id">push</span>, <span class="t-id">stop</span>) <span class="t-op">=&gt;</span> {
+  <span class="t-fn">push</span>(<span class="t-num">1</span>);
+  <span class="t-fn">push</span>(<span class="t-num">2</span>);
+  <span class="t-kw">await</span> <span class="t-id">stop</span>;
+  <span class="t-fn">cleanup</span>();
+});
+
+<span class="t-kw">for</span> <span class="t-kw">await</span>(<span class="t-kw">const</span> <span class="t-id">n</span> <span class="t-kw">of</span> <span class="t-id">numbers</span>)
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">n</span>);</code></pre></div>
+<ul>
+<li>Constructor: <code>new Repeater(executor)</code> where <code>executor(push, stop)</code>.</li>
+<li>Instance: <code>next()</code>, <code>state</code>, <code>[Symbol.asyncIterator]</code>.</li>
+<li>Statics: combinators <code>race</code>, <code>merge</code>, <code>zip</code>; state constants
+<code>INITIAL</code>, <code>STARTED</code>, <code>STOPPED</code>, <code>REJECTED</code>, <code>DONE</code>.</li>
+</ul>
+<h2 id="serial"><a class="anchor" href="#serial" aria-hidden="true">#</a>serial</h2>
+<p>Serial-port I/O via libserialport, loosely modeled on the Web Serial API.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Serial</span> } <span class="t-kw">from</span> <span class="t-str">'serial'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">ports</span> <span class="t-op">=</span> <span class="t-type">Serial</span>.<span class="t-fn">getPorts</span>();          <span class="t-cm">// enumerate SerialPort objects</span>
+<span class="t-kw">const</span> <span class="t-id">port</span> <span class="t-op">=</span> <span class="t-type">Serial</span>.<span class="t-fn">requestPort</span>(...);
+
+<span class="t-id">port</span>.<span class="t-fn">open</span>({ <span class="t-id">baudRate</span><span class="t-op">:</span> <span class="t-num">115200</span>, <span class="t-id">parity</span><span class="t-op">:</span> ..., <span class="t-id">flowControl</span><span class="t-op">:</span> ... });
+<span class="t-id">port</span>.<span class="t-fn">write</span>(<span class="t-id">data</span>);
+<span class="t-id">port</span>.<span class="t-fn">read</span>(<span class="t-id">buffer</span>);
+<span class="t-id">port</span>.<span class="t-fn">drain</span>(); <span class="t-id">port</span>.<span class="t-fn">flush</span>();
+<span class="t-id">port</span>.<span class="t-fn">getInfo</span>(); <span class="t-id">port</span>.<span class="t-fn">getSignals</span>(); <span class="t-id">port</span>.<span class="t-fn">setSignals</span>(...);
+<span class="t-id">port</span>.<span class="t-fn">close</span>();
+
+<span class="t-id">port</span>.<span class="t-prop">name</span>; <span class="t-id">port</span>.<span class="t-prop">description</span>; <span class="t-id">port</span>.<span class="t-prop">transport</span>; <span class="t-id">port</span>.<span class="t-prop">fd</span>;
+<span class="t-id">port</span>.<span class="t-prop">inputWaiting</span>; <span class="t-id">port</span>.<span class="t-prop">outputWaiting</span>;</code></pre></div>
+<ul>
+<li><strong><code>Serial</code></strong> — <code>getPorts()</code>, <code>requestPort()</code>.</li>
+<li><strong><code>SerialPort</code></strong> — constants <code>MODE_READ</code>, <code>MODE_WRITE</code>,
+<code>MODE_READ_WRITE</code>, <code>BUF_INPUT</code>, <code>BUF_OUTPUT</code>, <code>BUF_BOTH</code>, <code>ERR_*</code>.</li>
+<li><strong><code>SerialError</code></strong> — error class.</li>
+</ul>
+<h2 id="sockets"><a class="anchor" href="#sockets" aria-hidden="true">#</a>sockets</h2>
+<p>BSD sockets with both synchronous (<code>Socket</code>) and promise-based
+(<code>AsyncSocket</code>) flavors. Failed syscalls throw <code>SyscallError</code>; non-fatal
+non-blocking conditions (<code>EAGAIN</code>, <code>EINPROGRESS</code>, …) don't throw.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">Socket</span>, <span class="t-type">AsyncSocket</span>, <span class="t-type">SockAddr</span>, <span class="t-type">AF_INET</span>, <span class="t-type">SOCK_STREAM</span>, <span class="t-type">IPPROTO_TCP</span> } <span class="t-kw">from</span> <span class="t-str">'sockets'</span>;
+
+<span class="t-cm">// Client</span>
+<span class="t-kw">const</span> <span class="t-id">sock</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Socket</span>(<span class="t-type">AF_INET</span>, <span class="t-type">SOCK_STREAM</span>);
+<span class="t-id">sock</span>.<span class="t-fn">connect</span>(<span class="t-kw">new</span> <span class="t-fn">SockAddr</span>(<span class="t-type">AF_INET</span>, <span class="t-str">'127.0.0.1'</span>, <span class="t-num">8080</span>));
+<span class="t-id">sock</span>.<span class="t-fn">send</span>(<span class="t-str">'hello'</span>);
+<span class="t-kw">const</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">ArrayBuffer</span>(<span class="t-num">1024</span>);
+<span class="t-kw">const</span> <span class="t-id">n</span> <span class="t-op">=</span> <span class="t-id">sock</span>.<span class="t-fn">recv</span>(<span class="t-id">buf</span>);
+<span class="t-id">sock</span>.<span class="t-fn">close</span>();
+
+<span class="t-cm">// Server</span>
+<span class="t-kw">const</span> <span class="t-id">srv</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Socket</span>(<span class="t-type">AF_INET</span>, <span class="t-type">SOCK_STREAM</span>);
+<span class="t-id">srv</span>.<span class="t-fn">bind</span>(<span class="t-kw">new</span> <span class="t-fn">SockAddr</span>(<span class="t-type">AF_INET</span>, <span class="t-str">'0.0.0.0'</span>, <span class="t-num">9000</span>));
+<span class="t-id">srv</span>.<span class="t-fn">listen</span>(<span class="t-num">5</span>);
+<span class="t-kw">const</span> <span class="t-id">client</span> <span class="t-op">=</span> <span class="t-id">srv</span>.<span class="t-fn">accept</span>();
+
+<span class="t-cm">// Async (await instead of blocking)</span>
+<span class="t-kw">const</span> <span class="t-id">as</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">AsyncSocket</span>(<span class="t-type">AF_INET</span>, <span class="t-type">SOCK_STREAM</span>);
+<span class="t-kw">await</span> <span class="t-id">as</span>.<span class="t-fn">connect</span>(<span class="t-id">addr</span>);
+<span class="t-kw">await</span> <span class="t-id">as</span>.<span class="t-fn">send</span>(<span class="t-str">'ping'</span>);</code></pre></div>
+<ul>
+<li><strong><code>Socket</code> / <code>AsyncSocket</code></strong> — <code>bind</code>, <code>connect</code>, <code>listen</code>, <code>accept</code>,
+<code>send</code>, <code>sendto</code>, <code>recv</code>, <code>recvfrom</code>, <code>sendmsg</code>/<code>recvmsg</code>,
+<code>sendmmsg</code>/<code>recvmmsg</code>, <code>shutdown</code>, <code>close</code>, <code>getsockopt</code>/<code>setsockopt</code>;
+properties <code>fd</code>, <code>open</code>, <code>eof</code>, <code>mode</code>, <code>nonblock</code>, <code>ndelay</code>, <code>af</code>,
+<code>local</code>, <code>remote</code> (SockAddrs), <code>errno</code>, <code>error</code>, <code>syscall</code>, <code>ret</code>.
+Static: <code>adopt(fd)</code>.</li>
+<li><strong><code>SockAddr</code></strong> — <code>new SockAddr(family, address, port)</code> (or a path for
+<code>AF_UNIX</code>); <code>family</code>, <code>addr</code>, <code>port</code>, <code>path</code>, <code>buffer</code>, <code>byteLength</code>,
+<code>clone()</code>, <code>toString()</code>.</li>
+<li>Functions: <code>socketpair()</code>, <code>select()</code>, <code>poll()</code>, <code>getsockopt()</code>,
+<code>setsockopt()</code>.</li>
+<li>~200 constants: <code>AF_*</code>, <code>SOCK_*</code>, <code>IPPROTO_*</code>, <code>SOL_*</code>, <code>SO_*</code>, <code>MSG_*</code>,
+<code>SHUT_RD</code>/<code>SHUT_WR</code>/<code>SHUT_RDWR</code>, <code>POLL*</code>, <code>O_NONBLOCK</code>, ….</li>
+<li>Re-exports <strong><code>SyscallError</code></strong> (see <a href="#syscallerror">syscallerror</a>).</li>
+</ul>
+<h2 id="sqlite"><a class="anchor" href="#sqlite" aria-hidden="true">#</a>sqlite</h2>
+<p>SQLite3 client following the same shape as the <a href="#mysql">mysql</a> and
+<a href="#pgsql">pgsql</a> modules.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">SQLite3</span> } <span class="t-kw">from</span> <span class="t-str">'sqlite'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">db</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">SQLite3</span>(<span class="t-str">'test.sqlite3'</span>, <span class="t-type">SQLite3</span>.<span class="t-type">OPEN_READWRITE</span> <span class="t-op">|</span> <span class="t-type">SQLite3</span>.<span class="t-type">OPEN_CREATE</span>);
+
+<span class="t-id">db</span>.<span class="t-fn">exec</span>(<span class="t-str">`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`</span>);
+<span class="t-kw">const</span> <span class="t-id">res</span> <span class="t-op">=</span> <span class="t-id">db</span>.<span class="t-fn">query</span>(<span class="t-str">`SELECT * FROM t`</span>);   <span class="t-cm">// → SQLite3Result</span>
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> <span class="t-id">row</span> <span class="t-kw">of</span> <span class="t-id">res</span>)
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">row</span>);
+
+<span class="t-id">db</span>.<span class="t-prop">insertId</span>;       <span class="t-cm">// lastInsertRowid</span>
+<span class="t-id">db</span>.<span class="t-prop">changes</span>;        <span class="t-cm">// affected rows</span>
+<span class="t-id">db</span>.<span class="t-fn">close</span>();</code></pre></div>
+<ul>
+<li><strong><code>SQLite3</code></strong> — <code>open(filename[, flags])</code>, <code>query(sql)</code> (alias
+<code>execute</code>), <code>exec(sql)</code>, <code>close()</code>, <code>escapeString</code>, <code>quoteString</code>,
+<code>valueString</code>, <code>valuesString</code>, <code>insertQuery</code>; getters <code>errorMessage</code>,
+<code>errorCode</code>, <code>filename</code>, <code>changes</code>/<code>affectedRows</code>,
+<code>insertId</code>/<code>lastInsertRowid</code>, <code>totalChanges</code>.</li>
+<li><strong><code>SQLite3Result</code></strong> — <code>fetchRow()</code>, <code>fetchAssoc()</code>, <code>fetchField(i)</code>,
+<code>fetchFields()</code>, <code>reset()</code>, <code>numRows</code>, <code>numFields</code>, <code>eof</code>; iterable.</li>
+<li><strong><code>SQLite3Error</code></strong> — error class.</li>
+<li>Constants: <code>OPEN_READONLY</code>, <code>OPEN_READWRITE</code>, <code>OPEN_CREATE</code>, <code>OPEN_URI</code>,
+<code>OPEN_MEMORY</code>, <code>OPEN_*MUTEX</code>, <code>OPEN_*CACHE</code>; column types <code>INTEGER</code>,
+<code>FLOAT</code>, <code>TEXT</code>, <code>BLOB</code>, <code>NULL</code>; <code>RESULT_OBJECT</code>, <code>RESULT_STRING</code>.</li>
+</ul>
+<h2 id="stream"><a class="anchor" href="#stream" aria-hidden="true">#</a>stream</h2>
+<p>WHATWG-Streams-style classes (currently disabled in the default build —
+see the commented-out entry in <code>CMakeLists.txt</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">ReadableStream</span>, <span class="t-type">WritableStream</span>, <span class="t-type">TransformStream</span> } <span class="t-kw">from</span> <span class="t-str">'stream'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">rs</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">ReadableStream</span>({
+  <span class="t-fn">start</span>(<span class="t-id">controller</span>) { ... },
+  <span class="t-fn">pull</span>(<span class="t-id">controller</span>) { <span class="t-id">controller</span>.<span class="t-fn">enqueue</span>(<span class="t-id">chunk</span>); },
+  <span class="t-fn">cancel</span>(<span class="t-id">reason</span>) { ... },
+});
+
+<span class="t-kw">const</span> <span class="t-id">reader</span> <span class="t-op">=</span> <span class="t-id">rs</span>.<span class="t-fn">getReader</span>();
+<span class="t-kw">const</span> { <span class="t-id">value</span>, <span class="t-id">done</span> } <span class="t-op">=</span> <span class="t-kw">await</span> <span class="t-id">reader</span>.<span class="t-fn">read</span>();</code></pre></div>
+<p>Exports: <code>ReadableStream</code> (+ <code>ReadableStreamDefaultReader</code>,
+<code>ReadableStreamBYOBReader</code>, <code>ReadableStreamDefaultController</code>,
+<code>ReadableByteStreamController</code>), <code>WritableStream</code>
+(+ <code>WritableStreamDefaultWriter</code>, <code>WritableStreamDefaultController</code>) and
+<code>TransformStream</code>.</p>
+<h2 id="syscallerror"><a class="anchor" href="#syscallerror" aria-hidden="true">#</a>syscallerror</h2>
+<p>The error class used across these modules (<a href="#sockets">sockets</a>,
+<a href="#misc">misc</a>, …) for failed system calls.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">SyscallError</span> } <span class="t-kw">from</span> <span class="t-str">'syscallerror'</span>;
+
+<span class="t-kw">try</span> {
+  <span class="t-id">sock</span>.<span class="t-fn">connect</span>(<span class="t-id">addr</span>);
+} <span class="t-kw">catch</span>(<span class="t-id">e</span>) {
+  <span class="t-kw">if</span>(<span class="t-id">e</span> <span class="t-kw">instanceof</span> <span class="t-type">SyscallError</span>) {
+    <span class="t-id">e</span>.<span class="t-prop">syscall</span>;   <span class="t-cm">// 'connect'</span>
+    <span class="t-id">e</span>.<span class="t-prop">errno</span>;     <span class="t-cm">// numeric errno</span>
+    <span class="t-id">e</span>.<span class="t-prop">message</span>;   <span class="t-cm">// 'connect: Connection refused'</span>
+    <span class="t-id">e</span>.<span class="t-prop">stack</span>;
+  }
+}</code></pre></div>
+<p>Statics: <code>errno()</code> (current errno), <code>strerror(errno)</code>. The module also
+exports the full set of <code>E*</code> errno constants (<code>EAGAIN</code>, <code>ENOENT</code>, …).</p>
+<h2 id="textcode"><a class="anchor" href="#textcode" aria-hidden="true">#</a>textcode</h2>
+<p>Text encoding/decoding between strings and byte buffers. Unlike the
+standard <code>TextEncoder</code>, encodings UTF-8, UTF-16 and UTF-32 (both endians)
+are supported in both directions.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">TextEncoder</span>, <span class="t-type">TextDecoder</span> } <span class="t-kw">from</span> <span class="t-str">'textcode'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">enc</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">TextEncoder</span>(<span class="t-str">'utf-16le'</span>);
+<span class="t-kw">const</span> <span class="t-id">bytes</span> <span class="t-op">=</span> <span class="t-id">enc</span>.<span class="t-fn">encode</span>(<span class="t-str">'hello'</span>);          <span class="t-cm">// Uint8Array</span>
+<span class="t-id">enc</span>.<span class="t-fn">encodeInto</span>(<span class="t-str">'hello'</span>, <span class="t-id">targetU8</span>);
+
+<span class="t-kw">const</span> <span class="t-id">dec</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">TextDecoder</span>(<span class="t-str">'utf-8'</span>);
+<span class="t-id">dec</span>.<span class="t-fn">decode</span>(<span class="t-id">bytes</span>);                          <span class="t-cm">// 'hello'</span></code></pre></div>
+<p>Both classes have <code>encoding</code>, <code>endian</code> and <code>buffered</code> getters; decoding is
+streaming-capable (incomplete trailing sequences are buffered).</p>
+<h2 id="tree_walker"><a class="anchor" href="#tree_walker" aria-hidden="true">#</a>tree_walker</h2>
+<p>Traverse object trees the way DOM <code>TreeWalker</code> traverses nodes.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">TreeWalker</span> } <span class="t-kw">from</span> <span class="t-str">'tree_walker'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">tw</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">TreeWalker</span>(<span class="t-id">root</span>);
+
+<span class="t-kw">for</span>(<span class="t-kw">let</span> <span class="t-id">node</span> <span class="t-op">=</span> <span class="t-id">tw</span>.<span class="t-fn">firstChild</span>(); <span class="t-id">node</span>; <span class="t-id">node</span> <span class="t-op">=</span> <span class="t-id">tw</span>.<span class="t-fn">nextNode</span>())
+  <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">tw</span>.<span class="t-prop">currentPath</span>, <span class="t-id">tw</span>.<span class="t-prop">currentNode</span>);</code></pre></div>
+<ul>
+<li><strong><code>TreeWalker</code></strong> — navigation <code>firstChild()</code>, <code>lastChild()</code>,
+<code>nextNode()</code>, <code>previousNode()</code>, <code>nextSibling()</code>, <code>previousSibling()</code>,
+<code>parentNode()</code>; state <code>root</code>, <code>currentNode</code>, <code>currentKey</code>,
+<code>currentPath</code>, <code>depth</code>, <code>index</code>, <code>length</code>; filtering via <code>tagMask</code>
+(<code>TYPE_*</code> masks), <code>filter</code> and <code>flags</code> (<code>RETURN_VALUE</code>, <code>RETURN_PATH</code>,
+<code>RETURN_VALUE_PATH</code>, <code>FILTER_ACCEPT</code>/<code>REJECT</code>/<code>SKIP</code>).</li>
+<li><strong><code>TreeIterator</code></strong> — same traversal as a JS iterator.</li>
+</ul>
+<h2 id="virtual"><a class="anchor" href="#virtual" aria-hidden="true">#</a>virtual</h2>
+<p><code>VirtualProperties</code> — a uniform <code>has</code>/<code>get</code>/<code>set</code>/<code>delete</code>/<code>keys</code> interface
+over different container types (plain objects, <code>Map</code>s, arrays of
+<code>[key, value]</code> entries), so code can manipulate any of them generically.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">VirtualProperties</span> } <span class="t-kw">from</span> <span class="t-str">'virtual'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">v</span> <span class="t-op">=</span> <span class="t-type">VirtualProperties</span>.<span class="t-kw">from</span>(<span class="t-id">containerOrMapOrObject</span>);
+<span class="t-cm">// or: VirtualProperties.map(m), .object(o), .array(a)</span>
+
+<span class="t-id">v</span>.<span class="t-fn">has</span>(<span class="t-str">'key'</span>);
+<span class="t-id">v</span>.<span class="t-kw">get</span>(<span class="t-str">'key'</span>);
+<span class="t-id">v</span>.<span class="t-kw">set</span>(<span class="t-str">'key'</span>, <span class="t-id">value</span>);
+<span class="t-id">v</span>.<span class="t-kw">delete</span>(<span class="t-str">'key'</span>);
+<span class="t-id">v</span>.<span class="t-fn">keys</span>();</code></pre></div>
+<h2 id="xml"><a class="anchor" href="#xml" aria-hidden="true">#</a>xml</h2>
+<p>Fast XML parser and serializer converting to/from a plain-object tree
+(<code>{ tagName, attributes, children }</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">read</span>, <span class="t-id">write</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">doc</span> <span class="t-op">=</span> <span class="t-fn">read</span>(<span class="t-str">'&lt;root&gt;&lt;item id="1"&gt;hello&lt;/item&gt;&lt;/root&gt;'</span>);
+<span class="t-cm">// → [{ tagName: 'root', attributes: {}, children: [ ... ] }]</span>
+
+<span class="t-kw">const</span> <span class="t-id">str</span> <span class="t-op">=</span> <span class="t-fn">write</span>(<span class="t-id">doc</span>);</code></pre></div>
+<ul>
+<li><code>read(input[, filename[, flags]])</code> — parse XML from a string or buffer.</li>
+<li><code>write(obj[, indent])</code> — serialize an object tree back to XML text.</li>
+</ul></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/README.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#building">Building</a></li><li class="lvl2"><a href="#module-index">Module index</a></li><li class="lvl2"><a href="#archive">archive</a></li><li class="lvl2"><a href="#arraybuffer_sink">arraybuffer_sink</a></li><li class="lvl2"><a href="#bcrypt">bcrypt</a></li><li class="lvl2"><a href="#bjson">bjson</a></li><li class="lvl2"><a href="#blob">blob</a></li><li class="lvl2"><a href="#child_process">child_process</a></li><li class="lvl2"><a href="#deep">deep</a></li><li class="lvl2"><a href="#directory">directory</a></li><li class="lvl2"><a href="#gpio">gpio</a></li><li class="lvl2"><a href="#inspect">inspect</a></li><li class="lvl2"><a href="#json">json</a></li><li class="lvl2"><a href="#lexer">lexer</a></li><li class="lvl2"><a href="#list">list</a></li><li class="lvl2"><a href="#location">location</a></li><li class="lvl2"><a href="#magic">magic</a></li><li class="lvl2"><a href="#misc">misc</a></li><li class="lvl2"><a href="#mmap">mmap</a></li><li class="lvl2"><a href="#mysql">mysql</a></li><li class="lvl2"><a href="#path">path</a></li><li class="lvl2"><a href="#pgsql">pgsql</a></li><li class="lvl2"><a href="#pointer">pointer</a></li><li class="lvl2"><a href="#predicate">predicate</a></li><li class="lvl2"><a href="#queue">queue</a></li><li class="lvl2"><a href="#repeater">repeater</a></li><li class="lvl2"><a href="#serial">serial</a></li><li class="lvl2"><a href="#sockets">sockets</a></li><li class="lvl2"><a href="#sqlite">sqlite</a></li><li class="lvl2"><a href="#stream">stream</a></li><li class="lvl2"><a href="#syscallerror">syscallerror</a></li><li class="lvl2"><a href="#textcode">textcode</a></li><li class="lvl2"><a href="#tree_walker">tree_walker</a></li><li class="lvl2"><a href="#virtual">virtual</a></li><li class="lvl2"><a href="#xml">xml</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="assets/search-index.js"></script>
+<script src="assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

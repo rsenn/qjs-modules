@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>predicate — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="index.html">Native modules overview</a></li><li><a href="archive.html">archive</a></li><li><a href="arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="bcrypt.html">bcrypt</a></li><li><a href="bjson.html">bjson</a></li><li><a href="blob.html">blob</a></li><li><a href="json.html">json</a></li><li><a href="lexer.html">lexer</a></li><li><a href="list.html">list</a></li><li><a href="textcode.html">textcode</a></li><li><a href="xml.html">xml</a></li><li><a href="yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="child-process.html">child-process</a></li><li><a href="directory.html">directory</a></li><li><a href="gpio.html">gpio</a></li><li><a href="location.html">location</a></li><li><a href="magic.html">magic</a></li><li><a href="misc.html">misc</a></li><li><a href="mmap.html">mmap</a></li><li><a href="path.html">path</a></li><li><a href="serial.html">serial</a></li><li><a href="sockets.html">sockets</a></li><li><a href="syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="deep.html">deep</a></li><li><a href="inspect.html">inspect</a></li><li><a href="pointer.html">pointer</a></li><li><a href="predicate.html" class="here">predicate</a></li><li><a href="tree-walker.html">tree-walker</a></li><li><a href="queue.html">queue</a></li><li><a href="repeater.html">repeater</a></li><li><a href="stream.html">stream</a></li><li><a href="virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="mysql.html">mysql</a></li><li><a href="pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="../js/index.html">JS modules overview</a></li><li><a href="../js/util.html">util</a></li><li><a href="../js/reflect.html">reflect</a></li><li><a href="../js/iterator.html">iterator</a></li><li><a href="../js/asyncIterator.html">asyncIterator</a></li><li><a href="../js/arrayLike.html">arrayLike</a></li><li><a href="../js/extendArray.html">extendArray</a></li><li><a href="../js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="../js/extendObject.html">extendObject</a></li><li><a href="../js/extendMap.html">extendMap</a></li><li><a href="../js/extendSet.html">extendSet</a></li><li><a href="../js/extendMath.html">extendMath</a></li><li><a href="../js/extendFunction.html">extendFunction</a></li><li><a href="../js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="../js/extendGenerator.html">extendGenerator</a></li><li><a href="../js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="../js/assert.html">assert</a></li><li><a href="../js/console.html">console</a></li><li><a href="../js/process.html">process</a></li><li><a href="../js/events.html">events</a></li><li><a href="../js/abort.html">abort</a></li><li><a href="../js/timers.html">timers</a></li><li><a href="../js/perf_hooks.html">perf_hooks</a></li><li><a href="../js/module.html">module</a></li><li><a href="../js/require.html">require</a></li><li><a href="../js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="../js/fs.html">fs</a></li><li><a href="../js/fsPromises.html">fsPromises</a></li><li><a href="../js/io.html">io</a></li><li><a href="../js/streams.html">streams</a></li><li><a href="../js/vfs.html">vfs</a></li><li><a href="../js/inotify.html">inotify</a></li><li><a href="../js/tty.html">tty</a></li><li><a href="../js/terminal.html">terminal</a></li><li><a href="../js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="../js/dom.html">dom</a></li><li><a href="../js/xpath.html">xpath</a></li><li><a href="../js/parser.html">parser</a></li><li><a href="../js/parsel.html">parsel</a></li><li><a href="../js/css-selectors.html">css-selectors</a></li><li><a href="../js/css3-selectors.html">css3-selectors</a></li><li><a href="../js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="../js/db.html">db</a></li><li><a href="../js/repl.html">repl</a></li><li><a href="../js/testharness.html">testharness</a></li><li><a href="../js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="predicate"><a class="anchor" href="#predicate" aria-hidden="true">#</a>predicate</h1>
+<p>Source: <code>quickjs-predicate.c</code> — module exports <strong><code>Predicate</code></strong>, <code>PredicateOperators</code>, <code>PredicateOperatorSet</code>, and function lists.</p>
+<p>Composable, serializable predicate/matcher objects. A <code>Predicate</code> is callable
+and can be combined with others to build matching expressions and small
+arithmetic terms.</p>
+<h2 id="predicate-instances"><a class="anchor" href="#predicate-instances" aria-hidden="true">#</a>Predicate instances</h2>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">Predicate</span>(...)   <span class="t-cm">// length 1</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="predicate-instances-eval">eval(value)</code><a class="member-anchor" href="#predicate-instances-eval" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Evaluates the predicate against <code>value</code> (alias <code>call</code>).</td></tr><tr><td><code id="predicate-instances-tostring">toString()</code><a class="member-anchor" href="#predicate-instances-tostring" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Source-like string form.</td></tr><tr><td><code id="predicate-instances-tosource">toSource()</code><a class="member-anchor" href="#predicate-instances-tosource" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Reconstructable source form.</td></tr><tr><td><code id="predicate-instances-keys">keys()</code><a class="member-anchor" href="#predicate-instances-keys" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Sub-predicate keys.</td></tr><tr><td><code id="predicate-instances-values">values()</code><a class="member-anchor" href="#predicate-instances-values" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Sub-predicate values.</td></tr><tr><td><code id="predicate-instances-id">id</code><a class="member-anchor" href="#predicate-instances-id" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Predicate type id.</td></tr><tr><td><code id="predicate-instances-length">length</code><a class="member-anchor" href="#predicate-instances-length" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Argument count.</td></tr></tbody></table></div>
+<h2 id="predicate-factory-functions"><a class="anchor" href="#predicate-factory-functions" aria-hidden="true">#</a>Predicate factory functions</h2>
+<p>Constructors that build predicates (module-level function list):</p>
+<ul>
+<li><strong>Type / value:</strong> <code>type</code>, <code>charset</code>, <code>string</code>, <code>regexp</code>, <code>instanceOf</code>,
+<code>prototypeIs</code>, <code>equal</code>, <code>property</code>, <code>has</code>, <code>member</code>, <code>index</code>, <code>function</code>.</li>
+<li><strong>Logical:</strong> <code>not</code>, <code>notnot</code>, <code>or</code>, <code>and</code>, <code>xor</code>, <code>some</code>, <code>every</code>.</li>
+<li><strong>Arithmetic / bitwise:</strong> <code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>mod</code>, <code>pow</code>, <code>sqrt</code>,
+<code>atan2</code>, <code>bor</code>, <code>band</code>, <code>bnot</code>, <code>shift</code>, <code>slice</code>.</li>
+</ul>
+<p>Each takes 1 or 2 arguments (operands or nested predicates) and returns a new
+<code>Predicate</code>.</p>
+<h2 id="predicateoperators"><a class="anchor" href="#predicateoperators" aria-hidden="true">#</a>PredicateOperators</h2>
+<p>An operator table exposing arithmetic/bitwise operators as 2-argument functions:
+<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code>|</code>, <code>&amp;</code>, <code>**</code>. Exported as <code>PredicateOperators</code> /
+<code>PredicateOperatorSet</code> for operator-overloading use.</p>
+<h2 id="how-composition-works"><a class="anchor" href="#how-composition-works" aria-hidden="true">#</a>How composition works</h2>
+<p>A <code>Predicate</code> is not a value — it's a lazy expression node. Building one (via
+<code>Predicate.add(a, b)</code>, <code>Predicate.and(...)</code>, the <code>new Predicate(id, ...)</code>
+constructor sugar, or a JS operator like <code>a + b</code> on two <code>Predicate</code>s) just
+<em>stores</em> its operands; nothing is computed until the predicate is later
+called/<code>eval()</code>'d against some value(s). See <code>predicate_eval()</code>
+(<code>src/predicate.c</code>) for the full per-kind evaluation switch — this section
+covers the arithmetic/bitwise family (<code>add</code>/<code>sub</code>/<code>mul</code>/<code>div</code>/<code>mod</code>/<code>pow</code>/
+<code>atan2</code>/<code>bor</code>/<code>band</code>), since that's the family wired up to real JS operators.</p>
+<h3 id="what-an-operand-can-be"><a class="anchor" href="#what-an-operand-can-be" aria-hidden="true">#</a>What an operand can be</h3>
+<p>Each operand of <code>add</code>/<code>sub</code>/<code>mul</code>/... (<code>pr-&gt;binary.left</code>, <code>pr-&gt;binary.right</code>)
+is one of three things, resolved by <code>predicate_value()</code> (<code>src/predicate.c</code>)
+at evaluation time, given the same call arguments the outer predicate itself
+was invoked with:</p>
+<ul>
+<li><strong>Another <code>Predicate</code></strong> — evaluated recursively (<code>predicate_eval()</code>), so
+expression trees can nest arbitrarily deep:
+<code>Predicate.mul(Predicate.add(a, b), c)</code> builds <code>(a + b) * c</code>.</li>
+<li><strong>A plain JS function</strong> — called with the (remaining) call arguments and
+its return value used, e.g. <code>Predicate.add(x =&gt; x.length, 1)</code> is
+<code>value =&gt; value.length + 1</code>.</li>
+<li><strong>Anything else (a number, string, ...)</strong> — used as a literal constant.</li>
+</ul>
+<h3 id="the-missing-operand-convention"><a class="anchor" href="#the-missing-operand-convention" aria-hidden="true">#</a>The "missing operand" convention</h3>
+<p><code>predicate_add()</code>/<code>predicate_sub()</code>/etc. (<code>include/predicate.h</code>) normalize an
+explicit <code>null</code>/<code>undefined</code> operand to <code>JS_UNDEFINED</code> at construction time.
+<code>predicate_eval()</code> then treats <em>that specific</em> sentinel specially: for
+operand index <code>i</code> (0 = left, 1 = right), a still-<code>undefined</code> operand is
+replaced with <code>args[i]</code> — the <code>i</code>-th argument the <em>composed predicate itself</em>
+was called with — before going through <code>predicate_value()</code> above. This is
+what turns an arithmetic predicate into a genuine unary function of the
+tested value rather than a constant-folded expression:</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-type">Predicate</span>.<span class="t-fn">add</span>(<span class="t-atom">undefined</span>, <span class="t-num">5</span>)   <span class="t-cm">// value =&gt; value + 5</span>
+<span class="t-type">Predicate</span>.<span class="t-fn">mul</span>(<span class="t-atom">undefined</span>, <span class="t-num">2</span>)   <span class="t-cm">// value =&gt; value * 2  (left omitted -&gt; arg[0])</span>
+<span class="t-type">Predicate</span>.<span class="t-fn">mul</span>(<span class="t-num">2</span>)              <span class="t-cm">// value =&gt; 2 * value  (right omitted -&gt; arg[1])</span></code></pre></div>
+<p>Passing both operands as <code>undefined</code> (or simply omitting both) makes the
+predicate a binary function of its own two call arguments
+(<code>(a, b) =&gt; a + b</code>). Leaving a <em>trailing</em> operand out of the call works the
+same as passing <code>undefined</code> explicitly — both go through <code>predicate_nextarg()</code>
+(<code>quickjs-predicate.c</code>), which normalizes <code>js_arguments_shift()</code>'s (
+<code>include/utils.h</code>) "no more arguments" sentinel the same way it normalizes an
+explicit <code>null</code>/<code>undefined</code>.</p>
+<h3 id="js-operators---"><a class="anchor" href="#js-operators---" aria-hidden="true">#</a>JS operators: <code>+ - * / % | &amp; **</code></h3>
+<p><code>js_predicate_operator()</code> (<code>quickjs-predicate.c</code>) is the C function behind
+every one of these operators; its <code>magic</code> argument (<code>OPERATOR_PLUS</code>, ...)
+selects which <code>predicate_##op()</code> builder from <code>include/predicate.h</code> to call
+on its two arguments — it does not evaluate anything, only composes. The
+result is always a <strong>new</strong> <code>Predicate</code> wrapping whatever was passed in
+(<code>Predicate</code>, function, or literal — see above), never a computed number.</p>
+<p>This single function is installed three times, via <code>Symbol.operatorSet</code>
+(<code>js_predicate_init()</code>, see <code>doc/operator-overloading.md</code> for the mechanism):</p>
+<div class="tablewrap"><table><thead><tr><th>Table (JS-facing key)</th><th>Internal <code>JSOperatorSetData</code> field</th><th>Used for</th></tr></thead><tbody><tr><td>self-ops</td><td><code>self_ops[]</code></td><td><code>Predicate + Predicate</code></td></tr><tr><td><code>{ left: Number, ... }</code></td><td><code>right</code> (cross-type key inverted by <code>js_operators_create_internal</code>, see below)</td><td><code>Number + Predicate</code></td></tr><tr><td><code>{ right: Number, ... }</code></td><td><code>left</code></td><td><code>Predicate + Number</code></td></tr></tbody></table></div>
+<p>The <code>left</code>/<code>right</code> <em>property names</em> passed to <code>Operators.create()</code> describe
+where the <em>other</em> operand (<code>Number</code>) sits in the written expression, not
+where <code>Predicate</code> sits — <code>quickjs.c</code>'s <code>js_operators_create_internal</code> reads a
+<code>left</code> property into <code>opset-&gt;right</code> and a <code>right</code> property into
+<code>opset-&gt;left</code> (the two are swapped on purpose, so that at dispatch time
+<code>opset-&gt;right</code> answers "what do I do when I'm on the right and the other
+operand is <code>Number</code>?"). Regardless of which table was consulted to find it,
+<code>js_predicate_operator()</code> is always called as <code>(op1, op2)</code> in the same
+left-to-right order the expression was written in, so <code>left</code>/<code>right</code> inside
+the resulting <code>Predicate</code> always match the source: <code>5 * p</code> composes
+<code>Predicate.mul(5, p)</code>, <code>p * 5</code> composes <code>Predicate.mul(p, 5)</code>.</p>
+<p>Because <code>Number.prototype</code> only carries the empty, <code>is_primitive</code> marker
+operator set (installed by <code>JS_AddIntrinsicOperators()</code>), mixing a
+<code>Predicate</code> with any <em>other</em> class this way isn't possible without that
+class also having its own operator set — plain numbers work because that
+marker set's <code>operator_counter</code> is exactly what the <code>left</code>/<code>right</code> tables
+above are keyed against.</p></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/native/predicate.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#predicate-instances">Predicate instances</a></li><li class="lvl2"><a href="#predicate-factory-functions">Predicate factory functions</a></li><li class="lvl2"><a href="#predicateoperators">PredicateOperators</a></li><li class="lvl2"><a href="#how-composition-works">How composition works</a></li><li class="lvl3"><a href="#what-an-operand-can-be">What an operand can be</a></li><li class="lvl3"><a href="#the-missing-operand-convention">The &quot;missing operand&quot; convention</a></li><li class="lvl3"><a href="#js-operators---">JS operators: + -  / % | &amp; </a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

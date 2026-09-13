@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xml — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li><li><a href="../buffer.html">Buffer handling</a></li><li><a href="../readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="index.html">Native modules overview</a></li><li><a href="archive.html">archive</a></li><li><a href="arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="bcrypt.html">bcrypt</a></li><li><a href="bjson.html">bjson</a></li><li><a href="blob.html">blob</a></li><li><a href="json.html">json</a></li><li><a href="lexer.html">lexer</a></li><li><a href="list.html">list</a></li><li><a href="textcode.html">textcode</a></li><li><a href="xml.html" class="here">xml</a></li><li><a href="yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="child-process.html">child-process</a></li><li><a href="directory.html">directory</a></li><li><a href="gpio.html">gpio</a></li><li><a href="location.html">location</a></li><li><a href="magic.html">magic</a></li><li><a href="misc.html">misc</a></li><li><a href="mmap.html">mmap</a></li><li><a href="path.html">path</a></li><li><a href="serial.html">serial</a></li><li><a href="sockets.html">sockets</a></li><li><a href="syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="deep.html">deep</a></li><li><a href="inspect.html">inspect</a></li><li><a href="pointer.html">pointer</a></li><li><a href="predicate.html">predicate</a></li><li><a href="tree-walker.html">tree-walker</a></li><li><a href="queue.html">queue</a></li><li><a href="repeater.html">repeater</a></li><li><a href="stream.html">stream</a></li><li><a href="virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="mysql.html">mysql</a></li><li><a href="pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="../js/index.html">JS modules overview</a></li><li><a href="../js/util.html">util</a></li><li><a href="../js/reflect.html">reflect</a></li><li><a href="../js/iterator.html">iterator</a></li><li><a href="../js/asyncIterator.html">asyncIterator</a></li><li><a href="../js/arrayLike.html">arrayLike</a></li><li><a href="../js/extendArray.html">extendArray</a></li><li><a href="../js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="../js/extendObject.html">extendObject</a></li><li><a href="../js/extendMap.html">extendMap</a></li><li><a href="../js/extendSet.html">extendSet</a></li><li><a href="../js/extendMath.html">extendMath</a></li><li><a href="../js/extendFunction.html">extendFunction</a></li><li><a href="../js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="../js/extendGenerator.html">extendGenerator</a></li><li><a href="../js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="../js/assert.html">assert</a></li><li><a href="../js/console.html">console</a></li><li><a href="../js/process.html">process</a></li><li><a href="../js/events.html">events</a></li><li><a href="../js/abort.html">abort</a></li><li><a href="../js/timers.html">timers</a></li><li><a href="../js/perf_hooks.html">perf_hooks</a></li><li><a href="../js/module.html">module</a></li><li><a href="../js/require.html">require</a></li><li><a href="../js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="../js/fs.html">fs</a></li><li><a href="../js/fsPromises.html">fsPromises</a></li><li><a href="../js/io.html">io</a></li><li><a href="../js/streams.html">streams</a></li><li><a href="../js/vfs.html">vfs</a></li><li><a href="../js/inotify.html">inotify</a></li><li><a href="../js/tty.html">tty</a></li><li><a href="../js/terminal.html">terminal</a></li><li><a href="../js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="../js/dom.html">dom</a></li><li><a href="../js/xpath.html">xpath</a></li><li><a href="../js/parser.html">parser</a></li><li><a href="../js/parsel.html">parsel</a></li><li><a href="../js/css-selectors.html">css-selectors</a></li><li><a href="../js/css3-selectors.html">css3-selectors</a></li><li><a href="../js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="../js/db.html">db</a></li><li><a href="../js/repl.html">repl</a></li><li><a href="../js/testharness.html">testharness</a></li><li><a href="../js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="xml"><a class="anchor" href="#xml" aria-hidden="true">#</a>xml</h1>
+<p>Source: <code>quickjs-xml.c</code> — module exports <strong><code>XMLParser</code></strong>, <strong><code>XMLNodeParser</code></strong>, <strong><code>XMLPushParser</code></strong>, <strong><code>XMLSerializer</code></strong>, <strong><code>XMLWriter</code></strong> and a function list.</p>
+<p>An XML/HTML reader and writer. Parses markup into a tree (or flat list) of plain JS
+objects and serializes such a tree back to text. Element objects are <code>{tagName, attributes, children}</code>-shaped.</p>
+<h2 id="module-functions"><a class="anchor" href="#module-functions" aria-hidden="true">#</a>Module functions</h2>
+<div class="tablewrap"><table><thead><tr><th>Function</th><th>Args</th><th>Description</th></tr></thead><tbody><tr><td><code id="module-functions-read">read(input, inputName?, options?)</code><a class="member-anchor" href="#module-functions-read" aria-hidden="true">#</a></td><td>1–3</td><td>Parses XML/HTML text into an array/tree of element objects. <code>input</code> is a string or buffer. <code>inputName</code> is an optional filename for error messages. <code>options</code> is either a boolean (<code>flat</code> mode) or an object with <code>flat</code>, <code>tolerant</code>, <code>location</code>, and <code>selfClosingTags</code> (array of void-element tag names). When <code>location</code> is true, returns <code>[tree, locationMap]</code> instead of just the tree.</td></tr><tr><td><code id="module-functions-write">write(value, maxDepth?)</code><a class="member-anchor" href="#module-functions-write" aria-hidden="true">#</a></td><td>1–2</td><td>Serializes a parsed tree (or flat list) back into XML/HTML text. <code>maxDepth</code> limits traversal depth (default: unlimited).</td></tr></tbody></table></div>
+<p>Both are also reachable through the module's <code>default</code> export object.</p>
+<h2 id="xmlparser"><a class="anchor" href="#xmlparser" aria-hidden="true">#</a>XMLParser</h2>
+<p>An incremental pull parser built on <code>Reader</code>/<code>Location</code> from <code>stream-utils.h</code> and <code>include/xml.h</code>'s
+<code>xml_parser_run()</code>. Each call to <code>.parse()</code> advances just far enough to produce one event (or a
+status code) and also feeds every element/attribute/text event into an internal <code>XMLBuilder</code>, so
+<code>.root</code> gives the tree built so far without the caller having to do that bookkeeping.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">XMLParser</span>(<span class="t-id">input</span>, <span class="t-id">options</span><span class="t-op">?</span>)   <span class="t-cm">// input is a buffer/string or a reader; options may carry callbacks and filename</span></code></pre></div>
+<p><code>input</code> may be:</p>
+<ul>
+<li>a buffer (string, <code>ArrayBuffer</code>, or typed array) holding the whole document, or</li>
+<li>a pull function <code>(buf, len) =&gt; bytesRead</code>, called as needed to fill <code>buf</code>, or</li>
+<li>an object exposing such a function as its <code>read</code> method.</li>
+</ul>
+<p><code>options</code> is an object. If it defines any of the callback properties (<code>elementStart</code>, <code>elementEnd</code>, <code>attribute</code>, <code>text</code>, <code>error</code>), events are forwarded to those callbacks instead of being fed into the builder. It may also carry a <code>filename</code> string for <code>.location</code>.</p>
+<p><code>.parse()</code> returns one of the following integer constants (exposed as static properties on the constructor):</p>
+<div class="tablewrap"><table><thead><tr><th>Constant</th><th>Value</th><th>Meaning</th></tr></thead><tbody><tr><td><code id="xmlparser-xmlparser-parse_again">XMLParser.PARSE_AGAIN</code><a class="member-anchor" href="#xmlparser-xmlparser-parse_again" aria-hidden="true">#</a></td><td>−2</td><td>Reader has no data right now; call <code>.parse()</code> again once it might.</td></tr><tr><td><code id="xmlparser-xmlparser-parse_error">XMLParser.PARSE_ERROR</code><a class="member-anchor" href="#xmlparser-xmlparser-parse_error" aria-hidden="true">#</a></td><td>−1</td><td>Non-tolerant mismatched closing tag (terminal).</td></tr><tr><td><code id="xmlparser-xmlparser-parse_ok">XMLParser.PARSE_OK</code><a class="member-anchor" href="#xmlparser-xmlparser-parse_ok" aria-hidden="true">#</a></td><td>0</td><td>Clean end of stream (terminal).</td></tr><tr><td><code id="xmlparser-xmlparser-element_start">XMLParser.ELEMENT_START</code><a class="member-anchor" href="#xmlparser-xmlparser-element_start" aria-hidden="true">#</a></td><td>1</td><td>Opening tag — <code>eventName</code> is the tag name.</td></tr><tr><td><code id="xmlparser-xmlparser-attribute">XMLParser.ATTRIBUTE</code><a class="member-anchor" href="#xmlparser-xmlparser-attribute" aria-hidden="true">#</a></td><td>2</td><td>Attribute — <code>eventName</code> is the name, <code>eventValue</code> the value (<code>hasValue</code> is false for boolean attributes).</td></tr><tr><td><code id="xmlparser-xmlparser-element_end">XMLParser.ELEMENT_END</code><a class="member-anchor" href="#xmlparser-xmlparser-element_end" aria-hidden="true">#</a></td><td>3</td><td>Closing tag — <code>eventName</code> is the tag name.</td></tr><tr><td><code id="xmlparser-xmlparser-text">XMLParser.TEXT</code><a class="member-anchor" href="#xmlparser-xmlparser-text" aria-hidden="true">#</a></td><td>4</td><td>Text content — <code>eventValue</code> is the text run.</td></tr></tbody></table></div>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="xmlparser-parse">parse()</code><a class="member-anchor" href="#xmlparser-parse" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Advances one event. Returns an <code>xml_event_t</code> integer (see table above).</td></tr><tr><td><code id="xmlparser-eventname">eventName</code><a class="member-anchor" href="#xmlparser-eventname" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The current event's tag/attribute name (enumerable).</td></tr><tr><td><code id="xmlparser-eventvalue">eventValue</code><a class="member-anchor" href="#xmlparser-eventvalue" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The current event's value — attribute value or text content (enumerable).</td></tr><tr><td><code id="xmlparser-hasvalue">hasValue</code><a class="member-anchor" href="#xmlparser-hasvalue" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Whether the current event carries a value (enumerable).</td></tr><tr><td><code id="xmlparser-depth">depth</code><a class="member-anchor" href="#xmlparser-depth" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Current element nesting depth (enumerable).</td></tr><tr><td><code id="xmlparser-location">location</code><a class="member-anchor" href="#xmlparser-location" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>A <code>Location</code> reflecting the current input position (line/column/byte offset/filename); live (enumerable).</td></tr><tr><td><code id="xmlparser-tolerant">tolerant</code><a class="member-anchor" href="#xmlparser-tolerant" aria-hidden="true">#</a></td><td>—</td><td>getter/setter</td><td>When true, mismatched closing tags are silently skipped instead of producing <code>PARSE_ERROR</code>.</td></tr><tr><td><code id="xmlparser-root">root</code><a class="member-anchor" href="#xmlparser-root" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The <code>{tagName, attributes, children}</code> tree built so far (enumerable).</td></tr><tr><td><code id="xmlparser-onelementstart">onelementstart</code><a class="member-anchor" href="#xmlparser-onelementstart" aria-hidden="true">#</a></td><td>—</td><td>setter</td><td>Callback invoked on element start events (configurable, writable).</td></tr><tr><td><code id="xmlparser-onelementend">onelementend</code><a class="member-anchor" href="#xmlparser-onelementend" aria-hidden="true">#</a></td><td>—</td><td>setter</td><td>Callback invoked on element end events (configurable, writable).</td></tr><tr><td><code id="xmlparser-onattribute">onattribute</code><a class="member-anchor" href="#xmlparser-onattribute" aria-hidden="true">#</a></td><td>—</td><td>setter</td><td>Callback invoked on attribute events (configurable, writable).</td></tr><tr><td><code id="xmlparser-ontext">ontext</code><a class="member-anchor" href="#xmlparser-ontext" aria-hidden="true">#</a></td><td>—</td><td>setter</td><td>Callback invoked on text events (configurable, writable).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">XMLParser</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">p</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">XMLParser</span>(<span class="t-str">'&lt;root attr="val"&gt;&lt;child&gt;text&lt;/child&gt;&lt;/root&gt;'</span>);
+<span class="t-kw">let</span> <span class="t-id">ev</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">ev</span> <span class="t-op">=</span> <span class="t-id">p</span>.<span class="t-fn">parse</span>()) <span class="t-op">&gt;</span> <span class="t-num">0</span>) {
+  <span class="t-kw">if</span>(<span class="t-id">ev</span> <span class="t-op">===</span> <span class="t-type">XMLParser</span>.<span class="t-type">ELEMENT_START</span>) <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'start'</span>, <span class="t-id">p</span>.<span class="t-prop">eventName</span>);
+  <span class="t-kw">if</span>(<span class="t-id">ev</span> <span class="t-op">===</span> <span class="t-type">XMLParser</span>.<span class="t-type">ATTRIBUTE</span>)     <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'attr'</span>, <span class="t-id">p</span>.<span class="t-prop">eventName</span>, <span class="t-str">'='</span>, <span class="t-id">p</span>.<span class="t-prop">eventValue</span>);
+  <span class="t-kw">if</span>(<span class="t-id">ev</span> <span class="t-op">===</span> <span class="t-type">XMLParser</span>.<span class="t-type">TEXT</span>)          <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'text'</span>, <span class="t-id">p</span>.<span class="t-prop">eventValue</span>);
+  <span class="t-kw">if</span>(<span class="t-id">ev</span> <span class="t-op">===</span> <span class="t-type">XMLParser</span>.<span class="t-type">ELEMENT_END</span>)   <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'end'</span>, <span class="t-id">p</span>.<span class="t-prop">eventName</span>);
+}
+<span class="t-cm">// start root  attr attr = val  start child  text text  end child  end root</span></code></pre></div>
+<h2 id="xmlnodeparser"><a class="anchor" href="#xmlnodeparser" aria-hidden="true">#</a>XMLNodeParser</h2>
+<p>A pull parser that yields one "flat list" node per <code>.parse()</code> call. Returns JS strings for text
+content, and JS objects <code>{tagName, attributes}</code> for start tags (end tags have a <code>tagName</code> prefixed
+with <code>/</code>). Unlike <code>XMLParser</code>, each call returns a complete node rather than individual events —
+attributes are collected internally and attached to the start-tag object before it is returned.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">XMLNodeParser</span>(<span class="t-id">input</span>, <span class="t-id">options</span><span class="t-op">?</span>)   <span class="t-cm">// input is a buffer/string or a reader; options may carry filename</span></code></pre></div>
+<p><code>input</code> and the reader conventions are the same as <code>XMLParser</code>. <code>options</code> is an object that may
+carry a <code>filename</code> string for <code>.location</code>.</p>
+<p><code>.parse()</code> returns:</p>
+<ul>
+<li>A JS <strong>string</strong> for text content.</li>
+<li>A JS <strong>object</strong> <code>{tagName, attributes}</code> for a start tag (attributes are collected before returning).</li>
+<li>A JS <strong>object</strong> <code>{tagName}</code> with <code>tagName</code> prefixed by <code>/</code> for an end tag.</li>
+<li>An <strong>integer</strong> status code (<code>PARSE_AGAIN</code>, <code>PARSE_ERROR</code>, <code>PARSE_OK</code>) — same constants as <code>XMLParser</code>.</li>
+</ul>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="xmlnodeparser-parse">parse()</code><a class="member-anchor" href="#xmlnodeparser-parse" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Advances to the next node. Returns a string, object, or integer status (see above).</td></tr><tr><td><code id="xmlnodeparser-depth">depth</code><a class="member-anchor" href="#xmlnodeparser-depth" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Current element nesting depth (enumerable).</td></tr><tr><td><code id="xmlnodeparser-location">location</code><a class="member-anchor" href="#xmlnodeparser-location" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>A <code>Location</code> reflecting the current input position (line/column/byte offset/filename); live (enumerable).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">XMLNodeParser</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">p</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">XMLNodeParser</span>(<span class="t-str">'&lt;ul&gt;&lt;li&gt;hello&lt;/li&gt;&lt;/ul&gt;'</span>);
+<span class="t-kw">let</span> <span class="t-id">node</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">node</span> <span class="t-op">=</span> <span class="t-id">p</span>.<span class="t-fn">parse</span>()) <span class="t-op">&gt;</span> <span class="t-num">0</span>) {
+  <span class="t-kw">if</span>(<span class="t-kw">typeof</span> <span class="t-id">node</span> <span class="t-op">===</span> <span class="t-str">'string'</span>)       <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'text:'</span>, <span class="t-id">node</span>);
+  <span class="t-kw">else</span> <span class="t-kw">if</span>(<span class="t-id">node</span>.<span class="t-prop">tagName</span>[<span class="t-num">0</span>] <span class="t-op">===</span> <span class="t-str">'/'</span>)   <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'close:'</span>, <span class="t-id">node</span>.<span class="t-prop">tagName</span>);
+  <span class="t-kw">else</span>                               <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-str">'open:'</span>, <span class="t-id">node</span>.<span class="t-prop">tagName</span>, <span class="t-id">node</span>.<span class="t-prop">attributes</span>);
+}
+<span class="t-cm">// open: ul {}  open: li {}  text: hello  close: /li  close: /ul</span></code></pre></div>
+<h2 id="xmlpushparser"><a class="anchor" href="#xmlpushparser" aria-hidden="true">#</a>XMLPushParser</h2>
+<p>A "push" XML parser: instead of pulling from an input, data is fed to it via <code>.write()</code> at any
+byte boundary. It can operate in two modes:</p>
+<ul>
+<li><strong>Callback mode</strong>: when the constructor options define any of <code>attribute</code>, <code>elementStart</code>,
+<code>elementEnd</code>, <code>text</code>, or <code>error</code> as functions, those callbacks are invoked for each event.</li>
+<li><strong>Builder mode</strong> (default): when no callbacks are given, it builds a `{tagName, attributes,
+children}<code>tree internally, retrievable via</code>.root`.</li>
+</ul>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">XMLPushParser</span>(<span class="t-id">options</span><span class="t-op">?</span>)   <span class="t-cm">// options may define callbacks; also serves as `this` for callback invocations</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="xmlpushparser-write">write(chunk)</code><a class="member-anchor" href="#xmlpushparser-write" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Feeds a chunk of XML input (string or buffer). In builder mode, throws a <code>SyntaxError</code> on malformed input. In callback mode, the <code>error</code> callback is invoked instead.</td></tr><tr><td><code id="xmlpushparser-close">close()</code><a class="member-anchor" href="#xmlpushparser-close" aria-hidden="true">#</a></td><td>0</td><td>method</td><td>Signals end of input. In builder mode, throws if the document is incomplete (unclosed elements).</td></tr><tr><td><code id="xmlpushparser-root">root</code><a class="member-anchor" href="#xmlpushparser-root" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The <code>{tagName, attributes, children}</code> tree built so far (builder mode only).</td></tr><tr><td><code id="xmlpushparser-path">path</code><a class="member-anchor" href="#xmlpushparser-path" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Array of <code>tagName</code> strings from the document root down to the currently-open element, root-first (builder mode only).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">XMLPushParser</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">p</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">XMLPushParser</span>();
+
+<span class="t-id">p</span>.<span class="t-fn">write</span>(<span class="t-str">'&lt;root&gt;&lt;child attr="v'</span>);
+<span class="t-id">p</span>.<span class="t-fn">write</span>(<span class="t-str">'alue"&gt;text&lt;/child&gt;&lt;/root&gt;'</span>);
+<span class="t-id">p</span>.<span class="t-fn">close</span>();
+
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">p</span>.<span class="t-prop">root</span>);
+<span class="t-cm">// [{ tagName: "root", attributes: {}, children: [{ tagName: "child", attributes: { attr: "value" }, children: ["text"] }] }]</span></code></pre></div>
+<h2 id="xmlserializer"><a class="anchor" href="#xmlserializer" aria-hidden="true">#</a>XMLSerializer</h2>
+<p>A "pull" serializer: it traverses a parsed tree lazily, producing only as much text as requested
+per <code>.read()</code> call, rather than building the whole string up front. Modeled on <code>JsonSerializer</code>
+(<code>quickjs-json.c</code>).</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">XMLSerializer</span>(<span class="t-id">root</span>)   <span class="t-cm">// root is a tree array or a single element object</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="xmlserializer-read">read(n)</code><a class="member-anchor" href="#xmlserializer-read" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Returns a string of up to <code>n</code> characters of serialized XML, <code>''</code> once exhausted.</td></tr><tr><td><code id="xmlserializer-read-1">read(buffer, offset?, length?)</code><a class="member-anchor" href="#xmlserializer-read-1" aria-hidden="true">#</a></td><td>1–3</td><td>method</td><td>Writes serialized bytes directly into the given <code>ArrayBuffer</code>/<code>TypedArray</code> (zero-copy), starting at <code>offset</code> for up to <code>length</code> bytes — or the whole buffer if omitted. Returns the number of bytes written, <code>0</code> once exhausted.</td></tr><tr><td><code id="xmlserializer-root">root</code><a class="member-anchor" href="#xmlserializer-root" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The root value being serialized.</td></tr><tr><td><code id="xmlserializer-finished">finished</code><a class="member-anchor" href="#xmlserializer-finished" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td><code>true</code> once all output has been produced.</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">XMLSerializer</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">tree</span> <span class="t-op">=</span> <span class="t-id">xml</span>.<span class="t-fn">read</span>(<span class="t-str">'&lt;root&gt;&lt;child attr="val"&gt;text&lt;/child&gt;&lt;/root&gt;'</span>);
+<span class="t-kw">let</span> <span class="t-id">s</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">XMLSerializer</span>(<span class="t-id">tree</span>);
+<span class="t-kw">let</span> <span class="t-id">out</span> <span class="t-op">=</span> <span class="t-str">''</span>;
+<span class="t-kw">let</span> <span class="t-id">chunk</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">chunk</span> <span class="t-op">=</span> <span class="t-id">s</span>.<span class="t-fn">read</span>(<span class="t-num">32</span>)) <span class="t-op">!==</span> <span class="t-str">''</span>) <span class="t-id">out</span> <span class="t-op">+=</span> <span class="t-id">chunk</span>;
+
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">out</span>); <span class="t-cm">// &lt;root&gt;&lt;child attr="val"&gt;text&lt;/child&gt;&lt;/root&gt;</span></code></pre></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-cm">// Zero-copy: write straight into a fixed-size buffer.</span>
+<span class="t-kw">let</span> <span class="t-id">s</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">XMLSerializer</span>(<span class="t-id">bigTree</span>);
+<span class="t-kw">let</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>(<span class="t-num">4096</span>);
+<span class="t-kw">let</span> <span class="t-id">n</span>;
+
+<span class="t-kw">while</span>((<span class="t-id">n</span> <span class="t-op">=</span> <span class="t-id">s</span>.<span class="t-fn">read</span>(<span class="t-id">buf</span>)) <span class="t-op">&gt;</span> <span class="t-num">0</span>) <span class="t-id">socket</span>.<span class="t-fn">send</span>(<span class="t-id">buf</span>.<span class="t-fn">subarray</span>(<span class="t-num">0</span>, <span class="t-id">n</span>));</code></pre></div>
+<h2 id="xmlwriter"><a class="anchor" href="#xmlwriter" aria-hidden="true">#</a>XMLWriter</h2>
+<p>An event-driven XML writer: instead of serializing a tree, the caller drives output by calling
+<code>elementStart()</code>, <code>attribute()</code>, <code>text()</code>, and <code>elementEnd()</code> in document order. Output goes to a
+<code>Writer</code> (from <code>stream-utils.h</code>) — a buffer, fd, or any writable sink. Handles indentation
+automatically.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">new</span> <span class="t-fn">XMLWriter</span>(<span class="t-id">output</span>, <span class="t-id">options</span><span class="t-op">?</span>)   <span class="t-cm">// output is a buffer or writer; options may be a number (indent) or {indent}</span></code></pre></div>
+<p><code>output</code> may be:</p>
+<ul>
+<li>a writable buffer (<code>ArrayBuffer</code>, typed array), or</li>
+<li>an object exposing a <code>write(buf, offset, length)</code> method, or</li>
+<li>omitted, in which case an internal buffer is used.</li>
+</ul>
+<p><code>options</code> is either a number (the indent width, default 2) or an object with an <code>indent</code> property.</p>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Args</th><th>Kind</th><th>Description</th></tr></thead><tbody><tr><td><code id="xmlwriter-elementstart">elementStart(name)</code><a class="member-anchor" href="#xmlwriter-elementstart" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Writes <code>&lt;name</code>. Increments the nesting level. Returns bytes written.</td></tr><tr><td><code id="xmlwriter-attribute">attribute(name, value?)</code><a class="member-anchor" href="#xmlwriter-attribute" aria-hidden="true">#</a></td><td>1–2</td><td>method</td><td>Writes <code> name="value"</code>. If <code>value</code> is omitted or <code>true</code>, writes a boolean/valueless attribute (<code>name</code> only). Returns bytes written.</td></tr><tr><td><code id="xmlwriter-elementend">elementEnd(name?)</code><a class="member-anchor" href="#xmlwriter-elementend" aria-hidden="true">#</a></td><td>0–1</td><td>method</td><td>If called right after <code>elementStart()</code>/<code>attribute()</code> (no text or child elements in between), writes <code> /&gt;</code> (self-closing). Otherwise writes <code>&lt;/name&gt;</code>. Decrements the nesting level. Returns bytes written.</td></tr><tr><td><code id="xmlwriter-text">text(content)</code><a class="member-anchor" href="#xmlwriter-text" aria-hidden="true">#</a></td><td>1</td><td>method</td><td>Writes text content. Returns bytes written.</td></tr><tr><td><code id="xmlwriter-state">state</code><a class="member-anchor" href="#xmlwriter-state" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>The event type of the last method call (an <code>xml_event_t</code> integer).</td></tr><tr><td><code id="xmlwriter-written">written</code><a class="member-anchor" href="#xmlwriter-written" aria-hidden="true">#</a></td><td>—</td><td>getter</td><td>Total number of bytes written so far.</td></tr><tr><td><code id="xmlwriter-indent">indent</code><a class="member-anchor" href="#xmlwriter-indent" aria-hidden="true">#</a></td><td>—</td><td>getter/setter</td><td>The indentation width (number of spaces per level).</td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">XMLWriter</span> } <span class="t-kw">from</span> <span class="t-str">'xml'</span>;
+
+<span class="t-kw">let</span> <span class="t-id">buf</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">Uint8Array</span>(<span class="t-num">1024</span>);
+<span class="t-kw">let</span> <span class="t-id">w</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">XMLWriter</span>(<span class="t-id">buf</span>);
+
+<span class="t-id">w</span>.<span class="t-fn">elementStart</span>(<span class="t-str">'root'</span>);
+  <span class="t-id">w</span>.<span class="t-fn">elementStart</span>(<span class="t-str">'child'</span>);
+    <span class="t-id">w</span>.<span class="t-fn">attribute</span>(<span class="t-str">'attr'</span>, <span class="t-str">'val'</span>);
+    <span class="t-id">w</span>.<span class="t-fn">text</span>(<span class="t-str">'hello'</span>);
+  <span class="t-id">w</span>.<span class="t-fn">elementEnd</span>(<span class="t-str">'child'</span>);
+<span class="t-id">w</span>.<span class="t-fn">elementEnd</span>(<span class="t-str">'root'</span>);
+
+<span class="t-kw">let</span> <span class="t-id">text</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">TextDecoder</span>().<span class="t-fn">decode</span>(<span class="t-id">buf</span>.<span class="t-fn">subarray</span>(<span class="t-num">0</span>, <span class="t-id">w</span>.<span class="t-prop">written</span>));
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">text</span>);
+<span class="t-cm">// &lt;root&gt;</span>
+<span class="t-cm">//   &lt;child attr="val"&gt;hello&lt;/child&gt;</span>
+<span class="t-cm">// &lt;/root&gt;</span></code></pre></div></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/native/xml.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#module-functions">Module functions</a></li><li class="lvl2"><a href="#xmlparser">XMLParser</a></li><li class="lvl2"><a href="#xmlnodeparser">XMLNodeParser</a></li><li class="lvl2"><a href="#xmlpushparser">XMLPushParser</a></li><li class="lvl2"><a href="#xmlserializer">XMLSerializer</a></li><li class="lvl2"><a href="#xmlwriter">XMLWriter</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

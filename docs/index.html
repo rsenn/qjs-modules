@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qjs-modules — API Reference — qjs-modules</title>
+<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-root="../">
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../getting-started.html">Get started</a>
+    <a href="../docs/index.html">Docs</a>
+    <a href="../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../getting-started.html">Getting started</a></li><li><a href="../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="index.html" class="here">API reference</a></li><li><a href="api-compatibility.html">Standards compatibility</a></li><li><a href="api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="grammar.html">Grammar</a></li><li><a href="buffer.html">Buffer handling</a></li><li><a href="readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="native/index.html">Native modules overview</a></li><li><a href="native/archive.html">archive</a></li><li><a href="native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="native/bcrypt.html">bcrypt</a></li><li><a href="native/bjson.html">bjson</a></li><li><a href="native/blob.html">blob</a></li><li><a href="native/json.html">json</a></li><li><a href="native/lexer.html">lexer</a></li><li><a href="native/list.html">list</a></li><li><a href="native/textcode.html">textcode</a></li><li><a href="native/xml.html">xml</a></li><li><a href="native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="native/child-process.html">child-process</a></li><li><a href="native/directory.html">directory</a></li><li><a href="native/gpio.html">gpio</a></li><li><a href="native/location.html">location</a></li><li><a href="native/magic.html">magic</a></li><li><a href="native/misc.html">misc</a></li><li><a href="native/mmap.html">mmap</a></li><li><a href="native/path.html">path</a></li><li><a href="native/serial.html">serial</a></li><li><a href="native/sockets.html">sockets</a></li><li><a href="native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="native/deep.html">deep</a></li><li><a href="native/inspect.html">inspect</a></li><li><a href="native/pointer.html">pointer</a></li><li><a href="native/predicate.html">predicate</a></li><li><a href="native/tree-walker.html">tree-walker</a></li><li><a href="native/queue.html">queue</a></li><li><a href="native/repeater.html">repeater</a></li><li><a href="native/stream.html">stream</a></li><li><a href="native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="native/mysql.html">mysql</a></li><li><a href="native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="js/index.html">JS modules overview</a></li><li><a href="js/util.html">util</a></li><li><a href="js/reflect.html">reflect</a></li><li><a href="js/iterator.html">iterator</a></li><li><a href="js/asyncIterator.html">asyncIterator</a></li><li><a href="js/arrayLike.html">arrayLike</a></li><li><a href="js/extendArray.html">extendArray</a></li><li><a href="js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="js/extendObject.html">extendObject</a></li><li><a href="js/extendMap.html">extendMap</a></li><li><a href="js/extendSet.html">extendSet</a></li><li><a href="js/extendMath.html">extendMath</a></li><li><a href="js/extendFunction.html">extendFunction</a></li><li><a href="js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="js/extendGenerator.html">extendGenerator</a></li><li><a href="js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="js/assert.html">assert</a></li><li><a href="js/console.html">console</a></li><li><a href="js/process.html">process</a></li><li><a href="js/events.html">events</a></li><li><a href="js/abort.html">abort</a></li><li><a href="js/timers.html">timers</a></li><li><a href="js/perf_hooks.html">perf_hooks</a></li><li><a href="js/module.html">module</a></li><li><a href="js/require.html">require</a></li><li><a href="js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="js/fs.html">fs</a></li><li><a href="js/fsPromises.html">fsPromises</a></li><li><a href="js/io.html">io</a></li><li><a href="js/streams.html">streams</a></li><li><a href="js/vfs.html">vfs</a></li><li><a href="js/inotify.html">inotify</a></li><li><a href="js/tty.html">tty</a></li><li><a href="js/terminal.html">terminal</a></li><li><a href="js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="js/dom.html">dom</a></li><li><a href="js/xpath.html">xpath</a></li><li><a href="js/parser.html">parser</a></li><li><a href="js/parsel.html">parsel</a></li><li><a href="js/css-selectors.html">css-selectors</a></li><li><a href="js/css3-selectors.html">css3-selectors</a></li><li><a href="js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="js/db.html">db</a></li><li><a href="js/repl.html">repl</a></li><li><a href="js/testharness.html">testharness</a></li><li><a href="js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="qjs-modules--api-reference"><a class="anchor" href="#qjs-modules--api-reference" aria-hidden="true">#</a>qjs-modules — API Reference</h1>
+<p>This directory contains comprehensive API documentation for qjs-modules.</p>
+<h2 id="structure"><a class="anchor" href="#structure" aria-hidden="true">#</a>Structure</h2>
+<p>The documentation is organized into three categories:</p>
+<ul>
+<li><strong><code>native/</code></strong> — Native C modules (<code>quickjs-*.c</code>). These are the primary implementations for modules that have native bindings.</li>
+<li><strong><code>js/</code></strong> — Pure JavaScript modules (<code>lib/*.js</code>). These are either polyfills for standard APIs or wrappers around native modules.</li>
+<li><strong>Root files</strong> — General documentation (README, grammar, buffer, readline, api-compatibility)</li>
+</ul>
+<h3 id="module-classification"><a class="anchor" href="#module-classification" aria-hidden="true">#</a>Module Classification</h3>
+<ol>
+<li><p><strong>Native modules</strong> (in <code>native/</code>): Direct C implementations exposed to JavaScript</p>
+<ul>
+<li>Examples: blob, stream, dom, fs, process, child-process, sockets</li>
+</ul></li>
+<li><p><strong>JavaScript polyfills</strong> (in <code>js/</code>): Standalone JS implementations of standard APIs</p>
+<ul>
+<li>Examples: events, url, timers, console (WHATWG/W3C/HTML5 standards)</li>
+<li>Some polyfills also have native counterparts (deep, misc, pointer, predicate, xml) — documented in <code>native/</code></li>
+</ul></li>
+<li><p><strong>JavaScript wrappers</strong> (in <code>js/</code>): JS code that wraps native modules to provide higher-level APIs</p>
+<ul>
+<li>Examples: assert, fsPromises, util, dom (wraps native modules with JS convenience)</li>
+</ul></li>
+<li><p><strong>Prototype extensions</strong> (in <code>js/</code>): Extend built-in JavaScript prototypes</p>
+<ul>
+<li>Examples: extendArray, extendString, extendObject, etc.</li>
+</ul></li>
+</ol>
+<h2 id="documentation-index"><a class="anchor" href="#documentation-index" aria-hidden="true">#</a>Documentation Index</h2>
+<h3 id="native-modules-native"><a class="anchor" href="#native-modules-native" aria-hidden="true">#</a>Native Modules (<code>native/</code>)</h3>
+<p>See <a href="native/index.html">native/README.md</a> for the complete list of native C modules.</p>
+<p>Key modules:</p>
+<ul>
+<li><a href="native/blob.html">blob</a> — WHATWG Blob API</li>
+<li><a href="native/stream.html">stream</a> — WHATWG Streams API</li>
+<li><a href="js/dom.html">dom</a> — W3C DOM API</li>
+<li><a href="native/child-process.html">child-process</a> — Node.js child_process</li>
+<li><a href="native/sockets.html">sockets</a> — BSD sockets</li>
+<li><a href="native/deep.html">deep</a> — Deep object comparison and cloning</li>
+<li><a href="native/inspect.html">inspect</a> — Object inspection and formatting</li>
+</ul>
+<h3 id="javascript-modules-js"><a class="anchor" href="#javascript-modules-js" aria-hidden="true">#</a>JavaScript Modules (<code>js/</code>)</h3>
+<p>See <a href="js/index.html">js/README.md</a> for the complete list of JavaScript modules.</p>
+<p>Key modules:</p>
+<ul>
+<li><a href="js/events.html">events</a> — Node.js EventEmitter</li>
+<li><a href="js/url.html">url</a> — WHATWG URL API</li>
+<li><a href="js/timers.html">timers</a> — HTML5 Timers API</li>
+<li><a href="js/console.html">console</a> — WHATWG Console API</li>
+<li><a href="js/assert.html">assert</a> — Node.js assert module</li>
+<li><a href="js/fs.html">fs</a> — Node.js fs module</li>
+<li><a href="js/fsPromises.html">fsPromises</a> — Promise-based fs API</li>
+</ul>
+<h3 id="api-compatibility"><a class="anchor" href="#api-compatibility" aria-hidden="true">#</a>API Compatibility</h3>
+<p>See <a href="api-compatibility.html">api-compatibility.md</a> for:</p>
+<ul>
+<li>Classification of all modules by standard compliance</li>
+<li>Standards compatibility tracking (WHATWG, W3C, Node.js, etc.)</li>
+<li>Roadmap for improving standards compliance</li>
+</ul>
+<h3 id="general-documentation"><a class="anchor" href="#general-documentation" aria-hidden="true">#</a>General Documentation</h3>
+<ul>
+<li><a href="grammar.html">grammar.md</a> — JavaScript grammar specification</li>
+<li><a href="buffer.html">buffer.md</a> — Buffer handling</li>
+<li><a href="readline.html">readline.md</a> — Readline utilities</li>
+</ul></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/README.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#structure">Structure</a></li><li class="lvl3"><a href="#module-classification">Module Classification</a></li><li class="lvl2"><a href="#documentation-index">Documentation Index</a></li><li class="lvl3"><a href="#native-modules-native">Native Modules (native/)</a></li><li class="lvl3"><a href="#javascript-modules-js">JavaScript Modules (js/)</a></li><li class="lvl3"><a href="#api-compatibility">API Compatibility</a></li><li class="lvl3"><a href="#general-documentation">General Documentation</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+</footer>
+<script src="../assets/search-index.js"></script>
+<script src="../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>
