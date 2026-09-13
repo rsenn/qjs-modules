@@ -231,32 +231,11 @@ and `tests/test_range_selection.js` (60+ tests).
 
 Remaining items ordered by leverage:
 
-### 9.1 Fetch API (LOWER - modern HTTP client, see also Tier 7)
-**Why:** Network requests for dynamic content.
+### 9.1 Fetch API (OUT OF SCOPE for this repo)
+**Status:** Implemented in the separate `../qjs-lws/` project (`lib/fetch.js`), which wraps libwebsockets for HTTP transport. Not to be duplicated here.
 
-**Implementation:**
-- `fetch(url, options)` function
-- `Request` class: `url`, `method`, `headers`, `body`, `mode`, `credentials`
-- `Response` class: `status`, `statusText`, `headers`, `body`, `ok`, `json()`, `text()`, `blob()`
-- `Headers` class: `get()`, `set()`, `has()`, `delete()`, `append()`, iteration
-- `AbortController` + `AbortSignal` for request cancellation
-- Promise-based API
-
-**Files:** `lib/fetch.js` or `lib/dom.js`
-
-**Status:** Not implemented (also tracked in Tier 7).
-
-### 9.2 FormData (LOWER - form data collection)
-**Why:** Collecting form data for submission.
-
-**Implementation:**
-- `FormData` class: `append()`, `delete()`, `get()`, `getAll()`, `has()`, `set()`
-- `FormData(form)` constructor to collect from `<form>` element
-- Iteration support: `entries()`, `keys()`, `values()`
-
-**Files:** `lib/dom.js`
-
-**Status:** Not implemented.
+### 9.2 FormData (OUT OF SCOPE for this repo)
+**Status:** Implemented in the separate `../qjs-lws/` project (`lib/lws/formdata.js`). Not to be duplicated here.
 
 ### 9.3 CSSOM - CSS Object Model (LOWER - computed styles and media queries)
 **Why:** Reading computed styles and responsive design.
@@ -308,30 +287,11 @@ Remaining items ordered by leverage:
 
 **Status:** `File` class (in `lib/file.js`) and `Blob` (native binding) exist. `stream()`, `FileList`, `FileReader`, and object URL methods are missing.
 
-### 9.7 WebSocket (LOWER - real-time communication)
-**Why:** Bidirectional real-time data.
+### 9.7 WebSocket (OUT OF SCOPE for this repo)
+**Status:** Implemented in the separate `../qjs-lws/` project (`lib/websocket.js`, `lib/websocketstream.js`), which wraps libwebsockets. Not to be duplicated here.
 
-**Implementation:**
-- `WebSocket` class: constructor with URL
-- Properties: `readyState`, `bufferedAmount`, `protocol`
-- Methods: `send(data)`, `close()`
-- Events: `onopen`, `onmessage`, `onerror`, `onclose`
-
-**Files:** `lib/websocket.js`
-
-**Status:** Not implemented.
-
-### 9.8 Canvas API (LOWER - 2D graphics, games)
-**Why:** Image manipulation, games, visualizations.
-
-**Implementation:**
-- `HTMLCanvasElement`: `width`, `height`, `getContext()`
-- `CanvasRenderingContext2D`: drawing methods, transformations, gradients, patterns
-- This is large—implement incrementally based on usage
-
-**Files:** `lib/canvas.js`
-
-**Status:** Not implemented. `HTMLCanvasElement` stub exists (just `width`/`height`).
+### 9.8 Canvas API (OUT OF SCOPE for this repo)
+**Status:** Implemented in the separate `../qjs-nanovg/` project (`lib/canvas2d.js`), on top of nanovg + `../qjs-glfw/` for window/GL context. Not to be duplicated here. `HTMLCanvasElement` in `lib/dom.js` keeps its minimal `width`/`height` stub only for structural DOM compatibility (e.g. `<canvas>` element presence); a real `getContext()`/`CanvasRenderingContext2D` belongs in qjs-nanovg.
 
 ### 9.9 Web Workers (LOWER - background threads, see also Tier 7)
 **Why:** Heavy computation without blocking main thread.

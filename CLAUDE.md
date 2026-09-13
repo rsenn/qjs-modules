@@ -178,13 +178,32 @@ All modules classified into four categories:
 - Node.js: fs, process, events, assert, child-process, path, util, tty
 
 **Missing (tracked in TODO.md):**
-- Fetch API (Tier 9.1)
-- FormData (Tier 9.2)
-- WebSocket (Tier 9.7)
-- Canvas API (Tier 9.8)
 - Web Workers (Tier 9.9)
 - URL.createObjectURL/revokeObjectURL (Tier 9.6)
 - Streams BYOB safety checks (Tier 3)
+
+**Out of scope (implemented by sibling projects, see "Sibling Projects" below):**
+- Fetch API, FormData, WebSocket - `../qjs-lws/`
+- Canvas API - `../qjs-nanovg/` (`lib/canvas2d.js`) + `../qjs-glfw/`
+
+## Sibling Projects
+
+qjs-modules is meant to be the "standard library" QuickJS deserves - it should not
+grow heavyweight, opinionated dependencies like an HTTP/WebSocket stack or a GPU-backed
+2D renderer. Those live in sibling projects instead, each runnable on a **plain QuickJS
+install with no dependency on qjs-modules**:
+
+- **`../qjs-lws/`** - HTTP client/server and WebSocket bindings on top of libwebsockets.
+  Provides `lib/fetch.js` (Fetch API), `lib/websocket.js`/`lib/websocketstream.js`
+  (WebSocket), and `lib/lws/formdata.js` (FormData).
+- **`../qjs-nanovg/`** - 2D vector graphics on top of nanovg. Provides `lib/canvas2d.js`,
+  a Canvas API implementation.
+- **`../qjs-glfw/`** - Window/GL context creation and input via GLFW, used by
+  `qjs-nanovg` to get a drawable surface.
+
+When a TODO/gap here looks like "implement Fetch" or "implement Canvas", check whether
+it's already covered by one of these sibling projects before adding it to this repo's
+roadmap - elaborate network clients/servers and graphics stacks don't belong in a stdlib.
 
 ## Documentation Structure
 
@@ -323,10 +342,10 @@ JS polyfills typically:
 See `TODO.md` for full list. Key items:
 
 - **Streams BYOB safety checks** (Tier 3) - Missing validation in respondWithNewView()
-- **Fetch API** (Tier 9.1) - Not implemented
-- **FormData** (Tier 9.2) - Not implemented
 - **URL.createObjectURL** (Tier 9.6) - Not implemented
 - **11 test failures** - Pre-existing, documented in TODO.md
+
+(Fetch, FormData, WebSocket, and Canvas are out of scope for this repo - see "Sibling Projects" above.)
 
 ## Future Roadmap
 
@@ -336,9 +355,7 @@ See `TODO.md` for full list. Key items:
 - Clean up dead code in C modules
 
 ### Medium-term (Tier 9)
-- Implement Fetch API
-- Implement FormData
-- Implement WebSocket
+- Implement Web Workers
 - Add URL.createObjectURL/revokeObjectURL
 
 ### Long-term
