@@ -438,3 +438,15 @@
     // expected: test file loads and its getByteCode-related assertions
     // run (pass or fail on their own merits)
 
+- lib-modules-missing-docs (doc/js/README.md:61): `lib/database.js`,
+  `lib/dbi.js` and `lib/describe-class.js` exist and are exported like
+  any other JS module, but have no doc/js/*.md page - doc/js/README.md
+  used to link to database.md/dbi.md/describe-class.md as if they
+  existed, which is what surfaced this while fixing the
+  doc-cross-folder-md-links-unresolvable bug (now fixed: those entries
+  are plain text, not broken links). Writing the three missing pages is
+  unfinished, tracked here rather than done speculatively.
+
+    ls doc/js/database.md doc/js/dbi.md doc/js/describe-class.md
+    // No such file or directory (all three)
+

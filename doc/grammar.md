@@ -3,7 +3,7 @@
 Source: `lib/parser/grammar.js` (pure JS) — default export: `Grammar`
 
 A composable recursive-descent parsing library built on top of the
-[`parser`](parser.md) driver and the [`lexer`](lexer.md) C module. Grammars
+[`parser`](js/parser.md) driver and the [`lexer`](native/lexer.md) C module. Grammars
 are constructed as trees of `GrammarRule` instances that are combined
 through **methods** (`then`, `or`, `optional`, `many`, `some`, `not`, `as`,
 `map`) — no QuickJS operator-overloading extension is required.
@@ -76,7 +76,7 @@ Every combinator derives from `GrammarRule`. Two methods drive the machinery:
 | `terminal(matcher, name?)` | 1–2 | Convenience: returns a `Terminal`. |
 | `seq(...items)` | * | Convenience: returns a `Sequence`. |
 | `alt(...items)` | * | Convenience: returns an `Alternatives`. |
-| `parse(parser)` | 1 | Runs the grammar over a `Parser` (see [`parser`](parser.md)). Returns the root `ParseNode` or throws. |
+| `parse(parser)` | 1 | Runs the grammar over a `Parser` (see [`parser`](js/parser.md)). Returns the root `ParseNode` or throws. |
 | `toString()` | 0 | Prints all rules in EBNF-like form. |
 
 | Property | Kind | Description |

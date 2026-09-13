@@ -2,7 +2,7 @@
 
 Source: `lib/css3-selectors.js` (pure JS)
 
-Builds CSS3 selector matchers out of composable [`predicate`](predicate.md)
+Builds CSS3 selector matchers out of composable [`predicate`](../native/predicate.md)
 parts.
 
 ## Exports

@@ -1,0 +1,92 @@
+name: Pages
+
+# Builds the documentation site with tools/site/build.js and publishes the
+# generated output to the gh-pages branch. main stays source-only.
+#
+# One-time setup after merging this: Settings -> Pages -> Source =
+# "Deploy from a branch", Branch = gh-pages, folder = / (root).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'TODO.md'
+      - 'doc/**'
+      - 'tools/site/**'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'TODO.md'
+      - 'doc/**'
+      - 'tools/site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The generator runs on qjsm, which is not on the runner image. It only
+      # has to execute a plain ES-module script (std/os, no native modules),
+      # so a stock build of the fork is enough - this repo's own native
+      # modules don't need to be built for the site.
+      - name: Resolve quickjs revision
+        id: qjs
+        run: |
+          set -eu
+          rev=$(git ls-remote https://github.com/rsenn/quickjs.git HEAD | cut -f1)
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+
+      - name: Cache qjsm
+        id: cache-qjsm
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/qjs
+          key: qjsm-${{ runner.os }}-${{ steps.qjs.outputs.rev }}
+
+      - name: Build qjsm
+        if: steps.cache-qjsm.outputs.cache-hit != 'true'
+        run: |
+          set -eu
+          git clone --depth 1 https://github.com/rsenn/quickjs.git /tmp/quickjs
+          cmake -S /tmp/quickjs -B /tmp/quickjs/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$HOME/.local/qjs"
+          cmake --build /tmp/quickjs/build -j"$(nproc)"
+          cmake --install /tmp/quickjs/build
+
+      - name: Build site
+        run: |
+          set -eu
+          export PATH="$HOME/.local/qjs/bin:$PATH"
+          qjsm tools/site/build.js _site
+
+      - name: Publish to gh-pages
+        # Pull requests build only, to catch a broken generator before merge.
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          cd _site
+          git init -q -b gh-pages
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -qm "Deploy site from ${GITHUB_SHA}"
+          # gh-pages holds generated output only, so each deploy replaces its
+          # history rather than accumulating one commit per build.
+          git push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            gh-pages

@@ -2,7 +2,7 @@
 
 Source: `lib/console.js` (pure JS) — default export: `ConsoleSetup`
 
-A configurable `console` implementation built on the [`inspect`](inspect.md)
+A configurable `console` implementation built on the [`inspect`](../native/inspect.md)
 pretty printer.
 
 ## Exports

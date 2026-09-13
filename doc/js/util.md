@@ -5,7 +5,7 @@ Source: `lib/util.js` (pure JS)
 The project's central utility library — a large collection of helpers for type
 checking, object/property manipulation, functional composition, collections,
 strings, numbers, time, async, and more. Re-exports everything from
-[`misc`](misc.md) and `inspect` from [`inspect`](inspect.md).
+[`misc`](../native/misc.md) and `inspect` from [`inspect`](../native/inspect.md).
 
 > This module is large; functions are grouped by theme below. Argument lists are
 > abbreviated — see the source for defaults.
@@ -98,5 +98,5 @@ Property/method enumeration: `keys`, `values`, `entries`, `fromEntries`, `pick`,
 
 ## Re-exports
 
-`inspect` (from `inspect`), everything from [`misc`](misc.md), and
+`inspect` (from `inspect`), everything from [`misc`](../native/misc.md), and
 `setInterval`/`clearInterval` (from `timers`).

@@ -2,7 +2,7 @@
 
 Source: `lib/streams.js` (pure JS)
 
-Higher-level helpers built on top of the WHATWG [`stream`](stream.md)
+Higher-level helpers built on top of the WHATWG [`stream`](../native/stream.md)
 implementation — file-backed streams, line iteration, and text transform
 streams. Re-exports everything from `stream`.
 

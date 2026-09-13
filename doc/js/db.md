@@ -3,7 +3,7 @@
 Source: `lib/db.js` (pure JS)
 
 A small connection-pool abstraction over a database client (e.g. the
-[`mysql`](mysql.md) / [`pgsql`](pgsql.md) bindings).
+[`mysql`](../native/mysql.md) / [`pgsql`](../native/pgsql.md) bindings).
 
 ## Exports
 

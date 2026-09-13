@@ -34,7 +34,7 @@ See [native/README.md](native/README.md) for the complete list of native C modul
 Key modules:
 - [blob](native/blob.md) — WHATWG Blob API
 - [stream](native/stream.md) — WHATWG Streams API
-- [dom](native/dom.md) — W3C DOM API
+- [dom](js/dom.md) — W3C DOM API
 - [child-process](native/child-process.md) — Node.js child_process
 - [sockets](native/sockets.md) — BSD sockets
 - [deep](native/deep.md) — Deep object comparison and cloning

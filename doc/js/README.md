@@ -50,7 +50,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [dom](dom.md) — W3C DOM API (wraps native modules)
 - [xpath](xpath.md) — XPath implementation
 - [parser](parser.md) — Parser combinator framework
-- [grammar](grammar.md) — Grammar utilities
+- [grammar](../grammar.md) — Grammar utilities
 - [parsel](parsel.md) — CSS selector parser
 - [css-selectors](css-selectors.md) — CSS selector engine
 - [css3-selectors](css3-selectors.md) — CSS3 selector engine
@@ -58,7 +58,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 
 ### Databases
 - [db](db.md) — Database utilities
-- [database](database.md) — Database abstraction
+- database (`lib/database.js`) — Database abstraction (undocumented)
 
 ### Tooling
 - [repl](repl.md) — REPL implementation
@@ -66,10 +66,10 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [testharnessreport](testharnessreport.md) — Test harness reporting
 
 ### Utilities
-- [buffer](buffer.md) — Buffer utilities
-- [readline](readline.md) — Readline utilities
-- [describe-class](describe-class.md) — Class description utilities
-- [dbi](dbi.md) — Database interface
+- [buffer](../buffer.md) — Buffer utilities
+- [readline](../readline.md) — Readline utilities
+- describe-class (`lib/describe-class.js`) — Class description utilities (undocumented)
+- dbi (`lib/dbi.js`) — Database interface (undocumented)
 
 ## Module Classification
 

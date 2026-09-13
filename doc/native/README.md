@@ -21,7 +21,7 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 - [child-process](child-process.md) — Node.js child_process module
 - [directory](directory.md) — Directory iteration
 - [gpio](gpio.md) — GPIO pin control
-- [inotify](inotify.md) — Linux inotify file system events
+- [inotify](../js/inotify.md) — Linux inotify file system events
 - [location](location.md) — Source location tracking
 - [magic](magic.md) — libmagic content detection
 - [misc](misc.md) — System/process/buffer utilities
@@ -49,10 +49,10 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 ### Databases
 - [mysql](mysql.md) — MySQL client
 - [pgsql](pgsql.md) — PostgreSQL client
-- [sqlite](sqlite.md) — SQLite3 database
+- sqlite — SQLite3 database (undocumented; see the root [README](../../README.md#sqlite))
 
 ### Internal
-- [internal](internal.md) — Internal module introspection (qjsm only)
+- internal — shared support code compiled into other modules, not a standalone module (no JS-facing API of its own)
 
 ## Module Naming Convention
 
