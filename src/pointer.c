@@ -282,6 +282,51 @@ pointer_serialize(Pointer const* ptr, Writer* wr, JSContext* ctx) {
   return atoms_serialize(ptr->atoms, ptr->n, wr, ctx);
 }
 
+/* RFC 6901 §5: serialize atoms as a JSON Pointer string ("/foo/bar/1"),
+ * escaping '~' as "~0" and '/' as "~1" (in that order). An empty Pointer
+ * serializes to the empty string (the "whole document" pointer). */
+void
+pointer_serialize_rfc6901(Pointer const* ptr, Writer* wr, JSContext* ctx) {
+  size_t i, j;
+
+  for(i = 0; i < ptr->n; i++) {
+    const char* str;
+    int64_t idx;
+
+    writer_putc(wr, '/');
+
+    if(js_atom_is_index(ctx, &idx, ptr->atoms[i])) {
+      char buf[FMT_ULONG];
+      writer_write(wr, (const uint8_t*)buf, fmt_ulong(buf, idx));
+      continue;
+    }
+
+    str = JS_AtomToCString(ctx, ptr->atoms[i]);
+
+    for(j = 0; str[j]; j++) {
+      if(str[j] == '~')
+        writer_puts(wr, "~0");
+      else if(str[j] == '/')
+        writer_puts(wr, "~1");
+      else
+        writer_putc(wr, str[j]);
+    }
+
+    JS_FreeCString(ctx, str);
+  }
+}
+
+char*
+pointer_tostring_rfc6901(Pointer const* ptr, JSContext* ctx) {
+  DynBuf db;
+  dbuf_init_ctx(ctx, &db);
+  Writer wr = writer_from_dynbuf(&db);
+  pointer_serialize_rfc6901(ptr, &wr, ctx);
+  dbuf_0(&db);
+
+  return (char*)db.buf;
+}
+
 static int
 pointer_parse_unescape(const char* x, size_t* nptr) {
   *nptr = 2;
@@ -295,6 +340,83 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
   if(len > 0 && str[0] == '.') {
     ++str;
     --len;
+  }
+
+  /* Accept RFC 6901 JSON Pointer syntax ("/foo/bar/1", '~0'/'~1' escaping)
+   * as an alternate input format, chosen when a '/' occurs before any
+   * '.'/'[' path delimiter (or there's no '.'/'[' at all). Output stays
+   * the dot/bracket format (see pointer_tostring/atoms_serialize); use
+   * pointer_serialize_rfc6901() for RFC 6901 output. */
+  if(len > 0) {
+    size_t slash = byte_chr(str, len, '/');
+    size_t dot = byte_chr(str, len, '.');
+    size_t bracket = byte_chr(str, len, '[');
+
+    if(slash < len && slash < dot && slash < bracket) {
+      const char* s = str;
+      size_t n = len;
+
+      /* A proper RFC 6901 pointer starts with '/'; consume that one
+       * delimiter so the loop below can split the rest uniformly. The
+       * lenient bare form ("a/b/c", no leading '/') splits as-is. Either
+       * way, every '/' (kept or implied) always introduces exactly one
+       * token, including empty ones - so "/" is one empty-string token,
+       * not zero tokens (that's reserved for the true empty-string input,
+       * handled by the len==0 case outside this whole branch). */
+      if(n && *s == '/') {
+        ++s;
+        --n;
+      }
+
+      for(;;) {
+        size_t tok_len = byte_chr(s, n, '/');
+        size_t i;
+        BOOL is_index;
+        JSAtom atom;
+
+        dbuf.size = 0;
+
+        for(i = 0; i < tok_len; i++) {
+          if(s[i] == '~' && i + 1 < tok_len && (s[i + 1] == '0' || s[i + 1] == '1')) {
+            dbuf_putc(&dbuf, s[i + 1] == '0' ? '~' : '/');
+            ++i;
+          } else {
+            dbuf_putc(&dbuf, s[i]);
+          }
+        }
+
+        is_index = dbuf.size > 0;
+
+        for(i = 0; i < dbuf.size && is_index; i++)
+          if(!is_digit_char(dbuf.buf[i]))
+            is_index = FALSE;
+
+        if(is_index && dbuf.size > 1 && dbuf.buf[0] == '0')
+          is_index = FALSE;
+
+        if(is_index) {
+          int32_t val = 0;
+
+          for(i = 0; i < dbuf.size; i++)
+            val = val * 10 + (dbuf.buf[i] - '0');
+
+          atom = js_atom_from_integer(ctx, val);
+        } else {
+          atom = JS_NewAtomLen(ctx, (const char*)dbuf.buf, dbuf.size);
+        }
+
+        pointer_pushatom(ptr, atom, ctx);
+
+        if(tok_len == n)
+          break;
+
+        s += tok_len + 1;
+        n -= tok_len + 1;
+      }
+
+      dbuf_free(&dbuf);
+      return ptr->n;
+    }
   }
 
   while(len) {

@@ -311,6 +311,23 @@ js_pointer_serialize(JSContext* ctx, JSValueConst this_val) {
 }
 
 static JSValue
+js_pointer_rfc6901(JSContext* ctx, JSValueConst this_val) {
+  Pointer* ptr;
+  DynBuf dbuf;
+  JSValue ret;
+
+  if(!(ptr = js_pointer_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  dbuf_init_ctx(ctx, &dbuf);
+  Writer wr = writer_from_dynbuf(&dbuf);
+  pointer_serialize_rfc6901(ptr, &wr, ctx);
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+  dbuf_free(&dbuf);
+  return ret;
+}
+
+static JSValue
 js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf;
@@ -342,6 +359,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 enum {
   METHOD_DEREF,
   METHOD_TO_STRING,
+  METHOD_TO_RFC6901,
   METHOD_TO_ARRAY,
   METHOD_INSPECT,
   METHOD_SHIFT,
@@ -373,6 +391,10 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case METHOD_TO_STRING: {
       return js_pointer_serialize(ctx, this_val);
+    }
+
+    case METHOD_TO_RFC6901: {
+      return js_pointer_rfc6901(ctx, this_val);
     }
 
     case METHOD_TO_ARRAY: {
@@ -751,6 +773,7 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
 static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
+    JS_CFUNC_MAGIC_DEF("toRFC6901", 0, js_pointer_method, METHOD_TO_RFC6901),
     JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
     JS_CFUNC_MAGIC_DEF("shift", 0, js_pointer_method, METHOD_SHIFT),
     JS_CFUNC_MAGIC_DEF("unshift", 1, js_pointer_method, METHOD_UNSHIFT),
