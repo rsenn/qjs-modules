@@ -209,7 +209,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 **Classification:** Custom (POSIX syscall grab-bag)  
 **Exports:** Large flat list of raw POSIX bindings grouped by theme - filesystem (`fnmatch`, `glob`, `wordexp`, `chmod`, `access`, `fcntl`, …), process/user (`fork`, `exec`, `kill`, `setsid`, `getpid`, …), plus buffer/QuickJS-internals utilities (see doc/native/misc.md for the full list).
 
-**Notes:** Direct 1:1 POSIX bindings, not wrapped in a Node-style `fs`/`process` API (those higher-level wrappers live in `lib/fs.js`/`lib/process.js`); no single spec covers the whole surface, each function maps to its own POSIX man page.
+**Notes:** Direct 1:1 POSIX bindings, not wrapped in a Node-style `fs`/`process` API (those higher-level wrappers live in `lib/fs.js`/`lib/process.js`); no single spec covers the whole surface, each function maps to its own POSIX man page. Fixed 2026-09: the inotify-event `watch(buffer, offset, length)` parser computed each event's `name` length via `byte_chr(ev->name, '\0', ev->len)` - swapped arguments (every other `byte_chr` call site in this codebase uses `(ptr, len, char)`), so it always searched a zero-length region and `name` was silently dropped from every event.
 
 ### quickjs-mmap.c
 **Module:** `mmap`  
@@ -229,7 +229,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `MySQLResult` class - iterable result set (`fetchRow`, `fetchAssoc`, `fetchFields`)
 - `MySQLError` - `Error` subclass
 
-**Notes:** Async wrapper around the MySQL/MariaDB C client; no JS-runtime-standard MySQL API exists to align with.
+**Notes:** Async wrapper around the MySQL/MariaDB C client; no JS-runtime-standard MySQL API exists to align with this native module's own shape directly, but see `lib/sql.js` (doc/js/sql.md) for a Bun `bun:sql`-flavored JS-facing layer unifying this with `pgsql`/`sqlite`.
 
 ### quickjs-path.c
 **Module:** `path`  
@@ -249,7 +249,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `PGresult` class - iterable result set (`fetchRow`, `fetchAssoc`, `fetchFields`)
 - `PGerror` - `Error` subclass
 
-**Notes:** Async wrapper around libpq; mirrors libpq's own escaping/identifier vocabulary rather than any JS-ecosystem pg client.
+**Notes:** Async wrapper around libpq; mirrors libpq's own escaping/identifier vocabulary rather than any JS-ecosystem pg client. See `lib/sql.js` (doc/js/sql.md) for a Bun `bun:sql`-flavored JS-facing layer unifying this with `mysql`/`sqlite`.
 
 ### quickjs-pointer.c
 **Module:** `pointer`  
@@ -322,7 +322,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `SQLiteResult` - prepared-statement result wrapper
 - `SQLiteError` - `Error` subclass
 
-**Notes:** Custom binding around libsqlite3; API shape (`query`/`exec`/`close`) is closer to Bun's `bun:sqlite` and Node's newer `node:sqlite` than to any WHATWG spec — cite those as the closest runtime precedent.
+**Notes:** Custom binding around libsqlite3; API shape (`query`/`exec`/`close`) is closer to Bun's `bun:sqlite` and Node's newer `node:sqlite` than to any WHATWG spec — cite those as the closest runtime precedent. See also `lib/sql.js` (doc/js/sql.md), which layers Bun's newer unified `bun:sql` tagged-template shape on top of this driver alongside `mysql`/`pgsql`.
 
 ### quickjs-stream.c
 **Module:** `stream`  
@@ -524,7 +524,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `Database` class - `Database.register(name, AdapterClass)`, `Database.connect(driver, options)`, `query(sql)`, `exec(sql)`, `close()`, `insertId`, `affectedRows`, `quote(value)`, `insertQuery(table, fields, values)`
 - `Result` class - `numFields`, `fetchFields()`, `all()`, async-iterable rows
 
-**Notes:** Explicitly modeled on Perl DBI / libdbi (per file's own header comment) as a driver-agnostic layer over the native `sqlite`/`mysql`/`pgsql` bindings; intentionally custom, no JS-ecosystem standard for this.
+**Notes:** Explicitly modeled on Perl DBI / libdbi (per file's own header comment) as a driver-agnostic layer over the native `sqlite`/`mysql`/`pgsql` bindings; intentionally custom, no JS-ecosystem standard for this. `Result`'s row iteration now always goes through `fetchAssoc()` (fixed 2026-09) rather than each driver's own default `Symbol.iterator`/`Symbol.asyncIterator`, since the latter's returned iterator is a distinct object from the result it came from and never saw a `resultType` flag set on the result itself — `sqlite`/`pgsql` silently gave positional arrays instead of row objects through plain iteration, unlike `mysql`. See `lib/sql.js`.
 
 ### lib/deep.js
 **Module:** `deep`  
@@ -739,7 +739,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `promises` - Promise-based API (see fsPromises.js)
 
 **Runtime Compatibility:** Node.js, Bun, Deno (with --unstable)  
-**Notes:** Comprehensive Node.js fs API implementation. Uses quickjs-fs.c native bindings. Some advanced features (watch, streams) may have limitations vs Node.js.
+**Notes:** Comprehensive Node.js fs API implementation; pure JS (`lib/fs.js`), built on QuickJS's `std`/`os` plus the native `misc` module's inotify bindings, not a dedicated native `fs` binding. `watch()` (fixed 2026-09) now correctly emits Node's `'change'`/`'rename'` events with the affected filename, supports `options.signal`, and throws synchronously for an invalid path - see doc/js/fs.md.
 
 ### lib/fsPromises.js
 **Module:** `fsPromises`  
@@ -773,7 +773,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `fsPromises.watch(filename, options)` - Watch file (AsyncIterator)
 
 **Runtime Compatibility:** Node.js 10+, Bun, Deno (with --unstable)  
-**Notes:** Promise-based fs API. Wraps lib/fs.js callback API with Promise interface.
+**Notes:** Almost every export besides `open`/`read`/`write` and `watch()` is an empty stub (see BUGS: `fspromises-mostly-stubs`). `watch()` (added/fixed 2026-09) is now a real async generator over `fs.js`'s `watch()`, yielding `{eventType, filename}` and honoring `options.signal` - see doc/js/fsPromises.md.
 
 ### lib/html.js
 **Module:** `html`  
@@ -796,7 +796,7 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `inotify` class - Higher-level watcher with `add()`/`remove()`/`watch()`/`close()` and `onread`/`onclose`/`onerror` hooks
 
 **Runtime Compatibility:** Linux-only; nearest cross-platform analogue is Node's `fs.watch`  
-**Notes:** Direct binding to Linux inotify(7), not a portable/standard API by nature.
+**Notes:** Direct binding to Linux inotify(7), not a portable/standard API by nature. `fs.watch()`/`fsPromises.watch()` (see `lib/fs.js`/`lib/fsPromises.js`) now provide the actual Node-`fs.watch`-shaped JS API on top of the same native inotify plumbing this module and `lib/fs.js` share. Fixed 2026-09: this class's read handler never advanced its byte counter (`bytes += r`) after `os.read()`, so `onread` never fired for any event; a stray, undefined-reference `EWOULDBLOCK;` expression statement in the same branch would also have thrown as soon as an event *did* arrive. Both are fixed.
 
 ### lib/io.js
 **Module:** `io`  
@@ -969,6 +969,16 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `socklen_t` class (default export) - 4-byte `ArrayBuffer` subclass representing a C `socklen_t`, for in/out length params to `getsockopt`/`accept`-style socket APIs
 
 **Notes:** No JS standard equivalent; mirrors the POSIX `socklen_t` type for FFI-style interop with the `sockets` native bindings.
+
+### lib/sql.js
+**Module:** `sql`  
+**Classification:** Compatible (Bun `bun:sql`)  
+**Spec:** https://bun.com/docs/runtime/sql  
+**Exports:**
+- `SQL` class - callable tagged-template query client (`` sql`...` ``, `.values()`, `.unsafe(text, params)`, `.begin(fn)`, `.close()`, `.driver`), unifying `sqlite`/`pgsql`/`mysql` via `dbi.js`'s `Database`
+- `SQLError` - thrown for a bad connection string/options object
+
+**Notes:** Single-connection (no pooling, unlike Bun's own `bun:sql`); interpolated values are escaped via the underlying driver's own `quote()`/`valueString()` and inlined into the query text, since none of the three native drivers expose real prepared-statement/placeholder binding — injection-safe, but not sent as separate wire-protocol parameters the way Bun's own Zig-native drivers do. See doc/js/sql.md.
 
 ### lib/stack.js
 **Module:** `stack`  

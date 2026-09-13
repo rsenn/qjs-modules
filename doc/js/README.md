@@ -57,6 +57,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [url](url.md) — WHATWG URL API (polyfill)
 
 ### Databases
+- [sql](sql.md) — Bun `bun:sql`-flavored tagged-template client unifying sqlite/pgsql/mysql
 - [db](db.md) — Database utilities
 - database (`lib/database.js`) — Database abstraction (undocumented)
 
