@@ -1136,6 +1136,68 @@ if(LINK_STATIC)
   link_libraries(modules)
 endif(LINK_STATIC)
 
+# Convenience list mixing three kinds of entries, each routed to wherever it belongs:
+#   - a name with a lib/<name>.js or quickjs-<name>.c file -> BUILTINS_COMPILED or
+#     BUILTINS_NATIVE respectively (native wins if both exist, matching the
+#     C-is-authoritative precedent for dual-implementation modules elsewhere in this
+#     project, e.g. deep/pointer/predicate/xml/stream/misc/path).
+#   - a directory path (an externally-built sibling project's build directory, e.g.
+#     ../qjs-glfw/build/x86_64-linux-gnu) -> EXTERNAL_MODULES. The module name is taken
+#     from a "qjs-<name>" ancestor directory of the path, and <name>_MODULE is set to
+#     the lib<name>.a/.so already built inside it (the OUTPUT_NAME convention used by
+#     e.g. qjs-glfw's/qjs-nanovg's qjs-<name>-static targets).
+# This is evaluated here, before BUILTINS_COMPILED's compile_module() loop's own output
+# targets (modules/*.c above, the "compiled" library) and BUILTINS_NATIVE/EXTERNAL_MODULES
+# are consumed further down, so an entry routed to any of the three actually takes effect.
+set(BUILTIN_MODULES ""
+    CACHE STRING
+          "Mixed list: module names (auto-routed into BUILTINS_COMPILED/BUILTINS_NATIVE) or paths to externally-built qjs-<name> module build directories (routed into EXTERNAL_MODULES)")
+
+foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
+  if(IS_DIRECTORY "${BUILTIN_MODULE}")
+    set(_bm_dir "${BUILTIN_MODULE}")
+    set(_bm_name "")
+    while(NOT "${_bm_dir}" STREQUAL "" AND NOT "${_bm_dir}" STREQUAL "/")
+      get_filename_component(_bm_base "${_bm_dir}" NAME)
+      if(_bm_base MATCHES "^qjs-(.+)$")
+        set(_bm_name "${CMAKE_MATCH_1}")
+        break()
+      endif()
+      get_filename_component(_bm_dir "${_bm_dir}" DIRECTORY)
+    endwhile()
+
+    if("${_bm_name}" STREQUAL "")
+      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is a directory but no ancestor directory is named 'qjs-<name>' -- skipping")
+    else()
+      find_library(_bm_lib_${_bm_name} NAMES "${_bm_name}" PATHS "${BUILTIN_MODULE}" NO_DEFAULT_PATH)
+      if(_bm_lib_${_bm_name})
+        list(APPEND EXTERNAL_MODULES "${_bm_name}")
+        # No FORCE: if <name>_MODULE was already set explicitly (e.g. to also list the
+        # module's own transitive system-library dependencies, which this auto-detection
+        # can't know about -- it only locates the module's own lib<name>.a/.so), that
+        # explicit value wins over the auto-detected bare path.
+        set(${_bm_name}_MODULE "${_bm_lib_${_bm_name}}" CACHE STRING "Static library for external module '${_bm_name}', found via BUILTIN_MODULES")
+      else()
+        message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' -- no lib${_bm_name}.a/.so found in that directory")
+      endif()
+    endif()
+  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${BUILTIN_MODULE}.c")
+    if(NOT BUILTIN_MODULE IN_LIST BUILTINS_NATIVE)
+      list(APPEND BUILTINS_NATIVE "${BUILTIN_MODULE}")
+    endif()
+  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/${BUILTIN_MODULE}.js")
+    if(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
+      list(APPEND BUILTINS_COMPILED "${BUILTIN_MODULE}")
+      set(MODLIST ${COMMON_MODULES} ${${BUILTIN_MODULE}_MODULES})
+      compile_module(lib/${BUILTIN_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${BUILTIN_MODULE}.c" ${MODLIST})
+      target_sources(compiled PRIVATE "${CMAKE_BINARY_DIR}/modules/${BUILTIN_MODULE}.c")
+      add_dependencies(compiled "${BUILTIN_MODULE}.c")
+      set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${BUILTIN_MODULE})\n")
+    endif()
+  else()
+    message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, or existing directory -- skipping")
+  endif()
+endforeach()
 
 set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
 
@@ -1150,7 +1212,7 @@ set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to inclu
 # Named "<foo>_MODULE", not "<foo>_LIBRARY", to avoid colliding with the
 # find_library()/find_package() "<pkg>_LIBRARY" convention used elsewhere in
 # this file (e.g. a real find_package(nanovg) would also set nanovg_LIBRARY).
-set(EXTERNAL_MODULES "" CACHE STRING "Externally-built native modules to statically link into qjsm")
+set(EXTERNAL_MODULES "${EXTERNAL_MODULES}" CACHE STRING "Externally-built native modules to statically link into qjsm")
 
 # Core modules that always get a qjs-<name>-static library (no MODULE_X toggle gates
 # them) but aren't part of the default qjsm builtin set: still buildable/embeddable,
