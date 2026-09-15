@@ -12,7 +12,7 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
 
   ExternalProject_Add(
     libserialport_${SUFFIX}
-    SOURCE_DIR ${SOURCE}/libserialport
+    SOURCE_DIR ${SOURCE}/third_party/libserialport
     BINARY_DIR ${BINARY}/libserialport-${SUFFIX}
     CMAKE_CACHE_ARGS
       "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"

@@ -1,25 +1,25 @@
 [submodule "libarchive"]
-	path = libarchive
+	path = third_party/libarchive
 	url = https://github.com/libarchive/libarchive
 	branch = main
 [submodule "pigpio"]
-	path = pigpio
+	path = third_party/pigpio
 	url = https://github.com/joan2937/pigpio
 	branch = main
 [submodule "libutf"]
-	path = libutf
+	path = third_party/libutf
 	url = https://github.com/NolanRus/libutf
 	branch = main
 [submodule "tutf8e"]
-	path = tutf8e
+	path = third_party/tutf8e
 	url = https://github.com/nigels-com/tutf8e
 	branch = master
 [submodule "libserialport"]
-	path = libserialport
+	path = third_party/libserialport
 	url = git@github.com:rsenn/libserialport.git
 	branch = cmake
 [submodule "libbcrypt"]
-	path = libbcrypt
+	path = third_party/libbcrypt
 	url = https://github.com/rg3/libbcrypt
 [submodule "third_party/wasm3"]
 	path = third_party/wasm3

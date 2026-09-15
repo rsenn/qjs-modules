@@ -566,3 +566,28 @@
     cmake -B build/x -S . -DMODULE_ARCHIVE=ON -DBUILD_LIBARCHIVE=ON
     cmake --build build/x --target qjs-archive  # no such target
 
+- pigpio-submodule-unused (CMakeLists.txt:26,389-398,742-744;
+  quickjs-gpio.c): the `pigpio` git submodule is vendored
+  (.gitmodules) and README/Building's gating table implies `gpio`
+  needs an external GPIO library, but `quickjs-gpio.c` never includes
+  any pigpio header (it does direct memory-mapped register access
+  instead), and every CMakeLists.txt reference to pigpio/BUILD_PIGPIO
+  is commented out. The submodule is dead weight as currently wired up.
+  Found while fact-checking the README intro paragraph's claim that
+  qjs-modules wraps pigpio.
+
+    grep -n '#include' quickjs-gpio.c   # no pigpio.h
+    grep -n 'pigpio' CMakeLists.txt     # every hit is commented out
+
+- functions-cmake-included-twice (CMakeLists.txt:33,581): cmake/functions.cmake
+  is include()'d twice, with cmake/check-flags.cmake's include() (line 108) sitting
+  between them. Both functions.cmake and check-flags.cmake define a same-named
+  check_flag()/CHECK_FLAG (CMake macro/function names are case-insensitive), so the
+  second functions.cmake include silently re-redefines check_flag() back to its own
+  copy for anything after line 581 -- harmless here since both copies are otherwise
+  equivalent (confirmed by direct diff), but fragile: the two files should not both
+  own a same-named macro, and the second include() is dead weight either way. Found
+  while auditing cmake/ conventions against sibling qjs-* projects.
+
+    grep -n 'include(.*functions.cmake\|include(.*check-flags' CMakeLists.txt
+

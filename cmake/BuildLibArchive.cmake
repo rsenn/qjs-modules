@@ -11,7 +11,7 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
 
   ExternalProject_Add(
     libarchive_${SUFFIX}
-    SOURCE_DIR ${SOURCE}/libarchive
+    SOURCE_DIR ${SOURCE}/third_party/libarchive
     BINARY_DIR ${BINARY}/libarchive-${SUFFIX}
     CMAKE_CACHE_ARGS
       "-DENABLE_TEST:BOOL=OFF"
@@ -36,5 +36,5 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
   set_target_properties(LibArchive::${SUFFIX} PROPERTIES IMPORTED_LOCATION "${LIBARCHIVE_LIBRARY_FILE_${SUFFIX}}")
 
   set(LibArchive_LIBRARIES_${SUFFIX} LibArchive::${SUFFIX})
-  set(LibArchive_INCLUDE_DIRS_${SUFFIX} "${SOURCE}/libarchive/libarchive")
+  set(LibArchive_INCLUDE_DIRS_${SUFFIX} "${SOURCE}/third_party/libarchive/libarchive")
 endmacro(build_libarchive)

@@ -389,7 +389,7 @@ endif(NOT NO_MKSTEMP)
 #   include(ExternalProject)
 #   ExternalProject_Add(
 #     pigpio
-#     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/pigpio
+#     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pigpio
 #     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
 #     CMAKE_CACHE_ARGS
 #       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
@@ -404,7 +404,7 @@ endif(NOT NO_MKSTEMP)
 # endif(BUILD_PIGPIO)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}
-                    ${QUICKJS_INCLUDE_DIRS})
+                    ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
@@ -709,8 +709,8 @@ endif(NOT HAVE_INET_NTOP)
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
-file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
-file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
+file(GLOB tutf8e_SOURCES third_party/tutf8e/include/*.h third_party/tutf8e/include/tutf8e/*.h third_party/tutf8e/src/*.c)
+file(GLOB libutf_SOURCES third_party/libutf/src/*.c third_party/libutf/include/*.h)
 # CMAKE_SYSTEM_PROCESSOR alone isn't enough: it's left empty by the mingw
 # cross toolchain files here (they never set it), so it always evaluated
 # to X86=FALSE when cross-compiling, silently dropping libbcrypt's
@@ -732,9 +732,9 @@ else()
   set(X86 FALSE)
 endif()
 if(X86)
-  file(GLOB libbcrypt_SOURCES libbcrypt/*.c libbcrypt/*/*.c libbcrypt/*/*.S)
+  file(GLOB libbcrypt_SOURCES third_party/libbcrypt/*.c third_party/libbcrypt/*/*.c third_party/libbcrypt/*/*.S)
 else(X86)
-  file(GLOB libbcrypt_SOURCES libbcrypt/*.c libbcrypt/*/*.c)
+  file(GLOB libbcrypt_SOURCES third_party/libbcrypt/*.c third_party/libbcrypt/*/*.c)
 endif(X86)
 
 if(HAVE_SYS_MMAN_H)
@@ -745,8 +745,8 @@ endif(HAVE_SYS_MMAN_H)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
 
-include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
-                    ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
+include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libutf/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tutf8e/include)
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 if(LibArchive_LIBRARIES_shared)
   set(archive_LIBRARIES_shared ${LibArchive_LIBRARIES_shared})
@@ -1046,7 +1046,8 @@ foreach(LIB_MODULE ${BUILTINS_COMPILED})
 
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
 
-  compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
+  module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
+  compile_module(lib/${LIB_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
 
   set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${LIB_MODULE})\n")
 endforeach(LIB_MODULE ${BUILTINS_COMPILED})
@@ -1188,8 +1189,9 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
     if(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
       list(APPEND BUILTINS_COMPILED "${BUILTIN_MODULE}")
       set(MODLIST ${COMMON_MODULES} ${${BUILTIN_MODULE}_MODULES})
-      compile_module(lib/${BUILTIN_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${BUILTIN_MODULE}.c" ${MODLIST})
-      target_sources(compiled PRIVATE "${CMAKE_BINARY_DIR}/modules/${BUILTIN_MODULE}.c")
+      module_path("${BUILTIN_MODULE}.c" BUILTIN_MODULE_OUT)
+      compile_module(lib/${BUILTIN_MODULE}.js "${BUILTIN_MODULE_OUT}" ${MODLIST})
+      target_sources(compiled PRIVATE "${BUILTIN_MODULE_OUT}")
       add_dependencies(compiled "${BUILTIN_MODULE}.c")
       set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${BUILTIN_MODULE})\n")
     endif()
