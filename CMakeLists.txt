@@ -83,14 +83,18 @@ endif()
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert console events fs io perf_hooks process repl require stack timers tty url util)
+  set(BUILTINS_COMPILED assert console events fs module perf_hooks process repl timers tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
-  set(BUILTINS_NATIVE arraybuffer-sink 
-    #blob 
-    child-process deep directory inspect lexer location misc path pointer
-                      predicate repeater stream syscallerror textcode tree-walker virtual xml yaml)
+  # deep, directory, inspect, misc, syscallerror, textcode are internal dependencies of
+  # the modules above (fs, console, assert, process, util, repl, perf_hooks import them
+  # directly) and must stay statically linked even though they aren't user-facing.
+  # Modules used directly by name here get compiled straight into qjsm. Anything else
+  # a builtin needs (deep, inspect, misc, directory, syscallerror, textcode, ...) is
+  # pulled in automatically by the NATIVE_REQUIRED dependency closure further down --
+  # see the comment there -- so it doesn't need to be listed here too.
+  set(BUILTINS_NATIVE path stream yaml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
 include(FindPkgConfig)
@@ -933,6 +937,7 @@ set(console_MODULES util inspect)
 set(db_MODULES list)
 set(fs_MODULES syscallerror directory events path mmap misc textcode)
 set(io_MODULES util misc)
+set(module_MODULES path)
 set(parser_MODULES path list)
 set(process_MODULES path util misc)
 set(repl_MODULES util inspect path io process)
@@ -1137,11 +1142,65 @@ set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to inclu
 # Names of externally-built native modules to statically link into qjsm, each
 # providing a js_init_module_<name>(JSContext*, const char*) entry point
 # (see the JS_SHARED_LIBRARY / JS_INIT_MODULE convention used by every
-# quickjs-*.c in this tree). For each entry "foo" in this list, <foo>_LIBRARY
-# must be set to the static library (target name or full path) that defines
+# quickjs-*.c in this tree). For each entry "foo" in this list, <foo>_MODULE
+# must be set to the static library (target name or full path, plus any of its
+# own transitive link dependencies as a ";"-separated list) that defines
 # js_init_module_foo -- e.g.:
-#   -DEXTERNAL_MODULES=foo -Dfoo_LIBRARY=/path/to/libfoo.a
+#   -DEXTERNAL_MODULES=foo -Dfoo_MODULE=/path/to/libfoo.a
+# Named "<foo>_MODULE", not "<foo>_LIBRARY", to avoid colliding with the
+# find_library()/find_package() "<pkg>_LIBRARY" convention used elsewhere in
+# this file (e.g. a real find_package(nanovg) would also set nanovg_LIBRARY).
 set(EXTERNAL_MODULES "" CACHE STRING "Externally-built native modules to statically link into qjsm")
+
+# Core modules that always get a qjs-<name>-static library (no MODULE_X toggle gates
+# them) but aren't part of the default qjsm builtin set: still buildable/embeddable,
+# just not registered/linked into qjsm unless required (see NATIVE_REQUIRED below) or
+# added back to BUILTINS_NATIVE.
+if(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
+  # xml stays out of this list: lib/xml.js is a same-named JS polyfill that would
+  # silently shadow the native module instead of failing to load if the native one
+  # isn't registered as a builtin.
+  set(BUILTINS_NATIVE_EXCLUDE arraybuffer-sink child-process lexer location repeater tree-walker virtual)
+endif(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
+set(BUILTINS_NATIVE_EXCLUDE "${BUILTINS_NATIVE_EXCLUDE}"
+    CACHE STRING "Native modules to build but not register as qjsm builtins by default (overridden by NATIVE_REQUIRED)")
+
+# Enforce module dependencies: a native module required by any builtin (compiled JS or
+# native) must itself be a builtin, however BUILTINS_NATIVE/BUILTINS_NATIVE_EXCLUDE are
+# configured. Computed as the transitive closure over two existing dependency sources
+# (no separate list to keep in sync):
+#   - ${name}_MODULES  -- a compiled JS builtin's own import list (e.g. fs_MODULES
+#     already lists syscallerror/directory/misc/textcode; assert_MODULES lists
+#     deep/inspect), filtered down to entries that are themselves native modules.
+#   - ${name}_LIBRARIES -- a native module's own C-level link dependencies on other
+#     native modules (e.g. deep_LIBRARIES=qjs-pointer;qjs-predicate, because
+#     quickjs-deep.c calls js_pointer_wrap()/js_predicate_class_id() directly, not
+#     just via JS import).
+set(NATIVE_REQUIRED ${BUILTINS_NATIVE})
+
+foreach(LIB_MODULE ${BUILTINS_COMPILED})
+  foreach(DEP ${${LIB_MODULE}_MODULES})
+    if(NOT DEP IN_LIST BUILTINS_COMPILED AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${DEP}.c")
+      list(APPEND NATIVE_REQUIRED "${DEP}")
+    endif()
+  endforeach()
+endforeach()
+
+set(_native_required_changed TRUE)
+while(_native_required_changed)
+  set(_native_required_changed FALSE)
+  list(REMOVE_DUPLICATES NATIVE_REQUIRED)
+  foreach(MOD ${NATIVE_REQUIRED})
+    foreach(LIBDEP ${${MOD}_LIBRARIES})
+      if(LIBDEP MATCHES "^qjs-(.+)$")
+        if(NOT CMAKE_MATCH_1 IN_LIST NATIVE_REQUIRED)
+          list(APPEND NATIVE_REQUIRED "${CMAKE_MATCH_1}")
+          set(_native_required_changed TRUE)
+        endif()
+      endif()
+    endforeach()
+  endforeach()
+endwhile()
 
 set(NATIVE_BUILTIN_HEADER "")
 set(QJSM_STATIC_LIBS "")
@@ -1153,11 +1212,14 @@ foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
 endforeach()
 
 # Modules built as qjs-<name>-static libraries (BUILD_STATIC_MODULES) that aren't
-# already compiled directly into qjsm via BUILTINS_NATIVE above: link the
-# library in and register it the same way.
+# already compiled directly into qjsm via BUILTINS_NATIVE above: link the library in
+# and register it, unless excluded via BUILTINS_NATIVE_EXCLUDE -- except a module in
+# NATIVE_REQUIRED always gets registered regardless of BUILTINS_NATIVE_EXCLUDE, since
+# something already included depends on it.
 foreach(STATIC_MODULE_NAME ${STATIC_MODULE_NAMES})
   list(FIND BUILTINS_NATIVE "${STATIC_MODULE_NAME}" _NATIVE_BUILTIN_INDEX)
-  if(_NATIVE_BUILTIN_INDEX EQUAL -1)
+  list(FIND BUILTINS_NATIVE_EXCLUDE "${STATIC_MODULE_NAME}" _NATIVE_EXCLUDED_INDEX)
+  if(_NATIVE_BUILTIN_INDEX EQUAL -1 AND (_NATIVE_EXCLUDED_INDEX EQUAL -1 OR STATIC_MODULE_NAME IN_LIST NATIVE_REQUIRED))
     string(REGEX REPLACE "-" "_" STATIC_MODULE_SYMBOL "${STATIC_MODULE_NAME}")
     set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${STATIC_MODULE_SYMBOL})\n")
     list(APPEND QJSM_STATIC_LIBS "qjs-${STATIC_MODULE_NAME}-static")
@@ -1168,12 +1230,12 @@ foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
   string(REGEX REPLACE "-" "_" EXTERNAL_MODULE_SYMBOL "${EXTERNAL_MODULE}")
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${EXTERNAL_MODULE_SYMBOL})\n")
 
-  if(DEFINED ${EXTERNAL_MODULE}_LIBRARY)
-    list(APPEND QJSM_STATIC_LIBS "${${EXTERNAL_MODULE}_LIBRARY}")
+  if(DEFINED ${EXTERNAL_MODULE}_MODULE)
+    list(APPEND QJSM_STATIC_LIBS "${${EXTERNAL_MODULE}_MODULE}")
   else()
     message(
       WARNING
-      "EXTERNAL_MODULES contains '${EXTERNAL_MODULE}' but ${EXTERNAL_MODULE}_LIBRARY is not set -- qjsm will fail to link"
+      "EXTERNAL_MODULES contains '${EXTERNAL_MODULE}' but ${EXTERNAL_MODULE}_MODULE is not set -- qjsm will fail to link"
     )
   endif()
 endforeach()

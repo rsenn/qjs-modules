@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as std from 'std';
 import { assert, eq, tests } from './tinytest.js';
 
 tests({

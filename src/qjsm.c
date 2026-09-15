@@ -2525,7 +2525,7 @@ int
 main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
-  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, list_modules = 0;
+  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 0, list_modules = 0;
   const char* include_list[32];
   size_t memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC

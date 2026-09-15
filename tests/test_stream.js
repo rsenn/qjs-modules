@@ -6,6 +6,7 @@ import {
   CountQueuingStrategy,
 } from '../lib/stream.js';
 import { ReadableStream as NativeReadableStream } from 'stream';
+import { setTimeout, clearTimeout } from 'timers';
 import { assert, eq, tests } from './tinytest.js';
 
 // Add QuickJS-specific fromReader extension to lib/stream.js's ReadableStream

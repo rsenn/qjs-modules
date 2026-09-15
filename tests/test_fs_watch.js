@@ -1,6 +1,8 @@
 import { AbortController } from 'abort';
 import { mkdirSync, watch } from 'fs';
 import { watch as watchPromises } from 'fsPromises';
+import { setTimeout } from 'timers';
+import * as os from 'os';
 import { assert, eq, tests } from './tinytest.js';
 
 const TMP = '.tmp/test_fs_watch';
