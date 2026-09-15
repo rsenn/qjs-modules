@@ -3,12 +3,15 @@
 <section class="hero">
   <div>
     <span class="eyebrow">Native + JS for QuickJS</span>
-    <h1>The standard library QuickJS deserves.</h1>
+    <h1>qjsm: QuickJS with modules statically linked in.</h1>
     <p class="lede">
-      qjs-modules binds ~33 native <code>quickjs-*.c</code> modules — streams, XML/DOM,
-      archives, sockets, databases, deep object ops — and layers ~45 pure-JS modules on top:
-      WHATWG/W3C/Node-shaped APIs so scripts written for the browser, Bun, Node or Deno run here
-      with minimal changes.
+      qjs-modules builds <code>qjsm</code>, a QuickJS-based interpreter with both native C
+      modules and JavaScript modules statically linked in. The modules provide the runtime APIs
+      plain QuickJS doesn't — <code>console</code>, <code>fs</code>, <code>process</code>,
+      streams, sockets, XML/DOM, and more — modeled on their Node.js/Bun/Deno/browser
+      equivalents. Some native modules wrap existing C libraries (libarchive, libmagic,
+      MariaDB/MySQL, PostgreSQL, SQLite, libserialport); every module can also be built
+      standalone and <code>import</code>ed at runtime instead.
     </p>
     <div class="cta">
       <a class="btn primary" href="getting-started.html">Get started</a>

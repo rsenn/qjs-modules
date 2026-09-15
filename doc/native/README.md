@@ -49,7 +49,7 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 ### Databases
 - [mysql](mysql.md) — MySQL client
 - [pgsql](pgsql.md) — PostgreSQL client
-- sqlite — SQLite3 database (undocumented; see the root [README](../../README.md#sqlite))
+- [sqlite](sqlite.md) — SQLite3 database
 
 ### Internal
 - internal — shared support code compiled into other modules, not a standalone module (no JS-facing API of its own)
