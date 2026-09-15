@@ -551,3 +551,18 @@
     cmake -B build/fresh -S . && cmake --build build/fresh
     ctest --test-dir build/fresh -R test_lexer.js  # fails: could not load module 'lexer'
 
+- archive-module-not-registered-when-built-from-source (CMakeLists.txt,
+  the `if(MODULE_ARCHIVE)` block): when BUILD_LIBARCHIVE=ON (build
+  libarchive from the vendored submodule instead of finding a system
+  package), the branch never sets LibArchive_FOUND, so the later
+  `if(LibArchive_FOUND) set(QUICKJS_MODULES archive ...)` never fires --
+  the archive module silently never gets built, even though libarchive
+  itself builds fine. Found while splitting this block into
+  build_libarchive() (cmake/BuildLibArchive.cmake) for the
+  shared/static dual-PIC build; the missing LibArchive_FOUND=TRUE
+  predates that change and was left as-is rather than fixed under this
+  task.
+
+    cmake -B build/x -S . -DMODULE_ARCHIVE=ON -DBUILD_LIBARCHIVE=ON
+    cmake --build build/x --target qjs-archive  # no such target
+

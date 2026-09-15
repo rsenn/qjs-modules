@@ -15,8 +15,13 @@ if(NOT BUILD_SHARED_LIBS)
 endif(NOT BUILD_SHARED_LIBS)
 
 option(LINK_STATIC "Link static libraries" OFF)
-option(BUILD_SHARED_MODULES "Build shared modules" ${BUILD_SHARED_LIBS})
-option(BUILD_STATIC_MODULES "Build static modules" ${BUILD_STATIC_LIBS})
+# Independent of BUILD_SHARED_LIBS/BUILD_STATIC_LIBS (which only affect this project's
+# own non-module libraries): whether each quickjs-*.c module gets a shared qjs-<name>
+# (.so) target, a static qjs-<name>-static (.a) target, or both. Both default ON so a
+# normal build gets a module runtime-loadable via dlopen() AND embeddable statically
+# (e.g. via qjsm's BUILTINS_NATIVE/EXTERNAL_MODULES) without extra configuration.
+option(BUILD_SHARED_MODULES "Build shared modules" ON)
+option(BUILD_STATIC_MODULES "Build static modules" ON)
 
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
@@ -431,23 +436,23 @@ if(MODULE_ARCHIVE)
   option(BUILD_LIBARCHIVE "Build archive library" OFF)
 
   if(BUILD_LIBARCHIVE)
-    include(ExternalProject)
-    ExternalProject_Add(
-      libarchive
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive
-      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
-      CMAKE_CACHE_ARGS
-        "-DENABLE_TEST:BOOL=OFF"
-        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
-        "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-        "-DCMAKE_C_FLAGS:STRING=-w"
-        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
-        "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-      CMAKE_CACHE_DEFAULT_ARGS "-DENABLE_TEST:BOOL=OFF" "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildLibArchive.cmake)
 
-    link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
+    # Built once per enabled module-linkage kind (BUILD_SHARED_MODULES/BUILD_STATIC_MODULES):
+    # a shared qjs-archive (.so) needs a PIC libarchive, a static qjs-archive-static (.a)
+    # doesn't, so a single non-PIC-by-default build can't safely serve both.
+    if(BUILD_SHARED_MODULES)
+      build_libarchive(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} shared ON)
+    endif(BUILD_SHARED_MODULES)
+    if(BUILD_STATIC_MODULES)
+      build_libarchive(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} static OFF)
+    endif(BUILD_STATIC_MODULES)
 
+    set(LibArchive_LIBRARIES_shared "${LibArchive_LIBRARIES_shared}")
+    set(LibArchive_LIBRARIES_static "${LibArchive_LIBRARIES_static}")
+    set(LibArchive_INCLUDE_DIRS "${LibArchive_INCLUDE_DIRS_shared}${LibArchive_INCLUDE_DIRS_static}")
+    # NOTE: LibArchive_FOUND is intentionally not set here, matching this branch's
+    # pre-existing behavior (see BUGS: archive-module-not-registered-when-built-from-source).
   else(BUILD_LIBARCHIVE)
     include(FindLibArchive)
   endif(BUILD_LIBARCHIVE)
@@ -741,47 +746,43 @@ endif(HAVE_SYS_MMAN_H)
 include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
+if(LibArchive_LIBRARIES_shared)
+  set(archive_LIBRARIES_shared ${LibArchive_LIBRARIES_shared})
+endif()
+if(LibArchive_LIBRARIES_static)
+  set(archive_LIBRARIES_static ${LibArchive_LIBRARIES_static})
+endif()
 
 if(BUILD_LIBSERIALPORT)
-  include(ExternalProject)
-  ExternalProject_Add(
-    libserialport
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libserialport
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport
-    CMAKE_CACHE_ARGS
-      "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"
-      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
-      "-DCMAKE_C_FLAGS:STRING=${MODULE_COMPILE_FLAGS}"
-      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-      "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
-      "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-      "-DNO_PUBLIC_API:BOOL=TRUE"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE" "-DNO_PUBLIC_API:BOOL=TRUE"
-    INSTALL_COMMAND cmake -E echo "Skipping install step.")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildLibSerialPort.cmake)
 
-  #link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
+  # Built once per enabled module-linkage kind: a shared qjs-serial (.so) needs a PIC
+  # libserialport, a static qjs-serial-static (.a) doesn't -- see build_libserialport().
+  if(BUILD_SHARED_MODULES)
+    build_libserialport(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} shared ON)
+  endif(BUILD_SHARED_MODULES)
+  if(BUILD_STATIC_MODULES)
+    build_libserialport(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} static OFF)
+  endif(BUILD_STATIC_MODULES)
 
-  set(LIBSERIALPORT_LIBRARY serialport)
-  set(LIBSERIALPORT_LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport)
-  set(LIBSERIALPORT_LIBRARY_FILE
-      ${LIBSERIALPORT_LIBRARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}serialport${CMAKE_STATIC_LIBRARY_SUFFIX})
+  # Kept for existing consumers expecting a single LIBSERIALPORT_LIBRARY_DIR (e.g. the
+  # link_directories() call further down) -- either variant's directory works, since
+  # target_link_libraries() against the IMPORTED Serial::Port::<suffix> targets below
+  # resolves by absolute path regardless.
+  if(LIBSERIALPORT_LIBRARY_DIR_shared)
+    set(LIBSERIALPORT_LIBRARY_DIR "${LIBSERIALPORT_LIBRARY_DIR_shared}")
+  else()
+    set(LIBSERIALPORT_LIBRARY_DIR "${LIBSERIALPORT_LIBRARY_DIR_static}")
+  endif()
 
-  add_library(Serial::Port STATIC IMPORTED GLOBAL)
-
-  #dump(LIBSERIALPORT_LIBRARY_FILE CMAKE_STATIC_LIBRARY_PREFIX CMAKE_STATIC_LIBRARY_SUFFIX)
-
-  set_target_properties(Serial::Port PROPERTIES IMPORTED_LOCATION "${LIBSERIALPORT_LIBRARY_FILE}"
-                                                IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE}")
-
-  link_directories(${LIBSERIALPORT_LIBRARY_DIR})
+  set(serial_LIBRARIES_shared ${LIBSERIALPORT_LIBRARY_shared})
+  set(serial_LIBRARIES_static ${LIBSERIALPORT_LIBRARY_static})
 
   if(WIN32)
-    list(APPEND LIBSERIALPORT_LIBRARY setupapi)
+    list(APPEND serial_LIBRARIES_shared setupapi)
+    list(APPEND serial_LIBRARIES_static setupapi)
   endif(WIN32)
 endif(BUILD_LIBSERIALPORT)
-
-set(serial_DEPS libserialport)
 
 if(HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
@@ -1095,10 +1096,10 @@ if(TARGET qjs-child-process)
   target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
 endif(TARGET qjs-child-process)
 
-if(TARGET qjs-serial)
-  target_link_directories(qjs-serial PRIVATE ${LIBSERIALPORT_LIBRARY_DIR})
-  target_link_libraries(qjs-serial PRIVATE Serial::Port)
-endif(TARGET qjs-serial)
+# qjs-serial/qjs-serial-static's libserialport linkage no longer needs a manual patch
+# here: serial_LIBRARIES_shared/serial_LIBRARIES_static (set in the BUILD_LIBSERIALPORT
+# block above) are picked up automatically by make_module()'s generic per-variant
+# ${VNAME}_LIBRARIES_shared/_static handling.
 
 # Same inter-module dependencies as above, wired up for the '-static' variants
 # that make_module() produces when BUILD_STATIC_MODULES is on.
@@ -1122,10 +1123,6 @@ if(TARGET qjs-child-process-static)
   target_link_libraries(qjs-child-process-static PRIVATE qjs-pointer-static)
 endif(TARGET qjs-child-process-static)
 
-if(TARGET qjs-serial-static)
-  target_link_directories(qjs-serial-static PRIVATE ${LIBSERIALPORT_LIBRARY_DIR})
-  target_link_libraries(qjs-serial-static PRIVATE Serial::Port)
-endif(TARGET qjs-serial-static)
 
 set(QJSM_SOURCES src/qjsm.c)
   
