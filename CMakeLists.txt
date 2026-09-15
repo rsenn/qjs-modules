@@ -20,8 +20,9 @@ option(LINK_STATIC "Link static libraries" OFF)
 # (.so) target, a static qjs-<name>-static (.a) target, or both. Both default ON so a
 # normal build gets a module runtime-loadable via dlopen() AND embeddable statically
 # (e.g. via qjsm's BUILTINS_NATIVE/EXTERNAL_MODULES) without extra configuration.
-option(BUILD_SHARED_MODULES "Build shared modules" ON)
-option(BUILD_STATIC_MODULES "Build static modules" ON)
+# Declared via quickjs_module_options() below (cmake/QuickJSModule.cmake), right after
+# it's include()'d, so the two options stay named/behaved the same across every qjs-*
+# project instead of being hand-declared here.
 
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
@@ -107,6 +108,7 @@ include(FindPkgConfig)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
+quickjs_module_options(SHARED_DEFAULT ON STATIC_DEFAULT ON)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
 if(WASI)
