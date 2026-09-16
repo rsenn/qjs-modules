@@ -53,6 +53,84 @@ static const char* const default_self_closing_tags[] = {
     0,
 };
 
+/* HTML5 "optional end tag" elements: opening one of these implicitly closes
+ * whichever of the listed tags is currently open, even with no explicit
+ * closing tag in the source. Without this, tolerant-mode input that relies
+ * on it (e.g. the Netscape bookmarks export format, which never closes
+ * <DT>) nests every subsequent sibling one level deeper than the last
+ * instead of appending it as a sibling - turning an O(n) flat list into an
+ * O(n)-deep tree, and every O(depth)-per-node consumer (e.g.
+ * querySelectorAll's ancestor-path check) into O(n^2) on top of that. */
+typedef struct {
+  const char* tag;
+  const char* const closes[4];
+} ImpliedEndTag;
+
+static const ImpliedEndTag default_implied_end_tags[] = {
+    {"li", {"li", 0}},
+    {"dt", {"dt", "dd", 0}},
+    {"dd", {"dt", "dd", 0}},
+    {"p", {"p", 0}},
+    {"option", {"option", 0}},
+    {"optgroup", {"option", "optgroup", 0}},
+    {"tr", {"tr", 0}},
+    {"td", {"td", "th", 0}},
+    {"th", {"td", "th", 0}},
+    {"tbody", {"thead", "tbody", "tfoot", 0}},
+    {"tfoot", {"thead", "tbody", 0}},
+    {0, {0}},
+};
+
+/* HTML5 also closes an open <p>, <li>, <dt> or <dd> when any "block-level"
+ * element starts, not just another matching sibling tag - e.g. real
+ * Netscape-bookmarks exports do "<DT><H3>Folder</H3><DL><p>...</DL>" with
+ * no closing </DT>, and <DL> isn't one of the sibling tags in
+ * default_implied_end_tags's "dt" entry, so each folder's <DL> nested
+ * one level *inside* the still-open previous <DT> instead of becoming its
+ * sibling - depth grew roughly with document position (confirmed up to
+ * 206 on a real 16MB export whose actual <DL> nesting is a handful of
+ * levels), instead of staying flat. */
+static const char* const block_closing_tags[] = {
+    "address", "article", "aside",  "blockquote", "details", "div",  "dl",     "fieldset", "figcaption",
+    "figure",  "footer",  "form",   "h1",         "h2",      "h3",   "h4",     "h5",       "h6",
+    "header",  "hr",      "main",   "menu",       "nav",     "ol",   "p",      "pre",      "section",
+    "table",   "ul",      "dt",     "dd",         "li",      0,
+};
+
+static const char* const block_closable_open_tags[] = {"p", "li", "dt", "dd", 0};
+
+static BOOL
+is_implied_end_tag(const char* name, size_t namelen, const char* open_name, size_t open_namelen) {
+  const ImpliedEndTag* e;
+  const char* const* o;
+
+  for(o = block_closable_open_tags; *o; o++) {
+    if(strlen(*o) == open_namelen && !strncasecmp(open_name, *o, open_namelen)) {
+      const char* const* v;
+
+      for(v = block_closing_tags; *v; v++)
+        if(strlen(*v) == namelen && !strncasecmp(name, *v, namelen))
+          return TRUE;
+
+      break;
+    }
+  }
+
+  for(e = default_implied_end_tags; e->tag; e++) {
+    if(strlen(e->tag) == namelen && !strncasecmp(name, e->tag, namelen)) {
+      const char* const* closes;
+
+      for(closes = e->closes; *closes; closes++)
+        if(strlen(*closes) == open_namelen && !strncasecmp(open_name, *closes, open_namelen))
+          return TRUE;
+
+      return FALSE;
+    }
+  }
+
+  return FALSE;
+}
+
 typedef struct {
   uint32_t idx;
   JSValue obj;
@@ -709,6 +787,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           yield_return(index);
         }
       } else {
+        if(opts.tolerant && !opts.flat && out && out->namelen && is_implied_end_tag((const char*)name, namelen, (const char*)out->name, out->namelen))
+          yield_pop();
+
         yield_next();
 
         if(namelen && (parse_is(name[0], (/*QUESTION |*/ EXCLAM))))

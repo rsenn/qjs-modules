@@ -388,6 +388,5 @@ When working on this codebase:
 
 **Next priorities:**
 1. Fix Streams BYOB safety checks
-2. Implement Fetch API
-3. Fix remaining 11 test failures
-4. Reduce custom APIs, increase standards compliance
+2. Fix remaining 11 test failures
+3. Reduce custom APIs, increase standards compliance

@@ -591,3 +591,36 @@
 
     grep -n 'include(.*functions.cmake\|include(.*check-flags' CMakeLists.txt
 
+- dom-wrapper-property-access-cost-per-level (lib/dom.js:2117-2119, `Element`
+  `children` getter, `Factory.for(this).NodeList.cache(...)`): once the
+  parser-depth bug and querySelectorAll's ancestor-check were both fixed,
+  document.querySelectorAll('A') on a real ~16MB bookmarks export (22892
+  <A> tags, tree depth now correctly bounded at 18) was still slow.
+  Benchmarked with perf_hooks.now() over the same 1000 matched paths, four
+  ways: applyPath (lib/dom.js:101-122, a plain JS `obj = obj[k]` loop)
+  against the live wrapper averaged 9.53ms/call; native Pointer.deref()
+  (src/pointer.c:643, pointer_deref) against the same live wrapper
+  averaged 11.03ms/call - *slower*, not faster, ruling out "JS loop
+  overhead" as the cause. Both against the raw object instead (bypassing
+  Node/Element wrapper construction entirely) dropped to 0.018ms/call
+  (applyPath) and 0.0014ms/call (deref) - a ~500-1000x difference from the
+  same two traversal methods on the same paths, isolating the cost
+  entirely to the live wrapper's property access chain, not to
+  applyPath's implementation or to using JS vs native C for the walk.
+  Each `obj[k]` on a live wrapper goes through Proxy-backed machinery
+  (`children` getter above, and/or other Factory/NodeList/Collection
+  Proxies) that is expensive enough per call, at every path level, to
+  dominate everything else; not yet root-caused which specific step
+  (NodeList construction, Factory.cache, or the per-element Proxy in
+  Collection/NodeList) is responsible, or whether it's fixable by
+  memoizing/caching more aggressively vs. inherent to the Proxy design.
+
+    import { performance } from 'perf_hooks';
+    import { Parser } from 'dom';
+    const doc = new Parser().parseFromFile('bookmarks.html', 'utf-8'); // real, large, deep-ish document
+    const t0 = performance.now();
+    const nodes = [...doc.querySelectorAll('A')];
+    console.log(performance.now() - t0, nodes.length); // ~9-11ms per match,
+                                                         // dominated by wrapper
+                                                         // property access
+
