@@ -1,4 +1,5 @@
 #!/usr/bin/env qjsm
+import * as std from 'std';
 import { readFileSync, writeFileSync } from 'fs';
 import { basename } from 'path';
 import { getOpt } from 'util';

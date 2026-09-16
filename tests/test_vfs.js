@@ -1,3 +1,4 @@
+import * as std from 'std';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Archive, ArchiveEntry } from 'archive';
