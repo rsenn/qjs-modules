@@ -1625,7 +1625,22 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
     if(!file)
       file = js_strdup(ctx, bltin->module_name);
-  } else if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
+  /* `path` is the *importing* module's own specifier - for one loaded from
+     a `data:...,<source>` URL (e.g. a moduleLoader() "loader" hook that
+     fetched remote source and handed it back as a data: URL, see
+     qjs-lws/lib/cdn-loader.js), that's the whole multi-KB URL, source
+     payload included. path_dirlen1()/path_append3() below treat it as a
+     plain filesystem path and split on its *last* '/' - which lands inside
+     the embedded source (JS source is full of '/'), not at any directory
+     boundary, producing a garbage `file` for what should be a relative
+     import between the fetched module's own files (confirmed: a real
+     multi-file CDN package's `import './sibling.mjs'` resolved to nonsense
+     like "/sibling.mjs" instead of erroring or working). Skip this branch
+     for a data: path so `file` stays unset and the loader hook chain below
+     sees the untouched relative specifier instead - resolving it is then
+     that hook's job (it has the actual source URL the data: URL came
+     from), not this generic path-joining. */
+  } else if(path[0] != '<' && strncmp(path, "data:", 5) && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
     DynBuf dir;
     size_t dsl;
 
