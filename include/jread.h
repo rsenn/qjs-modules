@@ -62,8 +62,16 @@ typedef struct jr_state {
   int in_number; /* mid-number at the last pause: unlike other tokens, a number has no
                     unambiguous terminator character, so only end-of-input (jr_finish())
                     can close it out */
+  int literal_active; /* mid null/true/false at the last pause - see jr_read()'s l_err */
+  uint32_t unicode_val;   /* \uXXXX hex digits decoded so far, mid-escape */
+  int unicode_count;      /* how many of the 4 hex digits have been read */
+  uint32_t surrogate_hi;  /* a buffered UTF-16 high surrogate, waiting for its low half */
   int done;
-  int error;
+  int error;      /* sticky: "this stream had a parse error at some point" (jr_finish()/
+                     close() reporting only) - no longer blocks jr_read() from resyncing */
+  int just_erred; /* reset at the top of every jr_read() call; set if *this* call hit an
+                     error - lets a caller throw once per bad span instead of on every
+                     future call to an already-resynced parser */
 } jr_state_t;
 
 void jr_state_init(jr_state_t* state);
@@ -73,8 +81,12 @@ void jr_state_free(jr_state_t* state);
  * Feeds one chunk (chunk[0..len)) to the parser, invoking cb for every token that
  * completes - possibly none, if the chunk ends mid-token. May be called any number of
  * times with successive chunks of a stream; a chunk boundary may fall anywhere,
- * including mid-string, mid-number, mid-keyword, or mid-escape-sequence. No-op once
- * state->error or state->done is set.
+ * including mid-string, mid-number, mid-keyword, or mid-escape-sequence, or mid-resync.
+ * No-op once state->done is set. On malformed input, reports jr_type_error once (check
+ * state->just_erred right after this call to see whether *this* call hit one) and resyncs
+ * at the next comma or closing bracket/brace instead of stopping for good - state->error
+ * stays set from then on purely as "this stream had an error at some point" bookkeeping
+ * for jr_finish() and callers like JsonPushParser.close().
  */
 void jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state);
 
@@ -82,7 +94,8 @@ void jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_
  * Signals end of input. Flushes a trailing bare number left pending by the last
  * jr_read() call (see jr_state::in_number), or - if parsing was left mid-string,
  * mid-container, or mid-keyword - reports jr_type_error and sets state->error. Sets
- * state->done on a clean finish. No-op once state->error or state->done is already set.
+ * state->done on a clean finish. No-op once state->done is already set (state->error
+ * alone no longer blocks this - a resynced stream can still finish cleanly).
  */
 void jr_finish(jr_callback cb, void* user_data, jr_state_t* state);
 

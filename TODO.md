@@ -40,25 +40,45 @@ the full architecture/gap survey behind Tier 6-8.
   check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling once
   Tier 1 is fixed and traffic patterns are trustworthy again.
 
-- **`JsonParser.parse()` should resync past a run of bad bytes in one call, not one
-  byte per thrown exception** — see `BUGS`'s `json-parser-error-resync-is-per-byte-exceptions`.
-  `json_parse()` (`src/json.c:307-405`) returns `JSON_ERROR` after `json_getc_skipws()`
-  has consumed exactly one byte (the `default:` case at `src/json.c:395-399`, and the
-  expected-`:` check at `src/json.c:338-341`), and `js_json_parser_method()`
-  (`quickjs-json.c:2082-2094`) throws a fresh `JS_ThrowSyntaxError` every time. A
-  caller trying to skip a corrupted span therefore pays one construct-throw-catch
-  cycle per bad byte instead of per bad span — measured at ~200 exceptions to skip
-  200 garbage bytes, and pathological (never finishes in practice) across a
-  multi-hundred-MB document with many such spans. Fix belongs in `json_parse()`
-  itself: on hitting the `default:`/`expected ':'` error paths, keep consuming bytes
-  in a local loop (skip whitespace-or-not, doesn't matter) until reaching an
-  unambiguous resumption point — a structural character (`,` `{` `}` `[` `]` `"`) at
-  a depth/state where it's legal — before returning to the JS boundary with a single
-  `JSON_ERROR`, mirroring the resync `JsonPushParser.write()`'s doc comment already
-  claims (see also the `json-push-parser-resync-doc-untested` `BUGS` entry — that
-  claim needs its own regression test before being trusted as the model to copy).
-  Alternatively/additionally, expose a cheap `.resync()` method that does this
-  scanning without needing the caller to loop `.parse()` + try/catch at all.
+- ~~**`JsonParser.parse()` should resync past a run of bad bytes in one call, not one
+  byte per thrown exception**~~ — **FIXED**. `json_parse()` now has a `JSON_TOK_ERROR_SKIP`
+  scan state (`src/json.c`): every error site (bad value-start byte, missing `:`, invalid
+  string escape, invalid `\u` escape, invalid literal) reports one exception and then
+  silently skips bytes until a comma or matching closing bracket/brace, resuming from
+  there - 200 garbage bytes now costs 1 exception, not 201. `JsonPushParser.write()`
+  (`src/jread.c`) got the equivalent fix: it used to die permanently after one error
+  (`state->error` gated `jr_read()` forever, worse than `JsonParser`), now it recovers the
+  enclosing container's dispatch table and resyncs the same way. See `BUGS`'s (now
+  removed) `json-parser-error-resync-is-per-byte-exceptions` and
+  `json-push-parser-resync-doc-untested` entries for the original writeup.
+  Known shared limitation: if the byte that *causes* the error is itself what would've
+  been the resync boundary (e.g. `[tru, 1]` - the malformed-literal error is only
+  detected by reading the `,` itself), the adjacent value is lost as collateral
+  garbage (`[tru, 1]` parses to `[]`, not `[1]`) in both engines - a rare edge case
+  judged not worth the extra complexity to special-case.
+
+- **Proposal: `document`-boundary event for streaming NDJSON/JSON-Lines through
+  `JsonParser`/`JsonPushParser`** — not started, needs a design decision before
+  implementing. Both parsers already tolerate consecutive top-level values separated
+  only by whitespace/newlines with no comma (verified: `new JsonPushParser().write('{"a":1}\n{"a":2}\n')`
+  parses both documents fine) - that's actually a side effect of a separate laxness bug
+  (see `BUGS`'s `json-parsers-dont-require-commas-between-elements`: neither engine
+  requires commas *anywhere*, not just at the top level). The real gap is API-level:
+  `JsonParser` has no value-building at all (pure token scanner - `.token`/`.state`/
+  `.depth` plus an optional per-token `.callback`), and `JsonPushParser` has a builder
+  and `.root`, but each new top-level value silently **overwrites** `.root`
+  (`quickjs-json.c:569-573`), discarding the previous line's value with no signal a
+  document boundary occurred. Proposed fix: add a `document` callback (parallel to
+  the existing options-object callbacks `error`/`value`/`objectStart`/etc. on
+  `JsonPushParser`) fired exactly when `jread_callback_build()`
+  (`quickjs-json.c:786-810`) sees `pp->builder.top == NULL` right after a
+  container/scalar closes, then reset the builder so `.root` doesn't accumulate old
+  lines; for `JsonParser`, port the same (engine-agnostic) `JsonBuilder` in, driven by
+  its existing `.callback` route (`js_json_parser_callback`, `quickjs-json.c:2170-2185`),
+  using the same "depth returns to 0" boundary rule. Backward compatible: no
+  `document` callback given → today's behavior is unchanged. Risk to flag before
+  building this: if the comma-laxness bug above is ever tightened, top level must be
+  explicitly excepted from any new "commas required" check, or this feature breaks.
 
 - ~~**Streams `respondWithNewView()` (BYOB) is missing spec-required safety checks**~~ — **FIXED** in commits `312df027`, `ae4f9992`, and `d209f470`.
   Replaced `lib/stream.js` with qjs-lws version which has complete BYOB implementation.

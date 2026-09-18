@@ -4,6 +4,7 @@
  */
 
 #include "jread.h"
+#include "char-utils.h" /* is_utf16_high_surrogate/is_utf16_low_surrogate, unicode_to_utf8, UTF8_CHAR_LEN_MAX */
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,6 +21,22 @@
     go = (x); \
   } while(0)
 #define JR_POP_GO() (go = state->go_stack[--state->go_stack_idx])
+
+/* Like JR_POP_GO(), but for the "a token just fully ended" call sites specifically: if what
+ * gets restored is a container's own "expect a value or close" table (go_arr/go_obj), swap
+ * it for that container's "expect a comma or close" counterpart (go_arr_sep/go_obj_sep) -
+ * so the next byte can't start a fresh value without a separating comma. Popping into
+ * anything else (go_doc/go_val: true top level, or go_col: a key was just read, colon comes
+ * next) is left untouched - deliberately, since consecutive top-level values with no comma
+ * between them is the supported NDJSON/JSON-Lines streaming pattern. */
+#define JR_POP_GO_SEP() \
+  do { \
+    JR_POP_GO(); \
+    if(go == go_arr) \
+      go = go_arr_sep; \
+    else if(go == go_obj) \
+      go = go_obj_sep; \
+  } while(0)
 
 /*
  * Reads and dispatches on the next byte of `go` (or `x`/go_utf8, for the _GO/_MASK
@@ -141,6 +158,22 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [47 ... 47] = &&l_num_e,
       ['0' ... '9'] = &&l_next,
       [58 ... 255] = &&l_num_e,
+      ['E'] = &&l_num_exp, /* placed after the ranges above so these two override them */
+      ['e'] = &&l_num_exp,
+  };
+
+  /* One-shot: the single byte right after 'e'/'E' may be a sign or must be a digit -
+   * anything else ends the number (a bare trailing "1e" is invalid JSON, but this parser
+   * is already lax elsewhere - e.g. multiple '.'s - so it's simpler and consistent to just
+   * end the number early rather than add a new error path for it). Whichever of these
+   * matches, dispatch continues through the *stored* `go` (still go_num, untouched by this
+   * one-shot table) from the next byte on, so further exponent digits are accepted the same
+   * way integer/fraction digits already are. */
+  static void* go_num_exp_sign[] = {
+      [0 ... 255] = &&l_num_e,
+      ['+'] = &&l_next,
+      ['-'] = &&l_next,
+      ['0' ... '9'] = &&l_next,
   };
 
   static void* go_str[] = {
@@ -157,24 +190,38 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [248 ... 255] = &&l_err,
   };
 
+  /* Each valid escape lands on its own label instead of a shared l_next: the raw "\X" pair
+   * was already auto-accumulated by the dispatches that got here (l_esc, then this table),
+   * and it's not what the decoded string should contain - each label backs that out and
+   * appends the real decoded byte instead. See l_esc_quote et al. below. */
   static void* go_esc[] = {
       [0 ... 33] = &&l_err,
-      ['"'] = &&l_next,
+      ['"'] = &&l_esc_quote,
       [35 ... 46] = &&l_err,
-      ['/'] = &&l_next,
+      ['/'] = &&l_esc_slash,
       [48 ... 91] = &&l_err,
-      ['\\'] = &&l_next,
+      ['\\'] = &&l_esc_bslash,
       [93 ... 97] = &&l_err,
-      ['b'] = &&l_next,
+      ['b'] = &&l_esc_b,
       [99 ... 101] = &&l_err,
-      ['f'] = &&l_next,
+      ['f'] = &&l_esc_f,
       [103 ... 109] = &&l_err,
-      ['n'] = &&l_next,
+      ['n'] = &&l_esc_n,
       [111 ... 113] = &&l_err,
-      ['r'] = &&l_next,
+      ['r'] = &&l_esc_r,
       [115 ... 115] = &&l_err,
-      ['t'] = &&l_next,
+      ['t'] = &&l_esc_t,
       [117 ... 255] = &&l_err,
+      ['u'] = &&l_esc_u, /* placed after the range above so this one entry overrides it */
+  };
+
+  /* \uXXXX: reused for all 4 hex-digit positions via state->unicode_count, since they're
+   * all validated the same way - only the 4th one (checked in l_esc_u_digit) finishes. */
+  static void* go_esc_u[] = {
+      [0 ... 255] = &&l_err,
+      ['0' ... '9'] = &&l_esc_u_digit,
+      ['A' ... 'F'] = &&l_esc_u_digit,
+      ['a' ... 'f'] = &&l_esc_u_digit,
   };
 
   static void* go_utf8[] = {
@@ -269,6 +316,39 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [126 ... 255] = &&l_err,
   };
 
+  /* Used only right after a value fully ends (see JR_POP_GO_SEP()) - unlike go_arr, which
+   * doubles as both "expect value or close" (right after '[' or ',') and, historically,
+   * "expect comma or close" too (letting a fresh value start with no separating comma -
+   * see BUGS's now-fixed json-parsers-dont-require-commas-between-elements). Only a comma
+   * (back to expecting a value - see l_arr_sep_comma) or the closing ']' are legal here. */
+  static void* go_arr_sep[] = {
+      [0 ... 8] = &&l_err,
+      ['\t'] = &&l_next,
+      ['\n'] = &&l_next,
+      [11 ... 12] = &&l_err,
+      ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_next,
+      [33 ... 255] = &&l_err,
+      [','] = &&l_arr_sep_comma,
+      [']'] = &&l_arr_e,
+  };
+
+  /* Same idea as go_arr_sep, for objects: right after a member's value ends, only a comma
+   * (back to expecting the next key - l_obj_sep_comma) or the closing '}' are legal. */
+  static void* go_obj_sep[] = {
+      [0 ... 8] = &&l_err,
+      ['\t'] = &&l_next,
+      ['\n'] = &&l_next,
+      [11 ... 12] = &&l_err,
+      ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_next,
+      [33 ... 255] = &&l_err,
+      [','] = &&l_obj_sep_comma,
+      ['}'] = &&l_obj_e,
+  };
+
   static void* go_col[] = {
       [0 ... 8] = &&l_err,
       ['\t'] = &&l_next,
@@ -293,12 +373,25 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [33 ... 255] = &&l_val,
   };
 
+  /* Post-error recovery: every byte is discarded (stays here) except a comma or a closing
+   * bracket/brace, which is handed to l_err_resync_boundary instead - see the comment on
+   * l_err below for why redispatching that byte through the recovered container-level `go`
+   * (not this table) is what actually resumes parsing. */
+  static void* go_err_resync[] = {
+      [0 ... 255] = &&l_err_resync_skip,
+      [','] = &&l_err_resync_boundary,
+      [']'] = &&l_err_resync_boundary,
+      ['}'] = &&l_err_resync_boundary,
+  };
+
   const char* cstr = chunk;
   const char* end = chunk + len;
   void** go = state->go ? state->go : go_doc;
 
-  if(state->error || state->done)
+  if(state->done)
     return;
+
+  state->just_erred = 0;
 
   if(state->resume)
     goto * state->resume;
@@ -310,8 +403,51 @@ l_err: {
   jr_str_t data = {cstr - 1, 1};
   cb(jr_type_error, &data, user_data);
 }
+  /* `error` is sticky (jr_finish()/close() report "this stream had an error at some point");
+   * `just_erred` is reset at the top of every jr_read() call and only reflects THIS call, so
+   * js_json_pushparser_write() can throw once per bad span instead of on every future write()
+   * to an already-resynced parser. */
   state->error = 1;
-  return;
+  state->just_erred = 1;
+  state->accumulating = 0; /* abandon whatever partial token was mid-scan */
+
+  /* Recover the dispatch table for the container we were actually inside (go_arr/go_obj/
+   * go_arr_sep/go_obj_sep, or go_doc/go_val at the top level) so the resync boundary below
+   * can be handed back to it, instead of duplicating what it already knows how to do with
+   * a comma or a closer. `go` only ever drifts away from that table while inside a string
+   * (go_str, plus go_esc/go_utf8* which are one-shot dispatches that never change `go`
+   * itself) or mid-way through an object's "key: value" phases (go_col, go_obj_val) - both
+   * cases leave the container's own table sitting further down go_stack, put there by the
+   * same JR_PUSH_GO() that got us here. A literal in progress (go_null_n, go_true_t,
+   * go_false_f, etc.) never changes `go` at all - see the literal_active handling below for
+   * its own (differently-shaped) cleanup. go_arr_sep/go_obj_sep themselves need no recovery
+   * at all - an error reached directly from them (e.g. a missing comma) already has `go`
+   * sitting at container level, just in the "expect separator" phase instead of "expect
+   * value" - popping here would incorrectly discard it. */
+  while(go != go_doc && go != go_val && go != go_arr && go != go_obj && go != go_arr_sep && go != go_obj_sep
+        && state->go_stack_idx > 0)
+    JR_POP_GO();
+
+  if(state->literal_active) {
+    /* l_null_n/l_true_t/l_false_f push `go` (already container-level) onto go_stack purely
+     * for symmetry with l_null_ll/l_true_e/l_false_e's matching pop on a *successful*
+     * literal - erroring out mid-literal skips that pop, so it must happen here instead, or
+     * this stale entry corrupts the level a future real container-close pops into. */
+    JR_POP_GO();
+    state->literal_active = 0;
+  }
+
+  JR_DISPATCH_NEXT_GO(go_err_resync);
+
+l_err_resync_skip:
+  JR_DISPATCH_NEXT_GO(go_err_resync);
+
+l_err_resync_boundary:
+  /* `go` was recovered above to the container we were actually inside when the error hit -
+   * redispatching the comma/closer through it does exactly what a well-formed comma or
+   * closer would: skip to the next element, or run l_arr_e/l_obj_e to close the container
+   * (json->stack pop and all), keeping this file as the single place that knows how. */
+  JR_DISPATCH_THIS();
 
 l_num_s:
   jr_accum_reset(state);
@@ -321,6 +457,9 @@ l_num_s:
   JR_PUSH_GO(go_num);
   JR_DISPATCH_NEXT();
 
+l_num_exp:
+  JR_DISPATCH_NEXT_GO(go_num_exp_sign);
+
 l_num_e:
   state->accumulating = 0;
   state->in_number = 0;
@@ -328,7 +467,7 @@ l_num_e:
     jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
     cb(jr_type_number, &data, user_data);
   }
-  JR_POP_GO();
+  JR_POP_GO_SEP();
   JR_DISPATCH_THIS();
 
 l_str_s:
@@ -344,11 +483,97 @@ l_str_e:
     jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
     cb(state->str_type, &data, user_data);
   }
-  JR_POP_GO();
+  /* A key string's pop always restores go_col (colon expected next), never go_arr/go_obj
+   * directly, so JR_POP_GO_SEP()'s swap is a no-op there - safe to use unconditionally for
+   * both a key and a value string. */
+  JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_esc:
   JR_DISPATCH_NEXT_GO(go_esc);
+
+/* accum currently holds [..., '\\', <this escape char>] - both auto-accumulated by the
+ * dispatches that got here (go_str's on '\\', go_esc's on this char) - back out those 2
+ * raw bytes and append the one real decoded byte instead. */
+l_esc_quote:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '"');
+  JR_DISPATCH_NEXT();
+
+l_esc_slash:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '/');
+  JR_DISPATCH_NEXT();
+
+l_esc_bslash:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\\');
+  JR_DISPATCH_NEXT();
+
+l_esc_b:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\b');
+  JR_DISPATCH_NEXT();
+
+l_esc_f:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\f');
+  JR_DISPATCH_NEXT();
+
+l_esc_n:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\n');
+  JR_DISPATCH_NEXT();
+
+l_esc_r:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\r');
+  JR_DISPATCH_NEXT();
+
+l_esc_t:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\t');
+  JR_DISPATCH_NEXT();
+
+l_esc_u:
+  state->unicode_val = 0;
+  state->unicode_count = 0;
+  JR_DISPATCH_NEXT_GO(go_esc_u);
+
+l_esc_u_digit: {
+  uint8_t c = (uint8_t)cstr[-1];
+  int v = (c <= '9') ? c - '0' : (c | 0x20) - 'a' + 10; /* c|0x20 lowercases A-F */
+
+  state->unicode_val = (state->unicode_val << 4) | (uint32_t)v;
+
+  if(++state->unicode_count < 4) {
+    JR_DISPATCH_NEXT_GO(go_esc_u);
+  }
+}
+  /* 4th digit just read: accum holds [..., '\\', 'u', h1, h2, h3, h4] (6 raw bytes) - drop
+   * them and append the decoded code point's UTF-8 bytes instead, exactly mirroring
+   * src/json.c's json_scan_string() JSON_STR_UNICODE handling (same surrogate-pair rule). */
+  state->accum_len -= 6;
+  {
+    uint32_t cp = state->unicode_val;
+
+    if(is_utf16_high_surrogate(cp)) {
+      state->surrogate_hi = cp; /* wait for the low half - the paired \uXXXX immediately follows */
+    } else {
+      uint8_t buf[UTF8_CHAR_LEN_MAX];
+      int n, i;
+
+      if(is_utf16_low_surrogate(cp) && state->surrogate_hi)
+        cp = 0x10000 + ((state->surrogate_hi - 0xd800) << 10) + (cp - 0xdc00);
+
+      state->surrogate_hi = 0;
+      n = unicode_to_utf8(buf, cp);
+
+      for(i = 0; i < n; i++)
+        jr_accum_putc(state, (char)buf[i]);
+    }
+  }
+  JR_DISPATCH_NEXT();
 
 l_utf8:
   state->utf8_mask >>= 8;
@@ -371,6 +596,7 @@ l_utf8_valid:
 
 l_null_n:
   JR_PUSH();
+  state->literal_active = 1;
   JR_DISPATCH_NEXT_GO(go_null_n);
 
 l_null_u:
@@ -381,11 +607,13 @@ l_null_l:
 
 l_null_ll:
   cb(jr_type_null, 0, user_data);
-  JR_POP_GO();
+  state->literal_active = 0;
+  JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_true_t:
   JR_PUSH();
+  state->literal_active = 1;
   JR_DISPATCH_NEXT_GO(go_true_t);
 
 l_true_r:
@@ -396,11 +624,13 @@ l_true_u:
 
 l_true_e:
   cb(jr_type_true, 0, user_data);
-  JR_POP_GO();
+  state->literal_active = 0;
+  JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_false_f:
   JR_PUSH();
+  state->literal_active = 1;
   JR_DISPATCH_NEXT_GO(go_false_f);
 
 l_false_a:
@@ -414,7 +644,8 @@ l_false_s:
 
 l_false_e:
   cb(jr_type_false, 0, user_data);
-  JR_POP_GO();
+  state->literal_active = 0;
+  JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_arr_s:
@@ -424,7 +655,9 @@ l_arr_s:
 
 l_arr_e:
   cb(jr_type_array_end, 0, user_data);
-  JR_POP_GO();
+  /* Closing this array is itself "a value ending" from the parent's point of view - same
+   * comma-required rule applies to whatever comes after it there. */
+  JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_obj_s:
@@ -434,7 +667,7 @@ l_obj_s:
 
 l_obj_e:
   cb(jr_type_object_end, 0, user_data);
-  JR_POP_GO();
+  JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_kvp:
@@ -453,11 +686,21 @@ l_val:
 l_col:
   JR_POP_GO();
   JR_DISPATCH_NEXT();
+
+l_arr_sep_comma:
+  go = go_arr; /* comma consumed - back to expecting a value for the next element */
+  JR_DISPATCH_NEXT();
+
+l_obj_sep_comma:
+  go = go_obj; /* comma consumed - back to expecting a key for the next member */
+  JR_DISPATCH_NEXT();
 }
 
 void
 jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
-  if(state->error || state->done)
+  /* `error` is sticky and no longer means "dead" (see jr_read()'s l_err) - a resynced
+   * stream must still be able to reach `done` normally here if it's actually complete. */
+  if(state->done)
     return;
 
   if(state->in_number) {

@@ -900,7 +900,9 @@ js_json_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
   inputbuffer_free(&input, ctx);
 
-  return pp->jrs.error ? JS_ThrowSyntaxError(ctx, "parse error") : JS_UNDEFINED;
+  /* just_erred (not the sticky error) - a resynced parser must not keep throwing on every
+   * future write() call just because some earlier call hit a (already-reported) error. */
+  return pp->jrs.just_erred ? JS_ThrowSyntaxError(ctx, "parse error") : JS_UNDEFINED;
 }
 
 static JSValue

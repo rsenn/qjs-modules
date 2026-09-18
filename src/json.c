@@ -49,6 +49,7 @@ json_init(JsonParser* json, Reader reader, const char* filename, JSContext* ctx)
   json->literal_text = NULL;
   json->literal_pos = 0;
   json->is_key = FALSE;
+  json->skip_depth = 0;
 
   dbuf_init2(&json->token, 0, 0);
 
@@ -134,6 +135,18 @@ json_need_or_error(int c) {
   return c == STREAM_ERROR ? JSON_ERROR : JSON_NEED_DATA;
 }
 
+/* Common entry point for every "give up on the current token, resync instead" site below.
+ * `c` is whatever byte actually triggered the error - if it was itself a '{'/'[' (already
+ * consumed, so json_scan_error_skip() never sees it), that opening needs a matching '}'/']'
+ * before a *later* one can be trusted as this scan's own resync boundary, or the enclosing
+ * container's real close ends up popping json->stack one entry too many. See json.h's
+ * skip_depth field and json_scan_error_skip() below. */
+static void
+json_error_skip_enter(JsonParser* json, int c) {
+  json->skip_depth = (c == '{' || c == '[') ? 1 : 0;
+  json->tok_kind = JSON_TOK_ERROR_SKIP;
+}
+
 /* Resumes/continues scanning a string value's content. Returns a JsonValueType (STRING or
  * KEY) once the closing quote is found, JSON_ERROR on malformed escapes, or propagates a
  * negative reader signal (translated by the caller) when input runs out mid-scan - str_state
@@ -163,6 +176,7 @@ json_scan_string(JsonParser* json) {
 
         if(!uc) {
           json->error = "invalid escape sequence in string";
+          json_error_skip_enter(json, c);
           return JSON_ERROR;
         }
 
@@ -182,6 +196,7 @@ json_scan_string(JsonParser* json) {
 
       if(!is_xdigit_char(c)) {
         json->error = "invalid unicode escape in string";
+        json_error_skip_enter(json, c);
         return JSON_ERROR;
       }
 
@@ -262,6 +277,7 @@ json_scan_literal(JsonParser* json) {
 
     if((uint8_t)json->literal_text[json->literal_pos] != c) {
       json->error = "invalid literal";
+      json_error_skip_enter(json, c);
       return JSON_ERROR;
     }
 
@@ -277,6 +293,74 @@ json_scan_literal(JsonParser* json) {
   }
 }
 
+/* Resumes/continues discarding bytes after a reported error, looking for a resync point:
+ * a comma, or a closing bracket/brace while some container is actually open (state's
+ * PARSING_OBJECT/PARSING_ARRAY bits, mirroring the exact same check json_parse()'s own
+ * '}'/']' case relies on). Consuming through a comma just clears the expectation bits and
+ * lets json_parse()'s main loop continue into the next value, in the same container. A
+ * matched closer is handled exactly like json_parse()'s own '}'/']' case (json_finish()
+ * below still runs on it), since it really does close that container. Only the *first*
+ * bad byte (in json_parse()'s switch/colon-check) is reported as JSON_ERROR - every byte
+ * skipped here is silent, so an arbitrarily long bad span costs one thrown exception, not
+ * one per byte. */
+static int
+json_scan_error_skip(JsonParser* json) {
+  int c;
+
+  for(;;) {
+    if((c = json_getc(json)) < 0)
+      return c;
+
+    json->token.size = 0; /* discarded, not a token - keep memory use bounded regardless of span length */
+
+    /* A '{'/'[' hit while skipping opens a nesting level that was never pushed onto the
+     * real `stack` (it's garbage, not legitimately parsed) - its matching '}'/']' later in
+     * otherwise-valid input must close *that* first, or it gets mistaken for this scan's
+     * own resync boundary, and the *real* enclosing container's later close then pops an
+     * empty `stack`. */
+    if(c == '{' || c == '[') {
+      json->skip_depth++;
+      continue;
+    }
+
+    if(json->skip_depth > 0) {
+      if(c == '}' || c == ']')
+        json->skip_depth--;
+
+      continue;
+    }
+
+    if(c == ',') {
+      /* An abandoned "key: <bad value>" member never reached json_finish(), so the
+       * object-value-phase bit it set is still up - flip it back to key-phase (the same
+       * toggle a completed value's json_finish() would have done) or the next member's
+       * key gets misread as a value, and the real value after it as fresh garbage. */
+      if((json->state & PARSING_OBJECT) == PARSING_OBJECT_VALUE)
+        json->state ^= PARSING_OBJECT;
+
+      json->tok_kind = JSON_TOK_NONE;
+      return JSON_RESYNC;
+    }
+
+    /* json->stack.len (actual nesting depth), not the state bits: closing a depth-0
+     * container leaves a leftover PARSING_ARRAY bit set (see json_parse()'s own '}'/']'
+     * case - it always "restores" *something*, even when there's truly nothing enclosing),
+     * which would otherwise make a stray '}'/']' right after that look like a legitimate
+     * close and pop json->stack while it's already empty. */
+    if((c == '}' || c == ']') && json->stack.len > 0) {
+      int ret = c == '}' ? JSON_TYPE_OBJECT_END : JSON_TYPE_ARRAY_END;
+
+      json->state &= ~(PARSING_OBJECT | PARSING_ARRAY);
+      json->state |= bitset_pop(&json->stack, 1) ? PARSING_OBJECT_KEY : PARSING_ARRAY;
+      json->tok_kind = JSON_TOK_NONE;
+
+      return ret;
+    }
+
+    /* ordinary garbage byte: discard and keep scanning */
+  }
+}
+
 static int
 json_finish(JsonParser* json, int ret) {
   if(ret != JSON_TYPE_OBJECT && ret != JSON_TYPE_ARRAY && ret != JSON_TYPE_OBJECT_END && ret != JSON_TYPE_ARRAY_END)
@@ -284,7 +368,17 @@ json_finish(JsonParser* json, int ret) {
       json->state ^= PARSING_OBJECT;
 
   json->state &= ~(EXPECTING_COLON | EXPECTING_COMMA_OR_END);
-  json->state |= ret == JSON_TYPE_KEY ? EXPECTING_COLON : EXPECTING_COMMA_OR_END;
+
+  if(ret == JSON_TYPE_KEY)
+    json->state |= EXPECTING_COLON;
+  else if(ret != JSON_TYPE_OBJECT && ret != JSON_TYPE_ARRAY)
+    /* Right after *opening* a container, a value/key or an immediate close is expected,
+     * not "comma or end" - json_parse()'s switch(c) already handles both of those cases
+     * directly with no flag needed. Setting this bit here was harmless under the old
+     * fully-permissive EXPECTING_COMMA_OR_END check (a non-',' byte just fell through
+     * regardless), but became a live bug once that check started actually enforcing commas:
+     * it made every array/object's very first element look like a missing-comma error. */
+    json->state |= EXPECTING_COMMA_OR_END;
 
   return ret;
 }
@@ -320,6 +414,15 @@ json_parse(JsonParser* json) {
     if(json->tok_kind == JSON_TOK_LITERAL)
       return json_finish_scan(json, json_scan_literal(json));
 
+    if(json->tok_kind == JSON_TOK_ERROR_SKIP) {
+      int r = json_scan_error_skip(json);
+
+      if(r == JSON_RESYNC)
+        continue;
+
+      return json_finish_scan(json, r);
+    }
+
     dbuf_zero(&json->token);
 
     if((c = json_getc_skipws(json)) < 0)
@@ -330,6 +433,19 @@ json_parse(JsonParser* json) {
 
       if(c == ',')
         continue;
+
+      /* A container close is always legal here regardless (that's the "OR_END" part) -
+       * anything else needs an explicit comma, except at the very top level (depth 0,
+       * nothing open), where a fresh value starting right after the previous one closed
+       * is the supported NDJSON/JSON-Lines streaming pattern (see doc/native/json.md).
+       * json->stack.len (actual depth), not the state bits - closing a depth-0 container
+       * leaves a leftover PARSING_ARRAY bit set (see json_parse()'s '}'/']' case), which
+       * would otherwise make this misfire right after the very first NDJSON line. */
+      if(c != '}' && c != ']' && json->stack.len > 0) {
+        json->error = "expected ',' or closing bracket";
+        json_error_skip_enter(json, c);
+        return JSON_ERROR;
+      }
     }
 
     if(json->state & EXPECTING_COLON) {
@@ -337,6 +453,7 @@ json_parse(JsonParser* json) {
 
       if(c != ':') {
         json->error = "expected ':'";
+        json_error_skip_enter(json, c);
         return JSON_ERROR;
       }
 
@@ -395,6 +512,7 @@ json_parse(JsonParser* json) {
       default:
         if(!is_number_char(c)) {
           json->error = "expected a value";
+          json_error_skip_enter(json, c);
           return JSON_ERROR;
         }
 

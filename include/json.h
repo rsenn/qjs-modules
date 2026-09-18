@@ -10,6 +10,11 @@
  * @{
  */
 typedef enum {
+  /* internal-only json_scan_error_skip() signal: a resync comma was found and consumed -
+     not a real token, json_parse() loops back to read the next actual value instead of
+     returning this to the caller. Kept outside the -3..9 range js_json_parser_method()
+     indexes a type-name table with, since it never escapes json_parse() itself. */
+  JSON_RESYNC = -100,
   JSON_ERROR = -3,     /* malformed input; json->error describes what */
   JSON_NEED_DATA = -2, /* reader ran out mid-token; feed more input and call json_parse() again */
   JSON_TYPE_NONE = -1,
@@ -33,6 +38,7 @@ typedef enum {
   JSON_TOK_STRING,
   JSON_TOK_NUMBER,
   JSON_TOK_LITERAL,
+  JSON_TOK_ERROR_SKIP, /* discarding bytes after a reported error, looking for a resync point */
 } JsonTokKind;
 
 typedef enum {
@@ -63,6 +69,13 @@ struct JsonParser {
   const char* literal_text;
   int literal_pos;
   BOOL is_key;
+
+  /* json_scan_error_skip() only: '{'/'[' bytes discarded as garbage while resyncing open a
+     nesting level that isn't on `stack` (they were never legitimately parsed) - a matching
+     '}'/']' later in otherwise-valid input must close *that* first, or it gets mistaken for
+     the resync boundary of the container the error actually happened in, eventually popping
+     `stack` empty. Always 0 outside of an active skip. */
+  int skip_depth;
 };
 
 BOOL json_init(JsonParser*, Reader, const char* filename, JSContext*);
