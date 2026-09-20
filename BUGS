@@ -397,17 +397,6 @@
     ls doc/js/database.md doc/js/dbi.md doc/js/describe-class.md
     // No such file or directory (all three)
 
-- asyncIterator-from-undeclared-var (lib/asyncIterator.js:4):
-  `AsyncIterator.from()` references an undeclared variable `iterable`
-  instead of `iter`, so any call where the argument does NOT already
-  have `Symbol.asyncIterator` (e.g. a plain object with only a `next`
-  method) throws a ReferenceError instead of wrapping it. Found while
-  researching lib/asyncIterator.js for doc/api-compatibility.md.
-
-    import { AsyncIterator } from 'asyncIterator';
-    AsyncIterator.from({ next: () => ({ done: true, value: undefined }) });
-    // throws ReferenceError: iterable is not defined
-
 - extendMath-float64-debug-log (lib/extendMath.js:34): `Math.float64()`
   unconditionally calls `console.log('float64', ...)` on every
   invocation, printing a bit-field dump - looks like leftover debug
@@ -630,3 +619,18 @@
     import('tty');
     // ReferenceError/SyntaxError: Could not find export 'fdopenSync' in
     // module 'std'
+
+- extendmath-self-referential-const-tdz (lib/extendMath.js:36): `export const
+  Math = Math;` initializes the module's own lexical `Math` binding from
+  itself - the RHS `Math` resolves to the same not-yet-initialized binding
+  (shadowing the global), not the global `Math`, so this throws a TDZ
+  ReferenceError ("Math is not initialized") the moment the module is
+  loaded, unconditionally. Breaks the whole module: `extendMath()` (the
+  default export, meant to patch extensions onto the real global `Math`)
+  can never run because the module never finishes loading. Found while
+  verifying the extendMath-float64-debug-log fix (this session, that fix
+  only touched the float64() method body - this is a separate, pre-existing
+  break in the same file).
+
+    import('extendMath');
+    // ReferenceError: Math is not initialized
