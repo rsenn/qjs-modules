@@ -397,16 +397,6 @@
     ls doc/js/database.md doc/js/dbi.md doc/js/describe-class.md
     // No such file or directory (all three)
 
-- extendMath-float64-debug-log (lib/extendMath.js:34): `Math.float64()`
-  unconditionally calls `console.log('float64', ...)` on every
-  invocation, printing a bit-field dump - looks like leftover debug
-  output rather than intentional behavior. Found while researching
-  lib/extendMath.js for doc/api-compatibility.md.
-
-    import 'extendMath';
-    Math.float64(0, 1023, 0);
-    // logs "float64 [ '0b0000...', ... ]" to stdout on every call
-
 - pointer-atom-index-ignores-leading-zero (include/utils.h:753,
   js_atom_is_index): treats any atom whose string form parses as a
   non-negative decimal (e.g. "01") as an array index, so
