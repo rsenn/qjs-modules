@@ -398,6 +398,23 @@ tests({
     eqArr(p.path, []);
     eqArr(p.root, { a: { b: [1, 2, 3] } });
   },
+  'JsonPushParser: nesting deeper than 64 levels'() {
+    let doc = '';
+
+    for(let i = 0; i < 300; i++) doc += i % 2 ? '{"k":' : '[1,null,true,"s",';
+    doc += '0';
+    for(let i = 299; i >= 0; i--) doc += i % 2 ? '}' : ']';
+
+    let whole = new JsonPushParser();
+    whole.write(doc);
+    whole.close();
+    eqArr(whole.root, JSON.parse(doc));
+
+    let chunked = new JsonPushParser();
+    for(let i = 0; i < doc.length; i += 5) chunked.write(doc.slice(i, i + 5));
+    chunked.close();
+    eqArr(chunked.root, JSON.parse(doc));
+  },
   'JsonPushParser: close() flushes a trailing top-level scalar'() {
     let p = new JsonPushParser();
     p.write('42');

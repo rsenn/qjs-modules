@@ -8,10 +8,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-#ifndef JREAD_CONFIG_MAX_DEPTH
-#define JREAD_CONFIG_MAX_DEPTH 64
-#endif
+#include "vector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,13 +43,13 @@ typedef void (*jr_callback)(jr_type_t type, const jr_str_t* data, void* user_dat
  * in any single buffer the caller passes in, so they're copied out incrementally as
  * they're read rather than sliced from the input.
  *
- * Zero-initialize (or use jr_state_init()) before the first jr_read() call.
+ * Call jr_state_init() before the first jr_read() call (zero-initializing alone is not
+ * enough: go_stack needs its allocator set) and jr_state_free() when done.
  */
 typedef struct jr_state {
   void** go;
   void* resume;
-  void** go_stack[JREAD_CONFIG_MAX_DEPTH];
-  int32_t go_stack_idx;
+  Vector go_stack; /* of void**; grows with the nesting depth of the input */
   int32_t utf8_mask;
   jr_type_t str_type;
   char* accum;

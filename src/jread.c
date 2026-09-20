@@ -14,13 +14,17 @@
 #define JR_PASTE(a, b) JR_PASTE_(a, b)
 #define JR_RESUME_LABEL JR_PASTE(l_resume_, __LINE__)
 
-#define JR_PUSH() (state->go_stack[state->go_stack_idx++] = go)
+#define JR_PUSH() \
+  do { \
+    if(!jr_push(state, go)) \
+      goto l_oom; \
+  } while(0)
 #define JR_PUSH_GO(x) \
   do { \
-    state->go_stack[state->go_stack_idx++] = go; \
+    JR_PUSH(); \
     go = (x); \
   } while(0)
-#define JR_POP_GO() (go = state->go_stack[--state->go_stack_idx])
+#define JR_POP_GO() (go = jr_pop(state))
 
 /* Like JR_POP_GO(), but for the "a token just fully ended" call sites specifically: if what
  * gets restored is a container's own "expect a value or close" table (go_arr/go_obj), swap
@@ -124,14 +128,26 @@ jr_accum_putc(jr_state_t* state, char c) {
   state->accum[state->accum_len++] = c;
 }
 
+static int
+jr_push(jr_state_t* state, void** go) {
+  return vector_push(&state->go_stack, go) != 0;
+}
+
+static void**
+jr_pop(jr_state_t* state) {
+  return *(void***)vector_pop(&state->go_stack, sizeof(void**));
+}
+
 void
 jr_state_init(jr_state_t* state) {
   memset(state, 0, sizeof(*state));
+  state->go_stack = (Vector)VECTOR_INIT();
 }
 
 void
 jr_state_free(jr_state_t* state) {
   free(state->accum);
+  vector_free(&state->go_stack);
   memset(state, 0, sizeof(*state));
 }
 
@@ -425,7 +441,7 @@ l_err: {
    * sitting at container level, just in the "expect separator" phase instead of "expect
    * value" - popping here would incorrectly discard it. */
   while(go != go_doc && go != go_val && go != go_arr && go != go_obj && go != go_arr_sep && go != go_obj_sep
-        && state->go_stack_idx > 0)
+        && !vector_empty(&state->go_stack))
     JR_POP_GO();
 
   if(state->literal_active) {
@@ -694,6 +710,17 @@ l_arr_sep_comma:
 l_obj_sep_comma:
   go = go_obj; /* comma consumed - back to expecting a key for the next member */
   JR_DISPATCH_NEXT();
+
+l_oom: {
+  /* Unlike jr_accum_putc()'s truncation, a lost go_stack entry can't be papered over: every
+   * later pop would restore the wrong table. So stop for good instead of resyncing. */
+  jr_str_t data = {0, 0};
+  cb(jr_type_error, &data, user_data);
+  state->error = 1;
+  state->just_erred = 1;
+  state->accumulating = 0;
+  state->done = 1;
+}
 }
 
 void
@@ -710,11 +737,11 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     state->in_number = 0;
     state->accumulating = 0;
 
-    if(state->go_stack_idx > 0)
-      state->go = state->go_stack[--state->go_stack_idx];
+    if(!vector_empty(&state->go_stack))
+      state->go = jr_pop(state);
   }
 
-  if(state->go_stack_idx > 0 || state->accumulating) {
+  if(!vector_empty(&state->go_stack) || state->accumulating) {
     jr_str_t data = {0, 0};
 
     cb(jr_type_error, &data, user_data);
