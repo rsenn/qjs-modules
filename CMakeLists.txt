@@ -582,8 +582,6 @@ endif()
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
-
 set(CMAKE_REQUIRED_FLAGS "-DCOMPILE_DEFINITIONS=-I${QUICKJS_SOURCES_ROOT}")
 
 try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(void) { return 0; }" HAVE_JSOBJECT_POINTER

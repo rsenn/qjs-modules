@@ -477,18 +477,6 @@
     grep -n '#include' quickjs-gpio.c   # no pigpio.h
     grep -n 'pigpio' CMakeLists.txt     # every hit is commented out
 
-- functions-cmake-included-twice (CMakeLists.txt:33,581): cmake/functions.cmake
-  is include()'d twice, with cmake/check-flags.cmake's include() (line 108) sitting
-  between them. Both functions.cmake and check-flags.cmake define a same-named
-  check_flag()/CHECK_FLAG (CMake macro/function names are case-insensitive), so the
-  second functions.cmake include silently re-redefines check_flag() back to its own
-  copy for anything after line 581 -- harmless here since both copies are otherwise
-  equivalent (confirmed by direct diff), but fragile: the two files should not both
-  own a same-named macro, and the second include() is dead weight either way. Found
-  while auditing cmake/ conventions against sibling qjs-* projects.
-
-    grep -n 'include(.*functions.cmake\|include(.*check-flags' CMakeLists.txt
-
 - dom-wrapper-property-access-cost-per-level (lib/dom.js:2117-2119, `Element`
   `children` getter, `Factory.for(this).NodeList.cache(...)`): once the
   parser-depth bug and querySelectorAll's ancestor-check were both fixed,
