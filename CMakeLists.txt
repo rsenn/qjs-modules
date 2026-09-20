@@ -458,8 +458,7 @@ if(MODULE_ARCHIVE)
     set(LibArchive_LIBRARIES_shared "${LibArchive_LIBRARIES_shared}")
     set(LibArchive_LIBRARIES_static "${LibArchive_LIBRARIES_static}")
     set(LibArchive_INCLUDE_DIRS "${LibArchive_INCLUDE_DIRS_shared}${LibArchive_INCLUDE_DIRS_static}")
-    # NOTE: LibArchive_FOUND is intentionally not set here, matching this branch's
-    # pre-existing behavior (see BUGS: archive-module-not-registered-when-built-from-source).
+    set(LibArchive_FOUND TRUE)
   else(BUILD_LIBARCHIVE)
     include(FindLibArchive)
   endif(BUILD_LIBARCHIVE)
