@@ -413,19 +413,6 @@
     Pointer.from(["01", "x"]).toString();
     // "[1].x" -- should be ".01.x" (leading zero silently dropped)
 
-- lib-pointer-deref-stub (lib/pointer.js:78, Pointer.prototype.deref):
-  empty method body, so it silently returns `undefined` for every call
-  instead of dereferencing into the target object - the JS-side Pointer
-  polyfill can be constructed, parsed, and stringified but can't
-  actually be used for its stated purpose (its native counterpart,
-  quickjs-pointer.c's pointer_deref(), does implement this). Predates
-  and is unrelated to the RFC 6901 parser/toRFC6901() work in this
-  file; found while adding RFC 6901 support to lib/pointer.js.
-
-    import { Pointer } from '../lib/pointer.js';
-    new Pointer('/foo/0').deref({ foo: ['bar'] });
-    // undefined -- should be "bar"
-
 - fspromises-mostly-stubs (lib/fsPromises.js): almost every exported
   function (access, appendFile, chmod, chown, mkdir, readFile, stat,
   unlink, ...) is an empty stub (`{}` body, no implementation) - only
