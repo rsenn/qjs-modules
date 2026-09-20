@@ -2,8 +2,11 @@
 
 Source: `lib/fs.js` (pure JS) — has a `default` export object bundling the API
 
-A Node-`fs`-style filesystem module with synchronous, promise, and stream APIs,
-built on QuickJS `std`/`os`.
+A Node-`fs`-style filesystem module with synchronous and stream APIs, built on
+QuickJS `std`/`os`. All promise-returning functions live in the separate
+[`fsPromises`](fsPromises.md) module (matching Node/Bun, where non-`Sync`
+names on `fs` are callback-based, not promise-based) — `fs` itself has no
+promise API of its own.
 
 ## Standard streams & helpers
 
@@ -17,7 +20,9 @@ built on QuickJS `std`/`os`.
 | Class | Description |
 | --- | --- |
 | `Stats` | `stat`-result object (`isFile()`, `isDirectory()`, size, times, mode, …). |
-| `FileHandle` | Open-file handle with read/write/close methods. |
+| `Dirent` | `readdir`/`opendir`-entry object (`isFile()`, `isDirectory()`, `name`, …). |
+| `FileHandle` | Open-file handle with read/write/close methods (sync here; see `fsPromises`'s `open()` for the promise-returning wrapper). |
+| `Dir` | Directory handle returned by `opendirSync()` — iterable, plus `readSync()`/`closeSync()`. |
 | `inotify_event` | `ArrayBuffer` subclass decoding an inotify event. |
 
 ## Synchronous API
@@ -31,16 +36,25 @@ built on QuickJS `std`/`os`.
 | `writeSync(fd, buffer, offset, length)` | 4 | Writes from a buffer. |
 | `readFileSync(file, options)` | 1–2 | Reads a whole file. |
 | `writeFileSync(file, data, options)` | 2–3 | Writes a whole file. |
-| `readdirSync(path)` | 1 | Lists a directory. |
+| `appendFileSync(path, data, options)` | 2–3 | Appends to a file, creating it if needed. |
+| `readdirSync(path, options)` | 1–2 | Lists a directory (`withFileTypes`, `recursive`). |
+| `opendirSync(path)` | 1 | Opens a directory as an iterable `Dir`. |
 | `statSync` / `lstatSync(path)` | 1 | File status. |
 | `existsSync(path)` | 1 | Existence test. |
-| `mkdirSync(path, mode)` | 1–2 | Creates a directory. |
+| `mkdirSync(path, options=0o777)` | 1–2 | Creates a directory; `options` is a mode number or `{recursive, mode}`. |
+| `mkdtempSync(prefix)` | 1 | Creates a fresh, uniquely-named directory under `prefix`. |
 | `renameSync(old, new)` | 2 | Renames. |
 | `unlinkSync(path)` | 1 | Removes a file. |
-| `copyFileSync(src, dest, flags)` | 2–3 | Copies. |
+| `rmdirSync(path)` | 1 | Removes an empty directory. |
+| `rmSync(path, options)` | 1–2 | Removes a file or (with `{recursive: true}`) a directory tree; `{force: true}` ignores a missing path. |
+| `copyFileSync(src, dest, flags)` | 2–3 | Copies a file. |
+| `cpSync(src, dest, options)` | 2–3 | Copies a file, or (with `{recursive: true}`) a directory tree. |
 | `linkSync` / `symlinkSync` | 2 | Creates links. |
 | `readlinkSync` / `realpathSync(path)` | 1 | Resolves links. |
 | `accessSync(pathname, mode)` | 2 | Accessibility check. |
+| `chmodSync(path, mode)` / `chownSync(path, uid, gid)` | 2–3 | Changes mode/ownership (opens the path and uses the fd-based syscall — no path-based binding is exposed). |
+| `truncateSync(path, len=0)` | 1–2 | Truncates a file (same fd-based approach as `chmodSync`/`chownSync`). |
+| `utimesSync(path, atime, mtime)` | 3 | Sets access/modification times (`Date` or seconds-since-epoch). |
 | `seek(fd, offset, whence)` / `tell(file)` | 1–3 | File-position control. |
 | `sizeSync(file)` / `nameSync(file)` / `fileno(file)` | 1 | File metadata. |
 | `getcwd()` / `chdir(path)` / `isatty(file)` | 0–1 | Process/file helpers. |
@@ -48,22 +62,27 @@ built on QuickJS `std`/`os`.
 | `flushSync(f)` / `pipe()` | 0–1 | Flush / create a pipe. |
 | `puts(fd, str)` / `gets(fd)` | 1–2 | Line write / read. |
 
-## Async / promise API
-
-`open`, `close`, `read`, `write`, `readFile`, `copyFile`, `exists`, `stat`,
-`lstat`, `mkdir`, `link`, `symlink`, `tmpfile`, `readAll`, `readFully` — promise
-variants of the corresponding sync calls.
+There's no path-based `chmod(2)`/`chown(2)`/`truncate(2)` binding available (only
+the fd-based `fchmod`/`fchown`/`ftruncate` used by `FileHandle`), so the `*Sync`
+versions above open the path (read-only for `chmodSync`/`chownSync`, write-only
+for `truncateSync`) and use those instead — this doesn't work for a symlink's
+own metadata (that needs the non-following `lchmod`/`lchown`/`lutimes` syscalls,
+which aren't implemented; see `BUGS`).
 
 ## Streaming readers
 
 | Function | Args | Description |
 | --- | --- | --- |
-| `reader(input, bufferOrBufSize=1024)` | 1–2 | Async chunk reader. |
 | `readerSync(input, bufferOrBufSize=1024)` | 1–2 | Generator of chunks. |
 | `readAllSync(input, bufSize)` | 1–2 | Reads everything (sync). |
-| `readFullySync(input, buf, start, n)` / `readFully(...)` | 2–4 | Fills a buffer fully. |
+| `readFullySync(input, buf, start, n)` | 2–4 | Fills a buffer fully. |
 | `createReadStream(path, options)` | 1–2 | Node-style readable stream. |
 | `createWriteStream(path, options)` | 1–2 | Node-style writable stream. |
+
+The promise-based `reader()`/`readAll()` (async-iterator/fd equivalents of the
+two above) live in [`fsPromises`](fsPromises.md), along with the non-standard
+raw-fd `read()`/`write()` — see that module's doc for why they're there
+despite not being part of Node/Bun's `fs/promises`.
 
 ## Event helpers
 
