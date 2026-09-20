@@ -643,9 +643,13 @@ jsm_init_modules(JSContext* ctx) {
 }
 
 /**
- * Looks up a builtin module record by name.
+ * Looks up a builtin module record by name. A leading "node:" is stripped first
+ * (Bun/Deno compatibility: `node:fs`/`node:path`/etc. resolve the same as the bare
+ * name resolves here, i.e. to *this* engine's own builtin of that name, not Node's
+ * actual implementation - the same aliasing Bun/Deno themselves do for their own
+ * compat builtins).
  *
- * @param name Builtin module name (e.g. "std", "os", "fs").
+ * @param name Builtin module name (e.g. "std", "os", "fs", "node:fs").
  *
  *
  * @returns Pointer into jsm_builtin_modules, or 0 if not found.
@@ -653,6 +657,9 @@ jsm_init_modules(JSContext* ctx) {
 static BuiltinModule*
 jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
+
+  if(str_start(name, "node:"))
+    name += 5;
 
   vector_foreach_t(&jsm_builtin_modules, rec) if(!strcmp(rec->module_name, name)) return rec;
 
@@ -1470,6 +1477,22 @@ again:
 
   if(str_start(name, "file://"))
     name += 7;
+
+  /* Bun/Deno compatibility: `node:x` resolves the same as bare `x` would here - this
+     engine's own builtin/dynamic-module of that name, not Node's actual
+     implementation. Stripped here (not just in jsm_builtin_find(), which only covers
+     the static builtin-registry lookup below) so the filesystem/dynamic-.so fallback
+     search further down also sees the bare name, for a module that resolves via that
+     path rather than being compiled into jsm_builtin_modules (e.g. child_process in a
+     build where it's not a static builtin). Uses strdup+free, not the file://
+     handling's `+= 7` pointer shift above - see BUGS' jsm-module-loader-file-uri-
+     pointer-shift-use-after-shift-free entry for why that pattern isn't safe to
+     copy. */
+  if(str_start(name, "node:")) {
+    tmp = js_strdup(ctx, name + 5);
+    js_free(ctx, name);
+    name = tmp;
+  }
 
   if(lptr) {
     JSValue namev = JS_NewString(ctx, name);

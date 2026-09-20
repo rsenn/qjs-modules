@@ -825,13 +825,24 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 **Notes:** JS-side helper wrapper around the native `misc` module's POSIX grab-bag (see quickjs-misc.c above); not a public standard API surface, used internally by other lib/*.js wrappers.
 
 ### lib/module.js
-**Module:** `module`  
-**Classification:** Compatible (Node.js module resolution)  
+**Module:** `module` (`node:module`)  
+**Classification:** Compatible (Node.js `node:module`, partial)  
+**Spec:** https://nodejs.org/api/module.html  
+**Exports:**
+- `builtinModules` - sorted names from `globalThis.builtins` (this engine's own builtin registry)
+- `isBuiltin(name)` - accepts a `node:`-prefixed or bare name
+- `createRequire(filename)` - synchronous CJS loader resolving relative/absolute specifiers only (no `node_modules`/`package.json` resolution)
+
+**Notes:** Backed by this engine's own builtin-module registry rather than a hand-maintained list, matching how Bun/Deno alias `node:module` to their own module systems. Node's `Module` class, `register()` (loader hooks), `syncBuiltinESMExports()` and `SourceMap` are not implemented (see `TODO.md`).
+
+### lib/nodeModulesLoader.js
+**Module:** `nodeModulesLoader`  
+**Classification:** Custom (Node.js-style module resolution demo)  
 **Spec:** https://nodejs.org/api/modules.html#all-together  
 **Exports:**
 - default export: installs a custom `moduleLoader` (normalize/loader pair) implementing Node-style `node_modules` resolution, `package.json` `"exports"`/`"module"`/`"main"` field lookup, and an experimental `.ts` transpile-via-`swc` loader
 
-**Notes:** Approximates Node's CommonJS/ESM resolution algorithm for QuickJS's module loader hooks; the `.ts` loader path shells out to an external `swc` binary and is best-effort/dev-only.
+**Notes:** Formerly named `module`/`lib/module.js`; renamed to free up the `module` specifier for Node's actual `node:module` API (see above). Approximates Node's CommonJS/ESM resolution algorithm for QuickJS's module loader hooks; the `.ts` loader path shells out to an external `swc` binary and is best-effort/dev-only.
 
 ### lib/parsel.js
 **Module:** `parsel`  

@@ -571,3 +571,62 @@
                                                          // dominated by wrapper
                                                          // property access
 
+- getopt-long-option-after-short-misparsed (lib/util.js:1336,1368-1371,
+  getOpt): `short`/`long` are declared once at the top of getOpt() and never
+  reset per-argument, only ever set to `true`. Once any short option
+  (`-x`) has been parsed, `short` stays `true` for the rest of the call, so
+  a later long option (`--foo`) still takes the short-option branch
+  (`start = short ? 1 : 2` stays 1, `end = short ? 2 : ...` stays 2) -
+  its name is computed as `arg.substring(1, 2)`, i.e. just the literal
+  `-` character, which never matches any real option name. The whole
+  `--foo` token then falls through unrecognized into the positional
+  ('@') bucket instead of being applied, and the option's own default/
+  absence goes unnoticed since getOpt doesn't report unrecognized flags.
+  Only argument *order* determines whether this happens - the same long
+  option before any short option works fine. Found while testing
+  utilities/runtime-diff.js's `-g <name> ... --all` (documented order in
+  its own --help) silently dropping `--all` and mis-capturing it as a
+  positional module name.
+
+    import { getOpt } from 'util';
+    const OPTIONS = { g: [true, null, 'g'], all: [false, null, 'a'], '@': 'names' };
+    getOpt(OPTIONS, ['-g', 'Math', '--all', 'foo']);
+    // { "@": ["--all", "foo"], "g": "Math" } -- 'all' key missing entirely,
+    // '--all' misfiled as a positional
+    getOpt(OPTIONS, ['--all', '-g', 'Math', 'foo']);
+    // { "@": ["foo"], "all": true, "g": "Math" } -- correct, only the
+    // argument order differs
+
+- jsm-module-loader-file-uri-pointer-shift-use-after-shift-free
+  (src/qjsm.c:1478-1479, jsm_module_loader): `if(str_start(name, "file://"))
+  name += 7;` advances `name` past the "file://" prefix in place, without
+  reallocating - `name` no longer points to the block `js_strdup(ctx,
+  module_name)` originally returned. If nothing later in the same call
+  reassigns `name` to a fresh allocation (the package.json-aliasing branch
+  a few lines down does, but only when it actually finds a package.json
+  match), the shifted pointer is what ends up passed to `js_free(ctx,
+  name)` - either directly in the loader-hook-chain branch right after, or
+  via `end:`'s `lm->name = name` (freed later when the module is
+  unloaded/the context is freed). Freeing a pointer that isn't the exact
+  one malloc handed out is undefined behavior. Found while adding node:
+  prefix stripping right after this block (same file) and deliberately
+  using strdup+free instead of copying this pattern, for exactly this
+  reason - noticed the existing file:// code doing the unsafe thing.
+  Not reproduced as an actual crash (needs a real `file://` import with no
+  package.json match nearby to hit the unguarded path), so severity/
+  triggerability not fully confirmed - flagging from code reading, not a
+  live repro.
+
+    import('file:///some/existing/file.js');
+    // if this resolves without ever matching a package.json alias, the
+    // shifted (module_name + 7) pointer is what later gets freed
+
+- lib-tty-imports-nonexistent-fdopensync (lib/tty.js:3): `import { fdopenSync,
+  out } from 'std'` imports a `fdopenSync` export that doesn't exist - `std`
+  only has `fdopen` (js_std_fdopen, quickjs-libc.c:915). This breaks loading
+  the `tty` module entirely (`import('tty')`/`import('node:tty')` throws).
+  Found while running utilities/runtime-diff.js against node:tty on qjsm.
+
+    import('tty');
+    // ReferenceError/SyntaxError: Could not find export 'fdopenSync' in
+    // module 'std'

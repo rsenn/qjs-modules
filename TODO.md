@@ -196,6 +196,77 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   measures) are all much thinner than their Node/Deno/Bun namesakes.
 - `lib/extendAsyncFunction.js:3` — declared but empty (`AsyncFunctionExtensions =
   nonenumerable({})`, no members added yet).
+- `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
+  `createRequire()`. Missing: `Module` class, `register()` (loader hooks),
+  `syncBuiltinESMExports()`, `SourceMap`.
+
+`src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
+node:-prefix audit):
+- `import.meta.resolve()` is missing, and `is_main`/main-module detection is always
+  `FALSE` for normal loads (`src/qjsm.c:1436`, `js_module_set_import_meta(ctx, module,
+  FALSE, FALSE)`) — Node/Deno both support these.
+- The default filesystem module loader never consults `package.json`'s `"type"`,
+  `"exports"`, or `"main"` fields (`src/qjsm.c:968-990` only handles an internal
+  `"_moduleAliases"` map) — real Node package layouts resolve wrong without opting into
+  the `lib/nodeModulesLoader.js` demo loader.
+- `.mjs` forces module-eval mode (`src/qjsm.c:2116`) but `.cjs` has no special handling
+  (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
+  `"type"`).
+- No global `require()` by default (only via explicit `import` of `lib/require.js`) —
+  Node/Bun provide it ambiently in CJS contexts.
+- No `Buffer` global and no Node-style `crypto`/`zlib`/`dns`/`net`/`worker_threads`
+  builtins at all (checked `quickjs-builtins.h`'s full native+compiled list) — common
+  Node imports fail outright, not even reachable via a `node:` alias.
+- `TextEncoder`/`TextDecoder`/`queueMicrotask` exist only as named exports of
+  `textcode`/`util` (`lib/streams.js:5`, `lib/dom.js:2`), not ambient globals like every
+  other runtime provides.
+
+`node:<name>` export-surface diff vs Bun (found 2026-09-19, via
+`utilities/runtime-diff.js -r qjsm -r bun` against assert/child_process/console/events/
+fs/module/path/perf_hooks/process/stream/timers/tty/url/util/yaml - `node:repl` excluded,
+Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
+`lib-tty-imports-nonexistent-fdopensync`). Two kinds of divergence:
+
+**Missing in qjsm** (real Node/Bun exports our `node:x` doesn't have) - by module:
+- `assert`: `CallTracker`, `strict`
+- `child_process`: `execFile`, `execFileSync`, `fork`
+- `console`: nearly everything (`log`, `error`, `warn`, `info`, `debug`, `table`,
+  `group*`, `time*`, `count*`, `assert`, `dir`, `trace`, ...) - `console` isn't wired to
+  `node:console` at all yet
+- `events`: `EventEmitterAsyncResource`, `getEventListeners`, `getMaxListeners`,
+  `setMaxListeners`, `addAbortListener`, `captureRejection*`, `listenerCount`, `on`
+- `fs`: the whole `*Sync`-free async-callback API (`readFile`, `writeFile`, `access`,
+  `stat`, `mkdir`, `rm`, `cp`, `glob`, ...), `promises`, `ReadStream`/`WriteStream` -
+  qjsm's `fs` is sync-only plus a hand-rolled `fsPromises`, no callback style at all
+- `module`: `Module` class, `register()`, `syncBuiltinESMExports()`, `SourceMap` (already
+  tracked above)
+- `path`: `posix`, `win32`, `matchesGlob`, `toNamespacedPath`
+- `perf_hooks`: `Performance*` classes, `createHistogram`, `monitorEventLoopDelay`
+- `process`: most of the real Node `process` object - `argv`, `env`, `exit`, `cwd`,
+  `platform`, `pid`, `nextTick`, `on`/`emit` (EventEmitter surface), `hrtime`,
+  `memoryUsage`, `stdin`/`stdout`/`stderr`, `versions`, ... (`lib/process.js` covers only
+  a slice of this)
+- `stream`: `Readable`/`Writable`/`Duplex`/`Transform`/`PassThrough` (Node stream
+  classes - qjsm only has WHATWG `ReadableStream`/`WritableStream`/`TransformStream`),
+  `pipeline`, `finished`
+- `timers`: `setImmediate`/`clearImmediate`, `active`/`enroll`/`unenroll` (legacy timer
+  API), `promises`
+- `url`: legacy `url.parse`/`format`/`resolve` API, `fileURLToPath`/`pathToFileURL`
+- `util`: `promisify`, `callbackify`, `deprecate`, `format`, `debuglog`, `parseArgs`,
+  `TextEncoder`/`TextDecoder` (re-exported from `util` in Node), `isDeepStrictEqual`
+
+**WARN - qjsm exports under `node:x` that Bun's real `node:x` doesn't have**: `assert`,
+`console`, `fs`, `path`, `perf_hooks`, and especially `util` (100+ names - `util` is this
+project's internal POSIX/reflection grab-bag, not just the Node `util` surface) all carry
+qjs-modules-specific extras on the *same* module name Node scripts expect. Since
+`jsm_builtin_find()` (`src/qjsm.c`) strips a leading `node:` unconditionally for *any*
+registered builtin - not just ones that are actually part of Node's API - `node:yaml`
+and any other qjsm-only module name also resolves under the `node:` prefix even though
+Node/Bun have no such module (confirmed: Bun errors `No such built-in module: node:yaml`,
+qjsm resolves it fine). A Node/Bun script that imports a typo'd or wrong `node:`-prefixed
+name would fail loudly there but silently succeed here if the name happens to collide
+with one of qjsm's own module names - worth deciding whether `node:` stripping should be
+restricted to an actual Node-builtins allowlist rather than every registered module.
 
 ## Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)
 

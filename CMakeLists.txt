@@ -89,7 +89,7 @@ endif()
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert console events fs module perf_hooks process repl timers tty url util)
+  set(BUILTINS_COMPILED assert console events fs module nodeModulesLoader perf_hooks process repl timers tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
@@ -1376,8 +1376,9 @@ target_compile_definitions(
 
 install(TARGETS qjsm DESTINATION bin)
 
-file(GLOB INSTALL_SCRIPTS extract-structs.js jsonpp.js list-exports.js resolve-imports.js xml-shell.js nm-symbols.js
-     remove-dead-functions.js deadwood.js)
+file(GLOB INSTALL_SCRIPTS utilities/extract-structs.js utilities/jsonpp.js utilities/list-exports.js
+     utilities/resolve-imports.js utilities/xml-shell.js utilities/nm-symbols.js utilities/remove-dead-functions.js
+     utilities/deadwood.js utilities/source-scanner.js utilities/unused-functions.js utilities/runtime-diff.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)
