@@ -366,25 +366,6 @@
     // expected: skipped (or excluded from the test set) when
     // MODULE_SERIAL/MODULE_GPIO are OFF
 
-- misc-getbytecode-missing-export (tests/test_misc.js:6): `import {
-  getByteCode, ... } from 'misc'` fails with "Could not find export
-  'getByteCode' in module 'misc'" against the quickjs build linked by
-  build/x86_64-linux-gnu - misc.js/quickjs-misc.c doesn't (or no longer)
-  export a function by this name, so the whole test file fails to load
-  before any assertion runs. Same class of issue as the
-  JS_GetModuleLoaderFunc/JS_GetModuleLoaderOpaque version-mismatch fixed
-  in CMakeLists.txt this session (a source/library expecting an API the
-  linked quickjs doesn't have) - not narrowed down to whether getByteCode
-  was renamed/removed upstream or never existed in this vendored
-  quickjs.c.
-
-    QUICKJS_MODULE_PATH="build/x86_64-linux-gnu;lib" \
-      ./build/x86_64-linux-gnu/qjsm --bignum tests/test_misc.js
-    // actual: SyntaxError: Could not find export 'getByteCode' in
-    // module 'misc'
-    // expected: test file loads and its getByteCode-related assertions
-    // run (pass or fail on their own merits)
-
 - lib-modules-missing-docs (doc/js/README.md:61): `lib/database.js`,
   `lib/dbi.js` and `lib/describe-class.js` exist and are exported like
   any other JS module, but have no doc/js/*.md page - doc/js/README.md

@@ -3,7 +3,7 @@ import * as path from 'path';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import { Location } from 'location';
-import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, getByteCode, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
 import * as std from 'std';
 
 extendArray(Array.prototype);
