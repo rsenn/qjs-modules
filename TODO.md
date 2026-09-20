@@ -39,6 +39,12 @@ the full architecture/gap survey behind Tier 6-8.
   `instanceof || Object.prototype.toString comparison` via a string compare instead of a tag
   check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling once
   Tier 1 is fixed and traffic patterns are trustworthy again.
+  **Partially addressed**: `js_is_arraybuffer`/`js_is_sharedarraybuffer`/`js_is_date`/
+  `js_is_map`/`js_is_weakmap`/`js_is_set` now have a `JS_GetClassID()`-tag fast path
+  (probed once per type, gated on `HAVE_JS_GETCLASSID` since not every linked quickjs
+  exposes `JS_GetClassID`), falling back to the old string-compare path otherwise.
+  `js_is_generator`/`js_is_asyncgenerator`/`js_is_regexp`/`js_is_promise`/
+  `js_is_dataview`/`js_is_error` still use the slow path.
 
 - ~~**`JsonParser.parse()` should resync past a run of bad bytes in one call, not one
   byte per thrown exception**~~ — **FIXED**. `json_parse()` now has a `JSON_TOK_ERROR_SKIP`

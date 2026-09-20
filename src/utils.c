@@ -2614,33 +2614,140 @@ js_is_primitive(JSValueConst obj) {
   return FALSE;
 }
 
+#if HAVE_JS_GETCLASSID
+/* Constructs a throwaway instance of the named global constructor to learn
+ * its JS_GetClassID() tag, since built-in class IDs aren't exposed as
+ * constants in quickjs.h (they vary by quickjs build/version) but ARE fixed
+ * for the lifetime of the process once assigned - one probe per type, cached
+ * by the caller, replaces an instanceof-plus-prototype-walk on every call. */
+static JSClassID
+js_probe_class_id(JSContext* ctx, const char* class_name, int argc, JSValueConst* argv) {
+  JSValue ctor = js_global_get_str(ctx, class_name);
+  JSClassID id = JS_INVALID_CLASS_ID;
+
+  if(JS_IsFunction(ctx, ctor)) {
+    JSValue inst = JS_CallConstructor(ctx, ctor, argc, argv);
+
+    if(JS_IsException(inst))
+      JS_FreeValue(ctx, JS_GetException(ctx));
+    else
+      id = JS_GetClassID(inst);
+
+    JS_FreeValue(ctx, inst);
+  }
+
+  JS_FreeValue(ctx, ctor);
+  return id;
+}
+#endif
+
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    JSValueConst argv[] = {JS_NewInt32(ctx, 0)};
+    id = js_probe_class_id(ctx, "ArrayBuffer", 1, argv);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
 }
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    JSValueConst argv[] = {JS_NewInt32(ctx, 0)};
+    id = js_probe_class_id(ctx, "SharedArrayBuffer", 1, argv);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") || js_object_is(ctx, value, "[object SharedArrayBuffer]"));
 }
 
 BOOL
 js_is_date(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    id = js_probe_class_id(ctx, "Date", 0, 0);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Date") || js_object_is(ctx, value, "[object Date]"));
 }
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    id = js_probe_class_id(ctx, "Map", 0, 0);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Map") || js_object_is(ctx, value, "[object Map]"));
 }
 
 BOOL
 js_is_weakmap(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    id = js_probe_class_id(ctx, "WeakMap", 0, 0);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "WeakMap") || js_object_is(ctx, value, "[object WeakMap]"));
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    id = js_probe_class_id(ctx, "Set", 0, 0);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Set") || js_object_is(ctx, value, "[object Set]"));
 }
 
