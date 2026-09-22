@@ -274,6 +274,24 @@ name would fail loudly there but silently succeed here if the name happens to co
 with one of qjsm's own module names - worth deciding whether `node:` stripping should be
 restricted to an actual Node-builtins allowlist rather than every registered module.
 
+Extended 2026-09-22 to `node:os`/`node:readline` (not in the original list) and
+cross-checked against Deno too (`-r qjsm -r bun -r deno`, all three loaded every module
+in the original list cleanly except the two already-known `node:tty`/`node:yaml` cases -
+Deno also errors `No such built-in module: node:yaml`, matching Bun):
+- **`node:os` is the worst offender found so far - not just missing exports, a wrong
+  module entirely.** qjsm's own `os` builtin is a low-level POSIX/process primitives
+  module (`exec`, `pipe`, `kill`, `signal`, `read`/`write`, `waitpid`, `S_IF*`/`O_*`
+  constants, `Worker`) - nothing like Node's `os` (`hostname()`, `cpus()`, `homedir()`,
+  `totalmem()`, `networkInterfaces()`, `EOL`, ...), which qjsm has none of. A Node script
+  doing `import os from 'node:os'; os.hostname()` doesn't just miss an export, it
+  silently resolves to a same-named but semantically unrelated module and fails in a
+  confusing way (`os.hostname is not a function`) rather than a clean "module not
+  found". Worse than the `util`/`fs`/`path` cases, where the extras are additive on top
+  of a real Node-compatible surface - here the whole module is a false-positive match.
+- `node:readline`: missing `Interface`/`createInterface`/`emitKeypressEvents`/
+  `moveCursor`/`clearScreenDown`/`promises` (matches the already-tracked "9-line stub"
+  note above) - no extra qjsm-only names here, so no WARN case for this one.
+
 ## Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)
 
 - **Three independent CSS-selector implementations**: `lib/parsel.js` (ported `parsel-js`),
