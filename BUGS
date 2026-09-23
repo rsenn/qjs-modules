@@ -537,21 +537,6 @@
     // ReferenceError/SyntaxError: Could not find export 'fdopenSync' in
     // module 'std'
 
-- extendmath-self-referential-const-tdz (lib/extendMath.js:36): `export const
-  Math = Math;` initializes the module's own lexical `Math` binding from
-  itself - the RHS `Math` resolves to the same not-yet-initialized binding
-  (shadowing the global), not the global `Math`, so this throws a TDZ
-  ReferenceError ("Math is not initialized") the moment the module is
-  loaded, unconditionally. Breaks the whole module: `extendMath()` (the
-  default export, meant to patch extensions onto the real global `Math`)
-  can never run because the module never finishes loading. Found while
-  verifying the extendMath-float64-debug-log fix (this session, that fix
-  only touched the float64() method body - this is a separate, pre-existing
-  break in the same file).
-
-    import('extendMath');
-    // ReferenceError: Math is not initialized
-
 - lib-html-streamsrchreftext-crashes-without-options (lib/html.js:69): calling
   streamSrcHrefAndText(source) without a second argument crashes, because it
   destructures `const { attributes = [...] } = options` with no fallback for
