@@ -960,17 +960,6 @@ silently hashing with an unavailable algorithm.
 **Runtime Compatibility:** Node.js, Bun, Deno (with --unstable)  
 **Notes:** Comprehensive Node.js process API. Some features may have limitations vs Node.js (e.g., process.fork(), cluster support). The `process.argv` issue with `-e` mode has been fixed (see commit 72c0364d).
 
-### lib/reflect.js
-**Module:** `reflect`  
-**Classification:** Custom  
-**Exports:**
-- `EncodeJS(val, stack, mapFn)` / `DecodeJS(info)` - encode/decode arbitrary JS values (including functions/classes) to/from a JSON-serializable descriptor tree
-- `EncodeObj(obj, keys, stack, mapFn)` - encode selected properties
-- `JSValue`, `JSNumber`, `JSString`, `JSBoolean`, `JSSymbol`, `JSRegExp`, `JSObject`, `JSArray`, `JSTypedArray`, `JSFunction`, `JS`, `JSProperty` - descriptor wrapper classes
-- `hasPrototype`, `makeFunctionWithArgs`, `getKeys` - prototype/reflection helpers
-
-**Notes:** Despite the name, this is NOT the ECMAScript `Reflect` object (https://tc39.es/ecma262/#sec-reflect-object) — it's a bespoke value serialization/deserialization system (including function source code) with no standard equivalent. The name is misleading and a candidate for renaming.
-
 ### lib/repl.js
 **Module:** `repl`  
 **Classification:** Compatible (Node.js)  

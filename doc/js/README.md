@@ -6,7 +6,6 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 
 ### Core & Language Extensions
 - [util](util.md) — Central utility library
-- [reflect](reflect.md) — Reflection and value serialization
 - [iterator](iterator.md) — Base iterator class
 - [asyncIterator](asyncIterator.md) — Async iterator base class
 - [arrayLike](arrayLike.md) — Array-like base class
