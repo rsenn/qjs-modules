@@ -789,7 +789,7 @@ directly for Bun-compatible code.
 - `HTMLParser.prototype.attributes` / `.tag` - Current element accessors
 - `streamSrcHrefAndText(source, options)` - Generator yielding `src`/`href`/text events
 
-**Notes:** Reuses the XML tokenizer rather than implementing the WHATWG HTML parsing algorithm (no tag-soup/implicit-close handling), so it's not standards-compliant HTML parsing — a lightweight custom SAX layer for well-formed markup.
+**Notes:** Reuses the XML tokenizer rather than implementing the full WHATWG HTML parsing algorithm (no full tree-construction/tag-soup insertion-mode state machine), so it's not standards-compliant HTML parsing — a lightweight custom SAX layer. As of 2026-09, `src/xml.c`'s tokenizer (the actual engine behind `XMLParser`, despite the name `quickjs-xml.c` suggesting otherwise) now handles the HTML5-relevant raw-text elements (`<script>`, `<style>`, `<textarea>`, `<title>` — content never tokenized as markup; was hardcoded to `<script>` only), and `HTMLParser` now enables `XMLParser`'s `.tolerant` closing-tag-mismatch recovery by default and lowercases tag/attribute names (HTML is case-insensitive; XML isn't) — narrowing, not closing, the gap to a real HTML5 tokenizer.
 
 ### lib/inotify.js
 **Module:** `inotify`  

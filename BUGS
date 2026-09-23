@@ -551,3 +551,12 @@
 
     import('extendMath');
     // ReferenceError: Math is not initialized
+
+- lib-html-streamsrchreftext-crashes-without-options (lib/html.js:69): calling
+  streamSrcHrefAndText(source) without a second argument crashes, because it
+  destructures `const { attributes = [...] } = options` with no fallback for
+  options itself being undefined. Found while fixing HTMLParser's own
+  constructor to tolerate a missing second argument (same file).
+
+    import('html').then(({ streamSrcHrefAndText }) => [...streamSrcHrefAndText('<a href="x">y</a>')]);
+    // TypeError: cannot read property 'attributes' of undefined
