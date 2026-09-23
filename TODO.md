@@ -191,7 +191,29 @@ raw native modules rather than as part of a documented "standard library" surfac
 (despite `Blob.prototype.stream()` already being tracked in Tier 2 — there's no `lib/blob.js`
 at all, not just an incomplete method), `child-process`, `gpio`, `serial`, `mmap`, `directory`,
 `queue`, `repeater`, `virtual`, `magic`, `bcrypt`, `syscallerror`, `location`. `sockets` has only
-a low-level `lib/socklen_t.js` helper, not a `net`/`dgram`-style ergonomic wrapper.
+a low-level `lib/socklen_t.js` helper, not a `net`/`dgram`-style ergonomic wrapper - **and
+should not get one** (see below).
+
+**No `net`/`dgram`-style wrapper on top of `quickjs-sockets.c` - use `../qjs-lws/` instead**
+(decided 2026-09-23). `quickjs-sockets.c` mirrors BSD sockets in a JS-classed way with
+unclear, under-tested usage semantics: a non-async `Socket` set non-blocking can surface
+as `ENOENT` or a `SyscallError` depending on path, the non-async API can be run blocking
+and the `AsyncSocket` API can be run non-blocking, and none of this - especially error
+handling - has real test coverage. Building a `net`-shaped wrapper on it would inherit all
+of that. `../qjs-lws/` already has a better-tested TCP/UDP story on a real event loop
+(libwebsockets' own): `lib/tcpsocket.js`/`lib/tcpsocketstream.js`,
+`lib/udpsocket.js`/`lib/udpsocketstream.js` - and `TCPSocketStream` is already
+`ReadableStream`/`WritableStream`-shaped, matching this project's WHATWG-first stance
+(see CLAUDE.md's "never implement Node.js Streams" rule) with no extra work needed. Point
+any future `net`-API-compat ask at qjs-lws rather than building on `quickjs-sockets.c`.
+
+**Exception: RAW sockets** (`SOCK_RAW`/`AF_PACKET` - ICMP, packet capture, custom L3/L4
+protocols) are the one thing neither `quickjs-sockets.c`-as-is nor qjs-lws (an
+application-protocol library, not a packet-level tool) currently gets you cleanly. If a
+real use case shows up, a narrow `lib/rawsocket.js` over `quickjs-sockets.c`'s raw-socket
+path could be worth it - but only after actually pinning down (and likely fixing) the
+blocking-semantics/error-handling issues above, since raw sockets are exactly where a
+silent wrong-mode bug bites hardest (dropped/malformed packets, not just a slow read).
 
 WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing; only appears in vendored test-infra comments (`lib/testharness.js`).
