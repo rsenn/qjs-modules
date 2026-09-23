@@ -49,13 +49,17 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 
 ### quickjs-bcrypt.c
 **Module:** `bcrypt`  
-**Classification:** Custom (libbcrypt wrapper) - candidate for Compatible  
+**Classification:** Custom (libbcrypt wrapper) - see `lib/password.js` for the `Bun.password`-compatible surface  
 **Spec:** https://bun.com/docs/runtime/hashing#bcrypt-modular-crypt-format  
 **Exports:**
 - `genSalt(rounds)` - Generate a bcrypt salt
 - `hash(password, salt)` - Hash a password
 - `compare(password, hash)` - Verify a password against a hash
 - `HASHSIZE`, `SALTSIZE` - Buffer size constants
+
+**Notes:** Low-level bcrypt primitives; `lib/password.js` wraps these into `Bun.password`'s
+`hash()`/`hashSync()`/`verify()`/`verifySync()` shape - use that module instead of this one
+directly for Bun-compatible code.
 
 **Notes:** Currently a thin, synchronous libbcrypt wrapper with its own `genSalt`/`hash`/`compare` shape. Bun's `Bun.password` API (async `hash`/`verify`, `{algorithm: "bcrypt", cost}` options, modular crypt format output) is the closest JS-runtime precedent; aligning with it (async, `verify()` naming, options object) would need C-level changes in `quickjs-bcrypt.c`, not just a JS wrapper.
 
@@ -863,6 +867,20 @@ For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-
 - `ExpectationError` - Parse failure exception
 
 **Notes:** Custom parser-combinator toolkit (PEG-style), used together with `predicate` for building small recursive-descent grammars (e.g. `css-selectors`/`css3-selectors`); no standard equivalent.
+
+### lib/password.js
+**Module:** `password`  
+**Classification:** Compatible (Bun `Bun.password`, bcrypt-only)  
+**Spec:** https://bun.com/docs/api/hashing, https://bun.com/guides/util/hash-a-password  
+**Exports:**
+- `hash(password, options?)` / `hashSync(password, options?)` - `options: { algorithm: "bcrypt", cost }`
+- `verify(password, hash)` / `verifySync(password, hash)`
+- default export: `{ hash, hashSync, verify, verifySync }`
+
+**Notes:** Matches `Bun.password`'s method names/shapes on top of the native `bcrypt` module.
+Bun also supports Argon2 (its default algorithm) - this engine has no Argon2 binding, so
+`algorithm` here only ever accepts `"bcrypt"` and throws for anything else, rather than
+silently hashing with an unavailable algorithm.
 
 ### lib/perf_hooks.js
 **Module:** `perf_hooks`  
