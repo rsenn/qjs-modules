@@ -647,7 +647,10 @@ jsm_init_modules(JSContext* ctx) {
  * (Bun/Deno compatibility: `node:fs`/`node:path`/etc. resolve the same as the bare
  * name resolves here, i.e. to *this* engine's own builtin of that name, not Node's
  * actual implementation - the same aliasing Bun/Deno themselves do for their own
- * compat builtins).
+ * compat builtins) - except for "os": this engine's own `os` builtin is a low-level
+ * POSIX/process-primitives module (exec/pipe/kill/waitpid/...), nothing like Node's
+ * `os` (hostname/cpus/homedir/networkInterfaces/...), so aliasing `node:os` to it
+ * would silently resolve to the wrong module instead of failing cleanly.
  *
  * @param name Builtin module name (e.g. "std", "os", "fs", "node:fs").
  *
@@ -658,7 +661,7 @@ static BuiltinModule*
 jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
 
-  if(str_start(name, "node:"))
+  if(str_start(name, "node:") && strcmp(name + 5, "os"))
     name += 5;
 
   vector_foreach_t(&jsm_builtin_modules, rec) if(!strcmp(rec->module_name, name)) return rec;
@@ -1487,8 +1490,9 @@ again:
      build where it's not a static builtin). Uses strdup+free, not the file://
      handling's `+= 7` pointer shift above - see BUGS' jsm-module-loader-file-uri-
      pointer-shift-use-after-shift-free entry for why that pattern isn't safe to
-     copy. */
-  if(str_start(name, "node:")) {
+     copy. Excludes "os" - see jsm_builtin_find()'s comment on why that one alias
+     would be actively wrong, not just incomplete. */
+  if(str_start(name, "node:") && strcmp(name + 5, "os")) {
     tmp = js_strdup(ctx, name + 5);
     js_free(ctx, name);
     name = tmp;

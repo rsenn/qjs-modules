@@ -278,16 +278,14 @@ Extended 2026-09-22 to `node:os`/`node:readline` (not in the original list) and
 cross-checked against Deno too (`-r qjsm -r bun -r deno`, all three loaded every module
 in the original list cleanly except the two already-known `node:tty`/`node:yaml` cases -
 Deno also errors `No such built-in module: node:yaml`, matching Bun):
-- **`node:os` is the worst offender found so far - not just missing exports, a wrong
-  module entirely.** qjsm's own `os` builtin is a low-level POSIX/process primitives
-  module (`exec`, `pipe`, `kill`, `signal`, `read`/`write`, `waitpid`, `S_IF*`/`O_*`
-  constants, `Worker`) - nothing like Node's `os` (`hostname()`, `cpus()`, `homedir()`,
-  `totalmem()`, `networkInterfaces()`, `EOL`, ...), which qjsm has none of. A Node script
-  doing `import os from 'node:os'; os.hostname()` doesn't just miss an export, it
-  silently resolves to a same-named but semantically unrelated module and fails in a
-  confusing way (`os.hostname is not a function`) rather than a clean "module not
-  found". Worse than the `util`/`fs`/`path` cases, where the extras are additive on top
-  of a real Node-compatible surface - here the whole module is a false-positive match.
+- ~~**`node:os` resolved to the wrong module entirely**~~ — **FIXED**: `jsm_builtin_find()`/
+  `jsm_module_loader()` (`src/qjsm.c`) no longer strip `node:` for `os` specifically.
+  qjsm's own `os` builtin is a low-level POSIX/process-primitives module (`exec`, `pipe`,
+  `kill`, `waitpid`, ...), nothing like Node's `os` (`hostname()`, `cpus()`,
+  `networkInterfaces()`, ...) which qjsm has none of - aliasing `node:os` to it would
+  silently resolve to a same-named but semantically unrelated module instead of failing
+  cleanly. `import('node:os')` now fails with a clean module-not-found; bare `import('os')`
+  and every other `node:x` alias are unaffected.
 - `node:readline`: missing `Interface`/`createInterface`/`emitKeypressEvents`/
   `moveCursor`/`clearScreenDown`/`promises` (matches the already-tracked "9-line stub"
   note above) - no extra qjsm-only names here, so no WARN case for this one.
