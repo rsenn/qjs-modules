@@ -79,6 +79,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - Priority: WHATWG > Browser > Bun > Node > Deno
    - Avoid "qjs-modules-isms" (custom APIs that lock users in)
    - Scripts from browser/Node/Deno/Bun should run with minimal changes
+   - **Never implement Node.js Streams** (`stream.Readable`/`Writable`/`Duplex`/
+     `Transform`, `net.Socket` extending `Duplex`, etc.) - they're a separate,
+     incompatible stream model from WHATWG/browser Streams (`ReadableStream`/
+     `WritableStream`/`TransformStream`), which this project already implements
+     (`lib/streams.js`) and which the priority order above says wins. Any Node-API
+     wrapper (`net`, future `http`, etc.) that would otherwise need to extend
+     `Duplex` should expose a WHATWG-stream-shaped surface instead, even where that
+     means it isn't a drop-in `instanceof net.Socket` match for Node code.
 
 2. **Prefer JS-Idiomatic APIs Over C++ API Parity**
    - When binding C++ containers, prefer plain JS arrays with GC over strict API reproduction

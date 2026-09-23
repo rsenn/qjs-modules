@@ -253,8 +253,11 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
   `memoryUsage`, `stdin`/`stdout`/`stderr`, `versions`, ... (`lib/process.js` covers only
   a slice of this)
 - `stream`: `Readable`/`Writable`/`Duplex`/`Transform`/`PassThrough` (Node stream
-  classes - qjsm only has WHATWG `ReadableStream`/`WritableStream`/`TransformStream`),
-  `pipeline`, `finished`
+  classes - qjsm only has WHATWG `ReadableStream`/`WritableStream`/`TransformStream`).
+  **Not a gap to close** - CLAUDE.md now states Node Streams are deliberately never
+  implemented here (incompatible model from WHATWG streams, which wins per the
+  standards-priority order). `pipeline`/`finished` (WHATWG-stream-compatible
+  equivalents of these two specifically) are still worth having, though.
 - `timers`: `setImmediate`/`clearImmediate`, `active`/`enroll`/`unenroll` (legacy timer
   API), `promises`
 - `url`: legacy `url.parse`/`format`/`resolve` API, `fileURLToPath`/`pathToFileURL`
