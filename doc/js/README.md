@@ -8,15 +8,12 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [util](util.md) — Central utility library
 - [iterator](iterator.md) — Base iterator class
 - [asyncIterator](asyncIterator.md) — Async iterator base class
-- [arrayLike](arrayLike.md) — Array-like base class
 
 ### Prototype Extensions
 - [extendArray](extendArray.md) — Array prototype extensions
 - [extendArrayBuffer](extendArrayBuffer.md) — ArrayBuffer prototype extensions
-- [extendObject](extendObject.md) — Object prototype extensions
 - [extendMap](extendMap.md) — Map prototype extensions
 - [extendSet](extendSet.md) — Set prototype extensions
-- [extendMath](extendMath.md) — Math object extensions
 - [extendFunction](extendFunction.md) — Function prototype extensions
 - [extendAsyncFunction](extendAsyncFunction.md) — AsyncFunction prototype extensions
 - [extendGenerator](extendGenerator.md) — Generator prototype extensions
@@ -77,7 +74,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 Pure JavaScript implementations of standard APIs with no native dependencies:
 - **WHATWG/W3C/HTML5:** events, url, timers, abort, console
 - **Node.js:** assert, fs (partial), process (partial)
-- **Utilities:** iterator, asyncIterator, arrayLike
+- **Utilities:** iterator, asyncIterator
 
 ### Wrappers (Wrap Native Modules)
 JavaScript code that wraps native modules to provide higher-level APIs:
@@ -91,7 +88,7 @@ JavaScript code that wraps native modules to provide higher-level APIs:
 
 ### Prototype Extensions
 Extend built-in JavaScript prototypes (Array, Object, Map, etc.):
-- extendArray, extendArrayBuffer, extendObject, extendMap, extendSet, extendMath
+- extendArray, extendArrayBuffer, extendMap, extendSet
 - extendFunction, extendAsyncFunction, extendGenerator, extendAsyncGenerator
 
 ## Statistics

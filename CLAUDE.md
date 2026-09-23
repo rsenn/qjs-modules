@@ -98,6 +98,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - Modules like `deep`, `predicate`, `pointer`, `misc` are internal implementation details
    - Don't add new custom public APIs unless absolutely necessary
    - Document rationale for any custom API added
+   - **`quickjs-virtual.c` (`VirtualProperties`) is a deliberate exception** - it has zero
+     usage anywhere and no spec target (checked 2026-09, alongside removing several other
+     zero-usage/no-target modules: `reflect.js`, `arrayLike.js`, `extendMath.js`,
+     `extendObject.js`), but it's being kept anyway - the author's call, not a scoring
+     decision. Don't flag it again in a future cleanup pass without being asked.
 
 ## What this is
 
@@ -134,9 +139,9 @@ All modules classified into four categories:
    - Wrap native modules to provide higher-level APIs
    - Examples: fs.js, process.js, console.js, assert.js, streams.js
 
-4. **Prototype Extensions** (10 in `doc/js/`):
-   - Extend built-in prototypes (Array, Object, Map, etc.)
-   - Examples: extendArray.js, extendObject.js, extendMap.js
+4. **Prototype Extensions** (8 in `doc/js/`):
+   - Extend built-in prototypes (Array, Map, etc.)
+   - Examples: extendArray.js, extendMap.js, extendSet.js
 
 ### Overlap Resolution (Completed)
 **Decision:** Modules with both C and JS implementations (deep, pointer, predicate, stream, xml, misc, path):
@@ -237,16 +242,16 @@ doc/
 │
 └── js/                           # JavaScript modules (46)
     ├── README.md
-    ├── Polyfills: abort.md, arrayLike.md, asyncIterator.md, events.md
+    ├── Polyfills: abort.md, asyncIterator.md, events.md
     │              iterator.md, testharness.md, testharnessreport.md
     │              parsel.md, describe-class.md
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md
     │             streams.md, io.md, tty.md, repl.md, require.md
     │             module.md, stack.md, inotify.md, terminal.md
     │             perf_hooks.md, url.md, xpath.md, vfs.md
-    ├── Extensions: extendArray.md, extendArrayBuffer.md, extendObject.md
-    │               extendMap.md, extendSet.md, extendMath.md
-    │               extendFunction.md, extendAsyncFunction.md
+    ├── Extensions: extendArray.md, extendArrayBuffer.md,
+    │               extendMap.md, extendSet.md,
+    │               extendFunction.md, extendAsyncFunction.md,
     │               extendGenerator.md, extendAsyncGenerator.md
     └── Other: css-selectors.md, css3-selectors.md, parser.md
                db.md, dbi.md, database.md, dom.md, file.md

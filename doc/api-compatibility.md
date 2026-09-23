@@ -414,14 +414,6 @@ directly for Bun-compatible code.
 **Browser Compatibility:** Chrome 66+, Firefox 57+, Safari 12.1+, Edge 16+  
 **Notes:** Pure-JS WHATWG AbortController/AbortSignal polyfill built on lib/events.js's EventTarget; includes the newer static helpers (`timeout`, `any`, `abort`).
 
-### lib/arrayLike.js
-**Module:** `arrayLike`  
-**Classification:** Custom  
-**Exports:**
-- `ArrayLike` class - mixin providing `at`, `push`, `pop`, `splice`, `indexOf`, `lastIndexOf`, `forEach`, `map`, `find(Index)`, `findLast(Index)`, `filter`, `reduce`, `reduceRight`
-
-**Notes:** Internal-style mixin giving Array.prototype-like methods to any object with numeric-indexed properties and a `length`; no standard equivalent since real arrays already have these.
-
 ### lib/assert.js
 **Module:** `assert`  
 **Classification:** Compatible (Node.js)  
@@ -650,22 +642,6 @@ directly for Bun-compatible code.
 - `getOrInsert(k, v)`, `getOrInsertComputed(k, fn)`
 
 **Notes:** Names and semantics match the TC39 Map upsert proposal (`Map.prototype.getOrInsert`/`getOrInsertComputed`) exactly — a polyfill for a real, now-standard API.
-
-### lib/extendMath.js
-**Module:** `extendMath`  
-**Classification:** Custom  
-**Exports:**
-- `exp10(n)`, `mantissa(n)`, `exponent(n)`, `fsign(n)`, `float64(mantissa, exponent, sign)` - IEEE-754 double bit-field extraction/construction via `BigUint64Array`/`Float64Array` reinterpretation
-
-**Notes:** No standard equivalent; low-level float-bits introspection, qjs-modules-specific.
-
-### lib/extendObject.js
-**Module:** `extendObject`  
-**Classification:** Custom  
-**Exports:**
-- static `getMemberNames`/`getMemberSymbols`/`getMethodNames`/`getMethodSymbols`/`getPropertyNames`/`getPropertySymbols`/`getPropertyDescriptor`/`getPropertyDescriptors` - prototype-chain-walking introspection helpers
-
-**Notes:** No direct standard equivalent (native `Object.getOwnPropertyNames`/`getOwnPropertySymbols` only look at own properties, not the full prototype chain like these do); qjs-modules-specific reflection utilities.
 
 ### lib/extendSet.js
 **Module:** `extendSet`  

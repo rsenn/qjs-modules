@@ -338,9 +338,10 @@ Deno also errors `No such built-in module: node:yaml`, matching Bun):
 - **Inconsistent non-enumerable-property idiom across `lib/extend*.js`.** Most files
   (`extendArray.js`, `extendArrayBuffer.js`, `extendAsyncFunction.js`, `extendFunction.js`,
   `extendMap.js`, `extendSet.js`) wrap their extension object in the shared `nonenumerable()`
-  helper from `lib/util.js`. `extendMath.js` and `extendGenerator.js`/`extendAsyncGenerator.js`
-  instead re-implement the same marking logic inline. `extendObject.js` uses a third helper,
-  `extend()`, with no non-enumerable marking at all. Worth converging on one convention.
+  helper from `lib/util.js`. `extendGenerator.js`/`extendAsyncGenerator.js` instead
+  re-implement the same marking logic inline. Worth converging on one convention.
+  (`extendMath.js`/`extendObject.js`, which used yet other idioms, were removed 2026-09 as
+  zero-usage with no standard target.)
 - Stray untracked working-tree files noticed during the survey (not a code bug, just hygiene):
   `lib/blah.tmp*` (six 0-byte scratch files), `lib/repl.js.orig` (a stale backup that differs
   from the current `lib/repl.js`).
