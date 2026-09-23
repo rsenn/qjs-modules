@@ -46,6 +46,23 @@ static const char* const xml_default_self_closing_tags[] = {
     0,
 };
 
+/* HTML5 "raw text"/"RCDATA" elements: everything up to the matching close tag is
+ * literal content, never tokenized as markup - a bare '<' from e.g. `if(a<b)` inside
+ * <script> or a selector like `a>b` inside <style> must not start a bogus tag. Was
+ * hardcoded to "script" only; generalized to the other three real-world raw-text
+ * tags (found via quickjs-xml.c's own <style> markup misparsing while auditing HTML
+ * support - <script> already worked, <style> didn't). Doesn't distinguish "raw text"
+ * (script/style - no entity decoding) from "RCDATA" (textarea/title - entities *are*
+ * decoded) per the HTML5 spec; this parser doesn't decode entities inside either
+ * case, which is the pre-existing (not newly introduced) simplification. */
+static const char* const xml_raw_text_tags[] = {
+    "script",
+    "style",
+    "textarea",
+    "title",
+    0,
+};
+
 static void
 xml_chars_init(void) {
   static int done;
@@ -83,6 +100,11 @@ xml_is_self_closing_tag(const char* name, size_t namelen, const char* const* tag
   }
 
   return 0;
+}
+
+static int
+xml_is_raw_text_tag(const char* name, size_t namelen) {
+  return xml_is_self_closing_tag(name, namelen, xml_raw_text_tags);
 }
 
 static char*
@@ -284,6 +306,7 @@ xml_check_comment_end(XMLParser* p) {
 #define parse_skipspace() parse_skip(xml_chars[(uint8_t)p->c] & WS)
 #define parse_is(ch, classes) (xml_chars[(uint8_t)(ch)] & (classes))
 #define parse_inside(tag) (p->top && strlen(tag) == p->top->namelen && !strncmp(p->top->name, (tag), p->top->namelen))
+#define parse_inside_raw_text() (p->top && xml_is_raw_text_tag(p->top->name, p->top->namelen))
 
 /* Runs a xml_check_*(p) tristate call, suspending (like parse_getc()) if it returns
  * XML_FILL_AGAIN, otherwise leaving its 0/1 result in `var`. A plain statement (not
@@ -459,19 +482,20 @@ xml_parser_run(XMLParser* p) {
   }
 
   while(!p->done) {
-    /* inside_script (== p->top is a <script> element) is intentionally never
-     * cached in a local across this function: it's needed again below, after code
-     * that may suspend and later resume in a fresh stack frame, where an ordinary
-     * local's prior value wouldn't survive. p->top doesn't change across this span
-     * (nothing here pushes/pops it), so recomputing parse_inside("script") each
-     * time is cheap and always gives the same, correct answer. */
+    /* parse_inside_raw_text() (== p->top is a raw-text element: script/style/
+     * textarea/title) is intentionally never cached in a local across this
+     * function: it's needed again below, after code that may suspend and later
+     * resume in a fresh stack frame, where an ordinary local's prior value
+     * wouldn't survive. p->top doesn't change across this span (nothing here
+     * pushes/pops it), so recomputing it each time is cheap and always gives
+     * the same, correct answer. */
 
     dbuf_free(&p->text);
     dbuf_init(&p->text);
     p->text_pos = 0;
     p->accum = &p->text;
 
-    if(parse_inside("script")) {
+    if(parse_inside_raw_text()) {
       for(;;) {
         if(p->c == '<') {
           int is_close;
@@ -494,20 +518,20 @@ xml_parser_run(XMLParser* p) {
     p->accum = 0;
 
     /* Yields p->text[0, size) as one or more XML_TEXT events - splitting on '\n'
-     * and keeping leading indentation when inside a <script> (js_xml_parse() does
-     * this so multi-line <script> bodies come out as one text node per line),
-     * otherwise trimming leading/trailing whitespace and yielding the whole run as
-     * a single event. Mirrors js_xml_parse()'s own start/ptr-based loop, just over
-     * a DynBuf, with p->text_pos tracking progress so a suspend mid-split (one
-     * xml_parser_run() call per line/segment) resumes at the next one rather than
-     * restarting from the top. */
+     * and keeping leading indentation when inside a raw-text element (js_xml_parse()
+     * does this so multi-line <script>/<style>/<textarea>/<title> bodies come out as
+     * one text node per line), otherwise trimming leading/trailing whitespace and
+     * yielding the whole run as a single event. Mirrors js_xml_parse()'s own
+     * start/ptr-based loop, just over a DynBuf, with p->text_pos tracking progress
+     * so a suspend mid-split (one xml_parser_run() call per line/segment) resumes at
+     * the next one rather than restarting from the top. */
     while(p->text_pos < p->text.size) {
       const char* buf = (const char*)p->text.buf;
       const char* pos = buf + p->text_pos;
       size_t remain = p->text.size - p->text_pos;
       size_t n, real_len;
 
-      if(parse_inside("script")) {
+      if(parse_inside_raw_text()) {
         size_t leading_ws = scan_whitenskip(buf, p->text.size);
         size_t skip = scan_whitenskip(pos, leading_ws < remain ? leading_ws : remain);
 
