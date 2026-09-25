@@ -8,6 +8,28 @@ the code (and, where noted, by actually running it) — not just grepped.
 This supersedes the sparse root-level `TODO` file; its four items are folded in below (marked
 *(pre-existing)*).
 
+## Reassessment (2026-09-24)
+
+Every tier below was re-verified against the current tree (three parallel code audits, not
+just re-reading the prose). Net effect: several items are done and removed, a few TODO claims
+were stale (described a state that no longer matches the code, in both directions), and one
+gap got *worse* since it was written. Updated priority order:
+
+1. **Tier 7 regression — `lib/readline.js` and `lib/buffer.js` no longer exist at all**
+   (previously "9/12-line stub", now fully deleted — `doc/buffer.md`/`doc/readline.md` are
+   dangling references to nothing). This is the single highest-leverage item now: it's a
+   silent gap (nothing errors, the docs just lie) in a goal-1 (stdlib) area. Worth a decision:
+   restore a minimal implementation, or delete the docs and remove the claim from `lib/README`
+   equivalents.
+2. **Tier 5/6 doc cleanup (near-zero cost)** — several Tier 5/6 bullets describe dead code that
+   is either already fixed or was never actually dead (see per-item notes below). Purging the
+   stale claims now is cheap and stops future passes from re-verifying non-issues.
+3. **Tier 4 `internal.h`/`quickjs-internal.h` duplication claim needs re-scoping**, not a fix —
+   the two-hand-forked-headers premise doesn't match the current file layout (see note below).
+4. Everything else keeps its prior relative order (Tier 9 DOM gaps, Tier 11 `qjsm.c`
+   refactors, Tier 10 C API consolidation, Tier 12/13 yaml/cyaml) — all still open, all still
+   accurately described modulo stale line numbers (noted inline where found).
+
 ## Roadmap
 
 Four standing goals for this project, in priority order. Every tier below should be read
@@ -98,18 +120,18 @@ the full architecture/gap survey behind Tier 6-8.
 
 ## Tier 4 — structural/maintenance risk and test-coverage gaps
 
-- **`internal.h` and `quickjs-internal.h` are two hand-forked copies of the same QuickJS
-  internals header**, both carrying matching `XXX:` design-debt comments at nearly the same
-  line numbers. Any future fix to one needs manual re-application to the other; worth
-  collapsing to a single source of truth (or confirming they've already diverged and
-  documenting why two copies exist).
+- **STALE CLAIM (2026-09-24 re-verify)**: ~~`internal.h` and `quickjs-internal.h` are two
+  hand-forked copies~~ — only `internal.h` exists in the source tree; there is no
+  `quickjs-internal.h` at repo root (only auto-generated copies under `build/`).
+  `quickjs-internal.c` does `#include "quickjs-internal.h"`, so that header is build-generated,
+  not a second hand-maintained source file. The "two hand-forked copies needing manual
+  re-application" premise doesn't match current layout — needs a fresh look at what
+  `quickjs-internal.h` actually is (generated from what?) before this can be scoped as
+  either "already resolved" or "different problem than described."
 
-- **`tests/test_list.js` isn't a real test** — it's an ad-hoc script (not using the
-  `assert`/`assertEq` pattern every other `test_*.js` file uses) that ends in an unguarded
-  `while(!skip()) {}` loop. It's exactly the kind of gap that let `List.prototype.at()`
-  (registered but its case body commented out, always returning `undefined`) go unnoticed —
-  since removed entirely (`quickjs-list.c`, `doc/native/list.md`). Worth rewriting properly so the
-  next dead/wrong method doesn't slip through the same way.
+- ~~**`tests/test_list.js` isn't a real test**~~ — **DONE / STALE CLAIM**. It now uses
+  `assert`/`eq` from `./tinytest.js` throughout (dozens of `assert()` calls) with no unguarded
+  `while(!skip())` loop. Already a real test; no action needed.
 
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 
@@ -124,8 +146,9 @@ next one.
   `js_arraybuffer_fromstring`/finalizer pair — current version always copies), `src/glob2.c:22-28`
   (`range_free()`, unused).
 - Duplicated disabled `FROM_UNIXTIME(...)` date-formatting block in both
-  `quickjs-mysql.c:109-120` and `quickjs-pgsql.c:220-231`, plus an unused
-  `js_pgconn_print_fields()` in `quickjs-pgsql.c:296-309`.
+  `quickjs-mysql.c:109-120` and `quickjs-pgsql.c:220-231`.
+  **STALE CLAIM (2026-09-24)**: ~~plus an unused `js_pgconn_print_fields()`~~ — that function
+  (`quickjs-pgsql.c:298`) is actually called from `:371`; not dead, remove from this list.
 - `quickjs-misc.c:1267-1277` — disabled alternate glob implementation using the project's own
   `my_glob()`/`src/glob2.c` engine; the system `glob()` is used instead, meaning `glob2.c` is
   currently built but not actually wired up to `misc.glob()`. Worth confirming this is
@@ -138,8 +161,10 @@ next one.
   keys/values` onto `Pointer.prototype`; currently not exposed at all. `:707-713` — an
   abandoned `STATIC_COMMON` draft that was never wired into any function table.
 - `quickjs-predicate.c:754-758`, `quickjs-inspect.c:838-871` (34-line disabled exponent-
-  stripping number formatter), `quickjs-inspect.c:1156-1175` (disabled `[ClassName]` fallback
-  tag) — superseded alternates, safe to delete.
+  stripping number formatter) — superseded alternates, safe to delete.
+  **STALE CLAIM (2026-09-24)**: ~~`quickjs-inspect.c:1156-1175` disabled `[ClassName]`
+  fallback tag~~ — not found; `inspect_error()` (~line 1058-1073) uses `class_name` live and
+  unconditionally. Remove from this list.
 - `quickjs-lexer.c:834-849` — `Lexer.prototype.back()` only accepts a token/location object;
   a disabled branch would have let callers pass a raw string instead (currently throws
   `TypeError` for that case).
@@ -158,29 +183,28 @@ next one.
 
 ## Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment, see `ASSESSMENT.md`)
 
-- **No fallback if `HAVE_DBUF_CLAIM` is false against a given reference tree.** The
-  `dbuf_realloc()` → `dbuf_claim()` migration (commit `3e8d44cc`) converted all 15 call sites
-  to call `dbuf_claim(buf, delta)` directly, with `CMakeLists.txt:555-571` defining
-  `-Ddbuf_realloc=dbuf_claim` only for the `HAVE_DBUF_CLAIM` case. There's no inverse shim
-  (`#define dbuf_claim(...) ...` in terms of `dbuf_realloc`) for building against an older
-  reference tree that only has `dbuf_realloc()` — which is what
-  `/mnt/data/Projects/plot-cv/quickjs`'s current `cutils.h`/`cutils.c` actually expose. Worth
-  adding a small inline shim (delta → total-size wrapper) so the build works both ways instead
-  of only forward.
-- **Dead, now-backwards `#define dbuf_realloc dbuf_claim`** at `include/defines.h:9-11`
-  (already `#if 0`'d out) — safe to delete now that the CMake-level wiring is the real
-  mechanism; keeping it around next to live compat logic invites confusion about which one
-  actually does the job.
+~~**No fallback if `HAVE_DBUF_CLAIM` is false against a given reference tree.**~~ — **FIXED**
+  (verified 2026-09-24, no matching commit hash found but code confirms it). `include/defines.h:9-16`
+  now has a real bidirectional shim (`#if defined(QUICKJS_DBUF_CLAIM) && !defined(QUICKJS_DBUF_REALLOC)
+  ... #elif defined(QUICKJS_DBUF_REALLOC) && !defined(QUICKJS_DBUF_CLAIM) ...`), and
+  `CMakeLists.txt:639-659` detects both symbols via `check_library_exists` and defines
+  `QUICKJS_DBUF_REALLOC`/`QUICKJS_DBUF_CLAIM` accordingly. The old dead `#if 0`'d
+  `#define dbuf_realloc dbuf_claim` this item also flagged for deletion is gone too — both
+  sub-items resolved, nothing left to do here.
 - Additional disabled-code items found by the same pass, same shape as Tier 1/5 (commented-out
   case/branch, feature silently missing rather than erroring): `quickjs-lexer.c:1611,1655`
-  (iterator `next`/`values` on `Lexer` disabled), `quickjs-list.c:567` (iterator `next`
-  disabled — verify this isn't already superseded by the `List.prototype.at()` removal noted
-  in Tier 4), `quickjs-misc.c:3592,3722,3725,3851` (+ matching disabled `case`s at `2806-2808`,
-  `2822`) — `realpath`, `resizeArrayBuffer`/`searchArrayBuffer` alias, and `isHTMLDDA`/
-  function-type magic dispatch all disabled, `quickjs-pgsql.c:1312,1855` (`escapeString` and
-  iterator `next` disabled), `quickjs-internal.c:558,571` (opcode-name introspection
-  properties disabled), `quickjs-tree-walker.c:167,486` (`setroot()`'s return value discarded
-  — minor, probably harmless but worth a look).
+  (iterator `next`/`values` on `Lexer` disabled), `quickjs-misc.c:3592,3722,3725,3851` (+
+  matching disabled `case`s at `2806-2808`, `2822`) — `realpath`, `resizeArrayBuffer`/
+  `isHTMLDDA`/function-type magic dispatch all disabled (`searchArrayBuffer` itself is live,
+  only its `search` alias is commented), `quickjs-pgsql.c:1855` (iterator `next` disabled —
+  `escapeString` itself has a live registration alongside a disabled duplicate at `:1312`, not
+  actually missing), `quickjs-internal.c:558,571` (opcode-name introspection properties
+  disabled), `quickjs-tree-walker.c:167,486` (`setroot()`'s return value discarded — minor,
+  probably harmless but worth a look).
+  **STALE CLAIM (2026-09-24)**: ~~`quickjs-list.c:567` (iterator `next` disabled)~~ — the
+  `JS_ITERATOR_NEXT_DEF("next", ...)` at line 566 is live; only a redundant old `JS_CFUNC_DEF`
+  alternate is commented at 567. `List` iteration is not actually missing; remove from this
+  list.
 - **Test coverage gaps**: no dedicated test file for `arraybuffer-sink`, `bcrypt`, `queue`,
   `syscallerror`, or `virtual` (`bjson` is upstream-documented as test-only, lower priority).
 
@@ -190,7 +214,9 @@ Native bindings that currently have **no `lib/*.js` wrapper at all**, so they're
 raw native modules rather than as part of a documented "standard library" surface: `blob`
 (despite `Blob.prototype.stream()` already being tracked in Tier 2 — there's no `lib/blob.js`
 at all, not just an incomplete method), `child-process`, `gpio`, `serial`, `mmap`, `directory`,
-`queue`, `repeater`, `virtual`, `magic`, `bcrypt`, `syscallerror`, `location`. `sockets` has only
+`queue`, `repeater`, `virtual`, `magic`, `syscallerror`, `location`.
+~~`bcrypt`~~ — **DONE**: `lib/password.js` (commit `ce732af9`) now wraps it with a
+`Bun.password`-compatible `hash`/`verify` API; remove from this list. `sockets` has only
 a low-level `lib/socklen_t.js` helper, not a `net`/`dgram`-style ergonomic wrapper - **and
 should not get one** (see below).
 
@@ -219,11 +245,15 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing; only appears in vendored test-infra comments (`lib/testharness.js`).
 - `structuredClone` — only feature-detected (`lib/stream.js:533`), never implemented.
 - `Worker` — missing; only referenced by vendored test-infra (`lib/testharness.js:254`).
-- `lib/readline.js` (9 lines: `cursorTo`/`clearLine` only), `lib/buffer.js` (12 lines:
-  `from`/`concat` only), `lib/perf_hooks.js` (12 lines: `now`/`timeOrigin` only, no marks or
-  measures) are all much thinner than their Node/Deno/Bun namesakes.
-- `lib/extendAsyncFunction.js:3` — declared but empty (`AsyncFunctionExtensions =
-  nonenumerable({})`, no members added yet).
+- **REGRESSION (2026-09-24 re-verify)**: `lib/readline.js` and `lib/buffer.js` no longer exist
+  in the tree at all (previously "9-line"/"12-line" stubs — now fully deleted, still present
+  in git history e.g. commit `958cffc9`). `doc/buffer.md`/`doc/readline.md` are now dangling
+  references to nonexistent files. Worth a decision: restore a minimal implementation, or
+  clean up the stale docs if these are intentionally dropped. `lib/perf_hooks.js` (13 lines:
+  `now`/`timeOrigin` only, no marks or measures) is still thin as described, no change there.
+- ~~`lib/extendAsyncFunction.js:3` — declared but empty~~ — **STALE CLAIM / DONE**: it now has
+  a full `AsyncFunctionExtensions` (`catch`/`then`/`finally`/`indirect`/`bindArguments`/
+  `bindArray`/`bindThis`) and `extendAsyncFunction()`. Remove from this list.
 - `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
   `createRequire()`. Missing: `Module` class, `register()` (loader hooks),
   `syncBuiltinESMExports()`, `SourceMap`.
@@ -321,12 +351,15 @@ Deno also errors `No such built-in module: node:yaml`, matching Bun):
   `lib/css-selectors.js` (compiler built on `parsel.js`), and `lib/css3-selectors.js` (a
   *second*, independent compiler with its own hand-rolled tokenizer, duplicating helper
   functions nearly verbatim from `css-selectors.js`, e.g. `escapeRegExp`/`getAttribute`/
-  `hasAttribute`/`isElement`/`childElements`). `lib/css-selectors.js` appears dead: nothing in
-  the active source tree imports it (`lib/dom.js:3`, `tests/test_dom.js:4`, and
-  `tests/test_css3_selectors.js:2` all import `css3-selectors.js` instead; only stale build
-  output under `inst/` still references `css-selectors.js`/`parsel.js`). Worth either deleting
-  `css-selectors.js` or consolidating `css3-selectors.js` to build on the shared
-  `lib/lexer`/`lib/parser/grammar.js` toolkit (goal 3) instead of duplicating a tokenizer.
+  `hasAttribute`/`isElement`/`childElements`). `lib/css-selectors.js` appears dead in the
+  active `lib`/`tests` tree: nothing there imports it (`lib/dom.js:3`, `tests/test_dom.js:4`,
+  and `tests/test_css3_selectors.js:2` all import `css3-selectors.js` instead).
+  **Correction (2026-09-24)**: it's not *only* stale `inst/` build output referencing it as
+  previously claimed — `tools/site/build.js` also still imports it; per this repo's own
+  CLAUDE.md `tools/site/` here is superseded/slated for removal, so this doesn't change the
+  "safe to delete" conclusion, just the reasoning. Worth either deleting `css-selectors.js` or
+  consolidating `css3-selectors.js` to build on the shared `lib/lexer`/`lib/parser/grammar.js`
+  toolkit (goal 3) instead of duplicating a tokenizer.
 - **Lexer/parser toolkit (goal 3) isn't dogfooded by the project's own hardest parsing
   problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 5
   independent grammars (`lib/lexer/{bnf,c,csv,ecmascript,xml}.js` — `lib/xml/read.js` was
@@ -343,8 +376,9 @@ Deno also errors `No such built-in module: node:yaml`, matching Bun):
   (`extendMath.js`/`extendObject.js`, which used yet other idioms, were removed 2026-09 as
   zero-usage with no standard target.)
 - Stray untracked working-tree files noticed during the survey (not a code bug, just hygiene):
-  `lib/blah.tmp*` (six 0-byte scratch files), `lib/repl.js.orig` (a stale backup that differs
-  from the current `lib/repl.js`).
+  `lib/blah.tmp*` (0-byte scratch files — **recount 2026-09-24: actually seven**, `blah.tmp`
+  plus `blah.tmp3/4/6/8/9/10`, not six). ~~`lib/repl.js.orig`~~ — **gone**, no longer present
+  in the tree; drop that half of this item.
 
 ## Tier 9 — DOM API implementation priorities (browser sandbox, goal 1)
 
@@ -522,14 +556,17 @@ one obscure reversed-subscript idiom (`(dsl = path_dirlen1(path))[path]`) were a
 up in place during this pass; what's left below is genuine restructuring, deliberately not
 done inline since each is either large or a judgment call on API shape.
 
-- **`main()` is a ~450-line monolith** doing CLI parsing, runtime/context setup, script and
+- **`main()` is a ~450-line monolith** (re-verified 2026-09-24: still accurate, currently
+  `src/qjsm.c:2567-2997`, 431 lines) doing CLI parsing, runtime/context setup, script and
   `-I`/`-m` loading, REPL bootstrap, and (behind `--dump --quit`) an unrelated instantiation-time
   microbenchmark, all in one function. Splitting into `jsm_parse_args()`,
   `jsm_setup_runtime()`, `jsm_run_scripts()`, and `jsm_bench_instantiation()` would make each
   piece testable/readable in isolation. Nontrivial: the pieces share a lot of local state
   (`had_error`, `sargs`, `include_list`, ...) that would need to move into a small context
   struct or be threaded through as parameters.
-- **`jsm_module_func()` is a single ~270-line function** dispatching on a 20-case `magic` enum
+- **`jsm_module_func()` is a single function** dispatching on a 20-case `magic` enum
+  (stale size claim, 2026-09-24: now `src/qjsm.c:2220-2416`, 197 lines, not ~270 — the
+  structural complaint still stands, just smaller than originally measured)
   that mixes unrelated concerns: module bookkeeping (`ADD_MODULE`/`FIND_MODULE`/
   `FIND_MODULE_INDEX`), path resolution (`NORMALIZE_MODULE`/`LOCATE_MODULE`/`LOAD_MODULE`), and
   a block of ~11 near-identical `#if QUICKJS_INTERNAL` one-liner accessors
@@ -537,7 +574,8 @@ done inline since each is either large or a judgment call on API shape.
   particular is repetitive enough to be table-driven (an array of `{magic, module_*_fn}`
   pairs looked up once) instead of 11 near-identical `case:`/`#if`/`#endif` blocks.
 - **`jsm_module_loader()` (the `JSModuleLoaderFunc` implementation) does six distinct things
-  in one ~140-line function** with several `goto end;`/`goto again;` jumps: `data:` URL
+  in one function** (stale size claim, 2026-09-24: now `src/qjsm.c:1467-1620`, 154 lines, not
+  ~140 — close, structural complaint still valid) with several `goto end;`/`goto again;` jumps: `data:` URL
   handling, dispatch through the external loader chain (`jsm_call_loaders`), circular-import
   detection, `package.json` alias resolution, builtin-module lookup, and filesystem
   resolution + the "could not load module" error formatting. Worth splitting along those
@@ -595,13 +633,15 @@ restricted subset — see Tier 12 above) and has no reader at all. Replace both 
 [cyaml](https://github.com/andrewmd5/cyaml) (MIT, C11, zero dependencies beyond libc,
 passes the full `yaml-test-suite`), vendored as a git submodule.
 
-**Submodule placement:** put it at `3rdparty/cyaml`, not the repo root (where every other
-submodule — `libarchive`, `pigpio`, `libutf`, `tutf8e`, `libserialport`, `libbcrypt` —
-currently lives; only `third_party/wasm3` is already namespaced, under the *old* directory
-name `third_party/`, not `3rdparty/`). This is meant to be the first of a broader cleanup:
-move all existing root-level submodules into `3rdparty/` (and fold `third_party/wasm3` in
-too, i.e. rename `third_party/` → `3rdparty/`) so vendored code stops cluttering the repo
-root — tracked here as a follow-up, not bundled into the cyaml change itself.
+**Submodule placement:** put it at `3rdparty/cyaml`. **Correction (2026-09-24 re-verify)**:
+the "some at repo root, only wasm3 namespaced" premise is stale — `git submodule status`
+shows *all* current submodules (`libarchive`, `pigpio`, `libutf`, `tutf8e`, `libserialport`,
+`libbcrypt`, `wasm3`) already live under `third_party/<name>`, none at root. The real,
+still-accurate ask is narrower: everything is namespaced under the *old* directory name
+`third_party/`, not the `3rdparty/` name this plan wants for the new `cyaml` submodule. So
+this is purely a rename (`third_party/` → `3rdparty/`) for consistency, not a "pull scattered
+root-level submodules together" cleanup — tracked here as a follow-up, not bundled into the
+cyaml change itself.
 
 **API shape — full-tree only, no evented/pull parser:** confirmed by reading `src/cyaml.h`
 (and the README's "Event stream output" feature) that cyaml has no SAX-style push parser

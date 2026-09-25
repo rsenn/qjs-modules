@@ -71,7 +71,6 @@ export function html2md(input) {
         } else if(tag === 'img') {
           ensureSpaceBefore();
         }
-        /* p, ul, ol: no opening marker needed */
         break;
       }
 
@@ -92,7 +91,11 @@ export function html2md(input) {
         if(frame && frame.tag === 'pre') {
           md += text; /* preserve whitespace inside <pre> */
         } else {
-          md += text.replace(/\s+/g, ' '); /* collapse runs of whitespace */
+          const normalized = text
+            .replace(/\s+/g, ' ')
+            .replace(/[\u2018\u2019]/g, "'")
+            .replace(/[\u201C\u201D\u00AB\u00BB]/g, '"');
+          md += normalized;
         }
         break;
       }
@@ -132,7 +135,7 @@ export function html2md(input) {
   return md.replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 
-/* ── demo when run directly ─────────────────────────────────── */
+/* -- demo when run directly ----------------------------------- */
 
 const sample = `
 <html>
