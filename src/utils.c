@@ -2483,72 +2483,28 @@ js_map_iterator_prototype(JSContext* ctx) {
 
 JSValue
 module_value(JSContext* ctx, JSModuleDef* m) {
-  return m != NULL ?
-#if QUICKJS_INTERNAL
-                   JS_NewInt32(ctx, module_indexof(ctx, m))
-#else
-                   JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m))
-#endif
-                   : JS_NULL;
+  return m != NULL ? JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)) : JS_NULL;
 }
 
 JSValue
 module_nameval(JSContext* ctx, JSModuleDef* m) {
-  return JS_AtomToValue(ctx,
-#if QUICKJS_INTERNAL
-                        m->module_name
-#else
-                        *(JSAtom*)((int*)m + 1)
-#endif
-  );
+  return JS_AtomToValue(ctx, *(JSAtom*)((int*)m + 1));
 }
 
 JSAtom
 module_name(JSContext* ctx, JSModuleDef* m) {
-  return JS_DupAtom(ctx,
-#if QUICKJS_INTERNAL
-                    m->module_name
-#else
-                    *(JSAtom*)((int*)m + 1)
-#endif
-  );
+  return JS_DupAtom(ctx, *(JSAtom*)((int*)m + 1));
 }
 
 const char*
 module_namecstr(JSContext* ctx, JSModuleDef* m) {
-  return JS_AtomToCString(ctx,
-#if QUICKJS_INTERNAL
-                          m->module_name
-#else
-                          *(JSAtom*)((int*)m + 1)
-#endif
-  );
+  return JS_AtomToCString(ctx, *(JSAtom*)((int*)m + 1));
 }
 
 JSModuleDef*
 js_module_def(JSContext* ctx, JSValueConst value) {
   if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
     return JS_VALUE_GET_PTR(value);
-
-#if QUICKJS_INTERNAL
-  if(JS_IsString(value)) {
-    const char* name = JS_ToCString(ctx, value);
-    JSModuleDef* m = js_module_find(ctx, name);
-
-    JS_FreeCString(ctx, name);
-
-    if(m)
-      return m;
-  }
-
-  if(js_number_integral(value)) {
-    int32_t num = -1;
-
-    JS_ToInt32(ctx, &num, value);
-
-    return js_module_at(ctx, num);
-  }
-#endif
 
   if(JS_IsObject(value)) {
     JSAtom atom = js_symbol_static_atom(ctx, "toStringTag");
@@ -3433,9 +3389,6 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
         return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);
-#if QUICKJS_INTERNAL
-      set_handler = module_exports_find(ctx, os, func_name);
-#endif
       JS_FreeAtom(ctx, func_name);
     }
   }

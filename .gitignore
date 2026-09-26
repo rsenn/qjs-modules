@@ -46,7 +46,6 @@ blah.tmp*
 /fail.txt
 /frame.txt
 /inst/
-/internal.h
 /main.es
 /mkstemp.c
 /out.txt
@@ -55,7 +54,6 @@ blah.tmp*
 /output.xml
 /parsel/
 /prompts.txt
-/quickjs-internal.h
 /repl.diff
 /tab.txt
 /test-getdents.c

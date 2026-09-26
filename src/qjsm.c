@@ -51,10 +51,6 @@
 #include "base64.h"
 #include "debug.h"
 
-#if QUICKJS_INTERNAL
-#include "quickjs-internal.h"
-#endif
-
 /* Logs `fmt` (printf-style, with the current jsm_stack depth and calling function name
    prefixed) when the DEBUG_MODULE verbosity variable is >= `level`. Deliberately shares its
    name with the `DEBUG_MODULE` variable below: a function-like macro only expands when
@@ -163,7 +159,7 @@ enum {
 };
 
 /** Magic values for jsm_module_func, the dispatcher behind every `*Module` global
-    (findModule, loadModule, normalizeModule, the getModule* introspection accessors, the
+    (findModule, loadModule, normalizeModule, the
     moduleLoader hook registry, ...). */
 enum {
   FIND_MODULE,
@@ -174,17 +170,6 @@ enum {
   LOCATE_MODULE,
   NORMALIZE_MODULE,
   RESOLVE_MODULE,
-  GET_MODULE_NAME,
-  GET_MODULE_VALUE,
-  GET_MODULE_INDEX,
-  GET_MODULE_OBJECT,
-  GET_MODULE_EXPORTS,
-  GET_MODULE_IMPORTS,
-  GET_MODULE_REQMODULES,
-  GET_MODULE_NAMESPACE,
-  GET_MODULE_FUNCTION,
-  GET_MODULE_EXCEPTION,
-  GET_MODULE_META_OBJ,
   MODULE_LOADER,
 };
 
@@ -604,9 +589,6 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
       m = JS_VALUE_GET_PTR(val);
     }
 
-#if QUICKJS_INTERNAL
-    module_exports_get(ctx, m, TRUE, global_obj);
-#endif
   } else {
     JS_ToInt32(ctx, &ret, val);
   }
@@ -710,11 +692,6 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       }
 
       m = js_value_ptr(obj);
-
-#if QUICKJS_INTERNAL
-      /* rename module */
-      module_rename(ctx, m, JS_NewAtom(ctx, rec->module_name));
-#endif
 
       if(JS_ResolveModule(ctx, obj) < 0) {
         JS_FreeValue(ctx, obj);
@@ -1091,7 +1068,7 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 /**
  * Finds an already-loaded module by name, starting at `start_pos`.
  *
- * @param ctx JS context (used by the QUICKJS_INTERNAL fast path).
+ * @param ctx JS context.
  * @param name Module name to look for (leading '!'/'*' modifiers skipped).
  * @param start_pos Index into the loaded-modules list to start searching from.
  *
@@ -1108,11 +1085,6 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 
   struct list_head* el;
   uint32_t i = 0;
-
-#if QUICKJS_INTERNAL
-  if((m = js_module_find_from(ctx, name, start_pos)))
-    return m;
-#endif
 
   list_for_each(el, &loaded_modules) {
     LoadedModule* lm = list_entry(el, LoadedModule, link);
@@ -1175,14 +1147,9 @@ jsm_modules_entries(JSContext* ctx, JSValueConst this_val) {
  */
 static JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* path, const char* name) {
-  JSModuleDef* last_module = 0;
   DynBuf dbuf;
 
   DEBUG_MODULE(2, "(path: \"%s\", name: \"%s\")", path, name);
-
-#if QUICKJS_INTERNAL
-  last_module = module_last(ctx);
-#endif
 
   size_t pos = list_size(&loaded_modules);
 
@@ -1204,21 +1171,7 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   dbuf_free(&dbuf);
 
-  JSModuleDef* m = 0;
-
-#if QUICKJS_INTERNAL
-  if(module_next(ctx, last_module) == NULL)
-    return 0;
-
-  assert(module_next(ctx, last_module));
-
-  m = module_next(ctx, module_next(ctx, last_module));
-#endif
-
-  if(!m)
-    m = jsm_module_find(ctx, path, 0);
-
-  return m;
+  return jsm_module_find(ctx, path, 0);
 }
 
 /**
@@ -1439,10 +1392,6 @@ jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
       js_module_set_import_meta(ctx, module, FALSE, FALSE);
 
       m = JS_VALUE_GET_PTR(module);
-
-#if QUICKJS_INTERNAL
-      module_rename(ctx, m, JS_NewAtom(ctx, "<data-url>"));
-#endif
     }
 
     JS_FreeValue(ctx, module);
@@ -1639,17 +1588,6 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   ModuleLoaderContext** lptr = opaque;
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
-#if 0 && QUICKJS_INTERNAL
-    if(bltin->def) {
-      const char* str = 0;
-
-      if((str = module_namecstr(ctx, bltin->def))) {
-        file = js_strdup(ctx, str);
-        JS_FreeCString(ctx, str);
-      }
-    }
-#endif
-
     if(!file)
       file = js_strdup(ctx, bltin->module_name);
   /* `path` is the *importing* module's own specifier - for one loaded from
@@ -1802,36 +1740,23 @@ jsm_builtins(JSContext* ctx, JSValueConst this_val) {
  * @param this_val Unused (property getter receiver).
  * @param magic Unused.
  *
- * @returns A new array of per-module info objects (shape depends on QUICKJS_INTERNAL).
+ * @returns A new array of per-module info objects.
  */
 static JSValue
 jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
-  JSModuleDef *m, **list;
   JSValue ret = JS_NewArray(ctx);
-
-#if QUICKJS_INTERNAL
-  if(!(list = js_modules_vector(ctx)))
-    return JS_EXCEPTION;
-
-  for(uint32_t i = 0; (m = list[i]);) {
-#else
   struct list_head* el;
   uint32_t i = 0;
 
   list_for_each(el, &loaded_modules) {
     LoadedModule* lm = list_entry(el, LoadedModule, link);
     JSModuleDef* m = lm->module;
-#endif
 
     JSValue obj = JS_NewObject(ctx);
 
     JS_DefinePropertyValueStr(ctx, obj, "builtin", jsm_module_is_builtin(m) ? JS_TRUE : JS_FALSE, JS_PROP_CONFIGURABLE);
 
-#if QUICKJS_INTERNAL
-    module_make_object(ctx, m, obj);
-#else
     JS_SetPropertyStr(ctx, obj, "name", JS_NewString(ctx, lm->name));
-#endif
 
     JS_SetPropertyUint32(ctx, ret, i++, obj);
   }
@@ -2149,10 +2074,6 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JSModuleDef* m = JS_VALUE_GET_PTR(ret);
     JSValue obj = JS_NewObject(ctx);
 
-#if QUICKJS_INTERNAL
-    JS_SetPropertyStr(ctx, obj, "name", module_nameval(ctx, m));
-    JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, m));
-#endif
     ret = obj;
   }
 
@@ -2299,10 +2220,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case REQUIRE_MODULE: {
-#if QUICKJS_INTERNAL
-      if((m = jsm_module_loader(ctx, name, NULL)))
-        val = module_exports(ctx, m);
-#endif
       break;
     }
 
@@ -2336,21 +2253,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case RESOLVE_MODULE: {
       val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
-      break;
-    }
-
-    case GET_MODULE_NAME: {
-      val = module_nameval(ctx, m);
-      break;
-    }
-
-    case GET_MODULE_VALUE: {
-      val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
-      break;
-    }
-
-    case GET_MODULE_INDEX: {
-      val = JS_NewInt32(ctx, jsm_module_indexof(m));
       break;
     }
 
@@ -2423,10 +2325,6 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
     JS_CGETSET_DEF("builtins", jsm_builtins, 0),
     JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
-#if QUICKJS_INTERNAL
-    JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
-    JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
-#endif
     JS_CGETSET_DEF("moduleEntries", jsm_modules_entries, 0),
     JS_CFUNC_MAGIC_DEF("moduleLoader", 1, jsm_module_func, MODULE_LOADER),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
@@ -2442,19 +2340,6 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
     JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
     JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
-#if QUICKJS_INTERNAL
-    JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
-    JS_CFUNC_MAGIC_DEF("getModuleValue", 1, jsm_module_func, GET_MODULE_VALUE),
-    JS_CFUNC_MAGIC_DEF("getModuleIndex", 1, jsm_module_func, GET_MODULE_INDEX),
-    JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
-    JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
-    JS_CFUNC_MAGIC_DEF("getModuleImports", 1, jsm_module_func, GET_MODULE_IMPORTS),
-    JS_CFUNC_MAGIC_DEF("getModuleReqModules", 1, jsm_module_func, GET_MODULE_REQMODULES),
-    JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, jsm_module_func, GET_MODULE_NAMESPACE),
-    JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
-    JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),
-    JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
-#endif
     JS_CFUNC_DEF("startInteractive", 0, jsm_start_interactive4),
 };
 

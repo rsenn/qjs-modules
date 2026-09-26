@@ -24,9 +24,7 @@ gap got *worse* since it was written. Updated priority order:
 2. **Tier 5/6 doc cleanup (near-zero cost)** — several Tier 5/6 bullets describe dead code that
    is either already fixed or was never actually dead (see per-item notes below). Purging the
    stale claims now is cheap and stops future passes from re-verifying non-issues.
-3. **Tier 4 `internal.h`/`quickjs-internal.h` duplication claim needs re-scoping**, not a fix —
-   the two-hand-forked-headers premise doesn't match the current file layout (see note below).
-4. Everything else keeps its prior relative order (Tier 9 DOM gaps, Tier 11 `qjsm.c`
+3. Everything else keeps its prior relative order (Tier 9 DOM gaps, Tier 11 `qjsm.c`
    refactors, Tier 10 C API consolidation, Tier 12/13 yaml/cyaml) — all still open, all still
    accurately described modulo stale line numbers (noted inline where found).
 
@@ -120,15 +118,6 @@ the full architecture/gap survey behind Tier 6-8.
 
 ## Tier 4 — structural/maintenance risk and test-coverage gaps
 
-- **STALE CLAIM (2026-09-24 re-verify)**: ~~`internal.h` and `quickjs-internal.h` are two
-  hand-forked copies~~ — only `internal.h` exists in the source tree; there is no
-  `quickjs-internal.h` at repo root (only auto-generated copies under `build/`).
-  `quickjs-internal.c` does `#include "quickjs-internal.h"`, so that header is build-generated,
-  not a second hand-maintained source file. The "two hand-forked copies needing manual
-  re-application" premise doesn't match current layout — needs a fresh look at what
-  `quickjs-internal.h` actually is (generated from what?) before this can be scoped as
-  either "already resolved" or "different problem than described."
-
 - ~~**`tests/test_list.js` isn't a real test**~~ — **DONE / STALE CLAIM**. It now uses
   `assert`/`eq` from `./tinytest.js` throughout (dozens of `assert()` calls) with no unguarded
   `while(!skip())` loop. Already a real test; no action needed.
@@ -198,8 +187,7 @@ next one.
   `isHTMLDDA`/function-type magic dispatch all disabled (`searchArrayBuffer` itself is live,
   only its `search` alias is commented), `quickjs-pgsql.c:1855` (iterator `next` disabled —
   `escapeString` itself has a live registration alongside a disabled duplicate at `:1312`, not
-  actually missing), `quickjs-internal.c:558,571` (opcode-name introspection properties
-  disabled), `quickjs-tree-walker.c:167,486` (`setroot()`'s return value discarded — minor,
+  actually missing), `quickjs-tree-walker.c:167,486` (`setroot()`'s return value discarded — minor,
   probably harmless but worth a look).
   **STALE CLAIM (2026-09-24)**: ~~`quickjs-list.c:567` (iterator `next` disabled)~~ — the
   `JS_ITERATOR_NEXT_DEF("next", ...)` at line 566 is live; only a redundant old `JS_CFUNC_DEF`
@@ -569,10 +557,7 @@ done inline since each is either large or a judgment call on API shape.
   structural complaint still stands, just smaller than originally measured)
   that mixes unrelated concerns: module bookkeeping (`ADD_MODULE`/`FIND_MODULE`/
   `FIND_MODULE_INDEX`), path resolution (`NORMALIZE_MODULE`/`LOCATE_MODULE`/`LOAD_MODULE`), and
-  a block of ~11 near-identical `#if QUICKJS_INTERNAL` one-liner accessors
-  (`GET_MODULE_NAME`/`GET_MODULE_VALUE`/`GET_MODULE_INDEX`/...). The accessor block in
-  particular is repetitive enough to be table-driven (an array of `{magic, module_*_fn}`
-  pairs looked up once) instead of 11 near-identical `case:`/`#if`/`#endif` blocks.
+  the `MODULE_LOADER` hook registry.
 - **`jsm_module_loader()` (the `JSModuleLoaderFunc` implementation) does six distinct things
   in one function** (stale size claim, 2026-09-24: now `src/qjsm.c:1467-1620`, 154 lines, not
   ~140 — close, structural complaint still valid) with several `goto end;`/`goto again;` jumps: `data:` URL

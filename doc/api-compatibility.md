@@ -149,16 +149,6 @@ directly for Bun-compatible code.
 **Runtime Compatibility:** Node.js util.inspect  
 **Notes:** Enhanced Node.js util.inspect with negative compact values for leaf-relative object compaction (see doc/native/inspect.md). Used by console.dir() and deep.equal() for formatting.
 
-### quickjs-internal.c
-**Module:** `internal`  
-**Classification:** Internal  
-**Exports:**
-- `Module` class - JavaScript module introspection
-- `getBytecode(func)` - Get compiled bytecode
-- `getOpcodes()` - List QuickJS opcodes
-
-**Notes:** Internal implementation detail for module system introspection and bytecode inspection. Not part of public API surface. Used by qjsm (QuickJS Manager) for module management. Should not be exposed to user code in production.
-
 ### quickjs-json.c
 **Module:** `json`  
 **Classification:** Compatible (ECMA-262 JSON) + Custom (streaming extensions)  

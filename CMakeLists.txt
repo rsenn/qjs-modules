@@ -28,7 +28,6 @@ option(LINK_STATIC "Link static libraries" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
-option(QUICKJS_INTERNAL "Use engine internals from quickjs.c" OFF)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
@@ -993,67 +992,7 @@ if(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 else(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
   unset(QUICKJS_SOURCES_ROOT)
   unset(QUICKJS_SOURCES_ROOT CACHE)
-  unset(QUICKJS_INTERNAL)
-  unset(QUICKJS_INTERNAL CACHE)
 endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
-
-#dump(QUICKJS_SOURCES_ROOT QUICKJS_INTERNAL)
-
-if(QUICKJS_INTERNAL)
-  add_definitions(-DQUICKJS_INTERNAL=1)
-else(QUICKJS_INTERNAL)
-  add_definitions(-DQUICKJS_INTERNAL=0)
-endif(QUICKJS_INTERNAL)
-
-if(QUICKJS_INTERNAL)
-  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
-
-  # constant text, no configure-time substitution needed - written once so the custom command
-  # below can just `cat` it together with the freshly sed'd struct dump
-  file(
-    WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-prologue.h"
-    "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef QJS_BIGNUM_EXT\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n"
-  )
-  file(
-    WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-epilogue.h"
-    "\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
-  )
-
-  # generated at BUILD time (not just once at configure time) and DEPENDS on the actual
-  # ${QUICKJS_SOURCES_ROOT}/quickjs.c and quickjs-libc.c it's scraped from, so the struct-layout
-  # snapshot in quickjs-internal.h can never silently go stale relative to those sources the way
-  # a configure-time-only execute_process()/file(WRITE) could - see
-  # qjsm-quickjs-internal-struct-drift-segfault in BUGS
-  add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
-    COMMAND
-      sed -n
-      "/#define JS_STRING_ROPE/ p; /#define JS_PRINT_/ p; /#define SUM_PRECISE_ACC_LEN/ p;       /#if JS_LIMB_BITS/ { :limb; N; /#endif/! b limb; s|\\n\\n|\\n|g; s|^|\\n|; /typedef[^\\n]*limb_t;/ p }; /^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
-      ${QUICKJS_STRUCT_SOURCES} > "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
-    COMMAND
-      ${CMAKE_COMMAND} -E cat "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-prologue.h" "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
-      "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-epilogue.h" > "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    DEPENDS ${QUICKJS_STRUCT_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-prologue.h"
-            "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-epilogue.h"
-    COMMENT "Regenerating quickjs-internal.h from ${QUICKJS_SOURCES_ROOT}/quickjs.c"
-    VERBATIM)
-  add_custom_target(quickjs_internal_header DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h")
-
-  if(QUICKJS_INTERNAL)
-    list(APPEND LIBRARY_SOURCES quickjs-internal.c)
-  endif(QUICKJS_INTERNAL)
-
-  if(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
-    set(HAVE_QJSCALC TRUE CACHE BOOL "Have qjscalc.js")
-    var2define(HAVE_QJSCALC)
-
-    if(HAVE_QJSCALC)
-      relative_path(QJSCALC_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
-      compile_module("${QJSCALC_PATH}")
-    endif(HAVE_QJSCALC)
-  endif(EXISTS "${QUICKJS_SOURCES_ROOT}/qjscalc.js")
-endif(QUICKJS_INTERNAL)
 
 set(COMPILED_BUILTIN_HEADER "")
 
@@ -1073,9 +1012,6 @@ set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_F
 
 target_link_libraries(modules PUBLIC m)
 
-if(QUICKJS_INTERNAL)
-  add_dependencies(modules quickjs_internal_header)
-endif(QUICKJS_INTERNAL)
 add_library(compiled STATIC ${COMPILED_MODULES})
 
 set(COMMON_LIBRARIES modules compiled)
@@ -1334,9 +1270,6 @@ if(COMPILED_TARGETS)
   add_dependencies(qjsm ${COMPILED_TARGETS})
 endif(COMPILED_TARGETS)
 
-if(QUICKJS_INTERNAL)
-  add_dependencies(qjsm quickjs_internal_header)
-endif(QUICKJS_INTERNAL)
 
 if(LIBDL)
   link_libraries(${LIBDL})

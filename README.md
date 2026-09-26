@@ -13,9 +13,7 @@ JavaScript libraries.
 
 Every module can also be built standalone as a shared library and
 `import`ed at runtime by any QuickJS build, independent of `qjsm`. Each
-`quickjs-*.c` file provides one native module (except
-`quickjs-internal.c`, which contains shared support code compiled into
-other modules).
+`quickjs-*.c` file provides one native module.
 
 ## Overview
 

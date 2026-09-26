@@ -506,10 +506,6 @@ JSValue js_global_new(JSContext*, const char* ctor_name, int argc, JSValueConst 
 
 // #include "buffer-utils.h"
 
-char* js_cstring_dup(JSContext*, const char* str);
-char* js_cstring_ptr(JSValueConst v);
-size_t js_cstring_len(JSValueConst v);
-JSValueConst js_cstring_value(const char* ptr);
 void js_cstring_dump(JSContext*, JSValueConst value, DynBuf* db);
 
 static inline const char*
@@ -1203,41 +1199,11 @@ JSAtom module_name(JSContext*, JSModuleDef*);
 JSValue module_nameval(JSContext*, JSModuleDef*);
 char* module_namestr(JSContext*, JSModuleDef*);
 const char* module_namecstr(JSContext*, JSModuleDef* m);
-JSValue module_func(JSContext*, JSModuleDef*);
-JSValue module_ns(JSContext*, JSModuleDef*);
-JSValue module_exception(JSContext*, JSModuleDef*);
-JSValue module_meta_obj(JSContext*, JSModuleDef*);
-JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
-JSValue module_exports_find_str(JSContext*, JSModuleDef* m, const char* name);
-int module_exports_get(JSContext*, JSModuleDef*, BOOL, JSValue exports);
-JSValue module_imports(JSContext*, JSModuleDef* m);
-JSValue module_reqmodules(JSContext*, JSModuleDef* m);
-JSValue module_default_export(JSContext*, JSModuleDef*);
-JSValue module_exports(JSContext*, JSModuleDef*);
 JSValue module_value(JSContext*, JSModuleDef*);
-JSValue module_entry(JSContext*, JSModuleDef*);
-void module_make_object(JSContext*, JSModuleDef*, JSValueConst obj);
-JSValue module_object(JSContext*, JSModuleDef*);
-JSModuleDef* module_next(JSContext*, JSModuleDef* m);
-JSModuleDef* module_prev(JSContext*, JSModuleDef* m);
-JSModuleDef* module_last(JSContext*);
-void module_rename(JSContext*, JSModuleDef* m, JSAtom name);
 
-struct list_head* js_modules_list(JSContext*);
-JSModuleDef** js_modules_vector(JSContext*);
-JSValue js_modules_entries(JSContext*, JSValue this_val, int magic);
-JSValue js_modules_map(JSContext*, JSValue this_val, int magic);
-JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
 
-int js_module_index(JSContext*, JSModuleDef* m);
 
 JSModuleDef* js_module_def(JSContext*, JSValueConst value);
-JSModuleDef* js_module_find(JSContext*, const char* name);
-JSModuleDef* js_module_find_from(JSContext*, const char* name, int pos);
-JSModuleDef* js_module_find_fwd(JSContext*, const char* name, JSModuleDef* start);
-JSModuleDef* js_module_find_rev(JSContext*, const char* name, JSModuleDef* start);
-int module_indexof(JSContext*, JSModuleDef* def);
-JSModuleDef* js_module_at(JSContext*, int index);
 JSModuleDef* js_module_load(JSContext*, const char* name);
 
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL);
@@ -1253,9 +1219,6 @@ int js_interrupt_handler(JSRuntime*, void*);
 
 void js_call_handler(JSContext*, JSValueConst, JSValueConst, int, JSValueConst[]);
 
-void* js_sab_alloc(void*, size_t);
-void js_sab_free(void*, void*);
-void js_sab_dup(void*, void*);
 
 /*JSWorkerMessagePipe* js_new_message_pipe(void);
 JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);*/
@@ -1322,14 +1285,11 @@ js_asyncgenerator_constructor(JSContext* ctx) {
 JSValue js_set_iterator_prototype(JSContext*);
 JSValue js_std_file(JSContext*, FILE* f);
 
-JSValue js_get_bytecode(JSContext*, JSValueConst value);
-JSValue js_opcode_list(JSContext*, BOOL as_object);
 
 void js_cstring_dump_free(JSContext*, JSValue, DynBuf*);
 void js_stackframe_dump(JSContext*, JSValueConst, DynBuf*);
 void js_stack_dump(JSContext*, JSValueConst, DynBuf*);
 char* js_stack_tostring(JSContext*, JSValueConst);
-JSValue js_stack_get(JSContext*);
 void js_stack_print(JSContext*, JSValueConst);
 
 struct OffsetLength;
