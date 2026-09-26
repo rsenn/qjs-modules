@@ -939,7 +939,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
     JS_FreeValue(ctx, num);
   }
 
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   if(tag <= JS_TAG_BIG_FLOAT)
     writer_putc(wr, tag == JS_TAG_BIG_DECIMAL ? 'm' : tag == JS_TAG_BIG_FLOAT ? 'l' : 'n');
 #else
@@ -1269,7 +1269,7 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
   switch(tag) {
     case JS_TAG_FLOAT64:
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     case JS_TAG_BIG_FLOAT:
     case JS_TAG_BIG_DECIMAL:
 #endif

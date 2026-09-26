@@ -350,11 +350,11 @@ typedef enum {
   FLAG_OBJECT, // 4
   FLAG_STRING, // 5
   FLAG_SYMBOL, // 6
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   FLAG_BIG_FLOAT, // 7
 #endif
   FLAG_BIG_INT, // 8
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   FLAG_BIG_DECIMAL, // 9
 #endif
   FLAG_FLOAT64,           // 10
@@ -377,14 +377,14 @@ typedef enum {
   TYPE_OBJECT = (1 << FLAG_OBJECT),
   TYPE_STRING = (1 << FLAG_STRING),
   TYPE_SYMBOL = (1 << FLAG_SYMBOL),
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   TYPE_BIG_FLOAT = (1 << FLAG_BIG_FLOAT),
   TYPE_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
 #endif
   TYPE_BIG_INT = (1 << FLAG_BIG_INT),
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   TYPE_BIGNUM = (TYPE_BIG_FLOAT | TYPE_BIG_DECIMAL | TYPE_BIG_INT),
 #else
   TYPE_BIGNUM = (TYPE_BIG_INT),
@@ -404,7 +404,7 @@ typedef enum {
 static inline ValueTypeFlag
 js_value_type_flag(JSValueConst value) {
   switch(JS_VALUE_GET_TAG(value)) {
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
     case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
 #endif
@@ -1084,7 +1084,7 @@ BOOL js_is_input(JSContext*, JSValueConst value);
 
 static inline BOOL
 js_is_bignumber(JSContext* ctx, JSValueConst value) {
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   if(JS_IsBigDecimal(value) || JS_IsBigFloat(value))
     return TRUE;
 #endif

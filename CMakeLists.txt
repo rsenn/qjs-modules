@@ -254,14 +254,23 @@ set(CMAKE_REQUIRED_QUIET OFF)
 
 check_include_def(libbf.h)
 
+# Upstream removed BigFloat/BigDecimal/operator overloading (2025-04-26), so
+# probe quickjs.h itself; a stray libbf.h says nothing about the engine.
+include(CheckCSourceCompiles)
+set(CMAKE_REQUIRED_INCLUDES_OLD "${CMAKE_REQUIRED_INCLUDES}")
+list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
+check_c_source_compiles("#include <quickjs.h>\nint main(void){ return JS_TAG_BIG_FLOAT + (int)sizeof(&JS_EnableBignumExt) + (int)sizeof(&JS_AddIntrinsicOperators); }" HAVE_QUICKJS_BIGNUM_EXT)
+set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES_OLD}")
+
 set(CONFIG_BIGNUM OFF)
 
-if(HAVE_LIBBF_H)
+if(HAVE_LIBBF_H AND HAVE_QUICKJS_BIGNUM_EXT)
   set(CONFIG_BIGNUM ON)
-endif(HAVE_LIBBF_H)
+endif()
 
 if(CONFIG_BIGNUM)
-  list(APPEND CONFIG_DEFS CONFIG_BIGNUM=1)
+  list(APPEND CONFIG_DEFS QJS_BIGNUM_EXT=1)
+  add_definitions(-DQJS_BIGNUM_EXT=1)
 endif(CONFIG_BIGNUM)
 
 dump(HAVE_LIBBF_H CONFIG_BIGNUM CONFIG_DEFS)
@@ -848,8 +857,13 @@ if(DO_TESTS)
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
+    if(CONFIG_BIGNUM)
+      set(BIGNUM_ARG --bignum)
+    else()
+      set(BIGNUM_ARG)
+    endif()
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env "QUICKJS_MODULE_PATH=${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib" "${QJSM}" --bignum "${TEST}")
+             COMMAND env "QUICKJS_MODULE_PATH=${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib" "${QJSM}" ${BIGNUM_ARG} "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
@@ -998,7 +1012,7 @@ if(QUICKJS_INTERNAL)
   # below can just `cat` it together with the freshly sed'd struct dump
   file(
     WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-prologue.h"
-    "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n"
+    "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef QJS_BIGNUM_EXT\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n"
   )
   file(
     WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal-epilogue.h"
@@ -1351,6 +1365,9 @@ if(BUILD_SHARED_LIBS)
   set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
                                         INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
 endif(BUILD_SHARED_LIBS)
+
+# cmake --install strips the build RUNPATH; QUICKJS_LIBRARY_DIR is already absolute.
+set_property(TARGET qjsm APPEND PROPERTY INSTALL_RPATH "${QUICKJS_LIBRARY_DIR}")
 
 target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
 

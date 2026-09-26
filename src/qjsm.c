@@ -27,7 +27,7 @@
 #include <quickjs-config.h>
 #endif
 
-#ifndef CONFIG_BIGNUM
+#ifndef QJS_BIGNUM_EXT
 #warning No bignum!
 #endif
 
@@ -121,7 +121,7 @@ typedef struct {
    jsm_init_modules() (which redefines these same two macros to build the runtime table). */
 #include "quickjs-builtins.h"
 
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
 #if HAVE_QJSCALC
 jsm_builtin_compiled(qjscalc);
 #endif
@@ -219,7 +219,7 @@ static thread_local Vector jsm_stack = VECTOR_INIT();
 static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
 
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
 static int bignum_ext = 1;
 #endif
 
@@ -1756,7 +1756,7 @@ jsm_context_new(JSRuntime* rt) {
    * always runs before anything has been added to the list. */
   init_list_head(&loaded_modules);
 
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
   if(bignum_ext) {
     JS_AddIntrinsicBigFloat(ctx);
     JS_AddIntrinsicBigDecimal(ctx);
@@ -2046,7 +2046,7 @@ jsm_help(void) {
          "-m  --module NAME  load an ES6 module\n"
          "-I  --include file include an additional file\n"
          "    --std          make 'std' and 'os' available to the loaded script\n"
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
          "    --no-bignum    disable the bignum extensions (BigFloat, "
          "BigDecimal)\n"
 #if HAVE_QJSCALC
@@ -2692,7 +2692,7 @@ main(int argc, char** argv) {
         break;
       }
 
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
       if(!strcmp(longopt, "no-bignum")) {
         bignum_ext = 0;
         break;

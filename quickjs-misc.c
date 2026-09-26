@@ -2732,7 +2732,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
 
   switch(magic) {
     case IS_ARRAY: r = JS_IsArray(ctx, arg); break;
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     case IS_BIGDECIMAL: r = JS_IsBigDecimal(arg); break;
     case IS_BIGFLOAT: r = JS_IsBigFloat(arg); break;
 #endif

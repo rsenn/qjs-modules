@@ -582,7 +582,7 @@ static const JSCFunctionListEntry js_tree_walker_static_funcs[] = {
     JS_CONSTANT(TYPE_OBJECT),
     JS_CONSTANT(TYPE_STRING),
     JS_CONSTANT(TYPE_SYMBOL),
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     JS_CONSTANT(TYPE_BIG_FLOAT),
     JS_CONSTANT(TYPE_BIG_DECIMAL),
 #endif

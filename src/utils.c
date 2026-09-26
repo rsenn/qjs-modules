@@ -2036,7 +2036,7 @@ js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
 const char*
 js_value_tag_name(int tag) {
   switch(tag) {
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     case JS_TAG_BIG_DECIMAL: return "BIG_DECIMAL";
     case JS_TAG_BIG_FLOAT: return "BIG_FLOAT";
 #endif
@@ -2063,11 +2063,11 @@ js_value_tag_name(int tag) {
 static const char* const js_value_typenames[] = {
     "undefined",     "null",         "bool",      "int",   "object", "string",
     "symbol",
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     "big_float",
 #endif
     "big_int",
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     "big_decimal",
 #endif
     "float64",       "nan",          "function",  "array", "module", "function_bytecode",
@@ -2201,7 +2201,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
     case TYPE_UNDEFINED:
     case TYPE_NULL:
     case TYPE_SYMBOL:
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     case TYPE_BIG_DECIMAL:
     case TYPE_BIG_FLOAT:
 #endif
@@ -2286,7 +2286,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
 
       if(is_string)
         dbuf_putc(db, '"');
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
       else if(JS_IsBigFloat(value))
         dbuf_putc(db, 'l');
       else if(JS_IsBigDecimal(value))
@@ -2597,7 +2597,7 @@ js_module_load(JSContext* ctx, const char* name) {
 BOOL
 js_is_primitive(JSValueConst obj) {
   switch(JS_VALUE_GET_TAG(obj)) {
-#ifdef CONFIG_BIGNUM
+#ifdef QJS_BIGNUM_EXT
     case JS_TAG_BIG_DECIMAL:
     case JS_TAG_BIG_FLOAT:
 #endif
