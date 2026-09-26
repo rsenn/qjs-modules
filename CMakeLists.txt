@@ -160,6 +160,37 @@ list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
 
 include(CheckLibraryExists)
 
+# The probes below cache their result per build dir, but the installed quickjs changes
+# independently of it, so stale results must be dropped when the library or header changes.
+set(QJS_PROBE_STAMP "")
+foreach(QJS_PROBE_FILE "${QUICKJS_LIBRARY}" "${QUICKJS_INCLUDE_DIR}/quickjs.h")
+  if(EXISTS "${QJS_PROBE_FILE}")
+    file(SHA256 "${QJS_PROBE_FILE}" QJS_PROBE_HASH)
+    string(APPEND QJS_PROBE_STAMP "${QJS_PROBE_HASH};")
+  endif()
+endforeach()
+
+if(NOT "${QJS_PROBE_STAMP}" STREQUAL "${QUICKJS_PROBE_STAMP}")
+  foreach(
+    QJS_PROBE
+    HAVE_JS_STD_FILE
+    HAVE_JS_PROMISE_STATE
+    HAVE_JS_PROMISE_RESULT
+    HAVE_JS_GETMODULELOADERFUNC
+    HAVE_JS_GETMODULELOADEROPAQUE
+    HAVE_JS_GETCLASSID
+    HAVE_JS_ISUNCATCHABLEERROR
+    HAVE_JS_DEBUGGERBUILDBACKTRACE
+    HAVE_DBUF_CLAIM
+    HAVE_DBUF_REALLOC
+    HAVE_QUICKJS_BIGNUM_EXT
+    JS_MODULE_LOADER_SETTINGS
+    JS_MODULE_LOADER_OLD)
+    unset(${QJS_PROBE} CACHE)
+  endforeach()
+  set(QUICKJS_PROBE_STAMP "${QJS_PROBE_STAMP}" CACHE INTERNAL "Hash of the quickjs library/header the probes ran against")
+endif()
+
 #check_function_def(JS_PROMISE_STATE JS_PromiseState)
 
 check_library_exists(m sqrt "" HAVE_LIBMATH)
@@ -590,7 +621,7 @@ endif()
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-set(CMAKE_REQUIRED_FLAGS "-DCOMPILE_DEFINITIONS=-I${QUICKJS_SOURCES_ROOT}")
+set(CMAKE_REQUIRED_FLAGS "-DCOMPILE_DEFINITIONS=-I${QUICKJS_INCLUDE_DIR}")
 
 try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(void) { return 0; }" HAVE_JSOBJECT_POINTER
          OUTPUT_JSOBJECT_TEST "" "")

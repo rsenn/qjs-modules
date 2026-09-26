@@ -869,7 +869,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
           // default: base = 10; break;
       }
       char buf[256];
-      size_t len = base == 10 ? i64toa(buf, num, base) : u64toa(buf, num, base);
+      size_t len = base == 10 ? i64toa_base(buf, num, base) : u64toa_base(buf, num, base);
 
       writer_write(wr, buf, len);
     } else {

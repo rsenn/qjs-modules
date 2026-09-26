@@ -806,7 +806,7 @@ puts_file(const char* file, const char* s) {
 }
 
 size_t
-u64toa(char* x, uint64_t num, int base) {
+u64toa_base(char* x, uint64_t num, int base) {
   size_t len = 0;
   uint64_t n = num;
 
@@ -832,7 +832,7 @@ u64toa(char* x, uint64_t num, int base) {
 }
 
 size_t
-i64toa(char* x, int64_t num, int base) {
+i64toa_base(char* x, int64_t num, int base) {
   size_t pos = 0;
 
   if(num < 0) {
@@ -840,7 +840,7 @@ i64toa(char* x, int64_t num, int base) {
     num = -num;
   }
 
-  return pos + u64toa(&x[pos], num, base);
+  return pos + u64toa_base(&x[pos], num, base);
 }
 
 size_t

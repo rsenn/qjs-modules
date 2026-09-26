@@ -528,8 +528,8 @@ BOOL utf16_multiword(const void*);
 ssize_t write_file(const char* file, const void* buf, size_t len);
 ssize_t puts_file(const char* file, const char* s);
 
-size_t u64toa(char*, uint64_t num, int base);
-size_t i64toa(char*, int64_t num, int base);
+size_t u64toa_base(char*, uint64_t num, int base);
+size_t i64toa_base(char*, int64_t num, int base);
 
 /**
  * @}
