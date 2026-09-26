@@ -3079,7 +3079,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return JS_UNDEFINED;
 }
 
-#if HAVE_CHOWN
+#if HAVE_CHOWN || HAVE_FCHOWN || HAVE_LCHOWN
 static JSValue
 js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t owner = 0, group = 0;
@@ -3088,6 +3088,7 @@ js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JS_ToUint32(ctx, &group, argv[2]);
 
   switch(magic) {
+#if HAVE_FCHOWN
     case 1: {
       int32_t fd = -1;
 
@@ -3095,6 +3096,7 @@ js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       return js_syscall_result(ctx, fchown, fd, owner, group);
     }
+#endif
 
     case 0:
     case 2: {
@@ -3103,10 +3105,16 @@ js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       if(!(path = JS_ToCString(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
+#if HAVE_LCHOWN
       if(magic)
         return js_syscall_result(ctx, lchown, path, owner, group);
+#endif
 
+#if HAVE_CHOWN
       return js_syscall_result(ctx, chown, path, owner, group);
+#endif
+      JS_FreeCString(ctx, path);
+      break;
     }
   }
 
