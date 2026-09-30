@@ -876,7 +876,7 @@ check_function_def(js_debugger_build_backtrace)
 
 #dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
 
-file(GLOB TESTS tests/test_*.js)
+file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 
 set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")

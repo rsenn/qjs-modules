@@ -3,6 +3,7 @@ import { AttributeSelector, ClassSelector, parseSelectors, TypeSelector } from '
 import { Parser } from '../lib/dom.js';
 import { Console } from 'console';
 import { Predicate } from 'predicate';
+
 function main(...args) {
   globalThis.console = new Console({
     stdout: process.stdout,

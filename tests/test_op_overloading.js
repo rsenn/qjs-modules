@@ -2,9 +2,7 @@ import Console from '../lib/console.js';
 import * as std from 'std';
 
 const OverloadNames = ['+', '-', '*', '/', '%', '**', '|', '&', '^', '<<', '>>', '>>>', '==', '<', 'pos', 'neg', '++', '--', '~'];
-
 const CreateOperatorSet = Operators.create;
-
 const OperatorsObjects = Expr => [
   {
     '+'(...args) {

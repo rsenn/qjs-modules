@@ -2034,6 +2034,8 @@ js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
       reader = reader_from_jsbuf(ctx, input);
 
     JS_FreeValue(ctx, read_fn);
+  } else if(JS_IsNumber(input)) {
+    reader = reader_from_fd(js_toint64(ctx, input), FALSE);
   } else {
     reader = reader_from_jsbuf(ctx, input);
   }

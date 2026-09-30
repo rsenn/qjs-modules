@@ -582,6 +582,7 @@ int64_t js_tosize_name(JSContext*, JSValueConst, size_t, size_t, const char*);
 size_t js_tosize(JSContext*, JSValueConst, size_t, size_t);
 char* js_tostringlen(JSContext*, size_t* lenp, JSValueConst value);
 char* js_tostring(JSContext*, JSValueConst value);
+int js_tocharcode(JSContext* ctx, JSValueConst value);
 
 static inline char*
 js_tostring_free(JSContext* ctx, JSValue value) {
@@ -948,6 +949,8 @@ char* js_get_property_string(JSContext*, JSValueConst obj, JSAtom prop);
 char* js_get_propertystr_string(JSContext*, JSValueConst obj, const char* prop);
 char* js_get_propertystr_stringlen(JSContext*, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext*, JSValueConst obj, const char* prop);
+uint32_t js_get_propertystr_unt32(JSContext*, JSValueConst obj, const char* prop);
+int64_t js_get_propertystr_int64(JSContext*, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext*, JSValueConst obj, const char* prop);
 int js_get_propertydescriptor(JSContext*, JSPropertyDescriptor* desc, JSValueConst obj, JSAtom prop);
 JSAtom js_get_propertystr_atom(JSContext*, JSValueConst obj, const char* prop);
@@ -1076,8 +1079,6 @@ js_is_array_like(JSContext* ctx, JSValueConst obj) {
   return len >= 0;
 }
 
-BOOL js_is_input(JSContext*, JSValueConst value);
-
 static inline BOOL
 js_is_bignumber(JSContext* ctx, JSValueConst value) {
 #ifdef QJS_BIGNUM_EXT
@@ -1195,16 +1196,10 @@ typedef union import_directive {
   const char* args[5];
 } ImportDirective;
 
-JSAtom module_name(JSContext*, JSModuleDef*);
-JSValue module_nameval(JSContext*, JSModuleDef*);
-char* module_namestr(JSContext*, JSModuleDef*);
 const char* module_namecstr(JSContext*, JSModuleDef* m);
 JSValue module_value(JSContext*, JSModuleDef*);
 
-
-
 JSModuleDef* js_module_def(JSContext*, JSValueConst value);
-JSModuleDef* js_module_load(JSContext*, const char* name);
 
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, BOOL load_only);
@@ -1218,7 +1213,6 @@ JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) FORMAT_STRING(3
 int js_interrupt_handler(JSRuntime*, void*);
 
 void js_call_handler(JSContext*, JSValueConst, JSValueConst, int, JSValueConst[]);
-
 
 /*JSWorkerMessagePipe* js_new_message_pipe(void);
 JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);*/
@@ -1284,7 +1278,6 @@ js_asyncgenerator_constructor(JSContext* ctx) {
 
 JSValue js_set_iterator_prototype(JSContext*);
 JSValue js_std_file(JSContext*, FILE* f);
-
 
 void js_cstring_dump_free(JSContext*, JSValue, DynBuf*);
 void js_stackframe_dump(JSContext*, JSValueConst, DynBuf*);

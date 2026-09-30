@@ -165,7 +165,6 @@ enum {
   FIND_MODULE,
   FIND_MODULE_INDEX,
   LOAD_MODULE,
-  ADD_MODULE,
   REQUIRE_MODULE,
   LOCATE_MODULE,
   NORMALIZE_MODULE,
@@ -849,7 +848,6 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
     s[len] = '\0';
 
     n = str_chrs(ext, ";\n", 2);
-
     str_copyn(&s[len], ext, n);
 
     if((t = fn(ctx, s)))
@@ -1170,6 +1168,16 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
   }
 
   dbuf_free(&dbuf);
+
+  /* jsm_module_loader() registers loaded_modules entries under the *resolved* name
+     (e.g. an absolute .so/.js path), not the specifier `path` used here (e.g. "sndobj"),
+     so a name-based jsm_module_find(ctx, path, 0) below would never match a module that
+     needed resolving. list_add() prepends, and evaluating the synthetic import above adds
+     the target module's own entry last (after any of its dependencies), so when the list
+     grew it's the new head - grab that directly instead. Falls back to the by-name lookup
+     for the case where the module was already loaded/cached and no new entry was added. */
+  if(list_size(&loaded_modules) > pos)
+    return list_entry(loaded_modules.next, LoadedModule, link)->module;
 
   return jsm_module_find(ctx, path, 0);
 }
@@ -1590,21 +1598,21 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)
       file = js_strdup(ctx, bltin->module_name);
-  /* `path` is the *importing* module's own specifier - for one loaded from
-     a `data:...,<source>` URL (e.g. a moduleLoader() "loader" hook that
-     fetched remote source and handed it back as a data: URL, see
-     qjs-lws/lib/cdn-loader.js), that's the whole multi-KB URL, source
-     payload included. path_dirlen1()/path_append3() below treat it as a
-     plain filesystem path and split on its *last* '/' - which lands inside
-     the embedded source (JS source is full of '/'), not at any directory
-     boundary, producing a garbage `file` for what should be a relative
-     import between the fetched module's own files (confirmed: a real
-     multi-file CDN package's `import './sibling.mjs'` resolved to nonsense
-     like "/sibling.mjs" instead of erroring or working). Skip this branch
-     for a data: path so `file` stays unset and the loader hook chain below
-     sees the untouched relative specifier instead - resolving it is then
-     that hook's job (it has the actual source URL the data: URL came
-     from), not this generic path-joining. */
+    /* `path` is the *importing* module's own specifier - for one loaded from
+       a `data:...,<source>` URL (e.g. a moduleLoader() "loader" hook that
+       fetched remote source and handed it back as a data: URL, see
+       qjs-lws/lib/cdn-loader.js), that's the whole multi-KB URL, source
+       payload included. path_dirlen1()/path_append3() below treat it as a
+       plain filesystem path and split on its *last* '/' - which lands inside
+       the embedded source (JS source is full of '/'), not at any directory
+       boundary, producing a garbage `file` for what should be a relative
+       import between the fetched module's own files (confirmed: a real
+       multi-file CDN package's `import './sibling.mjs'` resolved to nonsense
+       like "/sibling.mjs" instead of erroring or working). Skip this branch
+       for a data: path so `file` stays unset and the loader hook chain below
+       sees the untouched relative specifier instead - resolving it is then
+       that hook's job (it has the actual source URL the data: URL came
+       from), not this generic path-joining. */
   } else if(path[0] != '<' && strncmp(path, "data:", 5) && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
     DynBuf dir;
     size_t dsl;
@@ -1629,8 +1637,12 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   } else if(has_suffix(name, CONFIG_SHEXT) && !name[path_component1(name)]) {
     file = jsm_search_path(ctx, name);
   } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
-    file = path_absolute1(name);
-    path_normalize1(file);
+    /* path_absolute1() allocates with libc realloc, but `file` is released with js_free() */
+    char* abs = path_absolute1(name);
+
+    path_normalize1(abs);
+    file = js_strdup(ctx, abs);
+    free(abs);
   }
 
   if(lptr) {
@@ -1755,9 +1767,7 @@ jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
     JSValue obj = JS_NewObject(ctx);
 
     JS_DefinePropertyValueStr(ctx, obj, "builtin", jsm_module_is_builtin(m) ? JS_TRUE : JS_FALSE, JS_PROP_CONFIGURABLE);
-
     JS_SetPropertyStr(ctx, obj, "name", JS_NewString(ctx, lm->name));
-
     JS_SetPropertyUint32(ctx, ret, i++, obj);
   }
 
@@ -2170,18 +2180,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   switch(magic) {
-    case ADD_MODULE: {
-      ssize_t i;
-
-      if((i = vector_finds(&module_list, name)) == -1) {
-        i = vector_size(&module_list, sizeof(char*));
-        vector_pushstring(&module_list, name);
-      }
-
-      val = JS_NewInt64(ctx, i);
-      break;
-    }
-
     case FIND_MODULE: {
       if((m = jsm_module_find(ctx, name, 0)))
         val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
@@ -2220,6 +2218,11 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case REQUIRE_MODULE: {
+      if((m = jsm_module_load(ctx, name, 0)))
+        val = JS_GetModuleNamespace(ctx, m);
+      else
+        val = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
+
       break;
     }
 
@@ -2229,7 +2232,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if((s = jsm_module_locate(ctx, name, 0))) {
         val = JS_NewString(ctx, s);
         js_free(ctx, s);
-      }
+      } else
+        val = JS_NULL;
 
       break;
     }
@@ -2335,7 +2339,6 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("findModuleIndex", 1, jsm_module_func, FIND_MODULE_INDEX),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
-    JS_CFUNC_MAGIC_DEF("addModule", 1, jsm_module_func, ADD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
     JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),

@@ -33,6 +33,7 @@ json_getc_skipws(JsonParser* json) {
 BOOL
 json_init(JsonParser* json, Reader reader, const char* filename, JSContext* ctx) {
   json->reader = reader;
+  json->block_pos = json->block_len = 0;
   json->callback = NULL;
   json->opaque = NULL;
   json->pos = 0;
@@ -103,8 +104,22 @@ json_getc(JsonParser* json) {
     c = json->pushback;
     json->pushback = -1;
   } else {
-    c = reader_getc(&json->reader);
+    if(json->block_pos == json->block_len) {
+      ssize_t n = reader_read(&json->reader, json->block, sizeof(json->block));
+
+      if(n <= 0) {
+        c = n == 0 ? STREAM_EOF : STREAM_ERROR;
+        goto done;
+      }
+
+      json->block_pos = 0;
+      json->block_len = MIN_NUM((size_t)n, sizeof(json->block));
+    }
+
+    c = json->block[json->block_pos++];
   }
+
+done:
 
   if(c >= 0) {
     ++json->pos;

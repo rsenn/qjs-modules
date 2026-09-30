@@ -33,11 +33,9 @@ async function main(...args) {
   let my = (globalThis.my = new MySQL());
 
   my.resultType |= MySQL.RESULT_OBJECT;
-
   my.setOption(MySQL.OPT_NONBLOCK, true);
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
-
   console.log('my.connect() =', await my.connect('localhost', 'roman', 'r4eHuJ', 'roman'));
 
   q = async s => {
@@ -57,14 +55,6 @@ async function main(...args) {
   };
 
   i = 0;
-
-  /*  await q(`CREATE DATABASE IF NOT EXISTS blah;`);
-  await q(`USE blah;`);
-
-  await q(
-    `CREATE TABLE IF NOT EXISTS article ( id int unsigned NOT NULL auto_increment, title char(64) NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',  PRIMARY KEY (id)) CHARACTER SET utf8`
-  );
-*/
 
   q(`
     CREATE TABLE IF NOT EXISTS sessions ( 

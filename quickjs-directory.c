@@ -428,7 +428,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case DIRECTORY_THROW: {
-      ret = JS_Throw(ctx, argv[0]);
+      ret = JS_Throw(ctx, JS_DupValue(ctx, argv[0]));
       break;
     }
   }

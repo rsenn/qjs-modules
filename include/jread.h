@@ -56,13 +56,13 @@ typedef struct jr_state {
   size_t accum_len;
   size_t accum_cap;
   int accumulating;
-  int in_number; /* mid-number at the last pause: unlike other tokens, a number has no
-                    unambiguous terminator character, so only end-of-input (jr_finish())
-                    can close it out */
-  int literal_active; /* mid null/true/false at the last pause - see jr_read()'s l_err */
-  uint32_t unicode_val;   /* \uXXXX hex digits decoded so far, mid-escape */
-  int unicode_count;      /* how many of the 4 hex digits have been read */
-  uint32_t surrogate_hi;  /* a buffered UTF-16 high surrogate, waiting for its low half */
+  int in_number;         /* mid-number at the last pause: unlike other tokens, a number has no
+                            unambiguous terminator character, so only end-of-input (jr_finish())
+                            can close it out */
+  int literal_active;    /* mid null/true/false at the last pause - see jr_read()'s l_err */
+  uint32_t unicode_val;  /* \uXXXX hex digits decoded so far, mid-escape */
+  int unicode_count;     /* how many of the 4 hex digits have been read */
+  uint32_t surrogate_hi; /* a buffered UTF-16 high surrogate, waiting for its low half */
   int done;
   int error;      /* sticky: "this stream had a parse error at some point" (jr_finish()/
                      close() reporting only) - no longer blocks jr_read() from resyncing */

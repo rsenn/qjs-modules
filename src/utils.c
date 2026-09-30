@@ -28,9 +28,6 @@
 #include <alloca.h>
 #endif
 
-JSModuleLoaderFunc* JS_GetModuleLoaderFunc(JSRuntime*);
-void* JS_GetModuleLoaderOpaque(JSRuntime*);
-
 static JSValue generator_prototype, asyncgenerator_prototype, typedarray_prototype;
 // static JSModuleDef* io_module;
 
@@ -1447,15 +1444,6 @@ js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   return ret;
 }
 
-int64_t
-js_get_propertystr_int64(JSContext* ctx, JSValueConst obj, const char* str) {
-  int64_t ret = 0;
-  JSValue value = JS_GetPropertyStr(ctx, obj, str);
-  JS_ToInt64(ctx, &ret, value);
-  JS_FreeValue(ctx, value);
-  return ret;
-}
-
 const char*
 js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSAtom atom = JS_NewAtom(ctx, prop);
@@ -1591,6 +1579,32 @@ js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop) {
     return 0;
 
   JS_ToInt32(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+uint32_t
+js_get_propertystr_uint32(JSContext* ctx, JSValueConst obj, const char* prop) {
+  uint32_t ret;
+  JSValue value = JS_GetPropertyStr(ctx, obj, prop);
+
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  JS_ToUint32(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+int64_t
+js_get_propertystr_int64(JSContext* ctx, JSValueConst obj, const char* prop) {
+  int64_t ret;
+  JSValue value = JS_GetPropertyStr(ctx, obj, prop);
+
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  JS_ToInt64(ctx, &ret, value);
   JS_FreeValue(ctx, value);
   return ret;
 }
@@ -1798,11 +1812,6 @@ js_function_isnative(JSContext* ctx, JSValueConst value) {
 JSValue
 js_function_prototype(JSContext* ctx) {
   return js_global_prototype(ctx, "Function");
-}
-
-BOOL
-js_is_input(JSContext* ctx, JSValueConst value) {
-  return JS_IsString(value) || js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value);
 }
 
 int
@@ -2486,19 +2495,13 @@ module_value(JSContext* ctx, JSModuleDef* m) {
   return m != NULL ? JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)) : JS_NULL;
 }
 
-JSValue
-module_nameval(JSContext* ctx, JSModuleDef* m) {
-  return JS_AtomToValue(ctx, *(JSAtom*)((int*)m + 1));
-}
-
-JSAtom
-module_name(JSContext* ctx, JSModuleDef* m) {
-  return JS_DupAtom(ctx, *(JSAtom*)((int*)m + 1));
-}
-
 const char*
 module_namecstr(JSContext* ctx, JSModuleDef* m) {
-  return JS_AtomToCString(ctx, *(JSAtom*)((int*)m + 1));
+  JSAtom atom = JS_GetModuleName(ctx, m);
+  const char* ret = JS_AtomToCString(ctx, atom);
+
+  JS_FreeAtom(ctx, atom);
+  return ret;
 }
 
 JSModuleDef*
@@ -2531,23 +2534,6 @@ js_module_def(JSContext* ctx, JSValueConst value) {
   }
 
   return 0;
-}
-
-JSModuleDef*
-js_module_load(JSContext* ctx, const char* name) {
-  JSModuleLoaderFunc* loader = 0;
-  void* opaque = 0;
-
-#if HAVE_JS_GETMODULELOADERFUNC
-  if(!(loader = JS_GetModuleLoaderFunc(JS_GetRuntime(ctx))))
-    return 0;
-#endif
-
-#if HAVE_JS_GETMODULELOADEROPAQUE
-  opaque = JS_GetModuleLoaderOpaque(JS_GetRuntime(ctx));
-#endif
-
-  return loader(ctx, name, opaque);
 }
 
 BOOL
@@ -3362,6 +3348,8 @@ js_error_stack(JSContext* ctx) {
   return stack;
 }
 
+JSModuleLoaderFunc2* js_std_get_module_loader_func(void);
+
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
@@ -3377,16 +3365,18 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
     } else {
       JSModuleDef* os;
       JSAtom func_name;
+      JSModuleLoaderFunc2* module_loader_func;
 
-      if(!(os = js_module_loader(ctx,
-                                 module_name,
-                                 0
+      if((module_loader_func = js_std_get_module_loader_func()))
+        if(!(os = module_loader_func(ctx,
+                                     module_name,
+                                     0
 #ifndef JS_MODULE_LOADER_OLD
-                                 ,
-                                 JS_NULL
+                                     ,
+                                     JS_NULL
 #endif
-                                 )))
-        return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
+                                     )))
+          return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);
       JS_FreeAtom(ctx, func_name);
@@ -3683,6 +3673,18 @@ js_topointer(JSContext* ctx, JSValueConst value) {
   if(js_is_null_or_undefined(value))
     return 0;
 
+  if(JS_IsObject(value)) {
+    InputBuffer buf = js_input_buffer(ctx, value);
+    void* ptr = inputbuffer_data(&buf);
+
+    inputbuffer_free(&buf, ctx);
+
+    if(ptr)
+      return ptr;
+
+    JS_FreeValue(ctx, JS_GetException(ctx));
+  }
+
   return (void*)(uintptr_t)DEF6432(js_touint64, js_touint32)(ctx, value);
 }
 
@@ -3735,6 +3737,23 @@ js_tosize(JSContext* ctx, JSValueConst value, size_t max, size_t range) {
 char*
 js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
+}
+
+int
+js_tocharcode(JSContext* ctx, JSValueConst value) {
+  int ret = -1;
+  InputBuffer buf = js_input_chars(ctx, value);
+
+  if(buf.size) {
+    const uint8_t *end, *pos = (uint8_t*)inputbuffer_data(&buf);
+
+    ret = unicode_from_utf8(pos, inputbuffer_length(&buf), &end);
+
+    inputbuffer_free(&buf, ctx);
+  } else
+    ret = js_toint32(ctx, value);
+
+  return ret;
 }
 
 char*

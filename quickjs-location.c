@@ -13,11 +13,11 @@ VISIBLE JSClassID js_location_class_id = 0;
 static JSValue location_proto, location_ctor;
 
 enum {
-  LOCATION_PROP_LINE,
-  LOCATION_PROP_COLUMN,
-  LOCATION_PROP_FILE,
-  LOCATION_PROP_CHAROFFSET,
-  LOCATION_PROP_BYTEOFFSET,
+  PROP_LINE,
+  PROP_COLUMN,
+  PROP_FILE,
+  PROP_CHAROFFSET,
+  PROP_BYTEOFFSET,
 };
 
 static JSValue
@@ -54,7 +54,7 @@ js_location_tostring(JSContext* ctx, const Location* loc) {
   return ret;
 }
 
-BOOL
+static BOOL
 js_is_location(JSContext* ctx, JSValueConst obj) {
   JSAtom line = JS_NewAtom(ctx, "line");
   JSAtom column = JS_NewAtom(ctx, "column");
@@ -87,7 +87,7 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case LOCATION_PROP_FILE: {
+    case PROP_FILE: {
       /* loc->file/loc->filename are a union; has_filename says which is live */
       if(loc->has_filename) {
         char* file;
@@ -103,28 +103,28 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case LOCATION_PROP_LINE: {
+    case PROP_LINE: {
       if(loc->line != -1)
         ret = JS_NewUint32(ctx, loc->line + 1);
 
       break;
     }
 
-    case LOCATION_PROP_COLUMN: {
+    case PROP_COLUMN: {
       if(loc->column != -1)
         ret = JS_NewUint32(ctx, loc->column + 1);
 
       break;
     }
 
-    case LOCATION_PROP_CHAROFFSET: {
+    case PROP_CHAROFFSET: {
       if(loc->char_offset >= 0)
         ret = JS_NewInt64(ctx, loc->char_offset);
 
       break;
     }
 
-    case LOCATION_PROP_BYTEOFFSET: {
+    case PROP_BYTEOFFSET: {
       if(loc->byte_offset >= 0)
         ret = JS_NewInt64(ctx, loc->byte_offset);
 
@@ -137,7 +137,7 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  Location* loc;
+  Location *loc, *other = js_location_data(value);
   JSValue ret = JS_UNDEFINED;
 
   if(!(loc = js_location_data2(ctx, this_val)))
@@ -147,43 +147,39 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
     return JS_ThrowTypeError(ctx, "Location is read-only");
 
   switch(magic) {
-    case LOCATION_PROP_FILE: {
-      if(loc->file > -1)
-        JS_FreeAtom(ctx, loc->file);
+    case PROP_FILE: {
+      if(other)
+        location_copy_file(loc, other, ctx);
+      else {
+        JSAtom atom = JS_ValueToAtom(ctx, value);
 
-      loc->file = JS_ValueToAtom(ctx, value);
+        if(atom == JS_ATOM_NULL)
+          return JS_EXCEPTION;
+
+        location_set_file(loc, atom, ctx);
+        JS_FreeAtom(ctx, atom);
+      }
+
       break;
     }
 
-    case LOCATION_PROP_LINE: {
-      uint32_t n = 0;
-
-      JS_ToUint32(ctx, &n, value);
-      loc->line = n > 0 ? (int32_t)n - 1 : -1;
+    case PROP_LINE: {
+      loc->line = other ? other->line : js_toint32(ctx, value);
       break;
     }
 
-    case LOCATION_PROP_COLUMN: {
-      uint32_t n = 0;
-
-      JS_ToUint32(ctx, &n, value);
-      loc->column = n > 0 ? (int32_t)n - 1 : -1;
+    case PROP_COLUMN: {
+      loc->column = other ? other->column : js_toint32(ctx, value);
       break;
     }
 
-    case LOCATION_PROP_CHAROFFSET: {
-      int64_t n = 0;
-
-      JS_ToInt64(ctx, &n, value);
-      loc->char_offset = n >= 0 ? n : -1;
+    case PROP_CHAROFFSET: {
+      loc->char_offset = other ? other->char_offset : js_toint64(ctx, value);
       break;
     }
 
-    case LOCATION_PROP_BYTEOFFSET: {
-      int64_t n = 0;
-
-      JS_ToInt64(ctx, &n, value);
-      loc->byte_offset = n >= 0 ? n : -1;
+    case PROP_BYTEOFFSET: {
+      loc->byte_offset = other ? other->byte_offset : js_toint64(ctx, value);
       break;
     }
   }
@@ -209,10 +205,10 @@ js_location_from2(JSContext* ctx, JSValueConst this_val, Location* loc) {
     loc->file = js_get_propertystr_atom(ctx, this_val, "fileName");
 
   if(js_has_propertystr(ctx, this_val, "charOffset"))
-    loc->char_offset = js_get_propertystr_uint64(ctx, this_val, "charOffset");
+    loc->char_offset = js_get_propertystr_int64(ctx, this_val, "charOffset");
 
   if(js_has_propertystr(ctx, this_val, "byteOffset"))
-    loc->byte_offset = js_get_propertystr_uint64(ctx, this_val, "byteOffset");
+    loc->byte_offset = js_get_propertystr_int64(ctx, this_val, "byteOffset");
 }
 
 Location*
@@ -243,7 +239,7 @@ js_location_copy(JSContext* ctx, JSValueConst this_val) {
   return loc;
 }
 
-JSValue
+static JSValue
 js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
   const char* hint;
@@ -265,13 +261,12 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return ret;
 }
 
-JSValue
+static JSValue
 js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  Location* loc = 0;
+  Location* loc;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  JSValue obj = JS_UNDEFINED, proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
@@ -281,9 +276,13 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   } else {
     loc = location_new(ctx);
 
+    InputBuffer in = {0};
+
+    if(argc == 1)
+      in = js_input_chars(ctx, argv[0]);
+
     /* From string */
-    if(argc == 1 && js_is_input(ctx, argv[0])) {
-      InputBuffer in = js_input_chars(ctx, argv[0]);
+    if(in.data && JS_IsString(argv[0])) {
       const uint8_t *p, *begin = inputbuffer_begin(&in), *end = inputbuffer_end(&in);
       unsigned long v, n[2];
       size_t ni = MAX_NUM(2, str_count((const char*)begin, ':'));
@@ -312,8 +311,9 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
       loc->line--;
       loc->column--;
+
       /* From arguments (line,column,pos,file) */
-    } else if(argc > 1) {
+    } else if(argc >= 1) {
       int i = 0;
 
       loc->file = 0;
@@ -324,18 +324,15 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       }
 
       if(i < argc && JS_IsNumber(argv[i]))
-        JS_ToInt32(ctx, &loc->line, argv[i++]);
+        loc->line = js_toint32(ctx, argv[i++]);
 
       if(i < argc && JS_IsNumber(argv[i]))
-        JS_ToInt32(ctx, &loc->column, argv[i++]);
+        loc->column = js_toint32(ctx, argv[i++]);
 
       if(i < argc && JS_IsNumber(argv[i]))
-        JS_ToIndex(ctx, (uint64_t*)&loc->char_offset, argv[i++]);
+        loc->char_offset = js_toint64(ctx, argv[i++]);
 
-      if(i < argc && JS_IsNumber(argv[i]))
-        JS_ToIndex(ctx, (uint64_t*)&loc->byte_offset, argv[i++]);
-
-      if(loc->file == 0 && i < argc)
+      if(i < argc && loc->file == 0 && !JS_IsNumber(argv[i]))
         loc->file = JS_ValueToAtom(ctx, argv[i++]);
 
       if(loc->file == 0)
@@ -344,6 +341,8 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       loc->line--;
       loc->column--;
     }
+
+    inputbuffer_free(&in, ctx);
   }
 
   obj = js_location_create(ctx, proto, loc);
@@ -352,12 +351,15 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 }
 
 enum {
-  LOCATION_EQUAL = 0,
-  LOCATION_TOSTRING,
+  METHOD_EQUAL = 0,
+  METHOD_CLONE,
+  METHOD_COPY,
+  METHOD_NEXTCHAR,
+  METHOD_TOSTRING,
 };
 
 static JSValue
-js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_location_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
 
@@ -365,7 +367,7 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     return JS_EXCEPTION;
 
   switch(magic) {
-    case LOCATION_EQUAL: {
+    case METHOD_EQUAL: {
       Location* other;
 
       if(!(other = js_location_data2(ctx, argv[0])))
@@ -375,7 +377,47 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       break;
     }
 
-    case LOCATION_TOSTRING: {
+    case METHOD_CLONE: {
+      ret = js_location_wrap(ctx, location_clone(loc, ctx));
+      break;
+    }
+
+    case METHOD_COPY: {
+      Location* other;
+
+      if(!(other = js_location_data2(ctx, argv[0])))
+        return JS_EXCEPTION;
+
+      location_copy(loc, other, ctx);
+      break;
+    }
+
+    case METHOD_NEXTCHAR: {
+      int32_t code = -1;
+
+      if(JS_IsNumber(argv[0])) {
+        code = js_toint32(ctx, argv[0]);
+      } else {
+        InputBuffer buf = js_input_args(ctx, argc, argv);
+
+        if(buf.size) {
+          const uint8_t *end, *pos = (uint8_t*)inputbuffer_data(&buf);
+
+          code = unicode_from_utf8(pos, inputbuffer_length(&buf), &end);
+        }
+
+        inputbuffer_free(&buf, ctx);
+      }
+
+      if(code != -1)
+        ret = JS_NewUint32(ctx, location_nextchar(loc, code));
+      else
+        ret = JS_ThrowTypeError(ctx, "argument 1 must be Number | ArrayBuffer | TypedArray | string");
+
+      break;
+    }
+
+    case METHOD_TOSTRING: {
       ret = js_location_tostring(ctx, loc);
       break;
     }
@@ -385,41 +427,22 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
-js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  Location *loc, *other;
-
-  if(!(other = js_location_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  if(!(loc = location_clone(other, ctx)))
-    return JS_EXCEPTION;
-
-  return js_location_create(ctx, location_proto, loc);
-}
-
-static JSValue
 js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc = 0;
-  InputBuffer input;
-  int64_t limit = -1;
+  InputBuffer input = js_input_args(ctx, argc, argv);
 
   if(!(loc = location_new(ctx)))
     return JS_EXCEPTION;
 
-  if(argc >= 2)
-    JS_ToInt64(ctx, &limit, argv[1]);
-
-  input = js_input_chars(ctx, argv[0]);
-  if(limit == -1 || (size_t)limit > input.size)
-    limit = input.size;
-
   location_zero(loc);
-  location_count(loc, (const void*)input.data, limit);
+  location_count(loc, inputbuffer_data(&input), inputbuffer_length(&input));
 
-  return js_location_wrap(ctx, loc);
+  inputbuffer_free(&input, ctx);
+
+  return js_location_create(ctx, location_proto, loc);
 }
 
-void
+static void
 js_location_finalizer(JSRuntime* rt, JSValue val) {
   Location* loc;
 
@@ -434,15 +457,17 @@ static JSClassDef js_location_class = {
 };
 
 static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("charOffset", js_location_get, js_location_set, LOCATION_PROP_CHAROFFSET, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("byteOffset", js_location_get, js_location_set, LOCATION_PROP_BYTEOFFSET, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
-    JS_CFUNC_MAGIC_DEF("equal", 1, js_location_methods, LOCATION_EQUAL),
+    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_get, 0, PROP_LINE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_get, 0, PROP_COLUMN, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("charOffset", js_location_get, 0, PROP_CHAROFFSET, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("byteOffset", js_location_get, 0, PROP_BYTEOFFSET, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_get, js_location_set, PROP_FILE, JS_PROP_ENUMERABLE),
+    JS_CFUNC_MAGIC_DEF("equal", 1, js_location_method, METHOD_EQUAL),
+    JS_CFUNC_MAGIC_DEF("clone", 0, js_location_method, METHOD_CLONE),
+    JS_CFUNC_MAGIC_DEF("copy", 1, js_location_method, METHOD_COPY),
+    JS_CFUNC_MAGIC_DEF("nextChar", 1, js_location_method, METHOD_NEXTCHAR),
+    JS_CFUNC_MAGIC_DEF("toString", 0, js_location_method, METHOD_TOSTRING),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
-    JS_CFUNC_DEF("clone", 0, js_location_clone),
-    JS_CFUNC_MAGIC_DEF("toString", 0, js_location_methods, LOCATION_TOSTRING),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
 };
 

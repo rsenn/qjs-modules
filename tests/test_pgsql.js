@@ -3,6 +3,7 @@ import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
 import { PGconn, PGresult } from 'pgsql';
 import { exit } from 'std';
+
 extendArray();
 
 async function main(...args) {

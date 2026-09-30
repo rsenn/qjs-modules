@@ -1647,6 +1647,12 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
+
+    if(JS_IsException(value)) {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+      goto end;
+    }
+
     index = property_enumeration_index(it);
 
 #ifdef DEBUG_OUTPUT
@@ -1755,6 +1761,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       }
     }
 
+  end:
     while(!(it = it ? it : property_recursion_top(&insp->hier),
             it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
 

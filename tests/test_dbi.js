@@ -9,7 +9,6 @@
  *
  * Defaults to sqlite :memory: (works without external dependencies).
  */
-
 import { Console } from 'console';
 import { Database } from '../lib/dbi.js';
 import { exit } from 'std';

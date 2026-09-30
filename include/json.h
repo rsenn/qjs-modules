@@ -47,9 +47,14 @@ typedef enum {
   JSON_STR_UNICODE,
 } JsonStrState;
 
+#define JSON_BLOCK_SIZE 16384
+
 struct JsonParser {
   int state;
   Reader reader;
+  /* one reader_read() per block instead of per byte: a JS pull callback costs a call each */
+  uint8_t block[JSON_BLOCK_SIZE];
+  size_t block_pos, block_len;
   DynBuf token;
   JsonCallback* callback;
   void* opaque;

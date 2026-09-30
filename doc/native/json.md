@@ -25,9 +25,10 @@ new JsonParser(input, filename?)   // length 1; filename is optional, reflected 
 `input` may be:
 - a buffer (string, `ArrayBuffer`, or typed array) holding the whole document, or
 - a pull function `(buf, len) => bytesRead`, called as needed to fill `buf` (up to `len` bytes), or
-- an object exposing such a function as its `read` method — called with the object as `this`, e.g. a file wrapper: `{ read(buf, len) { return f.read(buf, 0, len); } }`.
+- an object exposing such a function as its `read` method — called with the object as `this`, e.g. a file wrapper: `{ read(buf, len) { return f.read(buf, 0, len); } }`, or
+- a file descriptor number (e.g. `f.fileno()`), read with `read(2)`; the parser does not close it.
 
-The function/method forms let the parser pull raw bytes on demand (e.g. from an fd) instead of requiring the whole document up front.
+The function/method/fd forms let the parser pull raw bytes on demand instead of requiring the whole document up front. Input is pulled in blocks of up to 16384 bytes (`len` is 16384; a read may return fewer bytes, and returning 0 yields `"NEED_DATA"`), so the parser can read past the end of the JSON document — don't share the source with another consumer.
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |

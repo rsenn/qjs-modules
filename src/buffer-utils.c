@@ -666,7 +666,7 @@ block_munmap(MemoryBlock* mb) {
 
 int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
-#if defined(HAVE_FSTAT) && !defined(_WIN32)
+#if 0 // defined(HAVE_FSTAT) && !defined(_WIN32)
   int fd;
   void* ptr;
   struct stat st;
@@ -693,7 +693,40 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
     return 0;
   }
 #else
-#warning No block_from_file() implementation!
+  int fd;
+  char* ptr = NULL;
+  size_t n = 0, p = 0;
+  ssize_t r;
+
+  if((fd = open(filename, O_RDONLY)) == -1)
+    return -1;
+
+  for(;;) {
+    if(!(ptr = js_realloc(ctx, ptr, (n += 1024)))) {
+      close(fd);
+      return -1;
+    }
+
+    if((r = read(fd, &ptr[p], n - p)) < 0) {
+      free(ptr);
+      close(fd);
+      return -1;
+    }
+
+    if(r == 0)
+      break;
+
+    p += r;
+    n = p;
+  }
+
+  close(fd);
+
+  mb->base = js_realloc(ctx, ptr, p);
+  mb->size = p;
+
+  if(mb->base)
+    return 0;
 #endif
 
   return -1;
@@ -984,7 +1017,7 @@ inputbuffer_toarraybuffer_free(InputBuffer* in, JSContext* ctx) {
 
   in->data = 0;
   in->size = 0;
-  in->value = JS_UNINITIALIZED;
+  in->value = JS_UNDEFINED;
 
   inputbuffer_free(in, ctx);
   return ret;

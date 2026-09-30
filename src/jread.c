@@ -440,8 +440,7 @@ l_err: {
    * at all - an error reached directly from them (e.g. a missing comma) already has `go`
    * sitting at container level, just in the "expect separator" phase instead of "expect
    * value" - popping here would incorrectly discard it. */
-  while(go != go_doc && go != go_val && go != go_arr && go != go_obj && go != go_arr_sep && go != go_obj_sep
-        && !vector_empty(&state->go_stack))
+  while(go != go_doc && go != go_val && go != go_arr && go != go_obj && go != go_arr_sep && go != go_obj_sep && !vector_empty(&state->go_stack))
     JR_POP_GO();
 
   if(state->literal_active) {

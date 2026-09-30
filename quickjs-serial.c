@@ -768,8 +768,7 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetClassProto(ctx, js_serialport_class_id, serialport_proto);
 
-  serial_ctor = JS_NewObject(ctx);
-
+  serial_ctor = JS_NewObjectProto(ctx, JS_NULL);
   JS_SetPropertyFunctionList(ctx, serial_ctor, js_serial_static, countof(js_serial_static));
 
   JSValue error = JS_NewError(ctx);

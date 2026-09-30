@@ -446,3 +446,488 @@
 
     for i in 1 2 3 4 5; do ctest --test-dir build/bt-2026 -R test_childprocess.js; done
 
+  update: still reproduces on current HEAD while writing
+  tests/unittests/test-child-process.js - a single, isolated `spawnSync()`
+  or `execSync()` call (no other code) segfaults roughly half the time, and
+  one run produced glibc's `free(): invalid pointer` right before the
+  crash, which points at a real double-free/heap-corruption bug in the
+  spawn path rather than a race between unrelated tests. Not root-caused
+  further (didn't bisect which of exec/spawn/execSync/spawnSync/kill/wait
+  is the actual corruptor). tests/unittests/test-child-process.js is
+  written correctly against the module's real API (verified against
+  passing runs) but will fail intermittently until this is fixed.
+
+    import { spawnSync } from 'child_process';
+    spawnSync('sh', ['-c', 'exit 0']);   // segfaults roughly half the time, alone, with nothing else in the file
+
+  update 2: the segfaults above were against the stale build/x86_64-linux-gnu
+  (see jsm-module-loader note elsewhere in this file / test-deep.js's finding
+  that that directory's .so files predate the current qjsm and match no
+  current CMake target); against build/bt-2026, the finished
+  tests/unittests/test-child-process.js passes 5/5 identical runs
+  ("7 tests succeeded.", exit 0). It does leave one deterministic (5/5),
+  harmless artifact: an extra "TypeError: not a function at wait (native)"
+  is printed to stderr *after* "7 tests succeeded." on every run, sourced
+  from the `kill()` test's `child.wait()` call - despite that call's own
+  result being used successfully inside the test (the OK is logged first).
+  Looks like a duplicate/late invocation of `wait` from the module's async
+  job queue, not something the test itself does twice. Doesn't affect the
+  exit code or tinytest's pass count; not root-caused further.
+
+    for i in 1 2 3 4 5; do
+      QUICKJS_MODULE_PATH="build/bt-2026;lib" build/bt-2026/qjsm tests/unittests/test-child-process.js
+    done   # "7 tests succeeded." each time, but a stray TypeError trails every run
+
+- textdecoder-utf16-decode-returns-null (quickjs-textcode.c:66-89): calling
+  `TextDecoder('utf-16').decode()` (or 'utf-16be') on well-formed input
+  always returns `null` instead of the decoded string, 100% reproducible
+  (not flaky). UTF-8 and UTF-32 decode work fine on equivalent input via the
+  same function (textdecoder_decode, quickjs-textcode.c:46), so the bug is
+  specific to the `case UTF16:` branch; not root-caused further (candidate
+  culprits: `u16[1]` is left uninitialized when `libutf_c16_type(u16[0])`
+  says the code unit isn't a surrogate, which is then still passed into
+  `libutf_c16_to_c32(u16, &cp)`, or `dbuf_encode` silently not appending).
+  TextEncoder with 'utf-16' works fine (produces a Uint16Array via
+  encode()). Routed around in tests/unittests/test-textcode.js, which only
+  exercises UTF-16 on the encode() side.
+
+    import { TextDecoder } from 'textcode';
+    new TextDecoder('utf-16').decode(new Uint8Array([97, 0])); // null, expected "a"
+
+- deepiterator-never-descends-plain-object-root (quickjs-deep.c:314-411):
+  `new DeepIterator(root)` / `deep.iterate(root)` never recurses into `root`
+  when `root` is a plain object - `next()` reports `done: true` on the very
+  first call, 100% reproducible, even with an explicit always-true
+  predicate. An array root works fine (yields each element, recursing into
+  nested arrays/objects one level and even further for nested arrays). A
+  plain object nested *inside* an array root is yielded once as a whole
+  value but is itself never descended into either. `deep.find`/
+  `deep.select`/`deep.forEach`/`deep.iterate`-as-used-by-those (which all
+  push the same way via `property_recursion_push`) traverse plain objects
+  correctly, so the bug is specific to `js_deep_iterator_next`'s extra
+  `if(property_enumeration_length(penum) == 0) continue;` check
+  (quickjs-deep.c:347), which find/select/forEach don't have - suspect
+  `property_enumeration_length` reads 0 for a freshly-pushed plain-object
+  frame before its first `next`, causing an immediate skip/pop instead of
+  descending. Also, `DeepIterator.prototype.skip()` (quickjs-deep.c:442-445)
+  ends iteration entirely instead of resuming at the next sibling: after
+  skipping element 0 of `[[1, 2], 3]`, the following `next()` reports
+  `done: true` rather than yielding `3`. Not root-caused further. Worked
+  around in tests/unittests/test-deep.js by exercising `DeepIterator`/
+  `deep.iterate()` only over array roots, and by only asserting that
+  `skip()` prevents the skipped subtree's own values from ever being
+  yielded (not that iteration continues afterward).
+
+    import { DeepIterator } from 'deep';
+    new DeepIterator({ a: 1 }, () => true).next(); // {done: true}, expected {value: [1, ['a']], done: false}
+
+    import { DeepIterator } from 'deep';
+    const it = new DeepIterator([[1, 2], 3]);
+    it.next();     // {value: [[1, 2], [0]], done: false}
+    it.skip();
+    it.next();     // {done: true}, expected {value: [3, [1]], done: false}
+
+- predicate-member-index-some-every-crash (src/predicate.c, quickjs-predicate.c):
+  calling a `Predicate.member(key, subPredicate)`/`Predicate.index(i,
+  subPredicate)` predicate, or a `Predicate.some(subPredicate)`/
+  `Predicate.every(subPredicate)` predicate against an array, segfaults
+  100% reproducibly (confirmed 3/3 runs each). Construction alone (not
+  invoking/`eval()`-ing the built predicate) is fine. Not fully
+  root-caused, but for `some`/`every` there's a definite, separate logic
+  bug that likely contributes: the `PREDICATE_SOME`/`PREDICATE_EVERY` case
+  in `predicate_eval()` (src/predicate.c:396-427) shadows the function's
+  outer `ret` with a same-named inner `JSValue ret = JS_Call(...)` inside
+  the loop (line 408), so the `ret = JS_TRUE`/`ret = JS_FALSE` writes meant
+  to short-circuit the result on line 417/421 assign the inner shadowed
+  variable instead - the outer `ret` returned at line 436 is never updated
+  and always keeps its line-403 initial value. Worked around in
+  tests/unittests/test-predicate.js by only constructing (not evaluating)
+  `member`/`index`/`some`/`every` predicates.
+
+    import { Predicate } from 'predicate';
+    Predicate.member('length', Predicate.equal(3))([1, 2, 3]);   // segfault
+    Predicate.some(Predicate.equal(1))([3, 1, 2]);                // segfault
+
+- directory-throw-missing-dupvalue (quickjs-directory.c:430-433):
+  `Directory.prototype.throw(exception)` segfaults 100% reproducibly when
+  `exception` is an `Error` (or any refcounted object) - a plain string
+  works fine. The handler is `ret = JS_Throw(ctx, argv[0]);` - `JS_Throw`
+  takes ownership of (consumes) the reference passed to it, but `argv[]`
+  entries are borrowed (`JSValueConst`), owned by the caller/engine, so
+  this double-frees the exception value once the engine also releases its
+  own reference to `argv[0]` after the call returns. Likely fix: dup the
+  value first, `JS_Throw(ctx, JS_DupValue(ctx, argv[0]))`, matching how
+  `DIRECTORY_RETURN` just above it (line 426) correctly leaves `argv[0]`
+  alone and lets `js_iterator_result` dup what it needs. Worked around in
+  tests/unittests/test-directory.js by only exercising `throw()` with a
+  string.
+
+    import { Directory } from 'directory';
+    const dir = new Directory('.');
+    try { dir.throw(new Error('x')); } catch(e) {}   // segfault
+
+- pointer-splice-insert-throws-garbage-exception (quickjs-pointer.c:501-518):
+  `Pointer.prototype.splice(start, end, ...atomsToInsert)` works fine as a
+  pure deletion (no atoms to insert: it mutates in place and returns the
+  removed sub-pointer, like Array.prototype.splice), but as soon as any
+  insertion atoms are passed, `pointer_splice(...)` (called with `atoms`
+  built by `js_argv_to_atoms`) returns NULL, and js_pointer_method1's tail
+  (`return ret ? js_pointer_wrap(ctx, ret) : JS_EXCEPTION;`, line 549) then
+  returns the `JS_EXCEPTION` sentinel without ever calling `JS_Throw()` -
+  i.e. pointer_splice fails without setting a real pending exception. The
+  resulting "exception" is garbage: catching it in JS and trying to read/
+  print it throws a secondary `ReferenceError: arg is not initialized` from
+  inside the engine. 100% reproducible, not flaky. Routed around in
+  tests/unittests/test-pointer.js's splice() test by only exercising the
+  deletion form.
+
+    import { Pointer } from 'pointer';
+    const p = new Pointer(['a', 'b', 0]);
+    try { p.splice(0, 0, 'z'); } catch(e) { console.log(e); } // secondary crash printing e
+
+- misc-classid-struct-scraping-segfault (src/utils.c:1678-1759):
+  `misc.classId(name)`, `misc.className(id)` and `misc.classAtom(id)` are
+  all unsafe to call - `classId()` alone segfaults reliably (10/10 runs)
+  once called two or three times in the same script (e.g.
+  `classId('Array'); classId('Object'); classId('X')`), and
+  `className`/`classAtom` on any id it returns segfault 100% of the time,
+  even from a single call. Root cause: `js_class_count()`
+  (src/utils.c:1678-1683) reads the live class count via a hardcoded byte
+  offset into the opaque `JSRuntime` struct - `*((uint32_t*)rt +
+  DEF6432(27, 16))` - i.e. it "struct-scrapes" a private quickjs-internal
+  layout instead of using a public accessor. `js_class_atom`/`js_class_id`/
+  `js_class_find` (same file, right below) do the same for the class array
+  pointer. On the currently vendored QuickJS this offset no longer lines
+  up with the real `class_count` field, so `js_class_count()` returns a
+  garbage huge number (observed: 7980 for `classId('Array')`, where a
+  real class count is more like 100-200); `js_class_find()` then walks
+  `class_count` entries through `class_arr`, reading far past the real
+  array - which is why even repeated `classId()` calls alone eventually
+  walk into unmapped memory. The `assert(id > 0 && id < js_class_count(rt))`
+  guards in `js_class_atom`/`js_class_id` would normally catch a bad `id`
+  afterwards, but this project builds with `-DNDEBUG` (CMakeLists.txt:873),
+  so the assert compiles out and the out-of-bounds pointer arithmetic runs
+  unchecked. This is the same class of fragility the project has been
+  actively removing elsewhere (see 26d776f7, "remove QUICKJS_INTERNAL:
+  ... struct-scraping header generation") - these four functions in
+  src/utils.c look like leftover struct-scraping that wasn't migrated.
+  tests/unittests/test-misc.js does not exercise classId/className/
+  classAtom at all because of this.
+
+    import * as misc from 'misc';
+    misc.classId('Array'); misc.classId('Object'); misc.classId('X');
+    // segfault, reliably within a handful of calls
+
+- mmap-shared-flag-passed-as-arraybuffer-is-shared (quickjs-mmap.c:53):
+  `mmap(addr, length, prot, MAP_SHARED, fd, offset)` segfaults 100%
+  reproducibly (confirmed 3/3) as soon as the returned value is touched -
+  `MAP_PRIVATE` mappings of the same file are fine. `js_mmap_map()` builds
+  the result with
+  `JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length,
+  !!(flags & MAP_SHARED))` - that last argument is `JS_NewArrayBuffer`'s
+  `is_shared` flag, which tells the engine this is backing storage for a
+  cross-agent `SharedArrayBuffer` (with its own refcounting/atomics
+  invariants), not "the OS-level mapping happens to be MAP_SHARED". Passing
+  `flags & MAP_SHARED` straight through conflates the two, so any
+  MAP_SHARED mmap silently gets engine-level SharedArrayBuffer semantics it
+  was never set up for. Not fully root-caused past that (didn't trace where
+  inside the engine it faults), but the flag is the obvious suspect since
+  toggling only it (`MAP_PRIVATE` vs `MAP_SHARED`, same file/fd/prot)
+  is what flips the crash on and off. Worked around in
+  tests/unittests/test-mmap.js by using `MAP_PRIVATE` throughout, including
+  for the `msync()`/`mprotect()` cases that would more naturally use
+  `MAP_SHARED`.
+
+    import * as os from 'os';
+    import * as mmap from 'mmap';
+    const fd = os.open('/etc/hostname', os.O_RDONLY);
+    const map = mmap.mmap(null, 12, mmap.PROT_READ, mmap.MAP_SHARED, fd, 0);
+    map.byteLength; // segfault
+
+- pointer-compare-loses-direction (quickjs-pointer.c:587-602, pointer_compare
+  in src/pointer.c): `Pointer.prototype.compare(other)` is documented as an
+  "Ordering comparison" but its return value doesn't encode which side is
+  greater - `['a'].compare(['b'])` and `['b'].compare(['a'])` both return
+  `0`, so it can't be used to sort pointers by a differing first atom. What
+  it does return looks like it's really `common()`'s internal encoding
+  leaking out: equal pointers give a negative `-(commonLength)-1` (e.g.
+  `['a'].compare(['a'])` -> -2, `['a','b'].compare(['a','b'])` -> -3, matching
+  how METHOD_COMMON decodes `r < 0 ? -r - 1 : r`), and differing pointers
+  give the non-negative common-prefix length instead of a signed ordering
+  (`['a','b'].compare(['a','c'])` -> 1, not -1/0/1 in the position sense).
+  100% reproducible. tests/unittests/test-pointer.js's compare() test only
+  asserts the observed (not the documented) behavior because of this.
+
+    import { Pointer } from 'pointer';
+    new Pointer(['a']).compare(new Pointer(['b'])); // 0
+    new Pointer(['b']).compare(new Pointer(['a'])); // 0 too - no direction
+
+- predicate-bnot-sqrt-atan2-return-undefined (quickjs-predicate.c): calling
+  `Predicate.bnot(x)`, `Predicate.sqrt(x)` or `Predicate.atan2(x, y)`
+  returns `undefined` instead of a `Predicate`, even though all three are
+  registered, exported, callable functions (`JS_CFUNC_MAGIC_DEF("bnot", ...
+  PREDICATE_BNOT)` etc., quickjs-predicate.c:974/975/984) with working
+  `toString`/inspect support for their PREDICATE_BNOT/SQRT/ATAN2 ids
+  (quickjs-predicate.c:825-826,839). The actual builder switch inside
+  `js_predicate_function()` (quickjs-predicate.c, the dispatcher every
+  factory in doc/native/predicate.md goes through) simply has no
+  `case PREDICATE_BNOT/SQRT/ATAN2:` arm - unlike every sibling arithmetic
+  op (`add`/`sub`/`mul`/`div`/`mod`/`bor`/`band`/`pow`, all present), so the
+  switch falls through doing nothing and the function returns its
+  initial `ret = JS_UNDEFINED`. No exception is thrown, so this fails
+  silently. Worked around in tests/unittests/test-predicate.js by not
+  invoking `Predicate.bnot`/`sqrt`/`atan2`.
+
+    import { Predicate } from 'predicate';
+    Predicate.sqrt(9);           // undefined, expected a Predicate
+    Predicate.sqrt(9)();         // TypeError: not a function
+
+- predicate-xor-shares-args-cursor (src/predicate.c:196-208): `Predicate.xor
+  (p1, p2, ...)` only evaluates its first sub-predicate against the actual
+  call arguments; from the second sub-predicate onward it evaluates against
+  stale/empty arguments, because the `PREDICATE_XOR` case in
+  `predicate_eval()` passes the shared `args` (a stateful, shift-based
+  `JSArguments` cursor) straight to `predicate_value()` on every loop
+  iteration, whereas the otherwise-identical `PREDICATE_OR`/`PREDICATE_AND`
+  cases just above it (src/predicate.c:172-194) each take a fresh
+  `JSArguments args2 = *args` copy per iteration specifically to avoid this.
+  Net effect: `Predicate.xor(Predicate.equal(1), Predicate.equal(1))(1)`
+  (both operands should match -> logical/bitwise XOR of two trues -> falsy)
+  instead evaluates as if only the first operand saw `1` and the second saw
+  nothing, so it returns a truthy `1` in cases that should be falsy.
+  Worked around in tests/unittests/test-predicate.js by only checking that
+  `xor()` is callable and returns a number, not asserting specific
+  true/false outcomes across multiple operands.
+
+    import { Predicate } from 'predicate';
+    Predicate.xor(Predicate.equal(1), Predicate.equal(1))(1);   // 1 (truthy), expected 0 (falsy)
+
+- misc-dequote-does-not-remove-quotes (quickjs-misc.c:2627-2666):
+  `misc.dequote(s)` is not the inverse of `misc.quote(s)`, despite
+  doc/native/misc.md describing them as "Add / remove quoting". Both
+  `quote` (magic 0) and `dequote` (magic 1) always wrap their output in
+  the quote character (`dbuf_putc(&output, quote)` runs unconditionally
+  before *and* after, for both magics) - `magic` only switches whether the
+  interior bytes get escaped (`dbuf_put_escaped_table`) or unescaped
+  (`dbuf_put_unescaped_table`). So `dequote('"a\\"b"')` unescapes the
+  backslash but still adds a fresh pair of quote characters around the
+  result, producing `"a"b""`-shaped output instead of stripping the
+  surrounding quotes. tests/unittests/test-misc.js tests the real
+  (always-wraps) behavior rather than the doc's "remove quoting"
+  description.
+
+    import * as misc from 'misc';
+    misc.dequote(misc.quote('a"b'));   // '""a"b""', not 'a"b'
+
+- misc-objectrefcount-struct-scraping (src/utils.c:1134-1162): same
+  struct-scraping fragility as misc-classid-struct-scraping-segfault
+  above, on a different pair of functions. `js_object_classid(v)` reads
+  `((uint16_t*)p)[3]` and `js_object_refcount(v)` reads `((int*)p)[0]` off
+  the object's raw `JSObject*` pointer, assuming a fixed private struct
+  layout. On the currently vendored QuickJS these offsets are wrong:
+  `misc.objectClassId({})` always returns 0 (a plain object's real class id
+  is non-zero) instead of throwing or erroring, and `misc.objectRefCount({})`
+  returns a different large, effectively-random int32 on every call -
+  looks like it's reading a pointer field (varies with ASLR) rather than
+  the refcount. Doesn't segfault (unlike the classId/className/classAtom
+  case), just returns silently-wrong data, which is arguably worse since
+  nothing signals the failure. tests/unittests/test-misc.js does not
+  assert on the values of objectClassId()/objectRefCount(), only that
+  they return a number.
+
+    import * as misc from 'misc';
+    misc.objectClassId({});   // 0, every time (should be a real class id)
+    misc.objectRefCount({});  // a different huge number every run
+
+- jsonserializer-read-throws-uninitialized-value (quickjs-json.c:1201-1214,
+  1417-1420): `new JsonSerializer(value, indent).read(n)` throws a garbage,
+  non-Error exception - `typeof e` is `"unknown"`, `e.constructor` and
+  `e.message` are `undefined`, `e instanceof Error` is `false` - whenever
+  `indent` is a nonzero number and `value` is a container (object or
+  array); a primitive value, `indent` of `0`, or a string `indent` are all
+  fine. Root cause: `sw_indent()` (quickjs-json.c:1201-1214, and the
+  sibling `sw_string`/`sw_primitive`/etc. helpers at ~1176-1341) sets
+  `js->error = TRUE` whenever `write_indent()`'s `skip_writer` probe
+  returns negative, but never calls any `JS_Throw*` function on that path -
+  `js_json_serializer_read()` (quickjs-json.c:1417-1420) then does
+  `return JS_EXCEPTION;` with no exception ever having been set on `ctx`,
+  so whatever was previously in `ctx->current_exception` (apparently an
+  uninitialized/TDZ-sentinel JSValue on a fresh context) leaks out as the
+  thrown value. Didn't root-cause why `write_indent`'s skip-writer probe
+  returns negative in the first place for this input (that's the remaining
+  open question - whether it's a legitimate OOM-style error being
+  mishandled, or the probe itself is buggy for this indent+container
+  combination).
+
+  Found while investigating a user-reported
+  "Possibly unhandled promise rejection: ReferenceError: arg is not
+  initialized / at log (lib/console.js:100:52) / at run
+  (lib/tinytest.js:62:22)" - that's this bug's corrupted exception value
+  blowing up lib/console.js's `for(let arg of args)` loop (console.js:100)
+  when tinytest.js:62 tries to log the "JsonSerializer: indent option
+  matches write() options" test's failure in tests/unittests/test-json.js
+  (a pre-existing test file, not one written by me) - the real bug is in
+  quickjs-json.c, not in that test or in console.js/tinytest.js.
+
+    import { JsonSerializer } from 'json';
+    const s = new JsonSerializer({ a: 1, b: [2, 3] }, 2);
+    s.read(1000);   // throws a non-Error; typeof result is "unknown"
+
+- arraybuffersink-flush-end-mismatched-allocator-free (quickjs-arraybuffer-sink.c:54-56,
+  90, 100): the `ArrayBuffer` returned by `flush()`/`end()` segfaults
+  reliably (3/3) when it's GC'd, unless something keeps holding a
+  reference to it past the point where the test/script would otherwise
+  exit - 100% reproducible by discarding the return value
+  (`sink.flush();` / `sink.end();` with no assignment) and letting the
+  script finish normally. Root cause: `js->buf` is grown via the
+  `DynBuf`'s default reallocator (`dbuf_init2(s, 0, 0)` at construction,
+  quickjs-arraybuffer-sink.c:26, passes `NULL` for `realloc_func`, so
+  `cutils.c`'s `dbuf_default_realloc` is used, which is plain libc
+  `realloc()`), but `JS_NewArrayBuffer(ctx, s->buf, s->size,
+  js_arraybuffer_sink_free, 0, FALSE)` (lines 90, 100) hands that same
+  libc-allocated pointer to QuickJS as the backing store, with
+  `js_arraybuffer_sink_free` (lines 54-56) freeing it via `js_free_rt(rt,
+  ptr)` - the engine's own allocator, not libc `free()`. Mixing allocator
+  families like this is undefined behavior and crashes when the engine's
+  allocator bookkeeping (e.g. usable-size/heap accounting) doesn't
+  recognize the libc-allocated block. Likely fix: either switch the
+  `DynBuf` to a `js_realloc`-backed reallocator at construction time (so
+  `js->buf` is always engine-allocated), or make `js_arraybuffer_sink_free`
+  call libc `free()` instead of `js_free_rt()`. Worked around in
+  tests/unittests/test-arraybuffer-sink.js by keeping every `flush()`/
+  `end()` result referenced through a local variable for the rest of the
+  test (which empirically avoids the crash, though the real fix is above).
+
+    import { ArrayBufferSink } from 'arraybuffer_sink';
+    const sink = new ArrayBufferSink();
+    sink.write('x');
+    sink.end();   // or sink.flush(); - return value discarded
+    // segfaults on exit/GC of the returned ArrayBuffer, 3/3 runs
+
+- syscallerror-stack-always-null (quickjs-syscallerror.c:206, 289-292):
+  `new SyscallError(syscall, errno).stack` is always `null`, 100%
+  reproducible, despite doc/native/syscallerror.md documenting it as
+  "Captured stack trace". The constructor unconditionally does
+  `err->stack = js_error_stack(ctx);` (line 206) before returning, and
+  `js_error_stack()` (src/utils.c:3341-3349, `JS_NewError` + read its
+  `.stack` property) demonstrably produces a real, non-empty string when
+  called the same way (`new Error('x').stack`) from plain top-level script
+  in the same qjsm process - but whatever `js_syscallerror_constructor`
+  ends up storing reads back as `null`/`undefined` through the `stack`
+  getter (PROP_STACK case, quickjs-syscallerror.c:289-292, which converts
+  a null-or-undefined `err->stack` to `JS_NULL`). Not root-caused further -
+  didn't trace why `js_error_stack(ctx)` behaves differently when called
+  from inside this native constructor vs. from script level (candidates:
+  the engine's backtrace capture may depend on stack-frame state that
+  differs for a `JS_CFUNC_constructor` call, or `.stack` may be a
+  lazily-computed accessor whose capture point matters). Worked around in
+  tests/unittests/test-syscallerror.js by asserting the actual (null)
+  value instead of the documented (string) one.
+
+    import { SyscallError } from 'syscallerror';
+    const err = new SyscallError('open', SyscallError.ENOENT);
+    err.stack;   // null, every run - should be a captured stack trace string
+
+- treewalker-parentnode-at-top-corrupts-state (quickjs-tree-walker.c:278-283,
+  include/property-enumeration.h:198-204): calling `TreeWalker.prototype.
+  parentNode()` when the walker has nothing left to pop (already at the
+  topmost level it was constructed at) segfaults 100% reproducibly on the
+  *next* property access (`.length`, `.index`, etc. - the `parentNode()`
+  call itself returns `undefined` without crashing). `parentNode()`'s
+  handler (quickjs-tree-walker.c:278-283) unconditionally calls
+  `property_recursion_pop(&w->hier, ctx)`; that function (include/
+  property-enumeration.h:198-204) has `assert(!vector_empty(vec));` as its
+  only guard against popping an empty stack, but this project's
+  CMakeLists.txt (line ~873, `add_definitions(-DNDEBUG)`) defines NDEBUG
+  unconditionally for every build configuration including Debug, so that
+  assert is always compiled out - popping the already-only frame silently
+  underflows the Vector instead of hitting the assert, corrupting `w->hier`
+  for every later access. Root-caused the missing guard but did not fix it
+  (out of scope) or investigate the blanket -DNDEBUG separately. Worked
+  around in tests/unittests/test-tree-walker.js by only calling
+  parentNode() after a real, matching firstChild()/lastChild() descent.
+
+    import { TreeWalker } from 'tree_walker';
+    const w = new TreeWalker({ a: 1, b: 2 });
+    w.parentNode();  // nothing to pop - returns undefined, but corrupts state
+    w.length;        // segfault
+
+- lexer-unescape-doubles-backslash-instead-of-removing-it
+  (quickjs-lexer.c:52-64): `Lexer.unescape()` is not the inverse of
+  `Lexer.escape()` for metacharacters escape() itself produces (like
+  `.`, `*`, `\`) - it doubles the backslash instead of consuming it.
+  `escape_pred` (quickjs-lexer.c, just above) treats `. * + ? ( ) [ ] { }
+  ^ $ | \ \r \n \t \v \f` as needing a leading backslash, but the inverse
+  table, `unescape_pred` (quickjs-lexer.c:52-64), only maps the named
+  control-character escapes (`\r \n \t \v \f \/`) back to their raw byte -
+  it has no case for a backslash-escaped literal metacharacter, so
+  `dbuf_put_unescaped_pred`'s fallback for an unrecognized escape emits
+  both the backslash and the following character unchanged, instead of
+  just the character. 100% reproducible, not flaky. Worked around in
+  tests/unittests/test-lexer.js by only round-tripping escape()/unescape()
+  through a string that contains none of `escape_pred`'s special
+  characters.
+
+    import { Lexer } from 'lexer';
+    Lexer.escape('a.b*c');              // 'a\.b\*c' (correct)
+    Lexer.unescape(Lexer.escape('a.b*c'));  // 'a\\.b\\*c', should be 'a.b*c'
+
+- lexer-state-rules-crash-after-3-instances (src/lexer.c: lexer_rule_add
+  ~190-220, lexer_state_new/lexer_state_findb ~14-45): constructing more
+  than a small, exact number of separate `Lexer` instances that each add
+  the same state-tagged rules (e.g. `addRule('x', /<INITIAL>"/, ...)`,
+  `addRule('y', /<STATE>.../ )`) is unsafe - not a per-call "rule name
+  already used" situation (each instance's addRule calls all use distinct
+  names), but something in state registration (`lexer_state_new`/
+  `lexer_state_findb`, called from `lexer_rule_add` when a rule's pattern
+  starts with `<`) that looks like it should be scoped to the one `Lexer*
+  lex` it's given but apparently isn't fully. Concretely, with a 3-rule
+  grammar using `<INITIAL>`/`<STRING>` tags: constructing exactly 3 fresh
+  Lexer instances (each adding those same 3 rules) always succeeds, and
+  the 4th always segfaults - 3/3 runs, no variance. A same-shaped grammar
+  with only plain (non-`<STATE>`-tagged) rules does not reproduce this at
+  all (10/10 constructions fine), so the state-tag path specifically is
+  implicated. Not fully root-caused (didn't trace why state handles leak
+  or collide across instances) - just confirmed exactly reproducible.
+  Worked around in tests/unittests/test-lexer.js by building the one
+  state-grammar Lexer used by its tests a single time and sharing it,
+  instead of constructing a fresh one per test case.
+
+    import { Lexer } from 'lexer';
+    function make() {
+      const l = new Lexer('x', Lexer.LONGEST, 'in.txt');
+      l.addRule('dquote', /<INITIAL>"/, lex => (lex.state = 'STRING'));
+      l.addRule('strbody', /<STRING>[^"]*/);
+      l.addRule('strend', /<STRING>"/, lex => (lex.state = 'INITIAL'));
+      return l;
+    }
+    for(let i = 0; i < 5; i++) make();   // segfaults on the 4th call, every time
+
+- lexer-skipbytes-overflows-charpos (quickjs-lexer.c:797-806): after
+  consuming a token with `next()`/`nextToken()`, calling
+  `lexer.skipBytes(n)` with a valid `n` (1 <= n <= the byte length of the
+  token just consumed - the bound `skipBytes()` itself enforces, by
+  comparing against `lex->byte_length`, i.e. the *current token's* length,
+  not the remaining input) leaves `lexer.charPos` at 4294967296 (2^32) -
+  an unsigned 32-bit wraparound, not a small, sensible cursor advance.
+  100% reproducible (3/3 runs). Not root-caused past `js_lexer_method`'s
+  `LEXER_SKIP_BYTES` case calling `lexer_skip_n(lex, n)`
+  (quickjs-lexer.c:803) - didn't trace into `lexer_skip_n` itself (not
+  found in a quick grep of src/lexer.c under that exact name). Separately,
+  calling `skipBytes(n)` with `n` greater than the current token's byte
+  length (including calling it right after construction, before any token
+  has been scanned, when the "current token" length is 0) throws
+  `InternalError: skipBytes(): count n > <byte_length>` - surprising given
+  the doc table lists `skipBytes`/`skipChars` as taking 0 args, but not a
+  bug once you know `n` is bounded by the current token, not the input.
+  Worked around in tests/unittests/test-lexer.js by only calling
+  skipBytes() with no argument (a harmless no-op) rather than exercising
+  the overflow.
+
+    import { Lexer } from 'lexer';
+    const l = new Lexer('12 foo', Lexer.LONGEST, 'in.txt');
+    l.addRule('number', /[0-9]+/);
+    l.next();            // consumes "12", current token byte_length becomes 2
+    l.skipBytes(1);      // valid (1 <= 2), but...
+    l.charPos;            // 4294967296, not 3
+

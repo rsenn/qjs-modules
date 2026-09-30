@@ -3,6 +3,7 @@ import inspect from 'inspect';
 import * as std from 'std';
 import { TreeIterator, TreeWalker } from 'tree_walker';
 import * as xml from 'xml';
+
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);

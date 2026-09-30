@@ -2,6 +2,8 @@
 #include <cutils.h>
 #include <quickjs.h>
 #include "utils.h"
+#include "char-utils.h"
+#include "buffer-utils.h"
 #ifdef _WIN32
 #include "mmap-win32.h"
 #else
@@ -112,29 +114,39 @@ js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* data;
-  size_t len;
-  FILE* fp;
   JSValue ret = JS_UNDEFINED;
-  char buf[1024];
-  size_t start, end;
+  MemoryBlock b;
 
-  if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
-    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
+  if(!(data = js_topointer(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer | Number");
 
-  if((fp = fopen("/proc/self/maps", "r")) == 0)
+  if(block_from_file(&b, "/proc/self/maps", ctx))
     return JS_ThrowInternalError(ctx, "Unable to open /proc/self/maps");
 
-  while(fgets(buf, sizeof(buf) - 1, fp)) {
-    if(sscanf(buf, "%zx-%zx", &start, &end) < 2)
-      continue;
+  size_t n = block_length(b);
+  const char* x = block_data(b);
+
+  while(n > 0) {
+    uint64_t start, end;
+    size_t pos = scan_xlonglong(x, &start);
+
+    if(x[pos] == '-')
+      ++pos;
+
+    pos += scan_xlonglong(&x[pos], &end);
+
+    size_t len = scan_lineskip(x, n);
 
     if((size_t)data >= start && (size_t)data < end) {
-      ret = JS_NewString(ctx, &buf[73]);
+      ret = JS_NewStringLen(ctx, &x[73], len - 1 - 73);
       break;
     }
+
+    x += len;
+    n -= len;
   }
 
-  fclose(fp);
+  block_free(&b, JS_GetRuntime(ctx));
   return ret;
 }
 

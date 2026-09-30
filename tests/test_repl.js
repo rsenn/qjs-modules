@@ -3,6 +3,7 @@ import Console from '../lib/console.js';
 import { getOpt } from '../lib/util.js';
 import { REPL } from 'repl';
 import * as std from 'std';
+
 let repl = {
   printStatus(...args) {
     console.log(...args);

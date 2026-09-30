@@ -53,7 +53,8 @@ enum {
 
 static void
 js_arraybuffer_sink_free(JSRuntime* rt, void* opaque, void* ptr) {
-  js_free_rt(rt, ptr);
+  /* the DynBuf grows via libc realloc (dbuf_default_realloc), not the engine's allocator */
+  free(ptr);
 }
 
 static JSValue
