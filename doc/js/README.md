@@ -63,8 +63,6 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [testharnessreport](testharnessreport.md) — Test harness reporting
 
 ### Utilities
-- [buffer](../buffer.md) — Buffer utilities
-- [readline](../readline.md) — Readline utilities
 - describe-class (`lib/describe-class.js`) — Class description utilities (undocumented)
 - dbi (`lib/dbi.js`) — Database interface (undocumented)
 

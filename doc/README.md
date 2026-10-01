@@ -8,7 +8,7 @@ The documentation is organized into three categories:
 
 - **`native/`** — Native C modules (`quickjs-*.c`). These are the primary implementations for modules that have native bindings.
 - **`js/`** — Pure JavaScript modules (`lib/*.js`). These are either polyfills for standard APIs or wrappers around native modules.
-- **Root files** — General documentation (README, grammar, buffer, readline, api-compatibility)
+- **Root files** — General documentation (README, grammar, api-compatibility)
 
 ### Module Classification
 
@@ -63,5 +63,3 @@ See [api-compatibility.md](api-compatibility.md) for:
 ### General Documentation
 
 - [grammar.md](grammar.md) — JavaScript grammar specification
-- [buffer.md](buffer.md) — Buffer handling
-- [readline.md](readline.md) — Readline utilities

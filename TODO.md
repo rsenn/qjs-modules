@@ -15,16 +15,10 @@ just re-reading the prose). Net effect: several items are done and removed, a fe
 were stale (described a state that no longer matches the code, in both directions), and one
 gap got *worse* since it was written. Updated priority order:
 
-1. **Tier 7 regression — `lib/readline.js` and `lib/buffer.js` no longer exist at all**
-   (previously "9/12-line stub", now fully deleted — `doc/buffer.md`/`doc/readline.md` are
-   dangling references to nothing). This is the single highest-leverage item now: it's a
-   silent gap (nothing errors, the docs just lie) in a goal-1 (stdlib) area. Worth a decision:
-   restore a minimal implementation, or delete the docs and remove the claim from `lib/README`
-   equivalents.
-2. **Tier 5/6 doc cleanup (near-zero cost)** — several Tier 5/6 bullets describe dead code that
+1. **Tier 5/6 doc cleanup (near-zero cost)** — several Tier 5/6 bullets describe dead code that
    is either already fixed or was never actually dead (see per-item notes below). Purging the
    stale claims now is cheap and stops future passes from re-verifying non-issues.
-3. Everything else keeps its prior relative order (Tier 9 DOM gaps, Tier 11 `qjsm.c`
+2. Everything else keeps its prior relative order (Tier 9 DOM gaps, Tier 11 `qjsm.c`
    refactors, Tier 10 C API consolidation, Tier 12/13 yaml/cyaml) — all still open, all still
    accurately described modulo stale line numbers (noted inline where found).
 
@@ -233,11 +227,9 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing; only appears in vendored test-infra comments (`lib/testharness.js`).
 - `structuredClone` — only feature-detected (`lib/stream.js:533`), never implemented.
 - `Worker` — missing; only referenced by vendored test-infra (`lib/testharness.js:254`).
-- **REGRESSION (2026-09-24 re-verify)**: `lib/readline.js` and `lib/buffer.js` no longer exist
-  in the tree at all (previously "9-line"/"12-line" stubs — now fully deleted, still present
-  in git history e.g. commit `958cffc9`). `doc/buffer.md`/`doc/readline.md` are now dangling
-  references to nonexistent files. Worth a decision: restore a minimal implementation, or
-  clean up the stale docs if these are intentionally dropped. `lib/perf_hooks.js` (13 lines:
+- `lib/readline.js` and `lib/buffer.js` were deliberately removed in commit `958cffc9` (they
+  were 9/12-line stubs); their docs are gone too. A real `node:readline`/`Buffer` would be new
+  work, see the `node:readline` item below. `lib/perf_hooks.js` (13 lines:
   `now`/`timeOrigin` only, no marks or measures) is still thin as described, no change there.
 - ~~`lib/extendAsyncFunction.js:3` — declared but empty~~ — **STALE CLAIM / DONE**: it now has
   a full `AsyncFunctionExtensions` (`catch`/`then`/`finally`/`indirect`/`bindArguments`/
