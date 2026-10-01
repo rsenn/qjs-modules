@@ -1,3 +1,6 @@
+#!/usr/bin/env qjsm
+import * as std from 'std';
+import { isMainModule } from 'util';
 import { XMLParser } from 'xml';
 
 /**
@@ -135,35 +138,40 @@ export function html2md(input) {
   return md.replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 
-/* -- demo when run directly ----------------------------------- */
+const isUrl = arg => /^https?:\/\//i.test(arg);
 
-const sample = `
-<html>
-<body>
-  <h1>Welcome</h1>
-  <p>This is a <b>bold</b> and <i>italic</i> demo.</p>
-  <h2>Links and Images</h2>
-  <p>Visit <a href="https://example.com">Example</a> for more.</p>
-  <img src="logo.png" />
-  <h3>Lists</h3>
-  <ul>
-    <li>Apples</li>
-    <li>Bananas</li>
-    <li>Cherries</li>
-  </ul>
-  <ol>
-    <li>First</li>
-    <li>Second</li>
-    <li>Third</li>
-  </ol>
-  <h2>Code</h2>
-  <pre>function hello() {
-  return "world";
-}</pre>
-</body>
-</html>`;
+function load(arg) {
+  const html = isUrl(arg) ? std.urlGet(arg) : std.loadFile(arg);
 
-const md = html2md(sample);
+  if(html == null) throw new Error(`cannot ${isUrl(arg) ? 'fetch' : 'read'} '${arg}'`);
 
-import * as std from 'std';
-std.out.puts(md);
+  return html;
+}
+
+function usage() {
+  std.err.puts(`Usage: ${scriptArgs[0]} <file|URL>...\n\nConvert HTML files or http(s) URLs to Markdown on stdout.\n`);
+}
+
+function main(...args) {
+  if(args.length == 0 || args.includes('-h') || args.includes('--help')) {
+    usage();
+    return args.length == 0 ? 1 : 0;
+  }
+
+  const out = [];
+  let status = 0;
+
+  for(const arg of args) {
+    try {
+      out.push(html2md(load(arg)));
+    } catch(e) {
+      std.err.puts(`${scriptArgs[0]}: ${arg}: ${e.message}\n`);
+      status = 1;
+    }
+  }
+
+  std.out.puts(out.join('\n'));
+  return status;
+}
+
+if(isMainModule(import.meta.url)) std.exit(main(...scriptArgs.slice(1)));
