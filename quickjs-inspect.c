@@ -943,7 +943,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
   if(tag <= JS_TAG_BIG_FLOAT)
     writer_putc(wr, tag == JS_TAG_BIG_DECIMAL ? 'm' : tag == JS_TAG_BIG_FLOAT ? 'l' : 'n');
 #else
-  if(tag == JS_TAG_BIG_INT)
+  if(tag == JS_TAG_BIG_INT || tag == JS_TAG_SHORT_BIG_INT)
     writer_putc(wr, 'n');
 #endif
 
@@ -1274,6 +1274,7 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
     case JS_TAG_BIG_DECIMAL:
 #endif
     case JS_TAG_BIG_INT:
+    case JS_TAG_SHORT_BIG_INT:
     case JS_TAG_INT: {
       return inspect_number(insp, value, level);
     }
