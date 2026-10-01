@@ -56,6 +56,12 @@ tests({
     eq(w.currentKey, 'd');
     eq(w.currentNode, 3);
   },
+  'parentNode() at the root returns undefined and leaves the walker usable'() {
+    const w = new TreeWalker(fixture());
+    eq(w.parentNode(), undefined);
+    eq(w.currentKey, 'a');
+    eq(w.depth, 0);
+  },
   'currentPath tracks the path from the root'() {
     const root = fixture();
     const w = new TreeWalker(root);

@@ -276,8 +276,10 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PARENT_NODE: {
-      if((it = property_recursion_pop(&w->hier, ctx)) == 0)
+      if(property_recursion_depth(&w->hier) <= 1)
         return JS_UNDEFINED;
+
+      it = property_recursion_pop(&w->hier, ctx);
 
       break;
     }

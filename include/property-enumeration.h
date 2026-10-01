@@ -196,7 +196,8 @@ property_recursion_top(const Vector* vec) {
 
 static inline PropertyEnumeration*
 property_recursion_pop(Vector* vec, JSContext* ctx) {
-  assert(!vector_empty(vec));
+  if(vector_empty(vec))
+    return 0;
 
   property_enumeration_reset(vector_pop(vec, sizeof(PropertyEnumeration)), JS_GetRuntime(ctx));
 

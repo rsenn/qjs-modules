@@ -1435,8 +1435,13 @@ again:
     goto end;
   }
 
-  if(str_start(name, "file://"))
-    name += 7;
+  /* name must stay the exact js_strdup() block: it is js_free()d or stored in
+     LoadedModule below, so prefixes are stripped by re-duplicating, never by `name += n`. */
+  if(str_start(name, "file://")) {
+    tmp = js_strdup(ctx, name + 7);
+    js_free(ctx, name);
+    name = tmp;
+  }
 
   /* Bun/Deno compatibility: `node:x` resolves the same as bare `x` would here - this
      engine's own builtin/dynamic-module of that name, not Node's actual
@@ -1444,11 +1449,8 @@ again:
      the static builtin-registry lookup below) so the filesystem/dynamic-.so fallback
      search further down also sees the bare name, for a module that resolves via that
      path rather than being compiled into jsm_builtin_modules (e.g. child_process in a
-     build where it's not a static builtin). Uses strdup+free, not the file://
-     handling's `+= 7` pointer shift above - see BUGS' jsm-module-loader-file-uri-
-     pointer-shift-use-after-shift-free entry for why that pattern isn't safe to
-     copy. Excludes "os" - see jsm_builtin_find()'s comment on why that one alias
-     would be actively wrong, not just incomplete. */
+     build where it's not a static builtin). Excludes "os" - see jsm_builtin_find()'s
+     comment on why that one alias would be actively wrong, not just incomplete. */
   if(str_start(name, "node:") && strcmp(name + 5, "os")) {
     tmp = js_strdup(ctx, name + 5);
     js_free(ctx, name);

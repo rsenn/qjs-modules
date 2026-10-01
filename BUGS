@@ -393,30 +393,6 @@
     // { "@": ["foo"], "all": true, "g": "Math" } -- correct, only the
     // argument order differs
 
-- jsm-module-loader-file-uri-pointer-shift-use-after-shift-free
-  (src/qjsm.c:1478-1479, jsm_module_loader): `if(str_start(name, "file://"))
-  name += 7;` advances `name` past the "file://" prefix in place, without
-  reallocating - `name` no longer points to the block `js_strdup(ctx,
-  module_name)` originally returned. If nothing later in the same call
-  reassigns `name` to a fresh allocation (the package.json-aliasing branch
-  a few lines down does, but only when it actually finds a package.json
-  match), the shifted pointer is what ends up passed to `js_free(ctx,
-  name)` - either directly in the loader-hook-chain branch right after, or
-  via `end:`'s `lm->name = name` (freed later when the module is
-  unloaded/the context is freed). Freeing a pointer that isn't the exact
-  one malloc handed out is undefined behavior. Found while adding node:
-  prefix stripping right after this block (same file) and deliberately
-  using strdup+free instead of copying this pattern, for exactly this
-  reason - noticed the existing file:// code doing the unsafe thing.
-  Not reproduced as an actual crash (needs a real `file://` import with no
-  package.json match nearby to hit the unguarded path), so severity/
-  triggerability not fully confirmed - flagging from code reading, not a
-  live repro.
-
-    import('file:///some/existing/file.js');
-    // if this resolves without ever matching a package.json alias, the
-    // shifted (module_name + 7) pointer is what later gets freed
-
 - lib-tty-imports-nonexistent-fdopensync (lib/tty.js:3): `import { fdopenSync,
   out } from 'std'` imports a `fdopenSync` export that doesn't exist - `std`
   only has `fdopen` (js_std_fdopen, quickjs-libc.c:915). This breaks loading
@@ -758,30 +734,6 @@
     const err = new SyscallError('open', SyscallError.ENOENT);
     err.stack;   // null, every run - should be a captured stack trace string
 
-- treewalker-parentnode-at-top-corrupts-state (quickjs-tree-walker.c:278-283,
-  include/property-enumeration.h:198-204): calling `TreeWalker.prototype.
-  parentNode()` when the walker has nothing left to pop (already at the
-  topmost level it was constructed at) segfaults 100% reproducibly on the
-  *next* property access (`.length`, `.index`, etc. - the `parentNode()`
-  call itself returns `undefined` without crashing). `parentNode()`'s
-  handler (quickjs-tree-walker.c:278-283) unconditionally calls
-  `property_recursion_pop(&w->hier, ctx)`; that function (include/
-  property-enumeration.h:198-204) has `assert(!vector_empty(vec));` as its
-  only guard against popping an empty stack, but this project's
-  CMakeLists.txt (line ~873, `add_definitions(-DNDEBUG)`) defines NDEBUG
-  unconditionally for every build configuration including Debug, so that
-  assert is always compiled out - popping the already-only frame silently
-  underflows the Vector instead of hitting the assert, corrupting `w->hier`
-  for every later access. Root-caused the missing guard but did not fix it
-  (out of scope) or investigate the blanket -DNDEBUG separately. Worked
-  around in tests/unittests/test-tree-walker.js by only calling
-  parentNode() after a real, matching firstChild()/lastChild() descent.
-
-    import { TreeWalker } from 'tree_walker';
-    const w = new TreeWalker({ a: 1, b: 2 });
-    w.parentNode();  // nothing to pop - returns undefined, but corrupts state
-    w.length;        // segfault
-
 - lexer-unescape-doubles-backslash-instead-of-removing-it
   (quickjs-lexer.c:52-64): `Lexer.unescape()` is not the inverse of
   `Lexer.escape()` for metacharacters escape() itself produces (like
@@ -870,4 +822,22 @@
 
     import { Predicate } from 'predicate';
     console.log(typeof Predicate);   // function, then: TypeError: not a function
+
+
+- lexer-non-ascii-input-corrupts-tokens (src/lexer.c, quickjs-lexer.c): lexing
+  source text that contains non-ascii (multi-byte utf-8) characters produces
+  wrong tokens. the ecmascript lexer re-emits the tail of a block comment
+  containing a non-ascii char (the comment lexeme comes out as "/* a - b */*/"),
+  and the xml lexer returns a text token ending with the multi-byte chars
+  followed by a bogus token whose lexeme is garbage ("�x") whose
+  charLength is 0 and whose charOffset equals a byte count, so charOffset and
+  byteOffset disagree about which unit they count. found while writing
+  utilities/highlight.js, whose lossless round-trip check fails only on files
+  with non-ascii text (examples/html2md.js, tests/test3.xml). ascii-only files
+  round-trip exactly. not root-caused; lexer_set_location (src/lexer.c:480)
+  assigns byte_offset from loc->char_offset, which may be related.
+
+    import ECMAScriptLexer from './lib/lexer/ecmascript.js';
+    [...new ECMAScriptLexer('/* a – b */\nlet x', 'f')].map(t => t.lexeme)[0];
+    // "/* a – b */*/", expected "/* a – b */"
 
