@@ -1,4 +1,5 @@
 import { performance } from 'perf_hooks';
+import 'timers';
 
 function waitFor(msecs) {
   return new Promise((resolve, reject) => {

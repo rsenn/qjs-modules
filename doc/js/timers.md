@@ -2,7 +2,9 @@
 
 Source: `lib/timers.js` (pure JS)
 
-Node-style interval timers, layered on `os.setTimeout`.
+Node-style interval timers, layered on `os.setTimeout`. Importing the module also
+installs `setTimeout`, `clearTimeout`, `setInterval` and `clearInterval` on
+`globalThis`, without replacing any that already exist.
 
 ## Exports
 
