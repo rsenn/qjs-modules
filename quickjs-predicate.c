@@ -1108,8 +1108,12 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetPropertyStr(ctx, args[2], "right", js_global_get_str(ctx, "Number"));
 
-  JSValue predicate_operatorset = JS_Call(ctx, operators_create, operators, 3, args);
-  JS_DefinePropertyValue(ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JSValue predicate_operatorset = JS_UNDEFINED;
+
+  if(JS_IsFunction(ctx, operators_create)) {
+    predicate_operatorset = JS_Call(ctx, operators_create, operators, 3, args);
+    JS_DefinePropertyValue(ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  }
 
   JS_FreeValue(ctx, operators);
   JS_FreeValue(ctx, operators_create);

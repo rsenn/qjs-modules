@@ -2940,7 +2940,11 @@ js_symbol_operatorset_atom(JSContext* ctx) {
 JSValue
 js_operators_create(JSContext* ctx, JSValue* this_obj) {
   JSValue operators = js_global_get_str(ctx, "Operators");
-  JSValue create_fun = JS_GetPropertyStr(ctx, operators, "create");
+  JSValue create_fun = JS_UNDEFINED;
+
+  /* Engines built without operator overloading have no Operators global; reading a property off undefined would leave a pending exception. */
+  if(JS_IsObject(operators))
+    create_fun = JS_GetPropertyStr(ctx, operators, "create");
 
   if(this_obj)
     *this_obj = operators;
@@ -3406,40 +3410,44 @@ js_error_stack(JSContext* ctx) {
   return stack;
 }
 
-JSModuleLoaderFunc2* js_std_get_module_loader_func(void);
+/* Namespace of an already-loadable module, for hosts (qjsm) that don't expose os/io as globals.
+   JS_LoadModule() settles through the job queue even for a loaded module, so the jobs are run here. */
+static JSValue
+js_module_namespace_sync(JSContext* ctx, const char* module_name) {
+  JSRuntime* rt = JS_GetRuntime(ctx);
+  JSContext* job_ctx;
+  JSValue ns = JS_UNDEFINED, promise = JS_LoadModule(ctx, ".", module_name);
+
+  if(JS_IsException(promise))
+    return promise;
+
+  while(JS_PromiseState(ctx, promise) == JS_PROMISE_PENDING && JS_ExecutePendingJob(rt, &job_ctx) > 0) {}
+
+  if(JS_PromiseState(ctx, promise) == JS_PROMISE_FULFILLED)
+    ns = JS_PromiseResult(ctx, promise);
+
+  JS_FreeValue(ctx, promise);
+  return ns;
+}
 
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
-  JSValue set_handler = JS_NULL;
+  JSValue set_handler = JS_UNDEFINED, ns = js_global_get_str(ctx, global_obj ? global_obj : "os");
   const char* module_name = global_obj ? global_obj : "os";
 
-  if(js_is_null_or_undefined(set_handler)) {
-    JSValue osval = js_global_get_str(ctx, module_name);
+  if(js_is_null_or_undefined(ns)) {
+    JS_FreeValue(ctx, ns);
+    ns = js_module_namespace_sync(ctx, module_name);
 
-    if(!js_is_null_or_undefined(osval)) {
-      set_handler = JS_GetPropertyStr(ctx, osval, handlers[!!write]);
-      JS_FreeValue(ctx, osval);
-    } else {
-      JSModuleDef* os;
-      JSAtom func_name;
-      JSModuleLoaderFunc2* module_loader_func;
-
-      if((module_loader_func = js_std_get_module_loader_func()))
-        if(!(os = module_loader_func(ctx,
-                                     module_name,
-                                     0
-#ifndef JS_MODULE_LOADER_OLD
-                                     ,
-                                     JS_NULL
-#endif
-                                     )))
-          return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
-
-      func_name = JS_NewAtom(ctx, handlers[!!write]);
-      JS_FreeAtom(ctx, func_name);
-    }
+    if(JS_IsException(ns))
+      return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
   }
+
+  if(!js_is_null_or_undefined(ns))
+    set_handler = JS_GetPropertyStr(ctx, ns, handlers[!!write]);
+
+  JS_FreeValue(ctx, ns);
 
   if(js_is_null_or_undefined(set_handler))
     return JS_ThrowReferenceError(ctx, "no %s.%s function", module_name, handlers[!!write]);

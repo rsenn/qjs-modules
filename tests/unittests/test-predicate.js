@@ -131,7 +131,8 @@ tests({
   },
   'PredicateOperators exposes operators as 2-arg composing functions'() {
     assert(typeof PredicateOperators === 'object' && PredicateOperators !== null);
-    assert(PredicateOperatorSet !== undefined);
+    /* The operator set is only built when the engine provides Operators. */
+    eq(PredicateOperatorSet !== undefined, typeof globalThis.Operators == 'function');
     for(const op of ['+', '-', '*', '/', '%', '|', '&', '**']) eq(typeof PredicateOperators[op], 'function');
 
     const p = PredicateOperators['+'](1, 2);
