@@ -15,7 +15,7 @@ macro(build_liblzma BINARY SUFFIX PIC)
   ExternalProject_Add(
     liblzma_${SUFFIX}
     URL https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz
-    DOWNLOAD_DIR ${BINARY}/downloads
+    DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BINARY_DIR ${BINARY}/liblzma-${SUFFIX}
     CMAKE_CACHE_ARGS

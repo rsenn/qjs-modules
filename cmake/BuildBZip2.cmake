@@ -15,7 +15,7 @@ macro(build_bzip2 BINARY SUFFIX PIC)
   set(BZIP2_LIBRARY_FILE_${SUFFIX} "${BZIP2_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}bz2${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
   set(BZIP2_CFLAGS_${SUFFIX} "-O2 -w -D_FILE_OFFSET_BITS=64")
-  if(PIC)
+  if(${PIC})
     string(APPEND BZIP2_CFLAGS_${SUFFIX} " -fPIC")
   endif(PIC)
 
@@ -25,7 +25,7 @@ macro(build_bzip2 BINARY SUFFIX PIC)
   ExternalProject_Add(
     bzip2_${SUFFIX}
     URL https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz
-    DOWNLOAD_DIR ${BINARY}/downloads
+    DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
     CONFIGURE_COMMAND ""

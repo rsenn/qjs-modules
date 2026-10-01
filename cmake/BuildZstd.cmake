@@ -15,7 +15,7 @@ macro(build_zstd BINARY SUFFIX PIC)
   ExternalProject_Add(
     zstd_${SUFFIX}
     URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
-    DOWNLOAD_DIR ${BINARY}/downloads
+    DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR build/cmake
     BINARY_DIR ${BINARY}/zstd-${SUFFIX}

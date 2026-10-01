@@ -30,10 +30,13 @@ macro(find_sqlite)
 
     set(LIBSQLITE_INCLUDE_DIR "${LIBSQLITE_INCLUDE_DIR}" CACHE PATH "SQLite include directory")
 
-    list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBSQLITE_INCLUDE_DIR}")
+    # An explicit -I/usr/include shadows the compiler's own sysroot headers (e.g. musl-gcc).
+    if(NOT LIBSQLITE_INCLUDE_DIR STREQUAL "/usr/include")
+      list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBSQLITE_INCLUDE_DIR}")
+    endif()
     check_include_def(sqlite3.h)
 
-    if(HAVE_SQLITE3_H OR EXISTS "${LIBSQLITE_INCLUDE_DIR}")
+    if(NOT LIBSQLITE_INCLUDE_DIR STREQUAL "/usr/include" AND (HAVE_SQLITE3_H OR EXISTS "${LIBSQLITE_INCLUDE_DIR}"))
       include_directories(${LIBSQLITE_INCLUDE_DIR})
     endif()
     unset(pkgcfg_lib_LIBSQLITE_sqlite3 CACHE)

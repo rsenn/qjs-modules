@@ -15,7 +15,7 @@ macro(build_liblz4 BINARY SUFFIX PIC)
   ExternalProject_Add(
     lz4_${SUFFIX}
     URL https://github.com/lz4/lz4/releases/download/v1.10.0/lz4-1.10.0.tar.gz
-    DOWNLOAD_DIR ${BINARY}/downloads
+    DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR build/cmake
     BINARY_DIR ${BINARY}/lz4-${SUFFIX}

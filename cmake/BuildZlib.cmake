@@ -15,7 +15,7 @@ macro(build_zlib BINARY SUFFIX PIC)
   ExternalProject_Add(
     zlib_${SUFFIX}
     URL https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
-    DOWNLOAD_DIR ${BINARY}/downloads
+    DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BINARY_DIR ${BINARY}/zlib-${SUFFIX}
     CMAKE_CACHE_ARGS

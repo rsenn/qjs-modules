@@ -15,7 +15,7 @@ macro(build_lzo2 BINARY SUFFIX PIC)
   ExternalProject_Add(
     lzo2_${SUFFIX}
     URL https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz
-    DOWNLOAD_DIR ${BINARY}/downloads
+    DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BINARY_DIR ${BINARY}/lzo2-${SUFFIX}
     CMAKE_CACHE_ARGS

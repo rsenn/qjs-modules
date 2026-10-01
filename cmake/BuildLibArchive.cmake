@@ -107,6 +107,12 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
          "-DZSTD_LIBRARY:FILEPATH=${ZSTD_LIBRARY_FILE_${SUFFIX}}")
   endif()
 
+  # Host-detected libs resolve to glibc headers via -I/usr/include, which breaks libarchive's configure checks under musl-gcc.
+  if(CMAKE_C_COMPILER MATCHES "musl")
+    list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DENABLE_OPENSSL:BOOL=OFF" "-DENABLE_EXPAT:BOOL=OFF"
+         "-DENABLE_LIBXML2:BOOL=OFF" "-DENABLE_ICONV:BOOL=OFF" "-DENABLE_PCREPOSIX:BOOL=OFF")
+  endif()
+
   ExternalProject_Add(
     libarchive_${SUFFIX}
     SOURCE_DIR ${SOURCE}/third_party/libarchive
