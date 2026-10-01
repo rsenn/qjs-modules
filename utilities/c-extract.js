@@ -1,7 +1,7 @@
 #!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as path from 'path';
-import { getOpt } from 'util';
+import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
 
 const COMMENT = new Set(['singleLineComment', 'multiLineComment']);
@@ -58,7 +58,7 @@ function lex(source, filename) {
  * offsets into the source covering the declaration start (including leading comments)
  * through the closing brace.
  */
-function findFunctions(source, filename) {
+export function findFunctions(source, filename) {
   const toks = lex(source, filename);
   const end = t => t.charPos + t.charLength;
   const funcs = [];
@@ -397,7 +397,7 @@ function parseDeclaration(s, reg, text, out) {
 }
 
 /** Collects struct/union/class/enum definitions, typedefs and `using` aliases at file scope, with member offsets and sizes. */
-function findTypes(source, filename) {
+export function findTypes(source, filename) {
   const ts = lex(source, filename).filter(t => !COMMENT.has(t.type) && t.type != 'preprocessor');
   const text = toks => (toks.length ? source.slice(toks[0].charPos, toks.at(-1).charPos + toks.at(-1).charLength).replace(/\s+/g, ' ') : '');
   const reg = new Map(),
@@ -509,4 +509,4 @@ function main(...args) {
   return 0;
 }
 
-process.exit(main(...scriptArgs.slice(1)));
+if(isMainModule(import.meta.url)) process.exit(main(...scriptArgs.slice(1)));
