@@ -3,7 +3,11 @@
 Source: `lib/parser.js` (pure JS) — default export: `Parser`
 
 A small grammar/parser-combinator toolkit (rules, terminals, sequences,
-repetition) plus operator-set construction.
+repetition). `Rule` instances compose through methods: `.then(...rules)`
+(sequence), `.or(...rules)` (alternative), `.expect(rule)` (expectation, throws
+`ExpectationError` if the right side fails), `.some()` (one or more),
+`.optional()` (zero or one) and `.many()` (zero or more). A plain function
+operand is a semantic action; a bare token id is wrapped in a `Rule`.
 
 ## Exports
 
@@ -14,5 +18,4 @@ repetition) plus operator-set construction.
 | `Terminal` | — | class | A terminal rule matching a literal/token (`extends Rule`). |
 | `OneOrMore` | — | class | Repetition rule, one or more (`extends Rule`). |
 | `Sequence` | — | class | Sequence of sub-rules (`extends Rule`). |
-| `make_operators_set(...op_list)` | * | function | Builds an operator-precedence set from operator definitions. |
 | `DumpToken(...args)` | * | function | Debug-prints a token. |
