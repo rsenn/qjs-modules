@@ -104,9 +104,71 @@ try {
       assert(Math.abs(st.mtime.getTime() - when.getTime()) < 1000, `expected mtime near ${when}, got ${st.mtime}`);
     },
 
-    async 'lchown() and lutimes() reject as not implemented'() {
-      await assertRejects(fsp.lchown(path.join(ROOT, 'whatever'), 0, 0));
-      await assertRejects(fsp.lutimes(path.join(ROOT, 'whatever'), new Date(), new Date()));
+    async 'lchown() resolves for a symlink owned by the caller, without following it'() {
+      const link = path.join(ROOT, 'lchown-dangling');
+      fs.symlinkSync(path.join(ROOT, 'lchown-no-such-target'), link);
+
+      /* A dangling symlink only works if lchown(2) acts on the link itself. */
+      await fsp.lchown(link, getuid(), getgid());
+      await assertRejects(fsp.chown(link, getuid(), getgid()));
+    },
+
+    async 'lchown() rejects for a missing path'() {
+      await assertRejects(fsp.lchown(path.join(ROOT, 'lchown-missing'), getuid(), getgid()));
+    },
+
+    async 'lutimes() updates the symlink own mtime, not its target'() {
+      const target = path.join(ROOT, 'lutimes-target.txt');
+      const link = path.join(ROOT, 'lutimes-link');
+      fs.writeFileSync(target, 'x');
+      fs.symlinkSync(target, link);
+
+      const targetBefore = (await fsp.stat(target)).mtime.getTime();
+      const when = new Date(targetBefore - 3_600_000);
+      await fsp.lutimes(link, when, when);
+
+      const linkMtime = (await fsp.lstat(link)).mtime.getTime();
+      assert(Math.abs(linkMtime - when.getTime()) < 1000, `expected link mtime near ${when}, got ${new Date(linkMtime)}`);
+      eq((await fsp.stat(target)).mtime.getTime(), targetBefore);
+    },
+
+    async 'lutimes() accepts seconds as numbers and works on a dangling symlink'() {
+      const link = path.join(ROOT, 'lutimes-dangling');
+      fs.symlinkSync(path.join(ROOT, 'lutimes-no-such-target'), link);
+
+      await fsp.lutimes(link, 1_000_000_000, 1_000_000_000);
+
+      eq((await fsp.lstat(link)).mtime.getTime(), 1_000_000_000_000);
+    },
+
+    async 'lutimes() rejects for a missing path'() {
+      await assertRejects(fsp.lutimes(path.join(ROOT, 'lutimes-missing'), new Date(), new Date()));
+    },
+
+    /* --- constants / mkdtempDisposable --- */
+
+    async 'constants is the same object as fs.constants'() {
+      assert(fsp.constants === fs.constants);
+      eq(fsp.constants.F_OK, 0);
+    },
+
+    async 'mkdtempDisposable() creates a directory that remove() deletes with its contents'() {
+      const disposable = await fsp.mkdtempDisposable(path.join(ROOT, 'disp-'));
+
+      assert(fs.statSync(disposable.path).isDirectory());
+      fs.writeFileSync(path.join(disposable.path, 'inner.txt'), 'x');
+
+      await disposable.remove();
+
+      assert(!fs.existsSync(disposable.path), 'directory should be gone after remove()');
+    },
+
+    async 'mkdtempDisposable() is also removed through Symbol.asyncDispose'() {
+      const disposable = await fsp.mkdtempDisposable(path.join(ROOT, 'disp-'));
+
+      await disposable[Symbol.asyncDispose]();
+
+      assert(!fs.existsSync(disposable.path));
     },
 
     /* --- copy / cp / link --- */
@@ -262,6 +324,68 @@ try {
       eq(fs.bufferToString(buf, 0, 4), '0123');
 
       await handle.close();
+    },
+
+    async 'FileHandle.readLines() yields each line without its terminator'() {
+      const file = path.join(ROOT, 'lines.txt');
+      fs.writeFileSync(file, 'one\ntwo\r\nthree\n');
+
+      const handle = await fsp.open(file, 'r');
+      const lines = [];
+      for await(const line of handle.readLines()) lines.push(line);
+      await handle.close();
+
+      eq(lines.join('|'), 'one|two|three');
+    },
+
+    async 'FileHandle.readv() fills each buffer in turn from the given position'() {
+      const file = path.join(ROOT, 'readv.txt');
+      fs.writeFileSync(file, '0123456789');
+
+      const handle = await fsp.open(file, 'r');
+      const a = new ArrayBuffer(3);
+      const b = new ArrayBuffer(4);
+      const { bytesRead, buffers } = await handle.readv([a, b], 2);
+      await handle.close();
+
+      eq(bytesRead, 7);
+      eq(buffers.length, 2);
+      eq(fs.bufferToString(a, 0, 3), '234');
+      eq(fs.bufferToString(b, 0, 4), '5678');
+    },
+
+    async 'FileHandle.readv() stops after a short read at end of file'() {
+      const file = path.join(ROOT, 'readv-short.txt');
+      fs.writeFileSync(file, 'abcd');
+
+      const handle = await fsp.open(file, 'r');
+      const { bytesRead } = await handle.readv([new ArrayBuffer(3), new ArrayBuffer(3), new ArrayBuffer(3)], 0);
+      await handle.close();
+
+      eq(bytesRead, 4);
+    },
+
+    async 'FileHandle.writev() writes every buffer back to back at the given position'() {
+      const file = path.join(ROOT, 'writev.txt');
+      fs.writeFileSync(file, '..........');
+
+      const handle = await fsp.open(file, 'r+');
+      const { bytesWritten } = await handle.writev([fs.bufferFrom('ab'), fs.bufferFrom('cde')], 3);
+      await handle.close();
+
+      eq(bytesWritten, 5);
+      eq(fs.readFileSync(file, 'utf-8'), '...abcde..');
+    },
+
+    async 'FileHandle[Symbol.asyncDispose]() closes the handle'() {
+      const file = path.join(ROOT, 'dispose.txt');
+      fs.writeFileSync(file, 'x');
+
+      const handle = await fsp.open(file, 'r');
+      const fd = handle.fd;
+      await handle[Symbol.asyncDispose]();
+
+      assert(!fs.existsSync(`/proc/self/fd/${fd}`) || fs.readlinkSync(`/proc/self/fd/${fd}`) !== file, 'fd should no longer point at the file');
     },
 
     async 'FileHandle.appendFile()/writeFile() write through the handle'() {
