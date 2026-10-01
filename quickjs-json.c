@@ -6,6 +6,7 @@
 #include "property-enumeration.h"
 #include "char-utils.h"
 #include "quickjs-location.h"
+#include "vector.h"
 #include <math.h>
 #define SJ_IMPL
 #include "sj.h"
@@ -20,22 +21,21 @@ typedef struct {
   JSValue obj;
   sj_Value sj;
   uint32_t index;
-  BOOL is_object;
+  unsigned is_object : 1;
 } ParseFrame;
 
-VISIBLE JSClassID js_json_parser_class_id = 0;
-static JSValue json_parser_proto, json_parser_ctor;
+VISIBLE JSClassID js_jsonparser_class_id = 0, js_jsonpushparser_class_id = 0, js_jsonserializer_class_id = 0;
+static JSValue json_parser_proto, json_parser_ctor, json_pushparser_proto, json_pushparser_ctor, json_serializer_proto, json_serializer_ctor;
 
-VISIBLE JSClassID js_json_pushparser_class_id = 0;
-static JSValue json_pushparser_proto, json_pushparser_ctor;
-
-VISIBLE JSClassID js_json_serializer_class_id = 0;
-static JSValue json_serializer_proto, json_serializer_ctor;
-
-struct js_json_parser_opaque {
+struct js_jsonparser_opaque {
   JSContext* ctx;
   void *parser, *obj;
 };
+
+static JSValue
+js_json_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_DupValue(ctx, this_val);
+}
 
 static JSValue
 parse_primitive(JSContext* ctx, sj_Value val) {
@@ -62,7 +62,9 @@ parse_make_container(JSContext* ctx, int type) {
 static JSValue
 parse_throw(JSContext* ctx, sj_Reader* r) {
   int line, col;
+
   sj_location(r, &line, &col);
+
   return JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error ? r->error : "parse error");
 }
 
@@ -90,10 +92,10 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
 
   vector_init(&stack, ctx);
 
-  ParseFrame frame = (ParseFrame){parse_make_container(ctx, root.type), root, 0, root.type == SJ_OBJECT};
+  JSValue container = parse_make_container(ctx, root.type);
 
-  if(!vector_put(&stack, &frame, sizeof(ParseFrame))) {
-    JS_FreeValue(ctx, frame.obj);
+  if(!vector_push(&stack, ((ParseFrame){container, root, 0, root.type == SJ_OBJECT}))) {
+    JS_FreeValue(ctx, container);
     return JS_EXCEPTION;
   }
 
@@ -141,9 +143,7 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
         JS_SetPropertyUint32(ctx, top->obj, top->index++, JS_DupValue(ctx, child));
       }
 
-      frame = (ParseFrame){child, v, 0, v.type == SJ_OBJECT};
-
-      if(!vector_put(&stack, &frame, sizeof(ParseFrame))) {
+      if(!vector_push(&stack, ((ParseFrame){child, v, 0, v.type == SJ_OBJECT}))) {
         JS_FreeValue(ctx, child);
         parse_stack_free(ctx, &stack);
         return JS_EXCEPTION;
@@ -309,6 +309,7 @@ write_json_primitive(JSContext* ctx, Writer* wr, JSValueConst val) {
       r = (int)write_all(wr, "null", 4);
       clear_pending_exception(ctx);
     }
+
     return r;
   }
 
@@ -333,6 +334,7 @@ write_json_primitive(JSContext* ctx, Writer* wr, JSValueConst val) {
       r = (int)write_all(wr, "null", 4);
       clear_pending_exception(ctx);
     }
+
     return r;
   }
 
@@ -355,6 +357,7 @@ write_json_primitive(JSContext* ctx, Writer* wr, JSValueConst val) {
       r = (int)write_all(wr, "null", 4);
       clear_pending_exception(ctx);
     }
+
     return r;
   }
 }
@@ -406,7 +409,7 @@ write_indent(Writer* wr, int indent, int n, DynBuf* ws) {
     if((w = writer_putc(wr, '\n')) <= 0)
       return (int)w;
 
-    if(oldsize != (size_t)count) {
+    if(oldsize < (size_t)count) {
       if(dbuf_claim(ws, count - ws->size))
         return -1;
 
@@ -416,8 +419,8 @@ write_indent(Writer* wr, int indent, int n, DynBuf* ws) {
       ws->size = count;
     }
 
-    if((w = write_all(wr, ws->buf, count)) <= 0)
-      return (int)w;
+    w = writer_write(wr, ws->buf, count);
+    return (int)w;
   }
 
   return 1;
@@ -433,15 +436,15 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc > 1)
     JS_ToInt32(ctx, &indent, argv[1]);
 
-  dbuf_init2(&out, 0, 0);
-  dbuf_init2(&space, 0, 0);
-
+  dbuf_init_ctx(ctx, &out);
+  dbuf_init_ctx(ctx, &space);
   Writer wr = writer_from_dynbuf(&out);
 
   if(!JS_IsObject(argv[0]) || JS_IsFunction(ctx, argv[0])) {
     write_json_primitive(ctx, &wr, argv[0]);
     JSValue ret = dbuf_tostring_free(&out, ctx);
     writer_free(&wr);
+    dbuf_free(&space);
     return ret;
   }
 
@@ -449,12 +452,12 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   if(write_push(&stack, ctx, JS_DupValue(ctx, argv[0]), flags)) {
     writer_free(&wr);
+    dbuf_free(&space);
     vector_free(&stack);
     return JS_EXCEPTION;
   }
 
   writer_putc(&wr, JS_IsArray(ctx, argv[0]) ? '[' : '{');
-
   write_indent(&wr, indent, REC_DEPTH(&stack), &space);
 
   while(!vector_empty(&stack)) {
@@ -463,7 +466,6 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     if(top->idx >= top->tab_atom_len) {
       write_indent(&wr, indent, REC_DEPTH(&stack) - 1, &space);
-
       writer_putc(&wr, is_array ? ']' : '}');
       property_enumeration_reset(top, JS_GetRuntime(ctx));
       REC_POP(&stack);
@@ -472,7 +474,6 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     if(top->idx > 0) {
       writer_putc(&wr, ',');
-
       if(indent)
         write_indent(&wr, indent, REC_DEPTH(&stack), &space);
     }
@@ -504,6 +505,8 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       if(write_push(&stack, ctx, val, flags)) {
         property_recursion_free(&stack, JS_GetRuntime(ctx));
         writer_free(&wr);
+        dbuf_free(&space);
+        vector_free(&stack);
         return JS_EXCEPTION;
       }
 
@@ -535,18 +538,16 @@ static const JSCFunctionListEntry js_json_funcs[] = {
 typedef struct JsonBuilderFrame {
   struct JsonBuilderFrame* parent;
   JSValue obj;
-  BOOL is_object;
-  uint32_t index;
-  char* current_key;
-  char* my_key;
-  uint32_t my_index;
+  uint32_t index, my_index;
+  char *current_key, *my_key;
+  unsigned is_object : 1;
 } JsonBuilderFrame;
 
 typedef struct JsonBuilder {
   JSContext* ctx;
   JsonBuilderFrame* top;
   JSValue root;
-  BOOL has_root;
+  unsigned has_root : 1;
 } JsonBuilder;
 
 static void
@@ -696,18 +697,16 @@ json_builder_path(JsonBuilder* b) {
   int count = 0;
   JsonBuilderFrame* f;
 
-  for(f = b->top; f; f = f->parent) {
+  for(f = b->top; f; f = f->parent)
     count++;
-  }
 
   BOOL has_current = FALSE;
 
   if(b->top) {
-    if(b->top->is_object && b->top->current_key) {
+    if(b->top->is_object && b->top->current_key)
       has_current = TRUE;
-    } else if(!b->top->is_object) {
+    else if(!b->top->is_object)
       has_current = TRUE;
-    }
   }
 
   int total_len = count - 1 + (has_current ? 1 : 0);
@@ -720,11 +719,10 @@ json_builder_path(JsonBuilder* b) {
   if(has_current && b->top) {
     JSValue val;
 
-    if(b->top->is_object) {
+    if(b->top->is_object)
       val = JS_NewString(ctx, b->top->current_key);
-    } else {
+    else
       val = JS_NewUint32(ctx, b->top->index);
-    }
 
     JS_SetPropertyUint32(ctx, ret, index_to_set--, val);
   }
@@ -732,11 +730,10 @@ json_builder_path(JsonBuilder* b) {
   for(f = b->top; f && f->parent; f = f->parent) {
     JSValue val;
 
-    if(f->parent->is_object) {
+    if(f->parent->is_object)
       val = f->my_key ? JS_NewString(ctx, f->my_key) : JS_NewString(ctx, "");
-    } else {
+    else
       val = JS_NewUint32(ctx, f->my_index);
-    }
 
     JS_SetPropertyUint32(ctx, ret, index_to_set--, val);
   }
@@ -776,12 +773,46 @@ typedef struct PushParser {
   JSContext* ctx;
   jr_state_t jrs;
   JsonBuilder builder;
-  JSValue callback_fn;
-  JSValue callbacks_obj;
-  JSValue callbacks[jr_type_key + 1 - jr_type_error];
-  BOOL use_builder;
+  JSValue callback_fn, callbacks_obj, callbacks[jr_type_key + 1 - jr_type_error];
+  unsigned use_builder : 1;
   Location* loc;
 } JsonPushParser;
+
+static JSValue
+json_pushparser_tojs(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
+  switch(type) {
+    case jr_type_null: return JS_NULL;
+    case jr_type_true: return JS_TRUE;
+    case jr_type_false: return JS_FALSE;
+    case jr_type_number: {
+      double num = 0;
+
+      if(data && data->cstr) {
+        char* buf = js_malloc(ctx, data->len + 1);
+
+        if(buf) {
+          memcpy(buf, data->cstr, data->len);
+          buf[data->len] = '\0';
+          scan_double(buf, &num);
+          js_free(ctx, buf);
+        }
+      }
+
+      return JS_NewFloat64(ctx, num);
+    }
+
+    case jr_type_string:
+    case jr_type_key:
+    case jr_type_error: return (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, "");
+
+    case jr_type_array_start:
+    case jr_type_array_end:
+    case jr_type_object_start:
+    case jr_type_object_end: break;
+  }
+
+  return JS_UNDEFINED;
+}
 
 static void
 jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
@@ -809,37 +840,6 @@ jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
   }
 }
 
-static JSValue
-jread_value_to_js(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
-  switch(type) {
-    case jr_type_null: return JS_NULL;
-    case jr_type_true: return JS_TRUE;
-    case jr_type_false: return JS_FALSE;
-    case jr_type_number: {
-      double num = 0;
-
-      if(data && data->cstr) {
-        char* buf = js_malloc(ctx, data->len + 1);
-
-        if(buf) {
-          memcpy(buf, data->cstr, data->len);
-          buf[data->len] = '\0';
-          scan_double(buf, &num);
-          js_free(ctx, buf);
-        }
-      }
-
-      return JS_NewFloat64(ctx, num);
-    }
-
-    case jr_type_string:
-    case jr_type_key:
-    case jr_type_error: return (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, "");
-  }
-
-  return JS_UNDEFINED;
-}
-
 static void
 jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
   JsonPushParser* pp = user_data;
@@ -850,7 +850,7 @@ jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
   if(!JS_IsUndefined(pp->callback_fn)) {
     JSValue args[2] = {
         JS_NewInt32(ctx, type),
-        jread_value_to_js(ctx, type, data),
+        json_pushparser_tojs(ctx, type, data),
     };
     JSValue ret = JS_Call(ctx, pp->callback_fn, JS_UNDEFINED, countof(args), args);
     JS_FreeValue(ctx, args[0]);
@@ -866,7 +866,7 @@ jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
     JSValue cb = pp->callbacks[type - jr_type_error];
 
     if(!JS_IsUndefined(cb) && JS_IsFunction(ctx, cb)) {
-      JSValue val = jread_value_to_js(ctx, type, data);
+      JSValue val = json_pushparser_tojs(ctx, type, data);
       JSValue ret = JS_Call(ctx, cb, pp->callbacks_obj, 1, &val);
       JS_FreeValue(ctx, val);
 
@@ -879,11 +879,11 @@ jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
 }
 
 static JSValue
-js_json_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_jsonpushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JsonPushParser* pp;
   InputBuffer input;
 
-  if(!(pp = JS_GetOpaque2(ctx, this_val, js_json_pushparser_class_id)))
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
     return JS_EXCEPTION;
 
   input = js_input_chars(ctx, argv[0]);
@@ -906,10 +906,10 @@ js_json_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 }
 
 static JSValue
-js_json_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_jsonpushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JsonPushParser* pp;
 
-  if(!(pp = JS_GetOpaque2(ctx, this_val, js_json_pushparser_class_id)))
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
     return JS_EXCEPTION;
 
   jr_finish(pp->use_builder ? &jread_callback_build : &jread_callback, pp, &pp->jrs);
@@ -930,11 +930,11 @@ enum {
 };
 
 static JSValue
-js_json_pushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
+js_jsonpushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JsonPushParser* pp;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(pp = JS_GetOpaque2(ctx, this_val, js_json_pushparser_class_id)))
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -947,7 +947,7 @@ js_json_pushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
   JsonPushParser* pp;
 
@@ -970,9 +970,8 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
   pp->callback_fn = JS_UNDEFINED;
   pp->callbacks_obj = JS_UNDEFINED;
 
-  for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++) {
+  for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
     pp->callbacks[i] = JS_UNDEFINED;
-  }
 
   if(argc > 0) {
     if(JS_IsFunction(ctx, argv[0])) {
@@ -1013,17 +1012,16 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
     }
   }
 
-  if(!JS_IsUndefined(pp->callback_fn) || all_callbacks_present) {
+  if(!JS_IsUndefined(pp->callback_fn) || all_callbacks_present)
     pp->use_builder = FALSE;
-  } else {
+  else
     pp->use_builder = TRUE;
-  }
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, json_pushparser_proto);
 
-  obj = JS_NewObjectProtoClass(ctx, proto, js_json_pushparser_class_id);
+  obj = JS_NewObjectProtoClass(ctx, proto, js_jsonpushparser_class_id);
   JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj)) {
@@ -1032,9 +1030,8 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
     JS_FreeValue(ctx, pp->callback_fn);
     JS_FreeValue(ctx, pp->callbacks_obj);
 
-    for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++) {
+    for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
       JS_FreeValue(ctx, pp->callbacks[i]);
-    }
 
     js_free(ctx, pp);
     return JS_EXCEPTION;
@@ -1045,10 +1042,10 @@ js_json_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc
 }
 
 static void
-js_json_pushparser_finalizer(JSRuntime* rt, JSValue val) {
+js_jsonpushparser_finalizer(JSRuntime* rt, JSValue val) {
   JsonPushParser* pp;
 
-  if((pp = JS_GetOpaque(val, js_json_pushparser_class_id))) {
+  if((pp = JS_GetOpaque(val, js_jsonpushparser_class_id))) {
     jr_state_free(&pp->jrs);
     json_builder_free(&pp->builder, rt);
 
@@ -1058,20 +1055,19 @@ js_json_pushparser_finalizer(JSRuntime* rt, JSValue val) {
     JS_FreeValueRT(rt, pp->callback_fn);
     JS_FreeValueRT(rt, pp->callbacks_obj);
 
-    for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++) {
+    for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
       JS_FreeValueRT(rt, pp->callbacks[i]);
-    }
 
     js_free_rt(rt, pp);
   }
 }
 
-static const JSCFunctionListEntry js_json_pushparser_proto_funcs[] = {
-    JS_CFUNC_DEF("write", 1, js_json_pushparser_write),
-    JS_CFUNC_DEF("close", 0, js_json_pushparser_close),
-    JS_CGETSET_MAGIC_FLAGS_DEF("root", js_json_pushparser_get, 0, JSON_PUSHPARSER_ROOT, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("path", js_json_pushparser_get, 0, JSON_PUSHPARSER_PATH, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("location", js_json_pushparser_get, 0, JSON_PUSHPARSER_LOCATION, JS_PROP_ENUMERABLE),
+static const JSCFunctionListEntry js_jsonpushparser_proto_funcs[] = {
+    JS_CFUNC_DEF("write", 1, js_jsonpushparser_write),
+    JS_CFUNC_DEF("close", 0, js_jsonpushparser_close),
+    JS_CGETSET_MAGIC_DEF("root", js_jsonpushparser_get, 0, JSON_PUSHPARSER_ROOT),
+    JS_CGETSET_MAGIC_DEF("path", js_jsonpushparser_get, 0, JSON_PUSHPARSER_PATH),
+    JS_CGETSET_MAGIC_DEF("location", js_jsonpushparser_get, 0, JSON_PUSHPARSER_LOCATION),
     JS_PROP_INT32_DEF("TYPE_ERROR", jr_type_error, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NULL", jr_type_null, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_TRUE", jr_type_true, JS_PROP_ENUMERABLE),
@@ -1088,9 +1084,9 @@ static const JSCFunctionListEntry js_json_pushparser_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonPushParser", JS_PROP_CONFIGURABLE),
 };
 
-static JSClassDef js_json_pushparser_class = {
+static JSClassDef js_jsonpushparser_class = {
     .class_name = "JsonPushParser",
-    .finalizer = js_json_pushparser_finalizer,
+    .finalizer = js_jsonpushparser_finalizer,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -1100,8 +1096,7 @@ static JSClassDef js_json_pushparser_class = {
 
 typedef struct {
   uint8_t* dst;
-  size_t cap;
-  size_t pos;
+  size_t cap, pos;
 } CappedBuf;
 
 static ssize_t
@@ -1119,22 +1114,13 @@ write_capped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
 typedef struct {
   JSContext* ctx;
   Vector stack;
-  DynBuf out;
-  DynBuf space;
-  size_t out_pos;
+  DynBuf out, space;
+  size_t out_pos, skip, delivered;
   int32_t indent;
-  BOOL finished;
-  BOOL started;
-  BOOL is_primitive;
-  BOOL error;
-  BOOL blocked;
-  size_t skip;
-  size_t delivered;
+  unsigned finished : 1, started : 1, is_primitive : 1, error : 1, blocked : 1;
   JSValue root;
   Location* loc;
-  Writer out_writer;
-  Writer dest_writer;
-  Writer skip_writer;
+  Writer out_writer, dest_writer, skip_writer;
   CappedBuf capped;
 } JsonSerializer;
 
@@ -1176,10 +1162,12 @@ sw_putc(JsonSerializer* js, int c) {
     js->error = TRUE;
     return FALSE;
   }
+
   if(w == 0) {
     js->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -1191,10 +1179,12 @@ sw_puts(JsonSerializer* js, const char* s) {
     js->error = TRUE;
     return FALSE;
   }
+
   if(w == 0) {
     js->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -1206,10 +1196,12 @@ sw_indent(JsonSerializer* js, int n) {
     js->error = TRUE;
     return FALSE;
   }
+
   if(r == 0) {
     js->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -1221,10 +1213,12 @@ sw_string(JsonSerializer* js, const char* s, size_t len) {
     js->error = TRUE;
     return FALSE;
   }
+
   if(r == 0) {
     js->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -1236,10 +1230,12 @@ sw_primitive(JsonSerializer* js, JSContext* ctx, JSValueConst val) {
     js->error = TRUE;
     return FALSE;
   }
+
   if(r == 0) {
     js->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -1247,9 +1243,8 @@ static void
 json_serializer_step_inner(JsonSerializer* js, JSContext* ctx) {
   const int flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
   PropertyEnumeration* top;
-  BOOL is_array;
+  BOOL is_array, is_container;
   JSValue val;
-  BOOL is_container;
 
   if(!js->started) {
     if(js->is_primitive) {
@@ -1366,11 +1361,13 @@ json_serializer_step(JsonSerializer* js, JSContext* ctx) {
 }
 
 static JSValue
-js_json_serializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_jsonserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JsonSerializer* js;
   BOOL is_buf;
+  int64_t n = -1;
+  JSValue ret = JS_UNDEFINED;
 
-  if(!(js = JS_GetOpaque2(ctx, this_val, js_json_serializer_class_id)))
+  if(!(js = JS_GetOpaque2(ctx, this_val, js_jsonserializer_class_id)))
     return JS_EXCEPTION;
 
   js->error = FALSE;
@@ -1400,68 +1397,95 @@ js_json_serializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_NewInt64(ctx, (int64_t)js->capped.pos);
   }
 
-  {
-    int64_t n;
+  if(argc > 0 && JS_ToInt64(ctx, &n, argv[0]))
+    return JS_EXCEPTION;
 
-    if(JS_ToInt64(ctx, &n, argc > 0 ? argv[0] : JS_UNDEFINED))
-      return JS_EXCEPTION;
+  if(n == -1)
+    n = INT64_MAX;
+  else if(n < 0)
+    return JS_ThrowRangeError(ctx, "size must not be negative");
 
-    if(n < 0)
-      return JS_ThrowRangeError(ctx, "size must not be negative");
+  js->dest_writer = js->out_writer;
 
-    js->dest_writer = js->out_writer;
+  while(!js->finished && !js->error && !js->blocked && (int64_t)(js->out.size - js->out_pos) < n)
+    json_serializer_step(js, ctx);
 
-    while(!js->finished && !js->error && !js->blocked && (int64_t)(js->out.size - js->out_pos) < n)
-      json_serializer_step(js, ctx);
-
-    if(js->error) {
-      property_recursion_free(&js->stack, JS_GetRuntime(ctx));
-      return JS_EXCEPTION;
-    }
-
-    {
-      size_t avail = js->out.size - js->out_pos;
-      size_t take = (size_t)n < avail ? (size_t)n : avail;
-      JSValue ret = JS_NewStringLen(ctx, (const char*)js->out.buf + js->out_pos, take);
-
-      location_count(js->loc, js->out.buf + js->out_pos, take);
-      js->out_pos += take;
-
-      if(js->out_pos == js->out.size) {
-        js->out.size = 0;
-        js->out_pos = 0;
-      } else if(js->out_pos > 0) {
-        memmove(js->out.buf, js->out.buf + js->out_pos, js->out.size - js->out_pos);
-        js->out.size -= js->out_pos;
-        js->out_pos = 0;
-      }
-
-      return ret;
-    }
+  if(js->error) {
+    property_recursion_free(&js->stack, JS_GetRuntime(ctx));
+    return JS_EXCEPTION;
   }
+
+  const uint8_t* start = js->out.buf + js->out_pos;
+  size_t avail = js->out.size - js->out_pos;
+  size_t take = MIN_NUM((size_t)n, utf8_strlen(start, avail));
+
+  if(take == 0)
+    return ret;
+
+  size_t offs = utf8_byteoffset(start, avail, take);
+  ret = JS_NewStringLen(ctx, (const char*)start, offs);
+
+  location_count(js->loc, start, offs);
+  js->out_pos += offs;
+
+  if(js->out_pos > 0) {
+    dbuf_advance(&js->out, js->out_pos);
+    js->out_pos = 0;
+  }
+
+  return ret;
 }
 
 enum {
   JSON_SERIALIZER_LOCATION,
+  JSON_SERIALIZER_ROOT,
+  JSON_SERIALIZER_INDENT,
+  JSON_SERIALIZER_PATH,
+  JSON_SERIALIZER_FINISHED,
+  JSON_SERIALIZER_STARTED,
+  JSON_SERIALIZER_ERROR,
+  JSON_SERIALIZER_BLOCKED,
 };
 
 static JSValue
-js_json_serializer_get(JSContext* ctx, JSValueConst this_val, int magic) {
+js_jsonserializer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JsonSerializer* js;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(js = JS_GetOpaque2(ctx, this_val, js_json_serializer_class_id)))
+  if(!(js = JS_GetOpaque2(ctx, this_val, js_jsonserializer_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
     case JSON_SERIALIZER_LOCATION: ret = js_location_wrap(ctx, js->loc); break;
+    case JSON_SERIALIZER_ROOT: ret = JS_DupValue(ctx, js->root); break;
+    case JSON_SERIALIZER_INDENT: ret = JS_NewInt32(ctx, js->indent); break;
+    case JSON_SERIALIZER_PATH: ret = property_recursion_path(&js->stack, ctx); break;
+    case JSON_SERIALIZER_FINISHED: ret = JS_NewBool(ctx, js->finished); break;
+    case JSON_SERIALIZER_STARTED: ret = JS_NewBool(ctx, js->started); break;
+    case JSON_SERIALIZER_ERROR: ret = JS_NewBool(ctx, js->error); break;
+    case JSON_SERIALIZER_BLOCKED: ret = JS_NewBool(ctx, js->blocked); break;
   }
 
   return ret;
 }
 
 static JSValue
-js_json_serializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_jsonserializer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  JsonSerializer* js;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(js = JS_GetOpaque2(ctx, this_val, js_jsonserializer_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case JSON_SERIALIZER_INDENT: JS_ToInt32(ctx, &js->indent, value); break;
+  }
+
+  return ret;
+}
+
+static JSValue
+js_jsonserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
   JsonSerializer* js;
   JSValueConst root = argc > 0 ? argv[0] : JS_UNDEFINED;
@@ -1471,9 +1495,8 @@ js_json_serializer_constructor(JSContext* ctx, JSValueConst new_target, int argc
 
   js->ctx = ctx;
   vector_init(&js->stack, ctx);
-  dbuf_init2(&js->out, 0, 0);
-  dbuf_init2(&js->space, 0, 0);
-
+  dbuf_init_ctx(ctx, &js->out);
+  dbuf_init_ctx(ctx, &js->space);
   if(argc > 1)
     JS_ToInt32(ctx, &js->indent, argv[1]);
 
@@ -1496,7 +1519,7 @@ js_json_serializer_constructor(JSContext* ctx, JSValueConst new_target, int argc
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, json_serializer_proto);
 
-  obj = JS_NewObjectProtoClass(ctx, proto, js_json_serializer_class_id);
+  obj = JS_NewObjectProtoClass(ctx, proto, js_jsonserializer_class_id);
   JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj)) {
@@ -1513,11 +1536,26 @@ js_json_serializer_constructor(JSContext* ctx, JSValueConst new_target, int argc
   return obj;
 }
 
+static JSValue
+js_jsonserializer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  JSValue args[] = {argc > 0 ? argv[0] : JS_NewUint32(ctx, 1024)};
+  JSValue ret = js_jsonserializer_read(ctx, this_val, countof(args), args);
+
+  *pdone = FALSE;
+
+  if(JS_IsException(ret)) {
+    *pdone = TRUE;
+    ret = JS_GetException(ctx);
+  }
+
+  return ret;
+}
+
 static void
-js_json_serializer_finalizer(JSRuntime* rt, JSValue val) {
+js_jsonserializer_finalizer(JSRuntime* rt, JSValue val) {
   JsonSerializer* js;
 
-  if((js = JS_GetOpaque(val, js_json_serializer_class_id))) {
+  if((js = JS_GetOpaque(val, js_jsonserializer_class_id))) {
     property_recursion_free(&js->stack, rt);
     dbuf_free(&js->out);
     dbuf_free(&js->space);
@@ -1530,15 +1568,24 @@ js_json_serializer_finalizer(JSRuntime* rt, JSValue val) {
   }
 }
 
-static const JSCFunctionListEntry js_json_serializer_proto_funcs[] = {
-    JS_CFUNC_DEF("read", 1, js_json_serializer_read),
-    JS_CGETSET_MAGIC_FLAGS_DEF("location", js_json_serializer_get, 0, JSON_SERIALIZER_LOCATION, JS_PROP_ENUMERABLE),
+static const JSCFunctionListEntry js_jsonserializer_proto_funcs[] = {
+    JS_CFUNC_DEF("read", 1, js_jsonserializer_read),
+    JS_ITERATOR_NEXT_DEF("next", 0, js_jsonserializer_next, 0),
+    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_json_iterator),
+    JS_CGETSET_MAGIC_DEF("location", js_jsonserializer_get, 0, JSON_SERIALIZER_LOCATION),
+    JS_CGETSET_MAGIC_DEF("root", js_jsonserializer_get, 0, JSON_SERIALIZER_ROOT),
+    JS_CGETSET_MAGIC_DEF("indent", js_jsonserializer_get, js_jsonserializer_set, JSON_SERIALIZER_INDENT),
+    JS_CGETSET_MAGIC_DEF("path", js_jsonserializer_get, 0, JSON_SERIALIZER_PATH),
+    JS_CGETSET_MAGIC_DEF("finished", js_jsonserializer_get, 0, JSON_SERIALIZER_FINISHED),
+    JS_CGETSET_MAGIC_DEF("started", js_jsonserializer_get, 0, JSON_SERIALIZER_STARTED),
+    JS_CGETSET_MAGIC_DEF("error", js_jsonserializer_get, 0, JSON_SERIALIZER_ERROR),
+    JS_CGETSET_MAGIC_DEF("blocked", js_jsonserializer_get, 0, JSON_SERIALIZER_BLOCKED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonSerializer", JS_PROP_CONFIGURABLE),
 };
 
-static JSClassDef js_json_serializer_class = {
+static JSClassDef js_jsonserializer_class = {
     .class_name = "JsonSerializer",
-    .finalizer = js_json_serializer_finalizer,
+    .finalizer = js_jsonserializer_finalizer,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -1546,17 +1593,16 @@ static JSClassDef js_json_serializer_class = {
 /* ---------------------------------------------------------------------- */
 
 typedef struct {
-  BOOL is_object;
+  unsigned is_object : 1, expecting_value : 1;
   uint32_t count;
-  BOOL expecting_value;
 } JsonWriterFrame;
 
 typedef struct {
   Writer writer;
   size_t written;
   int32_t indent;
-  int32_t level;
   Vector stack;
+  DynBuf ibuf;
 } JsonWriter;
 
 static JSClassID js_jsonwriter_class_id = 0;
@@ -1572,7 +1618,7 @@ json_writer_putc(JsonWriter* wr, int c) {
   return res;
 }
 
-static ssize_t
+/*static ssize_t
 json_writer_write(JsonWriter* wr, const void* buf, size_t len) {
   ssize_t res = write_all(&wr->writer, buf, len);
 
@@ -1580,25 +1626,24 @@ json_writer_write(JsonWriter* wr, const void* buf, size_t len) {
     wr->written += res;
 
   return res;
-}
+}*/
 
 static ssize_t
 json_writer_indent(JsonWriter* wr) {
   ssize_t w = 0;
 
   if(wr->indent > 0) {
-    ssize_t res = json_writer_putc(wr, '\n');
+    size_t len = wr->indent * vector_size(&wr->stack, sizeof(JsonWriterFrame)) + 1;
+    DynBuf* ib = &wr->ibuf;
 
-    if(res <= 0)
-      return res;
-    w += res;
-
-    for(int i = 0; i < wr->indent * wr->level; i++) {
-      res = json_writer_putc(wr, ' ');
-      if(res <= 0)
-        return res;
-      w += res;
+    if(ib->size < len) {
+      size_t oldlen = ib->size;
+      dbuf_claim(ib, len - ib->size);
+      memset(&ib->buf[oldlen], ' ', len - oldlen);
     }
+
+    ib->buf[0] = '\n';
+    w = writer_write(&wr->writer, ib->buf, len);
   }
 
   return w;
@@ -1606,20 +1651,17 @@ json_writer_indent(JsonWriter* wr) {
 
 static ssize_t
 json_writer_comma_indent(JsonWriter* wr, uint32_t count) {
-  ssize_t w = 0;
+  ssize_t res, w = 0;
 
   if(count > 0) {
-    ssize_t res = json_writer_putc(wr, ',');
-    if(res <= 0)
+    if((res = json_writer_putc(wr, ',')) <= 0)
       return -1;
     w += res;
   }
 
-  ssize_t res = json_writer_indent(wr);
-  if(res < 0)
+  if((res = json_writer_indent(wr)) < 0)
     return -1;
   w += res;
-
   return w;
 }
 
@@ -1643,8 +1685,8 @@ json_writer_before_value(JsonWriter* wr, JSContext* ctx) {
     return 0;
   }
 
-  ssize_t w = json_writer_comma_indent(wr, top->count);
-  if(w < 0)
+  ssize_t w;
+  if((w = json_writer_comma_indent(wr, top->count)) < 0)
     return -1;
 
   top->count++;
@@ -1664,7 +1706,9 @@ json_writer_after_value(JsonWriter* wr) {
 }
 
 static ssize_t
-json_writer_write_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
+json_writer_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
+  ssize_t res, w;
+
   if(vector_empty(&wr->stack)) {
     JS_ThrowTypeError(ctx, "JsonWriter: key cannot be at root level");
     return -1;
@@ -1682,8 +1726,7 @@ json_writer_write_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
     return -1;
   }
 
-  ssize_t w = json_writer_comma_indent(wr, top->count);
-  if(w < 0)
+  if((w = json_writer_comma_indent(wr, top->count)) < 0)
     return -1;
 
   size_t klen;
@@ -1692,11 +1735,11 @@ json_writer_write_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
     return -1;
 
   DynBuf db;
-  dbuf_init2(&db, 0, 0);
+  dbuf_init_ctx(ctx, &db);
   Writer temp_wr = writer_from_dynbuf(&db);
   write_json_string(&temp_wr, kstr, klen);
 
-  ssize_t res = json_writer_write(wr, db.buf, db.size);
+  res = writer_write(&wr->writer, db.buf, db.size);
   writer_free(&temp_wr);
   JS_FreeCString(ctx, kstr);
 
@@ -1704,14 +1747,12 @@ json_writer_write_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
     return -1;
   w += res;
 
-  res = json_writer_putc(wr, ':');
-  if(res <= 0)
+  if((res = json_writer_putc(wr, ':')) <= 0)
     return -1;
   w += res;
 
   if(wr->indent > 0) {
-    res = json_writer_putc(wr, ' ');
-    if(res <= 0)
+    if((res = json_writer_putc(wr, ' ')) <= 0)
       return -1;
     w += res;
   }
@@ -1722,55 +1763,41 @@ json_writer_write_key(JsonWriter* wr, JSContext* ctx, JSValueConst key_val) {
 }
 
 static ssize_t
-json_writer_write_object_start(JsonWriter* wr, JSContext* ctx) {
-  ssize_t w = json_writer_before_value(wr, ctx);
-  if(w < 0)
+json_writer_object_start(JsonWriter* wr, JSContext* ctx) {
+  ssize_t res, w;
+  if((w = json_writer_before_value(wr, ctx)) < 0)
     return -1;
 
-  ssize_t res = json_writer_putc(wr, '{');
-  if(res <= 0)
-    return -1;
-  w += res;
-
-  wr->level++;
-  res = json_writer_indent(wr);
-  if(res < 0)
+  if((res = json_writer_putc(wr, '{')) <= 0)
     return -1;
   w += res;
 
-  JsonWriterFrame frame = {TRUE, 0, FALSE};
-  if(!vector_put(&wr->stack, &frame, sizeof(JsonWriterFrame)))
+  if(!vector_push(&wr->stack, ((JsonWriterFrame){TRUE, 0, FALSE})))
     return -1;
 
   return w;
 }
 
 static ssize_t
-json_writer_write_array_start(JsonWriter* wr, JSContext* ctx) {
-  ssize_t w = json_writer_before_value(wr, ctx);
-  if(w < 0)
+json_writer_array_start(JsonWriter* wr, JSContext* ctx) {
+  ssize_t res, w;
+  if((w = json_writer_before_value(wr, ctx)) < 0)
     return -1;
 
-  ssize_t res = json_writer_putc(wr, '[');
-  if(res <= 0)
-    return -1;
-  w += res;
-
-  wr->level++;
-  res = json_writer_indent(wr);
-  if(res < 0)
+  if((res = json_writer_putc(wr, '[')) <= 0)
     return -1;
   w += res;
 
-  JsonWriterFrame frame = {FALSE, 0, FALSE};
-  if(!vector_put(&wr->stack, &frame, sizeof(JsonWriterFrame)))
+  if(!vector_push(&wr->stack, ((JsonWriterFrame){FALSE, 0, FALSE})))
     return -1;
 
   return w;
 }
 
 static ssize_t
-json_writer_write_object_end(JsonWriter* wr, JSContext* ctx) {
+json_writer_object_end(JsonWriter* wr, JSContext* ctx) {
+  ssize_t res, w = 0;
+
   if(vector_empty(&wr->stack)) {
     JS_ThrowTypeError(ctx, "JsonWriter: unmatched objectEnd");
     return -1;
@@ -1787,18 +1814,14 @@ json_writer_write_object_end(JsonWriter* wr, JSContext* ctx) {
   }
 
   vector_pop(&wr->stack, sizeof(JsonWriterFrame));
-  wr->level--;
 
-  ssize_t w = 0;
   if(top->count > 0) {
-    ssize_t res = json_writer_indent(wr);
-    if(res < 0)
+    if((res = json_writer_indent(wr)) < 0)
       return -1;
     w += res;
   }
 
-  ssize_t res = json_writer_putc(wr, '}');
-  if(res <= 0)
+  if((res = json_writer_putc(wr, '}')) <= 0)
     return -1;
   w += res;
 
@@ -1807,7 +1830,9 @@ json_writer_write_object_end(JsonWriter* wr, JSContext* ctx) {
 }
 
 static ssize_t
-json_writer_write_array_end(JsonWriter* wr, JSContext* ctx) {
+json_writer_array_end(JsonWriter* wr, JSContext* ctx) {
+  ssize_t res, w = 0;
+
   if(vector_empty(&wr->stack)) {
     JS_ThrowTypeError(ctx, "JsonWriter: unmatched arrayEnd");
     return -1;
@@ -1820,18 +1845,14 @@ json_writer_write_array_end(JsonWriter* wr, JSContext* ctx) {
   }
 
   vector_pop(&wr->stack, sizeof(JsonWriterFrame));
-  wr->level--;
 
-  ssize_t w = 0;
   if(top->count > 0) {
-    ssize_t res = json_writer_indent(wr);
-    if(res < 0)
+    if((res = json_writer_indent(wr)) < 0)
       return -1;
     w += res;
   }
 
-  ssize_t res = json_writer_putc(wr, ']');
-  if(res <= 0)
+  if((res = json_writer_putc(wr, ']')) <= 0)
     return -1;
   w += res;
 
@@ -1840,17 +1861,17 @@ json_writer_write_array_end(JsonWriter* wr, JSContext* ctx) {
 }
 
 static ssize_t
-json_writer_write_value(JsonWriter* wr, JSContext* ctx, JSValueConst val) {
-  ssize_t w = json_writer_before_value(wr, ctx);
-  if(w < 0)
+json_writer_value(JsonWriter* wr, JSContext* ctx, JSValueConst val) {
+  ssize_t res, w;
+  if((w = json_writer_before_value(wr, ctx)) < 0)
     return -1;
 
   DynBuf db;
-  dbuf_init2(&db, 0, 0);
+  dbuf_init_ctx(ctx, &db);
   Writer temp_wr = writer_from_dynbuf(&db);
   write_json_primitive(ctx, &temp_wr, val);
 
-  ssize_t res = json_writer_write(wr, db.buf, db.size);
+  res = writer_write(&wr->writer, db.buf, db.size);
   writer_free(&temp_wr);
 
   if(res <= 0)
@@ -1879,22 +1900,26 @@ js_jsonwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     return JS_EXCEPTION;
 
   switch(magic) {
-    case JSON_WRITER_OBJECT_START: w = json_writer_write_object_start(wr, ctx); break;
-    case JSON_WRITER_OBJECT_END: w = json_writer_write_object_end(wr, ctx); break;
-    case JSON_WRITER_ARRAY_START: w = json_writer_write_array_start(wr, ctx); break;
-    case JSON_WRITER_ARRAY_END: w = json_writer_write_array_end(wr, ctx); break;
+    case JSON_WRITER_OBJECT_START: w = json_writer_object_start(wr, ctx); break;
+    case JSON_WRITER_OBJECT_END: w = json_writer_object_end(wr, ctx); break;
+    case JSON_WRITER_ARRAY_START: w = json_writer_array_start(wr, ctx); break;
+    case JSON_WRITER_ARRAY_END: w = json_writer_array_end(wr, ctx); break;
 
-    case JSON_WRITER_KEY:
+    case JSON_WRITER_KEY: {
       if(argc < 1)
         return JS_ThrowTypeError(ctx, "JsonWriter.key() requires an argument");
-      w = json_writer_write_key(wr, ctx, argv[0]);
-      break;
 
-    case JSON_WRITER_VALUE:
+      w = json_writer_key(wr, ctx, argv[0]);
+      break;
+    }
+
+    case JSON_WRITER_VALUE: {
       if(argc < 1)
         return JS_ThrowTypeError(ctx, "JsonWriter.value() requires an argument");
-      w = json_writer_write_value(wr, ctx, argv[0]);
+
+      w = json_writer_value(wr, ctx, argv[0]);
       break;
+    }
   }
 
   if(w < 0)
@@ -1906,6 +1931,8 @@ js_jsonwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 enum {
   JSON_WRITER_WRITTEN,
   JSON_WRITER_INDENT,
+  JSON_WRITER_LEVEL,
+  JSON_WRITER_STACK,
 };
 
 static JSValue
@@ -1919,6 +1946,22 @@ js_jsonwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case JSON_WRITER_WRITTEN: ret = JS_NewInt64(ctx, wr->written); break;
     case JSON_WRITER_INDENT: ret = JS_NewInt32(ctx, wr->indent); break;
+    case JSON_WRITER_LEVEL: ret = JS_NewInt32(ctx, vector_size(&wr->stack, sizeof(JsonWriterFrame))); break;
+    case JSON_WRITER_STACK: {
+      ret = JS_NewArray(ctx);
+
+      JsonWriterFrame* frame;
+      uint32_t i = 0;
+      vector_foreach_t(&wr->stack, frame) {
+        JSValue item = JS_NewObjectProto(ctx, JS_NULL);
+        JS_SetPropertyStr(ctx, item, "isObject", JS_NewBool(ctx, frame->is_object));
+        JS_SetPropertyStr(ctx, item, "expectingValue", JS_NewBool(ctx, frame->expecting_value));
+        JS_SetPropertyStr(ctx, item, "count", JS_NewUint32(ctx, frame->count));
+        JS_SetPropertyUint32(ctx, ret, i++, item);
+      }
+
+      break;
+    }
   }
 
   return ret;
@@ -1955,13 +1998,14 @@ js_jsonwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
   JSValue options = i < argc ? argv[i] : (argc > 0 ? argv[0] : JS_UNDEFINED);
 
-  if(JS_IsNumber(options)) {
+  if(JS_IsNumber(options))
     wr->indent = js_toint32(ctx, options);
-  } else if(js_has_propertystr(ctx, options, "indent")) {
+  else if(js_has_propertystr(ctx, options, "indent"))
     wr->indent = js_toint32_free(ctx, JS_GetPropertyStr(ctx, options, "indent"));
-  } else {
+  else
     wr->indent = 0;
-  }
+
+  dbuf_init_ctx(ctx, &wr->ibuf);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -1979,6 +2023,7 @@ js_jsonwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 fail:
   writer_free(&wr->writer);
   vector_free(&wr->stack);
+  dbuf_free(&wr->ibuf);
   js_free(ctx, wr);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
@@ -1991,6 +2036,7 @@ js_jsonwriter_finalizer(JSRuntime* rt, JSValue val) {
   if((wr = JS_GetOpaque(val, js_jsonwriter_class_id))) {
     writer_free(&wr->writer);
     vector_free(&wr->stack);
+    dbuf_free(&wr->ibuf);
     js_free_rt(rt, wr);
   }
 }
@@ -2009,13 +2055,15 @@ static const JSCFunctionListEntry js_jsonwriter_funcs[] = {
     JS_CFUNC_MAGIC_DEF("key", 1, js_jsonwriter_method, JSON_WRITER_KEY),
     JS_CGETSET_MAGIC_DEF("written", js_jsonwriter_get, 0, JSON_WRITER_WRITTEN),
     JS_CGETSET_MAGIC_DEF("indent", js_jsonwriter_get, js_jsonwriter_set, JSON_WRITER_INDENT),
+    JS_CGETSET_MAGIC_DEF("level", js_jsonwriter_get, 0, JSON_WRITER_LEVEL),
+    JS_CGETSET_MAGIC_DEF("stack", js_jsonwriter_get, 0, JSON_WRITER_STACK),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonWriter", JS_PROP_CONFIGURABLE),
 };
 
 static JSValue
-js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
-  JsonParser* parser;
+  JsonParser* p;
   JSValueConst input = argc > 0 ? argv[0] : JS_UNDEFINED;
   Reader reader;
   const char* filename = 0;
@@ -2043,12 +2091,12 @@ js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(argc > 1)
     filename = JS_ToCString(ctx, argv[1]);
 
-  parser = json_new(reader, filename, ctx);
+  p = json_new(reader, filename, ctx);
 
   if(filename)
     JS_FreeCString(ctx, filename);
 
-  if(!parser) {
+  if(!p) {
     reader_free(&reader);
     return JS_EXCEPTION;
   }
@@ -2057,15 +2105,15 @@ js_json_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, json_parser_proto);
 
-  obj = JS_NewObjectProtoClass(ctx, proto, js_json_parser_class_id);
+  obj = JS_NewObjectProtoClass(ctx, proto, js_jsonparser_class_id);
   JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj)) {
-    json_free(parser, JS_GetRuntime(ctx));
+    json_free(p, JS_GetRuntime(ctx));
     return JS_EXCEPTION;
   }
 
-  JS_SetOpaque(obj, parser);
+  JS_SetOpaque(obj, p);
 
   return obj;
 }
@@ -2075,21 +2123,38 @@ enum {
 };
 
 static JSValue
-js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JsonParser* parser;
+js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonParser* p;
   JSValue ret = JS_UNDEFINED;
+  BOOL skip = argc > 0 && JS_ToBool(ctx, argv[0]);
 
-  if(!(parser = JS_GetOpaque2(ctx, this_val, js_json_parser_class_id)))
+  if(!(p = JS_GetOpaque2(ctx, this_val, js_jsonparser_class_id)))
     return JS_EXCEPTION;
 
-  switch(magic) {
-    case JSON_PARSER_PARSE: {
-      int type = json_parse(parser);
+  int type = json_parse(p);
 
-      if(type == JSON_ERROR) {
-        char* loc = location_tostring(parser->loc, ctx);
+  if(type == JSON_ERROR) {
+    char* loc = location_tostring(p->loc, ctx);
 
-        JS_ThrowSyntaxError(ctx, "%s%s%s", loc && *loc ? loc : "", loc && *loc ? ": " : "", parser->error ? parser->error : "parse error");
+    JS_ThrowSyntaxError(ctx, "%s%s%s", loc && *loc ? loc : "", loc && *loc ? ": " : "", p->error ? p->error : "parse error");
+
+    if(loc)
+      js_free(ctx, loc);
+
+    return JS_EXCEPTION;
+  }
+
+  /* If skipping is requested and the current token starts a container (Object or Array) */
+  if(skip && (type == JSON_TYPE_OBJECT || type == JSON_TYPE_ARRAY)) {
+    int depth = 1;
+
+    while(depth > 0) {
+      int next_type = json_parse(p);
+
+      if(next_type == JSON_ERROR) {
+        char* loc = location_tostring(p->loc, ctx);
+
+        JS_ThrowSyntaxError(ctx, "%s%s%s", loc && *loc ? loc : "", loc && *loc ? ": " : "", p->error ? p->error : "parse error");
 
         if(loc)
           js_free(ctx, loc);
@@ -2097,26 +2162,16 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         return JS_EXCEPTION;
       }
 
-      ret = JS_NewString(ctx,
-                         (const char* const[]){
-                             "NEED_DATA",
-                             "NONE",
-                             "OBJECT",
-                             "OBJECT_END",
-                             "ARRAY",
-                             "ARRAY_END",
-                             "KEY",
-                             "STRING",
-                             "TRUE",
-                             "FALSE",
-                             "NULL",
-                             "NUMBER",
-                         }[type + 2]);
-      break;
+      if(next_type == JSON_TYPE_OBJECT || next_type == JSON_TYPE_ARRAY)
+        depth++;
+      else if(next_type == JSON_TYPE_OBJECT_END || next_type == JSON_TYPE_ARRAY_END)
+        depth--;
+
+      type = next_type;
     }
   }
 
-  return ret;
+  return JS_NewInt32(ctx, type);
 }
 
 enum {
@@ -2129,41 +2184,41 @@ enum {
 };
 
 static JSValue
-js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  JsonParser* parser;
+js_jsonparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JsonParser* p;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(parser = JS_GetOpaque2(ctx, this_val, js_json_parser_class_id)))
+  if(!(p = JS_GetOpaque2(ctx, this_val, js_jsonparser_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
     case JSON_PARSER_CALLBACK: {
-      ret = js_value_mkobj2(ctx, parser->opaque);
+      ret = js_value_mkobj2(ctx, p->opaque);
       break;
     }
 
     case JSON_PARSER_POS: {
-      ret = JS_NewUint32(ctx, parser->pos);
+      ret = JS_NewUint32(ctx, p->pos);
       break;
     }
 
     case JSON_PARSER_TOKEN: {
-      ret = dbuf_tostring(&parser->token, ctx);
+      ret = dbuf_tostring(&p->token, ctx);
       break;
     }
 
     case JSON_PARSER_STATE: {
-      ret = JS_NewInt32(ctx, parser->state);
+      ret = JS_NewInt32(ctx, p->state);
       break;
     }
 
     case JSON_PARSER_DEPTH: {
-      ret = JS_NewUint32(ctx, parser->stack.len);
+      ret = JS_NewUint32(ctx, p->stack.len);
       break;
     }
 
     case JSON_PARSER_LOCATION: {
-      ret = js_location_wrap(ctx, parser->loc);
+      ret = js_location_wrap(ctx, p->loc);
       break;
     }
   }
@@ -2172,8 +2227,8 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static void
-js_json_parser_callback(JsonParser* parser, JsonValueType type, void* ptr) {
-  struct js_json_parser_opaque* op = parser->opaque;
+js_jsonparser_callback(JsonParser* p, JsonValueType type, void* ptr) {
+  struct js_jsonparser_opaque* op = p->opaque;
   JSContext* ctx = op->ctx;
   JSValue fn = js_value_mkobj(op->obj);
   JSValue args[] = {
@@ -2189,32 +2244,32 @@ js_json_parser_callback(JsonParser* parser, JsonValueType type, void* ptr) {
 }
 
 static JSValue
-js_json_parser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  JsonParser* parser;
+js_jsonparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  JsonParser* p;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(parser = JS_GetOpaque2(ctx, this_val, js_json_parser_class_id)))
+  if(!(p = JS_GetOpaque2(ctx, this_val, js_jsonparser_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
     case JSON_PARSER_CALLBACK: {
-      struct js_json_parser_opaque* op;
+      struct js_jsonparser_opaque* op;
 
       if(!JS_IsFunction(ctx, value))
         return JS_ThrowTypeError(ctx, "value must be a function");
 
-      if(parser->opaque) {
-        op = parser->opaque;
+      if(p->opaque) {
+        op = p->opaque;
         js_freeobj(ctx, op->obj);
       }
 
-      op = parser->opaque ? parser->opaque : js_malloc(ctx, sizeof(struct js_json_parser_opaque));
+      op = p->opaque ? p->opaque : js_malloc(ctx, sizeof(struct js_jsonparser_opaque));
 
       if(op) {
-        *op = (struct js_json_parser_opaque){ctx, js_value_obj(this_val), js_value_obj2(ctx, value)};
+        *op = (struct js_jsonparser_opaque){ctx, js_value_obj(this_val), js_value_obj2(ctx, value)};
 
-        parser->callback = js_json_parser_callback;
-        parser->opaque = op;
+        p->callback = js_jsonparser_callback;
+        p->opaque = op;
       }
 
       break;
@@ -2224,63 +2279,100 @@ js_json_parser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
   return ret;
 }
 
-static void
-js_json_parser_finalizer(JSRuntime* rt, JSValue obj) {
-  JsonParser* parser;
+static JSValue
+js_jsonparser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  JSValue ret = js_jsonparser_parse(ctx, this_val, argc, argv);
 
-  if((parser = JS_GetOpaque(obj, js_json_parser_class_id)))
-    json_free(parser, rt);
+  *pdone = FALSE;
+
+  if(JS_IsException(ret)) {
+    *pdone = TRUE;
+    ret = JS_GetException(ctx);
+  } else if(js_toint32(ctx, ret) == JSON_NEED_DATA) {
+    *pdone = TRUE;
+    ret = JS_UNDEFINED;
+  }
+
+  return ret;
 }
 
-static const JSCFunctionListEntry js_json_parser_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("parse", 0, js_json_parser_method, JSON_PARSER_PARSE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("pos", js_json_parser_get, 0, JSON_PARSER_POS, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("token", js_json_parser_get, 0, JSON_PARSER_TOKEN, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("state", js_json_parser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_json_parser_get, 0, JSON_PARSER_DEPTH, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("location", js_json_parser_get, 0, JSON_PARSER_LOCATION, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("callback", js_json_parser_get, js_json_parser_set, JSON_PARSER_CALLBACK),
+static void
+js_jsonparser_finalizer(JSRuntime* rt, JSValue obj) {
+  JsonParser* p;
+
+  if((p = JS_GetOpaque(obj, js_jsonparser_class_id)))
+    json_free(p, rt);
+}
+
+static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
+    JS_CFUNC_DEF("parse", 0, js_jsonparser_parse),
+    JS_CGETSET_MAGIC_FLAGS_DEF("pos", js_jsonparser_get, 0, JSON_PARSER_POS, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("token", js_jsonparser_get, 0, JSON_PARSER_TOKEN, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("state", js_jsonparser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_jsonparser_get, 0, JSON_PARSER_DEPTH, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("location", js_jsonparser_get, 0, JSON_PARSER_LOCATION, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_DEF("callback", js_jsonparser_get, js_jsonparser_set, JSON_PARSER_CALLBACK),
+    JS_ITERATOR_NEXT_DEF("next", 0, js_jsonparser_iterator_next, 0),
+    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_json_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonParser", JS_PROP_CONFIGURABLE),
 };
 
-static JSClassDef js_json_parser_class = {
+static const JSCFunctionListEntry js_jsonparser_static_props[] = {
+    JS_PROP_INT32_DEF("NEED_DATA", -2, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NONE", -1, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("OBJECT", 0, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("OBJECT_END", 1, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ARRAY", 2, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ARRAY_END", 3, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("KEY", 4, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("STRING", 5, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TRUE", 6, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("FALSE", 7, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NULL", 8, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NUMBER", 9, JS_PROP_ENUMERABLE),
+};
+
+static JSClassDef js_jsonparser_class = {
     .class_name = "JsonParser",
-    .finalizer = js_json_parser_finalizer,
+    .finalizer = js_jsonparser_finalizer,
 };
 
 static int
 js_json_init(JSContext* ctx, JSModuleDef* m) {
-  JS_NewClassID(&js_json_parser_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_json_parser_class_id, &js_json_parser_class);
+  JS_NewClassID(&js_jsonparser_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_jsonparser_class_id, &js_jsonparser_class);
 
   json_parser_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx, json_parser_proto, js_json_parser_proto_funcs, countof(js_json_parser_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, json_parser_proto, js_jsonparser_proto_funcs, countof(js_jsonparser_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, json_parser_proto, js_jsonparser_static_props, countof(js_jsonparser_static_props));
 
-  json_parser_ctor = JS_NewCFunction2(ctx, js_json_parser_constructor, "JsonParser", 1, JS_CFUNC_constructor, 0);
-  JS_SetClassProto(ctx, js_json_parser_class_id, json_parser_proto);
+  json_parser_ctor = JS_NewCFunction2(ctx, js_jsonparser_constructor, "JsonParser", 1, JS_CFUNC_constructor, 0);
+  JS_SetPropertyFunctionList(ctx, json_parser_ctor, js_jsonparser_static_props, countof(js_jsonparser_static_props));
+
+  JS_SetClassProto(ctx, js_jsonparser_class_id, json_parser_proto);
   JS_SetConstructor(ctx, json_parser_ctor, json_parser_proto);
 
   if(js_location_class_id == 0)
     js_location_init(ctx, 0);
 
-  JS_NewClassID(&js_json_pushparser_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_json_pushparser_class_id, &js_json_pushparser_class);
+  JS_NewClassID(&js_jsonpushparser_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_jsonpushparser_class_id, &js_jsonpushparser_class);
 
   json_pushparser_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx, json_pushparser_proto, js_json_pushparser_proto_funcs, countof(js_json_pushparser_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, json_pushparser_proto, js_jsonpushparser_proto_funcs, countof(js_jsonpushparser_proto_funcs));
 
-  json_pushparser_ctor = JS_NewCFunction2(ctx, js_json_pushparser_constructor, "JsonPushParser", 0, JS_CFUNC_constructor, 0);
-  JS_SetClassProto(ctx, js_json_pushparser_class_id, json_pushparser_proto);
+  json_pushparser_ctor = JS_NewCFunction2(ctx, js_jsonpushparser_constructor, "JsonPushParser", 0, JS_CFUNC_constructor, 0);
+  JS_SetClassProto(ctx, js_jsonpushparser_class_id, json_pushparser_proto);
   JS_SetConstructor(ctx, json_pushparser_ctor, json_pushparser_proto);
 
-  JS_NewClassID(&js_json_serializer_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_json_serializer_class_id, &js_json_serializer_class);
+  JS_NewClassID(&js_jsonserializer_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_jsonserializer_class_id, &js_jsonserializer_class);
 
   json_serializer_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx, json_serializer_proto, js_json_serializer_proto_funcs, countof(js_json_serializer_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, json_serializer_proto, js_jsonserializer_proto_funcs, countof(js_jsonserializer_proto_funcs));
 
-  json_serializer_ctor = JS_NewCFunction2(ctx, js_json_serializer_constructor, "JsonSerializer", 1, JS_CFUNC_constructor, 0);
-  JS_SetClassProto(ctx, js_json_serializer_class_id, json_serializer_proto);
+  json_serializer_ctor = JS_NewCFunction2(ctx, js_jsonserializer_constructor, "JsonSerializer", 1, JS_CFUNC_constructor, 0);
+  JS_SetClassProto(ctx, js_jsonserializer_class_id, json_serializer_proto);
   JS_SetConstructor(ctx, json_serializer_ctor, json_serializer_proto);
 
   JS_NewClassID(&js_jsonwriter_class_id);

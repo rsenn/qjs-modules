@@ -3675,7 +3675,7 @@ js_topointer(JSContext* ctx, JSValueConst value) {
 
   if(JS_IsObject(value)) {
     InputBuffer buf = js_input_buffer(ctx, value);
-    void* ptr = inputbuffer_data(&buf);
+    void* ptr = (void*)inputbuffer_data(&buf);
 
     inputbuffer_free(&buf, ctx);
 

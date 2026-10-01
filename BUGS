@@ -527,45 +527,6 @@
     it.skip();
     it.next();     // {done: true}, expected {value: [3, [1]], done: false}
 
-- predicate-member-index-some-every-crash (src/predicate.c, quickjs-predicate.c):
-  calling a `Predicate.member(key, subPredicate)`/`Predicate.index(i,
-  subPredicate)` predicate, or a `Predicate.some(subPredicate)`/
-  `Predicate.every(subPredicate)` predicate against an array, segfaults
-  100% reproducibly (confirmed 3/3 runs each). Construction alone (not
-  invoking/`eval()`-ing the built predicate) is fine. Not fully
-  root-caused, but for `some`/`every` there's a definite, separate logic
-  bug that likely contributes: the `PREDICATE_SOME`/`PREDICATE_EVERY` case
-  in `predicate_eval()` (src/predicate.c:396-427) shadows the function's
-  outer `ret` with a same-named inner `JSValue ret = JS_Call(...)` inside
-  the loop (line 408), so the `ret = JS_TRUE`/`ret = JS_FALSE` writes meant
-  to short-circuit the result on line 417/421 assign the inner shadowed
-  variable instead - the outer `ret` returned at line 436 is never updated
-  and always keeps its line-403 initial value. Worked around in
-  tests/unittests/test-predicate.js by only constructing (not evaluating)
-  `member`/`index`/`some`/`every` predicates.
-
-    import { Predicate } from 'predicate';
-    Predicate.member('length', Predicate.equal(3))([1, 2, 3]);   // segfault
-    Predicate.some(Predicate.equal(1))([3, 1, 2]);                // segfault
-
-- directory-throw-missing-dupvalue (quickjs-directory.c:430-433):
-  `Directory.prototype.throw(exception)` segfaults 100% reproducibly when
-  `exception` is an `Error` (or any refcounted object) - a plain string
-  works fine. The handler is `ret = JS_Throw(ctx, argv[0]);` - `JS_Throw`
-  takes ownership of (consumes) the reference passed to it, but `argv[]`
-  entries are borrowed (`JSValueConst`), owned by the caller/engine, so
-  this double-frees the exception value once the engine also releases its
-  own reference to `argv[0]` after the call returns. Likely fix: dup the
-  value first, `JS_Throw(ctx, JS_DupValue(ctx, argv[0]))`, matching how
-  `DIRECTORY_RETURN` just above it (line 426) correctly leaves `argv[0]`
-  alone and lets `js_iterator_result` dup what it needs. Worked around in
-  tests/unittests/test-directory.js by only exercising `throw()` with a
-  string.
-
-    import { Directory } from 'directory';
-    const dir = new Directory('.');
-    try { dir.throw(new Error('x')); } catch(e) {}   // segfault
-
 - pointer-splice-insert-throws-garbage-exception (quickjs-pointer.c:501-518):
   `Pointer.prototype.splice(start, end, ...atomsToInsert)` works fine as a
   pure deletion (no atoms to insert: it mutates in place and returns the
@@ -773,37 +734,6 @@
     const s = new JsonSerializer({ a: 1, b: [2, 3] }, 2);
     s.read(1000);   // throws a non-Error; typeof result is "unknown"
 
-- arraybuffersink-flush-end-mismatched-allocator-free (quickjs-arraybuffer-sink.c:54-56,
-  90, 100): the `ArrayBuffer` returned by `flush()`/`end()` segfaults
-  reliably (3/3) when it's GC'd, unless something keeps holding a
-  reference to it past the point where the test/script would otherwise
-  exit - 100% reproducible by discarding the return value
-  (`sink.flush();` / `sink.end();` with no assignment) and letting the
-  script finish normally. Root cause: `js->buf` is grown via the
-  `DynBuf`'s default reallocator (`dbuf_init2(s, 0, 0)` at construction,
-  quickjs-arraybuffer-sink.c:26, passes `NULL` for `realloc_func`, so
-  `cutils.c`'s `dbuf_default_realloc` is used, which is plain libc
-  `realloc()`), but `JS_NewArrayBuffer(ctx, s->buf, s->size,
-  js_arraybuffer_sink_free, 0, FALSE)` (lines 90, 100) hands that same
-  libc-allocated pointer to QuickJS as the backing store, with
-  `js_arraybuffer_sink_free` (lines 54-56) freeing it via `js_free_rt(rt,
-  ptr)` - the engine's own allocator, not libc `free()`. Mixing allocator
-  families like this is undefined behavior and crashes when the engine's
-  allocator bookkeeping (e.g. usable-size/heap accounting) doesn't
-  recognize the libc-allocated block. Likely fix: either switch the
-  `DynBuf` to a `js_realloc`-backed reallocator at construction time (so
-  `js->buf` is always engine-allocated), or make `js_arraybuffer_sink_free`
-  call libc `free()` instead of `js_free_rt()`. Worked around in
-  tests/unittests/test-arraybuffer-sink.js by keeping every `flush()`/
-  `end()` result referenced through a local variable for the rest of the
-  test (which empirically avoids the crash, though the real fix is above).
-
-    import { ArrayBufferSink } from 'arraybuffer_sink';
-    const sink = new ArrayBufferSink();
-    sink.write('x');
-    sink.end();   // or sink.flush(); - return value discarded
-    // segfaults on exit/GC of the returned ArrayBuffer, 3/3 runs
-
 - syscallerror-stack-always-null (quickjs-syscallerror.c:206, 289-292):
   `new SyscallError(syscall, errno).stack` is always `null`, 100%
   reproducible, despite doc/native/syscallerror.md documenting it as
@@ -930,4 +860,14 @@
     l.next();            // consumes "12", current token byte_length becomes 2
     l.skipBytes(1);      // valid (1 <= 2), but...
     l.charPos;            // 4294967296, not 3
+
+- predicate-import-prints-typeerror-at-exit (quickjs-predicate.c): a script
+  that only imports the predicate module prints "TypeError: not a function"
+  to stderr after it finishes, with exit code 0. Seen on both the freshly
+  built qjsm and the older installed one, so it predates recent changes.
+  Not root-caused; likely module init or teardown. The location module does
+  not do this.
+
+    import { Predicate } from 'predicate';
+    console.log(typeof Predicate);   // function, then: TypeError: not a function
 

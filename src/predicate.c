@@ -320,16 +320,23 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JSValue obj = pr->member.object;
       JSValue member = js_arguments_at(args, 0);
       JSAtom atom = JS_ValueToAtom(ctx, member);
-      JS_FreeValue(ctx, member);
-      BOOL has = JS_HasProperty(ctx, obj, atom);
 
-      if(!has) {
-        ret = JS_UNDEFINED;
+      if(atom == JS_ATOM_NULL) {
+        ret = JS_EXCEPTION;
+        break;
+      }
+
+      int has = JS_HasProperty(ctx, obj, atom);
+
+      if(has <= 0) {
+        ret = has < 0 ? JS_EXCEPTION : JS_UNDEFINED;
         JS_FreeAtom(ctx, atom);
         break;
       }
 
       JSValue item = JS_GetProperty(ctx, obj, atom);
+
+      JS_FreeAtom(ctx, atom);
 
       if(JS_IsException(item)) {
         ret = item;
@@ -374,6 +381,12 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JSValue item, arg = js_arguments_at(args, 0);
       int64_t length = js_array_length(ctx, arg);
       IndexPredicate index = pr->index;
+
+      if(length <= 0) {
+        ret = JS_UNDEFINED;
+        break;
+      }
+
       uint32_t pos = index.pos < 0 ? length + (index.pos % (signed)length) : index.pos % length;
 
       item = JS_GetPropertyUint32(ctx, arg, pos);
@@ -404,26 +417,27 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       for(i = 0; i < n; i++) {
         JSValue member = JS_GetPropertyUint32(ctx, arg, i);
-        JSValue args[] = {member, JS_NewUint32(ctx, i), arg};
-        JSValue ret = JS_Call(ctx, pred, JS_NULL, countof(args), args);
-
-        BOOL result = JS_ToBool(ctx, ret);
+        JSValue cbargs[] = {member, JS_NewUint32(ctx, i), arg};
+        JSValue res = predicate_call(ctx, pred, countof(cbargs), cbargs);
 
         JS_FreeValue(ctx, member);
-        JS_FreeValue(ctx, args[1]);
-        JS_FreeValue(ctx, ret);
+        JS_FreeValue(ctx, cbargs[1]);
 
-        if(pr->id == PREDICATE_SOME && result == TRUE) {
-          ret = JS_TRUE;
+        if(JS_IsException(res)) {
+          ret = res;
           break;
         }
-        if(pr->id == PREDICATE_EVERY && result == FALSE) {
-          ret = JS_FALSE;
+
+        BOOL result = JS_ToBool(ctx, res);
+
+        JS_FreeValue(ctx, res);
+
+        if(result == (pr->id == PREDICATE_SOME)) {
+          ret = result ? JS_TRUE : JS_FALSE;
           break;
         }
       }
 
-      JS_FreeValue(ctx, arg);
       break;
     }
 

@@ -62,6 +62,22 @@ size_t dbuf_encode(DynBuf*, int (*fn)(uint8_t*, int, unsigned), int);
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 
 static inline size_t
+dbuf_headroom(DynBuf* db) {
+  return db->allocated_size - db->size;
+}
+
+static inline void
+dbuf_advance(DynBuf* db, size_t pos) {
+  if(pos > db->size)
+    pos = db->size;
+
+  if(pos < db->size)
+    memmove(db->buf, db->buf + pos, db->size - pos);
+
+  db->size -= pos;
+}
+
+static inline size_t
 dbuf_count(DynBuf* db, int ch) {
   return byte_count(db->buf, db->size, ch);
 }
@@ -456,15 +472,6 @@ typedef struct Buffer {
     {BLOCK_INIT_DATA(buf, len)}, OFFSET_LENGTH_0(), 0, (fn), JS_UNDEFINED \
   }
 
-/*static inline void
-inputbuffer_free_default(JSContext* ctx, const char* str, JSValue val) {
-  if(JS_IsString(val))
-    JS_FreeCString(ctx, str);
-
-  if(!JS_IsUndefined(val))
-    JS_FreeValue(ctx, val);
-}*/
-
 static inline void
 inputbuffer_free_default(JSContext* ctx, JSValue val, struct Buffer* buf) {
   if(JS_IsString(val))
@@ -560,6 +567,24 @@ inputbuffer_eof(const InputBuffer* in) {
 
 typedef struct Buffer OutputBuffer;
 
+static inline void
+outputbuffer_free_default(JSContext* ctx, JSValue val, OutputBuffer* buf) {
+  if(!JS_IsUndefined(val))
+    JS_FreeValue(ctx, val);
+
+  if(buf->data) {
+    block_free(&buf->block, JS_GetRuntime(ctx));
+  }
+}
+
+#define OUTPUTBUFFER() OUTPUTBUFFER_FREE(&outputbuffer_free_default)
+#define OUTPUTBUFFER_FREE(fn) OUTPUTBUFFER_DATA_FREE(0, 0, fn)
+#define OUTPUTBUFFER_DATA(buf, len) OUTPUTBUFFER_DATA_FREE(buf, len, &outputbuffer_free_default)
+#define OUTPUTBUFFER_DATA_FREE(buf, len, fn) \
+  (OutputBuffer) { \
+    {BLOCK_INIT_DATA(buf, len)}, OFFSET_LENGTH_0(), 0, (fn), JS_UNDEFINED \
+  }
+
 OutputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 OutputBuffer js_output_typedarray(JSContext* ctx, JSValueConst value);
 
@@ -593,6 +618,11 @@ outputbuffer_avail(const OutputBuffer* out) {
   return outputbuffer_length(out) - out->pos;
 }
 
+int outputbuffer_reserve(OutputBuffer*, size_t, JSContext*);
+size_t outputbuffer_encode(OutputBuffer*, int (*fn)(uint8_t*, int, unsigned int), int);
+ssize_t outputbuffer_write(OutputBuffer*, const void*, size_t);
+size_t outputbuffer_advance(OutputBuffer*, size_t);
+
 typedef int Decoding(const uint8_t*, int, void*);
 typedef int Encoding(uint8_t*, int, unsigned);
 
@@ -601,9 +631,6 @@ typedef size_t Encoder(void*, int (*)(uint8_t*, int, unsigned int), int);
 
 ssize_t inputbuffer_read(InputBuffer*, void*, size_t);
 size_t inputbuffer_decode(InputBuffer*, int (*)(const uint8_t*, int, void*), void*);
-int outputbuffer_reserve(OutputBuffer*, size_t, JSContext*);
-size_t outputbuffer_encode(OutputBuffer*, int (*fn)(uint8_t*, int, unsigned int), int);
-ssize_t outputbuffer_write(OutputBuffer*, const void*, size_t);
 int indexrange_from_argv(IndexRange*, int64_t, int, JSValueConst[], JSContext*);
 
 int uint16_decode_le(const uint8_t*, int, void*);

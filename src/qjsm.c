@@ -2077,8 +2077,12 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     js_free(ctx, file);
   }
 
-  if(JS_IsException(ret))
+  if(JS_IsException(ret)) {
     ret = JS_GetException(ctx);
+
+    if(JS_IsUninitialized(ret))
+      ret = JS_UNDEFINED;
+  }
 
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE) {
     JSModuleDef* m = JS_VALUE_GET_PTR(ret);

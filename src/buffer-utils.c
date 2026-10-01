@@ -1095,6 +1095,21 @@ outputbuffer_append(OutputBuffer* out, const void* ptr, size_t len, JSContext* c
   return len;
 }
 
+size_t
+outputbuffer_advance(OutputBuffer* out, size_t bytes) {
+  if(bytes > out->pos)
+    bytes = out->pos;
+
+  size_t remain = outputbuffer_avail(out);
+
+  if(remain)
+    memmove(outputbuffer_data(out), outputbuffer_pointer(out), remain);
+
+  out->pos -= bytes;
+  out->size = remain;
+  return remain;
+}
+
 int
 indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
   int i = 0;
