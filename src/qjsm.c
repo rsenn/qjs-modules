@@ -288,7 +288,7 @@ module_has_suffix(const char* module_name) {
  * @param ctx JS context the rejection occurred in.
  * @param promise The rejected/handled promise.
  * @param reason The rejection reason (only used when `is_handled` is FALSE).
- * @param is_handled TRUE if a handler was attached after the fact; ignored (returns early).
+ * @param is_handled TRUE if a handler was attached after the fact; forwarded without deduping.
  * @param opaque Forwarded to js_std_promise_rejection_tracker().
  */
 static void
@@ -301,8 +301,12 @@ jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst
   static char* last_msg = 0;
   char* msg;
 
-  if(is_handled)
+  /* The std tracker drops its pending entry on "handled"; swallowing it here makes every
+     rejection that is handled later still get reported (and exit 1) at shutdown. */
+  if(is_handled) {
+    js_std_promise_rejection_tracker(ctx, promise, reason, is_handled, opaque);
     return;
+  }
 
   msg = js_error_tostring(ctx, reason);
 
