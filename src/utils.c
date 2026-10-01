@@ -1692,37 +1692,97 @@ js_class_newid(void) {
   return id;
 }
 
+#define JS_CLASS_PROBE_MAX 65536
+
+typedef struct {
+  uint32_t class_id; /* 0 means free entry */
+  JSAtom class_name;
+} JSClassHead;
+
+#define JS_CLASS_ENTRY_SIZE (sizeof(JSClassHead) + 4 * sizeof(void*))
+
+/* JSRuntime is opaque and its layout differs between quickjs builds, so class_count is derived
+ * from the public JS_IsRegisteredClass() instead of read from a hardcoded offset; JS_NewClass()
+ * only ever grows class_count to the highest registered id + 1, which makes the two equal. */
 uint32_t
 js_class_count(JSRuntime* rt) {
-  uint32_t class_count = *((uint32_t*)rt + DEF6432(27, 16));
+  uint32_t count = 0;
 
-  return class_count;
+  for(uint32_t i = 1; i < JS_CLASS_PROBE_MAX; ++i)
+    if(JS_IsRegisteredClass(rt, i))
+      count = i + 1;
+
+  return count;
+}
+
+/* class_array has no public accessor, so its offset inside JSRuntime is found by scanning for
+ * the `int class_count; JSClass* class_array;` pair and cross-checking the built-in classes
+ * (ids 1-5 are always registered at their own index). Returns 0 if not found, never faults on
+ * the way: candidate pointers must lie within 4GB of the runtime itself. */
+static const char*
+js_class_array(JSRuntime* rt) {
+  static ptrdiff_t offset = -1;
+
+  if(offset < 0) {
+    uint32_t count = js_class_count(rt);
+
+    offset = 0;
+
+    for(size_t o = 0; count > 5 && o < 4096; o += sizeof(uint32_t)) {
+      size_t ao = (o + sizeof(uint32_t) + sizeof(void*) - 1) & ~(sizeof(void*) - 1);
+      const char* arr;
+      uintptr_t dist;
+      uint32_t i;
+
+      if(*(uint32_t*)((char*)rt + o) != count)
+        continue;
+
+      arr = *(const char**)((char*)rt + ao);
+
+      if((uintptr_t)arr < 4096 || (uintptr_t)arr % sizeof(void*))
+        continue;
+
+      dist = arr > (const char*)rt ? arr - (const char*)rt : (const char*)rt - arr;
+
+      if((uint64_t)dist >> 32)
+        continue;
+
+      for(i = 1; i <= 5; ++i)
+        if(((const JSClassHead*)(arr + i * JS_CLASS_ENTRY_SIZE))->class_id != i)
+          break;
+
+      if(i > 5) {
+        offset = ao;
+        break;
+      }
+    }
+  }
+
+  return offset ? *(const char**)((const char*)rt + offset) : 0;
+}
+
+static const JSClassHead*
+js_class_entry(JSRuntime* rt, JSClassID id) {
+  const char* arr;
+
+  if(id < 1 || id >= js_class_count(rt) || !(arr = js_class_array(rt)))
+    return 0;
+
+  return (const JSClassHead*)(arr + (size_t)id * JS_CLASS_ENTRY_SIZE);
 }
 
 JSAtom
 js_class_atom(JSContext* ctx, JSClassID id) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
+  const JSClassHead* entry = js_class_entry(JS_GetRuntime(ctx), id);
 
-  assert(id > 0 && id < js_class_count(rt));
-
-  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
-
-  class_arr += id * DEF6432(5, 6);
-
-  return JS_DupAtom(ctx, ((JSAtom*)class_arr)[1]);
+  return entry && entry->class_id ? JS_DupAtom(ctx, entry->class_name) : 0;
 }
 
 JSClassID
 js_class_id(JSContext* ctx, JSClassID id) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
+  const JSClassHead* entry = js_class_entry(JS_GetRuntime(ctx), id);
 
-  assert(id > 0 && id < js_class_count(rt));
-
-  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
-
-  class_arr += id * DEF6432(5, 6);
-
-  return JS_DupAtom(ctx, *((JSClassID*)class_arr));
+  return entry ? entry->class_id : 0;
 }
 
 JSValue
@@ -1762,14 +1822,12 @@ JSClassID
 js_class_find(JSContext* ctx, JSAtom name) {
   JSRuntime* rt = JS_GetRuntime(ctx);
   uint32_t class_count = js_class_count(rt);
-  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
 
-  for(uint32_t i = 0; i < class_count; ++i) {
-    if(*(JSClassID*)class_arr)
-      if(((JSAtom*)class_arr)[1] == name)
-        return i;
+  for(uint32_t i = 1; i < class_count; ++i) {
+    const JSClassHead* entry = js_class_entry(rt, i);
 
-    class_arr += DEF6432(5, 6);
+    if(entry && entry->class_id && entry->class_name == name)
+      return i;
   }
 
   return -1;

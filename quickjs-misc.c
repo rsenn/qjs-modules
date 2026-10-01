@@ -1967,8 +1967,11 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       if(id < 1 || id >= count)
         ret = JS_ThrowRangeError(ctx, "id %d out of range (max: %u)", (int)id, (unsigned)count);
-      else if(js_class_id(ctx, id))
-        ret = JS_NewInt32(ctx, js_class_atom(ctx, id));
+      else if(js_class_id(ctx, id)) {
+        JSAtom atom = js_class_atom(ctx, id);
+        ret = JS_NewInt32(ctx, atom);
+        JS_FreeAtom(ctx, atom);
+      }
 
       break;
     }

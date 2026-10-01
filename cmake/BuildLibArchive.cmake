@@ -1,3 +1,11 @@
+include(${CMAKE_CURRENT_SOURCE_DIR}/FindBZip2.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/FindLibB2.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/FindLibLZMA.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/FindLz4.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/FindZlib.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/FindZstd.cmake)
+
+
 # build_libarchive(SOURCE BINARY SUFFIX PIC)
 #
 # Builds the vendored libarchive submodule once per SUFFIX ("shared"/"static"), each
@@ -8,6 +16,30 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
   include(ExternalProject)
 
   message("-- Building libarchive from source (${SUFFIX}, PIC=${PIC})")
+
+  if(NOT BZIP2_LIBRARY)
+    find_bzip2()
+  endif()
+
+  if(NOT LIBB2_LIBRARY)
+    find_libb2()
+  endif()
+
+  if(NOT LIBLZMA_LIBRARY)
+    find_liblzma()
+  endif()
+
+  if(NOT LZ4_LIBRARY)
+    find_liblz4()
+  endif()
+
+  if(NOT ZLIB_LIBRARY)
+    find_zlib()
+  endif()
+
+  if(NOT ZSTD_LIBRARY)
+    find_zstd()
+  endif()
 
   ExternalProject_Add(
     libarchive_${SUFFIX}
