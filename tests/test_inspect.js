@@ -164,6 +164,15 @@ async function main(...args) {
 
   console.log('inspect(map)', inspect(map, { compact: Infinity }));
 
+  for(const [value, expected] of [
+    [5n, '5n'],
+    [-3n, '-3n'],
+    [2n ** 70n, '1180591620717411303424n'],
+  ]) {
+    const actual = inspect(value, { colors: false });
+    if(actual !== expected) throw new Error(`inspect(${expected}) returned ${actual}`);
+  }
+
   std.gc();
   return;
 }
