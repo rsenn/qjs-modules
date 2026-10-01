@@ -1046,6 +1046,14 @@ js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     JS_Call(ctx, data[2], JS_UNDEFINED, 1, &data[0]);
+  } else if(newstate == PGRES_POLLING_FAILED) {
+    JSValue err = js_pgsqlerror_new(ctx, pgconn_error(pq));
+
+    if(fd >= 0)
+      js_iohandler_set(ctx, data[1], fd, JS_NULL);
+
+    JS_FreeValue(ctx, JS_Call(ctx, data[3], JS_UNDEFINED, 1, &err));
+    JS_FreeValue(ctx, err);
   } else if(newstate != oldstate) {
     JSValue handler, hdata[4] = {
                          JS_DupValue(ctx, data[0]),

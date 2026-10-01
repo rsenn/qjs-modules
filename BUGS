@@ -764,3 +764,47 @@
     [...new ECMAScriptLexer('/* a – b */\nlet x', 'f')].map(t => t.lexeme)[0];
     // "/* a – b */*/", expected "/* a – b */"
 
+- pgsql-async-connect-live-server-hangs: an async pgsql connect (set
+  pq.nonblocking = true, then pq.connect(...)) against a reachable server
+  never settles cleanly. with deliberately wrong credentials against a local
+  postgres on 127.0.0.1:5432 the promise resolves with undefined (not the
+  connection, and not a rejection for the failed login), the then-callback
+  fires repeatedly, and the process then hangs instead of exiting. an
+  unreachable server now rejects correctly (js_pgconn_connect_cont handles
+  PGRES_POLLING_FAILED), so the remaining defect is in the multi-step polling
+  path of js_pgconn_connect_cont / js_pgconn_connect_start
+  (quickjs-pgsql.c:1030-1125), which is not root-caused. found while checking
+  that js_iohandler_fn works for pgsql. not tested with valid credentials.
+
+    import { PGconn } from 'pgsql';
+    const pq = new PGconn();
+    pq.nonblocking = true;
+    await pq.connect('127.0.0.1', 'nosuchuser', 'wrong', 'nosuchdb', 5432, 5);
+    // expected: rejection with an authentication error
+    // actual: resolves undefined; repeated callbacks; process hangs
+
+- xmlparser-null-source-segfault (quickjs-xml.c): constructing an XMLParser
+  with a null source and calling parse() crashes the process with a
+  segmentation fault instead of throwing a TypeError. found when
+  examples/html2md.js was handed null by a failed file read. the constructor
+  itself accepts null without complaint, so the crash is in the parse path.
+  not root-caused.
+
+    import { XMLParser } from 'xml';
+    new XMLParser(null, { tolerant: true, builder: false }).parse();
+    // expected: TypeError (no input)
+    // actual: segmentation fault
+
+- fs-readfilesync-utf8-missing-file-returns-null (lib/fs.js:readFileSync):
+  readFileSync(path, 'utf-8') returns null for a missing or unreadable file
+  instead of throwing, because that encoding branch returns std.loadFile()
+  directly and std.loadFile() reports failure as null with no errno. node
+  throws ENOENT, and this function itself throws a SyscallError for the same
+  missing file when no encoding (or 'utf8', without the dash) is given. found
+  while writing examples/html2md.js.
+
+    import { readFileSync } from 'fs';
+    readFileSync('/no/such.html', 'utf-8');
+    // expected: throws SyscallError (ENOENT)
+    // actual: returns null
+
