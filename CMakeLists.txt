@@ -1426,3 +1426,11 @@ install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
 symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")
+
+
+file(GLOB_RECURSE JS_SCRIPTS 
+  examples/*.js
+  utilities/*.js
+)
+
+add_custom_target(js SOURCES ${JS_SCRIPTS})

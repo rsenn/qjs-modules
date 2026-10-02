@@ -7,7 +7,6 @@
  */
 
 VISIBLE struct list_head asyncclosure_list;
-VISIBLE JSClassID js_asyncclosure_class_id = 0;
 
 AsyncClosure*
 asyncclosure_lookup(int fd) {

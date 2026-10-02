@@ -44,7 +44,6 @@ void asyncclosure_done(AsyncClosure*);
 AsyncClosure* asyncclosure_lookup(int fd);
 
 extern VISIBLE struct list_head asyncclosure_list;
-extern VISIBLE JSClassID js_asyncclosure_class_id;
 
 static inline void
 asyncclosure_yield(AsyncClosure* ac, JSValueConst value) {

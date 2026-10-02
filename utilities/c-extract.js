@@ -956,18 +956,16 @@ function placed(rec, file, modes) {
 }
 
 function placedIdentifier(e, modes) {
-  const out = {
+  return {
     ...e,
     declaration: e.declaration && placed(e.declaration, undefined, modes),
     prototype: e.prototype.map(p => placed(p, undefined, modes)),
     references: e.references.map(r => placed(r, undefined, modes)),
   };
-
-  // a macro has no prototype
-  if(e.declaration?.kind == 'macro' && !out.prototype.length) delete out.prototype;
-
-  return out;
 }
+
+// declaration kinds `-i` leaves out: not what a symbol listing is after
+const HIDDEN_KINDS = new Set(['macro', 'enumerator', 'label']);
 
 function main(...args) {
   let pattern, list, types, identifiers, fields, splitDir, output;
@@ -1004,7 +1002,9 @@ function main(...args) {
                         (describeObject()-shaped; fields carry byte offset and
                         size, assuming LP64) instead of functions
   -i, --identifiers     emit every identifier's declaration, prototypes and
-                        references (across all FILEs) as JSON; with -l one
+                        references (across all FILEs) as JSON, leaving out names
+                        without a declaration, macros, enumerators and labels;
+                        with -l one
                         "file:line:column: kind name (N references)" line per name
   -f, --fields          with -i, also list struct/union fields (<parent>.<field>)
   -L, --loc MODE[,MODE]  how -t/-i JSON reports positions (default: line):
@@ -1064,9 +1064,10 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
   if(identifiers) {
     for(const e of ids.values()) {
       if(pattern && !pattern.test(e.name)) continue;
-      if(!fields && e.declaration?.kind == 'field') continue;
-      const at = e.declaration ?? e.prototype[0];
-      if(list) chunks.push(`${at ? `${at.file}:${at.line}:${at.column}` : '-'}: ${e.declaration?.kind ?? (e.prototype.length ? 'prototype' : 'undeclared')} ${e.name} (${e.references.length} references)\n`);
+      if(!e.declaration || HIDDEN_KINDS.has(e.declaration.kind)) continue;
+      if(!fields && e.declaration.kind == 'field') continue;
+      const at = e.declaration;
+      if(list) chunks.push(`${at.file}:${at.line}:${at.column}: ${at.kind} ${e.name} (${e.references.length} references)\n`);
       else irs.push(placedIdentifier(e, locModes));
     }
   }
