@@ -173,4 +173,19 @@ tests({
     eq(tok.type, 'ident');
     eq(tok.lexeme, 'hello');
   },
+  'a multi-byte character in a token does not shift the following tokens'() {
+    const l = new Lexer('/* \u00a7 */ x', Lexer.LONGEST, 't.c');
+    l.addRule('comment', /\/\*[^*]*\*\//);
+    l.addRule('ws', /[ \t]+/);
+    l.addRule('ident', /[a-z]+/);
+    const tok = l.nextToken();
+    eq(tok.type, 'comment');
+    eq(tok.byteLength, 8);
+    eq(tok.charLength, 7);
+    l.nextToken();
+    const next = l.nextToken();
+    eq(next.lexeme, 'x');
+    eq(next.bytePos, 9);
+    eq(next.charPos, 8);
+  },
 });
