@@ -43,7 +43,11 @@ typedef struct {
     Location loc;
     struct {
       int ref_count;
-      int32_t file, line, column;
+      union {
+        int32_t file;
+        char* filename;
+      };
+      int32_t line, column;
       int64_t char_offset, byte_offset;
     };
   };
@@ -64,6 +68,10 @@ typedef struct {
   Vector state_stack;
   uint64_t seq;
 } Lexer;
+
+/* the anonymous struct above must mirror Location field for field */
+_Static_assert(offsetof(Lexer, byte_offset) == offsetof(Lexer, loc.byte_offset), "Lexer's Location overlay is out of sync with Location");
+_Static_assert(offsetof(Lexer, line) == offsetof(Lexer, loc.line), "Lexer's Location overlay is out of sync with Location");
 
 #define LEXER_POS(l) ((l)->byte_offset)
 #define LEXER_DATA(l) ((l)->data)

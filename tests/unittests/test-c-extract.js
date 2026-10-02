@@ -1,4 +1,4 @@
-import { findFunctions, findTypes } from '../../utilities/c-extract.js';
+import { classifyStatement, findFunctions, findIdentifiers, findTypes } from '../../utilities/c-extract.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const byName = (list, name) => list.find(d => d.name == name);
@@ -123,5 +123,114 @@ tests({
   },
   'findTypes() ignores forward declarations, variables and function definitions'() {
     eq(findTypes('struct fwd;\nstruct s v;\nstruct s* f(void) { return 0; }\n', 't.c').length, 0);
+  },
+  'findIdentifiers() separates declaration, prototype and references'() {
+    const ids = findIdentifiers(
+      `typedef struct Foo { int a; Bar* b; } Foo;
+enum E { E_A, E_B = E_A + 1 };
+extern int counter;
+int global = DEFAULT + 1;
+int add(int a, int b);
+static int helper(Foo* f) { return f->a; }
+int add(int a, int b) {
+  int tmp = helper(0);
+  for(int i = 0; i < n; i++) { tmp += global; }
+  counter++;
+  return tmp + b;
+}
+`,
+      't.c',
+    );
+    const kind = n => ids.get(n).declaration?.kind;
+
+    eq(kind('Foo'), 'typedef');
+    eq(kind('E_B'), 'enumerator');
+    eq(kind('global'), 'data');
+    eq(kind('add'), 'function');
+    eq(kind('helper'), 'function');
+    assert(ids.get('helper').declaration.static);
+    eq(ids.get('add').prototype.length, 1);
+    eq(ids.get('counter').declaration, null);
+    eq(ids.get('counter').prototype.length, 1);
+    eq(ids.get('helper').references.map(r => r.in).join(), 'add');
+    eq(ids.get('E_A').references.length, 1);
+    eq(ids.get('Bar').declaration, null);
+    eq(ids.get('global').declaration.column, 5);
+    eq(ids.get('helper').declaration.column, 12);
+    eq(ids.get('DEFAULT').references[0].column, 14);
+    eq(ids.get('DEFAULT').references.length, 1);
+  },
+  'findIdentifiers() lets locals and parameters shadow globals, and skips member names'() {
+    const ids = findIdentifiers('int x;\nint f(int y) { int x = y; return p->y + x; }\n', 't.c');
+    eq(ids.get('x').references.length, 0);
+    assert(!ids.has('y'));
+  },
+  'findIdentifiers() tolerates malformed input'() {
+    findIdentifiers('int f( { ((( int x = ;;; } } struct { enum', 't.c');
+    findIdentifiers('', 't.c');
+  },
+  'findIdentifiers() accumulates across files'() {
+    const ids = findIdentifiers('int g(void);\n', 'a.h');
+    findIdentifiers('int g(void) { return 0; }\nint h(void) { return g(); }\n', 'b.c', ids);
+    eq(ids.get('g').prototype[0].file, 'a.h');
+    eq(ids.get('g').declaration.file, 'b.c');
+    eq(ids.get('g').references[0].file, 'b.c');
+  },
+  'findIdentifiers() records macros, their parameters and body references'() {
+    const ids = findIdentifiers(
+      `#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define LONG(x) \\
+  helper(x) + \\
+  OTHER
+#  define SPACED 1 /* note */
+#ifdef FEATURE
+#endif
+#if defined(A) && B > 1
+#endif
+#include <stdio.h>
+`,
+      't.c',
+    );
+    eq(ids.get('MIN').declaration.kind, 'macro');
+    eq(ids.get('LONG').declaration.line, 2);
+    eq(ids.get('SPACED').declaration.kind, 'macro');
+    assert(!ids.has('a'));
+    eq(ids.get('helper').references[0].line, 3);
+    eq(ids.get('OTHER').references[0].line, 4);
+    eq(ids.get('helper').references[0].in, 'LONG');
+    for(const n of ['FEATURE', 'A', 'B']) eq(ids.get(n).references.length, 1);
+    assert(!ids.has('defined') && !ids.has('stdio'));
+  },
+  'findIdentifiers() recognises labels and goto targets'() {
+    const ids = findIdentifiers('int f(void) {\n  if(x) goto l_error;\n  return 0;\nl_error:\n  return -1;\n}\n', 't.c');
+    eq(ids.get('l_error').declaration.kind, 'label');
+    eq(ids.get('l_error').declaration.in, 'f');
+    eq(ids.get('l_error').references.length, 1);
+  },
+  'findIdentifiers() declares struct tags, forward declarations and members'() {
+    const ids = findIdentifiers('struct fwd;\nstruct node { int value; struct node* next; };\ntypedef struct node Node;\nstruct fwd* p;\n', 't.c');
+    eq(ids.get('fwd').prototype.length, 1);
+    eq(ids.get('node').declaration.kind, 'struct');
+    eq(ids.get('value').declaration.kind, 'field');
+    eq(ids.get('Node').declaration.kind, 'typedef');
+  },
+  'findIdentifiers() handles annotation macros, initializer braces and stray tokens'() {
+    const ids = findIdentifiers('void FORMAT(2, 3) trace(int a, const char* fmt, ...) { Rule r = {a, 1}, *prev; prev = &r; }\n/ int after(void) { return 0; }\nint m = 0b11u;\n', 't.c');
+    eq(ids.get('trace').declaration.kind, 'function');
+    assert(!ids.has('prev') && !ids.has('fmt') && !ids.has('b11u'));
+    eq(ids.get('after').declaration.kind, 'function');
+  },
+  'classifyStatement() tells declarations from expressions'() {
+    eq(classifyStatement('int f(int a) { return a; }'), 'function');
+    eq(classifyStatement('ChildProcess* f(JSValueConst v);'), 'prototype');
+    eq(classifyStatement('extern int counter;'), 'prototype');
+    eq(classifyStatement('static int table[4] = { 1, 2 };'), 'data');
+    eq(classifyStatement('Foo* p = NULL;'), 'data');
+    eq(classifyStatement('typedef unsigned long ulong_t;'), 'typedef');
+    eq(classifyStatement('typedef int (*cb_t)(int);'), 'typedef');
+    eq(classifyStatement('struct S { int a; };'), 'type');
+    eq(classifyStatement('x = y + 1;'), 'other');
+    eq(classifyStatement('foo(a, b);'), 'other');
+    eq(classifyStatement('return a * b;'), 'other');
   },
 });

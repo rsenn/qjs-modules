@@ -808,3 +808,16 @@
     // expected: throws SyscallError (ENOENT)
     // actual: returns null
 
+
+- lexer-c-multibyte-multiline-comment-stray-slash (../qjs-modules/lib/lexer/c.js):
+  a /* ... */ comment containing a multi-byte UTF-8 character is cut one
+  character short per byte beyond the first (the comment token ends before
+  the closing slash), so a stray 'slash' token is emitted right after it.
+  found while running utilities/c-extract.js over src/pointer.c; c-extract
+  now skips such stray leading tokens, but any other lexer consumer sees
+  the extra token. // comments are not affected.
+
+    import CLexer from 'lexer/c.js';
+    const l = new CLexer('/* \u00a7 */ int x;', undefined, 't.c');
+    // tokens: multiLineComment, slash, int, identifier, semi
+    // expected: no 'slash' token
