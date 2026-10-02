@@ -1,6 +1,7 @@
 #!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as path from 'path';
+import { readdir } from 'os';
 import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
 
@@ -540,13 +541,15 @@ function parseDecl(s, top) {
 
   const declared = [],
     refs = [],
-    params = [];
-  let rest = s.slice(q.i);
+    params = [],
+    members = []; // declarations found in an aggregate body, named once the aggregate's own name is known
+  let rest = s.slice(q.i),
+    tag = null;
 
   if(AGG.has(rest[0]?.lexeme) || rest[0]?.lexeme == 'enum') {
     const isEnum = rest[0].lexeme == 'enum';
     let k = 1;
-    const tag = isIdent(rest[k]) ? rest[k++] : null;
+    tag = isIdent(rest[k]) ? rest[k++] : null;
 
     // `struct S { ... }` defines the tag, a lone `struct S;` forward-declares it, anything else uses it
     if(tag) {
@@ -567,9 +570,8 @@ function parseDecl(s, top) {
           const f = parseDecl(item);
           if(f) {
             refs.push(...f.refs);
-            for(const x of f.declared) declared.push({ ...x, kind: x.kind == 'enumerator' ? x.kind : 'field' });
-          }
-          else refs.push(...refTokens(item));
+            members.push(...f.declared);
+          } else refs.push(...refTokens(item));
         }
       }
 
@@ -628,6 +630,17 @@ function parseDecl(s, top) {
       if(t === name) continue;
       if(params2 && params2.names.includes(t)) continue;
       refs.push(t);
+    }
+  }
+
+  // fields are named `<parent>.<field>`: the tag, else the typedef/variable the aggregate is declared as
+  if(members.length) {
+    const parent = tag?.lexeme ?? declared.find(x => !TAG_KINDS.has(x.kind) && x.kind != 'enumerator')?.tok.lexeme ?? null;
+
+    for(const x of members) {
+      if(x.kind == 'enumerator' || TAG_KINDS.has(x.kind)) declared.push(x);
+      else if(x.kind == 'field') declared.push(x.orphan && parent ? { ...x, name: `${parent}.${x.name}`, orphan: false } : x);
+      else declared.push({ tok: x.tok, kind: 'field', name: parent ? `${parent}.${x.tok.lexeme}` : x.tok.lexeme, orphan: !parent });
     }
   }
 
@@ -731,7 +744,7 @@ export function findIdentifiers(source, filename, ids = new Map()) {
   };
 
   const declare = (d, isStatic, isFn) => {
-    const e = entry(d.tok.lexeme);
+    const e = entry(d.name ?? d.tok.lexeme);
     if(d.kind == 'prototype' && !isFn) e.prototype.push(pos(d.tok));
     else if(!e.declaration || (WEAK_KINDS.has(e.declaration.kind) && !WEAK_KINDS.has(d.kind))) e.declaration = { kind: isFn ? 'function' : d.kind, ...pos(d.tok), ...(isStatic ? { static: true } : {}), ...(d.in ? { in: d.in } : {}) };
   };
@@ -768,7 +781,7 @@ export function findIdentifiers(source, filename, ids = new Map()) {
 
       if(d) {
         // a declarator is in scope for its own initializer and for later declarators
-        for(const x of [...d.declared.map(x => x.tok), ...d.params]) locals.add(x.lexeme);
+        for(const x of [...d.declared.filter(x => x.kind != 'field').map(x => x.tok), ...d.params]) locals.add(x.lexeme);
         for(const t of d.refs) ref(t, fn, locals);
       } else for(const t of refTokens(st)) ref(t, fn, locals);
     };
@@ -875,8 +888,29 @@ export function findIdentifiers(source, filename, ids = new Map()) {
   return ids;
 }
 
+function* walkFiles(dir) {
+  const [entries, err] = readdir(dir);
+  if(err || !entries) return;
+
+  for(const entry of entries.filter(e => e != '.' && e != '..').sort()) {
+    const p = `${dir.replace(/\/+$/, '')}/${entry}`;
+    const [sub, subErr] = readdir(p);
+
+    if(!subErr && sub) yield* walkFiles(p);
+    else if(/\.[ch]$/i.test(entry)) yield p;
+  }
+}
+
+/** Replaces each directory in `paths` with the *.c/*.h files below it (recursively, sorted). */
+function expandPaths(paths) {
+  return paths.flatMap(p => {
+    const [entries, err] = readdir(p);
+    return !err && entries ? [...walkFiles(p)] : [p];
+  });
+}
+
 function main(...args) {
-  let pattern, list, types, identifiers, splitDir, output;
+  let pattern, list, types, identifiers, fields, splitDir, output;
 
   const params = getOpt(
     {
@@ -884,6 +918,7 @@ function main(...args) {
       list: [false, () => (list = true), 'l'],
       types: [false, () => (types = true), 't'],
       identifiers: [false, () => (identifiers = true), 'i'],
+      fields: [false, () => (fields = true), 'f'],
       split: [true, v => (splitDir = v), 's'],
       output: [true, v => (output = v), 'o'],
       help: [false, null, 'h'],
@@ -891,10 +926,10 @@ function main(...args) {
     },
     args,
   );
-  const files = params['@'];
+  const files = expandPaths(params['@']);
 
   if(params.help || !files.length) {
-    console.log(`Usage: c-extract.js [-p REGEXP] [-l] [-t] [-i] [-s DIR] [-o FILE] FILE...
+    console.log(`Usage: c-extract.js [-p REGEXP] [-l] [-t] [-i] [-f] [-s DIR] [-o FILE] FILE|DIR...
 
   -p, --pattern REGEXP  only functions/types whose name matches (default: all)
   -l, --list            print "file:line:column: name" instead of the source / IR
@@ -904,9 +939,12 @@ function main(...args) {
   -i, --identifiers     emit every identifier's declaration, prototypes and
                         references (across all FILEs) as JSON; with -l one
                         "file:line:column: kind name (N references)" line per name
+  -f, --fields          with -i, also list struct/union fields (<parent>.<field>)
   -s, --split DIR       write each function to DIR/<name>.c, prefixed with the
                         text preceding the file's first function (#includes etc.)
-  -o, --output FILE     write to FILE instead of stdout`);
+  -o, --output FILE     write to FILE instead of stdout
+
+A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     return params.help ? 0 : 1;
   }
 
@@ -951,6 +989,7 @@ function main(...args) {
   if(identifiers) {
     for(const e of ids.values()) {
       if(pattern && !pattern.test(e.name)) continue;
+      if(!fields && e.declaration?.kind == 'field') continue;
       const at = e.declaration ?? e.prototype[0];
       if(list) chunks.push(`${at ? `${at.file}:${at.line}:${at.column}` : '-'}: ${e.declaration?.kind ?? (e.prototype.length ? 'prototype' : 'undeclared')} ${e.name} (${e.references.length} references)\n`);
       else irs.push(e);

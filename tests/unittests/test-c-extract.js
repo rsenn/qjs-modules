@@ -211,8 +211,14 @@ int add(int a, int b) {
     const ids = findIdentifiers('struct fwd;\nstruct node { int value; struct node* next; };\ntypedef struct node Node;\nstruct fwd* p;\n', 't.c');
     eq(ids.get('fwd').prototype.length, 1);
     eq(ids.get('node').declaration.kind, 'struct');
-    eq(ids.get('value').declaration.kind, 'field');
+    eq(ids.get('node.value').declaration.kind, 'field');
+    assert(!ids.has('value'));
     eq(ids.get('Node').declaration.kind, 'typedef');
+  },
+  'findIdentifiers() names fields <parent>.<field>'() {
+    const ids = findIdentifiers('struct node { int v; union { int i; float f; }; struct Inner { int x; } inner; };\ntypedef struct { int a; } Anon;\nstruct { int g; } glob;\n', 't.c');
+    const fields = [...ids.keys()].filter(n => ids.get(n).declaration?.kind == 'field').sort();
+    eq(fields.join(), 'Anon.a,Inner.x,glob.g,node.f,node.i,node.inner,node.v');
   },
   'findIdentifiers() handles annotation macros, initializer braces and stray tokens'() {
     const ids = findIdentifiers('void FORMAT(2, 3) trace(int a, const char* fmt, ...) { Rule r = {a, 1}, *prev; prev = &r; }\n/ int after(void) { return 0; }\nint m = 0b11u;\n', 't.c');
