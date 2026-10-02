@@ -231,6 +231,19 @@ int add(int a, int b) {
     const t = byName(findTypes(src, 't.c'), 's');
     eq(src.slice(t.offset, t.end), 'struct s { int a; }');
   },
+  'findIdentifiers() and findTypes() record the end line and column'() {
+    const src = 'struct s {\n  int a;\n};\nint f;\n';
+    const t = byName(findTypes(src, 't.c'), 's');
+    eq([t.line, t.column, t.endLine, t.endColumn].join(), '1,1,3,2');
+
+    const f = findIdentifiers(src, 't.c').get('f').declaration;
+    eq([f.line, f.column, f.endLine, f.endColumn].join(), '4,5,4,6');
+  },
+  'findIdentifiers() skips annotation macros after a prototype'() {
+    const ids = findIdentifiers('int trace(int a, const char* fmt, ...) FORMAT_STRING(2, 3);\n', 't.c');
+    eq(ids.get('trace').prototype.length, 1);
+    assert(!ids.get('FORMAT_STRING')?.prototype.length);
+  },
   'findIdentifiers() handles annotation macros, initializer braces and stray tokens'() {
     const ids = findIdentifiers('void FORMAT(2, 3) trace(int a, const char* fmt, ...) { Rule r = {a, 1}, *prev; prev = &r; }\n/ int after(void) { return 0; }\nint m = 0b11u;\n', 't.c');
     eq(ids.get('trace').declaration.kind, 'function');

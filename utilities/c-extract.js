@@ -201,6 +201,12 @@ const num = ts => {
 
 const alignUp = (n, a) => Math.ceil(n / a) * a;
 
+/** `{ endLine, endColumn }`: the position just past the last token of `toks`. */
+const endOf = toks => {
+  const last = toks.reduce((a, t) => (t.charPos > a.charPos ? t : a));
+  return { endLine: last.loc.line, endColumn: last.loc.column + last.charLength };
+};
+
 const mk = (name, type, size, align, line, extra) => {
   const desc = { name, type, size, align, line, methods: [], getters: [], setters: [], fields: [], prototypeChain: [], ...extra };
   for(const key of ['methods', 'getters', 'setters', 'fields', 'prototypeChain']) if(!desc[key]?.length) delete desc[key];
@@ -324,11 +330,13 @@ function parseAggregate(ts, k, reg, text) {
   const body = ts.slice(i + 1, close);
   const { line, column } = ts[k].loc;
   const offset = ts[k].charPos,
-    end = ts[close].charPos + ts[close].charLength;
+    end = ts[close].charPos + ts[close].charLength,
+    endLine = ts[close].loc.line,
+    endColumn = ts[close].loc.column + ts[close].charLength;
   let desc;
 
   if(kind == 'enum') {
-    desc = mk(tag, kind, 4, 4, line, { column, offset, end, fields: splitTop(body, ',').map(p => ({ name: p[0].lexeme })) });
+    desc = mk(tag, kind, 4, 4, line, { column, offset, end, endLine, endColumn, fields: splitTop(body, ',').map(p => ({ name: p[0].lexeme })) });
   } else {
     const members = [],
       methods = [];
@@ -354,7 +362,7 @@ function parseAggregate(ts, k, reg, text) {
     }
 
     const l = layout(kind, members);
-    desc = mk(tag, kind, l.size, l.align, line, { column, offset, end, fields: l.fields, methods });
+    desc = mk(tag, kind, l.size, l.align, line, { column, offset, end, endLine, endColumn, fields: l.fields, methods });
   }
 
   if(tag) {
@@ -438,7 +446,7 @@ export function findTypes(source, filename) {
       if(!dd.name || dd === named) continue;
       const m = sized(d.base, dd);
       reg.set(dd.name, m);
-      out.push(mk(dd.name, 'typedef', m.size, m.align, s[0].loc.line, { column: s[0].loc.column, offset: Math.min(...s.map(t => t.charPos)), end: Math.max(...s.map(t => t.charPos + t.charLength)), target: m.type }));
+      out.push(mk(dd.name, 'typedef', m.size, m.align, s[0].loc.line, { column: s[0].loc.column, offset: Math.min(...s.map(t => t.charPos)), end: Math.max(...s.map(t => t.charPos + t.charLength)), ...endOf(s), target: m.type }));
     }
   }
 
@@ -599,8 +607,10 @@ function parseDecl(s, top) {
 
     const groups = topGroups(dd);
     const fnptr = groups.find(([o]) => dd[o + 1]?.lexeme == '*' && !isIdent(dd[o - 1]));
-    // the last `name(...)` group: leading annotation macros (`FORMAT_STRING(2, 3) name(...)`) come before the name
-    const fnGroup = groups.findLast(([o]) => isIdent(dd[o - 1]) && !ATTRIBUTE.test(dd[o - 1].lexeme));
+    // the function's own `name(...)` group, not an annotation macro before (`FORMAT_STRING(2, 3) name(...)`)
+    // or after (`name(...) FORMAT_STRING(3, 4)`) it: prefer a non-ALL-CAPS name, then the last group
+    const candidates = groups.filter(([o]) => isIdent(dd[o - 1]) && !ATTRIBUTE.test(dd[o - 1].lexeme));
+    const fnGroup = candidates.findLast(([o]) => !/^[A-Z_0-9]+$/.test(dd[o - 1].lexeme)) ?? candidates.at(-1);
 
     let name = null,
       kind = isTypedef ? 'typedef' : 'data',
@@ -747,7 +757,7 @@ export function findIdentifiers(source, filename, ids = new Map()) {
   const all = lex(source, filename).filter(t => !COMMENT.has(t.type));
   const ts = all.filter(t => t.type != 'preprocessor');
   const entry = name => ids.get(name) ?? ids.set(name, { name, declaration: null, prototype: [], references: [] }).get(name);
-  const pos = t => ({ file: filename, line: t.loc.line, column: t.loc.column, offset: t.charPos, end: t.charPos + t.charLength });
+  const pos = t => ({ file: filename, line: t.loc.line, column: t.loc.column, offset: t.charPos, end: t.charPos + t.charLength, endLine: t.loc.line, endColumn: t.loc.column + t.charLength });
 
   const ref = (t, fn, locals) => {
     if(locals?.has(t.lexeme)) return;
@@ -920,16 +930,17 @@ function expandPaths(paths) {
   });
 }
 
-const LOC_MODES = ['line', 'offset', 'loc', 'range', 'file'];
+const LOC_MODES = ['line', 'offset', 'loc', 'range', 'file', 'start', 'end'];
 
 /**
  * Rewrites the position properties of `rec` (`line`, `column`, `offset`, `end`, as the
  * finders record them) into the requested shapes: `line` -> .line + .column, `offset` ->
  * .offset, `loc` -> .loc { line, column, file }, `range` -> .range { start, end, file },
- * `file` -> .file.
+ * `file` -> .file, `start` -> .start "<file>:<line>:<column>", `end` -> .end
+ * "<file>:<line>:<column>" (just past the last character).
  */
 function placed(rec, file, modes) {
-  const { line, column, offset, end, file: own, ...rest } = rec;
+  const { line, column, offset, end, endLine, endColumn, file: own, ...rest } = rec;
   const f = own ?? file;
   const out = { ...rest };
 
@@ -938,17 +949,24 @@ function placed(rec, file, modes) {
   if(modes.includes('loc')) out.loc = { line, column, file: f };
   if(modes.includes('range')) out.range = { start: offset, end, file: f };
   if(modes.includes('file')) out.file = f;
+  if(modes.includes('start')) out.start = `${f}:${line}:${column}`;
+  if(modes.includes('end')) out.end = `${f}:${endLine}:${endColumn}`;
 
   return out;
 }
 
 function placedIdentifier(e, modes) {
-  return {
+  const out = {
     ...e,
     declaration: e.declaration && placed(e.declaration, undefined, modes),
     prototype: e.prototype.map(p => placed(p, undefined, modes)),
     references: e.references.map(r => placed(r, undefined, modes)),
   };
+
+  // a macro has no prototype
+  if(e.declaration?.kind == 'macro' && !out.prototype.length) delete out.prototype;
+
+  return out;
 }
 
 function main(...args) {
@@ -995,6 +1013,8 @@ function main(...args) {
                         loc    .loc   { line, column, file }
                         range  .range { start, end, file } (character offsets)
                         file   .file (the file name)
+                        start  .start "<file>:<line>:<column>"
+                        end    .end   "<file>:<line>:<column>" (just past the last character)
   -s, --split DIR       write each function to DIR/<name>.c, prefixed with the
                         text preceding the file's first function (#includes etc.)
   -o, --output FILE     write to FILE instead of stdout
