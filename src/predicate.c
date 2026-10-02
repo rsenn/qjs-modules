@@ -709,15 +709,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ")");
 }
 
-char*
-predicate_tostring(const Predicate* pr, JSContext* ctx) {
-  DynBuf dbuf;
-
-  dbuf_init_ctx(ctx, &dbuf);
-  predicate_dump(pr, ctx, &dbuf);
-  dbuf_0(&dbuf);
-  return (char*)dbuf.buf;
-}
 
 void
 predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments* args) {
@@ -1259,122 +1250,6 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
   return ret;
 }
 
-Predicate*
-predicate_clone(const Predicate* pr, JSContext* ctx) {
-  Predicate* ret = js_mallocz(ctx, sizeof(Predicate));
-
-  ret->id = pr->id;
-
-  switch(pr->id) {
-    case PREDICATE_TYPE: {
-      ret->type.flags = pr->type.flags;
-      break;
-    }
-
-    case PREDICATE_CHARSET: {
-      ret->charset.len = pr->charset.len;
-      ret->charset.set = js_strndup(ctx, pr->charset.set, pr->charset.len);
-      vector_copy(&ret->charset.chars, &pr->charset.chars);
-      break;
-    }
-
-    case PREDICATE_STRING: {
-      ret->string.len = pr->string.len;
-      ret->string.str = js_strndup(ctx, pr->string.str, pr->string.len);
-      break;
-    }
-
-    case PREDICATE_EQUAL:
-    case PREDICATE_INSTANCEOF:
-    case PREDICATE_PROTOTYPEIS:
-    case PREDICATE_NOTNOT:
-    case PREDICATE_NOT:
-    case PREDICATE_BNOT:
-    case PREDICATE_SQRT: {
-      ret->unary.predicate = JS_DupValue(ctx, pr->unary.predicate);
-      break;
-    }
-
-    case PREDICATE_ADD:
-    case PREDICATE_SUB:
-    case PREDICATE_MUL:
-    case PREDICATE_DIV:
-    case PREDICATE_MOD:
-    case PREDICATE_BOR:
-    case PREDICATE_BAND:
-    case PREDICATE_POW:
-    case PREDICATE_ATAN2: {
-      ret->binary.left = JS_DupValue(ctx, pr->binary.left);
-      ret->binary.right = JS_DupValue(ctx, pr->binary.right);
-      break;
-    }
-
-    case PREDICATE_OR:
-    case PREDICATE_AND:
-    case PREDICATE_XOR: {
-      ret->boolean.npredicates = pr->boolean.npredicates;
-      ret->boolean.predicates = js_values_dup(ctx, pr->boolean.npredicates, pr->boolean.predicates);
-      break;
-    }
-
-    case PREDICATE_REGEXP: {
-      ret->regexp.expr.source = js_strndup(ctx, pr->regexp.expr.source, pr->regexp.expr.len);
-      ret->regexp.expr.len = pr->regexp.expr.len;
-      ret->regexp.expr.flags = pr->regexp.expr.flags;
-      ret->regexp.bytecode = 0;
-      break;
-    }
-
-    case PREDICATE_PROPERTY: {
-      ret->property.atom = JS_DupAtom(ctx, pr->property.atom);
-      ret->property.predicate = JS_DupValue(ctx, pr->property.predicate);
-      break;
-    }
-
-    case PREDICATE_HAS: {
-      ret->property.atom = JS_DupAtom(ctx, pr->property.atom);
-      break;
-    }
-
-    case PREDICATE_MEMBER: {
-      ret->member.object = JS_DupValue(ctx, pr->member.object);
-      break;
-    }
-
-    case PREDICATE_SHIFT: {
-      ret->shift.n = pr->shift.n;
-      ret->shift.predicate = JS_DupValue(ctx, pr->shift.predicate);
-      break;
-    }
-
-    case PREDICATE_SLICE: {
-      ret->slice.start = pr->slice.start;
-      ret->slice.end = pr->slice.end;
-      break;
-    }
-
-    case PREDICATE_FUNCTION: {
-      ret->function.func = JS_DupValue(ctx, pr->function.func);
-      ret->function.this_val = JS_DupValue(ctx, pr->function.this_val);
-      ret->function.arity = pr->function.arity;
-      break;
-    }
-
-    case PREDICATE_INDEX: {
-      ret->index.pos = pr->index.pos;
-      ret->index.predicate = JS_DupValue(ctx, pr->index.predicate);
-      break;
-    }
-
-    case PREDICATE_SOME:
-    case PREDICATE_EVERY: {
-      ret->array.predicate = JS_DupValue(ctx, pr->array.predicate);
-      break;
-    }
-  }
-
-  return ret;
-}
 
 int
 predicate_regexp_compile(Predicate* pr, JSContext* ctx) {

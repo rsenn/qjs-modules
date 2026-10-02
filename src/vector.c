@@ -58,14 +58,6 @@ vector_free(Vector* vec) {
 }
 
 int32_t
-vector_indexof(const Vector* vec, size_t elsz, void* ptr) {
-  if(ptr < vector_begin(vec) || ptr > vector_back(vec, elsz))
-    return -1;
-
-  return ((size_t)vector_begin(vec) - (size_t)ptr) / elsz;
-}
-
-int32_t
 vector_find(const Vector* vec, size_t elsz, const void* ptr) {
   void* x;
   int32_t i = 0;
@@ -75,24 +67,6 @@ vector_find(const Vector* vec, size_t elsz, const void* ptr) {
 
   vector_foreach(vec, elsz, x) {
     if(!memcmp(x, ptr, elsz))
-      return i;
-
-    i++;
-  }
-
-  return -1;
-}
-
-int32_t
-vector_finds(const Vector* vec, const char* str) {
-  char** x;
-  int32_t i = 0;
-
-  if(vector_empty(vec))
-    return -1;
-
-  vector_foreach_t(vec, x) {
-    if(!strcmp(*x, str))
       return i;
 
     i++;
@@ -131,32 +105,6 @@ vector_put(Vector* vec, const void* bytes, size_t len) {
   return vec->buf + pos;
 }
 
-void __attribute__((format(printf, 2, 3)))
-vector_printf(Vector* vec, const char* fmt, ...) {
-  va_list ap;
-  char buf[128];
-  size_t len;
-
-  va_start(ap, fmt);
-  len = vsnprintf(buf, sizeof(buf), fmt, ap);
-  va_end(ap);
-
-  if(len < sizeof(buf)) {
-    vector_put(vec, buf, len);
-  } else {
-    size_t pos = vec->size;
-
-    if(!vector_allocate(vec, 1, vec->size + len))
-      return;
-
-    va_start(ap, fmt);
-    len = vsnprintf((char*)(vec->buf + pos), len, fmt, ap);
-    va_end(ap);
-
-    vec->size += len;
-  }
-}
-
 void
 vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
   char* ptr = a;
@@ -167,33 +115,6 @@ vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
       vector_put(out, ptr, elsz);
 
     ptr += elsz;
-  }
-}
-
-void
-vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out_a, Vector* out_b) {
-  vector_diff(a, m, b, n, elsz, out_a);
-  vector_diff(b, n, a, m, elsz, out_b);
-}
-
-void
-vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
-  size_t i, j = 0, k = 0;
-
-  for(i = 0; i < m + n; i++) {
-    void* aptr = (char*)a + j * elsz;
-    void* bptr = (char*)b + k * elsz;
-    int r = memcmp(aptr, bptr, elsz);
-
-    if(r < 0 && j < m) {
-      j++;
-    } else if(r > 0 && k < n) {
-      k++;
-    } else if(r == 0 && j < m && k < n) {
-      vector_put(out, aptr, elsz);
-      j++;
-      k++;
-    }
   }
 }
 
@@ -212,64 +133,6 @@ vector_copy(Vector* dst, const Vector* src) {
   }
 
   return 0;
-}
-
-void
-vector_fwrite(const Vector* vec, size_t start, FILE* out) {
-  size_t i, len = vector_size(vec, sizeof(char*));
-
-  for(i = start; i < len; i++) {
-    const char* str = *(char**)vector_at(vec, sizeof(char*), i);
-
-    fputs(i > start ? "',\n  '" : "[\n  '", out);
-    fputs(str, out);
-
-    if(i + 1 == len)
-      fputs("'\n]", out);
-  }
-
-  fflush(out);
-}
-
-BOOL
-vector_resize(Vector* vec, size_t elsz, int32_t len) {
-  uint64_t n, a = vec->allocated_size;
-
-  if(len < 0)
-    return FALSE;
-
-  if(!umult64(elsz, len, &n))
-    return FALSE;
-
-  if(n == vec->size)
-    return FALSE;
-
-  if(n > a) {
-    size_t need = n;
-    roundto(need, elsz < 8 ? 1000 : 8000);
-    assert(need >= 1000);
-
-    vec->buf = vec->realloc_func(vec->opaque, vec->buf, need);
-    vec->allocated_size = need;
-
-    if(vec->allocated_size > a)
-      memset(vec->buf + a, 0, vec->allocated_size - a);
-  }
-
-  vec->size = n;
-  return TRUE;
-}
-
-char*
-vector_pushstring(Vector* vec, const char* str) {
-  char* s;
-
-  if((s = vec->realloc_func(vec->opaque, 0, strlen(str) + 1))) {
-    strcpy(s, str);
-    vector_push(vec, s);
-  }
-
-  return s;
 }
 
 char*
@@ -291,21 +154,6 @@ vector_clearstrings(Vector* vec) {
 
   vector_foreach_t(vec, ptr) free(*ptr);
   vector_clear(vec);
-}
-
-void
-vector_dumpstrings(const Vector* vec, DynBuf* buf) {
-  size_t i, len = vector_size(vec, sizeof(char*));
-
-  for(i = 0; i < len; i++) {
-    const char* str = *(char**)vector_at(vec, sizeof(char*), i);
-
-    dbuf_putstr(buf, i > 0 ? "',\n  '" : "[\n  '");
-    dbuf_putstr(buf, str);
-
-    if(i + 1 == len)
-      dbuf_putstr(buf, "'\n]");
-  }
 }
 
 void*
@@ -331,19 +179,6 @@ vector_readyplus(Vector* vec, size_t need) {
     return 0;
 
   return ptr + vec->size;
-}
-
-BOOL
-vector_reserve(Vector* vec, size_t elsz, int32_t n) {
-  uint64_t need;
-
-  if(n < 0)
-    return FALSE;
-
-  if(!umult64(elsz, n, &need))
-    return FALSE;
-
-  return !!vector_ready(vec, need);
 }
 
 /**

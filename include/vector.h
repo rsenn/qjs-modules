@@ -66,24 +66,14 @@ extern int umult64(uint64_t a, uint64_t b, uint64_t* c);
 void* vector_realloc(void*, void* ptr, size_t size);
 void* vector_js_realloc(JSContext* ctx, void* ptr, size_t size);
 void* vector_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
-int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
 int32_t vector_find(const Vector* vec, size_t elsz, const void* ptr);
-int32_t vector_finds(const Vector* vec, const char* str);
 int vector_counts(const Vector* vec, const char* str);
 void* vector_put(Vector* vec, const void* bytes, size_t len);
 void vector_free(Vector* vec);
-void vector_printf(Vector* vec, const char*, ...);
-void vector_intersection(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
-void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
 int vector_copy(Vector* dst, const Vector* src);
-void vector_fwrite(const Vector*, size_t, FILE* out);
-BOOL vector_resize(Vector* vec, size_t elsz, int32_t len);
-char* vector_pushstring(Vector*, const char*);
 char* vector_pushstringlen(Vector*, const char*, size_t);
 void vector_clearstrings(Vector*);
-void vector_dumpstrings(const Vector*, DynBuf* buf);
-BOOL vector_reserve(Vector*, size_t elsz, int32_t n);
 void* vector_ready(Vector*, size_t);
 void* vector_readyplus(Vector*, size_t);
 
@@ -145,22 +135,6 @@ vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   return vector_adjust(vec, n - vec->size);
 }
 
-static inline BOOL
-vector_grow(Vector* vec, size_t elsz, int32_t len) {
-  uint64_t n;
-
-  if(len < 0)
-    return FALSE;
-
-  if(!umult64(elsz, len, &n))
-    return FALSE;
-
-  if(n <= vec->size)
-    return FALSE;
-
-  return vector_adjust(vec, n - vec->size);
-}
-
 static inline void*
 vector_growplus(Vector* vec, size_t elsz, int32_t len) {
   uint64_t n;
@@ -205,12 +179,6 @@ vector_empty(const Vector* vec) {
 }
 
 static inline void*
-vector_front(const Vector* vec, size_t elsz) {
-  assert(vec->size >= elsz);
-  return vec->buf;
-}
-
-static inline void*
 vector_back(const Vector* vec, size_t elsz) {
   uint32_t n = vector_size(vec, elsz);
 
@@ -244,47 +212,11 @@ vector_pop(Vector* vec, size_t elsz) {
 }
 
 static inline void
-vector_puts(Vector* vec, const char* str) {
-  vector_put(vec, str, strlen(str));
-}
-
-static inline void
-vector_putc(Vector* vec, char c) {
-  vector_put(vec, &c, 1);
-}
-
-static inline void
-vector_put0(Vector* vec) {
-  vector_put(vec, "\0", 1);
-}
-
-static inline void
-vector_putlong(Vector* vec, long l, int radix) {
-  char buf[64];
-  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
-
-  vector_put(vec, buf, len);
-}
-
-static inline void
 vector_putptr(Vector* vec, void* p) {
   vector_put(vec, &p, sizeof(p));
 }
 
 void quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
-
-static inline void
-vector_sort(Vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {
-  quicksort_r(vector_begin(vec), vector_size(vec, elsz), elsz, compar, arg);
-}
-
-static inline void
-vector_catlong(Vector* vec, long l, int radix) {
-  char buf[64];
-  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
-
-  vector_put(vec, buf, len);
-}
 
 /**
  * @}

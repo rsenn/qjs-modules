@@ -316,16 +316,6 @@ pointer_serialize_rfc6901(Pointer const* ptr, Writer* wr, JSContext* ctx) {
   }
 }
 
-char*
-pointer_tostring_rfc6901(Pointer const* ptr, JSContext* ctx) {
-  DynBuf db;
-  dbuf_init_ctx(ctx, &db);
-  Writer wr = writer_from_dynbuf(&db);
-  pointer_serialize_rfc6901(ptr, &wr, ctx);
-  dbuf_0(&db);
-
-  return (char*)db.buf;
-}
 
 static int
 pointer_parse_unescape(const char* x, size_t* nptr) {
@@ -736,19 +726,6 @@ pointer_append(Pointer* ptr, int argc, JSValueConst argv[], JSContext* ctx) {
   return TRUE;
 }
 
-Pointer*
-pointer_concat(Pointer const* ptr, JSValueConst iterable, JSContext* ctx) {
-  Pointer* ret;
-
-  if((ret = pointer_clone(ptr, ctx))) {
-    if(!pointer_fromiterable(ret, iterable, ctx)) {
-      pointer_free(ret, JS_GetRuntime(ctx));
-      ret = 0;
-    }
-  }
-
-  return ret;
-}
 
 JSValue
 pointer_toarray(Pointer const* ptr, JSContext* ctx) {
