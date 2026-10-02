@@ -220,6 +220,17 @@ int add(int a, int b) {
     const fields = [...ids.keys()].filter(n => ids.get(n).declaration?.kind == 'field').sort();
     eq(fields.join(), 'Anon.a,Inner.x,glob.g,node.f,node.i,node.inner,node.v');
   },
+  'findIdentifiers() and findTypes() record character offsets for ranges'() {
+    const src = '#define M(a) a\nstruct s { int a; };\nint f(int x) {\n  return M(x);\n}\n';
+    const ids = findIdentifiers(src, 't.c');
+    const at = p => src.slice(p.offset, p.end);
+    eq(at(ids.get('M').declaration), 'M');
+    eq(at(ids.get('f').declaration), 'f');
+    eq(at(ids.get('M').references[0]), 'M');
+
+    const t = byName(findTypes(src, 't.c'), 's');
+    eq(src.slice(t.offset, t.end), 'struct s { int a; }');
+  },
   'findIdentifiers() handles annotation macros, initializer braces and stray tokens'() {
     const ids = findIdentifiers('void FORMAT(2, 3) trace(int a, const char* fmt, ...) { Rule r = {a, 1}, *prev; prev = &r; }\n/ int after(void) { return 0; }\nint m = 0b11u;\n', 't.c');
     eq(ids.get('trace').declaration.kind, 'function');

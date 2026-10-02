@@ -201,7 +201,11 @@ const num = ts => {
 
 const alignUp = (n, a) => Math.ceil(n / a) * a;
 
-const mk = (name, type, size, align, line, extra) => ({ name, type, size, align, line, methods: [], getters: [], setters: [], fields: [], prototypeChain: [], ...extra });
+const mk = (name, type, size, align, line, extra) => {
+  const desc = { name, type, size, align, line, methods: [], getters: [], setters: [], fields: [], prototypeChain: [], ...extra };
+  for(const key of ['methods', 'getters', 'setters', 'fields', 'prototypeChain']) if(!desc[key]?.length) delete desc[key];
+  return desc;
+};
 
 const leading = ts => {
   const set = new Set();
@@ -319,10 +323,12 @@ function parseAggregate(ts, k, reg, text) {
   const close = matching(ts, i);
   const body = ts.slice(i + 1, close);
   const { line, column } = ts[k].loc;
+  const offset = ts[k].charPos,
+    end = ts[close].charPos + ts[close].charLength;
   let desc;
 
   if(kind == 'enum') {
-    desc = mk(tag, kind, 4, 4, line, { column, fields: splitTop(body, ',').map(p => ({ name: p[0].lexeme })) });
+    desc = mk(tag, kind, 4, 4, line, { column, offset, end, fields: splitTop(body, ',').map(p => ({ name: p[0].lexeme })) });
   } else {
     const members = [],
       methods = [];
@@ -348,7 +354,7 @@ function parseAggregate(ts, k, reg, text) {
     }
 
     const l = layout(kind, members);
-    desc = mk(tag, kind, l.size, l.align, line, { column, fields: l.fields, methods });
+    desc = mk(tag, kind, l.size, l.align, line, { column, offset, end, fields: l.fields, methods });
   }
 
   if(tag) {
@@ -432,7 +438,7 @@ export function findTypes(source, filename) {
       if(!dd.name || dd === named) continue;
       const m = sized(d.base, dd);
       reg.set(dd.name, m);
-      out.push(mk(dd.name, 'typedef', m.size, m.align, s[0].loc.line, { column: s[0].loc.column, target: m.type }));
+      out.push(mk(dd.name, 'typedef', m.size, m.align, s[0].loc.line, { column: s[0].loc.column, offset: Math.min(...s.map(t => t.charPos)), end: Math.max(...s.map(t => t.charPos + t.charLength)), target: m.type }));
     }
   }
 
@@ -681,9 +687,14 @@ function posAt(tok, off) {
   return nl < 0 ? { line: tok.loc.line, column: tok.loc.column + off } : { line: tok.loc.line + before.split('\n').length - 1, column: off - nl };
 }
 
+/** A pseudo-token for text found `off` characters into the preprocessor token `tok`. */
+function ppToken(tok, off, lexeme, extra) {
+  return { lexeme, loc: posAt(tok, off), charPos: tok.charPos + off, charLength: lexeme.length, ...extra };
+}
+
 /** Identifier-like words in `text` (outside comments, strings and numbers) as `{ lexeme, loc, off }` pseudo-tokens positioned relative to `tok`. */
 function* ppWords(tok, text, base) {
-  for(const m of text.matchAll(PP_IDENTS)) if(m[1]) yield { lexeme: m[1], loc: posAt(tok, base + m.index), off: base + m.index };
+  for(const m of text.matchAll(PP_IDENTS)) if(m[1]) yield ppToken(tok, base + m.index, m[1], { off: base + m.index });
 }
 
 /**
@@ -709,7 +720,7 @@ function parseDirective(tok) {
     const body = tok.lexeme.slice(bodyOff).replace(/\\\r?\n/g, m => ' '.repeat(m.length));
     const toks = lex(body, tok.loc.filename).filter(t => !COMMENT.has(t.type));
 
-    return { define: { lexeme: m[1], loc: posAt(tok, nameOff) }, params, body: toks.map(t => ({ type: t.type, lexeme: t.lexeme, loc: posAt(tok, bodyOff + t.charPos) })), refs: [] };
+    return { define: ppToken(tok, nameOff, m[1]), params, body: toks.map(t => ppToken(tok, bodyOff + t.charPos, t.lexeme, { type: t.type, charLength: t.charLength })), refs: [] };
   }
 
   if(PP_EXPR.has(d[1])) return { define: null, params: [], refs: [...ppWords(tok, tok.lexeme.slice(d[0].length), d[0].length)].filter(t => t.lexeme != 'defined' && !t.lexeme.startsWith('__has_')) };
@@ -736,7 +747,7 @@ export function findIdentifiers(source, filename, ids = new Map()) {
   const all = lex(source, filename).filter(t => !COMMENT.has(t.type));
   const ts = all.filter(t => t.type != 'preprocessor');
   const entry = name => ids.get(name) ?? ids.set(name, { name, declaration: null, prototype: [], references: [] }).get(name);
-  const pos = t => ({ file: filename, line: t.loc.line, column: t.loc.column });
+  const pos = t => ({ file: filename, line: t.loc.line, column: t.loc.column, offset: t.charPos, end: t.charPos + t.charLength });
 
   const ref = (t, fn, locals) => {
     if(locals?.has(t.lexeme)) return;
@@ -909,8 +920,40 @@ function expandPaths(paths) {
   });
 }
 
+const LOC_MODES = ['line', 'offset', 'loc', 'range', 'file'];
+
+/**
+ * Rewrites the position properties of `rec` (`line`, `column`, `offset`, `end`, as the
+ * finders record them) into the requested shapes: `line` -> .line + .column, `offset` ->
+ * .offset, `loc` -> .loc { line, column, file }, `range` -> .range { start, end, file },
+ * `file` -> .file.
+ */
+function placed(rec, file, modes) {
+  const { line, column, offset, end, file: own, ...rest } = rec;
+  const f = own ?? file;
+  const out = { ...rest };
+
+  if(modes.includes('line')) Object.assign(out, { line, column });
+  if(modes.includes('offset')) out.offset = offset;
+  if(modes.includes('loc')) out.loc = { line, column, file: f };
+  if(modes.includes('range')) out.range = { start: offset, end, file: f };
+  if(modes.includes('file')) out.file = f;
+
+  return out;
+}
+
+function placedIdentifier(e, modes) {
+  return {
+    ...e,
+    declaration: e.declaration && placed(e.declaration, undefined, modes),
+    prototype: e.prototype.map(p => placed(p, undefined, modes)),
+    references: e.references.map(r => placed(r, undefined, modes)),
+  };
+}
+
 function main(...args) {
   let pattern, list, types, identifiers, fields, splitDir, output;
+  let locModes = ['line'];
 
   const params = getOpt(
     {
@@ -919,6 +962,7 @@ function main(...args) {
       types: [false, () => (types = true), 't'],
       identifiers: [false, () => (identifiers = true), 'i'],
       fields: [false, () => (fields = true), 'f'],
+      loc: [true, v => (locModes = v.split(',')), 'L'],
       split: [true, v => (splitDir = v), 's'],
       output: [true, v => (output = v), 'o'],
       help: [false, null, 'h'],
@@ -928,8 +972,13 @@ function main(...args) {
   );
   const files = expandPaths(params['@']);
 
+  if(locModes.some(m => !LOC_MODES.includes(m))) {
+    console.log(`c-extract.js: --loc: expected ${LOC_MODES.join(', ')}`);
+    return 1;
+  }
+
   if(params.help || !files.length) {
-    console.log(`Usage: c-extract.js [-p REGEXP] [-l] [-t] [-i] [-f] [-s DIR] [-o FILE] FILE|DIR...
+    console.log(`Usage: c-extract.js [-p REGEXP] [-l] [-t] [-i] [-f] [-L MODE] [-s DIR] [-o FILE] FILE|DIR...
 
   -p, --pattern REGEXP  only functions/types whose name matches (default: all)
   -l, --list            print "file:line:column: name" instead of the source / IR
@@ -940,6 +989,12 @@ function main(...args) {
                         references (across all FILEs) as JSON; with -l one
                         "file:line:column: kind name (N references)" line per name
   -f, --fields          with -i, also list struct/union fields (<parent>.<field>)
+  -L, --loc MODE[,MODE]  how -t/-i JSON reports positions (default: line):
+                        line   .line and .column
+                        offset .offset (character offset)
+                        loc    .loc   { line, column, file }
+                        range  .range { start, end, file } (character offsets)
+                        file   .file (the file name)
   -s, --split DIR       write each function to DIR/<name>.c, prefixed with the
                         text preceding the file's first function (#includes etc.)
   -o, --output FILE     write to FILE instead of stdout
@@ -965,7 +1020,7 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     if(types) {
       for(const d of findTypes(source, file).filter(d => !pattern || pattern.test(d.name ?? ''))) {
         if(list) chunks.push(`${file}:${d.line}:${d.column}: ${d.type} ${d.name}\n`);
-        else irs.push(d);
+        else irs.push(placed(d, file, locModes));
       }
       continue;
     }
@@ -992,7 +1047,7 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
       if(!fields && e.declaration?.kind == 'field') continue;
       const at = e.declaration ?? e.prototype[0];
       if(list) chunks.push(`${at ? `${at.file}:${at.line}:${at.column}` : '-'}: ${e.declaration?.kind ?? (e.prototype.length ? 'prototype' : 'undeclared')} ${e.name} (${e.references.length} references)\n`);
-      else irs.push(e);
+      else irs.push(placedIdentifier(e, locModes));
     }
   }
 
