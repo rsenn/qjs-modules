@@ -1,7 +1,8 @@
 #!/usr/bin/env qjsm
 
-// Applies a dead-function report from `nm-symbols.js --dead-code` (see there for how
-// the report is produced) by surgically deleting each listed function - and, for
+// Applies a dead-function report - either from `nm-symbols.js --dead-code` (see there
+// for how the report is produced) or the identifier list `c-extract.js -i -L start,end`
+// / `-L range` writes (dead = a function with no references) - by surgically deleting each listed function - and, for
 // functions defined in a .c file, its matching header prototype - via the same
 // paren/brace-balancing token scan lib/c-functions.js uses for detection.
 //
@@ -25,7 +26,9 @@ function printHelp() {
     `Usage: ${scriptArgs[0]} [OPTIONS] <dead-code.json>\n\n` +
       "Removes the functions listed in a nm-symbols.js '--dead-code' report (or a\n" +
       'hand-trimmed copy of one - either the full report object, or a bare array of\n' +
-      '{ file, name, startLine, endLine } entries). For each entry: re-locates the\n' +
+      '{ file, name, startLine, endLine } entries), or the unreferenced functions of a\n' +
+      "`c-extract.js -i -L start,end ... -o identifiers.json` (or `-L range`, or `-L loc`)\n" +
+      'identifier list. For each entry: re-locates the\n' +
       "function in its file by name + start line (skipping it with a warning if the\n" +
       "file's changed since the report was generated), then deletes the full\n" +
       'declaration (return type through closing brace) as whole lines. For a\n' +
@@ -39,6 +42,36 @@ function printHelp() {
       '  -h, --help   show this help\n',
   );
   exit(0);
+}
+
+// Names that are called from outside anything a source scan can see.
+const ALWAYS_USED = new Set(['main']);
+
+function parsePosition(pos) {
+  const m = typeof pos == 'string' ? /^(.*):(\d+):(\d+)$/.exec(pos) : null;
+  return m ? { file: m[1], line: +m[2] } : null;
+}
+
+/**
+ * Turns the output of `c-extract.js -i` into removal entries: every function that has a
+ * declaration but no references. The declaration's position must say which file it is in
+ * (`-L start|end|loc|range|file` - a plain `-L line` has no file) and where: a
+ * "<file>:<line>:<column>" `start`, a `loc`, or a `range` (matched by character offset).
+ */
+export function entriesFromIdentifiers(records) {
+  const entries = [];
+
+  for(const { name, declaration: d, references } of records) {
+    if(d?.kind != 'function' || references?.length || ALWAYS_USED.has(name)) continue;
+
+    const at = parsePosition(d.start) ?? (d.loc && { file: d.loc.file, line: d.loc.line }) ?? null;
+
+    if(at) entries.push({ file: at.file, name, startLine: at.line });
+    else if(d.range?.file != null) entries.push({ file: d.range.file, name, startOffset: d.range.start });
+    else throw new Error(`${name}: declaration has no file/position - run c-extract.js with -L start,end, loc or range`);
+  }
+
+  return entries;
 }
 
 function headerFor(file) {
@@ -113,10 +146,10 @@ export function removeDeadFunctions(entries, { apply = false, log = puts, script
     const matched = [];
 
     for(const w of wanted) {
-      const def = defs.find(d => d.name == w.name && d.startLine == w.startLine);
+      const def = defs.find(d => d.name == w.name && (w.startOffset != null ? d.startOffset == w.startOffset : d.startLine == w.startLine));
 
       if(!def) {
-        log(`SKIP ${file}:${w.startLine} ${w.name}: no longer matches current source (edited since the report was generated?)\n`);
+        log(`SKIP ${file}:${w.startLine ?? "@" + w.startOffset} ${w.name}: no longer matches current source (edited since the report was generated?)\n`);
         skipped++;
         continue;
       }
@@ -183,9 +216,12 @@ function main(...args) {
   if(!jsonPath) printHelp();
 
   const raw = JSON.parse(loadFile(jsonPath));
-  const entries = Array.isArray(raw) ? raw : raw.deadFunctions;
+  let entries = Array.isArray(raw) ? raw : raw.deadFunctions;
 
-  if(!Array.isArray(entries)) throw new Error(`${jsonPath}: expected an array, or a report object with a 'deadFunctions' array`);
+  // `c-extract.js -i` identifier records carry a `declaration` instead of file/name/startLine
+  if(Array.isArray(entries) && entries.some(e => 'declaration' in e)) entries = entriesFromIdentifiers(entries);
+
+  if(!Array.isArray(entries)) throw new Error(`${jsonPath}: expected an array, a report object with a 'deadFunctions' array, or a c-extract.js -i identifier list`);
 
   const say = s => err.puts(s);
 
