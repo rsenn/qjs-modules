@@ -30,7 +30,6 @@ typedef struct {
 #define LOCATION_FILE(atom) (Location){0, {(atom)}, 0, 0, 0, 0, FALSE, FALSE};
 #define LOCATION_POS(l) ((l)->byte_offset)
 
-LOCATION_API void location_dump(const Location*, FILE*);
 LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
 LOCATION_API char* location_tostring(const Location*, JSContext*);
 LOCATION_API char* location_file(const Location*, JSContext*);
@@ -49,9 +48,6 @@ LOCATION_API Location* location_new(JSContext*);
 LOCATION_API Location* location_dup(Location*);
 LOCATION_API void location_set_file(Location*, JSAtom, JSContext*);
 LOCATION_API void location_set_filename(Location*, const char*, JSContext*);
-LOCATION_API void location_set_byteoffset(Location*, const void*, size_t);
-LOCATION_API void location_set_charoffset(Location*, const void*, size_t, size_t);
-LOCATION_API void* location_pointer(const Location*, const void*);
 
 static inline int64_t
 location_byteoffset(const Location* loc) {

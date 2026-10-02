@@ -7,17 +7,6 @@
  * \addtogroup location
  * @{
  */
-void
-location_dump(const Location* loc, FILE* out) {
-  char* s;
-
-  if((s = location_tostring(loc, NULL))) {
-    fputs(s, out);
-    free(s);
-  }
-
-  fflush(out);
-}
 
 void
 location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
@@ -308,22 +297,8 @@ location_set_filename(Location* loc, const char* filename, JSContext* ctx) {
   loc->filename = ctx ? js_strdup(ctx, filename) : strdup(filename);
 }
 
-void
-location_set_byteoffset(Location* loc, const void* str, size_t ofs) {
-  loc->byte_offset = ofs;
-  loc->char_offset = utf8_strlen(str, ofs);
-}
 
-void
-location_set_charoffset(Location* loc, const void* buf, size_t len, size_t ofs) {
-  loc->char_offset = ofs;
-  loc->byte_offset = utf8_byteoffset(buf, len, ofs);
-}
 
-void*
-location_pointer(const Location* loc, const void* buf) {
-  return (uint8_t*)buf + loc->byte_offset;
-}
 
 /**
  * @}

@@ -25,7 +25,6 @@ void debug_free(void*, const char*, int);
 void* debug_js_malloc(JSContext*, size_t, const char*, int line);
 void* debug_js_mallocz(JSContext*, size_t, const char*, int line);
 void* debug_js_realloc(JSContext*, void*, size_t, const char* file, int line);
-void* debug_js_realloc2(JSContext*, void*, size_t, size_t* pslack, const char* file, int line);
 void* debug_js_strdup(JSContext*, const char*, const char*, int line);
 void* debug_js_strndup(JSContext*, const char*, size_t, const char* file, int line);
 size_t debug_js_malloc_usable_size(JSContext*, const void*, const char*, int line);
@@ -141,22 +140,12 @@ void debug_js_free_rt(JSRuntime*, void*, const char*, int line);
 #endif
 #endif
 
-void* orig_malloc(size_t);
-void* orig_calloc(size_t, size_t);
-void* orig_realloc(void*, size_t);
-void* orig_strdup(const char*);
 void orig_free(void*);
 void* orig_js_malloc(JSContext*, size_t);
-void* orig_js_mallocz(JSContext*, size_t);
 void* orig_js_realloc(JSContext*, void*, size_t);
-void* orig_js_strdup(JSContext*, const char*);
-void* orig_js_strndup(JSContext*, const char*, size_t);
-size_t orig_js_malloc_usable_size(JSContext*, const void*);
 void orig_js_free(JSContext*, void*);
 void* orig_js_malloc_rt(JSRuntime*, size_t);
-void* orig_js_mallocz_rt(JSRuntime*, size_t);
 void* orig_js_realloc_rt(JSRuntime*, void*, size_t);
-size_t orig_js_malloc_usable_size_rt(JSRuntime*, const void*);
 void orig_js_free_rt(JSRuntime*, void*);
 
 /**

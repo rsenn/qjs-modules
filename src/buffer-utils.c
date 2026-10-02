@@ -89,65 +89,10 @@ dbuf_init_ctx(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx ? JS_GetRuntime(ctx) : 0, ctx ? (DynBufReallocFunc*)&js_realloc_rt : 0);
 }
 
-void
-dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
-  dbuf_init2(s, rt, rt ? (DynBufReallocFunc*)&js_realloc_rt : 0);
-}
 
-char*
-dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
-  size_t p, l = 0;
 
-  for(p = 0; p < db->size; ++p) {
-    if(l == i) {
-      *n = byte_chr((const char*)&db->buf[p], db->size - p, sep);
-      return (char*)&db->buf[p];
-    }
 
-    if(db->buf[p] == sep)
-      ++l;
-  }
 
-  *n = 0;
-
-  return 0;
-}
-
-const char*
-dbuf_last_line(DynBuf* db, size_t* len) {
-  size_t i;
-
-  if((i = byte_rchr(db->buf, db->size, '\n')) < db->size)
-    i++;
-  else
-    i = 0;
-
-  if(len)
-    *len = db->size - i;
-
-  return (const char*)&db->buf[i];
-}
-
-int
-dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
-  int ret;
-
-  if(!(ret = dbuf_reserve_start(s, len)))
-    memcpy(s->buf, data, len);
-
-  return 0;
-}
-
-void
-dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color) {
-  if(with_color)
-    dbuf_putstr(db, color);
-
-  dbuf_putstr(db, str);
-
-  if(with_color)
-    dbuf_putstr(db, COLOR_NONE);
-}
 
 void
 dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
@@ -383,14 +328,6 @@ dbuf_put_int32(DynBuf* db, int32_t num) {
   dbuf_put(db, (const uint8_t*)buf, fmt_long(buf, num));
 }
 
-void
-dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom) {
-  const char* str;
-
-  str = JS_AtomToCString(ctx, atom);
-  dbuf_putstr(db, str);
-  JS_FreeCString(ctx, str);
-}
 
 int
 dbuf_reserve_start(DynBuf* s, size_t len) {
@@ -415,40 +352,7 @@ dbuf_reserve(DynBuf* s, size_t len) {
   return &s->buf[s->size];
 }
 
-size_t
-dbuf_token_pop(DynBuf* db, char delim) {
-  size_t n, p, len;
-  len = db->size;
-  for(n = db->size; n > 0;) {
-    if((p = byte_rchr(db->buf, n, delim)) == n) {
-      db->size = 0;
-      break;
-    }
 
-    if(p > 0 && db->buf[p - 1] == '\\') {
-      n = p - 1;
-      continue;
-    }
-
-    db->size = p;
-    break;
-  }
-
-  return len - db->size;
-}
-
-size_t
-dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim) {
-  size_t pos;
-
-  if(db->size)
-    dbuf_putc(db, delim);
-
-  pos = db->size;
-  dbuf_put_escaped_pred(db, str, len, is_dot_char);
-
-  return db->size - pos;
-}
 
 JSValue
 dbuf_tostring(DynBuf* s, JSContext* ctx) {

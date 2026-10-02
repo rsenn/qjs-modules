@@ -91,7 +91,6 @@ size_t list_size(struct list_head*);
 struct list_head* list_front(const struct list_head*);
 struct list_head* list_back(const struct list_head*);
 struct list_head* list_unlink_before(struct list_head*);
-struct list_head* list_unlink_after(struct list_head*);
 struct list_head list_unlink(struct list_head*, struct list_head*);
 void list_link_next(struct list_head*, struct list_head*);
 void list_link_prev(struct list_head*, struct list_head*);
@@ -100,12 +99,7 @@ void list_splice(struct list_head*, struct list_head*);
 void __list_sort(struct list_head*, int (*cmp)(struct list_head*, struct list_head*, void*), void*);
 void __list_reverse(struct list_head*);
 void __list_del(struct list_head*, struct list_head*);
-void list_move(struct list_head*, struct list_head*);
-void list_move_tail(struct list_head*, struct list_head*);
-void list_replace(struct list_head*, struct list_head*);
 void __list_merge(struct list_head*, struct list_head*, struct list_head*, struct list_head*);
-void list_merge(struct list_head*, struct list_head*);
-void list_merge_tail(struct list_head*, struct list_head*);
 
 #define list_first(list, type, member) list_entry(list_front((list)), type, member)
 #define list_first_entry(ptr, type, member) list_entry((ptr)->next, type, member)

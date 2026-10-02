@@ -81,15 +81,6 @@ list_unlink_before(struct list_head* list) {
   return prev;
 }
 
-struct list_head*
-list_unlink_after(struct list_head* list) {
-  struct list_head* next = list->next;
-
-  next->prev = NULL;
-  list->next = NULL;
-
-  return next;
-}
 
 struct list_head
 list_unlink(struct list_head* start, struct list_head* end) {
@@ -251,22 +242,12 @@ __list_del(struct list_head* prev, struct list_head* next) {
  * @param list the entry to move
  * @param head the head that will precede our entry
  */
-void
-list_move(struct list_head* list, struct list_head* head) {
-  __list_del(list->prev, list->next);
-  list_add(list, head);
-}
 
 /**
  * @brief delete from one list and add as another's tail
  * @param list the entry to move
  * @param head the head that will follow our entry
  */
-void
-list_move_tail(struct list_head* list, struct list_head* head) {
-  __list_del(list->prev, list->next);
-  list_add_tail(list, head);
-}
 /**
  * @brief replace old entry by new one
  * @param old the element to be replaced
@@ -274,13 +255,6 @@ list_move_tail(struct list_head* list, struct list_head* head) {
  *
  * If @old was empty, it will be overwritten.
  */
-void
-list_replace(struct list_head* old, struct list_head* new) {
-  new->next = old->next;
-  new->next->prev = new;
-  new->prev = old->prev;
-  new->prev->next = new;
-}
 
 /* merge result: dprev <-> (shead <-> ... <-> stail) <-> dnext */
 void
@@ -291,15 +265,7 @@ __list_merge(struct list_head* dprev, struct list_head* shead, struct list_head*
   dnext->prev = stail;
 }
 
-void
-list_merge(struct list_head* dest, struct list_head* src) {
-  __list_merge(dest, src->next, src->prev, dest->next);
-}
 
-void
-list_merge_tail(struct list_head* dest, struct list_head* src) {
-  __list_merge(dest->prev, src->next, src->prev, dest);
-}
 
 int
 regexp_flags_fromstring(const char* s) {

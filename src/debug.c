@@ -238,19 +238,6 @@ debug_js_realloc(JSContext* ctx, void* p, size_t n, const char* file, int line) 
   return 0;
 }
 
-void*
-debug_js_realloc2(JSContext* ctx, void* p, size_t size, size_t* pslack, const char* file, int line) {
-  void* ptr;
-
-  if((ptr = debug_js_realloc(ctx, p, size, file, line))) {
-    if(pslack) {
-      size_t new_size = debug_js_malloc_usable_size(ctx, ptr, file, line);
-      *pslack = (new_size > size) ? new_size - size : 0;
-    }
-  }
-
-  return ptr;
-}
 
 void*
 debug_js_strdup(JSContext* ctx, const char* s, const char* file, int line) {
@@ -422,25 +409,9 @@ debug_js_free_rt(JSRuntime* rt, void* p, const char* file, int line) {
 #undef js_malloc_usable_size_rt
 #undef js_free_rt
 
-void*
-orig_malloc(size_t size) {
-  return malloc(size);
-}
 
-void*
-orig_calloc(size_t nelem, size_t elemsz) {
-  return calloc(nelem, elemsz);
-}
 
-void*
-orig_realloc(void* ptr, size_t size) {
-  return realloc(ptr, size);
-}
 
-void*
-orig_strdup(const char* str) {
-  return strdup(str);
-}
 
 void
 orig_free(void* ptr) {
@@ -452,30 +423,14 @@ orig_js_malloc(JSContext* ctx, size_t size) {
   return js_malloc(ctx, size);
 }
 
-void*
-orig_js_mallocz(JSContext* ctx, size_t size) {
-  return js_mallocz(ctx, size);
-}
 
 void*
 orig_js_realloc(JSContext* ctx, void* p, size_t size) {
   return js_realloc(ctx, p, size);
 }
 
-void*
-orig_js_strdup(JSContext* ctx, const char* str) {
-  return js_strdup(ctx, str);
-}
 
-void*
-orig_js_strndup(JSContext* ctx, const char* str, size_t size) {
-  return js_strndup(ctx, str, size);
-}
 
-size_t
-orig_js_malloc_usable_size(JSContext* ctx, const void* p) {
-  return js_malloc_usable_size(ctx, p);
-}
 
 void
 orig_js_free(JSContext* ctx, void* p) {
@@ -487,20 +442,12 @@ orig_js_malloc_rt(JSRuntime* rt, size_t size) {
   return js_malloc_rt(rt, size);
 }
 
-void*
-orig_js_mallocz_rt(JSRuntime* rt, size_t size) {
-  return js_mallocz_rt(rt, size);
-}
 
 void*
 orig_js_realloc_rt(JSRuntime* rt, void* p, size_t size) {
   return js_realloc_rt(rt, p, size);
 }
 
-size_t
-orig_js_malloc_usable_size_rt(JSRuntime* rt, const void* p) {
-  return js_malloc_usable_size_rt(rt, p);
-}
 
 void
 orig_js_free_rt(JSRuntime* rt, void* p) {
