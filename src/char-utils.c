@@ -15,22 +15,6 @@
  * \addtogroup char-utils
  * @{
  */
-size_t
-ansi_length(const char* str, size_t len) {
-  size_t i, n = 0, p;
-
-  for(i = 0; i < len;) {
-    if(str[i] == 0x1b && (p = ansi_skip(&str[i], len - i)) > 0) {
-      i += p;
-      continue;
-    }
-
-    n++;
-    i++;
-  }
-
-  return n;
-}
 
 size_t
 ansi_skip(const char* str, size_t len) {
@@ -73,27 +57,7 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
   return i;
 }
 
-char*
-str_escape(const char* s) {
-  DynBuf dbuf;
 
-  dbuf_init2(&dbuf, 0, 0);
-  dbuf_put_escaped(&dbuf, s, strlen(s));
-  dbuf_0(&dbuf);
-
-  return (char*)dbuf.buf;
-}
-
-char*
-byte_escape(const void* s, size_t n) {
-  DynBuf dbuf;
-
-  dbuf_init2(&dbuf, 0, 0);
-  dbuf_put_escaped(&dbuf, s, n);
-  dbuf_0(&dbuf);
-
-  return (char*)dbuf.buf;
-}
 
 size_t
 byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
@@ -120,43 +84,8 @@ byte_copy(void* out, size_t len, const void* in) {
   memcpy(out, in, len);
 }
 
-void
-byte_copyr(void* out, size_t len, const void* in) {
-  memmove(out, in, len);
-}
 
-size_t
-byte_rchrs(const char* in, size_t len, const char needles[], size_t nn) {
-  const char* s = (const char*)in + len;
 
-  while(--s >= (const char*)in)
-    for(size_t i = 0; i < nn; ++i)
-      if(*s == needles[i])
-        return s - (const char*)in;
-
-  return len;
-}
-
-size_t
-token_length(const char* str, size_t len, char delim) {
-  const char *s, *e;
-
-  for(s = str, e = s + len; s < e; s++) {
-    size_t pos = byte_chr(s, e - s, delim);
-
-    if(s + pos == e)
-      break;
-
-    if(pos == 0 || s[pos - 1] != '\\') {
-      s += pos;
-      break;
-    }
-
-    s += pos;
-  }
-
-  return s - str;
-}
 
 size_t
 fmt_long(void* x, int32_t i) {
@@ -234,41 +163,7 @@ fmt_xlonglong(void* x, uint64_t i) {
   return len;
 }
 
-size_t
-fmt_xlonglong0(void* x, uint64_t num, size_t n) {
-  char* dest = x;
-  size_t i = 0, len;
 
-  if((len = fmt_xlonglong(NULL, num)) < n) {
-    len = n - len;
-
-    while(i < len)
-      dest[i++] = '0';
-  }
-
-  i += fmt_xlonglong(&dest[i], num);
-  return i;
-}
-
-size_t
-fmt_8long(void* x, uint32_t i) {
-  char* dest = x;
-  uint32_t len, tmp;
-
-  /* first count the number of bytes needed */
-  for(len = 1, tmp = i; tmp > 7; ++len)
-    tmp >>= 3;
-
-  if(dest)
-    for(tmp = i, dest += len;;) {
-      *--dest = (char)((tmp & 7) + '0');
-
-      if(!(tmp >>= 3))
-        break;
-    }
-
-  return len;
-}
 
 #define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
 
@@ -328,13 +223,6 @@ scan_ushort(const char* src, uint16_t* dest) {
   return (size_t)(cur - src);
 }
 
-size_t
-scan_uint(const char* src, uint32_t* dest) {
-  uint64_t u64 = 0llu;
-  size_t r = scan_ulonglong(src, &u64);
-  *dest = u64;
-  return r;
-}
 
 size_t
 scan_int(const char* src, int32_t* dest) {
@@ -552,36 +440,7 @@ scan_lineskip(const char* s, size_t limit) {
   return (size_t)(t - s);
 }
 
-size_t
-scan_lineskip_escaped(const char* s, size_t limit) {
-  const char *t, *u;
 
-  for(t = s, u = s + limit; t < u; ++t) {
-    if(*t == '\\') {
-      ++t;
-      continue;
-    }
-
-    if(*t == '\n') {
-      ++t;
-      break;
-    }
-  }
-
-  return (size_t)(t - s);
-}
-
-size_t
-scan_eolskip(const char* s, size_t limit) {
-  size_t n = 0;
-
-  if(n + 1 < limit && s[0] == '\r' && s[1] == '\n')
-    n += 2;
-  else if(n < limit && s[0] == '\n')
-    n += 1;
-
-  return n;
-}
 
 int
 utf8_charlen(const void* in, size_t len) {
@@ -703,13 +562,6 @@ utf8_fromwcs(const wchar_t* wstr) {
 }
 #endif
 
-BOOL
-utf16_multiword(const void* in) {
-  const uint16_t* p16 = in;
-  LibutfC16Type type = libutf_c16_type(p16[0]);
-
-  return !((LIBUTF_UTF16_NOT_SURROGATE == type) || (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
-}
 
 int
 case_lowerc(int c) {
@@ -719,26 +571,6 @@ case_lowerc(int c) {
   return c;
 }
 
-int
-case_starts(const char* a, const char* b) {
-  for(const char *s = a, *t = b;; ++s, ++t) {
-    unsigned char x, y;
-
-    if(!*t)
-      return 1;
-
-    x = case_lowerc(*s);
-    y = case_lowerc(*t);
-
-    if(x != y)
-      break;
-
-    if(!x)
-      break;
-  }
-
-  return 0;
-}
 
 int
 case_diffb(const void* S, size_t len, const void* T) {
@@ -800,10 +632,6 @@ write_file(const char* file, const void* buf, size_t len) {
   return ret;
 }
 
-ssize_t
-puts_file(const char* file, const char* s) {
-  return write_file(file, s, strlen(s));
-}
 
 size_t
 u64toa_base(char* x, uint64_t num, int base) {
@@ -843,29 +671,7 @@ i64toa_base(char* x, int64_t num, int base) {
   return pos + u64toa_base(&x[pos], num, base);
 }
 
-size_t
-str_findb(const char* s1, const char* x, size_t n) {
-  size_t len = strlen(s1);
 
-  if(len >= n && !memchr(x, 0, n)) {
-    const char* b;
-
-    if((b = memmem(s1, len, x, n)))
-      return b - s1;
-  }
-
-  return len;
-}
-
-size_t
-str_find(const void* s, const void* what) {
-  const char* b;
-
-  if((b = strstr(s, what)))
-    return b - (const char*)s;
-
-  return strlen(s);
-}
 
 /**
  * @}

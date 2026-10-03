@@ -422,3 +422,9 @@ i.e. `~/Projects/rsenn/rsenn`):
 Do not add or extend a `tools/site/`, Pages workflow or `publish.sh` in this repo (any
 existing ones are superseded and slated for removal), and do
 not edit `gh-pages` by hand.
+
+## Git commits
+
+Omit the `Co-Authored-By: ...` trailer from commit messages. This overrides
+any default attribution line Claude Code would otherwise append.
+

@@ -63,56 +63,17 @@ is_utf16_low_surrogate(const uint32_t c) {
   return c >= 0xdc00 && c < 0xe000;
 }
 
-static inline int
-escape_char_pred(int c) {
-  static const unsigned char table[256] = {
-      'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
-      'x', 'x', 'x', 0,   0,   0,    0,   0,   0,    0,    0x27, 0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0x5c, 0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,    0,    0,    'x',  0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  };
 
-  return table[(unsigned char)c];
-}
-
-static inline int
-unescape_char_pred(int c) {
-  switch(c) {
-    case 'b': return 8;
-    case 'f': return 12;
-    case 'n': return 10;
-    case 'r': return 13;
-    case 't': return 9;
-    case 'v': return 11;
-    case '\'': return 39;
-    case '\\': return 92;
-  }
-
-  return 0;
-}
 
 static inline int
 is_escape_char(int c) {
   return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
 }
 
-static inline int
-is_backslash_char(int c) {
-  return c == '\\';
-}
 
 // #define is_dot_char(c) ((c) == '.')0
 // #define is_backslash_char(c) ((c) == '\\')
 
-static inline int
-is_dot_char(int c) {
-  return c == '.';
-}
 
 static inline int
 is_identifier(const char* str) {
@@ -253,29 +214,7 @@ str_rchr(const char* s, char needle) {
   return (size_t)((found ? found : in) - s);
 }
 
-static inline size_t
-str_rchrs(const char* in, const char needles[], size_t nn) {
-  const char *s, *found = 0;
-  size_t i;
 
-  for(s = in; *s; ++s)
-    for(i = 0; i < nn; ++i)
-      if(*s == needles[i])
-        found = s;
-
-  return (size_t)((found ? found : s) - in);
-}
-
-static inline size_t
-str_nchr(const char* in, char needle) {
-  const char *t, c = needle;
-
-  for(t = in; *t; ++t)
-    if(*t != c)
-      break;
-
-  return (size_t)(t - in);
-}
 
 static inline size_t
 str_nchrs(const char* in, const char needles[], size_t nn) {
@@ -329,7 +268,6 @@ str_start(const char* a, const char* b) {
 
 #define str_contains(s, needle) (!!strchr((s), (needle)))
 
-char* str_escape(const char*);
 
 static inline size_t
 str_count(const char* s, char c) {
@@ -375,8 +313,6 @@ str_ndup(const char* s, size_t n) {
   return r;
 }
 
-size_t str_findb(const char*, const char*, size_t);
-size_t str_find(const void*, const void*);
 
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
@@ -389,16 +325,6 @@ predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
   return pos;
 }
 
-static inline size_t
-lookup_find(const char* str, size_t len, const char table[256]) {
-  size_t pos;
-
-  for(pos = 0; pos < len; pos++)
-    if(table[(unsigned char)str[pos]])
-      break;
-
-  return pos;
-}
 
 static inline char
 escape_char_letter(char c) {
@@ -423,31 +349,23 @@ escape_char_letter(char c) {
 #define FMT_8LONG 44 /* enough space to hold 2^128 - 1 in octal, plus \0 */
 #define FMT_XLONG 33 /* enough space to hold 2^128 - 1 in hexadecimal, plus \0 */
 
-size_t ansi_length(const char*, size_t);
 size_t ansi_skip(const char*, size_t);
 size_t ansi_truncate(const char*, size_t, size_t limit);
-char* byte_escape(const void*, size_t);
 size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
 size_t byte_finds(const void*, size_t, const char* what);
 size_t byte_equal(const void* s, size_t n, const void* t);
 void byte_copy(void* out, size_t len, const void* in);
-void byte_copyr(void* out, size_t len, const void* in);
-size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
 char* str_escape(const char*);
-size_t token_length(const char*, size_t, char delim);
 size_t fmt_long(void*, int32_t);
 size_t fmt_ulong(void*, uint32_t);
 size_t scan_ushort(const char*, uint16_t*);
 size_t fmt_longlong(void*, int64_t);
 size_t fmt_ulonglong(void*, uint64_t);
 size_t fmt_xlonglong(void*, uint64_t);
-size_t fmt_xlonglong0(void*, uint64_t, size_t);
-size_t fmt_8long(void*, uint32_t i);
 size_t fmt_xlong(void*, uint32_t num);
 size_t fmt_xlong0(void*, uint32_t num, size_t n);
 size_t scan_longlong(const char*, int64_t*);
 size_t scan_int(const char*, int32_t*);
-size_t scan_uint(const char*, uint32_t*);
 size_t scan_ulonglong(const char*, uint64_t*);
 size_t scan_xlonglong(const char*, uint64_t*);
 size_t scan_8longn(const char*, size_t, uint32_t*);
@@ -456,8 +374,6 @@ size_t scan_whitenskip(const char*, size_t);
 size_t scan_nonwhitenskip(const char*, size_t);
 size_t scan_line(const char*, size_t);
 size_t scan_lineskip(const char*, size_t);
-size_t scan_lineskip_escaped(const char*, size_t);
-size_t scan_eolskip(const char*, size_t);
 size_t scan_charsetnskip(const char*, const char*, size_t);
 size_t scan_noncharsetnskip(const char*, const char*, size_t);
 int utf8_charlen(const void*, size_t);
@@ -467,9 +383,7 @@ size_t utf8_byteoffset(const void*, size_t, int);
 int unicode_len_utf8(unsigned int);
 wchar_t* utf8_towcs(const char*);
 char* utf8_fromwcs(const wchar_t*);
-BOOL utf16_multiword(const void*);
 int case_lowerc(int);
-int case_starts(const char*, const char*);
 int case_diffb(const void*, size_t, const void* T);
 size_t case_findb(const void*, size_t, const void* what, size_t wlen);
 size_t case_finds(const void*, const char*);
@@ -519,7 +433,6 @@ scan_8long(const char* src, uint32_t* dest) {
 BOOL utf16_multiword(const void*);
 
 ssize_t write_file(const char* file, const void* buf, size_t len);
-ssize_t puts_file(const char* file, const char* s);
 
 size_t u64toa_base(char*, uint64_t num, int base);
 size_t i64toa_base(char*, int64_t num, int base);

@@ -192,17 +192,13 @@ min_size(size_t a, size_t b) {
 /* clang-format off */
 static inline void     uint16_put_be (void* x, uint16_t u) { uint8_t* y = x; y[0] = u >> 8; y[1] = u; }
 static inline uint16_t uint16_get_be (const void* x) { const uint8_t* y = x; return (y[0] << 8) | y[1]; }
-static inline void     uint16_read_be(const void* x, uint16_t* y) { *y = uint16_get_be(x); }
 static inline void     uint16_put_le (void* x, uint16_t u) { uint8_t* y = x; y[0] = u; y[1] = u >> 8; }
 static inline uint16_t uint16_get_le (const void* x) { const uint8_t* y = x; return (y[1] << 8) | y[0]; }
-static inline void     uint16_read_le(const void* x, uint16_t* y) { *y = uint16_get_le(x); }
 static inline void     uint16_put_endian (void* x, uint16_t u, Endian endian) { (endian == BIG ? uint16_put_be : uint16_put_le)(x, u); }
 static inline void     uint32_put_be (void* x, uint32_t u) { uint8_t* y = x; y[0] = u >> 24; y[1] = u >> 16; y[2] = u >> 8; y[3] = u; }
 static inline uint32_t uint32_get_be (const void* x) {const uint16_t* y = x; return (uint16_get_be(y) << 16) | uint16_get_be(y+1); }
-static inline void     uint32_read_be(const void* x, uint32_t* y) { *y = uint32_get_be(x); }
 static inline void     uint32_put_le (void* x, uint32_t u) { uint8_t* y = x;  y[3] = u >> 24; y[2] = u >> 16; y[1] = u >> 8; y[0] = u; }
 static inline uint32_t uint32_get_le (const void* x) {const uint16_t* y = x; return (uint16_get_le(y+1) << 16) | uint16_get_le(y); }
-static inline void     uint32_read_le(const void* x, uint32_t* y) { *y = uint32_get_le(x); }
 static inline void     uint32_put_endian (void* x, uint32_t u, Endian endian) { (endian == BIG ? uint32_put_be : uint32_put_le)(x, u); }
 static inline uint32_t uint32_get_endian (const void* x, Endian endian) { return (endian == BIG ? uint32_get_be : uint32_get_le)(x); }
 /* clang-format on */
@@ -227,7 +223,6 @@ RegExp regexp_from_string(char* str, int flags);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
 JSValue regexp_to_value(RegExp re, JSContext* ctx);
-void regexp_free_rt(RegExp re, JSRuntime* rt);
 BOOL regexp_match(const uint8_t* bc, const void* cbuf, size_t clen, JSContext* ctx);
 
 
@@ -396,7 +391,6 @@ static inline void  js_freeobj_rt(JSRuntime*rt, void*obj)  {
 }
 /* clang-format on */
 
-BOOL js_value_has_ref_count(JSValueConst v);
 
 
 int js_value_equals(JSContext*, JSValueConst a, JSValueConst b, BOOL deep);
@@ -460,7 +454,6 @@ js_toint64(JSContext* ctx, JSValueConst value) {
 uint64_t js_touint64(JSContext*, JSValueConst);
 int js_toint64clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 void* js_topointer(JSContext*, JSValueConst);
-int64_t js_toindex_name(JSContext*, JSValueConst, size_t, const char*);
 char* js_tostringlen(JSContext*, size_t* lenp, JSValueConst value);
 char* js_tostring(JSContext*, JSValueConst value);
 
@@ -590,7 +583,6 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 }
 
 JSAtom js_atom_from(JSContext*, const char*);
-int js_atom_toint64(JSContext*, int64_t* i, JSAtom atom);
 
 static inline JSValue
 js_atom_tovalue(JSContext* ctx, JSAtom atom) {
@@ -600,15 +592,10 @@ js_atom_tovalue(JSContext* ctx, JSAtom atom) {
   return JS_AtomToValue(ctx, atom);
 }
 
-unsigned int js_atom_tobinary(JSAtom atom);
 const char* js_atom_to_cstringlen(JSContext*, size_t* len, JSAtom atom);
 BOOL js_atom_is_index(JSContext*, int64_t* pval, JSAtom atom);
 BOOL js_atom_is_symbol(JSContext*, JSAtom atom);
 
-static inline BOOL
-js_atom_is_integer(JSAtom atom) {
-  return JS_ATOM_ISINT(atom);
-}
 
 
 static inline JSAtom
@@ -640,9 +627,7 @@ typedef struct {
 
 const char* js_function_name(JSContext*, JSValueConst value);
 
-BOOL js_function_isasync(JSContext*, JSValueConst);
 
-BOOL js_function_set_name(JSContext*, JSValueConst func, const char* name);
 const char* js_function_tostring(JSContext*, JSValueConst value);
 int js_function_argc(JSContext*, JSValueConst value);
 JSValue js_function_bind_this(JSContext*, JSValue func, JSValue this_val);
@@ -651,8 +636,6 @@ JSValue js_function_return_undefined(JSContext*);
 JSValue js_function_return_value(JSContext*, JSValue value);
 JSValue js_function_prototype(JSContext*);
 
-BOOL js_trampoline3(JSContext*, JSTrampoline*, JSValueConst);
-JSValue js_trampoline_call_this(JSTrampoline*, JSValueConst, int, JSValueConst[]);
 
 
 typedef JSValue CClosureFunc(JSContext*, JSValueConst, int, JSValueConst[], int, void*);
@@ -801,10 +784,6 @@ JSValue js_class_value(JSContext*, JSClassID id);
 JSClassID js_class_id(JSContext*, JSClassID id);
 JSClassID js_class_find(JSContext*, JSAtom);
 
-static inline BOOL
-js_object_isclass(JSValueConst obj, JSClassID class_id) {
-  return js_object_classid(obj) == class_id;
-}
 
 
 static inline BOOL
@@ -830,17 +809,6 @@ js_is_null_or_undefined(JSValueConst value) {
   return JS_IsUndefined(value) || JS_IsNull(value);
 }
 
-static inline BOOL
-js_is_falsish(JSValueConst value) {
-  switch(JS_VALUE_GET_TAG(value)) {
-    case JS_TAG_NULL: return TRUE;
-    case JS_TAG_UNDEFINED: return TRUE;
-    case JS_TAG_INT: return JS_VALUE_GET_INT(value) == 0;
-    case JS_TAG_BOOL: return !JS_VALUE_GET_BOOL(value);
-    case JS_TAG_FLOAT64: return JS_VALUE_GET_FLOAT64(value) == 0;
-    default: return FALSE;
-  }
-}
 
 
 static inline BOOL
@@ -914,14 +882,6 @@ char* js_tosource(JSContext*, JSValueConst value);
 
 int64_t js_arraybuffer_bytelength(JSContext*, JSValueConst value);
 
-static inline int
-js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, const char* name, int def_type) {
-  size_t i;
-  for(i = 0; i < n_entries; i++)
-    if(entries[i].def_type == def_type && !strcmp(entries[i].name, name))
-      return i;
-  return -1;
-}
 
 
 JSValue js_date_new(JSContext*, JSValue arg);
@@ -933,7 +893,6 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValueConst val);
-void js_arraybuffer_freeobj(JSRuntime*, void* opaque, void* ptr);
 void js_arraybuffer_freeptr(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_mmap(JSContext*, const char*, BOOL);
 
@@ -997,7 +956,6 @@ js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func)
 
 
 
-BOOL js_is_identifier_len(JSContext*, const char* str, size_t len);
 
 
 JSValue js_generator_prototype(JSContext*);
@@ -1012,20 +970,12 @@ js_generator_constructor(JSContext* ctx) {
 
 JSValue js_asyncgenerator_prototype(JSContext*);
 
-static inline JSValue
-js_asyncgenerator_constructor(JSContext* ctx) {
-  JSValue proto = js_asyncgenerator_prototype(ctx);
-  JSValue ret = js_object_constructor(ctx, proto);
-  JS_FreeValue(ctx, proto);
-  return ret;
-}
 
 JSValue js_std_file(JSContext*, FILE* f);
 
 void js_cstring_dump_free(JSContext*, JSValue, DynBuf*);
 void js_stackframe_dump(JSContext*, JSValueConst, DynBuf*);
 void js_stack_dump(JSContext*, JSValueConst, DynBuf*);
-char* js_stack_tostring(JSContext*, JSValueConst);
 
 struct OffsetLength;
 union IndexRange;
