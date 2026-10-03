@@ -807,3 +807,28 @@
     readFileSync('/no/such.html', 'utf-8');
     // expected: throws SyscallError (ENOENT)
     // actual: returns null
+
+- mysql-static-escape-without-instance-segfault (quickjs-mysql.c):
+  MySQL.escapeString(), and MySQL.valuesString() which escapes through it,
+  segfault when called before any MySQL instance was constructed in the
+  process; after one `new MySQL()` they work. mysql_real_escape_string() is
+  being handed a NULL/uninitialised connection. found while writing
+  tests/unittests/test-mysql.js, which constructs an instance first to
+  avoid it. not root-caused.
+
+    import { MySQL } from 'mysql';
+    MySQL.escapeString("a'b");
+    // expected: "a\'b"
+    // actual: segmentation fault
+
+- mysql-error-null-after-failed-connect (quickjs-mysql.c): after
+  `await db.connect(...)` to a closed port, db.errno is 2002 but db.error
+  is null instead of the client library's message, and connect() resolves
+  (to the MySQL object) rather than rejecting with a MySQLError. found
+  while writing tests/unittests/test-mysql.js.
+
+    import { MySQL } from 'mysql';
+    const db = new MySQL();
+    await db.connect({ host: '127.0.0.1', port: 1, user: 'x', password: '', db: 'y' });
+    // expected: rejects with MySQLError, or db.error is a message string
+    // actual: resolves; db.errno === 2002, db.error === null

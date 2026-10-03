@@ -340,6 +340,16 @@ tests({
     eq(el, null);
   },
 
+  'Document: getElementById finds a deeply nested element'() {
+    const doc = parseDoc('<html><body><div><section><article><p id="deep">x</p></article></section></div></body></html>');
+    eq(doc.getElementById('deep').getAttribute('id'), 'deep');
+  },
+
+  'Document: getElementById returns the first of duplicate ids'() {
+    const doc = parseDoc('<html><body><div id="dup">First</div><div id="dup">Second</div></body></html>');
+    eq(doc.getElementById('dup').textContent.trim(), 'First');
+  },
+
   'Document: getElementById returns null for empty string'() {
     const doc = parseDoc('<html/>');
     eq(doc.getElementById(''), null);
