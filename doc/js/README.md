@@ -27,7 +27,10 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [abort](abort.md) — AbortController/AbortSignal
 - [timers](timers.md) — HTML5 Timers API (setTimeout, setInterval, etc.)
 - [perf_hooks](perf_hooks.md) — Performance hooks
-- [module](module.md) — Module utilities
+- [module](module.md) — Module utilities, `registerHooks()`
+- [bun](bun.md) — `Bun.plugin()` runtime plugins
+- [commonjs](commonjs.md) — `commonjs` module format loader (`registerHooks()`)
+- [typescript](typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
 - [require](require.md) — CommonJS require
 - [stack](stack.md) — Stack utilities
 

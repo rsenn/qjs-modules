@@ -41,10 +41,10 @@ interactively, not a dependency of it.
 
 | | `qjs` | `qjsm` |
 | --- | --- | --- |
-| Module loader | Filesystem paths only | Builtin registry, `node:` prefix, `data:` URLs, `.json`, `package.json` `_moduleAliases`, `QUICKJS_MODULE_PATH` search, pluggable loader-hook chain |
+| Module loader | Filesystem paths only | Builtin registry, `node:` prefix, `data:` URLs, `.json`, `package.json` `_moduleAliases`, `QUICKJS_MODULE_PATH` search, Node-style `registerHooks()` resolve/load hooks |
 | Builtin modules | None | Every native/JS module the build was configured with, statically registered |
 | Bootstrap globals | `std`, `os` (only with `--std`) | `process` (always), plus `std`/`os` with `--std`; `console` from the REPL |
-| Module introspection | None | `findModule`, `loadModule`, `requireModule`, `normalizeModule`, `resolveModule`, `locateModule`, `moduleLoader`, `moduleList`, `moduleEntries` on `globalThis` |
+| Module introspection | None | `findModule`, `loadModule`, `requireModule`, `normalizeModule`, `resolveModule`, `locateModule`, `registerHooks`, `moduleList`, `moduleEntries` on `globalThis` |
 | REPL | Line evaluator only | Line evaluator + `\`-directives, including `\i <module>` to import interactively |
 | `-m` flag | N/A | Loads named modules onto `globalThis` before the main script/REPL runs |
 
@@ -128,16 +128,14 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
 1. **`data:` URL** — `jsm_module_data()`: `data:[<mime>][;base64],<payload>`.
    `/javascript`or`/ecmascript` MIME evaluates the payload as a module's
    source (URL-decoded, or base64-decoded if `;base64` is present); `/json`
-   MIME wraps it as `export default JSON.parse(...)` instead. This is how a
-   loader-hook chain (see below) can hand back fetched source without a
-   temp file — e.g. `qjs-lws`'s CDN loader.
+   MIME wraps it as `export default JSON.parse(...)` instead.
 2. **`node:` prefix** — stripped (except `node:os`, which would alias to this
    engine's own `os` builtin, which is *not* Node's `os` — see the comment at
    `jsm_module_loader()`), so `node:path` behaves like bare `path`.
-3. **Registered loader-hook chain** (`moduleLoader(fn)`, see below) — each
-   hook gets first refusal; returning a string re-enters resolution with that
-   string as the new name, returning a `Module` value short-circuits straight
-   to it.
+3. **Registered hooks** (`registerHooks()`, see below) — when any are registered,
+   steps 1-2 and 4-7 collapse into the hook chain's final `nextLoad()` and a
+   `load` hook can answer for any URL (`data:` included). With none registered
+   this step is skipped and the steps below run exactly as before.
 4. **`package.json` `_moduleAliases`** (`jsm_module_package()`) — a Node
    `module-alias`-style map, read once per process and cached
    (`jsm_load_package()`), keyed by the specifier relative to cwd.
@@ -183,7 +181,7 @@ all accepted interchangeably where it makes sense).
 | `resolveModule(moduleValue)` | Runs `JS_ResolveModule()` (link the module's imports/exports) on an already-loaded `Module` value. |
 | `normalizeModule(pathOrModule, specifier)` | Exposes `jsm_module_normalize()` directly — what would `specifier` resolve to, importing from `pathOrModule`? |
 | `locateModule(name)` | Path-search only (`jsm_module_locate()`): where would `QUICKJS_MODULE_PATH`/extension search find `name`, without importing it? Returns `null` if not found. |
-| `moduleLoader([fn, ...])` | With no args, returns the current loader-hook chain. With function arguments, replaces/registers them (a hook already in the chain is removed and its slot reused, so re-registering the same function moves it rather than duplicating it). With a bare string/non-function argument, runs that one specifier through the loader directly. |
+| `registerHooks({resolve?, load?})` | Node's synchronous `module.registerHooks()` — see [Module customization hooks](#module-customization-hooks). Also exported as `registerHooks` from the `module` builtin. |
 | `moduleList` *(getter)* | Array of `{name, builtin}` for every loaded module. |
 | `moduleEntries` *(getter)* | Array of `[name, moduleValue]` pairs, skipping synthetic (`<...>`-named) modules. |
 | `builtins` *(getter)* | Array of every registered builtin module's name, initialized or not. |
@@ -196,6 +194,44 @@ load) was removed — see
 [Implementation notes](#implementation-notes-and-history): the queue it wrote
 to is only ever drained once, at startup, before any user script can run, so
 calling it from script code was a silent no-op.
+
+## Module customization hooks
+
+`registerHooks()` follows Node's synchronous
+[customization hooks](https://nodejs.org/api/module.html#customization-hooks);
+`Bun.plugin()` (`doc/js/bun.md`) is built on the same chain.
+
+```js
+import { registerHooks } from 'module';
+
+const hooks = registerHooks({
+  resolve(specifier, { parentURL, conditions, importAttributes }, nextResolve) {
+    if(specifier === 'virtual:hello') return { url: 'virtual:hello', shortCircuit: true };
+    return nextResolve(specifier);
+  },
+  load(url, { format, conditions, importAttributes }, nextLoad) {
+    if(url === 'virtual:hello') return { format: 'module', source: 'export default "hi"', shortCircuit: true };
+    return nextLoad(url);
+  },
+});
+
+hooks.deregister();   // also [Symbol.dispose], for `using`
+```
+
+| Rule | Detail |
+| --- | --- |
+| Order | Last registered runs first; the engine's own resolution/loading is the final `next*()`. |
+| Chain | A hook must call `next*()` or return `shortCircuit: true`, else `Error` with `code: 'ERR_LOADER_CHAIN_INCOMPLETE'`. |
+| `resolve` returns | `{ url, format?, shortCircuit? }`. `format` is handed on as `context.format` to `load`. |
+| `load` returns | `{ format, source, shortCircuit? }`; `source` is a string, `ArrayBuffer` or typed array. |
+| Formats | `module`, `json`, `builtin`, `addon` (the last two with `source: null`); `commonjs`, `wasm` and the `*-typescript` formats throw `TypeError`. |
+| URLs | Hooks see `file:///abs/path`, `node:fs` (`os` and `std` stay bare), `data:` and any custom scheme; the module key (`loaded_modules`, `import.meta`, relative resolution) stays the plain path/bare name. |
+| Errors | An exception thrown by a hook propagates to the `import` (it no longer ends the process). |
+| Sync only | A hook returning a Promise throws `TypeError`; the async `module.register()`/`initialize` thread API is not provided. |
+| Scope | Per thread (workers start with none); not inherited. |
+
+The old `moduleLoader({normalize, loader})` global was removed; port
+`normalize` to `resolve` and `loader` to `load` (see `lib/nodeModulesLoader.js`).
 
 ## REPL integration
 

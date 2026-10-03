@@ -78,13 +78,6 @@ void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
     returns a newly allocated, resolved path or 0 if it didn't match. */
 typedef char* ModuleLoader(JSContext*, const char*);
 
-/** One entry in the linked list of JS-side module loader/normalizer hooks installed via
-    the `moduleLoader` global (see jsm_module_func's MODULE_LOADER case). */
-typedef struct ModuleLoaderContext {
-  JSValue func;
-  struct ModuleLoaderContext* next;
-} ModuleLoaderContext;
-
 /** One entry in the `loaded_modules` list: associates a resolved module name with the
     JSModuleDef the engine ended up loading for it. */
 typedef struct LoadedModule {
@@ -159,8 +152,7 @@ enum {
 };
 
 /** Magic values for jsm_module_func, the dispatcher behind every `*Module` global
-    (findModule, loadModule, normalizeModule, the
-    moduleLoader hook registry, ...). */
+    (findModule, loadModule, normalizeModule, ...). */
 enum {
   FIND_MODULE,
   FIND_MODULE_INDEX,
@@ -169,7 +161,6 @@ enum {
   LOCATE_MODULE,
   NORMALIZE_MODULE,
   RESOLVE_MODULE,
-  MODULE_LOADER,
 };
 
 /* --- global/static variables --- */
@@ -177,7 +168,6 @@ enum {
 static thread_local int DEBUG_MODULE = 0;
 static thread_local Vector debug_list = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
-static thread_local ModuleLoaderContext* module_loaders = NULL;
 static thread_local struct list_head loaded_modules;
 
 #ifndef QUICKJS_MODULE_PATH
@@ -1262,164 +1252,126 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 }
 
 /**
- * Runs `method_name` (either "loader" or "normalize") through every hook in the
- * `loader` chain, threading the previous result in as the last argument to the next.
+ * Decodes a "data:...,<content>[;base64]" URL into module source code (wrapping the
+ * payload in JSON.parse(...) for a "/json" media type).
  *
- * @param ctx JS context to call into.
- * @param loader Head of the loader-hook chain to run.
- * @param method_name Method to look up on each hook object ("loader" or "normalize").
- * @param argc Argument count of `argv`; the last slot is the value threaded through.
- * @param argv Arguments passed to each hook call; argv[argc-1] is updated after each call.
+ *   JSContext*   ctx   context used for allocation
+ *   const char*  name  full "data:" URL
+ *   DynBuf*      code  receives the NUL-terminated source; caller dbuf_free()s it
  *
- * @returns The final value of argv[argc-1] after running the whole chain.
+ *   returns 0, or -1 if `name` has no ',' payload separator (nothing pending)
  */
-static JSValue
-jsm_call_loader_method(JSContext* ctx, ModuleLoaderContext* loader, const char* method_name, int argc, JSValue argv[]) {
-  int i = 0;
-  argv[argc - 1] = JS_DupValue(ctx, argv[argc - 1]);
+static int
+jsm_data_source(JSContext* ctx, const char* name, DynBuf* code) {
+  size_t length = strlen(name), offset = str_chr(name, ',');
 
-  for(; loader; loader = loader->next) {
-    JSValue fn = JS_GetPropertyStr(ctx, loader->func, method_name);
+  if(!name[offset])
+    return -1;
 
-    if(!strcmp(method_name, "loader") && !JS_IsFunction(ctx, fn))
-      fn = JS_DupValue(ctx, loader->func);
+  BOOL is_js = byte_finds(name, offset, "/javascript") < offset || byte_finds(name, offset, "/ecmascript") < offset;
+  BOOL is_json = !is_js && byte_finds(name, offset, "/json") < offset;
+  size_t encoding_offset = byte_rchr(name, offset, ';');
+  const char* encoding = encoding_offset > offset ? NULL : &name[encoding_offset + 1];
+  BOOL is_base64 = encoding && !strncasecmp(encoding, "base64", 4);
 
-    if(!JS_IsFunction(ctx, fn)) {
-      JS_FreeValue(ctx, fn);
-      continue;
-    }
+  dbuf_init_ctx(ctx, code);
 
-    JSValue ret = JS_Call(ctx, fn, JS_UNDEFINED, argc, argv);
+  ++offset;
+  length -= offset;
 
-    DEBUG_MODULE(
-        3, "(i: %d, method_name: \"%s\", argc: %d, argv[0]: \"%s\", ret: \"%s\")", i++, method_name, argc, JS_ToCString(ctx, argv[0]), JS_ToCString(ctx, ret));
+  if(is_json) {
+    if(is_base64)
+      dbuf_putstr(code, "import { atos } from 'util';\n");
 
-    JS_FreeValue(ctx, fn);
-    JS_FreeValue(ctx, argv[argc - 1]);
-    argv[argc - 1] = ret;
+    dbuf_putstr(code, "export default JSON.parse(");
+    if(is_base64)
+      dbuf_putstr(code, "atos(");
 
-    if(JS_IsException(ret)) {
-      fputs("Exception in module loader: ", stderr);
-      jsm_dump_error(ctx);
-      exit(1);
-    }
+    dbuf_putc(code, '\'');
+    dbuf_put_escaped_table(code, &name[offset], length, escape_singlequote_tab);
+    dbuf_putc(code, '\'');
+
+    if(is_base64)
+      dbuf_putc(code, ')');
+
+    dbuf_putstr(code, ");");
+    dbuf_putc(code, '\n');
+  } else if(is_base64) {
+    if(dbuf_claim(code, b64url_get_decoded_buffer_size(length)))
+      return -1;
+
+    code->size += b64url_decode((const uint8_t*)&name[offset], length, &code->buf[code->size]);
+  } else {
+    dbuf_put_unescaped_table(code, &name[offset], length, escape_url_tab);
   }
 
-  return argv[argc - 1];
+  dbuf_0(code);
+  return 0;
 }
 
 /**
- * Runs the JS-side "loader" hook chain over a module specifier/value.
+ * Compiles module source `code` (not run) under the name `name`, installing its
+ * import.meta.
  *
- * @param ctx JS context to call into.
- * @param loader Head of the loader-hook chain.
- * @param arg Initial value passed to the chain (typically the specifier string).
+ *   JSContext*   ctx       context to compile in
+ *   const char*  name      module name as the engine will know it
+ *   const char*  code      source text
+ *   size_t       len       length of `code` in bytes
+ *   BOOL         is_file   TRUE if `name` is a real filesystem path
  *
- * @returns The chain's final result (a string, a module value, or unchanged `arg`).
+ *   returns the module, or 0 with an exception pending
  */
-static JSValue
-jsm_call_loaders(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst arg) {
-  JSValue module = arg;
-  jsm_call_loader_method(ctx, loader, "loader", 1, &module);
-  return module;
+static JSModuleDef*
+jsm_module_compile(JSContext* ctx, const char* name, const char* code, size_t len, BOOL is_file) {
+  JSValue module = JS_Eval(ctx, code, len, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  JSModuleDef* m = 0;
+
+  if(!JS_IsException(module)) {
+    js_module_set_import_meta(ctx, module, is_file, FALSE);
+    m = JS_VALUE_GET_PTR(module);
+  }
+
+  JS_FreeValue(ctx, module);
+  return m;
 }
 
 /**
- * Runs the JS-side "normalize" hook chain over a (base, module) specifier pair.
+ * Loads a "data:...,<content>[;base64]" module URL.
  *
- * @param ctx JS context to call into.
- * @param loader Head of the loader-hook chain.
- * @param base Importing module's path.
- * @param module Specifier being normalized.
+ *   JSContext*   ctx     context to compile in
+ *   const char*  name    full "data:" URL
+ *   void*        opaque  unused
  *
- * @returns The chain's final normalized value.
- */
-static JSValue
-jsm_call_normalizers(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst base, JSValueConst module) {
-  JSValue argv[] = {base, module};
-  jsm_call_loader_method(ctx, loader, "normalize", countof(argv), argv);
-  return argv[1];
-}
-
-/**
- * Loads a "data:...,<content>[;base64]" module URL, decoding/unescaping its
- * payload (and wrapping it in JSON.parse(...) for a "/json" media type).
- *
- * @param ctx JS context to compile in.
- * @param name Full "data:" URL.
- * @param opaque Unused.
- *
- * @returns The compiled module, or 0 if `name` has no ',' payload separator or compilation
- * failed.
+ *   returns the compiled module, or 0 if `name` has no ',' payload separator or
+ *   compilation failed
  */
 static JSModuleDef*
 jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
-  size_t length = strlen(name), offset = str_chr(name, ',');
+  DynBuf code;
   JSModuleDef* m = 0;
 
-  if(name[offset]) {
-    BOOL is_js = byte_finds(name, offset, "/javascript") < offset || byte_finds(name, offset, "/ecmascript") < offset;
-    BOOL is_json = !is_js && byte_finds(name, offset, "/json") < offset;
-    DynBuf code = DBUF_INIT_CTX(ctx);
-    JSValue module;
-    size_t encoding_offset = byte_rchr(name, offset, ';');
-    const char* encoding = encoding_offset > offset ? NULL : &name[encoding_offset + 1];
-    BOOL is_base64 = encoding && !strncasecmp(encoding, "base64", 4);
-
-    ++offset;
-    length -= offset;
-
-    if(is_json) {
-      if(is_base64)
-        dbuf_putstr(&code, "import { atos } from 'util';\n");
-
-      dbuf_putstr(&code, "export default JSON.parse(");
-      if(is_base64)
-        dbuf_putstr(&code, "atos(");
-
-      dbuf_putc(&code, '\'');
-      dbuf_put_escaped_table(&code, &name[offset], length, escape_singlequote_tab);
-      dbuf_putc(&code, '\'');
-
-      if(is_base64)
-        dbuf_putc(&code, ')');
-
-      dbuf_putstr(&code, ");");
-      dbuf_putc(&code, '\n');
-    } else if(is_base64) {
-
-      if(dbuf_claim(&code, b64url_get_decoded_buffer_size(length)))
-        return 0;
-
-      code.size += b64url_decode((const uint8_t*)&name[offset], length, &code.buf[code.size]);
-    } else {
-      dbuf_put_unescaped_table(&code, &name[offset], length, escape_url_tab);
-    }
-
-    dbuf_0(&code);
-    module = JS_Eval(ctx, (const char*)code.buf, code.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  if(!jsm_data_source(ctx, name, &code)) {
+    m = jsm_module_compile(ctx, name, (const char*)code.buf, code.size, FALSE);
     dbuf_free(&code);
-
-    if(!JS_IsException(module)) {
-      js_module_set_import_meta(ctx, module, FALSE, FALSE);
-
-      m = JS_VALUE_GET_PTR(module);
-    }
-
-    JS_FreeValue(ctx, module);
   }
 
   return m;
 }
 
+/* hook state, defined with the registerHooks() implementation further down */
+static thread_local JSValue* module_hooks;
+static thread_local size_t module_hooks_len;
+
+static JSModuleDef* jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque);
+
 /**
  * The engine's JSModuleLoaderFunc: resolves and loads `module_name`, handling
- * data: URLs, the external JS loader-hook chain, circular-import warnings,
+ * data: URLs, registered load hooks, circular-import warnings,
  * package.json aliasing, builtin modules, and filesystem resolution, in that order.
  *
  * @param ctx JS context to load into.
  * @param module_name Module specifier as requested by the engine.
- * @param opaque Either a `ModuleLoaderContext**` (the external loader-hook chain) or NULL.
+ * @param opaque Unused.
  *
  * @returns The loaded JSModuleDef, or 0 on failure (exception left pending, augmented with
  * the jsm_stack import chain).
@@ -1428,11 +1380,14 @@ static JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *s = 0, *tmp, *name = js_strdup(ctx, module_name);
   JSModuleDef* m = 0;
-  ModuleLoaderContext** lptr = opaque;
   int i = 0;
 
-again:
   DEBUG_MODULE(2, "(i: %d, name: \"%s\", opaque: %p)", i++, name, opaque);
+
+  if(module_hooks_len) {
+    m = jsm_module_load_hooked(ctx, name, opaque);
+    goto end;
+  }
 
   if(str_start(name, "data:")) {
     m = jsm_module_data(ctx, name, opaque);
@@ -1459,25 +1414,6 @@ again:
     tmp = js_strdup(ctx, name + 5);
     js_free(ctx, name);
     name = tmp;
-  }
-
-  if(lptr) {
-    JSValue namev = JS_NewString(ctx, name);
-    JSValue module = jsm_call_loaders(ctx, *lptr, namev);
-    JS_FreeValue(ctx, namev);
-
-    if(JS_IsString(module)) {
-      js_free(ctx, name);
-      name = js_tostring(ctx, module);
-      lptr = opaque = 0;
-      JS_FreeValue(ctx, module);
-      goto again;
-    } else if(JS_VALUE_GET_TAG(module) == JS_TAG_MODULE) {
-      m = JS_VALUE_GET_PTR(module);
-      goto end;
-    }
-
-    JS_FreeValue(ctx, module);
   }
 
   if(jsm_stack_find(name) != 0)
@@ -1584,22 +1520,19 @@ end:
 
 /**
  * The engine's module-name normalizer: resolves `name` (as imported from `path`)
- * to a builtin name or absolute file path, then runs it through the external
- * JS normalizer-hook chain if one is installed.
+ * to a builtin name or absolute file path (the default resolution, no hooks).
  *
  * @param ctx JS context.
  * @param path Path of the importing module.
  * @param name Specifier being imported.
- * @param opaque Either a `ModuleLoaderContext**` (the external loader-hook chain) or NULL.
  *
  * @returns Newly allocated normalized specifier (never NULL: falls back to a copy of
  * `name`).
  */
 static char*
-jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   char* file = 0;
   BuiltinModule* bltin = 0;
-  ModuleLoaderContext** lptr = opaque;
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)
@@ -1651,23 +1584,6 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     free(abs);
   }
 
-  if(lptr) {
-    JSValue pathv = JS_NewString(ctx, path), namev = JS_NewString(ctx, file ? file : name);
-    JSValue module = jsm_call_normalizers(ctx, *lptr, pathv, namev);
-
-    JS_FreeValue(ctx, pathv);
-    JS_FreeValue(ctx, namev);
-
-    if(JS_IsString(module)) {
-      if(file)
-        js_free(ctx, file);
-
-      file = js_tostring(ctx, module);
-    }
-
-    JS_FreeValue(ctx, module);
-  }
-
   if(file == 0)
     if(!bltin && has_dot_or_slash(name) && !module_has_suffix(name))
       file = jsm_search_suffix(ctx, name, &is_module);
@@ -1678,6 +1594,628 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   DEBUG_MODULE(1, "%s: \"%s\" => \"%s\"", path, name, file);
 
   return file;
+}
+
+/* --- module customization hooks: registerHooks() ---
+ *
+ * Node's synchronous module.registerHooks() (https://nodejs.org/api/module.html):
+ *
+ * ```js
+ * const { deregister } = registerHooks({
+ *   resolve(specifier, { parentURL, conditions, importAttributes }, nextResolve) {},
+ *   load(url, { format, conditions, importAttributes }, nextLoad) {},
+ * });
+ * ```
+ *
+ *   resolve  returns { url, format?, shortCircuit? }
+ *   load     returns { format, source, shortCircuit? }
+ *
+ * hooks run last-registered first; each must call next*() or return
+ * `shortCircuit: true`. the engine's own resolution is the last `next`.
+ */
+
+enum { HOOK_RESOLVE, HOOK_LOAD };
+
+static thread_local JSValue hook_formats;
+static thread_local BOOL hook_formats_set;
+
+/* percent-encodes ' ', '%', '#', '?' and control bytes of a path for a file:// URL;
+   returns a js_malloc'd string */
+static char*
+jsm_path_to_url(JSContext* ctx, const char* path) {
+  DynBuf db;
+  static const char hex[] = "0123456789ABCDEF";
+
+  if(path[0] != '/')
+    return js_strdup(ctx, path);
+
+  dbuf_init_ctx(ctx, &db);
+  dbuf_putstr(&db, "file://");
+
+  for(; *path; ++path) {
+    uint8_t c = *path;
+
+    if(c <= ' ' || c == '%' || c == '#' || c == '?' || c == 0x7f) {
+      dbuf_putc(&db, '%');
+      dbuf_putc(&db, hex[c >> 4]);
+      dbuf_putc(&db, hex[c & 15]);
+    } else {
+      dbuf_putc(&db, c);
+    }
+  }
+
+  dbuf_0(&db);
+  return (char*)db.buf;
+}
+
+/* maps the module key to the URL hooks see: "/a/b.js" -> "file:///a/b.js",
+   "fs" -> "node:fs" ("os", "std" stay bare), anything else unchanged */
+static char*
+jsm_key_to_url(JSContext* ctx, const char* key) {
+  if(key[0] != '/' && !has_dot_or_slash(key) && jsm_builtin_find(key) && strcmp(key, "os") && strcmp(key, "std")) {
+    DynBuf db;
+    dbuf_init_ctx(ctx, &db);
+    dbuf_putstr(&db, "node:");
+    dbuf_putstr(&db, key);
+    dbuf_0(&db);
+    return (char*)db.buf;
+  }
+
+  return jsm_path_to_url(ctx, key);
+}
+
+static int
+jsm_hex_digit(int c) {
+  return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+}
+
+/* inverse of jsm_key_to_url(): "file:///a%20b.js" -> "/a b.js", "node:fs" -> "fs"
+   ("node:os" stays); returns a js_malloc'd string */
+static char*
+jsm_url_to_key(JSContext* ctx, const char* url) {
+  DynBuf db;
+
+  if(str_start(url, "node:") && strcmp(url + 5, "os"))
+    return js_strdup(ctx, url + 5);
+
+  if(!str_start(url, "file://"))
+    return js_strdup(ctx, url);
+
+  dbuf_init_ctx(ctx, &db);
+
+  for(url += 7; *url; ++url) {
+    int h, l;
+
+    if(url[0] == '%' && (h = jsm_hex_digit(url[1])) >= 0 && (l = jsm_hex_digit(url[1] ? url[2] : 0)) >= 0) {
+      dbuf_putc(&db, h << 4 | l);
+      url += 2;
+    } else {
+      dbuf_putc(&db, *url);
+    }
+  }
+
+  dbuf_0(&db);
+  return (char*)db.buf;
+}
+
+/* throws Error with `code` set, e.g. code "ERR_LOADER_CHAIN_INCOMPLETE" */
+static JSValue
+jsm_throw_code(JSContext* ctx, const char* code, const char* msg) {
+  JSValue err = JS_NewError(ctx);
+
+  JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, msg), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, code), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  return JS_Throw(ctx, err);
+}
+
+/* the engine's own resolution as the final nextResolve(): returns { url, shortCircuit }
+   or an exception */
+static JSValue
+jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context) {
+  JSValue pv = JS_GetPropertyStr(ctx, context, "parentURL"), ret;
+  const char* spec = JS_ToCString(ctx, specifier);
+  char *base, *file, *tmp, *url;
+
+  if(!spec) {
+    JS_FreeValue(ctx, pv);
+    return JS_EXCEPTION;
+  }
+
+  if(JS_IsString(pv)) {
+    const char* pu = JS_ToCString(ctx, pv);
+    base = jsm_url_to_key(ctx, pu);
+    JS_FreeCString(ctx, pu);
+  } else {
+    base = js_strdup(ctx, ".");
+  }
+
+  JS_FreeValue(ctx, pv);
+
+  tmp = jsm_url_to_key(ctx, spec);
+  JS_FreeCString(ctx, spec);
+
+  if(str_start(tmp, "data:") || str_start(tmp, "http:") || str_start(tmp, "https:")) {
+    file = tmp;
+  } else {
+    char* alias;
+
+    file = jsm_module_normalize_core(ctx, base, tmp);
+    js_free(ctx, tmp);
+
+    if((alias = jsm_module_package(ctx, file))) {
+      js_free(ctx, file);
+      file = alias;
+    }
+
+    if(!(!file[path_component1(file)] && jsm_builtin_find(file)) && is_searchable(file) && (alias = jsm_module_locate(ctx, file, 0))) {
+      js_free(ctx, file);
+      file = alias;
+    }
+  }
+
+  url = jsm_key_to_url(ctx, file);
+  js_free(ctx, file);
+  js_free(ctx, base);
+
+  ret = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, ret, "url", JS_NewString(ctx, url));
+  JS_SetPropertyStr(ctx, ret, "shortCircuit", JS_TRUE);
+  js_free(ctx, url);
+  return ret;
+}
+
+/* the engine's own loading as the final nextLoad(): returns { format, source,
+   shortCircuit } or an exception.
+     "builtin" / "addon"  source is null (the engine instantiates them itself)
+     "json" / "module"    source is the file's text */
+static JSValue
+jsm_default_load(JSContext* ctx, JSValueConst urlv) {
+  const char* u = JS_ToCString(ctx, urlv);
+  char* name;
+  JSValue ret, source = JS_NULL;
+  const char* format = "module";
+
+  if(!u)
+    return JS_EXCEPTION;
+
+  name = jsm_url_to_key(ctx, u);
+  JS_FreeCString(ctx, u);
+
+  if(str_start(name, "data:")) {
+    DynBuf code;
+
+    if(jsm_data_source(ctx, name, &code)) {
+      js_free(ctx, name);
+      return JS_ThrowTypeError(ctx, "invalid data: URL");
+    }
+
+    source = JS_NewStringLen(ctx, (const char*)code.buf, code.size);
+    dbuf_free(&code);
+  } else if(!name[path_component1(name)] && jsm_builtin_find(name)) {
+    format = "builtin";
+  } else if(has_suffix(name, CONFIG_SHEXT)) {
+    format = "addon";
+  } else {
+    size_t len;
+    uint8_t* buf = js_load_file(ctx, &len, name);
+
+    if(!buf) {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+      JS_ThrowReferenceError(ctx, "could not load module '%s'", name);
+      js_free(ctx, name);
+      return JS_EXCEPTION;
+    }
+
+    if(str_ends(name, ".json"))
+      format = "json";
+
+    source = JS_NewStringLen(ctx, (const char*)buf, len);
+    js_free(ctx, buf);
+  }
+
+  js_free(ctx, name);
+
+  ret = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, ret, "format", JS_NewString(ctx, format));
+  JS_SetPropertyStr(ctx, ret, "source", source);
+  JS_SetPropertyStr(ctx, ret, "shortCircuit", JS_TRUE);
+  return ret;
+}
+
+static JSValue jsm_hook_run(JSContext* ctx, int kind, JSValueConst snap, int idx, JSValueConst arg, JSValueConst context);
+
+/* nextResolve(specifier, context?) / nextLoad(url, context?) handed to a hook;
+   data = [ next index, hook snapshot, call state, default context ] */
+static JSValue
+jsm_hook_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst* data) {
+  int32_t idx = 0;
+
+  if(argc < 1 || !JS_IsString(argv[0]))
+    return JS_ThrowTypeError(ctx, "%s: argument 1 must be a string", magic == HOOK_LOAD ? "nextLoad" : "nextResolve");
+
+  JS_ToInt32(ctx, &idx, data[0]);
+  JS_SetPropertyStr(ctx, data[2], "called", JS_TRUE);
+
+  return jsm_hook_run(ctx, magic, data[1], idx, argv[0], argc > 1 && JS_IsObject(argv[1]) ? argv[1] : data[3]);
+}
+
+/* runs the hook at the highest index <= idx that defines the method, or the
+   engine default when none is left; validates what the hook returned */
+static JSValue
+jsm_hook_run(JSContext* ctx, int kind, JSValueConst snap, int idx, JSValueConst arg, JSValueConst context) {
+  const char* method = kind == HOOK_LOAD ? "load" : "resolve";
+  JSValue fn = JS_UNDEFINED, hook, state, next, ret, v;
+  JSValueConst data[4], args[3];
+  char msg[160];
+
+  for(; idx >= 0; idx--) {
+    hook = JS_GetPropertyUint32(ctx, snap, idx);
+    fn = JS_GetPropertyStr(ctx, hook, method);
+    JS_FreeValue(ctx, hook);
+
+    if(JS_IsFunction(ctx, fn))
+      break;
+
+    JS_FreeValue(ctx, fn);
+  }
+
+  if(idx < 0)
+    return kind == HOOK_LOAD ? jsm_default_load(ctx, arg) : jsm_default_resolve(ctx, arg, context);
+
+  state = JS_NewObject(ctx);
+  data[0] = JS_NewInt32(ctx, idx - 1);
+  data[1] = snap;
+  data[2] = state;
+  data[3] = context;
+  next = JS_NewCFunctionData(ctx, jsm_hook_next, 2, kind, 4, data);
+
+  args[0] = arg;
+  args[1] = context;
+  args[2] = next;
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, args);
+
+  JS_FreeValue(ctx, fn);
+  JS_FreeValue(ctx, next);
+
+  if(JS_IsException(ret)) {
+    JS_FreeValue(ctx, state);
+    return ret;
+  }
+
+  v = JS_GetPropertyStr(ctx, ret, "then");
+
+  if(JS_IsFunction(ctx, v)) {
+    JS_FreeValue(ctx, v);
+    JS_FreeValue(ctx, state);
+    JS_FreeValue(ctx, ret);
+    return JS_ThrowTypeError(ctx, "%s hook must be synchronous (got a Promise)", method);
+  }
+
+  JS_FreeValue(ctx, v);
+
+  if(!JS_IsObject(ret)) {
+    JS_FreeValue(ctx, state);
+    JS_FreeValue(ctx, ret);
+    return JS_ThrowTypeError(ctx, "%s hook must return an object", method);
+  }
+
+  v = JS_GetPropertyStr(ctx, ret, "shortCircuit");
+
+  if(!JS_ToBool(ctx, v)) {
+    JS_FreeValue(ctx, v);
+    v = JS_GetPropertyStr(ctx, state, "called");
+
+    if(!JS_ToBool(ctx, v)) {
+      snprintf(msg, sizeof(msg), "%s hook did not call next%s() and did not return shortCircuit: true", method, kind == HOOK_LOAD ? "Load" : "Resolve");
+      JS_FreeValue(ctx, v);
+      JS_FreeValue(ctx, state);
+      JS_FreeValue(ctx, ret);
+      return jsm_throw_code(ctx, "ERR_LOADER_CHAIN_INCOMPLETE", msg);
+    }
+  }
+
+  JS_FreeValue(ctx, v);
+  JS_FreeValue(ctx, state);
+
+  v = JS_GetPropertyStr(ctx, ret, kind == HOOK_LOAD ? "format" : "url");
+
+  if(!JS_IsString(v)) {
+    snprintf(msg, sizeof(msg), "%s hook must return { %s: string }", method, kind == HOOK_LOAD ? "format" : "url");
+    JS_FreeValue(ctx, v);
+    JS_FreeValue(ctx, ret);
+    return jsm_throw_code(ctx, "ERR_INVALID_RETURN_PROPERTY_VALUE", msg);
+  }
+
+  JS_FreeValue(ctx, v);
+  return ret;
+}
+
+/* builds { conditions, importAttributes } plus the given extras into a fresh context
+   object; `key` is "parentURL" or "format" and `val` its string value or NULL */
+static JSValue
+jsm_hook_context(JSContext* ctx, const char* key, const char* val) {
+  JSValue c = JS_NewObject(ctx), conds = JS_NewArray(ctx);
+
+  JS_SetPropertyUint32(ctx, conds, 0, JS_NewString(ctx, "node"));
+  JS_SetPropertyUint32(ctx, conds, 1, JS_NewString(ctx, "import"));
+  JS_SetPropertyStr(ctx, c, "conditions", conds);
+  JS_SetPropertyStr(ctx, c, "importAttributes", JS_NewObject(ctx));
+  JS_SetPropertyStr(ctx, c, key, val ? JS_NewString(ctx, val) : JS_UNDEFINED);
+  return c;
+}
+
+static JSValue
+jsm_hooks_snapshot(JSContext* ctx) {
+  JSValue snap = JS_NewArray(ctx);
+  size_t i;
+
+  for(i = 0; i < module_hooks_len; i++)
+    JS_SetPropertyUint32(ctx, snap, i, JS_DupValue(ctx, module_hooks[i]));
+
+  return snap;
+}
+
+/* normalize callback while hooks are registered: runs the resolve chain and maps the
+   resulting URL back to a module key; returns NULL with an exception pending */
+static char*
+jsm_module_normalize_hooked(JSContext* ctx, const char* path, const char* name) {
+  JSValue snap = jsm_hooks_snapshot(ctx), namev = JS_NewString(ctx, name), res, v;
+  JSValue context;
+  char *url, *key = 0;
+
+  if(path[0] && path[0] != '<' && strcmp(path, ".")) {
+    /* a relative importer ("p.mjs") becomes an absolute file URL, as in Node */
+    char* abs = path[0] != '/' && path[str_chr(path, ':')] == 0 ? path_absolute1(path) : 0;
+
+    url = jsm_path_to_url(ctx, abs ? abs : path);
+    free(abs);
+    context = jsm_hook_context(ctx, "parentURL", url);
+    js_free(ctx, url);
+  } else {
+    context = jsm_hook_context(ctx, "parentURL", 0);
+  }
+
+  res = jsm_hook_run(ctx, HOOK_RESOLVE, snap, module_hooks_len - 1, namev, context);
+
+  JS_FreeValue(ctx, snap);
+  JS_FreeValue(ctx, namev);
+  JS_FreeValue(ctx, context);
+
+  if(JS_IsException(res))
+    return 0;
+
+  v = JS_GetPropertyStr(ctx, res, "url");
+  if((url = js_tostring(ctx, v))) {
+    key = jsm_url_to_key(ctx, url);
+    js_free(ctx, url);
+  }
+  JS_FreeValue(ctx, v);
+
+  v = JS_GetPropertyStr(ctx, res, "format");
+  if(key && JS_IsString(v)) {
+    if(!hook_formats_set) {
+      hook_formats = JS_NewObjectProto(ctx, JS_NULL);
+      hook_formats_set = TRUE;
+    }
+    JS_SetPropertyStr(ctx, hook_formats, key, JS_DupValue(ctx, v));
+  }
+  JS_FreeValue(ctx, v);
+  JS_FreeValue(ctx, res);
+
+  return key;
+}
+
+static char*
+jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+  if(module_hooks_len)
+    return jsm_module_normalize_hooked(ctx, path, name);
+
+  return jsm_module_normalize_core(ctx, path, name);
+}
+
+/* bytes of a load hook's `source`: a string, ArrayBuffer or typed array;
+   *pfree receives what to JS_FreeCString (NULL for buffers) */
+static const char*
+jsm_source_bytes(JSContext* ctx, JSValueConst source, size_t* plen, BOOL* is_str) {
+  size_t off = 0, blen = 0, bpe = 0;
+  uint8_t* ptr;
+  JSValue buf;
+
+  if(JS_IsString(source)) {
+    *is_str = TRUE;
+    return JS_ToCStringLen(ctx, plen, source);
+  }
+
+  *is_str = FALSE;
+
+  if((ptr = JS_GetArrayBuffer(ctx, plen, source)))
+    return (const char*)ptr;
+
+  JS_FreeValue(ctx, JS_GetException(ctx));
+  buf = JS_GetTypedArrayBuffer(ctx, source, &off, &blen, &bpe);
+
+  if(JS_IsException(buf))
+    return 0;
+
+  ptr = JS_GetArrayBuffer(ctx, plen, buf);
+  JS_FreeValue(ctx, buf);
+
+  if(!ptr)
+    return 0;
+
+  *plen = blen;
+  return (const char*)ptr + off;
+}
+
+/* load callback while hooks are registered: runs the load chain for `name` and
+   compiles what it returns; returns 0 with an exception pending */
+static JSModuleDef*
+jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque) {
+  JSValue snap = jsm_hooks_snapshot(ctx), urlv, context, res, fmt, src;
+  JSModuleDef* m = 0;
+  const char *format, *bytes;
+  size_t len = 0;
+  BOOL is_str = FALSE;
+  char* url = jsm_key_to_url(ctx, name);
+
+  urlv = JS_NewString(ctx, url);
+  js_free(ctx, url);
+
+  context = jsm_hook_context(ctx, "format", 0);
+
+  if(hook_formats_set) {
+    JSValue f = JS_GetPropertyStr(ctx, hook_formats, name);
+
+    if(JS_IsString(f))
+      JS_SetPropertyStr(ctx, context, "format", JS_DupValue(ctx, f));
+
+    JS_FreeValue(ctx, f);
+  }
+
+  jsm_stack_push(ctx, name);
+  res = jsm_hook_run(ctx, HOOK_LOAD, snap, module_hooks_len - 1, urlv, context);
+
+  JS_FreeValue(ctx, snap);
+  JS_FreeValue(ctx, urlv);
+  JS_FreeValue(ctx, context);
+
+  if(JS_IsException(res))
+    goto done;
+
+  fmt = JS_GetPropertyStr(ctx, res, "format");
+  src = JS_GetPropertyStr(ctx, res, "source");
+  format = JS_ToCString(ctx, fmt);
+
+  if(!strcmp(format, "builtin")) {
+    BuiltinModule* rec = jsm_builtin_find(name);
+
+    if(rec)
+      m = jsm_builtin_init(ctx, rec);
+    else
+      JS_ThrowReferenceError(ctx, "no builtin module '%s'", name);
+  } else if(!strcmp(format, "addon")) {
+    m = js_module_loader(ctx,
+                         name,
+                         opaque
+#ifndef JS_MODULE_LOADER_OLD
+                         ,
+                         JS_UNDEFINED
+#endif
+    );
+  } else if(!strcmp(format, "module") || !strcmp(format, "json")) {
+    if(JS_IsNull(src) || JS_IsUndefined(src)) {
+      JS_ThrowTypeError(ctx, "load hook returned no source for format '%s'", format);
+    } else if((bytes = jsm_source_bytes(ctx, src, &len, &is_str))) {
+      BOOL is_file = name[0] == '/';
+
+      if(!strcmp(format, "json")) {
+        DynBuf db;
+        size_t i = scan_whitenskip((const void*)bytes, len);
+
+        dbuf_init_ctx(ctx, &db);
+        dbuf_putstr(&db, "export default ");
+        dbuf_put(&db, (const uint8_t*)bytes + i, len - i);
+        dbuf_0(&db);
+        m = jsm_module_compile(ctx, name, (const char*)db.buf, db.size, is_file);
+        dbuf_free(&db);
+      } else {
+        m = jsm_module_compile(ctx, name, bytes, len, is_file);
+      }
+
+      if(is_str)
+        JS_FreeCString(ctx, bytes);
+    }
+  } else {
+    JS_ThrowTypeError(ctx, "unsupported module format '%s' for '%s'", format, name);
+  }
+
+  JS_FreeCString(ctx, format);
+  JS_FreeValue(ctx, fmt);
+  JS_FreeValue(ctx, src);
+
+done:
+  JS_FreeValue(ctx, res);
+  jsm_stack_pop(ctx);
+  return m;
+}
+
+/* deregister() of a registerHooks() result; data[0] is the hook object */
+static JSValue
+jsm_hooks_deregister(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst* data) {
+  size_t i;
+
+  for(i = 0; i < module_hooks_len; i++) {
+    if(js_value_obj(module_hooks[i]) != js_value_obj(data[0]))
+      continue;
+
+    JS_FreeValue(ctx, module_hooks[i]);
+    memmove(&module_hooks[i], &module_hooks[i + 1], (module_hooks_len - i - 1) * sizeof(JSValue));
+    --module_hooks_len;
+    break;
+  }
+
+  return JS_UNDEFINED;
+}
+
+/**
+ * registerHooks: installs resolve/load hooks (Node's module.registerHooks).
+ *
+ * ```js
+ * const h = registerHooks({ resolve, load });
+ * h.deregister();   // or `using h = registerHooks(...)`
+ * ```
+ *
+ *   object  hooks  { resolve?, load? }; at least one must be a function
+ *
+ *   returns  { deregister() } (also [Symbol.dispose])
+ *   throws   TypeError for a non-object, or no function member
+ *
+ * a global of qjsm; lib/module.js re-exports it as `registerHooks`.
+ */
+static JSValue
+jsm_register_hooks(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue r, l, ret, dereg, global, symbol, dispose;
+  BOOL ok;
+  JSValue* p;
+
+  if(argc < 1 || !JS_IsObject(argv[0]))
+    return JS_ThrowTypeError(ctx, "registerHooks: argument 1 must be an object { resolve?, load? }");
+
+  r = JS_GetPropertyStr(ctx, argv[0], "resolve");
+  l = JS_GetPropertyStr(ctx, argv[0], "load");
+  ok = JS_IsFunction(ctx, r) || JS_IsFunction(ctx, l);
+  ok = ok && (JS_IsFunction(ctx, r) || JS_IsUndefined(r)) && (JS_IsFunction(ctx, l) || JS_IsUndefined(l));
+  JS_FreeValue(ctx, r);
+  JS_FreeValue(ctx, l);
+
+  if(!ok)
+    return JS_ThrowTypeError(ctx, "registerHooks: expected { resolve?: function, load?: function } with at least one");
+
+  if(!(p = js_realloc(ctx, module_hooks, (module_hooks_len + 1) * sizeof(JSValue))))
+    return JS_EXCEPTION;
+
+  module_hooks = p;
+  module_hooks[module_hooks_len++] = JS_DupValue(ctx, argv[0]);
+
+  ret = JS_NewObject(ctx);
+  dereg = JS_NewCFunctionData(ctx, jsm_hooks_deregister, 0, 0, 1, &argv[0]);
+  JS_SetPropertyStr(ctx, ret, "deregister", JS_DupValue(ctx, dereg));
+
+  global = JS_GetGlobalObject(ctx);
+  symbol = JS_GetPropertyStr(ctx, global, "Symbol");
+  dispose = JS_GetPropertyStr(ctx, symbol, "dispose");
+
+  if(JS_IsSymbol(dispose)) {
+    JSAtom atom = JS_ValueToAtom(ctx, dispose);
+    JS_DefinePropertyValue(ctx, ret, atom, JS_DupValue(ctx, dereg), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_FreeAtom(ctx, atom);
+  }
+
+  JS_FreeValue(ctx, dispose);
+  JS_FreeValue(ctx, symbol);
+  JS_FreeValue(ctx, global);
+  JS_FreeValue(ctx, dereg);
+  return ret;
 }
 
 /**
@@ -1702,7 +2240,7 @@ jsm_context_new(JSRuntime* rt) {
    * js_std_set_worker_new_context_func(), so it must install the loader
    * itself or bare specifiers (even 'os'/'std', already registered on this
    * same rt) are unresolvable inside every worker. */
-  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, &module_loaders);
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, NULL);
 
   /* loaded_modules is thread_local (jsm_module_find() walks it via
    * list_for_each) and main() only ever init_list_head()s the main thread's
@@ -2146,8 +2684,8 @@ jsm_module_def(JSContext* ctx, JSValueConst value) {
 }
 
 /**
- * Dispatcher behind every `*Module` global and the `moduleLoader` hook registry
- * (see the FIND_MODULE.../MODULE_LOADER magic enum).
+ * Dispatcher behind every `*Module` global
+ * (see the FIND_MODULE... magic enum).
  *
  * @param ctx JS context.
  * @param this_val Unused (native function receiver).
@@ -2163,7 +2701,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSModuleDef* m = 0;
   const char* name = 0;
 
-  if((magic >= RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) && magic < MODULE_LOADER) {
+  if(magic == RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) {
     if(!(m = jsm_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
@@ -2269,60 +2807,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
-
-    case MODULE_LOADER: {
-      int i, arg;
-      ModuleLoaderContext *lc, **lptr;
-
-      if(!argc) {
-        val = JS_NewArray(ctx);
-
-        for(i = 0, lc = module_loaders; lc; ++i, lc = lc->next)
-          JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, lc->func));
-      } else if(JS_IsObject(argv[0])) {
-        for(arg = 0; arg < argc; arg++) {
-          void* func_obj;
-
-          if(!JS_IsObject(argv[arg])) {
-            val = JS_ThrowTypeError(ctx, "argument %d must be an object", arg);
-            break;
-          }
-
-          func_obj = js_value_obj(argv[arg]);
-          val = JS_NewArray(ctx);
-
-          for(i = 0, lptr = &module_loaders; (lc = *lptr); ++i) {
-            void* obj = js_value_obj(lc->func);
-
-            if(obj == func_obj) {
-              JS_FreeValue(ctx, (*lptr)->func);
-              js_free(ctx, *lptr);
-              *lptr = (*lptr)->next;
-              continue;
-            }
-
-            JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, (*lptr)->func));
-
-            lptr = &(*lptr)->next;
-          }
-
-          lc = *lptr = js_mallocz(ctx, sizeof(ModuleLoaderContext));
-          lc->func = JS_DupValue(ctx, argv[arg]);
-          JS_SetPropertyUint32(ctx, val, i++, JS_DupValue(ctx, lc->func));
-        }
-      } else {
-        char* module = js_tostring(ctx, argv[0]);
-        BOOL chain = TRUE;
-
-        if(argc > 1)
-          chain = JS_ToBool(ctx, argv[1]);
-
-        m = jsm_module_loader(ctx, module, chain ? &module_loaders : 0);
-        val = m ? JS_NewInt32(ctx, jsm_module_indexof(m)) : JS_NULL;
-      }
-
-      break;
-    }
   }
 
   if(name)
@@ -2340,7 +2824,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CGETSET_DEF("builtins", jsm_builtins, 0),
     JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
     JS_CGETSET_DEF("moduleEntries", jsm_modules_entries, 0),
-    JS_CFUNC_MAGIC_DEF("moduleLoader", 1, jsm_module_func, MODULE_LOADER),
+    JS_CFUNC_DEF("registerHooks", 1, jsm_register_hooks),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
     JS_CGETSET_MAGIC_DEF("scriptFile", jsm_stack_get, 0, SCRIPT_FILE),
     JS_CGETSET_MAGIC_DEF("scriptDir", jsm_stack_get, 0, SCRIPT_DIRNAME),
@@ -2694,7 +3178,7 @@ main(int argc, char** argv) {
   js_std_init_handlers(jsm_rt);
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(jsm_rt, jsm_module_normalize, jsm_module_loader, &module_loaders);
+  JS_SetModuleLoaderFunc(jsm_rt, jsm_module_normalize, jsm_module_loader, NULL);
 
   jsm_ctx = jsm_context_new(jsm_rt);
   if(!jsm_ctx) {
@@ -2736,6 +3220,9 @@ main(int argc, char** argv) {
     dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
 
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
+
+    if(jsm_builtin_find("bun"))
+      dbuf_putstr(&db, "import { plugin } from 'bun';\nglobalThis.Bun = { plugin };\n");
 
     if(load_std) {
       dbuf_putstr(&db,

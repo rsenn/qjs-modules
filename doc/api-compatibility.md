@@ -801,16 +801,16 @@ directly for Bun-compatible code.
 **Exports:**
 - `builtinModules` - sorted names from `globalThis.builtins` (this engine's own builtin registry)
 - `isBuiltin(name)` - accepts a `node:`-prefixed or bare name
-- `createRequire(filename)` - synchronous CJS loader resolving relative/absolute specifiers only (no `node_modules`/`package.json` resolution)
+- `createRequire(filename)` - `require()` from the compiled-in `require` builtin bound to `filename` (full `node_modules`/`package.json` lookup)
 
-**Notes:** Backed by this engine's own builtin-module registry rather than a hand-maintained list, matching how Bun/Deno alias `node:module` to their own module systems. Node's `Module` class, `register()` (loader hooks), `syncBuiltinESMExports()` and `SourceMap` are not implemented (see `TODO.md`).
+**Notes:** Backed by this engine's own builtin-module registry rather than a hand-maintained list, matching how Bun/Deno alias `node:module` to their own module systems. `registerHooks()` (synchronous customization hooks) is implemented; Node's `Module` class, async `register()` hooks, `syncBuiltinESMExports()` and `SourceMap` are not (see `TODO.md`).
 
 ### lib/nodeModulesLoader.js
 **Module:** `nodeModulesLoader`  
 **Classification:** Custom (Node.js-style module resolution demo)  
 **Spec:** https://nodejs.org/api/modules.html#all-together  
 **Exports:**
-- default export: installs a custom `moduleLoader` (normalize/loader pair) implementing Node-style `node_modules` resolution, `package.json` `"exports"`/`"module"`/`"main"` field lookup, and an experimental `.ts` transpile-via-`swc` loader
+- default export: installs `registerHooks()` resolve/load hooks implementing Node-style `node_modules` resolution, `package.json` `"exports"`/`"module"`/`"main"` field lookup, and an experimental `.ts` transpile-via-`swc` loader
 
 **Notes:** Formerly named `module`/`lib/module.js`; renamed to free up the `module` specifier for Node's actual `node:module` API (see above). Approximates Node's CommonJS/ESM resolution algorithm for QuickJS's module loader hooks; the `.ts` loader path shells out to an external `swc` binary and is best-effort/dev-only.
 

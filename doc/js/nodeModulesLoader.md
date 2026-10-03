@@ -2,9 +2,9 @@
 
 Source: `lib/nodeModulesLoader.js` (pure JS) — default export: a factory function
 
-Example custom `moduleLoader()` hook installer: `node_modules`/`package.json`-aware
+Example `registerHooks()` installer: `node_modules`/`package.json`-aware
 resolution (`"exports"`/`"module"`/`"main"` field lookup), plus an experimental `.ts`
-transpile-via-`swc` loader. Demonstrates the `moduleLoader()` hook API - not invoked
+transpile-via-`swc` loader. Demonstrates the `registerHooks()` API - not invoked
 automatically by anything else in this project; call the default export to install it.
 
 Was formerly named `module`/`lib/module.js`, which shadowed the standard `module`
@@ -15,4 +15,4 @@ can coexist.
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| *(default)* | function | Installs the `node_modules`/`package.json`/`.ts` loader hooks via `moduleLoader()`. |
+| *(default)* | function | Installs the `node_modules`/`package.json`/`.ts` resolve/load hooks via `registerHooks()`. |

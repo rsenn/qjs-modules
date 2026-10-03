@@ -9,7 +9,7 @@ engine's own builtin-module registry (`globalThis.builtins`, native — see
 here too — `src/qjsm.c` strips a leading `node:` before builtin-name lookup.
 
 Not the same file as `lib/nodeModulesLoader.js` (formerly `lib/module.js`),
-which is an unrelated custom `moduleLoader()` hook demo — see
+which is an unrelated `registerHooks()` demo — see
 `doc/js/nodeModulesLoader.md`.
 
 ## Exports
@@ -18,10 +18,11 @@ which is an unrelated custom `moduleLoader()` hook demo — see
 | --- | --- | --- |
 | `builtinModules` | string[] | Sorted names from `globalThis.builtins`. |
 | `isBuiltin(name)` | function | Whether `name` (with or without a `node:` prefix) is a builtin module. |
-| `createRequire(filename)` | function | Returns a synchronous CJS `require()` resolving relative/absolute specifiers against `filename`. No `node_modules`/`package.json` resolution — use `require` (`lib/require.js`) directly for that. |
-| *(default)* | object | `{ builtinModules, isBuiltin, createRequire }` |
+| `createRequire(filename)` | function | Returns a `require()` (the compiled-in `require` builtin) resolving specifiers against `filename`, a path or `file://` URL; includes `node_modules`/`package.json` lookup. |
+| `registerHooks(hooks)` | function | Node's synchronous `module.registerHooks()` — the qjsm global of the same name (`undefined` on other engines). See `doc/qjsm.md`. |
+| *(default)* | object | `{ builtinModules, isBuiltin, createRequire, registerHooks }` |
 
 ## Not implemented
 
-Node's `Module` class, `register()` (loader hooks), `syncBuiltinESMExports()`,
+Node's `Module` class, async `register()` hooks, `syncBuiltinESMExports()`,
 and `SourceMap` aren't implemented — see `TODO.md`.

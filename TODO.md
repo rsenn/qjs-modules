@@ -235,7 +235,7 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   a full `AsyncFunctionExtensions` (`catch`/`then`/`finally`/`indirect`/`bindArguments`/
   `bindArray`/`bindThis`) and `extendAsyncFunction()`. Remove from this list.
 - `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
-  `createRequire()`. Missing: `Module` class, `register()` (loader hooks),
+  `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
   `syncBuiltinESMExports()`, `SourceMap`.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
@@ -276,7 +276,7 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
 - `fs`: the whole `*Sync`-free async-callback API (`readFile`, `writeFile`, `access`,
   `stat`, `mkdir`, `rm`, `cp`, `glob`, ...), `promises`, `ReadStream`/`WriteStream` -
   qjsm's `fs` is sync-only plus a hand-rolled `fsPromises`, no callback style at all
-- `module`: `Module` class, `register()`, `syncBuiltinESMExports()`, `SourceMap` (already
+- `module`: `Module` class, async `register()`, `syncBuiltinESMExports()`, `SourceMap` (already
   tracked above)
 - `path`: `posix`, `win32`, `matchesGlob`, `toNamespacedPath`
 - `perf_hooks`: `Performance*` classes, `createHistogram`, `monitorEventLoopDelay`

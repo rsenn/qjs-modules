@@ -94,7 +94,7 @@ endif()
 option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert console events fs module nodeModulesLoader perf_hooks process repl timers tty url util)
+  set(BUILTINS_COMPILED assert bun console events fs module nodeModulesLoader perf_hooks process repl require timers tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
