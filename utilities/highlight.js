@@ -49,7 +49,7 @@ function lexerFor(file) {
 function classify({ type, lexeme }) {
   const t = (type ?? '').toLowerCase();
 
-  if(/comment|preprocessor|directive/.test(t)) return 'comment';
+  if(/comment|preprocessor|directive|shebang/.test(t)) return 'comment';
   if(/regex|template/.test(t) || lexeme[0] == '`') return 'regex';
   if(t == 'keyword' || t == lexeme.toLowerCase()) return 'keyword';
   if(/numeric|number|integer|float/.test(t) || /^[+-]?\d/.test(lexeme)) return 'number';
