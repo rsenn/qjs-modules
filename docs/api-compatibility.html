@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API Compatibility &amp; Standards Compliance — qjs-modules</title>
-<meta name="description" content="The standard library QuickJS deserves — WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
-<link rel="stylesheet" href="../assets/style.css">
+<meta name="description" content="qjs-modules — The standard library QuickJS deserves. WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/theme.css">
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
-<body class="has-sidebar" data-root="../">
+<body class="has-sidebar" data-site="qjs-modules" data-root="../">
 <header class="topbar">
-  <a class="brand" href="../index.html"><span class="mark">{ }</span> qjs-modules</a>
+  <a class="brand" href="../index.html"><span class="mark">{ }</span> <span class="brand-name">qjs-modules</span></a>
   <div class="search">
     <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
   </div>
@@ -24,7 +25,7 @@
   <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
 </header>
 <div class="layout">
-<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../getting-started.html">Getting started</a></li><li><a href="../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="index.html">API reference</a></li><li><a href="api-compatibility.html" class="here">Standards compatibility</a></li><li><a href="api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="grammar.html">Grammar</a></li><li><a href="buffer.html">Buffer handling</a></li><li><a href="readline.html">Readline</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="native/index.html">Native modules overview</a></li><li><a href="native/archive.html">archive</a></li><li><a href="native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="native/bcrypt.html">bcrypt</a></li><li><a href="native/bjson.html">bjson</a></li><li><a href="native/blob.html">blob</a></li><li><a href="native/json.html">json</a></li><li><a href="native/lexer.html">lexer</a></li><li><a href="native/list.html">list</a></li><li><a href="native/textcode.html">textcode</a></li><li><a href="native/xml.html">xml</a></li><li><a href="native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="native/child-process.html">child-process</a></li><li><a href="native/directory.html">directory</a></li><li><a href="native/gpio.html">gpio</a></li><li><a href="native/location.html">location</a></li><li><a href="native/magic.html">magic</a></li><li><a href="native/misc.html">misc</a></li><li><a href="native/mmap.html">mmap</a></li><li><a href="native/path.html">path</a></li><li><a href="native/serial.html">serial</a></li><li><a href="native/sockets.html">sockets</a></li><li><a href="native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="native/deep.html">deep</a></li><li><a href="native/inspect.html">inspect</a></li><li><a href="native/pointer.html">pointer</a></li><li><a href="native/predicate.html">predicate</a></li><li><a href="native/tree-walker.html">tree-walker</a></li><li><a href="native/queue.html">queue</a></li><li><a href="native/repeater.html">repeater</a></li><li><a href="native/stream.html">stream</a></li><li><a href="native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="native/mysql.html">mysql</a></li><li><a href="native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="js/index.html">JS modules overview</a></li><li><a href="js/util.html">util</a></li><li><a href="js/reflect.html">reflect</a></li><li><a href="js/iterator.html">iterator</a></li><li><a href="js/asyncIterator.html">asyncIterator</a></li><li><a href="js/arrayLike.html">arrayLike</a></li><li><a href="js/extendArray.html">extendArray</a></li><li><a href="js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="js/extendObject.html">extendObject</a></li><li><a href="js/extendMap.html">extendMap</a></li><li><a href="js/extendSet.html">extendSet</a></li><li><a href="js/extendMath.html">extendMath</a></li><li><a href="js/extendFunction.html">extendFunction</a></li><li><a href="js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="js/extendGenerator.html">extendGenerator</a></li><li><a href="js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="js/assert.html">assert</a></li><li><a href="js/console.html">console</a></li><li><a href="js/process.html">process</a></li><li><a href="js/events.html">events</a></li><li><a href="js/abort.html">abort</a></li><li><a href="js/timers.html">timers</a></li><li><a href="js/perf_hooks.html">perf_hooks</a></li><li><a href="js/module.html">module</a></li><li><a href="js/require.html">require</a></li><li><a href="js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="js/fs.html">fs</a></li><li><a href="js/fsPromises.html">fsPromises</a></li><li><a href="js/io.html">io</a></li><li><a href="js/streams.html">streams</a></li><li><a href="js/vfs.html">vfs</a></li><li><a href="js/inotify.html">inotify</a></li><li><a href="js/tty.html">tty</a></li><li><a href="js/terminal.html">terminal</a></li><li><a href="js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="js/dom.html">dom</a></li><li><a href="js/xpath.html">xpath</a></li><li><a href="js/parser.html">parser</a></li><li><a href="js/parsel.html">parsel</a></li><li><a href="js/css-selectors.html">css-selectors</a></li><li><a href="js/css3-selectors.html">css3-selectors</a></li><li><a href="js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="js/db.html">db</a></li><li><a href="js/repl.html">repl</a></li><li><a href="js/testharness.html">testharness</a></li><li><a href="js/testharnessreport.html">testharnessreport</a></li></ul></div></aside>
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../getting-started.html">Getting started</a></li><li><a href="../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="index.html">API reference</a></li><li><a href="api-compatibility.html" class="here">Standards compatibility</a></li><li><a href="api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="grammar.html">Grammar</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="native/index.html">Native modules overview</a></li><li><a href="native/archive.html">archive</a></li><li><a href="native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="native/bcrypt.html">bcrypt</a></li><li><a href="native/bjson.html">bjson</a></li><li><a href="native/blob.html">blob</a></li><li><a href="native/json.html">json</a></li><li><a href="native/lexer.html">lexer</a></li><li><a href="native/list.html">list</a></li><li><a href="native/textcode.html">textcode</a></li><li><a href="native/xml.html">xml</a></li><li><a href="native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="native/child-process.html">child-process</a></li><li><a href="native/directory.html">directory</a></li><li><a href="native/gpio.html">gpio</a></li><li><a href="native/location.html">location</a></li><li><a href="native/magic.html">magic</a></li><li><a href="native/misc.html">misc</a></li><li><a href="native/mmap.html">mmap</a></li><li><a href="native/path.html">path</a></li><li><a href="native/serial.html">serial</a></li><li><a href="native/sockets.html">sockets</a></li><li><a href="native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="native/deep.html">deep</a></li><li><a href="native/inspect.html">inspect</a></li><li><a href="native/pointer.html">pointer</a></li><li><a href="native/predicate.html">predicate</a></li><li><a href="native/tree-walker.html">tree-walker</a></li><li><a href="native/queue.html">queue</a></li><li><a href="native/repeater.html">repeater</a></li><li><a href="native/stream.html">stream</a></li><li><a href="native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="native/mysql.html">mysql</a></li><li><a href="native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="js/index.html">JS modules overview</a></li><li><a href="js/util.html">util</a></li><li><a href="js/iterator.html">iterator</a></li><li><a href="js/asyncIterator.html">asyncIterator</a></li><li><a href="js/extendArray.html">extendArray</a></li><li><a href="js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="js/extendMap.html">extendMap</a></li><li><a href="js/extendSet.html">extendSet</a></li><li><a href="js/extendFunction.html">extendFunction</a></li><li><a href="js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="js/extendGenerator.html">extendGenerator</a></li><li><a href="js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="js/assert.html">assert</a></li><li><a href="js/console.html">console</a></li><li><a href="js/process.html">process</a></li><li><a href="js/events.html">events</a></li><li><a href="js/abort.html">abort</a></li><li><a href="js/timers.html">timers</a></li><li><a href="js/perf_hooks.html">perf_hooks</a></li><li><a href="js/module.html">module</a></li><li><a href="js/require.html">require</a></li><li><a href="js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="js/fs.html">fs</a></li><li><a href="js/fsPromises.html">fsPromises</a></li><li><a href="js/io.html">io</a></li><li><a href="js/streams.html">streams</a></li><li><a href="js/vfs.html">vfs</a></li><li><a href="js/inotify.html">inotify</a></li><li><a href="js/tty.html">tty</a></li><li><a href="js/terminal.html">terminal</a></li><li><a href="js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="js/dom.html">dom</a></li><li><a href="js/xpath.html">xpath</a></li><li><a href="js/parser.html">parser</a></li><li><a href="js/parsel.html">parsel</a></li><li><a href="js/css-selectors.html">css-selectors</a></li><li><a href="js/css3-selectors.html">css3-selectors</a></li><li><a href="js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="js/db.html">db</a></li><li><a href="js/repl.html">repl</a></li></ul></div></aside>
 <main class="doc">
 <article><h1 id="api-compatibility--standards-compliance"><a class="anchor" href="#api-compatibility--standards-compliance" aria-hidden="true">#</a>API Compatibility &amp; Standards Compliance</h1>
 <p>This document catalogs every API in qjs-modules and its relationship to established standards.</p>
@@ -44,18 +45,13 @@
 <li><strong>Deprecated</strong> - Should be removed or replaced with standard alternative</li>
 </ul>
 <h2 id="research-status"><a class="anchor" href="#research-status" aria-hidden="true">#</a>Research Status</h2>
-<p>This document is being actively researched. Agents are currently inventorying:</p>
-<ul>
-<li>All C native module exports (quickjs-*.c)</li>
-<li>All JS module exports (lib/*.js)</li>
-</ul>
-<p>Results will be populated below as research completes.</p>
+<p>Complete: all C native module exports (quickjs-<em>.c) and JS module exports (lib/</em>.js) are classified below with spec/doc URLs.</p>
+<p>For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-of-tree at <code>~/Projects/wpt</code> (<a href="https://github.com/web-platform-tests/wpt" target="_blank" rel="noopener">https://github.com/web-platform-tests/wpt</a>, shallow clone) - relevant for cross-checking <code>stream</code>, <code>blob</code>, <code>url</code>, <code>abort</code>, <code>dom</code>, and <code>textcode</code> against upstream.</p>
 <hr>
 <h2 id="c-native-modules"><a class="anchor" href="#c-native-modules" aria-hidden="true">#</a>C Native Modules</h2>
 <h3 id="quickjs-archivec"><a class="anchor" href="#quickjs-archivec" aria-hidden="true">#</a>quickjs-archive.c</h3>
 <p><strong>Module:</strong> <code>archive</code>
 <strong>Classification:</strong> Custom (libarchive wrapper)
-<strong>Spec:</strong> <a href="https://github.com/libarchive/libarchive/wiki/ManPageLibarchiveFormats3" target="_blank" rel="noopener">https://github.com/libarchive/libarchive/wiki/ManPageLibarchiveFormats3</a>
 <strong>Exports:</strong></p>
 <ul>
 <li><code>Archive</code> class - Read/write compressed archives (tar, zip, cpio, etc.)</li>
@@ -65,18 +61,38 @@
 <p><strong>Notes:</strong> Wraps libarchive for reading/writing compressed archive formats. Not a standard API, but follows established archive format specifications. Useful for file management and distribution.</p>
 <h3 id="quickjs-arraybuffer-sinkc"><a class="anchor" href="#quickjs-arraybuffer-sinkc" aria-hidden="true">#</a>quickjs-arraybuffer-sink.c</h3>
 <p><strong>Module:</strong> <code>arraybuffer-sink</code>
-<strong>Classification:</strong> Custom (internal utility)
+<strong>Classification:</strong> Compatible (Bun.js)
+<strong>Spec:</strong> <a href="https://bun.com/reference/bun/ArrayBufferSink" target="_blank" rel="noopener">https://bun.com/reference/bun/ArrayBufferSink</a>
 <strong>Exports:</strong></p>
 <ul>
 <li><code>ArrayBufferSink</code> class - Writable buffer sink backed by resizable ArrayBuffer</li>
 </ul>
-<p><strong>Notes:</strong> Internal utility for accumulating written bytes. Used by other modules for buffer management.</p>
+<p><strong>Runtime Compatibility:</strong> Bun (<code>Bun.ArrayBufferSink</code>)
+<strong>Notes:</strong> Matches the shape of Bun's <code>ArrayBufferSink</code>; used internally by other modules for buffer accumulation.</p>
 <h3 id="quickjs-bcryptc"><a class="anchor" href="#quickjs-bcryptc" aria-hidden="true">#</a>quickjs-bcrypt.c</h3>
 <p><strong>Module:</strong> <code>bcrypt</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (libbcrypt wrapper) - see <code>lib/password.js</code> for the <code>Bun.password</code>-compatible surface
+<strong>Spec:</strong> <a href="https://bun.com/docs/runtime/hashing#bcrypt-modular-crypt-format" target="_blank" rel="noopener">https://bun.com/docs/runtime/hashing#bcrypt-modular-crypt-format</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>genSalt(rounds)</code> - Generate a bcrypt salt</li>
+<li><code>hash(password, salt)</code> - Hash a password</li>
+<li><code>compare(password, hash)</code> - Verify a password against a hash</li>
+<li><code>HASHSIZE</code>, <code>SALTSIZE</code> - Buffer size constants</li>
+</ul>
+<p><strong>Notes:</strong> Low-level bcrypt primitives; <code>lib/password.js</code> wraps these into <code>Bun.password</code>'s
+<code>hash()</code>/<code>hashSync()</code>/<code>verify()</code>/<code>verifySync()</code> shape - use that module instead of this one
+directly for Bun-compatible code.</p>
+<p><strong>Notes:</strong> Currently a thin, synchronous libbcrypt wrapper with its own <code>genSalt</code>/<code>hash</code>/<code>compare</code> shape. Bun's <code>Bun.password</code> API (async <code>hash</code>/<code>verify</code>, <code>{algorithm: "bcrypt", cost}</code> options, modular crypt format output) is the closest JS-runtime precedent; aligning with it (async, <code>verify()</code> naming, options object) would need C-level changes in <code>quickjs-bcrypt.c</code>, not just a JS wrapper.</p>
 <h3 id="quickjs-bjsonc"><a class="anchor" href="#quickjs-bjsonc" aria-hidden="true">#</a>quickjs-bjson.c</h3>
 <p><strong>Module:</strong> <code>bjson</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Internal (QuickJS-specific serialization)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>read(buffer, offset, length, flags)</code> - Deserialize a value from QuickJS's native binary object format</li>
+<li><code>write(value, flags)</code> - Serialize a value to that format</li>
+</ul>
+<p><strong>Notes:</strong> Exposes QuickJS's own <code>JS_ReadObject</code>/<code>JS_WriteObject</code> bytecode/value serialization (not a standard like <code>structuredClone</code> or <code>v8.serialize</code>) - engine-specific by nature, not portable to other runtimes.</p>
 <h3 id="quickjs-blobc"><a class="anchor" href="#quickjs-blobc" aria-hidden="true">#</a>quickjs-blob.c</h3>
 <p><strong>Module:</strong> <code>blob</code>
 <strong>Classification:</strong> Standard (WHATWG)
@@ -95,7 +111,16 @@
 <strong>Notes:</strong> Fully implements WHATWG File API spec. The <code>stream()</code> method was recently fixed to return a proper ReadableStream.</p>
 <h3 id="quickjs-child-processc"><a class="anchor" href="#quickjs-child-processc" aria-hidden="true">#</a>quickjs-child-process.c</h3>
 <p><strong>Module:</strong> <code>child-process</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/child_process.html" target="_blank" rel="noopener">https://nodejs.org/api/child_process.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>ChildProcess</code> class - spawned process handle (<code>wait()</code>, <code>kill()</code>, <code>pid</code>, <code>exitcode</code>, <code>stdio</code>, ...)</li>
+<li><code>exec(command, options)</code> / <code>execSync</code> - run via shell</li>
+<li><code>spawn(file, args, options)</code> / <code>spawnSync</code> - run without shell</li>
+<li><code>kill(pid, signal)</code> - signal a process</li>
+</ul>
+<p><strong>Notes:</strong> Node <code>child_process</code>-flavored API; see doc/native/child-process.md for full member list.</p>
 <h3 id="quickjs-deepc"><a class="anchor" href="#quickjs-deepc" aria-hidden="true">#</a>quickjs-deep.c</h3>
 <p><strong>Module:</strong> <code>deep</code>
 <strong>Classification:</strong> Internal
@@ -110,10 +135,22 @@
 <p><strong>Notes:</strong> Internal implementation detail used by lib/deep.js and test infrastructure. Provides low-level deep comparison and cloning. Not intended for direct use in user code - use lib/deep.js wrapper instead.</p>
 <h3 id="quickjs-directoryc"><a class="anchor" href="#quickjs-directoryc" aria-hidden="true">#</a>quickjs-directory.c</h3>
 <p><strong>Module:</strong> <code>directory</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (POSIX opendir/readdir wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Directory</code> class - iterable wrapper over <code>opendir</code>/<code>readdir</code> (<code>open</code>, <code>close</code>, <code>next</code>, <code>[Symbol.iterator]</code>)</li>
+<li>Entry-shape flags (<code>NAME</code>/<code>TYPE</code>/<code>BOTH</code>) and <code>TYPE_*</code> dirent type constants</li>
+</ul>
+<p><strong>Notes:</strong> Thin POSIX dirent binding, not a Node/WHATWG API; closest thing to a "standard" here is the POSIX <code>readdir()</code> semantics it mirrors.</p>
 <h3 id="quickjs-gpioc"><a class="anchor" href="#quickjs-gpioc" aria-hidden="true">#</a>quickjs-gpio.c</h3>
 <p><strong>Module:</strong> <code>gpio</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (Linux memory-mapped GPIO)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>GPIO</code> class - <code>initPin</code>, <code>setPin</code>, <code>getPin</code>, <code>buffer</code></li>
+<li>Constants: <code>INPUT</code>, <code>OUTPUT</code>, <code>LOW</code>, <code>HIGH</code></li>
+</ul>
+<p><strong>Notes:</strong> Hardware-specific (Linux GPIO register mmap), no cross-runtime standard exists; kernel GPIO docs are the closest reference.</p>
 <h3 id="quickjs-inspectc"><a class="anchor" href="#quickjs-inspectc" aria-hidden="true">#</a>quickjs-inspect.c</h3>
 <p><strong>Module:</strong> <code>inspect</code>
 <strong>Classification:</strong> Compatible (Node.js util.inspect)
@@ -133,67 +170,173 @@
 </ul>
 <p><strong>Runtime Compatibility:</strong> Node.js util.inspect
 <strong>Notes:</strong> Enhanced Node.js util.inspect with negative compact values for leaf-relative object compaction (see doc/native/inspect.md). Used by console.dir() and deep.equal() for formatting.</p>
-<h3 id="quickjs-internalc"><a class="anchor" href="#quickjs-internalc" aria-hidden="true">#</a>quickjs-internal.c</h3>
-<p><strong>Module:</strong> <code>internal</code>
+<h3 id="quickjs-jsonc"><a class="anchor" href="#quickjs-jsonc" aria-hidden="true">#</a>quickjs-json.c</h3>
+<p><strong>Module:</strong> <code>json</code>
+<strong>Classification:</strong> Compatible (ECMA-262 JSON) + Custom (streaming extensions)
+<strong>Spec:</strong> <a href="https://tc39.es/ecma262/#sec-json-object" target="_blank" rel="noopener">https://tc39.es/ecma262/#sec-json-object</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>read(input, inputName?)</code> / <code>write(value, indent?)</code> - Whole-document parse/serialize, like <code>JSON.parse</code>/<code>JSON.stringify</code></li>
+<li><code>JsonParser</code> - Incremental pull tokenizer (no standard equivalent; closest analogue is a hand-rolled SAX-style JSON reader)</li>
+<li><code>JsonPushParser</code> - Incremental push parser (callback- or builder-mode), akin in spirit to Node's <code>stream-json</code>/<code>clarinet</code> userland packages</li>
+<li><code>JsonWriter</code> - Push-based incremental writer (event-driven, like a JSON equivalent of an XML <code>Writer</code>)</li>
+<li><code>JsonSerializer</code> - Pull-based lazy serializer (chunked <code>.read()</code>)</li>
+</ul>
+<p><strong>Notes:</strong> <code>read</code>/<code>write</code> are drop-in for <code>JSON.parse</code>/<code>JSON.stringify</code>; the <code>Json*Parser</code>/<code>JsonWriter</code>/<code>JsonSerializer</code> classes are qjs-modules-specific streaming additions with no WHATWG/Node standard - closest prior art is third-party streaming JSON libraries, not a spec.</p>
+<h3 id="quickjs-lexerc"><a class="anchor" href="#quickjs-lexerc" aria-hidden="true">#</a>quickjs-lexer.c</h3>
+<p><strong>Module:</strong> <code>lexer</code>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Lexer</code> class - Rule-based, regex-driven tokenizer with named states (<code>peek</code>/<code>next</code>/<code>lex</code>, <code>addRule</code>/<code>pushState</code>/<code>popState</code>)</li>
+<li><code>Token</code> class - A scanned token</li>
+<li><code>Location</code> - see <a href="#quickjs-locationc">location</a></li>
+</ul>
+<p><strong>Notes:</strong> No standard/browser/Node equivalent; closest prior art is hand-rolled lexer generators (e.g. <code>moo</code>, <code>lex.js</code>) in the npm ecosystem, not a spec-backed API.</p>
+<h3 id="quickjs-listc"><a class="anchor" href="#quickjs-listc" aria-hidden="true">#</a>quickjs-list.c</h3>
+<p><strong>Module:</strong> <code>list</code>
+<strong>Classification:</strong> Custom (Array-like doubly-linked list)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>List</code> class - Doubly-linked list with an <code>Array</code>-like API (<code>push</code>/<code>pop</code>/<code>shift</code>/<code>unshift</code>/<code>splice</code>/<code>sort</code>/<code>reverse</code>/<code>clear</code>, <code>values()</code>/<code>keys()</code>/<code>entries()</code>)</li>
+<li><code>ListIterator</code>, <code>ListNode</code> classes</li>
+</ul>
+<p><strong>Notes:</strong> Deliberately omits Array's O(n) convenience methods (<code>indexOf</code>, <code>find</code>, <code>map</code>, etc. - see doc/native/list.md) since a linked list can't provide them in O(1); no ECMA-262/WHATWG equivalent, as JS has no built-in linked-list type.</p>
+<h3 id="quickjs-locationc"><a class="anchor" href="#quickjs-locationc" aria-hidden="true">#</a>quickjs-location.c</h3>
+<p><strong>Module:</strong> <code>location</code>
+<strong>Classification:</strong> Internal (source-position tracking)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Location</code> class - line/column/char-offset/filename position in source text</li>
+</ul>
+<p><strong>Notes:</strong> Not the browser <code>window.location</code>/WHATWG URL <code>Location</code> object (that's <code>dom.js</code>'s <code>Location</code>) - this is an internal position type used by <code>lexer</code>/<code>json</code>/parsers to report where in a source text/stream they are.</p>
+<h3 id="quickjs-magicc"><a class="anchor" href="#quickjs-magicc" aria-hidden="true">#</a>quickjs-magic.c</h3>
+<p><strong>Module:</strong> <code>magic</code>
+<strong>Classification:</strong> Custom (libmagic wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Magic</code> class (also callable) - content-type detection via <code>libmagic</code>/<code>file(1)</code></li>
+<li><code>.descriptor(fd)</code>, <code>.file(path)</code>, <code>.buffer(data)</code> - identify content by fd, path, or in-memory buffer</li>
+</ul>
+<p><strong>Notes:</strong> Wraps the same <code>libmagic</code> used by the Unix <code>file</code> command; closest standard analogue is the browser's <code>Blob.type</code>/<code>File.type</code> (sniffed from extension/headers) or Node's <code>file-type</code> npm package, but there's no formal spec - MIME sniffing itself is standardized (<a href="https://mimesniff.spec.whatwg.org/" target="_blank" rel="noopener">https://mimesniff.spec.whatwg.org/</a>) though this module doesn't implement that algorithm, it defers to libmagic's own signature database.</p>
+<h3 id="quickjs-miscc"><a class="anchor" href="#quickjs-miscc" aria-hidden="true">#</a>quickjs-misc.c</h3>
+<p><strong>Module:</strong> <code>misc</code>
+<strong>Classification:</strong> Custom (POSIX syscall grab-bag)
+<strong>Exports:</strong> Large flat list of raw POSIX bindings grouped by theme - filesystem (<code>fnmatch</code>, <code>glob</code>, <code>wordexp</code>, <code>chmod</code>, <code>access</code>, <code>fcntl</code>, …), process/user (<code>fork</code>, <code>exec</code>, <code>kill</code>, <code>setsid</code>, <code>getpid</code>, …), plus buffer/QuickJS-internals utilities (see doc/native/misc.md for the full list).</p>
+<p><strong>Notes:</strong> Direct 1:1 POSIX bindings, not wrapped in a Node-style <code>fs</code>/<code>process</code> API (those higher-level wrappers live in <code>lib/fs.js</code>/<code>lib/process.js</code>); no single spec covers the whole surface, each function maps to its own POSIX man page. Fixed 2026-09: the inotify-event <code>watch(buffer, offset, length)</code> parser computed each event's <code>name</code> length via <code>byte_chr(ev-&gt;name, '\0', ev-&gt;len)</code> - swapped arguments (every other <code>byte_chr</code> call site in this codebase uses <code>(ptr, len, char)</code>), so it always searched a zero-length region and <code>name</code> was silently dropped from every event.</p>
+<h3 id="quickjs-mmapc"><a class="anchor" href="#quickjs-mmapc" aria-hidden="true">#</a>quickjs-mmap.c</h3>
+<p><strong>Module:</strong> <code>mmap</code>
+<strong>Classification:</strong> Custom (POSIX mmap wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>mmap(length, prot, flags, fd, offset)</code> - Map memory, returned as an <code>ArrayBuffer</code></li>
+<li><code>munmap(buffer)</code>, <code>msync(buffer, flags)</code>, <code>mprotect(buffer, prot)</code> - Unmap/flush/reprotect a mapping</li>
+<li><code>filename(buffer)</code>, <code>toString(buffer)</code> - Introspect a mapping</li>
+</ul>
+<p><strong>Notes:</strong> Thin POSIX syscall binding; no browser/Node/WHATWG equivalent (Node has no public <code>mmap</code> binding in core, only via npm packages like <code>mmap-io</code>).</p>
+<h3 id="quickjs-mysqlc"><a class="anchor" href="#quickjs-mysqlc" aria-hidden="true">#</a>quickjs-mysql.c</h3>
+<p><strong>Module:</strong> <code>mysql</code>
+<strong>Classification:</strong> Custom (libmysqlclient wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>MySQL</code> class - <code>connect</code>, <code>query</code>/<code>execute</code>, <code>close</code>, <code>escapeString</code>, static <code>insertQuery</code>/<code>valueString</code> helpers</li>
+<li><code>MySQLResult</code> class - iterable result set (<code>fetchRow</code>, <code>fetchAssoc</code>, <code>fetchFields</code>)</li>
+<li><code>MySQLError</code> - <code>Error</code> subclass</li>
+</ul>
+<p><strong>Notes:</strong> Async wrapper around the MySQL/MariaDB C client; no JS-runtime-standard MySQL API exists to align with this native module's own shape directly, but see <code>lib/sql.js</code> (doc/js/sql.md) for a Bun <code>bun:sql</code>-flavored JS-facing layer unifying this with <code>pgsql</code>/<code>sqlite</code>.</p>
+<h3 id="quickjs-pathc"><a class="anchor" href="#quickjs-pathc" aria-hidden="true">#</a>quickjs-path.c</h3>
+<p><strong>Module:</strong> <code>path</code>
+<strong>Classification:</strong> Compatible (Node.js, extended with POSIX helpers)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/path.html" target="_blank" rel="noopener">https://nodejs.org/api/path.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li>Node-style: <code>basename</code>, <code>dirname</code>, <code>extname</code>, <code>join</code>, <code>parse</code>, <code>format</code>, <code>resolve</code>, <code>relative</code>, <code>normalize</code>, <code>sep</code>, <code>delimiter</code></li>
+<li>Extra POSIX-flavored helpers: <code>components</code>, <code>at</code>, <code>right</code>, <code>skip</code>, <code>fnmatch</code>, <code>realpath</code>, <code>canonical</code>, <code>getcwd</code>, <code>gethome</code></li>
+</ul>
+<p><strong>Notes:</strong> Superset of Node's <code>path</code> module; the extra component/query helpers have no Node equivalent (Custom within an otherwise Compatible module).</p>
+<h3 id="quickjs-pgsqlc"><a class="anchor" href="#quickjs-pgsqlc" aria-hidden="true">#</a>quickjs-pgsql.c</h3>
+<p><strong>Module:</strong> <code>pgsql</code>
+<strong>Classification:</strong> Custom (libpq wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>PGconn</code> class - <code>connect</code>, <code>query</code>/<code>execute</code>, <code>close</code>, <code>escapeLiteral</code>/<code>escapeIdentifier</code>/<code>escapeBytea</code>, static <code>insertQuery</code> helpers</li>
+<li><code>PGresult</code> class - iterable result set (<code>fetchRow</code>, <code>fetchAssoc</code>, <code>fetchFields</code>)</li>
+<li><code>PGerror</code> - <code>Error</code> subclass</li>
+</ul>
+<p><strong>Notes:</strong> Async wrapper around libpq; mirrors libpq's own escaping/identifier vocabulary rather than any JS-ecosystem pg client. See <code>lib/sql.js</code> (doc/js/sql.md) for a Bun <code>bun:sql</code>-flavored JS-facing layer unifying this with <code>mysql</code>/<code>sqlite</code>.</p>
+<h3 id="quickjs-pointerc"><a class="anchor" href="#quickjs-pointerc" aria-hidden="true">#</a>quickjs-pointer.c</h3>
+<p><strong>Module:</strong> <code>pointer</code>
+<strong>Classification:</strong> Compatible (RFC 6901 JSON Pointer, via <code>toRFC6901()</code>)
+<strong>Spec:</strong> <a href="https://www.rfc-editor.org/rfc/rfc6901" target="_blank" rel="noopener">https://www.rfc-editor.org/rfc/rfc6901</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Pointer</code> class - a deep-property path for JS Object/Array trees, backed by an array of <code>JSAtom</code> (not a JS <code>Array</code>) so each path segment resolves via a fast <code>JS_GetProperty(ctx, obj, atom)</code> C-level lookup instead of a JS property-name string comparison; <code>deref</code>, <code>toString</code>, <code>toRFC6901</code>, <code>push</code>/<code>pop</code>/<code>shift</code>/<code>unshift</code>, <code>up</code>/<code>down</code>, static <code>from</code>/<code>of</code></li>
+<li><code>DereferenceError</code> - <code>Error</code> subclass for failed <code>deref</code></li>
+</ul>
+<p><strong>Notes:</strong> The default string format (<code>toString()</code>/<code>new Pointer(str)</code>/console inspection) is this module's own dot/bracket path syntax (<code>foo.bar[1]</code>), not RFC 6901 - but <code>new Pointer(str)</code>'s parser also accepts RFC 6901 slash syntax (<code>/foo/bar/1</code>, with <code>~0</code>/<code>~1</code> escaping) as an input format, chosen automatically when a <code>/</code> precedes any <code>.</code>/<code>[</code>, and <code>toRFC6901()</code> serializes back to spec-conformant slash syntax; round-trips exactly against every example in RFC 6901 §5's table.</p>
+<h3 id="quickjs-predicatec"><a class="anchor" href="#quickjs-predicatec" aria-hidden="true">#</a>quickjs-predicate.c</h3>
+<p><strong>Module:</strong> <code>predicate</code>
 <strong>Classification:</strong> Internal
 <strong>Exports:</strong></p>
 <ul>
-<li><code>Module</code> class - JavaScript module introspection</li>
-<li><code>getBytecode(func)</code> - Get compiled bytecode</li>
-<li><code>getOpcodes()</code> - List QuickJS opcodes</li>
+<li><code>Predicate</code> class - a callable, combinable boolean-test object: takes any number of arguments of any type and returns true/false (<code>.call()</code>/<code>.eval()</code>)</li>
+<li>Factory functions for leaf predicates: <code>type</code>, <code>charset</code>, <code>string</code>, <code>regexp</code>, <code>instanceOf</code>, <code>prototypeIs</code>, <code>equal</code>, <code>property</code>, <code>has</code>, <code>member</code>, <code>index</code>, <code>function</code>, <code>some</code>, <code>every</code></li>
+<li>Combinators: <code>and</code>, <code>or</code>, <code>xor</code>, <code>not</code>, <code>notnot</code>, plus arithmetic-style combinators (<code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>, <code>mod</code>, <code>pow</code>, <code>atan2</code>, <code>bor</code>, <code>band</code>, <code>bnot</code>, <code>sqrt</code>) for numeric predicates</li>
+<li>Optional operator sugar via <code>Symbol.operatorSet</code> (<code>+ - * / % | &amp; **</code>) so predicates can be combined with operators instead of combinator calls - a QuickJS-only extension, not used elsewhere in this project</li>
 </ul>
-<p><strong>Notes:</strong> Internal implementation detail for module system introspection and bytecode inspection. Not part of public API surface. Used by qjsm (QuickJS Manager) for module management. Should not be exposed to user code in production.</p>
-<h3 id="quickjs-jsonc"><a class="anchor" href="#quickjs-jsonc" aria-hidden="true">#</a>quickjs-json.c</h3>
-<p><strong>Module:</strong> <code>json</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-lexerc"><a class="anchor" href="#quickjs-lexerc" aria-hidden="true">#</a>quickjs-lexer.c</h3>
-<p><strong>Module:</strong> <code>lexer</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-listc"><a class="anchor" href="#quickjs-listc" aria-hidden="true">#</a>quickjs-list.c</h3>
-<p><strong>Module:</strong> <code>list</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-locationc"><a class="anchor" href="#quickjs-locationc" aria-hidden="true">#</a>quickjs-location.c</h3>
-<p><strong>Module:</strong> <code>location</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-magicc"><a class="anchor" href="#quickjs-magicc" aria-hidden="true">#</a>quickjs-magic.c</h3>
-<p><strong>Module:</strong> <code>magic</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-miscc"><a class="anchor" href="#quickjs-miscc" aria-hidden="true">#</a>quickjs-misc.c</h3>
-<p><strong>Module:</strong> <code>misc</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-mmapc"><a class="anchor" href="#quickjs-mmapc" aria-hidden="true">#</a>quickjs-mmap.c</h3>
-<p><strong>Module:</strong> <code>mmap</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-mysqlc"><a class="anchor" href="#quickjs-mysqlc" aria-hidden="true">#</a>quickjs-mysql.c</h3>
-<p><strong>Module:</strong> <code>mysql</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-pathc"><a class="anchor" href="#quickjs-pathc" aria-hidden="true">#</a>quickjs-path.c</h3>
-<p><strong>Module:</strong> <code>path</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-pgsqlc"><a class="anchor" href="#quickjs-pgsqlc" aria-hidden="true">#</a>quickjs-pgsql.c</h3>
-<p><strong>Module:</strong> <code>pgsql</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-pointerc"><a class="anchor" href="#quickjs-pointerc" aria-hidden="true">#</a>quickjs-pointer.c</h3>
-<p><strong>Module:</strong> <code>pointer</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="quickjs-predicatec"><a class="anchor" href="#quickjs-predicatec" aria-hidden="true">#</a>quickjs-predicate.c</h3>
-<p><strong>Module:</strong> <code>predicate</code>
-<strong>Status:</strong> Researching...</p>
+<p><strong>Notes:</strong> Distinct from (and lower-level than) <code>lib/predicate.js</code>, a separate, simpler type-predicate wrapper used by <code>lib/parser.js</code> for <code>&gt;&gt;</code> operator dispatch. The module's purpose is generating composable boolean predicates, not "operator overloading" - the operator-overload sugar is an optional QuickJS-specific convenience on top of the (already callable/combinable) <code>Predicate</code> objects, not the module's reason for existing.</p>
 <h3 id="quickjs-queuec"><a class="anchor" href="#quickjs-queuec" aria-hidden="true">#</a>quickjs-queue.c</h3>
 <p><strong>Module:</strong> <code>queue</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Queue</code> class - chunked byte FIFO (<code>write</code>, <code>read</code>, <code>peek</code>, <code>skip</code>, <code>clear</code>, iterable over chunks)</li>
+<li><code>QueueIterator</code> - iterator over buffered chunks</li>
+</ul>
+<p><strong>Notes:</strong> No standard equivalent; closest analog is Node's internal <code>BufferList</code>/<code>readable-stream</code> internals, but this is a public, directly-iterable byte queue.</p>
 <h3 id="quickjs-repeaterc"><a class="anchor" href="#quickjs-repeaterc" aria-hidden="true">#</a>quickjs-repeater.c</h3>
 <p><strong>Module:</strong> <code>repeater</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (<code>@repeaterjs/repeater</code>)
+<strong>Spec:</strong> <a href="https://repeater.js.org/" target="_blank" rel="noopener">https://repeater.js.org/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Repeater</code> class - async-iterable push stream (<code>new Repeater(executor)</code>, <code>next()</code>, <code>[Symbol.asyncIterator]</code>)</li>
+<li>Static combinators: <code>race</code>, <code>merge</code>, <code>zip</code>, <code>latest</code></li>
+</ul>
+<p><strong>Notes:</strong> Explicitly modeled on the <code>@repeaterjs/repeater</code> npm package's API and combinator set, not a WHATWG/Node standard.</p>
 <h3 id="quickjs-serialc"><a class="anchor" href="#quickjs-serialc" aria-hidden="true">#</a>quickjs-serial.c</h3>
 <p><strong>Module:</strong> <code>serial</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Web Serial API)
+<strong>Spec:</strong> <a href="https://wicg.github.io/serial/" target="_blank" rel="noopener">https://wicg.github.io/serial/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Serial</code> static namespace - <code>getPorts()</code>, <code>requestPort(filter)</code></li>
+<li><code>SerialPort</code> class - <code>open()</code>, <code>close()</code>, <code>getInfo()</code>, <code>getSignals()</code>, <code>setSignals()</code>, <code>read()</code>, <code>write()</code>, <code>drain()</code>, <code>flush()</code>, plus <code>fd</code>/<code>name</code>/<code>transport</code>/<code>inputWaiting</code>/<code>outputWaiting</code> getters</li>
+<li><code>SerialError</code> - <code>Error</code> subclass for serial I/O failures</li>
+</ul>
+<p><strong>Notes:</strong> Web Serial-flavored API layered over POSIX termios; not the browser's exact spec (extra low-level termios controls like signals/drain/flush), hence Compatible not Standard.</p>
 <h3 id="quickjs-socketsc"><a class="anchor" href="#quickjs-socketsc" aria-hidden="true">#</a>quickjs-sockets.c</h3>
 <p><strong>Module:</strong> <code>sockets</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (POSIX sockets(2) wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Socket</code> / <code>AsyncSocket</code> classes - <code>bind()</code>, <code>connect()</code>, <code>listen()</code>, <code>accept()</code>, <code>send()</code>/<code>recv()</code>, <code>sendto()</code>/<code>recvfrom()</code>, <code>sendmsg</code>/<code>recvmsg</code>, <code>sendmmsg</code>/<code>recvmmsg</code>, <code>shutdown()</code>, <code>getsockopt</code>/<code>setsockopt</code>, <code>close()</code></li>
+<li><code>SockAddr</code> class - address family/addr/port/path wrapper</li>
+<li>Module functions: <code>socketpair()</code>, <code>select()</code>, <code>poll()</code></li>
+<li><code>SOCK_*</code>/<code>AF_*</code>/<code>SOL_*</code>/<code>SO_*</code>/<code>IPPROTO_*</code>/<code>MSG_*</code>/<code>SHUT_*</code>/<code>POLL*</code> constants</li>
+</ul>
+<p><strong>Notes:</strong> Direct 1:1 BSD-socket binding, much lower-level than Node's <code>net</code>/<code>dgram</code> or WHATWG WebSocket; no standard JS equivalent at this level of granularity.</p>
 <h3 id="quickjs-sqlitec"><a class="anchor" href="#quickjs-sqlitec" aria-hidden="true">#</a>quickjs-sqlite.c</h3>
 <p><strong>Module:</strong> <code>sqlite</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (SQLite3 wrapper)
+<strong>Spec:</strong> <a href="https://bun.sh/docs/api/sqlite" target="_blank" rel="noopener">https://bun.sh/docs/api/sqlite</a> (see also <a href="https://nodejs.org/api/sqlite.html" target="_blank" rel="noopener">https://nodejs.org/api/sqlite.html</a>)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>SQLite</code> connection class - <code>open()</code>, <code>query()</code>, <code>exec()</code>, <code>close()</code>, value/query string helpers (<code>escapeString</code>, <code>quoteString</code>, <code>insertQuery</code>, etc.)</li>
+<li><code>SQLiteResult</code> - prepared-statement result wrapper</li>
+<li><code>SQLiteError</code> - <code>Error</code> subclass</li>
+</ul>
+<p><strong>Notes:</strong> Custom binding around libsqlite3; API shape (<code>query</code>/<code>exec</code>/<code>close</code>) is closer to Bun's <code>bun:sqlite</code> and Node's newer <code>node:sqlite</code> than to any WHATWG spec — cite those as the closest runtime precedent. See also <code>lib/sql.js</code> (doc/js/sql.md), which layers Bun's newer unified <code>bun:sql</code> tagged-template shape on top of this driver alongside <code>mysql</code>/<code>pgsql</code>.</p>
 <h3 id="quickjs-streamc"><a class="anchor" href="#quickjs-streamc" aria-hidden="true">#</a>quickjs-stream.c</h3>
 <p><strong>Module:</strong> <code>stream</code>
 <strong>Classification:</strong> Standard (WHATWG)
@@ -210,27 +353,74 @@
 <strong>Notes:</strong> Implements core WHATWG Streams spec. Missing: <code>respondWithNewView()</code> safety checks for BYOB (Bring Your Own Buffer) readers - this is a known spec compliance gap tracked in TODO Tier 3.</p>
 <h3 id="quickjs-syscallerrorc"><a class="anchor" href="#quickjs-syscallerrorc" aria-hidden="true">#</a>quickjs-syscallerror.c</h3>
 <p><strong>Module:</strong> <code>syscallerror</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js SystemError-style)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/errors.html#class-systemerror" target="_blank" rel="noopener">https://nodejs.org/api/errors.html#class-systemerror</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>SyscallError</code> class (<code>Error</code> subclass) - <code>.syscall</code>, <code>.errno</code>, <code>.message</code></li>
+<li><code>errno</code> constants (<code>EAGAIN</code>, <code>ENOENT</code>, etc.)</li>
+</ul>
+<p><strong>Notes:</strong> Thrown by the POSIX-style bindings (sockets, misc, mmap, …); shape mirrors Node's internal <code>SystemError</code> (<code>syscall</code>/<code>errno</code>/<code>code</code>) though it isn't a public Node class users import directly.</p>
 <h3 id="quickjs-textcodec"><a class="anchor" href="#quickjs-textcodec" aria-hidden="true">#</a>quickjs-textcode.c</h3>
 <p><strong>Module:</strong> <code>textcode</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (WHATWG Encoding, with extensions)
+<strong>Spec:</strong> <a href="https://encoding.spec.whatwg.org/" target="_blank" rel="noopener">https://encoding.spec.whatwg.org/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>TextDecoder</code> class - <code>.decode(input)</code>, <code>.encoding</code>, plus non-standard <code>.endian</code> and <code>.buffered</code> (incremental decode)</li>
+<li><code>TextEncoder</code> class - <code>.encode(input)</code>, <code>.encodeInto(source, dest)</code></li>
+</ul>
+<p><strong>Browser Compatibility:</strong> Chrome 38+, Firefox 19+, Safari 10.1+, Edge 79+
+<strong>Notes:</strong> Matches the WHATWG Encoding Standard's core <code>TextDecoder</code>/<code>TextEncoder</code> surface; adds endianness control and buffered/incremental decoding beyond the spec.</p>
 <h3 id="quickjs-tree-walkerc"><a class="anchor" href="#quickjs-tree-walkerc" aria-hidden="true">#</a>quickjs-tree-walker.c</h3>
 <p><strong>Module:</strong> <code>tree-walker</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (DOM TreeWalker shape, generalized)
+<strong>Spec:</strong> <a href="https://dom.spec.whatwg.org/#treewalker" target="_blank" rel="noopener">https://dom.spec.whatwg.org/#treewalker</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>TreeWalker</code> class - <code>firstChild()</code>, <code>lastChild()</code>, <code>nextNode()</code>, <code>nextSibling()</code>, <code>parentNode()</code>, <code>previousNode()</code>, <code>previousSibling()</code>, plus <code>root</code>/<code>currentNode</code>/<code>currentPath</code>/<code>depth</code>/<code>tagMask</code>/<code>filter</code>/<code>flags</code></li>
+<li><code>TreeIterator</code> class - iterable wrapper (<code>next()</code>, <code>Symbol.iterator</code>)</li>
+</ul>
+<p><strong>Notes:</strong> Mirrors the DOM <code>TreeWalker</code> method names/semantics but walks arbitrary nested JS values (objects/arrays), not actual DOM nodes — Compatible rather than Standard.</p>
 <h3 id="quickjs-virtualc"><a class="anchor" href="#quickjs-virtualc" aria-hidden="true">#</a>quickjs-virtual.c</h3>
 <p><strong>Module:</strong> <code>virtual</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>VirtualProperties</code> class - wraps an arbitrary backing store (array, map, plain object) behind a uniform get/set/has/delete property interface</li>
+<li>Static <code>array(target)</code>, <code>map(target)</code>, <code>object(target)</code>, <code>from(target)</code> factories</li>
+</ul>
+<p><strong>Notes:</strong> Not a virtual filesystem despite the name — see doc/native/virtual.md. No standard equivalent; closest prior art is JS <code>Proxy</code> traps, but this is a concrete class rather than a trap-based proxy.</p>
 <h3 id="quickjs-xmlc"><a class="anchor" href="#quickjs-xmlc" aria-hidden="true">#</a>quickjs-xml.c</h3>
 <p><strong>Module:</strong> <code>xml</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (XML/HTML parser+serializer, DOMParser-adjacent)
+<strong>Spec:</strong> <a href="https://developer.mozilla.org/en-US/docs/Web/API/DOMParser" target="_blank" rel="noopener">https://developer.mozilla.org/en-US/docs/Web/API/DOMParser</a> (closest precedent; no exact WHATWG spec for this API shape)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>read(input, inputName?, options?)</code> / <code>write(value, maxDepth?)</code> module functions</li>
+<li><code>XMLParser</code> - incremental pull parser (event-based, builds <code>.root</code> tree)</li>
+<li><code>XMLNodeParser</code> - pull parser yielding flat node-per-call</li>
+<li><code>XMLPushParser</code> - push-style parser fed via <code>.write()</code></li>
+<li><code>XMLSerializer</code> - lazy pull serializer (name coincides with WHATWG <code>XMLSerializer</code> but different API: pull-based <code>.read(n)</code>, not <code>.serializeToString()</code>)</li>
+<li><code>XMLWriter</code> - event-driven writer with manual <code>elementStart</code>/<code>attribute</code>/<code>text</code>/<code>elementEnd</code> calls</li>
+</ul>
+<p><strong>Notes:</strong> Produces/consumes plain <code>{tagName, attributes, children}</code> objects rather than DOM nodes; <code>XMLSerializer</code> name collides with the WHATWG <code>XMLSerializer</code> interface but the API is unrelated (pull-based, not <code>serializeToString</code>) — worth flagging as a naming trap for portability, not a real compatibility win.</p>
 <hr>
 <h2 id="javascript-modules"><a class="anchor" href="#javascript-modules" aria-hidden="true">#</a>JavaScript Modules</h2>
 <h3 id="libabortjs"><a class="anchor" href="#libabortjs" aria-hidden="true">#</a>lib/abort.js</h3>
 <p><strong>Module:</strong> <code>abort</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="libarraylikejs"><a class="anchor" href="#libarraylikejs" aria-hidden="true">#</a>lib/arrayLike.js</h3>
-<p><strong>Module:</strong> <code>arrayLike</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (WHATWG)
+<strong>Spec:</strong> <a href="https://dom.spec.whatwg.org/#interface-abortcontroller" target="_blank" rel="noopener">https://dom.spec.whatwg.org/#interface-abortcontroller</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>AbortController</code> class - <code>signal</code>, <code>abort(reason)</code></li>
+<li><code>AbortSignal</code> class - <code>aborted</code>, <code>reason</code>, <code>onabort</code>, <code>throwIfAborted()</code></li>
+<li><code>AbortSignal.timeout(ms)</code> - static, aborts after timeout</li>
+<li><code>AbortSignal.any(iterable)</code> - static, composite signal</li>
+<li><code>AbortSignal.abort(reason)</code> - static, pre-aborted signal</li>
+</ul>
+<p><strong>Browser Compatibility:</strong> Chrome 66+, Firefox 57+, Safari 12.1+, Edge 16+
+<strong>Notes:</strong> Pure-JS WHATWG AbortController/AbortSignal polyfill built on lib/events.js's EventTarget; includes the newer static helpers (<code>timeout</code>, <code>any</code>, <code>abort</code>).</p>
 <h3 id="libassertjs"><a class="anchor" href="#libassertjs" aria-hidden="true">#</a>lib/assert.js</h3>
 <p><strong>Module:</strong> <code>assert</code>
 <strong>Classification:</strong> Compatible (Node.js)
@@ -260,7 +450,13 @@
 <strong>Notes:</strong> Comprehensive Node.js assert API. Used extensively in test suite.</p>
 <h3 id="libasynciteratorjs"><a class="anchor" href="#libasynciteratorjs" aria-hidden="true">#</a>lib/asyncIterator.js</h3>
 <p><strong>Module:</strong> <code>asyncIterator</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (TC39 Iterator Helpers)
+<strong>Spec:</strong> <a href="https://tc39.es/proposal-iterator-helpers/" target="_blank" rel="noopener">https://tc39.es/proposal-iterator-helpers/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>AsyncIterator</code> class - <code>drop</code>, <code>takeWhile</code>, <code>dropWhile</code>, <code>every</code>, <code>filter</code>, <code>find</code>, <code>forEach</code>, <code>map</code>, <code>reduce</code>, <code>some</code>, <code>take</code>, <code>flatMap</code>, <code>toArray</code>, <code>AsyncIterator.from(iter)</code></li>
+</ul>
+<p><strong>Notes:</strong> Polyfills the built-in <code>AsyncIterator</code> helper methods from the TC39 Iterator Helpers proposal (now Baseline in modern engines); <code>from()</code> and <code>reduce()</code> reference undeclared variables in a couple of code paths — a latent bug, not fixed here (out of scope for this research task, flagging for follow-up).</p>
 <h3 id="libconsolejs"><a class="anchor" href="#libconsolejs" aria-hidden="true">#</a>lib/console.js</h3>
 <p><strong>Module:</strong> <code>console</code>
 <strong>Classification:</strong> Standard (WHATWG)
@@ -285,25 +481,71 @@
 <strong>Notes:</strong> Implements core WHATWG Console API. Uses <code>inspect</code> module for <code>console.dir()</code> formatting.</p>
 <h3 id="libcss-selectorsjs"><a class="anchor" href="#libcss-selectorsjs" aria-hidden="true">#</a>lib/css-selectors.js</h3>
 <p><strong>Module:</strong> <code>css-selectors</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (W3C)
+<strong>Spec:</strong> <a href="https://www.w3.org/TR/selectors-3/" target="_blank" rel="noopener">https://www.w3.org/TR/selectors-3/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>parseSelectors(selector)</code> - parse a CSS selector string (via lib/parsel.js)</li>
+<li><code>emitPredicates(node)</code> - compile parsed selector AST into predicate functions for matching DOM-like nodes</li>
+</ul>
+<p><strong>Notes:</strong> Selector-matching engine backing <code>querySelector</code>/<code>querySelectorAll</code> in lib/dom.js; works against wrapped dom.js elements or plain object trees.</p>
 <h3 id="libcss3-selectorsjs"><a class="anchor" href="#libcss3-selectorsjs" aria-hidden="true">#</a>lib/css3-selectors.js</h3>
 <p><strong>Module:</strong> <code>css3-selectors</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (W3C)
+<strong>Spec:</strong> <a href="https://www.w3.org/TR/selectors-4/" target="_blank" rel="noopener">https://www.w3.org/TR/selectors-4/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>TypeSelector</code>, <code>ClassSelector</code>, <code>IdSelector</code>, <code>AttributeSelector</code>, <code>PseudoClassSelector</code> - selector-node constructors</li>
+<li><code>LogicPredicate(pred, ...args)</code> - combine selectors with Predicate and/or</li>
+<li><code>parseSelectors(s)</code> - generator yielding parsed selector groups</li>
+</ul>
+<p><strong>Notes:</strong> A second, apparently newer/alternate CSS Selectors implementation (Level 4, pseudo-classes) alongside css-selectors.js — the two appear to overlap; worth flagging for possible consolidation.</p>
 <h3 id="libdatabasejs"><a class="anchor" href="#libdatabasejs" aria-hidden="true">#</a>lib/database.js</h3>
 <p><strong>Module:</strong> <code>database</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Bun <code>bun:sqlite</code>)
+<strong>Spec:</strong> <a href="https://bun.sh/docs/api/sqlite" target="_blank" rel="noopener">https://bun.sh/docs/api/sqlite</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Database</code> class - <code>constructor(filename, opts)</code>, <code>run(sql, ...bindings)</code>, <code>prepare(sql)</code>, <code>query(sql)</code>, <code>close()</code></li>
+<li><code>Statement</code> class - <code>all(...params)</code>, <code>get(...params)</code>, <code>iterate(...params)</code>, <code>run(...params)</code>, <code>toString()</code></li>
+</ul>
+<p><strong>Notes:</strong> Thin <code>?</code>-placeholder query builder over the native <code>sqlite</code> module (<code>SQLite3</code>), matching Bun's <code>Database</code>/<code>Statement</code> shape (<code>query()</code> caches, <code>prepare()</code> doesn't).</p>
 <h3 id="libdbjs"><a class="anchor" href="#libdbjs" aria-hidden="true">#</a>lib/db.js</h3>
 <p><strong>Module:</strong> <code>db</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (node-postgres <code>pg</code>)
+<strong>Spec:</strong> <a href="https://node-postgres.com/apis/pool" target="_blank" rel="noopener">https://node-postgres.com/apis/pool</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Pool</code> class - <code>constructor(construct, size, lazy)</code>, <code>connect()</code>, <code>end()</code>, <code>list()</code>, <code>available</code>, <code>size</code></li>
+<li><code>PoolClient</code> class - <code>query(...args)</code>, <code>release()</code></li>
+</ul>
+<p><strong>Notes:</strong> Generic connection-pool matching the shape of node-postgres's <code>Pool</code>/<code>PoolClient</code> (<code>pool.connect()</code> → client with <code>.release()</code>), but driver-agnostic via an injected <code>construct</code> factory rather than being pg-specific.</p>
 <h3 id="libdbijs"><a class="anchor" href="#libdbijs" aria-hidden="true">#</a>lib/dbi.js</h3>
 <p><strong>Module:</strong> <code>dbi</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Database</code> class - <code>Database.register(name, AdapterClass)</code>, <code>Database.connect(driver, options)</code>, <code>query(sql)</code>, <code>exec(sql)</code>, <code>close()</code>, <code>insertId</code>, <code>affectedRows</code>, <code>quote(value)</code>, <code>insertQuery(table, fields, values)</code></li>
+<li><code>Result</code> class - <code>numFields</code>, <code>fetchFields()</code>, <code>all()</code>, async-iterable rows</li>
+</ul>
+<p><strong>Notes:</strong> Explicitly modeled on Perl DBI / libdbi (per file's own header comment) as a driver-agnostic layer over the native <code>sqlite</code>/<code>mysql</code>/<code>pgsql</code> bindings; intentionally custom, no JS-ecosystem standard for this. <code>Result</code>'s row iteration now always goes through <code>fetchAssoc()</code> (fixed 2026-09) rather than each driver's own default <code>Symbol.iterator</code>/<code>Symbol.asyncIterator</code>, since the latter's returned iterator is a distinct object from the result it came from and never saw a <code>resultType</code> flag set on the result itself — <code>sqlite</code>/<code>pgsql</code> silently gave positional arrays instead of row objects through plain iteration, unlike <code>mysql</code>. See <code>lib/sql.js</code>.</p>
 <h3 id="libdeepjs"><a class="anchor" href="#libdeepjs" aria-hidden="true">#</a>lib/deep.js</h3>
 <p><strong>Module:</strong> <code>deep</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li>Type/flag constants (<code>TYPE_*</code>, <code>FILTER_*</code>, <code>RETURN_*</code>, etc.)</li>
+<li><code>clone</code>, <code>equals</code>, <code>extend</code>, <code>select</code>, <code>find</code>, <code>forEach</code>, <code>get</code>, <code>set</code>, <code>delegate</code>, <code>transform</code>, <code>unset</code>, <code>unflatten</code></li>
+</ul>
+<p><strong>Notes:</strong> Pure-JS reimplementation of the native <code>deep</code> module's recursive traversal/comparison API for use in runtimes without the C binding; per CLAUDE.md's overlap-resolution decision it's documented only under <code>doc/native/deep.md</code> (C is authoritative) to avoid duplication.</p>
 <h3 id="libdescribe-classjs"><a class="anchor" href="#libdescribe-classjs" aria-hidden="true">#</a>lib/describe-class.js</h3>
 <p><strong>Module:</strong> <code>describe-class</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>describeClass(Ctor, opts)</code> - introspects a constructor's static/prototype chains (methods, getters, setters, fields) into a plain-object description</li>
+</ul>
+<p><strong>Notes:</strong> Reflection/introspection helper with no standard JS equivalent; used for tooling/debugging (e.g. generating docs or REPL help from a class definition).</p>
 <h3 id="libdomjs"><a class="anchor" href="#libdomjs" aria-hidden="true">#</a>lib/dom.js</h3>
 <p><strong>Module:</strong> <code>dom</code>
 <strong>Classification:</strong> Standard (W3C)
@@ -332,7 +574,7 @@
 <li><code>CSSStyleDeclaration</code> class - Inline styles</li>
 </ul>
 <p><strong>Browser Compatibility:</strong> Universal (DOM Level 4)
-<strong>Notes:</strong> Comprehensive DOM implementation covering 90%+ of browser DOM APIs. See TODO Tier 9 for remaining gaps: Fetch API, FormData, CSSOM, IntersectionObserver, ResizeObserver, WebSocket, Canvas, Web Workers.</p>
+<strong>Notes:</strong> Comprehensive DOM implementation covering 90%+ of browser DOM APIs. See TODO Tier 9 for remaining gaps: CSSOM, IntersectionObserver, ResizeObserver, Web Workers. (Fetch, FormData, and WebSocket are intentionally out of scope here - implemented separately in <code>../qjs-lws/</code>; Canvas likewise in <code>../qjs-nanovg/</code> + <code>../qjs-glfw/</code>.)</p>
 <h3 id="libeventsjs"><a class="anchor" href="#libeventsjs" aria-hidden="true">#</a>lib/events.js</h3>
 <p><strong>Module:</strong> <code>events</code>
 <strong>Classification:</strong> Compatible (Node.js)
@@ -350,37 +592,83 @@
 <strong>Notes:</strong> Compatible with Node.js EventEmitter API. Different from browser EventTarget/Event API (which is in lib/dom.js). For browser-style events, use the DOM module instead.</p>
 <h3 id="libextendarrayjs"><a class="anchor" href="#libextendarrayjs" aria-hidden="true">#</a>lib/extendArray.js</h3>
 <p><strong>Module:</strong> <code>extendArray</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (mostly qjs-modules-specific; a few methods overlap partially with ECMA-262/TC39)
+<strong>Spec:</strong> <a href="https://tc39.es/ecma262/#sec-array.prototype.at" target="_blank" rel="noopener">https://tc39.es/ecma262/#sec-array.prototype.at</a> (partial overlap only)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>front</code>/<code>back</code>/<code>head</code>/<code>tail</code> getters+setters, <code>at(i)</code>, <code>clear()</code>, <code>findLastIndex</code>/<code>findLast</code> (native since ES2023, reimplemented here), <code>unique()</code>, <code>add()</code>, <code>search()</code>, <code>pushIf()</code>, <code>pushUnique()</code>, <code>unshiftUnique()</code>, <code>insert()</code>, <code>inserter()</code>, <code>delete()</code>, <code>remove()</code>, <code>removeIf()</code>, <code>rotateRight()</code>/<code>rotateLeft()</code>, <code>match()</code>, <code>group()</code>/<code>groupToMap()</code> (cf. TC39 <code>Object.groupBy</code>/<code>Map.groupBy</code> but on Array), <code>equal()</code>, <code>partition()</code></li>
+</ul>
+<p><strong>Notes:</strong> <code>at</code>/<code>findLast</code>/<code>findLastIndex</code> duplicate now-native ES2023 methods; the rest (rotate, unique, group, partition, pushUnique, etc.) are qjs-modules-isms with no standard equivalent — candidates for reduction per project goal of minimizing custom APIs.</p>
 <h3 id="libextendarraybufferjs"><a class="anchor" href="#libextendarraybufferjs" aria-hidden="true">#</a>lib/extendArrayBuffer.js</h3>
 <p><strong>Module:</strong> <code>extendArrayBuffer</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>search()</code>/<code>searchAll()</code> (byte-pattern search), <code>view(offset, length)</code> (buffer-view slice via native <code>dupArrayBuffer</code>), <code>address</code> getter (pointer value via native <code>toPointer</code>), static <code>fromString()</code>/<code>fromAddress()</code> (via native <code>toArrayBuffer</code>)</li>
+</ul>
+<p><strong>Notes:</strong> No WHATWG/ECMA-262 equivalent — native-pointer-aware extension (<code>address</code>, <code>fromAddress</code>) specific to embedding ArrayBuffer in native memory; inherently non-portable/custom by design.</p>
 <h3 id="libextendasyncfunctionjs"><a class="anchor" href="#libextendasyncfunctionjs" aria-hidden="true">#</a>lib/extendAsyncFunction.js</h3>
 <p><strong>Module:</strong> <code>extendAsyncFunction</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>catch()</code>, <code>then()</code>, <code>finally()</code> (Promise-like combinators applied to the function itself, not its return value), <code>indirect()</code>, <code>bindArguments()</code>, <code>bindArray()</code>, <code>bindThis()</code></li>
+</ul>
+<p><strong>Notes:</strong> No standard equivalent — treats an async function as a thenable/catchable object, a qjs-modules-ism. <code>bindThis</code>/<code>bindArguments</code> overlap conceptually with <code>Function.prototype.bind</code> but with different semantics (returns a metadata-carrying wrapper, not a native bound function).</p>
 <h3 id="libextendasyncgeneratorjs"><a class="anchor" href="#libextendasyncgeneratorjs" aria-hidden="true">#</a>lib/extendAsyncGenerator.js</h3>
 <p><strong>Module:</strong> <code>extendAsyncGenerator</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (TC39 Iterator Helpers, adapted for async)
+<strong>Spec:</strong> <a href="https://tc39.es/proposal-iterator-helpers/" target="_blank" rel="noopener">https://tc39.es/proposal-iterator-helpers/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>includes()</code> (via <code>some</code>), <code>enumerate()</code> (via <code>map</code>), <code>chain()</code>, <code>chainAll()</code>, <code>range()</code>; sets <code>[[Prototype]]</code> to <code>AsyncIterator.prototype</code> from lib/asyncIterator.js</li>
+</ul>
+<p><strong>Notes:</strong> Builds on the project's own <code>AsyncIterator</code> — <code>includes</code>/<code>map</code> are native async-iterator-helper names; <code>enumerate</code>/<code>chain</code>/<code>chainAll</code>/<code>range</code> are additional qjs-modules-isms not in the TC39 proposal.</p>
 <h3 id="libextendfunctionjs"><a class="anchor" href="#libextendfunctionjs" aria-hidden="true">#</a>lib/extendFunction.js</h3>
 <p><strong>Module:</strong> <code>extendFunction</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>catch()</code>, <code>then()</code>, <code>finally()</code>, <code>indirect()</code>, <code>bindArguments()</code>, <code>bindArray()</code>, <code>bindThis()</code></li>
+</ul>
+<p><strong>Notes:</strong> Same combinator pattern as extendAsyncFunction.js applied to plain <code>Function.prototype</code>; no standard equivalent.</p>
 <h3 id="libextendgeneratorjs"><a class="anchor" href="#libextendgeneratorjs" aria-hidden="true">#</a>lib/extendGenerator.js</h3>
 <p><strong>Module:</strong> <code>extendGenerator</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (TC39 Iterator Helpers)
+<strong>Spec:</strong> <a href="https://tc39.es/proposal-iterator-helpers/" target="_blank" rel="noopener">https://tc39.es/proposal-iterator-helpers/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>includes()</code> (via <code>IteratorPrototype.some</code>), <code>enumerate()</code>, <code>chain()</code>, <code>chainAll()</code>, <code>range()</code>; sets <code>[[Prototype]]</code> to <code>Iterator.prototype</code> from lib/iterator.js</li>
+</ul>
+<p><strong>Notes:</strong> Sync counterpart of extendAsyncGenerator.js; same mix of native-helper-backed (<code>includes</code>) and custom (<code>enumerate</code>/<code>chain</code>/<code>chainAll</code>/<code>range</code>) methods.</p>
 <h3 id="libextendmapjs"><a class="anchor" href="#libextendmapjs" aria-hidden="true">#</a>lib/extendMap.js</h3>
 <p><strong>Module:</strong> <code>extendMap</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="libextendmathjs"><a class="anchor" href="#libextendmathjs" aria-hidden="true">#</a>lib/extendMath.js</h3>
-<p><strong>Module:</strong> <code>extendMath</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="libextendobjectjs"><a class="anchor" href="#libextendobjectjs" aria-hidden="true">#</a>lib/extendObject.js</h3>
-<p><strong>Module:</strong> <code>extendObject</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (TC39 "Map upsert" proposal, shipped ES2026)
+<strong>Spec:</strong> <a href="https://tc39.es/proposal-upsert/" target="_blank" rel="noopener">https://tc39.es/proposal-upsert/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>getOrInsert(k, v)</code>, <code>getOrInsertComputed(k, fn)</code></li>
+</ul>
+<p><strong>Notes:</strong> Names and semantics match the TC39 Map upsert proposal (<code>Map.prototype.getOrInsert</code>/<code>getOrInsertComputed</code>) exactly — a polyfill for a real, now-standard API.</p>
 <h3 id="libextendsetjs"><a class="anchor" href="#libextendsetjs" aria-hidden="true">#</a>lib/extendSet.js</h3>
 <p><strong>Module:</strong> <code>extendSet</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (TC39 Set methods proposal, shipped ES2025)
+<strong>Spec:</strong> <a href="https://tc39.es/proposal-set-methods/" target="_blank" rel="noopener">https://tc39.es/proposal-set-methods/</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>difference()</code>, <code>symmetricDifference()</code>, <code>isDisjointFrom()</code>, <code>union()</code>, <code>intersection()</code>, <code>isSubsetOf()</code>, <code>isSupersetOf()</code>; static <code>from()</code>, <code>of()</code></li>
+</ul>
+<p><strong>Notes:</strong> Instance methods are a correct-shaped polyfill for the now-native ES2025 Set methods proposal. Static <code>from</code>/<code>of</code> have no Set-specific standard counterpart (Array has <code>Array.from</code>/<code>Array.of</code>, Set does not) — those two are custom.</p>
 <h3 id="libfilejs"><a class="anchor" href="#libfilejs" aria-hidden="true">#</a>lib/file.js</h3>
 <p><strong>Module:</strong> <code>file</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (WHATWG/W3C)
+<strong>Spec:</strong> <a href="https://w3c.github.io/FileAPI/#file-section" target="_blank" rel="noopener">https://w3c.github.io/FileAPI/#file-section</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>File</code> class (extends <code>Blob</code>) - <code>name</code>, <code>lastModified</code>, <code>webkitRelativePath</code></li>
+</ul>
+<p><strong>Browser Compatibility:</strong> Universal
+<strong>Notes:</strong> Thin File API extension over the <code>blob</code> module's <code>Blob</code> class.</p>
 <h3 id="libfsjs"><a class="anchor" href="#libfsjs" aria-hidden="true">#</a>lib/fs.js</h3>
 <p><strong>Module:</strong> <code>fs</code>
 <strong>Classification:</strong> Compatible (Node.js)
@@ -439,7 +727,7 @@
 <li><code>promises</code> - Promise-based API (see fsPromises.js)</li>
 </ul>
 <p><strong>Runtime Compatibility:</strong> Node.js, Bun, Deno (with --unstable)
-<strong>Notes:</strong> Comprehensive Node.js fs API implementation. Uses quickjs-fs.c native bindings. Some advanced features (watch, streams) may have limitations vs Node.js.</p>
+<strong>Notes:</strong> Comprehensive Node.js fs API implementation; pure JS (<code>lib/fs.js</code>), built on QuickJS's <code>std</code>/<code>os</code> plus the native <code>misc</code> module's inotify bindings, not a dedicated native <code>fs</code> binding. <code>watch()</code> (fixed 2026-09) now correctly emits Node's <code>'change'</code>/<code>'rename'</code> events with the affected filename, supports <code>options.signal</code>, and throws synchronously for an invalid path - see doc/js/fs.md.</p>
 <h3 id="libfspromisesjs"><a class="anchor" href="#libfspromisesjs" aria-hidden="true">#</a>lib/fsPromises.js</h3>
 <p><strong>Module:</strong> <code>fsPromises</code>
 <strong>Classification:</strong> Compatible (Node.js)
@@ -473,51 +761,146 @@
 <li><code>fsPromises.watch(filename, options)</code> - Watch file (AsyncIterator)</li>
 </ul>
 <p><strong>Runtime Compatibility:</strong> Node.js 10+, Bun, Deno (with --unstable)
-<strong>Notes:</strong> Promise-based fs API. Wraps lib/fs.js callback API with Promise interface.</p>
+<strong>Notes:</strong> Almost every export besides <code>open</code>/<code>read</code>/<code>write</code> and <code>watch()</code> is an empty stub (see BUGS: <code>fspromises-mostly-stubs</code>). <code>watch()</code> (added/fixed 2026-09) is now a real async generator over <code>fs.js</code>'s <code>watch()</code>, yielding <code>{eventType, filename}</code> and honoring <code>options.signal</code> - see doc/js/fsPromises.md.</p>
 <h3 id="libhtmljs"><a class="anchor" href="#libhtmljs" aria-hidden="true">#</a>lib/html.js</h3>
 <p><strong>Module:</strong> <code>html</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Spec:</strong> <a href="https://html.spec.whatwg.org/multipage/parsing.html" target="_blank" rel="noopener">https://html.spec.whatwg.org/multipage/parsing.html</a> (nearest precedent; not compliant)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>HTMLParser</code> class - SAX-style pull parser built on the <code>xml</code> module's <code>XMLParser</code></li>
+<li><code>HTMLParser.prototype.parse()</code> - Advance parser, returns event object</li>
+<li><code>HTMLParser.prototype.attributes</code> / <code>.tag</code> - Current element accessors</li>
+<li><code>streamSrcHrefAndText(source, options)</code> - Generator yielding <code>src</code>/<code>href</code>/text events</li>
+</ul>
+<p><strong>Notes:</strong> Reuses the XML tokenizer rather than implementing the full WHATWG HTML parsing algorithm (no full tree-construction/tag-soup insertion-mode state machine), so it's not standards-compliant HTML parsing — a lightweight custom SAX layer. As of 2026-09, <code>src/xml.c</code>'s tokenizer (the actual engine behind <code>XMLParser</code>, despite the name <code>quickjs-xml.c</code> suggesting otherwise) now handles the HTML5-relevant raw-text elements (<code>&lt;script&gt;</code>, <code>&lt;style&gt;</code>, <code>&lt;textarea&gt;</code>, <code>&lt;title&gt;</code> — content never tokenized as markup; was hardcoded to <code>&lt;script&gt;</code> only), and <code>HTMLParser</code> now enables <code>XMLParser</code>'s <code>.tolerant</code> closing-tag-mismatch recovery by default and lowercases tag/attribute names (HTML is case-insensitive; XML isn't) — narrowing, not closing, the gap to a real HTML5 tokenizer.</p>
 <h3 id="libinotifyjs"><a class="anchor" href="#libinotifyjs" aria-hidden="true">#</a>lib/inotify.js</h3>
 <p><strong>Module:</strong> <code>inotify</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (Linux syscall wrapper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>inotify_init(flags)</code>, <code>inotify_add_watch(fd, pathname, mask)</code>, <code>inotify_rm_watch(fd, wd)</code>, <code>inotify_close(fd)</code> - Direct syscall-style wrappers</li>
+<li><code>IN_*</code> flag constants (re-exported from native <code>misc</code> module)</li>
+<li><code>inotify</code> class - Higher-level watcher with <code>add()</code>/<code>remove()</code>/<code>watch()</code>/<code>close()</code> and <code>onread</code>/<code>onclose</code>/<code>onerror</code> hooks</li>
+</ul>
+<p><strong>Runtime Compatibility:</strong> Linux-only; nearest cross-platform analogue is Node's <code>fs.watch</code>
+<strong>Notes:</strong> Direct binding to Linux inotify(7), not a portable/standard API by nature. <code>fs.watch()</code>/<code>fsPromises.watch()</code> (see <code>lib/fs.js</code>/<code>lib/fsPromises.js</code>) now provide the actual Node-<code>fs.watch</code>-shaped JS API on top of the same native inotify plumbing this module and <code>lib/fs.js</code> share. Fixed 2026-09: this class's read handler never advanced its byte counter (<code>bytes += r</code>) after <code>os.read()</code>, so <code>onread</code> never fired for any event; a stray, undefined-reference <code>EWOULDBLOCK;</code> expression statement in the same branch would also have thrown as soon as an event <em>did</em> arrive. Both are fixed.</p>
 <h3 id="libiojs"><a class="anchor" href="#libiojs" aria-hidden="true">#</a>lib/io.js</h3>
 <p><strong>Module:</strong> <code>io</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Multiplexer</code> class - Per-fd read/write callback registry (<code>on</code>, <code>once</code>, <code>fds</code>, <code>close</code>)</li>
+<li><code>HandlerEntry</code>, <code>DescriptorMap</code> classes - Internal storage for the multiplexer</li>
+<li><code>setReadHandler(fd, cb)</code> / <code>setWriteHandler(fd, cb)</code> - Register on the default <code>Multiplexer.instance</code></li>
+<li><code>IOReadDecorator</code> / <code>IOWriteDecorator</code> - Mixin objects adding <code>readAsString</code>, <code>getline</code>, <code>puts</code>, <code>printf</code>, etc.</li>
+</ul>
+<p><strong>Notes:</strong> qjs-modules-specific fd event multiplexer; no standard/runtime equivalent (closest conceptually is libuv's poll handles used internally by Node, but there's no public Node API match).</p>
 <h3 id="libiteratorjs"><a class="anchor" href="#libiteratorjs" aria-hidden="true">#</a>lib/iterator.js</h3>
 <p><strong>Module:</strong> <code>iterator</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (TC39 proposal)
+<strong>Spec:</strong> <a href="https://github.com/tc39/proposal-iterator-helpers" target="_blank" rel="noopener">https://github.com/tc39/proposal-iterator-helpers</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Iterator</code> class - <code>Iterator.from(iterable)</code>, <code>.drop()</code>, <code>.take()</code>, <code>.takeWhile()</code>, <code>.dropWhile()</code>, <code>.map()</code>, <code>.filter()</code>, <code>.flatMap()</code>, <code>.reduce()</code>, <code>.every()</code>, <code>.some()</code>, <code>.find()</code>, <code>.forEach()</code>, <code>.toArray()</code></li>
+<li><code>IteratorPrototype</code> - Shared prototype object</li>
+</ul>
+<p><strong>Notes:</strong> Polyfills the TC39 Iterator Helpers proposal (now Stage 4 / shipped in modern engines) for QuickJS, which lacks a native <code>Iterator.prototype</code> helper set.</p>
 <h3 id="libmiscjs"><a class="anchor" href="#libmiscjs" aria-hidden="true">#</a>lib/misc.js</h3>
 <p><strong>Module:</strong> <code>misc</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Internal
+<strong>Notes:</strong> JS-side helper wrapper around the native <code>misc</code> module's POSIX grab-bag (see quickjs-misc.c above); not a public standard API surface, used internally by other lib/*.js wrappers.</p>
 <h3 id="libmodulejs"><a class="anchor" href="#libmodulejs" aria-hidden="true">#</a>lib/module.js</h3>
-<p><strong>Module:</strong> <code>module</code>
-<strong>Status:</strong> Researching...</p>
+<p><strong>Module:</strong> <code>module</code> (<code>node:module</code>)
+<strong>Classification:</strong> Compatible (Node.js <code>node:module</code>, partial)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/module.html" target="_blank" rel="noopener">https://nodejs.org/api/module.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>builtinModules</code> - sorted names from <code>globalThis.builtins</code> (this engine's own builtin registry)</li>
+<li><code>isBuiltin(name)</code> - accepts a <code>node:</code>-prefixed or bare name</li>
+<li><code>createRequire(filename)</code> - <code>require()</code> from the compiled-in <code>require</code> builtin bound to <code>filename</code> (full <code>node_modules</code>/<code>package.json</code> lookup)</li>
+</ul>
+<p><strong>Notes:</strong> Backed by this engine's own builtin-module registry rather than a hand-maintained list, matching how Bun/Deno alias <code>node:module</code> to their own module systems. <code>registerHooks()</code> (synchronous customization hooks) is implemented; Node's <code>Module</code> class, async <code>register()</code> hooks, <code>syncBuiltinESMExports()</code> and <code>SourceMap</code> are not (see <code>TODO.md</code>).</p>
+<h3 id="libnodemodulesloaderjs"><a class="anchor" href="#libnodemodulesloaderjs" aria-hidden="true">#</a>lib/nodeModulesLoader.js</h3>
+<p><strong>Module:</strong> <code>nodeModulesLoader</code>
+<strong>Classification:</strong> Custom (Node.js-style module resolution demo)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/modules.html#all-together" target="_blank" rel="noopener">https://nodejs.org/api/modules.html#all-together</a>
+<strong>Exports:</strong></p>
+<ul>
+<li>default export: installs <code>registerHooks()</code> resolve/load hooks implementing Node-style <code>node_modules</code> resolution, <code>package.json</code> <code>"exports"</code>/<code>"module"</code>/<code>"main"</code> field lookup, and an experimental <code>.ts</code> transpile-via-<code>swc</code> loader</li>
+</ul>
+<p><strong>Notes:</strong> Formerly named <code>module</code>/<code>lib/module.js</code>; renamed to free up the <code>module</code> specifier for Node's actual <code>node:module</code> API (see above). Approximates Node's CommonJS/ESM resolution algorithm for QuickJS's module loader hooks; the <code>.ts</code> loader path shells out to an external <code>swc</code> binary and is best-effort/dev-only.</p>
 <h3 id="libparseljs"><a class="anchor" href="#libparseljs" aria-hidden="true">#</a>lib/parsel.js</h3>
 <p><strong>Module:</strong> <code>parsel</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (port of the <code>parsel-js</code> npm package)
+<strong>Spec:</strong> <a href="https://github.com/LeaVerou/parsel" target="_blank" rel="noopener">https://github.com/LeaVerou/parsel</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>tokenize(selector)</code>, <code>parse(selector, options)</code>, <code>nestTokens(tokens)</code>, <code>flatten(node)</code>, <code>walk(node, visit)</code>, <code>stringify(listOrNode)</code></li>
+</ul>
+<p><strong>Notes:</strong> Line-for-line port of Lea Verou's <code>parsel-js</code> CSS selector tokenizer/AST parser; not a full CSS Selectors Level 4 grammar implementation but covers the common selector syntax.</p>
 <h3 id="libparserjs"><a class="anchor" href="#libparserjs" aria-hidden="true">#</a>lib/parser.js</h3>
 <p><strong>Module:</strong> <code>parser</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Rule</code> base class and combinators: <code>Terminal</code>, <code>Literal</code>, <code>CharClass</code>, <code>Sequence</code>, <code>Alternative</code>, <code>Optional</code>, <code>OneOrMore</code>, <code>ZeroOrMore</code>, <code>Expect</code>, <code>Capture</code></li>
+<li>Helper constructors: <code>_char</code>, <code>_lit</code>, <code>_charPred</code>, <code>_charRange</code>, <code>_charSet</code>, <code>_capture</code></li>
+<li><code>Parser</code> class - Top-level driver combining rules into a grammar</li>
+<li><code>ExpectationError</code> - Parse failure exception</li>
+</ul>
+<p><strong>Notes:</strong> Custom parser-combinator toolkit (PEG-style), used together with <code>predicate</code> for building small recursive-descent grammars (e.g. <code>css-selectors</code>/<code>css3-selectors</code>); no standard equivalent.</p>
+<h3 id="libpasswordjs"><a class="anchor" href="#libpasswordjs" aria-hidden="true">#</a>lib/password.js</h3>
+<p><strong>Module:</strong> <code>password</code>
+<strong>Classification:</strong> Compatible (Bun <code>Bun.password</code>, bcrypt-only)
+<strong>Spec:</strong> <a href="https://bun.com/docs/api/hashing" target="_blank" rel="noopener">https://bun.com/docs/api/hashing</a>, <a href="https://bun.com/guides/util/hash-a-password" target="_blank" rel="noopener">https://bun.com/guides/util/hash-a-password</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>hash(password, options?)</code> / <code>hashSync(password, options?)</code> - <code>options: { algorithm: "bcrypt", cost }</code></li>
+<li><code>verify(password, hash)</code> / <code>verifySync(password, hash)</code></li>
+<li>default export: <code>{ hash, hashSync, verify, verifySync }</code></li>
+</ul>
+<p><strong>Notes:</strong> Matches <code>Bun.password</code>'s method names/shapes on top of the native <code>bcrypt</code> module.
+Bun also supports Argon2 (its default algorithm) - this engine has no Argon2 binding, so
+<code>algorithm</code> here only ever accepts <code>"bcrypt"</code> and throws for anything else, rather than
+silently hashing with an unavailable algorithm.</p>
 <h3 id="libperf_hooksjs"><a class="anchor" href="#libperf_hooksjs" aria-hidden="true">#</a>lib/perf_hooks.js</h3>
 <p><strong>Module:</strong> <code>perf_hooks</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js perf_hooks / W3C High Resolution Time)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/perf_hooks.html" target="_blank" rel="noopener">https://nodejs.org/api/perf_hooks.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>performance</code> object (default export) - <code>now()</code>, <code>timeOrigin</code></li>
+<li><code>now()</code> - High-resolution timestamp in ms since module load</li>
+</ul>
+<p><strong>Notes:</strong> Minimal subset of Node's <code>perf_hooks.performance</code> (just <code>now()</code>/<code>timeOrigin</code>, no <code>PerformanceObserver</code>/marks/measures).</p>
 <h3 id="libpointerjs"><a class="anchor" href="#libpointerjs" aria-hidden="true">#</a>lib/pointer.js</h3>
 <p><strong>Module:</strong> <code>pointer</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (RFC 6901 JSON Pointer, via <code>toRFC6901()</code>)
+<strong>Spec:</strong> <a href="https://www.rfc-editor.org/rfc/rfc6901" target="_blank" rel="noopener">https://www.rfc-editor.org/rfc/rfc6901</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Pointer</code> class - JSON-Pointer-like path object (JS polyfill counterpart of the native module)</li>
+<li><code>Pointer.fromArray/fromString/from(...)</code> - constructors; <code>fromString</code>/the constructor accept both this module's dot/bracket syntax and RFC 6901 slash syntax (same auto-detection as the native module)</li>
+<li><code>Pointer.prototype.toString()</code> (dot/bracket, e.g. <code>foo.bar[1]</code>), <code>toRFC6901()</code> (slash syntax), <code>hier()</code>, <code>deref(obj)</code>, <code>[Symbol.iterator]</code></li>
+<li>Array-style methods borrowed from <code>Array.prototype</code> (<code>push</code>, <code>slice</code>, <code>shift</code>, <code>keys</code>, <code>values</code>, <code>map</code>, <code>reduce</code>, <code>forEach</code>, <code>concat</code>)</li>
+</ul>
+<p><strong>Notes:</strong> Per CLAUDE.md's overlap-resolution policy, <code>quickjs-pointer.c</code> (documented above) is authoritative; this is a thinner JS-only alternative for other runtimes, missing most of the native module's methods. <code>deref(obj)</code> is still an empty stub, unrelated to this RFC 6901 work (tracked in <code>BUGS</code> as <code>lib-pointer-deref-stub</code>).</p>
 <h3 id="libpredicatejs"><a class="anchor" href="#libpredicatejs" aria-hidden="true">#</a>lib/predicate.js</h3>
 <p><strong>Module:</strong> <code>predicate</code>
 <strong>Classification:</strong> Internal
 <strong>Exports:</strong></p>
 <ul>
-<li><code>Predicate</code> class - Type predicate for operator overloading</li>
+<li><code>Predicate</code> class - a callable, combinable boolean-test object: takes any number of arguments of any type and returns true/false</li>
 <li><code>Predicate.prototype.call(value)</code> - Test value against predicate</li>
-<li><code>Predicate.prototype.and(other)</code> - Logical AND</li>
-<li><code>Predicate.prototype.or(other)</code> - Logical OR</li>
-<li><code>Predicate.prototype.not()</code> - Logical NOT</li>
+<li><code>Predicate.prototype.and(other)</code> - Logical AND combinator</li>
+<li><code>Predicate.prototype.or(other)</code> - Logical OR combinator</li>
+<li><code>Predicate.prototype.not()</code> - Logical NOT combinator</li>
 <li><code>Predicate.type(typeCode)</code> - Create type predicate</li>
 <li><code>Predicate.instance(class)</code> - Create instanceof predicate</li>
 <li><code>Predicate.value(val)</code> - Create equality predicate</li>
 </ul>
+<p><strong>Notes:</strong> JS-only, simpler counterpart to <code>quickjs-predicate.c</code> (documented above), used by <code>lib/parser.js</code> for <code>&gt;&gt;</code> operator dispatch. The module's purpose is generating composable boolean predicates - not operator overloading.</p>
 <p><strong>Notes:</strong> Internal implementation detail used by lib/parser.js for cross-type operator dispatch. Enables <code>terminalA &gt;&gt; terminalB</code> syntax. Not intended for direct use in user code. See doc/js/predicate.md for implementation details.</p>
 <h3 id="libprocessjs"><a class="anchor" href="#libprocessjs" aria-hidden="true">#</a>lib/process.js</h3>
 <p><strong>Module:</strong> <code>process</code>
@@ -558,36 +941,78 @@
 </ul>
 <p><strong>Runtime Compatibility:</strong> Node.js, Bun, Deno (with --unstable)
 <strong>Notes:</strong> Comprehensive Node.js process API. Some features may have limitations vs Node.js (e.g., process.fork(), cluster support). The <code>process.argv</code> issue with <code>-e</code> mode has been fixed (see commit 72c0364d).</p>
-<h3 id="libreflectjs"><a class="anchor" href="#libreflectjs" aria-hidden="true">#</a>lib/reflect.js</h3>
-<p><strong>Module:</strong> <code>reflect</code>
-<strong>Status:</strong> Researching...</p>
 <h3 id="librepljs"><a class="anchor" href="#librepljs" aria-hidden="true">#</a>lib/repl.js</h3>
 <p><strong>Module:</strong> <code>repl</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/repl.html" target="_blank" rel="noopener">https://nodejs.org/api/repl.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>REPL</code> class - prompt, line editing, history, completion, evaluation, output</li>
+<li><code>REPLServer</code> class - Node <code>repl</code>-style session wrapper</li>
+<li><code>loadModule(moduleName)</code> - dynamic import helper</li>
+</ul>
+<p><strong>Notes:</strong> Derived from the original QuickJS <code>qjscalc</code>/repl.js (Bellard/Gordon copyright header retained); mirrors Node's <code>repl</code> module shape (<code>REPLServer</code>) rather than reimplementing it exactly.</p>
 <h3 id="librequirejs"><a class="anchor" href="#librequirejs" aria-hidden="true">#</a>lib/require.js</h3>
 <p><strong>Module:</strong> <code>require</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/modules.html" target="_blank" rel="noopener">https://nodejs.org/api/modules.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>require(m)</code> (default export) - resolves and loads module <code>m</code> synchronously, returning <code>exports</code> (or <code>exports.default</code>)</li>
+</ul>
+<p><strong>Notes:</strong> CommonJS-style loader for use in an ESM-first runtime; mirrors Node's <code>require()</code> semantics closely enough for drop-in compatibility with simple CJS modules.</p>
 <h3 id="libsocklen_tjs"><a class="anchor" href="#libsocklen_tjs" aria-hidden="true">#</a>lib/socklen_t.js</h3>
 <p><strong>Module:</strong> <code>socklen_t</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (POSIX helper)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>socklen_t</code> class (default export) - 4-byte <code>ArrayBuffer</code> subclass representing a C <code>socklen_t</code>, for in/out length params to <code>getsockopt</code>/<code>accept</code>-style socket APIs</li>
+</ul>
+<p><strong>Notes:</strong> No JS standard equivalent; mirrors the POSIX <code>socklen_t</code> type for FFI-style interop with the <code>sockets</code> native bindings.</p>
+<h3 id="libsqljs"><a class="anchor" href="#libsqljs" aria-hidden="true">#</a>lib/sql.js</h3>
+<p><strong>Module:</strong> <code>sql</code>
+<strong>Classification:</strong> Compatible (Bun <code>bun:sql</code>)
+<strong>Spec:</strong> <a href="https://bun.com/docs/runtime/sql" target="_blank" rel="noopener">https://bun.com/docs/runtime/sql</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>SQL</code> class - callable tagged-template query client (<code>sql`...`</code>, <code>.values()</code>, <code>.unsafe(text, params)</code>, <code>.begin(fn)</code>, <code>.close()</code>, <code>.driver</code>), unifying <code>sqlite</code>/<code>pgsql</code>/<code>mysql</code> via <code>dbi.js</code>'s <code>Database</code></li>
+<li><code>SQLError</code> - thrown for a bad connection string/options object</li>
+</ul>
+<p><strong>Notes:</strong> Single-connection (no pooling, unlike Bun's own <code>bun:sql</code>); interpolated values are escaped via the underlying driver's own <code>quote()</code>/<code>valueString()</code> and inlined into the query text, since none of the three native drivers expose real prepared-statement/placeholder binding — injection-safe, but not sent as separate wire-protocol parameters the way Bun's own Zig-native drivers do. See doc/js/sql.md.</p>
 <h3 id="libstackjs"><a class="anchor" href="#libstackjs" aria-hidden="true">#</a>lib/stack.js</h3>
 <p><strong>Module:</strong> <code>stack</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (V8 stack trace convention)
+<strong>Spec:</strong> <a href="https://v8.dev/docs/stack-trace-api" target="_blank" rel="noopener">https://v8.dev/docs/stack-trace-api</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>Stack(st, pred)</code> - parses a raw stack string/array into <code>StackFrame</code>s, filtered by <code>pred</code></li>
+<li><code>StackFrame</code> class (default export) - one parsed frame (function name, file, line, column, etc.)</li>
+<li><code>Location</code> - re-exported from <code>location</code> module</li>
+</ul>
+<p><strong>Notes:</strong> Modeled on the de facto V8 <code>Error.stack</code>/CallSite conventions (also resembles the popular <code>stackframe</code>/<code>error-stack-parser</code> npm packages) rather than a formal spec.</p>
 <h3 id="libstreamjs"><a class="anchor" href="#libstreamjs" aria-hidden="true">#</a>lib/stream.js</h3>
 <p><strong>Module:</strong> <code>stream</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (WHATWG)
+<strong>Spec:</strong> <a href="https://streams.spec.whatwg.org/" target="_blank" rel="noopener">https://streams.spec.whatwg.org/</a>
+<strong>Exports:</strong> JS-side polyfill with the same surface as the native <code>stream</code> module - <code>ReadableStream</code>, <code>WritableStream</code>, <code>TransformStream</code>, queuing strategies</p>
+<p><strong>Notes:</strong> Per project CLAUDE.md, this is "the qjs-lws version" — a ported streams polyfill for use on runtimes without the native module. Per the overlap-resolution policy, <code>quickjs-stream.c</code> (documented above) is authoritative.</p>
 <h3 id="libstreamsjs"><a class="anchor" href="#libstreamsjs" aria-hidden="true">#</a>lib/streams.js</h3>
 <p><strong>Module:</strong> <code>streams</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (builds on WHATWG Streams)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>export * from 'stream'</code> - re-exports all native/JS stream classes</li>
+<li><code>FileSystemReadableStream</code>/<code>FileSystemReadableFileStream</code>/<code>FileSystemWritableFileStream</code> - file-backed streams</li>
+<li><code>StreamReadIterator</code>/<code>LineStreamIterator</code> - async iteration helpers</li>
+<li><code>ByLineStream</code> - line-splitting transform</li>
+<li><code>TextEncoderStream</code>/<code>TextDecoderStream</code> - <code>TransformStream</code> subclasses (WHATWG Encoding spec: <a href="https://encoding.spec.whatwg.org/#interface-textencoderstream" target="_blank" rel="noopener">https://encoding.spec.whatwg.org/#interface-textencoderstream</a>)</li>
+</ul>
+<p><strong>Notes:</strong> Higher-level convenience layer over the WHATWG <code>stream</code> module, closer in spirit to Node's fs-stream/readline helpers than to any single spec.</p>
 <h3 id="libterminaljs"><a class="anchor" href="#libterminaljs" aria-hidden="true">#</a>lib/terminal.js</h3>
 <p><strong>Module:</strong> <code>terminal</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="libtestharnessjs"><a class="anchor" href="#libtestharnessjs" aria-hidden="true">#</a>lib/testharness.js</h3>
-<p><strong>Module:</strong> <code>testharness</code>
-<strong>Status:</strong> Researching...</p>
-<h3 id="libtestharnessreportjs"><a class="anchor" href="#libtestharnessreportjs" aria-hidden="true">#</a>lib/testharnessreport.js</h3>
-<p><strong>Module:</strong> <code>testharnessreport</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (ANSI/VT escape sequences)
+<strong>Exports:</strong> cursor movement, screen/line editing, <code>Screen</code> backbuffer class, color, mouse/device/tabs, low-level escape-sequence builders - see doc/js/terminal.md for full list</p>
+<p><strong>Notes:</strong> Implements de facto ANSI/VT100-family terminal control sequences; not a WHATWG/Node/Bun API, closest analogue is Node's <code>readline</code>/<code>tty</code> escape helpers or the <code>ansi-escapes</code> npm package.</p>
 <h3 id="libtimersjs"><a class="anchor" href="#libtimersjs" aria-hidden="true">#</a>lib/timers.js</h3>
 <p><strong>Module:</strong> <code>timers</code>
 <strong>Classification:</strong> Standard (HTML5)
@@ -606,10 +1031,29 @@
 <strong>Notes:</strong> Implements HTML5 Timers API. Also includes Node.js-style <code>setImmediate</code> for compatibility.</p>
 <h3 id="libtree_walkerjs"><a class="anchor" href="#libtree_walkerjs" aria-hidden="true">#</a>lib/tree_walker.js</h3>
 <p><strong>Module:</strong> <code>tree_walker</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Standard (WHATWG DOM)
+<strong>Spec:</strong> <a href="https://dom.spec.whatwg.org/#interface-treewalker" target="_blank" rel="noopener">https://dom.spec.whatwg.org/#interface-treewalker</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>TreeWalker</code> class - DOM4 TreeWalker polyfill (parentNode/firstChild/nextSibling traversal with NodeFilter)</li>
+<li><code>NodeFilter</code> constants - FILTER_ACCEPT/REJECT/SKIP, SHOW_* bitmask constants</li>
+</ul>
+<p><strong>Notes:</strong> Cross-browser polyfill for <code>TreeWalker</code>, distinct from the native <code>quickjs-tree-walker.c</code> binding (documented above, C is primary per project convention).</p>
 <h3 id="libttyjs"><a class="anchor" href="#libttyjs" aria-hidden="true">#</a>lib/tty.js</h3>
 <p><strong>Module:</strong> <code>tty</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/tty.html" target="_blank" rel="noopener">https://nodejs.org/api/tty.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>ReadStream(fd)</code> / <code>WriteStream(fd)</code> - TTY stream constructors</li>
+<li><code>WriteStream.prototype.clearLine(dir)</code> - Clear current line</li>
+<li><code>WriteStream.prototype.clearScreenDown()</code> - Clear screen from cursor down</li>
+<li><code>WriteStream.prototype.cursorTo(x, y)</code> - Move cursor to position</li>
+<li><code>WriteStream.prototype.moveCursor(dx, dy)</code> - Move cursor relative</li>
+<li><code>WriteStream.prototype.getWindowSize()</code> - <code>[columns, rows]</code></li>
+<li><code>isatty(fd)</code> - Check if fd is a TTY</li>
+</ul>
+<p><strong>Notes:</strong> Node.js <code>tty</code> module shape (ANSI escape codes under the hood), built on <code>os</code>/<code>std</code> primitives; auto-updates <code>columns</code>/<code>rows</code> on SIGWINCH.</p>
 <h3 id="liburljs"><a class="anchor" href="#liburljs" aria-hidden="true">#</a>lib/url.js</h3>
 <p><strong>Module:</strong> <code>url</code>
 <strong>Classification:</strong> Standard (WHATWG)
@@ -635,16 +1079,44 @@
 <strong>Notes:</strong> Core URL parsing is implemented. Missing: <code>createObjectURL()</code> and <code>revokeObjectURL()</code> for Blob/File references (tracked in TODO Tier 9.6).</p>
 <h3 id="libutiljs"><a class="anchor" href="#libutiljs" aria-hidden="true">#</a>lib/util.js</h3>
 <p><strong>Module:</strong> <code>util</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (Node.js util) + Custom (reflection extras)
+<strong>Spec:</strong> <a href="https://nodejs.org/api/util.html" target="_blank" rel="noopener">https://nodejs.org/api/util.html</a>
+<strong>Exports:</strong> Large grab-bag re-exporting/wrapping ECMA-262 <code>Object</code>/<code>Reflect</code> statics (<code>getPrototypeOf</code>, <code>defineProperty</code>, <code>assign</code>, ...), Node-style helpers (<code>setImmediate</code>/<code>clearImmediate</code>, <code>queueMicrotask</code>, <code>inherits</code>), plus custom additions (<code>memoize</code>, <code>chain</code>, <code>TypeIds</code>, <code>types</code> type-check table, POSIX <code>errno</code> name table) - see file for full list (2500+ lines).</p>
+<p><strong>Notes:</strong> Mixes thin ECMA-262 <code>Object</code>/<code>Reflect</code> pass-throughs with Node.js <code>util</code>-style helpers and qjs-modules-specific utilities (memoize, type tables); no single spec covers it, closest is Node's <code>util</code> module for the parts that overlap.</p>
 <h3 id="libvfsjs"><a class="anchor" href="#libvfsjs" aria-hidden="true">#</a>lib/vfs.js</h3>
 <p><strong>Module:</strong> <code>vfs</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (union filesystem)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>UnionFS</code> class - Overlays multiple search paths (each with its own fs-like backend, e.g. <code>Archive</code>) into one namespace</li>
+<li><code>UnionFS.prototype.appendPath/prependPath/removePath/hasPath(path, impl)</code> - Manage search paths</li>
+</ul>
+<p><strong>Notes:</strong> Conceptually similar to the <code>unionfs</code>/<code>mount-fs</code> npm packages; not a standard API. Supports mounting <code>Archive</code> objects (tar/zip) as read-only filesystem layers alongside real <code>fs</code>. Distinct from <code>quickjs-virtual.c</code>'s <code>VirtualProperties</code>, which wraps a plain Object/Array/Map, not a filesystem.</p>
 <h3 id="libxmljs"><a class="anchor" href="#libxmljs" aria-hidden="true">#</a>lib/xml.js</h3>
 <p><strong>Module:</strong> <code>xml</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Custom (low-level XML tokenizer)
+<strong>Exports:</strong></p>
+<ul>
+<li><code>parse(s)</code> - Tokenize/parse XML string</li>
+<li><code>read(generator)</code> - Build tree from token generator</li>
+<li><code>write(obj, level)</code> - Serialize object tree back to XML</li>
+</ul>
+<p><strong>Notes:</strong> Pure-JS XML lexer/parser polyfill; a different shape from DOM's <code>DOMParser</code>/<code>XMLSerializer</code> (no <code>Document</code>/<code>Element</code> objects). The native <code>quickjs-xml.c</code> binding (documented above) is authoritative per project convention.</p>
 <h3 id="libxpathjs"><a class="anchor" href="#libxpathjs" aria-hidden="true">#</a>lib/xpath.js</h3>
 <p><strong>Module:</strong> <code>xpath</code>
-<strong>Status:</strong> Researching...</p>
+<strong>Classification:</strong> Compatible (W3C DOM XPath)
+<strong>Spec:</strong> <a href="https://www.w3.org/TR/DOM-Level-3-XPath/xpath.html" target="_blank" rel="noopener">https://www.w3.org/TR/DOM-Level-3-XPath/xpath.html</a>
+<strong>Exports:</strong></p>
+<ul>
+<li><code>XPath</code> class (aliased as <code>ImmutableXPath</code>, <code>MutableXPath</code>, <code>XPathExpression</code>) - Path-segment array/string handling</li>
+<li><code>XPathEvaluator</code> class - Evaluates XPath expressions</li>
+<li><code>XPathResult</code> class - Result wrapper</li>
+<li><code>XPathException</code> class - Error type</li>
+<li><code>parseXPath(str)</code> - Parse XPath string to segments</li>
+<li><code>buildXPath(ptr, root)</code> / <code>getSiblings(ptr, root)</code> - Build/query paths from a <code>Pointer</code> (see <code>pointer</code> module)</li>
+<li><code>DereferenceError</code> class - Custom error for failed dereferences</li>
+</ul>
+<p><strong>Notes:</strong> Mirrors DOM XPath class names (<code>XPathEvaluator</code>/<code>XPathResult</code>/<code>XPathException</code>) but is built on the project's own <code>Pointer</code>/<code>Predicate</code> addressing scheme rather than operating over <code>dom.js</code> <code>Node</code> trees directly — a compatible-shape, not a spec-literal implementation.</p>
 <hr>
 <h2 id="roadmap"><a class="anchor" href="#roadmap" aria-hidden="true">#</a>Roadmap</h2>
 <p>Once research is complete, prioritize:</p>
@@ -665,11 +1137,11 @@
 </ul></article>
 <p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/api-compatibility.md">Edit this page on GitHub →</a></p>
 </main>
-<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#goals">Goals</a></li><li class="lvl2"><a href="#classification">Classification</a></li><li class="lvl2"><a href="#research-status">Research Status</a></li><li class="lvl2"><a href="#c-native-modules">C Native Modules</a></li><li class="lvl3"><a href="#quickjs-archivec">quickjs-archive.c</a></li><li class="lvl3"><a href="#quickjs-arraybuffer-sinkc">quickjs-arraybuffer-sink.c</a></li><li class="lvl3"><a href="#quickjs-bcryptc">quickjs-bcrypt.c</a></li><li class="lvl3"><a href="#quickjs-bjsonc">quickjs-bjson.c</a></li><li class="lvl3"><a href="#quickjs-blobc">quickjs-blob.c</a></li><li class="lvl3"><a href="#quickjs-child-processc">quickjs-child-process.c</a></li><li class="lvl3"><a href="#quickjs-deepc">quickjs-deep.c</a></li><li class="lvl3"><a href="#quickjs-directoryc">quickjs-directory.c</a></li><li class="lvl3"><a href="#quickjs-gpioc">quickjs-gpio.c</a></li><li class="lvl3"><a href="#quickjs-inspectc">quickjs-inspect.c</a></li><li class="lvl3"><a href="#quickjs-internalc">quickjs-internal.c</a></li><li class="lvl3"><a href="#quickjs-jsonc">quickjs-json.c</a></li><li class="lvl3"><a href="#quickjs-lexerc">quickjs-lexer.c</a></li><li class="lvl3"><a href="#quickjs-listc">quickjs-list.c</a></li><li class="lvl3"><a href="#quickjs-locationc">quickjs-location.c</a></li><li class="lvl3"><a href="#quickjs-magicc">quickjs-magic.c</a></li><li class="lvl3"><a href="#quickjs-miscc">quickjs-misc.c</a></li><li class="lvl3"><a href="#quickjs-mmapc">quickjs-mmap.c</a></li><li class="lvl3"><a href="#quickjs-mysqlc">quickjs-mysql.c</a></li><li class="lvl3"><a href="#quickjs-pathc">quickjs-path.c</a></li><li class="lvl3"><a href="#quickjs-pgsqlc">quickjs-pgsql.c</a></li><li class="lvl3"><a href="#quickjs-pointerc">quickjs-pointer.c</a></li><li class="lvl3"><a href="#quickjs-predicatec">quickjs-predicate.c</a></li><li class="lvl3"><a href="#quickjs-queuec">quickjs-queue.c</a></li><li class="lvl3"><a href="#quickjs-repeaterc">quickjs-repeater.c</a></li><li class="lvl3"><a href="#quickjs-serialc">quickjs-serial.c</a></li><li class="lvl3"><a href="#quickjs-socketsc">quickjs-sockets.c</a></li><li class="lvl3"><a href="#quickjs-sqlitec">quickjs-sqlite.c</a></li><li class="lvl3"><a href="#quickjs-streamc">quickjs-stream.c</a></li><li class="lvl3"><a href="#quickjs-syscallerrorc">quickjs-syscallerror.c</a></li><li class="lvl3"><a href="#quickjs-textcodec">quickjs-textcode.c</a></li><li class="lvl3"><a href="#quickjs-tree-walkerc">quickjs-tree-walker.c</a></li><li class="lvl3"><a href="#quickjs-virtualc">quickjs-virtual.c</a></li><li class="lvl3"><a href="#quickjs-xmlc">quickjs-xml.c</a></li><li class="lvl2"><a href="#javascript-modules">JavaScript Modules</a></li><li class="lvl3"><a href="#libabortjs">lib/abort.js</a></li><li class="lvl3"><a href="#libarraylikejs">lib/arrayLike.js</a></li><li class="lvl3"><a href="#libassertjs">lib/assert.js</a></li><li class="lvl3"><a href="#libasynciteratorjs">lib/asyncIterator.js</a></li><li class="lvl3"><a href="#libconsolejs">lib/console.js</a></li><li class="lvl3"><a href="#libcss-selectorsjs">lib/css-selectors.js</a></li><li class="lvl3"><a href="#libcss3-selectorsjs">lib/css3-selectors.js</a></li><li class="lvl3"><a href="#libdatabasejs">lib/database.js</a></li><li class="lvl3"><a href="#libdbjs">lib/db.js</a></li><li class="lvl3"><a href="#libdbijs">lib/dbi.js</a></li><li class="lvl3"><a href="#libdeepjs">lib/deep.js</a></li><li class="lvl3"><a href="#libdescribe-classjs">lib/describe-class.js</a></li><li class="lvl3"><a href="#libdomjs">lib/dom.js</a></li><li class="lvl3"><a href="#libeventsjs">lib/events.js</a></li><li class="lvl3"><a href="#libextendarrayjs">lib/extendArray.js</a></li><li class="lvl3"><a href="#libextendarraybufferjs">lib/extendArrayBuffer.js</a></li><li class="lvl3"><a href="#libextendasyncfunctionjs">lib/extendAsyncFunction.js</a></li><li class="lvl3"><a href="#libextendasyncgeneratorjs">lib/extendAsyncGenerator.js</a></li><li class="lvl3"><a href="#libextendfunctionjs">lib/extendFunction.js</a></li><li class="lvl3"><a href="#libextendgeneratorjs">lib/extendGenerator.js</a></li><li class="lvl3"><a href="#libextendmapjs">lib/extendMap.js</a></li><li class="lvl3"><a href="#libextendmathjs">lib/extendMath.js</a></li><li class="lvl3"><a href="#libextendobjectjs">lib/extendObject.js</a></li><li class="lvl3"><a href="#libextendsetjs">lib/extendSet.js</a></li><li class="lvl3"><a href="#libfilejs">lib/file.js</a></li><li class="lvl3"><a href="#libfsjs">lib/fs.js</a></li><li class="lvl3"><a href="#libfspromisesjs">lib/fsPromises.js</a></li><li class="lvl3"><a href="#libhtmljs">lib/html.js</a></li><li class="lvl3"><a href="#libinotifyjs">lib/inotify.js</a></li><li class="lvl3"><a href="#libiojs">lib/io.js</a></li><li class="lvl3"><a href="#libiteratorjs">lib/iterator.js</a></li><li class="lvl3"><a href="#libmiscjs">lib/misc.js</a></li><li class="lvl3"><a href="#libmodulejs">lib/module.js</a></li><li class="lvl3"><a href="#libparseljs">lib/parsel.js</a></li><li class="lvl3"><a href="#libparserjs">lib/parser.js</a></li><li class="lvl3"><a href="#libperf_hooksjs">lib/perf_hooks.js</a></li><li class="lvl3"><a href="#libpointerjs">lib/pointer.js</a></li><li class="lvl3"><a href="#libpredicatejs">lib/predicate.js</a></li><li class="lvl3"><a href="#libprocessjs">lib/process.js</a></li><li class="lvl3"><a href="#libreflectjs">lib/reflect.js</a></li><li class="lvl3"><a href="#librepljs">lib/repl.js</a></li><li class="lvl3"><a href="#librequirejs">lib/require.js</a></li><li class="lvl3"><a href="#libsocklen_tjs">lib/socklen_t.js</a></li><li class="lvl3"><a href="#libstackjs">lib/stack.js</a></li><li class="lvl3"><a href="#libstreamjs">lib/stream.js</a></li><li class="lvl3"><a href="#libstreamsjs">lib/streams.js</a></li><li class="lvl3"><a href="#libterminaljs">lib/terminal.js</a></li><li class="lvl3"><a href="#libtestharnessjs">lib/testharness.js</a></li><li class="lvl3"><a href="#libtestharnessreportjs">lib/testharnessreport.js</a></li><li class="lvl3"><a href="#libtimersjs">lib/timers.js</a></li><li class="lvl3"><a href="#libtree_walkerjs">lib/tree_walker.js</a></li><li class="lvl3"><a href="#libttyjs">lib/tty.js</a></li><li class="lvl3"><a href="#liburljs">lib/url.js</a></li><li class="lvl3"><a href="#libutiljs">lib/util.js</a></li><li class="lvl3"><a href="#libvfsjs">lib/vfs.js</a></li><li class="lvl3"><a href="#libxmljs">lib/xml.js</a></li><li class="lvl3"><a href="#libxpathjs">lib/xpath.js</a></li><li class="lvl2"><a href="#roadmap">Roadmap</a></li><li class="lvl2"><a href="#notes">Notes</a></li></ul></nav>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#goals">Goals</a></li><li class="lvl2"><a href="#classification">Classification</a></li><li class="lvl2"><a href="#research-status">Research Status</a></li><li class="lvl2"><a href="#c-native-modules">C Native Modules</a></li><li class="lvl3"><a href="#quickjs-archivec">quickjs-archive.c</a></li><li class="lvl3"><a href="#quickjs-arraybuffer-sinkc">quickjs-arraybuffer-sink.c</a></li><li class="lvl3"><a href="#quickjs-bcryptc">quickjs-bcrypt.c</a></li><li class="lvl3"><a href="#quickjs-bjsonc">quickjs-bjson.c</a></li><li class="lvl3"><a href="#quickjs-blobc">quickjs-blob.c</a></li><li class="lvl3"><a href="#quickjs-child-processc">quickjs-child-process.c</a></li><li class="lvl3"><a href="#quickjs-deepc">quickjs-deep.c</a></li><li class="lvl3"><a href="#quickjs-directoryc">quickjs-directory.c</a></li><li class="lvl3"><a href="#quickjs-gpioc">quickjs-gpio.c</a></li><li class="lvl3"><a href="#quickjs-inspectc">quickjs-inspect.c</a></li><li class="lvl3"><a href="#quickjs-jsonc">quickjs-json.c</a></li><li class="lvl3"><a href="#quickjs-lexerc">quickjs-lexer.c</a></li><li class="lvl3"><a href="#quickjs-listc">quickjs-list.c</a></li><li class="lvl3"><a href="#quickjs-locationc">quickjs-location.c</a></li><li class="lvl3"><a href="#quickjs-magicc">quickjs-magic.c</a></li><li class="lvl3"><a href="#quickjs-miscc">quickjs-misc.c</a></li><li class="lvl3"><a href="#quickjs-mmapc">quickjs-mmap.c</a></li><li class="lvl3"><a href="#quickjs-mysqlc">quickjs-mysql.c</a></li><li class="lvl3"><a href="#quickjs-pathc">quickjs-path.c</a></li><li class="lvl3"><a href="#quickjs-pgsqlc">quickjs-pgsql.c</a></li><li class="lvl3"><a href="#quickjs-pointerc">quickjs-pointer.c</a></li><li class="lvl3"><a href="#quickjs-predicatec">quickjs-predicate.c</a></li><li class="lvl3"><a href="#quickjs-queuec">quickjs-queue.c</a></li><li class="lvl3"><a href="#quickjs-repeaterc">quickjs-repeater.c</a></li><li class="lvl3"><a href="#quickjs-serialc">quickjs-serial.c</a></li><li class="lvl3"><a href="#quickjs-socketsc">quickjs-sockets.c</a></li><li class="lvl3"><a href="#quickjs-sqlitec">quickjs-sqlite.c</a></li><li class="lvl3"><a href="#quickjs-streamc">quickjs-stream.c</a></li><li class="lvl3"><a href="#quickjs-syscallerrorc">quickjs-syscallerror.c</a></li><li class="lvl3"><a href="#quickjs-textcodec">quickjs-textcode.c</a></li><li class="lvl3"><a href="#quickjs-tree-walkerc">quickjs-tree-walker.c</a></li><li class="lvl3"><a href="#quickjs-virtualc">quickjs-virtual.c</a></li><li class="lvl3"><a href="#quickjs-xmlc">quickjs-xml.c</a></li><li class="lvl2"><a href="#javascript-modules">JavaScript Modules</a></li><li class="lvl3"><a href="#libabortjs">lib/abort.js</a></li><li class="lvl3"><a href="#libassertjs">lib/assert.js</a></li><li class="lvl3"><a href="#libasynciteratorjs">lib/asyncIterator.js</a></li><li class="lvl3"><a href="#libconsolejs">lib/console.js</a></li><li class="lvl3"><a href="#libcss-selectorsjs">lib/css-selectors.js</a></li><li class="lvl3"><a href="#libcss3-selectorsjs">lib/css3-selectors.js</a></li><li class="lvl3"><a href="#libdatabasejs">lib/database.js</a></li><li class="lvl3"><a href="#libdbjs">lib/db.js</a></li><li class="lvl3"><a href="#libdbijs">lib/dbi.js</a></li><li class="lvl3"><a href="#libdeepjs">lib/deep.js</a></li><li class="lvl3"><a href="#libdescribe-classjs">lib/describe-class.js</a></li><li class="lvl3"><a href="#libdomjs">lib/dom.js</a></li><li class="lvl3"><a href="#libeventsjs">lib/events.js</a></li><li class="lvl3"><a href="#libextendarrayjs">lib/extendArray.js</a></li><li class="lvl3"><a href="#libextendarraybufferjs">lib/extendArrayBuffer.js</a></li><li class="lvl3"><a href="#libextendasyncfunctionjs">lib/extendAsyncFunction.js</a></li><li class="lvl3"><a href="#libextendasyncgeneratorjs">lib/extendAsyncGenerator.js</a></li><li class="lvl3"><a href="#libextendfunctionjs">lib/extendFunction.js</a></li><li class="lvl3"><a href="#libextendgeneratorjs">lib/extendGenerator.js</a></li><li class="lvl3"><a href="#libextendmapjs">lib/extendMap.js</a></li><li class="lvl3"><a href="#libextendsetjs">lib/extendSet.js</a></li><li class="lvl3"><a href="#libfilejs">lib/file.js</a></li><li class="lvl3"><a href="#libfsjs">lib/fs.js</a></li><li class="lvl3"><a href="#libfspromisesjs">lib/fsPromises.js</a></li><li class="lvl3"><a href="#libhtmljs">lib/html.js</a></li><li class="lvl3"><a href="#libinotifyjs">lib/inotify.js</a></li><li class="lvl3"><a href="#libiojs">lib/io.js</a></li><li class="lvl3"><a href="#libiteratorjs">lib/iterator.js</a></li><li class="lvl3"><a href="#libmiscjs">lib/misc.js</a></li><li class="lvl3"><a href="#libmodulejs">lib/module.js</a></li><li class="lvl3"><a href="#libnodemodulesloaderjs">lib/nodeModulesLoader.js</a></li><li class="lvl3"><a href="#libparseljs">lib/parsel.js</a></li><li class="lvl3"><a href="#libparserjs">lib/parser.js</a></li><li class="lvl3"><a href="#libpasswordjs">lib/password.js</a></li><li class="lvl3"><a href="#libperf_hooksjs">lib/perf_hooks.js</a></li><li class="lvl3"><a href="#libpointerjs">lib/pointer.js</a></li><li class="lvl3"><a href="#libpredicatejs">lib/predicate.js</a></li><li class="lvl3"><a href="#libprocessjs">lib/process.js</a></li><li class="lvl3"><a href="#librepljs">lib/repl.js</a></li><li class="lvl3"><a href="#librequirejs">lib/require.js</a></li><li class="lvl3"><a href="#libsocklen_tjs">lib/socklen_t.js</a></li><li class="lvl3"><a href="#libsqljs">lib/sql.js</a></li><li class="lvl3"><a href="#libstackjs">lib/stack.js</a></li><li class="lvl3"><a href="#libstreamjs">lib/stream.js</a></li><li class="lvl3"><a href="#libstreamsjs">lib/streams.js</a></li><li class="lvl3"><a href="#libterminaljs">lib/terminal.js</a></li><li class="lvl3"><a href="#libtimersjs">lib/timers.js</a></li><li class="lvl3"><a href="#libtree_walkerjs">lib/tree_walker.js</a></li><li class="lvl3"><a href="#libttyjs">lib/tty.js</a></li><li class="lvl3"><a href="#liburljs">lib/url.js</a></li><li class="lvl3"><a href="#libutiljs">lib/util.js</a></li><li class="lvl3"><a href="#libvfsjs">lib/vfs.js</a></li><li class="lvl3"><a href="#libxmljs">lib/xml.js</a></li><li class="lvl3"><a href="#libxpathjs">lib/xpath.js</a></li><li class="lvl2"><a href="#roadmap">Roadmap</a></li><li class="lvl2"><a href="#notes">Notes</a></li></ul></nav>
 </div>
 <footer class="sitefoot">
-  <p>qjs-modules — MIT licensed. Built from the repo's own markdown by
-     <a href="https://github.com/rsenn/qjs-modules/blob/main/tools/site/build.js">tools/site/build.js</a>, running on qjsm.</p>
+  <p>qjs-modules — MIT. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/rsenn/tree/main/tools/site">rsenn/rsenn tools/site</a>.</p>
 </footer>
 <script src="../assets/search-index.js"></script>
 <script src="../assets/search.js"></script>
