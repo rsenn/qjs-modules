@@ -120,22 +120,8 @@ stack_get(JSContext* ctx) {
 }*/
 
 SyscallError*
-js_syscallerror_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_syscallerror_class_id);
-}
-
-SyscallError*
 js_syscallerror_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_syscallerror_class_id);
-}
-
-JSValue
-js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
-
-  JS_SetOpaque(obj, err);
-
-  return obj;
 }
 
 JSValue

@@ -267,11 +267,6 @@ js_connectparams_data(JSValueConst value) {
   return JS_GetOpaque(value, js_connectparams_class_id);
 }
 
-static inline MYSQLConnectParameters*
-js_connectparams_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_connectparams_class_id);
-}
-
 static void
 connectparams_init(JSContext* ctx, MYSQLConnectParameters* cp, int argc, JSValueConst argv[]) {
   cp->ref_count = 1;
@@ -1500,23 +1495,6 @@ result_iterate(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype)
   return ret;
 }
 
-static void
-result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
-  JSValue val = result_row(ctx, res, row, rtype);
-  JSValue item = js_iterator_result(ctx, val, row ? FALSE : TRUE);
-
-  JS_FreeValue(ctx, val);
-
-  value_yield_free(ctx, func, item);
-}
-
-static void
-result_resolve(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
-  JSValue value = row ? result_row(ctx, res, row, rtype) : JS_NULL;
-
-  value_yield_free(ctx, func, value);
-}
-
 typedef struct PACK {
   ResultFlags flags;
   MYSQL* conn;
@@ -2031,16 +2009,6 @@ field_is_boolean(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_is_null(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_NULL: return !(field->flags & NOT_NULL_FLAG);
-    default: break;
-  }
-
-  return FALSE;
-}
-
-static BOOL
 field_is_date(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TIMESTAMP:
@@ -2049,30 +2017,6 @@ field_is_date(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE: return !!(field->flags & TIMESTAMP_FLAG);
-    default: break;
-  }
-
-  return FALSE;
-}
-
-static BOOL
-field_is_string(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-      if((field->flags & BLOB_FLAG))
-        if(!(field->flags & BINARY_FLAG))
-          return TRUE;
-    default: break;
-  }
-
-  switch(field->type) {
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET: return TRUE;
     default: break;
   }
 

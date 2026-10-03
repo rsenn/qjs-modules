@@ -29,12 +29,10 @@ path_isdot1(const char* p) {
   return p[0] == '.' && p[1] == '\0';
 }
 
-
 BOOL
 path_isdotdot1(const char* p) {
   return p[0] == '.' && p[1] == '.' && p[2] == '\0';
 }
-
 
 char*
 path_dup3(const char* path, size_t n, DynBuf* db) {
@@ -293,20 +291,6 @@ path_at3(const char* p, size_t* len_ptr, int i) {
   return p;
 }
 
-
-size_t
-path_offset3(const char* p, size_t* len_ptr, int i) {
-  const char* q;
-
-  if((q = path_at3(p, len_ptr, i)) >= p)
-    return q - p;
-
-  return 0;
-}
-
-
-
-
 size_t
 path_length1(const char* p) {
   return path_length2(p, strlen(p));
@@ -354,7 +338,6 @@ path_slice4(const char* p, int start, int end, DynBuf* db) {
   return i;
 }
 
-
 int
 path_exists1(const char* p) {
   struct stat st;
@@ -397,7 +380,6 @@ path_isin4(const char* p, size_t len, const char* dir, size_t dirlen) {
 
   return 1;
 }
-
 
 int
 path_diff4(const char* a, size_t la, const char* b, size_t lb) {
@@ -737,19 +719,6 @@ path_gethome2(const char* user, size_t userlen) {
 }
 
 int
-path_stat2(const char* p, size_t plen, struct stat* st) {
-  char* q;
-  int r = 0;
-
-  if((q = path_dup2(p, plen))) {
-    r = stat(q, st);
-    free(q);
-  }
-
-  return r;
-}
-
-int
 path_isdir1(const char* p) {
   struct stat st;
   int r;
@@ -759,7 +728,6 @@ path_isdir1(const char* p) {
 
   return r;
 }
-
 
 int
 path_isfile1(const char* p) {
@@ -774,7 +742,6 @@ path_isfile1(const char* p) {
   return 0;
 }
 
-
 int
 path_ischardev1(const char* p) {
   struct stat st;
@@ -787,7 +754,6 @@ path_ischardev1(const char* p) {
 
   return 0;
 }
-
 
 int
 path_isblockdev1(const char* p) {
@@ -802,7 +768,6 @@ path_isblockdev1(const char* p) {
   return 0;
 }
 
-
 int
 path_isfifo1(const char* p) {
   struct stat st;
@@ -815,7 +780,6 @@ path_isfifo1(const char* p) {
 
   return 0;
 }
-
 
 int
 path_issocket1(const char* p) {
@@ -831,7 +795,6 @@ path_issocket1(const char* p) {
 #endif
   return 0;
 }
-
 
 int
 path_issymlink1(const char* p) {
@@ -849,7 +812,6 @@ path_issymlink1(const char* p) {
   return 0;
 #endif
 }
-
 
 int
 path_resolve3(const char* path, DynBuf* db, int symbolic) {
@@ -955,24 +917,6 @@ path_realpath3(const char* path, size_t len, DynBuf* buf) {
   return ret;
 }
 
-char*
-path_realpath2(const char* path, size_t len) {
-  char* ret;
-  DynBuf db;
-
-  if(!path_exists2(path, len))
-    return 0;
-
-  dbuf_init2(&db, 0, 0);
-  path_absolute3(path, len, &db);
-  dbuf_0(&db);
-  ret = path_resolve2((const char*)db.buf, 1);
-  dbuf_free(&db);
-
-  return ret;
-}
-
-
 int
 path_relative3(const char* path, const char* relative_to, DynBuf* out) {
   return path_relative5(path, strlen(path), relative_to, strlen(relative_to), out);
@@ -1032,7 +976,6 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
   return 1;
 }
 
-
 size_t
 path_root2(const char* x, size_t n) {
   if(n > 0 && x[0] == PATHSEP_C)
@@ -1072,12 +1015,10 @@ path_dirname1(const char* path) {
   return path_dup1(".");
 }
 
-
 size_t
 path_basename1(const char* path) {
   return path_right1(path);
 }
-
 
 size_t
 path_basename3(const char* path, size_t* len, size_t n) {
@@ -1102,8 +1043,6 @@ path_readlink2(const char* path, DynBuf* dir) {
   dir->size = sz;
   return dir->size;
 }
-
-
 
 /**
  * @}

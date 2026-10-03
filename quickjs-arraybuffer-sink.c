@@ -134,19 +134,6 @@ js_arraybuffer_sink_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-static JSValue
-js_arraybuffer_sink_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  DynBuf* s;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(s = JS_GetOpaque2(ctx, this_val, js_arraybuffer_sink_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {}
-
-  return ret;
-}
-
 static void
 js_arraybuffer_sink_finalizer(JSRuntime* rt, JSValue val) {
   DynBuf* s;

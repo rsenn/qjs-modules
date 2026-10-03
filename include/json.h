@@ -91,7 +91,6 @@ int json_getc(JsonParser*);
 int json_ungetc(JsonParser*, char);
 int json_parse(JsonParser*);
 
-
 /**
  * @}
  */

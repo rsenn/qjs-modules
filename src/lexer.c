@@ -100,7 +100,6 @@ lexer_states_skip(char* expr) {
   return re;
 }
 
-
 char*
 lexer_rule_regex(LexerRule* rule) {
   return lexer_states_skip(rule->expr);
@@ -289,7 +288,6 @@ lexer_find_definition(Lexer* lex, const char* name, size_t namelen) {
   return 0;
 }
 
-
 int
 lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
   LexerRule *rule, *start = vector_begin(&lex->rules), *end = vector_end(&lex->rules);
@@ -431,8 +429,6 @@ lexer_lexeme(Lexer* lex, size_t* lenp) {
   return s;
 }
 
-
-
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   lex->byte_length = 0;
@@ -474,8 +470,6 @@ lexer_free(Lexer* lex, JSRuntime* rt) {
     js_free_rt(rt, lex);
   }
 }
-
-
 
 Token*
 lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {

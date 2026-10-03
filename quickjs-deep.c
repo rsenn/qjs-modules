@@ -71,15 +71,6 @@ atom_skip(Vector const* vec, JSAtom atom) {
   return vector_find(vec, sizeof(JSAtom), &atom) == -1;
 }
 
-static BOOL
-atoms_skip(Vector const* vec, JSAtom const atoms[], size_t len) {
-  for(size_t i = 0; i < len; ++i)
-    if(vector_find(vec, sizeof(JSAtom), &atoms[i]) != -1)
-      return FALSE;
-
-  return TRUE;
-}
-
 static uint32_t
 atoms_from_iterable(JSContext* ctx, JSValueConst arg, Vector* atoms) {
   JSValue iter = js_iterator_new(ctx, arg);

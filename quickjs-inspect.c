@@ -1046,15 +1046,6 @@ inspect_key(Inspector* insp, JSAtom key) {
 }
 
 static int
-inspect_atom(Inspector* insp, JSAtom atom, int32_t depth) {
-  JSContext* const ctx = insp->hier.opaque;
-  JSValue value = JS_AtomToValue(ctx, atom);
-  int r = inspect_value(insp, value, depth);
-  JS_FreeValue(ctx, value);
-  return r;
-}
-
-static int
 inspect_error(Inspector* insp, JSValueConst value, int32_t level) {
   JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
@@ -1885,14 +1876,6 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   JS_FreeValue(ctx, rval);
 
   return ret;
-}
-
-char*
-js_inspect_atom(JSContext* ctx, JSAtom atom) {
-  JSValue value = JS_AtomToValue(ctx, atom);
-  char* str = js_inspect_tostring(ctx, value);
-  JS_FreeValue(ctx, value);
-  return str;
 }
 
 static const JSCFunctionListEntry js_inspect_funcs[] = {

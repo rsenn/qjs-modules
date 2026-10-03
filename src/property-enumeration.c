@@ -270,8 +270,6 @@ property_recursion_skip(Vector* vec, JSContext* ctx) {
   return i;
 }
 
-
-
 void
 property_recursion_free(Vector* vec, JSRuntime* rt) {
   PropertyEnumeration* it;

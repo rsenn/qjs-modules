@@ -28,12 +28,6 @@
 
 #include "mmap-win32.h"
 
-unsigned int
-sleep(unsigned int seconds) {
-  Sleep(seconds * 1000);
-  return 0;
-}
-
 long
 getpagesize(void) {
   static long pagesize = 0;

@@ -21,7 +21,6 @@ typedef struct promise {
 } Promise;
 
 void js_resolve_functions_free(JSContext* ctx, ResolveFunctions* funcs);
-void promise_free_funcs(JSRuntime* rt, ResolveFunctions* funcs);
 BOOL promise_init(JSContext*, Promise*);
 BOOL promise_resolve(JSContext*, ResolveFunctions*, JSValueConst);
 BOOL promise_reject(JSContext*, ResolveFunctions*, JSValueConst);

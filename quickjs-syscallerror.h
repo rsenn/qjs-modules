@@ -30,9 +30,7 @@ typedef struct {
 VISIBLE SyscallError* syscallerror_new(JSContext*, const char* syscall, int number);
 VISIBLE void syscallerror_free(SyscallError*, JSRuntime*);
 
-VISIBLE SyscallError* js_syscallerror_data(JSValue);
 VISIBLE SyscallError* js_syscallerror_data2(JSContext*, JSValue);
-VISIBLE JSValue js_syscallerror_wrap(JSContext*, SyscallError* err);
 VISIBLE JSValue js_syscallerror_new(JSContext*, const char* syscall, int number);
 VISIBLE JSValue js_syscallerror_throw(JSContext*, const char* syscall);
 VISIBLE JSValue js_syscallerror_throw_free(JSContext*, const char* syscall, JSValue);

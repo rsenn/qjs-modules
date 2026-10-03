@@ -564,7 +564,6 @@ block_mmap(const char* filename, BOOL shared) {
   return mb;
 }
 
-
 int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
 #if 0 // defined(HAVE_FSTAT) && !defined(_WIN32)
@@ -632,7 +631,6 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
 
   return -1;
 }
-
 
 int
 offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
@@ -704,7 +702,6 @@ offsetlength_char2byte(OffsetLength ol, const void* x, size_t len) {
   return (OffsetLength){offset, length};
 }
 
-
 JSValue
 offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
   JSValue ret;
@@ -723,11 +720,6 @@ offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
 int
 range_overlap(PointerRange a, PointerRange b) {
   return range_in(a, b.start) || range_in(a, b.end);
-}
-
-PointerRange
-range_null() {
-  return (PointerRange){0, 0};
 }
 
 PointerRange
@@ -797,7 +789,6 @@ inputbuffer_from_argv(InputBuffer* in, int argc, JSValueConst argv[], JSContext*
   return ret;
 }
 
-
 void
 inputbuffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
   inputbuffer_free(dst, ctx);
@@ -816,11 +807,6 @@ inputbuffer_clone(const InputBuffer* in, JSContext* ctx) {
   inputbuffer_clone2(&ret, in, ctx);
 
   return ret;
-}
-
-void
-inputbuffer_dump(const InputBuffer* in, DynBuf* db) {
-  dbuf_printf(db, "(InputBuffer){ .data = %p, .size = %lu, .pos = %lu, .free = %p }", in->data, (unsigned long)in->size, (unsigned long)in->pos, in->free);
 }
 
 void
@@ -848,8 +834,6 @@ inputbuffer_get(InputBuffer* in, size_t* lenp) {
 
   return ret;
 }
-
-
 
 JSValue
 inputbuffer_tostring_free(InputBuffer* in, JSContext* ctx) {
@@ -918,7 +902,6 @@ inputbuffer_decode(InputBuffer* in, int (*fn)(const uint8_t*, int, void*), void*
   return 0;
 }
 
-
 ssize_t
 outputbuffer_write(OutputBuffer* out, const void* ptr, size_t len) {
   size_t n = outputbuffer_avail(out);
@@ -930,8 +913,6 @@ outputbuffer_write(OutputBuffer* out, const void* ptr, size_t len) {
   out->pos += len;
   return len;
 }
-
-
 
 int
 indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
@@ -967,20 +948,6 @@ inputbuffer_peekc(InputBuffer* in, size_t* lenp) {
 
   return cp;
 }
-
-int
-outputbuffer_reserve(OutputBuffer* out, size_t len, JSContext* ctx) {
-  uint8_t *end = block_end(out->block), *newend = outputbuffer_pointer(out) + len;
-
-  if(newend > end)
-    if(!block_grow(&out->block, newend - end, ctx))
-      return -1;
-
-  out->range.length = end - outputbuffer_begin(out);
-
-  return 0;
-}
-
 
 int
 uint16_decode_le(const uint8_t* p, int max_len, void* out) {
@@ -1037,10 +1004,6 @@ unicode_encode_utf8(uint8_t* buf, int max_len, unsigned int c) {
     return unicode_to_utf8(buf, c);
   return len;
 }
-
-
-
-
 
 /**
  * @}

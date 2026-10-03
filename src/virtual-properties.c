@@ -416,20 +416,6 @@ virtual_properties_getset(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
-JSValue
-virtual_properties_method(VirtualProperties virt, int magic, JSContext* ctx) {
-  VirtualWrapper* vw;
-  JSValue obj;
-
-  if(!(vw = wrapper_new(&virt, ctx)))
-    return JS_EXCEPTION;
-
-  obj = js_function_cclosure(ctx, virtual_properties_getset, method_arity[magic], magic, vw, wrapper_free);
-
-  return obj;
-}
-
-
 void
 virtual_properties_copy(const VirtualProperties* src, VirtualProperties* dst, JSContext* ctx) {
   dst->this_obj = JS_DupValue(ctx, src->this_obj);

@@ -24,13 +24,6 @@ js_resolve_functions_free(JSContext* ctx, ResolveFunctions* funcs) {
   js_resolve_functions_zero(funcs);
 }
 
-void
-promise_free_funcs(JSRuntime* rt, ResolveFunctions* funcs) {
-  JS_FreeValueRT(rt, funcs->array[0]);
-  JS_FreeValueRT(rt, funcs->array[1]);
-  js_resolve_functions_zero(funcs);
-}
-
 static inline BOOL
 js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JSValueConst arg) {
   JSValue ret = JS_UNDEFINED;
@@ -45,15 +38,12 @@ js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JS
   return FALSE;
 }
 
-
-
 /*void
 promise_free(JSContext* ctx, Promise* pr) {
   JS_FreeValue(ctx, pr->value);
   pr->value = JS_UNDEFINED;
   js_resolve_functions_free(ctx, &pr->funcs);
 }*/
-
 
 BOOL
 promise_init(JSContext* ctx, Promise* pr) {
@@ -71,8 +61,6 @@ promise_reject(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
   return js_resolve_functions_call(ctx, funcs, 1, value);
 }
 
-
-
 BOOL
 promise_done(ResolveFunctions* funcs) {
   return js_resolve_functions_is_null(funcs);
@@ -88,9 +76,6 @@ promise_then2(JSContext* ctx, JSValueConst promise, JSValueConst resolve, JSValu
 
   return ret;
 }
-
-
-
 
 /**
  * @}

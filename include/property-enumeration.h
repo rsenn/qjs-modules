@@ -90,7 +90,6 @@ property_enumeration_keystrlen(const PropertyEnumeration* it, size_t* len, JSCon
   return js_atom_to_cstringlen(ctx, len, it->tab_atom[it->idx]);
 }
 
-
 static inline int
 property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
   if(idx < 0)
@@ -109,7 +108,6 @@ static inline PropertyEnumeration*
 property_enumeration_next(PropertyEnumeration* it) {
   return property_enumeration_setpos(it, it->idx + 1) ? it : 0;
 }
-
 
 static inline PropertyEnumeration*
 property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flags) {
@@ -141,8 +139,6 @@ BOOL property_recursion_circular(Vector*, JSValue object);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
 PropertyEnumeration* property_recursion_enter(Vector*, JSContext*, int32_t, int);
 int property_recursion_skip(Vector*, JSContext*);
-
-
 
 static inline JSValue
 property_recursion_value(const Vector* vec, JSContext* ctx) {

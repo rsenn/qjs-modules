@@ -38,11 +38,6 @@ VISIBLE JSClassID js_child_process_class_id = 0;
 static JSValue child_process_proto, child_process_ctor;
 
 ChildProcess*
-js_child_process_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_child_process_class_id);
-}
-
-ChildProcess*
 js_child_process_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_child_process_class_id);
 }

@@ -54,27 +54,6 @@ js_location_tostring(JSContext* ctx, const Location* loc) {
   return ret;
 }
 
-static BOOL
-js_is_location(JSContext* ctx, JSValueConst obj) {
-  JSAtom line = JS_NewAtom(ctx, "line");
-  JSAtom column = JS_NewAtom(ctx, "column");
-  BOOL ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
-
-  JS_FreeAtom(ctx, line);
-  JS_FreeAtom(ctx, column);
-
-  if(ret)
-    return ret;
-
-  line = JS_NewAtom(ctx, "lineNumber");
-  column = JS_NewAtom(ctx, "columnNumber");
-  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
-
-  JS_FreeAtom(ctx, line);
-  JS_FreeAtom(ctx, column);
-  return ret;
-}
-
 static JSValue
 js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Location* loc;
@@ -219,21 +198,6 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
     return location_dup(loc);
 
   if((loc = location_new(ctx)))
-    js_location_from2(ctx, this_val, loc);
-
-  return loc;
-}
-
-Location*
-js_location_copy(JSContext* ctx, JSValueConst this_val) {
-  Location *loc, *other;
-
-  if(!(loc = location_new(ctx)))
-    return 0;
-
-  if((other = js_location_data(this_val)))
-    location_copy(loc, other, ctx);
-  else
     js_location_from2(ctx, this_val, loc);
 
   return loc;

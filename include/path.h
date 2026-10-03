@@ -80,7 +80,6 @@ SizePair path_common4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_components3(const char* p, size_t len, uint32_t n);
 const char* path_at4(const char* p, size_t plen, size_t* len_ptr, int i);
 const char* path_at3(const char* p, size_t* len_ptr, int i);
-size_t path_offset3(const char* p, size_t* len_ptr, int i);
 size_t path_length1(const char* p);
 size_t path_length2(const char* p, size_t slen);
 int path_slice4(const char* p, int start, int end, DynBuf* db);
@@ -96,7 +95,6 @@ char* path_getcwd0(void);
 char* path_gethome(void);
 char* path_gethome1(int uid);
 char* path_gethome2(const char* user, size_t userlen);
-int path_stat2(const char* p, size_t plen, struct stat* st);
 int path_isdir1(const char* p);
 int path_isfile1(const char* p);
 int path_ischardev1(const char* p);
@@ -107,7 +105,6 @@ int path_issymlink1(const char* p);
 int path_resolve3(const char* path, DynBuf* db, int symbolic);
 char* path_resolve2(const char* path, int symbolic);
 int path_realpath3(const char*, size_t len, DynBuf* buf);
-char* path_realpath2(const char*, size_t len);
 int path_relative3(const char* path, const char* relative_to, DynBuf* out);
 char* path_relative1(const char* path);
 char* path_relative2(const char* path, const char* relative_to);
@@ -126,7 +123,6 @@ static inline int
 path_equal4(const char* a, size_t la, const char* b, size_t lb) {
   return 0 == path_diff4(a, la, b, lb);
 }
-
 
 static inline int
 path_isabsolute2(const char* x, size_t n) {
@@ -287,7 +283,6 @@ path_getsep1(const char* path) {
 
   return '\0';
 }
-
 
 static inline const char*
 path_trimdotslash1(const char* s) {

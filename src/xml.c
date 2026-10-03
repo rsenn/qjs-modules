@@ -459,7 +459,6 @@ xml_parser_set_tolerant(XMLParser* p, int tolerant) {
   p->tolerant = tolerant;
 }
 
-
 xml_event_t
 xml_parser_run(XMLParser* p) {
   if(p->resume) {

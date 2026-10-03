@@ -1292,11 +1292,6 @@ js_asyncsocket_data(JSValueConst value) {
   return JS_GetOpaque(value, js_asyncsocket_class_id);
 }
 
-static AsyncSocket*
-js_asyncsocket_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_asyncsocket_class_id);
-}
-
 enum {
   METHOD_NDELAY = 0x00,
   METHOD_BIND = 0x01,
@@ -1516,26 +1511,6 @@ js_socket_data(JSValueConst value) {
   return sock;
 }
 
-static Socket
-js_socket_data2(JSContext* ctx, JSValueConst value) {
-  Socket sock = SOCKET_INIT();
-  void* opaque;
-
-  if((opaque = JS_GetOpaque(value, js_asyncsocket_class_id)))
-    sock = *(Socket*)opaque;
-  else if((opaque = JS_GetOpaque2(ctx, value, js_socket_class_id))) {
-    union {
-      Socket s;
-      void* ptr;
-    } u;
-
-    u.ptr = opaque;
-    sock = u.s;
-  }
-
-  return sock;
-}
-
 static int
 js_socket_type(JSContext* ctx, SockType* st, int argc, JSValueConst argv[]) {
   int index = 0;
@@ -1562,11 +1537,6 @@ js_socket_type(JSContext* ctx, SockType* st, int argc, JSValueConst argv[]) {
   }
 
   return index;
-}
-
-static int
-js_socket_address_family(JSValueConst obj) {
-  return socket_address_family(js_socket_data(obj));
 }
 
 static JSValue
@@ -1645,13 +1615,6 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
-}
-
-static int
-js_socket_fd(JSValueConst sock) {
-  Socket s = js_socket_data(sock);
-
-  return socket_handle(s);
 }
 
 static JSValue

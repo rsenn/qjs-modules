@@ -613,7 +613,6 @@ case_finds(const void* haystack, const char* what) {
 }
 
 
-
 size_t
 u64toa_base(char* x, uint64_t num, int base) {
   size_t len = 0;

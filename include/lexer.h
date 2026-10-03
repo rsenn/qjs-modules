@@ -106,7 +106,6 @@ Token* lexer_token(Lexer* lex, int32_t id, JSContext* ctx);
 char* lexer_current_line(Lexer* lex, JSContext* ctx);
 char* lexer_lexeme_s(Lexer* lex, JSContext* ctx, int (*escape_fn)(int));
 
-
 static inline LexerRule*
 lexer_rule_at(Lexer* lex, int id) {
   return vector_at(&lex->rules, sizeof(LexerRule), id);

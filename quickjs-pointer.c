@@ -218,17 +218,6 @@ js_pointer_dispose(JSContext* ctx, PointerAlloc a) {
   }
 }
 
-VISIBLE Pointer*
-js_pointer_copy(JSContext* ctx, JSValueConst value) {
-  Pointer tmp = {0}, *ret = 0;
-
-  if(js_pointer_from(&tmp, value, ctx))
-    if((ret = pointer_new(ctx)))
-      *ret = tmp;
-
-  return ret;
-}
-
 VISIBLE BOOL
 js_pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   Pointer* ptr2;

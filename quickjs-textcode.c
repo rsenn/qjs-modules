@@ -258,21 +258,6 @@ js_decoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
-static JSValue
-js_decoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  TextDecoder* dec;
-
-  if(!(dec = js_decoder_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectClass(ctx, js_decoder_class_id);
-
-  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->type_code]), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, dec->buflen), JS_PROP_ENUMERABLE);
-
-  return obj;
-}
-
 static void
 js_decoder_finalizer(JSRuntime* rt, JSValue val) {
   TextDecoder* dec;
@@ -506,21 +491,6 @@ js_encoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   }
 
   return ret;
-}
-
-static JSValue
-js_encoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  TextEncoder* enc;
-
-  if(!(enc = js_encoder_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectClass(ctx, js_encoder_class_id);
-
-  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[enc->type_code]), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, enc->buflen), JS_PROP_ENUMERABLE);
-
-  return obj;
 }
 
 static void

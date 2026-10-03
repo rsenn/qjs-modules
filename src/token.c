@@ -52,8 +52,6 @@ token_set_lexeme(Token* tok, void* lexeme, size_t len) {
   }
 }
 
-
-
 Token*
 token_create(int id, void* lexeme, size_t len, JSContext* ctx) {
   Token* tok;

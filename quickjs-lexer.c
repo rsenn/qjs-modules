@@ -133,18 +133,6 @@ token_char_pos(Token* tok) {
   return location_charoffset(tok->loc);
 }
 
-static void*
-token_buf(Token* tok) {
-  if(tok->lexeme) {
-    int64_t pos;
-
-    if((pos = token_byte_pos(tok)) >= 0)
-      return tok->lexeme - pos;
-  }
-
-  return 0;
-}
-
 static IndexRange
 token_byte_indexrange(Token* tok) {
   return indexrange_from_offsetlength((OffsetLength){token_byte_pos(tok), tok->byte_length});
@@ -411,25 +399,6 @@ js_token_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       break;
     }
   }
-
-  return ret;
-}
-
-static JSValue
-js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  Token* tok;
-
-  if(!(tok = js_token_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue str = tok->lexeme ? JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length) : JS_UNDEFINED;
-  JSValue ret = js_global_new(ctx, "String", 1, &str);
-
-  JS_FreeValue(ctx, str);
-
-  JS_DefinePropertyValueStr(ctx, ret, "id", JS_NewInt32(ctx, tok->id), JS_PROP_ENUMERABLE);
-
-  js_set_tostringtag_value(ctx, ret, js_get_tostringtag_value(ctx, this_val));
 
   return ret;
 }
@@ -1523,15 +1492,6 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_SetPropertyStr(ctx, item, "done", JS_NewBool(ctx, js_is_null_or_undefined(ret)));
     return item;
   }
-
-  return ret;
-}
-
-static JSValue
-js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  JSValue ret = js_lexer_nextfn(ctx, this_val, argc, argv, magic);
-
-  *pdone = JS_IsUndefined(ret);
 
   return ret;
 }

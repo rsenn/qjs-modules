@@ -16,7 +16,6 @@ VISIBLE JSValue js_pointer_wrap(JSContext*, Pointer*);
 VISIBLE JSValue js_pointer_new(JSContext*);
 
 VISIBLE BOOL js_pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx);
-VISIBLE Pointer* js_pointer_copy(JSContext* ctx, JSValueConst value);
 
 /**
  * @}

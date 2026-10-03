@@ -55,11 +55,6 @@ fail:
 }
 
 static JSValue
-js_gpio_wrap(JSContext* ctx, struct gpio* gpio) {
-  return js_gpio_wrap_proto(ctx, gpio_proto, gpio);
-}
-
-static JSValue
 js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct gpio* gpio;
   JSValue ret = JS_UNDEFINED;
@@ -120,19 +115,6 @@ js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
-
-  return ret;
-}
-
-static JSValue
-js_gpio_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  struct gpio* gpio;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(gpio = js_gpio_data(ctx, this_val)))
-    return ret;
-
-  switch(magic) {}
 
   return ret;
 }

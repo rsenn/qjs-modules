@@ -29,8 +29,6 @@ token_char_length(Token* tok) {
   return tok->lexeme ? utf8_strlen(tok->lexeme, tok->byte_length) : -1;
 }
 
-
-
 /**
  * @}
  */

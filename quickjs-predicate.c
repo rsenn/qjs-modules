@@ -11,17 +11,6 @@
 VISIBLE JSClassID js_predicate_class_id = 0;
 static JSValue predicate_proto, predicate_ctor;
 
-enum PredicateId
-predicate_id(JSValueConst value) {
-  Predicate* pred;
-  enum PredicateId ret = -1;
-
-  if((pred = JS_GetOpaque(value, js_predicate_class_id)))
-    ret = pred->id;
-
-  return ret;
-}
-
 static JSValue
 predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
   DynBuf dbuf = {0};
@@ -60,29 +49,6 @@ predicate_duparg(JSContext* ctx, JSValueConst value) {
 static JSValue
 predicate_nextarg(JSContext* ctx, JSArguments* args) {
   return predicate_duparg(ctx, js_arguments_shift(args));
-}
-
-VISIBLE JSValue
-js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
-  Predicate* pr;
-  JSValue obj;
-
-  if(!(pr = js_mallocz(ctx, sizeof(Predicate))))
-    return JS_EXCEPTION;
-
-  pr->id = -1;
-  obj = JS_NewObjectProtoClass(ctx, proto, js_predicate_class_id);
-
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, pr);
-  return obj;
-
-fail:
-  js_free(ctx, pr);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
 }
 
 VISIBLE JSValue

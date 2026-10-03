@@ -43,56 +43,6 @@ js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   return obj;
 }
 
-static JSValue
-js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) {
-  JSValue obj;
-  char msg[1024];
-  JSValue argv[2];
-
-  obj = JS_NewObjectProtoClass(ctx, serialerror_proto, js_serialerror_class_id);
-  if(JS_IsException(obj))
-    return JS_EXCEPTION;
-
-  switch(result) {
-    case SP_ERR_ARG: {
-      snprintf(msg, sizeof(msg), "%s: Invalid arguments were passed to the function", sp_get_port_name(port));
-      break;
-    }
-
-    case SP_ERR_FAIL: {
-      char* err;
-      err = sp_last_error_message();
-      snprintf(msg, sizeof(msg), "%s: %s", sp_get_port_name(port), err);
-      sp_free_error_message(err);
-      break;
-    }
-
-    case SP_ERR_MEM: {
-      snprintf(msg, sizeof(msg), "%s: A memory allocation failed while executing the operation", sp_get_port_name(port));
-      break;
-    }
-
-    case SP_ERR_SUPP: {
-      snprintf(msg, sizeof(msg), "%s: The requested operation is not supported by this system or device", sp_get_port_name(port));
-      break;
-    }
-
-    case SP_OK: {
-      snprintf(msg, sizeof(msg), "%s: No error", sp_get_port_name(port));
-      break;
-    }
-  }
-
-  argv[0] = JS_NewString(ctx, msg);
-  argv[1] = JS_NewInt32(ctx, result);
-  obj = js_serialerror_constructor(ctx, serialerror_ctor, 2, argv);
-
-  JS_FreeValue(ctx, argv[0]);
-  JS_FreeValue(ctx, argv[1]);
-
-  return obj;
-}
-
 enum {
   SERIALPORT_OPEN = 0,
   SERIALPORT_CLOSE,

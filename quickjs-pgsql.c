@@ -464,16 +464,6 @@ pgconn_result(PGSQLConnection* pq, PGresult* res, JSContext* ctx) {
   return value;
 }
 
-static JSValue
-pgconn_get_result(PGSQLConnection* pq, JSContext* ctx) {
-  PGresult* res;
-
-  if((res = PQgetResult(pq->conn)))
-    return pgconn_result(pq, res, ctx);
-
-  return JS_NULL;
-}
-
 static char*
 pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, const char* field, const char* table, JSContext* ctx) {
   PGresult* res;
@@ -550,48 +540,9 @@ js_pgconn_wrap(JSContext* ctx, JSValueConst proto, PGconn* conn) {
   return ret;
 }
 
-static inline int
-js_pgconn_rtype(JSContext* ctx, JSValueConst value) {
-  return js_get_propertystr_int32(ctx, value, "resultType");
-}
-
 enum {
   METHOD_ESCAPE_STRING,
 };
-
-static JSValue
-js_pgconn_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  PGSQLConnection* pq = 0;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(pq = js_pgconn_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case METHOD_ESCAPE_STRING: {
-      char* dst;
-      const char* src;
-      size_t len;
-
-      if(!(src = JS_ToCStringLen(ctx, &len, argv[0]))) {
-        ret = JS_ThrowTypeError(ctx, "argument 1 must be string");
-        break;
-      }
-
-      if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
-        ret = JS_EXCEPTION;
-        break;
-      }
-
-      len = pq && pq->conn ? PQescapeStringConn(pq->conn, dst, src, len, 0) : PQescapeString(dst, src, len);
-      ret = JS_NewStringLen(ctx, dst, len);
-      js_free(ctx, dst);
-      break;
-    }
-  }
-
-  return ret;
-}
 
 enum {
   PROP_CMD_TUPLES,
@@ -1713,16 +1664,6 @@ js_pgresult_new(JSContext* ctx, JSValueConst proto, PGresult* res) {
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
-}
-
-static JSValue
-js_pgresult_wrap(JSContext* ctx, PGresult* res) {
-  JSValue obj = JS_NULL;
-
-  if(res)
-    obj = js_pgresult_new(ctx, pgresult_proto, res);
-
-  return obj;
 }
 
 static JSValue

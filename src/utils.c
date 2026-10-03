@@ -334,7 +334,6 @@ regexp_from_argv(RegExp* re, int argc, JSValueConst argv[], JSContext* ctx) {
   return ret;
 }
 
-
 RegExp
 regexp_from_dbuf(DynBuf* dbuf, int flags) {
   RegExp re = {(char*)dbuf->buf, dbuf->size, flags};
@@ -357,7 +356,6 @@ regexp_compile(RegExp re, JSContext* ctx) {
 
   return bytecode;
 }
-
 
 JSValue
 regexp_to_value(RegExp re, JSContext* ctx) {
@@ -1946,7 +1944,6 @@ js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst arg) {
   return js_global_call(ctx, func_name, 1, &arg);
 }
 
-
 void*
 js_value_ptr(JSValueConst v) {
   return JS_VALUE_GET_PTR(v);
@@ -3183,37 +3180,6 @@ js_generator_prototype(JSContext* ctx) {
 
   return ret;
 }
-
-
-
-void
-js_stackframe_dump(JSContext* ctx, JSValueConst frame, DynBuf* db) {
-  size_t pos = db->size;
-
-  js_cstring_dump_free(ctx, JS_GetPropertyStr(ctx, frame, "id"), db);
-  dbuf_putc(db, ' ');
-  js_cstring_dump_free(ctx, JS_GetPropertyStr(ctx, frame, "name"), db);
-
-  JSValue prop = JS_GetPropertyStr(ctx, frame, "filename");
-
-  if(!JS_IsUndefined(prop)) {
-
-    while(db->size - pos < 30)
-      dbuf_putc(db, ' ');
-
-    js_cstring_dump_free(ctx, prop, db);
-    prop = JS_GetPropertyStr(ctx, frame, "line");
-
-    if(!JS_IsUndefined(prop)) {
-      dbuf_putc(db, ':');
-      js_cstring_dump(ctx, prop, db);
-    }
-  }
-
-  JS_FreeValue(ctx, prop);
-  dbuf_putc(db, '\n');
-}
-
 
 
 

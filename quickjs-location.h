@@ -13,7 +13,6 @@ extern VISIBLE JSClassID js_location_class_id;
 VISIBLE JSValue js_location_wrap(JSContext*, Location*);
 VISIBLE void js_location_from2(JSContext*, JSValueConst, Location*);
 VISIBLE Location* js_location_from(JSContext*, JSValueConst);
-VISIBLE Location* js_location_copy(JSContext*, JSValueConst);
 VISIBLE int js_location_init(JSContext*, JSModuleDef*);
 
 static inline Location*

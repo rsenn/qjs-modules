@@ -238,16 +238,6 @@ js_sqlite_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_sqlite_class_id);
 }
 
-sqlite3*
-js_sqlite_data(JSContext* ctx, JSValueConst value) {
-  SQLiteConnection* db;
-
-  if((db = JS_GetOpaque2(ctx, value, js_sqlite_class_id)))
-    return db->db;
-
-  return 0;
-}
-
 static JSValue
 js_sqlite_new(JSContext* ctx, JSValueConst proto) {
   JSValue obj;
@@ -963,26 +953,6 @@ sqliteresult_set_conn(SQLiteResult* res, SQLiteConnection* conn, JSContext* ctx)
 SQLiteResult*
 js_sqliteresult_opaque2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_sqliteresult_class_id);
-}
-
-sqlite3_stmt*
-js_sqliteresult_data(JSContext* ctx, JSValueConst value) {
-  SQLiteResult* res;
-
-  if((res = JS_GetOpaque2(ctx, value, js_sqliteresult_class_id)))
-    return res->stmt;
-
-  return 0;
-}
-
-sqlite3*
-js_sqliteresult_handle(JSContext* ctx, JSValueConst value) {
-  SQLiteResult* res;
-
-  if((res = JS_GetOpaque2(ctx, value, js_sqliteresult_class_id)))
-    return res->conn ? res->conn->db : 0;
-
-  return 0;
 }
 
 static int

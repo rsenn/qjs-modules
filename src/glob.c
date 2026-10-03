@@ -829,7 +829,6 @@ g_Ctoc(const char_type* str, char* buf) {
   return dc;
 }
 
-
 #ifdef DEBUG
 static void
 qprintf(const char* str, char_type* s) {

@@ -469,7 +469,6 @@ child_process_kill(ChildProcess* cp, int signum) {
 #endif
 }
 
-
 void
 child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
   if(cp->link.next)

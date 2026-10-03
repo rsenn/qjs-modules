@@ -103,19 +103,6 @@ is_integer(const char* str) {
 }
 
 static inline size_t
-byte_count(const void* s, size_t n, char c) {
-  const uint8_t* t;
-  uint8_t ch = (uint8_t)c;
-  size_t count;
-
-  for(t = (uint8_t*)s, count = 0; n; ++t, --n)
-    if(*t == ch)
-      ++count;
-
-  return count;
-}
-
-static inline size_t
 byte_chr(const void* str, size_t len, char c) {
   const char* s = memchr(str, c, len);
 
@@ -431,7 +418,6 @@ scan_8long(const char* src, uint32_t* dest) {
 }
 
 BOOL utf16_multiword(const void*);
-
 
 size_t u64toa_base(char*, uint64_t num, int base);
 size_t i64toa_base(char*, int64_t num, int base);

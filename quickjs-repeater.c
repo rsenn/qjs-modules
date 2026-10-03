@@ -61,13 +61,6 @@ repeater_new(JSContext* ctx, JSValueConst executor) {
   return rpt;
 }
 
-static void
-repeater_decrement_refcount(void* opaque) {
-  Repeater* rpt = opaque;
-
-  --rpt->ref_count;
-}
-
 static JSValue
 repeater_consume(Repeater* rpt, JSContext* ctx) {
   JSValue execution, tmp, ret = JS_UNDEFINED;

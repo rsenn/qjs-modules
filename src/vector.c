@@ -105,8 +105,6 @@ vector_put(Vector* vec, const void* bytes, size_t len) {
   return vec->buf + pos;
 }
 
-
-
 char*
 vector_pushstringlen(Vector* vec, const char* str, size_t len) {
   char* s;

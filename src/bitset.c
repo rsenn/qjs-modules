@@ -48,7 +48,6 @@ bitset_assign(BitSet* bs, int idx, bool value) {
   return true;
 }
 
-
 bool
 bitset_push(BitSet* bs, int bits, size_t num_bits) {
   size_t i = bs->len;
@@ -83,4 +82,3 @@ bitset_pop(BitSet* bs, size_t num_bits) {
 
   return ret;
 }
-
