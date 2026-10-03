@@ -70,8 +70,6 @@ int32_t vector_find(const Vector* vec, size_t elsz, const void* ptr);
 int vector_counts(const Vector* vec, const char* str);
 void* vector_put(Vector* vec, const void* bytes, size_t len);
 void vector_free(Vector* vec);
-void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
-int vector_copy(Vector* dst, const Vector* src);
 char* vector_pushstringlen(Vector*, const char*, size_t);
 void vector_clearstrings(Vector*);
 void* vector_ready(Vector*, size_t);

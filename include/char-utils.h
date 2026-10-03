@@ -432,7 +432,6 @@ scan_8long(const char* src, uint32_t* dest) {
 
 BOOL utf16_multiword(const void*);
 
-ssize_t write_file(const char* file, const void* buf, size_t len);
 
 size_t u64toa_base(char*, uint64_t num, int base);
 size_t i64toa_base(char*, int64_t num, int base);

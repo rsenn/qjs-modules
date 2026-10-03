@@ -270,32 +270,7 @@ property_recursion_skip(Vector* vec, JSContext* ctx) {
   return i;
 }
 
-PropertyEnumeration*
-property_recursion_leave(Vector* vec, JSContext* ctx) {
-  PropertyEnumeration* it;
 
-  if((it = property_recursion_top(vec)))
-    while((it = property_recursion_pop(vec, ctx)))
-      if(property_enumeration_next(it))
-        break;
-
-  return it;
-}
-
-int
-property_recursion_insideof(Vector* vec, JSValueConst val) {
-  PropertyEnumeration* it;
-  void* obj = JS_VALUE_GET_PTR(val);
-
-  vector_foreach_t(vec, it) {
-    void* obj2 = JS_VALUE_GET_PTR(it->obj);
-
-    if(obj == obj2)
-      return 1;
-  }
-
-  return 0;
-}
 
 void
 property_recursion_free(Vector* vec, JSRuntime* rt) {

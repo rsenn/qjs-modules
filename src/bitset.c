@@ -48,17 +48,6 @@ bitset_assign(BitSet* bs, int idx, bool value) {
   return true;
 }
 
-bool
-bitset_toggle(BitSet* bs, int idx) {
-  size_t bit = bitset_INDEX(bs, idx);
-  assert(bit < bs->len);
-  uint8_t* b = &bitset_BYTE(bs, bit);
-  uint8_t mask = 1 << (bit & 7);
-
-  (*b) ^= mask;
-
-  return !!((*b) & mask);
-}
 
 bool
 bitset_push(BitSet* bs, int bits, size_t num_bits) {
@@ -95,12 +84,3 @@ bitset_pop(BitSet* bs, size_t num_bits) {
   return ret;
 }
 
-void
-bitset_free(BitSet* bs) {
-  if(bs->ptr) {
-    free(bs->ptr);
-    bs->ptr = 0;
-  }
-
-  bs->len = 0;
-}

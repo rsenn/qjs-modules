@@ -564,12 +564,6 @@ block_mmap(const char* filename, BOOL shared) {
   return mb;
 }
 
-void
-block_munmap(MemoryBlock* mb) {
-  munmap(mb->base, mb->size);
-  mb->base = 0;
-  mb->size = 0;
-}
 
 int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
@@ -639,12 +633,6 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
   return -1;
 }
 
-MemoryBlock
-block_file(const char* filename, JSContext* ctx) {
-  MemoryBlock mb = BLOCK_INIT();
-  block_from_file(&mb, filename, ctx);
-  return mb;
-}
 
 int
 offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
@@ -716,20 +704,6 @@ offsetlength_char2byte(OffsetLength ol, const void* x, size_t len) {
   return (OffsetLength){offset, length};
 }
 
-OffsetLength
-offsetlength_byte2char(OffsetLength ol, const void* x, size_t len) {
-  const uint8_t* buf = x;
-
-  size_t offset = ol.offset > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, ol.offset)) : 0 : ol.offset;
-
-  if(ol.offset > 0) {
-    buf += ol.offset;
-    len -= ol.offset;
-  }
-
-  size_t length = ol.length > 0 ? len > 0 ? utf8_strlen(buf, MIN_NUM(len, ol.length)) : 0 : ol.length;
-  return (OffsetLength){offset, length};
-}
 
 JSValue
 offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
@@ -823,10 +797,6 @@ inputbuffer_from_argv(InputBuffer* in, int argc, JSValueConst argv[], JSContext*
   return ret;
 }
 
-BOOL
-inputbuffer_valid(const InputBuffer* in) {
-  return !JS_IsException(in->value);
-}
 
 void
 inputbuffer_clone2(InputBuffer* dst, const InputBuffer* src, JSContext* ctx) {
@@ -879,28 +849,7 @@ inputbuffer_get(InputBuffer* in, size_t* lenp) {
   return ret;
 }
 
-const char*
-inputbuffer_currentline(InputBuffer* in, size_t* len) {
-  size_t i;
 
-  if((i = byte_rchr(inputbuffer_data(in), in->pos, '\n')) < in->pos)
-    i++;
-
-  if(len)
-    *len = in->pos - i;
-
-  return (const char*)&inputbuffer_begin(in)[i];
-}
-
-size_t
-inputbuffer_column(InputBuffer* in, size_t* len) {
-  size_t i;
-
-  if((i = byte_rchr(inputbuffer_data(in), in->pos, '\n')) < in->pos)
-    i++;
-
-  return in->pos - i;
-}
 
 JSValue
 inputbuffer_tostring_free(InputBuffer* in, JSContext* ctx) {
@@ -969,15 +918,6 @@ inputbuffer_decode(InputBuffer* in, int (*fn)(const uint8_t*, int, void*), void*
   return 0;
 }
 
-size_t
-outputbuffer_encode(OutputBuffer* out, int (*fn)(uint8_t*, int, unsigned int), int in) {
-  int w;
-
-  if((w = fn(outputbuffer_pointer(out), outputbuffer_avail(out), in)) != -1)
-    out->pos += w;
-
-  return w >= 0 ? w : 0;
-}
 
 ssize_t
 outputbuffer_write(OutputBuffer* out, const void* ptr, size_t len) {
@@ -991,31 +931,7 @@ outputbuffer_write(OutputBuffer* out, const void* ptr, size_t len) {
   return len;
 }
 
-ssize_t
-outputbuffer_append(OutputBuffer* out, const void* ptr, size_t len, JSContext* ctx) {
-  if(outputbuffer_avail(out) < len)
-    if(!ctx || outputbuffer_reserve(out, len, ctx))
-      return -1;
 
-  memcpy(outputbuffer_pointer(out), ptr, len);
-  out->pos += len;
-  return len;
-}
-
-size_t
-outputbuffer_advance(OutputBuffer* out, size_t bytes) {
-  if(bytes > out->pos)
-    bytes = out->pos;
-
-  size_t remain = outputbuffer_avail(out);
-
-  if(remain)
-    memmove(outputbuffer_data(out), outputbuffer_pointer(out), remain);
-
-  out->pos -= bytes;
-  out->size = remain;
-  return remain;
-}
 
 int
 indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
@@ -1065,18 +981,6 @@ outputbuffer_reserve(OutputBuffer* out, size_t len, JSContext* ctx) {
   return 0;
 }
 
-int
-outputbuffer_putc(OutputBuffer* out, unsigned int c, JSContext* ctx) {
-  int len = unicode_len_utf8(c);
-
-  if(outputbuffer_avail(out) < len)
-    if(!ctx || outputbuffer_reserve(out, len, ctx))
-      return -1;
-
-  unicode_to_utf8(outputbuffer_pointer(out), c);
-  out->pos += len;
-  return len;
-}
 
 int
 uint16_decode_le(const uint8_t* p, int max_len, void* out) {
@@ -1134,41 +1038,9 @@ unicode_encode_utf8(uint8_t* buf, int max_len, unsigned int c) {
   return len;
 }
 
-int
-uint16_encode_le(uint8_t* buf, int max_len, unsigned int u) {
-  if(max_len >= 2) {
-    uint16_put_le(buf, u);
-    return 2;
-  }
-  return -1;
-}
 
-int
-uint16_encode_be(uint8_t* buf, int max_len, unsigned int u) {
-  if(max_len >= 2) {
-    uint16_put_be(buf, u);
-    return 2;
-  }
-  return -1;
-}
 
-int
-uint32_encode_le(uint8_t* buf, int max_len, unsigned int u) {
-  if(max_len >= 4) {
-    uint32_put_le(buf, u);
-    return 4;
-  }
-  return -1;
-}
 
-int
-uint32_encode_be(uint8_t* buf, int max_len, unsigned int u) {
-  if(max_len >= 4) {
-    uint32_put_be(buf, u);
-    return 4;
-  }
-  return -1;
-}
 
 /**
  * @}

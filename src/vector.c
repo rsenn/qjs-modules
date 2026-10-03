@@ -105,35 +105,7 @@ vector_put(Vector* vec, const void* bytes, size_t len) {
   return vec->buf + pos;
 }
 
-void
-vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
-  char* ptr = a;
-  size_t i;
 
-  for(i = 0; i < m; i++) {
-    if(array_contains(b, n, elsz, ptr))
-      vector_put(out, ptr, elsz);
-
-    ptr += elsz;
-  }
-}
-
-int
-vector_copy(Vector* dst, const Vector* src) {
-  dst->realloc_func = src->realloc_func;
-  dst->opaque = src->opaque;
-  dst->buf = 0;
-  dst->allocated_size = 0;
-  dst->size = 0;
-
-  if(!dbuf_claim(dst, src->size - dst->size)) {
-    memcpy(dst->buf, src->buf, src->size);
-    dst->size = src->size;
-    return 1;
-  }
-
-  return 0;
-}
 
 char*
 vector_pushstringlen(Vector* vec, const char* str, size_t len) {

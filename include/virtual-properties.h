@@ -38,7 +38,6 @@ VirtualProperties virtual_properties_map(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_object(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_array(JSContext*, JSValueConst);
 
-JSValue virtual_properties_wrap(VirtualProperties, JSContext*);
 void virtual_properties_free_rt(VirtualProperties*, JSRuntime*);
 void virtual_properties_copy(const VirtualProperties*, VirtualProperties*, JSContext*);
 

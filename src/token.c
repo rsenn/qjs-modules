@@ -52,24 +52,7 @@ token_set_lexeme(Token* tok, void* lexeme, size_t len) {
   }
 }
 
-void
-token_set_location(Token* tok, Location* loc, JSContext* ctx) {
-  if(tok->loc) {
-    location_free(tok->loc, JS_GetRuntime(ctx));
-    tok->loc = 0;
-  }
 
-  tok->loc = loc ? location_dup(loc) : 0;
-}
-
-void
-token_copy_location(Token* tok, const Location* loc, JSContext* ctx) {
-  if(!tok->loc)
-    tok->loc = location_new(ctx);
-
-  if(tok->loc)
-    location_copy(tok->loc, loc, ctx);
-}
 
 Token*
 token_create(int id, void* lexeme, size_t len, JSContext* ctx) {

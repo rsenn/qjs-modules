@@ -29,20 +29,12 @@ path_isdot1(const char* p) {
   return p[0] == '.' && p[1] == '\0';
 }
 
-BOOL
-path_isdot2(const char* p, size_t n) {
-  return n == 1 && p[0] == '.';
-}
 
 BOOL
 path_isdotdot1(const char* p) {
   return p[0] == '.' && p[1] == '.' && p[2] == '\0';
 }
 
-BOOL
-path_isdotdot2(const char* p, size_t n) {
-  return n == 2 && p[0] == '.' && p[1] == '.';
-}
 
 char*
 path_dup3(const char* path, size_t n, DynBuf* db) {
@@ -301,15 +293,6 @@ path_at3(const char* p, size_t* len_ptr, int i) {
   return p;
 }
 
-size_t
-path_offset4(const char* p, size_t len, size_t* len_ptr, int i) {
-  const char* q;
-
-  if((q = path_at4(p, len, len_ptr, i)) >= p)
-    return q - p;
-
-  return 0;
-}
 
 size_t
 path_offset3(const char* p, size_t* len_ptr, int i) {
@@ -321,22 +304,8 @@ path_offset3(const char* p, size_t* len_ptr, int i) {
   return 0;
 }
 
-size_t
-path_offset2(const char* p, int i) {
-  return path_offset3(p, NULL, i);
-}
 
-size_t
-path_size2(const char* p, int i) {
-  size_t len;
-  path_offset3(p, &len, i);
-  return len;
-}
 
-const char*
-path_at2(const char* p, int i) {
-  return path_at3(p, NULL, i);
-}
 
 size_t
 path_length1(const char* p) {
@@ -385,18 +354,6 @@ path_slice4(const char* p, int start, int end, DynBuf* db) {
   return i;
 }
 
-char*
-path_slice3(const char* p, int start, int end) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-
-  if(db.buf) {
-    path_slice4(p, start, end, &db);
-    dbuf_0(&db);
-  }
-
-  return (char*)db.buf;
-}
 
 int
 path_exists1(const char* p) {
@@ -441,25 +398,6 @@ path_isin4(const char* p, size_t len, const char* dir, size_t dirlen) {
   return 1;
 }
 
-int
-path_isin2(const char* p, const char* dir) {
-  size_t i, len = path_length1(dir);
-
-  if(path_length1(p) < len)
-    return 0;
-
-  for(i = 0; i < len; i++) {
-    size_t plen, dlen;
-    const char *q, *pdir;
-    q = path_at3(p, &plen, i);
-    pdir = path_at3(dir, &dlen, i);
-
-    if(!(plen == dlen && !strncmp(q, pdir, plen)))
-      return 0;
-  }
-
-  return 1;
-}
 
 int
 path_diff4(const char* a, size_t la, const char* b, size_t lb) {
@@ -822,16 +760,6 @@ path_isdir1(const char* p) {
   return r;
 }
 
-int
-path_isdir2(const char* p, size_t plen) {
-  struct stat st;
-  int r = 0;
-
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISDIR(st.st_mode);
-
-  return r;
-}
 
 int
 path_isfile1(const char* p) {
@@ -846,16 +774,6 @@ path_isfile1(const char* p) {
   return 0;
 }
 
-int
-path_isfile2(const char* p, size_t plen) {
-  struct stat st;
-  int r;
-
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISREG(st.st_mode);
-
-  return r;
-}
 
 int
 path_ischardev1(const char* p) {
@@ -870,16 +788,6 @@ path_ischardev1(const char* p) {
   return 0;
 }
 
-int
-path_ischardev2(const char* p, size_t plen) {
-  struct stat st;
-  int r;
-
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISCHR(st.st_mode);
-
-  return r;
-}
 
 int
 path_isblockdev1(const char* p) {
@@ -894,16 +802,6 @@ path_isblockdev1(const char* p) {
   return 0;
 }
 
-int
-path_isblockdev2(const char* p, size_t plen) {
-  struct stat st;
-  int r;
-
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISBLK(st.st_mode);
-
-  return r;
-}
 
 int
 path_isfifo1(const char* p) {
@@ -918,16 +816,6 @@ path_isfifo1(const char* p) {
   return 0;
 }
 
-int
-path_isfifo2(const char* p, size_t plen) {
-  struct stat st;
-  int r;
-
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISFIFO(st.st_mode);
-
-  return r;
-}
 
 int
 path_issocket1(const char* p) {
@@ -944,18 +832,6 @@ path_issocket1(const char* p) {
   return 0;
 }
 
-int
-path_issocket2(const char* p, size_t plen) {
-#ifdef S_ISSOCK
-  struct stat st;
-  int r;
-
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISSOCK(st.st_mode);
-  return r;
-#endif
-  return 0;
-}
 
 int
 path_issymlink1(const char* p) {
@@ -974,16 +850,6 @@ path_issymlink1(const char* p) {
 #endif
 }
 
-int
-path_issymlink2(const char* p, size_t plen) {
-  struct stat st;
-  int r = 0;
-#ifdef S_ISLNK
-  if((r = path_stat2(p, plen, &st) == 0))
-    r = S_ISLNK(st.st_mode);
-#endif
-  return r;
-}
 
 int
 path_resolve3(const char* path, DynBuf* db, int symbolic) {
@@ -1106,10 +972,6 @@ path_realpath2(const char* path, size_t len) {
   return ret;
 }
 
-char*
-path_realpath1(const char* path) {
-  return path_realpath2(path, strlen(path));
-}
 
 int
 path_relative3(const char* path, const char* relative_to, DynBuf* out) {
@@ -1170,13 +1032,6 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
   return 1;
 }
 
-char*
-path_relative4(const char* s1, size_t n1, const char* s2, size_t n2) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-  path_relative5(s1, n1, s2, n2, &db);
-  return (char*)db.buf;
-}
 
 size_t
 path_root2(const char* x, size_t n) {
@@ -1217,25 +1072,12 @@ path_dirname1(const char* path) {
   return path_dup1(".");
 }
 
-char*
-path_dirname2(const char* path, size_t n) {
-  size_t i;
-
-  if((i = path_dirlen2(path, n)) < n)
-    return path_dup2(path, i);
-
-  return path_dup1(".");
-}
 
 size_t
 path_basename1(const char* path) {
   return path_right1(path);
 }
 
-size_t
-path_basename2(const char* path, size_t n) {
-  return path_right2(path, n);
-}
 
 size_t
 path_basename3(const char* path, size_t* len, size_t n) {
@@ -1261,24 +1103,7 @@ path_readlink2(const char* path, DynBuf* dir) {
   return dir->size;
 }
 
-char*
-path_readlink1(const char* path) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-  path_readlink2(path, &db);
-  return (char*)db.buf;
-}
 
-int
-path_compare4(const char* a, size_t alen, const char* b, size_t blen) {
-  if(alen < blen)
-    return -1;
-
-  if(blen > alen)
-    return 1;
-
-  return strncmp(a, b, alen);
-}
 
 /**
  * @}

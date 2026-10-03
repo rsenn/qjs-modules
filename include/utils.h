@@ -219,11 +219,9 @@ typedef struct {
 int regexp_flags_tostring(int, char*);
 int regexp_flags_fromstring(const char*);
 int regexp_from_argv(RegExp*, int argc, JSValueConst[], JSContext* ctx);
-RegExp regexp_from_string(char* str, int flags);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
 JSValue regexp_to_value(RegExp re, JSContext* ctx);
-BOOL regexp_match(const uint8_t* bc, const void* cbuf, size_t clen, JSContext* ctx);
 
 
 JSValue js_global_get_str(JSContext*, const char* prop);
@@ -368,7 +366,6 @@ const char* js_value_type_name(ValueType type);
 const char* js_value_typestr(JSContext*, JSValueConst);
 
 /* clang-format off */ 
-int          js_value_tag(JSValueConst v);
 void*        js_value_ptr(JSValueConst v);
 JSValueConst js_value_mkptr(int tag, void* ptr);
 JSValueConst js_value_mkobj(void*);
@@ -968,14 +965,12 @@ js_generator_constructor(JSContext* ctx) {
   return ret;
 }
 
-JSValue js_asyncgenerator_prototype(JSContext*);
 
 
 JSValue js_std_file(JSContext*, FILE* f);
 
 void js_cstring_dump_free(JSContext*, JSValue, DynBuf*);
 void js_stackframe_dump(JSContext*, JSValueConst, DynBuf*);
-void js_stack_dump(JSContext*, JSValueConst, DynBuf*);
 
 struct OffsetLength;
 union IndexRange;

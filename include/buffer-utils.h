@@ -61,10 +61,6 @@ size_t dbuf_encode(DynBuf*, int (*fn)(uint8_t*, int, unsigned), int);
 
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 
-static inline size_t
-dbuf_headroom(DynBuf* db) {
-  return db->allocated_size - db->size;
-}
 
 static inline void
 dbuf_advance(DynBuf* db, size_t pos) {
@@ -77,10 +73,6 @@ dbuf_advance(DynBuf* db, size_t pos) {
   db->size -= pos;
 }
 
-static inline size_t
-dbuf_count(DynBuf* db, int ch) {
-  return byte_count(db->buf, db->size, ch);
-}
 
 static inline void
 dbuf_0(DynBuf* db) {
@@ -114,20 +106,9 @@ typedef struct {
 int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 MemoryBlock block_mmap(const char*, BOOL);
-void block_munmap(MemoryBlock*);
 int block_from_file(MemoryBlock*, const char*, JSContext*);
-MemoryBlock block_file(const char*, JSContext*);
 
-static inline void
-block_zero(MemoryBlock* mb) {
-  mb->base = 0;
-  mb->size = 0;
-}
 
-static inline MemoryBlock
-block_new(const void* buf, size_t len) {
-  return MEMORY_BLOCK((void*)buf, len);
-}
 
 /* clang-format off */
 static inline void* block_data(MemoryBlock mb) { return mb.base; }
@@ -150,14 +131,6 @@ block_to_arraybuffer(MemoryBlock mb, JSContext* ctx) {
   return JS_NULL;
 }
 
-static inline MemoryBlock
-block_slice(MemoryBlock mb, int64_t start, int64_t end) {
-  int64_t n = (int64_t)mb.size;
-  start = RANGE_NUM(start, n);
-  end = RANGE_NUM(end, n);
-
-  return MEMORY_BLOCK(mb.base + start, end - start);
-}
 
 static inline MemoryBlock
 block_range(MemoryBlock mb, size_t offset, size_t length) {
@@ -177,16 +150,6 @@ block_grow(MemoryBlock* mb, size_t add_size, JSContext* ctx) {
   return ptr;
 }
 
-static inline int
-block_append(MemoryBlock* mb, const void* buf, size_t len, JSContext* ctx) {
-  uint8_t* ptr;
-
-  if(!(ptr = block_grow(mb, len, ctx)))
-    return -1;
-
-  memcpy(ptr, buf, len);
-  return 0;
-}
 
 typedef struct OffsetLength {
   size_t offset, length;
@@ -206,24 +169,10 @@ typedef struct OffsetLength {
 
 int offsetlength_from_argv(OffsetLength*, int64_t, int, JSValueConst[], JSContext*);
 OffsetLength offsetlength_char2byte(const OffsetLength src, const void* buf, size_t len);
-OffsetLength offsetlength_byte2char(const OffsetLength src, const void* buf, size_t len);
 JSValue offsetlength_typedarray(OffsetLength*, JSValueConst, JSContext*);
 
-static inline void
-offsetlength_zero(OffsetLength* ol) {
-  ol->offset = 0;
-  ol->length = SIZE_MAX;
-}
 
-static inline BOOL
-offsetlength_is_default(OffsetLength ol) {
-  return ol.offset == 0 && ol.length == SIZE_MAX;
-}
 
-static inline size_t
-offsetlength_offset(OffsetLength ol, size_t n) {
-  return MIN_NUM(ol.offset, n);
-}
 
 static inline void*
 offsetlength_begin(OffsetLength ol, const void* x) {
@@ -250,13 +199,6 @@ offsetlength_block(OffsetLength ol, MemoryBlock mb) {
   return block_range(mb, ol.offset, ol.length);
 }
 
-static inline JSValue
-offsetlength_toarray(OffsetLength ol, JSContext* ctx) {
-  JSValue ret = JS_NewArray(ctx);
-  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ol.offset));
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ol.length));
-  return ret;
-}
 
 typedef union IndexRange {
   int64_t arr[2];
@@ -281,26 +223,9 @@ typedef union IndexRange {
 
 int indexrange_from_argv(IndexRange*, int64_t, int, JSValueConst[], JSContext*);
 
-static inline void
-indexrange_zero(IndexRange* ir) {
-  ir->start = 0;
-  ir->end = INT64_MAX;
-}
 
-static inline IndexRange
-indexrange_new(int64_t s, int64_t e) {
-  return INDEX_RANGE(s, e);
-}
 
-static inline BOOL
-indexrange_is_null(IndexRange ir) {
-  return ir.start == 0 && ir.end == 0;
-}
 
-static inline BOOL
-indexrange_is_default(IndexRange ir) {
-  return ir.start == 0 && ir.end == INT64_MAX;
-}
 
 static inline IndexRange
 indexrange_from_offsetlength(OffsetLength ol) {
@@ -342,10 +267,6 @@ indexrange_to_offsetlength(IndexRange ir, size_t len) {
   return OFFSET_LENGTH(indexrange_head(ir, len), indexrange_size(ir, len));
 }
 
-static inline OffsetLength
-offsetlength_indexrange(IndexRange ir) {
-  return OFFSET_LENGTH(ir.start, ir.end == INT64_MAX ? SIZE_MAX : ir.end);
-}
 
 static inline MemoryBlock
 indexrange_to_block(IndexRange ir, const void* buf, size_t len) {
@@ -395,10 +316,6 @@ range_str(PointerRange pr) {
   return range_begin(pr);
 }
 
-static inline BOOL
-range_is_null(PointerRange pr) {
-  return pr.start == 0 && pr.end == 0;
-}
 
 static inline size_t
 range_size(PointerRange pr) {
@@ -420,10 +337,6 @@ range_from_block(MemoryBlock mb) {
   return RANGE(mb.base, mb.base + mb.size);
 }
 
-static inline PointerRange
-range_offset_length(PointerRange pr, OffsetLength ol) {
-  return RANGE(offsetlength_begin(ol, pr.start), offsetlength_end(ol, pr.start));
-}
 
 static inline MemoryBlock
 range_to_block(PointerRange pr) {
@@ -487,13 +400,10 @@ InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_input_string(JSContext* ctx, JSValueConst value);
 
 int inputbuffer_from_argv(InputBuffer*, int, JSValueConst[], JSContext*);
-BOOL inputbuffer_valid(const InputBuffer*);
 void inputbuffer_clone2(InputBuffer*, const InputBuffer*, JSContext*);
 InputBuffer inputbuffer_clone(const InputBuffer*, JSContext*);
 void inputbuffer_dump(const InputBuffer*, DynBuf*);
 void inputbuffer_free(InputBuffer*, JSContext*);
-const char* inputbuffer_currentline(InputBuffer*, size_t*);
-size_t inputbuffer_column(InputBuffer*, size_t*);
 JSValue inputbuffer_tostring_free(InputBuffer*, JSContext*);
 JSValue inputbuffer_toarraybuffer_free(InputBuffer*, JSContext*);
 InputBuffer inputbuffer_file(const char*, JSContext*);
@@ -528,10 +438,6 @@ inputbuffer_block(const InputBuffer* in) {
   return MEMORY_BLOCK((uint8_t*)inputbuffer_data(in), inputbuffer_length(in));
 }
 
-static inline MemoryBlock*
-inputbuffer_blockptr(InputBuffer* in) {
-  return &in->block;
-}
 
 const char* inputbuffer_currentline(InputBuffer*, size_t* len);
 size_t inputbuffer_column(InputBuffer*, size_t* len);
@@ -603,10 +509,6 @@ outputbuffer_begin(const OutputBuffer* out) {
   return outputbuffer_data(out);
 }
 
-static inline uint8_t*
-outputbuffer_end(const OutputBuffer* out) {
-  return outputbuffer_data(out) + outputbuffer_length(out);
-}
 
 static inline void*
 outputbuffer_pointer(const OutputBuffer* out) {
@@ -619,9 +521,7 @@ outputbuffer_avail(const OutputBuffer* out) {
 }
 
 int outputbuffer_reserve(OutputBuffer*, size_t, JSContext*);
-size_t outputbuffer_encode(OutputBuffer*, int (*fn)(uint8_t*, int, unsigned int), int);
 ssize_t outputbuffer_write(OutputBuffer*, const void*, size_t);
-size_t outputbuffer_advance(OutputBuffer*, size_t);
 
 typedef int Decoding(const uint8_t*, int, void*);
 typedef int Encoding(uint8_t*, int, unsigned);
@@ -639,10 +539,6 @@ int uint32_decode_le(const uint8_t*, int, void*);
 int uint32_decode_be(const uint8_t*, int, void*);
 int unicode_decode_utf8(const uint8_t*, int, void*);
 int unicode_encode_utf8(uint8_t*, int, unsigned int);
-int uint16_encode_le(uint8_t*, int, unsigned int);
-int uint16_encode_be(uint8_t*, int, unsigned int);
-int uint32_encode_le(uint8_t*, int, unsigned int);
-int uint32_encode_be(uint8_t*, int, unsigned int);
 
 /**
  * @}

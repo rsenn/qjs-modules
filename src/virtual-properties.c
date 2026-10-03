@@ -429,32 +429,6 @@ virtual_properties_method(VirtualProperties virt, int magic, JSContext* ctx) {
   return obj;
 }
 
-JSValue
-virtual_properties_wrap(VirtualProperties virt, JSContext* ctx) {
-  JSValue obj;
-
-  if(!(virt.get && virt.set))
-    return JS_ThrowInternalError(ctx, "virtual property needs at least get & set methods");
-
-  obj = JS_NewObjectProto(ctx, JS_NULL);
-
-  if(virt.has)
-    JS_DefinePropertyValueStr(ctx, obj, "has", virtual_properties_method(virt, METHOD_HAS, ctx), JS_PROP_CONFIGURABLE);
-
-  if(virt.get)
-    JS_DefinePropertyValueStr(ctx, obj, "get", virtual_properties_method(virt, METHOD_GET, ctx), JS_PROP_CONFIGURABLE);
-
-  if(virt.set)
-    JS_DefinePropertyValueStr(ctx, obj, "set", virtual_properties_method(virt, METHOD_SET, ctx), JS_PROP_CONFIGURABLE);
-
-  if(virt.delete)
-    JS_DefinePropertyValueStr(ctx, obj, "delete", virtual_properties_method(virt, METHOD_DELETE, ctx), JS_PROP_CONFIGURABLE);
-
-  if(virt.keys)
-    JS_DefinePropertyValueStr(ctx, obj, "keys", virtual_properties_method(virt, METHOD_KEYS, ctx), JS_PROP_CONFIGURABLE);
-
-  return obj;
-}
 
 void
 virtual_properties_copy(const VirtualProperties* src, VirtualProperties* dst, JSContext* ctx) {

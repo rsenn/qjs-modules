@@ -334,12 +334,6 @@ regexp_from_argv(RegExp* re, int argc, JSValueConst argv[], JSContext* ctx) {
   return ret;
 }
 
-RegExp
-regexp_from_string(char* str, int flags) {
-  RegExp re = {str, strlen(str), flags};
-
-  return re;
-}
 
 RegExp
 regexp_from_dbuf(DynBuf* dbuf, int flags) {
@@ -364,19 +358,6 @@ regexp_compile(RegExp re, JSContext* ctx) {
   return bytecode;
 }
 
-BOOL
-regexp_match(const uint8_t* bc, const void* cbuf, size_t clen, JSContext* ctx) {
-  uint8_t* capture[512];
-  BOOL ret = FALSE;
-
-  switch(lre_exec(capture, bc, cbuf, 0, clen, 0, ctx)) {
-    case 1: ret = TRUE; break;
-    case -1: fprintf(stderr, "regexp_match ERROR\n"); break;
-    case 0: break;
-  }
-
-  return ret;
-}
 
 JSValue
 regexp_to_value(RegExp re, JSContext* ctx) {
@@ -1965,10 +1946,6 @@ js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst arg) {
   return js_global_call(ctx, func_name, 1, &arg);
 }
 
-int
-js_value_tag(JSValueConst v) {
-  return JS_VALUE_GET_TAG(v);
-}
 
 void*
 js_value_ptr(JSValueConst v) {
@@ -3207,22 +3184,6 @@ js_generator_prototype(JSContext* ctx) {
   return ret;
 }
 
-JSValue
-js_asyncgenerator_prototype(JSContext* ctx) {
-  JSValue ret;
-
-  if(JS_VALUE_GET_TAG(asyncgenerator_prototype) != JS_TAG_OBJECT) {
-    const char* code = "(async function *gen() {})()";
-    JSValue gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
-    JS_FreeValue(ctx, gen);
-
-    ret = JS_GetPrototype(ctx, gen);
-  } else {
-    ret = JS_DupValue(ctx, asyncgenerator_prototype);
-  }
-
-  return ret;
-}
 
 
 void
@@ -3253,16 +3214,6 @@ js_stackframe_dump(JSContext* ctx, JSValueConst frame, DynBuf* db) {
   dbuf_putc(db, '\n');
 }
 
-void
-js_stack_dump(JSContext* ctx, JSValueConst stack, DynBuf* db) {
-  int64_t i, len = js_array_length(ctx, stack);
-
-  for(i = 0; i < len; i++) {
-    JSValue frame = JS_GetPropertyUint32(ctx, stack, i);
-    js_stackframe_dump(ctx, frame, db);
-    JS_FreeValue(ctx, frame);
-  }
-}
 
 
 

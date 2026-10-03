@@ -91,14 +91,6 @@ int json_getc(JsonParser*);
 int json_ungetc(JsonParser*, char);
 int json_parse(JsonParser*);
 
-static inline int
-json_skip(JsonParser* parser, size_t n) {
-  while(n-- > 0)
-    if(json_getc(parser) < 0)
-      return -1;
-
-  return 0;
-}
 
 /**
  * @}

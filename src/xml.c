@@ -459,10 +459,6 @@ xml_parser_set_tolerant(XMLParser* p, int tolerant) {
   p->tolerant = tolerant;
 }
 
-void
-xml_parser_set_self_closing_tags(XMLParser* p, const char* const* tags) {
-  p->self_closing_tags = tags ? tags : xml_default_self_closing_tags;
-}
 
 xml_event_t
 xml_parser_run(XMLParser* p) {

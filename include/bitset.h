@@ -17,8 +17,6 @@ typedef struct {
 bool bitset_resize(BitSet*, size_t);
 bool bitset_isset(BitSet*, int);
 bool bitset_assign(BitSet*, int, bool);
-bool bitset_toggle(BitSet*, int);
-void bitset_free(BitSet*);
 bool bitset_push(BitSet*, int, size_t);
 int bitset_pop(BitSet*, size_t);
 

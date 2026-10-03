@@ -612,25 +612,6 @@ case_finds(const void* haystack, const char* what) {
   return case_findb(haystack, strlen(haystack), what, strlen(what));
 }
 
-ssize_t
-write_file(const char* file, const void* buf, size_t len) {
-  FILE* f;
-  ssize_t ret = -1;
-
-  if((f = fopen(file, "w+")))
-    switch(fwrite(buf, len, 1, f)) {
-      case 1: {
-        ret = len;
-        break;
-      }
-    }
-
-  fflush(f);
-  ret = ftell(f);
-  fclose(f);
-
-  return ret;
-}
 
 
 size_t

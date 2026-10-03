@@ -100,22 +100,6 @@ lexer_states_skip(char* expr) {
   return re;
 }
 
-void
-lexer_states_dump(Lexer* lex, uint64_t mask, DynBuf* dbuf) {
-  int state = 0;
-  char** statep;
-  size_t n = dbuf->size;
-
-  vector_foreach_t(&lex->states, statep) {
-    if(mask & (1 << state)) {
-
-      if(dbuf->size > n)
-        dbuf_putc(dbuf, ',');
-      dbuf_putstr(dbuf, *statep);
-      state++;
-    }
-  }
-}
 
 char*
 lexer_rule_regex(LexerRule* rule) {
@@ -305,17 +289,6 @@ lexer_find_definition(Lexer* lex, const char* name, size_t namelen) {
   return 0;
 }
 
-BOOL
-lexer_compile_rules(Lexer* lex, JSContext* ctx) {
-  LexerRule* rule;
-
-  vector_foreach_t(&lex->rules, rule) {
-    if(!lexer_rule_compile(lex, rule, ctx))
-      return FALSE;
-  }
-
-  return TRUE;
-}
 
 int
 lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
@@ -458,21 +431,7 @@ lexer_lexeme(Lexer* lex, size_t* lenp) {
   return s;
 }
 
-int
-lexer_next(Lexer* lex, JSContext* ctx) {
-  int ret;
 
-  if((ret = lexer_peek(lex, 0, ctx)) >= 0)
-    lexer_skip(lex);
-
-  return ret;
-}
-
-void
-lexer_set_input(Lexer* lex, InputBuffer input, int32_t file_atom) {
-  lex->input = input;
-  lex->loc.file = file_atom;
-}
 
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
@@ -516,22 +475,7 @@ lexer_free(Lexer* lex, JSRuntime* rt) {
   }
 }
 
-void
-lexer_dump(Lexer* lex, DynBuf* dbuf) {
-  dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  state: %s", lex->mode, lexer_state_name(lex, lex->state));
-  dbuf_putstr(dbuf, ",\n  input: ");
-  inputbuffer_dump(&lex->input, dbuf);
-  dbuf_putstr(dbuf, ",\n  location: ");
-  location_print(&lex->loc, dbuf, 0);
-  dbuf_putstr(dbuf, "\n}");
-}
 
-Location
-lexer_get_location(Lexer* lex, JSContext* ctx) {
-  Location loc = {1};
-  location_copy(&loc, &lex->loc, ctx);
-  return loc;
-}
 
 Token*
 lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {

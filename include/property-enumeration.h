@@ -34,10 +34,6 @@ typedef struct {
 typedef JSValue PropEnumPathValueFunc(const Vector*, JSContext*);
 
 static inline int
-compare_jspropertyenum(const JSPropertyEnum* a, JSPropertyEnum* b) {
-  return a->atom < b->atom ? -1 : a->atom > b->atom ? 1 : 0;
-}
-static inline int
 compare_jsatom(const JSAtom* a, JSAtom* b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -94,10 +90,6 @@ property_enumeration_keystrlen(const PropertyEnumeration* it, size_t* len, JSCon
   return js_atom_to_cstringlen(ctx, len, it->tab_atom[it->idx]);
 }
 
-static inline void
-property_enumeration_sort(PropertyEnumeration* it, JSContext* ctx) {
-  quicksort_r(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
-}
 
 static inline int
 property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
@@ -118,10 +110,6 @@ property_enumeration_next(PropertyEnumeration* it) {
   return property_enumeration_setpos(it, it->idx + 1) ? it : 0;
 }
 
-static inline int32_t
-property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
-  return it - (const PropertyEnumeration*)vector_begin(vec);
-}
 
 static inline PropertyEnumeration*
 property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flags) {
@@ -148,29 +136,13 @@ JSValue property_recursion_path(const Vector*, JSContext* ctx);
 void property_recursion_pathstr(const Vector*, JSContext* ctx, DynBuf* buf);
 JSValue property_recursion_pathstr_value(const Vector*, JSContext* ctx);
 void property_recursion_dumpall(Vector*, JSContext* ctx, DynBuf* out);
-int property_recursion_insideof(Vector*, JSValue val);
 void property_recursion_free(Vector*, JSRuntime* rt);
 BOOL property_recursion_circular(Vector*, JSValue object);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
 PropertyEnumeration* property_recursion_enter(Vector*, JSContext*, int32_t, int);
 int property_recursion_skip(Vector*, JSContext*);
-PropertyEnumeration* property_recursion_leave(Vector*, JSContext*);
 
-static inline JSValue
-property_recursion_root(const Vector* vec) {
-  if(vector_empty(vec))
-    return JS_EXCEPTION;
 
-  return vector_begin_t(vec, PropertyEnumeration)->obj;
-}
-
-static inline JSValue
-property_recursion_object(const Vector* vec) {
-  if(vector_empty(vec))
-    return JS_EXCEPTION;
-
-  return (vector_end_t(vec, PropertyEnumeration) - 1)->obj;
-}
 
 static inline JSValue
 property_recursion_value(const Vector* vec, JSContext* ctx) {
@@ -185,10 +157,6 @@ property_recursion_depth(const Vector* vec) {
   return vector_size(vec, sizeof(PropertyEnumeration));
 }
 
-static inline PropertyEnumeration*
-property_recursion_bottom(const Vector* vec) {
-  return vector_empty(vec) ? 0 : vector_begin_t(vec, PropertyEnumeration);
-}
 static inline PropertyEnumeration*
 property_recursion_top(const Vector* vec) {
   return vector_empty(vec) ? 0 : vector_end_t(vec, PropertyEnumeration) - 1;

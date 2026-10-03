@@ -469,10 +469,6 @@ child_process_kill(ChildProcess* cp, int signum) {
 #endif
 }
 
-void
-child_process_free(ChildProcess* cp, JSContext* ctx) {
-  child_process_free_rt(cp, JS_GetRuntime(ctx));
-}
 
 void
 child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {

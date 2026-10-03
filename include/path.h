@@ -64,9 +64,7 @@ typedef struct {
 } SizePair;
 
 BOOL path_isdot1(const char*);
-BOOL path_isdot2(const char*, size_t);
 BOOL path_isdotdot1(const char*);
-BOOL path_isdotdot2(const char*, size_t);
 char* path_dup3(const char* path, size_t n, DynBuf* db);
 char* path_dup1(const char* path);
 char* path_dup2(const char* path, size_t n);
@@ -82,19 +80,13 @@ SizePair path_common4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_components3(const char* p, size_t len, uint32_t n);
 const char* path_at4(const char* p, size_t plen, size_t* len_ptr, int i);
 const char* path_at3(const char* p, size_t* len_ptr, int i);
-size_t path_offset4(const char* p, size_t len, size_t* len_ptr, int i);
 size_t path_offset3(const char* p, size_t* len_ptr, int i);
-size_t path_offset2(const char* p, int i);
-size_t path_size2(const char* p, int i);
-const char* path_at2(const char* p, int i);
 size_t path_length1(const char* p);
 size_t path_length2(const char* p, size_t slen);
 int path_slice4(const char* p, int start, int end, DynBuf* db);
-char* path_slice3(const char* p, int start, int end);
 int path_exists1(const char* p);
 int path_exists2(const char* p, size_t len);
 int path_isin4(const char* p, size_t len, const char* dir, size_t dirlen);
-int path_isin2(const char* p, const char* dir);
 const char* path_extname1(const char* p);
 size_t path_extpos1(const char* p);
 size_t path_extlen1(const char* p);
@@ -106,40 +98,27 @@ char* path_gethome1(int uid);
 char* path_gethome2(const char* user, size_t userlen);
 int path_stat2(const char* p, size_t plen, struct stat* st);
 int path_isdir1(const char* p);
-int path_isdir2(const char* p, size_t plen);
 int path_isfile1(const char* p);
-int path_isfile2(const char* p, size_t plen);
 int path_ischardev1(const char* p);
-int path_ischardev2(const char* p, size_t plen);
 int path_isblockdev1(const char* p);
-int path_isblockdev2(const char* p, size_t plen);
 int path_isfifo1(const char* p);
-int path_isfifo2(const char* p, size_t plen);
 int path_issocket1(const char* p);
-int path_issocket2(const char* p, size_t plen);
 int path_issymlink1(const char* p);
-int path_issymlink2(const char* p, size_t plen);
 int path_resolve3(const char* path, DynBuf* db, int symbolic);
 char* path_resolve2(const char* path, int symbolic);
 int path_realpath3(const char*, size_t len, DynBuf* buf);
 char* path_realpath2(const char*, size_t len);
-char* path_realpath1(const char*);
 int path_relative3(const char* path, const char* relative_to, DynBuf* out);
 char* path_relative1(const char* path);
 char* path_relative2(const char* path, const char* relative_to);
 int path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
-char* path_relative4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_root2(const char* x, size_t n);
 size_t path_dirlen2(const char*, size_t);
 size_t path_dirlen1(const char*);
 char* path_dirname1(const char*);
-char* path_dirname2(const char*, size_t);
 size_t path_basename1(const char*);
-size_t path_basename2(const char*, size_t);
 size_t path_basename3(const char*, size_t*, size_t);
 int path_readlink2(const char* path, DynBuf* dir);
-char* path_readlink1(const char* path);
-int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
 char* path_search(const char** path_ptr, const char* name, DynBuf* db);
 int path_diff4(const char* a, size_t la, const char* b, size_t lb);
 
@@ -148,10 +127,6 @@ path_equal4(const char* a, size_t la, const char* b, size_t lb) {
   return 0 == path_diff4(a, la, b, lb);
 }
 
-static inline int
-path_equal2(const char* a, const char* b) {
-  return path_equal4(a, strlen(a), b, strlen(b));
-}
 
 static inline int
 path_isabsolute2(const char* x, size_t n) {
@@ -313,18 +288,6 @@ path_getsep1(const char* path) {
   return '\0';
 }
 
-static inline int
-path_getsep2(const char* path, size_t len) {
-  const char* q = path + len;
-
-  while(path < q) {
-    if(path_issep(*path))
-      return *path;
-    ++path;
-  }
-
-  return '\0';
-}
 
 static inline const char*
 path_trimdotslash1(const char* s) {
