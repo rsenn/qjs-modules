@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <sys/stat.h>
-#include "glob.h"
+#include "openbsd-glob.h"
 
 int
 main() {

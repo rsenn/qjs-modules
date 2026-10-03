@@ -87,7 +87,7 @@ int performance_counter_gettime(int, struct timespec*);
 #else
 #define glob openbsd_glob
 #define globfree openbsd_globfree
-#include "glob.h"
+#include "openbsd-glob.h"
 #endif
 
 #if HAVE_WORDEXP
@@ -1203,7 +1203,7 @@ static int
 js_misc_glob_errfunc(const char* epath, int eerrno) {
   JSContext* ctx;
 
-  if((ctx = js_misc_glob_errfunc_ctx)) {
+  if((ctx = js_misc_glob_errfunc_ctx) && JS_IsFunction(ctx, js_misc_glob_errfunc_fn)) {
     JSValueConst argv[2] = {JS_NewString(ctx, epath), JS_NewInt32(ctx, eerrno)};
 
     JS_FreeValue(ctx, JS_Call(ctx, js_misc_glob_errfunc_fn, JS_NULL, 2, argv));
@@ -1241,7 +1241,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   }
 
   js_misc_glob_errfunc_ctx = ctx;
-  js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
+  js_misc_glob_errfunc_fn = argc >= 3 ? JS_DupValue(ctx, argv[2]) : JS_UNDEFINED;
 
   if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
     for(int i = 0; i < g.gl_pathc; i++)

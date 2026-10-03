@@ -1,16 +1,15 @@
 /**   * Contains the declarations for the glob() API.
  */
 
-#ifndef GLOB_H
-#define GLOB_H
+#ifndef OPENBSD_GLOB_H
+#define OPENBSD_GLOB_H
 
 /** This API provides facilities for enumerating the file-system contents
 
 */
 
-#ifdef HAVE_SYS_STAT_H
+#include <sys/types.h>
 #include <sys/stat.h>
-#endif
 
 /*
  * Constants and definitions
@@ -120,4 +119,4 @@ struct glob_state {
 
 int my_glob(const char* pattern, struct glob_state* g);
 
-#endif /* GLOB_H */
+#endif /* OPENBSD_GLOB_H */

@@ -84,7 +84,7 @@
 #define S_ISLNK(m) (0)
 #endif
 
-#include "glob.h"
+#include "openbsd-glob.h"
 #include "path.h"
 #include "char-utils.h"
 
@@ -567,7 +567,7 @@ glob3(char_type* pathbuf, char_type* pathend, char_type* pattern, char_type* res
 
   /*
    * The readdirfunc declaration can't be prototyped, because it is
-   * assigned, below, to two functions which are prototyped in glob.h
+   * assigned, below, to two functions which are prototyped in openbsd-glob.h
    * and dirent.h as taking pointers to differently typed opaque
    * structures.
    */
@@ -817,20 +817,6 @@ g_strcpy(char_type* str, const char* x) {
 }
 
 #ifdef notdef
-static char_type*
-g_strcat(char_type* dst, const char_type* src) {
-  char_type* sdst = dst;
-
-  while(*dst++)
-    continue;
-
-  --dst;
-
-  while((*dst++ = *src++) != '\0')
-    continue;
-
-  return sdst;
-}
 #endif
 
 static char*
@@ -843,16 +829,6 @@ g_Ctoc(const char_type* str, char* buf) {
   return dc;
 }
 
-static char*
-g_Ctos(const char_type* str) {
-  static char buf[1024];
-  char* dc;
-
-  for(dc = buf; (*dc++ = *str++) != '\0';)
-    continue;
-
-  return buf;
-}
 
 #ifdef DEBUG
 static void

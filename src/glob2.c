@@ -15,7 +15,7 @@
 #define lstat stat
 #endif
 
-#include "glob.h"
+#include "openbsd-glob.h"
 #include "path.h"
 #include "char-utils.h"
 
@@ -51,33 +51,6 @@ static int glob_tilde(char*, struct glob_state*);
 static int glob_brace1(PointerRange, struct glob_state*);
 static int glob_brace2(PointerRange, struct glob_state*);
 
-int
-my_glob(const char* pattern, struct glob_state* g) {
-  g->pat = range_from_str(pattern);
-  g->buf = range_null();
-
-  char *x = range_begin(g->pat), *y = range_end(g->pat);
-
-  if(x < y && *x == '~') {
-    int n;
-
-    if((n = glob_tilde(x, g)))
-      x += n;
-  }
-
-  size_t s;
-
-  if((s = path_separator2(x, y - x))) {
-    if(range_write(&g->buf, x, s))
-      return -1;
-    x += s;
-  }
-
-  if(g->flags & GLOB_BRACE)
-    return glob_brace1((PointerRange){x, y}, g);
-  else
-    return glob_components((PointerRange){x, y}, g);
-}
 
 /**
  * @brief Brace globbing
