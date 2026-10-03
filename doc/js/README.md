@@ -62,8 +62,6 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 
 ### Tooling
 - [repl](repl.md) — REPL implementation
-- [testharness](testharness.md) — W3C test harness
-- [testharnessreport](testharnessreport.md) — Test harness reporting
 
 ### Utilities
 - describe-class (`lib/describe-class.js`) — Class description utilities (undocumented)

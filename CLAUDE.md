@@ -243,7 +243,7 @@ doc/
 └── js/                           # JavaScript modules (46)
     ├── README.md
     ├── Polyfills: abort.md, asyncIterator.md, events.md
-    │              iterator.md, testharness.md, testharnessreport.md
+    │              iterator.md
     │              parsel.md, describe-class.md
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md
     │             streams.md, io.md, tty.md, repl.md, require.md

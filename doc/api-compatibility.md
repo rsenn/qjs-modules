@@ -21,7 +21,7 @@ This document catalogs every API in qjs-modules and its relationship to establis
 
 Complete: all C native module exports (quickjs-*.c) and JS module exports (lib/*.js) are classified below with spec/doc URLs.
 
-For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-of-tree at `~/Projects/wpt` (https://github.com/web-platform-tests/wpt, shallow clone) - relevant for cross-checking `stream`, `blob`, `url`, `abort`, `dom`, `textcode`, and the `testharness`/`testharnessreport` ports against upstream.
+For live spec-conformance testing, the WHATWG/W3C test suite is checked out out-of-tree at `~/Projects/wpt` (https://github.com/web-platform-tests/wpt, shallow clone) - relevant for cross-checking `stream`, `blob`, `url`, `abort`, `dom`, and `textcode` against upstream.
 
 ---
 
@@ -1001,24 +1001,6 @@ silently hashing with an unavailable algorithm.
 **Exports:** cursor movement, screen/line editing, `Screen` backbuffer class, color, mouse/device/tabs, low-level escape-sequence builders - see doc/js/terminal.md for full list
 
 **Notes:** Implements de facto ANSI/VT100-family terminal control sequences; not a WHATWG/Node/Bun API, closest analogue is Node's `readline`/`tty` escape helpers or the `ansi-escapes` npm package.
-
-### lib/testharness.js
-**Module:** `testharness`  
-**Classification:** Standard (W3C/WHATWG)  
-**Spec:** https://web-platform-tests.org/writing-tests/testharness-api.html  
-**Exports:** `test`/`async_test`/`promise_test`, `assert_*` family, `Test`/`Tests`/`TestsStatus`, `WindowTestEnvironment`/`WorkerTestEnvironment`/etc., `EventWatcher`, `format_value` - see doc/js/testharness.md for full grouped list
-
-**Notes:** A direct port of the WPT `testharness.js` framework, matching `~/Projects/wpt/resources/testharness.js` upstream (see cloned WPT checkout referenced at the top of this file) — worth diffing periodically to check for drift.
-
-### lib/testharnessreport.js
-**Module:** `testharnessreport`  
-**Classification:** Standard (WHATWG/W3C test infra)  
-**Spec:** https://github.com/web-platform-tests/wpt/blob/master/resources/testharnessreport.js  
-**Exports:**
-- `dump_test_results(tests, status)` - Vendor integration hook, reports results as JSON (browser) or console/global (non-browser)
-- Re-exports everything from `testharness.js`
-
-**Notes:** Near-verbatim port of WPT's vendor-integration reporter, adapted to also work when there's no `document`/`window` (dumps results via `console.log`/`globalThis` instead).
 
 ### lib/timers.js
 **Module:** `timers`  

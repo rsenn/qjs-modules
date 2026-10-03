@@ -170,8 +170,6 @@ const NAV = [
     pages: [
       ['doc/js/db.md', 'docs/js/db.html', 'db'],
       ['doc/js/repl.md', 'docs/js/repl.html', 'repl'],
-      ['doc/js/testharness.md', 'docs/js/testharness.html', 'testharness'],
-      ['doc/js/testharnessreport.md', 'docs/js/testharnessreport.html', 'testharnessreport'],
     ],
   },
 ];

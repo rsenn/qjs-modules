@@ -117,8 +117,6 @@ Based on the inventory in /tmp/js-inventory.md:
 - **socklen_t** - Socket length type
 - **stack** - Stack utilities
 - **terminal** - Terminal utilities
-- **testharness** - Test harness (W3C standard)
-- **testharnessreport** - Test harness reporting
 - **tree_walker** - Tree walker
 - **tty** - TTY utilities
 - **vfs** - Virtual filesystem
@@ -128,7 +126,6 @@ Based on the inventory in /tmp/js-inventory.md:
 1. **Deprecate custom APIs** that have standard equivalents:
    - abort.js → use standard AbortController (if available in QuickJS)
    - perf_hooks.js → align with W3C Performance API
-   - testharness.js → already W3C standard, verify compliance
 
 2. **Fix incompatible APIs** to match standards:
    - Verify stream module matches WHATWG spec (BYOB checks)

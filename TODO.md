@@ -224,9 +224,9 @@ blocking-semantics/error-handling issues above, since raw sockets are exactly wh
 silent wrong-mode bug bites hardest (dropped/malformed packets, not just a slow read).
 
 WHATWG/Deno/Bun API gaps in `lib/`:
-- `fetch` — missing; only appears in vendored test-infra comments (`lib/testharness.js`).
+- `fetch` — missing (out of scope here, see `../qjs-lws/`).
 - `structuredClone` — only feature-detected (`lib/stream.js:533`), never implemented.
-- `Worker` — missing; only referenced by vendored test-infra (`lib/testharness.js:254`).
+- `Worker` — missing.
 - `lib/readline.js` and `lib/buffer.js` were deliberately removed in commit `958cffc9` (they
   were 9/12-line stubs); their docs are gone too. A real `node:readline`/`Buffer` would be new
   work, see the `node:readline` item below. `lib/perf_hooks.js` (13 lines:

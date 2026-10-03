@@ -1,400 +1,417 @@
 import { ReadableStream } from 'stream';
-import { assert_equals, assert_throws_js, assert_true, promise_test, test } from '../../lib/testharnessreport.js';
 import { Blob } from 'blob';
 import { TextEncoder } from 'textcode';
+import { assert, assertStrictEquals, tests } from '../../lib/tinytest.js';
 
-test(() => {
-  const blob = new Blob();
+const equals = (actual, expected) => assertStrictEquals(expected, actual);
+const isTrue = value => assert(value === true, `expected true, got ${value}`);
 
-  assert_true(blob instanceof Blob);
-}, 'Constructor creates a new Blob when called without arguments');
-
-test(() => {
-  const blob = new Blob();
-
-  assert_equals(blob.size, 0);
-}, 'Empty Blob returned by Blob constructor has the size of 0');
-
-test(() => {
-  const blob = new Blob();
-
+function throwsJs(Ctor, fn) {
   try {
-    // @ts-expect-error expected for tests
-    blob.size = 42;
-  } catch {
-    /* noop */
+    fn();
+  } catch(e) {
+    if(e instanceof Ctor) return;
+
+    throw new Error(`expected ${Ctor.name}, got ${e?.constructor?.name}: ${e?.message}`);
   }
 
-  assert_equals(blob.size, 0);
-}, 'The size property is read-only');
+  throw new Error(`expected ${Ctor.name}, nothing thrown`);
+}
 
-test(() => {
-  const blob = new Blob();
+tests({
+  'Constructor creates a new Blob when called without arguments'() {
+    const blob = new Blob();
 
-  try {
-    // @ts-expect-error expected for tests
-    // biome-ignore lint/performance/noDelete: expected for tests
-    delete blob.size;
-  } catch {
-    /* noop */
-  }
+    isTrue(blob instanceof Blob);
+  },
 
-  assert_true('size' in blob);
-}, 'The size property cannot be removed');
+  'Empty Blob returned by Blob constructor has the size of 0'() {
+    const blob = new Blob();
 
-test(() => {
-  const blob = new Blob();
+    equals(blob.size, 0);
+  },
 
-  assert_equals(blob.type, '');
-}, 'Blob type is an empty string by default');
+  'The size property is read-only'() {
+    const blob = new Blob();
 
-test(() => {
-  const expected = 'text/plain';
-  const blob = new Blob([], { type: expected });
+    try {
+      // @ts-expect-error expected for tests
+      blob.size = 42;
+    } catch {
+      /* noop */
+    }
 
-  try {
-    // @ts-expect-error expected for tests
-    blob.type = 'application/json';
-  } catch {
-    /* noop */
-  }
+    equals(blob.size, 0);
+  },
 
-  assert_equals(blob.type, expected);
-}, 'The type property is read-only');
+  'The size property cannot be removed'() {
+    const blob = new Blob();
 
-test(() => {
-  const blob = new Blob();
+    try {
+      // @ts-expect-error expected for tests
+      // biome-ignore lint/performance/noDelete: expected for tests
+      delete blob.size;
+    } catch {
+      /* noop */
+    }
 
-  try {
-    // @ts-expect-error expected for tests
-    // biome-ignore lint/performance/noDelete: expected for tests
-    delete blob.type;
-  } catch {
-    /* noop */
-  }
+    isTrue('size' in blob);
+  },
 
-  assert_true('type' in blob);
-}, 'The type property cannot be removed');
+  'Blob type is an empty string by default'() {
+    const blob = new Blob();
 
-test(() => {
-  const rounds = [null, true, false, 0, 1, 1.5, 'FAIL'];
+    equals(blob.type, '');
+  },
 
-  rounds.forEach(round => {
-    // @ts-expect-error
-    const trap = () => new Blob(round);
+  'The type property is read-only'() {
+    const expected = 'text/plain';
+    const blob = new Blob([], { type: expected });
 
-    assert_throws_js(TypeError, trap);
+    try {
+      // @ts-expect-error expected for tests
+      blob.type = 'application/json';
+    } catch {
+      /* noop */
+    }
 
-    /*t.throws(trap, {
-      instanceOf: TypeError,
-      message:
-        "Failed to construct 'Blob': " +
-        "The provided value cannot be converted to a sequence."
-    })*/
-  });
-}, 'Constructor throws an error when first argument is not an object');
+    equals(blob.type, expected);
+  },
 
-test(() => {
-  // eslint-disable-next-line prefer-regex-literals
-  const rounds = [new Date(), /(?:)/, {}, { 0: 'FAIL', length: 1 }];
+  'The type property cannot be removed'() {
+    const blob = new Blob();
 
-  rounds.forEach(round => {
-    // @ts-expect-error
-    const trap = () => new Blob(round);
+    try {
+      // @ts-expect-error expected for tests
+      // biome-ignore lint/performance/noDelete: expected for tests
+      delete blob.type;
+    } catch {
+      /* noop */
+    }
 
-    assert_throws_js(TypeError, trap);
+    isTrue('type' in blob);
+  },
 
-    /*t.throws(trap, {
-      instanceOf: TypeError,
-      message:
-        "Failed to construct 'Blob': " +
-        "The object must have a callable @@iterator property."
-    })*/
-  });
-}, 'Constructor throws an error when first argument is not an iterable object');
+  'Constructor throws an error when first argument is not an object'() {
+    const rounds = [null, true, false, 0, 1, 1.5, 'FAIL'];
 
-promise_test(async () => {
-  const source = ['one', 'two', 'three'];
-  const blob = new Blob(source);
+    rounds.forEach(round => {
+      // @ts-expect-error
+      const trap = () => new Blob(round);
 
-  assert_equals(await blob.text(), source.join(''));
-}, 'Creates a new Blob from an array of strings');
+      throwsJs(TypeError, trap);
 
-promise_test(async () => {
-  const encoder = new TextEncoder();
-  const source = ['one', 'two', 'three'];
+      /*t.throws(trap, {
+        instanceOf: TypeError,
+        message:
+          "Failed to construct 'Blob': " +
+          "The provided value cannot be converted to a sequence."
+      })*/
+    });
+  },
 
-  const blob = new Blob(source.map(part => encoder.encode(part)));
+  'Constructor throws an error when first argument is not an iterable object'() {
+    // eslint-disable-next-line prefer-regex-literals
+    const rounds = [new Date(), /(?:)/, {}, { 0: 'FAIL', length: 1 }];
 
-  assert_equals(await blob.text(), source.join(''));
-}, 'Creates a new Blob from an array of Uint8Array');
+    rounds.forEach(round => {
+      // @ts-expect-error
+      const trap = () => new Blob(round);
 
-promise_test(async () => {
-  const encoder = new TextEncoder();
-  const source = ['one', 'two', 'three'];
+      throwsJs(TypeError, trap);
 
-  const blob = new Blob(source.map(part => encoder.encode(part).buffer));
+      /*t.throws(trap, {
+        instanceOf: TypeError,
+        message:
+          "Failed to construct 'Blob': " +
+          "The object must have a callable @@iterator property."
+      })*/
+    });
+  },
 
-  assert_equals(await blob.text(), source.join(''));
-}, 'Creates a new Blob from an array of ArrayBuffer');
+  async 'Creates a new Blob from an array of strings'() {
+    const source = ['one', 'two', 'three'];
+    const blob = new Blob(source);
 
-promise_test(async () => {
-  const source = ['one', 'two', 'three'];
+    equals(await blob.text(), source.join(''));
+  },
 
-  const blob = new Blob(source.map(part => new Blob([part])));
+  async 'Creates a new Blob from an array of Uint8Array'() {
+    const encoder = new TextEncoder();
+    const source = ['one', 'two', 'three'];
 
-  assert_equals(await blob.text(), source.join(''));
-}, 'Creates a new Blob from an array of Blob');
+    const blob = new Blob(source.map(part => encoder.encode(part)));
 
-promise_test(async () => {
-  const expected = 'abc';
+    equals(await blob.text(), source.join(''));
+  },
 
-  // eslint-disable-next-line no-new-wrappers
-  const blob = new Blob(new String(expected));
+  async 'Creates a new Blob from an array of ArrayBuffer'() {
+    const encoder = new TextEncoder();
+    const source = ['one', 'two', 'three'];
 
-  assert_equals(await blob.text(), expected);
-}, 'Accepts a String object as a sequence');
+    const blob = new Blob(source.map(part => encoder.encode(part).buffer));
 
-promise_test(async () => {
-  const expected = [1, 2, 3];
-  const blob = new Blob(new Uint8Array(expected));
+    equals(await blob.text(), source.join(''));
+  },
 
-  assert_equals(await blob.text(), expected.join(''));
-}, 'Accepts Uint8Array as a sequence');
+  async 'Creates a new Blob from an array of Blob'() {
+    const source = ['one', 'two', 'three'];
 
-promise_test(async () => {
-  const blob = new Blob({ [Symbol.iterator]: Array.prototype[Symbol.iterator] });
+    const blob = new Blob(source.map(part => new Blob([part])));
 
-  assert_equals(blob.size, 0);
-  assert_equals(await blob.text(), '');
-}, 'Accepts iterable object as a sequence');
+    equals(await blob.text(), source.join(''));
+  },
 
-promise_test(async () => {
-  const source = ['one', 'two', 'three'];
-  const expected = source.join('');
-
-  const blob = new Blob({
-    *[Symbol.iterator]() {
-      yield* source;
-    },
-  });
-
-  assert_equals(blob.size, new TextEncoder().encode(expected).byteLength);
-  assert_equals(await blob.text(), expected);
-}, 'Constructor reads blobParts from iterable object');
-
-test(() => {
-  const source = ['one', 'two', 'three'];
-  const expected = new TextEncoder().encode(source.join('')).byteLength;
-
-  const blob = new Blob(source);
-
-  assert_equals(blob.size, expected);
-}, 'Blob has the size measured from the blobParts');
-
-test(() => {
-  const expected = 'text/markdown';
-
-  const blob = new Blob(['Some *Markdown* content'], { type: expected });
-
-  assert_equals(blob.type, expected);
-}, 'Accepts type for Blob as an option in the second argument');
-
-promise_test(async () => {
-  const source = [
-    null,
-    undefined,
-    true,
-    false,
-    0,
-    1,
+  async 'Accepts a String object as a sequence'() {
+    const expected = 'abc';
 
     // eslint-disable-next-line no-new-wrappers
-    new String('string object'),
+    const blob = new Blob(new String(expected));
 
-    [],
-    { 0: 'FAIL', length: 1 },
-    {
-      toString() {
-        return 'stringA';
+    equals(await blob.text(), expected);
+  },
+
+  async 'Accepts Uint8Array as a sequence'() {
+    const expected = [1, 2, 3];
+    const blob = new Blob(new Uint8Array(expected));
+
+    equals(await blob.text(), expected.join(''));
+  },
+
+  async 'Accepts iterable object as a sequence'() {
+    const blob = new Blob({ [Symbol.iterator]: Array.prototype[Symbol.iterator] });
+
+    equals(blob.size, 0);
+    equals(await blob.text(), '');
+  },
+
+  async 'Constructor reads blobParts from iterable object'() {
+    const source = ['one', 'two', 'three'];
+    const expected = source.join('');
+
+    const blob = new Blob({
+      *[Symbol.iterator]() {
+        yield* source;
       },
-    },
-    {
-      toString: undefined,
-      valueOf() {
-        return 'stringB';
+    });
+
+    equals(blob.size, new TextEncoder().encode(expected).byteLength);
+    equals(await blob.text(), expected);
+  },
+
+  'Blob has the size measured from the blobParts'() {
+    const source = ['one', 'two', 'three'];
+    const expected = new TextEncoder().encode(source.join('')).byteLength;
+
+    const blob = new Blob(source);
+
+    equals(blob.size, expected);
+  },
+
+  'Accepts type for Blob as an option in the second argument'() {
+    const expected = 'text/markdown';
+
+    const blob = new Blob(['Some *Markdown* content'], { type: expected });
+
+    equals(blob.type, expected);
+  },
+
+  async 'Casts elements of the blobPart array to a string'() {
+    const source = [
+      null,
+      undefined,
+      true,
+      false,
+      0,
+      1,
+
+      // eslint-disable-next-line no-new-wrappers
+      new String('string object'),
+
+      [],
+      { 0: 'FAIL', length: 1 },
+      {
+        toString() {
+          return 'stringA';
+        },
       },
-    },
-  ];
+      {
+        toString: undefined,
+        valueOf() {
+          return 'stringB';
+        },
+      },
+    ];
 
-  const expected = source.map(element => String(element)).join('');
+    const expected = source.map(element => String(element)).join('');
 
-  const blob = new Blob(source);
+    const blob = new Blob(source);
 
-  assert_equals(await blob.text(), expected);
-}, 'Casts elements of the blobPart array to a string');
+    equals(await blob.text(), expected);
+  },
 
-test(() => {
-  const blob = new Blob([], undefined);
+  'undefined value has no affect on property bag argument'() {
+    const blob = new Blob([], undefined);
 
-  assert_equals(blob.type, '');
-}, 'undefined value has no affect on property bag argument');
+    equals(blob.type, '');
+  },
 
-test(() => {
-  // @ts-expect-error Ignored, because that is what we are testing for
-  const blob = new Blob([], null);
+  'null value has no affect on property bag argument'() {
+    // @ts-expect-error Ignored, because that is what we are testing for
+    const blob = new Blob([], null);
 
-  assert_equals(blob.type, '');
-}, 'null value has no affect on property bag argument');
+    equals(blob.type, '');
+  },
 
-test(() => {
-  const blob = new Blob([], { type: '\u001Ftext/plain' });
+  'Invalid type in property bag will result in an empty string'() {
+    const blob = new Blob([], { type: '\u001Ftext/plain' });
 
-  assert_equals(blob.type, '');
-}, 'Invalid type in property bag will result in an empty string');
+    equals(blob.type, '');
+  },
 
-test(() => {
-  const rounds = [123, 123.4, true, false, 'FAIL'];
+  'Throws an error if invalid property bag passed'() {
+    const rounds = [123, 123.4, true, false, 'FAIL'];
 
-  rounds.forEach(round => {
-    // @ts-expect-error
-    const trap = () => new Blob([], round);
+    rounds.forEach(round => {
+      // @ts-expect-error
+      const trap = () => new Blob([], round);
 
-    assert_throws_js(TypeError, trap);
+      throwsJs(TypeError, trap);
 
-    /*t.throws(trap, {
-      instanceOf: TypeError,
-      message: "Failed to construct 'Blob': " + 'parameter 2 cannot convert to dictionary.',
-    });*/
-  });
-}, 'Throws an error if invalid property bag passed');
+      /*t.throws(trap, {
+        instanceOf: TypeError,
+        message: "Failed to construct 'Blob': " + 'parameter 2 cannot convert to dictionary.',
+      });*/
+    });
+  },
 
-promise_test(async () => {
-  const blob = new Blob(['a', 'b', 'c']);
-  const sliced = blob.slice();
+  async '.slice() a new blob when called without arguments'() {
+    const blob = new Blob(['a', 'b', 'c']);
+    const sliced = blob.slice();
 
-  assert_equals(sliced.size, blob.size);
-  assert_equals(await sliced.text(), await blob.text());
-}, '.slice() a new blob when called without arguments');
+    equals(sliced.size, blob.size);
+    equals(await sliced.text(), await blob.text());
+  },
 
-promise_test(async () => {
-  const blob = new Blob(['a', 'b', 'c']);
-  const sliced = blob.slice(0, 0);
+  async '.slice() an empty blob with the start and the end set to 0'() {
+    const blob = new Blob(['a', 'b', 'c']);
+    const sliced = blob.slice(0, 0);
 
-  assert_equals(sliced.size, 0);
-  assert_equals(await sliced.text(), '');
-}, '.slice() an empty blob with the start and the end set to 0');
+    equals(sliced.size, 0);
+    equals(await sliced.text(), '');
+  },
 
-promise_test(async () => {
-  const text = 'The MIT License';
-  const blob = new Blob([text]).slice(0, 3);
+  async '.slice() slices the Blob within given range'() {
+    const text = 'The MIT License';
+    const blob = new Blob([text]).slice(0, 3);
 
-  assert_equals(await blob.text(), 'The');
-}, '.slice() slices the Blob within given range');
+    equals(await blob.text(), 'The');
+  },
 
-promise_test(async () => {
-  const text = 'The MIT License';
-  const blob = new Blob([text]).slice(4, 15);
+  async '.slice() slices the Blob from arbitary start'() {
+    const text = 'The MIT License';
+    const blob = new Blob([text]).slice(4, 15);
 
-  assert_equals(await blob.text(), 'MIT License');
-}, '.slice() slices the Blob from arbitary start');
+    equals(await blob.text(), 'MIT License');
+  },
 
-promise_test(async () => {
-  const text = 'The MIT License';
-  const blob = new Blob([text]).slice(-7);
+  async '.slice() slices the Blob from the end when start argument is negative'() {
+    const text = 'The MIT License';
+    const blob = new Blob([text]).slice(-7);
 
-  assert_equals(await blob.text(), 'License');
-}, '.slice() slices the Blob from the end when start argument is negative');
+    equals(await blob.text(), 'License');
+  },
 
-promise_test(async () => {
-  const text = 'The MIT License';
-  const blob = new Blob([text]).slice(0, -8);
+  async '.slice() slices the Blob from the start when end argument is negative'() {
+    const text = 'The MIT License';
+    const blob = new Blob([text]).slice(0, -8);
 
-  assert_equals(await blob.text(), 'The MIT');
-}, '.slice() slices the Blob from the start when end argument is negative');
+    equals(await blob.text(), 'The MIT');
+  },
 
-promise_test(async () => {
-  const text = 'The MIT License';
-  const blob = new Blob([new Blob([text]), new Blob([text])]).slice(8, 18);
+  async '.slice() slices Blob in blob parts'() {
+    const text = 'The MIT License';
+    const blob = new Blob([new Blob([text]), new Blob([text])]).slice(8, 18);
 
-  assert_equals(await blob.text(), 'LicenseThe');
-}, '.slice() slices Blob in blob parts');
+    equals(await blob.text(), 'LicenseThe');
+  },
 
-promise_test(async () => {
-  const blob = new Blob(['Hello', 'world']).slice(4, 7);
+  async '.slice() slices within multiple parts'() {
+    const blob = new Blob(['Hello', 'world']).slice(4, 7);
 
-  assert_equals(await blob.text(), 'owo');
-}, '.slice() slices within multiple parts');
+    equals(await blob.text(), 'owo');
+  },
 
-promise_test(async () => {
-  const blob = new Blob(['a', 'b', 'c']).slice(1, 2);
+  async '.slice() throws away unwanted parts'() {
+    const blob = new Blob(['a', 'b', 'c']).slice(1, 2);
 
-  assert_equals(await blob.text(), 'b');
-}, '.slice() throws away unwanted parts');
+    equals(await blob.text(), 'b');
+  },
 
-test(() => {
-  const expected = 'text/plain';
-  const blob = new Blob([], { type: 'text/html' }).slice(0, 0, expected);
+  '.slice() takes type as the 3rd argument'() {
+    const expected = 'text/plain';
+    const blob = new Blob([], { type: 'text/html' }).slice(0, 0, expected);
 
-  assert_equals(blob.type, expected);
-}, '.slice() takes type as the 3rd argument');
+    equals(blob.type, expected);
+  },
 
-promise_test(async () => {
-  const blob = new Blob(['a', new TextEncoder().encode('b'), new Blob(['c']), new TextEncoder().encode('d').buffer]);
+  async '.text() returns a the Blob content as string when awaited'() {
+    const blob = new Blob(['a', new TextEncoder().encode('b'), new Blob(['c']), new TextEncoder().encode('d').buffer]);
 
-  assert_equals(await blob.text(), 'abcd');
-}, '.text() returns a the Blob content as string when awaited');
+    equals(await blob.text(), 'abcd');
+  },
 
-promise_test(async () => {
-  const source = new TextEncoder().encode('abc');
-  const blob = new Blob([source]);
+  async '.arrayBuffer() returns the Blob content as ArrayBuffer when awaited'() {
+    const source = new TextEncoder().encode('abc');
+    const blob = new Blob([source]);
 
-  assert_equals(new Uint8Array(await blob.arrayBuffer()) + '', source + '');
-}, '.arrayBuffer() returns the Blob content as ArrayBuffer when awaited');
+    equals(new Uint8Array(await blob.arrayBuffer()) + '', source + '');
+  },
 
-test(() => {
-  const stream = new Blob().stream();
+  '.stream() returns ReadableStream'() {
+    const stream = new Blob().stream();
 
-  assert_true(stream instanceof ReadableStream);
-}, '.stream() returns ReadableStream');
+    isTrue(stream instanceof ReadableStream);
+  },
 
-promise_test(async () => {
-  const source = new TextEncoder().encode("Some content");
-  const blob = new Blob([source]);
-  const stream = blob.stream();
+  async '.stream() allows to read Blob as a stream'() {
+    const source = new TextEncoder().encode("Some content");
+    const blob = new Blob([source]);
+    const stream = blob.stream();
 
-  const reader = stream.getReader();
-  const chunks = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
+    const reader = stream.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
 
-  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(new Uint8Array(chunk), offset);
-    offset += chunk.byteLength;
-  }
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      result.set(new Uint8Array(chunk), offset);
+      offset += chunk.byteLength;
+    }
 
-  assert_equals(result.length, source.length);
-  for (let i = 0; i < source.length; i++) {
-    assert_equals(result[i], source[i]);
-  }
-}, ".stream() allows to read Blob as a stream");
+    equals(result.length, source.length);
+    for (let i = 0; i < source.length; i++) {
+      equals(result[i], source[i]);
+    }
+  },
 
-promise_test(async () => {
-  const stream = new Blob(['Some content']).stream();
+  async '.stream() returned ReadableStream can be cancelled'() {
+    const stream = new Blob(['Some content']).stream();
 
-  // Cancel the stream before start reading, or this will throw an error
-  await stream.cancel();
+    // Cancel the stream before start reading, or this will throw an error
+    await stream.cancel();
 
-  const reader = stream.getReader();
+    const reader = stream.getReader();
 
-  const { done, value: chunk } = await reader.read();
+    const { done, value: chunk } = await reader.read();
 
-  assert_true(done);
-  assert_equals(chunk, undefined);
-}, '.stream() returned ReadableStream can be cancelled');
+    isTrue(done);
+    equals(chunk, undefined);
+  },
+});
