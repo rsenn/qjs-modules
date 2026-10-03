@@ -102,21 +102,4 @@ void globfree(glob_t* pglob);
 }
 #endif /* __cplusplus */
 
-#include <list.h>
-#include "getdents.h"
-#include "buffer-utils.h"
-
-struct vec {
-  char** ptr;
-  uint32_t len, res;
-};
-
-struct glob_state {
-  int flags;
-  PointerRange pat, buf;
-  struct vec paths;
-};
-
-int my_glob(const char* pattern, struct glob_state* g);
-
 #endif /* OPENBSD_GLOB_H */

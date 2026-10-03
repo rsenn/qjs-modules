@@ -538,21 +538,6 @@ js_arraybuffer_free_object(JSRuntime* rt, void* opaque, void* ptr) {
   JS_FreeValueRT(rt, value);
 }
 
-static void*
-js_get_pointer(JSContext* ctx, JSValueConst value) {
-  void* ptr;
-  size_t len;
-  int64_t i64;
-
-  if((ptr = JS_GetArrayBuffer(ctx, &len, value)))
-    return ptr;
-
-  if(!JS_ToInt64Ext(ctx, &i64, value))
-    return (void*)(ptrdiff_t)i64;
-
-  return 0;
-}
-
 static JSValue
 js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_NewObject(ctx);
@@ -1249,18 +1234,6 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     globfree(&g);
   }
-
-  /*struct glob_state* gs;
-    gs = js_mallocz(ctx, sizeof(struct glob_state));
-    *gs = (struct glob_state){.flags = GLOB_TILDE | GLOB_BRACE};
-
-    result = my_glob(pattern, gs);
-
-    JS_FreeValue(ctx, ret);
-    ret = JS_NewArray(ctx);
-
-    for(size_t i = 0; i < gs->paths.len; i++)
-      JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, gs->paths.ptr[i]));*/
 
   if(array_arg || result) {
     JS_FreeValue(ctx, ret);
@@ -2552,37 +2525,6 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   }
 
   return JS_DupValue(ctx, argv[0]);
-}
-
-static int
-js_misc_unescape_pred(const char* s, size_t* lenp) {
-  uint32_t l;
-  int val = -1;
-  size_t len = 1;
-
-  if(*s == '\\')
-    val = (int)(unsigned int)(unsigned char)'\\';
-  else if(*s == 'n')
-    val = (int)(unsigned int)(unsigned char)'\n';
-  else if(*s == 'r')
-    val = (int)(unsigned int)(unsigned char)'\r';
-  else if(*s == 't')
-    val = (int)(unsigned int)(unsigned char)'\t';
-  else if(*s == 'v')
-    val = (int)(unsigned int)(unsigned char)'\v';
-  else if(*s == 'b')
-    val = (int)(unsigned int)(unsigned char)'\b';
-  else if((len = scan_8long(s, &l)) >= 3)
-    val = (int)(unsigned int)(unsigned char)l;
-
-  if(val != -1) {
-    if(lenp)
-      *lenp += len;
-
-    return val;
-  }
-
-  return 0;
 }
 
 static JSValue

@@ -20,8 +20,7 @@
  * its own portable opendir()/readdir()/fdopendir() backend instead, for
  * anything that isn't Windows/Linux/Android (macOS, BSD, WASI, Emscripten's
  * musl libc, ...). This is the *only* getdents_*() implementation linked in
- * on those platforms, so src/glob2.c (the other consumer of getdents.h)
- * resolves against it too.
+ * on those platforms.
  */
 #if !(defined(_WIN32) || defined(__MSYS__) || defined(__CYGWIN__) || defined(__linux__) || defined(__ANDROID__))
 #define DIRECTORY_PORTABLE_BACKEND 1

@@ -108,8 +108,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A collection of **native C modules for QuickJS** (`quickjs-*.c`/`.h` bindings, e.g. `stream`,
 `xml`, `deep`, `dom`, `json`), plus JS-side wrappers and helpers in `lib/*.js`. Built via CMake;
-tests live in `tests/test_*.js` and run under `qjs`/`qjsm`, wired up as CTest cases
-(`add_test` in `CMakeLists.txt`).
+tests live in `tests/unittests/test-<name>.js` (tinytest, `lib/tinytest.js`) and run under
+`qjs`/`qjsm`, wired up as CTest cases (globbed in `CMakeLists.txt`).
 
 ## Recent Work (August 2026)
 
@@ -284,7 +284,7 @@ cmake --build build/$(cc -dumpmachine)
 ctest --test-dir build/$(cc -dumpmachine)
 
 # Test specific
-qjs tests/test_stream.js
+qjsm tests/unittests/test-stream.js
 ```
 
 ## Important Files
@@ -293,7 +293,7 @@ qjs tests/test_stream.js
 - **`lib/`** - JavaScript modules (polyfills, wrappers, extensions)
 - **`quickjs-*.c`** - Native C module implementations
 - **`include/`** - C headers for native modules
-- **`tests/`** - Test suite (test_*.js)
+- **`tests/`** - Test suite (`tests/unittests/test-*.js`)
 - **`doc/`** - Documentation (see structure above)
 - **`TODO.md`** - Work tracker
 - **`BUGS`** - Known bugs
@@ -317,7 +317,8 @@ qjs tests/test_stream.js
 - Write tests for new features
 - Verify bug fixes with tests
 - Run `ctest` before committing
-- Individual tests: `qjs tests/test_<name>.js`
+- Individual tests: `qjsm tests/unittests/test-<name>.js`
+- Use tinytest (`import { tests, assert, eq } from '../../lib/tinytest.js'`), not ad-hoc console output
 
 ### Commits
 - Clear, descriptive commit messages
@@ -333,7 +334,7 @@ include/<name>.h          # C header
 lib/<name>.js             # JS wrapper (if needed)
 doc/native/<name>.md      # C API documentation
 doc/js/<name>.md          # JS API documentation (if separate)
-tests/test_<name>.js      # Test suite
+tests/unittests/test-<name>.js  # Test suite
 ```
 
 ### Wrapper Pattern

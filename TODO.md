@@ -126,16 +126,11 @@ next one.
   (old `promise_free(JSContext*, ...)` overload), `src/js-utils.c:153-159` (old
   `promise_forward()` body), `src/utils.c:2017-2023` (old `js_values_free(JSContext*, ...)`
   overload), `src/utils.c:3050-3057` + `:3363-3372` (abandoned zero-copy
-  `js_arraybuffer_fromstring`/finalizer pair — current version always copies), `src/glob2.c:22-28`
-  (`range_free()`, unused).
+  `js_arraybuffer_fromstring`/finalizer pair — current version always copies).
 - Duplicated disabled `FROM_UNIXTIME(...)` date-formatting block in both
   `quickjs-mysql.c:109-120` and `quickjs-pgsql.c:220-231`.
   **STALE CLAIM (2026-09-24)**: ~~plus an unused `js_pgconn_print_fields()`~~ — that function
   (`quickjs-pgsql.c:298`) is actually called from `:371`; not dead, remove from this list.
-- `quickjs-misc.c:1267-1277` — disabled alternate glob implementation using the project's own
-  `my_glob()`/`src/glob2.c` engine; the system `glob()` is used instead, meaning `glob2.c` is
-  currently built but not actually wired up to `misc.glob()`. Worth confirming this is
-  intentional or finishing the wiring.
 - `quickjs-sockets.c:2098-2133` — a whole abandoned `PROP_SYSCALL/PROP_ERRNO/PROP_ERROR/
   PROP_RET/PROP_AF` property block (enum + switch cases + both `Socket`/`AsyncSocket`
   registrations, all consistently disabled together) plus an unused `js_sockopt()` helper at
