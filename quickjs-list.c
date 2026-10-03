@@ -1005,8 +1005,9 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case LIST_ADDRESS: {
       char buf[32];
 
-      snprintf(buf, sizeof(buf), "%p", list);
-      ret = JS_NewString(ctx, buf);
+      buf[0] = '0';
+      buf[1] = 'x';
+      ret = JS_NewStringLen(ctx, buf, 2 + fmt_xlonglong(&buf[2], (uintptr_t)list));
       break;
     }
   }
@@ -1324,8 +1325,9 @@ js_node_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case NODE_ADDRESS: {
       char buf[32];
 
-      snprintf(buf, sizeof(buf), "%p", node);
-      ret = JS_NewString(ctx, buf);
+      buf[0] = '0';
+      buf[1] = 'x';
+      ret = JS_NewStringLen(ctx, buf, 2 + fmt_xlonglong(&buf[2], (uintptr_t)node));
       break;
     }
   }

@@ -626,7 +626,14 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     return JS_EXCEPTION;
 
   if((ptr = inputbuffer_data(&buf)))
-    ret = JS_NewStringLen(ctx, str, snprintf(str, sizeof(str), "%p", ptr));
+  {
+    size_t n = 0;
+
+    str[n++] = '0';
+    str[n++] = 'x';
+    n += fmt_xlonglong(&str[n], (uintptr_t)ptr);
+    ret = JS_NewStringLen(ctx, str, n);
+  }
 
   inputbuffer_free(&buf, ctx);
   return ret;

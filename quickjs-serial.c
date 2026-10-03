@@ -650,11 +650,8 @@ js_serialport_list(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         if(sp_get_port_usb_vid_pid(p, &vid, &pid) == SP_OK) {
           char buf[8];
 
-          snprintf(buf, sizeof(buf), "%04x", vid);
-          JS_SetPropertyStr(ctx, info, "vendorId", JS_NewString(ctx, buf));
-
-          snprintf(buf, sizeof(buf), "%04x", pid);
-          JS_SetPropertyStr(ctx, info, "productId", JS_NewString(ctx, buf));
+          JS_SetPropertyStr(ctx, info, "vendorId", JS_NewStringLen(ctx, buf, fmt_xlong0(buf, vid, 4)));
+          JS_SetPropertyStr(ctx, info, "productId", JS_NewStringLen(ctx, buf, fmt_xlong0(buf, pid, 4)));
         }
       }
 

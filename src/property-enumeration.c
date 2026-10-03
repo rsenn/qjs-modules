@@ -32,8 +32,10 @@ void
 property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) {
   size_t i;
 
+  char ptr[17];
+
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out, "%p", JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_PTR(it->obj) : NULL);
+  dbuf_put(out, (const uint8_t*)ptr, fmt_xlonglong(ptr, (uintptr_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_PTR(it->obj) : NULL)));
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
