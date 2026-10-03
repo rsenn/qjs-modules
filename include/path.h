@@ -63,8 +63,6 @@ typedef struct {
   size_t sz1, sz2;
 } SizePair;
 
-BOOL path_isdot1(const char*);
-BOOL path_isdotdot1(const char*);
 char* path_dup3(const char* path, size_t n, DynBuf* db);
 char* path_dup1(const char* path);
 char* path_dup2(const char* path, size_t n);
@@ -103,7 +101,6 @@ int path_isfifo1(const char* p);
 int path_issocket1(const char* p);
 int path_issymlink1(const char* p);
 int path_resolve3(const char* path, DynBuf* db, int symbolic);
-char* path_resolve2(const char* path, int symbolic);
 int path_realpath3(const char*, size_t len, DynBuf* buf);
 int path_relative3(const char* path, const char* relative_to, DynBuf* out);
 char* path_relative1(const char* path);
@@ -154,16 +151,6 @@ path_component1(const char* p) {
     ++s;
 
   return s - p;
-}
-
-static inline size_t
-path_component2(const char* p, size_t len) {
-  const char *start = p, *end = p + len;
-
-  while(p < end && !path_issep(*p))
-    ++p;
-
-  return p - start;
 }
 
 static inline size_t

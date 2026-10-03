@@ -1977,12 +1977,6 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   JS_FreeCString(ctx, str);
 }
 
-void
-js_cstring_dump_free(JSContext* ctx, JSValue value, DynBuf* db) {
-  js_cstring_dump(ctx, value, db);
-  JS_FreeValue(ctx, value);
-}
-
 
 
 JSValue

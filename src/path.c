@@ -24,15 +24,6 @@ static const char path_passwd[] =
  * \addtogroup path
  * @{
  */
-BOOL
-path_isdot1(const char* p) {
-  return p[0] == '.' && p[1] == '\0';
-}
-
-BOOL
-path_isdotdot1(const char* p) {
-  return p[0] == '.' && p[1] == '.' && p[2] == '\0';
-}
 
 char*
 path_dup3(const char* path, size_t n, DynBuf* db) {
@@ -888,15 +879,6 @@ start:
     dbuf_putc(db, sep);
 
   return ret;
-}
-
-char*
-path_resolve2(const char* path, int symbolic) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-  path_resolve3(path, &db, symbolic);
-  dbuf_0(&db);
-  return (char*)db.buf;
 }
 
 int

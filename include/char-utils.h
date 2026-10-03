@@ -412,11 +412,6 @@ scan_fromhex(const char c) {
   return -1;
 }
 
-static inline size_t
-scan_8long(const char* src, uint32_t* dest) {
-  return scan_8longn(src, (size_t)-1, dest);
-}
-
 BOOL utf16_multiword(const void*);
 
 size_t u64toa_base(char*, uint64_t num, int base);

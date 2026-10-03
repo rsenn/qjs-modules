@@ -968,8 +968,6 @@ js_generator_constructor(JSContext* ctx) {
 
 JSValue js_std_file(JSContext*, FILE* f);
 
-void js_cstring_dump_free(JSContext*, JSValue, DynBuf*);
-
 struct OffsetLength;
 union IndexRange;
 
