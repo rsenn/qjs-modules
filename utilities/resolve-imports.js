@@ -1737,9 +1737,7 @@ function main(...args) {
         for(let imp of result.imports) map.replaceRange(imp.range, '');
 
         const merged = MergeImports(result.imports);
-
         const used = identifiersUsed && identifiersUsed(file);
-
         const outstr = merged
           .map(i =>
             i.toString(local => {
@@ -1769,9 +1767,6 @@ function main(...args) {
 
   if(debug > 3) console.log('results', console.config({ compact: 3, depth: Infinity }), results);
 
-  /*console.log('header', console.config({ compact: 2 }), header);
-  console.log('globalImports', console.config({ compact: 1 }), globalImports);*/
-
   for(let imp of allImports()) {
     const { file, range, code, source } = imp;
 
@@ -1779,7 +1774,6 @@ function main(...args) {
 
     try {
       const idmap = imp.idmap();
-      //console.log('imp', { file, source, idmap });
 
       if(IsFileImport(file)) continue;
 
@@ -1794,8 +1788,6 @@ function main(...args) {
     console.log('OutputImports() =', str);
 
     out ??= FdWriter(1, 'stdout');
-
-    //results[0].insert(1, toArrayBuffer(str));
 
     if(globalSheBang) out.puts(globalSheBang.lexeme);
 
@@ -1835,7 +1827,6 @@ function main(...args) {
     if(globalExports) {
       const maxDepth = globalExports - 1;
       let exportedNames = footer.filter(({ depth }) => depth <= maxDepth);
-      // console.log(`footer`, exportedNames.map(impexp =>  [impexp.depth,impexp.name]));
 
       if(debug > 3) console.log(`exportedNames`, exportedNames);
 
@@ -1874,18 +1865,15 @@ function ProcessFile(source, recursive, depth = 0) {
   const log = (...args) => console.log(`[${depth}]\x1b[38;5;208m${path.relative(source)}\x1b[0m:`, ...args);
 
   if(debug >= 1) log('Processing...', compact(true), { recursive, depth });
-
   if(printFiles) process.stdout.write(`${source}\n`);
 
   let start = Date.now();
   const dir = path.dirname(source);
 
   let bytebuf = BufferFile(source);
-
   let len = bytebuf.byteLength,
     type = path.extname(source).substring(1),
     base = camelize(path.basename(source, '.' + type).replace(/[^0-9A-Za-z_]/g, '_'));
-
   let lex = {
     js: new ECMAScriptLexer(bytebuf, source),
   };
@@ -1897,12 +1885,9 @@ function ProcessFile(source, recursive, depth = 0) {
   const lexer = (globalThis.lexer = lex[type]);
   if(debug >= 3) log('lexer', lexer);
 
-  // T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
-
   let e = new SyntaxError();
 
   if(debug > 1) log('bytebuf', bytebuf);
-
   if(!lexer) throw new Error(`Error lexing: ${source}`);
 
   lexer.handler = lex => {
@@ -1912,7 +1897,6 @@ function ProcessFile(source, recursive, depth = 0) {
 
   const tokenList = [],
     declarations = [];
-  //const colSizes = [12, 8, 4, 20, 32, 10, 0];
 
   let tok,
     i = 0,
@@ -1965,10 +1949,8 @@ function ProcessFile(source, recursive, depth = 0) {
     line = [],
     map = FileMap.for(source),
     showToken = tok => {
-      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
-        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
-        // std.puts(a.join('') + '\n');
-      }
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) 
+        let a = [tok.type.padEnd(20, ' '), escape(tok.lexeme)];
     };
 
   const result = (modules[source] = { imports, exports, map });
@@ -2049,7 +2031,6 @@ function ProcessFile(source, recursive, depth = 0) {
       if(!doneImports) {
         if(!cond && ['import', 'export'].indexOf(token.lexeme) >= 0) {
           if(imp.length == 0) {
-            //log(``, { token:token.lexeme, loc: token.loc+'', imp: imp.length});
             impexp = What[token.lexeme.toUpperCase()];
             cond = true;
             imp = token.lexeme == 'export' ? [token] : [];
@@ -2070,8 +2051,6 @@ function ProcessFile(source, recursive, depth = 0) {
         doneImports = true;
 
         for(let tok of line) if(tok.type == 'identifier') addIdentifier(tok);
-
-        //log('line', line.map(t => t.lexeme).join(', '));
       } else {
         line.push(token);
       }
@@ -2087,7 +2066,6 @@ function ProcessFile(source, recursive, depth = 0) {
       if(cond == true) {
         if((token.type != 'keyword' || imp.indexOf(token) == -1) && token.type != 'comment') imp.push(token);
 
-        //log( imp[0].loc+'',console.config({breakLength:80, compact: 0}), NonWS(imp));
         if(imp.last.lexeme == ';') {
           let obj;
           cond = false;
@@ -2108,7 +2086,6 @@ function ProcessFile(source, recursive, depth = 0) {
             }
           }
 
-          //log('obj', console.config({breakLength:80, compact: 1}), obj, obj.loc+'');
           imp.splice(0, imp.length);
           line.splice(0, line.length);
         }
@@ -2126,8 +2103,6 @@ function ProcessFile(source, recursive, depth = 0) {
   start = Date.now();
 
   let exportsFrom = exports.filter(exp => exp.tokens).filter(exp => exp.tokens.some(tok => tok.lexeme == 'from'));
-
-  // if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
   const allExportsImports = exports.concat(imports).sort((a, b) => a.range[0] - b.range[0]);
   const fileImports = allExportsImports.filter(imp => typeof imp.file == 'string');
@@ -2148,17 +2123,9 @@ function ProcessFile(source, recursive, depth = 0) {
     globalSheBang = sheBang;
   }
 
-  /* for(let impexp of fileImports) {
-    let file = ResolveAlias(impexp.file);
-    let s = (globalImports[file] ??= new Set());
-
-    for(let id of impexp.ids()) s.add(id);
-  }*/
-
   if(used) {
-    for(let impexp of allExportsImports) {
+    for(let impexp of allExportsImports) 
       if(impexp.type == What.IMPORT) for(let id of impexp.ids()) imported.add(id);
-    }
 
     let numReplace = 0;
 
@@ -2177,9 +2144,7 @@ function ProcessFile(source, recursive, depth = 0) {
     }
 
     if(debug >= 1) log(`imported [ ${source} ]`, console.config({ compact: 1 }), [...imported]);
-
     if(debug >= 1) log(`used     [ ${source} ]`, console.config({ compact: 1 }), [...intersection(used, imported)]);
-
     if(debug >= 1) log(`unused   [ ${source} ]`, console.config({ compact: 1 }), [...difference(imported, used)]);
 
     if(numReplace) {
@@ -2192,10 +2157,7 @@ function ProcessFile(source, recursive, depth = 0) {
       const { type, file, range, code, loc } = impexp;
       const [start, end] = range;
 
-      //const bufstr = toString(bytebuf.slice(...range));
-      //const arrbuf = toArrayBuffer(bufstr);
-
-      let p = PathAdjust(file); //ModuleLoader.resolve(file);
+      let p = PathAdjust(file);
 
       if(!p) {
         log(`\x1b[1;31mFailed to resolve\x1b[0m file '${file}'`);
@@ -2203,12 +2165,9 @@ function ProcessFile(source, recursive, depth = 0) {
       }
 
       let replacement = type == What.EXPORT ? null : FileMap.for(p);
-      //const { byteOffset } = loc;
 
       if(typeof p == 'string' && !IsFileImport(p)) {
         if(debug > 1) log(`\x1b[1;31mInexistent\x1b[0m file '${p}'`);
-
-        // if(printFiles) std.puts(`${path.resolve(source)}: ${file}\n`);
 
         replacement = null;
       } else if(p && path.isFile(p)) {
@@ -2243,9 +2202,6 @@ function ProcessFile(source, recursive, depth = 0) {
           loc,
         });
 
-      /*let str;
-      if(range) str = toString(map.buffer.slice(...range));*/
-
       map.replaceRange(range, replacement);
     }
   }
@@ -2267,7 +2223,6 @@ function ProcessFile(source, recursive, depth = 0) {
 
   end = Date.now();
 
-  // log(`Substituting '${source.replace(/^\.\//, '')}' took ${end - start}ms`);
   processed.add(source);
 
   if(recursive > 0) {
@@ -2289,14 +2244,11 @@ function ProcessFile(source, recursive, depth = 0) {
         continue;
       }
 
-      if(processed.has(file) || file == source) {
-        //log(`Already processed '${file}'`);
+      if(processed.has(file) || file == source) 
         continue;
-      }
 
       if(debug >= 1) log(`Import(recursive)`, compact(true), { recursive, file });
 
-      ///file = NormalizePath(file);
       file = ModuleLoader.resolve(file);
 
       if(!path.isFile(file)) {
@@ -2317,9 +2269,9 @@ function ProcessFile(source, recursive, depth = 0) {
       } else {
         try {
           ProcessFile(file, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
-        } catch(e) {}
-
-        //    log('ret',ret);
+        } catch(e) {
+          console.log(`ERROR processing file '${file}': ${e.message}`);
+        }
       }
 
       if(printImports) {
@@ -2336,7 +2288,6 @@ function ProcessFile(source, recursive, depth = 0) {
   if(showDeps) {
     let deps = [...DependencyTree(source, ' ', false, 0, '    ')];
     log(`Dependencies of '${source}':\n${SpreadAndJoin(deps)}`);
-    //log(`dependencyMap`,[...dependencyMap]);
   }
 
   return result;

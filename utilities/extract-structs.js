@@ -70,16 +70,13 @@ function parse(lexer, fn = (tok, arr) => {}, ...args) {
 
 function main(...args) {
   globalThis.console = new Console({
-    /* stdout: std.out,
-    stderr: std.err,
-   */ inspectOptions: {
+      inspectOptions: {
       colors: true,
       maxStringLength: 100,
       maxArrayLength: Infinity,
       compact: false,
     },
   });
-  //console.log('args', scriptArgs);
 
   let outputName,
     debug,
@@ -100,13 +97,7 @@ function main(...args) {
   if(/bindings/.test(scriptArgs[0])) noStructs = jsCFuncs = true;
 
   for(let file of files) {
-    //console.log('file', file);
-
     let str = std.loadFile(file, 'utf-8');
-
-    /*console.log('str', str);
-    console.log('str', str.split('\n')[0]);*/
-
     let lexer = new CLexer(str, file);
 
     const { rules, tokens } = lexer;
@@ -118,10 +109,7 @@ function main(...args) {
       cFuncListNames = [],
       cFuncListObjects = {};
 
-    //console.log('rules',  rules);
-
     for(let id of lexer) {
-      //line.push(lexer.token);
       block.push(lexer.token);
 
       if(!noStructs)
@@ -152,7 +140,7 @@ function main(...args) {
       if(isCFuncList) {
         if(id == rules['rbrace'] && lexer.loc.column == 1) {
           while(block.length > 0 && ['whitespace', 'rbrace', 'singleLineComment', 'multiLineComment'].indexOf(block[0].type) != -1) block.shift();
-          //console.log('block.slice(0,10)', block.slice(0,10));
+
           let firstLine = block[0].loc.line;
           let rows = NonWS(block)
             .reduce((acc, token) => {
@@ -174,23 +162,17 @@ function main(...args) {
       }
       if(id == rules['whitespace']) {
         const { pos, seq, lexeme, value, charLength } = lexer;
-
-        /* if(lexeme == '\n') {
-          line.splice(0, line.length);
-        }*/
       } else if(id == rules['semi']) {
         block = TrimWS(block);
 
         if(block.length >= 3 && NonWS(block)[1]?.type == 'equal' && block[0]?.type == 'identifier' && /_(proto|ctor)$/.test(block[0].lexeme)) {
-          //console.log('ASSIGN', Lexeme(block));
-
           isCFuncCall = true;
         }
 
         if(block.some(tok => ['JS_SetClassProto', 'JS_NewClass'].indexOf(tok.lexeme) != -1)) {
           isCFuncCall = true;
+
           while(['JS_SetClassProto', 'JS_NewClass'].indexOf(block[0].lexeme) == -1) block.shift();
-          //console.log('block', block);
         }
 
         if(isCFuncCall) {
@@ -200,7 +182,6 @@ function main(...args) {
 
           while(['ctx', 'm'].indexOf(fnArgs[0]) != -1) fnArgs.shift();
 
-          //console.log('isCFuncCall', { fnIndex, fnName, fnArgs });
           let { loc } = block[0];
 
           if(fnName == 'JS_SetPropertyFunctionList') {
@@ -214,22 +195,20 @@ function main(...args) {
             let objName = Lexeme(block[0]);
             let [cCall, cName, ...rest] = fnArgs;
 
-            //console.log('', { objName, cName });
-
             if(cName) cName = cName.replace(/^"|"$/g, '');
 
             let args = MaybeNumber(cName ? [cCall, cName, ...rest] : rest);
             cFuncListObjects[objName] = define(args, { loc });
           }
-
-          //console.log('cFuncCall()', Lexeme(block));
         }
+
         isCFuncList = false;
         isCFuncCall = false;
 
         block.splice(0, block.length);
       } else if(lexer.loc.column == 1 && id != rules['whitespace'] && id != rules['preprocessor']) {
       }
+
       if(cFuncListNames.indexOf(lexer.lexeme) != -1) {
         const { lexeme, loc } = lexer;
         isCFuncCall = true;
@@ -237,6 +216,7 @@ function main(...args) {
 
       output.flush();
     }
+
     console.log('cFuncListObjects', console.config({ depth: 10, compact: 1 }), cFuncListObjects);
   }
 
