@@ -1,48 +1,8 @@
 #!/usr/bin/env qjsm
 import { readFileSync } from 'fs';
-import { basename, extname } from 'path';
 import { getOpt } from 'util';
 import * as std from 'std';
-import BNFLexer from 'lexer/bnf.js';
-import CLexer from 'lexer/c.js';
-import CMakeLexer from 'lexer/cmake.js';
-import CSVLexer from 'lexer/csv.js';
-import ECMAScriptLexer from 'lexer/ecmascript.js';
-import IniLexer from 'lexer/ini.js';
-import { GNUMakeLexer } from 'lexer/make.js';
-import ShellLexer from 'lexer/shell.js';
-import XMLLexer from 'lexer/xml.js';
-
-const Lexers = {
-  js: (str, file) => new ECMAScriptLexer(str, file),
-  c: (str, file) => new CLexer(str, CLexer.LONGEST, file),
-  bnf: (str, file) => new BNFLexer(str, file),
-  csv: (str, file) => new CSVLexer(str, file),
-  xml: (str, file) => new XMLLexer(str, file),
-  sh: (str, file) => new ShellLexer(str, ShellLexer.LONGEST, file),
-  cmake: (str, file) => new CMakeLexer(str, CMakeLexer.LONGEST, file),
-  make: (str, file) => new GNUMakeLexer(str, GNUMakeLexer.LONGEST, file),
-  ini: (str, file) => new IniLexer(str, IniLexer.LONGEST, file),
-};
-
-Lexers.h = Lexers.hpp = Lexers.cc = Lexers.cpp = Lexers.c;
-Lexers.mjs = Lexers.cjs = Lexers.json = Lexers.ts = Lexers.js;
-Lexers.g4 = Lexers.ebnf = Lexers.l = Lexers.y = Lexers.bnf;
-Lexers.html = Lexers.htm = Lexers.svg = Lexers.xml;
-Lexers.bash = Lexers.sh;
-Lexers.mk = Lexers.mak = Lexers.make;
-
-const MakeBasenames = /^(GNUmakefile|makefile|Makefile)$/;
-
-function lexerFor(file) {
-  const base = basename(file);
-
-  if(/\.(ini|mc[wp])$/i.test(base)) return Lexers.ini;
-  if(MakeBasenames.test(base)) return Lexers.make;
-  if(base == 'CMakeLists.txt') return Lexers.cmake;
-
-  return Lexers[extname(file).substring(1).toLowerCase()];
-}
+import { lexerFor } from 'lexers';
 
 /* Each lexer names its tokens differently, so rule names are mapped onto a small
  * fixed set of categories that every output format styles the same way. */

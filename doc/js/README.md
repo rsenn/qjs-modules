@@ -62,6 +62,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 
 ### Tooling
 - [repl](repl.md) — REPL implementation
+- [lexers](lexers.md) — Lexer for a file or language name
 
 ### Utilities
 - describe-class (`lib/describe-class.js`) — Class description utilities (undocumented)
