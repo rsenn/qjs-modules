@@ -683,6 +683,19 @@
   lexer_rule_release_rt() frees only name, expr and bytecode, so one copy
   of every compiled rule's pattern is kept until the runtime is freed.
 
+- lexer-constructor-mode-argument-ignored (quickjs-lexer.c:694-697,
+  src/lexer.c:247): lexer_new() starts `mode` at -1 (every bit set) and the
+  constructor ORs the requested mode in (`lex->mode |= mode`), so
+  `new Lexer(input, Lexer.FIRST)` and `new Lexer(input, Lexer.LONGEST)` both
+  leave mode -1. Matching then behaves as longest-match, whatever was asked
+  for. A later `lexer.mode = Lexer.FIRST` assignment (lib/lexer/bnf.js does
+  it on a %directive) does switch to true first-match, so one lexer changes
+  behaviour half way through its input. Not fixed because the ecmascript and
+  bnf lexers declare FIRST and have only ever run as longest-match.
+
+    import { Lexer } from 'lexer';
+    new Lexer('x', Lexer.FIRST).mode;   // -1, expected 0
+
 - lexer-skipbytes-overflows-charpos (quickjs-lexer.c:797-806): after
   consuming a token with `next()`/`nextToken()`, calling
   `lexer.skipBytes(n)` with a valid `n` (1 <= n <= the byte length of the
