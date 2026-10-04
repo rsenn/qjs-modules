@@ -677,6 +677,43 @@
     Lexer.escape('a.b*c');              // 'a\.b\*c' (correct)
     Lexer.unescape(Lexer.escape('a.b*c'));  // 'a\\.b\\*c', should be 'a.b*c'
 
+- ecmascript-lexer-division-lexed-as-regexp (lib/lexer/ecmascript.js): no
+  rule ever switches the lexer between INITIAL and NOREGEX, so a `/` after
+  an identifier, number, `)` or `]` is first tried as a regexp literal (the
+  regexpLiteral rule is listed before punctuator and the lexer is in FIRST
+  mode). `a = b / c; // x` lexes `/ c; /` as one regexpLiteral, so the
+  comment after it is swallowed and every later token is shifted. a
+  consumer can work around it by setting `lexer.state = 'NOREGEX'` after a
+  token that ends an expression (utilities/extract-comments.js does), but
+  the lexer itself should do it, e.g. from rule callbacks.
+
+    import ECMAScriptLexer from './lib/lexer/ecmascript.js';
+    [...new ECMAScriptLexer('a = b / c; // x', 'f')].map(t => t.type);
+    // [..., 'identifier', 'whitespace', 'regexpLiteral', 'punctuator', ...]
+    // expected: identifier, punctuator '/', identifier, ..., comment
+
+- ecmascript-lexer-division-in-template-substitution
+  (lib/lexer/ecmascript.js): inside `${ ... }` the lexer is in the NESTED
+  state, which allows a regexpLiteral and has no NOREGEX counterpart, so a
+  division there cannot be told apart from a regexp even by a consumer that
+  switches states (`lexer.state` is only safe in INITIAL/NOREGEX).
+
+    const src = '`a${b / c}d${/r/.source}`';
+    [...new ECMAScriptLexer(src, 'f')].map(t => t.lexeme);
+    // the regexpLiteral lexeme is '/ c}d${/r', expected two separate tokens
+
+- ecmascript-lexer-rejects-lone-dollar-in-template (lib/lexer/ecmascript.js,
+  TemplateElement/TemplateStringCharacter): a `$` that is not followed by
+  `{` is not accepted inside a template literal (the character class
+  excludes `$`, and only `${` is handled), so the whole input fails with
+  "No matching token". lib/css-selectors.js and lib/css3-selectors.js
+  contain such a template (`^${part}$`), so tools that lex them (e.g.
+  utilities/extract-comments.js) stop at that line.
+
+    import ECMAScriptLexer from './lib/lexer/ecmascript.js';
+    [...new ECMAScriptLexer('`a$b`', 'f')];
+    // throws "No matching token (0: INITIAL)", expected one template token
+
 - lexer-rule-expansion-never-freed (src/lexer.c: lexer_rule_compile ~146,
   lexer_rule_release_rt ~228): lexer_rule_compile() stores a js_strndup()ed
   copy of the expanded pattern in `rule->expansion`, but
