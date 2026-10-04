@@ -33,7 +33,7 @@ lexer_state_new(Lexer* lex, const char* name, size_t len) {
   if((ret = lexer_state_findb(lex, name, len)) != -1)
     return ret;
 
-  state = str_ndup(name, len);
+  state = js_strndup(lex->states.opaque, name, len);
   ret = vector_size(&lex->states, sizeof(char*));
   vector_push(&lex->states, state);
   return ret;

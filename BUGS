@@ -677,36 +677,11 @@
     Lexer.escape('a.b*c');              // 'a\.b\*c' (correct)
     Lexer.unescape(Lexer.escape('a.b*c'));  // 'a\\.b\\*c', should be 'a.b*c'
 
-- lexer-state-rules-crash-after-3-instances (src/lexer.c: lexer_rule_add
-  ~190-220, lexer_state_new/lexer_state_findb ~14-45): constructing more
-  than a small, exact number of separate `Lexer` instances that each add
-  the same state-tagged rules (e.g. `addRule('x', /<INITIAL>"/, ...)`,
-  `addRule('y', /<STATE>.../ )`) is unsafe - not a per-call "rule name
-  already used" situation (each instance's addRule calls all use distinct
-  names), but something in state registration (`lexer_state_new`/
-  `lexer_state_findb`, called from `lexer_rule_add` when a rule's pattern
-  starts with `<`) that looks like it should be scoped to the one `Lexer*
-  lex` it's given but apparently isn't fully. Concretely, with a 3-rule
-  grammar using `<INITIAL>`/`<STRING>` tags: constructing exactly 3 fresh
-  Lexer instances (each adding those same 3 rules) always succeeds, and
-  the 4th always segfaults - 3/3 runs, no variance. A same-shaped grammar
-  with only plain (non-`<STATE>`-tagged) rules does not reproduce this at
-  all (10/10 constructions fine), so the state-tag path specifically is
-  implicated. Not fully root-caused (didn't trace why state handles leak
-  or collide across instances) - just confirmed exactly reproducible.
-  Worked around in tests/unittests/test-lexer.js by building the one
-  state-grammar Lexer used by its tests a single time and sharing it,
-  instead of constructing a fresh one per test case.
-
-    import { Lexer } from 'lexer';
-    function make() {
-      const l = new Lexer('x', Lexer.LONGEST, 'in.txt');
-      l.addRule('dquote', /<INITIAL>"/, lex => (lex.state = 'STRING'));
-      l.addRule('strbody', /<STRING>[^"]*/);
-      l.addRule('strend', /<STRING>"/, lex => (lex.state = 'INITIAL'));
-      return l;
-    }
-    for(let i = 0; i < 5; i++) make();   // segfaults on the 4th call, every time
+- lexer-rule-expansion-never-freed (src/lexer.c: lexer_rule_compile ~146,
+  lexer_rule_release_rt ~228): lexer_rule_compile() stores a js_strndup()ed
+  copy of the expanded pattern in `rule->expansion`, but
+  lexer_rule_release_rt() frees only name, expr and bytecode, so one copy
+  of every compiled rule's pattern is kept until the runtime is freed.
 
 - lexer-skipbytes-overflows-charpos (quickjs-lexer.c:797-806): after
   consuming a token with `next()`/`nextToken()`, calling

@@ -7,8 +7,7 @@ import { assert, eq, tests } from '../../lib/tinytest.js';
  * argument order (confirmed against quickjs-lexer.c and lib/lexer/*.js).
  *
  * This module is fragile in ways this file works around rather than
- * fully root-causes (see BUGS: lexer-state-rules-crash-after-3-instances,
- * lexer-skipbytes-overflows-charpos, lexer-unescape-doubles-backslash...):
+ * fully root-causes (see BUGS: lexer-skipbytes-overflows-charpos, lexer-unescape-doubles-backslash...):
  * multiple concurrently-alive Lexer instances (even just two, each with
  * their own handful of addRule() calls) were observed to corrupt each
  * other's property reads (wrong charPos, garbage currentLine() output),
