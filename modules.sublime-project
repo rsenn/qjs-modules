@@ -78,6 +78,7 @@
         ".*",
         ".git",
         ".git/*",
+        "build",
         "inst",
         "htm",
         "*/htm/*",
