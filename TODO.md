@@ -8,25 +8,17 @@ the code (and, where noted, by actually running it) — not just grepped.
 This supersedes the sparse root-level `TODO` file; its four items are folded in below (marked
 *(pre-existing)*).
 
-## Reassessment (2026-09-24)
+## Reassessment (2026-10-04)
 
-Every tier below was re-verified against the current tree (three parallel code audits, not
-just re-reading the prose). Net effect: several items are done and removed, a few TODO claims
-were stale (described a state that no longer matches the code, in both directions), and one
-gap got *worse* since it was written. Updated priority order:
-
-1. **Tier 5/6 doc cleanup (near-zero cost)** — several Tier 5/6 bullets describe dead code that
-   is either already fixed or was never actually dead (see per-item notes below). Purging the
-   stale claims now is cheap and stops future passes from re-verifying non-issues.
-2. Everything else keeps its prior relative order (Tier 9 DOM gaps, Tier 11 `qjsm.c`
-   refactors, Tier 10 C API consolidation, Tier 12/13 yaml/cyaml) — all still open, all still
-   accurately described modulo stale line numbers (noted inline where found).
+Done/stale items are removed rather than struck through (history is in `git log`), and the
+Tier 5/6 line numbers were refreshed against the current tree. Open work keeps its prior
+relative order: Tier 9 DOM gaps, Tier 11 `qjsm.c` refactors, Tier 10 C API consolidation,
+Tier 12/13 yaml/cyaml. Line numbers elsewhere may still have drifted.
 
 ## Roadmap
 
 Four standing goals for this project, in priority order. Every tier below should be read
-against these — they're the "why" behind what gets picked up next. See `ASSESSMENT.md` for
-the full architecture/gap survey behind Tier 6-8.
+against these — they're the "why" behind what gets picked up next.
 
 1. **Be the standard library QuickJS deserves** — WHATWG-spec'd web APIs (streams, URL,
    events, encoding, DOM) and Deno/Bun-like runtime APIs (fs, process, timers, readline,
@@ -37,14 +29,6 @@ the full architecture/gap survey behind Tier 6-8.
    glue code for one format.
 4. **Support archives, filesystem, sockets, serial, and databases** as first-class, ergonomic
    JS APIs, not just raw native bindings.
-
-## Tier 2 — public API documented as working, but isn't
-
-~~**`Blob.prototype.stream()` returns `undefined` instead of a `ReadableStream`**~~ — **FIXED** in commit `bfa9b603`.
-  Implemented `Blob.prototype.stream()` to return a `ReadableStream` over the blob's bytes.
-  The implementation copies the blob data (since the blob may be garbage collected before
-  the stream finishes reading) and wraps it in a Reader that's passed to
-  `js_readable_stream_from_reader()`. All three tests in `tests/test_blob.js` now pass.
 
 ## Tier 3 — known perf/architecture debt (already flagged) and spec-compliance gaps
 
@@ -59,23 +43,6 @@ the full architecture/gap survey behind Tier 6-8.
   exposes `JS_GetClassID`), falling back to the old string-compare path otherwise.
   `js_is_generator`/`js_is_asyncgenerator`/`js_is_regexp`/`js_is_promise`/
   `js_is_dataview`/`js_is_error` still use the slow path.
-
-- ~~**`JsonParser.parse()` should resync past a run of bad bytes in one call, not one
-  byte per thrown exception**~~ — **FIXED**. `json_parse()` now has a `JSON_TOK_ERROR_SKIP`
-  scan state (`src/json.c`): every error site (bad value-start byte, missing `:`, invalid
-  string escape, invalid `\u` escape, invalid literal) reports one exception and then
-  silently skips bytes until a comma or matching closing bracket/brace, resuming from
-  there - 200 garbage bytes now costs 1 exception, not 201. `JsonPushParser.write()`
-  (`src/jread.c`) got the equivalent fix: it used to die permanently after one error
-  (`state->error` gated `jr_read()` forever, worse than `JsonParser`), now it recovers the
-  enclosing container's dispatch table and resyncs the same way. See `BUGS`'s (now
-  removed) `json-parser-error-resync-is-per-byte-exceptions` and
-  `json-push-parser-resync-doc-untested` entries for the original writeup.
-  Known shared limitation: if the byte that *causes* the error is itself what would've
-  been the resync boundary (e.g. `[tru, 1]` - the malformed-literal error is only
-  detected by reading the `,` itself), the adjacent value is lost as collateral
-  garbage (`[tru, 1]` parses to `[]`, not `[1]`) in both engines - a rare edge case
-  judged not worth the extra complexity to special-case.
 
 - **Proposal: `document`-boundary event for streaming NDJSON/JSON-Lines through
   `JsonParser`/`JsonPushParser`** — not started, needs a design decision before
@@ -100,90 +67,51 @@ the full architecture/gap survey behind Tier 6-8.
   building this: if the comma-laxness bug above is ever tightened, top level must be
   explicitly excepted from any new "commas required" check, or this feature breaks.
 
-- ~~**Streams `respondWithNewView()` (BYOB) is missing spec-required safety checks**~~ — **FIXED** in commits `312df027`, `ae4f9992`, and `d209f470`.
-  Replaced `lib/stream.js` with qjs-lws version which has complete BYOB implementation.
-  Added `isDataViewConstructor` helper function and fixed all `pendingPullIntos` property
-  access to use `CTRL()` wrapper. Added `noop` and `assert_default` exports to lib/assert.js
-  for compatibility. Fixed `ReadableByteStreamControllerCallPullIfNeeded` to pull when there
-  are pending read requests, even if desiredSize <= 0. Fixed async iterator cleanup in
-  `_returnSteps` to use `this._reader` instead of `STRM(this).reader`. Fixed
-  `WritableStreamDefaultWriterWrite` to handle undefined stream and undefined
-  `strategySizeAlgorithm` correctly. All 41 stream tests now passing (100%).
-
-## Tier 4 — structural/maintenance risk and test-coverage gaps
-
-- ~~**`tests/test_list.js` isn't a real test**~~ — **DONE / STALE CLAIM**. It now uses
-  `assert`/`eq` from `./tinytest.js` throughout (dozens of `assert()` calls) with no unguarded
-  `while(!skip())` loop. Already a real test; no action needed.
-
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 
 Not urgent individually, but worth a pass since dead/disabled code in the same functions as
 live logic is exactly what produced every Tier 1 bug above — cleaning it up now prevents the
 next one.
 
-- Disabled alternate implementations with no remaining purpose: `src/js-utils.c:70-75`
-  (old `promise_free(JSContext*, ...)` overload), `src/js-utils.c:153-159` (old
-  `promise_forward()` body), `src/utils.c:2017-2023` (old `js_values_free(JSContext*, ...)`
-  overload), `src/utils.c:3050-3057` + `:3363-3372` (abandoned zero-copy
-  `js_arraybuffer_fromstring`/finalizer pair — current version always copies).
+- Disabled alternate implementation with no remaining purpose: `src/utils.c:1632-1638`
+  (old `js_values_free(JSContext*, ...)` overload, commented out above the live
+  `JSRuntime*` one).
 - Duplicated disabled `FROM_UNIXTIME(...)` date-formatting block in both
   `quickjs-mysql.c:109-120` and `quickjs-pgsql.c:220-231`.
-  **STALE CLAIM (2026-09-24)**: ~~plus an unused `js_pgconn_print_fields()`~~ — that function
-  (`quickjs-pgsql.c:298`) is actually called from `:371`; not dead, remove from this list.
-- `quickjs-sockets.c:2098-2133` — a whole abandoned `PROP_SYSCALL/PROP_ERRNO/PROP_ERROR/
+- `quickjs-sockets.c:1320,2061,2218,2262` — a whole abandoned `PROP_SYSCALL/PROP_ERRNO/PROP_ERROR/
   PROP_RET/PROP_AF` property block (enum + switch cases + both `Socket`/`AsyncSocket`
   registrations, all consistently disabled together) plus an unused `js_sockopt()` helper at
-  `:2236-2239`.
-- `quickjs-pointer.c:919-927` — disabled forwarding of `Array.prototype.map/reduce/forEach/
-  keys/values` onto `Pointer.prototype`; currently not exposed at all. `:707-713` — an
+  `:2199-2202`.
+- `quickjs-pointer.c:933-939` — disabled forwarding of `Array.prototype.map/reduce/forEach/
+  keys/values` onto `Pointer.prototype`; currently not exposed at all. `:718` — an
   abandoned `STATIC_COMMON` draft that was never wired into any function table.
-- `quickjs-predicate.c:754-758`, `quickjs-inspect.c:838-871` (34-line disabled exponent-
+- `quickjs-predicate.c:750-755`, `quickjs-inspect.c:892-` (disabled exponent-
   stripping number formatter) — superseded alternates, safe to delete.
-  **STALE CLAIM (2026-09-24)**: ~~`quickjs-inspect.c:1156-1175` disabled `[ClassName]`
-  fallback tag~~ — not found; `inspect_error()` (~line 1058-1073) uses `class_name` live and
-  unconditionally. Remove from this list.
-- `quickjs-lexer.c:834-849` — `Lexer.prototype.back()` only accepts a token/location object;
+- `quickjs-lexer.c:803` — `Lexer.prototype.back()` only accepts a token/location object;
   a disabled branch would have let callers pass a raw string instead (currently throws
   `TypeError` for that case).
-- `quickjs-path.c:140-152` — a disabled, superseded duplicate of `PATH_REALPATH` handling
+- `quickjs-path.c:141-152` — a disabled, superseded duplicate of `PATH_REALPATH` handling
   inside `js_path_method` (the live implementation is `js_path_method_dbuf` +
   `path_realpath3`, registered and working at `quickjs-path.c:698` — **not** a missing
   feature, just dead leftover code confusingly shaped like one).
-- `src/glob.c:582` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
+- `src/glob.c:580` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
   ENOTDIR? */`, minor optimization.
 - `wasm` module was scaffolded in `CMakeLists.txt` (the `option(MODULE_WASM ...)` declaration
-  itself is commented out at line 51, `BUILD_LIBWASM` defaults off) but no `quickjs-wasm.c`
+  itself is commented out at line 93, `BUILD_LIBWASM` defaults off) but no `quickjs-wasm.c`
   exists anywhere — either finish it or remove the dead `if(MODULE_WASM)` block
-  (`CMakeLists.txt:418-447`).
-- Minor hygiene: stray `src/utils.c.orig` backup file left in the tree; `quickjs-stream.c` has
-  ~13 functions with unfilled Doxygen placeholder text (`{ function_description }` etc.).
+  (`CMakeLists.txt:607-636`).
 
-## Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment, see `ASSESSMENT.md`)
+## Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment)
 
-~~**No fallback if `HAVE_DBUF_CLAIM` is false against a given reference tree.**~~ — **FIXED**
-  (verified 2026-09-24, no matching commit hash found but code confirms it). `include/defines.h:9-16`
-  now has a real bidirectional shim (`#if defined(QUICKJS_DBUF_CLAIM) && !defined(QUICKJS_DBUF_REALLOC)
-  ... #elif defined(QUICKJS_DBUF_REALLOC) && !defined(QUICKJS_DBUF_CLAIM) ...`), and
-  `CMakeLists.txt:639-659` detects both symbols via `check_library_exists` and defines
-  `QUICKJS_DBUF_REALLOC`/`QUICKJS_DBUF_CLAIM` accordingly. The old dead `#if 0`'d
-  `#define dbuf_realloc dbuf_claim` this item also flagged for deletion is gone too — both
-  sub-items resolved, nothing left to do here.
 - Additional disabled-code items found by the same pass, same shape as Tier 1/5 (commented-out
-  case/branch, feature silently missing rather than erroring): `quickjs-lexer.c:1611,1655`
-  (iterator `next`/`values` on `Lexer` disabled), `quickjs-misc.c:3592,3722,3725,3851` (+
+  case/branch, feature silently missing rather than erroring): `quickjs-lexer.c:1573,1617`
+  (iterator `next`/`values` on `Lexer` disabled), `quickjs-misc.c:3472,3601,3604,3723` (+
   matching disabled `case`s at `2806-2808`, `2822`) — `realpath`, `resizeArrayBuffer`/
   `isHTMLDDA`/function-type magic dispatch all disabled (`searchArrayBuffer` itself is live,
-  only its `search` alias is commented), `quickjs-pgsql.c:1855` (iterator `next` disabled —
-  `escapeString` itself has a live registration alongside a disabled duplicate at `:1312`, not
-  actually missing), `quickjs-tree-walker.c:167,486` (`setroot()`'s return value discarded — minor,
+  only its `search` alias is commented), `quickjs-pgsql.c:1804` (iterator `next` disabled —
+  `escapeString` itself has a live registration alongside a disabled duplicate at `:1271`, not
+  actually missing), `quickjs-tree-walker.c:167,488` (`setroot()`'s return value discarded — minor,
   probably harmless but worth a look).
-  **STALE CLAIM (2026-09-24)**: ~~`quickjs-list.c:567` (iterator `next` disabled)~~ — the
-  `JS_ITERATOR_NEXT_DEF("next", ...)` at line 566 is live; only a redundant old `JS_CFUNC_DEF`
-  alternate is commented at 567. `List` iteration is not actually missing; remove from this
-  list.
-- **Test coverage gaps**: no dedicated test file for `arraybuffer-sink`, `bcrypt`, `queue`,
-  `syscallerror`, or `virtual` (`bjson` is upstream-documented as test-only, lower priority).
 
 ## Tier 7 — roadmap gaps: JS standard-library surface (goal 1) vs. what exists
 
@@ -192,8 +120,7 @@ raw native modules rather than as part of a documented "standard library" surfac
 (despite `Blob.prototype.stream()` already being tracked in Tier 2 — there's no `lib/blob.js`
 at all, not just an incomplete method), `child-process`, `gpio`, `serial`, `mmap`, `directory`,
 `queue`, `repeater`, `virtual`, `magic`, `syscallerror`, `location`.
-~~`bcrypt`~~ — **DONE**: `lib/password.js` (commit `ce732af9`) now wraps it with a
-`Bun.password`-compatible `hash`/`verify` API; remove from this list. `sockets` has only
+`sockets` has only
 a low-level `lib/socklen_t.js` helper, not a `net`/`dgram`-style ergonomic wrapper - **and
 should not get one** (see below).
 
@@ -226,9 +153,6 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   were 9/12-line stubs); their docs are gone too. A real `node:readline`/`Buffer` would be new
   work, see the `node:readline` item below. `lib/perf_hooks.js` (13 lines:
   `now`/`timeOrigin` only, no marks or measures) is still thin as described, no change there.
-- ~~`lib/extendAsyncFunction.js:3` — declared but empty~~ — **STALE CLAIM / DONE**: it now has
-  a full `AsyncFunctionExtensions` (`catch`/`then`/`finally`/`indirect`/`bindArguments`/
-  `bindArray`/`bindThis`) and `extendAsyncFunction()`. Remove from this list.
 - `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
   `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
   `syncBuiltinESMExports()`, `SourceMap`.
@@ -308,14 +232,6 @@ Extended 2026-09-22 to `node:os`/`node:readline` (not in the original list) and
 cross-checked against Deno too (`-r qjsm -r bun -r deno`, all three loaded every module
 in the original list cleanly except the two already-known `node:tty`/`node:yaml` cases -
 Deno also errors `No such built-in module: node:yaml`, matching Bun):
-- ~~**`node:os` resolved to the wrong module entirely**~~ — **FIXED**: `jsm_builtin_find()`/
-  `jsm_module_loader()` (`src/qjsm.c`) no longer strip `node:` for `os` specifically.
-  qjsm's own `os` builtin is a low-level POSIX/process-primitives module (`exec`, `pipe`,
-  `kill`, `waitpid`, ...), nothing like Node's `os` (`hostname()`, `cpus()`,
-  `networkInterfaces()`, ...) which qjsm has none of - aliasing `node:os` to it would
-  silently resolve to a same-named but semantically unrelated module instead of failing
-  cleanly. `import('node:os')` now fails with a clean module-not-found; bare `import('os')`
-  and every other `node:x` alias are unaffected.
 - `node:readline`: missing `Interface`/`createInterface`/`emitKeypressEvents`/
   `moveCursor`/`clearScreenDown`/`promises` (matches the already-tracked "9-line stub"
   note above) - no extra qjsm-only names here, so no WARN case for this one.
@@ -514,14 +430,6 @@ internal implementation doesn't need to be a separate module.
 1. **LOW:** Inline BitSet (10.1) - simplifies dependencies (minor)
 2. **LOW:** Inline async-closure (10.2) - clarifies MySQL-specific code
 3. **LOW:** Inline child-process (10.3) - simplifies structure
-
-**Completed:**
-- ~~10.3 RingBuffer~~ - Removed in commit `7cda4dec` (163 lines deleted)
-
-**Removed (incorrect assessment):**
-- ~~10.1 JSON parsers~~ - Not duplicates: `json.h` is a pull parser, `jread.h` is a push/SAX parser, `sj.h` is a simple one-shot parser. They serve different APIs.
-- ~~10.2 XML parsers~~ - Not duplicates: `xml.h` is a pull parser, `xread.h` is a push/SAX parser. They serve different APIs.
-- ~~10.5 ioctlcmd.h~~ - Actually used by `src/readlink.c` for Windows symlink support.
 
 ## Tier 11 — `src/qjsm.c` refactoring opportunities (found during 2026-08-16 read-through)
 
