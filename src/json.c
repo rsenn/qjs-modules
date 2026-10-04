@@ -12,6 +12,15 @@ enum {
   EXPECTING_COLON = 0b10000,
 };
 
+/* skips whitespace and C/C++ comments, returns the next significant byte.
+ *
+ * `json->cmt_state` keeps a comment open across a NEED_DATA return:
+ * ```
+ * 0 none | 1 after '/' | 2 in `//` | 3 in `/ *` | 4 in `/ *` after '*'
+ * ```
+ *
+ * a '/' not followed by '/' or '*' is returned as a plain byte (an error
+ * for the caller); the byte after it is pushed back. */
 static int
 json_getc_skipws(JsonParser* json) {
   int c;
@@ -21,13 +30,56 @@ json_getc_skipws(JsonParser* json) {
     if((c = json_getc(json)) < 0)
       return c;
 
-    if(!is_whitespace_char(c))
-      break;
+    switch(json->cmt_state) {
+      case 0:
+        if(c == '/') {
+          json->cmt_state = 1;
+          break;
+        }
+
+        if(!is_whitespace_char(c))
+          return c;
+
+        break;
+
+      case 1:
+        if(c == '/') {
+          json->cmt_state = 2;
+        } else if(c == '*') {
+          json->cmt_state = 3;
+        } else {
+          json->cmt_state = 0;
+          json_ungetc(json, c);
+          json->token.size = pos;
+          dbuf_putc(&json->token, '/');
+          return '/';
+        }
+
+        break;
+
+      case 2:
+        if(c == '\n')
+          json->cmt_state = 0;
+
+        break;
+
+      case 3:
+        if(c == '*')
+          json->cmt_state = 4;
+
+        break;
+
+      case 4:
+        if(c == '/')
+          json->cmt_state = 0;
+        else if(c != '*')
+          json->cmt_state = 3;
+
+        break;
+    }
 
     json->token.size = pos;
   }
-
-  return c;
 }
 
 BOOL
@@ -51,6 +103,7 @@ json_init(JsonParser* json, Reader reader, const char* filename, JSContext* ctx)
   json->literal_pos = 0;
   json->is_key = FALSE;
   json->skip_depth = 0;
+  json->cmt_state = 0;
 
   dbuf_init2(&json->token, 0, 0);
 

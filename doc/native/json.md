@@ -4,6 +4,12 @@ Source: `quickjs-json.c` — module exports **`JsonParser`**, **`JsonPushParser`
 
 A streaming/extended JSON reader plus simple read/write helpers.
 
+**Comments:** `JsonParser` and `JsonPushParser` are tolerant of C++ (`// ...` to end of
+line) and C (`/* ... */`) comments wherever whitespace is allowed, including between a
+value and its comma, and across `write()` chunk boundaries. Comment markers inside strings
+are plain text. A `/` that doesn't start a comment is a syntax error. `read()` does not
+accept comments.
+
 ## Module functions
 
 | Function | Args | Description |

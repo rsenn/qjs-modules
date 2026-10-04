@@ -159,6 +159,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,      [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,
       ['['] = &&l_arr_s,       [92 ... 101] = &&l_err, ['f'] = &&l_false_f,     [103 ... 109] = &&l_err,   ['n'] = &&l_null_n,
       [111 ... 115] = &&l_err, ['t'] = &&l_true_t,     [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_val[] = {
@@ -166,6 +167,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [' '] = &&l_next,          [33 ... 33] = &&l_err,   ['"'] = &&l_str_s,  [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,   [46 ... 47] = &&l_err,
       ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,  [92 ... 101] = &&l_err,  ['f'] = &&l_false_f, [103 ... 109] = &&l_err,
       ['n'] = &&l_null_n,        [111 ... 115] = &&l_err, ['t'] = &&l_true_t, [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,   [124 ... 255] = &&l_err,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_num[] = {
@@ -313,6 +315,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,     [92 ... 92] = &&l_err,   [']'] = &&l_arr_e,
       [94 ... 101] = &&l_err,  ['f'] = &&l_false_f,       [103 ... 109] = &&l_err, ['n'] = &&l_null_n,    [111 ... 115] = &&l_err, ['t'] = &&l_true_t,
       [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_obj[] = {
@@ -330,6 +333,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [45 ... 124] = &&l_err,
       ['}'] = &&l_obj_e,
       [126 ... 255] = &&l_err,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   /* Used only right after a value fully ends (see JR_POP_GO_SEP()) - unlike go_arr, which
@@ -348,6 +352,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [33 ... 255] = &&l_err,
       [','] = &&l_arr_sep_comma,
       [']'] = &&l_arr_e,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   /* Same idea as go_arr_sep, for objects: right after a member's value ends, only a comma
@@ -363,6 +368,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [33 ... 255] = &&l_err,
       [','] = &&l_obj_sep_comma,
       ['}'] = &&l_obj_e,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_col[] = {
@@ -376,6 +382,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [33 ... 57] = &&l_err,
       [':'] = &&l_col,
       [59 ... 255] = &&l_err,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_obj_val[] = {
@@ -387,6 +394,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
       [33 ... 255] = &&l_val,
+      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   /* Post-error recovery: every byte is discarded (stays here) except a comma or a closing
@@ -398,6 +406,30 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [','] = &&l_err_resync_boundary,
       [']'] = &&l_err_resync_boundary,
       ['}'] = &&l_err_resync_boundary,
+  };
+
+  /* comments (C++ line and C block style) are skipped wherever whitespace is:
+   * `go` stays untouched, these tables just eat bytes until the comment ends. */
+  static void* go_cmt_start[] = {
+      [0 ... 255] = &&l_err,
+      ['/'] = &&l_cmt_line,
+      ['*'] = &&l_cmt_block,
+  };
+
+  static void* go_cmt_line[] = {
+      [0 ... 255] = &&l_cmt_line,
+      ['\n'] = &&l_next,
+  };
+
+  static void* go_cmt_block[] = {
+      [0 ... 255] = &&l_cmt_block,
+      ['*'] = &&l_cmt_star,
+  };
+
+  static void* go_cmt_star[] = {
+      [0 ... 255] = &&l_cmt_block,
+      ['*'] = &&l_cmt_star,
+      ['/'] = &&l_next,
   };
 
   const char* cstr = chunk;
@@ -463,6 +495,18 @@ l_err_resync_boundary:
    * closer would: skip to the next element, or run l_arr_e/l_obj_e to close the container
    * (json->stack pop and all), keeping this file as the single place that knows how. */
   JR_DISPATCH_THIS();
+
+l_cmt:
+  JR_DISPATCH_NEXT_GO(go_cmt_start);
+
+l_cmt_line:
+  JR_DISPATCH_NEXT_GO(go_cmt_line);
+
+l_cmt_block:
+  JR_DISPATCH_NEXT_GO(go_cmt_block);
+
+l_cmt_star:
+  JR_DISPATCH_NEXT_GO(go_cmt_star);
 
 l_num_s:
   jr_accum_reset(state);

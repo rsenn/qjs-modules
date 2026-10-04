@@ -650,4 +650,28 @@ tests({
 
     assert(loc1.charOffset >= loc0.charOffset, `${loc0.charOffset} -> ${loc1.charOffset}`);
   },
+  /* ---------- comments ---------- */
+  'JsonPushParser: // and block comments are skipped, one byte at a time'() {
+    let p = new JsonPushParser();
+    let doc = '// head\n{ /* a */ "a": 1, // x\n "b": [2, /* ** */ 3 /**/], "c": 4 /* t */ } // tail';
+
+    for(let i = 0; i < doc.length; i++) p.write(doc[i]);
+
+    eqArr(p.root, { a: 1, b: [2, 3], c: 4 });
+  },
+  'JsonPushParser: comment right after number and literal'() {
+    let p = new JsonPushParser();
+
+    p.write('[1/*x*/,true//y\n,null/*z*/]');
+    eqArr(p.root, [1, true, null]);
+  },
+  'JsonParser: comments are skipped'() {
+    eqArr(tokens(new JsonParser('/* c */ {"a" /* k */ : // v\n [1, 2]}')).map(([t, v]) => [t, v]), tokens(new JsonParser('{"a":[1,2]}')).map(([t, v]) => [t, v]));
+  },
+  'JsonParser: comment markers inside strings are kept'() {
+    let p = new JsonPushParser();
+
+    p.write('["// not", "/* a */"]');
+    eqArr(p.root, ['// not', '/* a */']);
+  },
 });

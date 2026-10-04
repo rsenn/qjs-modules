@@ -81,6 +81,9 @@ struct JsonParser {
      the resync boundary of the container the error actually happened in, eventually popping
      `stack` empty. Always 0 outside of an active skip. */
   int skip_depth;
+
+  /* json_getc_skipws(): comment scan state, 0 outside a comment */
+  int cmt_state;
 };
 
 BOOL json_init(JsonParser*, Reader, const char* filename, JSContext*);
