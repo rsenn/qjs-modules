@@ -1364,6 +1364,13 @@ static thread_local size_t module_hooks_len;
 
 static JSModuleDef* jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque);
 
+#ifndef JS_MODULE_LOADER_OLD
+/* the import attributes of the module being loaded (borrowed, NULL when none),
+ * for js_module_loader() in jsm_module_loader(). */
+static thread_local const JSValue* jsm_import_attributes = NULL;
+#define JSM_IMPORT_ATTRIBUTES() (jsm_import_attributes ? *jsm_import_attributes : JS_UNDEFINED)
+#endif
+
 /**
  * The engine's JSModuleLoaderFunc: resolves and loads `module_name`, handling
  * data: URLs, registered load hooks, circular-import warnings,
@@ -1456,7 +1463,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
                              opaque
 #ifndef JS_MODULE_LOADER_OLD
                              ,
-                             JS_UNDEFINED
+                             JSM_IMPORT_ATTRIBUTES()
 #endif
         );
     }
@@ -1516,6 +1523,40 @@ end:
   } else
     js_free(ctx, name);
   return m;
+}
+
+#ifndef JS_MODULE_LOADER_OLD
+/**
+ * The module loader with import attributes: `import x from 'a.json' with { type: 'json' }`.
+ * The attributes reach js_module_loader() so `type` is honored, and the keys are checked
+ * beforehand by js_module_check_attributes() (see jsm_set_module_loader()).
+ */
+static JSModuleDef*
+jsm_module_loader2(JSContext* ctx, const char* module_name, void* opaque, JSValueConst attributes) {
+  const JSValue* saved = jsm_import_attributes;
+  JSModuleDef* m;
+
+  jsm_import_attributes = &attributes;
+  m = jsm_module_loader(ctx, module_name, opaque);
+  jsm_import_attributes = saved;
+  return m;
+}
+#endif
+
+static char* jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque);
+
+/**
+ * Installs the module loader on a runtime. With import attributes (unless
+ * JS_MODULE_LOADER_OLD), an attribute key the engine does not support, i.e. anything
+ * but `type`, is a TypeError when the import is resolved, as in js_module_check_attributes().
+ */
+static void
+jsm_set_module_loader(JSRuntime* rt) {
+#ifdef JS_MODULE_LOADER_OLD
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, NULL);
+#else
+  JS_SetModuleLoaderFunc2(rt, jsm_module_normalize, jsm_module_loader2, js_module_check_attributes, NULL);
+#endif
 }
 
 /**
@@ -2240,7 +2281,7 @@ jsm_context_new(JSRuntime* rt) {
    * js_std_set_worker_new_context_func(), so it must install the loader
    * itself or bare specifiers (even 'os'/'std', already registered on this
    * same rt) are unresolvable inside every worker. */
-  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, NULL);
+  jsm_set_module_loader(rt);
 
   /* loaded_modules is thread_local (jsm_module_find() walks it via
    * list_for_each) and main() only ever init_list_head()s the main thread's
@@ -3178,7 +3219,7 @@ main(int argc, char** argv) {
   js_std_init_handlers(jsm_rt);
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(jsm_rt, jsm_module_normalize, jsm_module_loader, NULL);
+  jsm_set_module_loader(jsm_rt);
 
   jsm_ctx = jsm_context_new(jsm_rt);
   if(!jsm_ctx) {

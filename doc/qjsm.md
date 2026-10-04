@@ -151,6 +151,25 @@ Every module that resolves this way (steps 1-7, plus builtins) gets a
 `import`ed again later — that shadow list is qjsm's only source of truth for
 "what's loaded" (see [Design ideas](#design-ideas)).
 
+## Import attributes
+
+`with { type: "json" }` works in static and dynamic imports, and the attributes
+reach the loader, so `type` decides how a file is read whatever its name:
+
+```js
+import config from "./config.json" with { type: "json" };
+
+const data = await import("./data.dat", { with: { type: "json" } }); // parsed as JSON
+```
+
+qjsm checks the **keys**, as the specification and plain `qjs` do: `type` is the
+only supported one, and any other (`with { foo: "bar" }`) is a `TypeError` when
+the import is resolved, in a static and in a dynamic import. The values are not
+checked: `type: "nope"` and a `.json` imported with no attribute at all still
+load, which Node, Bun and Deno refuse. For a script that has to run there too,
+always write `with { type: "json" }`. The old `assert { ... }` keyword is a
+`SyntaxError`.
+
 ## Builtin modules
 
 The set of builtins is exactly `QUICKJS_MODULES` (native, e.g. `fs`, `path`,
