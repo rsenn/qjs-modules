@@ -2181,6 +2181,7 @@ enum {
   JSON_PARSER_STATE,
   JSON_PARSER_DEPTH,
   JSON_PARSER_LOCATION,
+  JSON_PARSER_COMMENTS,
 };
 
 static JSValue
@@ -2199,6 +2200,11 @@ js_jsonparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case JSON_PARSER_POS: {
       ret = JS_NewUint32(ctx, p->pos);
+      break;
+    }
+
+    case JSON_PARSER_COMMENTS: {
+      ret = JS_NewBool(ctx, p->comments);
       break;
     }
 
@@ -2252,6 +2258,11 @@ js_jsonparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int
     return JS_EXCEPTION;
 
   switch(magic) {
+    case JSON_PARSER_COMMENTS: {
+      p->comments = JS_ToBool(ctx, value);
+      break;
+    }
+
     case JSON_PARSER_CALLBACK: {
       struct js_jsonparser_opaque* op;
 
@@ -2312,6 +2323,7 @@ static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_jsonparser_get, 0, JSON_PARSER_DEPTH, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("location", js_jsonparser_get, 0, JSON_PARSER_LOCATION, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("callback", js_jsonparser_get, js_jsonparser_set, JSON_PARSER_CALLBACK),
+    JS_CGETSET_MAGIC_DEF("comments", js_jsonparser_get, js_jsonparser_set, JSON_PARSER_COMMENTS),
     JS_ITERATOR_NEXT_DEF("next", 0, js_jsonparser_iterator_next, 0),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_json_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonParser", JS_PROP_CONFIGURABLE),
@@ -2330,6 +2342,7 @@ static const JSCFunctionListEntry js_jsonparser_static_props[] = {
     JS_PROP_INT32_DEF("FALSE", 7, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("NULL", 8, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("NUMBER", 9, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("COMMENT", 10, JS_PROP_ENUMERABLE),
 };
 
 static JSClassDef js_jsonparser_class = {

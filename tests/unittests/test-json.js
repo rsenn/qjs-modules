@@ -674,4 +674,23 @@ tests({
     p.write('["// not", "/* a */"]');
     eqArr(p.root, ['// not', '/* a */']);
   },
+  'JsonParser: comments = true reports COMMENT tokens'() {
+    let p = new JsonParser('// a\n[1, /* b */ 2] // c');
+    let got = [];
+    let t;
+
+    p.comments = true;
+
+    while((t = p.parse()) !== NEED_DATA) got.push([t, t === JsonParser.COMMENT ? p.token : null]);
+
+    eqArr(got, [
+      [JsonParser.COMMENT, '// a'],
+      [ARRAY, null],
+      [NUMBER, null],
+      [JsonParser.COMMENT, '/* b */'],
+      [NUMBER, null],
+      [ARRAY_END, null],
+      [JsonParser.COMMENT, '// c'],
+    ]);
+  },
 });

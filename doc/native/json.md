@@ -10,6 +10,10 @@ value and its comma, and across `write()` chunk boundaries. Comment markers insi
 are plain text. A `/` that doesn't start a comment is a syntax error. `read()` does not
 accept comments.
 
+Set `parser.comments = true` on a `JsonParser` to get each comment back as a
+`JsonParser.COMMENT` token (`parser.token` is the text including `//` or `/* */`) instead of
+having it skipped. `JsonPushParser` always skips them.
+
 ## Module functions
 
 | Function | Args | Description |

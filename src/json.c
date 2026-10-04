@@ -12,12 +12,18 @@ enum {
   EXPECTING_COLON = 0b10000,
 };
 
+/* internal json_getc_skipws() result: a complete comment is in json->token */
+#define JSON_COMMENT_SIG (-200)
+
 /* skips whitespace and C/C++ comments, returns the next significant byte.
  *
  * `json->cmt_state` keeps a comment open across a NEED_DATA return:
  * ```
  * 0 none | 1 after '/' | 2 in `//` | 3 in `/ *` | 4 in `/ *` after '*'
  * ```
+ *
+ * with `json->comments` set, a finished comment is kept in the token and
+ * JSON_COMMENT_SIG is returned instead of skipping it.
  *
  * a '/' not followed by '/' or '*' is returned as a plain byte (an error
  * for the caller); the byte after it is pushed back. */
@@ -27,8 +33,14 @@ json_getc_skipws(JsonParser* json) {
   size_t pos = json->token.size;
 
   for(;;) {
-    if((c = json_getc(json)) < 0)
+    if((c = json_getc(json)) < 0) {
+      if(c == STREAM_EOF && json->cmt_state == 2 && json->comments) {
+        json->cmt_state = 0;
+        return JSON_COMMENT_SIG;
+      }
+
       return c;
+    }
 
     switch(json->cmt_state) {
       case 0:
@@ -58,8 +70,14 @@ json_getc_skipws(JsonParser* json) {
         break;
 
       case 2:
-        if(c == '\n')
+        if(c == '\n') {
           json->cmt_state = 0;
+
+          if(json->comments) {
+            --json->token.size; /* the newline is not part of the comment */
+            return JSON_COMMENT_SIG;
+          }
+        }
 
         break;
 
@@ -70,15 +88,20 @@ json_getc_skipws(JsonParser* json) {
         break;
 
       case 4:
-        if(c == '/')
+        if(c == '/') {
           json->cmt_state = 0;
-        else if(c != '*')
+
+          if(json->comments)
+            return JSON_COMMENT_SIG;
+        } else if(c != '*') {
           json->cmt_state = 3;
+        }
 
         break;
     }
 
-    json->token.size = pos;
+    if(!(json->comments && json->cmt_state))
+      json->token.size = pos;
   }
 }
 
@@ -104,6 +127,7 @@ json_init(JsonParser* json, Reader reader, const char* filename, JSContext* ctx)
   json->is_key = FALSE;
   json->skip_depth = 0;
   json->cmt_state = 0;
+  json->comments = FALSE;
 
   dbuf_init2(&json->token, 0, 0);
 
@@ -491,9 +515,15 @@ json_parse(JsonParser* json) {
       return json_finish_scan(json, r);
     }
 
-    dbuf_zero(&json->token);
+    if(!json->cmt_state)
+      dbuf_zero(&json->token);
 
-    if((c = json_getc_skipws(json)) < 0)
+    c = json_getc_skipws(json);
+
+    if(c == JSON_COMMENT_SIG)
+      return JSON_TYPE_COMMENT;
+
+    if(c < 0)
       return json_need_or_error(c);
 
     if(json->state & EXPECTING_COMMA_OR_END) {

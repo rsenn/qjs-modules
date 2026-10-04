@@ -28,6 +28,7 @@ typedef enum {
   JSON_TYPE_FALSE,
   JSON_TYPE_NULL,
   JSON_TYPE_NUMBER,
+  JSON_TYPE_COMMENT, /* only returned when json->comments is set; token holds the comment text */
 } JsonValueType;
 
 typedef struct JsonParser JsonParser;
@@ -84,6 +85,7 @@ struct JsonParser {
 
   /* json_getc_skipws(): comment scan state, 0 outside a comment */
   int cmt_state;
+  BOOL comments; /* report comments as JSON_TYPE_COMMENT instead of skipping them */
 };
 
 BOOL json_init(JsonParser*, Reader, const char* filename, JSContext*);
