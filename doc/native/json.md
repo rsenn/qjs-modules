@@ -42,12 +42,13 @@ The function/method/fd forms let the parser pull raw bytes on demand instead of 
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `parse()` | 0 | method | Advances one token. Returns one of `"NEED_DATA"`, `"NONE"`, `"OBJECT"`, `"OBJECT_END"`, `"ARRAY"`, `"ARRAY_END"`, `"KEY"`, `"STRING"`, `"TRUE"`, `"FALSE"`, `"NULL"`, `"NUMBER"`. Throws on malformed input. |
+| `parse()` | 0 | method | Advances one token. Returns one of `"NEED_DATA"`, `"NONE"`, `"OBJECT"`, `"OBJECT_END"`, `"ARRAY"`, `"ARRAY_END"`, `"KEY"`, `"STRING"`, `"TRUE"`, `"FALSE"`, `"NULL"`, `"NUMBER"`, plus `JsonParser.COMMENT` when `comments` is set. Throws on malformed input. |
 | `pos` | — | getter | Current parse position, in characters consumed (enumerable). |
 | `token` | — | getter | The current token's decoded text — e.g. string/key content has escapes and `\uXXXX` (including surrogate pairs) already resolved (enumerable). |
 | `state` | — | getter | Internal parser state bitmask (enumerable). |
 | `depth` | — | getter | Current nesting depth (enumerable). |
 | `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename); live, like `JsonPushParser`'s (enumerable). |
+| `comments` | — | getter/setter | Boolean, default `false`. When `true`, `parse()` returns `JsonParser.COMMENT` for each `//` or `/* */` comment (text in `token`) instead of skipping it. |
 | `callback` | — | getter/setter | Per-value callback invoked while parsing. The function is called as `callback(parser, type, text)` where `type` is a `JsonValueType` integer and `text` is the token string (or `undefined`). |
 
 ```js
