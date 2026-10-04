@@ -405,6 +405,113 @@ When working on this codebase:
 2. Fix remaining 11 test failures
 3. Reduce custom APIs, increase standards compliance
 
+## Comments
+
+These rules govern every comment you write or rewrite in this repo (C and
+JS), from here on. Existing comments you are not otherwise touching stay
+as they are (see "Surgical Changes"). Keep comments short and readable, not
+a running log of debugging history and not a packed block of prose either.
+A comment should be something the reader's eye takes in as a shape, the way
+a table or a diagram is, not something they have to read start to end.
+
+- Struct-member comments: 1-2 lines, right on the member.
+- Any other comment explaining behavior: 4 lines max. If the rationale needs
+  more room, restructure instead of writing a longer paragraph: a one-line
+  summary, then a short list (one point per fact), or a table. Never an
+  unbroken block of sentences.
+- Never reference `BUGS` / `TODO.md` entries, issue names, or "confirmed via
+  repro X" in a comment; that history belongs in the commit message. State
+  the current rule and its reason, not how it was discovered or what broke
+  before it existed.
+- Prefer showing over telling: a C expression, a literal value, or a short
+  before/after pair beats a sentence describing the same fact.
+- Write sentences a reader takes in on one pass: subject, verb, concrete
+  fact. No hedging, no throat-clearing, no "used to X / now Y" history; state
+  the current behavior and, if not obvious, the one reason it must be so.
+- A comment starts lowercase, unless its first word is an identifier that
+  starts with an uppercase letter (`CFunction: ...`). Later sentences are
+  fragments or follow after `;`, not new capitalised ones.
+- Comment text is 75 columns at most, measured after the leading ` * ` (or
+  `/* `); with the prefix that is 78, so a closing ` */` still fits.
+- Multi-line code in a comment is fenced (```` ```c ```` / ```` ```js ````),
+  each fence on its own comment line. A one-line snippet uses single
+  backticks.
+- A function's comment says what it does in its first line; after two lines
+  a reader who has not seen the code can say what goes in and what comes
+  out. Show one concrete input and its result rather than describing a shape.
+- One comment per function, never one block shared by several.
+- Never a packed block: summary line, example, parameter columns and
+  `returns` are separate paragraphs, split by an empty ` *` line.
+- Parameters get one line each: 2-space indent, then type, name and
+  description as aligned columns (descriptions start at the same column):
+
+  ```c
+  /* one-line summary of what the function does.
+   *
+   *   const char*  name   what this argument is / controls
+   *   size_t       len    what this argument is / controls
+   *
+   *   returns ssize_t     what the return value means
+   */
+  ```
+
+### State the error contract of every helper
+
+Use one of three fixed forms; a caller cannot tell from the signature
+whether a failed return leaves an exception pending or sets errno:
+
+```c
+/* ... returns 0, or -1 with an exception pending. */
+/* ... returns NULL with errno set. */
+/* ... never throws: returns 0 on success, non-zero if `v` is bad. */
+```
+
+### A JS-facing function, class or object gets a header block
+
+Whatever C exposes to JS is explained once, at its declaration (in the `.h`
+for what other files call, above the definition for a `static`), in JS
+terms. The 4-line prose cap does not count the example and the table.
+Order: `Name: what it is` (and the Web/Node/Bun API it mirrors); the JS
+usage in a ```` ```js ```` fence; arguments and result as aligned columns;
+`throws`; one line on how it is wired in (`JS_CFUNC_DEF(...)` entry).
+A class: constructor usage, one line per method/getter, then `throws`.
+
+### Where the code is a table, comment it as a table
+
+- conversions per kind, above the `switch`: `kind | C type | JS in | JS out`
+- magic-dispatched accessors, above the list: `magic | JS property | meaning`
+- module exports, in the init function: one line per name, in order
+
+### Each `.c` file starts with a banner
+
+Name the JS names it implements, what it depends on, and the one rule that
+holds throughout:
+
+```c
+/* c-function.c: CFunction, close(), and the variable accessors.
+ * depends on: ffi-type.c (signatures), js-helpers.c (pointer conversion).
+ * rule: the callable object is its own opaque holder, no lookup per call. */
+```
+
+### Tag the recurring gotchas
+
+A fixed prefix makes a warning one `grep` away:
+
+| Tag | Use for |
+| --- | --- |
+| `refcount:` | who owns a reference and who frees it |
+| `borrowed:` | a pointer valid only until a named point (`JS_FreeCString`, the next call) |
+| `exception pending:` | a path that returns with `JS_EXCEPTION` already set |
+| `JS thread only:` | a function that must never run from another OS thread |
+| `little-endian:` | code that relies on byte order |
+
+### A QuickJS API quirk: show the call, not a paragraph
+
+```c
+JS_DefinePropertyValue(ctx, obj, atom, v, flags);  // takes `v`, not `atom`
+JS_GetPropertyStr(ctx, obj, "k");                  // returns a new ref: free it
+```
+
 ## GitHub Pages site
 
 This project's GitHub Pages site (the `gh-pages` branch) is **generated, not
