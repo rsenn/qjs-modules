@@ -104,6 +104,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
      `extendObject.js`), but it's being kept anyway - the author's call, not a scoring
      decision. Don't flag it again in a future cleanup pass without being asked.
 
+### Choosing the Next Task (leverage)
+
+Rank candidate work by these metrics, in order:
+
+1. **Lift an own API to a standard one.** Highest leverage: an API that is currently
+   qjs-modules-specific but could match WHATWG / Browser / Bun / Deno / Node (priority order
+   as in "Prefer Standards Over Custom APIs"). Example: `json.read()` multi-document input
+   becomes Bun's `JSONL.parse()`.
+2. **Remove what nothing uses.** Next best: code, exports or modules with no user in
+   `examples/`, `utilities/`, `lib/`, `~/Sources/plot-cv/`, or any other
+   `~/Sources/quickjs/qjs-*` project (grep them all before deciding). Zero usage plus no
+   standard target means a removal candidate (exception: `quickjs-virtual.c`, see above).
+3. Everything else (bug fixes, test gaps, cleanup) after those two.
+
+Only propose a new feature when a WHATWG/Browser/Bun/Deno/Node equivalent exists.
+
 ## What this is
 
 A collection of **native C modules for QuickJS** (`quickjs-*.c`/`.h` bindings, e.g. `stream`,
