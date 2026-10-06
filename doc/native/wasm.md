@@ -45,7 +45,7 @@ when the memory grows.
 
 ## Not yet supported
 
-- `.wasm` imports (the `WebAssembly` global is [`lib/webassembly.js`](../js/webassembly.md))
+- `import source` and `with { type: 'wasm' }` for `.wasm` ([`lib/wasm-loader.js`](../js/wasm-loader.md) covers plain imports)
 - `externref` tables and globals, shared memories, `Tag`/`Exception`
 - one function object per wasm function: `Table.get(i)` and an export of the same function are different objects
 - multi-value host returns

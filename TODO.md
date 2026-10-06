@@ -210,7 +210,7 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   `syncBuiltinESMExports()`, `SourceMap`.
 
 **WebAssembly: `.wasm` imports** *(investigated 2026-10-06)* — the `WebAssembly` global is
-done (`lib/webassembly.js`, opt-in, with `*Streaming`); `.wasm` ESM import is not started; wasm3 is the leading runtime candidate (see the findings below).
+done (`lib/webassembly.js`, opt-in, with `*Streaming`); `.wasm` ESM import is done (`lib/wasm-loader.js`, opt-in, instance phase only); wasm3 is the leading runtime candidate (see the findings below).
 
 *What other runtimes provide:*
 - **Browser / Node / Deno / Bun:** a global `WebAssembly` (W3C JS API): `Module`, `Instance`,

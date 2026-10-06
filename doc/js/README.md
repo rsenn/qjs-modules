@@ -33,6 +33,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [typescript](typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
 - [wasi](wasi.md) — `WASI` (Node's `node:wasi`, preview1) for the `wasm` module
 - [webassembly](webassembly.md) — the `WebAssembly` global over the `wasm` module (opt-in)
+- [wasm-loader](wasm-loader.md) — `.wasm` ES module loader (`registerHooks()`, opt-in)
 - [require](require.md) — CommonJS require
 - [stack](stack.md) — Stack utilities
 
