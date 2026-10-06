@@ -120,6 +120,21 @@ Rank candidate work by these metrics, in order:
 
 Only propose a new feature when a WHATWG/Browser/Bun/Deno/Node equivalent exists.
 
+### Survey the other runtimes before creating any API
+
+Before writing a new API (function, class, option, module export), look up the
+existing one in the other JS runtimes and copy its shape. Do this first, not after.
+
+1. Load every `quickjs*` skill (`quickjs-native-bindings`, `quickjs-scripting`, ...).
+2. Find the equivalent in Browser (WHATWG/W3C spec), Bun, Deno, Node, in that priority.
+3. Probe the installed runtimes instead of recalling from memory: `node -e`, `bun -e`
+   (and `deno eval` when installed); read the spec or docs for the rest.
+4. Note per runtime: names verbatim, argument shapes, return values, error types,
+   what is missing. A feature only one runtime has needs a stated reason.
+5. Match the standard shape; diverge only for a concrete reason, and say which.
+6. Confirm the result with `quickjs-scripting`'s `portable-check.sh` where the API is
+   scriptable, and keep a differential test against node/bun when practical.
+
 ## What this is
 
 A collection of **native C modules for QuickJS** (`quickjs-*.c`/`.h` bindings, e.g. `stream`,

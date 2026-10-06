@@ -209,8 +209,8 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
   `syncBuiltinESMExports()`, `SourceMap`.
 
-**WebAssembly: `WebAssembly` global and `.wasm` imports** *(investigated 2026-10-06)* — qjsm
-has neither. Not started; wasm3 is the leading runtime candidate (see the findings below).
+**WebAssembly: `.wasm` imports** *(investigated 2026-10-06)* — the `WebAssembly` global is
+done (`lib/webassembly.js`, opt-in, with `*Streaming`); `.wasm` ESM import is not started; wasm3 is the leading runtime candidate (see the findings below).
 
 *What other runtimes provide:*
 - **Browser / Node / Deno / Bun:** a global `WebAssembly` (W3C JS API): `Module`, `Instance`,

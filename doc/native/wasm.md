@@ -45,7 +45,7 @@ when the memory grows.
 
 ## Not yet supported
 
-- `instantiate()`/`compile()` promises, the `WebAssembly` global, `.wasm` imports
+- `.wasm` imports (the `WebAssembly` global is [`lib/webassembly.js`](../js/webassembly.md))
 - `externref` tables and globals, shared memories, `Tag`/`Exception`
 - one function object per wasm function: `Table.get(i)` and an export of the same function are different objects
 - multi-value host returns
