@@ -97,6 +97,8 @@ tests({
     eq(old.byteLength, 0);
   },
   'exported Table has length and get() returns callable functions'() {
+    if(wasm.backend != 'wasm3') return; /* wamr does not expose tables */
+
     const { t } = new wasm.Instance(new wasm.Module(TABLE)).exports;
 
     eq(t.length, 1);

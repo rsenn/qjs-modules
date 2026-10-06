@@ -31,8 +31,9 @@ typedef struct {
 } Module;
 
 typedef struct {
-  JSValue env;  /* owned */
-  JSValue deps; /* owned: array of the import objects it was linked with */
+  JSValue env;    /* owned */
+  JSValue module; /* owned: the engine may read the module while instantiated */
+  JSValue deps;   /* owned: array of the import objects it was linked with */
   WBInstance* inst;
 } Instance;
 
@@ -573,6 +574,7 @@ instance_finalizer(JSRuntime* rt, JSValue val) {
     if(i->inst && e)
       WB_FreeInstance(e->ctx, i->inst);
     JS_FreeValueRT(rt, i->deps);
+    JS_FreeValueRT(rt, i->module);
     JS_FreeValueRT(rt, i->env);
     js_free_rt(rt, i);
   }
@@ -669,6 +671,7 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
   if(!(inst = js_mallocz(ctx, sizeof(*inst))))
     return JS_EXCEPTION;
   inst->env = JS_DupValue(ctx, mod->env);
+  inst->module = JS_DupValue(ctx, argv[0]);
   inst->deps = JS_NewArray(ctx);
 
   if(n && !(imports = calloc(n, sizeof(*imports)))) {
@@ -745,6 +748,7 @@ fail:
   if(inst->inst)
     WB_FreeInstance(e->ctx, inst->inst);
   JS_FreeValue(ctx, inst->deps);
+  JS_FreeValue(ctx, inst->module);
   JS_FreeValue(ctx, inst->env);
   js_free(ctx, inst);
   return JS_EXCEPTION;

@@ -9,6 +9,8 @@ import * as wasm from 'wasm';
  *
  *   qjsm examples/wasm-shish.js [dir-with-the-wasm-files]
  *
+ * Needs the wasm3 backend (setjmp/longjmp goes through the exported table).
+ *
  * Emscripten minifies import and export names, so the tables below map
  * each letter to the name it has in these particular builds.
  */

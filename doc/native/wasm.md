@@ -5,6 +5,12 @@ pluggable engine (`include/wasm-backend.h`). The shipped backend is wasm3
 (`src/wasm3-backend.c`, vendored in `third_party/wasm3`); WAMR
 (`src/wamr-backend.c`, `third_party/wamr`) is the second implementation.
 
+## Backend
+
+`cmake -DWASM_BACKEND=wasm3` (default) or `-DWASM_BACKEND=wamr`; exactly one is
+linked, so `wasm.backend` names the engine. WAMR has no exported `Table` and no
+table, memory or global imports (see `wasm-backend.h` capability flags).
+
 ## Exports
 
 | Name | Meaning |

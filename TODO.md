@@ -331,14 +331,13 @@ tree), and its `wasm.h` drops such imports outright.
 
 *Status (2026-10-07):* `quickjs-wasm.c` is scaffolded over `include/wasm-backend.h`, with
 `src/wasm3-backend.c` wired into CMake (`cmake/BuildWasm3.cmake`) and
-`tests/unittests/test-wasm.js` passing. `src/wamr-backend.c` compiles and runs shish
-(function imports only), but has no CMake recipe yet. Docs: `doc/native/wasm.md`.
+`tests/unittests/test-wasm.js` passing. `src/wamr-backend.c` is selectable with `-DWASM_BACKEND=wamr`
+(function imports only, no Table). Docs: `doc/native/wasm.md`.
 
 *Next steps:*
-1. `build_wamr()` in `cmake/` plus a backend switch (`WASM_BACKEND=wasm3|wamr`) in `CMakeLists.txt`.
-2. `new WebAssembly.Memory()`, `Table`, `Global`, table/global imports and exports on wasm3
+1. `new WebAssembly.Memory()`, `Table`, `Global`, table/global imports and exports on wasm3
    (`WB_NewTable`/`WB_NewGlobal` are unsupported there).
-3. `lib/webassembly.js`: the `WebAssembly` global, `instantiate()`/`compile()` promises, and a
+2. `lib/webassembly.js`: the `WebAssembly` global, `instantiate()`/`compile()` promises, and a
    `.wasm` `registerHooks` load hook.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
