@@ -17,7 +17,8 @@ tests({
     eq(Object.keys(m).sort().join(), 'g,memory,twice');
   },
   async 'a global export holds its value'() {
-    eq((await import(`${dir}twice.wasm`)).g, 7);
+    // WAMR does not export globals: the binding is present, the value undefined
+    eq((await import(`${dir}twice.wasm`)).g, wasm.backend == 'wasm3' ? 7 : undefined);
   },
   async 'a memory export is a WebAssembly.Memory'() {
     assert((await import(`${dir}twice.wasm`)).memory instanceof wasm.Memory);
