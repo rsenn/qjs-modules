@@ -33,16 +33,16 @@ against these — they're the "why" behind what gets picked up next.
 ## Tier 3 — known perf/architecture debt (already flagged) and spec-compliance gaps
 
 - **`js_is_*` type-check helpers (`js_is_arraybuffer`, `js_is_date`, `js_is_map`, etc. in
-  `src/utils.c:2664-2745`) are slow** *(pre-existing TODO item)* — each does
+  `src/utils.c`) are slow** *(pre-existing TODO item)* — each does
   `instanceof || Object.prototype.toString comparison` via a string compare instead of a tag
-  check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling once
-  Tier 1 is fixed and traffic patterns are trustworthy again.
+  check. These sit on hot paths (serialization, `deep`, `inspect`), so worth profiling before
+  extending the fast path to the remaining helpers.
   **Partially addressed**: `js_is_arraybuffer`/`js_is_sharedarraybuffer`/`js_is_date`/
   `js_is_map`/`js_is_weakmap`/`js_is_set` now have a `JS_GetClassID()`-tag fast path
   (probed once per type, gated on `HAVE_JS_GETCLASSID` since not every linked quickjs
   exposes `JS_GetClassID`), falling back to the old string-compare path otherwise.
-  `js_is_generator`/`js_is_asyncgenerator`/`js_is_regexp`/`js_is_promise`/
-  `js_is_dataview`/`js_is_error` still use the slow path.
+  `js_is_generator`/`js_is_regexp`/`js_is_promise`/`js_is_dataview`/`js_is_error` still use
+  the slow path.
 
 - **NDJSON/JSON-Lines support in the `json` module** *(investigated 2026-10-06)* — what
   exists today, and what the other runtimes have that we lack.
@@ -118,55 +118,58 @@ against these — they're the "why" behind what gets picked up next.
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 
 Not urgent individually, but worth a pass since dead/disabled code in the same functions as
-live logic is exactly what produced every Tier 1 bug above — cleaning it up now prevents the
-next one.
+live logic has been the source of earlier bugs — cleaning it up now prevents the next one.
 
-- Disabled alternate implementation with no remaining purpose: `src/utils.c:1632-1638`
+- Disabled alternate implementation with no remaining purpose: `src/utils.c:js_values_free()`
   (old `js_values_free(JSContext*, ...)` overload, commented out above the live
   `JSRuntime*` one).
 - Duplicated disabled `FROM_UNIXTIME(...)` date-formatting block in both
-  `quickjs-mysql.c:109-120` and `quickjs-pgsql.c:220-231`.
-- `quickjs-sockets.c:1320,2061,2218,2262` — a whole abandoned `PROP_SYSCALL/PROP_ERRNO/PROP_ERROR/
-  PROP_RET/PROP_AF` property block (enum + switch cases + both `Socket`/`AsyncSocket`
-  registrations, all consistently disabled together) plus an unused `js_sockopt()` helper at
-  `:2199-2202`.
-- `quickjs-pointer.c:933-939` — disabled forwarding of `Array.prototype.map/reduce/forEach/
-  keys/values` onto `Pointer.prototype`; currently not exposed at all. `:718` — an
-  abandoned `STATIC_COMMON` draft that was never wired into any function table.
-- `quickjs-predicate.c:750-755`, `quickjs-inspect.c:892-` (disabled exponent-
-  stripping number formatter) — superseded alternates, safe to delete.
-- `quickjs-lexer.c:803` — `Lexer.prototype.back()` only accepts a token/location object;
+  `quickjs-mysql.c:js_mysql_print_value()` and `quickjs-pgsql.c:js_pgconn_print_value()`.
+- `quickjs-sockets.c`: a whole abandoned `PROP_SYSCALL/PROP_ERRNO/PROP_ERROR/PROP_RET/PROP_AF`
+  property block (the property enum, the cases in `js_socket_get()`, and both
+  `js_socket_proto_funcs`/`js_asyncsocket_proto_funcs` registrations, all consistently
+  disabled together) plus a commented-out `js_sockopt()` helper above `js_sockets_funcs`.
+- `quickjs-pointer.c:js_pointer_init()` — disabled forwarding of `Array.prototype.map/reduce/
+  forEach/keys/values` onto `Pointer.prototype`; currently not exposed at all.
+  `quickjs-pointer.c:js_pointer_funcs()` — an abandoned `STATIC_COMMON` draft that was never
+  wired into any function table.
+- `quickjs-predicate.c:js_predicate_call()` (commented-out result `switch`),
+  `quickjs-inspect.c:inspect_number()` (disabled exponent-stripping number formatter) —
+  superseded alternates, safe to delete.
+- `quickjs-lexer.c:js_lexer_method()` (`LEXER_BACK`) — `Lexer.prototype.back()` only accepts a token/location object;
   a disabled branch would have let callers pass a raw string instead (currently throws
   `TypeError` for that case).
-- `quickjs-path.c:141-152` — a disabled, superseded duplicate of `PATH_REALPATH` handling
-  inside `js_path_method` (the live implementation is `js_path_method_dbuf` +
-  `path_realpath3`, registered and working at `quickjs-path.c:698` — **not** a missing
+- `quickjs-path.c:js_path_method()` — a disabled, superseded duplicate of `PATH_REALPATH`
+  handling (the live implementation is `js_path_method_dbuf` + `path_realpath3`, registered
+  in `js_path_funcs` and working — **not** a missing
   feature, just dead leftover code confusingly shaped like one).
-- `src/glob.c:580` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
+- `src/glob.c:glob3()` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
   ENOTDIR? */`, minor optimization.
 - `wasm` module was scaffolded in `CMakeLists.txt` (the `option(MODULE_WASM ...)` declaration
-  itself is commented out at line 93, `BUILD_LIBWASM` defaults off) but no `quickjs-wasm.c`
-  exists anywhere — either finish it or remove the dead `if(MODULE_WASM)` block
-  (`CMakeLists.txt:607-636`).
+  itself is commented out, `BUILD_LIBWASM` defaults off) but no `quickjs-wasm.c` exists
+  anywhere — either finish it or remove the dead `if(MODULE_WASM)` block in `CMakeLists.txt`.
 
 ## Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment)
 
-- Additional disabled-code items found by the same pass, same shape as Tier 1/5 (commented-out
-  case/branch, feature silently missing rather than erroring): `quickjs-lexer.c:1573,1617`
-  (iterator `next`/`values` on `Lexer` disabled), `quickjs-misc.c:3472,3601,3604,3723` (+
-  matching disabled `case`s at `2806-2808`, `2822`) — `realpath`, `resizeArrayBuffer`/
-  `isHTMLDDA`/function-type magic dispatch all disabled (`searchArrayBuffer` itself is live,
-  only its `search` alias is commented), `quickjs-pgsql.c:1804` (iterator `next` disabled —
-  `escapeString` itself has a live registration alongside a disabled duplicate at `:1271`, not
-  actually missing), `quickjs-tree-walker.c:167,488` (`setroot()`'s return value discarded — minor,
-  probably harmless but worth a look).
+- Additional disabled-code items found by the same pass, same shape as Tier 5 (commented-out
+  case/branch, feature silently missing rather than erroring):
+  - `quickjs-lexer.c:js_lexer_proto_funcs` — iterator `next` and the `values` alias are
+    commented out (`[Symbol.iterator]` itself is live).
+  - `quickjs-misc.c:js_misc_funcs` — `realpath` (`js_misc_realpath()` exists but is
+    unregistered), `resizeArrayBuffer`, `isHTMLDDA` (+ the matching `// case IS_HTMLDDA` in
+    `js_misc_is()`) and the `search` alias are commented out; `searchArrayBuffer` itself is
+    live.
+  - `quickjs-pgsql.c:js_pgresult_funcs` — iterator `next` disabled. `escapeString` has a live
+    registration in `js_pgconn_funcs` alongside a disabled duplicate, so it is not missing.
+  - `quickjs-tree-walker.c:js_tree_walker_constructor()` /
+    `js_tree_iterator_constructor()` — `tree_walker_setroot()`'s return value is discarded
+    (minor, probably harmless but worth a look).
 
 ## Tier 7 — roadmap gaps: JS standard-library surface (goal 1) vs. what exists
 
 Native bindings that currently have **no `lib/*.js` wrapper at all**, so they're usable only as
-raw native modules rather than as part of a documented "standard library" surface: `blob`
-(despite `Blob.prototype.stream()` already being tracked in Tier 2 — there's no `lib/blob.js`
-at all, not just an incomplete method), `child-process`, `gpio`, `serial`, `mmap`, `directory`,
+raw native modules rather than as part of a documented "standard library" surface: `blob`,
+`child-process`, `gpio`, `serial`, `mmap`, `directory`,
 `queue`, `repeater`, `virtual`, `magic`, `syscallerror`, `location`.
 `sockets` has only
 a low-level `lib/socklen_t.js` helper, not a `net`/`dgram`-style ergonomic wrapper - **and
@@ -195,8 +198,9 @@ silent wrong-mode bug bites hardest (dropped/malformed packets, not just a slow 
 
 WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing (out of scope here, see `../qjs-lws/`).
-- `structuredClone` — only feature-detected (`lib/stream.js:533`), never implemented.
-- `Worker` — missing.
+- `structuredClone` — only feature-detected (`lib/stream.js:TransferArrayBuffer`), never
+  implemented; no ambient global.
+- `Worker` — no global; only QuickJS's own `os.Worker` exists (also see Tier 9.9).
 - `lib/readline.js` and `lib/buffer.js` were deliberately removed in commit `958cffc9` (they
   were 9/12-line stubs); their docs are gone too. A real `node:readline`/`Buffer` would be new
   work, see the `node:readline` item below. `lib/perf_hooks.js` (13 lines:
@@ -208,13 +212,14 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
 node:-prefix audit):
 - `import.meta.resolve()` is missing, and `is_main`/main-module detection is always
-  `FALSE` for normal loads (`src/qjsm.c:1436`, `js_module_set_import_meta(ctx, module,
-  FALSE, FALSE)`) — Node/Deno both support these.
+  `FALSE` for normal loads (`src/qjsm.c:jsm_module_loader()`,
+  `js_module_set_import_meta(ctx, module, FALSE, FALSE)`; `import.meta` has only `url` and
+  `main`, no `filename`/`dirname`) — Node/Deno/Bun all support these.
 - The default filesystem module loader never consults `package.json`'s `"type"`,
-  `"exports"`, or `"main"` fields (`src/qjsm.c:968-990` only handles an internal
+  `"exports"`, or `"main"` fields (`src/qjsm.c:jsm_module_package()` only handles an internal
   `"_moduleAliases"` map) — real Node package layouts resolve wrong without opting into
   the `lib/nodeModulesLoader.js` demo loader.
-- `.mjs` forces module-eval mode (`src/qjsm.c:2116`) but `.cjs` has no special handling
+- `.mjs` forces module-eval mode (`src/qjsm.c:jsm_module_load_hooked()`) but `.cjs` has no special handling
   (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
   `"type"`).
 - No global `require()` by default (only via explicit `import` of `lib/require.js`) —
@@ -223,7 +228,7 @@ node:-prefix audit):
   builtins at all (checked `quickjs-builtins.h`'s full native+compiled list) — common
   Node imports fail outright, not even reachable via a `node:` alias.
 - `TextEncoder`/`TextDecoder`/`queueMicrotask` exist only as named exports of
-  `textcode`/`util` (`lib/streams.js:5`, `lib/dom.js:2`), not ambient globals like every
+  `textcode`/`util` (imported by `lib/streams.js` and `lib/dom.js`), not ambient globals like every
   other runtime provides.
 
 `node:<name>` export-surface diff vs Bun (found 2026-09-19, via
@@ -247,10 +252,10 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
   tracked above)
 - `path`: `posix`, `win32`, `matchesGlob`, `toNamespacedPath`
 - `perf_hooks`: `Performance*` classes, `createHistogram`, `monitorEventLoopDelay`
-- `process`: most of the real Node `process` object - `argv`, `env`, `exit`, `cwd`,
-  `platform`, `pid`, `nextTick`, `on`/`emit` (EventEmitter surface), `hrtime`,
-  `memoryUsage`, `stdin`/`stdout`/`stderr`, `versions`, ... (`lib/process.js` covers only
-  a slice of this)
+- `process`: has `cwd`, `chdir`, `kill`, `stdin`/`stdout`/`stderr`, `exit`, `hrtime`,
+  `platform`, `uid`/`gid`/`euid`/`egid`; missing `argv`, `env`, `pid`, `nextTick`, `on`/`emit`
+  (EventEmitter surface), `memoryUsage`, `versions`/`version`, `arch`, `uptime`, `exitCode`,
+  `umask`, `title`, `execPath`, ... (`lib/process.js` covers only a slice of this)
 - `stream`: `Readable`/`Writable`/`Duplex`/`Transform`/`PassThrough` (Node stream
   classes - qjsm only has WHATWG `ReadableStream`/`WritableStream`/`TransformStream`).
   **Not a gap to close** - CLAUDE.md now states Node Streams are deliberately never
@@ -290,18 +295,15 @@ Deno also errors `No such built-in module: node:yaml`, matching Bun):
   `lib/css-selectors.js` (compiler built on `parsel.js`), and `lib/css3-selectors.js` (a
   *second*, independent compiler with its own hand-rolled tokenizer, duplicating helper
   functions nearly verbatim from `css-selectors.js`, e.g. `escapeRegExp`/`getAttribute`/
-  `hasAttribute`/`isElement`/`childElements`). `lib/css-selectors.js` appears dead in the
-  active `lib`/`tests` tree: nothing there imports it (`lib/dom.js:3`, `tests/test_dom.js:4`,
-  and `tests/test_css3_selectors.js:2` all import `css3-selectors.js` instead).
-  **Correction (2026-09-24)**: it's not *only* stale `inst/` build output referencing it as
-  previously claimed — `tools/site/build.js` also still imports it; per this repo's own
-  CLAUDE.md `tools/site/` here is superseded/slated for removal, so this doesn't change the
-  "safe to delete" conclusion, just the reasoning. Worth either deleting `css-selectors.js` or
+  `hasAttribute`/`isElement`/`childElements`). `lib/css-selectors.js` appears dead: nothing
+  in `lib/`, `tests/`, `utilities/`, `examples/`, the sibling `qjs-*` projects or `plot-cv`
+  imports it (`lib/dom.js` and `tests/unittests/test-css3-selectors.js` import
+  `css3-selectors.js` instead; `tools/site/build.js` only lists its doc page). Worth either deleting `css-selectors.js` or
   consolidating `css3-selectors.js` to build on the shared `lib/lexer`/`lib/parser/grammar.js`
   toolkit (goal 3) instead of duplicating a tokenizer.
 - **Lexer/parser toolkit (goal 3) isn't dogfooded by the project's own hardest parsing
-  problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 5
-  independent grammars (`lib/lexer/{bnf,c,csv,ecmascript,xml}.js` — `lib/xml/read.js` was
+  problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 9
+  independent grammars (`lib/lexer/{bnf,c,cmake,csv,ecmascript,ini,make,shell,xml}.js` — `lib/xml/read.js` was
   rewritten to drive `XMLLexer`/`lib/lexer/xml.js` as a JS port of `js_xml_parse()`, verified
   against the native `xml.read()`/`xml.write()` for tree shape, option surface, and formatting
   quirks; `lib/xml/write.js` is a matching port of `js_xml_write()`), which is good evidence of
@@ -314,10 +316,6 @@ Deno also errors `No such built-in module: node:yaml`, matching Bun):
   re-implement the same marking logic inline. Worth converging on one convention.
   (`extendMath.js`/`extendObject.js`, which used yet other idioms, were removed 2026-09 as
   zero-usage with no standard target.)
-- Stray untracked working-tree files noticed during the survey (not a code bug, just hygiene):
-  `lib/blah.tmp*` (0-byte scratch files — **recount 2026-09-24: actually seven**, `blah.tmp`
-  plus `blah.tmp3/4/6/8/9/10`, not six). ~~`lib/repl.js.orig`~~ — **gone**, no longer present
-  in the tree; drop that half of this item.
 
 ## Tier 9 — DOM API implementation priorities (browser sandbox, goal 1)
 
@@ -336,10 +334,8 @@ Video, Audio, Table, etc.), `DocumentFragment`, `Navigator`, `Location`, `Storag
 
 Element geometry: `getBoundingClientRect()` and `getClientRects()` implemented on Element.
 
-Comprehensive test suite exists in `tests/test_dom.js` (210 tests),
-`tests/test_event_and_fragment.js`, `tests/test_event_subclasses.js` (50+ tests),
-`tests/test_history.js` (28 tests), `tests/test_geometry.js` (30 tests),
-and `tests/test_range_selection.js` (60+ tests).
+Test suites: `tests/unittests/test-dom.js`, `test-dom-event-subclasses.js`,
+`test-dom-history.js`, `test-dom-geometry.js` and `test-dom-range-selection.js`.
 
 Remaining items ordered by leverage:
 
@@ -386,18 +382,17 @@ Remaining items ordered by leverage:
 
 **Status:** Not implemented.
 
-### 9.6 File + Blob remaining APIs (LOWER - see also Tier 2/7)
+### 9.6 File + Blob remaining APIs (LOWER - see also Tier 7)
 **Why:** File uploads, downloads, binary data.
 
 **Implementation:**
-- `Blob.prototype.stream()` — broken (see Tier 2)
 - `FileList`: array-like collection of Files
 - `FileReader`: `readAsText()`, `readAsDataURL()`, `readAsArrayBuffer()`, `onload`, `onerror`
 - `URL.createObjectURL(blob)`, `URL.revokeObjectURL(url)`
 
 **Files:** `lib/dom.js`, `lib/file.js`
 
-**Status:** `File` class (in `lib/file.js`) and `Blob` (native binding) exist. `stream()`, `FileList`, `FileReader`, and object URL methods are missing.
+**Status:** `File` class (in `lib/file.js`), `Blob` (native binding) and `Blob.prototype.stream()` exist. `FileList`, `FileReader`, and object URL methods are missing.
 
 ### 9.7 WebSocket (OUT OF SCOPE for this repo)
 **Status:** Implemented in the separate `../qjs-lws/` project (`lib/websocket.js`, `lib/websocketstream.js`), which wraps libwebsockets. Not to be duplicated here.
@@ -416,7 +411,7 @@ Remaining items ordered by leverage:
 
 **Files:** `lib/worker.js`
 
-**Status:** Not implemented (also tracked in Tier 7).
+**Status:** No global `Worker` (QuickJS's own `os.Worker` exists; also tracked in Tier 7).
 
 ## Tier 10 — C API consolidation and cleanup
 
@@ -424,7 +419,7 @@ Low-usage or redundant C APIs in `include/` and `src/` that should be consolidat
 inlined, or removed to reduce maintenance burden and code duplication.
 
 ### 10.1 BitSet only used by one module (LOW - inline)
-**Problem:** `bitset.h/bitset.c` (106 lines) has only 2 uses:
+**Problem:** `bitset.h/bitset.c` has only 2 uses:
 - Used only by `src/bitset.c` itself
 - Used only by `include/json.h` (which is used by `quickjs-json.c`)
 
@@ -435,10 +430,10 @@ dependency since it's small and well-isolated.
 
 **Files:** `include/bitset.h`, `src/bitset.c`
 
-**Impact:** Removes 106 lines if inlined, or keep as-is (minor cleanup opportunity).
+**Impact:** Small; inline it or keep as-is (minor cleanup opportunity).
 
 ### 10.2 async-closure.h only used by MySQL (LOW - inline)
-**Problem:** `async-closure.h/async-closure.c` (166 lines) has only 2 uses:
+**Problem:** `async-closure.h/async-closure.c` has only 2 uses:
 - Used only by `quickjs-mysql.c`
 - Used only by itself (`src/async-closure.c`)
 
@@ -450,10 +445,10 @@ a general-purpose API.
 
 **Files:** `include/async-closure.h`, `src/async-closure.c`
 
-**Impact:** Removes 166 lines, clarifies that this is MySQL-specific code.
+**Impact:** Clarifies that this is MySQL-specific code.
 
 ### 10.3 child-process.h only used by one module (LOW - inline)
-**Problem:** `child-process.h/child-process.c` (525 lines) has only 2 uses:
+**Problem:** `child-process.h/child-process.c` has only 2 uses:
 - Used only by `quickjs-child-process.c`
 - Used only by itself (`src/child-process.c`)
 
@@ -469,11 +464,6 @@ internal implementation doesn't need to be a separate module.
 
 ### Summary
 
-**Total lines to potentially consolidate:** ~797 lines
-- BitSet: 106 lines (inline into JSON parser or keep as-is)
-- async-closure: 166 lines (inline into MySQL)
-- child-process: 525 lines (inline into binding, no net reduction)
-
 **Priority order:**
 1. **LOW:** Inline BitSet (10.1) - simplifies dependencies (minor)
 2. **LOW:** Inline async-closure (10.2) - clarifies MySQL-specific code
@@ -487,30 +477,25 @@ one obscure reversed-subscript idiom (`(dsl = path_dirlen1(path))[path]`) were a
 up in place during this pass; what's left below is genuine restructuring, deliberately not
 done inline since each is either large or a judgment call on API shape.
 
-- **`main()` is a ~450-line monolith** (re-verified 2026-09-24: still accurate, currently
-  `src/qjsm.c:2567-2997`, 431 lines) doing CLI parsing, runtime/context setup, script and
+- **`main()` in `src/qjsm.c` is a ~430-line monolith** doing CLI parsing, runtime/context setup, script and
   `-I`/`-m` loading, REPL bootstrap, and (behind `--dump --quit`) an unrelated instantiation-time
   microbenchmark, all in one function. Splitting into `jsm_parse_args()`,
   `jsm_setup_runtime()`, `jsm_run_scripts()`, and `jsm_bench_instantiation()` would make each
   piece testable/readable in isolation. Nontrivial: the pieces share a lot of local state
   (`had_error`, `sargs`, `include_list`, ...) that would need to move into a small context
   struct or be threaded through as parameters.
-- **`jsm_module_func()` is a single function** dispatching on a 20-case `magic` enum
-  (stale size claim, 2026-09-24: now `src/qjsm.c:2220-2416`, 197 lines, not ~270 — the
-  structural complaint still stands, just smaller than originally measured)
+- **`jsm_module_func()` is a single function** dispatching on a `magic` enum
   that mixes unrelated concerns: module bookkeeping (`ADD_MODULE`/`FIND_MODULE`/
   `FIND_MODULE_INDEX`), path resolution (`NORMALIZE_MODULE`/`LOCATE_MODULE`/`LOAD_MODULE`), and
   the `MODULE_LOADER` hook registry.
 - **`jsm_module_loader()` (the `JSModuleLoaderFunc` implementation) does six distinct things
-  in one function** (stale size claim, 2026-09-24: now `src/qjsm.c:1467-1620`, 154 lines, not
-  ~140 — close, structural complaint still valid) with several `goto end;`/`goto again;` jumps: `data:` URL
+  in one function** (~140 lines) with several `goto end;`/`goto again;` jumps: `data:` URL
   handling, dispatch through the external loader chain (`jsm_call_loaders`), circular-import
   detection, `package.json` alias resolution, builtin-module lookup, and filesystem
   resolution + the "could not load module" error formatting. Worth splitting along those
   seams (e.g. `jsm_resolve_data_url`, `jsm_run_external_loaders`, `jsm_warn_circular`) so each
   piece can be reasoned about independently — risky to do without first having a test that
-  exercises each branch (see the `tests/test_list.js` gap noted in Tier 4 for why that
-  matters here).
+  exercises each branch.
 - **CLI flag variables in `main()` are declared `char`** (`dump_memory`, `trace_memory`,
   `empty_run`, `module`, `load_std`, `list_modules` — e.g. `-d -d -d ...` increments
   `dump_memory` via `dump_memory++`) rather than `int`/`BOOL`. Not currently reachable (argc
@@ -536,7 +521,7 @@ done inline since each is either large or a judgment call on API shape.
 ## Tier 12 — deferred: `yaml` module `read()` (YAML → JS)
 
 `quickjs-yaml.c` currently only implements `write()` (JS value → block-YAML text), added for
-the eagle-agent EDA parts catalog export (see `doc/eagle-agent.md`). Parsing was explicitly
+the eagle-agent EDA parts catalog export (used by `~/Sources/plot-cv/eagle-*.js`). Parsing was explicitly
 out of scope for that work and is deferred:
 
 - A `read(text)` function, symmetric with `write()`, decoding the same block-YAML subset
@@ -555,21 +540,17 @@ out of scope for that work and is deferred:
 
 ## Tier 13 — adopt cyaml as the `yaml` module's backing library (plan only, not started)
 
-`quickjs-yaml.c` currently hand-rolls its own block-YAML writer (`js_yaml_write()`,
-`quickjs-yaml.c:301-335`, ~200 lines of DynBuf-based emission logic covering only a
+`quickjs-yaml.c` currently hand-rolls its own block-YAML writer (`quickjs-yaml.c:js_yaml_write()`,
+~200 lines of DynBuf-based emission logic covering only a
 restricted subset — see Tier 12 above) and has no reader at all. Replace both with
 [cyaml](https://github.com/andrewmd5/cyaml) (MIT, C11, zero dependencies beyond libc,
 passes the full `yaml-test-suite`), vendored as a git submodule.
 
-**Submodule placement:** put it at `3rdparty/cyaml`. **Correction (2026-09-24 re-verify)**:
-the "some at repo root, only wasm3 namespaced" premise is stale — `git submodule status`
-shows *all* current submodules (`libarchive`, `pigpio`, `libutf`, `tutf8e`, `libserialport`,
-`libbcrypt`, `wasm3`) already live under `third_party/<name>`, none at root. The real,
-still-accurate ask is narrower: everything is namespaced under the *old* directory name
-`third_party/`, not the `3rdparty/` name this plan wants for the new `cyaml` submodule. So
-this is purely a rename (`third_party/` → `3rdparty/`) for consistency, not a "pull scattered
-root-level submodules together" cleanup — tracked here as a follow-up, not bundled into the
-cyaml change itself.
+**Submodule placement:** put it at `3rdparty/cyaml`. All current submodules (`libarchive`,
+`pigpio`, `libutf`, `tutf8e`, `libserialport`, `libbcrypt`) live under `third_party/<name>`,
+not `3rdparty/`. So the name the plan wants for the new `cyaml` submodule differs from the
+existing directory; decide whether to follow `third_party/` or rename it to `3rdparty/` as a
+separate follow-up, not bundled into the cyaml change itself.
 
 **API shape — full-tree only, no evented/pull parser:** confirmed by reading `src/cyaml.h`
 (and the README's "Event stream output" feature) that cyaml has no SAX-style push parser
