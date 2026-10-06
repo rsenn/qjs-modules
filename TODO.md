@@ -329,14 +329,17 @@ tree), and its `wasm.h` drops such imports outright.
 - wasm3 is not dead: HEAD is 2026-09-29 and v0.9.2 carries exceptions, memory64, multi-memory
   and snapshots, though the maintainer calls it minimal maintenance.
 
+*Status (2026-10-07):* `quickjs-wasm.c` is scaffolded over `include/wasm-backend.h`, with
+`src/wasm3-backend.c` wired into CMake (`cmake/BuildWasm3.cmake`) and
+`tests/unittests/test-wasm.js` passing. `src/wamr-backend.c` compiles and runs shish
+(function imports only), but has no CMake recipe yet. Docs: `doc/native/wasm.md`.
+
 *Next steps:*
-1. Vendor wasm3 as a submodule under `third_party/` (the earlier ones were removed from
-   `.gitmodules`) and wire the `MODULE_WASM` block in `CMakeLists.txt`.
-2. Spike the table and mutable-global import via a synthesized module, and
-   `Memory.grow()` (`JS_DetachArrayBuffer` + re-wrap after `memory.grow`).
-3. Decide how to list imports/exports: use `m3_env.h` internals (couples to the vendored
-   version; pin the submodule commit) or parse the module's import/export sections in JS/C
-   ourselves from the bytes.
+1. `build_wamr()` in `cmake/` plus a backend switch (`WASM_BACKEND=wasm3|wamr`) in `CMakeLists.txt`.
+2. `new WebAssembly.Memory()`, `Table`, `Global`, table/global imports and exports on wasm3
+   (`WB_NewTable`/`WB_NewGlobal` are unsupported there).
+3. `lib/webassembly.js`: the `WebAssembly` global, `instantiate()`/`compile()` promises, and a
+   `.wasm` `registerHooks` load hook.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
 node:-prefix audit):
