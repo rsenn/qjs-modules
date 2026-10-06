@@ -525,6 +525,8 @@ wb_sections_parse(WBSections* s, const uint8_t* bytes, size_t len, char* err, si
           if(get_name(&c, s, &d->name) || get_byte(&c, &kind) || get_u32(&c, &idx))
             goto fail;
 
+          d->index = idx;
+
           switch(kind) {
             case 0:
               if(idx >= nfuncs) {
@@ -572,6 +574,26 @@ wb_sections_parse(WBSections* s, const uint8_t* bytes, size_t len, char* err, si
         break;
       }
 
+      case 0: { /* custom: name, then the payload up to the section end */
+        WBCustomSection* grown;
+        const char* name;
+
+        if(get_name(&c, s, &name))
+          goto fail;
+
+        if(!(grown = alloc(s, (s->ncustoms + 1) * sizeof(*grown)))) {
+          fail(&c, "out of memory");
+          goto fail;
+        }
+
+        if(s->customs)
+          memcpy(grown, s->customs, s->ncustoms * sizeof(*grown));
+
+        s->customs = grown;
+        s->customs[s->ncustoms++] = (WBCustomSection){name, (size_t)(c.p - bytes), (size_t)(sec_end - c.p)};
+        break;
+      }
+
       default: break;
     }
 
@@ -584,6 +606,23 @@ wb_sections_parse(WBSections* s, const uint8_t* bytes, size_t len, char* err, si
 fail:
   wb_sections_free(s);
   return -1;
+}
+
+int
+wb_sections_custom(const WBSections* s, const uint8_t* bytes, const char* name, size_t idx, const uint8_t** data, size_t* len) {
+  for(size_t i = 0; i < s->ncustoms; i++) {
+    if(strcmp(s->customs[i].name, name))
+      continue;
+
+    if(idx--)
+      continue;
+
+    *data = bytes + s->customs[i].off;
+    *len = s->customs[i].len;
+    return 0;
+  }
+
+  return 1;
 }
 
 void

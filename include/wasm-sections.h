@@ -8,12 +8,20 @@
  * rule: runtime-independent; both backends list imports and exports
  * through it instead of through their engine's internals. */
 
+typedef struct WBCustomSection {
+  const char* name;
+  size_t off; /* payload offset into the binary */
+  size_t len;
+} WBCustomSection;
+
 typedef struct WBSections {
   WBImportDesc* imports; /* in binary order */
   size_t nimports;
   uint32_t* import_typeidx; /* per import: type index when a function, else 0 */
   WBExportDesc* exports;    /* in binary order */
   size_t nexports;
+  WBCustomSection* customs; /* in binary order */
+  size_t ncustoms;
   size_t import_off; /* offset of the import section's id byte, 0 if none */
   size_t import_end; /* offset just past the import section */
   void** allocs;     /* every block the parse allocated, freed together */
@@ -34,6 +42,10 @@ typedef struct WBSections {
  *                   shared or 64-bit memories)
  */
 int wb_sections_parse(WBSections* s, const uint8_t* bytes, size_t len, char* err, size_t errlen);
+
+/* finds the `idx`-th custom section called `name` in `bytes`, the binary
+ * that was parsed. never throws: returns 0 when found, 1 when not. */
+int wb_sections_custom(const WBSections* s, const uint8_t* bytes, const char* name, size_t idx, const uint8_t** data, size_t* len);
 
 /* frees everything wb_sections_parse() allocated. never throws. */
 void wb_sections_free(WBSections* s);

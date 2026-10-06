@@ -457,6 +457,12 @@ WB_GetModuleExports(WBContext* ctx, WBModule* mod, const WBExportDesc** out, siz
   return 0;
 }
 
+int
+WB_GetCustomSection(WBContext* ctx, WBModule* mod, const char* name, size_t idx, const uint8_t** data, size_t* len) {
+  (void)ctx;
+  return wb_sections_custom(&mod->sec, mod->bytes, name, idx, data, len);
+}
+
 /* ---- functions ---- */
 
 static WBFunc*

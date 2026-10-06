@@ -85,6 +85,7 @@ struct WBTable {
   int refs;
   WBContext* ctx;
   Owner owner;
+  uint32_t index; /* in the owner module's table index space */
   WBValType elem;
   WBLimits limits;
 };
@@ -358,6 +359,12 @@ WB_GetModuleExports(WBContext* ctx, WBModule* mod, const WBExportDesc** out, siz
   *out = mod->sec.exports;
   *n = mod->sec.nexports;
   return 0;
+}
+
+int
+WB_GetCustomSection(WBContext* ctx, WBModule* mod, const char* name, size_t idx, const uint8_t** data, size_t* len) {
+  (void)ctx;
+  return wb_sections_custom(&mod->sec, mod->bytes, name, idx, data, len);
 }
 
 /* ---- functions ---- */
@@ -674,66 +681,299 @@ WB_GrowMemory(WBContext* ctx, WBMemory* mem, uint32_t delta) {
 
 /* ---- tables ---- */
 
+/* loads `b` (n bytes) as a module of its own, named so that an importer's
+ * import section can point at it; fills `owner`.
+ * returns 0, or -1 with an exception pending. */
+static int
+load_synth(WBContext* ctx, const uint8_t* b, size_t n, Owner* owner, const char* field) {
+  uint8_t* copy = malloc(n);
+  IM3Module m3;
+  M3Result r;
+
+  if(!copy)
+    return set_ex(ctx, WB_ERR_NOMEM, "out of memory"), -1;
+
+  memcpy(copy, b, n);
+
+  if(keep(ctx, copy))
+    return -1;
+
+  if((r = m3_ParseModule(ctx->rt->env, &m3, copy, (uint32_t)n))) {
+    set_ex(ctx, WB_ERR_RANGE, "%s", r);
+    return -1;
+  }
+
+  if(!(owner->field = strdup(field))) {
+    m3_FreeModule(m3);
+    return set_ex(ctx, WB_ERR_NOMEM, "out of memory"), -1;
+  }
+
+  owner->m3 = m3;
+  snprintf(owner->module, sizeof(owner->module), "wbm%u", ++ctx->serial);
+  m3_SetModuleName(m3, owner->module);
+
+  if((r = m3_LoadModule(ctx->m3, m3))) {
+    set_ex(ctx, WB_ERR_RANGE, "%s", r);
+    free(owner->field);
+    owner->field = NULL;
+    return -1;
+  }
+
+  return 0;
+}
+
+/* the engine's table behind `table`. never throws: NULL if it is gone. */
+static IM3Table
+find_table(WBTable* table) {
+  return table->index < table->owner.m3->numTables ? table->owner.m3->tables[table->index] : NULL;
+}
+
 WBTable*
 WB_NewTable(WBContext* ctx, WBValType elem, const WBLimits* limits) {
-  (void)elem;
-  (void)limits;
-  set_ex(ctx, WB_ERR_UNSUPPORTED, "creating a Table is not supported yet");
-  return NULL;
+  /* (module (table (export "t") min [max] funcref)) */
+  uint8_t b[48] = {0, 'a', 's', 'm', 1, 0, 0, 0};
+  size_t n = 8, sec;
+  WBTable* t;
+
+  if(elem != WB_FUNCREF) {
+    set_ex(ctx, WB_ERR_UNSUPPORTED, "only funcref (anyfunc) tables are supported");
+    return NULL;
+  }
+
+  if(limits->has_max && limits->max < limits->min) {
+    set_ex(ctx, WB_ERR_RANGE, "maximum is less than initial");
+    return NULL;
+  }
+
+  b[n++] = 4; /* table section */
+  sec = n++;
+  b[n++] = 1;
+  b[n++] = 0x70;
+  b[n++] = limits->has_max ? 1 : 0;
+  n += wb_put_u32(b + n, limits->min);
+
+  if(limits->has_max)
+    n += wb_put_u32(b + n, limits->max);
+
+  b[sec] = (uint8_t)(n - sec - 1);
+  b[n++] = 7; /* export section */
+  b[n++] = 5;
+  b[n++] = 1;
+  b[n++] = 1;
+  b[n++] = 't';
+  b[n++] = 1;
+  b[n++] = 0;
+
+  if(!(t = calloc(1, sizeof(*t))))
+    return set_ex(ctx, WB_ERR_NOMEM, "out of memory"), NULL;
+
+  if(load_synth(ctx, b, n, &t->owner, "t")) {
+    free(t);
+    return NULL;
+  }
+
+  t->refs = 1;
+  t->ctx = ctx;
+  t->elem = elem;
+  t->limits = *limits;
+  return t;
 }
 
 uint32_t
 WB_GetTableSize(WBTable* table) {
-  IM3Module m = table->owner.m3;
+  IM3Table t = find_table(table);
 
-  return m->numTables ? m->tables[0]->size : 0;
+  return t ? t->size : 0;
 }
 
 int
 WB_GetTableElem(WBContext* ctx, WBTable* table, uint32_t index, WBValue* out) {
+  IM3Table t = find_table(table);
   IM3Function f;
-  M3Result r;
 
-  if((r = m3_GetTableFunction(&f, table->owner.m3, index))) {
-    set_ex(ctx, WB_ERR_RANGE, "%s", r);
+  if(!t || index >= t->size) {
+    set_ex(ctx, WB_ERR_RANGE, "table index %u out of range", index);
     return -1;
   }
 
   out->type = WB_FUNCREF;
   out->u.ref = NULL;
 
-  if(f && !(out->u.ref = wrap_m3_function(ctx, f)))
-    return -1;
+  if((f = t->elements[index])) {
+    M3Result r;
+
+    if(!f->compiled && (r = CompileFunction(f))) {
+      set_ex(ctx, WB_ERR_LINK, "%s", r);
+      return -1;
+    }
+
+    if(!(out->u.ref = wrap_m3_function(ctx, f)))
+      return -1;
+  }
 
   return 0;
 }
 
 int
 WB_SetTableElem(WBContext* ctx, WBTable* table, uint32_t index, const WBValue* v) {
-  (void)table;
-  (void)index;
-  (void)v;
-  set_ex(ctx, WB_ERR_UNSUPPORTED, "writing a Table is not supported yet");
-  return -1;
+  IM3Table t = find_table(table);
+
+  if(!t || index >= t->size) {
+    set_ex(ctx, WB_ERR_RANGE, "table index %u out of range", index);
+    return -1;
+  }
+
+  if(v->type != WB_FUNCREF) {
+    set_ex(ctx, WB_ERR_TYPE, "value is not a function reference");
+    return -1;
+  }
+
+  if(v->u.ref && !((WBFunc*)v->u.ref)->wf) {
+    set_ex(ctx, WB_ERR_TYPE, "only exported WebAssembly functions can be stored in a table");
+    return -1;
+  }
+
+  t->elements[index] = v->u.ref ? ((WBFunc*)v->u.ref)->wf : NULL;
+  return 0;
 }
 
 int64_t
 WB_GrowTable(WBContext* ctx, WBTable* table, uint32_t delta, const WBValue* init) {
-  (void)table;
-  (void)delta;
-  (void)init;
-  set_ex(ctx, WB_ERR_UNSUPPORTED, "growing a Table is not supported yet");
-  return -1;
+  IM3Table t = find_table(table);
+  IM3Runtime rt = ctx->m3;
+  void* fill = NULL;
+  uint32_t old, max;
+  void** elements;
+
+  if(!t) {
+    set_ex(ctx, WB_ERR_RANGE, "no such table");
+    return -1;
+  }
+
+  if(init && init->u.ref && !((WBFunc*)init->u.ref)->wf) {
+    set_ex(ctx, WB_ERR_TYPE, "only exported WebAssembly functions can be stored in a table");
+    return -1;
+  }
+
+  if(init && init->u.ref)
+    fill = ((WBFunc*)init->u.ref)->wf;
+
+  old = t->size;
+  max = t->maxSize ? t->maxSize : d_m3MaxSaneTableSize;
+
+  if(delta > max - old || (rt->tableElementsLimit && delta > rt->tableElementsLimit - rt->tableElementsUsed)) {
+    set_ex(ctx, WB_ERR_RANGE, "table.grow beyond the maximum");
+    return -1;
+  }
+
+  if(!delta)
+    return old;
+
+  if(!(elements = m3_ReallocArray(void*, t->elements, (size_t)old + delta, old))) {
+    set_ex(ctx, WB_ERR_NOMEM, "out of memory");
+    return -1;
+  }
+
+  rt->tableElementsUsed += delta;
+  t->elements = elements;
+  t->size = old + delta;
+
+  for(uint32_t i = old; i < t->size; i++)
+    t->elements[i] = fill;
+
+  return old;
 }
 
 /* ---- globals ---- */
 
+/* writes `v` as a signed LEB128 at `dst`; returns the byte count. */
+static size_t
+put_sleb(uint8_t* dst, int64_t v) {
+  size_t n = 0;
+  int more = 1;
+
+  while(more) {
+    uint8_t byte = v & 0x7f;
+
+    v >>= 7;
+    more = !((v == 0 && !(byte & 0x40)) || (v == -1 && (byte & 0x40)));
+    dst[n++] = more ? (byte | 0x80) : byte;
+  }
+
+  return n;
+}
+
 WBGlobal*
 WB_NewGlobal(WBContext* ctx, int is_mutable, const WBValue* init) {
-  (void)is_mutable;
-  (void)init;
-  set_ex(ctx, WB_ERR_UNSUPPORTED, "creating a Global is not supported yet");
-  return NULL;
+  /* (module (global (export "g") (mut? T) (T.const v))) */
+  uint8_t b[48] = {0, 'a', 's', 'm', 1, 0, 0, 0};
+  size_t n = 8, sec;
+  WBGlobal* g;
+
+  b[n++] = 6; /* global section */
+  sec = n++;
+  b[n++] = 1;
+
+  switch(init->type) {
+    case WB_I32:
+      b[n++] = 0x7f;
+      b[n++] = is_mutable ? 1 : 0;
+      b[n++] = 0x41;
+      n += put_sleb(b + n, init->u.i32);
+      break;
+    case WB_I64:
+      b[n++] = 0x7e;
+      b[n++] = is_mutable ? 1 : 0;
+      b[n++] = 0x42;
+      n += put_sleb(b + n, init->u.i64);
+      break;
+    case WB_F32:
+      b[n++] = 0x7d;
+      b[n++] = is_mutable ? 1 : 0;
+      b[n++] = 0x43;
+      memcpy(b + n, &init->u.f32, 4); /* little-endian: IEEE bits as stored */
+      n += 4;
+      break;
+    case WB_F64:
+      b[n++] = 0x7c;
+      b[n++] = is_mutable ? 1 : 0;
+      b[n++] = 0x44;
+      memcpy(b + n, &init->u.f64, 8); /* little-endian: IEEE bits as stored */
+      n += 8;
+      break;
+    default: set_ex(ctx, WB_ERR_UNSUPPORTED, "only i32, i64, f32 and f64 globals are supported"); return NULL;
+  }
+
+  b[n++] = 0x0b;
+  b[sec] = (uint8_t)(n - sec - 1);
+  b[n++] = 7; /* export section */
+  b[n++] = 5;
+  b[n++] = 1;
+  b[n++] = 1;
+  b[n++] = 'g';
+  b[n++] = 3;
+  b[n++] = 0;
+
+  if(!(g = calloc(1, sizeof(*g))))
+    return set_ex(ctx, WB_ERR_NOMEM, "out of memory"), NULL;
+
+  if(load_synth(ctx, b, n, &g->owner, "g")) {
+    free(g);
+    return NULL;
+  }
+
+  if(!(g->g = m3_FindGlobal(g->owner.m3, "g"))) {
+    free(g->owner.field);
+    free(g);
+    set_ex(ctx, WB_ERR_LINK, "global lookup failed");
+    return NULL;
+  }
+
+  g->refs = 1;
+  g->ctx = ctx;
+  g->type = init->type;
+  g->is_mutable = is_mutable;
+  return g;
 }
 
 void
@@ -1088,6 +1328,7 @@ make_exports(WBContext* ctx, WBInstance* inst, WBModule* mod) {
         t->ctx = ctx;
         t->owner.m3 = inst->m3;
         snprintf(t->owner.module, sizeof(t->owner.module), "%s", inst->name);
+        t->index = d->index;
         t->elem = d->type.u.table.elem;
         t->limits = d->type.u.table.limits;
         e->ext.u.table = t;

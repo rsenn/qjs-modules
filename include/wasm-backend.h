@@ -111,6 +111,7 @@ typedef struct WBImportDesc {
 typedef struct WBExportDesc {
   const char* name;
   WBExternType type;
+  uint32_t index; /* index in its index space: a function's `name` in JS */
 } WBExportDesc;
 
 /* ---- extern handles ---- */
@@ -238,6 +239,17 @@ int WB_GetModuleImports(WBContext* ctx, WBModule* mod, const WBImportDesc** out,
 /* same for exports, in binary order. returns 0, or -1 with an exception
  * pending. */
 int WB_GetModuleExports(WBContext* ctx, WBModule* mod, const WBExportDesc** out, size_t* n);
+
+/* the payload of the `idx`-th custom section called `name` (WebAssembly.Module
+ * .customSections), in binary order.
+ *
+ *   const char*      name  section name, e.g. "name"
+ *   size_t           idx   0 for the first match
+ *   const uint8_t**  data  borrowed: valid until WB_FreeModule()
+ *   size_t*          len   payload length
+ *
+ *   returns 0 when found, 1 when there is no such section; never throws. */
+int WB_GetCustomSection(WBContext* ctx, WBModule* mod, const char* name, size_t idx, const uint8_t** data, size_t* len);
 
 /* ---- instances ---- */
 
