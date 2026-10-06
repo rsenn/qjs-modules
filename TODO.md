@@ -44,28 +44,76 @@ against these — they're the "why" behind what gets picked up next.
   `js_is_generator`/`js_is_asyncgenerator`/`js_is_regexp`/`js_is_promise`/
   `js_is_dataview`/`js_is_error` still use the slow path.
 
-- **Proposal: `document`-boundary event for streaming NDJSON/JSON-Lines through
-  `JsonParser`/`JsonPushParser`** — not started, needs a design decision before
-  implementing. Both parsers already tolerate consecutive top-level values separated
-  only by whitespace/newlines with no comma (verified: `new JsonPushParser().write('{"a":1}\n{"a":2}\n')`
-  parses both documents fine) - that's actually a side effect of a separate laxness bug
-  (see `BUGS`'s `json-parsers-dont-require-commas-between-elements`: neither engine
-  requires commas *anywhere*, not just at the top level). The real gap is API-level:
-  `JsonParser` has no value-building at all (pure token scanner - `.token`/`.state`/
-  `.depth` plus an optional per-token `.callback`), and `JsonPushParser` has a builder
-  and `.root`, but each new top-level value silently **overwrites** `.root`
-  (`quickjs-json.c:569-573`), discarding the previous line's value with no signal a
-  document boundary occurred. Proposed fix: add a `document` callback (parallel to
-  the existing options-object callbacks `error`/`value`/`objectStart`/etc. on
-  `JsonPushParser`) fired exactly when `jread_callback_build()`
-  (`quickjs-json.c:786-810`) sees `pp->builder.top == NULL` right after a
-  container/scalar closes, then reset the builder so `.root` doesn't accumulate old
-  lines; for `JsonParser`, port the same (engine-agnostic) `JsonBuilder` in, driven by
-  its existing `.callback` route (`js_json_parser_callback`, `quickjs-json.c:2170-2185`),
-  using the same "depth returns to 0" boundary rule. Backward compatible: no
-  `document` callback given → today's behavior is unchanged. Risk to flag before
-  building this: if the comma-laxness bug above is ever tightened, top level must be
-  explicitly excepted from any new "commas required" check, or this feature breaks.
+- **NDJSON/JSON-Lines support in the `json` module** *(investigated 2026-10-06)* — what
+  exists today, and what the other runtimes have that we lack.
+
+  *Current state* (each verified by running it):
+  - `json.read(text)` handles one value only: `read('{"a":1}\n{"a":2}\n')` throws
+    `2:1: unexpected trailing data`.
+  - `JsonParser` (pull) tokenizes consecutive top-level values separated only by
+    whitespace; `.depth` returns to 0 after each, but it builds no values.
+  - `JsonPushParser.write()` accepts several documents per chunk, blank lines and `\r\n`,
+    and resyncs after a bad line. But `.root` is overwritten by each new document, and
+    becomes the *in-progress* object as soon as the next line starts (`write('{"a":1}\n{"a')`
+    leaves `.root` as `{}`), so documents can't be collected unless every `write()` is
+    exactly one line. The per-event options object only fires when all seven callbacks
+    are given, otherwise it falls back to builder mode.
+  - Writing: `json.write(v)` and `JsonSerializer`/`JsonWriter` each emit one value; a line
+    is `write(v) + '\n'`. No NDJSON writer.
+  - Commas are now enforced (`[1 2]` throws in both parsers), so the old comma-laxness
+    caveat no longer applies.
+
+  *Equivalents elsewhere* — Node has none built in (the idiom is `readline` + `JSON.parse`
+  per line, which already works here), so nothing is proposed from Node:
+  - **Bun `Bun.JSONL`** (priority 3 in the API order):
+    `JSONL.parse(input: string|Uint8Array): any[]` — returns the values parsed so far;
+    throws `SyntaxError` only if none parsed; an incomplete trailing value is ignored.
+    `JSONL.parseChunk(input, start?, end?)` → `{ values, read, done, error }` — never
+    throws; `read` counts chars for a string, bytes for a `Uint8Array` (`start`/`end` are
+    byte offsets, `Uint8Array` only); `done` is true when all input was consumed.
+    Proposal: export `JSONL` from `json` with those two functions and Bun's semantics.
+    Bun has no `JSONL.stringify`, so none is proposed.
+  - **Deno `@std/json`** (JSR, lowest priority): `JsonParseStream` (NDJSON lines →
+    objects), `ConcatenatedJsonParseStream` (back-to-back values, any delimiter), and
+    `JsonStringifyStream` with `prefix`/`suffix` options (objects → `JSON + '\n'`).
+    Proposal, only after `JSONL.parseChunk` exists: thin `TransformStream` wrappers in
+    `lib/` (WHATWG streams, `lib/streams.js`), no new native API.
+
+  Not proposed: a `document` callback on `JsonPushParser`/`JsonParser` (the earlier idea
+  here) — no Bun/Deno/Node counterpart, and `JSONL.parseChunk` covers the use case.
+
+  *Decision on `read()`*: keep it strict. It mirrors `JSON.parse`, where trailing data is an
+  error, and loosening it (or adding a `{multiple: true}` option, which no other runtime
+  has) would hide truncated input from callers that expect one value. Multi-document input
+  goes through `JSONL.parse` instead.
+
+  *Plan* (in order):
+  1. `JSONL.parse(input)` and `JSONL.parseChunk(input, start?, end?)` as native exports of
+     `json`, Bun semantics as above. Build on the `JsonParser` pull engine (`src/json.c`),
+     which already handles consecutive top-level values; a small value builder driven by
+     `.depth` returning to 0 yields the documents. Not `JsonPushParser` (`.root`
+     overwrite), not per-line `JSON.parse` (breaks on `\r\n`, blank lines, newlines inside
+     values).
+  2. Tests in `tests/unittests/test-json.js`: `\n` and `\r\n`, blank lines, scalar and
+     array lines, trailing partial line (`parse` ignores it, `parseChunk` leaves it unread
+     with `done: false`), bad line (`parse` returns the earlier values, throws if none),
+     `read` units (chars for strings, bytes for `Uint8Array`, with `start`/`end`), a chunk
+     cut inside a `\uXXXX` escape or an exponent (incomplete, not an error — Bun fixed
+     this in oven-sh/bun#42488), a multi-chunk loop that carries the unread tail.
+  3. Document in `doc/native/json.md`.
+  4. After 1: `lib/` `TransformStream` wrappers modeled on Deno's `JsonParseStream`/
+     `JsonStringifyStream` (`prefix`/`suffix`) and `ConcatenatedJsonParseStream`.
+
+  *Open question*: check Bun's behavior beyond its docs (a `\uXXXX` or exponent cut by a
+  chunk boundary, `start`/`end` handling) before writing the tests; the docs fetched
+  2026-10-06 don't specify these.
+
+  *Related bugs found while investigating* (both in `BUGS`, unfixed):
+  - `json-parser-callback-getter-segfault`: reading `JsonParser.callback` after assigning
+    a function crashes (the getter wraps an internal struct pointer as a JS object).
+  - `json-parser-callback-never-called`: `JsonParser.callback` is documented as a
+    per-value callback but `json_parse()` never calls it. Fix or remove; the pull parser's
+    `callback` is not needed by the plan above.
 
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 

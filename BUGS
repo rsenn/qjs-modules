@@ -857,3 +857,30 @@
     await db.connect({ host: '127.0.0.1', port: 1, user: 'x', password: '', db: 'y' });
     // expected: rejects with MySQLError, or db.error is a message string
     // actual: resolves; db.errno === 2002, db.error === null
+
+- json-parser-callback-getter-segfault (quickjs-json.c): reading
+  `.callback` on a JsonParser after assigning a function crashes. The getter
+  (js_jsonparser_get, case JSON_PARSER_CALLBACK) wraps `p->opaque`, which is
+  a `struct js_jsonparser_opaque*`, as a JSValue object instead of
+  returning the stored function. Before any assignment it returns an
+  unrelated non-null object. found while checking NDJSON support.
+
+    import { JsonParser } from 'json';
+    const p = new JsonParser('[1,2]');
+    p.callback = () => {};
+    p.callback;
+    // expected: the function
+    // actual: segmentation fault
+
+- json-parser-callback-never-called (src/json.c): the documented
+  `JsonParser.callback` setter stores the function, but json_parse() never
+  calls `json->callback` (src/json.c only initialises it to NULL), so the
+  callback is dead for the pull parser. found while checking NDJSON support.
+
+    import { JsonParser } from 'json';
+    const p = new JsonParser('[1,2]');
+    let n = 0;
+    p.callback = () => n++;
+    while(p.parse() !== JsonParser.NEED_DATA);
+    // expected: n > 0 (doc/native/json.md: called per value)
+    // actual: n === 0
