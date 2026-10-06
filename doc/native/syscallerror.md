@@ -16,6 +16,7 @@ new SyscallError([syscall, errno])   // length 1
 | Property | Description |
 | --- | --- |
 | `syscall` | Name of the syscall that failed. |
+| `code` | Errno symbol such as `'ENOENT'` (Node's `error.code`; same as `name`). |
 | `errno` | Numeric error code. |
 | `message` | Human-readable error message. |
 | `name` | Error name. |

@@ -241,6 +241,7 @@ enum {
 enum {
   PROP_SYSCALL,
   PROP_NAME,
+  PROP_CODE,
   PROP_ERRNO,
   PROP_STACK,
   PROP_MESSAGE,
@@ -260,7 +261,8 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case PROP_NAME: {
+    case PROP_NAME:
+    case PROP_CODE: {
       const char* code;
 
       ret = (code = syscallerror_symbol(err->number)) ? JS_NewString(ctx, code) : JS_NULL;
@@ -328,6 +330,7 @@ js_syscallerror_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, 0, PROP_SYSCALL),
+    JS_CGETSET_MAGIC_DEF("code", js_syscallerror_get, 0, PROP_CODE),
     JS_CGETSET_MAGIC_DEF("errno", js_syscallerror_get, 0, PROP_ERRNO),
     JS_CGETSET_MAGIC_DEF("message", js_syscallerror_get, 0, PROP_MESSAGE),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, 0, PROP_NAME),

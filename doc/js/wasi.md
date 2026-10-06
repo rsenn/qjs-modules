@@ -1,9 +1,11 @@
 # wasi
 
-Source: `lib/wasi.js` (JS over `os` and `misc`) — exports: `WASI`, `errno`; qjsm only
+Source: `lib/wasi.js` (JS over `fs` and `process`) — exports: `WASI`, `errno`; qjsm, node, bun, deno
 
-Node's `node:wasi` class (WASI preview1), in JS, for the `wasm` module. Neither wasm
-engine's own WASI is used, so behavior is the same on wasm3 and WAMR.
+Node's `node:wasi` class (WASI preview1), in JS, for the `wasm` module or any
+`WebAssembly` global. No wasm engine's own WASI is used, so behavior is the same on
+wasm3 and WAMR. It touches only `fs`, `process`, `Atomics` and `crypto` (falling back to
+`/dev/urandom`), so the same file runs on node, bun and deno.
 
 ```js
 import { WASI } from 'wasi';

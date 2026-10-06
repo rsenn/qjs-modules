@@ -32,8 +32,8 @@ promise API of its own.
 | `openSync(filename, flags='r', mode=0o644)` | 1–3 | Opens a file → fd. |
 | `fopenSync(filename, flags, mode)` / `fdopenSync(fd, flags)` | 1–3 | Open as a `FILE`. |
 | `closeSync(fd)` | 1 | Closes an fd. |
-| `readSync(fd, buffer, offset, length)` | 4 | Reads into a buffer. |
-| `writeSync(fd, buffer, offset, length)` | 4 | Writes from a buffer. |
+| `readSync(fd, buffer, offset, length, position?)` | 4–5 | Reads into a buffer; a numeric `position` reads there and leaves the offset alone (Node's pread). |
+| `writeSync(fd, buffer, offset, length, position?)` | 4–5 | Writes from a buffer; `position` as for `readSync()`. |
 | `readFileSync(file, options)` | 1–2 | Reads a whole file. |
 | `writeFileSync(file, data, options)` | 2–3 | Writes a whole file. |
 | `appendFileSync(path, data, options)` | 2–3 | Appends to a file, creating it if needed. |
@@ -53,6 +53,9 @@ promise API of its own.
 | `readlinkSync` / `realpathSync(path)` | 1 | Resolves links. |
 | `accessSync(pathname, mode)` | 2 | Accessibility check. |
 | `chmodSync(path, mode)` / `chownSync(path, uid, gid)` | 2–3 | Changes mode/ownership (opens the path and uses the fd-based syscall — no path-based binding is exposed). |
+| `fstatSync(fd)` | 1 | `Stats` of an open fd. |
+| `ftruncateSync(fd, len=0)` | 1–2 | Truncates an open fd. |
+| `fsyncSync(fd)` / `fdatasyncSync(fd)` | 1 | Flushes an open fd to disk. |
 | `truncateSync(path, len=0)` | 1–2 | Truncates a file (same fd-based approach as `chmodSync`/`chownSync`). |
 | `utimesSync(path, atime, mtime)` | 3 | Sets access/modification times (`Date` or seconds-since-epoch). |
 | `seek(fd, offset, whence)` / `tell(file)` | 1–3 | File-position control. |

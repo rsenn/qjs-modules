@@ -1,9 +1,11 @@
-import * as os from 'os';
-import * as wasm from 'wasm';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'fs';
+import { closeSync, constants, existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { WASI, errno } from '../../lib/wasi.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
+/* qjsm has no global WebAssembly until lib/webassembly.js is imported */
+if(!globalThis.WebAssembly) await import('../../lib/webassembly.js');
+
+const wasm = WebAssembly;
 const HEAD = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00];
 
 /* (memory (export "mem") 1): a guest memory for calling the imports by hand */
@@ -15,7 +17,7 @@ const fixture = name => new wasm.Module(readFileSync(`tests/fixtures/wasi/${name
 function setup(options = {}) {
   const dir = mkdtempSync('/tmp/wasi-test-');
   const out = `${dir}/stdout`;
-  const fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
+  const fd = openSync(out, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC, 0o644);
   const wasi = new WASI({ preopens: { '/sandbox': dir }, stdout: fd, ...options });
 
   return {
@@ -23,7 +25,7 @@ function setup(options = {}) {
     wasi,
     stdout: () => readFileSync(out, 'utf8'),
     done() {
-      os.close(fd);
+      closeSync(fd);
       rmSync(dir, { recursive: true, force: true });
     },
   };
