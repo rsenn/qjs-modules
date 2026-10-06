@@ -14,6 +14,7 @@ pluggable engine (`include/wasm-backend.h`). The shipped backend is wasm3
 | `Module.imports(m)` / `Module.exports(m)` | `[{module?, name, kind}]` |
 | `Instance(module, imports)` | `.exports` holds functions and `Memory` objects |
 | `Memory` (exported only) | `.buffer`, `.grow(delta)` (returns the old page count) |
+| `Table` (exported only) | `.length`, `.get(index)` returns a callable function or `null` |
 | `CompileError`, `LinkError` | `Error` subclasses; wasm traps surface as `RuntimeError` |
 | `backend` | name of the linked engine, e.g. `"wasm3"` |
 
@@ -22,7 +23,7 @@ the same `Memory`; the old `ArrayBuffer` is detached when the memory grows.
 
 ## Not yet supported
 
-- `new Memory()`, `Table`, `Global` constructors; table and global imports
+- `new Memory()`, `Table`, `Global` constructors; `Table.set`/`grow`; global exports; table and global imports
 - `instantiate()`/`compile()` promises, `.wasm` imports
 - funcref/externref values, multi-value host returns
 

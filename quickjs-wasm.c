@@ -218,21 +218,14 @@ host_finalize(void* opaque) {
   free(h);
 }
 
-/* exported wasm function: data[0] is the Instance object, data[1] the index
- * into its export table. */
+/* calls `f` with JS arguments, converting by its type.
+ * returns the JS result, or JS_EXCEPTION. */
 static JSValue
-js_func_call(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
-  Instance* inst = JS_GetOpaque(data[0], wasm_instance_class_id);
-  const WBExport* ex;
-  size_t n;
+call_wbfunc(JSContext* ctx, Env* e, WBFunc* f, int argc, JSValueConst argv[]) {
   WBValue args[16], res[16];
-  const WBFuncType* ft;
+  const WBFuncType* ft = WB_GetFuncType(f);
   JSValue ret = JS_UNDEFINED;
 
-  if(WB_GetInstanceExports(env_of(inst->env)->ctx, inst->inst, &ex, &n))
-    return throw_backend(ctx, env_of(inst->env));
-
-  ft = WB_GetFuncType(ex[magic].ext.u.func);
   if(ft->nparams > countof(args) || ft->nresults > countof(res))
     return JS_ThrowRangeError(ctx, "too many parameters or results");
 
@@ -243,8 +236,8 @@ js_func_call(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       return JS_EXCEPTION;
   }
 
-  if(WB_CallFunc(env_of(inst->env)->ctx, ex[magic].ext.u.func, args, res))
-    return throw_backend(ctx, env_of(inst->env));
+  if(WB_CallFunc(e->ctx, f, args, res))
+    return throw_backend(ctx, e);
 
   if(ft->nresults == 1)
     ret = value_to_js(ctx, &res[0]);
@@ -255,6 +248,120 @@ js_func_call(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   }
   return ret;
 }
+
+/* exported wasm function: data[0] is the Instance object, data[1] the index
+ * into its export table. */
+static JSValue
+js_func_call(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
+  Instance* inst = JS_GetOpaque(data[0], wasm_instance_class_id);
+  const WBExport* ex;
+  size_t n;
+
+  if(WB_GetInstanceExports(env_of(inst->env)->ctx, inst->inst, &ex, &n))
+    return throw_backend(ctx, env_of(inst->env));
+
+  return call_wbfunc(ctx, env_of(inst->env), ex[magic].ext.u.func, argc, argv);
+}
+
+/* ---- Table ---- */
+
+typedef struct {
+  JSValue owner; /* owned: the Instance object keeping the table alive */
+  JSValue env;   /* owned */
+  WBTable* table;
+} Table;
+
+typedef struct {
+  JSValue env; /* owned */
+  WBFunc* func; /* owned */
+} FuncRef;
+
+static JSClassID wasm_table_class_id, wasm_funcref_class_id;
+
+static void
+table_finalizer(JSRuntime* rt, JSValue val) {
+  Table* t = JS_GetOpaque(val, wasm_table_class_id);
+
+  if(t) {
+    JS_FreeValueRT(rt, t->owner);
+    JS_FreeValueRT(rt, t->env);
+    js_free_rt(rt, t);
+  }
+}
+
+static void
+funcref_finalizer(JSRuntime* rt, JSValue val) {
+  FuncRef* f = JS_GetOpaque(val, wasm_funcref_class_id);
+
+  if(f) {
+    WB_FreeExtern(env_of(f->env)->ctx, (WBExtern){WB_EXTERN_FUNC, {.func = f->func}});
+    JS_FreeValueRT(rt, f->env);
+    js_free_rt(rt, f);
+  }
+}
+
+static JSClassDef wasm_table_class = {"Table", .finalizer = table_finalizer};
+static JSClassDef wasm_funcref_class = {"WasmFuncRef", .finalizer = funcref_finalizer};
+
+/* a function taken from a table: data[0] is its FuncRef. */
+static JSValue
+js_funcref_call(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
+  FuncRef* f = JS_GetOpaque(data[0], wasm_funcref_class_id);
+
+  return call_wbfunc(ctx, env_of(f->env), f->func, argc, argv);
+}
+
+static JSValue
+js_table_length(JSContext* ctx, JSValueConst this_val) {
+  Table* t = JS_GetOpaque2(ctx, this_val, wasm_table_class_id);
+
+  return t ? JS_NewUint32(ctx, WB_GetTableSize(t->table)) : JS_EXCEPTION;
+}
+
+/* Table.prototype.get(index): the function stored there, or null. */
+static JSValue
+js_table_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  Table* t = JS_GetOpaque2(ctx, this_val, wasm_table_class_id);
+  uint32_t index = 0;
+  WBValue v;
+  JSValue holder, fn;
+  FuncRef* f;
+
+  if(!t)
+    return JS_EXCEPTION;
+  if(argc > 0 && JS_ToUint32(ctx, &index, argv[0]))
+    return JS_EXCEPTION;
+  if(WB_GetTableElem(env_of(t->env)->ctx, t->table, index, &v))
+    return throw_backend(ctx, env_of(t->env));
+  if(v.type != WB_FUNCREF || !v.u.ref)
+    return JS_NULL;
+
+  if(!(f = js_mallocz(ctx, sizeof(*f)))) {
+    WB_FreeValue(env_of(t->env)->ctx, v);
+    return JS_EXCEPTION;
+  }
+  f->env = JS_DupValue(ctx, t->env);
+  f->func = v.u.ref; /* refcount: the table element's reference moves here */
+  holder = JS_NewObjectClass(ctx, wasm_funcref_class_id);
+  if(JS_IsException(holder)) {
+    WB_FreeValue(env_of(t->env)->ctx, v);
+    JS_FreeValue(ctx, f->env);
+    js_free(ctx, f);
+    return holder;
+  }
+  JS_SetOpaque(holder, f);
+  fn = JS_NewCFunctionData(ctx, js_funcref_call, (int)WB_GetFuncType(f->func)->nparams, 0, 1, &holder);
+  JS_FreeValue(ctx, holder);
+  return fn;
+}
+
+static const JSCFunctionListEntry js_table_proto_funcs[] = {
+    JS_CGETSET_DEF("length", js_table_length, 0),
+    JS_CFUNC_DEF("get", 1, js_table_get),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WebAssembly.Table", JS_PROP_CONFIGURABLE),
+};
+
+static JSValue table_proto;
 
 /* ---- Memory ---- */
 
@@ -605,6 +712,18 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
         break;
       }
       case WB_EXTERN_MEMORY: v = memory_wrap(ctx, mod->env, obj, exps[i].ext.u.memory); break;
+      case WB_EXTERN_TABLE: {
+        Table* t = js_mallocz(ctx, sizeof(*t));
+
+        v = t ? JS_NewObjectProtoClass(ctx, table_proto, wasm_table_class_id) : JS_EXCEPTION;
+        if(!JS_IsException(v)) {
+          t->env = JS_DupValue(ctx, mod->env);
+          t->owner = JS_DupValue(ctx, obj);
+          t->table = exps[i].ext.u.table;
+          JS_SetOpaque(v, t);
+        }
+        break;
+      }
       default: break;
     }
     if(JS_IsException(v)) {
@@ -678,6 +797,12 @@ js_wasm_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&wasm_module_class_id);
   JS_NewClassID(&wasm_instance_class_id);
   JS_NewClassID(&wasm_memory_class_id);
+  JS_NewClassID(&wasm_table_class_id);
+  JS_NewClassID(&wasm_funcref_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), wasm_table_class_id, &wasm_table_class);
+  JS_NewClass(JS_GetRuntime(ctx), wasm_funcref_class_id, &wasm_funcref_class);
+  table_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, table_proto, js_table_proto_funcs, countof(js_table_proto_funcs));
   JS_NewClass(JS_GetRuntime(ctx), wasm_env_class_id, &wasm_env_class);
   JS_NewClass(JS_GetRuntime(ctx), wasm_module_class_id, &wasm_module_class);
   JS_NewClass(JS_GetRuntime(ctx), wasm_instance_class_id, &wasm_instance_class);
