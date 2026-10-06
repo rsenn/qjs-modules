@@ -90,7 +90,7 @@ endif()
 if(CMAKE_C_COMPILER MATCHES "musl")
   set(MODULE_SERIAL OFF CACHE BOOL "Build 'serial' module" FORCE)
 endif()
-#option(MODULE_WASM "Build 'wasm' module" ON)
+option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "Use the bundled OpenBSD glob() (src/glob.c) instead of the system glob()" ON)
 
 if(NOT DEFINED BUILTINS_COMPILED)
@@ -605,34 +605,23 @@ if(MODULE_SQLITE)
 endif(MODULE_SQLITE)
 
 if(MODULE_WASM)
-  option(BUILD_LIBWASM "Build wasm library" OFF)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildWasm3.cmake)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3/source)
 
-  if(BUILD_WASM3)
-    include(ExternalProject)
-    ExternalProject_Add(
-      wasm3
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3
-      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm3
-      CMAKE_CACHE_ARGS
-        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-      CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+  if(BUILD_SHARED_MODULES)
+    build_wasm3(${CMAKE_CURRENT_BINARY_DIR} shared ON)
+    set(wasm_LIBRARIES_shared ${WASM3_LIBRARIES_shared})
+  endif(BUILD_SHARED_MODULES)
+  if(BUILD_STATIC_MODULES)
+    build_wasm3(${CMAKE_CURRENT_BINARY_DIR} static OFF)
+    set(wasm_LIBRARIES_static ${WASM3_LIBRARIES_static})
+  endif(BUILD_STATIC_MODULES)
 
-    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
-    link_directories("${WASM3_LIBRARY_DIR}")
-    set(WASM3_LIBRARY m3)
+  set(wasm_SOURCES src/wasm-sections.c src/wasm3-backend.c)
 
-  else(BUILD_WASM3)
-    check_library_exists(m3 m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
-    if(HAVE_WASM3)
-      set(WASM3_LIBRARY m3)
-    endif(HAVE_WASM3)
-  endif(BUILD_WASM3)
-
-  if(WASM3_LIBRARY)
-    set(QUICKJS_MODULES wasm ${QUICKJS_MODULES})
-  endif(LibArchive_FOUND)
+  if(NOT "wasm" IN_LIST QUICKJS_MODULES)
+    list(APPEND QUICKJS_MODULES wasm)
+  endif()
 endif(MODULE_WASM)
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
@@ -983,7 +972,7 @@ if(NOT WASI)
 endif(NOT WASI)
 
 file(GLOB LIBRARY_SOURCES include/*.h src/*.c)
-list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
+list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c src/wasm-sections.c src/wasm3-backend.c src/wamr-backend.c)
 if(HAVE_INET_PTON)
   list(REMOVE_ITEM LIBRARY_SOURCES src/inet_pton.c)
 endif(HAVE_INET_PTON)

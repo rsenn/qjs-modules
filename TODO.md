@@ -145,9 +145,9 @@ live logic has been the source of earlier bugs — cleaning it up now prevents t
   feature, just dead leftover code confusingly shaped like one).
 - `src/glob.c:glob3()` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
   ENOTDIR? */`, minor optimization.
-- `wasm` module was scaffolded in `CMakeLists.txt` (the `option(MODULE_WASM ...)` declaration
-  itself is commented out, `BUILD_LIBWASM` defaults off) but no `quickjs-wasm.c` exists
-  anywhere — either finish it or remove the dead `if(MODULE_WASM)` block in `CMakeLists.txt`.
+- `wasm` module: see the WebAssembly item in Tier 7. The dead `if(MODULE_WASM)` block in
+  `CMakeLists.txt` (its `option(MODULE_WASM ...)` is commented out, no `quickjs-wasm.c`
+  exists) is either replaced by that work or removed.
 
 ## Tier 6 — quickjs-2026 forward-compatibility (found during 2026-07-23 assessment)
 
@@ -208,6 +208,135 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 - `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
   `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
   `syncBuiltinESMExports()`, `SourceMap`.
+
+**WebAssembly: `WebAssembly` global and `.wasm` imports** *(investigated 2026-10-06)* — qjsm
+has neither. Not started; wasm3 is the leading runtime candidate (see the findings below).
+
+*What other runtimes provide:*
+- **Browser / Node / Deno / Bun:** a global `WebAssembly` (W3C JS API): `Module`, `Instance`,
+  `instantiate`, `compile`, `validate`, `Memory`, `Table`, `Global`, `CompileError`,
+  `LinkError`, `RuntimeError`.
+- **ESM integration** (WebAssembly esm-integration proposal): a wasm import's module name is
+  resolved like a JS specifier; each export becomes a named export (a global export resolves
+  to the value it holds); instantiation happens at evaluation time.
+  - Node (no flag since v22.19/v24.5) and Deno (since 2.1): instance phase,
+    `import * as M from './x.wasm'`.
+  - Node: source phase, `import source m from './x.wasm'` / `import.source()`.
+  - Bun: no instance import found; `.wasm` is an asset path (`with { type: "file" }`) fed to
+    `WebAssembly.instantiate()` by hand.
+- **WASI:** `node:wasi` (Node, Bun): `new WASI(opts)`, `wasi.wasiImport`, `wasi.start(instance)`.
+
+*Fit in qjsm:*
+- `src/qjsm.c` already has a `.json` synthetic-module loader and the import-attributes loader
+  (`with { type: 'json' }`); a `.wasm` branch follows the same shape.
+- QuickJS C modules can't declare dependencies, so the loader should return generated JS glue
+  (`import * as m0 from 'env'; const i = instantiate(bytes, {env: m0}); export const add =
+  i.exports.add;`), which makes the wasm import section link through normal specifiers.
+- `import source` is not supported by the engine (no occurrence in `quickjs.c`); only the
+  instance phase is realistic.
+
+*Plan (in order):*
+1. `WebAssembly` global as a native `wasm` module plus a thin `lib/` wrapper: `Module`,
+   `Instance`, `instantiate`, `compile`, `validate`, the three error classes, `Memory`,
+   `Global`; then `Table` and `Module.imports()/exports()`.
+2. `.wasm` in the qjsm loader (instance phase, glue approach above), also via
+   `with { type: 'wasm' }`.
+3. `node:wasi`-shaped `WASI` class. wasm3's own `m3_api_wasi` links straight into a runtime
+   rather than through an import object, so the binding must detect the WASI object at
+   instantiate time and link it natively.
+
+*Does the runtime choice affect Browser/Bun/Deno/Node compatibility?* The JS-visible API
+(`WebAssembly` global, `.wasm` ESM import, `node:wasi`) is the same whichever runtime sits
+underneath; the runtime only sets the ceiling on which modules and API features work.
+
+*Runtime comparison* (2026-10-06; "?" = not confirmed; wasm3 and WAMR rows verified against
+their source, the rest from READMEs):
+
+| | wasm3 | WAMR | toywasm | wasmi | wasmtime | wasmer | WasmEdge |
+|---|---|---|---|---|---|---|---|
+| Language / build | C, cmake | C, cmake | C, cmake | Rust, cargo | Rust, cargo or prebuilt | Rust, cargo | C++, cmake (+LLVM for AOT) |
+| License | MIT | Apache-2.0 + LLVM exc. | BSD-2 | Apache-2.0/MIT | Apache-2.0 | MIT | Apache-2.0 |
+| Execution | interpreter | interp, AOT, JIT | interpreter (slow) | interpreter | JIT/AOT | JIT/AOT | interp or AOT |
+| Footprint | ~550 KB `libm3.a`, 1.5 MB source | ~57 KB interp (README), 9.8 MB source | small | `no_std` capable | large | large | large |
+| Standard `wasm.h` | no | yes | no | yes | yes | yes | yes |
+| Reference types | yes | yes | yes | yes | ? | ? | ? |
+| Multi-memory | yes | not stated | yes | yes | ? | ? | ? |
+| SIMD | no | yes | yes | yes | ? | ? | ? |
+| Exceptions | yes | yes | yes | in dev. | ? | ? | ? |
+| GC | no | yes | not stated | in dev. | ? | ? | ? |
+| Threads | no (README: N/A) | shared memory | yes | in dev. | ? | ? | ? |
+| WASI | `m3_api_wasi` | yes | preview1 | `wasmi_wasi` | `wasi.h` | yes | yes |
+| Status | minimal maintenance, still committing (HEAD 2026-09-29, v0.9.2) | active, steering committee | active | active, audited | active | active | CNCF sandbox |
+
+*Findings from reading the sources* (clones of both repos, 2026-10-06):
+- **wasm3, imports are satisfied only by other wasm modules in the same runtime.**
+  `m3_env.c` resolves an imported memory/table/global with `m3_FindModule(runtime,
+  import.moduleUtf8)` plus `Module_FindExportedMemory/Table/Global`. There is no API to hand
+  it a host-created memory or table.
+- **wasm3, workaround spiked and working** (memory case): load a tiny synthesized module
+  `(module (memory (export "mem") 1))` under the import's module name, then load the real
+  module in the same runtime. The importer reads and writes the same bytes, and the host
+  sees them through `m3_GetMemory(exporting_module)`. This gives `WebAssembly.Memory` as an
+  import. The same path exists in `m3_env.c` for tables and globals but was not spiked.
+  Consequence: instances that share a `Memory`/`Table`/`Global` must live in one wasm3
+  runtime.
+- **wasm3, `m3_LinkGlobal`** supplies a value only (no shared mutable cell); a shared
+  `WebAssembly.Global` needs the synthesized-module route above.
+- **wasm3, no public import/export enumeration** (`Module.imports()/exports()`,
+  `Object.keys(instance.exports)`): `M3Module.exports` (`M3Export*`, `numExports`) and the
+  function/global/memory/table arrays are only in the internal `m3_env.h`.
+- **wasm3, public API otherwise covers** `m3_GetMemory`, `m3_FindGlobal/GetGlobal/SetGlobal`,
+  `m3_GetTableFunction` (read a table slot), `m3_FindFunctionIn`, `m3_LinkRawFunctionEx`
+  (host function with userdata), `m3_Call*`, and `m3_GetErrorInfo`.
+- **WAMR through `wasm.h` is no better, and worse in one respect:**
+  `wasm_instance_new()` handles `WASM_EXTERN_MEMORY`/`WASM_EXTERN_TABLE` imports with
+  `LOG_WARNING("doesn't support import memories and tables for now, ignore them")`, so a
+  host-created `Memory`/`Table` import is silently dropped. Imported globals link their
+  initial value only (`global_data_linked`), not a shared cell. Host-side
+  `wasm_memory_grow()` returns false ("only allow growing a memory via the opcode").
+- **WAMR through its native API, spiked** (classic interpreter, `WAMR_BUILD_MULTI_MODULE=1`,
+  linked via `build-scripts/runtime_lib.cmake`; a module reader callback hands it the bytes
+  of the synthesized memory module when the import section asks for "A"):
+  - Imported memory works: a byte the host wrote through `wasm_runtime_get_default_memory()`
+    of the importing instance was read back by wasm code (`load() = 42`).
+  - Host-side grow works through the native API (`wasm_runtime_enlarge_memory()`, 2 -> 3
+    pages).
+  - **Not shareable:** the imported module is instantiated as a sub-instance of each parent
+    instance. A second instance of the same importer got its own memory (`load() = 0`, not
+    42). WAMR registers modules, not instances, so two instances cannot share one memory,
+    table or global.
+  - **No standalone memory:** a memory exists only inside an instance. A
+    `WebAssembly.Memory` that is created, read or written before any instance exists, or
+    passed to several instances, has nothing to live in.
+- **wasm3, same test** (shared-memory case): a second importer module loaded into the same
+  runtime saw the host's write (`7`), so one `Memory` can back many instances, and exists
+  before any importer is instantiated.
+- **Host functions with an environment pointer exist in both** (`m3_LinkRawFunctionEx`,
+  `wasm_func_new_with_env`), enough to bridge a JS closure per import.
+
+*Revised recommendation (after both spikes):* wasm3, despite the weaker maintenance story.
+The deciding factor is the JS API's object model, not the runtime features: a
+`WebAssembly.Memory` (and `Table`/`Global`) is a standalone object that can exist before
+instantiation and be shared by several instances. wasm3 can do that (a synthesized exporter
+module in one shared runtime); WAMR cannot (memory lives inside one instance's sub-instance
+tree), and its `wasm.h` drops such imports outright.
+- WAMR is the better runtime for *running* modules (SIMD, GC, threads, AOT/JIT, maintained
+  by a steering committee). Revisit it if real modules hit wasm3's missing SIMD/threads; it
+  would then need a backend that gives up shared `Memory` objects or emulates them.
+- Keep the runtime behind a small private backend interface (load, instantiate, call,
+  memory, global, table, link host function, trap info) so that swap stays cheap; do not bind
+  `wasm.h` for portability (WAMR's has the import gap above).
+- wasm3 is not dead: HEAD is 2026-09-29 and v0.9.2 carries exceptions, memory64, multi-memory
+  and snapshots, though the maintainer calls it minimal maintenance.
+
+*Next steps:*
+1. Vendor wasm3 as a submodule under `third_party/` (the earlier ones were removed from
+   `.gitmodules`) and wire the `MODULE_WASM` block in `CMakeLists.txt`.
+2. Spike the table and mutable-global import via a synthesized module, and
+   `Memory.grow()` (`JS_DetachArrayBuffer` + re-wrap after `memory.grow`).
+3. Decide how to list imports/exports: use `m3_env.h` internals (couples to the vendored
+   version; pin the submodule commit) or parse the module's import/export sections in JS/C
+   ourselves from the bytes.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
 node:-prefix audit):

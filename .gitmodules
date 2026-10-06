@@ -23,5 +23,8 @@
 	url = https://github.com/rg3/libbcrypt
 [submodule "third_party/wasm3"]
 	path = third_party/wasm3
-	url = git@github.com:rsenn/wasm3.git
+	url = https://github.com/wasm3/wasm3.git
 	branch = main
+[submodule "third_party/wamr"]
+	path = third_party/wamr
+	url = https://github.com/bytecodealliance/wasm-micro-runtime.git
