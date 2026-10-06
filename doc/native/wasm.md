@@ -39,6 +39,10 @@ when it is immutable. `i64` maps to `BigInt`. Memories are shared between
 instances that import the same `Memory`; the old `ArrayBuffer` is detached
 when the memory grows.
 
+## WASI
+
+`WASI` (Node's `node:wasi`) is `lib/wasi.js`, see `doc/js/wasi.md`.
+
 ## Not yet supported
 
 - `instantiate()`/`compile()` promises, the `WebAssembly` global, `.wasm` imports

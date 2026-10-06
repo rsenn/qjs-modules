@@ -31,6 +31,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [bun](bun.md) — `Bun.plugin()` runtime plugins
 - [commonjs](commonjs.md) — `commonjs` module format loader (`registerHooks()`)
 - [typescript](typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
+- [wasi](wasi.md) — `WASI` (Node's `node:wasi`, preview1) for the `wasm` module
 - [require](require.md) — CommonJS require
 - [stack](stack.md) — Stack utilities
 

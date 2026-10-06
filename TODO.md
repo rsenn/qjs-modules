@@ -332,13 +332,17 @@ tree), and its `wasm.h` drops such imports outright.
 *Status (2026-10-07):* `quickjs-wasm.c` is scaffolded over `include/wasm-backend.h`, with
 `src/wasm3-backend.c` wired into CMake (`cmake/BuildWasm3.cmake`) and
 `tests/unittests/test-wasm.js` passing. `src/wamr-backend.c` is selectable with `-DWASM_BACKEND=wamr`
-(function imports only; exported Table is read-only). Docs: `doc/native/wasm.md`.
+(function imports only; exported Table is read-only). Memory/Table/Global constructors,
+imports and `Module.customSections` work on wasm3; `lib/wasi.js` (`WASI`) works on both.
+Docs: `doc/native/wasm.md`, `doc/js/wasi.md`.
 
 *Next steps:*
-1. `new WebAssembly.Memory()`, `Table`, `Global`, table/global imports and exports on wasm3
-   (`WB_NewTable`/`WB_NewGlobal` are unsupported there).
-2. `lib/webassembly.js`: the `WebAssembly` global, `instantiate()`/`compile()` promises, and a
-   `.wasm` `registerHooks` load hook.
+1. `lib/webassembly.js`: the `WebAssembly` global, `instantiate()`/`compile()` and the
+   `*Streaming` variants (Node, Bun and Deno all have them).
+2. `.wasm` ESM loader on `registerHooks` (Node and Deno: named exports, imports resolved as
+   modules by name; no default export).
+3. Missing vs Node/Bun/Deno: `Tag`/`Exception`/`JSTag`, shared memory, externref, one function
+   object per wasm function.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
 node:-prefix audit):
