@@ -332,7 +332,7 @@ tree), and its `wasm.h` drops such imports outright.
 *Status (2026-10-07):* `quickjs-wasm.c` is scaffolded over `include/wasm-backend.h`, with
 `src/wasm3-backend.c` wired into CMake (`cmake/BuildWasm3.cmake`) and
 `tests/unittests/test-wasm.js` passing. `src/wamr-backend.c` is selectable with `-DWASM_BACKEND=wamr`
-(function imports only, no Table). Docs: `doc/native/wasm.md`.
+(function imports only; exported Table is read-only). Docs: `doc/native/wasm.md`.
 
 *Next steps:*
 1. `new WebAssembly.Memory()`, `Table`, `Global`, table/global imports and exports on wasm3

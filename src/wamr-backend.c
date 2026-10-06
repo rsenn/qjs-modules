@@ -65,7 +65,9 @@ struct WBMemory {
 };
 
 struct WBTable {
-  int unused;
+  int refs;
+  WBInstance* inst; /* owner */
+  char* name;       /* export name; the table is re-fetched on each use */
 };
 
 struct WBGlobal {
@@ -76,6 +78,7 @@ struct WBGlobal {
 typedef struct Slot {
   const char* module;
   const char* name;
+  const char* sig; /* same name, other signature: another native */
 } Slot;
 
 static int wamr_users;                  /* JS thread only: live WBRuntimes */
@@ -170,11 +173,11 @@ WB_FreeRuntime(WBRuntime* rt) {
     for(size_t i = 0; i < wamr_nslots; i++) {
       free((void*)wamr_slots[i]->module);
       free((void*)wamr_slots[i]->name);
+      free((void*)wamr_slots[i]->sig);
       free(wamr_slots[i]);
     }
 
     for(size_t i = 0; i < wamr_nsets; i++) {
-      free((void*)wamr_symbol_sets[i]->signature);
       free(wamr_symbol_sets[i]);
     }
 
@@ -236,28 +239,21 @@ import_trampoline(wasm_exec_env_t env, uint64_t* raw) {
   const Slot* slot = wasm_runtime_get_function_attachment(env);
   WBFunc* f = inst && slot ? find_import_func(inst, slot) : NULL;
   WBValue args[MAX_VALUES], res[MAX_VALUES];
-  uint32_t* w = (uint32_t*)raw;
-  size_t pos = 0;
 
   if(!f) {
     wasm_runtime_set_exception(mi, "import is not linked");
     return;
   }
 
+  /* raw layout: one 64-bit slot per parameter, whatever its type */
   for(size_t i = 0; i < f->type.nparams; i++) {
     args[i].type = f->type.params[i];
 
     switch(args[i].type) {
-      case WB_I32: args[i].u.i32 = (int32_t)w[pos++]; break;
-      case WB_F32: memcpy(&args[i].u.f32, &w[pos++], 4); break;
-      case WB_I64:
-        memcpy(&args[i].u.i64, &w[pos], 8);
-        pos += 2;
-        break;
-      default:
-        memcpy(&args[i].u.f64, &w[pos], 8);
-        pos += 2;
-        break;
+      case WB_I32: args[i].u.i32 = (int32_t)raw[i]; break;
+      case WB_F32: memcpy(&args[i].u.f32, &raw[i], 4); break;
+      case WB_I64: args[i].u.i64 = (int64_t)raw[i]; break;
+      default: memcpy(&args[i].u.f64, &raw[i], 8); break;
     }
   }
 
@@ -273,18 +269,18 @@ import_trampoline(wasm_exec_env_t env, uint64_t* raw) {
 
   if(f->type.nresults) {
     switch(f->type.results[0]) {
-      case WB_I32: *(int32_t*)w = res[0].u.i32; break;
-      case WB_F32: memcpy(w, &res[0].u.f32, 4); break;
-      case WB_I64: memcpy(w, &res[0].u.i64, 8); break;
-      default: memcpy(w, &res[0].u.f64, 8); break;
+      case WB_I32: raw[0] = (uint32_t)res[0].u.i32; break;
+      case WB_F32: memcpy(&raw[0], &res[0].u.f32, 4); break;
+      case WB_I64: raw[0] = (uint64_t)res[0].u.i64; break;
+      default: memcpy(&raw[0], &res[0].u.f64, 8); break;
     }
   }
 }
 
 static int
-slot_known(const char* module, const char* name) {
+slot_known(const char* module, const char* name, const char* sig) {
   for(size_t i = 0; i < wamr_nslots; i++)
-    if(!strcmp(wamr_slots[i]->module, module) && !strcmp(wamr_slots[i]->name, name))
+    if(!strcmp(wamr_slots[i]->module, module) && !strcmp(wamr_slots[i]->name, name) && !strcmp(wamr_slots[i]->sig, sig))
       return 1;
 
   return 0;
@@ -295,46 +291,47 @@ slot_known(const char* module, const char* name) {
 static int
 register_import(WBContext* ctx, const WBImportDesc* d) {
   const WBFuncType* t = &d->type.u.func;
-  Slot* slot;
-  NativeSymbol* sym;
-  char* sig;
+  Slot* slot = NULL;
+  NativeSymbol* sym = NULL;
+  char* sig = malloc(t->nparams + t->nresults + 3);
   Slot** slots;
   NativeSymbol** sets;
+  char* p = sig;
 
-  if(slot_known(d->module, d->name))
+  if(!sig)
+    goto nomem;
+
+  /* WAMR's signature letters: i32 'i', i64 'I', f32 'f', f64 'F' */
+  *p++ = '(';
+
+  for(size_t i = 0; i < t->nparams; i++)
+    *p++ = sigchar(t->params[i]);
+
+  *p++ = ')';
+
+  for(size_t i = 0; i < t->nresults; i++)
+    *p++ = sigchar(t->results[i]);
+
+  *p = 0;
+
+  if(slot_known(d->module, d->name, sig)) {
+    free(sig);
     return 0;
+  }
 
   slot = calloc(1, sizeof(*slot));
   sym = calloc(1, sizeof(*sym));
-  sig = malloc(t->nparams + t->nresults + 4);
 
-  if(!slot || !sym || !sig)
+  if(!slot || !sym)
     goto nomem;
 
   slot->module = strdup(d->module);
   slot->name = strdup(d->name);
+  slot->sig = sig;
   sym->symbol = slot->name;
   sym->func_ptr = (void*)import_trampoline;
-  sym->attachment = slot;
-
-  {
-    char* p = sig;
-
-    *p++ = '(';
-
-    for(size_t i = 0; i < t->nparams; i++)
-      *p++ = sigchar(t->params[i]);
-
-    *p++ = ')';
-
-    for(size_t i = 0; i < t->nresults; i++)
-      *p++ = sigchar(t->results[i]);
-
-    *p = 0;
-  }
-
-  /* WAMR's signature letters: i32 'i', i64 'I', f32 'f', f64 'F' */
   sym->signature = sig;
+  sym->attachment = slot;
 
   if(!wasm_runtime_register_natives_raw(slot->module, sym, 1)) {
     set_ex(ctx, WB_ERR_LINK, "cannot register import %s.%s", d->module, d->name);
@@ -596,10 +593,15 @@ free_instance(WBInstance* inst) {
   /* refcount: an export owns itself; a dup'd one also holds a ref on the
    * instance, so every export is at refs == 1 here */
   for(size_t i = 0; i < inst->nexports; i++) {
-    if(inst->exports[i].ext.kind == WB_EXTERN_FUNC)
-      free_func(inst->exports[i].ext.u.func);
-    else
-      free(inst->exports[i].ext.u.memory);
+    WBExtern x = inst->exports[i].ext;
+
+    if(x.kind == WB_EXTERN_FUNC)
+      free_func(x.u.func);
+    else if(x.kind == WB_EXTERN_TABLE) {
+      free(x.u.table->name);
+      free(x.u.table);
+    } else
+      free(x.u.memory);
   }
 
   if(inst->env)
@@ -657,6 +659,21 @@ make_exports(WBContext* ctx, WBInstance* inst) {
       e->name = d->name;
       e->ext.kind = WB_EXTERN_MEMORY;
       e->ext.u.memory = m;
+      inst->nexports++;
+    } else if(d->type.kind == WB_EXTERN_TABLE) {
+      WBTable* t = calloc(1, sizeof(*t));
+
+      if(!t || !(t->name = strdup(d->name))) {
+        free(t);
+        set_ex(ctx, WB_ERR_NOMEM, "out of memory");
+        return -1;
+      }
+
+      t->refs = 1;
+      t->inst = inst;
+      e->name = d->name;
+      e->ext.kind = WB_EXTERN_TABLE;
+      e->ext.u.table = t;
       inst->nexports++;
     }
   }
@@ -755,6 +772,10 @@ WB_DupExtern(WBContext* ctx, WBExtern ext) {
       ext.u.memory->refs++;
       ext.u.memory->inst->refs++;
       break;
+    case WB_EXTERN_TABLE:
+      ext.u.table->refs++;
+      ext.u.table->inst->refs++;
+      break;
     default: break;
   }
 
@@ -785,20 +806,33 @@ WB_FreeExtern(WBContext* ctx, WBExtern ext) {
       free_instance(owner);
       break;
     }
+    case WB_EXTERN_TABLE: {
+      WBInstance* owner = ext.u.table->inst;
+
+      if(!--ext.u.table->refs) {
+        free(ext.u.table->name);
+        free(ext.u.table);
+      }
+
+      free_instance(owner);
+      break;
+    }
     default: break;
   }
 }
 
 WBValue
 WB_DupValue(WBContext* ctx, WBValue v) {
-  (void)ctx;
+  if(v.type == WB_FUNCREF && v.u.ref)
+    WB_DupExtern(ctx, (WBExtern){WB_EXTERN_FUNC, {.func = v.u.ref}});
+
   return v;
 }
 
 void
 WB_FreeValue(WBContext* ctx, WBValue v) {
-  (void)ctx;
-  (void)v;
+  if(v.type == WB_FUNCREF && v.u.ref)
+    WB_FreeExtern(ctx, (WBExtern){WB_EXTERN_FUNC, {.func = v.u.ref}});
 }
 
 /* ---- memory ---- */
@@ -838,19 +872,87 @@ WB_NewTable(WBContext* ctx, WBValType elem, const WBLimits* limits) {
   return NULL;
 }
 
+/* the engine's view of an exported table, refreshed on each use.
+ * returns 0, or -1 with an exception pending. */
+static int
+table_inst(WBContext* ctx, WBTable* table, wasm_table_inst_t* out) {
+  if(!wasm_runtime_get_export_table_inst(table->inst->inst, table->name, out)) {
+    set_ex(ctx, WB_ERR_UNSUPPORTED, "wamr backend: table '%s' is not accessible", table->name);
+    return -1;
+  }
+
+  return 0;
+}
+
 uint32_t
 WB_GetTableSize(WBTable* table) {
-  (void)table;
-  return 0;
+  wasm_table_inst_t t;
+
+  return table_inst(table->inst->ctx, table, &t) ? 0 : t.cur_size;
 }
 
 int
 WB_GetTableElem(WBContext* ctx, WBTable* table, uint32_t index, WBValue* out) {
-  (void)table;
-  (void)index;
-  (void)out;
-  set_ex(ctx, WB_ERR_UNSUPPORTED, "wamr backend: tables are not supported");
-  return -1;
+  wasm_table_inst_t t;
+  wasm_function_inst_t wf;
+  wasm_module_inst_t mi = table->inst->inst;
+  WBValType params[MAX_VALUES], results[MAX_VALUES];
+  wasm_valkind_t kinds[MAX_VALUES];
+  uint32_t np, nr;
+  WBFuncType type;
+  WBFunc* f;
+
+  if(table_inst(ctx, table, &t))
+    return -1;
+
+  if(index >= t.cur_size) {
+    set_ex(ctx, WB_ERR_RANGE, "table index %u out of range", index);
+    return -1;
+  }
+
+  out->type = WB_FUNCREF;
+  out->u.ref = NULL;
+
+  if(!(wf = wasm_table_get_func_inst(mi, &t, index)))
+    return 0;
+
+  np = wasm_func_get_param_count(wf, mi);
+  nr = wasm_func_get_result_count(wf, mi);
+
+  if(np > MAX_VALUES || nr > MAX_VALUES) {
+    set_ex(ctx, WB_ERR_UNSUPPORTED, "too many parameters or results");
+    return -1;
+  }
+
+  for(int pass = 0; pass < 2; pass++) {
+    WBValType* dst = pass ? results : params;
+
+    if(pass)
+      wasm_func_get_result_types(wf, mi, kinds);
+    else
+      wasm_func_get_param_types(wf, mi, kinds);
+
+    for(uint32_t i = 0; i < (pass ? nr : np); i++) {
+      switch(kinds[i]) {
+        case WASM_I32: dst[i] = WB_I32; break;
+        case WASM_I64: dst[i] = WB_I64; break;
+        case WASM_F32: dst[i] = WB_F32; break;
+        case WASM_F64: dst[i] = WB_F64; break;
+        default: set_ex(ctx, WB_ERR_UNSUPPORTED, "unsupported value type"); return -1;
+      }
+    }
+  }
+
+  type = (WBFuncType){params, np, results, nr};
+
+  if(!(f = new_func(ctx, &type)))
+    return -1;
+
+  f->wf = wf;
+  f->inst = table->inst;
+  table->inst->refs++; /* refcount: dropped by WB_FreeExtern()/WB_FreeValue() */
+  out->u.ref = f;
+  return 0;
 }
 
 int
