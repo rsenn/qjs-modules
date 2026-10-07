@@ -6,8 +6,8 @@ import { WASI } from '../lib/wasi.js';
 /**
  * Runs the WASI build of the shish shell (https://github.com/rsenn/shish).
  *
- *   qjsm examples/wasm-shish.js [-c 'echo hi'] [script args...]
- *   SHISH_WASM=path/to/shish SHISH_ROOT=/some/dir qjsm examples/wasm-shish.js
+ *   qjsm examples/wasi-shish.js [-c 'echo hi'] [script args...]
+ *   SHISH_WASM=path/to/shish SHISH_ROOT=/some/dir qjsm examples/wasi-shish.js
  *
  * The guest sees SHISH_ROOT (default: the current directory) as `/`.
  * Runs on qjsm, node, bun and deno.
