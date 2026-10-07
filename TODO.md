@@ -372,7 +372,7 @@ fs/module/path/perf_hooks/process/stream/timers/tty/url/util/yaml - `node:repl` 
 Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
 `lib-tty-imports-nonexistent-fdopensync`). Two kinds of divergence:
 
-**Missing in qjsm** (real Node/Bun exports our `node:x` doesn't have) - by module:
+**Missing in qjsm** (real Node/Bun exports our `node:x` doesn't have) - by module. *Since 2026-10-07 done: `events` (Node-conformant `EventEmitter`, `on`, `getEventListeners`, `*MaxListeners`), `fs` callback API + `promises` + `fs/promises`, `process` (`on`/`emit`, `nextTick`, `exitCode`, `memoryUsage`, `uptime`), `timers` `setImmediate` + `timers/promises`, `url` `fileURLToPath`/`pathToFileURL`, `util` (`format`, `promisify`, `callbackify`, `parseArgs`, `isDeepStrictEqual`, `deprecate`, `debuglog`, `TextEncoder`/`TextDecoder`), `path.posix`. Still open: `child_process.execFile*` (spawnSync cannot capture stdout), `path.win32`, `path.join` normalization, `process.version(s)`, `Buffer`, `fs.ReadStream`/`WriteStream`, legacy `url.parse`, `module.Module`, `console`, `readline`.*
 - `assert`: `CallTracker`, `strict`
 - `child_process`: `execFile`, `execFileSync`, `fork`
 - `console`: nearly everything (`log`, `error`, `warn`, `info`, `debug`, `table`,
