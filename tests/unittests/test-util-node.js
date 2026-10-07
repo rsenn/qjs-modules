@@ -96,7 +96,7 @@ tests({
   'debuglog is disabled without NODE_DEBUG'() {
     const log = debuglog('qjs-modules-test');
 
-    assert(log.enabled === false);
+    assert(!log.enabled);
     log('nothing');
   },
 });
