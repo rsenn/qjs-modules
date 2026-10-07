@@ -179,8 +179,9 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 - `structuredClone` — done in `lib/globals.js` (opt-in global, `transfer` included); checked against node on 28 cases, differences: errors are plain `Error` not `DOMException`, a SharedArrayBuffer is returned as the same object.
 - `Worker` — no global; only QuickJS's own `os.Worker` exists (also see Tier 9.9).
 - `lib/readline.js` and `lib/buffer.js` were removed in commit `958cffc9` as stubs; both are
-  back as real implementations (`Buffer` and `readline`, 2026-10-07). `lib/perf_hooks.js` (13 lines:
-  `now`/`timeOrigin` only, no marks or measures) is still thin as described, no change there.
+  back as real implementations (`Buffer` and `readline`, 2026-10-07). `lib/perf_hooks.js` now has User
+  Timing (`mark`, `measure`, entries, `PerformanceObserver`, 2026-10-08); missing: `timerify`,
+  histograms, `monitorEventLoopDelay`, `eventLoopUtilization`.
 - `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
   `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
   `syncBuiltinESMExports()`, `SourceMap`.

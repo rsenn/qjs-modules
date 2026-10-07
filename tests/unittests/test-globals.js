@@ -7,7 +7,7 @@ if(typeof URL == 'undefined') await import('../../lib/globals.js');
 
 tests({
   'the globals exist'() {
-    for(const name of ['URL', 'URLSearchParams', 'TextEncoder', 'TextDecoder', 'AbortController', 'AbortSignal', 'EventTarget', 'Blob', 'ReadableStream', 'WritableStream', 'TransformStream', 'atob', 'btoa', 'queueMicrotask', 'structuredClone', 'setImmediate', 'clearImmediate', 'crypto'])
+    for(const name of ['URL', 'URLSearchParams', 'TextEncoder', 'TextDecoder', 'AbortController', 'AbortSignal', 'EventTarget', 'Blob', 'ReadableStream', 'WritableStream', 'TransformStream', 'atob', 'btoa', 'queueMicrotask', 'structuredClone', 'setImmediate', 'clearImmediate', 'crypto', 'performance', 'PerformanceObserver'])
       assert(typeof globalThis[name] != 'undefined', name);
   },
   'URL parses'() {

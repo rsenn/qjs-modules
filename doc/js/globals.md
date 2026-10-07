@@ -21,6 +21,7 @@ structuredClone({ d: new Date(0) });
 | `Blob` | `blob` |
 | `ReadableStream`, `WritableStream`, `TransformStream`, `*QueuingStrategy`, `TextEncoderStream`, `TextDecoderStream` | `streams` (the full WHATWG classes of `lib/stream.js`, with `pipeTo()`/`pipeThrough()`); `Blob.prototype.stream()` returns the same class |
 | `setTimeout`, `setInterval`, `setImmediate` and their `clear*` | `timers` |
+| `performance`, `Performance`, `PerformanceEntry`, `PerformanceMark`, `PerformanceMeasure`, `PerformanceObserver`, `PerformanceObserverEntryList` | `perf_hooks` |
 | `atob`, `btoa` | here (Latin-1 strings, padding optional, `InvalidCharacterError`) |
 | `queueMicrotask` | here (a promise job) |
 | `structuredClone` | here: Date, RegExp, boxed primitives, ArrayBuffer, typed arrays, Map, Set, Error, cycles; `transfer` option (ArrayBuffers); SharedArrayBuffer returned as is; `DataCloneError` for functions, symbols, Promise, WeakMap, WeakSet, WeakRef; `TypeError` without arguments; the error is a plain `Error`, not a `DOMException` |
