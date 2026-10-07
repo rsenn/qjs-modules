@@ -1,5 +1,5 @@
 import * as std from 'std';
-import { read, write, JsonParser, JsonPushParser, JsonSerializer } from 'json';
+import { read, write, JSONL, JsonParser, JsonPushParser, JsonSerializer } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER } = JsonParser;
@@ -692,5 +692,55 @@ tests({
       [ARRAY_END, null],
       [JsonParser.COMMENT, '// c'],
     ]);
+  },
+  'JSONL.parse'() {
+    eqArr(JSONL.parse('{"a":1}\n{"a":2}\n'), [{ a: 1 }, { a: 2 }]);
+    eqArr(JSONL.parse('1\r\n2\r\n'), [1, 2]);
+    eqArr(JSONL.parse('1\n\n[3,\n4]\n"x"\ntrue\nnull\n'), [1, [3, 4], 'x', true, null]);
+    eqArr(JSONL.parse(''), []);
+    eqArr(JSONL.parse('1\n2\n{"a"'), [1, 2]);
+    eqArr(JSONL.parse('1\nxx\n3'), [1]);
+    eqArr(JSONL.parse(Uint8Array.from([49, 10, 50])), [1, 2]);
+    assertThrows(() => JSONL.parse('xx\n1'));
+  },
+  'JSONL.parseChunk'() {
+    const chunk = (...a) => JSON.stringify(JSONL.parseChunk(...a), (k, v) => (k == 'error' ? (v && v.name) : v));
+
+    eq(chunk('1\n2\n'), '{"values":[1,2],"read":3,"done":true,"error":null}');
+    eq(chunk('1\n2\n{"a"'), '{"values":[1,2],"read":3,"done":false,"error":null}');
+    eq(chunk('1\nxx\n3'), '{"values":[1],"read":1,"done":false,"error":"SyntaxError"}');
+    eq(chunk('1 2 3'), '{"values":[1],"read":1,"done":false,"error":"SyntaxError"}');
+    eq(chunk(''), '{"values":[],"read":0,"done":true,"error":null}');
+    eq(chunk('12'), '{"values":[12],"read":2,"done":true,"error":null}');
+    eq(chunk('1\nxx'), '{"values":[1],"read":1,"done":false,"error":null}');
+    eq(chunk('"a\\u00'), '{"values":[],"read":0,"done":false,"error":null}');
+    eq(chunk('1e'), '{"values":[],"read":0,"done":false,"error":null}');
+  },
+  'JSONL.parseChunk start, end and units'() {
+    const chunk = (...a) => JSON.stringify(JSONL.parseChunk(...a));
+    const u8 = s => Uint8Array.from(unescape(encodeURIComponent(s)), c => c.charCodeAt(0));
+
+    eq(chunk('1\n2\n3\n', 2), '{"values":[2,3],"read":5,"done":true,"error":null}');
+    eq(chunk(u8('1\n2\n3\n'), 2, 4), '{"values":[2],"read":3,"done":true,"error":null}');
+    eq(chunk('1\n2', 0, 1), '{"values":[1],"read":1,"done":true,"error":null}');
+    /* read counts chars for a string, bytes for a Uint8Array */
+    eq(chunk('"é"\n"😀"\n"x"\n'), '{"values":["é","😀","x"],"read":12,"done":true,"error":null}');
+    eq(chunk(u8('"é"\n"x"\n')), '{"values":["é","x"],"read":8,"done":true,"error":null}');
+  },
+  'JSONL.parseChunk carries the unread tail across chunks'() {
+    const text = '{"a":1}\n[2,\n3]\n"x"\n';
+    const values = [];
+    let buf = '';
+
+    for(let i = 0; i < text.length; i += 3) {
+      buf += text.slice(i, i + 3);
+
+      const { values: v, read } = JSONL.parseChunk(buf);
+
+      values.push(...v);
+      buf = buf.slice(read);
+    }
+
+    eqArr(values, [{ a: 1 }, [2, 3], 'x']);
   },
 });

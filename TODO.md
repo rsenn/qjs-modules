@@ -87,26 +87,12 @@ against these — they're the "why" behind what gets picked up next.
   has) would hide truncated input from callers that expect one value. Multi-document input
   goes through `JSONL.parse` instead.
 
-  *Plan* (in order):
-  1. `JSONL.parse(input)` and `JSONL.parseChunk(input, start?, end?)` as native exports of
-     `json`, Bun semantics as above. Build on the `JsonParser` pull engine (`src/json.c`),
-     which already handles consecutive top-level values; a small value builder driven by
-     `.depth` returning to 0 yields the documents. Not `JsonPushParser` (`.root`
-     overwrite), not per-line `JSON.parse` (breaks on `\r\n`, blank lines, newlines inside
-     values).
-  2. Tests in `tests/unittests/test-json.js`: `\n` and `\r\n`, blank lines, scalar and
-     array lines, trailing partial line (`parse` ignores it, `parseChunk` leaves it unread
-     with `done: false`), bad line (`parse` returns the earlier values, throws if none),
-     `read` units (chars for strings, bytes for `Uint8Array`, with `start`/`end`), a chunk
-     cut inside a `\uXXXX` escape or an exponent (incomplete, not an error — Bun fixed
-     this in oven-sh/bun#42488), a multi-chunk loop that carries the unread tail.
-  3. Document in `doc/native/json.md`.
-  4. After 1: `lib/` `TransformStream` wrappers modeled on Deno's `JsonParseStream`/
-     `JsonStringifyStream` (`prefix`/`suffix`) and `ConcatenatedJsonParseStream`.
-
-  *Open question*: check Bun's behavior beyond its docs (a `\uXXXX` or exponent cut by a
-  chunk boundary, `start`/`end` handling) before writing the tests; the docs fetched
-  2026-10-06 don't specify these.
+  *Done* (2026-10-07): `JSONL.parse`/`JSONL.parseChunk` exported by `json`, Bun's results
+  verified case by case against `bun`, tests in `test-json.js`, documented in
+  `doc/native/json.md`. Implemented as a value-boundary scanner plus `JS_ParseJSON`, not on the
+  `JsonParser` pull engine. Still open: Deno-style `TransformStream` wrappers in `lib/`
+  (`JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` with
+  `prefix`/`suffix`) on top of `parseChunk`.
 
   *Related bugs found while investigating* (both in `BUGS`, unfixed):
   - `json-parser-callback-getter-segfault`: reading `JsonParser.callback` after assigning

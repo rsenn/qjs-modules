@@ -526,6 +526,200 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return ret;
 }
 
+/* JSONL: Bun's `JSONL` namespace, values separated by newlines.
+ *
+ * ```js
+ * JSONL.parse('1\n{"a":2}\n[3');     // [1, {a: 2}]
+ * JSONL.parseChunk('1\n2\n[3');      // {values: [1, 2], read: 3, done: false, error: null}
+ * ```
+ *
+ *   string|Uint8Array  input   text, or its UTF-8 bytes
+ *   number             start   first unit to read (chars for a string, bytes otherwise)
+ *   number             end     unit to stop at
+ *
+ *   returns parse():      the values read; a trailing incomplete value is ignored
+ *           parseChunk(): `read` is the unit after the last value, `done` is true when
+ *                         the rest is only whitespace, `error` the SyntaxError of a bad value
+ *
+ * throws parse(): SyntaxError when the first value is bad; TypeError for a bad input.
+ * wired in: JS_CFUNC_MAGIC_DEF("parse"/"parseChunk") on the `JSONL` export.
+ */
+static BOOL
+jsonl_is_ws(uint8_t c) {
+  return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+/* end of the value starting at b[i], or 0 when the input ends inside it */
+static size_t
+jsonl_value_end(const uint8_t* b, size_t n, size_t i) {
+  int depth = 0;
+
+  if(b[i] == '{' || b[i] == '[' || b[i] == '"') {
+    for(BOOL in_str = FALSE; i < n; i++) {
+      uint8_t c = b[i];
+
+      if(in_str) {
+        if(c == '\\')
+          i++;
+        else if(c == '"') {
+          in_str = FALSE;
+          if(!depth)
+            return i + 1;
+        }
+      } else if(c == '"') {
+        in_str = TRUE;
+      } else if(c == '{' || c == '[') {
+        depth++;
+      } else if((c == '}' || c == ']') && --depth == 0) {
+        return i + 1;
+      }
+    }
+
+    return 0;
+  }
+
+  while(i < n && !jsonl_is_ws(b[i]))
+    i++;
+
+  return i;
+}
+
+/* byte offset of UTF-16 unit `units` in the UTF-8 buffer `b` */
+static size_t
+jsonl_unit_to_byte(const uint8_t* b, size_t n, size_t units) {
+  size_t i = 0;
+
+  while(i < n && units > 0) {
+    uint8_t c = b[i];
+
+    i += c >= 0xf0 ? 4 : c >= 0xe0 ? 3 : c >= 0xc0 ? 2 : 1;
+    units -= c >= 0xf0 && units >= 2 ? 2 : 1;
+  }
+
+  return i > n ? n : i;
+}
+
+/* UTF-16 unit index of byte offset `end` in the UTF-8 buffer `b` */
+static size_t
+jsonl_byte_to_unit(const uint8_t* b, size_t end) {
+  size_t units = 0;
+
+  for(size_t i = 0; i < end; i++)
+    if((b[i] & 0xc0) != 0x80)
+      units += b[i] >= 0xf0 ? 2 : 1;
+
+  return units;
+}
+
+static JSValue
+js_jsonl_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  BOOL is_str = argc > 0 && JS_IsString(argv[0]);
+  InputBuffer input = js_input_chars(ctx, argc > 0 ? argv[0] : JS_UNDEFINED);
+  JSValue values, error = JS_NULL, ret = JS_EXCEPTION;
+  int64_t start = 0, end = -1;
+  size_t i, n, read, nvalues = 0;
+  BOOL done = FALSE;
+
+  if(!input.data) {
+    JS_ThrowTypeError(ctx, "%s: expecting string or Uint8Array", magic ? "JSONL.parseChunk()" : "JSONL.parse()");
+    return JS_EXCEPTION;
+  }
+
+  if(magic) {
+    if(argc > 1 && !JS_IsUndefined(argv[1]))
+      JS_ToInt64(ctx, &start, argv[1]);
+    if(argc > 2 && !JS_IsUndefined(argv[2]))
+      JS_ToInt64(ctx, &end, argv[2]);
+  }
+
+  if(start < 0)
+    start = 0;
+
+  i = is_str ? jsonl_unit_to_byte(input.data, input.size, start) : MIN_NUM((size_t)start, input.size);
+  n = end < 0 ? input.size : is_str ? jsonl_unit_to_byte(input.data, input.size, end) : MIN_NUM((size_t)end, input.size);
+  read = i;
+  values = JS_NewArray(ctx);
+
+  for(;;) {
+    size_t e, vs;
+    char* text;
+    JSValue v;
+
+    while(i < n && jsonl_is_ws(input.data[i]))
+      i++;
+
+    if(i >= n) {
+      done = TRUE;
+      break;
+    }
+
+    vs = i;
+
+    if(!(e = jsonl_value_end(input.data, n, vs)))
+      break;
+
+    if(!(text = js_malloc(ctx, e - vs + 1)))
+      goto fail;
+
+    memcpy(text, input.data + vs, e - vs);
+    text[e - vs] = 0;
+    v = JS_ParseJSON(ctx, text, e - vs, "<jsonl>");
+    js_free(ctx, text);
+
+    if(JS_IsException(v)) {
+      /* a bare token cut off by the end of input may be completed by more data */
+      if(e == n && input.data[vs] != '{' && input.data[vs] != '[' && input.data[vs] != '"') {
+        JS_FreeValue(ctx, JS_GetException(ctx));
+        break;
+      }
+
+      error = JS_GetException(ctx);
+      break;
+    }
+
+    JS_SetPropertyUint32(ctx, values, nvalues++, v);
+    read = i = e;
+
+    while(i < n && (input.data[i] == ' ' || input.data[i] == '\t' || input.data[i] == '\r'))
+      i++;
+
+    if(i < n && input.data[i] != '\n') {
+      JS_ThrowSyntaxError(ctx, "JSONL: expected newline after value");
+      error = JS_GetException(ctx);
+      break;
+    }
+  }
+
+  if(!magic) {
+    if(nvalues == 0 && !JS_IsNull(error)) {
+      JS_Throw(ctx, error);
+      error = JS_NULL;
+      goto fail;
+    }
+
+    ret = values;
+    values = JS_UNDEFINED;
+  } else {
+    ret = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, ret, "values", values);
+    JS_SetPropertyStr(ctx, ret, "read", JS_NewInt64(ctx, is_str ? (int64_t)jsonl_byte_to_unit(input.data, read) : (int64_t)read));
+    JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
+    JS_SetPropertyStr(ctx, ret, "error", error);
+    values = error = JS_UNDEFINED;
+  }
+
+fail:
+  JS_FreeValue(ctx, values);
+  JS_FreeValue(ctx, error);
+  inputbuffer_free(&input, ctx);
+  return ret;
+}
+
+static const JSCFunctionListEntry js_jsonl_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("parse", 1, js_jsonl_parse, 0),
+    JS_CFUNC_MAGIC_DEF("parseChunk", 1, js_jsonl_parse, 1),
+};
+
 static const JSCFunctionListEntry js_json_funcs[] = {
     JS_CFUNC_DEF("read", 1, js_json_read),
     JS_CFUNC_DEF("write", 2, js_json_write),
@@ -2399,6 +2593,10 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, jsonwriter_ctor, jsonwriter_proto);
 
   if(m) {
+    JSValue jsonl = JS_NewObject(ctx);
+
+    JS_SetPropertyFunctionList(ctx, jsonl, js_jsonl_funcs, countof(js_jsonl_funcs));
+    JS_SetModuleExport(ctx, m, "JSONL", jsonl);
     JS_SetModuleExport(ctx, m, "JsonParser", json_parser_ctor);
     JS_SetModuleExport(ctx, m, "JsonPushParser", json_pushparser_ctor);
     JS_SetModuleExport(ctx, m, "JsonSerializer", json_serializer_ctor);
@@ -2420,6 +2618,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_json_init))) {
+    JS_AddModuleExport(ctx, m, "JSONL");
     JS_AddModuleExport(ctx, m, "JsonParser");
     JS_AddModuleExport(ctx, m, "JsonPushParser");
     JS_AddModuleExport(ctx, m, "JsonSerializer");

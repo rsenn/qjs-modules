@@ -1,6 +1,6 @@
 # json
 
-Source: `quickjs-json.c` — module exports **`JsonParser`**, **`JsonPushParser`**, **`JsonSerializer`**, **`JsonWriter`** and a function list.
+Source: `quickjs-json.c` — module exports **`JSONL`**, **`JsonParser`**, **`JsonPushParser`**, **`JsonSerializer`**, **`JsonWriter`** and a function list.
 
 A streaming/extended JSON reader plus simple read/write helpers.
 
@@ -20,6 +20,36 @@ having it skipped. `JsonPushParser` always skips them.
 | --- | --- | --- |
 | `read(input, inputName?)` | 1–2 | Parses JSON text into a JS value. `input` is a string or buffer. `inputName` is an optional filename for error messages. Throws on trailing data after the root value. |
 | `write(value, indent?)` | 1–2 | Serializes a JS value to JSON text. `indent` (default 0) controls pretty-printing — when positive, each nesting level adds that many spaces of indentation. |
+
+## JSONL
+
+Bun's `JSONL` namespace: values separated by newlines (`\n` or `\r\n`, blank lines
+allowed, a value may span lines). Same results as `Bun.JSONL` for every case in
+`tests/unittests/test-json.js`.
+
+| Function | Description |
+| --- | --- |
+| `JSONL.parse(input)` | `input` is a string or `Uint8Array`. Returns the array of values read; an incomplete trailing value is ignored; a bad value ends the list. Throws `SyntaxError` only when the first value is bad. |
+| `JSONL.parseChunk(input, start?, end?)` | Never throws on bad data. Returns `{ values, read, done, error }`. `start`/`end` are chars for a string, bytes for a `Uint8Array`. |
+
+`parseChunk` result:
+
+| Field | Meaning |
+| --- | --- |
+| `values` | the values parsed |
+| `read` | unit just after the last value (absolute, in the input's units); carry `input.slice(read)` into the next chunk |
+| `done` | `true` when the rest of the range is only whitespace |
+| `error` | `SyntaxError` for a bad value or for content after a value on the same line, else `null` |
+
+```js
+import { JSONL } from 'json';
+
+JSONL.parse('{"a":1}\n[2]\n3');        // [{a: 1}, [2], 3]
+JSONL.parseChunk('1\n2\n[3');          // { values: [1, 2], read: 3, done: false, error: null }
+```
+
+A value must end its line: `1 2` is an error, as is `{}{}`. A last token without a newline
+(`12`) is a value; one that does not parse (`xx`, `1e`) is incomplete, not an error.
 
 ## JsonParser
 
