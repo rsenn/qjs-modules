@@ -101,6 +101,15 @@ tests({
     ac.abort();
     assert(ac.signal.aborted && fired);
   },
+  async 'Blob stream() pipes through a TextDecoderStream'() {
+    const chunks = [];
+
+    await new Blob(['ab', 'cd'])
+      .stream()
+      .pipeThrough(new TextDecoderStream())
+      .pipeTo(new WritableStream({ write: c => void chunks.push(c) }));
+    eq(chunks.join(''), 'abcd');
+  },
   async 'Blob text and size'() {
     const b = new Blob(['ab', 'cd']);
 

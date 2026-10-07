@@ -91,7 +91,7 @@ against these — they're the "why" behind what gets picked up next.
   verified case by case against `bun`, tests in `test-json.js`, documented in
   `doc/native/json.md`. Implemented as a value-boundary scanner plus `JS_ParseJSON`, not on the
   `JsonParser` pull engine. The Deno-style stream wrappers are done too (`lib/jsonStreams.js`, results diffed against
-  `jsr:@std/json`). Missing: a `TextLineStream` (Deno's `@std/streams`) to feed `JsonParseStream`.
+  `jsr:@std/json`). `TextLineStream` (`lib/textLineStream.js`) feeds `JsonParseStream`.
 
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 

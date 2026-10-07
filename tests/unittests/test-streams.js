@@ -34,10 +34,12 @@ tests({
       const stream = new TextEncoderStream();
       const writer = stream.writable.getWriter();
 
+      const chunks = readAll(stream.readable);
+
       await writer.write('hi€');
       await writer.close();
 
-      return [...new Uint8Array((await readAll(stream.readable))[0])];
+      return [...new Uint8Array((await chunks)[0])];
     });
 
     eq('104,105,226,130,172', bytes.join());
@@ -48,11 +50,13 @@ tests({
       const stream = new TextEncoderStream();
       const writer = stream.writable.getWriter();
 
+      const chunks = readAll(stream.readable);
+
       await writer.write('a');
       await writer.write('b');
       await writer.close();
 
-      return readAll(stream.readable);
+      return chunks;
     });
 
     eq(2, chunks.length);

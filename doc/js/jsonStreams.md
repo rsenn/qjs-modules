@@ -27,6 +27,6 @@ chunks.pipeThrough(new ConcatenatedJsonParseStream());               // {a: 1}, 
 ```
 
 A number or literal in `ConcatenatedJsonParseStream` ends at whitespace, `{`, `[`, `"` or the
-end of the stream. `JsonParseStream` expects complete values per chunk: split text into
-lines first (Deno uses `TextLineStream` from `@std/streams`; there is none here), or use
-`JSONL.parseChunk` from `json` for newline-delimited input with a carried tail.
+end of the stream. `JsonParseStream` expects complete values per chunk: put a
+[`TextLineStream`](textLineStream.md) in front for newline-delimited input, or use
+`JSONL.parseChunk` from `json` with a carried tail.

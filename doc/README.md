@@ -58,6 +58,7 @@ Key modules:
 - [wasi](js/wasi.md) — `node:wasi` (WASI preview1), portable across qjsm, node, bun, deno
 - [globals](js/globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
 - [jsonStreams](js/jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
+- [textLineStream](js/textLineStream.md) — Deno's `TextLineStream`
 - [timersPromises](js/timersPromises.md) — `timers/promises`
 
 ### API Compatibility
