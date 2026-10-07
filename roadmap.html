@@ -108,35 +108,12 @@ here) — no Bun/Deno/Node counterpart, and <code>JSONL.parseChunk</code> covers
 error, and loosening it (or adding a <code>{multiple: true}</code> option, which no other runtime
 has) would hide truncated input from callers that expect one value. Multi-document input
 goes through <code>JSONL.parse</code> instead.</p>
-<p><em>Plan</em> (in order):</p>
-<ol>
-<li><code>JSONL.parse(input)</code> and <code>JSONL.parseChunk(input, start?, end?)</code> as native exports of
-<code>json</code>, Bun semantics as above. Build on the <code>JsonParser</code> pull engine (<code>src/json.c</code>),
-which already handles consecutive top-level values; a small value builder driven by
-<code>.depth</code> returning to 0 yields the documents. Not <code>JsonPushParser</code> (<code>.root</code>
-overwrite), not per-line <code>JSON.parse</code> (breaks on <code>\r\n</code>, blank lines, newlines inside
-values).</li>
-<li>Tests in <code>tests/unittests/test-json.js</code>: <code>\n</code> and <code>\r\n</code>, blank lines, scalar and
-array lines, trailing partial line (<code>parse</code> ignores it, <code>parseChunk</code> leaves it unread
-with <code>done: false</code>), bad line (<code>parse</code> returns the earlier values, throws if none),
-<code>read</code> units (chars for strings, bytes for <code>Uint8Array</code>, with <code>start</code>/<code>end</code>), a chunk
-cut inside a <code>\uXXXX</code> escape or an exponent (incomplete, not an error — Bun fixed
-this in oven-sh/bun#42488), a multi-chunk loop that carries the unread tail.</li>
-<li>Document in <code>doc/native/json.md</code>.</li>
-<li>After 1: <code>lib/</code> <code>TransformStream</code> wrappers modeled on Deno's <code>JsonParseStream</code>/
-<code>JsonStringifyStream</code> (<code>prefix</code>/<code>suffix</code>) and <code>ConcatenatedJsonParseStream</code>.</li>
-</ol>
-<p><em>Open question</em>: check Bun's behavior beyond its docs (a <code>\uXXXX</code> or exponent cut by a
-chunk boundary, <code>start</code>/<code>end</code> handling) before writing the tests; the docs fetched
-2026-10-06 don't specify these.</p>
-<p><em>Related bugs found while investigating</em> (both in <code>BUGS</code>, unfixed):</p>
-<ul>
-<li><code>json-parser-callback-getter-segfault</code>: reading <code>JsonParser.callback</code> after assigning
-a function crashes (the getter wraps an internal struct pointer as a JS object).</li>
-<li><code>json-parser-callback-never-called</code>: <code>JsonParser.callback</code> is documented as a
-per-value callback but <code>json_parse()</code> never calls it. Fix or remove; the pull parser's
-<code>callback</code> is not needed by the plan above.</li>
-</ul></li>
+<p><em>Done</em> (2026-10-07): <code>JSONL.parse</code>/<code>JSONL.parseChunk</code> exported by <code>json</code>, Bun's results
+verified case by case against <code>bun</code>, tests in <code>test-json.js</code>, documented in
+<code>doc/native/json.md</code>. Implemented as a value-boundary scanner plus <code>JS_ParseJSON</code>, not on the
+<code>JsonParser</code> pull engine. Still open: Deno-style <code>TransformStream</code> wrappers in <code>lib/</code>
+(<code>JsonParseStream</code>, <code>ConcatenatedJsonParseStream</code>, <code>JsonStringifyStream</code> with
+<code>prefix</code>/<code>suffix</code>) on top of <code>parseChunk</code>.</p></li>
 </ul>
 <h2 id="tier-5--lower-value-cleanup-dead-alternate-code-disabled-diagnostics-unfinished-scaffolding"><a class="anchor" href="#tier-5--lower-value-cleanup-dead-alternate-code-disabled-diagnostics-unfinished-scaffolding" aria-hidden="true">#</a>Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)</h2>
 <p>Not urgent individually, but worth a pass since dead/disabled code in the same functions as
@@ -219,8 +196,7 @@ silent wrong-mode bug bites hardest (dropped/malformed packets, not just a slow 
 <p>WHATWG/Deno/Bun API gaps in <code>lib/</code>:</p>
 <ul>
 <li><code>fetch</code> — missing (out of scope here, see <code>../qjs-lws/</code>).</li>
-<li><code>structuredClone</code> — only feature-detected (<code>lib/stream.js:TransferArrayBuffer</code>), never
-implemented; no ambient global.</li>
+<li><code>structuredClone</code> — done in <code>lib/globals.js</code> (opt-in global, <code>transfer</code> included); checked against node on 28 cases, differences: errors are plain <code>Error</code> not <code>DOMException</code>, a SharedArrayBuffer is returned as the same object.</li>
 <li><code>Worker</code> — no global; only QuickJS's own <code>os.Worker</code> exists (also see Tier 9.9).</li>
 <li><code>lib/readline.js</code> and <code>lib/buffer.js</code> were deliberately removed in commit <code>958cffc9</code> (they
 were 9/12-line stubs); their docs are gone too. A real <code>node:readline</code>/<code>Buffer</code> would be new
