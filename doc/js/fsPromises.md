@@ -4,10 +4,12 @@ Source: `lib/fsPromises.js` (pure JS)
 
 Promise-based filesystem API mirroring Node's `fs/promises`. Every export
 listed here is a real implementation (each wraps the matching `*Sync`
-function from [`fs`](fs.md)) — none of them are stubs. This is also why
-`fs` itself has no promise API of its own: Node/Bun's non-`Sync` names on
-`fs` are callback-based, and mixing that with a promise-returning function
-of the same name would make `fs` incompatible with either convention.
+function from [`fs`](fs.md)) — none of them are stubs.
+
+It is reachable three ways, all the same functions: `import ... from 'fsPromises'`,
+`import ... from 'fs/promises'` (or `node:fs/promises`; qjsm aliases the subpath) and
+`fs.promises` (loaded on first access). `fs` itself carries the Node callback API
+(`fs.readFile(path, cb)`), see [fs](fs.md#callback-api-and-fspromises).
 
 ## Exports
 

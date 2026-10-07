@@ -231,6 +231,7 @@ directly for Bun-compatible code.
 **Spec:** https://nodejs.org/api/path.html  
 **Exports:**
 - Node-style: `basename`, `dirname`, `extname`, `join`, `parse`, `format`, `resolve`, `relative`, `normalize`, `sep`, `delimiter`
+- `posix` and the default export: the same functions (`path.posix === path`); no `win32`; `join()` does not normalize (Node does)
 - Extra POSIX-flavored helpers: `components`, `at`, `right`, `skip`, `fnmatch`, `realpath`, `canonical`, `getcwd`, `gethome`
 
 **Notes:** Superset of Node's `path` module; the extra component/query helpers have no Node equivalent (Custom within an otherwise Compatible module).
@@ -371,6 +372,18 @@ directly for Bun-compatible code.
 - Static `array(target)`, `map(target)`, `object(target)`, `from(target)` factories
 
 **Notes:** Not a virtual filesystem despite the name — see doc/native/virtual.md. No standard equivalent; closest prior art is JS `Proxy` traps, but this is a concrete class rather than a trap-based proxy.
+
+### quickjs-wasm.c
+**Module:** `wasm`  
+**Classification:** Standard (W3C WebAssembly JS API; subset)  
+**Spec:** https://webassembly.github.io/spec/js-api/  
+**Exports:**
+- `validate`, `Module` (+ static `imports`, `exports`, `customSections`), `Instance`, `Memory`, `Table`, `Global`
+- `CompileError`, `LinkError`, `RuntimeError`
+- `backend` - name of the linked engine (`"wasm3"` or `"wamr"`), the only non-standard export
+
+**Runtime Compatibility:** browsers, Node.js, Bun, Deno expose the same classes as the `WebAssembly` global (see lib/webassembly.js)  
+**Notes:** Engine chosen at configure time (`-DWASM_BACKEND=wasm3|wamr`, exactly one linked); see doc/native/wasm.md for the per-engine feature table. Missing: `Tag`/`Exception`/`JSTag`, `externref`, shared memories, legacy exception handling, one function object per wasm function.
 
 ### quickjs-xml.c
 **Module:** `xml`  
@@ -563,12 +576,9 @@ directly for Bun-compatible code.
 **Classification:** Compatible (Node.js)  
 **Spec:** https://nodejs.org/api/events.html  
 **Exports:**
-- `EventEmitter` class - Event emitter base class
-- `EventEmitter.prototype.on(event, listener)` - Add listener
-- `EventEmitter.prototype.once(event, listener)` - Add one-time listener
-- `EventEmitter.prototype.off(event, listener)` - Remove listener
-- `EventEmitter.prototype.emit(event, ...args)` - Trigger event
-- `EventEmitter.prototype.listenerCount(event)` - Count listeners
+- `EventEmitter` class (default export) - Node-conformant: handlers receive only the `emit()` arguments; `on`/`once`/`off`/`addListener`/`prependListener`/`prependOnceListener`/`removeListener`/`removeAllListeners` return the emitter; `emit()` returns a boolean; unhandled `'error'` throws; `newListener`/`removeListener` events; `listeners`, `rawListeners`, `listenerCount`, `eventNames`, `setMaxListeners`, `getMaxListeners`, `defaultMaxListeners`
+- `once(emitter, type)`, `on(emitter, type)`, `getEventListeners`, `listenerCount`, `getMaxListeners`, `setMaxListeners` - the `events` module functions
+- `EventTarget` class - WHATWG-style
 
 **Runtime Compatibility:** Node.js, Bun, Deno (with --unstable)  
 **Notes:** Compatible with Node.js EventEmitter API. Different from browser EventTarget/Event API (which is in lib/dom.js). For browser-style events, use the DOM module instead.
@@ -707,6 +717,7 @@ directly for Bun-compatible code.
 - `createReadStream(path, options)` - Create read stream
 - `createWriteStream(path, options)` - Create write stream
 - `promises` - Promise-based API (see fsPromises.js)
+**Added 2026-10:** Node callback API (`readFile`, `writeFile`, `stat`, ... `read`, `write`, `exists`) derived from the `*Sync` functions, `fs.promises`, `fstatSync`/`ftruncateSync`/`fsyncSync`/`fdatasyncSync`, `readSync`/`writeSync` `position`; `existsSync` returns `false` for a missing path; `watch()` emits `'change'` with `(eventType, filename)` as Node does; no `ReadStream`/`WriteStream`.  
 
 **Runtime Compatibility:** Node.js, Bun, Deno (with --unstable)  
 **Notes:** Comprehensive Node.js fs API implementation; pure JS (`lib/fs.js`), built on QuickJS's `std`/`os` plus the native `misc` module's inotify bindings, not a dedicated native `fs` binding. `watch()` (fixed 2026-09) now correctly emits Node's `'change'`/`'rename'` events with the affected filename, supports `options.signal`, and throws synchronously for an invalid path - see doc/js/fs.md.
@@ -741,6 +752,7 @@ directly for Bun-compatible code.
 - `fsPromises.cp(src, dest, options)` - Copy file/dir (Promise)
 - `fsPromises.glob(pattern, options)` - Glob pattern match (Promise)
 - `fsPromises.watch(filename, options)` - Watch file (AsyncIterator)
+**Added 2026-10:** also reachable as `fs/promises` / `node:fs/promises` and as `fs.promises`.  
 
 **Runtime Compatibility:** Node.js 10+, Bun, Deno (with --unstable)  
 **Notes:** Almost every export besides `open`/`read`/`write` and `watch()` is an empty stub (see BUGS: `fspromises-mostly-stubs`). `watch()` (added/fixed 2026-09) is now a real async generator over `fs.js`'s `watch()`, yielding `{eventType, filename}` and honoring `options.signal` - see doc/js/fsPromises.md.
@@ -922,6 +934,7 @@ silently hashing with an unavailable algorithm.
 - `process.emit(event, ...args)` - Emit event
 - `process.removeListener(event, listener)` - Remove listener
 - `process.removeAllListeners(event)` - Remove all listeners
+**Added 2026-10:** inherits `EventEmitter.prototype` (`process.on('exit')`), `nextTick`, `exitCode`, `memoryUsage()` (`rss` only), `uptime()`, `title`, `emitWarning()`; no `version`/`versions`.  
 
 **Runtime Compatibility:** Node.js, Bun, Deno (with --unstable)  
 **Notes:** Comprehensive Node.js process API. Some features may have limitations vs Node.js (e.g., process.fork(), cluster support). The `process.argv` issue with `-e` mode has been fixed (see commit 72c0364d).
@@ -1016,7 +1029,7 @@ silently hashing with an unavailable algorithm.
 - `queueMicrotask(callback)` - Queue microtask
 
 **Browser Compatibility:** Universal  
-**Notes:** Implements HTML5 Timers API. Also includes Node.js-style `setImmediate` for compatibility.
+**Notes:** Implements HTML5 Timers API plus Node's `setImmediate`/`clearImmediate`; `queueMicrotask` is installed by lib/globals.js. `timers/promises` (lib/timersPromises.js) resolves through a flat-module alias in qjsm.
 
 ### lib/tree_walker.js
 **Module:** `tree_walker`  
@@ -1062,6 +1075,7 @@ silently hashing with an unavailable algorithm.
 - `URLSearchParams` class - Query string parser
 - `URL.createObjectURL(blob)` - Create object URL (not yet implemented)
 - `URL.revokeObjectURL(url)` - Revoke object URL (not yet implemented)
+**Added 2026-10:** `fileURLToPath`, `pathToFileURL`; no legacy `url.parse`/`format`/`resolve`.  
 
 **Browser Compatibility:** Chrome 32+, Firefox 19+, Safari 7+, Edge 12+  
 **Notes:** Core URL parsing is implemented. Missing: `createObjectURL()` and `revokeObjectURL()` for Blob/File references (tracked in TODO Tier 9.6).
@@ -1071,6 +1085,7 @@ silently hashing with an unavailable algorithm.
 **Classification:** Compatible (Node.js util) + Custom (reflection extras)  
 **Spec:** https://nodejs.org/api/util.html  
 **Exports:** Large grab-bag re-exporting/wrapping ECMA-262 `Object`/`Reflect` statics (`getPrototypeOf`, `defineProperty`, `assign`, ...), Node-style helpers (`setImmediate`/`clearImmediate`, `queueMicrotask`, `inherits`), plus custom additions (`memoize`, `chain`, `TypeIds`, `types` type-check table, POSIX `errno` name table) - see file for full list (2500+ lines).
+**Added 2026-10:** Node's `format`, `formatWithOptions`, `promisify` (+`custom`), `callbackify`, `deprecate`, `debuglog`, `isDeepStrictEqual`, `parseArgs` (no `tokens`), `TextEncoder`/`TextDecoder`.  
 
 **Notes:** Mixes thin ECMA-262 `Object`/`Reflect` pass-throughs with Node.js `util`-style helpers and qjs-modules-specific utilities (memoize, type tables); no single spec covers it, closest is Node's `util` module for the parts that overlap.
 
@@ -1109,6 +1124,42 @@ silently hashing with an unavailable algorithm.
 **Notes:** Mirrors DOM XPath class names (`XPathEvaluator`/`XPathResult`/`XPathException`) but is built on the project's own `Pointer`/`Predicate` addressing scheme rather than operating over `dom.js` `Node` trees directly — a compatible-shape, not a spec-literal implementation.
 
 ---
+
+### lib/webassembly.js
+**Module:** `webassembly`  
+**Classification:** Standard (W3C WebAssembly JS API)  
+**Spec:** https://webassembly.github.io/spec/js-api/  
+**Exports:** default and named `WebAssembly` namespace: `compile`, `instantiate` (bytes or `Module`), `validate`, `compileStreaming`, `instantiateStreaming`, `Module`, `Instance`, `Memory`, `Table`, `Global`, `CompileError`, `LinkError`, `RuntimeError`  
+**Runtime Compatibility:** the global exists natively in browsers, Node.js, Bun, Deno; here importing the module installs it (opt-in)  
+**Notes:** Property descriptors, rejection-instead-of-throw behaviour and `validate()` errors were probed against Node, Bun and Deno. See doc/js/webassembly.md.
+
+### lib/wasm-loader.js
+**Module:** `wasm-loader`  
+**Classification:** Standard (WebAssembly ESM integration, instance phase)  
+**Spec:** https://github.com/WebAssembly/esm-integration  
+**Exports:** `installWasmLoader()` (default and named) - registers `registerHooks()` resolve/load hooks for `.wasm`  
+**Runtime Compatibility:** Node.js (22.19+/24.5+) and Deno (2.1+) import `.wasm` natively; qjsm only here, opt-in  
+**Notes:** No `import source`, no `with { type: 'wasm' }`. See doc/js/wasm-loader.md.
+
+### lib/wasi.js
+**Module:** `wasi`  
+**Classification:** Compatible (Node.js `node:wasi`, WASI preview1)  
+**Spec:** https://nodejs.org/api/wasi.html  
+**Exports:** `WASI` (`getImportObject()`, `wasiImport`, `start()`, `initialize()`, `finalizeBindings()`), `errno`  
+**Runtime Compatibility:** qjsm, Node.js, Bun, Deno (uses only `fs`, `process`, `Atomics`, `crypto`)  
+**Notes:** Sockets are not implemented. See doc/js/wasi.md.
+
+### lib/globals.js
+**Module:** `globals`  
+**Classification:** Standard (installs WHATWG/Node globals)  
+**Exports:** `structuredClone`; side effect: installs `URL`, `URLSearchParams`, `TextEncoder`/`TextDecoder`, `AbortController`/`AbortSignal`, `EventTarget`, `Blob`, the streams classes, `atob`/`btoa`, `queueMicrotask`, `structuredClone`, `setTimeout`/`setInterval`/`setImmediate`, `crypto` (`getRandomValues`, `randomUUID`) where absent  
+**Notes:** Opt-in, qjsm only. No `Buffer`, `Worker`, `crypto.subtle`. See doc/js/globals.md.
+
+### lib/timersPromises.js
+**Module:** `timersPromises` (import as `timers/promises`)  
+**Classification:** Compatible (Node.js `timers/promises`)  
+**Spec:** https://nodejs.org/api/timers.html#timers-promises-api  
+**Exports:** `setTimeout`, `setImmediate`, `setInterval` (async iterator), `scheduler.wait`/`yield`
 
 ## Roadmap
 

@@ -39,6 +39,7 @@ Key modules:
 - [sockets](native/sockets.md) — BSD sockets
 - [deep](native/deep.md) — Deep object comparison and cloning
 - [inspect](native/inspect.md) — Object inspection and formatting
+- [wasm](native/wasm.md) — WebAssembly JS API over wasm3 or WAMR
 
 ### JavaScript Modules (`js/`)
 
@@ -51,7 +52,12 @@ Key modules:
 - [console](js/console.md) — WHATWG Console API
 - [assert](js/assert.md) — Node.js assert module
 - [fs](js/fs.md) — Node.js fs module
-- [fsPromises](js/fsPromises.md) — Promise-based fs API
+- [fsPromises](js/fsPromises.md) — Promise-based fs API (also `fs/promises`)
+- [webassembly](js/webassembly.md) — the `WebAssembly` global (opt-in)
+- [wasm-loader](js/wasm-loader.md) — `.wasm` ES module loader (opt-in)
+- [wasi](js/wasi.md) — `node:wasi` (WASI preview1), portable across qjsm, node, bun, deno
+- [globals](js/globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
+- [timersPromises](js/timersPromises.md) — `timers/promises`
 
 ### API Compatibility
 

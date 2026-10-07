@@ -98,7 +98,9 @@ contains pure-JavaScript modules (`console`, `fs`, `process`, `repl`,
 | [syscallerror](doc/native/syscallerror.md) | `SyscallError` | Error class carrying syscall name + errno |
 | [textcode](doc/native/textcode.md) | `TextDecoder`, `TextEncoder` | UTF-8/UTF-16/UTF-32 transcoding |
 | [tree_walker](doc/native/tree-walker.md) | `TreeWalker`, `TreeIterator` | DOM-TreeWalker-style object traversal |
+| [wasm](doc/native/wasm.md) | `Module`, `Instance`, `Memory`, `Table`, `Global`, … | WebAssembly JS API over wasm3 or WAMR |
 | [virtual](doc/native/virtual.md) | `VirtualProperties` | Uniform property access over Map/Array/Object |
+| [yaml](doc/native/yaml.md) | `write` | Block-YAML writer |
 | [xml](doc/native/xml.md) | `read`, `write` | XML parser and serializer |
 
 ---

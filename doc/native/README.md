@@ -31,6 +31,9 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 - [sockets](sockets.md) — BSD sockets
 - [syscallerror](syscallerror.md) — System call error codes
 
+### WebAssembly
+- [wasm](wasm.md) — WebAssembly JS API over wasm3 or WAMR (`Module`, `Instance`, `Memory`, `Table`, `Global`); the `WebAssembly` global, `.wasm` loader and WASI are in [js/](../js/README.md)
+
 ### Object Manipulation
 - [deep](deep.md) — Deep object comparison and cloning
 - [inspect](inspect.md) — Object inspection and formatting (Node.js util.inspect)
@@ -63,7 +66,7 @@ Native modules follow the pattern:
 
 ## Statistics
 
-- **Total native modules:** 33
+- **Total native modules:** 34
 - **Standard compliance:** 4 modules (WHATWG/W3C/HTML5 specs)
 - **Node.js compatible:** 7 modules
 - **Internal/utilities:** 8 modules

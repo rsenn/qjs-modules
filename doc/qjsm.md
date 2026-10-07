@@ -177,6 +177,13 @@ The set of builtins is exactly `QUICKJS_MODULES` (native, e.g. `fs`, `path`,
 `util`, `process`, `assert`) — see `CMakeLists.txt`'s `BUILTIN_HEADER`
 generation. Query the live set from script code:
 
+Node's subpath builtins resolve to flat modules: `fs/promises` (and `node:fs/promises`) is
+`fsPromises`, `timers/promises` is `timersPromises`. The compiled-in list is the CMake cache
+variable `BUILTINS_COMPILED`; an existing build directory keeps its cached value, so pass
+`-DBUILTINS_COMPILED=...` (the current default is in `CMakeLists.txt`) when a module is added
+to it. A compiled module's own imports of other compiled modules must be listed in its
+`<name>_MODULES` set in `CMakeLists.txt`.
+
 ```js
 console.log(builtins);          // array of registered builtin names
 console.log(moduleList);        // [{name, builtin}, ...] for everything actually loaded so far

@@ -8,9 +8,8 @@ Node-style `EventEmitter` plus a WHATWG-style `EventTarget`.
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `EventEmitter` | class | `on`/`once`/`off`/`emit` event emitter. **(default export)** |
+| `EventEmitter` | class | Node's event emitter, see below. **(default export)** |
 | `EventTarget` | class | DOM-style `addEventListener`/`removeEventListener`/`dispatchEvent`. |
-| `eventify(self)` | function | Mixes emitter behavior into an existing object. |
 
 ## Node conformance
 
