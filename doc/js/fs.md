@@ -125,3 +125,14 @@ See also `fsPromises.watch()` for the async-iterator form.
 
 `constants` (object) plus individual `FD_CLOEXEC`, `F_*` (fcntl), and `O_*`
 (open) flag exports.
+
+## Callback API and `fs.promises`
+
+Every `*Sync` function has the Node callback form, derived from it: `readFile`,
+`writeFile`, `appendFile`, `access`, `stat`, `lstat`, `fstat`, `readdir`, `mkdir`,
+`mkdtemp`, `rmdir`, `rm`, `unlink`, `rename`, `readlink`, `realpath`, `symlink`, `link`,
+`truncate`, `ftruncate`, `fsync`, `fdatasync`, `copyFile`, `cp`, `chmod`, `chown`,
+`utimes`, `open`, `close`, `read`, `write`, `exists`. The work runs synchronously and the
+callback on a later tick (`cb(err)` or `cb(null, result)`). `fs.promises` is the
+`fsPromises` module, loaded on first access; `fs/promises` resolves to it as well.
+No `ReadStream`/`WriteStream`.

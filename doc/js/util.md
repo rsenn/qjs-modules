@@ -100,3 +100,11 @@ Property/method enumeration: `keys`, `values`, `entries`, `fromEntries`, `pick`,
 
 `inspect` (from `inspect`), everything from [`misc`](../native/misc.md), and
 `setInterval`/`clearInterval` (from `timers`).
+
+## Node's util surface
+
+`format(fmt, ...args)` (`%s %d %i %f %j %o %O %c %%`), `formatWithOptions`, `promisify`
+(honours `promisify.custom`), `callbackify`, `deprecate`, `debuglog`/`debug` (`NODE_DEBUG`),
+`isDeepStrictEqual`, `parseArgs({ args, options, strict, allowPositionals })` (no `tokens`,
+no `allowNegative`), `TextEncoder`, `TextDecoder`. `format('%o')` does not list hidden
+properties such as `[length]`, and `%s` of an object shows one level more than Node.

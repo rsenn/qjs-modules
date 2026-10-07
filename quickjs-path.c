@@ -730,10 +730,20 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_PROP_INT32_DEF("FNM_PERIOD", PATH_FNM_PERIOD, JS_PROP_CONFIGURABLE),
 };
 
+/* path.posix: Node's name for the POSIX flavour, here the same functions as
+ * the module itself; also the default export (`import path from 'path'`).
+ * There is no path.win32. */
 static int
 js_path_init(JSContext* ctx, JSModuleDef* m) {
-  if(m)
+  if(m) {
+    JSValue posix = JS_NewObject(ctx);
+
     JS_SetModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
+    JS_SetPropertyFunctionList(ctx, posix, js_path_funcs, countof(js_path_funcs));
+    JS_SetPropertyStr(ctx, posix, "posix", JS_DupValue(ctx, posix)); // path.posix === path
+    JS_SetModuleExport(ctx, m, "default", JS_DupValue(ctx, posix));
+    JS_SetModuleExport(ctx, m, "posix", posix);
+  }
 
   return 0;
 }
@@ -748,8 +758,11 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_path_init)))
+  if((m = JS_NewCModule(ctx, module_name, js_path_init))) {
     JS_AddModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
+    JS_AddModuleExport(ctx, m, "default");
+    JS_AddModuleExport(ctx, m, "posix");
+  }
 
   return m;
 }

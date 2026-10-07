@@ -62,3 +62,10 @@ functions take a path string as the first argument.
 ## Constants
 
 `delimiter` (path-list separator) and `sep` (path separator) strings.
+
+## posix and default export
+
+`path.posix` and the default export are the module's own functions (`import path from
+'path'`; `path.posix === path`). There is no `path.win32`. `join()` does not normalize
+(`join('a', '..', 'b')` is `'a/../b'`, Node gives `'b'`) and an absolute argument restarts
+the result.

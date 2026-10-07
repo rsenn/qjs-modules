@@ -63,14 +63,14 @@ tests({
     eq(countAfterClose, events.length);
   },
 
-  async 'fs.watch() also emits change/rename on the returned FSWatcher'() {
+  async "fs.watch() emits 'change' (eventType, filename) on the returned FSWatcher"() {
     ensureDir();
     const file = TMP + '/b.txt';
     removeQuiet(file);
 
     const seen = [];
     const w = watch(TMP);
-    w.on('rename', (eventType, filename) => seen.push(filename));
+    w.on('change', (eventType, filename) => eventType == 'rename' && seen.push(filename));
 
     await waitFor(50);
     writeFile(file);
@@ -79,7 +79,7 @@ tests({
 
     removeQuiet(file);
 
-    assert(seen.includes('b.txt'), `expected FSWatcher 'rename' event for b.txt, got ${JSON.stringify(seen)}`);
+    assert(seen.includes('b.txt'), `expected FSWatcher 'change' event with eventType 'rename' for b.txt, got ${JSON.stringify(seen)}`);
   },
 
   async "fs.watch() closes when options.signal aborts, and emits 'close'"() {

@@ -1574,6 +1574,13 @@ static char*
 jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   char* file = 0;
   BuiltinModule* bltin = 0;
+  const char* bare = str_start(name, "node:") ? name + 5 : name;
+
+  /* Node's subpath builtins live in flat modules: "fs/promises" -> "fsPromises" */
+  if(!strcmp(bare, "fs/promises"))
+    name = "fsPromises";
+  else if(!strcmp(bare, "timers/promises"))
+    name = "timersPromises";
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)
