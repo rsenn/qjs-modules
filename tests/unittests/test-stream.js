@@ -547,7 +547,7 @@ await tests({
     assertThrows(() => rs.getReader({ mode: 'byob' }));
   },
 
-  async 'BYOB: read(view) fills the caller-supplied view from queued bytes'() {
+  async 'BYOB: read(view) returns a view of the queued bytes'() {
     const rs = new ReadableStream({
       type: 'bytes',
       start(controller) {
@@ -560,7 +560,9 @@ await tests({
     const { value, done } = await withTimeout(reader.read(buf), 1000, 'byob read');
     eqArr(Array.from(value), [1, 2, 3, 4]);
     eq(done, false);
-    eq(value.buffer, buf.buffer, 'should be a view over the caller-supplied buffer (zero-copy)');
+    // spec: the caller's buffer is transferred, so the result views a different ArrayBuffer
+    eq(value.constructor, Uint8Array);
+    eq(value.byteLength, 4);
 
     const second = await withTimeout(reader.read(new Uint8Array(4)), 1000, 'byob read at EOF');
     eq(second.done, true);

@@ -20,6 +20,7 @@ macro(build_wasm3 BINARY SUFFIX PIC)
       "-DCMAKE_BUILD_TYPE:STRING=Release" "-DBUILD_WASI:STRING=none" "-DBUILD_NATIVE:BOOL=OFF"
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
     INSTALL_COMMAND ""
+    BUILD_ALWAYS ON # a changed third_party/wasm3 source must rebuild the library
     BUILD_BYPRODUCTS "${WASM3_LIBRARY_FILE_${SUFFIX}}")
 
   add_library(Wasm3::${SUFFIX} STATIC IMPORTED GLOBAL)

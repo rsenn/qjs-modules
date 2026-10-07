@@ -202,10 +202,9 @@ All modules classified into four categories:
 ## Current State
 
 ### Test Results
-- **Overall pass rate**: 85% (41/48 tests passing)
-- **Stream tests**: 41/41 passing (100%) - all tests passing!
-- **BYOB tests**: 5/5 passing (100%) - all timeout issues fixed
-- **Other test failures**: 7 tests failing in other modules (documented in TODO.md)
+- **Overall pass rate** (2026-10-07): 83/83 on the WAMR build, 82/83 on the wasm3 build
+- **Environment-dependent**: `test-sql.js` runs against a live MySQL/PostgreSQL when reachable, and fails if the installed module differs from the build
+- **Stream tests**: 41/41 passing, BYOB tests included
 - All recent bug fixes verified with tests
 
 ### Module Statistics
@@ -388,7 +387,6 @@ See `TODO.md` for full list. Key items:
 
 - **Streams BYOB safety checks** (Tier 3) - Missing validation in respondWithNewView()
 - **URL.createObjectURL** (Tier 9.6) - Not implemented
-- **11 test failures** - Pre-existing, documented in TODO.md
 
 (Fetch, FormData, WebSocket, and Canvas are out of scope for this repo - see "Sibling Projects" above.)
 
@@ -547,16 +545,16 @@ JS_GetPropertyStr(ctx, obj, "k");                  // returns a new ref: free it
 
 This project's GitHub Pages site (the `gh-pages` branch) is **generated, not
 hand-maintained here**. Use the global `github-pages` skill and the shared site
-build tool in the `rsenn/rsenn` repo, at `../../../rsenn/rsenn` (relative to this repo root;
-i.e. `~/Projects/rsenn/rsenn`):
+build tool in the `rsenn/rsenn` repo, at `../../rsenn` (relative to this repo root;
+i.e. `~/Sources/rsenn`):
 
-- site definition, landing page, theme, favicon: `../../../rsenn/rsenn/sites/qjs-modules/`
-- generator and publisher: `../../../rsenn/rsenn/tools/site/` (see its `README.md`)
-  - build: `qjsm ../../../rsenn/rsenn/tools/site/build.js qjs-modules` (`node` works too)
-  - publish: `../../../rsenn/rsenn/tools/site/sync.sh qjs-modules` (commits locally; `--push` only after the user confirms)
+- site definition, landing page, theme, favicon: `../../rsenn/sites/qjs-modules/`
+- generator and publisher: `../../rsenn/tools/site/` (see its `README.md`)
+  - build: `qjsm ../../rsenn/tools/site/build.js qjs-modules` (`node` works too)
+  - publish: `../../rsenn/tools/site/sync.sh qjs-modules` (commits locally; `--push` only after the user confirms)
 - the markdown that becomes the site's pages is **this repo's own** `README.md`,
   `doc/` and `examples/`; a doc page appears on the site only once it is listed in
-  `nav` in `../../../rsenn/rsenn/sites/qjs-modules/site.config.js`.
+  `nav` in `../../rsenn/sites/qjs-modules/site.config.js`.
 
 Do not add or extend a `tools/site/`, Pages workflow or `publish.sh` in this repo (any
 existing ones are superseded and slated for removal), and do

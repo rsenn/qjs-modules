@@ -547,8 +547,12 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     JSValue result = JS_PromiseResult(ctx, val);
 
     if(state == JS_PROMISE_REJECTED) {
-      /* Already reported by the host promise rejection tracker (see
-         JS_SetHostPromiseRejectionTracker() in main()); don't print it again. */
+      /* The std tracker only reports at the end of js_std_loop(), which a failed
+         main script never reaches: print here and mark the rejection handled so an
+         interactive session does not report it a second time. */
+      fprintf(stderr, "Error evaluating '%s':\n", file);
+      js_error_print(ctx, result);
+      js_std_promise_rejection_tracker(ctx, val, result, TRUE, 0);
       JS_FreeValue(ctx, result);
       JS_FreeValue(ctx, val);
       JS_FreeValue(ctx, global_obj);

@@ -93,6 +93,15 @@ endif()
 option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "Use the bundled OpenBSD glob() (src/glob.c) instead of the system glob()" ON)
 
+# a default cached by an earlier configure pins its list; drop it so new builtins are
+# picked up (a -DBUILTINS_COMPILED=... given on the command line is kept)
+if(DEFINED CACHE{BUILTINS_COMPILED})
+  get_property(_BC_HELP CACHE BUILTINS_COMPILED PROPERTY HELPSTRING)
+  if(_BC_HELP STREQUAL "Compiled .js modules to include in 'qjsm' binary")
+    unset(BUILTINS_COMPILED CACHE)
+  endif()
+endif()
+
 if(NOT DEFINED BUILTINS_COMPILED)
   set(BUILTINS_COMPILED assert bun console events fs fsPromises module nodeModulesLoader perf_hooks process repl require timers timersPromises tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
@@ -947,6 +956,11 @@ check_function_def(js_debugger_build_backtrace)
 #dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
 
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
+
+# tests of modules that are off by default
+if(NOT MODULE_GPIO)
+  list(FILTER TESTS EXCLUDE REGEX "test-gpio\\.js$")
+endif(NOT MODULE_GPIO)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 
 set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
@@ -1046,7 +1060,8 @@ install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
-set(BUILTINS_COMPILED "${BUILTINS_COMPILED}" CACHE STRING "Compiled .js modules to include in 'qjsm' binary")
+# not cached (see the top of this file): pass -DBUILTINS_COMPILED=... to override
+set(BUILTINS_COMPILED "${BUILTINS_COMPILED}")
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${BUILTINS_COMPILED}")
 
