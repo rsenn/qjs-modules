@@ -117,14 +117,14 @@
 
   <div class="split">
     <div>
-      <h3>Native modules (~33)</h3>
+      <h3>Native modules (~34)</h3>
       <p>
         <code>archive</code>, <code>blob</code>, <code>stream</code>, <code>xml</code>,
         <code>json</code>, <code>bjson</code>, <code>deep</code>, <code>pointer</code>,
         <code>predicate</code>, <code>tree-walker</code>, <code>child-process</code>,
         <code>sockets</code>, <code>mysql</code>, <code>pgsql</code>, <code>mmap</code>,
-        <code>gpio</code>, <code>serial</code>, <code>lexer</code>, <code>inspect</code>
-        and more — direct C bindings, one per <code>quickjs-*.c</code> file.
+        <code>gpio</code>, <code>serial</code>, <code>lexer</code>, <code>inspect</code>,
+        <code>wasm</code> (WebAssembly over wasm3 or WAMR) and more — direct C bindings, one per <code>quickjs-*.c</code> file.
       </p>
     </div>
     <div>
@@ -134,7 +134,10 @@
         <code>timers</code>, <code>console</code>, <code>assert</code>, <code>fs</code>,
         <code>fsPromises</code>, <code>dom</code>, <code>xpath</code>, plus prototype
         extensions (<code>extendArray</code>, <code>extendMap</code>, …) and the central
-        <code>util</code> helper library.
+        <code>util</code> helper library. Opt-in layers add the <code>WebAssembly</code>
+        global, <code>.wasm</code> ES-module imports, WASI (portable across qjsm, Node, Bun
+        and Deno) and the web/Node globals (<code>URL</code>, <code>structuredClone</code>,
+        <code>crypto</code>, …).
       </p>
     </div>
   </div>

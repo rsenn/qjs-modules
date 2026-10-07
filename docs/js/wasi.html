@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wasi — qjs-modules</title>
+<meta name="description" content="qjs-modules — The standard library QuickJS deserves. WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/base.css">
+<link rel="stylesheet" href="../../assets/theme.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-site="qjs-modules" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> <span class="brand-name">qjs-modules</span></a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="../native/index.html">Native modules overview</a></li><li><a href="../native/archive.html">archive</a></li><li><a href="../native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="../native/bcrypt.html">bcrypt</a></li><li><a href="../native/bjson.html">bjson</a></li><li><a href="../native/blob.html">blob</a></li><li><a href="../native/json.html">json</a></li><li><a href="../native/lexer.html">lexer</a></li><li><a href="../native/list.html">list</a></li><li><a href="../native/textcode.html">textcode</a></li><li><a href="../native/xml.html">xml</a></li><li><a href="../native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="../native/child-process.html">child-process</a></li><li><a href="../native/directory.html">directory</a></li><li><a href="../native/gpio.html">gpio</a></li><li><a href="../native/location.html">location</a></li><li><a href="../native/magic.html">magic</a></li><li><a href="../native/misc.html">misc</a></li><li><a href="../native/mmap.html">mmap</a></li><li><a href="../native/path.html">path</a></li><li><a href="../native/serial.html">serial</a></li><li><a href="../native/sockets.html">sockets</a></li><li><a href="../native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="../native/deep.html">deep</a></li><li><a href="../native/inspect.html">inspect</a></li><li><a href="../native/pointer.html">pointer</a></li><li><a href="../native/predicate.html">predicate</a></li><li><a href="../native/tree-walker.html">tree-walker</a></li><li><a href="../native/queue.html">queue</a></li><li><a href="../native/repeater.html">repeater</a></li><li><a href="../native/stream.html">stream</a></li><li><a href="../native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>WebAssembly</h3><ul><li><a href="../native/wasm.html">wasm (engines & API)</a></li><li><a href="webassembly.html">WebAssembly global</a></li><li><a href="wasm-loader.html">wasm-loader (.wasm imports)</a></li><li><a href="wasi.html" class="here">WASI</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="../native/mysql.html">mysql</a></li><li><a href="../native/pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="index.html">JS modules overview</a></li><li><a href="util.html">util</a></li><li><a href="iterator.html">iterator</a></li><li><a href="asyncIterator.html">asyncIterator</a></li><li><a href="extendArray.html">extendArray</a></li><li><a href="extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="extendMap.html">extendMap</a></li><li><a href="extendSet.html">extendSet</a></li><li><a href="extendFunction.html">extendFunction</a></li><li><a href="extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="extendGenerator.html">extendGenerator</a></li><li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="assert.html">assert</a></li><li><a href="console.html">console</a></li><li><a href="process.html">process</a></li><li><a href="events.html">events</a></li><li><a href="abort.html">abort</a></li><li><a href="timers.html">timers</a></li><li><a href="timersPromises.html">timers/promises</a></li><li><a href="globals.html">globals (opt-in)</a></li><li><a href="perf_hooks.html">perf_hooks</a></li><li><a href="module.html">module</a></li><li><a href="require.html">require</a></li><li><a href="stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="fs.html">fs</a></li><li><a href="fsPromises.html">fsPromises</a></li><li><a href="io.html">io</a></li><li><a href="streams.html">streams</a></li><li><a href="vfs.html">vfs</a></li><li><a href="inotify.html">inotify</a></li><li><a href="tty.html">tty</a></li><li><a href="terminal.html">terminal</a></li><li><a href="socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="dom.html">dom</a></li><li><a href="xpath.html">xpath</a></li><li><a href="parser.html">parser</a></li><li><a href="parsel.html">parsel</a></li><li><a href="css-selectors.html">css-selectors</a></li><li><a href="css3-selectors.html">css3-selectors</a></li><li><a href="url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="db.html">db</a></li><li><a href="repl.html">repl</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="wasi"><a class="anchor" href="#wasi" aria-hidden="true">#</a>wasi</h1>
+<p>Source: <code>lib/wasi.js</code> (JS over <code>fs</code> and <code>process</code>) — exports: <code>WASI</code>, <code>errno</code>; qjsm, node, bun, deno</p>
+<p>Node's <code>node:wasi</code> class (WASI preview1), in JS, for the <code>wasm</code> module or any
+<code>WebAssembly</code> global. No wasm engine's own WASI is used, so behavior is the same on
+wasm3 and WAMR. It touches only <code>fs</code>, <code>process</code>, <code>Atomics</code> and <code>crypto</code> (falling back to
+<code>/dev/urandom</code>), so the same file runs on node, bun and deno.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-type">WASI</span> } <span class="t-kw">from</span> <span class="t-str">'wasi'</span>;
+<span class="t-kw">import</span> <span class="t-op">*</span> <span class="t-id">as</span> <span class="t-id">wasm</span> <span class="t-kw">from</span> <span class="t-str">'wasm'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">wasi</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-fn">WASI</span>({ <span class="t-id">version</span><span class="t-op">:</span> <span class="t-str">'preview1'</span>, <span class="t-id">args</span><span class="t-op">:</span> [<span class="t-str">'prog'</span>, <span class="t-str">'x'</span>], <span class="t-id">env</span><span class="t-op">:</span> { <span class="t-type">A</span><span class="t-op">:</span> <span class="t-str">'1'</span> }, <span class="t-id">preopens</span><span class="t-op">:</span> { <span class="t-str">'/sandbox'</span><span class="t-op">:</span> <span class="t-str">'.'</span> } });
+<span class="t-kw">const</span> <span class="t-id">instance</span> <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-id">wasm</span>.<span class="t-fn">Instance</span>(<span class="t-kw">new</span> <span class="t-id">wasm</span>.<span class="t-fn">Module</span>(<span class="t-id">bytes</span>), <span class="t-id">wasi</span>.<span class="t-fn">getImportObject</span>());
+<span class="t-kw">const</span> <span class="t-id">code</span> <span class="t-op">=</span> <span class="t-id">wasi</span>.<span class="t-fn">start</span>(<span class="t-id">instance</span>); <span class="t-cm">// runs _start; returns the exit code</span></code></pre></div>
+<h2 id="wasi-1"><a class="anchor" href="#wasi-1" aria-hidden="true">#</a>WASI</h2>
+<div class="tablewrap"><table><thead><tr><th>Member</th><th>Meaning</th></tr></thead><tbody><tr><td><code id="wasi-1-new-wasi">new WASI(options)</code><a class="member-anchor" href="#wasi-1-new-wasi" aria-hidden="true">#</a></td><td><code>version</code> (<code>'preview1'</code> default, <code>'unstable'</code>), <code>args</code> (<code>[]</code>), <code>env</code> (<code>{}</code>, not inherited), <code>preopens</code> (<code>{ guestPath: hostPath }</code>), <code>returnOnExit</code> (<code>true</code>), <code>stdin</code>/<code>stdout</code>/<code>stderr</code> (host fds, default 0/1/2)</td></tr><tr><td><code id="wasi-1-getimportobject">getImportObject()</code><a class="member-anchor" href="#wasi-1-getimportobject" aria-hidden="true">#</a></td><td><code>{ wasi_snapshot_preview1: wasiImport }</code> (<code>wasi_unstable</code> for <code>'unstable'</code>)</td></tr><tr><td><code id="wasi-1-wasiimport">wasiImport</code><a class="member-anchor" href="#wasi-1-wasiimport" aria-hidden="true">#</a></td><td>the preview1 functions; <code>i64</code> parameters arrive as <code>BigInt</code></td></tr><tr><td><code id="wasi-1-start">start(instance)</code><a class="member-anchor" href="#wasi-1-start" aria-hidden="true">#</a></td><td>runs <code>_start</code>; returns the <code>proc_exit</code> code or 0; <code>ERR_WASI_ALREADY_STARTED</code> on a second call</td></tr><tr><td><code id="wasi-1-initialize">initialize(instance)</code><a class="member-anchor" href="#wasi-1-initialize" aria-hidden="true">#</a></td><td>runs <code>_initialize</code> of a reactor module</td></tr><tr><td><code id="wasi-1-finalizebindings">finalizeBindings(instance, { memory }?)</code><a class="member-anchor" href="#wasi-1-finalizebindings" aria-hidden="true">#</a></td><td>binds the guest memory without running anything</td></tr></tbody></table></div>
+<p>With <code>returnOnExit: false</code>, <code>start()</code> exits the process with the guest's code.</p>
+<h2 id="behavior"><a class="anchor" href="#behavior" aria-hidden="true">#</a>Behavior</h2>
+<div class="tablewrap"><table><thead><tr><th>Area</th><th>Detail</th></tr></thead><tbody><tr><td>Paths</td><td>resolved inside the preopened directory; <code>..</code> above it, an absolute path, or a symlink leading out gives <code>NOTCAPABLE</code> (76)</td></tr><tr><td>Files</td><td><code>path_open</code>, <code>fd_read/write/pread/pwrite/seek/tell/sync/allocate</code>, <code>fd_filestat_*</code>, <code>fd_readdir</code>, rename, link, symlink, unlink, mkdir, rmdir</td></tr><tr><td>Clocks</td><td><code>clock_time_get</code>: realtime from <code>Date.now()</code> (millisecond resolution), others from <code>hrtime()</code></td></tr><tr><td><code>random_get</code></td><td>reads <code>/dev/urandom</code></td></tr><tr><td><code>poll_oneoff</code></td><td>clock subscriptions sleep; fd subscriptions report ready at once</td></tr><tr><td>Not implemented</td><td><code>sock_*</code> and <code>proc_raise</code> return <code>NOSYS</code>; <code>fd_fdstat_set_rights</code> returns <code>NOSYS</code>; rights are reported as all set and not enforced</td></tr><tr><td>Errors</td><td>Linux errno from <code>os</code>/<code>misc</code> is mapped to the WASI errno</td></tr></tbody></table></div>
+<p><code>errno</code> exports the WASI error numbers used (<code>errno.NOENT === 44</code>).</p></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/js/wasi.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#wasi-1">WASI</a></li><li class="lvl2"><a href="#behavior">Behavior</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/rsenn/tree/main/tools/site">rsenn/rsenn tools/site</a>.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

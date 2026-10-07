@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wasm — qjs-modules</title>
+<meta name="description" content="qjs-modules — The standard library QuickJS deserves. WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/base.css">
+<link rel="stylesheet" href="../../assets/theme.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-site="qjs-modules" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> <span class="brand-name">qjs-modules</span></a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../grammar.html">Grammar</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="index.html">Native modules overview</a></li><li><a href="archive.html">archive</a></li><li><a href="arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="bcrypt.html">bcrypt</a></li><li><a href="bjson.html">bjson</a></li><li><a href="blob.html">blob</a></li><li><a href="json.html">json</a></li><li><a href="lexer.html">lexer</a></li><li><a href="list.html">list</a></li><li><a href="textcode.html">textcode</a></li><li><a href="xml.html">xml</a></li><li><a href="yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="child-process.html">child-process</a></li><li><a href="directory.html">directory</a></li><li><a href="gpio.html">gpio</a></li><li><a href="location.html">location</a></li><li><a href="magic.html">magic</a></li><li><a href="misc.html">misc</a></li><li><a href="mmap.html">mmap</a></li><li><a href="path.html">path</a></li><li><a href="serial.html">serial</a></li><li><a href="sockets.html">sockets</a></li><li><a href="syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="deep.html">deep</a></li><li><a href="inspect.html">inspect</a></li><li><a href="pointer.html">pointer</a></li><li><a href="predicate.html">predicate</a></li><li><a href="tree-walker.html">tree-walker</a></li><li><a href="queue.html">queue</a></li><li><a href="repeater.html">repeater</a></li><li><a href="stream.html">stream</a></li><li><a href="virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>WebAssembly</h3><ul><li><a href="wasm.html" class="here">wasm (engines & API)</a></li><li><a href="../js/webassembly.html">WebAssembly global</a></li><li><a href="../js/wasm-loader.html">wasm-loader (.wasm imports)</a></li><li><a href="../js/wasi.html">WASI</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="mysql.html">mysql</a></li><li><a href="pgsql.html">pgsql</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="../js/index.html">JS modules overview</a></li><li><a href="../js/util.html">util</a></li><li><a href="../js/iterator.html">iterator</a></li><li><a href="../js/asyncIterator.html">asyncIterator</a></li><li><a href="../js/extendArray.html">extendArray</a></li><li><a href="../js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="../js/extendMap.html">extendMap</a></li><li><a href="../js/extendSet.html">extendSet</a></li><li><a href="../js/extendFunction.html">extendFunction</a></li><li><a href="../js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="../js/extendGenerator.html">extendGenerator</a></li><li><a href="../js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="../js/assert.html">assert</a></li><li><a href="../js/console.html">console</a></li><li><a href="../js/process.html">process</a></li><li><a href="../js/events.html">events</a></li><li><a href="../js/abort.html">abort</a></li><li><a href="../js/timers.html">timers</a></li><li><a href="../js/timersPromises.html">timers/promises</a></li><li><a href="../js/globals.html">globals (opt-in)</a></li><li><a href="../js/perf_hooks.html">perf_hooks</a></li><li><a href="../js/module.html">module</a></li><li><a href="../js/require.html">require</a></li><li><a href="../js/stack.html">stack</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="../js/fs.html">fs</a></li><li><a href="../js/fsPromises.html">fsPromises</a></li><li><a href="../js/io.html">io</a></li><li><a href="../js/streams.html">streams</a></li><li><a href="../js/vfs.html">vfs</a></li><li><a href="../js/inotify.html">inotify</a></li><li><a href="../js/tty.html">tty</a></li><li><a href="../js/terminal.html">terminal</a></li><li><a href="../js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="../js/dom.html">dom</a></li><li><a href="../js/xpath.html">xpath</a></li><li><a href="../js/parser.html">parser</a></li><li><a href="../js/parsel.html">parsel</a></li><li><a href="../js/css-selectors.html">css-selectors</a></li><li><a href="../js/css3-selectors.html">css3-selectors</a></li><li><a href="../js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases & Tooling</h3><ul><li><a href="../js/db.html">db</a></li><li><a href="../js/repl.html">repl</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="wasm"><a class="anchor" href="#wasm" aria-hidden="true">#</a>wasm</h1>
+<p>Source: <code>quickjs-wasm.c</code> (the JS API), <code>include/wasm-backend.h</code> (engine interface),
+<code>src/wasm3-backend.c</code>, <code>src/wamr-backend.c</code>, <code>src/wasm-sections.c</code> (shared section parser)</p>
+<p><code>import * as wasm from 'wasm'</code> is the WebAssembly JS API (W3C JS API, the same classes as the
+<code>WebAssembly</code> global of browsers, Node, Bun and Deno) over a pluggable C engine. The
+<code>WebAssembly</code> global itself, the <code>.wasm</code> ES-module loader and WASI are JavaScript layers on top
+of this module:</p>
+<div class="tablewrap"><table><thead><tr><th>Layer</th><th>File</th><th>Doc</th></tr></thead><tbody><tr><td>native API</td><td><code>quickjs-wasm.c</code></td><td>this page</td></tr><tr><td><code>WebAssembly</code> global, <code>instantiate()</code>, <code>*Streaming()</code></td><td><code>lib/webassembly.js</code></td><td><a href="../js/webassembly.html">webassembly</a></td></tr><tr><td><code>import './x.wasm'</code></td><td><code>lib/wasm-loader.js</code></td><td><a href="../js/wasm-loader.html">wasm-loader</a></td></tr><tr><td>WASI preview1 (<code>node:wasi</code>)</td><td><code>lib/wasi.js</code></td><td><a href="../js/wasi.html">wasi</a></td></tr></tbody></table></div>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-op">*</span> <span class="t-id">as</span> <span class="t-id">wasm</span> <span class="t-kw">from</span> <span class="t-str">'wasm'</span>;
+
+<span class="t-kw">const</span> { <span class="t-id">add</span> } <span class="t-op">=</span> <span class="t-kw">new</span> <span class="t-id">wasm</span>.<span class="t-fn">Instance</span>(<span class="t-kw">new</span> <span class="t-id">wasm</span>.<span class="t-fn">Module</span>(<span class="t-id">bytes</span>)).<span class="t-prop">exports</span>;
+<span class="t-fn">add</span>(<span class="t-num">2</span>, <span class="t-num">3</span>); <span class="t-cm">// 5</span></code></pre></div>
+<h2 id="engines"><a class="anchor" href="#engines" aria-hidden="true">#</a>Engines</h2>
+<p>Exactly one engine is linked per build, chosen at configure time; <code>wasm.backend</code> names it.</p>
+<div class="codeblock" data-lang="sh"><pre><code class="language-sh"><span class="t-id">cmake</span> <span class="t-op">-B</span> <span class="t-id">build</span>/<span class="t-id">wasm3</span> <span class="t-op">-S</span> .                          <span class="t-cm"># WASM_BACKEND=wasm3 (default)</span>
+<span class="t-id">cmake</span> <span class="t-op">-B</span> <span class="t-id">build</span>/<span class="t-id">wamr</span>  <span class="t-op">-S</span> . <span class="t-op">-DWASM_BACKEND</span>=<span class="t-id">wamr</span>      <span class="t-cm"># WebAssembly Micro Runtime</span></code></pre></div>
+<p>Any other value is a configure error. The engines are vendored (<code>third_party/wasm3</code>,
+<code>third_party/wamr</code>); changes to either belong in isolated, tolerant patches in <code>patches/</code>.
+wasm3 builds as a static library through an ExternalProject, once per linkage (shared module,
+static <code>qjsm</code>); a changed wasm3 source needs its ExternalProject <code>-build</code> stamp removed.
+WAMR is built as an interpreter only (no AOT, no JIT, no WASI libc; bulk memory and reference
+types on).</p>
+<div class="tablewrap"><table><thead><tr><th>Feature</th><th>wasm3</th><th>wamr</th></tr></thead><tbody><tr><td>function imports and exports, <code>Memory</code> exports</td><td>yes</td><td>yes</td></tr><tr><td><code>new Memory()</code>, shared by several instances</td><td>yes</td><td>no (<code>TypeError</code>)</td></tr><tr><td>memory imports</td><td>yes</td><td>no</td></tr><tr><td><code>new Table()</code>, <code>Table.set</code>/<code>grow</code>, table imports</td><td>yes</td><td>no; an exported <code>Table</code> is read-only (<code>length</code>, <code>get</code>)</td></tr><tr><td><code>new Global()</code>, global imports and exports</td><td>yes</td><td>no; global exports are omitted from <code>.exports</code></td></tr><tr><td>bulk memory (<code>memory.copy</code>, <code>memory.fill</code>)</td><td>yes</td><td>yes</td></tr><tr><td>multi-memory</td><td>yes (vendored fork)</td><td>no</td></tr><tr><td>legacy exception handling (<code>try</code>/<code>catch</code>, <code>Tag</code>)</td><td>no</td><td>no</td></tr></tbody></table></div>
+<p>Programs built with Emscripten or clang's <code>-fwasm-exceptions</code> use the legacy exception-handling
+opcodes; both engines reject them (wasm3 with <code>unknown memory</code>, WAMR silently exits). Build such
+programs without <code>-fwasm-exceptions</code> (Emscripten's JS-based setjmp/longjmp emulation works, see
+<code>examples/wasm-shish.js</code>), or run them where the host engine supports exceptions.</p>
+<h2 id="architecture"><a class="anchor" href="#architecture" aria-hidden="true">#</a>Architecture</h2>
+<p><code>wasm-backend.h</code> is one C interface, shaped like <code>quickjs.h</code>, implemented by both engines:</p>
+<div class="tablewrap"><table><thead><tr><th>quickjs.h</th><th>wasm-backend.h</th></tr></thead><tbody><tr><td><code>JSRuntime</code>, <code>JSContext</code></td><td><code>WBRuntime</code>, <code>WBContext</code> (one runtime per thread)</td></tr><tr><td><code>JSValue</code>, <code>JS_DupValue</code>, <code>JS_FreeValue</code></td><td><code>WBValue</code>/<code>WBExtern</code>, <code>WB_Dup*</code>, <code>WB_Free*</code></td></tr><tr><td><code>JS_EXCEPTION</code>, <code>JS_GetException</code></td><td><code>-1</code> or <code>NULL</code>, <code>WB_GetException</code></td></tr></tbody></table></div>
+<p>A failing call returns <code>-1</code> or <code>NULL</code> with the reason left in the context; nothing aborts or
+longjmps. <code>WB_GetException</code> yields a kind that <code>quickjs-wasm.c</code> maps to a JS error:</p>
+<div class="tablewrap"><table><thead><tr><th>Kind</th><th>JS error</th></tr></thead><tbody><tr><td><code>WB_ERR_COMPILE</code></td><td><code>CompileError</code></td></tr><tr><td><code>WB_ERR_LINK</code></td><td><code>LinkError</code></td></tr><tr><td><code>WB_ERR_TRAP</code></td><td><code>RuntimeError</code></td></tr><tr><td><code>WB_ERR_HOST</code></td><td>none; the JS exception thrown by the host function propagates</td></tr><tr><td><code>WB_ERR_RANGE</code>, <code>WB_ERR_TYPE</code></td><td><code>RangeError</code>, <code>TypeError</code></td></tr><tr><td><code>WB_ERR_UNSUPPORTED</code></td><td>the caller picks the error (<code>TypeError</code> for the missing features above)</td></tr></tbody></table></div>
+<p><code>src/wasm-sections.c</code> parses a module's import, export and custom sections itself, so
+<code>Module.imports()</code>, <code>Module.exports()</code> and <code>Module.customSections()</code> behave the same on both
+engines. How each engine links:</p>
+<ul>
+<li><strong>wasm3</strong> shares <code>Memory</code>/<code>Table</code>/<code>Global</code> objects between instances through synthesized
+modules (<code>wbm&lt;N&gt;</code>) and a rewritten import section per instance; functions are linked after
+<code>m3_LoadModule</code> and before <code>m3_RunStart</code>.</li>
+<li><strong>WAMR</strong> registers host functions per (module, name, signature) as raw natives, one 64-bit
+slot per parameter; the trampoline finds the host function through the instance's custom data.</li>
+</ul>
+<h2 id="exports"><a class="anchor" href="#exports" aria-hidden="true">#</a>Exports</h2>
+<div class="tablewrap"><table><thead><tr><th>Name</th><th>Meaning</th></tr></thead><tbody><tr><td><code>validate(bytes)</code></td><td><code>true</code> when <code>bytes</code> is a loadable module; throws <code>TypeError</code> for a non-BufferSource</td></tr><tr><td><code>Module(bytes)</code></td><td>compiles; throws <code>CompileError</code></td></tr><tr><td><code>Module.imports(m)</code> / <code>Module.exports(m)</code></td><td><code>[{module?, name, kind}]</code>, <code>kind</code> is <code>function</code>, <code>memory</code>, <code>table</code> or <code>global</code></td></tr><tr><td><code>Module.customSections(m, name)</code></td><td>payloads of the custom sections called <code>name</code>, as <code>ArrayBuffer</code> copies</td></tr><tr><td><code>Instance(module, imports)</code></td><td><code>.exports</code> is a frozen, null-prototype object of functions, <code>Memory</code>, <code>Table</code>, <code>Global</code>; <code>.module</code> is the <code>Module</code></td></tr><tr><td><code>Memory({initial, maximum})</code></td><td><code>.buffer</code>, <code>.grow(delta)</code> (returns the old page count)</td></tr><tr><td><code>Table({element, initial, maximum}, value?)</code></td><td><code>.length</code>, <code>.get(i)</code>, <code>.set(i, fn)</code>, <code>.grow(delta, fn?)</code>; holds <code>anyfunc</code></td></tr><tr><td><code>Global({value, mutable}, v?)</code></td><td><code>.value</code>, <code>.valueOf()</code>; <code>value</code> is <code>i32</code>, <code>i64</code> (BigInt), <code>f32</code> or <code>f64</code></td></tr><tr><td><code>CompileError</code>, <code>LinkError</code>, <code>RuntimeError</code></td><td><code>Error</code> subclasses; wasm traps surface as <code>RuntimeError</code></td></tr><tr><td><code>backend</code></td><td>name of the linked engine, <code>"wasm3"</code> or <code>"wamr"</code></td></tr></tbody></table></div>
+<h2 id="semantics"><a class="anchor" href="#semantics" aria-hidden="true">#</a>Semantics</h2>
+<ul>
+<li><strong>Values:</strong> <code>i32</code>, <code>f32</code>, <code>f64</code> are JS numbers; <code>i64</code> is a <code>BigInt</code> in both directions.</li>
+<li><strong>Imports:</strong> <code>imports</code> is <code>{ moduleName: { name: value } }</code>; a function import is any JS
+function (its return value converted to the declared result type, a thrown exception propagates
+through the guest as-is), a memory/table/global import the matching object. An immutable
+<code>Global</code> import may be a plain number (or BigInt for <code>i64</code>).</li>
+<li><strong>Errors:</strong> descriptors are validated (<code>TypeError</code> for the wrong shape, <code>RangeError</code> for
+out-of-range sizes); a missing import is a <code>LinkError</code>, a type mismatch too; a guest trap is a
+<code>RuntimeError</code>.</li>
+<li><strong>Exports:</strong> exported functions are named by function index (<code>add.name === '0'</code>).
+<code>Table.set</code> accepts only exported wasm functions or <code>null</code>, as in the spec. <code>Table.get(i)</code> and an
+export of the same function are different objects.</li>
+<li><strong>Memory:</strong> instances importing the same <code>Memory</code> share it; when it grows, the old
+<code>ArrayBuffer</code> is detached and <code>.buffer</code> returns a new one. <code>shared</code> memories are not supported.</li>
+<li><strong>Ownership:</strong> <code>Memory</code>, <code>Table</code>, <code>Global</code> and function wrappers hold their instance and the
+instance's <code>Module</code> alive; host functions created for an instantiation are released with it.</li>
+</ul>
+<h2 id="not-yet-supported"><a class="anchor" href="#not-yet-supported" aria-hidden="true">#</a>Not yet supported</h2>
+<ul>
+<li><code>import source</code> and <code>with { type: 'wasm' }</code> for <code>.wasm</code> (<a href="../js/wasm-loader.html"><code>lib/wasm-loader.js</code></a> covers plain imports)</li>
+<li><code>externref</code> tables and globals, shared memories, <code>Tag</code>/<code>Exception</code>/<code>JSTag</code></li>
+<li>one function object per wasm function</li>
+<li>multi-value host returns</li>
+<li>the engine-specific gaps in the table above</li>
+</ul>
+<h2 id="tests-and-examples"><a class="anchor" href="#tests-and-examples" aria-hidden="true">#</a>Tests and examples</h2>
+<div class="tablewrap"><table><thead><tr><th>File</th><th>Covers</th></tr></thead><tbody><tr><td><code>tests/unittests/test-wasm.js</code></td><td>the native API, on both engines</td></tr><tr><td><code>tests/unittests/test-webassembly.js</code></td><td>the <code>WebAssembly</code> global</td></tr><tr><td><code>tests/unittests/test-wasm-loader.js</code></td><td><code>.wasm</code> imports</td></tr><tr><td><code>tests/unittests/test-wasi.js</code></td><td>WASI (also runs on node, bun, deno)</td></tr><tr><td><code>examples/wasm-shish.js</code></td><td>the Emscripten builds of shutil and shish (portable: qjsm, node, bun, deno)</td></tr><tr><td><code>examples/wasi-shish.js</code></td><td>the WASI build of shish (needs an engine with wasm exceptions if built with <code>-fwasm-exceptions</code>)</td></tr></tbody></table></div></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/native/wasm.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#engines">Engines</a></li><li class="lvl2"><a href="#architecture">Architecture</a></li><li class="lvl2"><a href="#exports">Exports</a></li><li class="lvl2"><a href="#semantics">Semantics</a></li><li class="lvl2"><a href="#not-yet-supported">Not yet supported</a></li><li class="lvl2"><a href="#tests-and-examples">Tests and examples</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/rsenn/tree/main/tools/site">rsenn/rsenn tools/site</a>.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>
