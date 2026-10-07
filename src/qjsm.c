@@ -1585,6 +1585,8 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     name = "fsPromises";
   else if(!strcmp(bare, "timers/promises"))
     name = "timersPromises";
+  else if(!strcmp(bare, "readline/promises"))
+    name = "readlinePromises";
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)

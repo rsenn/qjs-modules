@@ -11,6 +11,8 @@
     "timers/promises": "node:timers/promises",
     "url": "node:url",
     "util": "node:util",
-    "buffer": "node:buffer"
+    "buffer": "node:buffer",
+    "readline": "node:readline",
+    "readline/promises": "node:readline/promises"
   }
 }

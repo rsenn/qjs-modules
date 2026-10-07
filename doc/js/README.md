@@ -23,6 +23,8 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [assert](assert.md) — Node.js assert module
 - [console](console.md) — WHATWG Console API
 - [process](process.md) — Node.js process object
+- [readline](readline.md) — Node's `readline`
+- [readlinePromises](readlinePromises.md) — `readline/promises`
 - [events](events.md) — Node.js EventEmitter
 - [abort](abort.md) — AbortController/AbortSignal
 - [timers](timers.md) — HTML5 Timers API (setTimeout, setInterval, etc.)

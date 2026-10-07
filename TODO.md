@@ -178,9 +178,8 @@ WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing (out of scope here, see `../qjs-lws/`).
 - `structuredClone` — done in `lib/globals.js` (opt-in global, `transfer` included); checked against node on 28 cases, differences: errors are plain `Error` not `DOMException`, a SharedArrayBuffer is returned as the same object.
 - `Worker` — no global; only QuickJS's own `os.Worker` exists (also see Tier 9.9).
-- `lib/readline.js` and `lib/buffer.js` were deliberately removed in commit `958cffc9` (they
-  were 9/12-line stubs); their docs are gone too. A real `node:readline`/`Buffer` would be new
-  work, see the `node:readline` item below. `lib/perf_hooks.js` (13 lines:
+- `lib/readline.js` and `lib/buffer.js` were removed in commit `958cffc9` as stubs; both are
+  back as real implementations (`Buffer` and `readline`, 2026-10-07). `lib/perf_hooks.js` (13 lines:
   `now`/`timeOrigin` only, no marks or measures) is still thin as described, no change there.
 - `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
   `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
@@ -397,9 +396,9 @@ Extended 2026-09-22 to `node:os`/`node:readline` (not in the original list) and
 cross-checked against Deno too (`-r qjsm -r bun -r deno`, all three loaded every module
 in the original list cleanly except the two already-known `node:tty`/`node:yaml` cases -
 Deno also errors `No such built-in module: node:yaml`, matching Bun):
-- `node:readline`: missing `Interface`/`createInterface`/`emitKeypressEvents`/
-  `moveCursor`/`clearScreenDown`/`promises` (matches the already-tracked "9-line stub"
-  note above) - no extra qjsm-only names here, so no WARN case for this one.
+- `node:readline`: done 2026-10-07 (`lib/readline.js`, `lib/readlinePromises.js`, non-terminal mode). Still
+  missing: `emitKeypressEvents`, raw-mode line editing/history/`completer` (`terminal: true`), and
+  `readline/promises`' `Readline` class.
 
 ## Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)
 
