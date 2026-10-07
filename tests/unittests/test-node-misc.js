@@ -1,3 +1,4 @@
+// @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* url.fileURLToPath / pathToFileURL and path.posix / default export, as in Node */
 import path, { posix } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';

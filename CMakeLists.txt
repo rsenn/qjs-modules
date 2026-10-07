@@ -968,6 +968,10 @@ set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modula
 if(DO_TESTS)
   include(CTest)
 
+  foreach(RUNTIME node bun deno)
+    find_program(${RUNTIME}_EXECUTABLE ${RUNTIME})
+  endforeach(RUNTIME node bun deno)
+
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
@@ -978,6 +982,24 @@ if(DO_TESTS)
     endif()
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
              COMMAND env "QUICKJS_MODULE_PATH=${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib" "${QJSM}" ${BIGNUM_ARG} "${TEST}")
+
+    # a test marked `@portable` in its first lines also runs on the other runtimes
+    # that are installed: <name>.node, <name>.bun, <name>.deno
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}" TEST_HEAD LIMIT 512)
+    if(TEST_HEAD MATCHES "@portable")
+      foreach(RUNTIME node bun deno)
+        if(NOT ${RUNTIME}_EXECUTABLE)
+          continue()
+        endif(NOT ${RUNTIME}_EXECUTABLE)
+        if(RUNTIME STREQUAL "deno")
+          set(RUNTIME_ARGS run -A "--import-map=tests/deno-import-map.json")
+        else()
+          set(RUNTIME_ARGS)
+        endif()
+        add_test(NAME "${BASE}.${RUNTIME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                 COMMAND "${${RUNTIME}_EXECUTABLE}" ${RUNTIME_ARGS} "${TEST}")
+      endforeach(RUNTIME node bun deno)
+    endif(TEST_HEAD MATCHES "@portable")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 

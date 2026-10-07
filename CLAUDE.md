@@ -303,6 +303,10 @@ Outstanding work lives in three files:
 
 ## Build / Test
 
+A test whose first lines contain `@portable` also runs under node, bun and deno
+(`<name>.node` etc. in ctest, deno through `tests/deno-import-map.json`): write such tests
+against the shared API only, and expect the same results on every runtime.
+
 ```sh
 # Configure
 cmake -B build/$(cc -dumpmachine) -S .

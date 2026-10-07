@@ -1,3 +1,4 @@
+// @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* Node's callback fs API, fs.promises, fs/promises, timers/promises, setImmediate */
 import fs, { mkdtempSync, promises, rmSync } from 'fs';
 import * as fsp from 'fs/promises';

@@ -1,3 +1,4 @@
+// @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 import { closeSync, constants, existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { WASI, errno } from '../../lib/wasi.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';

@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "child_process": "node:child_process",
+    "events": "node:events",
+    "fs": "node:fs",
+    "fs/promises": "node:fs/promises",
+    "path": "node:path",
+    "perf_hooks": "node:perf_hooks",
+    "process": "node:process",
+    "timers": "node:timers",
+    "timers/promises": "node:timers/promises",
+    "url": "node:url",
+    "util": "node:util"
+  }
+}

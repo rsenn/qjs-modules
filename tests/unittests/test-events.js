@@ -1,3 +1,4 @@
+// @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/events.js: EventEmitter and helpers, behaviour as in Node */
 import { EventEmitter, once, on, getEventListeners, listenerCount, setMaxListeners } from 'events';
 import { assert, eq, tests } from '../../lib/tinytest.js';

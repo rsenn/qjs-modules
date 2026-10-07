@@ -1,3 +1,4 @@
+// @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/globals.js: the web/Node globals; the same assertions must hold on node, bun and deno */
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
