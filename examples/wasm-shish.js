@@ -1,19 +1,22 @@
 #!/usr/bin/env qjsm
-import * as std from 'std';
-import { readFileSync } from 'fs';
-import * as wasm from 'wasm';
+import { readFileSync, writeSync } from 'fs';
+import process from 'process';
+
+if(!globalThis.WebAssembly) await import('../lib/webassembly.js');
 
 /**
  * Loads shutil.wasm and shish.wasm (Emscripten builds of the shish shell,
- * from https://github.com/rsenn/shish) through the `wasm` module.
+ * from https://github.com/rsenn/shish) through the WebAssembly API.
  *
  *   qjsm examples/wasm-shish.js [dir-with-the-wasm-files]
+ *
+ * Runs on qjsm, node, bun and deno.
  *
  * Emscripten minifies import and export names, so the tables below map
  * each letter to the name it has in these particular builds.
  */
 
-const dir = scriptArgs[1] ?? `${std.getenv('HOME')}/Sources/rsenn/.cache/pages/shish/assets`;
+const dir = process.argv[2] ?? `${process.env.HOME}/Sources/rsenn/.cache/pages/shish/assets`;
 
 const ENOSYS = -38;
 const utf8 = s => unescape(encodeURIComponent(s));
@@ -56,7 +59,7 @@ const SHISH_EXPORTS = { memory: 'ka', table: 'na', ctors: 'la', main: 'ma', setT
 /* Loads `file`; returns { exports, heap(), host } once instantiated.
  * `letters` maps import letters to names, `names` the export letters. */
 function load(file, letters, names) {
-  const module = new wasm.Module(readFileSync(`${dir}/${file}`));
+  const module = new WebAssembly.Module(readFileSync(`${dir}/${file}`));
   let ex;
   const heap = () => new DataView(ex[names.memory].buffer);
   const u8 = () => new Uint8Array(ex[names.memory].buffer);
@@ -68,7 +71,7 @@ function load(file, letters, names) {
     return unutf8(s);
   };
 
-  const output = (fd, text) => (fd === 2 ? std.err : std.out).puts(text);
+  const output = (fd, text) => writeSync(fd === 2 ? 2 : 1, text);
 
   /* a tiny in-memory file system: enough for tmpfile()-style scratch files */
   const files = new Map(), fds = new Map();
@@ -205,7 +208,7 @@ function load(file, letters, names) {
       : name.startsWith('___syscall_') ? () => ENOSYS
       : () => 0;
 
-  ex = new wasm.Instance(module, { a }).exports;
+  ex = new WebAssembly.Instance(module, { a }).exports;
   ex[names.ctors]();
   return { ex, heap, u8, readString };
 }
