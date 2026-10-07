@@ -103,7 +103,7 @@ if(DEFINED CACHE{BUILTINS_COMPILED})
 endif()
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert bun console events fs fsPromises module nodeModulesLoader perf_hooks process repl require timers timersPromises tty url util)
+  set(BUILTINS_COMPILED assert bun buffer console events fs fsPromises module nodeModulesLoader perf_hooks process repl require timers timersPromises tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
@@ -1092,6 +1092,7 @@ list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 set(COMMON_MODULES "")
 
 set(assert_MODULES deep inspect)
+set(buffer_MODULES misc blob)
 set(console_MODULES util inspect)
 set(db_MODULES list)
 set(fs_MODULES syscallerror directory events path mmap misc textcode)

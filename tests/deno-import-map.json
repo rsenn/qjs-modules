@@ -10,6 +10,7 @@
     "timers": "node:timers",
     "timers/promises": "node:timers/promises",
     "url": "node:url",
-    "util": "node:util"
+    "util": "node:util",
+    "buffer": "node:buffer"
   }
 }
