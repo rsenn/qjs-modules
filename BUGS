@@ -857,3 +857,13 @@
     await db.connect({ host: '127.0.0.1', port: 1, user: 'x', password: '', db: 'y' });
     // expected: rejects with MySQLError, or db.error is a message string
     // actual: resolves; db.errno === 2002, db.error === null
+
+- globals-readablestream-no-pipe (lib/globals.js): the ReadableStream,
+  WritableStream and TransformStream that `import 'globals'` installs come
+  from the native `stream` module and have no pipeTo()/pipeThrough();
+  lib/stream.js has them. Found while writing lib/jsonStreams.js.
+
+    await import('./lib/globals.js');
+    typeof new ReadableStream({}).pipeThrough;
+    // expected: 'function'
+    // actual: 'undefined'

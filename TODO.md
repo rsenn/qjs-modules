@@ -90,9 +90,8 @@ against these — they're the "why" behind what gets picked up next.
   *Done* (2026-10-07): `JSONL.parse`/`JSONL.parseChunk` exported by `json`, Bun's results
   verified case by case against `bun`, tests in `test-json.js`, documented in
   `doc/native/json.md`. Implemented as a value-boundary scanner plus `JS_ParseJSON`, not on the
-  `JsonParser` pull engine. Still open: Deno-style `TransformStream` wrappers in `lib/`
-  (`JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` with
-  `prefix`/`suffix`) on top of `parseChunk`.
+  `JsonParser` pull engine. The Deno-style stream wrappers are done too (`lib/jsonStreams.js`, results diffed against
+  `jsr:@std/json`). Missing: a `TextLineStream` (Deno's `@std/streams`) to feed `JsonParseStream`.
 
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 

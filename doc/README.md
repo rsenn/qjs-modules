@@ -57,6 +57,7 @@ Key modules:
 - [wasm-loader](js/wasm-loader.md) — `.wasm` ES module loader (opt-in)
 - [wasi](js/wasi.md) — `node:wasi` (WASI preview1), portable across qjsm, node, bun, deno
 - [globals](js/globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
+- [jsonStreams](js/jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [timersPromises](js/timersPromises.md) — `timers/promises`
 
 ### API Compatibility

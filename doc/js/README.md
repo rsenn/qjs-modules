@@ -32,6 +32,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [commonjs](commonjs.md) — `commonjs` module format loader (`registerHooks()`)
 - [typescript](typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
 - [globals](globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
+- [jsonStreams](jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [timersPromises](timersPromises.md) — `timers/promises`
 - [wasi](wasi.md) — `WASI` (Node's `node:wasi`, preview1), portable: qjsm, node, bun, deno
 - [webassembly](webassembly.md) — the `WebAssembly` global over the `wasm` module (opt-in)
