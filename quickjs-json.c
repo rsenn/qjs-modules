@@ -27,11 +27,6 @@ typedef struct {
 VISIBLE JSClassID js_jsonparser_class_id = 0, js_jsonpushparser_class_id = 0, js_jsonserializer_class_id = 0;
 static JSValue json_parser_proto, json_parser_ctor, json_pushparser_proto, json_pushparser_ctor, json_serializer_proto, json_serializer_ctor;
 
-struct js_jsonparser_opaque {
-  JSContext* ctx;
-  void *parser, *obj;
-};
-
 static JSValue
 js_json_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_DupValue(ctx, this_val);
@@ -2369,7 +2364,6 @@ js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 enum {
-  JSON_PARSER_CALLBACK,
   JSON_PARSER_POS,
   JSON_PARSER_TOKEN,
   JSON_PARSER_STATE,
@@ -2387,11 +2381,6 @@ js_jsonparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case JSON_PARSER_CALLBACK: {
-      ret = js_value_mkobj2(ctx, p->opaque);
-      break;
-    }
-
     case JSON_PARSER_POS: {
       ret = JS_NewUint32(ctx, p->pos);
       break;
@@ -2426,23 +2415,6 @@ js_jsonparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-static void
-js_jsonparser_callback(JsonParser* p, JsonValueType type, void* ptr) {
-  struct js_jsonparser_opaque* op = p->opaque;
-  JSContext* ctx = op->ctx;
-  JSValue fn = js_value_mkobj(op->obj);
-  JSValue args[] = {
-      js_value_mkobj(op->parser),
-      JS_NewInt32(ctx, type),
-      ptr ? JS_NewString(ctx, ptr) : JS_UNDEFINED,
-  };
-  JSValue ret = JS_Call(ctx, fn, JS_UNDEFINED, countof(args), args);
-  JS_FreeValue(ctx, ret);
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
-  JS_FreeValue(ctx, args[2]);
-}
-
 static JSValue
 js_jsonparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   JsonParser* p;
@@ -2454,29 +2426,6 @@ js_jsonparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int
   switch(magic) {
     case JSON_PARSER_COMMENTS: {
       p->comments = JS_ToBool(ctx, value);
-      break;
-    }
-
-    case JSON_PARSER_CALLBACK: {
-      struct js_jsonparser_opaque* op;
-
-      if(!JS_IsFunction(ctx, value))
-        return JS_ThrowTypeError(ctx, "value must be a function");
-
-      if(p->opaque) {
-        op = p->opaque;
-        js_freeobj(ctx, op->obj);
-      }
-
-      op = p->opaque ? p->opaque : js_malloc(ctx, sizeof(struct js_jsonparser_opaque));
-
-      if(op) {
-        *op = (struct js_jsonparser_opaque){ctx, js_value_obj(this_val), js_value_obj2(ctx, value)};
-
-        p->callback = js_jsonparser_callback;
-        p->opaque = op;
-      }
-
       break;
     }
   }
@@ -2516,7 +2465,6 @@ static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("state", js_jsonparser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_jsonparser_get, 0, JSON_PARSER_DEPTH, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("location", js_jsonparser_get, 0, JSON_PARSER_LOCATION, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("callback", js_jsonparser_get, js_jsonparser_set, JSON_PARSER_CALLBACK),
     JS_CGETSET_MAGIC_DEF("comments", js_jsonparser_get, js_jsonparser_set, JSON_PARSER_COMMENTS),
     JS_ITERATOR_NEXT_DEF("next", 0, js_jsonparser_iterator_next, 0),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_json_iterator),

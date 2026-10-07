@@ -32,7 +32,6 @@ typedef enum {
 } JsonValueType;
 
 typedef struct JsonParser JsonParser;
-typedef void JsonCallback(JsonParser*, JsonValueType value, void*);
 
 typedef enum {
   JSON_TOK_NONE = 0,
@@ -57,8 +56,6 @@ struct JsonParser {
   uint8_t block[JSON_BLOCK_SIZE];
   size_t block_pos, block_len;
   DynBuf token;
-  JsonCallback* callback;
-  void* opaque;
   int pushback;
   uint32_t pos;
   BitSet stack;

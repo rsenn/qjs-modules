@@ -109,8 +109,6 @@ BOOL
 json_init(JsonParser* json, Reader reader, const char* filename, JSContext* ctx) {
   json->reader = reader;
   json->block_pos = json->block_len = 0;
-  json->callback = NULL;
-  json->opaque = NULL;
   json->pos = 0;
   json->pushback = -1;
   json->state = PARSING;

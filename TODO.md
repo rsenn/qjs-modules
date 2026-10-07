@@ -94,13 +94,6 @@ against these — they're the "why" behind what gets picked up next.
   (`JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` with
   `prefix`/`suffix`) on top of `parseChunk`.
 
-  *Related bugs found while investigating* (both in `BUGS`, unfixed):
-  - `json-parser-callback-getter-segfault`: reading `JsonParser.callback` after assigning
-    a function crashes (the getter wraps an internal struct pointer as a JS object).
-  - `json-parser-callback-never-called`: `JsonParser.callback` is documented as a
-    per-value callback but `json_parse()` never calls it. Fix or remove; the pull parser's
-    `callback` is not needed by the plan above.
-
 ## Tier 5 — lower-value cleanup (dead alternate code, disabled diagnostics, unfinished scaffolding)
 
 Not urgent individually, but worth a pass since dead/disabled code in the same functions as

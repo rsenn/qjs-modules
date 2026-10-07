@@ -79,7 +79,6 @@ The function/method/fd forms let the parser pull raw bytes on demand instead of 
 | `depth` | — | getter | Current nesting depth (enumerable). |
 | `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename); live, like `JsonPushParser`'s (enumerable). |
 | `comments` | — | getter/setter | Boolean, default `false`. When `true`, `parse()` returns `JsonParser.COMMENT` for each `//` or `/* */` comment (text in `token`) instead of skipping it. |
-| `callback` | — | getter/setter | Per-value callback invoked while parsing. The function is called as `callback(parser, type, text)` where `type` is a `JsonValueType` integer and `text` is the token string (or `undefined`). |
 
 ```js
 import { JsonParser } from 'json';
