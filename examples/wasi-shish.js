@@ -10,7 +10,9 @@ import { WASI } from '../lib/wasi.js';
  *   SHISH_WASM=path/to/shish SHISH_ROOT=/some/dir qjsm examples/wasi-shish.js
  *
  * The guest sees SHISH_ROOT (default: the current directory) as `/`.
- * Runs on qjsm, node, bun and deno.
+ * Runs on qjsm, node, bun and deno, given a build the engine can execute:
+ * a shish built with `-fwasm-exceptions` (legacy `try`) needs node, bun or
+ * deno; wasm3 and WAMR in qjsm lack exception handling.
  */
 if(!globalThis.WebAssembly) await import('../lib/webassembly.js');
 
@@ -26,4 +28,9 @@ const wasi = new WASI({
 
 const { instance } = await WebAssembly.instantiate(readFileSync(file), wasi.getImportObject());
 
-process.exit(wasi.start(instance));
+try {
+  process.exit(wasi.start(instance));
+} catch(e) {
+  if(e instanceof WebAssembly.RuntimeError) console.error(`${e.message}: does the build use wasm exceptions (-fwasm-exceptions)?`);
+  throw e;
+}
