@@ -177,8 +177,7 @@ silent wrong-mode bug bites hardest (dropped/malformed packets, not just a slow 
 
 WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing (out of scope here, see `../qjs-lws/`).
-- `structuredClone` — only feature-detected (`lib/stream.js:TransferArrayBuffer`), never
-  implemented; no ambient global.
+- `structuredClone` — done in `lib/globals.js` (opt-in global, `transfer` included); checked against node on 28 cases, differences: errors are plain `Error` not `DOMException`, a SharedArrayBuffer is returned as the same object.
 - `Worker` — no global; only QuickJS's own `os.Worker` exists (also see Tier 9.9).
 - `lib/readline.js` and `lib/buffer.js` were deliberately removed in commit `958cffc9` (they
   were 9/12-line stubs); their docs are gone too. A real `node:readline`/`Buffer` would be new

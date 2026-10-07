@@ -62,6 +62,31 @@ tests({
     }
     eq(name, 'DataCloneError');
   },
+  'structuredClone transfer, shared buffers, uncloneable objects, arity'() {
+    const code = f => {
+      try {
+        f();
+      } catch(e) {
+        return e.name;
+      }
+    };
+    const b = new ArrayBuffer(4), view = new Uint8Array(b, 1, 2);
+    const c = structuredClone({ view }, { transfer: [b] });
+
+    eq(b.byteLength, 0);
+    eq(c.view.buffer.byteLength, 4);
+    eq(c.view.byteOffset, 1);
+    eq(code(() => structuredClone(b, { transfer: [b] })), 'DataCloneError');
+    eq(code(() => structuredClone(1, { transfer: [{}] })), 'DataCloneError');
+
+    const sab = new SharedArrayBuffer(2);
+
+    new Uint8Array(sab)[0] = 7;
+    eq(new Uint8Array(structuredClone(sab))[0], 7);
+    eq(code(() => structuredClone(Promise.resolve())), 'DataCloneError');
+    eq(code(() => structuredClone(new WeakMap())), 'DataCloneError');
+    eq(code(() => structuredClone()), 'TypeError');
+  },
   'crypto.getRandomValues and randomUUID'() {
     const a = crypto.getRandomValues(new Uint8Array(16));
 

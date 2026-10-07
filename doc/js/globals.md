@@ -23,7 +23,7 @@ structuredClone({ d: new Date(0) });
 | `setTimeout`, `setInterval`, `setImmediate` and their `clear*` | `timers` |
 | `atob`, `btoa` | here (Latin-1 strings, padding optional, `InvalidCharacterError`) |
 | `queueMicrotask` | here (a promise job) |
-| `structuredClone` | here: Date, RegExp, boxed primitives, ArrayBuffer, typed arrays, Map, Set, Error, cycles; `DataCloneError` for functions and symbols; no `transfer` |
+| `structuredClone` | here: Date, RegExp, boxed primitives, ArrayBuffer, typed arrays, Map, Set, Error, cycles; `transfer` option (ArrayBuffers); SharedArrayBuffer returned as is; `DataCloneError` for functions, symbols, Promise, WeakMap, WeakSet, WeakRef; `TypeError` without arguments; the error is a plain `Error`, not a `DOMException` |
 | `crypto` | here: `getRandomValues()` and `randomUUID()` from `/dev/urandom`; no `subtle` |
 
 Not installed: `Buffer`, `Worker`, `fetch` (see `qjs-lws`).
@@ -32,4 +32,4 @@ Not installed: `Buffer`, `Worker`, `fetch` (see `qjs-lws`).
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `structuredClone(value)` | function | The same function that is installed as a global. |
+| `structuredClone(value, options?)` | function | The same function that is installed as a global. |
