@@ -1720,6 +1720,8 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
           }
 
           if(!compacted) {
+            uint32_t depth_before = property_recursion_depth(&insp->hier);
+
             it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | (opts->proto_chain ? JS_GPN_RECURSIVE : 0));
             is_array = child_is_array;
 
@@ -1736,6 +1738,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
               continue;
             } else {
+              /* an empty child is pushed but not entered: drop it, it is closed here */
+              if(property_recursion_depth(&insp->hier) > depth_before)
+                it = property_recursion_pop(&insp->hier, ctx);
+
               writer_puts(wr, is_array ? "[]" : "{}");
               if(negative_compact) {
                 compact_propagate_leaf(&insp->compact_stack, -1);

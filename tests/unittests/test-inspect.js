@@ -86,4 +86,10 @@ tests({
     const out = plain({ a: 1, b: 2 }, { compact: false });
     assert(out.includes('\n'));
   },
+  'an empty array or object nested in another closes once'() {
+    eq(plain({ a: [], b: {} }), '{\n a: [],\n b: {}\n}');
+    eq(plain([[]]), '[\n []\n]');
+    eq(plain({ a: { b: [] } }), '{\n a: {\n  b: []\n }\n}');
+    eq(plain({ a: [], b: {} }, { compact: true }), '{ a: [], b: {} }');
+  },
 });
