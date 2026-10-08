@@ -57,6 +57,72 @@ tests({
     eq(misc.compareArrayBuffer(buf, buf), 0);
     assert(misc.compareArrayBuffer(buf, new Uint8Array([1, 2, 3, 5]).buffer) !== 0);
   },
+  'toArrayBuffer() takes an offset and a length of a string'() {
+    eq(String.fromCharCode(...new Uint8Array(misc.toArrayBuffer('hello world', 2, 3))), 'llo');
+    eq(String.fromCharCode(...new Uint8Array(misc.toArrayBuffer('hello world', -5))), 'world');
+  },
+  'dupArrayBuffer() takes an offset and a length; out of range throws'() {
+    const buf = new Uint8Array([1, 2, 3, 4]).buffer;
+    eq(Array.from(new Uint8Array(misc.dupArrayBuffer(buf, 1, 2))).join(','), '2,3');
+    eq(Array.from(new Uint8Array(misc.dupArrayBuffer(buf, -2))).join(','), '3,4');
+    let err;
+    try {
+      misc.dupArrayBuffer(buf, 9);
+    } catch(e) {
+      err = e;
+    }
+    assert(err instanceof RangeError);
+  },
+  'sliceArrayBuffer() clamps and counts negative indexes from the end'() {
+    const buf = new Uint8Array([1, 2, 3, 4]).buffer;
+    eq(Array.from(new Uint8Array(misc.sliceArrayBuffer(buf, -3, 99))).join(','), '2,3,4');
+    eq(Array.from(new Uint8Array(misc.sliceArrayBuffer(buf, 2))).join(','), '3,4');
+  },
+  'concatArrayBuffer() takes a start and an end per buffer'() {
+    const a = new Uint8Array([1, 2, 3, 4]).buffer;
+    const b = new Uint8Array([5, 6, 7]).buffer;
+    eq(Array.from(new Uint8Array(misc.concatArrayBuffer(a, 1, 3, b, 2))).join(','), '2,3,7');
+    let err;
+    try {
+      misc.concatArrayBuffer(a, 1, 2, 3);
+    } catch(e) {
+      err = e;
+    }
+    assert(err instanceof TypeError);
+  },
+  'searchArrayBuffer() searches the given offset and length'() {
+    const hay = new Uint8Array([3, 4, 1, 3, 4]).buffer;
+    const needle = new Uint8Array([3, 4]).buffer;
+    eq(misc.searchArrayBuffer(hay, needle), 0);
+    eq(misc.searchArrayBuffer(hay, needle, 1), 3);
+    eq(misc.searchArrayBuffer(hay, needle, 1, 3), null);
+    eq(misc.searchArrayBuffer(hay, needle, 1, 4), 3);
+    eq(typeof misc.searchArrayBuffer(hay, needle, 1n), 'bigint');
+  },
+  'searchArrayBuffer() with a mask ignores the masked-out bits, also at the end'() {
+    const hay = new Uint8Array([9, 9, 0x13, 0x25]).buffer;
+    const needle = new Uint8Array([0x10, 0x20]).buffer;
+    const mask = new Uint8Array([0xf0, 0xf0]).buffer;
+    eq(misc.searchArrayBuffer(hay, needle, mask), 2);
+    eq(misc.searchArrayBuffer(hay, needle, 3, mask), null);
+    eq(misc.searchArrayBuffer(hay, needle, 0, 3, mask), null);
+    eq(misc.searchArrayBuffer(hay, needle, 1, mask), 2);
+  },
+  'copyArrayBuffer() and compareArrayBuffer() take a start and an end per buffer'() {
+    const dst = new Uint8Array(6);
+    const src = new Uint8Array([1, 2, 3, 4]).buffer;
+    eq(misc.copyArrayBuffer(dst.buffer, 2, 5, src, 1, 3), 2);
+    eq(Array.from(dst).join(','), '0,0,2,3,0,0');
+    eq(misc.compareArrayBuffer(dst.buffer, 2, 4, src, 1, 3), 0);
+    assert(misc.compareArrayBuffer(dst.buffer, 2, 4, src, 0, 2) !== 0);
+    let err;
+    try {
+      misc.copyArrayBuffer(dst.buffer, 1);
+    } catch(e) {
+      err = e;
+    }
+    assert(err instanceof TypeError && /src/.test(err.message));
+  },
   'strcmp() compares C strings'() {
     eq(misc.strcmp('abc', 'abc'), 0);
     assert(misc.strcmp('abc', 'abd') < 0);

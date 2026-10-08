@@ -621,19 +621,29 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
+/* toArrayBuffer(value[, offset[, length]]) / toArrayBuffer(address, length[, owner]):
+ * an ArrayBuffer copied from a string or buffer, or one wrapping memory at an address.
+ *
+ * ```js
+ * toArrayBuffer('hello world', 2, 3)   // ArrayBuffer of 'llo'
+ * toArrayBuffer(0x1000n, 16, owner)    // 16 bytes at 0x1000, kept alive by `owner`
+ * ```
+ *
+ *   string|buffer  value    input; a string is always read as text
+ *   number         offset   first byte (negative counts from the end)
+ *   number         length   byte count (negative: end position)
+ *
+ * throws RangeError for an offset or length outside the input.
+ * wired in with JS_CFUNC_DEF("toArrayBuffer", ...). */
 static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  if(argc >= 2) {
+  if(argc >= 2 && !JS_IsString(argv[0])) {
     void* addr = js_topointer(ctx, argv[0]);
 
     if(addr == NULL)
       return JS_NULL;
 
     uint64_t len = js_touint64(ctx, argv[1]);
-
-    /*if(len == 0)
-      return JS_ThrowInternalError(ctx, "zero length given");*/
-
     JSValue obj = argc >= 3 ? argv[2] : argv[0];
 
     return JS_NewArrayBuffer(ctx, addr, len, JS_IsObject(obj) ? js_arraybuffer_free_object : 0, JS_IsObject(obj) ? js_value_obj2(ctx, obj) : NULL, FALSE);
@@ -641,12 +651,17 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   InputBuffer input = js_input_chars(ctx, argv[0]);
 
-  if(argc > 1)
-    js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
+  if(argc > 1 && offsetlength_from_argv(&input.range, input.size, argc - 1, argv + 1, ctx) < 0) {
+    inputbuffer_free(&input, ctx);
+    return JS_EXCEPTION;
+  }
 
   return inputbuffer_toarraybuffer_free(&input, ctx);
 }
 
+/* sliceArrayBuffer(buffer[, start[, end]]): a view of buffer[start, end) sharing its memory.
+ * indexes are clamped to the buffer; negative ones count from the end.
+ * throws TypeError if `buffer` is no ArrayBuffer. */
 static JSValue
 js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* data;
@@ -655,7 +670,8 @@ js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
     IndexRange ir = INDEX_RANGE_INIT();
 
-    js_index_range(ctx, len, argc - 1, argv + 1, 0, &ir);
+    if(indexrange_from_argv(&ir, len, argc - 1, argv + 1, ctx) < 0)
+      return JS_EXCEPTION;
 
     return JS_NewArrayBuffer(ctx,
                              indexrange_begin(ir, data, len),
@@ -668,6 +684,8 @@ js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 }
 
+/* dupArrayBuffer(buffer[, offset[, length]]): a view of `length` bytes at `offset`, sharing memory.
+ * throws RangeError for an offset or length outside the buffer, TypeError if `buffer` is no ArrayBuffer. */
 static JSValue
 js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* data;
@@ -691,30 +709,46 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 }
 
+/* reads argv[*i] as an ArrayBuffer plus its optional `start, end` indexes.
+ *
+ *   int*          i      argument position; moves past the buffer and its indexes
+ *   const char*   name   argument name for the error message
+ *   MemoryBlock*  block  the buffer cut to [start, end)
+ *
+ * returns 0, or -1 with an exception pending. */
+static int
+js_misc_block_slice(JSContext* ctx, int argc, JSValueConst argv[], int* i, const char* name, MemoryBlock* block) {
+  IndexRange ir;
+  int n = 0;
+
+  if(*i == argc || !block_from_arraybuffer(block, argv[*i], ctx)) {
+    JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", *i + 1, name);
+    return -1;
+  }
+
+  ++*i;
+
+  while(n < 2 && *i + n < argc && !JS_IsObject(argv[*i + n]))
+    ++n;
+
+  if(indexrange_from_argv(&ir, block->size, n, argv + *i, ctx) < 0)
+    return -1;
+
+  *i += n;
+  *block = indexrange_block(ir, *block);
+  return 0;
+}
+
+/* concatArrayBuffer(buffer[, start[, end]], ...): one new ArrayBuffer made of the given slices.
+ * throws TypeError for an argument that is not an ArrayBuffer where one is expected. */
 static JSValue
 js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock m[argc];
   int i = 0, k = 0;
 
-  for(k = 0; i < argc; k++) {
-    m[k] = MEMORY_BLOCK(0, 0);
-
-    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
-      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
-
-    i++;
-
-    IndexRange slice = INDEX_RANGE(0, m[k].size);
-
-    for(int j = 0; j < countof(slice.arr); j++) {
-      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
-        break;
-
-      js_toint64clamp(ctx, &slice.arr[j], argv[i++], j ? slice.start : 0, slice.end, slice.end);
-    }
-
-    m[k] = indexrange_block(slice, m[k]);
-  }
+  for(k = 0; i < argc; k++)
+    if(js_misc_block_slice(ctx, argc, argv, &i, "buffer", &m[k]) < 0)
+      return JS_EXCEPTION;
 
   size_t total_size = 0, pos = 0;
   uint8_t* buf;
@@ -735,11 +769,16 @@ js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return JS_NewArrayBuffer(ctx, buf, total_size, js_arraybuffer_free_pointer, 0, FALSE);
 }
 
+/* searchArrayBuffer(haystack, needle[, offset[, length]][, mask]): index of the first match, or null.
+ * the search covers haystack[offset, offset + length); with a `mask`, a byte matches where
+ * `(haystack ^ needle) & mask` is 0. an offset given as BigInt returns a BigInt.
+ * throws RangeError if the needle is empty or longer than the haystack. */
 static JSValue
 js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MemoryBlock haystack, needle, mask;
-  OffsetLength h_ol = OFFSET_LENGTH_0();
-  int i = 0, n;
+  MemoryBlock haystack, needle, mask, range;
+  OffsetLength ol = OFFSET_LENGTH_0();
+  uint8_t* found = 0;
+  int i = 0, n = 0;
 
   if(i >= argc || !block_from_arraybuffer(&haystack, argv[i++], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
@@ -749,89 +788,65 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   if(needle.size == 0)
     return JS_ThrowRangeError(ctx, "needle size is 0");
+
   if(needle.size > haystack.size)
     return JS_ThrowRangeError(ctx, "needle size %" PRIu64 " is greater than haystack size %" PRIu64, (uint64_t)needle.size, (uint64_t)haystack.size);
 
-  if((n = offsetlength_from_argv(&h_ol, haystack.size, argc - i, argv + i, ctx)) < 0)
+  while(n < 2 && i + n < argc && !JS_IsObject(argv[i + n]))
+    ++n;
+
+  if(n && offsetlength_from_argv(&ol, haystack.size, n, argv + i, ctx) < 0)
     return JS_EXCEPTION;
 
-  if(n) {
-    i += n;
-  }
+  range = offsetlength_block(ol, haystack);
 
-  if(i == argc) {
-    uint8_t* ptr;
-    MemoryBlock range = offsetlength_block(h_ol, haystack);
+  if(i + n < argc) {
+    if(!block_from_arraybuffer(&mask, argv[i + n], ctx))
+      return JS_ThrowTypeError(ctx, "argument %d (mask) must be an ArrayBuffer", i + n + 1);
 
-    if(needle.size <= range.size && (ptr = memmem(range.base, range.size, needle.base, needle.size))) {
-      ptrdiff_t ofs = ptr - haystack.base;
+    size_t n_size = MIN_NUM(needle.size, mask.size);
 
-      if(ofs > MAX_SAFE_INTEGER || (n && JS_IsBigInt(ctx, argv[i - n])))
-        return JS_NewBigUint64(ctx, ofs);
+    /* naive searching algorithm (slow) */
+    for(size_t pos = 0; n_size && pos + n_size <= range.size; pos++) {
+      size_t j;
 
-      return JS_NewInt64(ctx, ofs);
-    }
+      for(j = 0; j < n_size; j++)
+        if((range.base[pos + j] ^ needle.base[j]) & mask.base[j])
+          break;
 
-    return JS_NULL;
-  }
-
-  if(!block_from_arraybuffer(&mask, argv[2], ctx))
-    return JS_ThrowTypeError(ctx, "argument 3 (mask) must be an ArrayBuffer");
-
-  size_t n_size = MIN_NUM(needle.size, mask.size);
-  size_t h_end = haystack.size - n_size;
-
-  // naive searching algorithm (slow)
-  for(size_t i = 0; i < h_end; i++) {
-    int found = 1;
-
-    for(size_t j = 0; j < n_size; j++) {
-      if((haystack.base[i + j] ^ needle.base[j]) & mask.base[j]) {
-        found = 0;
+      if(j == n_size) {
+        found = range.base + pos;
         break;
       }
     }
-
-    if(found) {
-      /*for(size_t j = 0; j < n_size; j++) {
-        uint8_t xorval = haystack.base[i + j] ^ needle.base[j];
-        printf("@(%lu + %lu); ", (unsigned long)i, (unsigned long)j);
-        printf("%02x XOR %02x = %02x; ", haystack.base[i + j], needle.base[j], xorval);
-        printf("%02x AND %02x = %02x\n", xorval, mask.base[j], xorval & mask.base[j]);
-      }*/
-
-      return JS_NewInt64(ctx, (int64_t)i + h_ol.offset);
-    }
+  } else if(needle.size <= range.size) {
+    found = memmem(range.base, range.size, needle.base, needle.size);
   }
 
-  return JS_NULL;
+  if(!found)
+    return JS_NULL;
+
+  ptrdiff_t ofs = found - haystack.base;
+
+  if(ofs > MAX_SAFE_INTEGER || (n && JS_IsBigInt(ctx, argv[i])))
+    return JS_NewBigUint64(ctx, ofs);
+
+  return JS_NewInt64(ctx, ofs);
 }
 
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
+/* copyArrayBuffer(dst[, start[, end]], src[, start[, end]]): copies src's slice over dst's slice.
+ * returns the byte count, the smaller of the two slices.
+ * throws TypeError for an argument that is not an ArrayBuffer where one is expected. */
 static JSValue
 js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock m[2];
   int i = 0;
 
-  for(int k = 0; k < countof(m); k++) {
-    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
-      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("src", "dst")[k]);
-
-    i++;
-
-    IndexRange ir = INDEX_RANGE(0, m[k].size);
-    int64_t* const slice = ir.arr;
-
-    for(int j = 0; j < countof(ir.arr); j++) {
-      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
-        break;
-
-      js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
-    }
-
-    m[k] = block_indexrange(m[k], ir);
-  }
+  for(int k = 0; k < countof(m); k++)
+    if(js_misc_block_slice(ctx, argc, argv, &i, CONST_STRARRAY("dst", "src")[k], &m[k]) < 0)
+      return JS_EXCEPTION;
 
   size_t n = MIN_NUM(m[0].size, m[1].size);
 
@@ -840,29 +855,16 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return JS_NewInt64(ctx, n);
 }
 
+/* compareArrayBuffer(s1[, start[, end]], s2[, start[, end]]): memcmp() of the two slices over their common length.
+ * throws TypeError for an argument that is not an ArrayBuffer where one is expected. */
 static JSValue
 js_misc_comparearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock m[2];
   int i = 0;
 
-  for(int k = 0; k < countof(m); k++) {
-    if(i == argc || !block_from_arraybuffer(&m[k], argv[i], ctx))
-      return JS_ThrowTypeError(ctx, "argument %d (%s) must be an ArrayBuffer", i + 1, CONST_STRARRAY("s2", "s1")[k]);
-
-    i++;
-
-    IndexRange ir = INDEX_RANGE(0, m[k].size);
-    int64_t* const slice = ir.arr;
-
-    for(int j = 0; j < countof(ir.arr); j++) {
-      if(i == argc || js_is_arraybuffer(ctx, argv[i]))
-        break;
-
-      js_toint64clamp(ctx, &slice[j], argv[i++], j ? slice[0] : 0, m[k].size, m[k].size);
-    }
-
-    m[k] = block_indexrange(m[k], ir);
-  }
+  for(int k = 0; k < countof(m); k++)
+    if(js_misc_block_slice(ctx, argc, argv, &i, CONST_STRARRAY("s1", "s2")[k], &m[k]) < 0)
+      return JS_EXCEPTION;
 
   return JS_NewInt32(ctx, memcmp(m[0].base, m[1].base, MIN_NUM(m[0].size, m[1].size)));
 }
