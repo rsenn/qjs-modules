@@ -13,7 +13,7 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-/*#include <sys/poll.h>*/
+
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
 #elif defined(__linux__)
@@ -23,7 +23,7 @@
 #include <dlfcn.h>
 #endif
 
-#if 1 //: def HAVE_QUICKJS_CONFIG_H
+#if 1 /*def HAVE_QUICKJS_CONFIG_H*/
 #include <quickjs-config.h>
 #endif
 

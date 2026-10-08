@@ -297,9 +297,6 @@ location_set_filename(Location* loc, const char* filename, JSContext* ctx) {
   loc->filename = ctx ? js_strdup(ctx, filename) : strdup(filename);
 }
 
-
-
-
 /**
  * @}
  */

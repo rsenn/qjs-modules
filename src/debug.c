@@ -238,7 +238,6 @@ debug_js_realloc(JSContext* ctx, void* p, size_t n, const char* file, int line) 
   return 0;
 }
 
-
 void*
 debug_js_strdup(JSContext* ctx, const char* s, const char* file, int line) {
   ALLOC_PTR ptr;
@@ -409,10 +408,6 @@ debug_js_free_rt(JSRuntime* rt, void* p, const char* file, int line) {
 #undef js_malloc_usable_size_rt
 #undef js_free_rt
 
-
-
-
-
 void
 orig_free(void* ptr) {
   free(ptr);
@@ -423,14 +418,10 @@ orig_js_malloc(JSContext* ctx, size_t size) {
   return js_malloc(ctx, size);
 }
 
-
 void*
 orig_js_realloc(JSContext* ctx, void* p, size_t size) {
   return js_realloc(ctx, p, size);
 }
-
-
-
 
 void
 orig_js_free(JSContext* ctx, void* p) {
@@ -442,12 +433,10 @@ orig_js_malloc_rt(JSRuntime* rt, size_t size) {
   return js_malloc_rt(rt, size);
 }
 
-
 void*
 orig_js_realloc_rt(JSRuntime* rt, void* p, size_t size) {
   return js_realloc_rt(rt, p, size);
 }
-
 
 void
 orig_js_free_rt(JSRuntime* rt, void* p) {

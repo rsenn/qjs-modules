@@ -150,7 +150,7 @@ static JSValue
 jsfunc_invoke(JSFunc* fw, void* buf, size_t len, BOOL copy) {
   JSValue ret;
   
-  if (fw->nargs == 3) {
+  if(fw->nargs == 3) {
     JSValueConst args[3] = {
         copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
         JS_NewInt32(fw->ctx, 0),
@@ -189,7 +189,7 @@ static JSValue
 jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
   JSValue ret;
   
-  if (fw->nargs == 3) {
+  if(fw->nargs == 3) {
     JSValueConst args[3] = {
         copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
         JS_NewInt32(fw->ctx, 0),

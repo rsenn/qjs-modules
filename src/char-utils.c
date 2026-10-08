@@ -57,8 +57,6 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
   return i;
 }
 
-
-
 size_t
 byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
   const char* b;
@@ -83,9 +81,6 @@ void
 byte_copy(void* out, size_t len, const void* in) {
   memcpy(out, in, len);
 }
-
-
-
 
 size_t
 fmt_long(void* x, int32_t i) {
@@ -163,8 +158,6 @@ fmt_xlonglong(void* x, uint64_t i) {
   return len;
 }
 
-
-
 #define tohex(c) (char)((c) >= 10 ? (c) - 10 + 'a' : (c) + '0')
 
 size_t
@@ -222,7 +215,6 @@ scan_ushort(const char* src, uint16_t* dest) {
 
   return (size_t)(cur - src);
 }
-
 
 size_t
 scan_int(const char* src, int32_t* dest) {
@@ -440,8 +432,6 @@ scan_lineskip(const char* s, size_t limit) {
   return (size_t)(t - s);
 }
 
-
-
 int
 utf8_charlen(const void* in, size_t len) {
   const uint8_t* next;
@@ -562,7 +552,6 @@ utf8_fromwcs(const wchar_t* wstr) {
 }
 #endif
 
-
 int
 case_lowerc(int c) {
   if(c >= 'A' && c <= 'Z')
@@ -570,7 +559,6 @@ case_lowerc(int c) {
 
   return c;
 }
-
 
 int
 case_diffb(const void* S, size_t len, const void* T) {
@@ -612,7 +600,6 @@ case_finds(const void* haystack, const char* what) {
   return case_findb(haystack, strlen(haystack), what, strlen(what));
 }
 
-
 size_t
 u64toa_base(char* x, uint64_t num, int base) {
   size_t len = 0;
@@ -650,8 +637,6 @@ i64toa_base(char* x, int64_t num, int base) {
 
   return pos + u64toa_base(&x[pos], num, base);
 }
-
-
 
 /**
  * @}

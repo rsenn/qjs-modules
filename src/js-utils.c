@@ -38,13 +38,6 @@ js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JS
   return FALSE;
 }
 
-/*void
-promise_free(JSContext* ctx, Promise* pr) {
-  JS_FreeValue(ctx, pr->value);
-  pr->value = JS_UNDEFINED;
-  js_resolve_functions_free(ctx, &pr->funcs);
-}*/
-
 BOOL
 promise_init(JSContext* ctx, Promise* pr) {
   pr->value = JS_NewPromiseCapability(ctx, pr->funcs.array);

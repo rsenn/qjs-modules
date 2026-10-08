@@ -316,7 +316,6 @@ pointer_serialize_rfc6901(Pointer const* ptr, Writer* wr, JSContext* ctx) {
   }
 }
 
-
 static int
 pointer_parse_unescape(const char* x, size_t* nptr) {
   *nptr = 2;
@@ -725,7 +724,6 @@ pointer_append(Pointer* ptr, int argc, JSValueConst argv[], JSContext* ctx) {
 
   return TRUE;
 }
-
 
 JSValue
 pointer_toarray(Pointer const* ptr, JSContext* ctx) {

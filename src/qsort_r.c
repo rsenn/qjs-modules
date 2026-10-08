@@ -76,10 +76,10 @@ quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, co
   if(nmemb >= (((size_t)-1) >> 1) || size >= (((size_t)-1) >> 1))
     return;
 #if 0
-  if (sizeof(size_t) < sizeof(unsigned long long)) {
-    if ((unsigned long long)size * nmemb > (size_t)-1) return;
+  if(sizeof(size_t) < sizeof(unsigned long long)) {
+    if((unsigned long long)size * nmemb > (size_t)-1) return;
   } else {
-    if (size*nmemb/nmemb != size) return;
+    if(size*nmemb/nmemb != size) return;
   }
 #endif
   if(nmemb > 1)

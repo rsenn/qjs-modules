@@ -23,8 +23,6 @@ token_new(JSContext* ctx) {
 
 void
 token_release(Token* tok, JSRuntime* rt) {
-  /*if(tok->lexeme)
-    js_free_rt(rt, tok->lexeme);*/
   tok->lexeme = 0;
 
   if(tok->loc) {
@@ -45,10 +43,8 @@ void
 token_set_lexeme(Token* tok, void* lexeme, size_t len) {
   if((tok->lexeme = lexeme)) {
     tok->byte_length = len;
-    // tok->char_length = utf8_strlen(lexeme, len);
   } else {
     tok->byte_length = 0;
-    // tok->char_length = 0;
   }
 }
 

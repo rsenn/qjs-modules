@@ -709,7 +709,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ")");
 }
 
-
 void
 predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments* args) {
   Arguments tmp = {0, 0, 0, 0};
@@ -1249,7 +1248,6 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
 
   return ret;
 }
-
 
 int
 predicate_regexp_compile(Predicate* pr, JSContext* ctx) {

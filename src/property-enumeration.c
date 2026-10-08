@@ -212,8 +212,6 @@ property_recursion_pathstr_value(const Vector* vec, JSContext* ctx) {
   return ret;
 }
 
-JSValue js_pointer_wrap(JSContext*, Pointer*);
-
 int
 property_recursion_pointer(const Vector* vec, Pointer* ptr, JSContext* ctx) {
   if(pointer_allocate(ptr, vector_size(vec, sizeof(PropertyEnumeration)), ctx)) {
