@@ -121,7 +121,7 @@ live logic has been the source of earlier bugs — cleaning it up now prevents t
   handling (the live implementation is `js_path_method_dbuf` + `path_realpath3`, registered
   in `js_path_funcs` and working — **not** a missing
   feature, just dead leftover code confusingly shaped like one).
-- `src/glob.c:glob3()` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
+- `src/compat/glob.c:glob3()` *(pre-existing TODO-style comment)* — `/* TODO: don't call for ENOENT or
   ENOTDIR? */`, minor optimization.
 - `wasm` module: see the WebAssembly item in Tier 7. The dead `if(MODULE_WASM)` block in
   `CMakeLists.txt` (its `option(MODULE_WASM ...)` is commented out, no `quickjs-wasm.c`
