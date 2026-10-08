@@ -16,6 +16,7 @@ typedef struct Token {
   Location* loc;
   uint64_t seq;
   void* opaque;
+  BOOL owned; /* lexeme is a private copy, freed with the token */
 } Token;
 
 Token* token_new(JSContext*);

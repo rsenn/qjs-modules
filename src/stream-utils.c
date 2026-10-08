@@ -756,7 +756,7 @@ writer_from_jsstd(JSContext* ctx, JSValueConst file_obj) {
 
   assert(fw);
 
-  *fw = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, "write"), JS_DupValue(ctx, file_obj), 3};
+  *fw = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, "write"), JS_DupValue(ctx, file_obj), .ref_count = 1, .nargs = 3};
 
   return (Writer){
       &write_jsinvoke,
@@ -1352,7 +1352,7 @@ reader_from_jsstd(JSContext* ctx, JSValueConst file_obj) {
 
   assert(fr);
 
-  *fr = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, "read"), JS_DupValue(ctx, file_obj), 3};
+  *fr = (JSFunc){JS_DupContext(ctx), JS_NewString(ctx, "read"), JS_DupValue(ctx, file_obj), .ref_count = 1, .nargs = 3};
 
   return (Reader){
       &read_jsinvoke,

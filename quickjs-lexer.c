@@ -127,7 +127,7 @@ static int64_t
 token_char_pos(Token* tok) {
   Lexer* lex;
 
-  if((tok->lexeme && (lex = token_lexer(tok))))
+  if((tok->lexeme && (lex = token_lexer(tok))) && !lex->reader.read)
     return utf8_strlen(lex->data, token_byte_pos(tok));
 
   return location_charoffset(tok->loc);
@@ -661,6 +661,22 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_UNDEFINED;
 }
 
+/* an object that is not a buffer (function, std FILE, `{ read() }`, sync stream) is read through a Reader
+ * returns TRUE when `value` was taken as a reader */
+static BOOL
+js_lexer_reader(JSContext* ctx, Lexer* lex, JSValueConst value) {
+  Reader rd;
+
+  if(!JS_IsObject(value) || js_is_arraybuffer(ctx, value) || js_is_typedarray(ctx, value) || js_is_dataview(ctx, value))
+    return FALSE;
+
+  if(!reader_from_js(ctx, value, &rd))
+    return FALSE;
+
+  lexer_input_reader(lex, rd, 0, ctx);
+  return TRUE;
+}
+
 JSValue
 js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Lexer* lex;
@@ -670,11 +686,15 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(!(lex = JS_GetOpaque(ret, js_lexer_class_id)))
     return JS_EXCEPTION;
 
-  if(!js_is_null_or_undefined(argv[0])) {
-    InputBuffer input = js_input_chars(ctx, argv[0]);
+  if(argc > 0 && !js_is_null_or_undefined(argv[0])) {
+    if(js_lexer_reader(ctx, lex, argv[0])) {
+      /* windowed input, set */
+    } else {
+      InputBuffer input = js_input_chars(ctx, argv[0]);
 
-    if(input.data)
-      lex->input = input;
+      if(input.data)
+        lex->input = input;
+    }
   }
 
   int i = 1;
@@ -723,12 +743,17 @@ js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(!(lex = js_lexer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  inputbuffer_free(&lex->input, ctx);
+  lexer_input_free(lex, ctx);
   location_release(&lex->loc, JS_GetRuntime(ctx));
 
   if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
+    if(other->reader.read)
+      return JS_ThrowTypeError(ctx, "Lexer.prototype.setInput(): cannot copy a stream input");
+
     lex->input = inputbuffer_clone(&other->input, ctx);
     location_copy(&lex->loc, &other->loc, ctx);
+  } else if(argc > 0 && js_lexer_reader(ctx, lex, argv[0])) {
+    lex->loc.byte_offset = 0;
   } else if(argc > 1 && js_is_null_or_undefined(argv[0])) {
     const char* file = JS_ToCString(ctx, argv[1]);
     lex->input = inputbuffer_file(file, ctx);
@@ -750,6 +775,15 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   if(!(lex = js_lexer_data2(ctx, this_val)))
     return JS_EXCEPTION;
+
+  switch(magic) {
+    case LEXER_PEEKC:
+    case LEXER_GETC:
+    case LEXER_SKIP_CHARS:
+    case LEXER_SKIP_UNTIL:
+      if(lex->reader.read)
+        return JS_ThrowTypeError(ctx, "Lexer: this method needs an in-memory input, not a stream");
+  }
 
   switch(magic) {
     case LEXER_SKIP_BYTES: {
@@ -780,6 +814,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         Location* loc;
 
         if((loc = js_location_data2(ctx, argv[i]))) {
+          if(lex->reader.read && (loc->byte_offset < lex->base || loc->byte_offset - lex->base > lex->size))
+            return JS_ThrowRangeError(ctx, "Lexer.prototype.back(): location is no longer buffered");
+
           lexer_set_location(lex, loc, ctx);
 
           if(lex->byte_length > 0 && lex->token_id != -1)
@@ -787,6 +824,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
           ret = JS_NewInt32(ctx, lexer_peek(lex, 0, ctx));
         } else if((tok = js_token_data(argv[i]))) {
+          if(lex->reader.read && (tok->loc->byte_offset < lex->base || tok->loc->byte_offset - lex->base > lex->size))
+            return JS_ThrowRangeError(ctx, "Lexer.prototype.back(): token is no longer buffered");
+
           lexer_set_location(lex, tok->loc, ctx);
           lex->byte_length = tok->byte_length;
           lex->seq = tok->seq;
@@ -884,7 +924,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           js_value_tosize(ctx, &end, argv[1]);
       }
 
-      ret = JS_NewStringLen(ctx, (const char*)&lex->data[start], end - start);
+      if(start < lex->base || end < start || end - lex->base > lex->size)
+        return JS_ThrowRangeError(ctx, "getRange(): %zu-%zu is outside the buffered input", start, end);
+
+      ret = JS_NewStringLen(ctx, (const char*)&lex->data[start - lex->base], end - start);
       break;
     }
 
@@ -1051,12 +1094,12 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_SIZE: {
-      ret = JS_NewInt64(ctx, lex->size);
+      ret = JS_NewInt64(ctx, lex->base + lex->size);
       break;
     }
 
     case LEXER_ENDOFFILE: {
-      ret = JS_NewBool(ctx, inputbuffer_eof(&lex->input));
+      ret = JS_NewBool(ctx, lex->reader.read ? lex->at_eof && LEXER_IDX(lex) >= lex->size : inputbuffer_eof(&lex->input));
       break;
     }
 
@@ -1169,12 +1212,15 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_INPUT: {
+      if(lex->reader.read)
+        return JS_ThrowTypeError(ctx, "Lexer.input: a stream input is not kept in memory");
+
       ret = block_to_arraybuffer(lex->input.block, ctx);
       break;
     }
 
     case LEXER_LEXEME: {
-      ret = JS_NewStringLen(ctx, (const char*)lex->data + lex->byte_offset, lex->byte_length);
+      ret = JS_NewStringLen(ctx, (const char*)LEXER_PTR(lex), lex->byte_length);
       break;
     }
   }
@@ -1192,6 +1238,10 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   switch(magic) {
     case LEXER_POSITION: {
       uint64_t newpos = lex->byte_offset;
+
+      if(lex->reader.read)
+        return JS_ThrowTypeError(ctx, "Lexer.position: cannot seek a stream input");
+
       Token* tok;
       Location* loc;
 
@@ -1388,8 +1438,8 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                   lexer_state_top(lex, 0),
                                   lexer_state_name(lex, lexer_state_top(lex, 0)),
                                   /*   lexeme,*/
-                                  (int)(byte_chr((const char*)&lex->data[lex->byte_offset], lex->size - lex->byte_offset, '\n') + lex->loc.column),
-                                  &lex->data[lex->byte_offset - lex->loc.column],
+                                  (int)(byte_chr((const char*)LEXER_PTR(lex), lex->size - LEXER_IDX(lex), '\n') + MIN_NUM((size_t)lex->loc.column, LEXER_IDX(lex))),
+                                  LEXER_PTR(lex) - MIN_NUM((size_t)lex->loc.column, LEXER_IDX(lex)),
                                   lex->loc.column + 1,
                                   "^");
       if(file)

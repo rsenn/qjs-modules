@@ -4,6 +4,7 @@
 #include "location.h"
 #include "vector.h"
 #include "buffer-utils.h"
+#include "stream-utils.h"
 #include <string.h>
 
 /**
@@ -67,6 +68,11 @@ typedef struct {
   Vector states;
   Vector state_stack;
   uint64_t seq;
+  /* windowed input: `data` is a malloc'd window of the stream behind `reader`;
+   * `base` is the absolute byte offset of data[0]; both stay 0 for an InputBuffer */
+  Reader reader;
+  size_t base, capacity, chunk;
+  BOOL at_eof;
 } Lexer;
 
 /* the anonymous struct above must mirror Location field for field */
@@ -74,8 +80,10 @@ _Static_assert(offsetof(Lexer, byte_offset) == offsetof(Lexer, loc.byte_offset),
 _Static_assert(offsetof(Lexer, line) == offsetof(Lexer, loc.line), "Lexer's Location overlay is out of sync with Location");
 
 #define LEXER_POS(l) ((l)->byte_offset)
+#define LEXER_IDX(l) ((l)->byte_offset - (l)->base)
 #define LEXER_DATA(l) ((l)->data)
-#define LEXER_PTR(l) ((l)->data + (l)->byte_offset)
+/* borrowed: valid until the next lexer_peek() refills the window */
+#define LEXER_PTR(l) ((l)->data + LEXER_IDX(l))
 
 int lexer_state_findb(Lexer*, const char* state, size_t slen);
 int lexer_state_new(Lexer*, const char* name, size_t len);
@@ -92,6 +100,8 @@ void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
 Lexer* lexer_new(JSContext*);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_define(Lexer*, char* name, char* expr);
+void lexer_input_free(Lexer*, JSContext* ctx);
+void lexer_input_reader(Lexer*, Reader, size_t chunk, JSContext* ctx);
 LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
 int lexer_peek(Lexer*, /* uint64_t state,*/ unsigned start_rule, JSContext* ctx);
 size_t lexer_skip_n(Lexer*, size_t bytes);
@@ -123,10 +133,7 @@ lexer_state_depth(Lexer* lex) {
 
 static inline char*
 lexer_state_name(Lexer* lex, int state) {
-  char** name_p;
-
-  name_p = vector_at(&lex->states, sizeof(char*), state);
-
+  char** name_p = vector_at(&lex->states, sizeof(char*), state);
   return name_p ? *name_p : 0;
 }
 

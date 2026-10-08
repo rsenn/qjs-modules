@@ -166,7 +166,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
   // fprintf(stderr, "lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
-  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, lex->byte_offset, lex->size, 0, ctx);
+  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, LEXER_IDX(lex), lex->size, 0, ctx);
 }
 
 int
@@ -288,21 +288,12 @@ lexer_find_definition(Lexer* lex, const char* name, size_t namelen) {
   return 0;
 }
 
-int
-lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
+static int
+lexer_peek_window(Lexer* lex, unsigned start_rule, uint8_t** reach, JSContext* ctx) {
   LexerRule *rule, *start = vector_begin(&lex->rules), *end = vector_end(&lex->rules);
   uint8_t* capture[512];
   int ret = LEXER_ERROR_NOMATCH;
   size_t len = 0;
-
-  if(lex->loc.byte_offset == -1)
-    location_zero(&lex->loc);
-
-  if(lex->byte_offset >= lex->size)
-    return LEXER_EOF;
-
-  if(inputbuffer_eof(&lex->input))
-    return LEXER_EOF;
 
   assert(start_rule < vector_size(&lex->rules, sizeof(LexerRule)));
 
@@ -357,6 +348,9 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
       JS_FreeCString(ctx, filename);
 #endif
 
+      if(capture[1] > *reach)
+        *reach = capture[1];
+
       if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) > len) {
         ret = rule - start;
         len = capture[1] - capture[0];
@@ -378,11 +372,141 @@ lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
   return ret;
 }
 
+/* bytes the window should hold ahead of the offset before matching, so short lookaheads see real data */
+#define LEXER_LOOKAHEAD 256
+#define LEXER_BEHIND 256
+#define LEXER_LINE_MAX 4096
+#define LEXER_CHUNK_MAX (1 << 20)
+
+/* read one more chunk into the window, dropping consumed bytes first.
+ * Keeps LEXER_BEHIND bytes of history (for ^, \b, lookbehind) and the current line.
+ * returns 0, or -1 with an exception pending. */
+static int
+lexer_fill(Lexer* lex, JSContext* ctx) {
+  size_t idx = LEXER_IDX(lex), keep = idx > LEXER_BEHIND ? idx - LEXER_BEHIND : 0, ls = idx;
+  ssize_t n;
+
+  if(lex->at_eof)
+    return 0;
+
+  while(ls > 0 && idx - ls < LEXER_LINE_MAX && lex->data[ls - 1] != '\n')
+    ls--;
+
+  if(ls < keep)
+    keep = ls;
+
+  if(keep > 0 && keep >= lex->size / 2) {
+    memmove(lex->data, lex->data + keep, lex->size - keep);
+    lex->size -= keep;
+    lex->base += keep;
+  }
+
+  if(lex->size + lex->chunk > lex->capacity) {
+    size_t cap = lex->capacity ? lex->capacity : lex->chunk;
+    uint8_t* p;
+
+    while(cap < lex->size + lex->chunk)
+      cap *= 2;
+
+    if(!(p = js_realloc(ctx, lex->data, cap)))
+      return -1;
+
+    lex->data = p;
+    lex->capacity = cap;
+  }
+
+  if((n = reader_read(&lex->reader, lex->data + lex->size, lex->chunk)) < 0) {
+    if(!JS_HasException(ctx))
+      JS_ThrowInternalError(ctx, "Lexer: error reading input");
+    return -1;
+  }
+
+  if(n == 0)
+    lex->at_eof = TRUE;
+  else if((size_t)n == lex->chunk && lex->chunk < LEXER_CHUNK_MAX)
+    lex->chunk *= 2; /* a read that filled the chunk: a long token is likely, read more per call */
+
+  lex->size += n;
+  return 0;
+}
+
+/* sets the window source: `rd` is read `chunk` bytes at a time */
+void
+lexer_input_reader(Lexer* lex, Reader rd, size_t chunk, JSContext* ctx) {
+  lexer_input_free(lex, ctx);
+
+  lex->reader = rd;
+  lex->chunk = chunk ? chunk : 8192;
+  lex->base = lex->size = lex->capacity = 0;
+  lex->at_eof = FALSE;
+  lex->data = 0;
+}
+
+/* drops the current input: an InputBuffer or a window and its reader */
+void
+lexer_input_free(Lexer* lex, JSContext* ctx) {
+  if(lex->reader.read) {
+    reader_free(&lex->reader);
+    js_free(ctx, lex->data);
+    lex->data = 0;
+    lex->size = 0;
+    memset(&lex->reader, 0, sizeof(lex->reader));
+    lex->base = lex->capacity = 0;
+    lex->at_eof = FALSE;
+    lex->input = INPUTBUFFER();
+  } else {
+    inputbuffer_free(&lex->input, ctx);
+  }
+}
+
+/* peeks the next token; with a reader, retries on a bigger window while the answer could still change
+ *
+ * returns rule index, or a LexerResult (EOF, NOMATCH, EXCEPTION with an exception pending, ...). */
+int
+lexer_peek(Lexer* lex, unsigned start_rule, JSContext* ctx) {
+  if(lex->loc.byte_offset == -1)
+    location_zero(&lex->loc);
+
+  for(;;) {
+    uint8_t* reach = 0;
+    int ret;
+
+    if(lex->reader.read) {
+      if(!lex->at_eof && lex->size - LEXER_IDX(lex) < LEXER_LOOKAHEAD) {
+        if(lexer_fill(lex, ctx) < 0)
+          return LEXER_EXCEPTION;
+        continue;
+      }
+
+      if(LEXER_IDX(lex) >= lex->size)
+        return LEXER_EOF;
+    } else {
+      if(lex->byte_offset >= lex->size)
+        return LEXER_EOF;
+
+      if(inputbuffer_eof(&lex->input))
+        return LEXER_EOF;
+    }
+
+    ret = lexer_peek_window(lex, start_rule, &reach, ctx);
+
+    /* no match, or a match that touches the window's end: more input may change it */
+    if(lex->reader.read && !lex->at_eof && (ret == LEXER_ERROR_NOMATCH || (ret >= 0 && reach >= lex->data + lex->size))) {
+      if(lexer_fill(lex, ctx) < 0)
+        return LEXER_EXCEPTION;
+
+      continue;
+    }
+
+    return ret;
+  }
+}
+
 size_t
 lexer_skip_n(Lexer* lex, size_t bytes) {
   size_t len;
 
-  assert(bytes <= lex->size - lex->byte_offset);
+  assert(bytes <= lex->size - LEXER_IDX(lex));
 
   lex->loc.byte_offset = LEXER_POS(lex);
 
@@ -414,7 +538,7 @@ lexer_charlen(Lexer* lex) {
   if(lex->byte_length == 0)
     return 0;
 
-  assert((lex->size - LEXER_POS(lex)) >= lex->byte_length);
+  assert((lex->size - LEXER_IDX(lex)) >= lex->byte_length);
 
   return utf8_strlen(LEXER_PTR(lex), lex->byte_length);
 }
@@ -442,7 +566,7 @@ lexer_release(Lexer* lex, JSRuntime* rt) {
   char** statep;
   LexerRule* rule;
 
-  inputbuffer_free(&lex->input, lex->rules.opaque);
+  lexer_input_free(lex, lex->rules.opaque);
 
   vector_foreach_t(&lex->defines, rule) {
     lexer_rule_release_rt(rule, rt);
@@ -483,6 +607,18 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   if(!(tok = token_create(id, lexeme, len, ctx)))
     return 0;
 
+  /* a window moves on, so the token keeps its own copy */
+  if(lex->reader.read) {
+    if(!(tok->lexeme = js_malloc(ctx, len + 1))) {
+      token_free(tok, JS_GetRuntime(ctx));
+      return 0;
+    }
+
+    memcpy(tok->lexeme, lexeme, len);
+    tok->lexeme[len] = 0;
+    tok->owned = TRUE;
+  }
+
   /*tok->lexer = lexer_dup(lex);*/
   tok->seq = lex->seq;
 
@@ -497,7 +633,7 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
 
 char*
 lexer_current_line(Lexer* lex, JSContext* ctx) {
-  size_t size, start = lex->byte_offset;
+  size_t size, start = LEXER_IDX(lex);
 
   while(start > 0 && lex->data[start - 1] != '\n')
     start--;

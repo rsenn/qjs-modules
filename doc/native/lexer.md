@@ -11,6 +11,32 @@ named states; the lexer yields `Token` objects.
 new Lexer(input[, fileName, mode])   // length 1
 ```
 
+### Input
+
+`input` is a string, `ArrayBuffer` or typed array (scanned in memory), or an object that is read in
+chunks (a *Reader*, as in `include/stream-utils.h`):
+
+| `input` | Read as |
+| --- | --- |
+| `fn(buf, len)` | a function returning the bytes written to `buf` (`ArrayBuffer`), 0 at the end |
+| `{ read(buf, len) }` | the same, as a method |
+| `std.open(...)` | a `std` FILE |
+
+```js
+const lex = new Lexer(std.open('big.txt', 'r'), Lexer.LONGEST, 'big.txt');
+```
+
+The tokens are the same as for the whole text, however the reads are cut. A window of the stream is
+kept: the unconsumed bytes, 256 bytes of history and the current line. A match that reaches the end
+of the window, or no match at all, reads more and tries again; reads are synchronous.
+
+With a Reader input:
+
+- `Token.lexeme` is a copy and stays valid; `lexeme` of the lexer is only valid until the next scan.
+- `size` is the number of bytes read so far; `eof` is true once the stream ended and all was consumed.
+- `peekc()`, `getc()`, `skipChars()`, `skipUntil()`, `position =` and `input` throw `TypeError`.
+- `back()` throws `RangeError` for a location that left the window.
+
 ### Scanning methods
 
 | Method | Args | Description |
