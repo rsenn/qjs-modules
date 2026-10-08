@@ -397,9 +397,9 @@ Extended 2026-09-22 to `node:os`/`node:readline` (not in the original list) and
 cross-checked against Deno too (`-r qjsm -r bun -r deno`, all three loaded every module
 in the original list cleanly except the two already-known `node:tty`/`node:yaml` cases -
 Deno also errors `No such built-in module: node:yaml`, matching Bun):
-- `node:readline`: done 2026-10-07 (`lib/readline.js`, `lib/readlinePromises.js`, non-terminal mode). Still
-  missing: `emitKeypressEvents`, raw-mode line editing/history/`completer` (`terminal: true`), and
-  `readline/promises`' `Readline` class.
+- `node:readline`: done 2026-10-07/08 (`lib/readline.js`, `lib/readlinePromises.js`): line mode and
+  `terminal: true` (editing, history, tab completion, `emitKeypressEvents`; expected bytes recorded from node). Still
+  missing: kill-ring rotation, undo/redo, `readline/promises`' `Readline` class.
 
 ## Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)
 
