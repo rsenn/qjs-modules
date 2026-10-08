@@ -8,7 +8,7 @@ are constructed as trees of `GrammarRule` instances that are combined
 through **methods** (`then`, `or`, `optional`, `many`, `some`, `not`, `as`,
 `map`) — no QuickJS operator-overloading extension is required.
 
-The companion [`ebnf`](../lib/parser/ebnf.js) module exports
+The companion [`grammar-compile`](../lib/parser/grammar-compile.js) module exports
 `buildGrammar(source, filename)` which produces a `Grammar` from a
 BNF / yacc-style source file.
 
@@ -149,7 +149,7 @@ csv = "field" ("separator" "field")* ("nl" "field" ("separator" "field")*)* "nl"
 ## Example — driven from a `.y` file via `buildGrammar`
 
 ```js
-import { buildGrammar } from './lib/parser/ebnf.js';
+import { buildGrammar } from './lib/parser/grammar-compile.js';
 import Parser from './lib/parser.js';
 import BNFLexer from './lib/lexer/bnf.js';
 import { readFileSync } from 'fs';

@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { Rule, _capture, captureRoot } from '../../lib/parser.js';
-import { parseGrammar } from '../../lib/parser/ebnf.js';
+import { parseGrammar } from '../../lib/parser/grammar-compile.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* Extra terminals used by Shell-Grammar.y but never declared via %token -

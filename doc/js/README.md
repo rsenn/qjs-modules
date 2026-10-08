@@ -61,6 +61,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [grammar](../grammar.md) — Grammar utilities
 - [lex](lex.md) — lex/flex `.l` files: lexer, parser (AST), generated lexers
 - [grammar-parsers](grammar-parsers.md) — BNF, EBNF, ANTLR `.g4` and yacc/jison files to an AST
+- [parse-ast](parse-ast.md) — parse sources with a grammar file, print the tree as JSON (`utilities/parse-ast.js`)
 - [parsel](parsel.md) — CSS selector parser
 - [css-selectors](css-selectors.md) — CSS selector engine
 - [css3-selectors](css3-selectors.md) — CSS3 selector engine

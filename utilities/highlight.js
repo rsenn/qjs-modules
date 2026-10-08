@@ -14,22 +14,68 @@ function classify({ type, lexeme }) {
   if(t == 'keyword' || t == lexeme.toLowerCase()) return 'keyword';
   if(/numeric|number|integer|float/.test(t) || /^[+-]?\d/.test(lexeme)) return 'number';
   if((/string|literal|quoted/.test(t) && !/boolean|null/.test(t)) || lexeme[0] == '"' || lexeme[0] == "'") return 'string';
-  if(/identifier|name/.test(t)) return 'identifier';
+  if(/identifier|name/.test(t) || /^\$[@*#?!]$/.test(lexeme)) return 'identifier';
   if(t == 'punctuator' || /^[^\w\s]+$/.test(lexeme)) return 'punct';
   return 'other';
+}
+
+/* An uncategorised lexeme (shell `x="a $FOO"`) is split into its parts: backticks,
+ * quoted strings, identifiers and punctuation get a category, whitespace stays 'other'.
+ * `state.quote` carries an unterminated quote over to the next lexeme. */
+function* refine(text, state) {
+  const re = /(\s+)|(`[^`]*`)|(["'])|(\$(?:[A-Za-z_]\w*|\d|[@*#?!])|[A-Za-z_]\w*)|(\d+)|((?:[^\w\s"'`$]|\$(?![A-Za-z_\d@*#?!]))+)/gy;
+  const cats = [, 'other', 'regex', 'string', 'identifier', 'number', 'punct'];
+  let pos = 0, m;
+
+  while(pos < text.length) {
+    if(state.quote) {
+      let i = pos;
+
+      while(i < text.length && text[i] != state.quote) i += text[i] == '\\' && state.quote == '"' ? 2 : 1;
+
+      const closed = i < text.length && text[i] == state.quote;
+
+      if(i < text.length) state.quote = null;
+      const end = closed ? i + 1 : i;
+
+      if(end > pos) yield ['string', text.slice(pos, end)];
+      i = end;
+      pos = i;
+      continue;
+    }
+
+    re.lastIndex = pos;
+    if(!(m = re.exec(text))) break;
+
+    if(m[3]) state.quote = m[3];
+    else {
+      yield [cats[m.findIndex((v, i) => i && v !== undefined)], m[0]];
+      pos = re.lastIndex;
+      continue;
+    }
+    yield ['string', m[3]];
+    pos = re.lastIndex;
+  }
+
+  if(pos < text.length) yield ['other', text.slice(pos)];
 }
 
 /* Some lexers (xml, bnf) skip whitespace instead of emitting it as a token, so the gaps
  * between tokens are filled back in from the source text to keep the output lossless. */
 function* tokens(str, lexer) {
+  const state = { quote: null };
   let pos = 0;
 
   for(const tok of lexer) {
     const start = tok.loc.charOffset;
 
-    if(start > pos) yield ['other', str.slice(pos, start)];
+    if(start > pos) yield* refine(str.slice(pos, start), state);
 
-    yield [classify(tok), tok.lexeme];
+    const cat = classify(tok);
+
+    if(cat == 'other') yield* refine(tok.lexeme, state);
+    else yield [cat, tok.lexeme];
+
     pos = start + tok.charLength;
   }
 
@@ -42,7 +88,7 @@ const AnsiColors = {
   comment: '\x1b[1;32m',
   string: '\x1b[1;36m',
   number: '\x1b[1;34m',
-  punct: '\x1b[0;36m',
+  punct: '\x1b[1;36m',
   regex: '\x1b[1;35m',
   other: '\x1b[0;37m',
 };
@@ -55,7 +101,7 @@ const Palette = {
   comment: '#6a737d',
   string: '#032f62',
   number: '#005cc5',
-  punct: '#586069',
+  punct: '#032f62',
   regex: '#6f42c1',
   other: '#24292e',
 };
@@ -77,7 +123,10 @@ const escapeRtf = s =>
     return `\\u${unit > 32767 ? unit - 65536 : unit}?`;
   });
 
-const ansiFg = (code, text) => `\x1b[${code}m${text}\x1b[0m`;
+/* the color is reset and re-applied on every line, so a pager that drops SGR state
+ * at a newline still colors the lines of a multiline token. */
+const ansiWrap = (start, text) => text.split('\n').map(l => (l ? start + l + '\x1b[0m' : l)).join('\n');
+const ansiFg = (code, text) => ansiWrap(`\x1b[${code}m`, text);
 
 /* A format is a set of string-returning hooks: head/foot wrap the whole output,
  * begin/end wrap each file, token renders one classified lexeme. opts holds the
@@ -87,7 +136,7 @@ const Formats = {
     description: 'ANSI escape codes for the terminal (8 colors)',
     head: () => '',
     begin: () => '',
-    token: (cat, text) => AnsiColors[cat] + text + '\x1b[0m',
+    token: (cat, text) => ansiWrap(AnsiColors[cat], text),
     end: () => '\n',
     foot: () => '',
   },

@@ -9,7 +9,7 @@ on purpose: one sticky regexp per token kind and a recursive-descent parser;
 
 Rationale: the existing `parser/grammar-compile.js` turns a grammar straight
 into running combinators and keeps no tree of the file. These give the tree
-itself, for tools (conversion, listing, linting). Nothing here is a standard API.
+itself, for tools (conversion, listing, linting); [parse-ast](parse-ast.md) runs them. Nothing here is a standard API.
 
 Together with `parser/lex.js` (see [lex](lex.md)) they read every file in
 `~/Sources/plot-cv/lib/grammars/` (62 `.g4`, 21 `.y`, 3 `.jison`, 1 `.ebnf`,

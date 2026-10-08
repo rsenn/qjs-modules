@@ -1,5 +1,6 @@
 #!/usr/bin/env qjsm
 import { readFileSync, writeFileSync } from 'fs';
+import { Lexer } from 'lexer';
 import { getOpt } from 'util';
 import * as std from 'std';
 import { Earley } from 'parser/earley.js';
@@ -141,13 +142,18 @@ function main(...args) {
 
   for(const w of cfg.warnings) std.err.puts(`${scriptArgs[0]}: warning: ${w}\n`);
 
-  const lex = loaded.find(g => g.kind == 'lex')?.ast ?? (rules.kind == 'yacc' && rules.ast.decls.find(d => d.type == 'Lex') ? parseLex(rules.ast.decls.find(d => d.type == 'Lex').text) : null);
+  /* jison matches the first rule that fits; flex, and jison with `%options flex`, the longest */
+  const lexFile = loaded.find(g => g.kind == 'lex');
+  const lexBlock = rules.kind == 'yacc' ? rules.ast.decls.find(d => d.type == 'Lex') : null;
+  const lex = lexFile?.ast ?? (lexBlock ? parseLex(lexBlock.text) : null);
+  const jison = lexBlock && !lexFile || /\.jisonlex$/.test(lexFile?.file ?? '');
+  const mode = jison && !/%options[^\n]*\bflex\b/.test(lexBlock?.text ?? '') ? Lexer.FIRST : Lexer.LONGEST;
   const g4s = loaded.filter(g => g.kind == 'g4').map(g => g.ast);
   const identToken = params['ident-token'] ?? 'IDENTIFIER';
   let tokenize;
 
   if(scannerless) tokenize = text => charItems(text, !!params['skip-ws']);
-  else if(lex) tokenize = (text, file) => lexItems(lex, text, { fileName: file, identToken });
+  else if(lex) tokenize = (text, file) => lexItems(lex, text, { fileName: file, identToken, mode });
   else if(g4s.length) {
     try {
       tokenize = g4Lexer(g4s, cfg.literals);
@@ -175,14 +181,28 @@ function main(...args) {
 
       if(cfg.usesEOF) items.push({ type: 'EOF', text: '', pos: text.length, end: text.length });
 
+      /* a sentence read character by character does not end with the file's newline */
+      const parse = list => earley.parse(list);
+      const tryParse = () => {
+        try {
+          return parse(items);
+        } catch(e) {
+          if(!scannerless || e.index === undefined || e.index != items.length - 1 || items.at(-1).text != '\n') throw e;
+
+          items.pop();
+          return parse(items);
+        }
+      };
+
       try {
-        results.push({ file, ast: makeTree(text, items, opts)(earley.parse(items)) });
+        results.push({ file, ast: makeTree(text, items, opts)(tryParse()) });
       } catch(e) {
         if(e.index === undefined) throw e;
 
         const { line, column } = locator(text)(items[e.index]?.pos ?? text.length);
+        const shown = (items[e.index]?.text ?? '').replace(/\n/g, '\\n');
 
-        throw new SyntaxError(`${line}:${column}: ${e.message.replace(/item \d+/, `'${items[e.index]?.text ?? ''}'`)}`);
+        throw new SyntaxError(`${line}:${column}: ${e.message.replace(/item \d+/, `'${shown}'`)}`);
       }
     } catch(e) {
       std.err.puts(`${file}:${/^\d+:\d+:/.test(e.message) ? '' : ' '}${e.message}\n`);
