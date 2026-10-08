@@ -95,6 +95,17 @@ CLOSE : '>' -> popMode ;`);
     eq('AB,A,OPEN,X,CLOSE,A', g4Lexer([g])('aba<x>a').map(i => i.type).join());
   },
 
+  'g4 lexer: recursive rule (balanced =)'() {
+    const g = parseG4(`lexer grammar L;
+LONG : '[' NEST ']' ;
+fragment NEST : '=' NEST '=' | '[' .*? ']' ;
+ID : [a-z]+ ;
+WS : ' ' -> skip ;`);
+
+    eq('ID,LONG,ID', g4Lexer([g])('a [==[ x ]] y ]==] b').map(i => i.type).join());
+    eq('[=[]]=]', g4Lexer([g])('[=[]]=]')[0].text);
+  },
+
   'yacc: precedence, %start and a lex file'() {
     const y = parseYacc(`%token NUM
 %left '+'
