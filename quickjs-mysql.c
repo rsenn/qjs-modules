@@ -190,8 +190,17 @@ js_mysql_print_fields(JSContext* ctx, DynBuf* out, JSPropertyEnum* tmp_tab, uint
 }
 
 static void
-js_mysql_print_insert(JSContext* ctx, DynBuf* out) {
-  dbuf_putstr(out, "INSERT INTO ");
+js_mysql_print_insert(JSContext* ctx, DynBuf* out, const char* tbl, size_t tbl_len) {
+  dbuf_putstr(out, "INSERT INTO `");
+
+  for(size_t i = 0; i < tbl_len; i++) {
+    if(tbl[i] == '`')
+      dbuf_putc(out, '`');
+
+    dbuf_putc(out, tbl[i]);
+  }
+
+  dbuf_putc(out, '`');
 }
 
 static void
@@ -911,7 +920,7 @@ js_mysql_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   tbl = JS_ToCStringLen(ctx, &tbl_len, argv[0]);
 
   dbuf_init2(&buf, 0, 0);
-  js_mysql_print_insert(ctx, &buf);
+  js_mysql_print_insert(ctx, &buf, tbl, tbl_len);
   dbuf_put(&buf, (const uint8_t*)tbl, tbl_len);
   dbuf_putstr(&buf, " ");
 
