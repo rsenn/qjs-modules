@@ -929,6 +929,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
             case '0': continue;
             case '.': len = --i; break;
           }
+
           break;
         }
 
@@ -1269,24 +1270,20 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
     case JS_TAG_INT: {
       return inspect_number(insp, value, level);
     }
-
     case JS_TAG_BOOL: {
       writer_puts(wr,
                   JS_VALUE_GET_BOOL(value) ? (opts->colors ? COLOR_BROWN "true" COLOR_NONE : "true")
                                            : (opts->colors ? COLOR_BROWN "false" COLOR_NONE : "false"));
       break;
     }
-
     case JS_TAG_NULL: {
       writer_puts(wr, opts->colors ? COLOR_MAGENTA "null" COLOR_NONE : "null");
       break;
     }
-
     case JS_TAG_UNDEFINED: {
       writer_puts(wr, opts->colors ? COLOR_GRAY "undefined" COLOR_NONE : "undefined");
       break;
     }
-
     case JS_TAG_EXCEPTION: {
       writer_puts(wr, opts->colors ? COLOR_RED "[exception" : "[exception");
 
@@ -1320,7 +1317,6 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
       writer_puts(wr, opts->colors ? "]" COLOR_NONE : "]");
       break;
     }
-
     case JS_TAG_SYMBOL: {
       if(opts->reparseable) {
         JSValue key = js_symbol_keyfor(ctx, value);
@@ -1378,20 +1374,16 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
       JS_FreeValue(ctx, key);
       break;
     }
-
     case JS_TAG_STRING: {
       return inspect_string(insp, value, level);
     }
-
     case JS_TAG_OBJECT: {
       return inspect_object(insp, value, depth);
     }
-
     case JS_TAG_FUNCTION_BYTECODE: {
       writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[bytecode]" COLOR_NONE : "[bytecode]");
       break;
     }
-
     case JS_TAG_MODULE: {
       JSModuleDef* def = JS_VALUE_GET_PTR(value);
       const char* name = 0;
@@ -1405,7 +1397,6 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
       JS_FreeCString(ctx, name);
       break;
     }
-
     case JS_TAG_UNINITIALIZED: {
       writer_puts(wr, opts->colors ? COLOR_MAGENTA "[uninitialized]" COLOR_NONE : "[uninitialized]");
       break;

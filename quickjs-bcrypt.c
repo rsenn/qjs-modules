@@ -82,7 +82,6 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       JS_FreeCString(ctx, pw);
       break;
     }
-
     case BCRYPT_CHECKPW: {
       InputBuffer buf = js_input_chars(ctx, argv[1]);
       char x[BCRYPT_HASHSIZE];

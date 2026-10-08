@@ -92,6 +92,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         --argc;
         ++argv;
       }
+      
       if(argc > 1) {
         int64_t index = INT64_MAX;
         JS_ToInt64Ext(ctx, &index, argv[1]);
@@ -113,9 +114,9 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         ret = JS_NewUint32(ctx, utf8_strlen(a, pos));
       else if(magic == PATH_BASELEN)
         ret = JS_NewUint32(ctx, utf8_strlen(a + pos, len));
+
       break;
     }
-
     case PATH_DIRNAME:
     case PATH_DIRLEN: {
       size_t pos = path_dirlen2(a, alen);
@@ -124,9 +125,9 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         ret = pos < alen ? JS_NewStringLen(ctx, a, pos) : JS_NewStringLen(ctx, ".", 1);
       else if(magic == PATH_DIRLEN)
         ret = pos < alen ? JS_NewUint32(ctx, utf8_strlen(a, pos)) : JS_NewInt32(ctx, -1);
+
       break;
     }
-
     case PATH_READLINK: {
       ssize_t r;
 
@@ -137,88 +138,60 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
-      /*#ifndef __wasi__
-          case PATH_REALPATH: {
-      #ifdef _WIN32
-            char dst[PATH_MAX + 1];
-            size_t len = GetFullPathNameA(buf, PATH_MAX + 1, dst, NULL);
-            ret = JS_NewStringLen(ctx, dst, len);
-      #else
-            if(realpath(a, buf))
-              ret = JS_NewString(ctx, buf);
-      #endif
-            break;
-          }
-      #endif*/
-
     case PATH_EXISTS: {
       ret = JS_NewBool(ctx, path_exists1(a));
       break;
     }
-
     case PATH_EXTNAME: {
       ret = JS_NewString(ctx, path_extname1(a));
       break;
     }
-
     case PATH_EXTPOS: {
       ret = JS_NewUint32(ctx, utf8_strlen(a, path_extpos1(a)));
       break;
     }
-
     case PATH_EXTLEN: {
       ret = JS_NewUint32(ctx, utf8_strlen(path_extname1(a), path_extlen1(a)));
       break;
     }
-
     case PATH_GETCWD: {
       if(getcwd(buf, sizeof(buf)))
         ret = JS_NewString(ctx, buf);
 
       break;
     }
-
     case PATH_IS_ABSOLUTE: {
       ret = JS_NewBool(ctx, path_isabsolute2(a, alen));
       break;
     }
-
     case PATH_IS_RELATIVE: {
       ret = JS_NewBool(ctx, path_isrelative(a));
       break;
     }
-
     case PATH_IS_DIRECTORY: {
       ret = JS_NewBool(ctx, path_isdir1(a));
       break;
     }
-
     case PATH_IS_FILE: {
       ret = JS_NewBool(ctx, path_isfile1(a));
       break;
     }
-
     case PATH_IS_CHARDEV: {
       ret = JS_NewBool(ctx, path_ischardev1(a));
       break;
     }
-
     case PATH_IS_BLOCKDEV: {
       ret = JS_NewBool(ctx, path_isblockdev1(a));
       break;
     }
-
     case PATH_IS_FIFO: {
       ret = JS_NewBool(ctx, path_isfifo1(a));
       break;
     }
-
     case PATH_IS_SOCKET: {
       ret = JS_NewBool(ctx, path_issocket1(a));
       break;
     }
-
     case PATH_IS_SYMLINK: {
       ret = JS_NewBool(ctx, path_issymlink1(a));
       break;
@@ -245,12 +218,10 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
     case PATH_LENGTH: {
       ret = JS_NewUint32(ctx, utf8_strlen(a, path_length2(a, alen)));
       break;
     }
-
     case PATH_COMPONENTS: {
       uint32_t n = UINT32_MAX;
 
@@ -260,7 +231,6 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, utf8_strlen(a, path_components3(a, alen, n)));
       break;
     }
-
     case PATH_RIGHT:
     case PATH_SKIP:
     case PATH_SKIP_SEPARATOR:
@@ -298,7 +268,6 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
     case PATH_AT: {
       int32_t idx;
       size_t len;
@@ -316,7 +285,6 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewStringLen(ctx, p, len);
       break;
     }
-
     case PATH_FNMATCH: {
       int32_t flags = 0;
 
@@ -330,22 +298,24 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewBool(ctx, path_isin4(a, alen, b, blen));
       break;
     }
-
     case PATH_EQUAL: {
       ret = JS_NewBool(ctx, path_equal4(a, alen, b, blen));
       break;
     }
-
     case PATH_TOARRAY: {
       ret = JS_NewArray(ctx);
       uint32_t idx = 0;
+
       for(int i = 0;; i++) {
         size_t len;
-        const char* p = path_at3(a, &len, i);
-        if(!p || (len == 0 && i > 0))
+        const char* p;
+
+        if(!(p = path_at3(a, &len, i)) || (len == 0 && i > 0))
           break;
+        
         JS_SetPropertyUint32(ctx, ret, idx++, JS_NewStringLen(ctx, p, len));
       }
+
       break;
     }
   }
@@ -383,18 +353,15 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       path_absolute3(a, alen, &db);
       break;
     }
-
     case PATH_NORMALIZE: {
       path_normalize3(a, alen, &db);
       break;
     }
-
     case PATH_REALPATH: {
       if(!path_realpath3(a, alen, &db))
         ret = JS_NULL;
       break;
     }
-
     case PATH_SEARCH: {
       const char* pathstr = a;
       /* DynBuf db = DBUF_INIT_0();
@@ -417,7 +384,6 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       // dbuf_free(&db);
       break;
     }
-
     case PATH_RELATIVE: {
       DynBuf buf = DBUF_INIT_0(), buf2 = DBUF_INIT_0();
       const char *from = a, *to = b;

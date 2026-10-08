@@ -245,6 +245,7 @@ path_getsep1(const char* path) {
       return *path;
     ++path;
   }
+
   return '\0';
 }
 

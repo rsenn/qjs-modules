@@ -74,7 +74,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = JS_NewBool(ctx, !!(id & pr->type.flags));
       break;
     }
-
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_chars(ctx, js_arguments_at(args, 0));
 
@@ -98,7 +97,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       inputbuffer_free(&input, ctx);
       break;
     }
-
     case PREDICATE_STRING: {
       InputBuffer input = js_input_chars(ctx, js_arguments_at(args, 0));
 
@@ -108,27 +106,22 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       break;
     }
-
     case PREDICATE_NOTNOT: {
       ret = JS_NewBool(ctx, !!JS_ToBool(ctx, predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
-
     case PREDICATE_NOT: {
       ret = JS_NewBool(ctx, !JS_ToBool(ctx, predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
-
     case PREDICATE_BNOT: {
       ret = JS_NewInt64(ctx, ~js_value_toint64_free(ctx, predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
-
     case PREDICATE_SQRT: {
       ret = JS_NewFloat64(ctx, sqrt(js_value_todouble_free(ctx, predicate_value(ctx, pr->unary.predicate, args))));
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -168,7 +161,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = JS_NewFloat64(ctx, r);
       break;
     }
-
     case PREDICATE_OR: {
       for(size_t i = 0; i < pr->boolean.npredicates; i++) {
         JSArguments args2 = *args;
@@ -180,7 +172,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       break;
     }
-
     case PREDICATE_AND: {
       for(size_t i = 0; i < pr->boolean.npredicates; i++) {
         JSArguments args2 = *args;
@@ -192,7 +183,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       break;
     }
-
     case PREDICATE_XOR: {
       int64_t r = 0;
 
@@ -206,7 +196,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = JS_NewInt64(ctx, r);
       break;
     }
-
     case PREDICATE_REGEXP: {
       JSValue re = js_arguments_at(args, 0);
       InputBuffer input = js_input_chars(ctx, re);
@@ -258,19 +247,16 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = JS_NewBool(ctx, result);
       break;
     }
-
     case PREDICATE_INSTANCEOF: {
       ret = JS_NewBool(ctx, JS_IsInstanceOf(ctx, js_arguments_at(args, 0), pr->unary.predicate));
       break;
     }
-
     case PREDICATE_PROTOTYPEIS: {
       JSValue proto = JS_GetPrototype(ctx, js_arguments_at(args, 0));
 
       ret = JS_NewBool(ctx, JS_VALUE_GET_PTR(proto) == JS_VALUE_GET_PTR(pr->unary.predicate));
       break;
     }
-
     case PREDICATE_EQUAL: {
       JSValue other = js_arguments_shift(args);
       BOOL deep = FALSE;
@@ -283,7 +269,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = eq < 0 ? JS_ThrowInternalError(ctx, "js_value_equals returned -1") : JS_NewBool(ctx, eq);
       break;
     }
-
     case PREDICATE_PROPERTY: {
       JSValue obj = js_arguments_shift(args);
       BOOL has = JS_HasProperty(ctx, obj, pr->property.atom);
@@ -308,14 +293,12 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JS_FreeValue(ctx, item);
       break;
     }
-
     case PREDICATE_HAS: {
       JSValue obj = js_arguments_at(args, 0);
 
       ret = JS_NewBool(ctx, JS_HasProperty(ctx, obj, pr->property.atom));
       break;
     }
-
     case PREDICATE_MEMBER: {
       JSValue obj = pr->member.object;
       JSValue member = js_arguments_at(args, 0);
@@ -351,7 +334,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JS_FreeValue(ctx, item);
       break;
     }
-
     case PREDICATE_SHIFT: {
       if(pr->shift.n <= args->c) {
         JSArguments args2 = *args;
@@ -362,7 +344,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       break;
     }
-
     case PREDICATE_SLICE: {
       JSValue arg = js_arguments_at(args, 0);
       InputBuffer buf = js_input_chars(ctx, arg);
@@ -376,7 +357,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       inputbuffer_free(&buf, ctx);
       break;
     }
-
     case PREDICATE_INDEX: {
       JSValue item, arg = js_arguments_at(args, 0);
       int64_t length = js_array_length(ctx, arg);
@@ -394,7 +374,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JS_FreeValue(ctx, item);
       break;
     }
-
     case PREDICATE_FUNCTION: {
       int nargs = pr->function.arity;
       JSValueConst argv[nargs];
@@ -405,7 +384,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = JS_Call(ctx, pr->function.func, pr->function.this_val, nargs, argv);
       break;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       JSValueConst pred = pr->array.predicate;
@@ -547,7 +525,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
                                    0));
       break;
     }
-
     case PREDICATE_CHARSET: {
       uint32_t i = 0, *p;
 
@@ -567,14 +544,12 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_printf(dbuf, " (len = %lu) ]", (unsigned long)pr->charset.len);
       break;
     }
-
     case PREDICATE_STRING: {
       dbuf_putc(dbuf, '\'');
       dbuf_put_escaped(dbuf, pr->string.str, pr->string.len);
       dbuf_putc(dbuf, '\'');
       break;
     }
-
     case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!');
 
 #if __GNUC__ >= 7
@@ -586,7 +561,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_putstr(dbuf, " )");
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -606,7 +580,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
       break;
     }
-
     case PREDICATE_AND:
     case PREDICATE_OR:
     case PREDICATE_XOR: {
@@ -621,7 +594,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
       break;
     }
-
     case PREDICATE_REGEXP: {
       char flagbuf[16];
 
@@ -632,7 +604,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_0(dbuf);
       break;
     }
-
     case PREDICATE_INSTANCEOF: {
       const char* name = js_function_name(ctx, pr->unary.predicate);
 
@@ -640,7 +611,6 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       JS_FreeCString(ctx, name);
       break;
     }
-
     case PREDICATE_PROTOTYPEIS: {
       const char* name = js_object_tostring(ctx, pr->unary.predicate);
 
@@ -648,12 +618,10 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       JS_FreeCString(ctx, name);
       break;
     }
-
     case PREDICATE_EQUAL: {
       js_value_dump(ctx, pr->unary.predicate, dbuf);
       break;
     }
-
     case PREDICATE_PROPERTY:
     case PREDICATE_HAS: {
       const char* arg = JS_AtomToCString(ctx, pr->property.atom);
@@ -669,31 +637,26 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       JS_FreeCString(ctx, arg);
       break;
     }
-
     case PREDICATE_MEMBER: {
       js_value_dump(ctx, pr->member.object, dbuf);
       break;
     }
-
     case PREDICATE_SHIFT: {
       dbuf_printf(dbuf, ">> %d", pr->shift.n);
       dbuf_putc(dbuf, ' ');
       js_value_dump(ctx, pr->shift.predicate, dbuf);
       break;
     }
-
     case PREDICATE_SLICE: {
       dbuf_printf(dbuf, ".slice(%ld, %ld)", (long)pr->slice.start, (long)pr->slice.end);
       break;
     }
-
     case PREDICATE_FUNCTION: {
       int nargs = js_get_propertystr_int32(ctx, pr->function.func, "length");
 
       dbuf_printf(dbuf, "func(%d)", nargs);
       break;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       dbuf_putstr(dbuf, pr->id == PREDICATE_SOME ? "some" : "every");
@@ -741,14 +704,12 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       break;
     }
-
     case PREDICATE_CHARSET: {
       const char* arg = arguments_push(args, ctx, "chars");
 
       dbuf_printf(dbuf, "'%s'.indexOf(%s) != -1", pr->charset.set, arg);
       break;
     }
-
     case PREDICATE_STRING: {
       const char* arg = arguments_push(args, ctx, "string");
 
@@ -757,7 +718,6 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       dbuf_putc(dbuf, '\'');
       break;
     }
-
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS: {
@@ -773,35 +733,30 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       predicate_inspect(pr->unary.predicate, ctx, dbuf, args, 0);
       break;
     }
-
     case PREDICATE_NOTNOT: {
       const char* arg = arguments_push(args, ctx, "value");
 
       dbuf_printf(dbuf, "!!%s", arg);
       break;
     }
-
     case PREDICATE_NOT: {
       const char* arg = arguments_push(args, ctx, "value");
 
       dbuf_printf(dbuf, "!%s", arg);
       break;
     }
-
     case PREDICATE_BNOT: {
       const char* arg = arguments_push(args, ctx, "value");
 
       dbuf_printf(dbuf, "~%s", arg);
       break;
     }
-
     case PREDICATE_SQRT: {
       const char* arg = arguments_push(args, ctx, "value");
 
       dbuf_printf(dbuf, "Math.sqrt(%s)", arg);
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -834,7 +789,6 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       predicate_inspect(pr->binary.right, ctx, dbuf, args, parens[1]);
       break;
     }
-
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
@@ -857,7 +811,6 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       break;
     }
-
     case PREDICATE_PROPERTY:
     case PREDICATE_HAS: {
       const char* arg = arguments_push(args, ctx, "object");
@@ -888,11 +841,9 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       JS_FreeCString(ctx, prop);
       break;
     }
-
     case PREDICATE_MEMBER: {
       break;
     }
-
     case PREDICATE_REGEXP: {
       // const char* arg = arguments_push(args, ctx, "str");
       char flagbuf[32];
@@ -900,18 +851,15 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       dbuf_printf(dbuf, "/%s/%s.test(str)", pr->regexp.expr.source, flagbuf);
       break;
     }
-
     case PREDICATE_SHIFT: {
       break;
     }
-
     case PREDICATE_SLICE: {
       const char* arg = arguments_push(args, ctx, "value");
 
       dbuf_printf(dbuf, "%s.slice(%ld, %ld)", arg, (long)pr->slice.start, (long)pr->slice.end);
       break;
     }
-
     case PREDICATE_FUNCTION: {
       const char* str = js_function_tostring(ctx, pr->function.func);
 
@@ -919,7 +867,6 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       JS_FreeCString(ctx, str);
       break;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       dbuf_putstr(dbuf, pr->id == PREDICATE_SOME ? "some" : "every");
@@ -964,18 +911,15 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
     case PREDICATE_TYPE: {
       break;
     }
-
     case PREDICATE_CHARSET: {
       js_free_rt(rt, pr->charset.set);
       vector_free(&pr->charset.chars);
       break;
     }
-
     case PREDICATE_STRING: {
       js_free_rt(rt, pr->string.str);
       break;
     }
-
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
@@ -986,7 +930,6 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
       JS_FreeValueRT(rt, pr->unary.predicate);
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -1000,20 +943,17 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
       JS_FreeValueRT(rt, pr->binary.right);
       break;
     }
-
     case PREDICATE_AND:
     case PREDICATE_OR:
     case PREDICATE_XOR: {
       js_values_free(rt, pr->boolean.npredicates, pr->boolean.predicates);
       break;
     }
-
     case PREDICATE_REGEXP: {
       // if(pr->regexp.bytecode) js_free_rt(rt, pr->regexp.bytecode);
       js_free_rt(rt, pr->regexp.expr.source);
       break;
     }
-
     case PREDICATE_PROPERTY:
     case PREDICATE_HAS: {
       JS_FreeAtomRT(rt, pr->property.atom);
@@ -1021,27 +961,22 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
 
       break;
     }
-
     case PREDICATE_MEMBER: {
       JS_FreeValueRT(rt, pr->member.object);
       break;
     }
-
     case PREDICATE_SHIFT: {
       JS_FreeValueRT(rt, pr->shift.predicate);
       break;
     }
-
     case PREDICATE_SLICE: {
       break;
     }
-
     case PREDICATE_FUNCTION: {
       JS_FreeValueRT(rt, pr->function.func);
       JS_FreeValueRT(rt, pr->function.this_val);
       break;
     }
-
     case PREDICATE_INDEX: {
       JS_FreeValueRT(rt, pr->index.predicate);
       break;
@@ -1064,14 +999,12 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
     case PREDICATE_REGEXP: {
       break;
     }
-
     case PREDICATE_CHARSET:
     case PREDICATE_STRING: {
       ret = JS_NewArray(ctx);
       JS_SetPropertyUint32(ctx, ret, 0, JS_NewStringLen(ctx, pr->string.str, pr->string.len));
       break;
     }
-
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
@@ -1082,7 +1015,6 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
       ret = js_values_toarray(ctx, 1, (JSValue*)&pr->unary.predicate);
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -1095,14 +1027,12 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
       ret = js_values_toarray(ctx, 2, (JSValue*)&pr->binary.left);
       break;
     }
-
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
       ret = js_values_toarray(ctx, pr->boolean.npredicates, pr->boolean.predicates);
       break;
     }
-
     case PREDICATE_PROPERTY: {
       JSValue v[2] = {JS_AtomToValue(ctx, pr->property.atom), pr->property.predicate};
 
@@ -1110,39 +1040,32 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
       JS_FreeValue(ctx, v[0]);
       break;
     }
-
     case PREDICATE_HAS: {
       ret = JS_AtomToValue(ctx, pr->property.atom);
       break;
     }
-
     case PREDICATE_MEMBER: {
       ret = JS_DupValue(ctx, pr->member.object);
       break;
     }
-
     case PREDICATE_SHIFT: {
       ret = JS_DupValue(ctx, pr->shift.predicate);
       break;
     }
-
     case PREDICATE_SLICE: {
       ret = JS_NewArray(ctx);
       JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, pr->slice.start));
       JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, pr->slice.end));
       break;
     }
-
     case PREDICATE_FUNCTION: {
       ret = JS_DupValue(ctx, pr->function.func);
       break;
     }
-
     case PREDICATE_INDEX: {
       ret = JS_DupValue(ctx, pr->index.predicate);
       break;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       ret = JS_DupValue(ctx, pr->array.predicate);
@@ -1165,7 +1088,6 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
     case PREDICATE_REGEXP: {
       break;
     }
-
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
@@ -1176,7 +1098,6 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -1190,7 +1111,6 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "right"));
       break;
     }
-
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
@@ -1201,44 +1121,36 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
 
       break;
     }
-
     case PREDICATE_PROPERTY: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "atom"));
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
       break;
     }
-
     case PREDICATE_HAS: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "atom"));
       break;
     }
-
     case PREDICATE_MEMBER: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "object"));
       break;
     }
-
     case PREDICATE_SHIFT: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
       break;
     }
-
     case PREDICATE_SLICE: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "start"));
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "end"));
       break;
     }
-
     case PREDICATE_FUNCTION: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "func"));
       break;
     }
-
     case PREDICATE_INDEX: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
       break;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
@@ -1283,7 +1195,6 @@ predicate_recursive_num_args(const Predicate* pr) {
 
       break;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -1305,7 +1216,6 @@ predicate_recursive_num_args(const Predicate* pr) {
 
       break;
     }
-
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
@@ -1317,12 +1227,10 @@ predicate_recursive_num_args(const Predicate* pr) {
 
       break;
     }
-
     case PREDICATE_REGEXP: {
       n += 1;
       break;
     }
-
     case PREDICATE_PROPERTY:
     case PREDICATE_HAS: {
       if(pr->property.atom == 0)
@@ -1335,32 +1243,26 @@ predicate_recursive_num_args(const Predicate* pr) {
 
       break;
     }
-
     case PREDICATE_MEMBER: {
       n++;
       break;
     }
-
     case PREDICATE_SHIFT: {
       n++;
       break;
     }
-
     case PREDICATE_SLICE: {
       n++;
       break;
     }
-
     case PREDICATE_FUNCTION: {
       n += pr->function.arity;
       break;
     }
-
     case PREDICATE_INDEX: {
       n++;
       break;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       n++;
@@ -1386,7 +1288,6 @@ predicate_direct_num_args(const Predicate* pr) {
     case PREDICATE_SQRT: {
       return 1;
     }
-
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
@@ -1406,17 +1307,14 @@ predicate_direct_num_args(const Predicate* pr) {
 
       return n;
     }
-
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
       return 0;
     }
-
     case PREDICATE_REGEXP: {
       return 1;
     }
-
     case PREDICATE_PROPERTY:
     case PREDICATE_HAS: {
       int n = 0;
@@ -1429,27 +1327,21 @@ predicate_direct_num_args(const Predicate* pr) {
 
       return n;
     }
-
     case PREDICATE_MEMBER: {
       return 1;
     }
-
     case PREDICATE_SHIFT: {
       return 1;
     }
-
     case PREDICATE_SLICE: {
       return 1;
     }
-
     case PREDICATE_FUNCTION: {
       return pr->function.arity;
     }
-
     case PREDICATE_INDEX: {
       return 1;
     }
-
     case PREDICATE_SOME:
     case PREDICATE_EVERY: {
       return 1;

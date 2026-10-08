@@ -180,6 +180,7 @@ __list_sort(struct list_head* head, int (*cmp)(struct list_head* a, struct list_
           if(q == oldhead)
             q = NULL;
         }
+
         if(tail)
           tail->next = e;
         else
@@ -1701,22 +1702,18 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JS_FreeCString(ctx, str);
       break;
     }
-
     case TYPE_INT: {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_INT(value));
       break;
     }
-
     case TYPE_FLOAT64: {
       ret = JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(value));
       break;
     }
-
     case TYPE_BOOL: {
       ret = JS_NewBool(ctx, JS_VALUE_GET_BOOL(value));
       break;
     }
-
     case TYPE_FUNCTION:
     case TYPE_ARRAY:
     case TYPE_OBJECT: {
@@ -1735,7 +1732,6 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
 
       break;
     }
-
     case TYPE_UNDEFINED:
     case TYPE_NULL:
     case TYPE_SYMBOL:
@@ -1770,12 +1766,10 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
       dbuf_putstr(db, "[exception]");
       break;
     }
-
     case FLAG_MODULE: {
       dbuf_putstr(db, "[module]");
       break;
     }
-
     case FLAG_FUNCTION: {
       JSValue src = js_invoke(ctx, value, "toSource", 0, 0);
 
@@ -1783,7 +1777,6 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
       JS_FreeValue(ctx, src);
       break;
     }
-
     case FLAG_OBJECT: {
       const char* str = js_object_tostring(ctx, value);
 
@@ -2868,6 +2861,7 @@ js_touint64(JSContext* ctx, JSValueConst value) {
     if(!JS_ToInt64Ext(ctx, &i64, value))
       ret = i64;
   }
+
   return ret;
 }
 

@@ -228,8 +228,10 @@ property_recursion_pointer(const Vector* vec, Pointer* ptr, JSContext* ctx) {
 
       ++i;
     }
+
     return i;
   }
+
   return -1;
 }
 

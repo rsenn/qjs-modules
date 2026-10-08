@@ -260,21 +260,18 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
       break;
     }
-
     case LAST_CHILD: {
       if((it = property_recursion_enter(&w->hier, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0)
         return JS_UNDEFINED;
 
       break;
     }
-
     case NEXT_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx + 1))
         return JS_UNDEFINED;
 
       break;
     }
-
     case PARENT_NODE: {
       if(property_recursion_depth(&w->hier) <= 1)
         return JS_UNDEFINED;
@@ -283,7 +280,6 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
       break;
     }
-
     case PREVIOUS_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx - 1))
         return JS_UNDEFINED;
@@ -352,46 +348,38 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case PROP_CURRENT_NODE: {
       if(it)
         ret = property_enumeration_value(it, ctx);
 
       break;
     }
-
     case PROP_CURRENT_KEY: {
       if(it)
         ret = property_enumeration_key(it, ctx);
 
       break;
     }
-
     case PROP_CURRENT_PATH: {
       ret = property_recursion_path(&w->hier, ctx);
       break;
     }
-
     case PROP_DEPTH: {
       ret = JS_NewUint32(ctx, vector_size(&w->hier, sizeof(PropertyEnumeration)) - 1);
       break;
     }
-
     case PROP_INDEX: {
       ret = JS_NewUint32(ctx, property_enumeration_index(it));
       break;
     }
-
     case PROP_LENGTH: {
       ret = JS_NewUint32(ctx, property_enumeration_length(it));
       break;
     }
-
     case PROP_TAG_MASK: {
       ret = JS_NewUint32(ctx, w->tag_mask);
       break;
     }
-
     case PROP_FILTER: {
       ret = JS_DupValue(ctx, w->filter);
       break;
@@ -424,7 +412,6 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       it->idx = index;
       break;
     }
-
     case PROP_TAG_MASK: {
       uint32_t tag_mask = 0;
 

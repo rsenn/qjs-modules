@@ -124,17 +124,14 @@ js_dereferenceerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = dbuf_tostring_free(&db, ctx);
       break;
     }
-
     case PROP_POINTER: {
       ret = err->pointer ? js_value_mkobj2(ctx, err->pointer) : JS_NULL;
       break;
     }
-
     case PROP_ROOT: {
       ret = JS_DupValue(ctx, err->root);
       break;
     }
-
     case PROP_POS: {
       ret = JS_NewInt32(ctx, err->pos);
       break;
@@ -377,30 +374,24 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       return ret;
     }
-
     case METHOD_TO_STRING: {
       return js_pointer_serialize(ctx, this_val);
     }
-
     case METHOD_TO_RFC6901: {
       return js_pointer_rfc6901(ctx, this_val);
     }
-
     case METHOD_TO_ARRAY: {
       return pointer_toarray(ptr, ctx);
     }
-
     case METHOD_VALUES: {
       JSValue array = pointer_toarray(ptr, ctx);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
     }
-
     case METHOD_SHIFT: {
       return pointer_shift(ptr, ctx);
     }
-
     case METHOD_UNSHIFT: {
       int i;
 
@@ -410,11 +401,9 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       return JS_DupValue(ctx, this_val);
     }
-
     case METHOD_POP: {
       return pointer_pop(ptr, ctx);
     }
-
     case METHOD_PUSH: {
       int i;
 
@@ -424,7 +413,6 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       return JS_DupValue(ctx, this_val);
     }
-
     case METHOD_HIER: {
       JSValue ret = JS_NewArray(ctx);
       size_t i, j = 0;
@@ -444,7 +432,6 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       return ret;
     }
-
     case METHOD_AT: {
       JSValue ret = JS_UNDEFINED;
 
@@ -486,7 +473,6 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = pointer_slice(ptr, rng.start, rng.end, ctx);
       break;
     }
-
     case METHOD_SPLICE: {
       // int64_t s, l;
       IndexRange rng = INDEX_RANGE_INIT();
@@ -505,14 +491,12 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case METHOD_UP: {
       int64_t n = js_int64_default(ctx, argv[0], -1);
 
       ret = pointer_slice(ptr, 0, n < 0 ? (int64_t)ptr->n + n : n, ctx);
       break;
     }
-
     case METHOD_DOWN: {
       if((ret = pointer_clone(ptr, ctx))) {
         int i;
@@ -520,9 +504,9 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         for(i = 0; i < argc; i++)
           pointer_push(ret, argv[i], ctx);
       }
+
       break;
     }
-
     case METHOD_CONCAT: {
       if((ret = pointer_clone(ptr, ctx))) {
         if(!pointer_append(ret, argc, argv, ctx)) {
@@ -562,17 +546,14 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_NewBool(ctx, pointer_equal(ptr, other.ptr));
       break;
     }
-
     case METHOD_STARTSWITH: {
       ret = JS_NewBool(ctx, pointer_startswith(ptr, other.ptr));
       break;
     }
-
     case METHOD_ENDSWITH: {
       ret = JS_NewBool(ctx, pointer_endswith(ptr, other.ptr));
       break;
     }
-
     case METHOD_COMPARE: {
       int32_t aoffs = 0, boffs = 0;
       uint32_t len = MIN_NUM(ptr->n, other.ptr->n);
@@ -589,13 +570,11 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_NewInt32(ctx, pointer_compare(ptr, other.ptr, aoffs, boffs, len));
       break;
     }
-
     case METHOD_COMMON: {
       int r = pointer_compare(ptr, other.ptr, 0, 0, MIN_NUM(ptr->n, other.ptr->n));
       ret = JS_NewUint32(ctx, r < 0 ? -r - 1 : r);
       break;
     }
-
     case METHOD_RELATIVETO: {
       if(!pointer_startswith(ptr, other.ptr))
         return JS_ThrowInternalError(ctx, "path doesn't start with argument 1 path");
@@ -631,12 +610,10 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, ptr->n);
       break;
     }
-
     case PROP_PATH: {
       ret = pointer_toarray(ptr, ctx);
       break;
     }
-
     case PROP_ATOMS: {
       ret = pointer_uint32array(ptr, ctx);
       break;
@@ -660,7 +637,6 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
       pointer_fromiterable(ptr, value, ctx);
       break;
     }
-
     case PROP_ATOMS: {
       int32_t* intv;
       size_t vlen;
@@ -687,7 +663,6 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       ret = js_pointer_constructor(ctx, pointer_ctor, argc, argv);
       break;
     }
-
     case STATIC_FROM_ATOMS: {
       Pointer* ptr;
 
@@ -700,7 +675,6 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case STATIC_OF: {
       int i;
       Pointer* ptr;
@@ -740,7 +714,6 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case STATIC_IS_POINTER: {
       Pointer* ptr = js_pointer_data(argv[0]);
       ret = JS_NewBool(ctx, !!ptr);

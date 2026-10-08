@@ -355,7 +355,6 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case SOCKADDR_TOSTRING: {
       char port[FMT_ULONG];
       DynBuf dbuf;
@@ -407,7 +406,6 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, a->family);
       break;
     }
-
     case SOCKADDR_ADDR: {
       void* ptr;
 
@@ -425,7 +423,6 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case SOCKADDR_PORT: {
       int port = sockaddr_port(a);
 
@@ -450,7 +447,6 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, len);
       break;
     }
-
     case SOCKADDR_BUFFER: {
       void* obj = JS_VALUE_GET_PTR(JS_DupValue(ctx, this_val));
       size_t len = sockaddr_len(a);
@@ -485,7 +481,6 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
       break;
     }
-
     case SOCKADDR_PORT: {
       uint32_t port;
 
@@ -1473,7 +1468,6 @@ js_asyncsocket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
 #endif
       break;
     }
-
     case PROP_NONBLOCK: {
       BOOL nb = JS_ToBool(ctx, value);
 
@@ -1695,13 +1689,11 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_BIND: {
       JS_SOCKETCALL_RETURN(SYSCALL_BIND, s, bind(socket_handle(*s), &a->s, sockaddr_len(a)), JS_UNDEFINED, js_socket_error(ctx, *s));
 
       break;
     }
-
     case METHOD_ACCEPT: {
       socklen_t addrlen = sockaddr_len(a);
 
@@ -1722,7 +1714,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_CONNECT: {
       JS_SOCKETCALL(SYSCALL_CONNECT, s, connect(socket_handle(*s), &a->s, sockaddr_len(a)));
 
@@ -1731,7 +1722,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_LISTEN: {
       int32_t backlog = 5;
 
@@ -1742,7 +1732,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_RECV:
     case METHOD_RECVFROM: {
       int32_t flags = 0;
@@ -1772,7 +1761,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_SEND:
     case METHOD_SENDTO: {
       int32_t flags = 0;
@@ -1798,7 +1786,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_GETSOCKOPT: {
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
@@ -1832,7 +1819,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_SETSOCKOPT: {
       int32_t level, optname, num = 0, *tmp = 0;
       socklen_t len = 0;
@@ -1879,7 +1865,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_SHUTDOWN: {
       int32_t how;
 
@@ -1887,7 +1872,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       JS_SOCKETCALL_RETURN(SYSCALL_SHUTDOWN, s, shutdown(socket_handle(*s), how), JS_UNDEFINED, js_socket_error(ctx, *s));
       break;
     }
-
     case METHOD_CLOSE: {
       JS_SOCKETCALL_RETURN(SYSCALL_CLOSE, s, closesocket(socket_fd(*s)), JS_UNDEFINED, js_socket_error(ctx, *s));
 
@@ -1896,7 +1880,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case METHOD_RECVMSG:
     case METHOD_SENDMSG: {
 #if defined(HAVE_RECVMSG) && defined(HAVE_SENDMSG)
@@ -1920,7 +1903,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 #endif
       break;
     }
-
     case METHOD_RECVMMSG:
     case METHOD_SENDMMSG: {
 #if defined(HAVE_RECVMMSG) && defined(HAVE_SENDMMSG)
@@ -2038,17 +2020,14 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, socket_fd(s));
       break;
     }
-
     case PROP_OPEN: {
       ret = JS_NewBool(ctx, socket_open(s));
       break;
     }
-
     case PROP_EOF: {
       ret = JS_NewBool(ctx, socket_eof(s));
       break;
     }
-
     case PROP_MODE: {
 #ifdef _WIN32
 #else
@@ -2103,7 +2082,6 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case PROP_REMOTE: {
       SockAddr a;
       socklen_t len = sizeof(SockAddr);
@@ -2112,7 +2090,6 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case PROP_NONBLOCK: {
       ret = JS_NewBool(ctx, s.nonblock);
       break;
@@ -2139,7 +2116,6 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 #endif
       break;
     }
-
     case PROP_NONBLOCK: {
       s.nonblock = JS_ToBool(ctx, value);
       break;

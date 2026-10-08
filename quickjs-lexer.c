@@ -299,52 +299,42 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, tok->byte_length);
       break;
     }
-
     case TOKEN_CHARLENGTH: {
       ret = JS_NewInt64(ctx, token_char_length(tok));
       break;
     }
-
     case TOKEN_BYTERANGE: {
       ret = indexrange_toarray(token_byte_indexrange(tok), ctx);
       break;
     }
-
     case TOKEN_CHARRANGE: {
       ret = indexrange_toarray(token_char_indexrange(tok), ctx);
       break;
     }
-
     case TOKEN_BYTEPOS: {
       ret = JS_NewInt64(ctx, token_byte_pos(tok));
       break;
     }
-
     case TOKEN_CHARPOS: {
       ret = JS_NewInt64(ctx, token_char_pos(tok));
       break;
     }
-
     case TOKEN_LEXEME: {
       ret = tok->lexeme ? JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length) : JS_NULL;
       break;
     }
-
     case TOKEN_LOC: {
       ret = tok->loc ? js_location_wrap(ctx, location_dup(tok->loc)) : JS_NULL;
       break;
     }
-
     case TOKEN_ID: {
       ret = JS_NewInt32(ctx, tok->id);
       break;
     }
-
     case TOKEN_SEQ: {
       ret = JS_NewUint32(ctx, tok->seq);
       break;
     }
-
     case TOKEN_RULE: {
       Lexer* lex;
 
@@ -356,7 +346,6 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case TOKEN_TYPE: {
       Lexer* lex;
 
@@ -368,7 +357,6 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case TOKEN_LEXER: {
       ret = js_value_mkobj2(ctx, tok->opaque);
       break;
@@ -796,7 +784,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_SKIP_TOKEN: {
       if(lex->token_id == -1)
         ret = JS_ThrowInternalError(ctx, "skipToken(): lexer token id is -1");
@@ -807,7 +794,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_BACK: {
       for(int i = 0; i < argc; i++) {
         Token* tok;
@@ -838,7 +824,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_PEEKC: {
       if(!inputbuffer_eof(&lex->input)) {
         size_t len;
@@ -848,7 +833,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_GETC: {
       if(!inputbuffer_eof(&lex->input)) {
         size_t len;
@@ -858,7 +842,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_SKIP_CHARS: {
       if(!inputbuffer_eof(&lex->input)) {
         int32_t ntimes = 1;
@@ -877,7 +860,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_SKIP_UNTIL: {
       if(!inputbuffer_eof(&lex->input)) {
         JSValueConst pred = argv[0];
@@ -910,7 +892,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_GET_RANGE: {
       size_t start, end;
 
@@ -930,12 +911,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[start - lex->base], end - start);
       break;
     }
-
     case LEXER_CURRENT_LINE: {
       ret = JS_NewString(ctx, lexer_current_line(lex, ctx));
       break;
     }
-
     case LEXER_TOKEN_CLASS: {
       Token* tok;
       LexerRule* rule;
@@ -951,7 +930,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_GET_RULE: {
       LexerRule* rule;
 
@@ -975,7 +953,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_ERROR: {
       const char* message = JS_ToCString(ctx, argv[0]);
       char* location = location_tostring(&lex->loc, ctx);
@@ -985,7 +962,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       js_free(ctx, location);
       break;
     }
-
     case LEXER_PUSH_STATE: {
       const char* state = JS_ToCString(ctx, argv[0]);
       int id = lexer_state_push(lex, state);
@@ -994,7 +970,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       JS_FreeCString(ctx, state);
       break;
     }
-
     case LEXER_POP_STATE: {
       int id;
 
@@ -1007,7 +982,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_TOP_STATE: {
       int32_t index = 0, id;
 
@@ -1023,7 +997,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LEXER_PEEK:
     case LEXER_PEEKTOKEN: {
       int32_t id = lexer_peek(lex, 0, ctx);
@@ -1092,22 +1065,18 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, lex->byte_offset);
       break;
     }
-
     case LEXER_SIZE: {
       ret = JS_NewInt64(ctx, lex->base + lex->size);
       break;
     }
-
     case LEXER_ENDOFFILE: {
       ret = JS_NewBool(ctx, lex->reader.read ? lex->at_eof && LEXER_IDX(lex) >= lex->size : inputbuffer_eof(&lex->input));
       break;
     }
-
     case LEXER_FILENAME: {
       ret = lex->loc.file > -1 ? JS_AtomToValue(ctx, lex->loc.file) : JS_UNDEFINED;
       break;
     }
-
     case LEXER_LOCATION: {
       Location* loc;
 
@@ -1118,7 +1087,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case LEXER_RULENAMES: {
       LexerRule* rule;
       uint32_t i = 0;
@@ -1132,7 +1100,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case LEXER_RULES: {
       LexerRule* rule;
       uint32_t i = 0;
@@ -1146,32 +1113,26 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case LEXER_MODE: {
       ret = JS_NewInt32(ctx, lex->mode);
       break;
     }
-
     case LEXER_SEQUENCE: {
       ret = JS_NewInt64(ctx, lex->seq);
       break;
     }
-
     case LEXER_BYTELENGTH: {
       ret = JS_NewUint32(ctx, lex->byte_length);
       break;
     }
-
     case LEXER_LENGTH: {
       ret = JS_NewUint32(ctx, lexer_charlen(lex));
       break;
     }
-
     case LEXER_STATE: {
       ret = JS_NewInt32(ctx, lex->state);
       break;
     }
-
     case LEXER_STATES: {
       ret = JS_NewArray(ctx);
 
@@ -1186,12 +1147,10 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case LEXER_STATE_DEPTH: {
       ret = JS_NewUint32(ctx, lexer_state_depth(lex));
       break;
     }
-
     case LEXER_STATE_STACK: {
       char* name;
       size_t i = 0, n = vector_size(&lex->state_stack, sizeof(int32_t));
@@ -1210,7 +1169,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case LEXER_INPUT: {
       if(lex->reader.read)
         return JS_ThrowTypeError(ctx, "Lexer.input: a stream input is not kept in memory");
@@ -1218,7 +1176,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = block_to_arraybuffer(lex->input.block, ctx);
       break;
     }
-
     case LEXER_LEXEME: {
       ret = JS_NewStringLen(ctx, (const char*)LEXER_PTR(lex), lex->byte_length);
       break;
@@ -1262,7 +1219,6 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
       break;
     }
-
     case LEXER_BYTELENGTH: {
       Token* tok;
 
@@ -1273,7 +1229,6 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
       break;
     }
-
     case LEXER_FILENAME: {
       if(lex->loc.file > -1)
         JS_FreeAtom(ctx, lex->loc.file);
@@ -1281,7 +1236,6 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       lex->loc.file = JS_ValueToAtom(ctx, value);
       break;
     }
-
     case LEXER_MODE: {
       int64_t m;
 
@@ -1289,7 +1243,6 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       lex->mode = m;
       break;
     }
-
     case LEXER_STATE: {
       int32_t state = lexer_to_state(lex, value, ctx);
       uint32_t num_states = vector_size(&lex->states, sizeof(int32_t));
@@ -1448,12 +1401,10 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       js_free(ctx, lexeme);
       break;
     }
-
     case LEXER_EOF: {
       ret = JS_NULL;
       break;
     }
-
     case LEXER_EXCEPTION: {
       ret = JS_EXCEPTION;
       break;

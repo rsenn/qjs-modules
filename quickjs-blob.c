@@ -22,9 +22,7 @@ blob_new(JSContext* ctx, const char* type) {
     return 0;
 
   blob->type = type ? js_strdup(ctx, type) : 0;
-
   vector_init(&blob->vec, ctx);
-
   return blob;
 }
 
@@ -51,9 +49,11 @@ blob_input(JSContext* ctx, Blob* blob) {
 static void
 blob_stream_finalizer(JSRuntime* rt, void* opaque) {
   InputBuffer* input = opaque;
+
   if(input) {
     if(input->data)
       js_free_rt(rt, input->data);
+
     js_free_rt(rt, input);
   }
 }
@@ -102,7 +102,6 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, blob->size);
       break;
     }
-
     case BLOB_TYPE: {
       ret = JS_NewString(ctx, blob->type ? blob->type : "");
       break;
@@ -190,13 +189,11 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
             break;
           }
         }
+
         blob->type = type;
       }
     }
   }
-
-  /*if(blob->type == 0)
-    blob->type = js_strdup(ctx, "application/binary");*/
 
   JS_SetOpaque(obj, blob);
   return obj;
@@ -228,7 +225,6 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_promise_resolve(ctx, js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val));
       break;
     }
-
     case BLOB_BYTES: {
       JSValue buf = js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val);
 
@@ -237,12 +233,10 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       JS_FreeValue(ctx, buf);
       break;
     }
-
     case BLOB_TEXT: {
       ret = js_promise_resolve(ctx, JS_NewStringLen(ctx, (const char*)blob->data, blob->size));
       break;
     }
-
     case BLOB_SLICE: {
       IndexRange rng = INDEX_RANGE_INIT();
       char* type = 0;
@@ -258,21 +252,21 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
     case BLOB_STREAM: {
+      InputBuffer* input;
+      uint8_t* data_copy;
+
       /* Create a ReadableStream over the blob's data.
        * We need to copy the blob data because the blob object may be
        * garbage collected before the stream finishes reading. We also
        * allocate the InputBuffer on the heap so the Reader can own it. */
-      uint8_t* data_copy = js_malloc(ctx, blob->size);
-      if(!data_copy) {
+      if(!(data_copy = js_malloc(ctx, blob->size))) {
         ret = JS_EXCEPTION;
         break;
       }
       memcpy(data_copy, blob->data, blob->size);
 
-      InputBuffer* input = js_mallocz(ctx, sizeof(InputBuffer));
-      if(!input) {
+      if(!(input = js_mallocz(ctx, sizeof(InputBuffer)))) {
         js_free(ctx, data_copy);
         ret = JS_EXCEPTION;
         break;

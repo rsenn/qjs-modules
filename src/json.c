@@ -127,7 +127,7 @@ json_init(JsonParser* json, Reader reader, const char* filename, JSContext* ctx)
   json->cmt_state = 0;
   json->comments = FALSE;
 
-  dbuf_init2(&json->token, 0, 0);
+  dbuf_init_ctx(ctx, &json->token);
 
   if(!(json->loc = location_new(ctx)))
     return FALSE;

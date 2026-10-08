@@ -40,7 +40,6 @@ parse_primitive(JSContext* ctx, sj_Value val) {
       scan_double(val.start, &num);
       return JS_NewFloat64(ctx, num);
     }
-
     case SJ_STRING: return JS_NewStringLen(ctx, val.start, val.end - val.start);
     case SJ_NULL: return JS_NULL;
     case SJ_BOOL: return val.start[0] == 't' ? JS_TRUE : JS_FALSE;
@@ -258,6 +257,7 @@ write_json_string(Writer* wr, const char* s, size_t len) {
         } else {
           w = writer_putc(wr, c);
         }
+
         break;
     }
 
@@ -848,7 +848,6 @@ json_builder_value(JsonBuilder* b, jr_type_t type, const char* data, size_t len)
       val = JS_NewFloat64(ctx, num);
       break;
     }
-
     case jr_type_string: {
       val = data ? JS_NewStringLen(ctx, data, len) : JS_NewString(ctx, "");
       break;
@@ -989,7 +988,6 @@ json_pushparser_tojs(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
 
       return JS_NewFloat64(ctx, num);
     }
-
     case jr_type_string:
     case jr_type_key:
     case jr_type_error: return (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, "");
@@ -1997,6 +1995,7 @@ json_writer_object_end(JsonWriter* wr, JSContext* ctx) {
     JS_ThrowTypeError(ctx, "JsonWriter: expected arrayEnd, got objectEnd");
     return -1;
   }
+
   if(top->expecting_value) {
     JS_ThrowTypeError(ctx, "JsonWriter: expected value for key");
     return -1;
@@ -2101,7 +2100,6 @@ js_jsonwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       w = json_writer_key(wr, ctx, argv[0]);
       break;
     }
-
     case JSON_WRITER_VALUE: {
       if(argc < 1)
         return JS_ThrowTypeError(ctx, "JsonWriter.value() requires an argument");
@@ -2385,27 +2383,22 @@ js_jsonparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, p->pos);
       break;
     }
-
     case JSON_PARSER_COMMENTS: {
       ret = JS_NewBool(ctx, p->comments);
       break;
     }
-
     case JSON_PARSER_TOKEN: {
       ret = dbuf_tostring(&p->token, ctx);
       break;
     }
-
     case JSON_PARSER_STATE: {
       ret = JS_NewInt32(ctx, p->state);
       break;
     }
-
     case JSON_PARSER_DEPTH: {
       ret = JS_NewUint32(ctx, p->stack.len);
       break;
     }
-
     case JSON_PARSER_LOCATION: {
       ret = js_location_wrap(ctx, p->loc);
       break;

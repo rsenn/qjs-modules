@@ -49,6 +49,7 @@ sj__is_string(char* cur, char* end, char* expect) {
 
     expect++, cur++;
   }
+
   return true;
 }
 

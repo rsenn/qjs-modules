@@ -955,6 +955,7 @@ uint16_decode_le(const uint8_t* p, int max_len, void* out) {
     *(uint16_t*)out = uint16_get_le(p);
     return 2;
   }
+
   return 0;
 }
 
@@ -964,6 +965,7 @@ uint16_decode_be(const uint8_t* p, int max_len, void* out) {
     *(uint16_t*)out = uint16_get_be(p);
     return 2;
   }
+
   return 0;
 }
 
@@ -973,6 +975,7 @@ uint32_decode_le(const uint8_t* p, int max_len, void* out) {
     *(uint32_t*)out = uint32_get_le(p);
     return 4;
   }
+
   return 0;
 }
 
@@ -982,6 +985,7 @@ uint32_decode_be(const uint8_t* p, int max_len, void* out) {
     *(uint32_t*)out = uint32_get_be(p);
     return 4;
   }
+
   return 0;
 }
 

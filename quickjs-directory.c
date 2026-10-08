@@ -247,12 +247,10 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
       ret = name;
       break;
     }
-
     case FLAG_TYPE: {
       ret = JS_NewInt32(ctx, type);
       break;
     }
-
     case FLAG_BOTH: {
       ret = JS_NewArray(ctx);
 
@@ -353,7 +351,6 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       JS_FreeCString(ctx, dir);
       break;
     }
-
     case DIRECTORY_ADOPT: {
       int32_t fd = -1;
 
@@ -364,22 +361,18 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
-
     case DIRECTORY_ITERATOR: {
       ret = JS_DupValue(ctx, this_val);
       break;
     }
-
     case DIRECTORY_CLOSE: {
       getdents_close(directory);
       break;
     }
-
     case DIRECTORY_VALUE_OF: {
       ret = JS_NewInt64(ctx, getdents_handle(directory));
       break;
     }
-
     case DIRECTORY_NEXT: {
       DirEntry* entry;
       int32_t* opts = ((int32_t*)((char*)directory + getdents_size()));
@@ -420,12 +413,10 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       JS_FreeValue(ctx, value);
       break;
     }
-
     case DIRECTORY_RETURN: {
       ret = js_iterator_result(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, TRUE);
       break;
     }
-
     case DIRECTORY_THROW: {
       ret = JS_Throw(ctx, JS_DupValue(ctx, argv[0]));
       break;
@@ -483,7 +474,6 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
 
   directory_ctor = JS_NewCFunction2(ctx, js_directory_constructor, "Directory", 1, JS_CFUNC_constructor, 0);
   JSValue generator_proto = js_generator_prototype(ctx);
-  // directory_proto = JS_NewObjectProto(ctx, generator_proto);
   directory_proto = JS_NewObject(ctx);
   JS_FreeValue(ctx, generator_proto);
 

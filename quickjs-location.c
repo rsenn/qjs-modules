@@ -81,28 +81,24 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case PROP_LINE: {
       if(loc->line != -1)
         ret = JS_NewUint32(ctx, loc->line + 1);
 
       break;
     }
-
     case PROP_COLUMN: {
       if(loc->column != -1)
         ret = JS_NewUint32(ctx, loc->column + 1);
 
       break;
     }
-
     case PROP_CHAROFFSET: {
       if(loc->char_offset >= 0)
         ret = JS_NewInt64(ctx, loc->char_offset);
 
       break;
     }
-
     case PROP_BYTEOFFSET: {
       if(loc->byte_offset >= 0)
         ret = JS_NewInt64(ctx, loc->byte_offset);
@@ -141,22 +137,18 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
       break;
     }
-
     case PROP_LINE: {
       loc->line = other ? other->line : js_toint32(ctx, value);
       break;
     }
-
     case PROP_COLUMN: {
       loc->column = other ? other->column : js_toint32(ctx, value);
       break;
     }
-
     case PROP_CHAROFFSET: {
       loc->char_offset = other ? other->char_offset : js_toint64(ctx, value);
       break;
     }
-
     case PROP_BYTEOFFSET: {
       loc->byte_offset = other ? other->byte_offset : js_toint64(ctx, value);
       break;
@@ -340,12 +332,10 @@ js_location_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_NewBool(ctx, location_equal(loc, other));
       break;
     }
-
     case METHOD_CLONE: {
       ret = js_location_wrap(ctx, location_clone(loc, ctx));
       break;
     }
-
     case METHOD_COPY: {
       Location* other;
 
@@ -355,7 +345,6 @@ js_location_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       location_copy(loc, other, ctx);
       break;
     }
-
     case METHOD_NEXTCHAR: {
       int32_t code = -1;
 
@@ -380,7 +369,6 @@ js_location_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case METHOD_TOSTRING: {
       ret = js_location_tostring(ctx, loc);
       break;

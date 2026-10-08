@@ -129,7 +129,6 @@ js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
-
     case LIBMAGIC_FILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -140,7 +139,6 @@ js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
-
     case LIBMAGIC_BUFFER: {
       int n = 1;
       InputBuffer input = js_input_chars(ctx, argv[0]);
@@ -172,7 +170,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = JS_NewInt32(ctx, magic_getflags(cookie));
       break;
     }
-
     case METHOD_SETFLAGS: {
       int32_t flags = -1;
 
@@ -180,7 +177,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = JS_NewInt32(ctx, magic_setflags(cookie, flags));
       break;
     }
-
     case METHOD_CHECK: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -192,7 +188,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case METHOD_COMPILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -204,7 +199,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case METHOD_LIST: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -216,7 +210,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case METHOD_LOAD: {
       int i = 0;
 
@@ -234,7 +227,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = JS_NewInt32(ctx, i);
       break;
     }
-
     case METHOD_GETPARAM: {
       int32_t param = -1;
       size_t value = 0;
@@ -246,7 +238,6 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case METHOD_SETPARAM: {
       int32_t param = -1;
       int64_t value = -1;
@@ -277,12 +268,10 @@ js_magic_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, magic_error(cookie));
       break;
     }
-
     case LIBMAGIC_ERRNO: {
       ret = JS_NewInt32(ctx, magic_errno(cookie));
       break;
     }
-
     case METHOD_VERSION: {
       ret = JS_NewInt32(ctx, magic_version());
       break;

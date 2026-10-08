@@ -460,7 +460,6 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case SCRIPT_FILE:
     case SCRIPT_FILENAME: {
       char* file;
@@ -470,7 +469,6 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case SCRIPT_DIRNAME: {
       char* file;
 
@@ -1025,7 +1023,6 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
       dbuf_putstr(buf, "tmp();");
       break;
     }
-
     case ALL: {
       dbuf_putstr(buf, "Object.assign(globalThis, tmp);");
       break;
@@ -1149,7 +1146,7 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   size_t pos = list_size(&loaded_modules);
 
-  dbuf_init2(&dbuf, 0, 0);
+  dbuf_init_ctx(ctx, &dbuf);
 
   jsm_module_script(&dbuf, path, name, FALSE);
 
@@ -2068,7 +2065,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 }
 
 /* bytes of a load hook's `source`: a string, ArrayBuffer or typed array;
-   *pfree receives what to JS_FreeCString (NULL for buffers) */
+ *pfree receives what to JS_FreeCString (NULL for buffers) */
 static const char*
 jsm_source_bytes(JSContext* ctx, JSValueConst source, size_t* plen, BOOL* is_str) {
   size_t off = 0, blen = 0, bpe = 0;
@@ -2660,7 +2657,6 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = JS_IsUninitialized(tmp_global) ? js_eval_file(ctx, str, flags) : js_eval_this_file(ctx, tmp_global, str, flags);
       break;
     }
-
     case EVAL_BUF: {
       ret = JS_IsUninitialized(tmp_global) ? js_eval_buf(ctx, str, len, file, flags) : js_eval_this_buf(ctx, tmp_global, str, len, file, flags);
       break;
@@ -2790,7 +2786,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case FIND_MODULE_INDEX: {
       int32_t start = 0;
 
@@ -2801,7 +2796,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = JS_NewInt32(ctx, jsm_module_indexof(m));
       break;
     }
-
     case LOAD_MODULE: {
       const char* key = 0;
 
@@ -2818,7 +2812,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case REQUIRE_MODULE: {
       if((m = jsm_module_load(ctx, name, 0)))
         val = JS_GetModuleNamespace(ctx, m);
@@ -2827,7 +2820,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case LOCATE_MODULE: {
       char* s;
 
@@ -2839,7 +2831,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case NORMALIZE_MODULE: {
       const char *path, *module, *file;
 
@@ -2856,7 +2847,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       JS_FreeCString(ctx, module);
       break;
     }
-
     case RESOLVE_MODULE: {
       val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;

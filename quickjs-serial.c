@@ -72,17 +72,14 @@ js_serialport_error(JSContext* ctx, struct sp_port* port, enum sp_return result)
       JS_ThrowInternalError(ctx, "libserialport argument error for port '%s'", sp_get_port_name(port));
       break;
     }
-
     case SP_ERR_FAIL: {
       JS_ThrowInternalError(ctx, "libserialport OS error for port '%s': %s", sp_get_port_name(port), sp_last_error_message());
       break;
     }
-
     case SP_ERR_SUPP: {
       JS_ThrowInternalError(ctx, "libserialport operation not supported for port '%s'", sp_get_port_name(port));
       break;
     }
-
     case SP_ERR_MEM: {
       JS_ThrowInternalError(ctx, "libserialport out of memory for port '%s'", sp_get_port_name(port));
       break;
@@ -293,12 +290,10 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
-
     case SERIALPORT_CLOSE: {
       sp_close(port);
       break;
     }
-
     case SERIALPORT_GETINFO: {
       int vid = -1, pid = -1;
 
@@ -350,7 +345,6 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
-
     case SERIALPORT_GETSIGNALS: {
       enum sp_signal signals;
 
@@ -366,7 +360,6 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
-
     case SERIALPORT_SETSIGNALS: {
       JSValue dtr, rts, brk;
 
@@ -388,7 +381,6 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JS_FreeValue(ctx, brk);
       break;
     }
-
     case SERIALPORT_FLUSH: {
       enum sp_return result;
       int32_t which = SP_BUF_BOTH;
@@ -432,22 +424,18 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case SERIALPORT_NAME: {
       ret = JS_NewString(ctx, sp_get_port_name(port));
       break;
     }
-
     case SERIALPORT_DESCRIPTION: {
       ret = JS_NewString(ctx, sp_get_port_description(port));
       break;
     }
-
     case SERIALPORT_TRANSPORT: {
       ret = JS_NewString(ctx, ((const char* [3]){"native", "usb", "bluetooth"})[sp_get_port_transport(port) - SP_TRANSPORT_NATIVE]);
       break;
     }
-
     case SERIALPORT_INPUTWAITING: {
       int64_t result;
 
@@ -458,7 +446,6 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case SERIALPORT_OUTPUTWAITING: {
       int64_t result;
 

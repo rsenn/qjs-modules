@@ -62,7 +62,6 @@ textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
       ret = JS_NewStringLen(ctx, inputbuffer_data(&in), in.pos);
       break;
     }
-
     case UTF16: {
       Decoding* decode = dec->endian ? &uint16_decode_be : &uint16_decode_le;
 
@@ -87,7 +86,6 @@ textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
 
       break;
     }
-
     case UTF32: {
       Decoding* decode = dec->endian ? &uint32_decode_be : &uint32_decode_le;
 
@@ -165,12 +163,10 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, textcode_encodings[dec->type_code]);
       break;
     }
-
     case DECODER_ENDIANNESS: {
       ret = JS_NewBool(ctx, dec->endian == BIG);
       break;
     }
-
     case DECODER_BUFFERED: {
       ret = JS_NewUint32(ctx, dec->buflen);
       break;
@@ -370,12 +366,10 @@ js_encoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, textcode_encodings[enc->type_code]);
       break;
     }
-
     case ENCODER_ENDIANNESS: {
       ret = JS_NewBool(ctx, enc->endian == BIG);
       break;
     }
-
     case ENCODER_BUFFERED: {
       ret = JS_NewUint32(ctx, enc->buflen);
       break;
@@ -469,7 +463,6 @@ js_encoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       dbuf_free(&db);
       break;
     }
-
     case ENCODER_ENCODE_INTO: {
       InputBuffer in = js_input_chars(ctx, argv[0]);
       OutputBuffer out = js_output_typedarray(ctx, argv[1]);

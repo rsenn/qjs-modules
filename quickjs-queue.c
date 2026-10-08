@@ -82,7 +82,6 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       inputbuffer_free(&input, ctx);
       break;
     }
-
     case QUEUE_READ: {
       OutputBuffer output = js_output_args(ctx, argc, argv);
       int64_t r = queue_read(queue, outputbuffer_data(&output), outputbuffer_length(&output));
@@ -91,7 +90,6 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       outputbuffer_free(&output, ctx);
       break;
     }
-
     case QUEUE_PEEK: {
       OutputBuffer output = js_output_args(ctx, argc, argv);
       int64_t r = queue_peek(queue, outputbuffer_data(&output), outputbuffer_length(&output));
@@ -100,7 +98,6 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       outputbuffer_free(&output, ctx);
       break;
     }
-
     case QUEUE_SKIP: {
       uint32_t n = 0;
 
@@ -109,12 +106,10 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = JS_NewInt64(ctx, queue_skip(queue, n));
       break;
     }
-
     case QUEUE_CLEAR: {
       queue_clear(queue);
       break;
     }
-
     case QUEUE_NEXT: {
       Chunk* chunk;
 
@@ -122,7 +117,6 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case QUEUE_CHUNK: {
       Chunk* chunk;
       int64_t pos = -1;
@@ -143,7 +137,6 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
-
     case QUEUE_AT: {
       Chunk* chunk;
       int64_t offset = -1;
@@ -186,12 +179,10 @@ js_queue_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, queue_size(queue));
       break;
     }
-
     case QUEUE_EMPTY: {
       ret = JS_NewBool(ctx, queue_size(queue) == 0);
       break;
     }
-
     case QUEUE_HEAD: {
       Chunk* head;
 
@@ -200,7 +191,6 @@ js_queue_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case QUEUE_TAIL: {
       Chunk* head;
 
@@ -209,7 +199,6 @@ js_queue_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case QUEUE_CHUNKS: {
       ret = JS_NewUint32(ctx, queue->nchunks);
       break;

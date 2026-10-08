@@ -175,10 +175,13 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
         if(!(it = property_recursion_pop(vec, ctx)))
           break;
       }
+
       return it ? i : 0;
     }
+
     return 1;
   }
+
   return 0;
 }
 

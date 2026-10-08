@@ -519,6 +519,7 @@ unicode_len_utf8(unsigned int c) {
     }
     len++;
   }
+
   return len;
 }
 

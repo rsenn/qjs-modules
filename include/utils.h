@@ -109,6 +109,7 @@ arguments_shift(Arguments* args) {
     ret = args->v[args->p];
     args->p++;
   }
+
   return ret;
 }
 
@@ -139,6 +140,7 @@ js_arguments_shift(JSArguments* args) {
     ret = args->v[args->p];
     args->p++;
   }
+
   return ret;
 }
 
@@ -162,6 +164,7 @@ js_arguments_shiftn(JSArguments* args, uint32_t n) {
     i++;
     n--;
   }
+
   return i;
 }
 

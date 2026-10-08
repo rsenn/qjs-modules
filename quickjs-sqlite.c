@@ -298,31 +298,26 @@ js_sqlite_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewInt32(ctx, sqlite3_changes(db->db));
       break;
     }
-
     case PROP_INSERT_ID: {
       if(db->db)
         ret = JS_NewInt64(ctx, sqlite3_last_insert_rowid(db->db));
       break;
     }
-
     case PROP_TOTAL_CHANGES: {
       if(db->db)
         ret = JS_NewInt32(ctx, sqlite3_total_changes(db->db));
       break;
     }
-
     case PROP_ERROR_MESSAGE: {
       const char* error = db->db ? sqlite3_errmsg(db->db) : 0;
       ret = error && *error ? JS_NewString(ctx, error) : JS_NULL;
       break;
     }
-
     case PROP_ERROR_CODE: {
       if(db->db)
         ret = JS_NewInt32(ctx, sqlite3_errcode(db->db));
       break;
     }
-
     case PROP_FILENAME: {
       const char* file = db->db ? sqlite3_db_filename(db->db, "main") : 0;
       ret = file && *file ? JS_NewString(ctx, file) : JS_NULL;
@@ -339,7 +334,7 @@ js_sqlite_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   DynBuf buf;
   SQLiteConnection* db = JS_GetOpaque(this_val, js_sqlite_class_id);
 
-  dbuf_init2(&buf, 0, 0);
+  dbuf_init_ctx(ctx, &buf);
 
   for(int i = 0; i < argc; i++) {
     if(i > 0)
@@ -359,7 +354,7 @@ js_sqlite_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   DynBuf buf;
   SQLiteConnection* db = JS_GetOpaque(this_val, js_sqlite_class_id);
 
-  dbuf_init2(&buf, 0, 0);
+  dbuf_init_ctx(ctx, &buf);
 
   for(int i = 0; i < argc; i++) {
     if(i > 0)
@@ -387,7 +382,7 @@ js_sqlite_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   tbl = JS_ToCStringLen(ctx, &tbl_len, argv[0]);
 
-  dbuf_init2(&buf, 0, 0);
+  dbuf_init_ctx(ctx, &buf);
   dbuf_putstr(&buf, "INSERT INTO ");
   dbuf_put(&buf, (const uint8_t*)tbl, tbl_len);
   dbuf_putstr(&buf, " ");
@@ -842,7 +837,6 @@ result_column_value(JSContext* ctx, SQLiteResult* res, int col, int rtype) {
 
       return JS_NewInt64(ctx, v);
     }
-
     case SQLITE_FLOAT: return JS_NewFloat64(ctx, sqlite3_column_double(stmt, col));
 
     case SQLITE_TEXT: {
@@ -851,7 +845,6 @@ result_column_value(JSContext* ctx, SQLiteResult* res, int col, int rtype) {
 
       return JS_NewStringLen(ctx, text ? text : "", text ? len : 0);
     }
-
     case SQLITE_BLOB: {
       const void* blob = sqlite3_column_blob(stmt, col);
       int len = sqlite3_column_bytes(stmt, col);
@@ -1025,7 +1018,6 @@ js_sqliteresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       ret = field_array(ctx, res->stmt, (int)index);
       break;
     }
-
     case METHOD_FETCH_FIELDS: {
       int n = sqlite3_column_count(res->stmt);
 
@@ -1035,7 +1027,6 @@ js_sqliteresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
         JS_SetPropertyUint32(ctx, ret, i, field_array(ctx, res->stmt, i));
       break;
     }
-
     case METHOD_FETCH_ROW:
     case METHOD_FETCH_ASSOC: {
       BOOL done = FALSE;
@@ -1051,13 +1042,13 @@ js_sqliteresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
       break;
     }
-
     case METHOD_RESET: {
       if(res->stmt) {
         sqlite3_reset(res->stmt);
         res->row_index = 0;
         res->done = FALSE;
       }
+
       break;
     }
   }
@@ -1104,12 +1095,10 @@ js_sqliteresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, res->done);
       break;
     }
-
     case PROP_NUM_ROWS: {
       ret = JS_NewInt64(ctx, res->row_index);
       break;
     }
-
     case PROP_NUM_FIELDS: {
       ret = JS_NewInt32(ctx, res->stmt ? sqlite3_column_count(res->stmt) : 0);
       break;

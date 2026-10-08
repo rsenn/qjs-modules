@@ -527,9 +527,9 @@ start:
         } else if(res && neg)
           break;
       }
+
       break;
     }
-
     case '\\': {
       if(!(flags & PATH_FNM_NOESCAPE)) {
         pattern++;
@@ -542,7 +542,6 @@ start:
 
       break;
     }
-
     case '*': {
       if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch5(pattern, plen, string + 1, slen - 1, flags)) {
         pattern++;
@@ -552,7 +551,6 @@ start:
 
       return 0;
     }
-
     case '?': {
       if(*string == '/' && (flags & PATH_FNM_PATHNAME))
         break;

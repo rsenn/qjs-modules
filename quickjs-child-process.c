@@ -201,7 +201,11 @@ child_process_result(JSContext* ctx, ChildProcess* cp) {
   JS_SetPropertyUint32(ctx, output, 0, JS_NULL);
 
   if(cp->pipe_fds) {
-    static const char* names[3] = {NULL, "stdout", "stderr"};
+    static const char* names[3] = {
+        NULL,
+        "stdout",
+        "stderr",
+    };
 
     for(int i = 1; i < num; i++)
       if(cp->pipe_fds[i])
@@ -350,52 +354,42 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = cp->file ? JS_NewString(ctx, cp->file) : JS_NULL;
       break;
     }
-
     case CHILD_PROCESS_SPAWNARGS: {
       ret = cp->args ? js_strv_to_array(ctx, cp->args) : JS_NULL;
       break;
     }
-
     case CHILD_PROCESS_STDIN: {
       ret = child_process_fd(ctx, cp, 0);
       break;
     }
-
     case CHILD_PROCESS_STDOUT: {
       ret = child_process_fd(ctx, cp, 1);
       break;
     }
-
     case CHILD_PROCESS_STDERR: {
       ret = child_process_fd(ctx, cp, 2);
       break;
     }
-
     case CHILD_PROCESS_STDIO: {
       ret = cp->parent_fds ? js_intv_to_array(ctx, cp->parent_fds, cp->num_fds) : JS_NULL;
       break;
     }
-
     case CHILD_PROCESS_PID: {
       ret = JS_NewInt32(ctx, cp->pid);
       break;
     }
-
     case CHILD_PROCESS_EXITCODE: {
       ret = child_process_exitcode(ctx, cp);
       break;
     }
-
     case CHILD_PROCESS_SIGNALCODE: {
       ret = child_process_signalcode(ctx, cp);
       break;
     }
-
     case CHILD_PROCESS_KILLED: {
       ret = JS_NewBool(ctx, cp->killed);
       break;
     }
-
     case CHILD_PROCESS_ONEXIT: {
       ret = js_is_null_or_undefined(cp->onexit) ? JS_NULL : JS_DupValue(ctx, cp->onexit);
       break;

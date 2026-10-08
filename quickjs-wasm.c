@@ -151,6 +151,7 @@ env_new(JSContext* ctx) {
     JS_FreeValue(ctx, obj);
     return JS_ThrowInternalError(ctx, "cannot create %s runtime", WB_GetBackendName());
   }
+
   return obj;
 }
 
@@ -173,6 +174,7 @@ env_get(JSContext* ctx) {
       return ex;
     }
   }
+
   return JS_DupValue(ctx, wasm_default_env);
 }
 
@@ -242,6 +244,7 @@ get_u32_field(JSContext* ctx, JSValueConst desc, const char* name, const char* a
     if(JS_IsException(v = JS_GetPropertyStr(ctx, desc, alt)))
       return -1;
   }
+
   if(JS_IsUndefined(v)) {
     JS_FreeValue(ctx, v);
     return 0;
@@ -263,26 +266,31 @@ get_limits(JSContext* ctx, JSValueConst desc, uint32_t cap, WBLimits* lim) {
     JS_ThrowTypeError(ctx, "descriptor must be an object");
     return -1;
   }
+
   if((r = get_u32_field(ctx, desc, "initial", "minimum", &lim->min)) < 0)
     return -1;
   if(!r) {
     JS_ThrowTypeError(ctx, "descriptor needs an 'initial' member");
     return -1;
   }
+
   if((r = get_u32_field(ctx, desc, "maximum", NULL, &v)) < 0)
     return -1;
   if(r) {
     lim->has_max = 1;
     lim->max = v;
   }
+
   if(lim->min > cap || (lim->has_max && lim->max > cap)) {
     JS_ThrowRangeError(ctx, "size is larger than %u", cap);
     return -1;
   }
+
   if(lim->has_max && lim->max < lim->min) {
     JS_ThrowRangeError(ctx, "'maximum' is less than 'initial'");
     return -1;
   }
+
   return 0;
 }
 
@@ -338,6 +346,7 @@ host_call(WBContext* wctx, void* opaque, const WBValue* args, WBValue* results) 
     status = h->type.nresults ? value_from_js(h->ctx, h->type.results[0], ret, &results[0]) : 0;
     JS_FreeValue(h->ctx, ret);
   }
+
   return status;
 }
 
@@ -379,6 +388,7 @@ call_wbfunc(JSContext* ctx, Env* e, WBFunc* f, int argc, JSValueConst argv[]) {
     for(size_t i = 0; i < ft->nresults; i++)
       JS_SetPropertyUint32(ctx, ret, (uint32_t)i, value_to_js(ctx, &res[i]));
   }
+
   return ret;
 }
 
@@ -663,6 +673,7 @@ table_store(JSContext* ctx, Table* t, uint32_t index, JSValueConst fn) {
     JS_ThrowTypeError(ctx, "value must be an exported WebAssembly function or null");
     return -1;
   }
+
   if(WB_SetTableElem(env_of(t->env)->ctx, t->table, index, &v)) {
     throw_backend(ctx, env_of(t->env));
     return -1;
@@ -1023,6 +1034,7 @@ js_module_list(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     JS_SetPropertyStr(ctx, o, "kind", JS_NewString(ctx, kind_names[t->kind]));
     JS_SetPropertyUint32(ctx, arr, (uint32_t)i, o);
   }
+
   return arr;
 }
 
@@ -1114,6 +1126,7 @@ resolve_import(JSContext* ctx, Env* e, JSValueConst imports, const WBImportDesc*
         ret = 0;
         break;
       }
+
       if(!JS_IsFunction(ctx, val)) {
         throw_link_error(ctx, "import is not a function");
         goto done;
@@ -1219,15 +1232,18 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
 
   if(!mod)
     return argc > 0 ? JS_EXCEPTION : JS_ThrowTypeError(ctx, "WebAssembly.Instance needs a Module");
+  
   e = env_of(mod->env);
 
   if(WB_GetModuleImports(e->ctx, mod->mod, &descs, &n))
     return throw_backend(ctx, e);
+  
   if(n && !(argc > 1 && JS_IsObject(argv[1])))
     return JS_ThrowTypeError(ctx, "imports must be an object when the module has imports");
 
   if(!(inst = js_mallocz(ctx, sizeof(*inst))))
     return JS_EXCEPTION;
+
   inst->env = JS_DupValue(ctx, mod->env);
   inst->module = JS_DupValue(ctx, argv[0]);
   inst->deps = JS_NewArray(ctx);
@@ -1236,6 +1252,7 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
     JS_ThrowOutOfMemory(ctx);
     goto fail;
   }
+
   for(size_t i = 0; i < n; i++)
     if(resolve_import(ctx, e, argv[1], &descs[i], &imports[i], inst->deps, &ndeps, &created))
       goto fail;
@@ -1245,20 +1262,24 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
     WB_FreeExtern(e->ctx, created.v[i]);
   free(created.v);
   created.v = NULL;
+
   if(!inst->inst) {
     throw_backend(ctx, e);
     goto fail;
   }
+  
   free(imports);
   imports = NULL;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
+ 
   obj = JS_NewObjectProtoClass(ctx, proto, wasm_instance_class_id);
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
+ 
   JS_SetOpaque(obj, inst);
 
   if(WB_GetInstanceExports(e->ctx, inst->inst, &exps, &nexp) || WB_GetModuleExports(e->ctx, mod->mod, &edescs, &nedesc)) {
@@ -1276,11 +1297,13 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
         snprintf(fname, sizeof(fname), "%u", edescs[j].index);
         break;
       }
+
     v = export_wrap(ctx, mod->env, obj, exps[i].ext, fname);
     if(JS_IsException(v)) {
       JS_FreeValue(ctx, exports);
       goto fail_obj;
     }
+ 
     JS_DefinePropertyValueStr(ctx, exports, exps[i].name, v, JS_PROP_ENUMERABLE);
   }
   JS_PreventExtensions(ctx, exports);
@@ -1298,8 +1321,10 @@ fail:
       WB_FreeExtern(e->ctx, created.v[i]);
     free(created.v);
   }
+
   if(inst->inst)
     WB_FreeInstance(e->ctx, inst->inst);
+
   JS_FreeValue(ctx, inst->deps);
   JS_FreeValue(ctx, inst->module);
   JS_FreeValue(ctx, inst->env);
@@ -1320,8 +1345,10 @@ js_validate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 
   if(argc < 1 || !(bytes = get_bytes(ctx, argv[0], &len)))
     return JS_ThrowTypeError(ctx, "argument is not a BufferSource");
+  
   if(JS_IsException(env = env_get(ctx)))
     return env;
+  
   e = env_of(env);
 
   ret = JS_NewBool(ctx, !WB_ValidateModule(e->ctx, bytes, len));

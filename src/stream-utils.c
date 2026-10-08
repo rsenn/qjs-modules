@@ -678,6 +678,7 @@ writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr) {
       *wr = writer_from_jsstream(ctx, value);
       return 1;
     }
+
     if(js_has_propertystr(ctx, value, "write")) {
       *wr = writer_from_jsinvoke(ctx, "write", value);
       return 1;
@@ -1577,7 +1578,6 @@ then_jsstream(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       inputbuffer_free(&input, ctx);
       break;
     }
-
     case JS_PROMISE_REJECTED: {
       JS_FreeValue(ctx, fr->func_obj);
       fr->func_obj = JS_DupValue(ctx, argv[0]);

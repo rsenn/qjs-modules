@@ -50,7 +50,8 @@ yaml_scalar_is_number(const char* s, size_t len) {
     if(i >= len || s[i] < '0' || s[i] > '9')
       return FALSE;
 
-    for(; i < len && s[i] >= '0' && s[i] <= '9'; i++) {}
+    for(; i < len && s[i] >= '0' && s[i] <= '9'; i++) {
+    }
   }
 
   return i == len;
@@ -59,9 +60,8 @@ yaml_scalar_is_number(const char* s, size_t len) {
 static BOOL
 yaml_scalar_is_keyword(const char* s, size_t len) {
   static const char* const kw[] = {
-      "null", "Null", "NULL", "~", "true", "True", "TRUE", "false", "False", "FALSE",
-      "yes",  "Yes",  "YES",  "no", "No",  "NO",   "on",   "On",    "ON",    "off",
-      "Off",  "OFF",
+      "null", "Null", "NULL", "~",  "true", "True", "TRUE", "false", "False", "FALSE", "yes",
+      "Yes",  "YES",  "no",   "No", "NO",   "on",   "On",   "ON",    "off",   "Off",   "OFF",
   };
 
   for(size_t i = 0; i < countof(kw); i++)
@@ -125,6 +125,7 @@ yaml_write_quoted(DynBuf* db, const char* s, size_t len) {
         } else {
           dbuf_putc(db, c);
         }
+
         break;
       }
     }
@@ -308,7 +309,7 @@ js_yaml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     indent = 2;
 
   DynBuf db;
-  dbuf_init2(&db, 0, 0);
+  dbuf_init_ctx(ctx, &db);
 
   JSValueConst val = argc > 0 ? argv[0] : JS_UNDEFINED;
   BOOL is_array = JS_IsArray(ctx, val);

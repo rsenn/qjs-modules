@@ -124,11 +124,7 @@ static Node*
 node_get(JSContext* ctx, JSValueConst value) {
   ListIterator* iter;
   Node* node;
-  /*List* list;
 
-  if((list = js_list_data(value))) {
-    node = &list->node;
-  } else*/
   if((iter = JS_GetOpaque(value, js_list_iterator_class_id))) {
     node = iter->node;
   } else if(!(node = JS_GetOpaque(value, js_node_class_id))) {
@@ -538,19 +534,6 @@ js_list_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return ret;
 }
 
-/*static JSValue
-js_list_iterator_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  BOOL done = FALSE;
-  JSValue ret = JS_NewObject(ctx);
-  ListIterator* it = JS_GetOpaque(this_val, js_list_iterator_class_id);
-
-  JS_SetPropertyStr(ctx, ret, "index", JS_NewInt64(ctx, it->index));
-  JS_SetPropertyStr(ctx, ret, "value", js_list_iterator_next(ctx, this_val, argc, argv, &done, 0));
-  JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
-
-  return ret;
-}*/
-
 static void
 js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
   ListIterator* it;
@@ -564,7 +547,6 @@ js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
 
 static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_list_iterator_next, 0),
-    // JS_CFUNC_DEF("next", 0, js_list_iterator_fn),
     JS_CFUNC_MAGIC_DEF("equals", 1, js_list_iterator_method, ITERATOR_EQUALS),
     JS_CFUNC_MAGIC_DEF("copy", 0, js_list_iterator_method, ITERATOR_COPY),
     JS_CFUNC_MAGIC_DEF("isAccessible", 0, js_list_iterator_method, ITERATOR_ACCESSIBLE),
@@ -671,7 +653,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_iterator_new(ctx, &list->node, &list->node, REVERSE);
       break;
     }
-
     case LIST_ERASE: {
       Node *q, *p;
 
@@ -695,7 +676,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         }
 
         q = end;
-
       } else {
         q = p->next;
 
@@ -705,7 +685,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_iterator_new(ctx, q, &list->node, NORMAL);
       break;
     }
-
     case LIST_INSERT_BEFORE:
     case LIST_INSERT_AFTER: {
       Node *node, *tmp;
@@ -733,7 +712,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
     case LIST_UNIQUE: {
       for(Node* node = list->head; node != &list->node; node = node->next) {
         while(node->next != &list->node) {
@@ -755,7 +733,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, list->size);
       break;
     }
-
     case LIST_MERGE: {
       Node *node = list->head, *el;
       List* other;
@@ -778,6 +755,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
   }
+
   return ret;
 }
 
@@ -1349,6 +1327,7 @@ js_node_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic
         JS_FreeValue(ctx, node->value);
         node->value = JS_DupValue(ctx, value);
       }
+
       break;
     }
   }

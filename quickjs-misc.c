@@ -325,14 +325,12 @@ clear_screen(intptr_t h, ClearMode mode, BOOL line) {
       n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
       break;
     }
-
     case CLEAR_TO_BEGIN: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
       n = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
       break;
     }
-
     case CLEAR_ENTIRE: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
@@ -610,8 +608,7 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(JS_IsException(buf.value))
     return JS_EXCEPTION;
 
-  if((ptr = inputbuffer_data(&buf)))
-  {
+  if((ptr = inputbuffer_data(&buf))) {
     size_t n = 0;
 
     str[n++] = '0';
@@ -1523,7 +1520,6 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       ret = JS_NewBool(ctx, set_text_attributes(h, attr));
       break;
     }
-
     case SET_TEXT_COLOR: {
 #ifdef _WIN32
       uint32_t attr = 0;
@@ -1592,7 +1588,6 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
-
     case GET_CONSOLE_MODE: {
       DWORD mode = 0;
 
@@ -1783,22 +1778,18 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = getuid();
       break;
     }
-
     case FUNC_GETGID: {
       ret = getgid();
       break;
     }
-
     case FUNC_GETEUID: {
       ret = geteuid();
       break;
     }
-
     case FUNC_GETEGID: {
       ret = getegid();
       break;
     }
-
     case FUNC_SETUID: {
 #ifndef __ANDROID__
       int32_t uid;
@@ -1810,7 +1801,6 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
-
     case FUNC_SETGID: {
 #ifndef __ANDROID__
       int32_t gid;
@@ -1822,7 +1812,6 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
-
     case FUNC_SETEUID: {
 #ifndef __ANDROID__
       int32_t euid;
@@ -1834,7 +1823,6 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
-
     case FUNC_SETEGID: {
 #ifndef __ANDROID__
       int32_t egid;
@@ -1884,7 +1872,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
-
     case VALUETYPE_FLAG: {
       uint32_t type;
 
@@ -1893,7 +1880,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewUint32(ctx, js_value_type2flag(type));
       break;
     }
-
     case VALUETYPE_NAME: {
       uint32_t type;
 
@@ -1905,7 +1891,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         ret = JS_NewString(ctx, js_value_types()[flag]);
       break;
     }
-
     case VALUETYPE_STRING: {
       uint32_t type;
 
@@ -1915,32 +1900,26 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = str ? JS_NewString(ctx, str) : JS_NULL;
       break;
     }
-
     case VALUE_TAG: {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_TAG(argv[0]));
       break;
     }
-
     case VALUE_POINTER: {
       ret = js_newpointer(ctx, js_value_ptr(argv[0]));
       break;
     }
-
     case OBJECT_REFCOUNT: {
       ret = JS_NewInt32(ctx, js_object_refcount(argv[0]));
       break;
     }
-
     case OBJECT_CLASSID: {
       ret = JS_NewInt32(ctx, js_object_classid(argv[0]));
       break;
     }
-
     case OBJECT_OPAQUE: {
       ret = js_newpointer(ctx, js_object_opaque(argv[0]));
       break;
     }
-
     case CLASS_ATOM: {
       uint32_t id = js_toint32(ctx, argv[0]);
       uint32_t count = js_class_count(JS_GetRuntime(ctx));
@@ -1955,13 +1934,11 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
-
     case CLASS_NAME: {
       int32_t id = js_toint32(ctx, argv[0]);
       ret = js_class_value(ctx, id);
       break;
     }
-
     case CLASS_ID: {
       JSAtom name = JS_IsNumber(argv[0]) ? js_touint32(ctx, argv[0]) : JS_ValueToAtom(ctx, argv[0]);
 
@@ -2049,7 +2026,6 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_AtomToString(ctx, atom);
       break;
     }
-
     case ATOM_TO_VALUE: {
       uint32_t atom;
 
@@ -2058,7 +2034,6 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = atom & ATOM_BIT ? JS_NewUint32(ctx, atom & (~ATOM_BIT)) : JS_AtomToValue(ctx, atom);
       break;
     }
-
     case FIND_ATOM: {
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
       ret = JS_NewUint32(ctx, atom);
@@ -2082,14 +2057,12 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       JS_FreeAtom(ctx, atom);
       break;
     }
-
     case VALUE_TO_ATOM: {
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
 
       ret = JS_NewUint32(ctx, atom);
       break;
     }
-
     case DUP_ATOM: {
       uint32_t atom;
 
@@ -2098,7 +2071,6 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_NewUint32(ctx, JS_DupAtom(ctx, atom));
       break;
     }
-
     case FREE_ATOM: {
       uint32_t atom;
 
@@ -2130,7 +2102,6 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_NewInt32(ctx, type_id);
       break;
     }
-
     case GET_TYPE_STR: {
       const char* type;
 
@@ -2139,7 +2110,6 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       break;
     }
-
     case GET_TYPE_NAME: {
       const char* type;
 
@@ -2211,7 +2181,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case BITFIELD_BITS: {
       const uint8_t* buf;
       size_t len;
@@ -2256,7 +2225,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case BITFIELD_TOARRAY: {
       const uint8_t* buf;
       size_t len;
@@ -2277,7 +2245,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case BITFIELD_FROMARRAY: {
       JSValue prop;
       int64_t len;
@@ -2389,21 +2356,18 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       break;
     }
-
     case BITOP_XOR: {
       for(i = 0; i < m[0].size; i++)
         m[0].base[i] ^= m[1].base[i % m[1].size];
 
       break;
     }
-
     case BITOP_AND: {
       for(i = 0; i < m[0].size; i++)
         m[0].base[i] &= m[1].base[i % m[1].size];
 
       break;
     }
-
     case BITOP_OR: {
       for(i = 0; i < m[0].size; i++)
         m[0].base[i] |= m[1].base[i % m[1].size];
@@ -2439,14 +2403,12 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, num);
       break;
     }
-
     case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
 
       ret = JS_NewInt32(ctx, num);
       break;
     }
-
     case RANDOM_SRAND: {
       int64_t st = 0;
 
@@ -2455,7 +2417,6 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_UNDEFINED;
       break;
     }
-
     case RANDOM_RANDB: {
       OutputBuffer buf = js_output_args(ctx, argc, argv);
 
@@ -2701,7 +2662,6 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
         JS_FreeCString(ctx, s);
       break;
     }
-
     case IS_ERROR: r = JS_IsError(ctx, arg); break;
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
@@ -3331,7 +3291,6 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewInt64(ctx, _get_osfhandle(fd));
       break;
     }
-
     case FUNC_OPEN_OSFHANDLE: {
       int64_t hnd = -1;
       int32_t flags = 0;

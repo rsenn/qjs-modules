@@ -143,7 +143,6 @@ js_deep_pathfunc(int flags) {
     case PATH_AS_STRING: {
       return (path_func_type*)(void*)&property_recursion_pathstr_value;
     }
-
     case PATH_AS_POINTER: {
       return property_recursion_pointer_value;
     }
@@ -197,12 +196,10 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t flags, void* opaque) {
       ret = property_enumeration_value(it, ctx);
       break;
     }
-
     case RETURN_PATH: {
       ret = path_fn(frames, ctx, opaque);
       break;
     }
-
     case RETURN_VALUE_PATH:
     case RETURN_PATH_VALUE: {
       int idx = FLAGS_RETURN(flags) == RETURN_PATH_VALUE;
@@ -349,22 +346,6 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     JSValue value = property_recursion_value(&iter->frames, ctx);
     ValueType type = 1 << js_value_type_get(ctx, value);
 
-    /*printf(
-        "%s depth=%u seq=%u idx=%u/%u return=%x path-as=%x filter=%x max_depth=%06x status=%02x mask=%04x
-       type=%04x\n",
-        __func__,
-        property_recursion_depth(&iter->frames),
-        iter->seq,
-        penum ? penum->idx : -1,
-        penum ? penum->tab_atom_len : -1,
-        FLAGS_RETURN(iter->flags) >> 24,
-        FLAGS_PATH_AS(iter->flags) >> 26,
-        FLAGS_FILTER(iter->flags) >> 30,
-        max_depth,
-        iter->status,
-        iter->mask,
-        type);*/
-
     if(type & (TYPE_OBJECT | TYPE_FUNCTION) && !(type & TYPE_ARRAY))
       if(FLAGS_FILTER(iter->flags) == FILTER_HAS_KEY && ((!atoms_in_object(&iter->atoms, value, ctx)) ^ FLAGS_NEGATE_FILTER(iter->flags))) {
         JS_FreeValue(ctx, value);
@@ -419,17 +400,13 @@ js_deep_iterator_method(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       PropertyEnumeration* penum;
 
       if((penum = property_recursion_top(&iter->frames))) {
-
         property_recursion_pop(&iter->frames, ctx);
-
         iter->status |= NO_RECURSE;
-
         ret = JS_NewUint32(ctx, property_recursion_depth(&iter->frames));
       }
 
       break;
     }
-
     case METHOD_SKIP: {
       ret = JS_NewInt32(ctx, property_recursion_skip(&iter->frames, ctx));
       break;
@@ -475,7 +452,6 @@ js_deep_iterator_return(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   iter->root = JS_UNDEFINED;
   JS_FreeValue(ctx, iter->pred);
   iter->pred = JS_UNDEFINED;
-  // pointer_free(iter->pointer, JS_GetRuntime(ctx));
   JS_FreeValue(ctx, iter->pointer_value);
   iter->pointer_value = JS_UNDEFINED;
   iter->pointer = 0;
@@ -493,8 +469,6 @@ js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
     property_recursion_free(&iter->frames, rt);
     JS_FreeValueRT(rt, iter->root);
     JS_FreeValueRT(rt, iter->pred);
-
-    // pointer_free(iter->pointer, rt);
     JS_FreeValueRT(rt, iter->pointer_value);
 
     atoms_free(&iter->atoms, rt);
@@ -884,9 +858,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if((type & type_mask) != 0) {
         args[1] = property_recursion_path(&frames, ctx);
-
         JS_Call(ctx, fn, this_arg, countof(args), args);
-
         JS_FreeValue(ctx, args[0]);
         JS_FreeValue(ctx, args[1]);
       }
@@ -981,9 +953,6 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   if(argi < argc)
     JS_ToUint32(ctx, &mask, argv[argi++]);
-
-  /*if(!predicate_callable(ctx, pred))
-    return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");*/
 
   JSValue ret = JS_IsArray(ctx, argv[0]) ? JS_NewArray(ctx) : JS_NewObject(ctx);
   Vector frames = VECTOR(ctx);

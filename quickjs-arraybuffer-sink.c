@@ -23,7 +23,7 @@ js_arraybuffer_sink_constructor(JSContext* ctx, JSValueConst new_target, int arg
   if(!(s = js_mallocz(ctx, sizeof(DynBuf))))
     return JS_EXCEPTION;
 
-  dbuf_init2(s, 0, 0);
+  dbuf_init_ctx(ctx, s);
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -85,17 +85,15 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
       inputbuffer_free(&buf, ctx);
       break;
     }
-
     case METHOD_FLUSH: {
       if(s->buf && s->size) {
         ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
 
-        dbuf_init2(s, 0, 0);
+        dbuf_init_ctx(ctx, s);
       }
 
       break;
     }
-
     case METHOD_END: {
       if(s->buf && s->size) {
         ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);

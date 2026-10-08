@@ -121,13 +121,11 @@ map_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 static JSValue
 map_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
   MapMethodAtoms* atoms = vp->opaque;
-
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->keys, 0, 0);
-
   JSValue arr = iteration_array(ctx, ret);
+
   JS_FreeValue(ctx, ret);
   ret = arr;
-
   return ret;
 }
 
@@ -248,6 +246,7 @@ array_find(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
       if(ret < 0)
         break;
+      
       if(ret)
         return i;
     }
@@ -384,24 +383,20 @@ virtual_properties_getset(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       ret = JS_NewBool(ctx, virtual_has(&vw->props, ctx, argv[0]));
       break;
     }
-
     case METHOD_GET: {
       ret = virtual_get(&vw->props, ctx, argv[0]);
       break;
     }
-
     case METHOD_SET: {
       if(virtual_set(&vw->props, ctx, argv[0], argv[1]))
         ret = JS_ThrowInternalError(ctx, "failed to set()");
 
       break;
     }
-
     case METHOD_DELETE: {
       ret = JS_NewBool(ctx, virtual_delete(&vw->props, ctx, argv[0]));
       break;
     }
-
     case METHOD_KEYS: {
       int32_t flags = (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
 

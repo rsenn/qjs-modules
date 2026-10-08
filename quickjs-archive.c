@@ -130,7 +130,6 @@ js_archive_return(JSContext* ctx, JSValueConst this_val, struct archive* ar, int
       JS_DefinePropertyValueStr(ctx, this_val, "eof", JS_TRUE, JS_PROP_CONFIGURABLE);
       break;
     }
-
     case ARCHIVE_FATAL: {
       ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
       break;
@@ -218,7 +217,6 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
-
     case METHOD_WRITE: {
       int r = ARCHIVE_FATAL;
       const char* f;
@@ -311,26 +309,22 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, archive_errno(ar));
       break;
     }
-
     case PROP_ERROR_STRING: {
       const char* err = archive_error_string(ar);
 
       ret = err ? JS_NewString(ctx, err) : JS_NULL;
       break;
     }
-
     case PROP_FORMAT: {
       const char* fmt = archive_format_name(ar);
 
       ret = fmt ? JS_NewString(ctx, fmt) : JS_NULL;
       break;
     }
-
     case PROP_COMPRESSION: {
       ret = JS_NewString(ctx, archive_filter_name(ar, 0));
       break;
     }
-
     case PROP_FILTERS: {
       int num_filters = archive_filter_count(ar);
       ret = JS_NewArray(ctx);
@@ -342,17 +336,14 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case PROP_FILECOUNT: {
       ret = JS_NewUint32(ctx, archive_file_count(ar));
       break;
     }
-
     case PROP_POSITION: {
       ret = JS_NewInt64(ctx, archive_filter_bytes(ar, -1));
       break;
     }
-
     case PROP_READ_HEADER_POSITION: {
       if(js_archive_mode(ctx, this_val) == READ) {
 
@@ -364,14 +355,12 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case PROP_HAS_ENCRYPTED_ENTRIES: {
       if(js_archive_mode(ctx, this_val) == READ)
         ret = JS_NewInt32(ctx, archive_read_has_encrypted_entries(ar));
 
       break;
     }
-
     case PROP_BLOCKSIZE: {
       if(js_archive_mode(ctx, this_val) == WRITE)
         ret = JS_NewInt32(ctx, archive_write_get_bytes_per_block(ar));
@@ -404,7 +393,6 @@ js_archive_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 
       break;
     }
-
     case PROP_BLOCKSIZE: {
       if(js_archive_mode(ctx, this_val) == WRITE) {
         int32_t bs = -1;
@@ -855,7 +843,6 @@ js_archive_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueCon
       *pdone = TRUE;
       return JS_UNDEFINED;
     }
-
     case ARCHIVE_FATAL: {
       *pdone = TRUE;
       return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
@@ -1341,54 +1328,46 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_CTIME: {
       if(archive_entry_ctime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_ctime(ent), archive_entry_ctime_nsec(ent));
 
       break;
     }
-
     case ENTRY_MTIME: {
       if(archive_entry_mtime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_mtime(ent), archive_entry_mtime_nsec(ent));
 
       break;
     }
-
     case ENTRY_BIRTHTIME: {
       if(archive_entry_birthtime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_birthtime(ent), archive_entry_birthtime_nsec(ent));
 
       break;
     }
-
     case ENTRY_DEV: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_dev(ent));
 
       break;
     }
-
     case ENTRY_DEVMAJOR: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_devmajor(ent));
 
       break;
     }
-
     case ENTRY_DEVMINOR: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_devminor(ent));
 
       break;
     }
-
     case ENTRY_FILETYPE: {
       ret = JS_NewInt64(ctx, archive_entry_filetype(ent));
       break;
     }
-
     case ENTRY_TYPE: {
       int t = archive_entry_filetype(ent);
       const char* s = 0;
@@ -1408,7 +1387,6 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_FFLAGS: {
       const char* str;
 
@@ -1417,12 +1395,10 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_GID: {
       ret = JS_NewInt64(ctx, archive_entry_gid(ent));
       break;
     }
-
     case ENTRY_GNAME: {
       const char* str;
 
@@ -1431,7 +1407,6 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_HARDLINK: {
       const char* str;
 
@@ -1440,14 +1415,12 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_INO: {
       if(archive_entry_ino_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_ino64(ent));
 
       break;
     }
-
     case ENTRY_LINK: {
       /* libarchive has no archive_entry_link_utf8() getter to match
          archive_entry_set_link_utf8(); mirror the setter's own fallback
@@ -1459,17 +1432,14 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_MODE: {
       ret = JS_NewUint32(ctx, archive_entry_mode(ent));
       break;
     }
-
     case ENTRY_NLINK: {
       ret = JS_NewUint32(ctx, archive_entry_nlink(ent));
       break;
     }
-
     case ENTRY_PATHNAME: {
       const char* str;
 
@@ -1478,34 +1448,28 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_PERM: {
       ret = JS_NewUint32(ctx, archive_entry_perm(ent));
       break;
     }
-
     case ENTRY_RDEV: {
       ret = JS_NewInt64(ctx, archive_entry_rdev(ent));
       break;
     }
-
     case ENTRY_RDEVMAJOR: {
       ret = JS_NewInt64(ctx, archive_entry_rdevmajor(ent));
       break;
     }
-
     case ENTRY_RDEVMINOR: {
       ret = JS_NewInt64(ctx, archive_entry_rdevminor(ent));
       break;
     }
-
     case ENTRY_SIZE: {
       if(archive_entry_size_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_size(ent));
 
       break;
     }
-
     case ENTRY_SYMLINK: {
       const char* str;
 
@@ -1514,12 +1478,10 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_UID: {
       ret = JS_NewInt64(ctx, archive_entry_uid(ent));
       break;
     }
-
     case ENTRY_UNAME: {
       const char* str;
 
@@ -1528,17 +1490,14 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
     case ENTRY_ISENCRYPTED: {
       ret = JS_NewBool(ctx, archive_entry_is_encrypted(ent));
       break;
     }
-
     case ENTRY_ISMETADATAENCRYPTED: {
       ret = JS_NewBool(ctx, archive_entry_is_metadata_encrypted(ent));
       break;
     }
-
     case ENTRY_ISDATAENCRYPTED: {
       ret = JS_NewBool(ctx, archive_entry_is_data_encrypted(ent));
       break;
@@ -1568,7 +1527,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_CTIME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_ctime(ent);
@@ -1580,7 +1538,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_MTIME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_mtime(ent);
@@ -1592,7 +1549,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_BIRTHTIME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_birthtime(ent);
@@ -1604,7 +1560,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_DEV: {
       int64_t n;
 
@@ -1613,7 +1568,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_DEVMAJOR: {
       int64_t n;
 
@@ -1622,7 +1576,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_DEVMINOR: {
       int64_t n;
 
@@ -1631,7 +1584,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_FILETYPE: {
       uint32_t n;
 
@@ -1640,7 +1592,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_TYPE: {
       const char* str;
 
@@ -1662,7 +1613,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_FFLAGS: {
       if(JS_IsString(value)) {
         const char* str = JS_ToCString(ctx, value);
@@ -1684,7 +1634,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_GID: {
       int64_t n;
 
@@ -1693,7 +1642,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_GNAME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_gname_utf8(ent, 0);
@@ -1706,7 +1654,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_HARDLINK: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_hardlink_utf8(ent, 0);
@@ -1719,7 +1666,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_INO: {
       int64_t n;
 
@@ -1728,7 +1674,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_LINK: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_link_utf8(ent, 0);
@@ -1741,7 +1686,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_MODE: {
       uint32_t n;
 
@@ -1750,7 +1694,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_NLINK: {
       uint32_t n;
 
@@ -1759,7 +1702,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_PATHNAME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_pathname_utf8(ent, 0);
@@ -1772,7 +1714,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_PERM: {
       uint32_t n;
 
@@ -1781,7 +1722,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_RDEV: {
       int64_t n;
 
@@ -1790,7 +1730,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_RDEVMAJOR: {
       int64_t n;
 
@@ -1799,7 +1738,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_RDEVMINOR: {
       int64_t n;
 
@@ -1808,7 +1746,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_SIZE: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_size(ent);
@@ -1821,7 +1758,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_SYMLINK: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_symlink_utf8(ent, 0);
@@ -1834,7 +1770,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_UID: {
       int64_t n;
 
@@ -1843,7 +1778,6 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
       break;
     }
-
     case ENTRY_UNAME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_uname_utf8(ent, 0);
@@ -1947,7 +1881,6 @@ js_archivematch_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       ret = js_archive_return(ctx, this_val, ar, archive_match_include_pattern_w(ar, pattern));
       break;
     }
-
     case MATCH_EXCLUDE: {
       ret = js_archive_return(ctx, this_val, ar, archive_match_exclude_pattern_w(ar, pattern));
       break;

@@ -1236,10 +1236,12 @@ xsw_write(XMLSerializer* xs, const void* buf, size_t len) {
     xs->error = TRUE;
     return FALSE;
   }
+
   if(w == 0) {
     xs->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -1251,10 +1253,12 @@ xsw_putc(XMLSerializer* xs, int c) {
     xs->error = TRUE;
     return FALSE;
   }
+
   if(w == 0) {
     xs->blocked = TRUE;
     return FALSE;
   }
+
   return TRUE;
 }
 
@@ -2225,7 +2229,6 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
       JS_FreeValue(ctx, name);
       break;
     }
-
     case XML_ATTRIBUTE: {
       JSValue argv[] = {
           JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len),
@@ -2236,14 +2239,12 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
       JS_FreeValue(ctx, argv[1]);
       break;
     }
-
     case XML_ELEMENT_END: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       ret = (JS_Call(ctx, p->element_end, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
-
     case XML_TEXT: {
       JSValue value = p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED;
       ret = (JS_Call(ctx, p->text, p->this_obj, 1, &value));
@@ -2302,33 +2303,27 @@ js_xml_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       break;
     }
-
     case XML_PARSER_EVENT_VALUE: {
       if(p->xp.event_has_value)
         ret = JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len);
       break;
     }
-
     case XML_PARSER_HAS_VALUE: {
       ret = JS_NewBool(ctx, p->xp.event_has_value);
       break;
     }
-
     case XML_PARSER_DEPTH: {
       ret = JS_NewUint32(ctx, xml_parser_depth(p));
       break;
     }
-
     case XML_PARSER_LOCATION: {
       ret = js_location_wrap(ctx, p->loc);
       break;
     }
-
     case XML_PARSER_TOLERANT: {
       ret = JS_NewBool(ctx, p->xp.tolerant);
       break;
     }
-
     case XML_PARSER_ROOT: {
       ret = xml_builder_root(&p->builder);
       break;
@@ -2368,19 +2363,16 @@ js_xml_parser_callback(JSContext* ctx, JSValueConst this_val, JSValueConst value
       p->element_start = JS_DupValue(ctx, value);
       break;
     }
-
     case XML_ELEMENT_END: {
       JS_FreeValue(ctx, p->element_end);
       p->element_end = JS_DupValue(ctx, value);
       break;
     }
-
     case XML_ATTRIBUTE: {
       JS_FreeValue(ctx, p->attribute);
       p->attribute = JS_DupValue(ctx, value);
       break;
     }
-
     case XML_TEXT: {
       JS_FreeValue(ctx, p->text);
       p->text = JS_DupValue(ctx, value);
@@ -2808,14 +2800,12 @@ js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
-
     case XML_ELEMENT_START: {
       ++wr->level;
       w += writer_putc(&wr->writer, '<');
       w += writer_putjs(&wr->writer, argv[0], ctx);
       break;
     }
-
     case XML_ELEMENT_END: {
       if(self_closing) {
         w += writer_puts(&wr->writer, " />");
@@ -2827,7 +2817,6 @@ js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
-
     case XML_TEXT: {
       w += writer_putjs(&wr->writer, argv[0], ctx);
       break;
@@ -2858,12 +2847,10 @@ js_xmlwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, wr->event);
       break;
     }
-
     case WRITER_WRITTEN: {
       ret = JS_NewInt64(ctx, wr->written);
       break;
     }
-
     case WRITER_INDENT: {
       ret = JS_NewInt32(ctx, wr->indent);
       break;
