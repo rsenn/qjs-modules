@@ -11,7 +11,6 @@
  * @{
  */
 enum PredicateId {
-  // PREDICATE_NONE = -1,
   PREDICATE_TYPE = 0,
   PREDICATE_CHARSET,
   PREDICATE_STRING,

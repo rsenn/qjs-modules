@@ -11,7 +11,6 @@
  */
 #define is_control_char(c) ((c) >= 0 && (c) <= 0x1f)
 #define is_alphanumeric_char(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
-
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_xdigit_char(c) (is_digit_char((c)) || ((c) >= 'A' && (c) <= 'F') || ((c) >= 'a' && (c) <= 'f'))
 #define is_print_char(c) ((c) >= ' ' && (c) <= '\x7f')
@@ -63,17 +62,13 @@ is_utf16_low_surrogate(const uint32_t c) {
   return c >= 0xdc00 && c < 0xe000;
 }
 
-
-
 static inline int
 is_escape_char(int c) {
   return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
 }
 
-
 // #define is_dot_char(c) ((c) == '.')0
 // #define is_backslash_char(c) ((c) == '\\')
-
 
 static inline int
 is_identifier(const char* str) {
@@ -201,8 +196,6 @@ str_rchr(const char* s, char needle) {
   return (size_t)((found ? found : in) - s);
 }
 
-
-
 static inline size_t
 str_nchrs(const char* in, const char needles[], size_t nn) {
   const char* t;
@@ -255,7 +248,6 @@ str_start(const char* a, const char* b) {
 
 #define str_contains(s, needle) (!!strchr((s), (needle)))
 
-
 static inline size_t
 str_count(const char* s, char c) {
   size_t i, count = 0;
@@ -300,7 +292,6 @@ str_ndup(const char* s, size_t n) {
   return r;
 }
 
-
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
   size_t pos;
@@ -311,7 +302,6 @@ predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
 
   return pos;
 }
-
 
 static inline char
 escape_char_letter(char c) {

@@ -22,10 +22,8 @@ typedef struct {
 } IndexTuple;
 
 #define PROPENUM_INIT() {0, 0, NULL, JS_UNDEFINED}
-
 #define PROPENUM_SORT_ATOMS (1 << 6)
 #define PROPENUM_PROTOTYPE JS_GPN_RECURSIVE
-
 #define PROPENUM_DEFAULT_FLAGS (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
 
 #define property_enumeration_new(vec) vector_emplace((vec), sizeof(PropertyEnumeration))
@@ -63,9 +61,7 @@ property_enumeration_valuestrlen(const PropertyEnumeration* it, size_t* len, JSC
     return 0;
 
   const char* str = JS_ToCStringLen(ctx, len, value);
-
   JS_FreeValue(ctx, value);
-
   return str;
 }
 
@@ -116,9 +112,7 @@ property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flag
 
   for(;;) {
     JSValue proto = JS_GetPrototype(ctx, it->obj);
-
     property_enumeration_reset(it, JS_GetRuntime(ctx));
-
     if(!JS_IsObject(proto))
       break;
 
@@ -126,7 +120,7 @@ property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flag
       if(it->idx < it->tab_atom_len)
         return it;
   }
-
+  
   return 0;
 }
 
@@ -164,36 +158,27 @@ property_recursion_pop(Vector* vec, JSContext* ctx) {
     return 0;
 
   property_enumeration_reset(vector_pop(vec, sizeof(PropertyEnumeration)), JS_GetRuntime(ctx));
-
   return property_recursion_top(vec);
 }
 
 static inline int
 property_recursion_next(Vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
-
   if((it = property_recursion_top(vec))) {
     JSValue value = property_recursion_value(vec, ctx);
     BOOL recurse = JS_VALUE_GET_TAG(value) == JS_TAG_OBJECT && !property_recursion_circular(vec, value);
-
     JS_FreeValue(ctx, value);
-
     if(!(recurse && property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS))) {
       int i = 0;
-
       while(!(it = property_enumeration_next(property_recursion_top(vec)))) {
         --i;
-
         if(!(it = property_recursion_pop(vec, ctx)))
           break;
       }
-
       return it ? i : 0;
     }
-
     return 1;
   }
-
   return 0;
 }
 

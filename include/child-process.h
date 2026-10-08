@@ -17,7 +17,6 @@ typedef struct ChildProcess {
   char** args;
   char** env;
   intptr_t pid;
-
   int status, exitcode, termsig, stopsig;
   bool use_path : 1, exited : 1, signaled : 1, stopped : 1, continued : 1, killed : 1;
   int uid, gid;

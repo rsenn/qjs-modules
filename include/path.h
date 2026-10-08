@@ -21,7 +21,6 @@ char is_junction(const char*);
  * @{
  */
 #define PATH_NOTFIRST 0x80
-
 #define PATH_FNM_NOMATCH 1
 #define PATH_FNM_PATHNAME (1 << 0)
 #define PATH_FNM_NOESCAPE (1 << 1)
@@ -156,35 +155,27 @@ path_component1(const char* p) {
 static inline size_t
 path_component3(const char* p, size_t len, size_t pos) {
   const char *start = p, *end = p + len;
-
   if(pos > len)
     pos = len;
-
   p += pos;
-
   while(p < end && !path_issep(*p))
     ++p;
-
   return p - start;
 }
 
 static inline size_t
 path_separator1(const char* p) {
   const char* s = p;
-
   while(*s && path_issep(*s))
     ++s;
-
   return s - p;
 }
 
 static inline size_t
 path_separator2(const char* p, size_t len) {
   const char *start = p, *end = p + len;
-
   while(p < end && path_issep(*p))
     ++p;
-
   return p - start;
 }
 
@@ -209,48 +200,36 @@ path_skip2(const char* s, size_t n) {
 static inline size_t
 path_skip3(const char* s, size_t* len, size_t n) {
   const char *p = s, *e = s + n;
-
   p += path_component3(s, e - p, 0);
-
   if(len)
     *len = p - s;
-
   p += path_separator2(p, e - p);
-
   return p - s;
 }
 
 static inline size_t
 path_right2(const char* s, size_t n) {
   const char* p = s + n - 1;
-
   while(p > s && path_issep(*p))
     --p;
-
   while(p > s && !path_issep(*p))
     --p;
-
   if(path_issep(*p))
     ++p;
-
   return p - s;
 }
 
 static inline size_t
 path_right3(const char* s, size_t* len, size_t n) {
   const char *p = s + n - 1, *e;
-
   while(p > s && path_issep(*p))
     --p;
   e = p + 1;
   while(p > s && !path_issep(*p))
     --p;
-
   if(path_issep(*p))
     ++p;
-
   *len = e - p;
-
   return p - s;
 }
 
@@ -264,10 +243,8 @@ path_getsep1(const char* path) {
   while(*path) {
     if(path_issep(*path))
       return *path;
-
     ++path;
   }
-
   return '\0';
 }
 
@@ -275,27 +252,22 @@ static inline const char*
 path_trimdotslash1(const char* s) {
   while(*s && path_isdotslash(s))
     s += path_skip1(s);
-
   return s;
 }
 
 static inline size_t
 path_skipdotslash1(const char* s) {
   size_t i = 0;
-
   for(i = 0; path_isdotslash(&s[i]);)
     i += path_skip1(&s[i]);
-
   return i;
 }
 
 static inline size_t
 path_skipdotslash2(const char* s, size_t n) {
   size_t i = 0;
-
   while(i < n && path_isdotslash(&s[i]))
     i += path_skip2(&s[i], n - i);
-
   return i;
 }
 
@@ -303,7 +275,6 @@ static inline int
 path_compare2(const char* a, const char* b) {
   a += path_skipdotslash1(a);
   b += path_skipdotslash1(b);
-
   return strcmp(a, b);
 }
 
