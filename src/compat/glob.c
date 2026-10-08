@@ -84,7 +84,7 @@
 #define S_ISLNK(m) (0)
 #endif
 
-#include "openbsd-glob.h"
+#include "compat/openbsd-glob.h"
 #include "path.h"
 #include "char-utils.h"
 

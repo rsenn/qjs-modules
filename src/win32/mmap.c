@@ -26,7 +26,7 @@
 #include <windows.h>
 #include <io.h>
 
-#include "mmap-win32.h"
+#include "compat/mmap-win32.h"
 
 long
 getpagesize(void) {

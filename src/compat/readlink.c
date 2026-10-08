@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <winioctl.h>
 #include "debug.h"
-#include "ioctlcmd.h"
+#include "compat/ioctlcmd.h"
 
 #ifndef FILE_ATTRIBUTE_REPARSE_POINT
 #define FILE_ATTRIBUTE_REPARSE_POINT 0x400

@@ -12,7 +12,7 @@
 #include "debug.h"
 #include <quickjs.h>
 #ifdef _WIN32
-#include "mmap-win32.h"
+#include "compat/mmap-win32.h"
 #else
 #include <unistd.h>
 #include <fcntl.h>

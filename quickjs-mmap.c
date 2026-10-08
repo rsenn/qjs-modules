@@ -5,7 +5,7 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #ifdef _WIN32
-#include "mmap-win32.h"
+#include "compat/mmap-win32.h"
 #else
 #include <sys/mman.h>
 #include <errno.h>

@@ -87,7 +87,7 @@ int performance_counter_gettime(int, struct timespec*);
 #else
 #define glob openbsd_glob
 #define globfree openbsd_globfree
-#include "openbsd-glob.h"
+#include "compat/openbsd-glob.h"
 #endif
 
 #if HAVE_WORDEXP

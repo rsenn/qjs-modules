@@ -17,7 +17,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #ifdef _WIN32
-#include "mmap-win32.h"
+#include "compat/mmap-win32.h"
 #else
 #include <sys/mman.h>
 #endif
