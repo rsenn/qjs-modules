@@ -61,7 +61,8 @@
 // correctly as a 'ref' without it.
 
 import { puts, loadFile, open, exit } from 'std';
-import { readdir } from 'os';
+import * as std from 'std';
+import { isatty, readdir } from 'os';
 import { getOpt, isMainModule } from 'util';
 import { dirname, join, normalize, exists } from 'path';
 import CLexer from 'lexer/c.js';
@@ -287,11 +288,11 @@ export function* scanFiles(entryFiles, includeDirs = ['include'], visited = new 
 
   while(queue.length) {
     const file = queue.shift();
-    const resolved = normalize(file);
+    const resolved = file == '-' ? '<stdin>' : normalize(file);
     if(visited.has(resolved)) continue;
     visited.add(resolved);
 
-    const source = loadFile(resolved);
+    const source = file == '-' ? std.in.readAsString() : loadFile(resolved);
     if(source == null) continue;
 
     const toks = tokenize(source, resolved);
@@ -329,7 +330,7 @@ function expandPaths(paths) {
   for(const p of paths) {
     const [entries, err] = readdir(p);
 
-    if(!err && entries) files.push(...walkFiles(p, /\.[ch]$/i));
+    if(p != '-' && !err && entries) files.push(...walkFiles(p, /\.[ch]$/i));
     else files.push(p);
   }
 
@@ -368,6 +369,9 @@ function main(...args) {
   const params = getOpt(OPTIONS, args);
   const includeDirs = params['include-dir'] ?? ['include'];
   const files = expandPaths(params['@']);
+
+  /* standard input: the file `-`, or no file at all when it is not a terminal */
+  if(!files.length && !isatty(0)) files.push('-');
 
   const out = params.output ? open(params.output, 'w+') : null;
   const emit = out ? line => out.puts(line) : line => puts(line);

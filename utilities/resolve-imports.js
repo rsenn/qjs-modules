@@ -78,6 +78,8 @@ const dependencyTree = memoize(arg => [], dependencyMap);
 const bufferMap = getset(bufferRef);
 let identifiersUsed;
 
+const STDIN_NAME = '<stdin>.js';
+
 function ReadJSON(filename) {
   let data = readFileSync(filename, 'utf-8');
   return data ? JSON.parse(data) : null;
@@ -1681,6 +1683,16 @@ function main(...args) {
 
   let files = params['@'];
 
+  /* standard input: the file `-`, or no file at all when it is not a terminal; it is read as a script */
+  if(!files.length && !os.isatty(0)) files = ['-'];
+
+  files = files.map(file => {
+    if(file != '-') return file;
+
+    buffers[path.resolve(STDIN_NAME)] = toArrayBuffer(std.in.readAsString());
+    return STDIN_NAME;
+  });
+
   if(/check-import/.test(scriptArgs[0])) {
     if(printFiles === undefined) printFiles = false;
     onlyImports = false;
@@ -1755,7 +1767,7 @@ function main(...args) {
         map.insertAt(start, toArrayBuffer(outstr));
         map.trim();
 
-        out ??= FileReplacer(file);
+        out ??= file == STDIN_NAME ? FdWriter(1, 'stdout') : FileReplacer(file);
 
         map.write(out);
         out.close();
@@ -1949,8 +1961,9 @@ function ProcessFile(source, recursive, depth = 0) {
     line = [],
     map = FileMap.for(source),
     showToken = tok => {
-      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) 
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [tok.type.padEnd(20, ' '), escape(tok.lexeme)];
+      }
     };
 
   const result = (modules[source] = { imports, exports, map });

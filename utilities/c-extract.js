@@ -1,7 +1,8 @@
 #!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as path from 'path';
-import { readdir } from 'os';
+import * as std from 'std';
+import { isatty, readdir } from 'os';
 import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
 
@@ -926,7 +927,7 @@ function* walkFiles(dir) {
 function expandPaths(paths) {
   return paths.flatMap(p => {
     const [entries, err] = readdir(p);
-    return !err && entries ? [...walkFiles(p)] : [p];
+    return p != '-' && !err && entries ? [...walkFiles(p)] : [p];
   });
 }
 
@@ -988,6 +989,9 @@ function main(...args) {
   );
   const files = expandPaths(params['@']);
 
+  /* standard input: the file `-`, or no file at all when it is not a terminal */
+  if(!files.length && !params.help && !isatty(0)) files.push('-');
+
   if(locModes.some(m => !LOC_MODES.includes(m))) {
     console.log(`c-extract.js: --loc: expected ${LOC_MODES.join(', ')}`);
     return 1;
@@ -1029,8 +1033,9 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     irs = [],
     ids = new Map();
 
-  for(const file of files) {
-    const source = fs.readFileSync(file, 'utf8');
+  for(const arg of files) {
+    const file = arg == '-' ? '<stdin>' : arg;
+    const source = arg == '-' ? std.in.readAsString() : fs.readFileSync(arg, 'utf8');
 
     if(identifiers) {
       findIdentifiers(source, file, ids);

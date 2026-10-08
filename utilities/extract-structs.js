@@ -96,8 +96,12 @@ function main(...args) {
 
   if(/bindings/.test(scriptArgs[0])) noStructs = jsCFuncs = true;
 
+  /* standard input: the file `-`, or no file at all when it is not a terminal */
+  if(!files.length && !os.isatty(0)) files = ['-'];
+
   for(let file of files) {
-    let str = std.loadFile(file, 'utf-8');
+    let str = file == '-' ? std.in.readAsString() : std.loadFile(file, 'utf-8');
+    if(file == '-') file = '<stdin>';
     let lexer = new CLexer(str, file);
 
     const { rules, tokens } = lexer;

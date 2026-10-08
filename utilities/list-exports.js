@@ -9,6 +9,7 @@ import inspect from 'inspect';
 import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
+import { toArrayBuffer } from 'misc';
 
 const buffers = {},
   modules = {};
@@ -614,6 +615,18 @@ function main(...args) {
   if(outputFile) output = std.open(outputFile, 'w+');
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
+
+  /* standard input: the file `-`, or no file at all when it is not a terminal; it is read as a script */
+  if(!files.length && !os.isatty(0)) files.push('-');
+
+  files = files.map(file => {
+    if(file != '-') return file;
+
+    const stdin = '<stdin>.js';
+
+    buffers[stdin] = buffers['./' + stdin] = toArrayBuffer(std.in.readAsString());
+    return stdin;
+  });
 
   if(!files.length) files.push(RelativePath('./lib/util.js'));
 
