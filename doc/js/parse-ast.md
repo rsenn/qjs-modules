@@ -14,7 +14,7 @@ grammar rewriting. Nothing here is a standard API.
 ## Usage
 
 ```sh
-parse-ast [OPTIONS] <grammar-files...> [--] <sources...>
+parse-ast [OPTIONS] <grammar-files...> [--] [<sources...>]
 
 parse-ast JSON.g4 -- data.json
 parse-ast JavaScriptLexer.g4 JavaScriptParser.g4 -- app.js
@@ -23,7 +23,7 @@ parse-ast ecmascript.jison -- app.js            # %lex block inside
 parse-ast -w calc.bnf -- expr.txt               # characters, whitespace skipped
 ```
 
-Without `--`, the arguments with a grammar extension are the grammars.
+Without `--`, the arguments with a grammar extension are the grammars. Without a source, or for the source `-`, standard input is read (named `<stdin>` in results and errors).
 
 | Option | Description |
 | --- | --- |

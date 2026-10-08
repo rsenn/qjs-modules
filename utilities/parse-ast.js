@@ -32,8 +32,9 @@ const isGrammar = file => Object.prototype.hasOwnProperty.call(Grammars, extOf(f
 
 function usage(exitCode) {
   (exitCode ? std.err : std.out).puts(
-    `Usage: ${scriptArgs[0]} [OPTIONS] <grammar-files...> [--] <sources...>\n\n` +
-      `Parses each source with the grammar and prints its syntax tree as JSON.\n\n` +
+    `Usage: ${scriptArgs[0]} [OPTIONS] <grammar-files...> [--] [<sources...>]\n\n` +
+      `Parses each source with the grammar and prints its syntax tree as JSON.\n` +
+      `Without a source, or for the source \`-\`, standard input is read.\n\n` +
       `Grammar files: .bnf .ebnf .g4 .y .yy .jison (rules), .l .ll .flex .jisonlex (tokens);\n` +
       `.bnf/.ebnf read characters, the others need a lexer: a .l file, a jison %lex block or\n` +
       `g4 lexer rules. A node is {type, text, loc, children}; a token {type, text, loc}.\n\n` +
@@ -116,7 +117,10 @@ function main(...args) {
   /* without `--`, the files with a grammar extension are the grammars */
   if(cut < 0) [files, sources] = [files.filter(isGrammar), files.filter(f => !isGrammar(f))];
 
-  if(!files.length || !sources.length) usage(1);
+  /* no source, or `-`: standard input */
+  if(!sources.length) sources = ['-'];
+
+  if(!files.length) usage(1);
 
   const fail = msg => {
     std.err.puts(`${scriptArgs[0]}: ${msg}\n`);
@@ -179,8 +183,8 @@ function main(...args) {
 
   for(const file of sources) {
     try {
-      const text = readFileSync(file, 'utf-8');
-      const items = tokenize(text, file);
+      const text = file == '-' ? std.in.readAsString() : readFileSync(file, 'utf-8');
+      const items = tokenize(text, file == '-' ? '<stdin>' : file);
 
       if(cfg.usesEOF) items.push({ type: 'EOF', text: '', pos: text.length, end: text.length });
 
@@ -198,7 +202,7 @@ function main(...args) {
       };
 
       try {
-        results.push({ file, ast: makeTree(text, items, opts)(tryParse()) });
+        results.push({ file: file == '-' ? '<stdin>' : file, ast: makeTree(text, items, opts)(tryParse()) });
       } catch(e) {
         if(e.index === undefined) throw e;
 
@@ -208,7 +212,7 @@ function main(...args) {
         throw new SyntaxError(`${line}:${column}: ${e.message.replace(/item \d+/, `'${shown}'`)}`);
       }
     } catch(e) {
-      std.err.puts(`${file}:${/^\d+:\d+:/.test(e.message) ? '' : ' '}${e.message}\n`);
+      std.err.puts(`${file == '-' ? '<stdin>' : file}:${/^\d+:\d+:/.test(e.message) ? '' : ' '}${e.message}\n`);
       failed = true;
     }
   }
