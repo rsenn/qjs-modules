@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { Lexer } from 'lexer';
 import { getOpt } from 'util';
+import inspect from 'inspect';
 import * as std from 'std';
 import { Earley } from 'parser/earley.js';
 import { charItems, g4Lexer, lexItems } from 'parser/scan.js';
@@ -42,6 +43,7 @@ function usage(exitCode) {
       `  -T, --no-text       leave out text of nodes (tokens keep it)\n` +
       `  -w, --skip-ws       .bnf/.ebnf: skip whitespace in the source\n` +
       `  -I, --ident-token N token returned for a lex rule whose action calls a function (default IDENTIFIER)\n` +
+      `  -f, --format FMT    json (default) or js: a reparseable JS literal\n` +
       `  -i, --indent N      JSON indent (default 2, 0 for one line)\n` +
       `  -o, --output FILE   write to FILE instead of stdout\n` +
       `  -h, --help          show this help\n`,
@@ -100,6 +102,7 @@ function main(...args) {
       'no-text': [false, null, 'T'],
       'skip-ws': [false, null, 'w'],
       'ident-token': [true, null, 'I'],
+      format: [true, null, 'f'],
       indent: [true, null, 'i'],
       output: [true, null, 'o'],
       '@': 'files',
@@ -211,7 +214,15 @@ function main(...args) {
   }
 
   if(results.length) {
-    const json = JSON.stringify(sources.length == 1 ? results[0].ast : results, null, +(params.indent ?? 2)) + '\n';
+    const out = sources.length == 1 ? results[0].ast : results;
+    const format = params.format ?? 'json';
+
+    if(format != 'json' && format != 'js') fail(`unknown format '${format}' (json or js)`);
+
+    const json =
+      format == 'js'
+        ? inspect(out, { reparseable: true, colors: false, maxArrayLength: Infinity, maxStringLength: Infinity }) + '\n'
+        : JSON.stringify(out, null, +(params.indent ?? 2)) + '\n';
 
     if(params.output) writeFileSync(params.output, json);
     else std.out.puts(json);

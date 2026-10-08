@@ -33,6 +33,7 @@ Without `--`, the arguments with a grammar extension are the grammars.
 | `-T, --no-text` | leave out `text` of nodes (tokens keep it) |
 | `-w, --skip-ws` | `.bnf`/`.ebnf`: drop whitespace from the source |
 | `-I, --ident-token N` | token for a lex rule that returns a function call (default `IDENTIFIER`) |
+| `-f, --format FMT` | `json` (default) or `js`: `inspect(ast, {reparseable: true, colors: false, maxArrayLength: Infinity, maxStringLength: Infinity})` |
 | `-i, --indent N` | JSON indent (default 2) |
 | `-o, --output FILE` | write there instead of stdout |
 
