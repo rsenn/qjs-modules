@@ -20,10 +20,10 @@ macro(find_libb2)
 
   set(LIBB2_LIBRARIES ${LIBB2_LIBRARY})
 
-  message(STATUS "\tLibB2 library: ${LIBB2_LIBRARY}")
-  message(STATUS "\tLibB2 include dir: ${LIBB2_INCLUDE_DIR}")
-
   if(LIBB2_LIBRARY)
+    message(STATUS "\tLibB2 library: ${LIBB2_LIBRARY}")
+    message(STATUS "\tLibB2 include dir: ${LIBB2_INCLUDE_DIR}")
+
     set(LIBB2_FOUND TRUE)
   else()
     set(LIBB2_FOUND FALSE)

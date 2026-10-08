@@ -12,6 +12,13 @@ macro(build_liblzma BINARY SUFFIX PIC)
   set(LIBLZMA_INCLUDE_DIR_${SUFFIX} "${LIBLZMA_PREFIX_${SUFFIX}}/include")
   set(LIBLZMA_LIBRARY_FILE_${SUFFIX} "${LIBLZMA_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}lzma${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+  # WASI has no threads or signal masks: liblzma builds single-threaded
+  if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    set(LIBLZMA_THREADS_ARG "-DXZ_THREADS:STRING=no")
+  else()
+    set(LIBLZMA_THREADS_ARG "")
+  endif()
+
   ExternalProject_Add(
     liblzma_${SUFFIX}
     URL https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz
@@ -30,5 +37,14 @@ macro(build_liblzma BINARY SUFFIX PIC)
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
       "-DBUILD_SHARED_LIBS:BOOL=OFF"
       "-DXZ_NLS:BOOL=OFF"
+      "-DBUILD_TESTING:BOOL=OFF"
+      ${LIBLZMA_THREADS_ARG}
+      ${EMSCRIPTEN_MODULE_PATH_ARGS}
+      "-DXZ_TOOL_XZ:BOOL=OFF"
+      "-DXZ_TOOL_XZDEC:BOOL=OFF"
+      "-DXZ_TOOL_LZMADEC:BOOL=OFF"
+      "-DXZ_TOOL_LZMAINFO:BOOL=OFF"
+      "-DXZ_TOOL_SCRIPTS:BOOL=OFF"
+      "-DXZ_TOOL_SYMLINKS:BOOL=OFF"
     BUILD_BYPRODUCTS "${LIBLZMA_LIBRARY_FILE_${SUFFIX}}")
 endmacro(build_liblzma)

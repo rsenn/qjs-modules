@@ -20,10 +20,10 @@ macro(find_zstd)
   
   set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
   
-  message(STATUS "\tZstd library: ${ZSTD_LIBRARY}")
-  message(STATUS "\tZstd include dir: ${ZSTD_INCLUDE_DIR}")
-  
   if(ZSTD_LIBRARY)
+    message(STATUS "\tZstd library: ${ZSTD_LIBRARY}")
+    message(STATUS "\tZstd include dir: ${ZSTD_INCLUDE_DIR}")
+  
     set(ZSTD_FOUND TRUE)
   else()
     set(ZSTD_FOUND FALSE)

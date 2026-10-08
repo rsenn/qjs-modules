@@ -20,10 +20,10 @@ macro(find_zlib)
 
   set(ZLIB_LIBRARIES ${ZLIB_LIBRARY})
 
-  message(STATUS "\tZlib library: ${ZLIB_LIBRARY}")
-  message(STATUS "\tZlib include dir: ${ZLIB_INCLUDE_DIR}")
-  
   if(ZLIB_LIBRARY)
+    message(STATUS "\tZlib library: ${ZLIB_LIBRARY}")
+    message(STATUS "\tZlib include dir: ${ZLIB_INCLUDE_DIR}")
+    
     set(ZLIB_FOUND TRUE)
   else()
     set(ZLIB_FOUND FALSE)

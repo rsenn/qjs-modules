@@ -14,12 +14,12 @@ a standard API.
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `Lexers` | object | Language name → factory `(source, fileName) => lexer`. Keys: `js`, `c`, `bnf`, `csv`, `xml`, `sh`, `cmake`, `make`, `ini`. |
+| `Lexers` | object | Language name → factory `(source, fileName) => lexer`. Keys: `js`, `c`, `bnf`, `csv`, `xml`, `sh`, `cmake`, `make`, `ini`, `lex`. |
 | `languageFor(file)` | function | Language name of a file, or `undefined`. Looks at the base name first (`Makefile`, `GNUmakefile`, `CMakeLists.txt`, `*.ini`, `*.mcw`, `*.mcp`), then at the extension. |
 | `lexerFor(file, language = languageFor(file))` | function | The factory for a file, or for `language` when given; `undefined` if there is none. |
 
 Extensions that map to another language: `h hpp hh hxx cc cpp cxx` → `c`,
-`mjs cjs json ts` → `js`, `g4 ebnf l y` → `bnf`, `html htm svg` → `xml`,
+`mjs cjs json ts` → `js`, `g4 ebnf y yy` → `bnf`, `l ll flex` → `lex`, `html htm svg` → `xml`,
 `bash` → `sh`, `mk mak` → `make`.
 
 ## Example

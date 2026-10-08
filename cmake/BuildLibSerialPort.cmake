@@ -8,7 +8,7 @@
 macro(build_libserialport SOURCE BINARY SUFFIX PIC)
   include(ExternalProject)
 
-  message("-- Building libserialport from source (${SUFFIX}, PIC=${PIC})")
+  message(STATUS "Building libserialport from source (${SUFFIX}, PIC=${PIC})")
 
   ExternalProject_Add(
     libserialport_${SUFFIX}

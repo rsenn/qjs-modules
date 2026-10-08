@@ -1,49 +1,9 @@
+# Compat.cmake: helpers qjs-modules uses that cmake/Functions.cmake and
+# cmake/Checks.cmake (shared with shish) do not have.
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
 include(CheckFunctionExists)
-
-##
-## var2define <VARIABLE-NAMES...>
-##
-function(DUMP)
-  foreach(VAR ${ARGN})
-    if("${SEPARATOR}" STREQUAL "")
-      set(SEPARATOR "\n    ")
-    endif("${SEPARATOR}" STREQUAL "")
-    set("${VAR}" ${${VAR}})
-    string(REGEX REPLACE "[ \t\n]+" "\n" A "${${VAR}}")
-    string(REGEX REPLACE "\n" ";" A "${A}")
-    string(REGEX REPLACE ";" "${SEPARATOR}" A "${A}")
-
-    message("  ${VAR} = ${A}")
-
-  endforeach(VAR ${ARGN})
-endfunction(DUMP)
-
-##
-## var2define <NAME> [DEFINED_VALUE] [VARIABLE-NAME]
-##
-function(VAR2DEFINE NAME)
-  if("${ARGC}" GREATER 2)
-    list(GET ARGN 1 VAR_NAME)
-  else("${ARGC}" GREATER 2)
-    set(VAR_NAME "${NAME}")
-  endif("${ARGC}" GREATER 2)
-
-  set(VALUE "${${VAR_NAME}}")
-
-  if("${ARGC}" LESS_EQUAL 1)
-    if("${VALUE}")
-      add_definitions(-D${NAME}=1)
-    else("${VALUE}")
-      add_definitions(-D${NAME}=0)
-    endif("${VALUE}")
-  else("${ARGC}" LESS_EQUAL 1)
-    if("${VALUE}")
-      list(GET ARGN 0 DEFINED_VALUE)
-      add_definitions(-D${NAME}=${DEFINED_VALUE})
-    endif("${VALUE}")
-  endif("${ARGC}" LESS_EQUAL 1)
-
-endfunction(VAR2DEFINE NAME)
+include(CheckIncludeFileCXX)
 
 ##
 ## canonicalize <OUTPUT-VARIABLE> <STR>
@@ -56,18 +16,6 @@ function(CANONICALIZE OUTPUT_VAR STR)
 
   set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
 endfunction(CANONICALIZE OUTPUT_VAR STR)
-
-##
-## basename <OUTPUT-VARIABLE> <STR>
-##
-function(BASENAME OUTPUT_VAR STR)
-  string(REGEX REPLACE ".*/" "" TMP_STR "${STR}")
-  if(ARGN)
-    string(REGEX REPLACE "\\${ARGN}\$" "" TMP_STR "${TMP_STR}")
-  endif(ARGN)
-
-  set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
-endfunction(BASENAME OUTPUT_VAR FILE)
 
 ##
 ## dirname <OUTPUT-VARIABLE> <STR>
@@ -116,133 +64,6 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
 
   set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
 endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
-
-##
-## check_function_def <FUNCTION-NAME> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
-##
-macro(CHECK_FUNCTION_DEF FUNC)
-  if(${ARGC} GREATER 1)
-    set(RESULT_VAR "${ARGV1}")
-  else(${ARGC} GREATER 1)
-    string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
-  endif(${ARGC} GREATER 1)
-
-  if(${ARGC} GREATER 2)
-    set(PREPROC_DEF "${ARGV2}")
-  else(${ARGC} GREATER 2)
-    string(TOUPPER "HAVE_${FUNC}" PREPROC_DEF)
-  endif(${ARGC} GREATER 2)
-
-  if(NOT DEFINED ${RESULT_VAR})
-    check_function_exists("${FUNC}" "_${RESULT_VAR}")
-
-    if(${_${RESULT_VAR}})
-      set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${FUNC}' function")
-    else(${_${RESULT_VAR}})
-      set("${RESULT_VAR}" FALSE CACHE INTERNAL "Define this if you have the '${FUNC}' function")
-    endif(${_${RESULT_VAR}})
-  endif(NOT DEFINED ${RESULT_VAR})
-
-  set(DEFINE FALSE)
-
-  if(${${RESULT_VAR}})
-    if(NOT "${PREPROC_DEF}" STREQUAL "")
-      set("${PREPROC_DEF}" "1")
-      var2define("${PREPROC_DEF}" 1)
-    endif(NOT "${PREPROC_DEF}" STREQUAL "")
-  endif(${${RESULT_VAR}})
-
-  #message("${RESULT_VAR}: ${${RESULT_VAR}}")
-
-  list(APPEND CHECKED_FUNCTIONS "${FUNC}")
-endmacro(CHECK_FUNCTION_DEF FUNC)
-
-##
-## check_functions <FUNCTION-NAMES...>
-##
-macro(CHECK_FUNCTIONS)
-  foreach(FUNC ${ARGN})
-    string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
-    check_function_def("${FUNC}" "${RESULT_VAR}")
-  endforeach(FUNC ${ARGN})
-endmacro(CHECK_FUNCTIONS)
-
-##
-## check_functions_def <FUNCTION-NAMES...>
-##
-macro(CHECK_FUNCTIONS_DEF)
-  foreach(FUNC ${ARGN})
-    check_function_def("${FUNC}")
-  endforeach(FUNC ${ARGN})
-endmacro(CHECK_FUNCTIONS_DEF)
-
-##
-## clean_name <STRING> <OUTPUT-VARIABLE>
-##
-function(CLEAN_NAME STR OUTPUT_VAR)
-  string(TOUPPER "${STR}" STR)
-  string(REGEX REPLACE "[^A-Za-z0-9_]" "_" STR "${STR}")
-  set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
-endfunction(CLEAN_NAME STR OUTPUT_VAR)
-
-##
-## check_include_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
-##
-macro(CHECK_INCLUDE_DEF INC)
-  if(ARGC GREATER_EQUAL 2)
-    set(RESULT_VAR "${ARGV1}")
-    set(PREPROC_DEF "${ARGV2}")
-  else(ARGC GREATER_EQUAL 2)
-    clean_name("${INC}" INC_D)
-    string(TOUPPER "HAVE_${INC_D}" RESULT_VAR)
-    string(TOUPPER "HAVE_${INC_D}" PREPROC_DEF)
-  endif(ARGC GREATER_EQUAL 2)
-
-  check_include_file("${INC}" "${RESULT_VAR}")
-
-  if(${${RESULT_VAR}})
-    set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
-
-    if(NOT "${PREPROC_DEF}" STREQUAL "")
-      var2define("${PREPROC_DEF}" 1)
-    endif(NOT "${PREPROC_DEF}" STREQUAL "")
-  endif(${${RESULT_VAR}})
-
-  list(APPEND CHECKED_INCLUDES "${INC}")
-endmacro(CHECK_INCLUDE_DEF INC)
-
-##
-## check_includes <INCLUDE-FILES...>
-##
-macro(CHECK_INCLUDES)
-  foreach(INC ${ARGN})
-    clean_name("HAVE_${INC}" RESULT_VAR)
-    check_include_def("${INC}" "${RESULT_VAR}")
-  endforeach(INC ${ARGN})
-endmacro(CHECK_INCLUDES)
-
-##
-## check_includes_def <INCLUDE-FILES...>
-##
-macro(CHECK_INCLUDES_DEF)
-  foreach(INC ${ARGN})
-    check_include_def("${INC}")
-  endforeach(INC ${ARGN})
-endmacro(CHECK_INCLUDES_DEF)
-
-##
-## check_function_and_include <FUNCTION> <INCLUDE>
-##
-macro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
-  clean_name("HAVE_${INC}" INC_RESULT)
-  clean_name("HAVE_${FUNC}" FUNC_RESULT)
-
-  check_include_def("${INC}" "${INC_RESULT}" "${INC_RESULT}")
-
-  if(${${INC_RESULT}})
-    check_function_def("${FUNC}" "${FUNC_RESULT}" "${FUNC_RESULT}")
-  endif(${${INC_RESULT}})
-endmacro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 
 ##
 ## check_include_cxx_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
@@ -410,23 +231,129 @@ function(LIBNAME OUT_VAR FILENAME)
   set(${OUT_VAR} "${LIBNAME}" PARENT_SCOPE)
 endfunction(LIBNAME OUT_VAR FILENAME)
 
-##
-## check_flag <FLAG> <VARIABLE>
-##
-function(CHECK_FLAG FLAG VAR)
+
+#
+# append_vars <STR> <VARS...>: append STR to each space-separated variable
+#
+macro(append_vars STR)
+  foreach(L ${ARGN})
+    set(LIST "${${L}}")
+    if(NOT LIST MATCHES ".*${STR}.*")
+      if("${LIST}" STREQUAL "")
+        set(LIST "${STR}")
+      else()
+        set(LIST "${LIST} ${STR}")
+      endif()
+    endif()
+    string(REPLACE ";" " " LIST "${LIST}")
+    set("${L}" "${LIST}" PARENT_SCOPE)
+  endforeach()
+endmacro()
+
+#
+# check_flag <FLAG> <VAR> [FLAG-VARS...]: if the compiler takes FLAG, add it to FLAG-VARS
+#
+function(check_flag FLAG VAR)
   if(NOT VAR OR VAR STREQUAL "")
     string(TOUPPER "${FLAG}" TMP)
     string(REGEX REPLACE "[^0-9A-Za-z]" _ VAR "${TMP}")
-  endif(NOT VAR OR VAR STREQUAL "")
+  endif()
 
   set(CMAKE_REQUIRED_QUIET ON)
   check_c_compiler_flag("${FLAG}" "${VAR}")
   set(CMAKE_REQUIRED_QUIET OFF)
 
-  set(RESULT "${${VAR}}")
-
-  if(RESULT)
+  if(${VAR})
     append_vars(${FLAG} ${ARGN})
-    message(STATUS "Compiler flag ${FLAG} ... supported")
-  endif(RESULT)
-endfunction(CHECK_FLAG FLAG VAR)
+    message(STATUS "Compiler flag ${FLAG}: supported")
+  else()
+    message(STATUS "Compiler flag ${FLAG}: not supported")
+  endif()
+endfunction()
+
+macro(check_flags FLAGS)
+  foreach(FLAG ${FLAGS})
+    check_flag(${FLAG} "" ${ARGN})
+  endforeach()
+endmacro()
+
+#
+# nowarn_flag <FLAG>: add a -Wno-* flag to C and C++ flags when supported (silently)
+#
+macro(nowarn_flag FLAG)
+  canonicalize(VARNAME "${FLAG}")
+  set(CMAKE_REQUIRED_QUIET ON)
+  check_c_compiler_flag("${FLAG}" "${VARNAME}")
+  set(CMAKE_REQUIRED_QUIET OFF)
+
+  if(${VARNAME})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+  endif()
+endmacro()
+
+macro(add_nowarn_flags)
+  string(REGEX REPLACE " -Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  string(REGEX REPLACE " -Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+  nowarn_flag(-Wno-unused-value)
+  nowarn_flag(-Wno-unused-variable)
+
+  if("${CMAKE_CXX_COMPILER_ID}" MATCHES ".*Clang.*")
+    nowarn_flag(-Wno-deprecated-anon-enum-enum-conversion)
+    nowarn_flag(-Wno-extern-c-compat)
+    nowarn_flag(-Wno-implicit-int-float-conversion)
+    nowarn_flag(-Wno-deprecated-enum-enum-conversion)
+  endif()
+endmacro()
+
+#
+# message_table <TITLE> [KEY VALUE]...
+#
+# One status line for TITLE, then the rows aligned under it; rows with an
+# empty value are left out, a list value goes one item to a line.
+#
+#   -- QuickJS
+#   --   interpreter  /usr/local/bin/qjs
+#   --   library      /usr/local/lib/libquickjs.so
+#
+function(message_table TITLE)
+  set(WIDTH 0)
+  math(EXPR LAST "${ARGC} - 1")
+
+  foreach(I RANGE 1 ${LAST} 2)
+    string(LENGTH "${ARGV${I}}" LEN)
+    if(LEN GREATER WIDTH)
+      set(WIDTH ${LEN})
+    endif()
+  endforeach()
+
+  message(STATUS "${TITLE}")
+
+  foreach(I RANGE 1 ${LAST} 2)
+    math(EXPR J "${I} + 1")
+    set(KEY "${ARGV${I}}")
+    set(VALUE "${ARGV${J}}")
+
+    if(NOT VALUE STREQUAL "")
+      string(LENGTH "${KEY}" LEN)
+      while(LEN LESS WIDTH)
+        set(KEY "${KEY} ")
+        math(EXPR LEN "${LEN} + 1")
+      endwhile()
+
+      set(PAD "")
+      string(REGEX REPLACE "." " " PAD "${KEY}")
+
+      set(FIRST TRUE)
+      foreach(ITEM ${VALUE})
+        if(FIRST)
+          message(STATUS "  ${KEY}  ${ITEM}")
+          set(FIRST FALSE)
+        else()
+          message(STATUS "  ${PAD}  ${ITEM}")
+        endif()
+      endforeach()
+    endif()
+  endforeach()
+endfunction()

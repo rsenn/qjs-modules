@@ -62,7 +62,7 @@ macro(find_mariadb)
       unset(LIBMARIADB_INCLUDE_DIR)
     endif(EXISTS "${LIBMARIADB_INCLUDE_DIR}")
 
-    message("LIBMARIADB_INCLUDE_DIR: ${LIBMARIADB_INCLUDE_DIR}")
+    message(STATUS "MariaDB include dir: ${LIBMARIADB_INCLUDE_DIR}")
   endif(LIBMARIADB_INCLUDE_DIR)
 
   if(LIBMARIADB_LIBRARY)

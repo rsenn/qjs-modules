@@ -9,7 +9,7 @@
 macro(build_sqlite BINARY SUFFIX PIC)
   include(ExternalProject)
 
-  message("-- Building sqlite from source (${SUFFIX}, PIC=${PIC})")
+  message(STATUS "Building sqlite from source (${SUFFIX}, PIC=${PIC})")
 
   set(SQLITE_PREFIX_${SUFFIX} "${BINARY}/deps-${SUFFIX}")
   set(SQLITE_INCLUDE_DIR_${SUFFIX} "${SQLITE_PREFIX_${SUFFIX}}/include")

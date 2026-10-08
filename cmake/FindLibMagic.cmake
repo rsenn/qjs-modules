@@ -26,8 +26,6 @@ macro(find_libmagic)
     set(LIBMAGIC_DB /usr/share/file/magic)
   endif(EXISTS /usr/share/file/magic)
 
-  message(STATUS "\tlibmagic library: ${LIBMAGIC_LIBRARY}")
-  message(STATUS "\tlibmagic module: ${magic_MODULE}")
-  message(STATUS "\tlibmagic db: ${LIBMAGIC_DB}")
+  message_table("libmagic" "library" "${LIBMAGIC_LIBRARY}" "module" "${magic_MODULE}" "database" "${LIBMAGIC_DB}")
 
 endmacro(find_libmagic)

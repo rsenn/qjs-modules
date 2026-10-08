@@ -11,7 +11,7 @@
 macro(build_libmagic BINARY SUFFIX PIC)
   include(ExternalProject)
 
-  message("-- Building libmagic from source (${SUFFIX}, PIC=${PIC})")
+  message(STATUS "Building libmagic from source (${SUFFIX}, PIC=${PIC})")
 
   set(LIBMAGIC_PREFIX_${SUFFIX} "${BINARY}/deps-${SUFFIX}")
   set(LIBMAGIC_INCLUDE_DIR_${SUFFIX} "${LIBMAGIC_PREFIX_${SUFFIX}}/include")

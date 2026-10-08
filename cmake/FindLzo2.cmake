@@ -20,10 +20,10 @@ macro(find_lzo2)
 
   set(LZO2_LIBRARIES ${LZO2_LIBRARY})
 
-  message(STATUS "\tLZO2 library: ${LZO2_LIBRARY}")
-  message(STATUS "\tLZO2 include dir: ${LZO2_INCLUDE_DIR}")
-
   if(LZO2_LIBRARY)
+    message(STATUS "\tLZO2 library: ${LZO2_LIBRARY}")
+    message(STATUS "\tLZO2 include dir: ${LZO2_INCLUDE_DIR}")
+
     set(LZO2_FOUND TRUE)
   else()
     set(LZO2_FOUND FALSE)

@@ -20,10 +20,10 @@ macro(find_liblz4)
 
   set(LZ4_LIBRARIES ${LZ4_LIBRARY})
 
-  message(STATUS "\tLZ4 library: ${LZ4_LIBRARY}")
-  message(STATUS "\tLZ4 include dir: ${LZ4_INCLUDE_DIR}")
-
   if(LZ4_LIBRARY)
+    message(STATUS "\tLZ4 library: ${LZ4_LIBRARY}")
+    message(STATUS "\tLZ4 include dir: ${LZ4_INCLUDE_DIR}")
+
     set(LZ4_FOUND TRUE)
   else()
     set(LZ4_FOUND FALSE)

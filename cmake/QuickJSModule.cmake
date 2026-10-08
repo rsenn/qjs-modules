@@ -176,7 +176,7 @@ function(make_module_header SOURCE)
   string(REGEX REPLACE "-" "_" NAME "${BASE}")
   set(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/gen-${BASE}-header.cmake")
   make_script("${SCRIPT}" "message(\"Generating module '${NAME}'\")\nremake_module(${SOURCE})\n"
-              "${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake;${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake")
+              "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake;${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake;${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake")
   add_custom_target(${BASE}.h ALL ${CMAKE_COMMAND} -P ${SCRIPT} DEPENDS ${SOURCE} BYPRODUCTS ${HEADER}
                     SOURCES ${SOURCE})
 endfunction(make_module_header SOURCE)

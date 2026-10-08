@@ -6,7 +6,7 @@
 macro(build_wasm3 BINARY SUFFIX PIC)
   include(ExternalProject)
 
-  message("-- Building wasm3 from third_party (${SUFFIX}, PIC=${PIC})")
+  message(STATUS "Building wasm3 from third_party (${SUFFIX}, PIC=${PIC})")
 
   set(WASM3_BINARY_DIR_${SUFFIX} "${BINARY}/deps-wasm3-${SUFFIX}")
   set(WASM3_LIBRARY_FILE_${SUFFIX} "${WASM3_BINARY_DIR_${SUFFIX}}/source/${CMAKE_STATIC_LIBRARY_PREFIX}m3${CMAKE_STATIC_LIBRARY_SUFFIX}")

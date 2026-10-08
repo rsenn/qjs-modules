@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.5)
 
 project(qjs-modules VERSION 0.9 LANGUAGES C ASM)
 
+# include-file checks link CMAKE_REQUIRED_LIBRARIES (libquickjs), as the function checks do
+if(POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 #message("Building project [1;31m${PROJECT_NAME}[0m")
 
 set(CMAKE_C_STANDARD 11)
@@ -29,7 +34,9 @@ option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Checks.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
 
 #dump(CMAKE_CROSSCOMPILING)
 
@@ -119,7 +126,6 @@ endif(NOT DEFINED BUILTINS_NATIVE)
 
 include(FindPkgConfig)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 quickjs_module_options(SHARED_DEFAULT ON STATIC_DEFAULT ON)
@@ -212,8 +218,8 @@ check_library_exists(m sqrt "" HAVE_LIBMATH)
 if(HAVE_LIBMATH)
   set(LIBM m)
   link_libraries(m)
+  message(STATUS "Math library: -l${LIBM}")
 endif(HAVE_LIBMATH)
-dump(LIBM)
 
 # find_library() (rather than a bare "pthread" name) so CMAKE_FIND_ROOT_PATH
 # confines the search to the cross-compilation sysroot when one is active
@@ -224,7 +230,9 @@ dump(LIBM)
 # own implicit link search order, so a bare "-lpthread" silently picks
 # the wrong copy there.
 find_library(LIBPTHREAD_LIBRARY NAMES pthread winpthread)
-dump(LIBPTHREAD_LIBRARY)
+if(LIBPTHREAD_LIBRARY)
+  message(STATUS "Thread library: ${LIBPTHREAD_LIBRARY}")
+endif()
 
 check_library_exists(quickjs js_std_file "${QUICKJS_LIBRARY_DIR}" HAVE_JS_STD_FILE)
 
@@ -318,7 +326,11 @@ if(CONFIG_BIGNUM)
   add_definitions(-DQJS_BIGNUM_EXT=1)
 endif(CONFIG_BIGNUM)
 
-dump(HAVE_LIBBF_H CONFIG_BIGNUM CONFIG_DEFS)
+if(CONFIG_BIGNUM)
+  message(STATUS "Bignum extension: enabled")
+else()
+  message(STATUS "Bignum extension: not in this QuickJS")
+endif()
 
 set(CMAKE_REQUIRED_QUIET ON)
 
@@ -341,8 +353,8 @@ if(USE_SPAWN)
   endif(HAVE_SPAWN)
 endif(USE_SPAWN)
 
-check_includes(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linux/netlink.h linux/atalk.h
-               linux/phonet.h linux/if_alg.h)
+check_includes_def(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linux/netlink.h linux/atalk.h
+                   linux/phonet.h linux/if_alg.h)
 
 if(HAVE_LINUX_IPX_H)
   add_definitions(-DHAVE_LINUX_NETWORK_HEADERS)
@@ -384,7 +396,7 @@ check_function_def(strverscmp)
 check_function_def(memmem)
 check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
-check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
+check_includes_def(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
 check_functions_def(stat lstat fstat)
 check_function_def(access)
@@ -622,7 +634,7 @@ if(MODULE_WASM)
     message(FATAL_ERROR "WASM_BACKEND must be wasm3 or wamr, not '${WASM_BACKEND}'")
   endif()
 
-  message("-- wasm backend: ${WASM_BACKEND}")
+  message(STATUS "WebAssembly backend: ${WASM_BACKEND}")
 
   if(WASM_BACKEND STREQUAL "wasm3")
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildWasm3.cmake)
@@ -726,7 +738,11 @@ endif(NOT JS_MODULE_LOADER_SETTINGS)
 set(JS_MODULE_LOADER_SETTINGS "${JS_MODULE_LOADER_SETTINGS}" CACHE BOOL "New js_module_loader() with 4 arguments")
 set(JS_MODULE_LOADER_OLD "${JS_MODULE_LOADER_OLD}" CACHE BOOL "Old js_module_loader() with 3 arguments")
 
-dump(JS_MODULE_LOADER_SETTINGS JS_MODULE_LOADER_OLD)
+if(JS_MODULE_LOADER_SETTINGS)
+  message(STATUS "js_module_loader(): 4 arguments (settings)")
+else()
+  message(STATUS "js_module_loader(): 3 arguments")
+endif()
 #if(JS_MODULE_LOADER_SETTINGS)
 #  add_definitions(-DJS_MODULE_LOADER_SETTINGS)
 #endif(JS_MODULE_LOADER_SETTINGS)
@@ -774,7 +790,11 @@ endif(HAVE_DBUF_CLAIM)
 # (function-like macros can't be defined on the command line, so QUICKJS_DBUF_REALLOC /
 # QUICKJS_DBUF_CLAIM just flag which one is present).
 
-dump(HAVE_DBUF_CLAIM HAVE_DBUF_REALLOC)
+if(HAVE_DBUF_CLAIM)
+  message(STATUS "dbuf API: dbuf_claim()")
+else()
+  message(STATUS "dbuf API: dbuf_realloc()")
+endif()
 #set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
 
 #set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES})
@@ -904,7 +924,7 @@ if(MODULE_SERIAL AND BUILD_LIBSERIALPORT)
     list(APPEND serial_LIBRARIES_shared setupapi)
     list(APPEND serial_LIBRARIES_static setupapi)
   endif(WIN32)
-endif(BUILD_LIBSERIALPORT)
+endif()
 
 if(HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
@@ -1064,6 +1084,7 @@ source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
 file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
 file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
+file(GLOB LIBPARSER ${CMAKE_CURRENT_SOURCE_DIR}/lib/parser/*.js)
 file(GLOB LIBXML ${CMAKE_CURRENT_SOURCE_DIR}/lib/xml/*.js)
 list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
@@ -1080,6 +1101,7 @@ list(
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
+install(FILES ${LIBPARSER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/parser")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
 # not cached (see the top of this file): pass -DBUILTINS_COMPILED=... to override
@@ -1401,7 +1423,9 @@ foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
   endif()
 endforeach()
 
-message("Builtins definitions:\n${BUILTIN_HEADER}")
+if(BUILTIN_HEADER)
+  message(STATUS "Builtin modules:\n${BUILTIN_HEADER}")
+endif()
 
 set(BUILTIN_HEADER "#ifndef jsm_builtin_native\n#define jsm_builtin_native(x)\n#endif\n")
 set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef jsm_builtin_compiled\n#define jsm_builtin_compiled(x)\n#endif\n")
@@ -1477,7 +1501,7 @@ install(TARGETS qjsm DESTINATION bin)
 file(GLOB INSTALL_SCRIPTS utilities/extract-structs.js utilities/jsonpp.js utilities/list-exports.js
      utilities/resolve-imports.js utilities/xml-shell.js utilities/nm-symbols.js utilities/remove-dead-functions.js
      utilities/deadwood.js utilities/source-scanner.js utilities/unused-functions.js utilities/runtime-diff.js
-     utilities/c-extract.js utilities/highlight.js utilities/extract-comments.js examples/html2md.js)
+     utilities/c-extract.js utilities/highlight.js utilities/extract-comments.js utilities/parse-ast.js examples/html2md.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)

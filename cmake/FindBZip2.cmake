@@ -20,10 +20,10 @@ macro(find_bzip2)
 
   set(BZIP2_LIBRARIES ${BZIP2_LIBRARY})
   
-  message(STATUS "\tBZip2 library: ${BZIP2_LIBRARY}")
-  message(STATUS "\tBZip2 include dir: ${BZIP2_INCLUDE_DIR}")
-
   if(BZIP2_LIBRARY)
+    message(STATUS "\tBZip2 library: ${BZIP2_LIBRARY}")
+    message(STATUS "\tBZip2 include dir: ${BZIP2_INCLUDE_DIR}")
+
     set(BZIP2_FOUND TRUE)
   else()
     set(BZIP2_FOUND FALSE)

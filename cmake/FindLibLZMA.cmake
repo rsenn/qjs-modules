@@ -20,10 +20,10 @@ macro(find_liblzma)
 
   set(LIBLZMA_LIBRARIES ${LIBLZMA_LIBRARY})
 
-  message(STATUS "\tLibLzma library: ${LIBLZMA_LIBRARY}")
-  message(STATUS "\tLibLzma include dir: ${LIBLZMA_INCLUDE_DIR}")
-
   if(LIBLZMA_LIBRARY)
+    message(STATUS "\tLibLzma library: ${LIBLZMA_LIBRARY}")
+    message(STATUS "\tLibLzma include dir: ${LIBLZMA_INCLUDE_DIR}")
+
     set(LIBLZMA_FOUND TRUE)
   else()
     set(LIBLZMA_FOUND FALSE)
