@@ -3,7 +3,7 @@
 Source: `lib/module.js` (pure JS)
 
 Node's `node:module` (https://nodejs.org/api/module.html). `import ... from
-'node:module'` resolves here too (`src/qjsm.c` strips a leading `node:`). The
+'node:module'` resolves here too (`lib/nodeHooks.js` maps a leading `node:` to the bare name). The
 default export is the `Module` class, with every named export as a static.
 
 ## Exports

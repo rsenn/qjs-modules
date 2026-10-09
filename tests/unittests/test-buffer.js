@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/buffer.js: Buffer, as in Node; the same assertions must hold on node, bun and deno */
-import { Buffer, atob, btoa, constants, isAscii, isUtf8, kMaxLength } from 'buffer';
+import { Buffer, atob, btoa, constants, isAscii, isUtf8, kMaxLength } from 'node:buffer';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const esc = s => JSON.stringify(s).replace(/[^\x00-\x7f]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));

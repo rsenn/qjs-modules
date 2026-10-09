@@ -662,22 +662,10 @@ jsm_is_native(JSModuleDef* m) {
   return FALSE;
 }
 
-/*
- * Looks up a builtin module record by name. A leading "node:" is stripped first
- * (Bun/Deno compatibility: `node:fs`/`node:path`/etc. resolve the same as the bare
- * name resolves here, i.e. to *this* engine's own builtin of that name, not Node's
- * actual implementation - the same aliasing Bun/Deno themselves do for their own
- * compat builtins) - except for "os": this engine's own `os` builtin is a low-level
- * POSIX/process-primitives module (exec/pipe/kill/waitpid/...), nothing like Node's
- * `os` (hostname/cpus/homedir/networkInterfaces/...), so aliasing `node:os` to it
- * would silently resolve to the wrong module instead of failing cleanly.
- */
+/* looks up a builtin module record by exact name; NULL if there is none. */
 static BuiltinModule*
 jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
-
-  if(str_start(name, "node:") && !str_equal(name + 5, "os"))
-    name += 5;
 
   vector_foreach_t(&jsm_builtins, rec) if(str_equal(rec->module_name, name)) return rec;
 
@@ -1474,20 +1462,6 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     name = tmp;
   }
 
-  /* Bun/Deno compatibility: `node:x` resolves the same as bare `x` would here - this
-     engine's own builtin/dynamic-module of that name, not Node's actual
-     implementation. Stripped here (not just in jsm_builtin_find(), which only covers
-     the static builtin-registry lookup below) so the filesystem/dynamic-.so fallback
-     search further down also sees the bare name, for a module that resolves via that
-     path rather than being compiled into jsm_builtins (e.g. child_process in a
-     build where it's not a static builtin). Excludes "os" - see jsm_builtin_find()'s
-     comment on why that one alias would be actively wrong, not just incomplete. */
-  if(str_start(name, "node:") && !str_equal(name + 5, "os")) {
-    tmp = js_strdup(ctx, name + 5);
-    js_free(ctx, name);
-    name = tmp;
-  }
-
   if(jsm_stack_find(name) != 0)
     printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", name, jsm_stack_string());
 
@@ -1659,15 +1633,6 @@ jsm_module_loader2(JSContext* ctx, const char* module_name, void* opaque, JSValu
 }
 #endif
 
-/* is `path` the file lib/node/<bare>.js, the node layer for module `bare`. */
-static BOOL
-jsm_is_node_layer(const char* path, const char* bare) {
-  char suffix[80];
-
-  snprintf(suffix, sizeof(suffix), "/node/%s.js", bare);
-  return str_ends(path, suffix);
-}
-
 /*
  * The engine's module-name normalizer: resolves `name` (as imported from `path`)
  * to a builtin name or absolute file path (the default resolution, no hooks).
@@ -1676,34 +1641,15 @@ static char*
 jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   char* file = 0;
   BuiltinModule* bltin = 0;
-  const char* bare = str_start(name, "node:") ? name + 5 : name;
-  char node_shim[64];
-
-  /* `node:<name>` with a lib/node/<name>.js layer resolves to builtin "node_<name>";
-     a bare name does too when no module of that name exists (buffer):
-     neither a builtin nor <name>.so, <name>.js, <name>/index.js on the module path */
-  if(!strchr(bare, '/') && strlen(bare) < sizeof(node_shim) - 6 && (bare != name || !jsm_builtin_find(bare))) {
-    snprintf(node_shim, sizeof(node_shim), "node_%s", bare);
-
-    /* the shim itself imports the native module of the same name: no redirect */
-    if(jsm_builtin_find(node_shim) && !str_equal(path, node_shim) && !jsm_is_node_layer(path, bare)) {
-      char* plain = bare == name ? jsm_search_suffix(ctx, name, &jsm_search_path) : 0;
-
-      if(plain)
-        js_free(ctx, plain);
-      else
-        name = node_shim;
-    }
-  }
 
   /* Node's subpath builtins live in flat modules: "fs/promises" -> "fsPromises" */
-  if(str_equal(bare, "fs/promises"))
+  if(str_equal(name, "fs/promises"))
     name = "fsPromises";
-  else if(str_equal(bare, "timers/promises"))
+  else if(str_equal(name, "timers/promises"))
     name = "timersPromises";
-  else if(str_equal(bare, "assert/strict"))
+  else if(str_equal(name, "assert/strict"))
     name = "assertStrict";
-  else if(str_equal(bare, "readline/promises"))
+  else if(str_equal(name, "readline/promises"))
     name = "readlinePromises";
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
@@ -1801,30 +1747,11 @@ jsm_url_frompath(JSContext* ctx, const char* path) {
   return (char*)db.buf;
 }
 
-/* maps the module key to the URL hooks see: "/a/b.js" -> "file:///a/b.js",
-   "fs" -> "node:fs" ("os", "std" stay bare), anything else unchanged */
-static char*
-jsm_url_fromkey(JSContext* ctx, const char* key) {
-  if(key[0] != '/' && !has_dot_or_slash(key) && jsm_builtin_find(key) && !str_equal(key, "os") && !str_equal(key, "std")) {
-    DynBuf db;
-    dbuf_init_ctx(ctx, &db);
-    dbuf_putstr(&db, "node:");
-    dbuf_putstr(&db, key);
-    dbuf_0(&db);
-    return (char*)db.buf;
-  }
-
-  return jsm_url_frompath(ctx, key);
-}
-
-/* inverse of jsm_url_fromkey(): "file:///a%20b.js" -> "/a b.js", "node:fs" -> "fs"
-   ("node:os" stays); returns a js_malloc'd string */
+/* inverse of jsm_url_frompath(): "file:///a%20b.js" -> "/a b.js";
+   returns a js_malloc'd string */
 static char*
 jsm_url_tokey(JSContext* ctx, const char* url) {
   DynBuf db;
-
-  if(str_start(url, "node:") && !str_equal(url + 5, "os"))
-    return js_strdup(ctx, url + 5);
 
   if(!str_start(url, "file://"))
     return js_strdup(ctx, url);
@@ -1901,7 +1828,7 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
     }
   }
 
-  url = jsm_url_fromkey(ctx, file);
+  url = jsm_url_frompath(ctx, file);
   js_free(ctx, file);
   js_free(ctx, base);
 
@@ -1922,7 +1849,7 @@ jsm_default_load(JSContext* ctx, JSValueConst urlv) {
   const char* u = JS_ToCString(ctx, urlv);
   char* name;
   JSValue ret, source = JS_NULL;
-  const char* format = "module";
+  const char *format = "module", *attr = 0;
 
   if(!u)
     return JS_EXCEPTION;
@@ -1957,6 +1884,11 @@ jsm_default_load(JSContext* ctx, JSValueConst urlv) {
 
     if(str_ends(name, ".json"))
       format = "json";
+    else if((attr = jsm_import_attribute(ctx, "type")) && str_equal(attr, "json"))
+      format = "json";
+
+    if(attr)
+      JS_FreeCString(ctx, attr);
 
     source = JS_NewStringLen(ctx, (const char*)buf, len);
     js_free(ctx, buf);
@@ -2197,7 +2129,7 @@ jsm_hook_load(JSContext* ctx, const char* name, void* opaque) {
   const char *format, *bytes;
   size_t len = 0;
   BOOL is_str = FALSE;
-  char* url = jsm_url_fromkey(ctx, name);
+  char* url = jsm_url_frompath(ctx, name);
 
   urlv = JS_NewString(ctx, url);
   js_free(ctx, url);
@@ -3399,7 +3331,7 @@ main(int argc, char** argv) {
 
     js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
-    dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
+    dbuf_putstr(&db, "import 'nodeHooks';\nimport process from 'process';\nglobalThis.process = process;\n");
 
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 

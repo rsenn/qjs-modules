@@ -129,9 +129,10 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    `/javascript`or`/ecmascript` MIME evaluates the payload as a module's
    source (URL-decoded, or base64-decoded if `;base64` is present); `/json`
    MIME wraps it as `export default JSON.parse(...)` instead.
-2. **`node:` prefix** — stripped (except `node:os`, which would alias to this
-   engine's own `os` builtin, which is *not* Node's `os` — see the comment at
-   `jsm_module_loader()`), so `node:path` behaves like bare `path`.
+2. **`node:` prefix** — not handled by the engine. `lib/nodeHooks.js`, a
+   `registerHooks()` resolver preloaded by qjsm, maps `node:<name>` to the
+   `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
+   `node:os` stays unresolved (this engine's `os` is *not* Node's `os`).
 3. **Registered hooks** (`registerHooks()`, see below) — when any are registered,
    steps 1-2 and 4-7 collapse into the hook chain's final `nextLoad()` and a
    `load` hook can answer for any URL (`data:` included). With none registered

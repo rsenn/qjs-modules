@@ -111,6 +111,7 @@ if(NOT DEFINED BUILTINS_COMPILED)
     iterator
     module
     #nodeModulesLoader
+    nodeHooks
     password
     perf_hooks
     process
@@ -1202,7 +1203,7 @@ foreach(LIB_MODULE ${BUILTINS_COMPILED})
   set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${LIB_MODULE})\n")
 endforeach(LIB_MODULE ${BUILTINS_COMPILED})
 
-# lib/node/<name>.js: Node-shaped layers, builtin "node_<name>" served for `node:<name>`
+# lib/node/<name>.js: Node-shaped layers, builtin "node_<name>", mapped from `node:<name>` by lib/nodeHooks.js
 set(BUILTINS_NODE buffer child_process events util)
 set(node_buffer_MODULES misc blob)
 set(node_child_process_MODULES child_process node:events node:buffer misc sockets process)

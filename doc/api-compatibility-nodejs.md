@@ -24,11 +24,12 @@ dlynx.sh https://github.com/nodejs/node/raw/refs/heads/main/doc/api/ | grep '\.m
 
 Modules whose Node API differs from the qjs-modules helpers live in `lib/node/<name>.js`
 and are compiled as builtin `node_<name>` (CMake `BUILTINS_NODE`). `node:<name>` resolves
-to them; a bare `<name>` does too when no builtin of that name exists (`buffer`).
+to them through the `registerHooks()` resolver in `lib/nodeHooks.js` (qjsm preloads it);
+a bare `<name>` no longer does, `import 'buffer'` needs `node:buffer`.
 
 | file | serves | notes |
 | --- | --- | --- |
-| `lib/node/buffer.js` | `node:buffer`, `buffer` | moved from `lib/buffer.js` |
+| `lib/node/buffer.js` | `node:buffer` | moved from `lib/buffer.js` |
 | `lib/node/events.js` | `node:events` | `EventEmitter`, `once`, `on`, ...; `EventTarget` stays in `lib/events.js` |
 | `lib/node/child_process.js` | `node:child_process` | layer over the native `child_process` |
 | `lib/node/util.js` | `node:util` | Node's util; the bare `util` keeps the internal helpers |
