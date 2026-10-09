@@ -78,18 +78,38 @@ endfunction()
 #
 # module_depends <MODULE> <DEP>...
 #
-# Declare that native module MODULE links the native modules DEP...
-# (module names, no prefix): module_depends(deep location pointer) links
-# qjs-deep with qjs-location qjs-pointer and qjs-deep-static with
-# qjs-location-static qjs-pointer-static, and qjsm pulls them in too.
-# Call before make_module(MODULE).
+# Link the native module MODULE with the native modules DEP... (names, no
+# prefix); module_depends(deep predicate pointer) is
 #
-macro(module_depends MODULE)
-  foreach(_md_dep ${ARGN})
-    list(APPEND ${MODULE}_LIBRARIES "qjs-${_md_dep}")
-  endforeach(_md_dep ${ARGN})
-  list(REMOVE_DUPLICATES ${MODULE}_LIBRARIES)
-endmacro(module_depends)
+# ```cmake
+# if(TARGET qjs-deep)
+#   target_link_libraries(qjs-deep PRIVATE qjs-predicate qjs-pointer)
+# endif(TARGET qjs-deep)
+# ```
+#
+# and the same for qjs-deep-static with the -static targets. Also records
+# DEP... in ${MODULE}_LIBRARIES, which qjsm reads to compile them in.
+# Call after make_module(MODULE).
+#
+function(module_depends MODULE)
+  set(DEPS "")
+  set(STATIC_DEPS "")
+  foreach(DEP ${ARGN})
+    list(APPEND DEPS "qjs-${DEP}")
+    list(APPEND STATIC_DEPS "qjs-${DEP}-static")
+  endforeach(DEP ${ARGN})
+
+  if(TARGET qjs-${MODULE})
+    target_link_libraries(qjs-${MODULE} PRIVATE ${DEPS})
+  endif(TARGET qjs-${MODULE})
+
+  if(TARGET qjs-${MODULE}-static)
+    target_link_libraries(qjs-${MODULE}-static PRIVATE ${STATIC_DEPS})
+  endif(TARGET qjs-${MODULE}-static)
+
+  string(REPLACE "-" "_" VAR "${MODULE}")
+  set(${VAR}_LIBRARIES ${${VAR}_LIBRARIES} ${DEPS} PARENT_SCOPE)
+endfunction(module_depends)
 
 #
 # module_path <NAME> <OUTVAR>

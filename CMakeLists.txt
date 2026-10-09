@@ -618,17 +618,16 @@ if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} src/compat/memmem.c)
 endif(NOT HAVE_MEMMEM)
 
-module_depends(deep predicate pointer location)
-module_depends(xml location inspect)
-module_depends(json location)
-module_depends(blob stream)
+#module_depends(deep predicate pointer location)
+#module_depends(xml location inspect)
+#module_depends(json location)
+#module_depends(blob stream)
 
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/compat/readlink.c)
 endif(WIN32 OR MINGW)
 
-module_depends(lexer location)
-
+#
 if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/win32/socketpair.c)
@@ -1207,79 +1206,33 @@ endforeach(JS_MODULE ${QUICKJS_MODULES})
 ##
 ## Native C module dependencies
 ##
-if(TARGET qjs-deep)
-  target_link_libraries(qjs-deep PRIVATE qjs-predicate qjs-pointer)
-endif(TARGET qjs-deep)
+module_depends(deep predicate pointer location)
+module_depends(inspect pointer)
+module_depends(json location)
+module_depends(lexer location)
+module_depends(blob stream)
+module_depends(tree-walker pointer)
+module_depends(xml pointer location inspect)
+module_depends(child-process pointer) # XXX: why?
 
 if(TARGET qjs-predicate)
   target_link_libraries(qjs-predicate PRIVATE m)
 endif(TARGET qjs-predicate)
-
-if(TARGET qjs-inspect)
-  target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
-endif(TARGET qjs-inspect)
-
-if(TARGET qjs-json)
-  target_link_libraries(qjs-json PRIVATE qjs-location)
-endif(TARGET qjs-json)
-
-if(TARGET qjs-blob)
-  target_link_libraries(qjs-blob PRIVATE qjs-stream)
-endif(TARGET qjs-blob)
-
-if(TARGET qjs-tree-walker)
-  target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
-endif(TARGET qjs-tree-walker)
-
-if(TARGET qjs-xml)
-  target_link_libraries(qjs-xml PRIVATE qjs-pointer qjs-location)
-endif(TARGET qjs-xml)
-
-# XXX: why?
-if(TARGET qjs-child-process)
-  target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
-endif(TARGET qjs-child-process)
 
 # qjs-serial/qjs-serial-static's libserialport linkage no longer needs a manual patch
 # here: serial_LIBRARIES_shared/serial_LIBRARIES_static (set in the BUILD_LIBSERIALPORT
 # block above) are picked up automatically by make_module()'s generic per-variant
 # ${VNAME}_LIBRARIES_shared/_static handling.
 
-# Same inter-module dependencies as above, wired up for the '-static' variants
-# that make_module() produces when BUILD_STATIC is on.
-if(TARGET qjs-inspect-static)
-  target_link_libraries(qjs-inspect-static PRIVATE qjs-pointer-static)
-endif(TARGET qjs-inspect-static)
-
-if(TARGET qjs-blob-static)
-  target_link_libraries(qjs-blob-static PRIVATE qjs-stream-static)
-endif(TARGET qjs-blob-static)
-
-if(TARGET qjs-tree-walker-static)
-  target_link_libraries(qjs-tree-walker-static PRIVATE qjs-pointer-static)
-endif(TARGET qjs-tree-walker-static)
-
-if(TARGET qjs-xml-static)
-  target_link_libraries(qjs-xml-static PRIVATE qjs-pointer-static)
-endif(TARGET qjs-xml-static)
-
-if(TARGET qjs-child-process-static)
-  target_link_libraries(qjs-child-process-static PRIVATE qjs-pointer-static)
-endif(TARGET qjs-child-process-static)
-
 set(QJSM_SOURCES src/qjsm.c)
 
 set(json_SOURCES ${json_SOURCES} src/json.c)
 set(mysql_SOURCES ${mysql_SOURCES} src/async-closure.c)
 set(mysql_LIBS ${mysql_LIBS} modules)
+
 if(LINK_STATIC)
   link_libraries(modules)
 endif(LINK_STATIC)
-
-
-dump_list(NATIVE_MODULES)
-
-
 
 # the names BUILTIN_MODULES accepts: quickjs-<name>.c as <name> ('-' written '_') and
 # lib/<name>.js; get_native_modules()/get_compiled_modules() list them
