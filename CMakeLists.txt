@@ -7,8 +7,6 @@ if(POLICY CMP0075)
   cmake_policy(SET CMP0075 NEW)
 endif()
 
-#message("Building project [1;31m${PROJECT_NAME}[0m")
-
 set(CMAKE_C_STANDARD 11)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
@@ -20,14 +18,6 @@ if(NOT BUILD_SHARED_LIBS)
 endif(NOT BUILD_SHARED_LIBS)
 
 option(LINK_STATIC "Link static libraries" OFF)
-# Independent of BUILD_SHARED_LIBS/BUILD_STATIC_LIBS (which only affect this project's
-# own non-module libraries): whether each quickjs-*.c module gets a shared qjs-<name>
-# (.so) target, a static qjs-<name>-static (.a) target, or both. Both default ON so a
-# normal build gets a module runtime-loadable via dlopen() AND embeddable statically
-# (e.g. via qjsm's BUILTINS_NATIVE/EXTERNAL_MODULES) without extra configuration.
-# Declared via quickjs_module_options() below (cmake/QuickJSModule.cmake), right after
-# it's include()'d, so the two options stay named/behaved the same across every qjs-*
-# project instead of being hand-declared here.
 
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
@@ -37,8 +27,6 @@ option(DO_TESTS "Perform tests" ON)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Checks.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
-
-#dump(CMAKE_CROSSCOMPILING)
 
 if(NOT CMAKE_CROSSCOMPILING)
   run_code(
@@ -51,7 +39,6 @@ if(NOT CMAKE_CROSSCOMPILING)
   if("${RUN_RESULT}" STREQUAL "0")
     set(HAVE_POSIX_SPAWN TRUE)
   endif()
-  #dump(HAVE_POSIX_SPAWN)
 endif(NOT CMAKE_CROSSCOMPILING)
 
 if(HAVE_POSIX_SPAWN)
@@ -110,8 +97,38 @@ if(DEFINED CACHE{BUILTINS_COMPILED})
 endif()
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert assertStrict bun console events fs fsPromises module nodeModulesLoader perf_hooks
-                        process readline readlinePromises repl require timers timersPromises tty url util)
+  set_init(BUILTINS_COMPILED
+    assert
+    assertStrict
+    bun
+    commonjs
+    console
+    events
+    fs
+    fsPromises
+    globals
+    io
+    iterator
+    module
+    #nodeModulesLoader
+    password
+    perf_hooks
+    process
+    readline
+    readlinePromises
+    repl
+    require
+    stream
+    terminal
+    timers
+    timersPromises
+    tty
+    typescript
+    url
+    util
+    vfs
+    webassembly
+  )
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
@@ -122,7 +139,7 @@ if(NOT DEFINED BUILTINS_NATIVE)
   # a builtin needs (deep, inspect, misc, directory, syscallerror, textcode, ...) is
   # pulled in automatically by the NATIVE_REQUIRED dependency closure further down --
   # see the comment there -- so it doesn't need to be listed here too.
-  set(BUILTINS_NATIVE path stream yaml)
+  set_init(BUILTINS_NATIVE deep directory inspect misc path stream syscallerror textcode yaml)
 endif(NOT DEFINED BUILTINS_NATIVE)
 
 include(FindPkgConfig)
@@ -130,7 +147,7 @@ include(FindPkgConfig)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 quickjs_module_options(SHARED_DEFAULT ON STATIC_DEFAULT ON)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindQuickJS.cmake)
 
 if(WASI)
   # WASI has no JS glue concept, so the build product is the raw .wasm
@@ -142,12 +159,10 @@ if(WASI)
 endif(WASI)
 
 #if(NOT BUILD_SHARED_LIBS)
-#  option(BUILD_SHARED_MODULES "Build shared modules" OFF)
+#  option(BUILD_SHARED "Build shared modules" OFF)
 #else(NOT BUILD_SHARED_LIBS)
-#  option(BUILD_SHARED_MODULES "Build shared modules" ON)
+#  option(BUILD_SHARED "Build shared modules" ON)
 #endif(NOT BUILD_SHARED_LIBS)
-
-#dump(BUILD_SHARED_LIBS BUILD_SHARED_MODULES)
 
 if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
@@ -156,7 +171,6 @@ endif(WIN32 OR MINGW)
 if(ANDROID)
   add_definitions(-DANDROID)
 endif(ANDROID)
-#message("System: ${CMAKE_SYSTEM_NAME}")
 
 if(DEBUG_OUTPUT)
   add_definitions(-DDEBUG_OUTPUT)
@@ -166,16 +180,12 @@ if(DEBUG_ALLOC)
   add_definitions(-DDEBUG_ALLOC)
 endif(DEBUG_ALLOC)
 
-#message(STATUS "Finding QuickJS...")
-
 find_quickjs()
 configure_quickjs()
 
-#dump(QUICKJS_LIBRARY_DIR)
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 #list(APPEND CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
 #list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
-#dump(CMAKE_REQUIRED_LINK_DIRECTORIES)
 
 list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
 list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
@@ -212,6 +222,7 @@ if(NOT "${QJS_PROBE_STAMP}" STREQUAL "${QUICKJS_PROBE_STAMP}")
     JS_MODULE_LOADER_OLD)
     unset(${QJS_PROBE} CACHE)
   endforeach()
+
   set(QUICKJS_PROBE_STAMP "${QJS_PROBE_STAMP}" CACHE INTERNAL
                                                      "Hash of the quickjs library/header the probes ran against")
 endif()
@@ -252,8 +263,6 @@ if(HAVE_JS_PROMISE_RESULT)
   add_definitions(-DHAVE_JS_PROMISE_RESULT)
 endif(HAVE_JS_PROMISE_RESULT)
 
-#dump(QUICKJS_LIBRARY_DIR)
-
 set(CMAKE_REQUIRED_LINK_DIRECTORIES_OLD "${CMAKE_REQUIRED_LINK_DIRECTORIES}")
 set(CMAKE_REQUIRED_LIBRARIES_OLD "${CMAKE_REQUIRED_LIBRARIES}")
 
@@ -286,8 +295,6 @@ if(HAVE_JS_GETCLASSID)
   add_definitions(-DHAVE_JS_GETCLASSID)
 endif(HAVE_JS_GETCLASSID)
 
-#dump(HAVE_JS_GETMODULELOADERFUNC HAVE_JS_GETMODULELOADEROPAQUE HAVE_JS_DEBUGGERBUILDBACKTRACE HAVE_JS_GETCLASSID)
-
 set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES_OLD}")
 set(CMAKE_REQUIRED_LINK_DIRECTORIES "${CMAKE_REQUIRED_LINK_DIRECTORIES_OLD}")
 
@@ -314,13 +321,9 @@ check_include_def(libbf.h)
 
 # Upstream removed BigFloat/BigDecimal/operator overloading (2025-04-26), so
 # probe quickjs.h itself; a stray libbf.h says nothing about the engine.
-include(CheckCSourceCompiles)
-set(CMAKE_REQUIRED_INCLUDES_OLD "${CMAKE_REQUIRED_INCLUDES}")
-list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
-check_c_source_compiles(
+check_compile(HAVE_QUICKJS_BIGNUM_EXT
   "#include <quickjs.h>\nint main(void){ return JS_TAG_BIG_FLOAT + (int)sizeof(&JS_EnableBignumExt) + (int)sizeof(&JS_AddIntrinsicOperators); }"
-  HAVE_QUICKJS_BIGNUM_EXT)
-set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES_OLD}")
+  COMPILE_DEFINITIONS "-I${QUICKJS_INCLUDE_DIR}")
 
 set(CONFIG_BIGNUM OFF)
 
@@ -393,8 +396,6 @@ else(NOT HAVE_GETDENTS64)
   add_definitions(-DHAVE_GETDENTS64)
 endif(NOT HAVE_GETDENTS64)
 
-#dump(HAVE_GETDENTS64 HAVE_GETDENTS)
-
 check_include_def(termios.h)
 check_function_def(ioctl)
 check_function_def(realpath)
@@ -409,16 +410,12 @@ check_functions_def(stat lstat fstat)
 check_function_def(access)
 check_functions_def(fnmatch daemon)
 
-#dump(HAVE_ACCESS HAVE_FSTAT)
-
 check_functions_def(chmod fchmod)
 check_functions_def(chown fchown lchown)
 check_functions_def(fsync fdatasync)
 check_functions_def(truncate ftruncate)
 check_functions_def(utime utimes futimes lutimes)
 check_include_def(sys/time.h)
-
-#message("Have daemon() ${HAVE_DAEMON}")
 
 check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
 #check_include_def(fnmatch.h)
@@ -436,8 +433,6 @@ else(OPENBSD_GLOB)
   message(STATUS "glob(): system implementation (OPENBSD_GLOB=OFF)")
 endif(OPENBSD_GLOB)
 
-#dump(HAVE_GLOB)
-
 check_function_and_include(wordexp wordexp.h)
 
 check_function_and_include(inotify_init1 sys/inotify.h HAVE_INOTIFY)
@@ -446,13 +441,7 @@ if(HAVE_INOTIFY)
   add_definitions(-DHAVE_INOTIFY)
 endif(HAVE_INOTIFY)
 
-#message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
-#message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
-#message("Enable inotify ${HAVE_INOTIFY}")
-
 check_function_and_include(sysinfo sys/sysinfo.h)
-
-#message("Have sysinfo() ${HAVE_SYSINFO}")
 
 check_function_def(gettid)
 check_function_def(uname)
@@ -520,17 +509,17 @@ if(MODULE_ARCHIVE)
   option(BUILD_LIBARCHIVE "Build archive library" OFF)
 
   if(BUILD_LIBARCHIVE)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildLibArchive.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibArchive.cmake)
 
-    # Built once per enabled module-linkage kind (BUILD_SHARED_MODULES/BUILD_STATIC_MODULES):
+    # Built once per enabled module-linkage kind (BUILD_SHARED/BUILD_STATIC):
     # a shared qjs-archive (.so) needs a PIC libarchive, a static qjs-archive-static (.a)
     # doesn't, so a single non-PIC-by-default build can't safely serve both.
-    if(BUILD_SHARED_MODULES)
+    if(BUILD_SHARED)
       build_libarchive(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} shared ON)
-    endif(BUILD_SHARED_MODULES)
-    if(BUILD_STATIC_MODULES)
+    endif(BUILD_SHARED)
+    if(BUILD_STATIC)
       build_libarchive(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} static OFF)
-    endif(BUILD_STATIC_MODULES)
+    endif(BUILD_STATIC)
 
     set(LibArchive_LIBRARIES_shared "${LibArchive_LIBRARIES_shared}")
     set(LibArchive_LIBRARIES_static "${LibArchive_LIBRARIES_static}")
@@ -547,31 +536,31 @@ if(MODULE_ARCHIVE)
 endif(MODULE_ARCHIVE)
 
 if(MODULE_MAGIC)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindLibMagic.cmake)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindLibMagic.cmake)
   find_libmagic()
 
   set(magic_MODULE magic)
 
   if(NOT (HAVE_LIBMAGIC AND HAVE_MAGIC_H))
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildLibMagic.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibMagic.cmake)
 
-    if(BUILD_SHARED_MODULES)
+    if(BUILD_SHARED)
       build_libmagic(${CMAKE_CURRENT_BINARY_DIR} shared ON)
       set(magic_LIBRARIES ${LibMagic_LIBRARIES_shared})
       set(magic_LIBRARIES_shared ${LibMagic_LIBRARIES_shared})
       include_directories(${LIBMAGIC_INCLUDE_DIR_shared})
-    endif(BUILD_SHARED_MODULES)
-    if(BUILD_STATIC_MODULES)
+    endif(BUILD_SHARED)
+    if(BUILD_STATIC)
       build_libmagic(${CMAKE_CURRENT_BINARY_DIR} static OFF)
-      if(NOT BUILD_SHARED_MODULES)
+      if(NOT BUILD_SHARED)
         set(magic_LIBRARIES ${LibMagic_LIBRARIES_static})
       endif()
       set(magic_LIBRARIES_static ${LibMagic_LIBRARIES_static})
       include_directories(${LIBMAGIC_INCLUDE_DIR_static})
-    endif(BUILD_STATIC_MODULES)
+    endif(BUILD_STATIC)
 
     if(NOT LIBMAGIC_DB)
-      if(BUILD_SHARED_MODULES)
+      if(BUILD_SHARED)
         set(LIBMAGIC_DB "${LIBMAGIC_DB_shared}")
       else()
         set(LIBMAGIC_DB "${LIBMAGIC_DB_static}")
@@ -584,7 +573,7 @@ if(MODULE_MAGIC)
 endif(MODULE_MAGIC)
 
 if(MODULE_MYSQL)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindMariaDB.cmake)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindMariaDB.cmake)
 
   find_mariadb()
 
@@ -598,31 +587,31 @@ if(MODULE_MYSQL)
 endif(MODULE_MYSQL)
 
 if(MODULE_PGSQL)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindPgSQL.cmake)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindPgSQL.cmake)
   find_pgsql()
 endif(MODULE_PGSQL)
 
 if(MODULE_SQLITE)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSQLite.cmake)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindSQLite.cmake)
   find_sqlite()
 
   if(NOT (LIBSQLITE_LIBRARY AND HAVE_SQLITE3_H))
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildSQLite.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildSQLite.cmake)
 
-    if(BUILD_SHARED_MODULES)
+    if(BUILD_SHARED)
       build_sqlite(${CMAKE_CURRENT_BINARY_DIR} shared ON)
       set(sqlite_LIBRARIES ${SQLite_LIBRARIES_shared})
       set(sqlite_LIBRARIES_shared ${SQLite_LIBRARIES_shared})
       include_directories(${SQLITE_INCLUDE_DIR_shared})
-    endif(BUILD_SHARED_MODULES)
-    if(BUILD_STATIC_MODULES)
+    endif(BUILD_SHARED)
+    if(BUILD_STATIC)
       build_sqlite(${CMAKE_CURRENT_BINARY_DIR} static OFF)
-      if(NOT BUILD_SHARED_MODULES)
+      if(NOT BUILD_SHARED)
         set(sqlite_LIBRARIES ${SQLite_LIBRARIES_static})
       endif()
       set(sqlite_LIBRARIES_static ${SQLite_LIBRARIES_static})
       include_directories(${SQLITE_INCLUDE_DIR_static})
-    endif(BUILD_STATIC_MODULES)
+    endif(BUILD_STATIC)
 
     if(NOT "sqlite" IN_LIST QUICKJS_MODULES)
       list(APPEND QUICKJS_MODULES sqlite)
@@ -642,17 +631,17 @@ if(MODULE_WASM)
   message(STATUS "WebAssembly backend: ${WASM_BACKEND}")
 
   if(WASM_BACKEND STREQUAL "wasm3")
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildWasm3.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildWasm3.cmake)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3/source)
 
-    if(BUILD_SHARED_MODULES)
+    if(BUILD_SHARED)
       build_wasm3(${CMAKE_CURRENT_BINARY_DIR} shared ON)
       set(wasm_LIBRARIES_shared ${WASM3_LIBRARIES_shared})
-    endif(BUILD_SHARED_MODULES)
-    if(BUILD_STATIC_MODULES)
+    endif(BUILD_SHARED)
+    if(BUILD_STATIC)
       build_wasm3(${CMAKE_CURRENT_BINARY_DIR} static OFF)
       set(wasm_LIBRARIES_static ${WASM3_LIBRARIES_static})
-    endif(BUILD_STATIC_MODULES)
+    endif(BUILD_STATIC)
 
     set(wasm_SOURCES src/wasm-sections.c src/wasm3-backend.c)
   else()
@@ -719,11 +708,6 @@ set(CMAKE_REQUIRED_QUIET OFF)
 
 set(CMAKE_REQUIRED_FLAGS "-DCOMPILE_DEFINITIONS=-I${QUICKJS_INCLUDE_DIR}")
 
-try_code("try-jsobj.c" "#include \"quickjs.h\"\nJSObject* obj = 0;\nint main(void) { return 0; }" HAVE_JSOBJECT_POINTER
-         OUTPUT_JSOBJECT_TEST "" "")
-
-#try_code("try-jsval.c" "#include \"quickjs.h\"\nJSValue val = JS_UNDEFINED;\nint main(void) { return 0; }" HAVE_JSVALUE_TYPE OUTPUT_JSVALUE_TEST "" "")
-
 compile_code(
   JS_MODULE_LOADER_SETTINGS
   "#include \"quickjs-libc.h\"\nJSContext* ctx = 0;\nint main(void) { JSModuleDef* m = js_module_loader(ctx, \"\", 0, JS_UNDEFINED); return 0; }"
@@ -755,26 +739,13 @@ if(JS_MODULE_LOADER_SETTINGS)
 else()
   message(STATUS "js_module_loader(): 3 arguments")
 endif()
-#if(JS_MODULE_LOADER_SETTINGS)
-#  add_definitions(-DJS_MODULE_LOADER_SETTINGS)
-#endif(JS_MODULE_LOADER_SETTINGS)
 
 if(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
   add_definitions(-DJS_MODULE_LOADER_OLD)
 endif(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
-#dump(JS_MODULE_LOADER_SETTINGS JS_MODULE_LOADER_OLD)
 
 unset(CMAKE_REQUIRED_FLAGS)
 unset(CMAKE_REQUIRED_INCLUDES)
-
-#message("OUTPUT_JSOBJECT_TEST: ${OUTPUT_JSOBJECT_TEST}")
-#message("OUTPUT_JSVALUE_TEST: ${OUTPUT_JSVALUE_TEST}")
-
-#dump(HAVE_JSOBJECT_POINTER HAVE_JSVALUE_TYPE)
-
-if(HAVE_JSOBJECT_POINTER)
-  add_definitions(-DPUBLIC_JSOBJECT_DEF)
-endif(HAVE_JSOBJECT_POINTER)
 
 check_library_exists("${QUICKJS_LIBRARY}" JS_IsUncatchableError "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISUNCATCHABLEERROR)
 
@@ -819,13 +790,6 @@ if(HAVE_DBUF_CLAIM)
 else()
   message(STATUS "dbuf API: dbuf_realloc()")
 endif()
-#set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
-
-#set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES})
-#unset(CMAKE_REQUIRED_LIBRARIES)
-
-#include(CheckSymbolExists)
-#check_library_exists(ws2_32 inet_pton "" HAVE_INET_PTON)
 
 check_library_exists("${socket_LIBRARIES}" recvmmsg "" HAVE_RECVMMSG)
 if(HAVE_RECVMMSG)
@@ -857,15 +821,14 @@ endif()
 #endif(NOT HAVE_INET_PTON)
 
 if(HAVE_INET_PTON)
-  #message(STATUS "Have inet_pton()")
   add_definitions(-DHAVE_INET_PTON)
 else(HAVE_INET_PTON)
-  #message(STATUS "Don't have inet_pton()")
 endif(HAVE_INET_PTON)
 
 if(NOT HAVE_INET_PTON)
   set(sockets_SOURCES ${sockets_SOURCES} src/compat/inet_pton.c)
 endif(NOT HAVE_INET_PTON)
+
 if(NOT HAVE_INET_NTOP)
   set(sockets_SOURCES ${sockets_SOURCES} src/compat/inet_ntop.c)
 endif(NOT HAVE_INET_NTOP)
@@ -873,9 +836,17 @@ endif(NOT HAVE_INET_NTOP)
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
-file(GLOB tutf8e_SOURCES third_party/tutf8e/include/*.h third_party/tutf8e/include/tutf8e/*.h
-     third_party/tutf8e/src/*.c)
-file(GLOB libutf_SOURCES third_party/libutf/src/*.c third_party/libutf/include/*.h)
+file(GLOB tutf8e_SOURCES
+  third_party/tutf8e/include/*.h
+  third_party/tutf8e/include/tutf8e/*.h
+  third_party/tutf8e/src/*.c
+)
+
+file(GLOB libutf_SOURCES
+  third_party/libutf/src/*.c
+  third_party/libutf/include/*.h
+)
+
 # CMAKE_SYSTEM_PROCESSOR alone isn't enough: it's left empty by the mingw
 # cross toolchain files here (they never set it), so it always evaluated
 # to X86=FALSE when cross-compiling, silently dropping libbcrypt's
@@ -884,20 +855,13 @@ file(GLOB libutf_SOURCES third_party/libutf/src/*.c third_party/libutf/include/*
 # _BF_body_r whenever the compiler itself defines __i386__, causing an
 # undefined reference at link time. Ask the compiler directly instead,
 # matching crypt_blowfish.c's own condition.
-include(CheckCSourceCompiles)
-check_c_source_compiles(
-  "
-#ifndef __i386__
-#error not i386
-#endif
-int main(void) { return 0; }
-"
-  HAVE_I386)
+check_compile(HAVE_I386 "#ifndef __i386__\n#error not i386\n#endif\nint main(void) { return 0; }\n")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)" OR HAVE_I386)
   set(X86 TRUE)
 else()
   set(X86 FALSE)
 endif()
+
 if(X86)
   file(GLOB libbcrypt_SOURCES third_party/libbcrypt/*.c third_party/libbcrypt/*/*.c third_party/libbcrypt/*/*.S)
 else(X86)
@@ -923,16 +887,17 @@ if(LibArchive_LIBRARIES_static)
 endif()
 
 if(MODULE_SERIAL AND BUILD_LIBSERIALPORT)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildLibSerialPort.cmake)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibSerialPort.cmake)
 
   # Built once per enabled module-linkage kind: a shared qjs-serial (.so) needs a PIC
   # libserialport, a static qjs-serial-static (.a) doesn't -- see build_libserialport().
-  if(BUILD_SHARED_MODULES)
+  if(BUILD_SHARED)
     build_libserialport(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} shared ON)
-  endif(BUILD_SHARED_MODULES)
-  if(BUILD_STATIC_MODULES)
+  endif()
+
+  if(BUILD_STATIC)
     build_libserialport(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} static OFF)
-  endif(BUILD_STATIC_MODULES)
+  endif(BUILD_STATIC)
 
   # Kept for existing consumers expecting a single LIBSERIALPORT_LIBRARY_DIR (e.g. the
   # link_directories() call further down) -- either variant's directory works, since
@@ -970,8 +935,6 @@ set(CMAKE_REQUIRED_QUIET ON)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
-#dump(VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
-
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -987,7 +950,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
       set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-  endif(G_OPT_GDB)
+  endif()
+
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
@@ -999,8 +963,6 @@ endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 add_definitions(-DNDEBUG)
 
 check_function_def(js_debugger_build_backtrace)
-
-#dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
 
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 
@@ -1113,27 +1075,37 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-#file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
-#file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
-#file(GLOB LIBPARSER ${CMAKE_CURRENT_SOURCE_DIR}/lib/parser/*.js)
-#file(GLOB LIBXML ${CMAKE_CURRENT_SOURCE_DIR}/lib/xml/*.js)
+#
+# Get the native & compiled modules list
+#
+get_compiled_modules(COMPILED_MODULE_NAMES)
+get_native_modules(NATIVE_MODULES)
 
-#file(GLOB_RECURSE LIBJS LIST_DIRECTORIES false CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
+list(FILTER NATIVE_MODULES EXCLUDE REGEX "^(stream)$")
 
-#list(REMOVE_ITEM LIBJS lib/require.js)
-#list(REMOVE_ITEM LIBJS lib/fs.js)
-#list(REMOVE_ITEM LIBJS lib/std.js)
-#list(REMOVE_ITEM LIBJS lib/os.js)
+set(COLUMNS 80)
 
-#list(FILTER LIBJS EXCLUDE REGEX "lib/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|syscallerror|textcode|tree_walker|xml)\.js$")
+message("")
 
-#dump_list(LIBJS)
+set_extra(INSTALLED_NATIVE NATIVE_MODULES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED})
+print_columns("=> Builtin C native modules" BUILTINS_NATIVE ${COLUMNS})
+print_columns("=> Installed C native modules" INSTALLED_NATIVE ${COLUMNS})
 
+set_extra(INSTALLED_JS COMPILED_MODULE_NAMES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED})
+print_columns("=> Builtin JS modules" BUILTINS_COMPILED ${COLUMNS})
+print_columns("=> Installed JS modules" INSTALLED_JS ${COLUMNS})
+ 
+
+make_filter_re(EXCLUDE_REGEX ${NATIVE_MODULES} ${BUILTINS_COMPILED})
+
+#
+# Install all scripts in lib/ directory
+#
 install(
   DIRECTORY lib/
   DESTINATION "${QUICKJS_JS_MODULE_DIR}"
-  FILES_MATCHING PATTERN "*.js" 
-  REGEX "lib/(archive|arraybuffer[-_]sink|bcrypt|bjson|blob|child[-_]process|deep|directory|gpio|inspect|json|lexer|list|location|magic|misc|mmap|mysql|path|pgsql|pointer|predicate|queue|repeater|serial|sockets|sqlite|stream|syscallerror|textcode|tree[-_]walker|virtual|wasm|xml|yaml)\\.js$" EXCLUDE
+  FILES_MATCHING PATTERN "*.js"
+  REGEX "lib/(${EXCLUDE_REGEX})\\.js$" EXCLUDE
 )
 
 # not cached (see the top of this file): pass -DBUILTINS_COMPILED=... to override
@@ -1145,25 +1117,45 @@ list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
 set(COMMON_MODULES "")
 
+set(abort_MODULES events)
 set(assert_MODULES inspect)
 set(assertStrict_MODULES assert)
+set(commonjs_MODULES require path)
 set(console_MODULES util inspect)
-set(db_MODULES list)
-set(fs_MODULES syscallerror directory node:events path mmap misc textcode)
+set(db_MODULES util list)
+set(dom_MODULES fs util timers css3-selectors deep pointer tree_walker xml url file)
+set(extendArrayBuffer_MODULES util misc)
+set(extendArray_MODULES util)
+set(extendAsyncFunction_MODULES util)
+set(extendAsyncGenerator_MODULES asyncIterator)
+set(extendFunction_MODULES util)
+set(extendGenerator_MODULES iterator)
+set(extendMap_MODULES util)
+set(extendSet_MODULES util)
+set(file_MODULES blob)
+set(fs_MODULES node:events os path misc mmap std syscallerror textcode directory)
 set(fsPromises_MODULES fs misc textcode)
+set(globals_MODULES timers fs stream blob events textcode url abort streams perf_hooks)
 set(timersPromises_MODULES timers)
 set(io_MODULES util misc)
 set(module_MODULES fs)
-set(parser_MODULES path list)
+set(parser_MODULES path util list)
+set(password_MODULES bcrypt)
 set(process_MODULES path util misc node:events)
 set(readline_MODULES node:events textcode misc timers)
 set(readlinePromises_MODULES readline)
 set(repl_MODULES util inspect path io process)
 set(require_MODULES util path process)
 set(perf_hooks_MODULES misc timers)
+set(simple_queue_MODULES assert)
+set(stream_MODULES abort assert simple-queue util)
+set(streams_MODULES fs stream util std textcode)
+set(terminal_MODULES misc process)
 set(tty_MODULES util misc)
 set(url_MODULES util path)
 set(util_MODULES timers inspect path misc textcode)
+set(vfs_MODULES fs fs fsPromises path util archive extendArray io queue)
+set(webassembly_MODULES wasm)
 set(node_util_MODULES assert)
 set(node_child_process_MODULES buffer)
 set(inspect_MODULES pointer)
@@ -1198,9 +1190,11 @@ endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 set(COMPILED_BUILTIN_HEADER "")
 
 foreach(LIB_MODULE ${BUILTINS_COMPILED})
-  #message("Compile Module: ${LIB_MODULE}")
 
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
+
+  #if(MODLIST)
+  #endif()
 
   module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
   compile_module(lib/${LIB_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
@@ -1232,7 +1226,11 @@ set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_F
 
 target_link_libraries(modules PUBLIC m)
 
-add_library(compiled STATIC ${COMPILED_MODULES})
+relative_paths(COMPILED_FILES "${CMAKE_CURRENT_BINARY_DIR}" ${COMPILED_MODULES})
+
+#dump_list(COMPILED_FILES)
+
+add_library(compiled STATIC ${COMPILED_FILES})
 
 set(COMMON_LIBRARIES modules compiled)
 
@@ -1277,7 +1275,7 @@ endif(TARGET qjs-child-process)
 # ${VNAME}_LIBRARIES_shared/_static handling.
 
 # Same inter-module dependencies as above, wired up for the '-static' variants
-# that make_module() produces when BUILD_STATIC_MODULES is on.
+# that make_module() produces when BUILD_STATIC is on.
 if(TARGET qjs-inspect-static)
   target_link_libraries(qjs-inspect-static PRIVATE qjs-pointer-static)
 endif(TARGET qjs-inspect-static)
@@ -1329,9 +1327,6 @@ set(BUILTIN_MODULES
 
 # the names BUILTIN_MODULES accepts: quickjs-<name>.c as <name> ('-' written '_') and
 # lib/<name>.js; get_native_modules()/get_compiled_modules() list them
-get_native_modules(NATIVE_MODULES)
-get_compiled_modules(COMPILED_MODULE_NAMES)
-
 foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
   string(REPLACE "_" "-" BUILTIN_NATIVE_NAME "${BUILTIN_MODULE}")
   string(REPLACE "-" "_" BUILTIN_NATIVE_KEY "${BUILTIN_MODULE}")
@@ -1437,6 +1432,10 @@ set(NATIVE_REQUIRED ${BUILTINS_NATIVE})
 
 foreach(LIB_MODULE ${BUILTINS_COMPILED})
   foreach(DEP ${${LIB_MODULE}_MODULES})
+    string(REGEX REPLACE "[-_]" "-" DEP2 "${DEP}")
+    string(REGEX REPLACE ".*:" "" DEP "${DEP2}")
+    #if(NOT DEP STREQUAL DEP2)
+    #endif()
     if(NOT DEP IN_LIST BUILTINS_COMPILED AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${DEP}.c")
       list(APPEND NATIVE_REQUIRED "${DEP}")
     endif()
@@ -1468,7 +1467,7 @@ foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${NATIVE_MODULE})\n")
 endforeach()
 
-# Modules built as qjs-<name>-static libraries (BUILD_STATIC_MODULES) that aren't
+# Modules built as qjs-<name>-static libraries (BUILD_STATIC) that aren't
 # already compiled directly into qjsm via BUILTINS_NATIVE above: link the library in
 # and register it, unless excluded via BUILTINS_NATIVE_EXCLUDE -- except a module in
 # NATIVE_REQUIRED always gets registered regardless of BUILTINS_NATIVE_EXCLUDE, since
@@ -1484,7 +1483,12 @@ foreach(STATIC_MODULE_NAME ${STATIC_MODULE_NAMES})
 endforeach()
 
 foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
-  string(REGEX REPLACE "-" "_" EXTERNAL_MODULE_SYMBOL "${EXTERNAL_MODULE}")
+  string(REGEX REPLACE "[-_]" "_" EXTERNAL_MODULE "${EXTERNAL_MODULE}")
+  string(REGEX REPLACE ".*:" "" EXTERNAL_MODULE_SYMBOL "${EXTERNAL_MODULE}")
+
+  #if(NOT "${EXTERNAL_MODULE}" STREQUAL "${EXTERNAL_MODULE_SYMBOL}")
+  #endif()
+
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${EXTERNAL_MODULE_SYMBOL})\n")
 
   if(DEFINED ${EXTERNAL_MODULE}_MODULE)
