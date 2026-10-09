@@ -1,0 +1,485 @@
+2. ›Utilities
+
+Copy page# Utils
+
+Use Bun's utility functions to work with the runtime
+
+## Bun.version [#](#bun-version) 
+
+A string containing the version of the bun CLI that is currently running.
+
+terminal```
+Bun.version;// => "1.3.3"
+```
+
+## Bun.revision [#](#bun-revision) 
+
+The git commit of [Bun](https://github.com/oven-sh/bun)  that was compiled to create the current bun CLI.
+
+terminal```
+Bun.revision;// => "f02561530fda1ee9396f51c8bc99b38716e38296"
+```
+
+## Bun.env [#](#bun-env) 
+
+An alias for process.env.
+
+## Bun.main [#](#bun-main) 
+
+An absolute path to the entrypoint of the current program (the file you executed with bun run).
+
+script.ts```
+Bun.main;// /path/to/script.ts
+```
+
+Use this to determine whether a script is running directly or another script is importing it.
+
+```
+if (import.meta.path === Bun.main) {// this script is being directly executed} else {// this file is being imported from another script}
+```
+
+This check is analogous to the [require.main = module trick](https://stackoverflow.com/questions/6398196/detect-if-called-through-require-or-directly-by-command-line)  in Node.js.
+
+## Bun.sleep() [#](#bun-sleep) 
+
+Bun.sleep(ms: number)
+
+Returns a Promise that resolves after the given number of milliseconds.
+
+```
+console.log("hello");await Bun.sleep(1000);console.log("hello one second later!");
+```
+
+Alternatively, pass a Date object to receive a Promise that resolves at that point in time.
+
+```
+const oneSecondInFuture =newDate(Date.now() +1000);console.log("hello");await Bun.sleep(oneSecondInFuture);console.log("hello one second later!");
+```
+
+## Bun.sleepSync() [#](#bun-sleepsync) 
+
+Bun.sleepSync(ms: number)
+
+A blocking synchronous version of Bun.sleep.
+
+```
+console.log("hello");Bun.sleepSync(1000); // blocks thread for one secondconsole.log("hello one second later!");
+```
+
+## Bun.which() [#](#bun-which) 
+
+Bun.which(bin: string)
+
+Returns the path to an executable, similar to typing which in your terminal.
+
+```
+const ls = Bun.which("ls");console.log(ls); // "/usr/bin/ls"
+```
+
+By default Bun looks at the current PATH environment variable to determine the path. To configure PATH:
+
+```
+const ls = Bun.which("ls", { PATH:"/usr/local/bin:/usr/bin:/bin",});console.log(ls); // "/usr/bin/ls"
+```
+
+Pass a cwd option to resolve the executable from within a specific directory.
+
+```
+const ls = Bun.which("ls", { cwd:"/tmp", PATH:"",});console.log(ls); // null
+```
+
+This is a built-in alternative to the [which](https://www.npmjs.com/package/which)  npm package.
+
+## Bun.randomUUIDv7() [#](#bun-randomuuidv7) 
+
+Bun.randomUUIDv7() returns a [UUID v7](https://www.ietf.org/archive/id/draft-peabody-dispatch-new-uuid-format-01.html#name-uuidv7-layout-and-bit-order) , which is monotonic and suitable for sorting and databases.
+
+```
+import { randomUUIDv7 } from"bun";const id =randomUUIDv7();// => "0192ce11-26d5-7dc3-9305-1426de888c5a"
+```
+
+A UUID v7 is a 128-bit value that encodes the current timestamp, a random value, and a counter. The timestamp is encoded using the most significant 48 bits, and the random value and counter are encoded using the remaining bits.
+
+The timestamp parameter defaults to the current time in milliseconds. When the clock moves forward, Bun reseeds the counter to a new pseudo-random integer. Bun leaves the high bit of the 12-bit counter clear when reseeding, so at least 2048 values remain before rollover. If the clock has not advanced past the last emitted timestamp, Bun reuses the last emitted timestamp and increments the counter. If that counter rolls over, Bun bumps the emitted timestamp forward instead of wrapping the counter, so the returned UUIDs stay strictly increasing (RFC 9562 §6.2). The counter is atomic and threadsafe, so calls to Bun.randomUUIDv7() from many Workers in the same process at the same timestamp don't produce colliding counter values.
+
+When you pass an explicit timestamp, Bun encodes that value verbatim and tracks a separate counter for it, so explicit-timestamp calls do not observe or alter the monotonic state used by the default path. Repeated calls with the same explicit timestamp increment that separate counter, and bump the emitted timestamp on rollover, so they stay sortable. A call with a different explicit timestamp reseeds that counter.
+
+The final 8 bytes of the UUID, apart from the two variant bits, are a cryptographically secure random value. Bun.randomUUIDv7() uses the same random number generator as crypto.randomUUID(). That generator comes from BoringSSL. BoringSSL's randomness in turn comes from the platform-specific system random number generator, which the underlying hardware usually provides.
+
+```
+namespaceBun {functionrandomUUIDv7(encoding?:"hex"|"base64"|"base64url"="hex", timestamp?:number=Date.now()):string;/** * If you pass "buffer", you get a 16-byte buffer instead of a string. */functionrandomUUIDv7(encoding:"buffer", timestamp?:number=Date.now()):Buffer;// If you only pass a timestamp, you get a hex stringfunctionrandomUUIDv7(timestamp?:number=Date.now()):string;}
+```
+
+Pass "buffer" as the encoding to get a 16-byte buffer instead of a string. This can avoid string conversion overhead.
+
+buffer.ts```
+const buffer = Bun.randomUUIDv7("buffer");
+```
+
+base64 and base64url encodings are also supported when you want a slightly shorter string.
+
+base64.ts```
+const base64 = Bun.randomUUIDv7("base64");const base64url = Bun.randomUUIDv7("base64url");
+```
+
+## Bun.peek() [#](#bun-peek) 
+
+Bun.peek(prom: Promise)
+
+Reads a promise's result without await or .then, but only if the promise has already fulfilled or rejected.
+
+```
+import { peek } from"bun";const promise =Promise.resolve("hi");// no await!const result =peek(promise);console.log(result); // "hi"
+```
+
+Use it to avoid extraneous microticks in performance-sensitive code. It's an advanced API; review the following examples before using it in production.
+
+```
+import { peek } from"bun";import { expect, test } from"bun:test";test("peek", () => {const promise =Promise.resolve(true);// no await necessary!expect(peek(promise)).toBe(true);// if we peek again, it returns the same valueconst again =peek(promise);expect(again).toBe(true);// if we peek a non-promise, it returns the valueconst value =peek(42);expect(value).toBe(42);// if we peek a pending promise, it returns the promise againconst pending =newPromise(() => {});expect(peek(pending)).toBe(pending);// If we peek a rejected promise, it:// - returns the error// - does not mark the promise as handledconst rejected =Promise.reject(newError("Successfully tested promise rejection"));expect(peek(rejected).message).toBe("Successfully tested promise rejection");});
+```
+
+peek.status reads the status of a promise without resolving it.
+
+```
+import { peek } from"bun";import { expect, test } from"bun:test";test("peek.status", () => {const promise =Promise.resolve(true);expect(peek.status(promise)).toBe("fulfilled");const pending =newPromise(() => {});expect(peek.status(pending)).toBe("pending");const rejected =Promise.reject(newError("oh nooo"));expect(peek.status(rejected)).toBe("rejected");});
+```
+
+## Bun.openInEditor() [#](#bun-openineditor) 
+
+Opens a file in your default editor. Bun auto-detects your editor from the $VISUAL or $EDITOR environment variables.
+
+```
+const currentFile =import.meta.url;Bun.openInEditor(currentFile);
+```
+
+You can override this with the debug.editor setting in your [bunfig.toml](/docs/runtime/bunfig) .
+
+bunfig.toml```
+[debug]editor="code"
+```
+
+Or specify an editor with the editor param. You can also specify a line and column number.
+
+```
+Bun.openInEditor(import.meta.url, { editor:"vscode", // or "subl" line:10, column:5,});
+```
+
+## Bun.deepEquals() [#](#bun-deepequals) 
+
+Recursively checks if two objects are equivalent. expect().toEqual() in bun:test uses this internally.
+
+```
+const foo = { a:1, b:2, c: { d:3 } };// trueBun.deepEquals(foo, { a:1, b:2, c: { d:3 } });// falseBun.deepEquals(foo, { a:1, b:2, c: { d:4 } });
+```
+
+Pass a third boolean parameter to enable "strict" mode. expect().toStrictEqual() in the test runner uses this.
+
+```
+const a = { entries: [1, 2] };const b = { entries: [1, 2], extra:undefined };Bun.deepEquals(a, b); // => trueBun.deepEquals(a, b, true); // => false
+```
+
+In strict mode, Bun considers the following unequal:
+
+```
+// undefined valuesBun.deepEquals({}, { a:undefined }, true); // false// undefined in arraysBun.deepEquals(["asdf"], ["asdf", undefined], true); // false// sparse arraysBun.deepEquals([, 1], [undefined, 1], true); // false// object literals vs instances w/ same propertiesclassFoo { a =1;}Bun.deepEquals(newFoo(), { a:1 }, true); // false
+```
+
+## Bun.escapeHTML() [#](#bun-escapehtml) 
+
+Bun.escapeHTML(value: string | object | number | boolean): string
+
+Escapes the following characters from an input string:
+
+- " becomes &quot;
+- & becomes &amp;
+- ' becomes &#x27;
+- < becomes &lt;
+- > becomes &gt;
+
+This function is optimized for large input. On an M1 Max, it processes 480 MB/s - 20 GB/s, depending on how much data is being escaped and whether there is non-ASCII text. Bun converts non-string types to a string before escaping.
+
+## Bun.stringWidth() [#](#bun-stringwidth) 
+
+~6,756x faster string-width alternativeGet the column count of a string as a terminal would display it. Supports ANSI escape codes, emoji, and wide characters.
+
+Example usage:
+
+```
+Bun.stringWidth("hello"); // => 5Bun.stringWidth("\u001b[31mhello\u001b[0m"); // => 5Bun.stringWidth("\u001b[31mhello\u001b[0m", { countAnsiEscapeCodes:true }); // => 12
+```
+
+Use it to align text in a terminal or to check whether a string contains ANSI escape codes.
+
+The API matches the "string-width" npm package, so you can port existing code to Bun and vice versa.
+
+[In this benchmark](https://github.com/oven-sh/bun/blob/5147c0ba7379d85d4d1ed0714b84d6544af917eb/bench/snippets/string-width.mjs#L13) , Bun.stringWidth is ~6,756x faster than the string-width npm package for input larger than about 500 characters. Big thanks to [sindresorhus](https://github.com/sindresorhus)  for their work on string-width.
+
+```
+❯ bun string-width.mjscpu: 13th Gen Intel(R) Core(TM) i9-13900runtime: bun 1.0.29 (x64-linux)benchmark time (avg) (min … max) p75 p99 p995------------------------------------------------------------------------------------------------------------------Bun.stringWidth 500 chars ascii 37.09 ns/iter (36.77 ns … 41.11 ns) 37.07 ns 38.84 ns 38.99 ns❯ node string-width.mjsbenchmark time (avg) (min … max) p75 p99 p995------------------------------------------------------------------------------------------------------------------npm/string-width 500 chars ascii 249,710 ns/iter (239,970 ns … 293,180 ns) 250,930 ns 276,700 ns 281,450 ns
+```
+
+Bun.stringWidth is implemented in native code with SIMD instructions and accounts for Latin1, UTF-16, and UTF-8 encodings. It passes string-width's tests.
+
+View full benchmark1 nanosecond (ns) is 1 billionth of a second. For converting between units:
+
+Unit1 Millisecondns1,000,000µs1,000ms1terminal```
+❯ bun string-width.mjscpu: 13th Gen Intel(R) Core(TM) i9-13900runtime: bun 1.0.29 (x64-linux)benchmark time (avg) (min … max) p75 p99 p995------------------------------------------------------------------------------------- -----------------------------Bun.stringWidth 5 chars ascii 16.45 ns/iter (16.27 ns … 19.71 ns) 16.48 ns 16.93 ns 17.21 nsBun.stringWidth 50 chars ascii 19.42 ns/iter (18.61 ns … 27.85 ns) 19.35 ns 21.7 ns 22.31 nsBun.stringWidth 500 chars ascii 37.09 ns/iter (36.77 ns … 41.11 ns) 37.07 ns 38.84 ns 38.99 nsBun.stringWidth 5,000 chars ascii 216.9 ns/iter (215.8 ns … 228.54 ns) 216.23 ns 228.52 ns 228.53 nsBun.stringWidth 25,000 chars ascii 1.01 µs/iter (1.01 µs … 1.01 µs) 1.01 µs 1.01 µs 1.01 µsBun.stringWidth 7 chars ascii+emoji 54.2 ns/iter (53.36 ns … 58.19 ns) 54.23 ns 57.55 ns 57.94 nsBun.stringWidth 70 chars ascii+emoji 354.26 ns/iter (350.51 ns … 363.96 ns) 355.93 ns 363.11 ns 363.96 nsBun.stringWidth 700 chars ascii+emoji 3.3 µs/iter (3.27 µs … 3.4 µs) 3.3 µs 3.4 µs 3.4 µsBun.stringWidth 7,000 chars ascii+emoji 32.69 µs/iter (32.22 µs … 45.27 µs) 32.7 µs 34.57 µs 34.68 µsBun.stringWidth 35,000 chars ascii+emoji 163.35 µs/iter (161.17 µs … 170.79 µs) 163.82 µs 169.66 µs 169.93 µsBun.stringWidth 8 chars ansi+emoji 66.15 ns/iter (65.17 ns … 69.97 ns) 66.12 ns 69.8 ns 69.87 nsBun.stringWidth 80 chars ansi+emoji 492.95 ns/iter (488.05 ns … 499.5 ns) 494.8 ns 498.58 ns 499.5 nsBun.stringWidth 800 chars ansi+emoji 4.73 µs/iter (4.71 µs … 4.88 µs) 4.72 µs 4.88 µs 4.88 µsBun.stringWidth 8,000 chars ansi+emoji 47.02 µs/iter (46.37 µs … 67.44 µs) 46.96 µs 49.57 µs 49.63 µsBun.stringWidth 40,000 chars ansi+emoji 234.45 µs/iter (231.78 µs … 240.98 µs) 234.92 µs 236.34 µs 236.62 µsBun.stringWidth 19 chars ansi+emoji+ascii 135.46 ns/iter (133.67 ns … 143.26 ns) 135.32 ns 142.55 ns 142.77 nsBun.stringWidth 190 chars ansi+emoji+ascii 1.17 µs/iter (1.16 µs … 1.17 µs) 1.17 µs 1.17 µs 1.17 µsBun.stringWidth 1,900 chars ansi+emoji+ascii 11.45 µs/iter (11.26 µs … 20.41 µs) 11.45 µs 12.08 µs 12.11 µsBun.stringWidth 19,000 chars ansi+emoji+ascii 114.06 µs/iter (112.86 µs … 120.06 µs) 114.25 µs 115.86 µs 116.15 µsBun.stringWidth 95,000 chars ansi+emoji+ascii 572.69 µs/iter (565.52 µs … 607.22 µs) 572.45 µs 604.86 µs 605.21 µs
+```
+
+terminal```
+❯ node string-width.mjscpu: 13th Gen Intel(R) Core(TM) i9-13900runtime: node v21.4.0 (x64-linux)benchmark time (avg) (min … max) p75 p99 p995-------------------------------------------------------------------------------------- -----------------------------npm/string-width 5 chars ascii 3.19 µs/iter (3.13 µs … 3.48 µs) 3.25 µs 3.48 µs 3.48 µsnpm/string-width 50 chars ascii 20.09 µs/iter (18.93 µs … 435.06 µs) 19.49 µs 21.89 µs 22.59 µsnpm/string-width 500 chars ascii 249.71 µs/iter (239.97 µs … 293.18 µs) 250.93 µs 276.7 µs 281.45 µsnpm/string-width 5,000 chars ascii 6.69 ms/iter (6.58 ms … 6.76 ms) 6.72 ms 6.76 ms 6.76 msnpm/string-width 25,000 chars ascii 139.57 ms/iter (137.17 ms … 143.28 ms) 140.49 ms 143.28 ms 143.28 msnpm/string-width 7 chars ascii+emoji 3.7 µs/iter (3.62 µs … 3.94 µs) 3.73 µs 3.94 µs 3.94 µsnpm/string-width 70 chars ascii+emoji 23.93 µs/iter (22.44 µs … 331.2 µs) 23.15 µs 25.98 µs 30.2 µsnpm/string-width 700 chars ascii+emoji 251.65 µs/iter (237.78 µs … 444.69 µs) 252.92 µs 325.89 µs 354.08 µsnpm/string-width 7,000 chars ascii+emoji 4.95 ms/iter (4.82 ms … 5.19 ms) 5 ms 5.04 ms 5.19 msnpm/string-width 35,000 chars ascii+emoji 96.93 ms/iter (94.39 ms … 102.58 ms) 97.68 ms 102.58 ms 102.58 msnpm/string-width 8 chars ansi+emoji 3.92 µs/iter (3.45 µs … 4.57 µs) 4.09 µs 4.57 µs 4.57 µsnpm/string-width 80 chars ansi+emoji 24.46 µs/iter (22.87 µs … 4.2 ms) 23.54 µs 25.89 µs 27.41 µsnpm/string-width 800 chars ansi+emoji 259.62 µs/iter (246.76 µs … 480.12 µs) 258.65 µs 349.84 µs 372.55 µsnpm/string-width 8,000 chars ansi+emoji 5.46 ms/iter (5.41 ms … 5.57 ms) 5.48 ms 5.55 ms 5.57 msnpm/string-width 40,000 chars ansi+emoji 108.91 ms/iter (107.55 ms … 109.5 ms) 109.25 ms 109.5 ms 109.5 msnpm/string-width 19 chars ansi+emoji+ascii 6.53 µs/iter (6.35 µs … 6.75 µs) 6.54 µs 6.75 µs 6.75 µsnpm/string-width 190 chars ansi+emoji+ascii 55.52 µs/iter (52.59 µs … 352.73 µs) 54.19 µs 80.77 µs 167.21 µsnpm/string-width 1,900 chars ansi+emoji+ascii 701.71 µs/iter (653.94 µs … 893.78 µs) 715.3 µs 855.37 µs 872.9 µsnpm/string-width 19,000 chars ansi+emoji+ascii 27.19 ms/iter (26.89 ms … 27.41 ms) 27.28 ms 27.41 ms 27.41 msnpm/string-width 95,000 chars ansi+emoji+ascii 3.68 s/iter (3.66 s … 3.7 s) 3.69 s 3.7 s 3.7 s
+```
+
+TypeScript definition:
+
+```
+namespaceBun {exportfunctionstringWidth(/** * The string to measure */input:string,options?: {/** * If `true`, count ANSI escape codes as part of the string width. If `false`, ANSI escape codes are ignored when calculating the string width. * * @defaultfalse */ countAnsiEscapeCodes?:boolean;/** * When it's ambiugous and `true`, count emoji as 1 characters wide. If `false`, emoji are counted as 2 character wide. * * @defaulttrue */ ambiguousIsNarrow?:boolean; }, ):number;}
+```
+
+See all 22 lines## Bun.fileURLToPath() [#](#bun-fileurltopath) 
+
+Converts a file:// URL to an absolute path.
+
+```
+const path = Bun.fileURLToPath(newURL("file:///foo/bar.txt"));console.log(path); // "/foo/bar.txt"
+```
+
+## Bun.pathToFileURL() [#](#bun-pathtofileurl) 
+
+Converts an absolute path to a file:// URL.
+
+```
+const url = Bun.pathToFileURL("/foo/bar.txt");console.log(url); // "file:///foo/bar.txt"
+```
+
+## Bun.gzipSync() [#](#bun-gzipsync) 
+
+Compresses a Uint8Array using zlib's GZIP algorithm.
+
+```
+const buf = Buffer.from("hello".repeat(100)); // Buffer extends Uint8Arrayconst compressed = Bun.gzipSync(buf);buf; // => Uint8Array(500)compressed; // => Uint8Array(30)
+```
+
+Optionally, pass a parameters object as the second argument:
+
+zlib compression options```
+exporttypeZlibCompressionOptions= {/** * The compression level to use. Must be between `-1` and `9`. * - A value of `-1` uses the default compression level (Currently `6`) * - A value of `0` gives no compression * - A value of `1` gives least compression, fastest speed * - A value of `9` gives best compression, slowest speed */ level?: -1|0|1|2|3|4|5|6|7|8|9;/** * How much memory should be allocated for the internal compression state. * * A value of `1` uses minimum memory but is slow and reduces compression ratio. * * A value of `9` uses maximum memory for optimal speed. The default is `8`. */ memLevel?:1|2|3|4|5|6|7|8|9;/** * The base 2 logarithm of the window size (the size of the history buffer). * * Larger values of this parameter result in better compression at the expense of memory usage. * * The following value ranges are supported: * - `9..15`: The output will have a zlib header and footer (Deflate) * - `-9..-15`: The output will **not** have a zlib header or footer (Raw Deflate) * - `25..31` (16+`9..15`): The output will have a gzip header and footer (gzip) * * The gzip header will have no file name, no extra data, no comment, no modification time (set to zero) and no header CRC. */ windowBits?:| -9| -10| -11| -12| -13| -14| -15|9|10|11|12|13|14|15|25|26|27|28|29|30|31;/** * Tunes the compression algorithm. * * - `Z_DEFAULT_STRATEGY`: For normal data **(Default)** * - `Z_FILTERED`: For data produced by a filter or predictor * - `Z_HUFFMAN_ONLY`: Force Huffman encoding only (no string match) * - `Z_RLE`: Limit match distances to one (run-length encoding) * - `Z_FIXED` prevents the use of dynamic Huffman codes * * `Z_RLE` is designed to be almost as fast as `Z_HUFFMAN_ONLY`, but give better compression for PNG image data. * * `Z_FILTERED` forces more Huffman coding and less string matching, it is * somewhat intermediate between `Z_DEFAULT_STRATEGY` and `Z_HUFFMAN_ONLY`. * Filtered data consists mostly of small values with a somewhat random distribution. */ strategy?:number;};
+```
+
+See all 68 lines## Bun.gunzipSync() [#](#bun-gunzipsync) 
+
+Decompresses a Uint8Array using zlib's GUNZIP algorithm.
+
+```
+const buf = Buffer.from("hello".repeat(100)); // Buffer extends Uint8Arrayconst compressed = Bun.gzipSync(buf);const dec =newTextDecoder();const uncompressed = Bun.gunzipSync(compressed);dec.decode(uncompressed);// => "hellohellohello..."
+```
+
+## Bun.deflateSync() [#](#bun-deflatesync) 
+
+Compresses a Uint8Array using zlib's DEFLATE algorithm.
+
+```
+const buf = Buffer.from("hello".repeat(100));const compressed = Bun.deflateSync(buf);buf; // => Buffer(500)compressed; // => Uint8Array(12)
+```
+
+The second argument supports the same set of configuration options as [Bun.gzipSync](#bun-gzipsync) .
+
+## Bun.inflateSync() [#](#bun-inflatesync) 
+
+Decompresses a Uint8Array using zlib's INFLATE algorithm.
+
+```
+const buf = Buffer.from("hello".repeat(100));const compressed = Bun.deflateSync(buf);const dec =newTextDecoder();const decompressed = Bun.inflateSync(compressed);dec.decode(decompressed);// => "hellohellohello..."
+```
+
+## Bun.zstdCompress() / Bun.zstdCompressSync() [#](#bun-zstdcompress-bun-zstdcompresssync) 
+
+Compresses a Uint8Array using the Zstandard algorithm.
+
+```
+const buf = Buffer.from("hello".repeat(100));// Synchronousconst compressedSync = Bun.zstdCompressSync(buf);// Asynchronousconst compressedAsync =await Bun.zstdCompress(buf);// With compression level (1-22, default: 3)const compressedLevel = Bun.zstdCompressSync(buf, { level:6 });
+```
+
+## Bun.zstdDecompress() / Bun.zstdDecompressSync() [#](#bun-zstddecompress-bun-zstddecompresssync) 
+
+Decompresses a Uint8Array using the Zstandard algorithm.
+
+```
+const buf = Buffer.from("hello".repeat(100));const compressed = Bun.zstdCompressSync(buf);// Synchronousconst decompressedSync = Bun.zstdDecompressSync(compressed);// Asynchronousconst decompressedAsync =await Bun.zstdDecompress(compressed);const dec =newTextDecoder();dec.decode(decompressedSync);// => "hellohellohello..."
+```
+
+## Bun.inspect() [#](#bun-inspect) 
+
+Serializes an object to a string exactly as console.log would print it.
+
+```
+const obj = { foo:"bar" };Bun.inspect(obj);// => '{\n foo: "bar",\n}'const arr =newUint8Array([1, 2, 3]);Bun.inspect(arr);// => "Uint8Array(3) [ 1, 2, 3 ]"
+```
+
+### Bun.inspect.custom [#](#bun-inspect-custom) 
+
+The symbol Bun uses to implement Bun.inspect. Override it to customize how Bun prints your objects. It is identical to util.inspect.custom in Node.js.
+
+```
+classFoo { [Bun.inspect.custom]() {return"foo"; }}const foo =newFoo();console.log(foo); // => "foo"
+```
+
+### Bun.inspect.table(tabularData, properties, options) [#](#bun-inspect-table-tabulardata-properties-options) 
+
+Format tabular data into a string. Like [console.table](https://developer.mozilla.org/en-US/docs/Web/API/console/table_static) , except it returns a string rather than printing to the console.
+
+```
+console.log( Bun.inspect.table([ { a:1, b:2, c:3 }, { a:4, b:5, c:6 }, { a:7, b:8, c:9 }, ]),);//// ┌───┬───┬───┬───┐// │ │ a │ b │ c │// ├───┼───┼───┼───┤// │ 0 │ 1 │ 2 │ 3 │// │ 1 │ 4 │ 5 │ 6 │// │ 2 │ 7 │ 8 │ 9 │// └───┴───┴───┴───┘
+```
+
+Pass an array of property names to display only those properties.
+
+```
+console.log( Bun.inspect.table( [ { a:1, b:2, c:3 }, { a:4, b:5, c:6 }, ], ["a", "c"], ),);//// ┌───┬───┬───┐// │ │ a │ c │// ├───┼───┼───┤// │ 0 │ 1 │ 3 │// │ 1 │ 4 │ 6 │// └───┴───┴───┘
+```
+
+Pass { colors: true } to enable ANSI colors.
+
+```
+console.log( Bun.inspect.table( [ { a:1, b:2, c:3 }, { a:4, b:5, c:6 }, ], { colors:true, }, ),);
+```
+
+## Bun.nanoseconds() [#](#bun-nanoseconds) 
+
+Returns the number of nanoseconds since the current bun process started, as a number. Useful for high-precision timing and benchmarking.
+
+```
+Bun.nanoseconds();// => 7288958
+```
+
+## Bun.readableStreamTo*() [#](#bun-readablestreamto) 
+
+Bun implements a set of convenience functions for asynchronously consuming the body of a ReadableStream and converting it to various binary formats.
+
+```
+const stream = (awaitfetch("https://bun.com")).body;stream; // => ReadableStreamawait Bun.readableStreamToArrayBuffer(stream);// => ArrayBufferawait Bun.readableStreamToBytes(stream);// => Uint8Arrayawait Bun.readableStreamToBlob(stream);// => Blobawait Bun.readableStreamToJSON(stream);// => objectawait Bun.readableStreamToText(stream);// => string// returns all chunks as an arrayawait Bun.readableStreamToArray(stream);// => unknown[]// returns all chunks as a FormData object (encoded as x-www-form-urlencoded)await Bun.readableStreamToFormData(stream);// returns all chunks as a FormData object (encoded as multipart/form-data)await Bun.readableStreamToFormData(stream, multipartFormBoundary);
+```
+
+## Bun.resolveSync() [#](#bun-resolvesync) 
+
+Resolves a file path or module specifier using Bun's internal [module resolution](/docs/runtime/module-resolution)  algorithm. The first argument is the path to resolve, and the second argument is the "root". If nothing matches, it throws an Error.
+
+```
+Bun.resolveSync("./foo.ts", "/path/to/project");// => "/path/to/project/foo.ts"Bun.resolveSync("zod", "/path/to/project");// => "/path/to/project/node_modules/zod/index.ts"
+```
+
+To resolve relative to the current working directory, pass process.cwd() or "." as the root.
+
+```
+Bun.resolveSync("./foo.ts", process.cwd());Bun.resolveSync("./foo.ts", "/path/to/project");
+```
+
+To resolve relative to the directory containing the current file, pass import.meta.dir.
+
+```
+Bun.resolveSync("./foo.ts", import.meta.dir);
+```
+
+## Bun.stripANSI() [#](#bun-stripansi) 
+
+~6-57x faster strip-ansi alternativeBun.stripANSI(text: string): string
+
+Strip ANSI escape codes from a string. Use it to remove colors and formatting from terminal output.
+
+```
+const coloredText ="\u001b[31mHello\u001b[0m \u001b[32mWorld\u001b[0m";const plainText = Bun.stripANSI(coloredText);console.log(plainText); // => "Hello World"// Works with various ANSI codesconst formatted ="\u001b[1m\u001b[4mBold and underlined\u001b[0m";console.log(Bun.stripANSI(formatted)); // => "Bold and underlined"
+```
+
+Bun.stripANSI is faster than the [strip-ansi](https://www.npmjs.com/package/strip-ansi)  npm package:
+
+terminal```
+bun bench/snippets/strip-ansi.mjs
+```
+
+```
+cpu: Apple M3 Maxruntime: bun 1.2.21 (arm64-darwin)benchmark avg (min … max) p75 / p99------------------------------------------------------- ----------Bun.stripANSI 11 chars no-ansi 8.13 ns/iter 8.27 ns (7.45 ns … 33.59 ns) 10.29 nsBun.stripANSI 13 chars ansi 51.68 ns/iter 52.51 ns (46.16 ns … 113.71 ns) 57.71 nsBun.stripANSI 16,384 chars long-no-ansi 298.39 ns/iter 305.44 ns (281.50 ns … 331.65 ns) 320.70 nsBun.stripANSI 212,992 chars long-ansi 227.65 µs/iter 234.50 µs (216.46 µs … 401.92 µs) 262.25 µs
+```
+
+terminal```
+node bench/snippets/strip-ansi.mjs
+```
+
+```
+cpu: Apple M3 Maxruntime: node 24.6.0 (arm64-darwin)benchmark avg (min … max) p75 / p99-------------------------------------------------------- ---------npm/strip-ansi 11 chars no-ansi 466.79 ns/iter 468.67 ns (454.08 ns … 570.67 ns) 543.67 nsnpm/strip-ansi 13 chars ansi 546.77 ns/iter 550.23 ns (532.74 ns … 651.08 ns) 590.35 nsnpm/strip-ansi 16,384 chars long-no-ansi 4.85 µs/iter 4.89 µs (4.71 µs … 5.00 µs) 4.98 µsnpm/strip-ansi 212,992 chars long-ansi 1.36 ms/iter 1.38 ms (1.27 ms … 1.73 ms) 1.49 ms
+```
+
+## Bun.wrapAnsi() [#](#bun-wrapansi) 
+
+Drop-in replacement for wrap-ansi npm packageBun.wrapAnsi(input: string, columns: number, options?: WrapAnsiOptions): string
+
+Wrap text to a specified column width. It preserves ANSI escape codes and hyperlinks and handles Unicode/emoji width correctly. This is a native alternative to the [wrap-ansi](https://www.npmjs.com/package/wrap-ansi)  npm package.
+
+```
+// Basic wrapping at 20 columnsBun.wrapAnsi("The quick brown fox jumps over the lazy dog", 20);// => "The quick brown fox\njumps over the lazy\ndog"// Preserves ANSI escape codes: an open style is closed at each row end// and re-opened on the next row so every row renders correctly on its ownBun.wrapAnsi("\u001b[31mThe quick brown fox jumps over the lazy dog\u001b[0m", 20);// => "\u001b[31mThe quick brown fox\u001b[39m\n\u001b[31mjumps over the lazy\u001b[39m\n\u001b[31mdog\u001b[0m"
+```
+
+### Options [#](#options) 
+
+```
+Bun.wrapAnsi("Hello World", 5, { hard:true, // Break words that exceed column width (default: false) wordWrap:true, // Wrap at word boundaries (default: true) trim:true, // Trim leading/trailing whitespace per line (default: true) ambiguousIsNarrow:true, // Treat ambiguous-width characters as narrow (default: true)});
+```
+
+OptionDefaultDescriptionhardfalseIf true, break words in the middle if they exceed the column width.wordWraptrueIf true, wrap at word boundaries. If false, break every line at exactly the column width.trimtrueIf true, trim leading and trailing whitespace from each line.ambiguousIsNarrowtrueIf true, treat ambiguous-width Unicode characters as 1 column wide. If false, treat them as 2 columns wide.TypeScript definition:
+
+```
+namespaceBun {exportfunctionwrapAnsi(/** * The string to wrap */input:string,/** * The maximum column width */columns:number,/** * Wrapping options */options?: {/** * If `true`, break words in the middle if they don't fit on a line. * If `false`, only break at word boundaries. * * @defaultfalse */ hard?:boolean;/** * If `true`, wrap at word boundaries when possible. * If `false`, break every line at exactly the column width (characters * are split wherever the limit falls, ignoring word boundaries). * * @defaulttrue */ wordWrap?:boolean;/** * If `true`, trim leading and trailing whitespace from each line. * If `false`, preserve whitespace. * * @defaulttrue */ trim?:boolean;/** * When it's ambiguous and `true`, count ambiguous width characters as 1 character wide. * If `false`, count them as 2 characters wide. * * @defaulttrue */ ambiguousIsNarrow?:boolean; }, ):string;}
+```
+
+See all 46 lines## serialize & deserialize in bun:jsc [#](#serialize-deserialize-in-bun-jsc) 
+
+To save a JavaScript value into a SharedArrayBuffer & back, use serialize and deserialize from the "bun:jsc" module.
+
+```
+import { serialize, deserialize } from"bun:jsc";const buf =serialize({ foo:"bar" });const obj =deserialize(buf);console.log(obj); // => { foo: "bar" }
+```
+
+Internally, [structuredClone](https://developer.mozilla.org/en-US/docs/Web/API/structuredClone)  and [postMessage](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage)  serialize and deserialize the same way. serialize and deserialize expose the underlying [HTML Structured Clone Algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)  to JavaScript as a SharedArrayBuffer.
+
+## estimateShallowMemoryUsageOf in bun:jsc [#](#estimateshallowmemoryusageof-in-bun-jsc) 
+
+The estimateShallowMemoryUsageOf function returns a best-effort estimate of the memory usage of an object in bytes, excluding the memory usage of properties or other objects it references. For accurate per-object memory usage, use Bun.generateHeapSnapshot.
+
+```
+import { estimateShallowMemoryUsageOf } from"bun:jsc";const obj = { foo:"bar" };const usage =estimateShallowMemoryUsageOf(obj);console.log(usage); // => 16const buffer = Buffer.alloc(1024*1024);estimateShallowMemoryUsageOf(buffer);// => 1048624const req =newRequest("https://bun.com");estimateShallowMemoryUsageOf(req);// => 167const array =Array(1024).fill({ a:1 });// Arrays are usually not stored contiguously in memory, so this will not return a useful value (which isn't a bug).estimateShallowMemoryUsageOf(array);// => 16
+```
+
+[PreviousColor](/docs/runtime/color) [NextGlobals](/docs/runtime/globals) [Edit this page on GitHub](https://github.com/oven-sh/bun/blob/main/docs/runtime/utils.mdx) [View as Markdown](/docs/runtime/utils.md) On this page
+
+- [Bun.version](#bun-version) 
+- [Bun.revision](#bun-revision) 
+- [Bun.env](#bun-env) 
+- [Bun.main](#bun-main) 
+- [Bun.sleep()](#bun-sleep) 
+- [Bun.sleepSync()](#bun-sleepsync) 
+- [Bun.which()](#bun-which) 
+- [Bun.randomUUIDv7()](#bun-randomuuidv7) 
+- [Bun.peek()](#bun-peek) 
+- [Bun.openInEditor()](#bun-openineditor) 
+- [Bun.deepEquals()](#bun-deepequals) 
+- [Bun.escapeHTML()](#bun-escapehtml) 
+- [Bun.stringWidth()](#bun-stringwidth) 
+- [Bun.fileURLToPath()](#bun-fileurltopath) 
+- [Bun.pathToFileURL()](#bun-pathtofileurl) 
+- [Bun.gzipSync()](#bun-gzipsync) 
+- [Bun.gunzipSync()](#bun-gunzipsync) 
+- [Bun.deflateSync()](#bun-deflatesync) 
+- [Bun.inflateSync()](#bun-inflatesync) 
+- [Bun.zstdCompress() / Bun.zstdCompressSync()](#bun-zstdcompress-bun-zstdcompresssync) 
+- [Bun.zstdDecompress() / Bun.zstdDecompressSync()](#bun-zstddecompress-bun-zstddecompresssync) 
+- [Bun.inspect()](#bun-inspect) - [Bun.inspect.custom](#bun-inspect-custom) 
+- [Bun.inspect.table(tabularData, properties, options)](#bun-inspect-table-tabulardata-properties-options) 
+
+- [Bun.nanoseconds()](#bun-nanoseconds) 
+- [Bun.readableStreamTo*()](#bun-readablestreamto) 
+- [Bun.resolveSync()](#bun-resolvesync) 
+- [Bun.stripANSI()](#bun-stripansi) 
+- [Bun.wrapAnsi()](#bun-wrapansi) - [Options](#options) 
+
+- [serialize & deserialize in bun:jsc](#serialize-deserialize-in-bun-jsc) 
+- [estimateShallowMemoryUsageOf in bun:jsc](#estimateshallowmemoryusageof-in-bun-jsc) 
+

@@ -1,0 +1,830 @@
+<h1>Node.js API compatibility gaps</h1>
+
+<p>Gaps between <code>lib/*.js</code> and the Node.js API documentation, found by comparing the docs
+(<code>/tmp/node-doc/*.md</code>) with the code and by running differential batteries under node 22
+and <code>qjsm</code> (<code>/tmp/claude-1000/cmp/b-*.mjs</code>). Moved here from <code>TODO.md</code> (formerly Tiers
+14-22); see <code>api-compatibility.md</code> for the per-module classification and
+<code>api-compatibility-plan.md</code> for the summary table and fix order.</p>
+
+<h2>Sources</h2>
+
+<p>Every Node.js module has its API documentation as Markdown at
+<code>https://github.com/nodejs/node/raw/refs/heads/main/doc/api/&lt;name&gt;.md</code>, for example
+<code>.../doc/api/timers.md</code>, <code>.../doc/api/assert.md</code>, <code>.../doc/api/process.md</code>. Download it
+to <code>/tmp/node-doc/&lt;name&gt;.md</code> and compare it with <code>lib/&lt;name&gt;.js</code> (section headings
+list the documented members; the file also records the version each one was added in).</p>
+
+<p>The list of all modules is the directory listing of that URL:</p>
+
+<p><code>sh
+dlynx.sh https://github.com/nodejs/node/raw/refs/heads/main/doc/api/ | grep '\.md$' | uniq
+</code></p>
+
+<h2><code>lib/node/*</code>: Node-shaped layers (2026-10-09)</h2>
+
+<p>Modules whose Node API differs from the qjs-modules helpers live in <code>lib/node/&lt;name&gt;.js</code>
+and are compiled as builtin <code>node_&lt;name&gt;</code> (CMake <code>BUILTINS_NODE</code>). <code>node:&lt;name&gt;</code> resolves
+to them; a bare <code>&lt;name&gt;</code> does too when no builtin of that name exists (<code>buffer</code>).</p>
+
+<table>
+<thead>
+<tr>
+<th> file </th>
+<th> serves </th>
+<th> notes </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>lib/node/buffer.js</code> </td>
+<td> <code>node:buffer</code>, <code>buffer</code> </td>
+<td> moved from <code>lib/buffer.js</code> </td>
+</tr>
+<tr>
+<td> <code>lib/node/events.js</code> </td>
+<td> <code>node:events</code> </td>
+<td> <code>EventEmitter</code>, <code>once</code>, <code>on</code>, &hellip;; <code>EventTarget</code> stays in <code>lib/events.js</code> </td>
+</tr>
+<tr>
+<td> <code>lib/node/child_process.js</code> </td>
+<td> <code>node:child_process</code> </td>
+<td> layer over the native <code>child_process</code> </td>
+</tr>
+<tr>
+<td> <code>lib/node/util.js</code> </td>
+<td> <code>node:util</code> </td>
+<td> Node&rsquo;s util; the bare <code>util</code> keeps the internal helpers </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>Compile-time imports of these from other <code>lib/*.js</code> files need <code>-M node:events</code> in
+<code>&lt;module&gt;_MODULES</code> (qjsc cannot resolve <code>node:</code> names otherwise).</p>
+
+<h3><code>lib/node/util.js</code> vs. <code>util.md</code></h3>
+
+<p>Implemented: <code>inspect</code> (port of Node&rsquo;s formatter: depth, grouping, <code>&lt;ref *1&gt;</code>, classes, errors with
+<code>cause</code>, typed arrays, <code>numericSeparator</code>, <code>sorted</code>, <code>getters</code>, <code>colors</code>/<code>styles</code>/<code>defaultOptions</code>,
+<code>inspect.custom</code>), <code>format</code>/<code>formatWithOptions</code>, <code>types</code> (brand checks), <code>promisify</code> (+custom),
+<code>callbackify</code>, <code>deprecate</code>, <code>debuglog</code>/<code>debug</code>, <code>inherits</code>, <code>isDeepStrictEqual</code> (+<code>skipPrototype</code>),
+<code>isPartialDeepStrictEqual</code>, <code>parseArgs</code> (+tokens, <code>allowNegative</code>), <code>parseEnv</code>, <code>styleText</code>,
+<code>stripVTControlCharacters</code>, <code>toUSVString</code>, <code>TextDecoder</code>/<code>TextEncoder</code>, <code>MIMEType</code>/<code>MIMEParams</code>,
+<code>diff</code>, <code>debounce</code>, <code>throttle</code>, <code>getCallSites</code>, <code>getSystemError{Name,Map,Message}</code>,
+<code>convertProcessSignalToExitCode</code>, <code>aborted</code>, <code>transferableAbort*</code>, <code>markPromiseAsHandled</code>,
+legacy <code>is*</code>/<code>_extend</code>/<code>log</code>/<code>_errnoException</code>.</p>
+
+<p>Gaps (engine limits): <code>inspect</code> cannot show Proxy target/handler, <code>Map</code>/<code>Set</code> iterator contents or
+<code>WeakSet</code>/<code>WeakMap</code> entries; <code>types.isProxy/isExternal/isKeyObject/isCryptoKey</code> are <code>false</code>;
+<code>ref()</code>/<code>unref()</code> of <code>debounce</code>/<code>throttle</code> are no-ops; <code>TextDecoder</code> supports utf-8, utf-16le and
+windows-1252 only; <code>getCallSites().scriptId</code> is <code>'0'</code> and <code>sourceMap</code> is ignored.</p>
+
+<h2><code>lib/process.js</code> gaps vs. Node.js <code>process</code> (updated 2026-10-09)</h2>
+
+<p>Compared against the Node.js <code>process</code> docs (<code>/tmp/process.md</code>) and the export list
+of <code>node:process</code> (<code>/tmp/process.describe.txt</code>). Everything in that export list is
+implemented now (including named exports); events <code>exit beforeExit
+uncaughtException uncaughtExceptionMonitor unhandledRejection rejectionHandled
+warning SIG*</code> are wired through <code>__qjsm_hooks__</code> (<code>src/qjsm.c</code>). What differs:</p>
+
+<ul>
+<li><strong>stubs:</strong> <code>getActiveResourcesInfo()</code> returns <code>[]</code>; <code>binding()</code> always throws;
+<code>allowedNodeEnvironmentFlags</code> is an empty <code>Set</code>; <code>features</code> reports no
+inspector/tls/uv; <code>report</code> has <code>getReport()/writeReport()</code> with a small payload.</li>
+<li><strong>not implemented:</strong> <code>channel connected send disconnect</code> (no IPC),
+<code>permission</code>, <code>noDeprecation throwDeprecation traceDeprecation
+traceProcessWarnings</code> (+ the <code>DeprecationWarning</code> handling), <code>'message'</code>,
+<code>'disconnect'</code>, <code>'worker'</code>, <code>'workerMessage'</code> events.</li>
+<li><strong>approximations:</strong> CPU times come from <code>/proc/*/stat</code> ticks (10 ms resolution);
+<code>memoryUsage()</code> has only a real <code>rss</code>; <code>resourceUsage()</code> fills fields it cannot
+read with 0; <code>uptime()</code> uses <code>/proc</code> start time; <code>getBuiltinModule()</code> loads
+through <code>requireModule()</code>; <code>dlopen()</code> ignores <code>flags</code>; <code>setSourceMapsEnabled()</code>
+only records the flag; <code>getgroups()</code> reads <code>/proc/self/status</code>.</li>
+<li><strong>event limits:</strong> exceptions inside timer/IO callbacks never reach
+<code>uncaughtException</code> (printed by <code>js_std_loop()</code>); a rejection listener must exist
+before the rejection; <code>std.exit(n)</code> reports code 1 to <code>exit</code> listeners;
+<code>beforeExit</code> re-entry is decided by the loop taking >10 µs.</li>
+<li><strong>behaviour:</strong> <code>nextTick</code> runs as a promise job (order vs. <code>Promise.then</code>
+differs from Node); <code>stdin/stdout/stderr</code> are <code>std</code> FILE objects with Node&rsquo;s
+<code>fd isTTY columns rows getWindowSize getColorDepth hasColors</code> added, not
+streams (per CLAUDE.md, no Node streams); <code>emitWarning()</code> ignores <code>ctor</code>;
+<code>uid gid euid egid</code> accessors remain as non-Node extras.</li>
+</ul>
+
+
+<h2><code>lib/timers.js</code> / <code>lib/timersPromises.js</code> gaps vs. Node.js <code>timers</code> (found 2026-10-09)</h2>
+
+<p><strong>Status (2026-10-09):</strong> <code>lib/timers.js</code> rewritten: <code>Timeout</code>/<code>Immediate</code> classes (<code>ref/unref/hasRef/refresh/close/[Symbol.toPrimitive]/[Symbol.dispose]</code>), extra callback arguments, delay coercion, <code>ERR_INVALID_ARG_TYPE</code>, <code>this</code> = <code>Timeout</code>, <code>clearTimeout</code> accepts object/number/string, intervals clearable by either clear function, immediates queued during a pass run in the next one, globals replaced by these. Still open: <code>unref()</code> only records the flag (engine cannot exit with pending timers), sections C and D (<code>timers/promises</code> <code>ref</code>, <code>AbortController</code> global, <code>timers.promises</code>, uncaught timer exceptions).</p>
+
+<p>Compared against the Node.js <code>timers</code> docs (<code>/tmp/node-doc/timers.md</code>) by reading both
+files and probing under <code>qjsm</code>. Importing <code>timers</code>, <code>node:timers</code>, <code>timers/promises</code>
+and <code>node:timers/promises</code> all resolve. Working: <code>setTimeout/clearTimeout</code>,
+<code>setInterval/clearInterval</code>, <code>setImmediate/clearImmediate</code> (with args),
+<code>timers/promises</code> <code>setTimeout/setImmediate/setInterval/scheduler</code> incl. <code>signal</code>.</p>
+
+<p>The globals are <code>os.setTimeout</code>/<code>os.clearTimeout</code> (assigned in <code>src/qjsm.c</code>, and
+<code>timers.js</code> only fills holes with <code>??=</code>), so the gaps in section A hit the globals too.</p>
+
+<h3>A. Missing arguments and semantics</h3>
+
+<ul>
+<li><code>setTimeout(cb, delay, ...args)</code> — extra args are dropped (<code>os.setTimeout</code> takes two
+arguments); <code>setInterval(cb, delay, ...args)</code> likewise.</li>
+<li><code>delay</code> coercion — Node: <code>&gt; 2147483647</code>, <code>&lt; 1</code> or <code>NaN</code> become <code>1</code>, fractions are
+truncated. Here <code>2**31+5</code> is kept (timer fires after ~24 days and keeps the loop
+alive), <code>NaN</code>/fractions are passed through to <code>os.setTimeout</code>.</li>
+<li><code>setInterval(cb)</code> without delay — <code>t</code> is <code>undefined</code> (<code>setTimeout(…, undefined)</code>).</li>
+<li>callback validation — a bad callback throws <code>TypeError</code> without <code>code:
+'ERR_INVALID_ARG_TYPE'</code> (Node >= 18).</li>
+<li><code>this</code> inside the callback is not the <code>Timeout</code> object.</li>
+<li>ordering — <code>setImmediate</code> is a 0 ms timer, so immediates queued from an immediate run
+in the same pass (<code>i1,i2,i3,c</code> seen), where Node defers <code>i3</code> to the next iteration.</li>
+</ul>
+
+
+<h3>B. Missing <code>Timeout</code> / <code>Immediate</code> classes</h3>
+
+<p>All of <code>setTimeout/setInterval/setImmediate</code> return plain numbers (or the custom
+counter id for intervals), so none of these exist:</p>
+
+<ul>
+<li><code>Timeout</code>: <code>ref()</code>, <code>unref()</code>, <code>hasRef()</code>, <code>refresh()</code>, <code>close()</code>,
+<code>[Symbol.toPrimitive]()</code>, <code>[Symbol.dispose]()</code>.</li>
+<li><code>Immediate</code>: <code>ref()</code>, <code>unref()</code>, <code>hasRef()</code>, <code>[Symbol.dispose]()</code>.</li>
+<li><code>unref()</code> needs engine support: <code>os.setTimeout</code> timers always keep the loop alive.</li>
+<li><code>clearTimeout/clearInterval</code> accept the number or string form of the primitive in
+Node; only numbers are tested here. <code>clearImmediate(undefined)</code>/<code>null</code> is safe.</li>
+<li><code>setInterval</code> ids come from a separate counter and cannot be cleared by
+<code>clearTimeout</code> (Node allows both on any <code>Timeout</code>).</li>
+</ul>
+
+
+<h3>C. <code>timers/promises</code></h3>
+
+<ul>
+<li><code>options.ref</code> is ignored in <code>setTimeout/setImmediate/setInterval</code> and
+<code>scheduler.wait</code>.</li>
+<li><code>setInterval()</code> does not validate <code>delay</code>/<code>options</code>; the abort check happens only per
+tick; <code>value</code> yields every tick correctly.</li>
+<li><code>AbortController</code>/<code>AbortSignal</code> are not global in <code>qjsm</code> (<code>typeof AbortController</code>
+is <code>undefined</code>), so <code>{ signal }</code> is unusable without importing <code>abort</code> first.</li>
+<li>errors: <code>AbortError</code> has <code>code: 'ABORT_ERR'</code> and <code>cause</code>, matching Node; invalid
+argument errors lack <code>ERR_INVALID_ARG_TYPE</code> codes.</li>
+</ul>
+
+
+<h3>D. Other</h3>
+
+<ul>
+<li><code>require('timers').promises</code> is not exposed on <code>timers</code> (Node&rsquo;s module has a
+<code>promises</code> getter); <code>timers</code> has no default export.</li>
+<li>exceptions thrown from timer callbacks are printed and the loop continues
+(including <code>setInterval</code>, which keeps firing); Node raises <code>uncaughtException</code>.</li>
+</ul>
+
+
+<h2><code>lib/assert.js</code> gaps vs. Node.js <code>assert</code> (found 2026-10-09)</h2>
+
+<p><strong>Status (2026-10-09):</strong> <code>lib/assert.js</code> rewritten: real <code>AssertionError</code> (<code>code</code>, <code>generatedMessage</code>, <code>actual</code>, <code>expected</code>, <code>operator</code>, options-object constructor), Node message texts and <code>+ actual - expected</code> diff, Error-instance messages thrown as is, own deep-equality (Map/Set/Date/RegExp/typed arrays/boxed/prototypes/symbols/cycles), <code>throws/rejects</code> validation (RegExp, object, class, function, <code>ERR_AMBIGUOUS_ARGUMENT</code>), <code>assert.strict</code>, <code>assert/strict</code> (<code>lib/assertStrict.js</code>), <code>assert.Assert</code>. Still open: <code>CallTracker</code>, <code>Assert</code> <code>diff: 'full'</code> output (option accepted only), source-text in <code>assert.ok</code> messages.</p>
+
+<p>Compared against <code>/tmp/node-doc/assert.md</code> and by running one 60-case battery under
+node 22 and <code>qjsm</code> and diffing the results (<code>/tmp/claude-1000/cmp/b-assert.mjs</code>).
+Every documented function exists except the ones in section C, but most of them
+differ from Node in what they throw and in what they accept.</p>
+
+<h3>A. The error object</h3>
+
+<ul>
+<li>Functions throw a plain <code>Error</code> (message <code>assert.&lt;fn&gt;(): &lt;text&gt;</code>), not an
+<code>AssertionError</code>: <code>e.name</code> is <code>Error</code>, <code>e.code</code> is unset (Node: <code>'ERR_ASSERTION'</code>),
+and <code>generatedMessage</code>, <code>actual</code>, <code>expected</code>, <code>operator</code> are never set, so code that
+catches and inspects them breaks.</li>
+<li><code>new AssertionError(options)</code> takes <code>(fn, message)</code> instead of Node&rsquo;s
+<code>{ message, actual, expected, operator, stackStartFn, diff }</code>;
+<code>new AssertionError({ message: 'hi' }).message</code> is <code>'assert.[object Object]()'</code>.</li>
+<li><code>assert(0)</code> throws message <code>assertundefined()</code> (the <code>fn</code> argument is <code>undefined</code>).</li>
+<li><code>assert.ok()</code> with no argument should say <code>No value argument passed to `assert.ok()`</code>.</li>
+<li>a custom <code>message</code> that is an <code>Error</code> instance must be thrown as is (<code>strictEqual(1,
+2, new RangeError('re'))</code>, <code>fail(new TypeError(..))</code>); here it is wrapped.</li>
+<li>generated messages differ: Node prints <code>Expected values to be strictly equal:</code> plus a
+<code>+ actual - expected</code> diff, <code>The expression evaluated to a falsy value:</code> plus the
+source text, <code>Failed</code> etc.; here <code>1 === '1'</code> style one-liners and the wrong function
+name (<code>deepStrictEqual</code> reports <code>assert.deepEqual()</code>, <code>doesNotThrow</code> reports
+<code>assert.doesNotReject()</code>). The ANSI reset <code>\x1b[0m</code> is embedded in the message text.</li>
+<li><code>assert.match(1, /x/)</code> must fail with the <code>"string" argument must be of type string</code>
+message; here it reports a non-match.</li>
+</ul>
+
+
+<h3>B. Comparison semantics (<code>lib/assert.js</code> delegates to <code>deep.equals</code>)</h3>
+
+<p><code>deepStrictEqual</code> wrongly fails for equal <code>Map</code>, <code>Set</code>, <code>Date</code>, <code>RegExp</code>, and wrongly
+passes for <code>Uint8Array</code> vs <code>Uint16Array</code>. Not checked: own symbol keys, <code>-0</code> vs <code>0</code>,
+<code>Error</code> name/message, boxed primitives, prototype equality (<code>Object.create(null)</code> vs
+<code>{}</code>). <code>deepEqual</code> (loose) fails <code>{a:1}</code> vs <code>{a:'1'}</code>; <code>strictEqual(NaN, NaN)</code> must
+pass (<code>Object.is</code>) and fails.
+- <code>throws(fn, expected)</code>: the <code>RegExp</code> form does not test the message (always passes),
+  the object form does not compare properties, a string second argument is treated as
+  valid instead of raising <code>ERR_AMBIGUOUS_ARGUMENT</code>; <code>rejects(asyncFn, { message })</code>
+  calls the object (<code>TypeError: not a function</code>).
+- <code>doesNotThrow/doesNotReject</code> messages must be <code>Got unwanted exception.</code> /
+  <code>Got unwanted rejection.</code>.</p>
+
+<h3>C. Missing exports</h3>
+
+<ul>
+<li><code>assert.strict</code> / named <code>strict</code> / the <code>assert/strict</code> entry point
+(<code>import 'assert/strict'</code> fails to resolve); strict mode where <code>equal</code>,
+<code>deepEqual</code>, <code>notEqual</code>, <code>notDeepEqual</code> alias their strict versions.</li>
+<li><code>assert.Assert</code> class (<code>new assert.Assert({ diff: 'full' })</code>, v24+) and
+<code>assert.CallTracker</code> (deprecated).</li>
+<li>extra non-Node exports: <code>assert</code> (named), <code>assert_default</code>, <code>noop</code>.</li>
+<li><code>assert.partialDeepStrictEqual</code> exists; its comparison shares the <code>deep.equals</code>
+limitations above.</li>
+</ul>
+
+
+<h2><code>lib/buffer.js</code> gaps vs. Node.js <code>buffer</code> (found 2026-10-09)</h2>
+
+<p>Compared against <code>/tmp/node-doc/buffer.md</code>: every documented <code>Buffer.*</code> and <code>buf.*</code>
+member exists (checked by heading, 93 present) and a 90-case battery (alloc, from,
+encodings, ranges, indexOf, fill, write, copy, swap, read/write of every integer, bigint,
+float width, error codes, inspect, iteration) gave identical results under node 22 and
+<code>qjsm</code> except for the items below (<code>/tmp/claude-1000/cmp/b-buffer.mjs</code>).</p>
+
+<h3>A. Missing exports</h3>
+
+<ul>
+<li><code>File</code> (<code>buffer.File</code>, <code>new File([..], name, { lastModified, type })</code>, <code>file.name</code>,
+<code>file.lastModified</code>).</li>
+<li><code>transcode(source, fromEnc, toEnc)</code> (throws <code>TypeError: not a function</code> today).</li>
+<li><code>resolveObjectURL(id)</code> (needs <code>URL.createObjectURL</code>, see TODO.md Tier 9.6).</li>
+<li><code>isLatin1(input)</code> (documented for current Node; absent in node 22 too).</li>
+<li><code>Buffer.stringLength</code> and <code>blob.textStream()</code> are documented but absent.</li>
+</ul>
+
+
+<h3>B. Globals</h3>
+
+<p>Importing <code>buffer</code> does not define <code>globalThis.Buffer</code>, <code>Blob</code>, <code>File</code>, <code>atob</code>, <code>btoa</code>
+(<code>typeof</code> is <code>undefined</code> after <code>import 'buffer'</code>); in Node they are always global.
+Whatever installs them for <code>qjsm</code> scripts is outside <code>lib/buffer.js</code> (see the <code>lib/globals.js</code> section).</p>
+
+<h3>C. Small deviations</h3>
+
+<ul>
+<li><code>Buffer.from('abc').buffer === Buffer.from('abc').buffer</code> is <code>true</code> in Node
+(shared 8 KiB pool, <code>Buffer.poolSize</code>); here every buffer owns its <code>ArrayBuffer</code>.
+Harmless except for code that inspects <code>byteOffset</code> of small buffers.</li>
+<li>error text for <code>writeBigInt64LE(1)</code> / <code>writeBigUInt64LE(-1n)</code>: Node&rsquo;s type check
+message comes from the bigint arithmetic (<code>Cannot mix BigInt and other types</code>);
+here <code>ERR_INVALID_ARG_TYPE</code>; the out-of-range message prints the bound as a
+decimal, Node prints <code>2n ** 64n</code>.</li>
+<li><code>btoa</code>/<code>atob</code> error messages differ (<code>Invalid character</code> in Node); the
+<code>InvalidCharacterError</code> name and code 5 match.</li>
+<li><code>--zero-fill-buffers</code> and <code>buffer.constants</code> values are not wired to any option.</li>
+</ul>
+
+
+<h2><code>lib/console.js</code> gaps vs. Node.js <code>console</code> (found 2026-10-09)</h2>
+
+<p>Compared against <code>/tmp/node-doc/console.md</code> and a 55-case battery run under node 22 and
+<code>qjsm</code> (<code>/tmp/claude-1000/cmp/b-console.mjs</code>). The global <code>console</code> of <code>qjsm</code> is
+<code>new Console(out, { inspectOptions: { customInspect: true } })</code> created in <code>src/qjsm.c</code>;
+<code>lib/console.js</code> implements <code>log info error warn debug time timeLog timeEnd</code> only.</p>
+
+<h3>A. Missing methods (calling them throws <code>TypeError: not a function</code>)</h3>
+
+<p><code>assert</code>, <code>clear</code>, <code>count</code>, <code>countReset</code>, <code>dir</code>, <code>dirxml</code>, <code>group</code>, <code>groupCollapsed</code>,
+<code>groupEnd</code>, <code>table</code>, <code>trace</code>, <code>profile</code>, <code>profileEnd</code>, <code>timeStamp</code>, and the static
+<code>console.Console</code> (and <code>console.context</code>, <code>console.createTask</code> in Node 22).
+<code>import console from 'console'</code> has no own-property methods either: <code>console.group</code>
+is <code>undefined</code> on both the default export and <code>globalThis.console</code>.</p>
+
+<h3>B. Format string handling</h3>
+
+<p><code>console.log('%s %d %i %f %j %o %O %% %c', ...)</code> prints the format string literally
+and appends the arguments (<code>err %s x</code>); <code>%s %d %i %f %j %o %O %c %%</code> substitution,
+<code>%d</code> with <code>0x10</code>/bigint, and <code>%s</code> of objects (<code>toString</code>, <code>-0</code>) are missing.
+<code>console.log('100%')</code>, <code>'%'</code>, <code>'%x'</code> need the same escaping rules.</p>
+
+<h3>C. Object formatting (<code>inspect</code> module, used by <code>log</code>)</h3>
+
+<p>Output differs from Node&rsquo;s <code>util.inspect</code> in nearly every non-trivial case, because
+the Console is created with <code>compact: false</code> style (one entry per line, 1-space
+indent): arrays and objects are always expanded, arrays do not wrap in columns
+and truncate at 30 (<code>... 90 more items</code>) instead of 100; <code>depth</code> is unlimited (no
+<code>[Object]</code>/<code>[Array]</code> at depth 2); <code>Map</code>/<code>Set</code> print as <code>Map {  1 =&gt; 2 }</code>/<code>Set [  1 ]</code>;
+class instances lose their name (<code>{ x: 1 }</code> vs <code>A { x: 1 }</code>) and classes print as
+<code>[Function: A]</code>; circular refs print <code>[loop]</code> not <code>&lt;ref *1&gt; … [Circular *1]</code>;
+getters/setters are evaluated (<code>a: 1</code>) not shown as <code>[Getter]</code>/<code>[Setter]</code>;
+<code>Date</code>/boxed primitives print as <code>Invalid Date</code>/<code>'s'</code>/<code>1</code>; sparse arrays print
+<code>, ,</code> instead of <code>&lt;1 empty item&gt;</code>; <code>-0</code> prints <code>0</code>; <code>Promise</code>, <code>WeakMap</code>,
+<code>ArrayBuffer</code>, typed arrays, <code>Object.create(null)</code> and function properties
+differ; strings with <code>'</code> use <code>\'</code> instead of switching to double quotes;
+<code>Symbol.for('nodejs.util.inspect.custom')</code> is not checked. <code>Buffer</code> is not a
+global (see <code>lib/globals.js</code> below), so <code>console.log(Buffer.from(..))</code> throws a <code>ReferenceError</code>.</p>
+
+<h3>D. <code>new Console(...)</code></h3>
+
+<ul>
+<li>the options form <code>new Console({ stdout, stderr, ignoreErrors, colorMode,
+inspectOptions, groupIndentation })</code> is not supported: the object is taken as
+<code>opts</code> and output still goes to the real stdout/stderr (captured string stays <code>''</code>).</li>
+<li>streams must be <code>std</code> FILE-like (<code>fileno()</code>); a plain <code>{ write(s) }</code> object or a
+Node-style <code>Writable</code> does not work (<code>new Console(w).error('e')</code> throws).</li>
+<li><code>ignoreErrors</code>, <code>colorMode</code>, <code>groupIndentation</code> options are ignored.</li>
+</ul>
+
+
+<h3>E. Timers</h3>
+
+<ul>
+<li><code>console.time</code>/<code>timeLog</code>/<code>timeEnd</code> print <code>label: 0.001267ms</code>; Node prints
+<code>label: 0.002ms</code> (3 decimals, <code>s</code>/<code>min</code>/<code>h</code> units above 1 s) and supports extra
+<code>timeLog(label, ...data)</code> arguments.</li>
+<li>unknown labels throw (<code>Error: Timer 'x' does not exist</code>); Node emits a process
+warning (<code>No such label 'x' for console.timeEnd()</code>) and continues; a duplicate
+<code>console.time('x')</code> should warn <code>Label 'x' already exists</code>.</li>
+</ul>
+
+
+<h2><code>lib/globals.js</code> gaps vs. Node.js globals (found 2026-10-09)</h2>
+
+<p>Compared against <code>/tmp/node-doc/globals.md</code> (78 documented global names probed with
+<code>n in globalThis</code>) and a 50-case battery under node 22 and <code>qjsm</code>
+(<code>/tmp/claude-1000/cmp/b-globals.mjs</code>).</p>
+
+<h3>A. Opt-in</h3>
+
+<p>A plain <code>qjsm script.js</code> has <strong>none</strong> of the web/Node globals except <code>process</code>,
+<code>console</code>, <code>setTimeout/clearTimeout</code> and <code>module</code>: 71 of the 78 names are missing until
+the script does <code>import 'globals'</code>. Node defines them all at startup. Options: import
+<code>globals</code> from <code>qjsm</code> before the main script (or behind a <code>--no-globals</code> flag), at
+least for the cheap, already-implemented ones.</p>
+
+<h3>B. Still missing after <code>import 'globals'</code> (and present in Node 22)</h3>
+
+<ul>
+<li>Classes: <code>Buffer</code>, <code>File</code>, <code>Event</code>, <code>CustomEvent</code>, <code>DOMException</code>, <code>MessageChannel</code>,
+<code>MessagePort</code>, <code>MessageEvent</code>, <code>BroadcastChannel</code>, <code>Navigator</code> (+ <code>navigator</code>),
+<code>CompressionStream</code>, <code>DecompressionStream</code>, <code>Crypto</code>, <code>CryptoKey</code>, <code>SubtleCrypto</code>
+(<code>crypto.subtle</code> is <code>undefined</code>), <code>PerformanceResourceTiming</code>, <code>WebAssembly</code>.</li>
+<li>Stream internals: <code>ReadableStreamDefaultReader</code>, <code>ReadableStreamBYOBReader</code>,
+<code>ReadableStreamBYOBRequest</code>, <code>ReadableByteStreamController</code>,
+<code>ReadableStreamDefaultController</code>, <code>WritableStreamDefaultWriter</code>,
+<code>WritableStreamDefaultController</code>, <code>TransformStreamDefaultController</code>.</li>
+<li><code>global</code> (alias of <code>globalThis</code>), <code>navigator</code>.</li>
+<li>Out of scope here (sibling projects, CLAUDE.md): <code>fetch</code>, <code>Request</code>, <code>Response</code>,
+<code>Headers</code>, <code>FormData</code>, <code>WebSocket</code> — <code>../qjs-lws/lib/fetch.js</code>, <code>lib/websocket.js</code>.</li>
+<li>Not in Node 22 either (flag-gated or newer): <code>CloseEvent</code>, <code>ErrorEvent</code>,
+<code>EventSource</code>, <code>QuotaExceededError</code>, <code>Storage</code>/<code>localStorage</code>/<code>sessionStorage</code>,
+<code>URLPattern</code>, <code>Worker</code>.</li>
+</ul>
+
+
+<h3>C. Behaviour differences of what is installed</h3>
+
+<ul>
+<li><code>Event</code> is missing but <code>EventTarget</code> exists: <code>new EventTarget().dispatchEvent</code> has no
+event class to pass, and <code>addEventListener('x', { handleEvent })</code> throws
+<code>The "listener" argument must be of type function</code> (objects with <code>handleEvent</code>,
+<code>{ once }</code>, <code>{ signal }</code> options, <code>dispatchEvent</code> return value untested).</li>
+<li><code>AbortController</code>: default reason is the string-ish <code>AbortError: This operation was
+aborted</code> rather than a <code>DOMException</code> (<code>name 'AbortError'</code>, <code>code 20</code>);
+<code>abort()</code> called twice fires the <code>abort</code> listeners again (Node: once);
+<code>AbortSignal.any([..])</code> throws <code>cannot read property 'reason' of undefined</code>;
+<code>AbortSignal.timeout(ms)</code> rejects with a plain <code>Error</code> (Node: <code>DOMException</code>
+<code>TimeoutError</code>, <code>code 23</code>).</li>
+<li><code>performance</code>: <code>timeOrigin</code>, <code>mark</code>, <code>measure</code>, <code>getEntries*</code>, <code>toJSON</code> missing
+and its tag is <code>[object Object]</code> not <code>[object Performance]</code> (see <code>perf_hooks</code> below).</li>
+<li><code>TextDecoder</code>/<code>TextEncoder</code>: <code>encoding</code> is <code>UTF-8</code>/<code>UTF-16</code> (spec: <code>utf-8</code>,
+<code>utf-16le</code>); <code>{ fatal: true }</code> does not throw <code>ERR_ENCODING_INVALID_ENCODED_DATA</code>.</li>
+<li><code>structuredClone()</code>/<code>queueMicrotask(5)</code> throw <code>TypeError</code> without Node&rsquo;s
+<code>ERR_MISSING_ARGS</code>/<code>ERR_INVALID_ARG_TYPE</code> codes; <code>btoa</code>/<code>atob</code> and
+<code>crypto.getRandomValues</code> errors lack the DOMException <code>code</code> (17, 22) and use
+different texts.</li>
+<li>property attributes: <code>structuredClone</code>, <code>atob</code>, <code>btoa</code>, <code>queueMicrotask</code> should be
+enumerable (Node: <code>EWC</code>); here non-enumerable.</li>
+<li><code>module</code> exists as a global object in <code>qjsm</code> scripts (set by <code>jsm_stack_load</code>);
+<code>__dirname</code>, <code>__filename</code>, <code>require</code>, <code>exports</code> are not defined in ES modules
+(same as Node&rsquo;s ESM), but <code>require</code>/<code>exports</code> are also undefined for scripts run
+as CommonJS-style files.</li>
+</ul>
+
+
+<h2><code>lib/perf_hooks.js</code> gaps vs. Node.js <code>perf_hooks</code> (found 2026-10-09)</h2>
+
+<p>Compared against <code>/tmp/node-doc/perf_hooks.md</code> (headings) and a 30-case battery under
+node 22 and <code>qjsm</code> (<code>/tmp/claude-1000/cmp/b-perf.mjs</code>). The user timing core matches
+Node: <code>performance.now()</code>, <code>mark()</code> (incl. <code>detail</code>, <code>startTime</code>), <code>measure()</code> (names and
+options form), <code>getEntries*</code>, <code>clearMarks/clearMeasures</code>, <code>PerformanceMark/Measure/Entry</code>
+classes and <code>instanceof</code> relations.</p>
+
+<h3>A. Missing exports</h3>
+
+<ul>
+<li><code>createHistogram([options])</code> + the <code>RecordableHistogram</code>/<code>Histogram</code> API (<code>record</code>,
+<code>recordDelta</code>, <code>add</code>, <code>reset</code>, <code>count</code>, <code>min</code>, <code>max</code>, <code>mean</code>, <code>stddev</code>, <code>percentile</code>,
+<code>percentiles</code>, <code>exceeds</code>, their <code>*BigInt</code> forms); the newer <code>createSlidingWindowHistogram</code>,
+<code>importHistogram</code> and statistics methods in the doc (<code>cdf</code>, <code>ccdf</code>, <code>ksTest</code>,
+<code>welchTest</code>, …) exist in no released Node and can wait.</li>
+<li><code>monitorEventLoopDelay([options])</code> (<code>ELDHistogram</code>: <code>enable()/disable()</code>); needs the
+histogram above and a loop-delay sampler (a repeating <code>os.setTimeout</code> probe).</li>
+<li><code>eventLoopUtilization()</code> (export and <code>performance.eventLoopUtilization</code>),
+<code>timerify(fn, options)</code> (export and method; wraps <code>fn</code> as <code>timerified &lt;name&gt;</code> and
+emits <code>function</code> entries).</li>
+<li><code>constants</code> (<code>NODE_PERFORMANCE_GC_*</code>), <code>PerformanceResourceTiming</code> class.</li>
+<li><code>now</code> is exported by <code>lib/perf_hooks.js</code> but not by Node (harmless).</li>
+</ul>
+
+
+<h3>B. Missing members of <code>performance</code></h3>
+
+<p><code>nodeTiming</code> (<code>PerformanceNodeTiming</code>: <code>nodeStart</code>, <code>v8Start</code>, <code>environment</code>, <code>loopStart</code>,
+<code>loopExit</code>, <code>bootstrapComplete</code>, <code>idleTime</code>, <code>uvMetricsInfo</code>), <code>clearResourceTimings</code>,
+<code>markResourceTiming</code>, <code>setResourceTimingBufferSize</code>, <code>addEventListener</code> /
+<code>EventTarget</code> behaviour (<code>performance</code> is an <code>EventTarget</code> in Node), and <code>toJSON()</code>
+returns only <code>{ timeOrigin }</code> (Node: <code>nodeTiming</code>, <code>timeOrigin</code>,
+<code>eventLoopUtilization</code>).</p>
+
+<h3>C. <code>PerformanceObserver</code></h3>
+
+<p><code>PerformanceObserver.supportedEntryTypes</code> is <code>['mark', 'measure']</code>; Node adds <code>dns</code>,
+<code>function</code>, <code>gc</code>, <code>http</code>, <code>http2</code>, <code>net</code>, <code>resource</code>. Entry types <code>function</code> (from
+<code>timerify</code>) and <code>resource</code> need the pieces in A; <code>gc</code> has no QuickJS equivalent
+(could be fed from <code>JS_SetGCThreshold</code>/memory-usage sampling, low value).</p>
+
+<h3>D. Not applicable</h3>
+
+<p><code>PerformanceNodeEntry</code> / <code>gc</code> flags, <code>http</code>/<code>http2</code>/<code>net</code>/<code>dns</code> entries,
+<code>uvMetricsInfo</code> — there is no libuv; return zeros or omit and document it.</p>
+
+<h2><code>lib/tty.js</code> gaps vs. Node.js <code>tty</code> (found 2026-10-09)</h2>
+
+<p><strong>Status (2026-10-09):</strong> <code>lib/tty.js</code> rewritten: loads; <code>isatty</code> validation; <code>ReadStream</code> (<code>isTTY</code>, <code>isRaw</code>, <code>setRawMode</code>, <code>rawMode</code>); <code>WriteStream</code> (<code>isTTY</code>, <code>fd</code>, <code>columns/rows</code>, <code>'resize'</code> event + <code>on/once/off/emit</code>, <code>getColorDepth</code>, <code>hasColors</code>, <code>write</code>, callbacks, 0-based <code>cursorTo</code>, fixed <code>moveCursor</code>); <code>ERR_INVALID_ARG_TYPE</code>/<code>ERR_OUT_OF_RANGE</code>/<code>ERR_TTY_INIT_FAILED</code>. Still open: no real streams (<code>pipe</code>, <code>'data'</code>).</p>
+
+<p>Compared against <code>/tmp/node-doc/tty.md</code> and <code>/tmp/claude-1000/cmp/b-tty.mjs</code> (run under a
+pty with node 22 and <code>qjsm</code>).</p>
+
+<h3>A. The module does not load</h3>
+
+<p><code>import 'tty'</code> fails under <code>qjsm</code> with <code>SyntaxError: Could not find export 'fdopenSync' in
+module 'std'</code>: <code>std</code> exports <code>fdopen</code> (there is no <code>fdopenSync</code>). It is also compiled into
+<code>qjsm</code> as a builtin, and <code>SIGWINCH</code> is imported from <code>util</code>, which does not export it (nor
+does <code>os</code>; the constant is 28 on Linux — <code>misc.signum('SIGWINCH')</code> can supply it, see
+<code>quickjs-misc.c</code>). Nothing else in <code>lib/</code> or <code>src/</code> imports <code>tty</code> today, so nobody noticed.
+Everything below is therefore unverified at runtime; it is a reading of the code.</p>
+
+<h3>B. API gaps (from the source and the doc)</h3>
+
+<ul>
+<li><code>tty.isatty(fd)</code> re-exports <code>os.isatty</code>: Node returns <code>false</code> for a non-integer or
+negative <code>fd</code> and for an invalid one; <code>os.isatty</code> may throw on non-numbers.</li>
+<li><code>tty.ReadStream(fd)</code> / <code>tty.WriteStream(fd)</code> return <code>std</code> FILEs re-prototyped, not
+streams: no <code>.on('data'|'end'|'resize')</code>, <code>pipe()</code>, <code>write(chunk, enc, cb)</code>,
+<code>end()</code>, <code>readable</code>/<code>writable</code> flags. Per CLAUDE.md the replacement should be a
+WHATWG-stream-shaped surface, not <code>Duplex</code>.</li>
+<li><code>ReadStream</code>: <code>isTTY</code>, <code>isRaw</code>, <code>setRawMode(mode)</code> (accepts <code>false</code> to restore the
+terminal), <code>rawMode</code> are not defined (<code>os.ttySetRaw</code> exists but is one-way).</li>
+<li><code>WriteStream</code>: <code>isTTY</code> is not set on the instance; <code>'resize'</code> event is replaced by an
+ad-hoc <code>onresize</code> callback; <code>getColorDepth([env])</code> and <code>hasColors([count][, env])</code>
+are missing (the versions added to <code>process.stdout</code> in <code>lib/process.js</code> could be
+shared); <code>moveCursor(dx, dy, cb)</code> emits <code>ESC[n;A</code> with a stray <code>;</code> and tests <code>dy</code>
+where it should test <code>dx</code>/<code>dy</code> per axis; <code>cursorTo(x, y, cb)</code> ignores the callback and
+uses 1-based columns (Node: 0-based, <code>cursorTo(x)</code> → <code>ESC[(x+1)G</code>);
+<code>clearLine(dir, cb)</code> maps <code>dir</code> through <code>[1, 2, 0][dir + 1]</code> (Node: <code>-1</code> left =
+<code>ESC[1K</code>, <code>0</code> whole = <code>ESC[2K</code>&hellip; — verify) and <code>clearScreenDown</code> ignores the callback.</li>
+<li><code>new WriteStream(fd)</code> for a non-tty fd returns a plain FILE without the tty methods
+(Node throws <code>ERR_TTY_INIT_FAILED</code>); invalid <code>fd</code> should throw <code>ERR_INVALID_FD</code>.</li>
+<li>no <code>tty.ReadStream</code>/<code>WriteStream</code> <code>instanceof</code> relation to <code>Readable</code>/<code>Writable</code>
+(not planned, see CLAUDE.md).</li>
+</ul>
+
+
+<h2><code>lib/url.js</code> gaps vs. Node.js <code>url</code> (found 2026-10-09)</h2>
+
+<p>Compared against <code>/tmp/node-doc/url.md</code> and a 45-case battery under node 22 and <code>qjsm</code>
+(<code>/tmp/claude-1000/cmp/b-url.mjs</code>). <code>lib/url.js</code> is a 339-line hand-written parser, not a
+WHATWG URL implementation; only plain <code>http(s)://host/path?query#hash</code> strings with a
+well-formed authority come out right. Exports today: <code>URL</code>, <code>URLSearchParams</code>,
+<code>fileURLToPath</code>, <code>pathToFileURL</code>.</p>
+
+<h3>A. Crashes</h3>
+
+<ul>
+<li><code>URLSearchParams.toString()</code> throws <code>ReferenceError: 'replace' is not defined</code>
+(<code>lib/url.js:69</code>: the encode table is called <code>replace</code> but never declared), which also
+breaks <code>URL.search</code>/<code>href</code> after any <code>searchParams</code> change, <code>new URL('http://a/a b')</code>,
+percent-encoding in paths, and every setter (<code>pathname</code>, <code>search</code>, <code>hash</code>, …).</li>
+<li><code>URL.prototype.toJSON</code> is missing (<code>JSON.stringify(url)</code> throws <code>not a function</code>).</li>
+<li>iterating <code>URLSearchParams</code> (<code>[...p]</code>, <code>for…of</code>) throws <code>value is not iterable</code>
+(<code>[Symbol.iterator]</code> missing); <code>new URLSearchParams(otherParams)</code> copies a <code>size</code>
+entry instead of the pairs.</li>
+</ul>
+
+
+<h3>B. URL parsing (WHATWG URL Standard)</h3>
+
+<ul>
+<li>no dot-segment removal (<code>/a/./b/../c</code> stays), no relative resolution against a base
+(<code>new URL('../x?y#z', 'http://a.com/b/c/d')</code> gives <code>http://a.com/..</code>), no <code>//host</code>
+scheme-relative or <code>/abs</code> handling to speak of.</li>
+<li>default ports are kept (<code>http://a:80/</code> → <code>:80</code>; spec: stripped); host is not
+lowercased fully / IDNA-encoded (<code>münchen.de</code> should be <code>xn--mnchen-3ya.de</code>),
+IPv4 shorthand (<code>0x7f.1</code>, trailing dot) and IPv6 (<code>[::1]:3000</code> → host split at the
+first <code>:</code>) are not normalised.</li>
+<li>non-special schemes: <code>origin</code> is <code>scheme://</code> instead of <code>'null'</code>; <code>blob:</code> origin
+is not derived from the inner URL; <code>file:</code> paths are not percent-encoded
+(<code>/tmp/a b</code>).</li>
+<li>no percent-encode sets (path, query, fragment, userinfo differ per component).</li>
+<li>invalid input throws <code>TypeError</code> without <code>code: 'ERR_INVALID_URL'</code> and the message
+includes the input (<code>Invalid URL: not a url</code>; Node: <code>Invalid URL</code>, with <code>input</code>
+property); assigning an invalid <code>href</code> is accepted silently.</li>
+<li>setters (<code>protocol</code>, <code>host</code>, <code>hostname</code>, <code>port</code>, <code>pathname</code>, <code>search</code>, <code>hash</code>,
+<code>username</code>, <code>password</code>, <code>href</code>) need the state-machine behaviour of the spec
+(e.g. <code>port = '80'</code> on <code>http:</code> → <code>''</code>); <code>searchParams</code> is not live-linked to
+<code>search</code> (both directions).</li>
+<li>missing statics: <code>URL.canParse</code> returns wrong results for relative input
+(<code>canParse('x','http://a')</code>), <code>URL.parse</code> is present, <code>URL.createObjectURL</code>,
+<code>URL.revokeObjectURL</code> (also blocks <code>buffer.resolveObjectURL</code>, <code>lib/buffer.js</code> below).</li>
+<li><code>Object.prototype.toString.call(url)</code> is <code>[object Object]</code>; Node: <code>[object URL]</code>
+(<code>Symbol.toStringTag</code> on <code>URL</code>/<code>URLSearchParams</code>); <code>Object.keys(url)</code> has 6 own keys,
+spec: none (accessors on the prototype).</li>
+</ul>
+
+
+<h3>C. URLSearchParams</h3>
+
+<p>After fixing A: <code>has(name, value)</code>, <code>delete(name, value)</code>, <code>size</code>, <code>sort()</code> (stable,
+UTF-16 order), <code>forEach(cb, thisArg)</code>, application/x-www-form-urlencoded encoding
+(<code>+</code> for space, <code>*-._</code> kept, others percent-encoded), tuple validation
+(<code>new URLSearchParams([['a']])</code> → <code>ERR_INVALID_TUPLE</code>; here silently accepted), init
+from <code>Map</code>/record/iterable/leading <code>?</code>.</p>
+
+<h3>D. Missing legacy and helper API</h3>
+
+<p><code>url.parse()</code> (+ <code>Url</code> class, <code>slashes</code>, <code>auth</code>, <code>query</code> with <code>parseQueryString</code>),
+<code>url.format()</code> (string, legacy object and <code>URL</code> with <code>{ auth, fragment, search,
+unicode }</code> options), <code>url.resolve()</code>, <code>url.resolveObject()</code>, <code>url.domainToASCII()</code>,
+<code>url.domainToUnicode()</code>, <code>url.urlToHttpOptions()</code>, <code>url.fileURLToPathBuffer()</code>.
+<code>fileURLToPath</code>/<code>pathToFileURL</code> exist but do not percent-decode/encode (<code>a%20b</code> stays,
+<code>#</code>/<code>?</code> in paths are not escaped) and ignore the <code>{ windows }</code> option;
+<code>fileURLToPath('http://a/b')</code> must throw <code>ERR_INVALID_URL_SCHEME</code>, and a <code>file://host/x</code>
+URL <code>ERR_INVALID_FILE_URL_HOST</code>.</p>
+
+<h3>E. Missing class</h3>
+
+<p><code>URLPattern</code> (<code>new URLPattern(input[, baseURL][, options])</code>, <code>exec()</code>, <code>test()</code>,
+component getters); not in Node 22 without a flag, low priority.</p>
+
+<h3>Suggested approach</h3>
+
+<p>Port the WHATWG parsing state machine (or wrap a small C implementation such as
+<code>ada</code>-style parsing in <code>quickjs-url.c</code>) behind the existing class names instead of
+patching the string-splitting parser; a <code>tests/unittests/test-url.js</code> driven by the
+web-platform-tests <code>urltestdata.json</code> would pin it down.</p>
+
+<h2><code>quickjs-path.c</code> gaps vs. Node.js <code>path</code> (found 2026-10-09)</h2>
+
+<p>Compared against <code>/tmp/node-doc/path.md</code> and a 190-case battery (every function with edge
+inputs, POSIX and win32, plus argument validation) run under node 22 and <code>qjsm</code>
+(<code>/tmp/claude-1000/cmp/b-path.mjs</code>). The <code>path</code> module of <code>qjsm</code> is the native
+<code>quickjs-path.c</code>, designed around its own API (<code>absolute</code>, <code>at</code>, <code>baselen</code>, <code>canonical</code>,
+<code>components</code>, <code>dirlen</code>, <code>equal</code>, <code>exists</code>, <code>extlen</code>, <code>fnmatch</code>, <code>getcwd</code>, <code>isin</code>,
+<code>skip</code>, <code>slice</code>, …); the Node names exist but are string-slicing helpers, not Node&rsquo;s
+normalising implementations. Code written for <code>node:path</code> produces wrong results.</p>
+
+<h3>A. Missing API</h3>
+
+<ul>
+<li><code>path.win32</code> (the whole Windows implementation: drive letters, UNC, <code>\</code> separators,
+<code>C:</code> per-drive cwd), and the <code>path/win32</code> subpath.</li>
+<li><code>path.matchesGlob(path, pattern)</code> (could wrap <code>fnmatch</code> with <code>FNM_PATHNAME</code>; Node
+semantics: <code>**</code>, <code>{a,b}</code>, <code>[!x]</code>, leading-dot files not matched by <code>*</code>).</li>
+<li><code>path.toNamespacedPath(path)</code> (identity on POSIX), <code>path._makeLong</code>.</li>
+<li><code>path.posix.win32</code>/<code>path.win32.posix</code> cross links; <code>path.posix === path.posix.posix</code>.</li>
+<li><code>import path from 'path'</code> yields an object with only <code>posix</code>, so <code>path.join</code> is
+<code>undefined</code> on the default export; Node&rsquo;s default export is the module itself.
+Named imports (<code>import { join } from 'path'</code>) work.</li>
+<li>specifiers: <code>path/posix</code>, <code>path/win32</code> and <code>node:path/posix</code> fail to resolve;
+<code>node:path</code> resolves (checked with <code>qjsm -e "import('node:path')"</code>).</li>
+</ul>
+
+
+<h3>B. Results that differ from Node (POSIX)</h3>
+
+<table>
+<thead>
+<tr>
+<th> call </th>
+<th> here </th>
+<th> Node </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>join('/foo','bar','baz/asdf','quux','..')</code> </td>
+<td> <code>/foo/bar/baz/asdf/quux/..</code> </td>
+<td> <code>/foo/bar/baz/asdf</code> </td>
+</tr>
+<tr>
+<td> <code>join()</code>, <code>join('')</code>, <code>normalize('')</code> </td>
+<td> <code>''</code> </td>
+<td> <code>'.'</code> </td>
+</tr>
+<tr>
+<td> <code>join('/a/','/b/')</code> </td>
+<td> <code>/b/</code> (absolute wins) </td>
+<td> <code>/a/b/</code> </td>
+</tr>
+<tr>
+<td> <code>join('a//b','c/')</code> </td>
+<td> <code>a//b/c/</code> </td>
+<td> <code>a/b/c/</code> </td>
+</tr>
+<tr>
+<td> <code>normalize('/..')</code>, <code>normalize('/a/b/../../..')</code> </td>
+<td> <code>/..</code> </td>
+<td> <code>/</code> </td>
+</tr>
+<tr>
+<td> <code>normalize('a/./b/.')</code>, <code>normalize('./a/./')</code> </td>
+<td> <code>a/b/</code>, <code>./a/</code> </td>
+<td> <code>a/b</code>, <code>a/</code> </td>
+</tr>
+<tr>
+<td> <code>resolve('/a','','b')</code> </td>
+<td> <code>/a/bb</code> (corrupt) </td>
+<td> <code>/a/b</code> </td>
+</tr>
+<tr>
+<td> <code>resolve('/a/b','../../../..')</code> </td>
+<td> <code>/../..</code> </td>
+<td> <code>/</code> </td>
+</tr>
+<tr>
+<td> <code>resolve('/')</code> </td>
+<td> <code>&lt;cwd&gt;/\0</code> (garbage) </td>
+<td> <code>/</code> </td>
+</tr>
+<tr>
+<td> <code>dirname('/foo')</code>, <code>dirname('/')</code>, <code>dirname('//a')</code> </td>
+<td> <code>.</code> </td>
+<td> <code>/</code>, <code>/</code>, <code>//</code> </td>
+</tr>
+<tr>
+<td> <code>dirname('a//b')</code> </td>
+<td> <code>a</code> </td>
+<td> <code>a/</code> </td>
+</tr>
+<tr>
+<td> <code>basename('')</code>, <code>parse('').base</code> </td>
+<td> <code>"\0"</code> (reads past the end) </td>
+<td> <code>''</code> </td>
+</tr>
+<tr>
+<td> <code>basename('a.html','a.html')</code>, <code>basename('aaa','aaa')</code> </td>
+<td> the name </td>
+<td> <code>''</code> </td>
+</tr>
+<tr>
+<td> <code>extname('..')</code>, <code>parse('..').ext</code> </td>
+<td> <code>.</code> </td>
+<td> <code>''</code> </td>
+</tr>
+<tr>
+<td> <code>extname('a.b/')</code> </td>
+<td> <code>''</code> </td>
+<td> <code>.b</code> </td>
+</tr>
+<tr>
+<td> <code>relative('/a/b','/a/b')</code> </td>
+<td> <code>.</code> </td>
+<td> <code>''</code> </td>
+</tr>
+<tr>
+<td> <code>parse('/')</code> </td>
+<td> <code>dir: ''</code> </td>
+<td> <code>dir: '/'</code> </td>
+</tr>
+<tr>
+<td> <code>format({root:'/ignored',dir:'/home/user/dir',base:'file.txt'})</code> </td>
+<td> <code>/ignored/home/user/dir/file.txt</code> </td>
+<td> <code>/home/user/dir/file.txt</code> (<code>root</code> ignored when <code>dir</code> is set) </td>
+</tr>
+<tr>
+<td> <code>format({root:'/',base:'file.txt',ext:'ignored'})</code>, <code>…name:'file',ext:'.txt'</code> </td>
+<td> <code>//file.txt</code> </td>
+<td> <code>/file.txt</code> </td>
+</tr>
+<tr>
+<td> <code>format({root:'/',name:'file',ext:'txt'})</code> </td>
+<td> <code>//filetxt</code> </td>
+<td> <code>/file.txt</code> (dot added, v19+) </td>
+</tr>
+<tr>
+<td> <code>format({root:'/'})</code>, <code>format({ext:'.e'})</code> </td>
+<td> <code>//</code>, <code>''</code> </td>
+<td> <code>/</code>, <code>.e</code> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p><code>join</code>/<code>normalize</code>/<code>resolve</code> do not resolve <code>.</code>/<code>..</code> or collapse repeated separators,
+which is the core of <code>node:path</code>; <code>\0</code> in results is an out-of-bounds read of the
+terminating byte for empty input (a real out-of-bounds read).</p>
+
+<h3>C. Argument validation</h3>
+
+<p>Node throws <code>TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type
+string. Received …</code> for every non-string argument. Here <code>basename(5)</code> returns <code>'5'</code>,
+<code>dirname(null)</code> <code>'.'</code>, <code>extname({})</code> <code>''</code>, <code>join('a',5)</code> <code>a/5</code>, <code>relative('a',1)</code>
+<code>../1</code>, <code>parse(5)</code> an object with <code>base: '5'</code>, <code>format('x')</code> <code>''</code>, <code>isAbsolute(1)</code>
+<code>false</code>, <code>basename('a', 5)</code> <code>a</code>; only <code>normalize(undefined)</code> and <code>resolve('a', null)</code>
+throw (a plain <code>TypeError</code>, <code>argument 1 must be a string</code>, without <code>code</code>).</p>
+
+<h3>D. Suggested approach</h3>
+
+<p>Keep <code>quickjs-path.c</code> as the native primitive layer and add a thin <code>lib/path.js</code>
+(or a second export table in C) that implements <code>node:path</code> exactly (port of Node&rsquo;s
+<code>lib/path.js</code> posix and win32 functions, ~1500 lines of plain JS, no dependencies),
+exporting <code>posix</code>, <code>win32</code>, the default export and <code>path/posix</code>, <code>path/win32</code>; reuse
+<code>fnmatch</code> for <code>matchesGlob</code>. Run the 190-case battery against it.</p>
+
+<h2><code>quickjs-child-process.c</code> gaps vs. Node.js <code>child_process</code> (found 2026-10-09)</h2>
+
+<p><strong>Status (2026-10-09):</strong> the bare <code>child_process</code> stays the native module; <code>node:child_process</code>
+now loads <code>lib/node/child_process.js</code> (builtin <code>node_child_process</code>, mapped in
+<code>jsm_module_normalize_core()</code>; CMake: <code>BUILTINS_NODE</code>), a layer over the native primitives
+that adds: <code>spawn/spawnSync/exec/execSync/execFile/execFileSync/fork</code> argument handling,
+<code>ChildProcess</code> as an <code>EventEmitter</code> (<code>spawn exit close error</code>), <code>stdout/stderr</code> readers and
+<code>stdin</code> writer objects (<code>data/end</code>, <code>setEncoding</code>, async iterator, <code>write/end</code>), <code>shell</code>,
+<code>input</code>, <code>encoding</code>, <code>maxBuffer</code>, <code>timeout</code>, <code>killSignal</code>, <code>signal</code>, ENOENT/EACCES errors,
+<code>Command failed:</code> errors from the sync calls, Buffer results, <code>kill()</code> by name,
+<code>util.promisify</code> for <code>exec/execFile</code>. Not done: IPC for <code>fork()</code> (<code>send</code>, <code>'message'</code>),
+<code>argv0 uid gid detached</code>, real streams (CLAUDE.md), non-blocking stdin writes, <code>ref/unref</code>.
+Native findings: the SIGCHLD handler reaches <code>os.signal</code> through the global <code>os</code> (the layer
+defines it when missing), and <code>spawn(file, optionsObject)</code> still crashes natively.</p>
+
+<p>Compared against <code>/tmp/node-doc/child_process.md</code> and the source (<code>quickjs-child-process.c</code>,
+696 lines) with a short probe under node 22 and <code>qjsm</code>
+(<code>/tmp/claude-1000/cmp/c1.mjs</code>). Exports: <code>ChildProcess</code>, <code>exec</code>, <code>execSync</code>, <code>spawn</code>,
+<code>spawnSync</code>, <code>kill</code> and the <code>SIG*</code>/<code>WNOHANG</code>/<code>WNOWAIT</code>/<code>WUNTRACED</code> constants. The API
+follows <code>spawn(2)</code>/<code>waitpid(2)</code> more than Node&rsquo;s: events and streams do not exist.</p>
+
+<h3>A. Missing functions and classes</h3>
+
+<p><code>execFile</code>, <code>execFileSync</code>, <code>fork</code> (and the IPC channel: <code>send</code>, <code>disconnect</code>,
+<code>connected</code>, <code>channel</code>, <code>'message'</code>, <code>'disconnect'</code> events), <code>ChildProcess</code> as an
+<code>EventEmitter</code> (no <code>on/once/off/emit</code>, no <code>'spawn'</code>, <code>'exit'</code>, <code>'close'</code>, <code>'error'</code>
+events; only the non-standard <code>onExit</code> option/property and a blocking <code>wait()</code>),
+<code>subprocess.ref()/unref()</code>, <code>subprocess[Symbol.dispose]</code>.</p>
+
+<h3>B. <code>execSync</code> / <code>spawnSync</code> / <code>exec</code></h3>
+
+<ul>
+<li>the options object is only honoured when it is the <em>second</em> argument:
+<code>execSync('cmd', opts)</code> works, but <code>spawn(file, opts)</code> / <code>spawnSync('cat', { input })</code>
+treats <code>opts</code> as the argument array (<code>js_array_length</code> of an object), which ends in
+<code>execvp(): Bad address</code> and a core dump. <code>spawn(file, args, opts)</code> is the only working
+form.</li>
+<li>without options, <code>stdio</code> defaults to inheriting the parent&rsquo;s fds: <code>execSync('echo hi')</code>
+prints <code>hi</code> to the terminal and returns <code>{ pid, status, signal }</code>; Node returns the
+stdout <code>Buffer</code> (string with <code>encoding</code>), pipes stderr to the parent&rsquo;s stderr.</li>
+<li><code>execSync</code> never throws on a non-zero exit (Node: <code>Error: Command failed: cmd</code> with
+<code>status</code>, <code>signal</code>, <code>stdout</code>, <code>stderr</code>, <code>pid</code>, <code>output</code>); <code>spawnSync</code> result lacks
+<code>error</code> (e.g. <code>ENOENT</code>), <code>stdout</code>/<code>stderr</code> are strings, not <code>Buffer</code>s, and are
+<code>null</code>/missing when <code>stdio</code> is not <code>pipe</code>; <code>output</code> is <code>[null, stdout, stderr]</code> only
+for pipes.</li>
+<li><code>exec(cmd, [options], callback)</code> ignores the callback (<code>(err, stdout, stderr)</code>) and
+returns a <code>ChildProcess</code>; <code>execFile</code>-style <code>maxBuffer</code>, <code>timeout</code>, <code>killSignal</code>,
+<code>encoding</code>, <code>shell</code>, <code>windowsHide</code>, <code>uid</code>, <code>gid</code>, <code>argv0</code>, <code>detached</code>, <code>signal</code>
+(AbortSignal) options are not read: only <code>env</code>, <code>cwd</code>, <code>stdio</code>, <code>usePath</code>, <code>onExit</code>.</li>
+<li>shell: uses <code>$SHELL</code> (Node: <code>/bin/sh</code>), always with <code>sh -c</code>; <code>shell: true|string</code>
+option for <code>spawn</code>/<code>spawnSync</code> is missing.</li>
+<li><code>input</code> option (stdin data), <code>encoding</code>/<code>maxBuffer</code>/<code>timeout</code> for the sync calls,
+<code>stdio</code> entries other than <code>'pipe' | 'ignore' | 'inherit' | number</code> (<code>'overlapped'</code>,
+<code>'ipc'</code>, a stream or file descriptor object) are missing.</li>
+</ul>
+
+
+<h3>C. <code>ChildProcess</code> object</h3>
+
+<p>Present: <code>pid</code>, <code>exitCode</code>, <code>signalCode</code>, <code>killed</code>, <code>spawnfile</code>, <code>spawnargs</code>, <code>stdin</code>,
+<code>stdout</code>, <code>stderr</code>, <code>stdio</code> (the parent fds as numbers, not streams), <code>kill(signal)</code>,
+<code>wait()</code>. <code>stdin/stdout/stderr</code> are raw file descriptors (numbers), so there is no
+<code>.write()</code>, <code>.on('data')</code> or <code>for await</code>; per CLAUDE.md the replacement should be
+WHATWG streams (<code>ReadableStream</code> / <code>WritableStream</code>) rather than Node <code>Duplex</code>.
+<code>kill()</code> takes a number (names such as <code>'SIGTERM'</code> are not parsed; reuse
+<code>misc.signum()</code>); it sets <code>killed</code> correctly only for a successful <code>kill(2)</code>.</p>
+
+<h3>D. Suggested approach</h3>
+
+<p>Layer a small <code>lib/child_process.js</code> on top of the native spawn/wait primitives that
+adds Node&rsquo;s shapes: <code>execFile</code>, <code>execSync</code> (throw on failure, return <code>Buffer</code>/string),
+<code>spawn(file, args?, options?)</code> argument normalisation (fixes the crash), the options
+above, an <code>EventEmitter</code> base for <code>ChildProcess</code> fed by a <code>SIGCHLD</code>/<code>waitpid</code> poll in
+the event loop, <code>shell</code>, <code>input</code>, <code>timeout</code>/<code>killSignal</code>/<code>signal</code>, and WHATWG stream
+wrappers for the pipes; <code>fork</code> and IPC can wait.</p>
