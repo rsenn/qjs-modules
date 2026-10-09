@@ -1,4 +1,4 @@
-import { ChildProcess, exec, execSync, kill, spawn, spawnSync } from 'child_process.so';
+import { ChildProcess, exec, execSync, kill, spawn, spawnSync } from 'child_process';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* child_process has a history of nondeterministic crashes (see the
