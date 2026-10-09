@@ -287,6 +287,122 @@ global (see `lib/globals.js` below), so `console.log(Buffer.from(..))` throws a 
   warning (`No such label 'x' for console.timeEnd()`) and continues; a duplicate
   `console.time('x')` should warn `Label 'x' already exists`.
 
+## `lib/fs.js` / `lib/fsPromises.js` gaps vs. Node.js `fs` (found 2026-10-09)
+
+Compared against `/tmp/node-doc/fs.md` (94 documented `fs.*` functions, 32 `fsPromises.*`,
+22 `FileHandle` members) and a 103-case battery run under node 22 and `qjsm`
+(`/tmp/claude-1000/cmp/b-fs2.mjs`, import `fs`/`fsPromises` as module *namespaces*): 38
+cases give identical results, 65 differ. `lib/fs.js` is a thin layer over `std`/`os`
+(`fopen`, `open`, `stat`, ...); the callback API is `cbify(xxxSync)` and `lib/fsPromises.js`
+wraps the same sync functions.
+
+### A. Missing functions
+
+- `fs` (24): `fchmod(Sync)`, `fchown(Sync)`, `futimes(Sync)`, `glob`/`globSync`,
+  `lchmod(Sync)`, `lchown` (only `lchownSync`), `lutimes` (only `lutimesSync`),
+  `mkdtempDisposableSync`, `openAsBlob`, `opendir` (callback form; `opendirSync` exists),
+  `readv(Sync)`, `writev(Sync)`, `statfs(Sync)`, `watchFile`, `unwatchFile`. `fs.watch`
+  exists, `fs.promises.watch` too, but `FSWatcher`, `StatWatcher`, `ReadStream`,
+  `WriteStream` classes do not (`fs.Dir`, `fs.Dirent`, `fs.Stats` do).
+- `fsPromises` (3): `glob`, `lchmod`, `statfs`.
+- `FileHandle` (9 of 22): `createReadStream`, `createWriteStream`, `readLines`, `readv`,
+  `writev`, `readableWebStream`, `pull`, `pullSync`, `writer`.
+- `realpathSync.native` / `realpath.native` are `undefined`.
+- `fs.constants` lacks `UV_DIRENT_*` (8), `UV_FS_COPYFILE_EXCL/FICLONE/FICLONE_FORCE`,
+  `UV_FS_SYMLINK_DIR/JUNCTION`, `UV_FS_O_FILEMAP`.
+- Not Node API, extra exports of `fs`: `InvalidBuffer`, `buffer*` helpers, `chdir`,
+  `F_*`/`O_*` fcntl numbers as top-level names, `FileHandle`; of `fsPromises`:
+  `mkdtempDisposable`, `read`, `write`, `reader`, `readAll`.
+
+### B. The default export is a different, smaller object
+
+`import fs from 'fs'` (and therefore `node:fs` consumers using the default) lacks 14
+documented sync functions that the namespace has: `appendFileSync`, `chmodSync`,
+`chownSync`, `copyFileSync`, `cpSync`, `lchownSync`, `linkSync`, `lutimesSync`,
+`mkdtempSync`, `opendirSync`, `rmSync`, `rmdirSync`, `truncateSync`, `utimesSync`
+(`fs.default.rmSync` is `undefined`, `fs.default.copyFile` is a function).
+`fs.promises` is an object but `fs.promises !== fsPromises` (Node: identical), and
+`fsPromises.default` is an empty object.
+
+### C. Data types
+
+- `readFileSync`/`fsPromises.readFile` without encoding return an `ArrayBuffer`
+  (Node: `Buffer`), so `.length`, `.toString('hex')`, `.join()` etc. fail; the same for
+  `FileHandle#read`/`readFile` results (`[object ArrayBuffer]`) and `readdir` with
+  `encoding: 'buffer'` (returns strings).
+- `readFileSync(p, 'hex')` / `'latin1'` / `{ encoding: ... }` other than utf8 are ignored
+  (returns the utf8 text); `writeFileSync(p, '6869', 'hex')` writes the literal text.
+- `stat`/`lstat`: no `birthtime`/`birthtimeMs`/`blksize`, `{ bigint: true }` is
+  ignored (numbers, no `mtimeNs`), `{ throwIfNoEntry: false }` still throws, and
+  `stats.constructor` is `undefined` (`stats.constructor.name` throws) although
+  `stats instanceof fs.Stats` is true.
+- `Dirent` has only `name` (no `parentPath`/`path`); `readdirSync(p, { recursive: true })`
+  works.
+- `mkdirSync(p, { recursive: true })` returns the deepest path (Node: the first directory
+  actually created, `undefined` when nothing was created); `fs.mkdir` with a callback
+  and `fsPromises.mkdir` the same (`…/cbd/a/b` vs `…/cbd`).
+- `writeFileSync(p, 123)` throws a non-`Error` value (message `undefined`); Node throws
+  `TypeError [ERR_INVALID_ARG_TYPE]`.
+
+### D. Errors
+
+Node: `Error: ENOENT: no such file or directory, open '/x'` with own `errno` (-2), `code`,
+`syscall` (`open`, `stat`, `scandir`, `lstat`, ...), `path`. Here the error is a
+`SyscallError` whose `name` is the code (`e.name === 'ENOENT'`, Node: `'Error'`), the
+message is `stat() = -1 (errno = 2): No such file or directory` (or
+`fs.readFileSync('/x')() = -1 …`), `errno` is positive, `syscall` is the libc name
+(`fopen` for open, `readdir` for scandir, or the whole `fs.readFileSync('/x')` string)
+and `path` is never set. Other differences in the battery:
+- `readFileSync(dir)`: `RangeError: invalid array index` (Node `EISDIR … read`);
+- `rmSync(nonEmptyDir)` without `recursive`: `ENOTEMPTY rmdir` (Node
+  `SystemError ERR_FS_EISDIR`); `rmSync(missing)` without `force` matches (`ENOENT lstat`);
+- `openSync(p, 'zz')`: `TypeError: invalid file mode` (Node `ERR_INVALID_ARG_VALUE`);
+- argument validation (`ERR_INVALID_ARG_TYPE` …) is missing; only `fs.readFile` without a
+  callback throws `TypeError [ERR_INVALID_ARG_TYPE]` (message lacks `Received undefined`).
+
+### E. Options and flags that are ignored or unsupported
+
+- `openSync` flags `'wx'`, `'ax'`, `'rs'`, `'sx'`, … (exclusive/sync) throw
+  `TypeError: invalid file mode`; only `r r+ w w+ a a+` (+`b`) work. Hence
+  `copyFileSync(a, b, COPYFILE_EXCL)` throws `invalid file mode` instead of `EEXIST`.
+- `writeFileSync(p, d, { mode: 0o600 })` ignores `mode` (file is `0664`); `flag` works.
+- `readSync(fd, buf, { position, length })` (options form) ignores the object (reads
+  4 bytes at 0 where Node reads 2 at position 1).
+- `ftruncateSync(fd, len)` fails with `EINVAL ftruncate` for descriptors returned by
+  `openSync` (these are `FILE` objects, `typeof fd` is `'object'`; Node: integer, as is
+  the `fd` of a `FileHandle` here).
+- `{ recursive: true }` for `rmSync`/`cpSync`/`readdirSync` is supported; `force` for
+  `rmSync` is; `cpSync` options beyond `recursive/force/errorOnExist` (`filter`,
+  `dereference`, `preserveTimestamps`, `verbatimSymlinks`) are ignored.
+
+### F. Callback and promise API
+
+- callbacks receive the sync return value as a second argument where Node passes only
+  `err`: `fs.writeFile(p, d, cb)` → `cb(null, 1)`, `fs.rm(..., cb)` → `cb(null, 0)`,
+  `fsPromises.writeFile` resolves `1`, `fsPromises.rm` resolves `0` (Node: `undefined`).
+- `fs.opendir(path, cb)` throws `TypeError: not a function`.
+- `fsPromises.opendir()` returns a `Dir` whose `read()`/`close()`/`entries()`/async
+  iteration do not exist (only `readSync`/`closeSync`).
+- `FileHandle#close()` twice rejects (`TypeError: invalid file handle`; Node resolves),
+  operations after close reject `TypeError: invalid file handle` (Node `EBADF … file
+  closed`); the class of `await fsPromises.open()` is named `PromiseFileHandle`.
+- the callback API is `cbify(xxxSync)` and `fsPromises` wraps the sync functions, so all
+  I/O blocks the event loop.
+
+### G. Streams and watchers
+
+`fs.createReadStream()` returns a plain `Object` with no `on`/`pipe`/async iterator (not
+a `Readable`), so `for await (const c of fs.createReadStream(p))` throws `not a function`;
+`fs.createWriteStream()` is not callable (`not a function`). `fs.watchFile`/`unwatchFile`
+and `FSWatcher#ref/unref` are absent. A full `node:stream` layer is needed first.
+
+### H. Hang
+
+`fs.copyFileSync(src, dest)` (and therefore `copyFile`/`fsPromises.copyFile`) **never
+returns for an empty source file**: `len = 0` and the copy loop condition
+`len + pos + rem <= size` with `pos = len * i` stays `0 <= 0` (`lib/fs.js`
+`copyFileSync`).
+
 ## `lib/globals.js` gaps vs. Node.js globals (found 2026-10-09)
 
 Compared against `/tmp/node-doc/globals.md` (78 documented global names probed with

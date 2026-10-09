@@ -1,6 +1,7 @@
 /* lib/lexer/ecmascript.js: shebang line and regex literals in templates.
  * Each scan builds one Lexer and reads it to the end before the next. */
 import ECMAScriptLexer from '../../lib/lexer/ecmascript.js';
+import { toArrayBuffer } from 'misc';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const scan = src => [...new ECMAScriptLexer(src, 'test.js')].map(t => `${t.type}:${t.lexeme}`);
@@ -20,6 +21,14 @@ tests({
 
   'the code after a shebang lexes normally'() {
     eq('shebang:#!/bin/sh,whitespace:\n,keyword:let,whitespace: ,identifier:x,punctuator:;', scan('#!/bin/sh\nlet x;').join());
+  },
+
+  'a shebang in an ArrayBuffer or typed array'() {
+    const src = '#!/usr/bin/env qjsm\nlet x;';
+
+    eq('shebang:#!/usr/bin/env qjsm', scan(toArrayBuffer(src))[0]);
+    eq('shebang:#!/usr/bin/env qjsm', scan(new Uint8Array(toArrayBuffer(src)))[0]);
+    eq(scan(src).join(), scan(toArrayBuffer(src)).join());
   },
 
   'a shebang without a trailing newline'() {
