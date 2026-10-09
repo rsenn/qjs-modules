@@ -1680,13 +1680,20 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   char node_shim[64];
 
   /* `node:<name>` with a lib/node/<name>.js layer resolves to builtin "node_<name>";
-     a bare name does too when no builtin of that name exists (buffer) */
+     a bare name does too when no module of that name exists (buffer):
+     neither a builtin nor <name>.so, <name>.js, <name>/index.js on the module path */
   if(!strchr(bare, '/') && strlen(bare) < sizeof(node_shim) - 6 && (bare != name || !jsm_builtin_find(bare))) {
     snprintf(node_shim, sizeof(node_shim), "node_%s", bare);
 
     /* the shim itself imports the native module of the same name: no redirect */
-    if(jsm_builtin_find(node_shim) && !str_equal(path, node_shim) && !jsm_is_node_layer(path, bare))
-      name = node_shim;
+    if(jsm_builtin_find(node_shim) && !str_equal(path, node_shim) && !jsm_is_node_layer(path, bare)) {
+      char* plain = bare == name ? jsm_search_suffix(ctx, name, &jsm_search_path) : 0;
+
+      if(plain)
+        js_free(ctx, plain);
+      else
+        name = node_shim;
+    }
   }
 
   /* Node's subpath builtins live in flat modules: "fs/promises" -> "fsPromises" */
