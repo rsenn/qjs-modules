@@ -132,7 +132,7 @@ if(NOT DEFINED BUILTINS_COMPILED)
   )
 endif(NOT DEFINED BUILTINS_COMPILED)
 
-if(NOT DEFINED BUILTINS_NATIVE)
+#[[if(NOT DEFINED BUILTINS_NATIVE)
   # deep, directory, inspect, misc, syscallerror, textcode are internal dependencies of
   # the modules above (fs, console, assert, process, util, repl, perf_hooks import them
   # directly) and must stay statically linked even though they aren't user-facing.
@@ -141,7 +141,7 @@ if(NOT DEFINED BUILTINS_NATIVE)
   # pulled in automatically by the NATIVE_REQUIRED dependency closure further down --
   # see the comment there -- so it doesn't need to be listed here too.
   set_init(BUILTINS_NATIVE deep directory inspect misc path stream syscallerror textcode yaml)
-endif(NOT DEFINED BUILTINS_NATIVE)
+endif(NOT DEFINED BUILTINS_NATIVE)]]
 
 include(FindPkgConfig)
 
@@ -1055,13 +1055,44 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
+
+
+# Convenience list mixing three kinds of entries, each routed to wherever it belongs:
+#   - a name with a lib/<name>.js or quickjs-<name>.c file -> BUILTINS_COMPILED or
+#     BUILTINS_NATIVE respectively (native wins if both exist, matching the
+#     C-is-authoritative precedent for dual-implementation modules elsewhere in this
+#     project, e.g. deep/pointer/predicate/xml/stream/misc/path).
+#   - a directory path (an externally-built sibling project's build directory, e.g.
+#     ../qjs-glfw/build/x86_64-linux-gnu) -> EXTERNAL_MODULES. The module name is taken
+#     from a "qjs-<name>" ancestor directory of the path, and <name>_MODULE is set to
+#     the lib<name>.a/.so already built inside it (the OUTPUT_NAME convention used by
+#     e.g. qjs-glfw's/qjs-nanovg's qjs-<name>-static targets).
+# This is evaluated here, before BUILTINS_COMPILED's compile_module() loop's own output
+# targets (modules/*.c above, the "compiled" library) and BUILTINS_NATIVE/EXTERNAL_MODULES
+# are consumed further down, so an entry routed to any of the three actually takes effect.
+if(NOT DEFINED BUILTIN_MODULES)
+  set(BUILTIN_MODULES bjson blob child-process deep directory inspect json misc mmap path syscallerror textcode xml)
+endif()
+
+set(BUILTIN_MODULES "${BUILTIN_MODULES}" CACHE STRING "Mixed list: module names (auto-routed into BUILTINS_COMPILED/BUILTINS_NATIVE) or paths to externally-built qjs-<name> module build directories (routed into EXTERNAL_MODULES)")
+
+
+
 #
 # Get the native & compiled modules list
 #
 get_compiled_modules(COMPILED_MODULE_NAMES)
 get_native_modules(NATIVE_MODULES)
 
+
+set_intersection(BUILTINS_NATIVE NATIVE_MODULES BUILTIN_MODULES)
+set_intersection(BUILTINS_COMPILED COMPILED_MODULE_NAMES BUILTIN_MODULES)
+
+
+dump_list(BUILTINS_NATIVE BUILTINS_COMPILED)
+
 list(FILTER NATIVE_MODULES EXCLUDE REGEX "^(stream)$")
+
 
 set(COLUMNS 80)
 
@@ -1074,7 +1105,6 @@ print_columns("=> Installed C native modules" INSTALLED_NATIVE ${COLUMNS})
 set_extra(INSTALLED_JS COMPILED_MODULE_NAMES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED})
 print_columns("=> Builtin JS modules" BUILTINS_COMPILED ${COLUMNS})
 print_columns("=> Installed JS modules" INSTALLED_JS ${COLUMNS})
- 
 
 make_filter_re(EXCLUDE_REGEX ${NATIVE_MODULES} ${BUILTINS_COMPILED})
 
@@ -1089,12 +1119,8 @@ install(
 )
 
 # not cached (see the top of this file): pass -DBUILTINS_COMPILED=... to override
-set(BUILTINS_COMPILED "${BUILTINS_COMPILED}")
-
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${BUILTINS_COMPILED}")
-
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
-
 set(COMMON_MODULES "")
 
 set(abort_MODULES events)
@@ -1170,11 +1196,7 @@ endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 set(COMPILED_BUILTIN_HEADER "")
 
 foreach(LIB_MODULE ${BUILTINS_COMPILED})
-
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
-
-  #if(MODLIST)
-  #endif()
 
   module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
   compile_module(lib/${LIB_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
@@ -1285,26 +1307,6 @@ if(LINK_STATIC)
   link_libraries(modules)
 endif(LINK_STATIC)
 
-# Convenience list mixing three kinds of entries, each routed to wherever it belongs:
-#   - a name with a lib/<name>.js or quickjs-<name>.c file -> BUILTINS_COMPILED or
-#     BUILTINS_NATIVE respectively (native wins if both exist, matching the
-#     C-is-authoritative precedent for dual-implementation modules elsewhere in this
-#     project, e.g. deep/pointer/predicate/xml/stream/misc/path).
-#   - a directory path (an externally-built sibling project's build directory, e.g.
-#     ../qjs-glfw/build/x86_64-linux-gnu) -> EXTERNAL_MODULES. The module name is taken
-#     from a "qjs-<name>" ancestor directory of the path, and <name>_MODULE is set to
-#     the lib<name>.a/.so already built inside it (the OUTPUT_NAME convention used by
-#     e.g. qjs-glfw's/qjs-nanovg's qjs-<name>-static targets).
-# This is evaluated here, before BUILTINS_COMPILED's compile_module() loop's own output
-# targets (modules/*.c above, the "compiled" library) and BUILTINS_NATIVE/EXTERNAL_MODULES
-# are consumed further down, so an entry routed to any of the three actually takes effect.
-set(BUILTIN_MODULES
-    ""
-    CACHE
-      STRING
-      "Mixed list: module names (auto-routed into BUILTINS_COMPILED/BUILTINS_NATIVE) or paths to externally-built qjs-<name> module build directories (routed into EXTERNAL_MODULES)"
-)
-
 # the names BUILTIN_MODULES accepts: quickjs-<name>.c as <name> ('-' written '_') and
 # lib/<name>.js; get_native_modules()/get_compiled_modules() list them
 foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
@@ -1369,7 +1371,8 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
   endif()
 endforeach()
 
-set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
+#set(BUILTINS_NATIVE "${BUILTINS_NATIVE}" CACHE STRING "Native C modules to include in 'qjsm' binary")
+
 
 # Names of externally-built native modules to statically link into qjsm, each
 # providing a js_init_module_<name>(JSContext*, const char*) entry point
@@ -1388,14 +1391,15 @@ set(EXTERNAL_MODULES "${EXTERNAL_MODULES}" CACHE STRING "Externally-built native
 # them) but aren't part of the default qjsm builtin set: still buildable/embeddable,
 # just not registered/linked into qjsm unless required (see NATIVE_REQUIRED below) or
 # added back to BUILTINS_NATIVE.
-if(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
-  # xml stays out of this list: lib/xml.js is a same-named JS polyfill that would
-  # silently shadow the native module instead of failing to load if the native one
-  # isn't registered as a builtin.
-  set(BUILTINS_NATIVE_EXCLUDE arraybuffer-sink child-process lexer location repeater tree-walker virtual)
-endif(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
-set(BUILTINS_NATIVE_EXCLUDE "${BUILTINS_NATIVE_EXCLUDE}"
-    CACHE STRING "Native modules to build but not register as qjsm builtins by default (overridden by NATIVE_REQUIRED)")
+# if(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
+#   # xml stays out of this list: lib/xml.js is a same-named JS polyfill that would
+#   # silently shadow the native module instead of failing to load if the native one
+#   # isn't registered as a builtin.
+#   set(BUILTINS_NATIVE_EXCLUDE "arraybuffer-sink;child-process;lexer;location;repeater;tree-walker;virtual")
+# endif(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
+
+# set(BUILTINS_NATIVE_EXCLUDE "${BUILTINS_NATIVE_EXCLUDE}"
+#     CACHE STRING "Native modules to build but not register as qjsm builtins by default (overridden by NATIVE_REQUIRED)")
 
 # Enforce module dependencies: a native module required by any builtin (compiled JS or
 # native) must itself be a builtin, however BUILTINS_NATIVE/BUILTINS_NATIVE_EXCLUDE are
@@ -1442,7 +1446,8 @@ set(NATIVE_BUILTIN_HEADER "")
 set(QJSM_STATIC_LIBS "")
 
 foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
-  list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
+  string(REPLACE "_" "-" NATIVE_SOURCE "${NATIVE_BUILTIN}")
+  list(APPEND QJSM_SOURCES quickjs-${NATIVE_SOURCE}.c)
   string(REGEX REPLACE "-" "_" NATIVE_MODULE "${NATIVE_BUILTIN}")
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${NATIVE_MODULE})\n")
 endforeach()
