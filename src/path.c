@@ -51,28 +51,31 @@ path_dup2(const char* path, size_t n) {
   return (char*)db.buf;
 }
 
+static void path_normappend(const char* p, size_t n, DynBuf* db);
+
 int
 path_absolute3(const char* path, size_t len, DynBuf* db) {
+  DynBuf tmp;
+  int ret = 0;
+
+  dbuf_init2(&tmp, 0, 0);
+
   if(!path_isabsolute2(path, len)) {
-    dbuf_claim(db, PATH_MAX + 1 - db->size);
-    if(getcwd((char*)db->buf, PATH_MAX + 1))
-      db->size = strlen((const char*)db->buf);
-    else
-      db->size = 0;
+    if(path_getcwd1(&tmp) && tmp.size && len && tmp.buf[tmp.size - 1] != PATHSEP_C)
+      dbuf_putc(&tmp, PATHSEP_C);
 
-    if(strncmp(path, ".", len))
-      path_append3(path, len, db);
-
-    dbuf_0(db);
-    db->size = path_normalize2((char*)db->buf, db->size);
-    dbuf_0(db);
-
-    return 1;
-  } else {
-    dbuf_putstr(db, path);
+    ret = 1;
   }
 
-  return 0;
+  dbuf_put(&tmp, (const uint8_t*)path, len);
+
+  if(tmp.size)
+    path_normappend((const char*)tmp.buf, tmp.size, db);
+
+  dbuf_0(db);
+  dbuf_free(&tmp);
+
+  return ret;
 }
 
 char*
@@ -109,19 +112,113 @@ path_append3(const char* x, size_t len, DynBuf* db) {
   dbuf_append(db, (const uint8_t*)x, len);
 }
 
+/* Node.js path.normalize(): resolves `.` and `..`, collapses repeated separators,
+ * keeps a trailing separator; `..` above the root of an absolute path is dropped */
+static void
+path_normstr(const char* p, size_t n, int above, DynBuf* db) {
+  size_t b0 = db->size, lastseg = 0, i;
+  ssize_t lastslash = -1;
+  int dots = 0, c = 0;
+
+  for(i = 0; i <= n; i++) {
+    if(i < n)
+      c = (unsigned char)p[i];
+    else if(path_issep(c))
+      break;
+    else
+      c = PATHSEP_C;
+
+    if(path_issep(c)) {
+      size_t rl = db->size - b0;
+
+      if(lastslash == (ssize_t)i - 1 || dots == 1) {
+      } else if(dots == 2) {
+        if(rl < 2 || lastseg != 2 || db->buf[db->size - 1] != '.' || db->buf[db->size - 2] != '.') {
+          if(rl > 2) {
+            size_t k = rl, k2;
+
+            while(k > 0 && db->buf[b0 + k - 1] != PATHSEP_C)
+              k--;
+
+            if(k == 0) {
+              db->size = b0;
+              lastseg = 0;
+            } else {
+              rl = k - 1;
+              db->size = b0 + rl;
+              k2 = rl;
+              while(k2 > 0 && db->buf[b0 + k2 - 1] != PATHSEP_C)
+                k2--;
+              lastseg = k2 == 0 ? rl : rl - k2;
+            }
+
+            lastslash = i;
+            dots = 0;
+            continue;
+          } else if(rl != 0) {
+            db->size = b0;
+            lastseg = 0;
+            lastslash = i;
+            dots = 0;
+            continue;
+          }
+        }
+
+        if(above) {
+          dbuf_putstr(db, rl > 0 ? PATHSEP_S ".." : "..");
+          lastseg = 2;
+        }
+      } else {
+        if(db->size > b0)
+          dbuf_putc(db, PATHSEP_C);
+        dbuf_put(db, (const uint8_t*)p + lastslash + 1, i - lastslash - 1);
+        lastseg = i - lastslash - 1;
+      }
+
+      lastslash = i;
+      dots = 0;
+    } else if(c == '.' && dots != -1) {
+      ++dots;
+    } else {
+      dots = -1;
+    }
+  }
+}
+
+/* appends the normalized form of `p` to `db`; `n` must be > 0 */
+static void
+path_normappend(const char* p, size_t n, DynBuf* db) {
+  size_t b0 = db->size, b1;
+  int abs = path_issep(p[0]), trailing = path_issep(p[n - 1]);
+
+  if(abs)
+    dbuf_putc(db, PATHSEP_C);
+
+  b1 = db->size;
+  path_normstr(p, n, !abs, db);
+
+  if(db->size == b1) {
+    if(!abs) {
+      db->size = b0;
+      dbuf_putstr(db, trailing ? "." PATHSEP_S : ".");
+    }
+  } else if(trailing) {
+    dbuf_putc(db, PATHSEP_C);
+  }
+}
+
 size_t
 path_normalize3(const char* path, size_t n, DynBuf* db) {
-  size_t ret;
-  dbuf_claim(db, n + 1 - db->size);
-  memcpy(db->buf, path, n);
+  db->size = 0;
 
-  db->buf[n] = '\0';
-
-  ret = db->size = path_normalize2((char*)db->buf, n);
+  if(n == 0)
+    dbuf_putc(db, '.');
+  else
+    path_normappend(path, n, db);
 
   dbuf_0(db);
 
-  return ret;
+  return db->size;
 }
 
 size_t
@@ -131,60 +228,23 @@ path_normalize1(char* path) {
 
 size_t
 path_normalize2(char* path, size_t nb) {
-  ssize_t i = 0, j, len;
-  len = nb;
+  DynBuf tmp;
+  size_t n;
 
-again:
-  i = path_separator2(path, len);
+  if(nb == 0)
+    return 0;
 
-  if(i > 1) {
-    byte_copy(&path[1], len - i, &path[i]);
-    len -= i - 1;
-    i = 1;
-  }
+  dbuf_init2(&tmp, 0, 0);
+  path_normappend(path, nb, &tmp);
 
-  while(i < len) {
-    size_t k;
-    j = i + path_skip3(&path[i], &k, len - i);
-    if(j == i) {
-      len = j;
-      break;
-    }
+  n = MIN_NUM(tmp.size, nb);
+  memcpy(path, tmp.buf, n);
 
-    if(i > 0 && path_isdot(&path[i])) {
-      ssize_t clen = len - j;
-      assert(clen >= 0);
+  if(n < nb)
+    path[n] = '\0';
 
-      if(clen > 0)
-        byte_copy(&path[i], clen, &path[j]);
-
-      path[i + clen] = '\0';
-      len = i + clen;
-      goto again;
-    }
-
-    if(!path_isdotdot(&path[i]) && (len - j) >= 2 && path_isdotdot(&path[j])) {
-      j += (len - j) == 2 || path[j + 2] == '\0' ? 2 : 3;
-      ssize_t clen = len - j;
-      assert(clen >= 0);
-
-      if(clen > 0)
-        byte_copy(&path[i], clen, &path[j]);
-
-      path[i + clen] = '\0';
-      len = i + clen;
-      goto again;
-    }
-
-    if((i += k + 1) < j) {
-      if(j < len)
-        byte_copy(&path[i], len - j, &path[j]);
-
-      len -= j - i;
-    }
-  }
-
-  return len;
+  dbuf_free(&tmp);
+  return n;
 }
 
 SizePair
@@ -404,30 +464,66 @@ path_diff4(const char* a, size_t la, const char* b, size_t lb) {
   return 0;
 }
 
+/* Node.js path.extname(): ignores trailing separators, `.`/`..` and leading dots have no extension */
+static void
+path_ext(const char* p, size_t n, size_t* pos, size_t* len) {
+  ssize_t startdot = -1, startpart = 0, end = -1, i;
+  int matched = 1, predot = 0;
+
+  for(i = n - 1; i >= 0; --i) {
+    int c = p[i];
+
+    if(path_issep(c)) {
+      if(!matched) {
+        startpart = i + 1;
+        break;
+      }
+      continue;
+    }
+
+    if(end == -1) {
+      matched = 0;
+      end = i + 1;
+    }
+
+    if(c == '.') {
+      if(startdot == -1)
+        startdot = i;
+      else if(predot != 1)
+        predot = 1;
+    } else if(startdot != -1) {
+      predot = -1;
+    }
+  }
+
+  if(startdot == -1 || end == -1 || predot == 0 || (predot == 1 && startdot == end - 1 && startdot == startpart + 1)) {
+    *pos = n;
+    *len = 0;
+  } else {
+    *pos = startdot;
+    *len = end - startdot;
+  }
+}
+
 const char*
 path_extname1(const char* p) {
-  size_t pos;
-  char* q;
-
-  if((q = strrchr(p, PATHSEP_C)))
-    p = q + 1;
-
-  pos = str_rchr(p, '.');
-  p += pos ? pos : strlen(p);
-
-  return p;
+  return p + path_extpos1(p);
 }
 
 size_t
 path_extpos1(const char* p) {
-  const char* q = path_extname1(p);
+  size_t pos, len;
 
-  return q - p;
+  path_ext(p, strlen(p), &pos, &len);
+  return pos;
 }
 
 size_t
 path_extlen1(const char* p) {
-  return strlen(path_extname1(p));
+  size_t pos, len;
+
+  path_ext(p, strlen(p), &pos, &len);
+  return len;
 }
 
 char*
@@ -924,35 +1020,72 @@ path_relative2(const char* path, const char* relative_to) {
 
 int
 path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
-  SizePair p;
-  size_t i;
+  DynBuf fb, tb;
+  const char *from, *to;
+  size_t fn, tn, fromlen, tolen, length, i;
+  ssize_t lastsep = -1, k;
 
-  p = path_common4(s1, n1, s2, n2);
   dbuf_zero(out);
-  s1 += p.sz1;
-  n1 -= p.sz1;
-  s2 += p.sz2;
-  n2 -= p.sz2;
+  dbuf_init2(&fb, 0, 0);
+  dbuf_init2(&tb, 0, 0);
 
-  i = path_separator2(s2, n2);
-  s2 += i;
-  n2 -= i;
+  /* like path.resolve(): absolute, normalized, no trailing separator */
+  path_absolute3(s2, n2, &fb);
+  path_absolute3(s1, n1, &tb);
 
-  while((i = path_skip2(s2, n2))) {
-    dbuf_putstr(out, ".." PATHSEP_S);
-    s2 += i;
-    n2 -= i;
+  fn = fb.size;
+  tn = tb.size;
+  from = (const char*)fb.buf;
+  to = (const char*)tb.buf;
+
+  while(fn > 1 && path_issep(from[fn - 1]))
+    fn--;
+  while(tn > 1 && path_issep(to[tn - 1]))
+    tn--;
+
+  if(fn == tn && !memcmp(from, to, fn))
+    goto end;
+
+  fromlen = fn - 1;
+  tolen = tn - 1;
+  length = MIN_NUM(fromlen, tolen);
+
+  for(i = 0; i < length; i++) {
+    if(from[1 + i] != to[1 + i])
+      break;
+    else if(path_issep(from[1 + i]))
+      lastsep = i;
   }
 
-  i = path_separator2(s1, n1);
-  dbuf_append(out, s1 + i, n1 - i);
+  if(i == length) {
+    if(tolen > length) {
+      if(path_issep(to[1 + i])) {
+        dbuf_put(out, (const uint8_t*)to + 1 + i + 1, tolen - i - 1);
+        goto end;
+      }
 
-  if(out->size == 0)
-    dbuf_putc(out, '.');
-  else if(out->buf[out->size - 1] == PATHSEP_C)
-    out->size--;
+      if(i == 0) {
+        dbuf_put(out, (const uint8_t*)to + 1, tolen);
+        goto end;
+      }
+    } else if(fromlen > length) {
+      if(path_issep(from[1 + i]))
+        lastsep = i;
+      else if(i == 0)
+        lastsep = 0;
+    }
+  }
 
+  for(k = 1 + lastsep + 1; k <= (ssize_t)fn; ++k)
+    if(k == (ssize_t)fn || path_issep(from[k]))
+      dbuf_putstr(out, out->size == 0 ? ".." : PATHSEP_S "..");
+
+  dbuf_put(out, (const uint8_t*)to + 1 + lastsep, tn - 1 - lastsep);
+
+end:
   dbuf_0(out);
+  dbuf_free(&fb);
+  dbuf_free(&tb);
   return 1;
 }
 
@@ -967,17 +1100,35 @@ path_root2(const char* x, size_t n) {
   return 0;
 }
 
+/* Node.js path.dirname(): length of the directory part of `path`, 0 for `.` */
 size_t
 path_dirlen2(const char* path, size_t n) {
-  size_t i = path_right2(path, n);
+  int hasroot, matched = 1;
+  ssize_t end = -1, i;
 
-  while(i > 0 && path_issep(path[i - 1]))
-    i--;
+  if(n == 0)
+    return 0;
 
-  if(i == 0)
-    return n;
+  hasroot = path_issep(path[0]);
 
-  return i;
+  for(i = n - 1; i >= 1; --i) {
+    if(path_issep(path[i])) {
+      if(!matched) {
+        end = i;
+        break;
+      }
+    } else {
+      matched = 0;
+    }
+  }
+
+  if(end == -1)
+    return hasroot ? 1 : 0;
+
+  if(hasroot && end == 1)
+    return 2;
+
+  return end;
 }
 
 size_t
@@ -989,7 +1140,7 @@ char*
 path_dirname1(const char* path) {
   size_t i;
 
-  if(path[(i = path_dirlen1(path))])
+  if((i = path_dirlen1(path)))
     return path_dup2(path, i);
 
   return path_dup1(".");
@@ -997,12 +1148,37 @@ path_dirname1(const char* path) {
 
 size_t
 path_basename1(const char* path) {
-  return path_right1(path);
+  size_t len;
+
+  return path_basename3(path, &len, strlen(path));
 }
 
+/* Node.js path.basename() (without suffix): trailing separators are ignored,
+ * empty for `''` and `/` */
 size_t
 path_basename3(const char* path, size_t* len, size_t n) {
-  return path_right3(path, len, n);
+  ssize_t start = 0, end = -1, i;
+  int matched = 1;
+
+  for(i = n - 1; i >= 0; --i) {
+    if(path_issep(path[i])) {
+      if(!matched) {
+        start = i + 1;
+        break;
+      }
+    } else if(end == -1) {
+      matched = 0;
+      end = i + 1;
+    }
+  }
+
+  if(end == -1) {
+    *len = 0;
+    return n;
+  }
+
+  *len = end - start;
+  return start;
 }
 
 #define START ((PATH_MAX + 1) >> 7)

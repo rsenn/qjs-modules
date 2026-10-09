@@ -520,6 +520,10 @@ normalising implementations. Code written for `node:path` produces wrong results
 
 ### B. Results that differ from Node (POSIX)
 
+**Fixed (2026-10-09):** every row below now matches Node (`src/path.c`: `path_normalize*`,
+`path_absolute3`, `path_dirlen2`, `path_basename3`, `path_extname1`, `path_relative5`;
+`quickjs-path.c`: `join`, `resolve`, `parse`, `format`). The table records the old results.
+
 | call | here | Node |
 | --- | --- | --- |
 | `join('/foo','bar','baz/asdf','quux','..')` | `/foo/bar/baz/asdf/quux/..` | `/foo/bar/baz/asdf` |

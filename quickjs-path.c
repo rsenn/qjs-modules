@@ -104,9 +104,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       size_t pos = path_basename3(a, &len, alen);
 
-      if(blen && blen < len)
-        if(!byte_diff(&a[alen - blen], blen, b))
+      if(blen > 0 && blen <= alen) {
+        if(blen == alen && !byte_diff(a, blen, b))
+          len = 0;
+        else if(blen < len && !byte_diff(&a[pos + len - blen], blen, b))
           len -= blen;
+      }
 
       if(magic == PATH_BASENAME)
         ret = JS_NewStringLen(ctx, a + pos, len);
@@ -122,9 +125,9 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       size_t pos = path_dirlen2(a, alen);
 
       if(magic == PATH_DIRNAME)
-        ret = pos < alen ? JS_NewStringLen(ctx, a, pos) : JS_NewStringLen(ctx, ".", 1);
+        ret = pos > 0 ? JS_NewStringLen(ctx, a, pos) : JS_NewStringLen(ctx, ".", 1);
       else if(magic == PATH_DIRLEN)
-        ret = pos < alen ? JS_NewUint32(ctx, utf8_strlen(a, pos)) : JS_NewInt32(ctx, -1);
+        ret = pos > 0 ? JS_NewUint32(ctx, utf8_strlen(a, pos)) : JS_NewInt32(ctx, -1);
 
       break;
     }
@@ -143,7 +146,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case PATH_EXTNAME: {
-      ret = JS_NewString(ctx, path_extname1(a));
+      ret = JS_NewStringLen(ctx, path_extname1(a), path_extlen1(a));
       break;
     }
     case PATH_EXTPOS: {
@@ -439,29 +442,36 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 static JSValue
 js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
-  DynBuf db = DBUF_INIT_0();
+  DynBuf db = DBUF_INIT_0(), out = DBUF_INIT_0();
   int i;
   size_t len = 0;
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret;
 
   dbuf_init_ctx(ctx, &db);
+  dbuf_init_ctx(ctx, &out);
 
   for(i = 0; i < argc; i++) {
-    str = JS_ToCStringLen(ctx, &len, argv[i]);
+    if(!(str = JS_ToCStringLen(ctx, &len, argv[i]))) {
+      dbuf_free(&db);
+      dbuf_free(&out);
+      return JS_EXCEPTION;
+    }
 
-    if(path_isabsolute2(str, len))
-      db.size = 0;
+    if(len > 0) {
+      if(db.size > 0)
+        dbuf_putc(&db, PATHSEP_C);
 
-    if(len > 0)
-      path_append3(str, len, &db);
+      dbuf_put(&db, (const uint8_t*)str, len);
+    }
 
     JS_FreeCString(ctx, str);
   }
 
-  len = db.size; // path_normalize2((char*)db.buf, db.size);
-  ret = JS_NewStringLen(ctx, (const char*)db.buf, len);
+  path_normalize3((const char*)db.buf, db.size, &out);
+  ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
 
   dbuf_free(&db);
+  dbuf_free(&out);
   return ret;
 }
 
@@ -506,138 +516,172 @@ js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
 static JSValue
 js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  const char *str, *ext;
-  size_t basepos, baselen;
-  size_t len = 0, rootlen, dirlen;
-  JSValue ret = JS_UNDEFINED;
+  const char* str;
+  size_t len = 0, basepos, baselen, rootlen, dirlen, extpos, extlen;
+  JSValue ret;
 
-  str = JS_ToCStringLen(ctx, &len, argv[0]);
+  if(argc < 1 || !(str = JS_ToCStringLen(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
   basepos = path_basename3(str, &baselen, len);
+  rootlen = len > 0 && path_issep(str[0]) ? 1 : 0;
 
-  dirlen = basepos - 1 /*path_dirlen2(str, len)*/;
-  rootlen = path_root2(str, len);
-  ext = path_extname1(str);
+  if(baselen == 0) {
+    dirlen = rootlen;
+    extpos = len;
+    extlen = 0;
+  } else {
+    dirlen = basepos == 0 ? 0 : basepos == 1 && rootlen ? 1 : basepos - 1;
+    extpos = path_extpos1(str);
+    extlen = path_extlen1(str);
+  }
 
   ret = JS_NewObject(ctx);
 
   js_set_propertystr_stringlen(ctx, ret, "root", str, rootlen);
   js_set_propertystr_stringlen(ctx, ret, "dir", str, dirlen);
   js_set_propertystr_stringlen(ctx, ret, "base", &str[basepos], baselen);
-  js_set_propertystr_string(ctx, ret, "ext", ext);
-  js_set_propertystr_stringlen(ctx, ret, "name", &str[basepos], baselen - strlen(ext));
+  js_set_propertystr_stringlen(ctx, ret, "ext", &str[extpos], extlen);
+  js_set_propertystr_stringlen(ctx, ret, "name", &str[basepos], extlen ? extpos - basepos : baselen);
 
   JS_FreeCString(ctx, str);
 
   return ret;
 }
 
+static const char*
+js_path_getstr(JSContext* ctx, JSValueConst obj, const char* name) {
+  const char* s = js_get_propertystr_cstring(ctx, obj, name);
+
+  if(s && !*s) {
+    JS_FreeCString(ctx, s);
+    s = 0;
+  }
+
+  return s;
+}
+
+/* like Node.js: dir || root, base || name + ext (dot added); the separator is
+ * left out when the dir is the root */
 static JSValue
 js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValueConst obj = argv[0];
-  const char *dir, *root, *base, *name, *ext;
-  JSValue ret = JS_UNDEFINED;
-  DynBuf db = DBUF_INIT_0();
+  JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
+  const char *dir, *root, *base, *name, *ext, *d;
+  JSValue ret;
+  DynBuf db = DBUF_INIT_0(), bb = DBUF_INIT_0();
+
+  if(!JS_IsObject(obj))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an object");
 
   dbuf_init_ctx(ctx, &db);
+  dbuf_init_ctx(ctx, &bb);
 
-  if((root = js_get_propertystr_cstring(ctx, obj, "root"))) {
-    dbuf_putstr(&db, root);
-    JS_FreeCString(ctx, root);
-  }
+  root = js_path_getstr(ctx, obj, "root");
+  dir = js_path_getstr(ctx, obj, "dir");
+  base = js_path_getstr(ctx, obj, "base");
 
-  if((dir = js_get_propertystr_cstring(ctx, obj, "dir"))) {
-    dbuf_putstr(&db, dir);
-    JS_FreeCString(ctx, dir);
-  }
+  if(base) {
+    dbuf_putstr(&bb, base);
+  } else {
+    name = js_path_getstr(ctx, obj, "name");
+    ext = js_path_getstr(ctx, obj, "ext");
 
-  if(db.size)
-    dbuf_putc(&db, PATHSEP_C);
+    if(name)
+      dbuf_putstr(&bb, name);
 
-  if((base = js_get_propertystr_cstring(ctx, obj, "base"))) {
-    dbuf_putstr(&db, base);
-    JS_FreeCString(ctx, base);
-  } else if((name = js_get_propertystr_cstring(ctx, obj, "name"))) {
-    dbuf_putstr(&db, name);
-    JS_FreeCString(ctx, name);
+    if(ext) {
+      if(ext[0] != '.')
+        dbuf_putc(&bb, '.');
 
-    if((ext = js_get_propertystr_cstring(ctx, obj, "ext"))) {
-      dbuf_putstr(&db, ext);
-      JS_FreeCString(ctx, ext);
+      dbuf_putstr(&bb, ext);
     }
+
+    if(name)
+      JS_FreeCString(ctx, name);
+    if(ext)
+      JS_FreeCString(ctx, ext);
   }
 
+  if((d = dir ? dir : root)) {
+    dbuf_putstr(&db, d);
+
+    if(!(root && !strcmp(d, root)))
+      dbuf_putc(&db, PATHSEP_C);
+  }
+
+  dbuf_put(&db, bb.buf, bb.size);
   ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
+
+  if(root)
+    JS_FreeCString(ctx, root);
+  if(dir)
+    JS_FreeCString(ctx, dir);
+  if(base)
+    JS_FreeCString(ctx, base);
+
   dbuf_free(&db);
+  dbuf_free(&bb);
 
   return ret;
 }
 
 static JSValue
 js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  DynBuf db = DBUF_INIT_0(), cwd = DBUF_INIT_0();
-  int i;
+  DynBuf joined = DBUF_INIT_0(), out = DBUF_INIT_0();
   const char* str;
-  size_t len = 0;
-  JSValue ret = JS_UNDEFINED;
-  BOOL absolute = FALSE;
+  size_t len;
+  int i, start = 0;
+  JSValue ret;
 
-  dbuf_init_ctx(ctx, &db);
-  dbuf_0(&db);
+  for(i = 0; i < argc; i++)
+    if(!JS_IsString(argv[i]))
+      return JS_ThrowTypeError(ctx, "argument #%d is not a string", i);
 
+  /* the last absolute argument wins */
   for(i = argc - 1; i >= 0; i--) {
-    if(!JS_IsString(argv[i])) {
-      ret = JS_ThrowTypeError(ctx, "argument #%d is not a string", i);
-      goto fail;
+    int abs;
+
+    if(!(str = JS_ToCStringLen(ctx, &len, argv[i])))
+      return JS_EXCEPTION;
+
+    abs = len > 0 && path_issep(str[0]);
+    JS_FreeCString(ctx, str);
+
+    if(abs) {
+      start = i;
+      break;
+    }
+  }
+
+  dbuf_init_ctx(ctx, &joined);
+  dbuf_init_ctx(ctx, &out);
+
+  for(i = start; i < argc; i++) {
+    if(!(str = JS_ToCStringLen(ctx, &len, argv[i]))) {
+      dbuf_free(&joined);
+      dbuf_free(&out);
+      return JS_EXCEPTION;
     }
 
-    str = JS_ToCStringLen(ctx, &len, argv[i]);
-
-    while(len > 0 && str[len - 1] == PATHSEP_C)
-      len--;
-
-    if(dbuf_reserve_start(&db, len + 1))
-      goto fail;
-
     if(len > 0) {
-      memcpy(db.buf, str, len);
-      db.buf[len] = PATHSEP_C;
+      if(joined.size > 0)
+        dbuf_putc(&joined, PATHSEP_C);
+
+      dbuf_put(&joined, (const uint8_t*)str, len);
     }
 
     JS_FreeCString(ctx, str);
-
-    if((absolute = path_isabsolute2((const char*)db.buf, db.size)))
-      break;
   }
 
-  if(!absolute) {
-    dbuf_init_ctx(ctx, &cwd);
-    str = path_getcwd1(&cwd);
-    len = cwd.size;
+  path_absolute3((const char*)joined.buf, joined.size, &out);
 
-    if(dbuf_reserve_start(&db, len + 1))
-      goto fail;
+  while(out.size > 1 && path_issep(out.buf[out.size - 1]))
+    out.size--;
 
-    if(len > 0) {
-      memcpy(db.buf, str, len);
-      db.buf[len] = PATHSEP_C;
-    }
+  ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
 
-    dbuf_free(&cwd);
-  }
-
-  dbuf_0(&db);
-
-  if(db.size) {
-    db.size = path_normalize2((char*)db.buf, db.size);
-
-    while(db.size > 0 && db.buf[db.size - 1] == PATHSEP_C)
-      db.size--;
-
-    ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
-  }
-
-fail:
-  dbuf_free(&db);
+  dbuf_free(&joined);
+  dbuf_free(&out);
   return ret;
 }
 

@@ -9,14 +9,33 @@ tests({
     eq(path.basename('/tmp/test.obj'), 'test.obj');
     eq(path.basename('test'), 'test');
     eq(path.basename('test.obj', '.obj'), 'test');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.basename(''), '');
+    eq(path.parse('').base, '');
+    eq(path.basename('a.html', 'a.html'), '');
+    eq(path.basename('aaa', 'aaa'), '');
   },
   'normalize()'() {
     eq(path.normalize('////tmp////other//..//test'), '/tmp/test');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.normalize(''), '.');
+    eq(path.normalize('/..'), '/');
+    eq(path.normalize('/a/b/../../..'), '/');
+    eq(path.normalize('a/./b/.'), 'a/b');
+    eq(path.normalize('./a/./'), 'a/');
   },
   'dirname()'() {
     eq(path.dirname('/tmp/../'), '/tmp');
     eq(path.dirname('/tmp/test/'), '/tmp');
     eq(path.dirname('/tmp/other/../test/../'), '/tmp/other/../test');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.dirname('/foo'), '/');
+    eq(path.dirname('/'), '/');
+    eq(path.dirname('//a'), '//');
+    eq(path.dirname('a//b'), 'a/');
   },
   'exists()'() {
     assert(path.exists('.'));
@@ -26,6 +45,11 @@ tests({
   'extname()'() {
     eq(path.extname('test.obj'), '.obj');
     eq(path.extname('/tmp/test.obj'), '.obj');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.extname('..'), '');
+    eq(path.parse('..').ext, '');
+    eq(path.extname('a.b/'), '.b');
   },
 
   'fnmatch()'() {
@@ -140,6 +164,9 @@ tests({
 
     eq(path.relative('..', '.'), path.basename(path.getcwd()));
     eq(path.relative('.', '..'), '..');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.relative('/a/b', '/a/b'), '');
   },
   'slice()'() {
     eq(path.slice('////tmp////other//..//test', 1, 3), 'tmp/other');
@@ -154,6 +181,13 @@ tests({
     eq(path.join('', 'tmp', 'test'), 'tmp/test');
     eq(path.join('/', 'tmp', 'test'), '/tmp/test');
     eq(path.join('/tmp', 'test'), '/tmp/test');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.join('/foo', 'bar', 'baz/asdf', 'quux', '..'), '/foo/bar/baz/asdf');
+    eq(path.join(), '.');
+    eq(path.join(''), '.');
+    eq(path.join('/a/', '/b/'), '/a/b/');
+    eq(path.join('a//b', 'c/'), 'a/b/c/');
   },
   'parse()'() {
     const s = '/tmp/test.obj';
@@ -164,16 +198,32 @@ tests({
     eq(base, path.basename(s));
     eq(ext, path.extname(s));
     eq(name, path.basename(s, path.extname(s)));
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.parse('/').dir, '/');
   },
   'format()'() {
     eq(path.format({ dir: '/tmp', base: 'test.obj' }), '/tmp/test.obj');
     eq(path.format({ dir: '/tmp', name: 'test', ext: '.obj' }), '/tmp/test.obj');
     eq(path.format({ name: 'test', ext: '.obj' }), 'test.obj');
     eq(path.format({ base: 'test.obj' }), 'test.obj');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.format({ root: '/ignored', dir: '/home/user/dir', base: 'file.txt' }), '/home/user/dir/file.txt');
+    eq(path.format({ root: '/', base: 'file.txt', ext: 'ignored' }), '/file.txt');
+    eq(path.format({ root: '/', name: 'file', ext: '.txt' }), '/file.txt');
+    eq(path.format({ root: '/', name: 'file', ext: 'txt' }), '/file.txt');
+    eq(path.format({ root: '/' }), '/');
+    eq(path.format({ ext: '.e' }), '.e');
   },
   'resolve()'() {
     eq(path.resolve('/proc', 'self', 'cwd'), '/proc/self/cwd');
     eq(path.resolve('/proc', 'self', '/tmp', 'test'), '/tmp/test');
+
+    // differs from Node.js before the fix (api-compatibility-nodejs.md, B)
+    eq(path.resolve('/a', '', 'b'), '/a/b');
+    eq(path.resolve('/a/b', '../../../..'), '/');
+    eq(path.resolve('/'), '/');
   },
   'isin()'() {
     assert(path.isin('/tmp/test.obj', '/tmp'));

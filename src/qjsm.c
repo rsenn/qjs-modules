@@ -1516,7 +1516,7 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     dbuf_init_ctx(ctx, &dir);
     dsl = path_dirlen1(path);
 
-    if(!path[dsl])
+    if(!dsl)
       dbuf_putstr(&dir, ".");
     else
       path_append3(path, dsl, &dir);
