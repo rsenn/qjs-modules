@@ -6,7 +6,13 @@ if(NOT DEFINED CMAKE_INSTALL_LIBDIR)
   set(CMAKE_INSTALL_LIBDIR lib CACHE STRING "Specify the output directory for libraries (default is lib)")
 endif()
 
-function(GET_SYSTEM_NAME HOST_SYSTEM_VAR TARGET_SYSTEM_VAR)
+#
+# get_system_name <HOST_SYSTEM_VAR> <TARGET_SYSTEM_VAR>
+#
+# Store the host and the target system triplet (cc -dumpmachine, or the MSVC
+# architectures) in the two variables.
+#
+function(get_system_name HOST_SYSTEM_VAR TARGET_SYSTEM_VAR)
   if(MSVC OR DEFINED ENV{VSCMD_ARG_TGT_ARCH})
     set(HOST_SYSTEM $ENV{VSCMD_ARG_HOST_ARCH})
     set(TARGET_SYSTEM $ENV{VSCMD_ARG_TGT_ARCH})
@@ -18,7 +24,7 @@ function(GET_SYSTEM_NAME HOST_SYSTEM_VAR TARGET_SYSTEM_VAR)
 
   set("${HOST_SYSTEM_VAR}" "${HOST_SYSTEM}" PARENT_SCOPE)
   set("${TARGET_SYSTEM_VAR}" "${TARGET_SYSTEM}" PARENT_SCOPE)
-endfunction(GET_SYSTEM_NAME HOST_SYSTEM_VAR TARGET_SYSTEM_VAR)
+endfunction()
 
 get_system_name(HOST_SYSTEM_NAME SYSTEM_NAME)
 
@@ -41,6 +47,7 @@ if(NOT CMAKE_ARCH_LIBDIR)
 
     set(CMAKE_CROSS_ARCH "${CMAKE_CROSS_ARCH}" CACHE STRING "Cross compiling target")
   endif()
+
   set(THIS_SYSTEM "${SYSTEM_NAME}")
   string(REGEX REPLACE "-unknown-" "-" THIS_SYSTEM "${THIS_SYSTEM}")
   string(REGEX REPLACE android[0-9]* android THIS_SYSTEM "${THIS_SYSTEM}")
@@ -51,5 +58,4 @@ if(NOT CMAKE_ARCH_LIBDIR)
   endif(THIS_SYSTEM AND NOT "${THIS_SYSTEM}" STREQUAL "")
 endif(NOT CMAKE_ARCH_LIBDIR)
 
-#message("${CMAKE_C_COMPILER}: ${CMAKE_C_COMPILER}")
 message(STATUS "Architecture-specific library directory: ${CMAKE_ARCH_LIBDIR}")

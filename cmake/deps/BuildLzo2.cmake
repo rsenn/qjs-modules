@@ -40,4 +40,4 @@ macro(build_lzo2 BINARY SUFFIX PIC)
       "-DENABLE_SHARED:BOOL=OFF"
       ${EMSCRIPTEN_MODULE_PATH_ARGS}
     BUILD_BYPRODUCTS "${LZO2_LIBRARY_FILE_${SUFFIX}}")
-endmacro(build_lzo2)
+endmacro()

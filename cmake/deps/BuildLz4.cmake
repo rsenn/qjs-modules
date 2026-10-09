@@ -33,4 +33,4 @@ macro(build_liblz4 BINARY SUFFIX PIC)
       "-DLZ4_BUILD_CLI:BOOL=OFF"
       "-DLZ4_BUILD_LEGACY_LZ4C:BOOL=OFF"
     BUILD_BYPRODUCTS "${LZ4_LIBRARY_FILE_${SUFFIX}}")
-endmacro(build_liblz4)
+endmacro()

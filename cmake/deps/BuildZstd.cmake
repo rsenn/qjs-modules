@@ -35,4 +35,4 @@ macro(build_zstd BINARY SUFFIX PIC)
       "-DZSTD_BUILD_TESTS:BOOL=OFF"
       "-DZSTD_BUILD_CONTRIB:BOOL=OFF"
     BUILD_BYPRODUCTS "${ZSTD_LIBRARY_FILE_${SUFFIX}}")
-endmacro(build_zstd)
+endmacro()

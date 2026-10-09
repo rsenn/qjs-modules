@@ -4,6 +4,9 @@ include(CheckTypeSize)
 #
 # check_cflag <FLAG> <OUTPUT_VAR> [VAR_NAME]
 #
+# If the C compiler accepts FLAG, store TRUE in OUTPUT_VAR and append FLAG to
+# the flags variable VAR_NAME (CMAKE_C_FLAGS by default).
+#
 function(check_cflag FLAG OUTPUT_VAR)
   if(${ARGC} LESS 3)
     set(VAR_NAME CMAKE_C_FLAGS)
@@ -15,8 +18,6 @@ function(check_cflag FLAG OUTPUT_VAR)
    set(CMAKE_REQUIRED_QUIET TRUE)
   check_c_compiler_flag("${FLAG}" RESULT)
   set(CMAKE_REQUIRED_QUIET FALSE)
-
-  #message_func("check_cflag" '${FLAG}' OUTPUT_VAR=${OUTPUT_VAR} VAR_NAME=${VAR_NAME} RESULT=${RESULT})
 
   if(RESULT)
     message(CHECK_PASS "supported")
@@ -33,7 +34,7 @@ endfunction()
 # Append FLAG to CMAKE_EXE_LINKER_FLAGS if a test executable links with it. A
 # macro, not a function, so the result reaches the calling scope.
 #
-# check_ldflags <FLAG> <VAR>
+# check_ldflag <FLAG> <VAR>
 #
 # FLAG     the linker flag, driver-style ("-Wl,--gc-sections") VAR      cache
 # variable the probe result is stored in
@@ -46,6 +47,7 @@ macro(check_ldflag FLAG VAR)
   set(CMAKE_REQUIRED_QUIET FALSE)
   set(CMAKE_EXE_LINKER_FLAGS "${CHECK_LDFLAG_SAVED}")
    message(CHECK_START "Linker flag ${FLAG}")
+
  if(${VAR})
     message(CHECK_PASS "supported")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FLAG}")
@@ -56,6 +58,9 @@ endmacro()
 
 #
 # check_inline [OUTPUT-VAR]
+#
+# Find which of __inline__, __inline or inline the C compiler accepts and store
+# it in OUTPUT-VAR (INLINE_KEYWORD by default).
 #
 function(check_inline)
    if(${ARGC} GREATER_EQUAL 1)
@@ -71,6 +76,7 @@ function(check_inline)
     if(NOT RESULT)
       set(CMAKE_REQUIRED_DEFINITIONS "-DTESTKEYWORD=${KEYWORD}")
       check_c_source_compiles("typedef int foo_t;\nstatic TESTKEYWORD foo_t static_foo(){return 0;}\nfoo_t foo(){return 0;}\nint main(int argc, char *argv[]){return 0;}\n" HAVE_${KEYWORD})
+
       if(HAVE_${KEYWORD})
         set(RESULT "${KEYWORD}")
       endif()
@@ -85,9 +91,12 @@ endfunction()
 #
 # check_compile <RESULT_VAR> <SOURCE>
 #
+# Try to compile the C source SOURCE (optional named arguments such as
+# COMPILE_DEFINITIONS or LINK_LIBRARIES follow) and store whether it worked in
+# RESULT_VAR.
+#
 function(check_compile RESULT_VAR SOURCE)
   assign_named_items(${ARGN})
-
   string(RANDOM LENGTH 6 ALPHABET "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" C_NAME)
   string(REPLACE SUPPORT_ "" NAME "${RESULT_VAR}")
   string(REPLACE _ - NAME "${NAME}")
@@ -95,27 +104,26 @@ function(check_compile RESULT_VAR SOURCE)
   set(C_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/try-${C_NAME}.c")
   string(REPLACE "\\" "\\\\" SOURCE "${SOURCE}")
   file(WRITE "${C_SOURCE}" "${SOURCE}")
- 
   message(CHECK_START "Trying to compile try-${C_NAME}.c")
-  try_compile(COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" OUTPUT_VARIABLE "OUTPUT" 
+  try_compile(COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" OUTPUT_VARIABLE "OUTPUT"
     CMAKE_FLAGS "${CMAKE_FLAGS}"
     COMPILE_DEFINITIONS "${COMPILE_DEFINITIONS}"
     LINK_OPTIONS "${LINK_OPTIONS}"
     LINK_LIBRARIES "${LINK_LIBRARIES}"
   )
   file(REMOVE "${C_SOURCE}")
+
   if(COMPILE_RESULT)
     message(CHECK_PASS "ok")
   else()
     set(COMPILE_LOG "${CMAKE_CURRENT_BINARY_DIR}/compile-${C_NAME}.log")
     relative_paths(COMPILE_LOG "${CMAKE_CURRENT_SOURCE_DIR}" "${COMPILE_LOG}")
-
     message(CHECK_FAIL "fail: ${COMPILE_LOG}")
     file(WRITE "${COMPILE_LOG}" "${OUTPUT}")
     string(REPLACE "\n" ";" OUTPUT "${OUTPUT}")
     list(FILTER OUTPUT INCLUDE REGEX "error")
   endif()
- 
+
   if(RESULT_VAR)
     set("${RESULT_VAR}" "${COMPILE_RESULT}" PARENT_SCOPE)
   endif()
@@ -123,6 +131,9 @@ endfunction()
 
 #
 # check_run <RESULT_VAR> <SOURCE>
+#
+# Try to compile and run the C source SOURCE, linking the extra arguments, and
+# cache in RESULT_VAR whether both worked (a macro).
 #
 macro(check_run RESULT_VAR SOURCE)
   string(RANDOM LENGTH 6 ALPHABET "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" C_NAME)
@@ -132,10 +143,10 @@ macro(check_run RESULT_VAR SOURCE)
   set(C_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/try-${C_NAME}.c")
   string(REPLACE "\\" "\\\\" SOURCE "${SOURCE}")
   file(WRITE "${C_SOURCE}" "${SOURCE}")
- 
   message(CHECK_START "Trying to run try-${C_NAME}.c")
   try_run(RUN_RESULT COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" COMPILE_OUTPUT_VARIABLE "OUTPUT" LINK_LIBRARIES "${ARGN}")
   file(REMOVE "${C_SOURCE}")
+
   if(COMPILE_RESULT AND RUN_RESULT)
     message(CHECK_PASS "ok")
     # add_definitions(-D${RESULT_VAR})
@@ -146,8 +157,8 @@ macro(check_run RESULT_VAR SOURCE)
     string(REPLACE "\n" ";" OUTPUT "${OUTPUT}")
     list(FILTER OUTPUT INCLUDE REGEX "error")
   endif()
- 
-   if(RESULT_VAR)
+
+  if(RESULT_VAR)
     set("${RESULT_VAR}" "${COMPILE_RESULT}" CACHE BOOL "Support ${NAME}")
   endif()
 endmacro()
@@ -155,21 +166,28 @@ endmacro()
 #
 # check_include_def <INCLUDE> [RESULT-VAR] [PREPROC_DEF]
 #
+# Check for the header INCLUDE, cache RESULT-VAR (HAVE_<INCLUDE> by default)
+# and add -DPREPROC_DEF=1 if found (a macro).
+#
 macro(check_include_def INC)
   if(${ARGC} LESS 3)
     clean_name("${INC}" INC_D)
   endif()
+
   if(${ARGC} GREATER_EQUAL 2)
     set(RESULT_VAR "${ARGV1}")
   else()
     string(TOUPPER "HAVE_${INC_D}" RESULT_VAR)
   endif()
+
   if(${ARGC} GREATER_EQUAL 3)
     set(PREPROC_DEF "${ARGV2}")
   else()
     string(TOUPPER "HAVE_${INC_D}" PREPROC_DEF)
   endif()
+
   check_include_file("${INC}" RESULT)
+
   if(RESULT_VAR)
     if(RESULT)
       set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
@@ -178,11 +196,15 @@ macro(check_include_def INC)
       endif()
     endif()
   endif()
+
   set_add(CHECKED_INCLUDES "${INC}")
 endmacro()
 
 #
 # check_includes <INCLUDE-FILES...>
+#
+# Run check_include_def for every header in INCLUDE-FILES, using the default
+# names (a macro).
 #
 macro(check_includes)
   foreach(INC ${ARGN})
@@ -194,6 +216,9 @@ endmacro()
 #
 # check_includes_def <INCLUDE-FILES...>
 #
+# Run check_include_def for every header in INCLUDE-FILES, also defining the
+# preprocessor macros (a macro).
+#
 macro(check_includes_def)
   foreach(INC ${ARGN})
     check_include_def("${INC}")
@@ -203,9 +228,13 @@ endmacro()
 #
 # clean_name <STRING> <OUTPUT-VAR>
 #
+# Store STRING in OUTPUT-VAR in upper case with every character that is not
+# alphanumeric replaced by '_'.
+#
 function(clean_name STR OUTPUT_VAR)
   string(TOUPPER "${STR}" STR)
   string(REGEX REPLACE "[^A-Za-z0-9_]" "_" STR "${STR}")
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
   endif()
@@ -213,6 +242,9 @@ endfunction()
 
 #
 # check_include_def <INCLUDE> [RESULT-VAR] [PREPROC_DEF]
+#
+# Check for the header INCLUDE, cache RESULT-VAR (HAVE_<INCLUDE> by default)
+# and add -DPREPROC_DEF=1 if found (a macro).
 #
 macro(check_include_def INC)
   if(${ARGC} GREATER_EQUAL 2)
@@ -225,6 +257,7 @@ macro(check_include_def INC)
   endif()
 
   check_include_file("${INC}" "${RESULT_VAR}")
+
   if(RESULT_VAR)
     if(${${RESULT_VAR}})
       set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
@@ -233,11 +266,15 @@ macro(check_include_def INC)
       endif()
     endif()
   endif()
+
   set_add(CHECKED_INCLUDES "${INC}")
 endmacro()
 
 #
 # check_includes <INCLUDE-FILES...>
+#
+# Run check_include_def for every header in INCLUDE-FILES, using the default
+# names (a macro).
 #
 macro(check_includes)
   foreach(INC ${ARGN})
@@ -249,6 +286,9 @@ endmacro()
 #
 # check_includes_def <INCLUDE-FILES...>
 #
+# Run check_include_def for every header in INCLUDE-FILES, also defining the
+# preprocessor macros (a macro).
+#
 macro(check_includes_def)
   foreach(INC ${ARGN})
     check_include_def("${INC}")
@@ -258,8 +298,11 @@ endmacro()
 #
 # have_includes <OUTPUT-VAR> [INCLUDES...]
 #
+# Store in OUTPUT-VAR those of INCLUDES whose HAVE_<INCLUDE> check succeeded.
+#
 function(have_includes OUTPUT_VAR)
   set(LIST "")
+
   foreach(INC ${ARGN})
     clean_name("HAVE_${INC}" RESULT_VAR)
     if(${${RESULT_VAR}})
@@ -275,6 +318,9 @@ endfunction()
 #
 # check_function_def <FUNC> [RESULT_VAR] [PREPROC_DEF]
 #
+# Check that the function FUNC exists, cache RESULT_VAR (HAVE_<FUNC> by
+# default) and add -DPREPROC_DEF=1 if found (a macro).
+#
 macro(check_function_def FUNC)
   if(${ARGC} GREATER_EQUAL 2)
     set(RESULT_VAR "${ARGV1}")
@@ -283,10 +329,13 @@ macro(check_function_def FUNC)
     string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
     string(TOUPPER "HAVE_${FUNC}" PREPROC_DEF)
   endif()
+
   check_function_exists("${FUNC}" "${RESULT_VAR}")
+
   if(RESULT_VAR)
     if(${${RESULT_VAR}})
       set("${RESULT_VAR}" TRUE CACHE BOOL "Define this if you have the '${FUNC}' function")
+
       if(NOT "${PREPROC_DEF}" STREQUAL "")
         add_definitions(-D${PREPROC_DEF})
       endif()
@@ -296,6 +345,9 @@ endmacro()
 
 #
 # check_functions [FUNCTION-NAMES...]
+#
+# Check every function in FUNCTION-NAMES, caching HAVE_<FUNCTION> for each (a
+# macro).
 #
 macro(check_functions)
   foreach(FUNC ${ARGN})
@@ -307,6 +359,8 @@ endmacro()
 #
 # check_functions_def [FUNCTION-NAMES...]
 #
+# Run check_function_def for every function in FUNCTION-NAMES (a macro).
+#
 macro(check_functions_def)
   foreach(FUNC ${ARGN})
     check_function_def("${FUNC}")
@@ -316,10 +370,14 @@ endmacro()
 #
 # check_function_and_include <FUNCTION> <INCLUDE>
 #
+# Check for the header INCLUDE and, if it is there, for the function FUNCTION
+# (a macro).
+#
 macro(check_function_and_include FUNC INC)
   clean_name("HAVE_${INC}" INC_RESULT)
   clean_name("HAVE_${FUNC}" FUNC_RESULT)
   check_include_def("${INC}" "${INC_RESULT}" "${INC_RESULT}")
+
   if(${${INC_RESULT}})
     check_function_def("${FUNC}" "${FUNC_RESULT}" "${FUNC_RESULT}")
   endif()
@@ -328,21 +386,30 @@ endmacro()
 #
 # check_source_definitions [TYPES...]
 #
+# Add the -D_<TYPE>_SOURCE feature-test definitions for TYPES (GNU, POSIX,
+# XOPEN, LARGEFILE, ... by default) (a macro).
+#
 macro(check_source_definitions)
   set(SOURCE_DEFINITIONS)
+
   if(${ARGC} GREATER_EQUAL 1)
     set(SOURCE_TYPES ${ARGN})
   else()
     set(SOURCE_TYPES "ATFILE;GNU;LARGEFILE;LARGE_FILE;LARGEFILE64;POSIX;POSIX_C;XOPEN;XOPEN_EXTENDED")
-  endif() 
+  endif()
+
   foreach(TYPE ${SOURCE_TYPES})
     set_add(SOURCE_DEFINITIONS -D_${TYPE}_SOURCE)
   endforeach()
+
   add_definitions(${SOURCE_DEFINITIONS})
 endmacro()
 
 #
 # check_sys_siglist_declaration
+#
+# Check that signal.h declares sys_siglist; add -D<PREPROC_DEF> if so and store
+# the result in OUTPUT-VAR.
 #
 function(check_sys_siglist_declaration)
   if(${ARGC} LESS 1)
@@ -350,22 +417,24 @@ function(check_sys_siglist_declaration)
   else()
     set(OUTPUT_VAR "${ARGV0}")
   endif()
+
   if(${ARGC} LESS 2)
     set(PREPROC_DEF "HAVE_SYS_SIGLIST_DECLARATION")
   else()
     set(PREPROC_DEF "${ARGV1}")
   endif()
- 
+
   check_symbol_exists(sys_siglist "signal.h" SYM_EXISTS)
   if(SYM_EXISTS)
     add_definitions(-D${PREPROC_DEF})
   endif()
- 
+
   check_c_compiler_flag("-Wall" WARN_ALL)
+
   if(WARN_ALL)
     set(WERROR_FLAG "${WERROR_FLAG} -Wall")
   endif()
- 
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${SYM_EXISTS}" PARENT_SCOPE)
   endif()
@@ -374,15 +443,20 @@ endfunction()
 #
 # check_no_unused_warn_flags
 #
+# Add -Wall, -Wno-unused-variable and -Wno-unused-function to WERROR_FLAG for
+# each one the compiler supports (a macro).
+#
 macro(check_no_unused_warn_flags)
   check_c_compiler_flag("-Wno-unused-variable" WARN_NO_UNUSED_VARIABLE)
   if(WARN_NO_UNUSED_VARIABLE)
     set(WERROR_FLAG "${WERROR_FLAG} -Wno-unused-variable")
   endif()
+
   check_c_compiler_flag("-Wno-unused-function" WARN_NO_UNUSED_FUNCTION)
   if(WARN_NO_UNUSED_FUNCTION)
     set(WERROR_FLAG "${WERROR_FLAG} -Wno-unused-function")
   endif()
+
   check_c_compiler_flag("-Wno-error=unused-but-set-variable" WARN_NO_UNUSED_FUNCTION)
   if(WARN_NO_UNUSED_FUNCTION)
     set(WERROR_FLAG "${WERROR_FLAG} -Wno-error=unused-but-set-variable")
@@ -392,30 +466,39 @@ endmacro()
 #
 # check_falign_flags
 #
+# Add each supported -falign-*=1 flag (functions, jumps, labels, loops,
+# commons) to the C flags (a macro).
+#
 macro(check_falign_flags)
   check_c_compiler_flag("-falign-functions=1" F_ALIGN_FUNCTIONS)
   check_c_compiler_flag("-falign-jumps=1" F_ALIGN_JUMPS)
   check_c_compiler_flag("-falign-labels=1" F_ALIGN_LABELS)
   check_c_compiler_flag("-falign-loops=1" F_ALIGN_LOOPS)
-  
+
   if(F_ALIGN_COMMONS)
     add_cflags(-falign-commons=1 ${CMAKE_BUILD_TYPE})
   endif()
+
   if(F_ALIGN_DOUBLE)
     add_cflags(-falign-double=1 ${CMAKE_BUILD_TYPE})
   endif()
+
   if(F_ALIGN_FUNCTIONS)
     add_cflags(-falign-functions=1 ${CMAKE_BUILD_TYPE})
   endif()
+
   if(F_ALIGN_JUMPS)
     add_cflags(-falign-jumps=1 ${CMAKE_BUILD_TYPE})
   endif()
+
   if(F_ALIGN_LABELS)
     add_cflags(-falign-labels=1 ${CMAKE_BUILD_TYPE})
   endif()
+
   if(F_ALIGN_LOOPS)
     add_cflags(-falign-loops=1 ${CMAKE_BUILD_TYPE})
   endif()
+
   if(F_ALIGN_STRINGOPS)
     add_cflags(-falign-stringops=1 ${CMAKE_BUILD_TYPE})
   endif()
@@ -424,7 +507,7 @@ endmacro()
 # MinSizeRel means bytes over everything else: every flag below is probed before
 # use, and each one trades speed, hardening or diagnostics for size.
 #
-# check_falign_flags
+# check_fno_optim_flags
 #
 #   -f*-unwind-tables    .eh_frame is 15% of an untuned binary; nothing unwinds
 #   -fno-jump-tables     switch tables become compare chains -f*-sections only pays off together with --gc-sections
@@ -447,7 +530,10 @@ macro(check_fno_optim_flags)
 endmacro()
 
 #
-# check_windows [OUTPUT-VAR]
+# check_windows_native [OUTPUT-VAR]
+#
+# Store TRUE in OUTPUT-VAR (WINDOWS_NATIVE by default) on native Windows, but
+# not on Cygwin or MSYS.
 #
 function(check_windows_native)
   if(${ARGC} GREATER_EQUAL 1)
@@ -470,18 +556,22 @@ endfunction()
 #
 # check_winsock2 [OUTPUT-VAR] [LIBRARY-VAR]
 #
+# Look for ws2_32 or wsock32 on Windows; store whether winsock2 is available in
+# OUTPUT-VAR and the library name in LIBRARY-VAR.
+#
 function(check_winsock2)
   if(${ARGC} LESS 1)
     set(OUTPUT_VAR HAVE_WINSOCK2)
   else()
     set(OUTPUT_VAR "${ARGV0}")
   endif()
+
   if(${ARGC} LESS 2)
     set(LIBRARY_VAR WINSOCK2_LIBRARY)
   else()
     set(LIBRARY_VAR "${ARGV1}")
   endif()
- 
+
   check_windows_native(WIN_NATIVE)
   if(WIN_NATIVE)
     check_library_exists(ws2_32 gethostname /usr/lib HAVE_WS2_32)
@@ -489,17 +579,19 @@ function(check_winsock2)
       check_library_exists(wsock32 gethostname /usr/lib HAVE_WSOCK32)
     endif()
   endif()
+
   if(HAVE_WSOCK32)
     set(LIBRARY wsock32)
   endif()
+
   if(HAVE_WS2_32)
     set(LIBRARY ws2_32)
   endif()
- 
+
   if(LIBRARY_VAR)
     set("${LIBRARY_VAR}" "${LIBRARY}" PARENT_SCOPE)
   endif()
- 
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${HAVE_WS2_32}" PARENT_SCOPE)
   endif()
@@ -508,33 +600,38 @@ endfunction()
 #
 # check_lowfat [OUTPUT-VAR]
 #
+# Look for the libowfat library (owfat_debug or owfat); store the result in
+# OUTPUT-VAR and the library name in the second argument.
+#
 function(check_lowfat)
   if(${ARGC} GREATER_EQUAL 1)
     set(RESULT_VAR "${ARGV0}")
   else()
     set(RESULT_VAR HAVE_LIBOWFAT)
   endif()
+
   if(${ARGC} GREATER_EQUAL 2)
     set(LIB_VAR "${ARGV1}")
   else()
     set(LIB_VAR LIBOWFAT_LIBRARY)
   endif()
-  
+
   check_library_exists(owfat_debug buffer_init /usr/lib64 RESULT)
   if(RESULT)
     set(LIB owfat_debug)
   endif()
+
   if(NOT RESULT)
     check_library_exists(owfat buffer_init /usr/lib64 RESULT)
     if(RESULT)
       set(LIB owfat)
     endif()
   endif()
-  
+
   if(RESULT_VAR)
     set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif()
-  
+
   if(LIB_VAR)
     set("${LIB_VAR}" "${LIB}" PARENT_SCOPE)
   endif()
@@ -542,6 +639,8 @@ endfunction()
 
 #
 # check_crosscompiling
+#
+# Print the host and target system names if this is a cross compile (a macro).
 #
 macro(check_crosscompiling)
   if(CMAKE_CROSSCOMPILING)
@@ -553,6 +652,9 @@ endmacro()
 
 #
 # check_pointer_size [OUTPUT-VAR]
+#
+# Store the size of a pointer in bytes in OUTPUT-VAR (POINTER_SIZE by default)
+# and add -DPOINTER_SIZE.
 #
 function(check_pointer_size)
   if(${ARGC} GREATER_EQUAL 1)
@@ -574,7 +676,7 @@ function(check_pointer_size)
   else()
     message(CHECK_FAIL "failed")
   endif()
-  
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${POINTER_SIZE}" PARENT_SCOPE)
   endif()
@@ -583,6 +685,9 @@ endfunction()
 #
 # check_type_sizes
 #
+# Check for ssize_t, sigset_t, pid_t and uid_t and set the corresponding
+# HAVE_<TYPE> variables (a macro).
+#
 macro(check_type_sizes)
   set(CMAKE_REQUIRED_QUIET TRUE)
   check_type_size(ssize_t SIZEOF_SSIZE_T)
@@ -590,52 +695,66 @@ macro(check_type_sizes)
     set(HAVE_SSIZE_T 1)
     add_definitions(-D_SSIZE_T_=1)
   endif()
+
   check_type_size(sigset_t SIZEOF_SIGSET_T)
   if(NOT SIZEOF_SIGSET_T STREQUAL "")
     set(HAVE_SIGSET_T 1)
   endif()
+
   check_type_size(pid_t SIZEOF_PID_T)
   if(NOT SIZEOF_PID_T STREQUAL "")
     set(HAVE_PID_T 1)
   endif()
+
   check_type_size(uid_t SIZEOF_UID_T)
   if(NOT SIZEOF_UID_T STREQUAL "")
     set(HAVE_UID_T 1)
   endif()
+
   set(CMAKE_REQUIRED_QUIET FALSE)
 endmacro()
 
 #
 # check_alloca [OUTPUT-VAR]
 #
+# Check which header provides alloca() (alloca.h or malloc.h); define
+# HAVE_ALLOCA and store the result in OUTPUT-VAR.
+#
 function(check_alloca)
-   if(${ARGC} GREATER_EQUAL 1)
+  if(${ARGC} GREATER_EQUAL 1)
     set(OUTPUT_VAR "${ARGV0}")
   else()
     set(OUTPUT_VAR HAVE_ALLOCA)
   endif()
-
+  
   set(CMAKE_REQUIRED_QUIET TRUE)
+  
   if(HAVE_ALLOCA_H)
     set_add(CMAKE_REQUIRED_INCLUDES alloca.h)
     check_symbol_exists(alloca alloca.h HAVE_ALLOCA_SYMBOL)
-  endif()  
+  endif()
+  
   check_compile(HAVE_ALLOCA_ALLOCA_H "#include <stdlib.h>\n#include <alloca.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}" )
+  
   if(NOT HAVE_ALLOCA_ALLOCA_H)
     check_compile(HAVE_ALLOCA_MALLOC_H "#include <stdlib.h>\n#include <alloca.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}" )
   endif()
+  
   if(HAVE_ALLOCA_ALLOCA_H OR HAVE_ALLOCA_MALLOC_H)
     set(HAVE_ALLOCA TRUE)
     add_definitions(-DHAVE_ALLOCA)
+
     if(HAVE_ALLOCA_MALLOC_H)
       set(ALLOCA_HEADER "malloc.h" CACHE STRING "Header for alloca()")
     else()
       set(ALLOCA_HEADER "alloca.h" CACHE STRING "Header for alloca()")
     endif()
   endif()
+
   if(NOT HAVE_ALLOCA)
     set(ALLOCA_HEADER "")
   endif()
+
   set(CMAKE_REQUIRED_QUIET FALSE)
 
   if(OUTPUT_VAR)
@@ -646,8 +765,12 @@ endfunction()
 #
 # check_memory_mapping
 #
+# Check for sys/mman.h, mmap, munmap and mremap, and decide whether
+# memory-mapped file I/O is available (a macro).
+#
 macro(check_memory_mapping)
   check_include_file(sys/mman.h HAVE_SYS_MMAN_H)
+
   if(HAVE_SYS_MMAN_H)
     set(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} sys/mman.h)
     set_add(CMAKE_REQUIRED_INCLUDES sys/mman.h)
@@ -681,6 +804,9 @@ endmacro()
 #
 # check_emscripten
 #
+# Detect Emscripten and WASI builds from the compiler name and system name and
+# set up their variables and include paths (a macro).
+#
 macro(check_emscripten)
   if(COMPILER_NAME MATCHES "em.*")
     set(EMSCRIPTEN TRUE)
@@ -703,23 +829,26 @@ endmacro()
 #
 # check_libmath [OUTPUT-VAR]
 #
+# Check whether the math library -lm is needed and store its name, or an empty
+# string, in OUTPUT-VAR (MATH_LIBRARY by default).
+#
 function(check_libmath)
   if(${ARGC} GREATER_EQUAL 1)
     set(OUTPUT_VAR "${ARGV0}")
   else()
     set(OUTPUT_VAR MATH_LIBRARY)
   endif()
-  
+
   set(CMAKE_REQUIRED_QUIET TRUE)
   check_library_exists(m pow "" HAVE_LIBM)
   set(CMAKE_REQUIRED_QUIET FALSE)
-  
+
   if(HAVE_LIBM)
     set(MATH_LIBRARY m)
   else()
     set(MATH_LIBRARY "")
   endif()
-  
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${MATH_LIBRARY}" PARENT_SCOPE)
   endif()
@@ -766,9 +895,9 @@ function(check_fork_function)
   else()
     set(OUTPUT_VAR HAVE_FORK)
   endif()
-  
+
   string(REGEX REPLACE ".*/" "" HAVE_FORK_COMPILER_NAME "${CMAKE_C_COMPILER}")
-  
+
   check_windows_native(WIN_NATIVE)
   if(WIN_NATIVE)
     set(HAVE_FORK TRUE)
@@ -777,13 +906,20 @@ function(check_fork_function)
   else()
     check_function_exists(fork HAVE_FORK)
   endif()
+
   unset(HAVE_FORK_COMPILER_NAME)
-  
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${HAVE_FORK}" PARENT_SCOPE)
   endif()
 endfunction()
 
+#
+# check_termios_winsize
+#
+# Check that termios.h and sys/ioctl.h allow reading the terminal size with
+# TIOCGWINSZ and define HAVE_WINSIZE (a macro).
+#
 macro(check_termios_winsize)
   check_includes_def(termios.h sys/ioctl.h)
   if(HAVE_TERMIOS_H AND HAVE_SYS_IOCTL_H)
@@ -798,6 +934,9 @@ endmacro()
 #
 # check_pw_functions
 #
+# Check for pwd.h, grp.h and the getpwuid and getgrgid functions, including the
+# _r variants (a macro).
+#
 macro(check_pw_functions)
   check_include_file(pwd.h HAVE_PWD_H)
   check_include_file(grp.h HAVE_GRP_H)
@@ -810,9 +949,11 @@ endmacro()
 #
 # check_sig_functions
 #
+# Check for sigprocmask and, if it is missing, for the older sigblock,
+# sigsetmask and sigpause (a macro).
+#
 macro(check_sig_functions)
   check_function_exists(sigprocmask HAVE_SIGPROCMASK)
-
   if(NOT HAVE_SIGPROCMASK)
     check_function_exists(sigblock HAVE_SIGBLOCK)
     check_function_exists(sigsetmask HAVE_SIGSETMASK)
@@ -826,6 +967,8 @@ endmacro()
 #
 # compiler_flags_optimize_size
 #
+# Replace -O1 to -O9 with -Os in the C flags of every build type (a macro).
+#
 macro(compiler_flags_optimize_size)
   string(REGEX REPLACE "-O[1-9]" "-Os" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
   string(REGEX REPLACE "-O[1-9]" "-Os" CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
@@ -837,14 +980,15 @@ endmacro()
 #
 # compiler_flags_debug [OUTPUT-VAR]
 #
+# Compute the debug flags (-O0 and -ggdb, -g3 or -g, whichever is supported)
+# and store them in OUTPUT-VAR (CMAKE_C_FLAGS_DEBUG by default).
+#
 function(compiler_flags_debug)
   if(${ARGC} GREATER_EQUAL 1)
     set(OUTPUT_VAR "${ARGV0}")
   else()
     set(OUTPUT_VAR CMAKE_C_FLAGS_DEBUG)
   endif()
-
-  #message_func("compiler_flags_debug" ${OUTPUT_VAR})
 
   set(FLAGS "${${OUTPUT_VAR}}")
 
@@ -853,12 +997,11 @@ function(compiler_flags_debug)
 
   if(NOT F_G_GDB)
     check_cflag("-g3" F_G3 FLAGS)
-  
     if(NOT F_G3)
       check_cflag("-g" F_G FLAGS)
     endif()
   endif()
-  
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${FLAGS}" PARENT_SCOPE)
   endif()
@@ -866,6 +1009,9 @@ endfunction()
 
 #
 # option_debug_mode
+#
+# Define the BUILD_DEBUG option, which is on for Debug build types, and the
+# matching _DEBUG or NDEBUG definition, plus USE_EFENCE (a macro).
 #
 macro(option_debug_mode)
   option(BUILD_DEBUG "Build in debug mode" OFF)
@@ -895,14 +1041,14 @@ endmacro()
 #
 # option_link_static
 #
+# Define the LINK_STATIC option, which links executables statically and turns
+# the shared libraries off (a macro).
+#
 macro(option_link_static)
   option(LINK_STATIC "Link executables statically" OFF)
-
   if(LINK_STATIC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-
     add_definitions(-DLINK_STATIC=1)
-
     set(ENABLE_SHARED OFF)
     set(BUILD_SHARED_LIBS FALSE)
   endif()
@@ -910,6 +1056,9 @@ endmacro()
 
 #
 # option_link_time_optimization
+#
+# Define the ENABLE_LTO option, if the compiler supports -flto, and add -flto
+# to the compile and link flags when it is on (a macro).
 #
 macro(option_link_time_optimization)
   check_c_compiler_flag("-flto" F_LTO)

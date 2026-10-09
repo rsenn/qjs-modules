@@ -28,5 +28,5 @@ macro(find_libb2)
   else()
     set(LIBB2_FOUND FALSE)
   endif()
-    
- endmacro(find_libb2)
+
+ endmacro()

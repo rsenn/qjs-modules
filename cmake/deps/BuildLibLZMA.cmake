@@ -48,4 +48,4 @@ macro(build_liblzma BINARY SUFFIX PIC)
       "-DXZ_TOOL_SCRIPTS:BOOL=OFF"
       "-DXZ_TOOL_SYMLINKS:BOOL=OFF"
     BUILD_BYPRODUCTS "${LIBLZMA_LIBRARY_FILE_${SUFFIX}}")
-endmacro(build_liblzma)
+endmacro()

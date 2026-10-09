@@ -23,9 +23,9 @@ macro(find_zlib)
   if(ZLIB_LIBRARY)
     message(STATUS "\tZlib library: ${ZLIB_LIBRARY}")
     message(STATUS "\tZlib include dir: ${ZLIB_INCLUDE_DIR}")
-    
+
     set(ZLIB_FOUND TRUE)
   else()
     set(ZLIB_FOUND FALSE)
   endif()
-endmacro(find_zlib)
+endmacro()

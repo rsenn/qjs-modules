@@ -5,70 +5,138 @@ include(CheckCXXCompilerFlag)
 include(CheckFunctionExists)
 include(CheckIncludeFileCXX)
 
-##
-## canonicalize <OUTPUT-VARIABLE> <STR>
-##
-function(CANONICALIZE OUTPUT_VAR STR)
+#
+# canonicalize <OUTPUT-VARIABLE> <STR>
+#
+# Store STR in OUTPUT-VARIABLE as an upper-case identifier: a leading -W
+# becomes WARN_ and '-' becomes '_'.
+#
+function(canonicalize OUTPUT_VAR STR)
   string(REGEX REPLACE "^-W" "WARN_" TMP_STR "${STR}")
-
   string(REGEX REPLACE "-" "_" TMP_STR "${TMP_STR}")
   string(TOUPPER "${TMP_STR}" TMP_STR)
-
   set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
-endfunction(CANONICALIZE OUTPUT_VAR STR)
+endfunction()
 
-##
-## dirname <OUTPUT-VARIABLE> <STR>
-##
-function(DIRNAME OUTPUT_VAR STR)
+#
+# decamelize <OUTPUT-VARIABLE> <STR>
+#
+function(decamelize OUTPUT_VAR STR)
+  string(REGEX REPLACE "([^;])([A-Z])" "\\1;\\2" STR "${STR}")
+  string(REGEX REPLACE "([^;])([A-Z])" "\\1;\\2" STR "${STR}")
+
+  set(OUT "")
+  foreach(PART ${STR})
+    list(APPEND OUT "${PART}")
+  endforeach()
+
+  if(${ARGC} GREATER 2)
+    set(SEP ${ARGV2})
+  else()
+    set(SEP "_")
+  endif()
+  list(JOIN OUT "${SEP}" STR)
+
+  string(TOLOWER "${STR}" STR)
+  set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
+endfunction()
+
+#
+# ucfirst <OUTPUT-VARIABLE> <STR>
+#
+function(ucfirst OUTPUT_VAR STR)
+  string(SUBSTRING "${STR}" 0 1 FIRST)
+  string(TOUPPER "${FIRST}" FIRST)
+  string(SUBSTRING "${STR}" 1 -1 REST)
+  string(TOLOWER "${REST}" REST)
+  set("${OUTPUT_VAR}" "${FIRST}${REST}" PARENT_SCOPE)
+endfunction()
+
+#
+# camelize <OUTPUT-VARIABLE> <STR>
+#
+function(camelize OUTPUT_VAR STR)
+  string(REGEX REPLACE "[^0-9A-Za-z]" ";" STR "${STR}")
+  set(OUT "")
+  foreach(PART ${STR})
+    ucfirst(PART "${PART}")
+    set(OUT "${OUT}${PART}")
+  endforeach()
+  set("${OUTPUT_VAR}" "${OUT}" PARENT_SCOPE)
+endfunction()
+
+#
+# dirname <OUTPUT-VARIABLE> <STR>
+#
+# Store STR without its last path component (and without the extension in
+# ARGN, if given) in OUTPUT-VARIABLE.
+#
+function(dirname OUTPUT_VAR STR)
   string(REGEX REPLACE "/[^/]+/*$" "" TMP_STR "${STR}")
+
   if(ARGN)
     string(REGEX REPLACE "\\${ARGN}\$" "" TMP_STR "${TMP_STR}")
-  endif(ARGN)
+  endif()
 
   set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
-endfunction(DIRNAME OUTPUT_VAR FILE)
+endfunction()
 
-##
-## addprefix <OUTPUT-VARIABLE> <PREFIX>
-##
-function(ADDPREFIX OUTPUT_VAR PREFIX)
+#
+# addprefix <OUTPUT-VARIABLE> <PREFIX>
+#
+# Store the remaining arguments, each with PREFIX prepended, in
+# OUTPUT-VARIABLE.
+#
+function(addprefix OUTPUT_VAR PREFIX)
   set(OUTPUT "")
+
   foreach(ARG ${ARGN})
     list(APPEND OUTPUT "${PREFIX}${ARG}")
-  endforeach(ARG ${ARGN})
-  set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
-endfunction(ADDPREFIX OUTPUT_VAR PREFIX)
+  endforeach()
 
-##
-## addsuffix <OUTPUT-VARIABLE> <PREFIX>
-##
-function(ADDSUFFIX OUTPUT_VAR SUFFIX)
+  set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
+endfunction()
+
+#
+# addsuffix <OUTPUT-VARIABLE> <PREFIX>
+#
+# Store the remaining arguments, each with SUFFIX appended, in
+# OUTPUT-VARIABLE.
+#
+function(addsuffix OUTPUT_VAR SUFFIX)
   set(OUTPUT "")
+
   foreach(ARG ${ARGN})
     list(APPEND OUTPUT "${ARG}${SUFFIX}")
-  endforeach(ARG ${ARGN})
-  set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
-endfunction(ADDSUFFIX OUTPUT_VAR SUFFIX)
+  endforeach()
 
-##
-## relative_path <OUTPUT-VARIABLE> <RELATIVE_TO>
-##
-function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
+  set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
+endfunction()
+
+#
+# relative_path <OUTPUT-VARIABLE> <RELATIVE_TO>
+#
+# Store the remaining arguments, made relative to RELATIVE_TO, in
+# OUTPUT-VARIABLE.
+#
+function(relative_path OUT_VAR RELATIVE_TO)
   set(LIST "")
 
   foreach(ARG ${ARGN})
     file(RELATIVE_PATH ARG "${RELATIVE_TO}" "${ARG}")
     list(APPEND LIST "${ARG}")
-  endforeach(ARG ${ARGN})
+  endforeach()
 
   set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
-endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
+endfunction()
 
-##
-## check_include_cxx_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
-##
-macro(CHECK_INCLUDE_CXX_DEF INC)
+#
+# check_include_cxx_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
+#
+# Check for the C++ header INCLUDE; on success cache RESULT-VARIABLE and add
+# -DPREPROCESSOR-DEFINITION=1 (names default to HAVE_<INCLUDE>) (a macro).
+#
+macro(check_include_cxx_def INC)
   if(ARGC GREATER_EQUAL 2)
     set(RESULT_VAR "${ARGV1}")
     set(PREPROC_DEF "${ARGV2}")
@@ -79,7 +147,6 @@ macro(CHECK_INCLUDE_CXX_DEF INC)
   endif(ARGC GREATER_EQUAL 2)
 
   check_include_file_cxx("${INC}" "${RESULT_VAR}")
-
   if(${${RESULT_VAR}})
     set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
 
@@ -87,70 +154,43 @@ macro(CHECK_INCLUDE_CXX_DEF INC)
       var2define("${PREPROC_DEF}" 1)
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
-endmacro(CHECK_INCLUDE_CXX_DEF INC)
+endmacro()
 
-##
-## append_parent <VARIABLE-NAME>
-##
-macro(APPEND_PARENT VAR)
-  set(LIST "${${VAR}}")
-  list(APPEND LIST ${ARGN})
-  set("${VAR}" "${LIST}" PARENT_SCOPE)
-endmacro(APPEND_PARENT VAR)
-
-##
-## contains <LIST-NAME> <VALUE> <OUTPUT-VARIABLE>
-##
-function(CONTAINS LIST VALUE OUTPUT)
-  list(FIND "${LIST}" "${VALUE}" INDEX)
-
-  if(${INDEX} GREATER -1)
+#
+# contains <LIST-NAME> <VALUE> <OUTPUT-VARIABLE>
+#
+# Store TRUE in OUTPUT-VARIABLE if VALUE is an element of the list LIST-NAME,
+# otherwise FALSE.
+#
+function(contains LIST VALUE OUTPUT)
+  if(VALUE IN_LIST "${LIST}")
     set(RESULT TRUE)
-  else(${INDEX} GREATER -1)
+  else()
     set(RESULT FALSE)
-  endif(${INDEX} GREATER -1)
-
-  if(NOT RESULT)
-    foreach(ITEM ${${LIST}})
-      if("${ITEM}" STREQUAL "${VALUE}")
-        set(RESULT TRUE)
-      endif("${ITEM}" STREQUAL "${VALUE}")
-    endforeach(ITEM ${${LIST}})
-  endif(NOT RESULT)
+  endif()
 
   set("${OUTPUT}" "${RESULT}" PARENT_SCOPE)
-endfunction(CONTAINS LIST VALUE OUTPUT)
+endfunction()
 
-##
-## add_unique <LIST-NAME> <VALUES...>
-##
-function(ADD_UNIQUE LIST)
-  set(RESULT "${${LIST}}")
-
-  foreach(ITEM ${ARGN})
-    contains(RESULT "${ITEM}" FOUND)
-
-    if(NOT FOUND)
-      list(APPEND RESULT "${ITEM}")
-    endif(NOT FOUND)
-  endforeach(ITEM ${ARGN})
-
-  set("${LIST}" "${RESULT}" PARENT_SCOPE)
-endfunction(ADD_UNIQUE LIST)
-
-##
-## symlink <TARGET> <SYMLINK-PATH>
-##
-macro(SYMLINK TARGET LINK_NAME)
+#
+# symlink <TARGET> <SYMLINK-PATH>
+#
+# At install time, create the symbolic link SYMLINK-PATH pointing to TARGET,
+# honoring DESTDIR (a macro).
+#
+macro(symlink TARGET LINK_NAME)
   install(
     CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})"
   )
-endmacro(SYMLINK TARGET LINK_NAME)
+endmacro()
 
-##
-## rpath_append <VARIABLE-NAME>
-##
-macro(RPATH_APPEND VAR)
+#
+# rpath_append <VARIABLE-NAME>
+#
+# Append the remaining arguments to the colon-separated rpath list in
+# VARIABLE-NAME (a macro).
+#
+macro(rpath_append VAR)
   foreach(VALUE ${ARGN})
     if("${${VAR}}" STREQUAL "")
       set(${VAR} "${VALUE}")
@@ -158,12 +198,23 @@ macro(RPATH_APPEND VAR)
       set(${VAR} "${CMAKE_INSTALL_RPATH}:${VALUE}")
     endif("${${VAR}}" STREQUAL "")
   endforeach(VALUE ${ARGN})
-endmacro(RPATH_APPEND VAR)
+endmacro()
+
+#
+# check_external <NAME> <LIBS> <LINKER-FLAGS> <OUTPUT-VARIABLE>
+#
+# Check that a program using the external function NAME compiles and links
+# against LIBS, storing the result in OUTPUT-VARIABLE.
+#
+function(check_external NAME LIBS LDFLAGS OUTPUT_VAR)
+  try_code("test-${NAME}.c" "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
+           "${OUTPUT_VAR}" OUT "${LIBS}" "${LDFLAGS}")
+endfunction()
 
 ##
 ## try_code <FILENAME> <CODE> <RESULT-VARIABLE> <OUTPUT-VARIABLE> <LIBS> <LINKER-FLAGS>
 ##
-function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
+function(try_code FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   if(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" "${CODE}")
 
@@ -177,19 +228,10 @@ function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   endif(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
 endfunction()
 
-##
-## check_external <NAME> <LIBS> <LINKER-FLAGS> <OUTPUT-VARIABLE>
-##
-function(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
-  try_code("test-${NAME}.c" "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
-           "${OUTPUT_VAR}" OUT "${LIBS}" "${LDFLAGS}")
-  #dump(OUTPUT_VAR OUT)
-endfunction(CHECK_EXTERNAL NAME LIBS LDFLAGS OUTPUT_VAR)
-
-##
-## run_code <FILENAME> <CODE> <RESULT-VARIABLE> <OUTPUT-VARIABLE> <LIBS> <LINKER-FLAGS>
-##
-function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
+#
+# run_code <FILENAME> <CODE> <RESULT-VARIABLE> <OUTPUT-VARIABLE> <LIBS> <LINKER-FLAGS>
+#
+function(run_code FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   string(RANDOM LENGTH 8 RND)
   set(FN "${CMAKE_CURRENT_BINARY_DIR}/${RND}-${FILE}")
   file(WRITE "${FN}" "${CODE}")
@@ -221,37 +263,47 @@ function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   unset(RND)
 endfunction()
 
-##
-## libname <OUTPUT-VARIABLE> <FILENAME>
-##
-function(LIBNAME OUT_VAR FILENAME)
+#
+# libname <OUTPUT-VARIABLE> <FILENAME>
+#
+# Store FILENAME without its directory, 'lib' prefix and extension (e.g.
+# /usr/lib/libz.so gives z) in OUTPUT-VARIABLE.
+#
+function(libname OUT_VAR FILENAME)
   string(REGEX REPLACE ".*/(lib|)" "" LIBNAME "${FILENAME}")
   string(REGEX REPLACE "\.[^/.]+$" "" LIBNAME "${LIBNAME}")
-
   set(${OUT_VAR} "${LIBNAME}" PARENT_SCOPE)
-endfunction(LIBNAME OUT_VAR FILENAME)
+endfunction()
 
 
 #
-# append_vars <STR> <VARS...>: append STR to each space-separated variable
+# append_vars <STR> <VARS...>
+#
+# Append STR to each of the space-separated variables VARS unless it is already
+# in them (a macro).
 #
 macro(append_vars STR)
   foreach(L ${ARGN})
     set(LIST "${${L}}")
-    if(NOT LIST MATCHES ".*${STR}.*")
+
+    if(NOT LIST MATCHES "(^${STR}$|^${STR} | ${STR}$| ${STR} )")
       if("${LIST}" STREQUAL "")
         set(LIST "${STR}")
       else()
         set(LIST "${LIST} ${STR}")
       endif()
     endif()
+
     string(REPLACE ";" " " LIST "${LIST}")
     set("${L}" "${LIST}" PARENT_SCOPE)
   endforeach()
 endmacro()
 
 #
-# check_flag <FLAG> <VAR> [FLAG-VARS...]: if the compiler takes FLAG, add it to FLAG-VARS
+# check_flag <FLAG> <VAR> [FLAG-VARS...]
+#
+# If the C compiler accepts FLAG, cache the result in VAR (derived from FLAG if
+# empty) and append FLAG to each of FLAG-VARS.
 #
 function(check_flag FLAG VAR)
   if(NOT VAR OR VAR STREQUAL "")
@@ -271,6 +323,12 @@ function(check_flag FLAG VAR)
   endif()
 endfunction()
 
+#
+# check_flags <FLAGS>
+#
+# Run check_flag for every flag in the list FLAGS, appending the supported
+# ones to the variables in ARGN (a macro).
+#
 macro(check_flags FLAGS)
   foreach(FLAG ${FLAGS})
     check_flag(${FLAG} "" ${ARGN})
@@ -278,7 +336,10 @@ macro(check_flags FLAGS)
 endmacro()
 
 #
-# nowarn_flag <FLAG>: add a -Wno-* flag to C and C++ flags when supported (silently)
+# nowarn_flag <FLAG>
+#
+# Add the warning-suppression flag FLAG to the C and C++ flags if the compiler
+# supports it, silently (a macro).
 #
 macro(nowarn_flag FLAG)
   canonicalize(VARNAME "${FLAG}")
@@ -287,15 +348,19 @@ macro(nowarn_flag FLAG)
   set(CMAKE_REQUIRED_QUIET OFF)
 
   if(${VARNAME})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+    append_vars("${FLAG}" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
   endif()
 endmacro()
 
+#
+# add_nowarn_flags
+#
+# Remove -Wall from the C and C++ flags and add the -Wno-* flags this project
+# needs, for the compilers that support them (a macro).
+#
 macro(add_nowarn_flags)
   string(REGEX REPLACE " -Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
   string(REGEX REPLACE " -Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
   nowarn_flag(-Wno-unused-value)
   nowarn_flag(-Wno-unused-variable)
 
@@ -341,11 +406,10 @@ function(message_table TITLE)
         set(KEY "${KEY} ")
         math(EXPR LEN "${LEN} + 1")
       endwhile()
-
       set(PAD "")
       string(REGEX REPLACE "." " " PAD "${KEY}")
-
       set(FIRST TRUE)
+
       foreach(ITEM ${VALUE})
         if(FIRST)
           message(STATUS "  ${KEY}  ${ITEM}")

@@ -19,7 +19,7 @@ macro(find_bzip2)
   endif(HAVE_BZIP2 AND HAVE_BZLIB_H)
 
   set(BZIP2_LIBRARIES ${BZIP2_LIBRARY})
-  
+
   if(BZIP2_LIBRARY)
     message(STATUS "\tBZip2 library: ${BZIP2_LIBRARY}")
     message(STATUS "\tBZip2 include dir: ${BZIP2_INCLUDE_DIR}")
@@ -28,4 +28,4 @@ macro(find_bzip2)
   else()
     set(BZIP2_FOUND FALSE)
   endif()
-  endmacro(find_bzip2)
+endmacro()

@@ -28,4 +28,4 @@ macro(find_libmagic)
 
   message_table("libmagic" "library" "${LIBMAGIC_LIBRARY}" "module" "${magic_MODULE}" "database" "${LIBMAGIC_DB}")
 
-endmacro(find_libmagic)
+endmacro()

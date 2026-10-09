@@ -40,4 +40,4 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
                                         IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE_${SUFFIX}}")
 
   set(LIBSERIALPORT_LIBRARY_${SUFFIX} Serial::Port::${SUFFIX})
-endmacro(build_libserialport)
+endmacro()

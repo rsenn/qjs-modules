@@ -94,7 +94,6 @@ macro(find_quickjs)
       if(EXISTS "${QUICKJS_LIBRARY_DIR}/${LIBNAME}")
         set(QUICKJS_LIBRARY "${QUICKJS_LIBRARY_DIR}/${LIBNAME}")
       endif(EXISTS "${QUICKJS_LIBRARY_DIR}/${LIBNAME}")
-
     endforeach(LIBNAME libquickjs.dll.a libquickjs.a libquickjs.so)
   endif(NOT QUICKJS_LIBRARY)
 
@@ -115,7 +114,6 @@ macro(find_quickjs)
     if(EXISTS "${LIBQUICKJS}")
       set(QUICKJS_LIBRARY "${LIBQUICKJS}")
     endif(EXISTS "${LIBQUICKJS}")
-
   endif(NOT QUICKJS_LIBRARY)
 
   if(NOT QUICKJS_LIBRARY)
@@ -125,17 +123,18 @@ macro(find_quickjs)
     pkg_search_module(QUICKJS REQUIRED quickjs)
   endif(NOT QUICKJS_LIBRARY)
 
-
   string(REGEX REPLACE "\\.so.*$" ".a" TMP "${QUICKJS_LIBRARY}")
 
   if(EXISTS "${TMP}")
     set(QUICKJS_STATIC_LIBRARY "${TMP}" CACHE PATH "QuickJS static library (.a)")
-  endif(EXISTS "${TMP}")
+  endif()
+
   unset(TMP)
   set(QUICKJS_SHARED_LIBRARY "${QUICKJS_LIBRARY}" CACHE PATH "QuickJS shared library (.so/.dll/.dylib)")
 
   unset(QUICKJS_LIBRARY)
   unset(QUICKJS_LIBRARY CACHE)
+
   if(LINK_STATIC)
     set(QUICKJS_LIBRARY "${QUICKJS_STATIC_LIBRARY}" CACHE PATH "QuickJS library")
   else(LINK_STATIC)
@@ -170,7 +169,7 @@ macro(find_quickjs)
 
   set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
   set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
-endmacro(find_quickjs)
+endmacro()
 
 macro(configure_quickjs)
   if(NOT QUICKJS_PREFIX)
@@ -213,24 +212,24 @@ macro(configure_quickjs)
   else()
     configure_quickjs_module_path()
   endif(NOT QUICKJS_CONFIGURATION_SHOWN)
-endmacro(configure_quickjs)
+endmacro()
 
 macro(configure_quickjs_module_path)
   set(MODULE_PATH "")
 
   # a multiarch library dir already ends in the system name
   if(NOT "${SYSTEM_NAME}" STREQUAL "" AND NOT "${QUICKJS_LIBRARY_DIR}" MATCHES "/${SYSTEM_NAME}$")
-    add_unique(MODULE_PATH "${QUICKJS_LIBRARY_DIR}/${SYSTEM_NAME}/quickjs")
+    set_add(MODULE_PATH "${QUICKJS_LIBRARY_DIR}/${SYSTEM_NAME}/quickjs")
   endif()
 
-  add_unique(MODULE_PATH "${QUICKJS_C_MODULE_DIR}" "${QUICKJS_JS_MODULE_DIR}")
+  set_add(MODULE_PATH "${QUICKJS_C_MODULE_DIR}" "${QUICKJS_JS_MODULE_DIR}")
 
   if(NOT WIN32)
     string(REPLACE ":" ";" MODULE_PATH "${MODULE_PATH}")
   endif(NOT WIN32)
 
   set(QUICKJS_MODULE_PATH "${MODULE_PATH}" CACHE PATH "QuickJS modules search path")
-endmacro(configure_quickjs_module_path)
+endmacro()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)

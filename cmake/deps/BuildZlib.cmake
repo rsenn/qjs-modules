@@ -36,4 +36,4 @@ macro(build_zlib BINARY SUFFIX PIC)
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
       "-DZLIB_BUILD_EXAMPLES:BOOL=OFF"
     BUILD_BYPRODUCTS "${ZLIB_LIBRARY_FILE_${SUFFIX}}")
-endmacro(build_zlib)
+endmacro()

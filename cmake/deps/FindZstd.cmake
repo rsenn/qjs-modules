@@ -17,15 +17,15 @@ macro(find_zstd)
       set(ZSTD_LIBRARY zstd CACHE STRING "zstd library")
     endif(NOT DEFINED ZSTD_LIBRARY)
   endif(HAVE_ZSTD AND HAVE_ZSTD_H)
-  
+
   set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
-  
+
   if(ZSTD_LIBRARY)
     message(STATUS "\tZstd library: ${ZSTD_LIBRARY}")
     message(STATUS "\tZstd include dir: ${ZSTD_INCLUDE_DIR}")
-  
+
     set(ZSTD_FOUND TRUE)
   else()
     set(ZSTD_FOUND FALSE)
-  endif()  
-endmacro(find_zstd)
+  endif()
+endmacro()
