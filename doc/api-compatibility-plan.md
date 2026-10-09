@@ -201,3 +201,27 @@ All stream tests are now passing (100% pass rate)! The 2 previously failing test
 2. Add URL.createObjectURL/revokeObjectURL (Tier 9.6)
 
 (Fetch/FormData/WebSocket are implemented separately in `../qjs-lws/`; Canvas in `../qjs-nanovg/` + `../qjs-glfw/` - not here.)
+
+## Compatibility audit (2026-10)
+
+Method: for each module the Node.js docs (`/tmp/node-doc/*.md`) were compared with `lib/*.js`
+by heading, and a differential battery of 30-90 cases was run under node 22 and `qjsm`
+(`/tmp/claude-1000/cmp/b-*.mjs`); findings are in `api-compatibility-nodejs.md`.
+
+| Module | Verdict (details in `api-compatibility-nodejs.md`) |
+| --- | --- |
+| process | whole `node:process` export list implemented; IPC/`permission` absent |
+| timers, timers/promises | works for the common calls; no `Timeout`/`Immediate` objects, no `...args` on the globals |
+| assert | all functions exist; errors are plain `Error`, deep-equal and validators diverge |
+| buffer | closest to Node: only `File`, `transcode`, `resolveObjectURL` and the globals missing |
+| console | half the methods and all `%` specifiers missing; `Console` options form unsupported |
+| globals | opt-in; `Buffer`, `Event`, `DOMException`, `navigator`, `global` etc. missing |
+| perf_hooks | user timing complete; histograms, ELU, `timerify`, `nodeTiming` missing |
+| tty | module fails to load (`std.fdopenSync`, `util.SIGWINCH`) |
+| url | parser is not WHATWG-compliant; `URLSearchParams.toString()` throws |
+| fs | audit in progress (differential battery `b-fs.mjs` written, not yet evaluated) |
+
+Priority order for fixes (cheapest, highest impact first): `url.js` `replace` bug and
+`toJSON`/iterator, `tty.js` imports, `assert` error class, console methods, `Event`/
+`DOMException` globals, then the larger items (URL parser, histograms, `Timeout` objects).
+

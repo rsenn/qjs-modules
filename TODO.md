@@ -701,32 +701,4 @@ of cyaml.
    into this work, or explicitly drop the yread.c push-parser design if cyaml covers the
    need without it).
 
-## Tier 14 — `lib/process.js` gaps vs. Node.js `process` (updated 2026-10-09)
-
-Compared against the Node.js `process` docs (`/tmp/process.md`) and the export list
-of `node:process` (`/tmp/process.describe.txt`). Everything in that export list is
-implemented now (including named exports); events `exit beforeExit
-uncaughtException uncaughtExceptionMonitor unhandledRejection rejectionHandled
-warning SIG*` are wired through `__qjsm_hooks__` (`src/qjsm.c`). What differs:
-
-- **stubs:** `getActiveResourcesInfo()` returns `[]`; `binding()` always throws;
-  `allowedNodeEnvironmentFlags` is an empty `Set`; `features` reports no
-  inspector/tls/uv; `report` has `getReport()/writeReport()` with a small payload.
-- **not implemented:** `channel connected send disconnect` (no IPC),
-  `permission`, `noDeprecation throwDeprecation traceDeprecation
-  traceProcessWarnings` (+ the `DeprecationWarning` handling), `'message'`,
-  `'disconnect'`, `'worker'`, `'workerMessage'` events.
-- **approximations:** CPU times come from `/proc/*/stat` ticks (10 ms resolution);
-  `memoryUsage()` has only a real `rss`; `resourceUsage()` fills fields it cannot
-  read with 0; `uptime()` uses `/proc` start time; `getBuiltinModule()` loads
-  through `requireModule()`; `dlopen()` ignores `flags`; `setSourceMapsEnabled()`
-  only records the flag; `getgroups()` reads `/proc/self/status`.
-- **event limits:** exceptions inside timer/IO callbacks never reach
-  `uncaughtException` (printed by `js_std_loop()`); a rejection listener must exist
-  before the rejection; `std.exit(n)` reports code 1 to `exit` listeners;
-  `beforeExit` re-entry is decided by the loop taking >10 µs.
-- **behaviour:** `nextTick` runs as a promise job (order vs. `Promise.then`
-  differs from Node); `stdin/stdout/stderr` are `std` FILE objects with Node's
-  `fd isTTY columns rows getWindowSize getColorDepth hasColors` added, not
-  streams (per CLAUDE.md, no Node streams); `emitWarning()` ignores `ctor`;
-  `uid gid euid egid` accessors remain as non-Node extras.
+Node.js API compatibility gaps (process, timers, assert, buffer, console, globals, perf_hooks, tty, url) are tracked in `doc/api-compatibility-nodejs.md`.

@@ -1488,6 +1488,8 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     name = "fsPromises";
   else if(str_equal(bare, "timers/promises"))
     name = "timersPromises";
+  else if(str_equal(bare, "assert/strict"))
+    name = "assertStrict";
   else if(str_equal(bare, "readline/promises"))
     name = "readlinePromises";
 

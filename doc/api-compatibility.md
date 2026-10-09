@@ -444,6 +444,8 @@ directly for Bun-compatible code.
 **Runtime Compatibility:** Node.js, Bun, Deno  
 **Notes:** Comprehensive Node.js assert API. Used extensively in test suite.
 
+**Gaps (2026-10 audit, differential battery vs. node 22; doc/api-compatibility-nodejs.md, assert):** throws plain `Error` (message `assert.fn(): …`) instead of `AssertionError` with `code: 'ERR_ASSERTION'`, `actual`/`expected`/`operator`/`generatedMessage`; `new AssertionError(options)` takes `(fn, message)`; no diff output in messages; `deepStrictEqual` wrong for `Map`/`Set`/`Date`/`RegExp`/typed-array types; `throws`/`rejects` ignore RegExp/object validators; missing `assert.strict` (+ `assert/strict`), `assert.Assert`, `assert.CallTracker`.  
+
 ### lib/asyncIterator.js
 **Module:** `asyncIterator`  
 **Classification:** Compatible (TC39 Iterator Helpers)  
@@ -474,6 +476,8 @@ directly for Bun-compatible code.
 
 **Browser Compatibility:** Universal  
 **Notes:** Implements core WHATWG Console API. Uses `inspect` module for `console.dir()` formatting.
+
+**Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, console):** the classification above overstates it: only `log info error warn debug time timeLog timeEnd` exist. `assert`, `clear`, `count`, `countReset`, `dir`, `dirxml`, `group*`, `table`, `trace`, `profile*`, `timeStamp` and the static `console.Console` are missing (also on the global `console` of `qjsm`); format specifiers (`%s %d %i %f %j %o %O %c`) are not substituted; `new Console({ stdout, stderr, … })` options form is ignored; object formatting differs from Node's `util.inspect` (always expanded, no class names, `[loop]` for cycles).  
 
 ### lib/css-selectors.js
 **Module:** `css-selectors`  
@@ -870,6 +874,8 @@ silently hashing with an unavailable algorithm.
 
 **Notes:** Minimal subset of Node's `perf_hooks.performance` (just `now()`/`timeOrigin`, no `PerformanceObserver`/marks/measures).
 
+**Update (2026-10 audit; doc/api-compatibility-nodejs.md, perf_hooks):** the "minimal subset" note above is outdated. `mark()`, `measure()`, `getEntries*`, `clearMarks/clearMeasures`, `PerformanceEntry/Mark/Measure/Observer(EntryList)` work and match node 22. Missing: `createHistogram`/`RecordableHistogram`, `monitorEventLoopDelay`, `eventLoopUtilization`, `timerify`, `performance.nodeTiming`, `constants`, `PerformanceResourceTiming`, `performance.toJSON()` content, `PerformanceObserver.supportedEntryTypes` beyond `mark`/`measure`.  
+
 ### lib/pointer.js
 **Module:** `pointer`  
 **Classification:** Compatible (RFC 6901 JSON Pointer, via `toRFC6901()`)  
@@ -934,7 +940,7 @@ silently hashing with an unavailable algorithm.
 - `process.emit(event, ...args)` - Emit event
 - `process.removeListener(event, listener)` - Remove listener
 - `process.removeAllListeners(event)` - Remove all listeners
-**Added 2026-10:** inherits `EventEmitter.prototype` (`process.on('exit')`), `nextTick`, `exitCode`, `memoryUsage()` (`rss` only), `uptime()`, `title`, `emitWarning()`; no `version`/`versions`.  
+**Updated 2026-10 (doc/api-compatibility-nodejs.md, process):** inherits `EventEmitter.prototype`; events `exit`, `beforeExit`, `uncaughtException`, `uncaughtExceptionMonitor`, `unhandledRejection`, `rejectionHandled`, `warning` and `SIG*` are emitted; `argv[1]` is absolute, `argv0` the original `argv[0]`; implements the whole `node:process` export list (identity/groups/`umask`, `cpuUsage`/`threadCpuUsage`/`resourceUsage`, `availableMemory`/`constrainedMemory`, `execve`, `dlopen`, `loadEnvFile`, `getBuiltinModule`, `finalization`, capture callbacks, `version(s)`, `release`, `config`, `features`, `report`) with named exports; `env` writes through to the environment; `exitCode` is validated; `kill()` accepts signal names. Stubs/limits: `getActiveResourcesInfo()` returns `[]`, no IPC (`send`/`channel`), no `permission`, exceptions inside timer callbacks bypass `uncaughtException`, `nextTick` is a promise job.  
 
 **Runtime Compatibility:** Node.js, Bun, Deno (with --unstable)  
 **Notes:** Comprehensive Node.js process API. Some features may have limitations vs Node.js (e.g., process.fork(), cluster support). The `process.argv` issue with `-e` mode has been fixed (see commit 72c0364d).
@@ -1031,6 +1037,8 @@ silently hashing with an unavailable algorithm.
 **Browser Compatibility:** Universal  
 **Notes:** Implements HTML5 Timers API plus Node's `setImmediate`/`clearImmediate`; `queueMicrotask` is installed by lib/globals.js. `timers/promises` (lib/timersPromises.js) resolves through a flat-module alias in qjsm.
 
+**Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, timers):** the globals are `os.setTimeout`/`clearTimeout`, which drop extra `...args`; `setInterval` ignores `...args` and default delay; delays `> 2**31-1`/`NaN` are not clamped to 1; timers are plain numbers, so `Timeout`/`Immediate` (`ref`, `unref`, `hasRef`, `refresh`, `close`, `[Symbol.toPrimitive]`, `[Symbol.dispose]`) do not exist; callback validation lacks `ERR_INVALID_ARG_TYPE`.  
+
 ### lib/tree_walker.js
 **Module:** `tree_walker`  
 **Classification:** Standard (WHATWG DOM)  
@@ -1056,6 +1064,8 @@ silently hashing with an unavailable algorithm.
 
 **Notes:** Node.js `tty` module shape (ANSI escape codes under the hood), built on `os`/`std` primitives; auto-updates `columns`/`rows` on SIGWINCH.
 
+**Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, tty):** **the module does not load** (`import 'tty'` fails: `std` has no `fdopenSync`, `util` has no `SIGWINCH`); once fixed the streams are `std` FILE objects without `on()`/`isTTY`/`setRawMode()`/`getColorDepth()`/`hasColors()`/`'resize'`, and `cursorTo`/`moveCursor`/`clearLine` need review against Node's escape sequences.  
+
 ### lib/url.js
 **Module:** `url`  
 **Classification:** Standard (WHATWG)  
@@ -1079,6 +1089,8 @@ silently hashing with an unavailable algorithm.
 
 **Browser Compatibility:** Chrome 32+, Firefox 19+, Safari 7+, Edge 12+  
 **Notes:** Core URL parsing is implemented. Missing: `createObjectURL()` and `revokeObjectURL()` for Blob/File references (tracked in TODO Tier 9.6).
+
+**Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, url):** the classification "Standard (WHATWG)" is aspirational: `lib/url.js` is a string-splitting parser. `URLSearchParams.toString()` throws (`'replace' is not defined`), which breaks `search`/`href` after any `searchParams` change and all URL setters; no dot-segment removal, relative resolution against a base, default-port stripping, IDNA, IPv4/IPv6 normalisation, percent-encode sets or non-special-scheme origins; `toJSON`, `Symbol.iterator`, `Symbol.toStringTag`, `createObjectURL`/`revokeObjectURL` missing; no legacy `url.parse/format/resolve`, `domainToASCII/Unicode`, `urlToHttpOptions`, `URLPattern`; `fileURLToPath`/`pathToFileURL` do not percent-decode/encode.  
 
 ### lib/util.js
 **Module:** `util`  
@@ -1155,11 +1167,15 @@ silently hashing with an unavailable algorithm.
 **Exports:** `structuredClone`; side effect: installs `URL`, `URLSearchParams`, `TextEncoder`/`TextDecoder`, `AbortController`/`AbortSignal`, `EventTarget`, `Blob`, the streams classes, `atob`/`btoa`, `queueMicrotask`, `structuredClone`, `setTimeout`/`setInterval`/`setImmediate`, `crypto` (`getRandomValues`, `randomUUID`) where absent  
 **Notes:** Opt-in, qjsm only. No `Buffer`, `Worker`, `crypto.subtle`. See doc/js/globals.md.
 
+**Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, globals):** none of the globals exist unless the script runs `import 'globals'` (71 of 78 documented names are missing in a plain `qjsm` script). Still absent afterwards: `Buffer`, `File`, `Event`, `CustomEvent`, `DOMException`, `MessageChannel`/`MessagePort`/`MessageEvent`/`BroadcastChannel`, `navigator`, `global`, `WebAssembly`, `Compression/DecompressionStream`, `crypto.subtle`, the stream reader/writer/controller classes, `PerformanceResourceTiming`. Behaviour: `AbortSignal.any()`/`timeout()` and the default abort reason are not Node-compatible, `abort()` twice re-fires listeners, `TextDecoder` ignores `fatal` and reports `UTF-8` not `utf-8`.  
+
 ### lib/timersPromises.js
 **Module:** `timersPromises` (import as `timers/promises`)  
 **Classification:** Compatible (Node.js `timers/promises`)  
 **Spec:** https://nodejs.org/api/timers.html#timers-promises-api  
 **Exports:** `setTimeout`, `setImmediate`, `setInterval` (async iterator), `scheduler.wait`/`yield`
+
+**Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, timers):** `options.ref` is ignored; `signal` works only with an `AbortController` imported explicitly (not global in `qjsm`); `setInterval()` does not validate its arguments.  
 
 ## Roadmap
 
