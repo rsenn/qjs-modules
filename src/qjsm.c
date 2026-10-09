@@ -23,8 +23,19 @@
 #include <dlfcn.h>
 #endif
 
-#if 1 /*def HAVE_QUICKJS_CONFIG_H*/
+#ifdef HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
+#else
+#warning HAVE_QUICKJS_CONFIG_H has not been defined!
+#endif
+
+#ifndef QUICKJS_MODULE_PATH
+#warning No QUICKJS_MODULE_PATH defined (usually in quickjs-config.h)
+#ifdef QUICKJS_PREFIX
+#define QUICKJS_MODULE_PATH QUICKJS_PREFIX "/lib/quickjs"
+#else
+#error No QUICKJS_PREFIX defined
+#endif
 #endif
 
 #ifndef QJS_BIGNUM_EXT
@@ -57,7 +68,7 @@
    followed by '(', so `DEBUG_MODULE(...)` calls and bare `DEBUG_MODULE` variable reads never
    collide. */
 #define DEBUG_MODULE(level, fmt, args...) \
-  if(DEBUG_MODULE >= (level)) \
+  if(debug_module >= (level)) \
     printf("(%zu) %-21s" fmt "\n", jsm_stack_count(), __FUNCTION__, args);
 
 /* --- extern declarations for functions defined elsewhere (quickjs-libc.c / libc) --- */
@@ -70,30 +81,20 @@ extern size_t malloc_usable_size(void*);
 #endif
 #endif
 
-void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
-
 /* --- type definitions --- */
 
-/** Signature of a module-path lookup helper: takes a candidate module name and either
-    returns a newly allocated, resolved path or 0 if it didn't match. */
-typedef char* ModuleLoader(JSContext*, const char*);
-
-/** One entry in the `loaded_modules` list: associates a resolved module name with the
+/* One entry in the `loaded_modules` list: associates a resolved module name with the
     JSModuleDef the engine ended up loading for it. */
-typedef struct LoadedModule {
+typedef struct {
   struct list_head link;
   char* name;
   JSModuleDef* module;
+  char* importer; /* name the importing module was loaded under, or 0; its index is looked up on demand */
+  BOOL hooked;    /* produced by a registerHooks() hook */
 } LoadedModule;
 
-#define jsm_builtin_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*);
-
-#define jsm_builtin_compiled(name) \
-  extern const uint8_t qjsc_##name[]; \
-  extern const uint32_t qjsc_##name##_size;
-
-/** Describes one builtin module (either a native C module with an init function, or a
-    precompiled-bytecode module) as registered in the jsm_builtin_modules table. */
+/* Describes one builtin module (either a native C module with an init function, or a
+    precompiled-bytecode module) as registered in the jsm_builtins table. */
 typedef struct {
   const char* module_name;
   JSModuleDef* (*module_func)(JSContext*, const char*);
@@ -103,27 +104,13 @@ typedef struct {
   BOOL initialized;
 } BuiltinModule;
 
-/* quickjs-builtins.h expands to one jsm_builtin_native(name)/jsm_builtin_compiled(name)
-   invocation per builtin module; here that generates the `extern` declarations for each
-   module's init function/bytecode blob, so they can be referenced from the
-   jsm_module_record_native/jsm_module_record_compiled initializers below and from
-   jsm_init_modules() (which redefines these same two macros to build the runtime table). */
-#include "quickjs-builtins.h"
+/* Opaque state threaded through the jsm_trace_malloc* allocator, used to compute
+    pointer offsets relative to a fixed base address for -T/--trace output. */
+struct trace_malloc_data {
+  uint8_t* base;
+};
 
-#ifdef QJS_BIGNUM_EXT
-#if HAVE_QJSCALC
-jsm_builtin_compiled(qjscalc);
-#endif
-#endif
-
-#undef jsm_builtin_native
-#undef jsm_builtin_compiled
-
-#define jsm_module_record_compiled(name) {#name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE}
-
-#define jsm_module_record_native(name) {#name, js_init_module_##name, 0, 0, 0, FALSE}
-
-/** Magic values for the scriptList/scriptFile/scriptDir/__filename/__dirname getters
+/* Magic values for the scriptList/scriptFile/scriptDir/__filename/__dirname getters
     (jsm_stack_get), selecting what view of jsm_stack to return. */
 enum {
   SCRIPT_LIST,
@@ -132,53 +119,37 @@ enum {
   SCRIPT_DIRNAME,
 };
 
-#if defined(__APPLE__)
-#define MALLOC_OVERHEAD 0
-#else
-#define MALLOC_OVERHEAD 8
-#endif
-
-/** Opaque state threaded through the jsm_trace_malloc* allocator, used to compute
-    pointer offsets relative to a fixed base address for -T/--trace output. */
-struct trace_malloc_data {
-  uint8_t* base;
-};
-
-/** Magic values for jsm_eval_script (the evalFile/evalBuf globals), selecting whether the
+/* Magic values for jsm_eval_script (the evalFile/evalBuf globals), selecting whether the
     source comes from a file path or an in-memory buffer. */
 enum {
   EVAL_FILE,
   EVAL_BUF,
 };
 
-/** Magic values for jsm_module_func, the dispatcher behind every `*Module` global
-    (findModule, loadModule, normalizeModule, ...). */
-enum {
-  FIND_MODULE,
-  FIND_MODULE_INDEX,
-  LOAD_MODULE,
-  REQUIRE_MODULE,
-  LOCATE_MODULE,
-  NORMALIZE_MODULE,
-  RESOLVE_MODULE,
-};
+enum { HOOK_RESOLVE, HOOK_LOAD };
+
+/* Signature of a module-path lookup helper: takes a candidate module name and either
+    returns a newly allocated, resolved path or 0 if it didn't match. */
+typedef char* ModuleLoader(JSContext*, const char*);
+
+#if defined(__APPLE__)
+#define MALLOC_OVERHEAD 0
+#else
+#define MALLOC_OVERHEAD 8
+#endif
 
 /* --- global/static variables --- */
 
-static thread_local int DEBUG_MODULE = 0;
+static thread_local int debug_module = 0;
 static thread_local Vector debug_list = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
 static thread_local struct list_head loaded_modules;
 
-#ifndef QUICKJS_MODULE_PATH
-#ifdef QUICKJS_PREFIX
-#define QUICKJS_MODULE_PATH QUICKJS_PREFIX "/lib/quickjs"
-#endif
-#endif
-
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 static JSValue package_json, jsm_promise;
+static BOOL jsm_hooks_alive = FALSE; /* process hooks may still run (context not torn down) */
+static int jsm_exit_code = 0;        /* code reported to 'exit' when libc exit() is reached directly */
 static char* exename;
 static size_t exelen;
 static JSRuntime* jsm_rt;
@@ -190,74 +161,87 @@ static int interactive = 0;
 static const char* const module_extensions = CONFIG_SHEXT SEMI ".js" SEMI "/index.js";
 
 static thread_local Vector jsm_stack = VECTOR_INIT();
-static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
-static thread_local BOOL jsm_modules_initialized;
+static thread_local Vector jsm_builtins = VECTOR_INIT();
+static thread_local char* jsm_importer; /* importer seen by the last normalize, for LoadedModule.parent */
+
+/* registerHooks() state */
+static thread_local JSValue* module_hooks;
+static thread_local size_t module_hooks_len;
+static thread_local JSValue hook_formats;
+static thread_local BOOL hook_formats_set;
+
+#ifndef JS_MODULE_LOADER_OLD
+/* the import attributes of the module being loaded (borrowed, NULL when none),
+ * for js_module_loader() in jsm_module_loader(). */
+static thread_local const JSValue* jsm_import_attributes = NULL;
+#define JSM_IMPORT_ATTRIBUTES() (jsm_import_attributes ? *jsm_import_attributes : JS_UNDEFINED)
+#endif
 
 #ifdef QJS_BIGNUM_EXT
 static int bignum_ext = 1;
 #endif
 
-/* Needed because jsm_global_funcs[] (below) registers this as the "startInteractive"
-   global before its own definition further down. */
-static JSValue jsm_start_interactive4(JSContext*, JSValueConst, int, JSValueConst[]);
-static int jsm_module_indexof(JSModuleDef* m);
-static JSModuleDef* jsm_module_at(int index);
+/* --- builtin lists --- */
+
+#define BUILTIN_NATIVE(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*);
+#define BUILTIN_COMPILED(name) \
+  extern const uint8_t qjsc_##name[]; \
+  extern const uint32_t qjsc_##name##_size;
+
+/* quickjs-builtins.h expands to one BUILTIN_NATIVE(name)/BUILTIN_COMPILED(name)
+   invocation per builtin module; here that generates the `extern` declarations for each
+   module's init function/bytecode blob, so they can be referenced from the
+   RECORD_NATIVE/RECORD_COMPILED initializers below and from
+   jsm_init() (which redefines these same two macros to build the runtime table). */
+#include "quickjs-builtins.h"
+
+#ifdef QJS_BIGNUM_EXT
+#if HAVE_QJSCALC
+BUILTIN_COMPILED(qjscalc);
+#endif
+#endif
+
+#undef BUILTIN_NATIVE
+#undef BUILTIN_COMPILED
+
+#define RECORD_COMPILED(name) {#name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE}
+#define RECORD_NATIVE(name) {#name, js_init_module_##name, 0, 0, 0, FALSE}
+
+/* --- function prototypes --- */
+
+static size_t jsm_stack_count(void);
+static JSModuleDef* jsm_module_at(int);
+static JSModuleDef* jsm_hook_load(JSContext*, const char*, void*);
 
 /* --- functions --- */
 
-/**
- * Checks whether a module name should be resolved via QUICKJS_MODULE_PATH search.
- *
- * @param path Module name/specifier as given to the loader.
- *
- * @returns TRUE if `path` has no explicit ("./", "../", or absolute) prefix.
- */
+/* Checks whether a module name should be resolved via QUICKJS_MODULE_PATH search. */
 static inline BOOL
 is_searchable(const char* path) {
   return !path_isexplicit(path);
 }
 
-/**
- * Checks whether a string contains a '.' or a path separator.
- *
- * @param s String to scan.
- *
- * @returns TRUE if `s` contains '.' or PATHSEP_S.
- */
+/* Checks whether a string contains a '.' or a path separator. */
 static inline BOOL
 has_dot_or_slash(const char* s) {
-  return !!s[str_chrs(s, "." PATHSEP_S, 2)];
+  return !!s[str_chrs(s, "." PATHSEP_S, sizeof(PATHSEP_S))];
 }
 
-/**
- * ModuleLoader-shaped wrapper around path_isfile1(): accepts a candidate path as-is.
- *
- * @param ctx JS context (used only to allocate the returned copy).
- * @param module_name Candidate file path.
- *
- * @returns A newly allocated copy of `module_name` if it names an existing file, else 0.
- */
+/* ModuleLoader-shaped wrapper around path_isfile1(): accepts a candidate path as-is. */
 static char*
 is_module(JSContext* ctx, const char* module_name) {
   BOOL yes = path_isfile1(module_name);
 
-  if(DEBUG_MODULE > 2)
-    printf("%-20s (module_name: \"%s\") = %s\n", __FUNCTION__, module_name, ((yes) ? "TRUE" : "FALSE"));
+  DEBUG_MODULE(3, "(module_name: \"%s\") = %s", module_name, yes ? "TRUE" : "FALSE");
 
   return yes ? js_strdup(ctx, module_name) : 0;
 }
 
-/**
- * Checks whether a module name already ends in one of module_extensions.
- *
- * @param module_name Candidate module name.
- *
- * @returns The offset of the matching suffix within `module_name`, or 0 if none matched.
- */
+/* Checks whether a module name already ends in one of module_extensions. */
 static int
 module_has_suffix(const char* module_name) {
-  for(const char* ext = module_extensions; *ext; ext += str_nchrs(ext, ";\n", 2)) {
-    size_t n = str_chrs(ext, ";\n", 2);
+  for(const char* ext = module_extensions; *ext; ext += str_nchrs(ext, SEMI "\n", sizeof(SEMI))) {
+    size_t n = str_chrs(ext, SEMI "\n", sizeof(SEMI));
 
     if(str_endb(module_name, ext, n))
       return strlen(module_name) - n;
@@ -268,18 +252,75 @@ module_has_suffix(const char* module_name) {
   return 0;
 }
 
-/**
+/* Calls process.__qjsm_hooks__[name](...argv) from lib/process.js; JS_UNDEFINED if absent.
+ *
+ * the hooks drive the process events (exit, beforeExit, uncaughtException, ...);
+ * an exception thrown by a hook is printed and swallowed.
+ */
+static JSValue
+jsm_hook_call(JSContext* ctx, const char* name, int argc, JSValueConst* argv) {
+  JSValue global = JS_GetGlobalObject(ctx);
+  JSValue process = JS_GetPropertyStr(ctx, global, "process");
+  JSValue hooks = JS_IsObject(process) ? JS_GetPropertyStr(ctx, process, "__qjsm_hooks__") : JS_UNDEFINED;
+  JSValue fn = JS_IsObject(hooks) ? JS_GetPropertyStr(ctx, hooks, name) : JS_UNDEFINED;
+  JSValue ret = JS_UNDEFINED;
+
+  if(JS_IsFunction(ctx, fn)) {
+    ret = JS_Call(ctx, fn, hooks, argc, argv);
+
+    if(JS_IsException(ret)) {
+      JSValue exception = JS_GetException(ctx);
+
+      js_error_print(ctx, exception);
+      JS_FreeValue(ctx, exception);
+      ret = JS_UNDEFINED;
+    }
+  }
+
+  JS_FreeValue(ctx, fn);
+  JS_FreeValue(ctx, hooks);
+  JS_FreeValue(ctx, process);
+  JS_FreeValue(ctx, global);
+  return ret;
+}
+
+/* Calls a hook and returns whether it answered true. */
+static BOOL
+jsm_hook_bool(JSContext* ctx, const char* name, int argc, JSValueConst* argv) {
+  JSValue ret = jsm_hook_call(ctx, name, argc, argv);
+  BOOL result = JS_ToBool(ctx, ret) > 0;
+
+  JS_FreeValue(ctx, ret);
+  return result;
+}
+
+/* Emits 'exit' once and returns the final exit code (a listener may change it). */
+static int
+jsm_hook_exit(JSContext* ctx, int code) {
+  JSValue arg = JS_NewInt32(ctx, code);
+  JSValue ret = jsm_hook_call(ctx, "exit", 1, &arg);
+  int32_t result = code;
+
+  if(JS_IsNumber(ret))
+    JS_ToInt32(ctx, &result, ret);
+
+  JS_FreeValue(ctx, ret);
+  return result;
+}
+
+/* atexit fallback: libc exit() reached without 'exit' having been emitted. */
+static void
+jsm_atexit(void) {
+  if(jsm_hooks_alive)
+    jsm_hook_exit(jsm_ctx, jsm_exit_code);
+}
+
+/*
  * Host promise-rejection callback wired up via JS_SetHostPromiseRejectionTracker().
  *
  * Dedupes on the rendered message/stack text, since a single top-level module throw can
  * settle more than one internal promise and the engine invokes this more than once for
  * what is really the same error.
- *
- * @param ctx JS context the rejection occurred in.
- * @param promise The rejected/handled promise.
- * @param reason The rejection reason (only used when `is_handled` is FALSE).
- * @param is_handled TRUE if a handler was attached after the fact; forwarded without deduping.
- * @param opaque Forwarded to js_std_promise_rejection_tracker().
  */
 static void
 jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst reason, BOOL is_handled, void* opaque) {
@@ -290,6 +331,11 @@ jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst
      message/stack text instead. */
   static char* last_msg = 0;
   char* msg;
+  JSValue hook_args[3] = {promise, reason, is_handled ? JS_TRUE : JS_FALSE};
+
+  /* process.on('unhandledRejection' | 'uncaughtException' | 'rejectionHandled') */
+  if(jsm_hooks_alive && jsm_hook_bool(ctx, "rejection", 3, hook_args) && !is_handled)
+    return;
 
   /* The std tracker drops its pending entry on "handled"; swallowing it here makes every
      rejection that is handled later still get reported (and exit 1) at shutdown. */
@@ -300,27 +346,24 @@ jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst
 
   msg = js_error_tostring(ctx, reason);
 
-  if(msg && last_msg && !strcmp(msg, last_msg)) {
+  if(msg && last_msg && str_equal(msg, last_msg)) {
     js_free(ctx, msg);
     return;
   }
 
   js_free(ctx, last_msg);
   last_msg = msg;
+  jsm_exit_code = 1;
 
   js_std_promise_rejection_tracker(ctx, promise, reason, is_handled, opaque);
 }
 
-/**
+/*
  * Returns the top-level error to report at shutdown, preferring a rejected
  * jsm_promise over the context's pending exception.
- *
- * @param ctx JS context to read the pending exception from.
- *
- * @returns The error value (may be JS_NULL/undefined if there is none).
  */
 static JSValue
-jsm_get_error(JSContext* ctx) {
+jsm_error_get(JSContext* ctx) {
   if(JS_IsObject(jsm_promise))
     if(JS_PromiseState(ctx, jsm_promise) == JS_PROMISE_REJECTED)
       return JS_PromiseResult(ctx, jsm_promise);
@@ -328,34 +371,19 @@ jsm_get_error(JSContext* ctx) {
   return JS_GetException(jsm_ctx);
 }
 
-/**
- * Prints the context's current pending exception to stderr.
- *
- * @param ctx JS context to fetch and print the exception from.
- */
+/* Prints the context's current pending exception to stderr. */
 static void
-jsm_dump_error(JSContext* ctx) {
+jsm_error_print(JSContext* ctx) {
   js_error_print(ctx, JS_GetException(ctx));
 }
 
-/**
- * Number of entries currently on the module-load stack.
- *
- *
- * @returns Depth of jsm_stack.
- */
+/* Number of entries currently on the module-load stack. */
 static size_t
 jsm_stack_count(void) {
   return vector_size(&jsm_stack, sizeof(char*));
 }
 
-/**
- * Address of the i-th entry of jsm_stack (Python-style negative indexing).
- *
- * @param i Index; negative counts back from the top of the stack.
- *
- * @returns Pointer to the stored `char*` slot, or 0 if the stack is empty.
- */
+/* Address of the i-th entry of jsm_stack (Python-style negative indexing). */
 static char**
 jsm_stack_ptr(int i) {
   int size;
@@ -370,13 +398,9 @@ jsm_stack_ptr(int i) {
   return 0;
 }
 
-/**
+/*
  * Looks for `module` already present on jsm_stack (used for circular-import
  * detection).
- *
- * @param module Module path to look for.
- *
- * @returns Pointer to the matching slot, or 0 if not found.
  */
 static char**
 jsm_stack_find(const char* module) {
@@ -389,13 +413,7 @@ jsm_stack_find(const char* module) {
   return 0;
 }
 
-/**
- * Value of the i-th entry of jsm_stack.
- *
- * @param i Index; negative counts back from the top of the stack.
- *
- * @returns The stored path, or 0 if out of range.
- */
+/* Value of the i-th entry of jsm_stack. */
 static char*
 jsm_stack_at(int i) {
   char** ptr;
@@ -406,23 +424,15 @@ jsm_stack_at(int i) {
   return 0;
 }
 
-/**
- * Path of the module/script currently being loaded.
- *
- *
- * @returns jsm_stack_at(-1).
- */
+/* Path of the module/script currently being loaded. */
 static inline char*
 jsm_stack_top(void) {
   return jsm_stack_at(-1);
 }
 
-/**
+/*
  * Renders the whole jsm_stack as a newline-separated "i: path" listing, innermost
  * entry first.
- *
- *
- * @returns A newly malloc'd string (caller must free()); empty string if the stack is empty.
  */
 static char*
 jsm_stack_string(void) {
@@ -437,15 +447,7 @@ jsm_stack_string(void) {
   return (char*)buf.buf;
 }
 
-/**
- * Getter backing the scriptList/scriptFile/scriptDir/__filename/__dirname globals.
- *
- * @param ctx JS context to allocate the result in.
- * @param this_val Unused (property getter receiver).
- * @param magic One of SCRIPT_LIST/SCRIPT_FILE/SCRIPT_FILENAME/SCRIPT_DIRNAME.
- *
- * @returns The requested view of jsm_stack, or JS_UNDEFINED if unavailable.
- */
+/* Getter backing the scriptList/scriptFile/scriptDir/__filename/__dirname globals. */
 static JSValue
 jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -485,12 +487,7 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-/**
- * Pushes a file/module path onto jsm_stack.
- *
- * @param ctx JS context (used to allocate the stored copy).
- * @param file Path to push; copied.
- */
+/* Pushes a file/module path onto jsm_stack. */
 static void
 jsm_stack_push(JSContext* ctx, const char* file) {
   DEBUG_MODULE(4, "(file=\"%s\")", file);
@@ -498,11 +495,7 @@ jsm_stack_push(JSContext* ctx, const char* file) {
   vector_putptr(&jsm_stack, js_strdup(ctx, file));
 }
 
-/**
- * Pops and frees the top entry of jsm_stack.
- *
- * @param ctx JS context (used to free the stored copy).
- */
+/* Pops and frees the top entry of jsm_stack. */
 static void
 jsm_stack_pop(JSContext* ctx) {
   char** ptr = vector_pop(&jsm_stack, sizeof(char*));
@@ -512,18 +505,9 @@ jsm_stack_pop(JSContext* ctx) {
   js_free(ctx, *ptr);
 }
 
-/**
+/*
  * Evaluates a top-level script/module file, pushing it on jsm_stack for the
  * duration and printing any resulting exception.
- *
- * @param ctx JS context to evaluate in.
- * @param file Path of the file to load.
- * @param module TRUE to evaluate as an ES module, FALSE as a plain script.
- * @param is_main Unused.
- *
- *
- * @returns 0 on success, -1 on failure (exception already printed, or a rejected top-level
- * promise already reported by the host rejection tracker).
  */
 static int
 jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
@@ -545,6 +529,15 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     JSValue result = JS_PromiseResult(ctx, val);
 
     if(state == JS_PROMISE_REJECTED) {
+      /* process.on('uncaughtException') consumes the error and lets the loop run on */
+      if(jsm_hooks_alive && jsm_hook_bool(ctx, "uncaught", 1, &result)) {
+        js_std_promise_rejection_tracker(ctx, val, result, TRUE, 0);
+        JS_FreeValue(ctx, result);
+        JS_FreeValue(ctx, val);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+      }
+
       /* The std tracker only reports at the end of js_std_loop(), which a failed
          main script never reaches: print here and mark the rejection handled so an
          interactive session does not report it a second time. */
@@ -566,6 +559,12 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
 
   if(JS_IsException(val)) {
     JSValue exception = JS_GetException(ctx);
+
+    if(jsm_hooks_alive && jsm_hook_bool(ctx, "uncaught", 1, &exception)) {
+      JS_FreeValue(ctx, exception);
+      JS_FreeValue(ctx, global_obj);
+      return 0;
+    }
 
     fprintf(stderr, "Error evaluating '%s':\n", file);
     js_error_print(ctx, exception);
@@ -595,31 +594,39 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   return 0;
 }
 
-/**
- * Populates jsm_builtin_modules from quickjs-builtins.h (once per process).
- *
- * @param ctx JS context (unused beyond the assertion; kept for symmetry with callers).
- */
-static void
-jsm_init_modules(JSContext* ctx) {
-  assert(!jsm_modules_initialized);
+/* Checks whether a JSModuleDef belongs to one of the builtin modules. */
+static BOOL
+jsm_is_builtin(JSModuleDef* m) {
+  BuiltinModule* rec;
 
-  jsm_modules_initialized = TRUE;
+  vector_foreach_t(&jsm_builtins, rec) if(rec->def == m) return TRUE;
 
-  dbuf_init2(&jsm_builtin_modules, 0, &vector_realloc);
-
-#define jsm_builtin_native(name) vector_push(&jsm_builtin_modules, (BuiltinModule)jsm_module_record_native(name));
-#define jsm_builtin_compiled(name) vector_push(&jsm_builtin_modules, (BuiltinModule)jsm_module_record_compiled(name));
-
-  jsm_builtin_native(std) jsm_builtin_native(os)
-
-#include "quickjs-builtins.h"
-
-#undef jsm_builtin_native
-#undef jsm_builtin_compiled
+  return FALSE;
 }
 
-/**
+/* is `m` a C module: a native builtin, or a shared object loaded by path.
+ *
+ * the engine keeps init_func private, so this mirrors how modules get made:
+ * builtin records with an init function, and names ending in CONFIG_SHEXT.
+ */
+static BOOL
+jsm_is_native(JSModuleDef* m) {
+  BuiltinModule* rec;
+  struct list_head* el;
+
+  vector_foreach_t(&jsm_builtins, rec) if(rec->def == m) return rec->module_func != 0;
+
+  list_for_each(el, &loaded_modules) {
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+    if(lm->module == m)
+      return str_ends(lm->name, CONFIG_SHEXT);
+  }
+
+  return FALSE;
+}
+
+/*
  * Looks up a builtin module record by name. A leading "node:" is stripped first
  * (Bun/Deno compatibility: `node:fs`/`node:path`/etc. resolve the same as the bare
  * name resolves here, i.e. to *this* engine's own builtin of that name, not Node's
@@ -628,33 +635,22 @@ jsm_init_modules(JSContext* ctx) {
  * POSIX/process-primitives module (exec/pipe/kill/waitpid/...), nothing like Node's
  * `os` (hostname/cpus/homedir/networkInterfaces/...), so aliasing `node:os` to it
  * would silently resolve to the wrong module instead of failing cleanly.
- *
- * @param name Builtin module name (e.g. "std", "os", "fs", "node:fs").
- *
- *
- * @returns Pointer into jsm_builtin_modules, or 0 if not found.
  */
 static BuiltinModule*
 jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
 
-  if(str_start(name, "node:") && strcmp(name + 5, "os"))
+  if(str_start(name, "node:") && !str_equal(name + 5, "os"))
     name += 5;
 
-  vector_foreach_t(&jsm_builtin_modules, rec) if(!strcmp(rec->module_name, name)) return rec;
+  vector_foreach_t(&jsm_builtins, rec) if(str_equal(rec->module_name, name)) return rec;
 
   return 0;
 }
 
-/**
+/*
  * Lazily initializes (native-calls or bytecode-loads) a builtin module the first
  * time it's requested, caching the resulting JSModuleDef on `rec`.
- *
- * @param ctx JS context to initialize the module in.
- * @param rec Builtin module record to initialize.
- *
- *
- * @returns The module's JSModuleDef, or 0 on failure.
  */
 static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
@@ -706,15 +702,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   return rec->def;
 }
 
-/**
- * Loads and parses a JSON file.
- *
- * @param ctx JS context to parse in.
- * @param file Path of the JSON file.
- *
- *
- * @returns The parsed value, or an exception if the file couldn't be loaded/parsed.
- */
+/* Loads and parses a JSON file. */
 static JSValue
 jsm_load_json(JSContext* ctx, const char* file) {
   uint8_t* buf;
@@ -726,16 +714,9 @@ jsm_load_json(JSContext* ctx, const char* file) {
   return JS_ParseJSON(ctx, (const char*)buf, len, file);
 }
 
-/**
+/*
  * Loads and caches package.json (in the `package_json` global), tolerating a
  * missing/invalid file.
- *
- *
- * @param ctx JS context to parse in.
- * @param file Path to load if not already cached; NULL defaults to "package.json".
- *
- *
- * @returns The cached package_json value (JS_NULL if it couldn't be loaded).
  */
 static JSValue
 jsm_load_package(JSContext* ctx, const char* file) {
@@ -751,17 +732,7 @@ jsm_load_package(JSContext* ctx, const char* file) {
   return package_json;
 }
 
-/**
- * Searches a ';'/'\n'-separated list of directories for `module_name`.
- *
- *
- * @param ctx JS context (used to allocate the result).
- * @param module_name File name to look for in each directory.
- * @param list ';'/'\n'-separated directory list.
- *
- *
- * @returns Newly allocated "dir/module_name" for the first directory that has it, or 0.
- */
+/* Searches a ';'/'\n'-separated list of directories for `module_name`. */
 static char*
 jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   char* t;
@@ -791,16 +762,9 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   return 0;
 }
 
-/**
+/*
  * ModuleLoader wrapper searching QUICKJS_MODULE_PATH (env var, else the compiled-in
  * default) for `module_name`.
- *
- *
- * @param ctx JS context (used to allocate the result).
- * @param module_name File name to search for.
- *
- *
- * @returns Newly allocated resolved path, or 0 if not found.
  */
 static char*
 jsm_search_path(JSContext* ctx, const char* module_name) {
@@ -816,17 +780,9 @@ jsm_search_path(JSContext* ctx, const char* module_name) {
   return jsm_search_list(ctx, module_name, path);
 }
 
-/**
+/*
  * Tries `module_name` with each of module_extensions appended in turn, calling `fn`
  * on each candidate until one succeeds.
- *
- *
- * @param ctx JS context (used to allocate scratch/result strings).
- * @param module_name Base module name, without extension.
- * @param fn ModuleLoader to try each "module_name+ext" candidate against.
- *
- *
- * @returns Whatever the first successful `fn` call returned, or 0 if none matched.
  */
 static char*
 jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
@@ -856,16 +812,9 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   return t;
 }
 
-/**
+/*
  * Resolves `module_name` to a file, either directly/via path search (if it already
  * has a recognized suffix) or by trying each module_extensions suffix in turn.
- *
- *
- * @param ctx JS context (used to allocate the result).
- * @param module_name Module name/specifier to resolve.
- *
- *
- * @returns Newly allocated resolved path, or 0 if not found.
  */
 static char*
 jsm_search_module(JSContext* ctx, const char* module_name) {
@@ -884,7 +833,7 @@ jsm_module_indexof(JSModuleDef* m) {
   struct list_head* el;
   int i = 0;
 
-  list_for_each_prev(el, &loaded_modules) {
+  list_for_each(el, &loaded_modules) {
     LoadedModule* lm = list_entry(el, LoadedModule, link);
 
     if(lm->module == m)
@@ -895,6 +844,8 @@ jsm_module_indexof(JSModuleDef* m) {
 
   return -1;
 }
+
+/* end of "new breed" module loader functions */
 
 static JSModuleDef*
 jsm_module_at(int index) {
@@ -920,32 +871,86 @@ jsm_module_at(int index) {
   return 0;
 }
 
-/* end of "new breed" module loader functions */
+/* the short name inside a loaded module's name: "/a/b/foo.js" -> "foo", "/a/foo/index.js" -> "foo" */
+static size_t
+jsm_short_name(const char* name, const char** start) {
+  const char *end, *p;
+  static const char* const exts[] = {".json", ".js", CONFIG_SHEXT};
+  size_t i;
 
-/**
- * Checks whether a JSModuleDef belongs to one of the builtin modules.
- *
- * @param m Module to check.
- *
- * @returns TRUE if `m` is the cached JSModuleDef of a jsm_builtin_modules entry.
- */
-static BOOL
-jsm_module_is_builtin(JSModuleDef* m) {
-  BuiltinModule* rec;
+  *start = name;
+  end = name + strlen(name);
 
-  vector_foreach_t(&jsm_builtin_modules, rec) if(rec->def == m) return TRUE;
+  if(str_start(name, "data:"))
+    return end - name;
 
-  return FALSE;
+  for(i = 0; i < countof(exts); i++)
+    if(str_ends(name, exts[i])) {
+      end -= strlen(exts[i]);
+      break;
+    }
+
+  for(p = end; p > name && p[-1] != '/' && p[-1] != '\\';)
+    --p;
+
+  if(end - p == 5 && !strncmp(p, "index", 5) && p > name) {
+    end = p - 1;
+    for(p = end; p > name && p[-1] != '/' && p[-1] != '\\';)
+      --p;
+  }
+
+  *start = p;
+  return end - p;
 }
 
-/**
- * Resolves `module` through package.json's "_moduleAliases" map, if present.
- *
- * @param ctx JS context to read package.json in.
- * @param module Module specifier to look up (relativized before lookup if absolute).
- *
- * @returns Newly allocated aliased path if an alias matched, else 0.
+static BOOL
+jsm_short_match(const char* module_name, const char* name) {
+  const char* start;
+  size_t len = jsm_short_name(module_name, &start);
+
+  return strlen(name) == len && !strncmp(start, name, len);
+}
+
+/*
+ * Resolves a JS value (module value, numeric index, or name string) to a
+ * JSModuleDef, for the various `*Module` globals.
  */
+JSModuleDef*
+jsm_module_def(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* m;
+
+  if((m = js_module_def(ctx, value)))
+    return m;
+
+  struct list_head* el;
+  int32_t id = -1, i = 0;
+  const char* name = 0;
+
+  if(JS_IsNumber(value))
+    JS_ToInt32(ctx, &id, value);
+  else
+    name = JS_ToCString(ctx, value);
+
+  m = 0;
+
+  list_for_each(el, &loaded_modules) {
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+    if(name ? str_equal(lm->name, name) || jsm_short_match(lm->name, name) : id == i) {
+      m = lm->module;
+      break;
+    }
+
+    i++;
+  }
+
+  if(name)
+    JS_FreeCString(ctx, name);
+
+  return m;
+}
+
+/* Resolves `module` through package.json's "_moduleAliases" map, if present. */
 static char*
 jsm_module_package(JSContext* ctx, const char* module) {
   char *file = 0, *rel = path_isabsolute1(module) ? path_relative1(module) : strdup(module);
@@ -974,32 +979,29 @@ jsm_module_package(JSContext* ctx, const char* module) {
   return file;
 }
 
-/**
+/*
  * Builds the synthetic "import ... from 'path'; ..." source used by jsm_module_load
  * to bring a module into scope and optionally invoke/assign it.
- *
- * @param buf   Output buffer; overwritten (buf->size reset to 0 first).
- * @param path  Module specifier, optionally followed by "=name"/"!"/"*" modifiers.
- * @param name  Explicit binding name; if NULL, derived from `path`'s basename.
- * @param star  TRUE to force a namespace import ("import * as tmp ...") retry.
  */
 static void
 jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
-  enum { NAMED = 0, ALL, EXEC } mode = NAMED;
+  BOOL exec = FALSE, all = FALSE; /* the last of a leading "!" / "*" wins */
 
   for(; *path; ++path) {
     switch(*path) {
       case '!': {
         if(!star)
-          mode = EXEC;
+          exec = TRUE, all = FALSE;
         continue;
       }
 
       case '*': {
         if(!name)
-          mode = ALL;
+          all = TRUE, exec = FALSE;
         continue;
       }
+
+      case '=': /* bind the default export under the module's name (the default anyway) */ continue;
     }
 
     break;
@@ -1018,55 +1020,39 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
   dbuf_put(buf, (const void*)path, pathlen);
   dbuf_putstr(buf, "';");
 
-  switch(mode) {
-    case EXEC: {
-      dbuf_putstr(buf, "tmp();");
-      break;
-    }
-    case ALL: {
-      dbuf_putstr(buf, "Object.assign(globalThis, tmp);");
-      break;
-    }
+  if(exec) {
+    dbuf_putstr(buf, "tmp();");
+  } else if(all) {
+    dbuf_putstr(buf, "Object.assign(globalThis, tmp);");
+  } else {
+    size_t len = 0;
+    char* tmp;
 
-    default: {
-      size_t len = 0;
-      char* tmp;
+    if(path[pathlen] == '=')
+      name = &path[pathlen + 1];
 
-      if(path[pathlen] == '=')
-        name = &path[pathlen + 1];
+    if(!name)
+      name = basename(path);
 
-      if(!name)
-        name = basename(path);
+    if((tmp = strrchr(name, '.')))
+      len = tmp - name;
+    else
+      len = strlen(name);
 
-      if((tmp = strrchr(name, '.')))
-        len = tmp - name;
-      else
-        len = strlen(name);
+    dbuf_putstr(buf, "globalThis['");
 
-      dbuf_putstr(buf, "globalThis['");
+    if(len)
+      dbuf_put(buf, (const uint8_t*)name, len);
+    else
+      dbuf_putstr(buf, name);
 
-      if(len)
-        dbuf_put(buf, (const uint8_t*)name, len);
-      else
-        dbuf_putstr(buf, name);
-
-      dbuf_putstr(buf, "'] = tmp;");
-      break;
-    }
+    dbuf_putstr(buf, "'] = tmp;");
   }
 
   dbuf_0(buf);
 }
 
-/**
- * Finds an already-loaded module by name, starting at `start_pos`.
- *
- * @param ctx JS context.
- * @param name Module name to look for (leading '!'/'*' modifiers skipped).
- * @param start_pos Index into the loaded-modules list to start searching from.
- *
- * @returns The matching JSModuleDef, or 0 if not found.
- */
+/* Finds an already-loaded module by name, starting at `start_pos`. */
 static JSModuleDef*
 jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
   JSModuleDef* m = 0;
@@ -1094,49 +1080,10 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
   return m;
 }
 
-/**
- * Builds the `moduleEntries` array: [name, moduleValue] pairs for every
- * non-synthetic (name doesn't start with '<') loaded module.
- *
- * @param ctx JS context to build the array in.
- * @param this_val Unused (property getter receiver).
- *
- * @returns A new JS array of [name, value] pairs.
- */
-static JSValue
-jsm_modules_entries(JSContext* ctx, JSValueConst this_val) {
-  struct list_head* el;
-  JSValue ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-
-  list_for_each(el, &loaded_modules) {
-    LoadedModule* lm = list_entry(el, LoadedModule, link);
-    JSModuleDef* m = lm->module;
-    const char* name = lm->name;
-
-    JSValue entry = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, name));
-    JS_SetPropertyUint32(ctx, entry, 1, module_value(ctx, m));
-
-    if(name[0] != '<')
-      JS_SetPropertyUint32(ctx, ret, i++, entry);
-    else
-      JS_FreeValue(ctx, entry);
-  }
-
-  return ret;
-}
-
-/**
+/*
  * Implements the `loadModule` global: synthesizes and evaluates an
  * import/assignment script for `path`, binding it as `name` (see
  * jsm_module_script).
- *
- * @param ctx JS context to evaluate in.
- * @param path Module specifier, optionally with "=name"/"!"/"*" modifiers.
- * @param name Explicit binding name, or NULL to derive one.
- *
- * @returns The resulting JSModuleDef, or 0 on failure.
  */
 static JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* path, const char* name) {
@@ -1172,19 +1119,12 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
      grew it's the new head - grab that directly instead. Falls back to the by-name lookup
      for the case where the module was already loaded/cached and no new entry was added. */
   if(list_size(&loaded_modules) > pos)
-    return list_entry(loaded_modules.next, LoadedModule, link)->module;
+    return list_entry(loaded_modules.prev, LoadedModule, link)->module;
 
   return jsm_module_find(ctx, path, 0);
 }
 
-/**
- * Loads a .json file as a synthetic module exporting its parsed content as default.
- *
- * @param ctx JS context to compile in.
- * @param path Path of the JSON file.
- *
- * @returns The compiled module, or 0 on failure.
- */
+/* Loads a .json file as a synthetic module exporting its parsed content as default. */
 static JSModuleDef*
 jsm_module_json(JSContext* ctx, const char* path) {
   DynBuf db;
@@ -1216,15 +1156,9 @@ jsm_module_json(JSContext* ctx, const char* path) {
   return m;
 }
 
-/**
+/*
  * Resolves `module_name` to an existing file path (direct file, or via
  * jsm_search_module).
- *
- * @param ctx JS context (used to allocate the result).
- * @param module_name Module specifier to resolve.
- * @param opaque Unused (kept for DEBUG_MODULE tracing symmetry with other loader hooks).
- *
- * @returns Newly allocated resolved path, or 0 if it couldn't be located.
  */
 static char*
 jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
@@ -1252,18 +1186,12 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
   return path;
 }
 
-/**
+/*
  * Decodes a "data:...,<content>[;base64]" URL into module source code (wrapping the
  * payload in JSON.parse(...) for a "/json" media type).
- *
- *   JSContext*   ctx   context used for allocation
- *   const char*  name  full "data:" URL
- *   DynBuf*      code  receives the NUL-terminated source; caller dbuf_free()s it
- *
- *   returns 0, or -1 if `name` has no ',' payload separator (nothing pending)
  */
 static int
-jsm_data_source(JSContext* ctx, const char* name, DynBuf* code) {
+jsm_module_source(JSContext* ctx, const char* name, DynBuf* code) {
   size_t length = strlen(name), offset = str_chr(name, ',');
 
   if(!name[offset])
@@ -1310,17 +1238,9 @@ jsm_data_source(JSContext* ctx, const char* name, DynBuf* code) {
   return 0;
 }
 
-/**
+/*
  * Compiles module source `code` (not run) under the name `name`, installing its
  * import.meta.
- *
- *   JSContext*   ctx       context to compile in
- *   const char*  name      module name as the engine will know it
- *   const char*  code      source text
- *   size_t       len       length of `code` in bytes
- *   BOOL         is_file   TRUE if `name` is a real filesystem path
- *
- *   returns the module, or 0 with an exception pending
  */
 static JSModuleDef*
 jsm_module_compile(JSContext* ctx, const char* name, const char* code, size_t len, BOOL is_file) {
@@ -1336,22 +1256,13 @@ jsm_module_compile(JSContext* ctx, const char* name, const char* code, size_t le
   return m;
 }
 
-/**
- * Loads a "data:...,<content>[;base64]" module URL.
- *
- *   JSContext*   ctx     context to compile in
- *   const char*  name    full "data:" URL
- *   void*        opaque  unused
- *
- *   returns the compiled module, or 0 if `name` has no ',' payload separator or
- *   compilation failed
- */
+/* Loads a "data:...,<content>[;base64]" module URL. */
 static JSModuleDef*
 jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
   DynBuf code;
   JSModuleDef* m = 0;
 
-  if(!jsm_data_source(ctx, name, &code)) {
+  if(!jsm_module_source(ctx, name, &code)) {
     m = jsm_module_compile(ctx, name, (const char*)code.buf, code.size, FALSE);
     dbuf_free(&code);
   }
@@ -1359,41 +1270,48 @@ jsm_module_data(JSContext* ctx, const char* name, void* opaque) {
   return m;
 }
 
-/* hook state, defined with the registerHooks() implementation further down */
-static thread_local JSValue* module_hooks;
-static thread_local size_t module_hooks_len;
+/* the loaded module an import came from: by full name, else by short name
+ * (a builtin is listed as "console" but imports as "/lib/console.js") */
+static JSModuleDef*
+jsm_module_importer(JSContext* ctx, const char* name) {
+  JSModuleDef* m = jsm_module_find(ctx, name, 0);
+  struct list_head* el;
+  const char* start;
+  size_t len;
 
-static JSModuleDef* jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque);
+  if(m)
+    return m;
 
-#ifndef JS_MODULE_LOADER_OLD
-/* the import attributes of the module being loaded (borrowed, NULL when none),
- * for js_module_loader() in jsm_module_loader(). */
-static thread_local const JSValue* jsm_import_attributes = NULL;
-#define JSM_IMPORT_ATTRIBUTES() (jsm_import_attributes ? *jsm_import_attributes : JS_UNDEFINED)
-#endif
+  len = jsm_short_name(name, &start);
 
-/**
+  list_for_each(el, &loaded_modules) {
+    LoadedModule* lm = list_entry(el, LoadedModule, link);
+    const char* s2;
+
+    if(jsm_short_name(lm->name, &s2) == len && !strncmp(start, s2, len))
+      return lm->module;
+  }
+
+  return 0;
+}
+
+/*
  * The engine's JSModuleLoaderFunc: resolves and loads `module_name`, handling
  * data: URLs, registered load hooks, circular-import warnings,
  * package.json aliasing, builtin modules, and filesystem resolution, in that order.
- *
- * @param ctx JS context to load into.
- * @param module_name Module specifier as requested by the engine.
- * @param opaque Unused.
- *
- * @returns The loaded JSModuleDef, or 0 on failure (exception left pending, augmented with
- * the jsm_stack import chain).
  */
 static JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *s = 0, *tmp, *name = js_strdup(ctx, module_name);
   JSModuleDef* m = 0;
   int i = 0;
+  BOOL hooked = FALSE;
 
   DEBUG_MODULE(2, "(i: %d, name: \"%s\", opaque: %p)", i++, name, opaque);
 
   if(module_hooks_len) {
-    m = jsm_module_load_hooked(ctx, name, opaque);
+    hooked = TRUE;
+    m = jsm_hook_load(ctx, name, opaque);
     goto end;
   }
 
@@ -1415,10 +1333,10 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
      implementation. Stripped here (not just in jsm_builtin_find(), which only covers
      the static builtin-registry lookup below) so the filesystem/dynamic-.so fallback
      search further down also sees the bare name, for a module that resolves via that
-     path rather than being compiled into jsm_builtin_modules (e.g. child_process in a
+     path rather than being compiled into jsm_builtins (e.g. child_process in a
      build where it's not a static builtin). Excludes "os" - see jsm_builtin_find()'s
      comment on why that one alias would be actively wrong, not just incomplete. */
-  if(str_start(name, "node:") && strcmp(name + 5, "os")) {
+  if(str_start(name, "node:") && !str_equal(name + 5, "os")) {
     tmp = js_strdup(ctx, name + 5);
     js_free(ctx, name);
     name = tmp;
@@ -1477,7 +1395,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       if(!js_is_null_or_undefined(exception)) {
         const char* msg = JS_ToCString(ctx, exception);
         char* chain = jsm_stack_string();
-        BOOL renamed = strcmp(s, module_name) != 0;
+        BOOL renamed = !str_equal(s, module_name);
         DynBuf db;
 
         /* JS_Throw*() builds a fresh .stack backtrace automatically; the module import
@@ -1517,17 +1435,28 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
 end:
   LoadedModule* lm;
+
   if((lm = js_malloc(ctx, sizeof(LoadedModule)))) {
     lm->name = name;
     lm->module = m;
-    list_add(&lm->link, &loaded_modules);
+    lm->importer = jsm_importer;
+    jsm_importer = 0;
+    lm->hooked = hooked;
+    /* appended, so a module's index never changes */
+    list_add_tail(&lm->link, &loaded_modules);
   } else
     js_free(ctx, name);
+
+  if(jsm_importer) {
+    js_free(ctx, jsm_importer);
+    jsm_importer = 0;
+  }
+
   return m;
 }
 
 #ifndef JS_MODULE_LOADER_OLD
-/**
+/*
  * The module loader with import attributes: `import x from 'a.json' with { type: 'json' }`.
  * The attributes reach js_module_loader() so `type` is honored, and the keys are checked
  * beforehand by js_module_check_attributes() (see jsm_set_module_loader()).
@@ -1544,32 +1473,9 @@ jsm_module_loader2(JSContext* ctx, const char* module_name, void* opaque, JSValu
 }
 #endif
 
-static char* jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque);
-
-/**
- * Installs the module loader on a runtime. With import attributes (unless
- * JS_MODULE_LOADER_OLD), an attribute key the engine does not support, i.e. anything
- * but `type`, is a TypeError when the import is resolved, as in js_module_check_attributes().
- */
-static void
-jsm_set_module_loader(JSRuntime* rt) {
-#ifdef JS_MODULE_LOADER_OLD
-  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, NULL);
-#else
-  JS_SetModuleLoaderFunc2(rt, jsm_module_normalize, jsm_module_loader2, js_module_check_attributes, NULL);
-#endif
-}
-
-/**
+/*
  * The engine's module-name normalizer: resolves `name` (as imported from `path`)
  * to a builtin name or absolute file path (the default resolution, no hooks).
- *
- * @param ctx JS context.
- * @param path Path of the importing module.
- * @param name Specifier being imported.
- *
- * @returns Newly allocated normalized specifier (never NULL: falls back to a copy of
- * `name`).
  */
 static char*
 jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
@@ -1578,37 +1484,24 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   const char* bare = str_start(name, "node:") ? name + 5 : name;
 
   /* Node's subpath builtins live in flat modules: "fs/promises" -> "fsPromises" */
-  if(!strcmp(bare, "fs/promises"))
+  if(str_equal(bare, "fs/promises"))
     name = "fsPromises";
-  else if(!strcmp(bare, "timers/promises"))
+  else if(str_equal(bare, "timers/promises"))
     name = "timersPromises";
-  else if(!strcmp(bare, "readline/promises"))
+  else if(str_equal(bare, "readline/promises"))
     name = "readlinePromises";
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)
       file = js_strdup(ctx, bltin->module_name);
-    /* `path` is the *importing* module's own specifier - for one loaded from
-       a `data:...,<source>` URL (e.g. a moduleLoader() "loader" hook that
-       fetched remote source and handed it back as a data: URL, see
-       qjs-lws/lib/cdn-loader.js), that's the whole multi-KB URL, source
-       payload included. path_dirlen1()/path_append3() below treat it as a
-       plain filesystem path and split on its *last* '/' - which lands inside
-       the embedded source (JS source is full of '/'), not at any directory
-       boundary, producing a garbage `file` for what should be a relative
-       import between the fetched module's own files (confirmed: a real
-       multi-file CDN package's `import './sibling.mjs'` resolved to nonsense
-       like "/sibling.mjs" instead of erroring or working). Skip this branch
-       for a data: path so `file` stays unset and the loader hook chain below
-       sees the untouched relative specifier instead - resolving it is then
-       that hook's job (it has the actual source URL the data: URL came
-       from), not this generic path-joining. */
+    /* a `data:` importer has no directory (its "path" is the whole source URL),
+       so relative specifiers are skipped here and left to the load hook;
+       `<...>` importers (eval, REPL) have none either */
   } else if(path[0] != '<' && strncmp(path, "data:", 5) && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
     DynBuf dir;
     size_t dsl;
 
     dbuf_init_ctx(ctx, &dir);
-
     dsl = path_dirlen1(path);
 
     if(!path[dsl])
@@ -1643,7 +1536,6 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     file = js_strdup(ctx, name);
 
   DEBUG_MODULE(1, "%s: \"%s\" => \"%s\"", path, name, file);
-
   return file;
 }
 
@@ -1665,15 +1557,10 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
  * `shortCircuit: true`. the engine's own resolution is the last `next`.
  */
 
-enum { HOOK_RESOLVE, HOOK_LOAD };
-
-static thread_local JSValue hook_formats;
-static thread_local BOOL hook_formats_set;
-
 /* percent-encodes ' ', '%', '#', '?' and control bytes of a path for a file:// URL;
    returns a js_malloc'd string */
 static char*
-jsm_path_to_url(JSContext* ctx, const char* path) {
+jsm_url_frompath(JSContext* ctx, const char* path) {
   DynBuf db;
   static const char hex[] = "0123456789ABCDEF";
 
@@ -1702,8 +1589,8 @@ jsm_path_to_url(JSContext* ctx, const char* path) {
 /* maps the module key to the URL hooks see: "/a/b.js" -> "file:///a/b.js",
    "fs" -> "node:fs" ("os", "std" stay bare), anything else unchanged */
 static char*
-jsm_key_to_url(JSContext* ctx, const char* key) {
-  if(key[0] != '/' && !has_dot_or_slash(key) && jsm_builtin_find(key) && strcmp(key, "os") && strcmp(key, "std")) {
+jsm_url_fromkey(JSContext* ctx, const char* key) {
+  if(key[0] != '/' && !has_dot_or_slash(key) && jsm_builtin_find(key) && !str_equal(key, "os") && !str_equal(key, "std")) {
     DynBuf db;
     dbuf_init_ctx(ctx, &db);
     dbuf_putstr(&db, "node:");
@@ -1712,21 +1599,16 @@ jsm_key_to_url(JSContext* ctx, const char* key) {
     return (char*)db.buf;
   }
 
-  return jsm_path_to_url(ctx, key);
+  return jsm_url_frompath(ctx, key);
 }
 
-static int
-jsm_hex_digit(int c) {
-  return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
-}
-
-/* inverse of jsm_key_to_url(): "file:///a%20b.js" -> "/a b.js", "node:fs" -> "fs"
+/* inverse of jsm_url_fromkey(): "file:///a%20b.js" -> "/a b.js", "node:fs" -> "fs"
    ("node:os" stays); returns a js_malloc'd string */
 static char*
-jsm_url_to_key(JSContext* ctx, const char* url) {
+jsm_url_tokey(JSContext* ctx, const char* url) {
   DynBuf db;
 
-  if(str_start(url, "node:") && strcmp(url + 5, "os"))
+  if(str_start(url, "node:") && !str_equal(url + 5, "os"))
     return js_strdup(ctx, url + 5);
 
   if(!str_start(url, "file://"))
@@ -1737,7 +1619,7 @@ jsm_url_to_key(JSContext* ctx, const char* url) {
   for(url += 7; *url; ++url) {
     int h, l;
 
-    if(url[0] == '%' && (h = jsm_hex_digit(url[1])) >= 0 && (l = jsm_hex_digit(url[1] ? url[2] : 0)) >= 0) {
+    if(url[0] == '%' && (h = from_hex(url[1])) >= 0 && (l = from_hex(url[1] ? url[2] : 0)) >= 0) {
       dbuf_putc(&db, h << 4 | l);
       url += 2;
     } else {
@@ -1774,7 +1656,7 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
 
   if(JS_IsString(pv)) {
     const char* pu = JS_ToCString(ctx, pv);
-    base = jsm_url_to_key(ctx, pu);
+    base = jsm_url_tokey(ctx, pu);
     JS_FreeCString(ctx, pu);
   } else {
     base = js_strdup(ctx, ".");
@@ -1782,7 +1664,7 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
 
   JS_FreeValue(ctx, pv);
 
-  tmp = jsm_url_to_key(ctx, spec);
+  tmp = jsm_url_tokey(ctx, spec);
   JS_FreeCString(ctx, spec);
 
   if(str_start(tmp, "data:") || str_start(tmp, "http:") || str_start(tmp, "https:")) {
@@ -1804,7 +1686,7 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
     }
   }
 
-  url = jsm_key_to_url(ctx, file);
+  url = jsm_url_fromkey(ctx, file);
   js_free(ctx, file);
   js_free(ctx, base);
 
@@ -1815,10 +1697,11 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
   return ret;
 }
 
-/* the engine's own loading as the final nextLoad(): returns { format, source,
-   shortCircuit } or an exception.
-     "builtin" / "addon"  source is null (the engine instantiates them itself)
-     "json" / "module"    source is the file's text */
+/* the engine's own loading as the final nextLoad(): returns { format, source, shortCircuit } or an exception.
+ *
+ *  "builtin" / "addon"  source is null (the engine instantiates them itself)
+ *  "json" / "module"    source is the file's text
+ */
 static JSValue
 jsm_default_load(JSContext* ctx, JSValueConst urlv) {
   const char* u = JS_ToCString(ctx, urlv);
@@ -1829,13 +1712,13 @@ jsm_default_load(JSContext* ctx, JSValueConst urlv) {
   if(!u)
     return JS_EXCEPTION;
 
-  name = jsm_url_to_key(ctx, u);
+  name = jsm_url_tokey(ctx, u);
   JS_FreeCString(ctx, u);
 
   if(str_start(name, "data:")) {
     DynBuf code;
 
-    if(jsm_data_source(ctx, name, &code)) {
+    if(jsm_module_source(ctx, name, &code)) {
       js_free(ctx, name);
       return JS_ThrowTypeError(ctx, "invalid data: URL");
     }
@@ -1873,7 +1756,7 @@ jsm_default_load(JSContext* ctx, JSValueConst urlv) {
   return ret;
 }
 
-static JSValue jsm_hook_run(JSContext* ctx, int kind, JSValueConst snap, int idx, JSValueConst arg, JSValueConst context);
+static JSValue jsm_hook_run(JSContext*, int, JSValueConst, int, JSValueConst, JSValueConst);
 
 /* nextResolve(specifier, context?) / nextLoad(url, context?) handed to a hook;
    data = [ next index, hook snapshot, call state, default context ] */
@@ -1996,7 +1879,7 @@ jsm_hook_context(JSContext* ctx, const char* key, const char* val) {
 }
 
 static JSValue
-jsm_hooks_snapshot(JSContext* ctx) {
+jsm_hook_snapshot(JSContext* ctx) {
   JSValue snap = JS_NewArray(ctx);
   size_t i;
 
@@ -2009,16 +1892,16 @@ jsm_hooks_snapshot(JSContext* ctx) {
 /* normalize callback while hooks are registered: runs the resolve chain and maps the
    resulting URL back to a module key; returns NULL with an exception pending */
 static char*
-jsm_module_normalize_hooked(JSContext* ctx, const char* path, const char* name) {
-  JSValue snap = jsm_hooks_snapshot(ctx), namev = JS_NewString(ctx, name), res, v;
+jsm_hook_normalize(JSContext* ctx, const char* path, const char* name) {
+  JSValue snap = jsm_hook_snapshot(ctx), namev = JS_NewString(ctx, name), res, v;
   JSValue context;
   char *url, *key = 0;
 
-  if(path[0] && path[0] != '<' && strcmp(path, ".")) {
+  if(path[0] && path[0] != '<' && !str_equal(path, ".")) {
     /* a relative importer ("p.mjs") becomes an absolute file URL, as in Node */
     char* abs = path[0] != '/' && path[str_chr(path, ':')] == 0 ? path_absolute1(path) : 0;
 
-    url = jsm_path_to_url(ctx, abs ? abs : path);
+    url = jsm_url_frompath(ctx, abs ? abs : path);
     free(abs);
     context = jsm_hook_context(ctx, "parentURL", url);
     js_free(ctx, url);
@@ -2037,7 +1920,7 @@ jsm_module_normalize_hooked(JSContext* ctx, const char* path, const char* name) 
 
   v = JS_GetPropertyStr(ctx, res, "url");
   if((url = js_tostring(ctx, v))) {
-    key = jsm_url_to_key(ctx, url);
+    key = jsm_url_tokey(ctx, url);
     js_free(ctx, url);
   }
   JS_FreeValue(ctx, v);
@@ -2056,18 +1939,10 @@ jsm_module_normalize_hooked(JSContext* ctx, const char* path, const char* name) 
   return key;
 }
 
-static char*
-jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
-  if(module_hooks_len)
-    return jsm_module_normalize_hooked(ctx, path, name);
-
-  return jsm_module_normalize_core(ctx, path, name);
-}
-
 /* bytes of a load hook's `source`: a string, ArrayBuffer or typed array;
  *pfree receives what to JS_FreeCString (NULL for buffers) */
 static const char*
-jsm_source_bytes(JSContext* ctx, JSValueConst source, size_t* plen, BOOL* is_str) {
+jsm_hook_bytes(JSContext* ctx, JSValueConst source, size_t* plen, BOOL* is_str) {
   size_t off = 0, blen = 0, bpe = 0;
   uint8_t* ptr;
   JSValue buf;
@@ -2101,13 +1976,13 @@ jsm_source_bytes(JSContext* ctx, JSValueConst source, size_t* plen, BOOL* is_str
 /* load callback while hooks are registered: runs the load chain for `name` and
    compiles what it returns; returns 0 with an exception pending */
 static JSModuleDef*
-jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque) {
-  JSValue snap = jsm_hooks_snapshot(ctx), urlv, context, res, fmt, src;
+jsm_hook_load(JSContext* ctx, const char* name, void* opaque) {
+  JSValue snap = jsm_hook_snapshot(ctx), urlv, context, res, fmt, src;
   JSModuleDef* m = 0;
   const char *format, *bytes;
   size_t len = 0;
   BOOL is_str = FALSE;
-  char* url = jsm_key_to_url(ctx, name);
+  char* url = jsm_url_fromkey(ctx, name);
 
   urlv = JS_NewString(ctx, url);
   js_free(ctx, url);
@@ -2137,14 +2012,14 @@ jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque) {
   src = JS_GetPropertyStr(ctx, res, "source");
   format = JS_ToCString(ctx, fmt);
 
-  if(!strcmp(format, "builtin")) {
+  if(str_equal(format, "builtin")) {
     BuiltinModule* rec = jsm_builtin_find(name);
 
     if(rec)
       m = jsm_builtin_init(ctx, rec);
     else
       JS_ThrowReferenceError(ctx, "no builtin module '%s'", name);
-  } else if(!strcmp(format, "addon")) {
+  } else if(str_equal(format, "addon")) {
     m = js_module_loader(ctx,
                          name,
                          opaque
@@ -2153,13 +2028,13 @@ jsm_module_load_hooked(JSContext* ctx, const char* name, void* opaque) {
                          JS_UNDEFINED
 #endif
     );
-  } else if(!strcmp(format, "module") || !strcmp(format, "json")) {
+  } else if(str_equal(format, "module") || str_equal(format, "json")) {
     if(JS_IsNull(src) || JS_IsUndefined(src)) {
       JS_ThrowTypeError(ctx, "load hook returned no source for format '%s'", format);
-    } else if((bytes = jsm_source_bytes(ctx, src, &len, &is_str))) {
+    } else if((bytes = jsm_hook_bytes(ctx, src, &len, &is_str))) {
       BOOL is_file = name[0] == '/';
 
-      if(!strcmp(format, "json")) {
+      if(str_equal(format, "json")) {
         DynBuf db;
         size_t i = scan_whitenskip((const void*)bytes, len);
 
@@ -2192,7 +2067,7 @@ done:
 
 /* deregister() of a registerHooks() result; data[0] is the hook object */
 static JSValue
-jsm_hooks_deregister(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst* data) {
+jsm_hook_deregister(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst* data) {
   size_t i;
 
   for(i = 0; i < module_hooks_len; i++) {
@@ -2208,7 +2083,7 @@ jsm_hooks_deregister(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return JS_UNDEFINED;
 }
 
-/**
+/*
  * registerHooks: installs resolve/load hooks (Node's module.registerHooks).
  *
  * ```js
@@ -2216,15 +2091,12 @@ jsm_hooks_deregister(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
  * h.deregister();   // or `using h = registerHooks(...)`
  * ```
  *
- *   object  hooks  { resolve?, load? }; at least one must be a function
- *
- *   returns  { deregister() } (also [Symbol.dispose])
  *   throws   TypeError for a non-object, or no function member
  *
  * a global of qjsm; lib/module.js re-exports it as `registerHooks`.
  */
 static JSValue
-jsm_register_hooks(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+jsm_hook_register(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue r, l, ret, dereg, global, symbol, dispose;
   BOOL ok;
   JSValue* p;
@@ -2249,7 +2121,7 @@ jsm_register_hooks(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   module_hooks[module_hooks_len++] = JS_DupValue(ctx, argv[0]);
 
   ret = JS_NewObject(ctx);
-  dereg = JS_NewCFunctionData(ctx, jsm_hooks_deregister, 0, 0, 1, &argv[0]);
+  dereg = JS_NewCFunctionData(ctx, jsm_hook_deregister, 0, 0, 1, &argv[0]);
   JS_SetPropertyStr(ctx, ret, "deregister", JS_DupValue(ctx, dereg));
 
   global = JS_GetGlobalObject(ctx);
@@ -2269,114 +2141,160 @@ jsm_register_hooks(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-/**
- * Creates a new JSContext with the bignum extensions and builtin-module registry
- * wired up. Also used as the worker-thread new-context callback.
- *
- * @param rt Runtime to create the context in.
- *
- * @returns The new context, or 0 on allocation failure.
- */
-static JSContext*
-jsm_context_new(JSRuntime* rt) {
-  JSContext* ctx;
+static char*
+jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+  if(module_hooks_len)
+    return jsm_hook_normalize(ctx, path, name);
 
-  if(!(ctx = JS_NewContext(rt)))
-    return 0;
+  return jsm_module_normalize_core(ctx, path, name);
+}
 
-  /* Main-thread startup sets this on jsm_rt directly (see main()), but a
-   * worker thread's JSRuntime (created fresh in worker_func(), see
-   * quickjs-libc.c) never goes through that path - this function is also
-   * registered as the worker new-context callback via
-   * js_std_set_worker_new_context_func(), so it must install the loader
-   * itself or bare specifiers (even 'os'/'std', already registered on this
-   * same rt) are unresolvable inside every worker. */
-  jsm_set_module_loader(rt);
+/* the engine's normalize callback: remembers the importer for the load that follows */
+static char*
+jsm_module_normalize_import(JSContext* ctx, const char* path, const char* name, void* opaque) {
+  if(jsm_importer)
+    js_free(ctx, jsm_importer);
 
-  /* loaded_modules is thread_local (jsm_module_find() walks it via
-   * list_for_each) and main() only ever init_list_head()s the main thread's
-   * own copy - a worker thread's copy is zero-initialized, not a valid empty
-   * circular list, so the first jsm_module_find() call from a worker
-   * dereferences NULL. Safe to call again for the main thread too: this
-   * always runs before anything has been added to the list. */
-  init_list_head(&loaded_modules);
+  jsm_importer = js_strdup(ctx, path);
+  return jsm_module_normalize(ctx, path, name, opaque);
+}
 
-#ifdef QJS_BIGNUM_EXT
-  if(bignum_ext) {
-    JS_AddIntrinsicBigFloat(ctx);
-    JS_AddIntrinsicBigDecimal(ctx);
-    JS_AddIntrinsicOperators(ctx);
-    JS_EnableBignumExt(ctx, TRUE);
+/* "native" | "data" | "json" | "js" */
+static const char*
+jsm_module_kind(LoadedModule* lm) {
+  if(jsm_is_native(lm->module))
+    return "native";
+  if(str_start(lm->name, "data:"))
+    return "data";
+  if(str_ends(lm->name, ".json"))
+    return "json";
+  return "js";
+}
+
+/* the `moduleList` / getModule() item for `lm`, listed at `index` */
+static JSValue
+jsm_module_item(JSContext* ctx, LoadedModule* lm, int index) {
+  JSModuleDef* m = lm->module;
+  const char* kind = jsm_module_kind(lm);
+  JSValue obj = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, obj, "index", JS_NewInt32(ctx, index));
+  {
+    const char* start;
+    size_t len = jsm_short_name(lm->name, &start);
+
+    JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, start, len));
   }
 
+  JS_SetPropertyStr(ctx, obj, "kind", JS_NewString(ctx, kind));
+
+  if(jsm_is_builtin(m))
+    JS_SetPropertyStr(ctx, obj, "builtin", JS_TRUE);
+
+  if(!jsm_is_builtin(m) && !str_equal(kind, "data"))
+    JS_SetPropertyStr(ctx, obj, "path", JS_NewString(ctx, lm->name));
+
+  /* the importer is registered after the modules it imports, so resolve it now */
+  if(lm->importer) {
+    JSModuleDef* parent = jsm_module_importer(ctx, lm->importer);
+
+    if(parent && parent != m)
+      JS_SetPropertyStr(ctx, obj, "parent", JS_NewInt32(ctx, jsm_module_indexof(parent)));
+  }
+
+  if(lm->hooked)
+    JS_SetPropertyStr(ctx, obj, "hooked", JS_TRUE);
+
+#ifdef HAVE_JS_GETMODULESTATUS
+  {
+    static const char* const status[] = {
+        "unlinked",
+        "linking",
+        "linked",
+        "evaluating",
+        "evaluating-async",
+        "evaluated",
+    };
+    int st = JS_GetModuleStatus(ctx, m);
+
+    JS_SetPropertyStr(ctx, obj, "status", JS_NewString(ctx, st >= 0 && st < (int)countof(status) ? status[st] : "unknown"));
+  }
 #endif
 
-  jsm_init_modules(ctx);
-  return ctx;
+#ifdef HAVE_JS_ISMODULEASYNC
+  JS_SetPropertyStr(ctx, obj, "async", JS_NewBool(ctx, JS_IsModuleAsync(ctx, m)));
+#endif
+
+  return obj;
 }
 
-/**
- * Getter backing the `builtins` global: lists every registered builtin module.
- *
- * @param ctx JS context to build the array in.
- * @param this_val Unused (property getter receiver).
- *
- * @returns A new array of `{ name, native|compiled: true }` objects.
- */
+/* Getter backing the `moduleList` global: lists every currently loaded module. */
 static JSValue
-jsm_builtins(JSContext* ctx, JSValueConst this_val) {
-  JSValue ret = JS_NewArray(ctx);
-  BuiltinModule* rec;
-  uint32_t i = 0;
-
-  vector_foreach_t(&jsm_builtin_modules, rec) {
-    JSValue entry = JS_NewObjectProto(ctx, JS_NULL);
-
-    JS_SetPropertyStr(ctx, entry, "name", JS_NewString(ctx, rec->module_name));
-    JS_SetPropertyStr(ctx, entry, rec->module_func ? "native" : "compiled", JS_TRUE);
-    JS_SetPropertyUint32(ctx, ret, i++, entry);
-  }
-
-  return ret;
-}
-
-/**
- * Getter backing the `moduleList` global: lists every currently loaded module.
- *
- * @param ctx JS context to build the array in.
- * @param this_val Unused (property getter receiver).
- * @param magic Unused.
- *
- * @returns A new array of per-module info objects.
- */
-static JSValue
-jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
+jsm_module_array(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_NewArray(ctx);
   struct list_head* el;
   uint32_t i = 0;
 
   list_for_each(el, &loaded_modules) {
     LoadedModule* lm = list_entry(el, LoadedModule, link);
-    JSModuleDef* m = lm->module;
 
-    JSValue obj = JS_NewObject(ctx);
-
-    JS_DefinePropertyValueStr(ctx, obj, "builtin", jsm_module_is_builtin(m) ? JS_TRUE : JS_FALSE, JS_PROP_CONFIGURABLE);
-    JS_SetPropertyStr(ctx, obj, "name", JS_NewString(ctx, lm->name));
-    JS_SetPropertyUint32(ctx, ret, i++, obj);
+    JS_SetPropertyUint32(ctx, ret, i, jsm_module_item(ctx, lm, i));
+    ++i;
   }
 
   return ret;
 }
 
-/**
+/* Getter backing the `builtins` global: a module item for every registered builtin;
+   one not loaded yet has no module, so only `name`, `kind` and `builtin`. */
+static JSValue
+jsm_module_builtins(JSContext* ctx, JSValueConst this_val) {
+  JSValue ret = JS_NewArray(ctx);
+  BuiltinModule* rec;
+  uint32_t i = 0;
+  JSAtom delete_props[] = {
+      JS_NewAtom(ctx, "index"),
+      JS_NewAtom(ctx, "builtin"),
+      JS_NewAtom(ctx, "parent"),
+  };
+
+  vector_foreach_t(&jsm_builtins, rec) {
+    JSValue entry = JS_UNDEFINED;
+    struct list_head* el;
+    int index = 0;
+
+    if(rec->def)
+      list_for_each(el, &loaded_modules) {
+        LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+        if(lm->module == rec->def) {
+          entry = jsm_module_item(ctx, lm, index);
+          break;
+        }
+        ++index;
+      }
+
+    if(JS_IsUndefined(entry)) {
+      entry = JS_NewObject(ctx);
+      JS_SetPropertyStr(ctx, entry, "name", JS_NewString(ctx, rec->module_name));
+      JS_SetPropertyStr(ctx, entry, "kind", JS_NewString(ctx, rec->module_func ? "native" : "js"));
+    }
+
+    for(int j = 0; j < countof(delete_props); j++)
+      JS_DeleteProperty(ctx, entry, delete_props[j], 0);
+
+    JS_SetPropertyUint32(ctx, ret, i++, entry);
+  }
+
+  for(int j = 0; j < countof(delete_props); j++)
+    JS_FreeAtom(ctx, delete_props[j]);
+
+  return ret;
+}
+
+/*
  * Computes a pointer's offset from the tracing allocator's fixed base address, for
  * compact "%p" trace output.
- *
- * @param ptr Pointer to compute the offset of.
- * @param dp Tracing state holding the base address.
- *
- * @returns `ptr - dp->base`.
  */
 static inline unsigned long long
 jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
@@ -2384,13 +2302,7 @@ jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
 }
 
 /* default memory allocation functions with memory limitation */
-/**
- * Platform-specific malloc_usable_size() wrapper used by the tracing allocator.
- *
- * @param ptr Pointer previously returned by malloc/realloc.
- *
- * @returns The usable size of the allocation, or 0 on platforms without a way to ask.
- */
+/* Platform-specific malloc_usable_size() wrapper used by the tracing allocator. */
 static inline size_t
 jsm_trace_malloc_usable_size(const void* ptr) {
 #if defined(__APPLE__)
@@ -2408,13 +2320,9 @@ jsm_trace_malloc_usable_size(const void* ptr) {
 #endif
 }
 
-/**
+/*
  * printf-like tracer for -T/--trace allocator events; only understands "%p" and
  * "%zd" conversions (everything else is copied through verbatim).
- *
- * @param s Tracing state (supplies the base pointer for "%p" output).
- * @param fmt Restricted printf format string.
- * @param ... Arguments matching `fmt`.
  */
 static void
 FORMAT_STRING(2, 3) jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, ...) {
@@ -2453,24 +2361,13 @@ FORMAT_STRING(2, 3) jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, .
   va_end(ap);
 }
 
-/**
- * Initializes the tracing allocator's base pointer for offset computation.
- *
- * @param s Tracing state to initialize.
- */
+/* Initializes the tracing allocator's base pointer for offset computation. */
 static void
 jsm_trace_malloc_init(struct trace_malloc_data* s) {
   free(s->base = malloc(8));
 }
 
-/**
- * Tracing malloc(): enforces the malloc_limit and logs "A size -> ptr".
- *
- * @param s Allocator state (byte counters, limit, tracing base).
- * @param size Number of bytes to allocate (must be nonzero).
- *
- * @returns The allocated pointer, or 0 if it would exceed malloc_limit or malloc() failed.
- */
+/* Tracing malloc(): enforces the malloc_limit and logs "A size -> ptr". */
 static void*
 jsm_trace_malloc(JSMallocState* s, size_t size) {
   void* ptr;
@@ -2492,12 +2389,7 @@ jsm_trace_malloc(JSMallocState* s, size_t size) {
   return ptr;
 }
 
-/**
- * Tracing free(): updates byte counters and logs "F ptr".
- *
- * @param s Allocator state.
- * @param ptr Pointer to free (a NULL pointer is a no-op).
- */
+/* Tracing free(): updates byte counters and logs "F ptr". */
 static void
 jsm_trace_free(JSMallocState* s, void* ptr) {
   if(!ptr)
@@ -2509,15 +2401,7 @@ jsm_trace_free(JSMallocState* s, void* ptr) {
   free(ptr);
 }
 
-/**
- * Tracing realloc(): enforces the malloc_limit and logs "R size ptr -> ptr".
- *
- * @param s Allocator state.
- * @param ptr Existing allocation to resize, or NULL to allocate.
- * @param size New size in bytes; 0 frees `ptr` and returns 0.
- *
- * @returns The (possibly moved) pointer, or 0 if it would exceed malloc_limit.
- */
+/* Tracing realloc(): enforces the malloc_limit and logs "R size ptr -> ptr". */
 static void*
 jsm_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
   size_t old_size;
@@ -2563,56 +2447,10 @@ static const JSMallocFunctions trace_mf = {
     jsm_trace_malloc_usable_size,
 };
 
-/**
- * Prints command-line usage and exits(1).
- */
-static void
-jsm_help(void) {
-  printf("QuickJS version %s\n"
-         "usage: %s [options] [file [args]]\n"
-         "-h  --help         list options\n"
-         "-e  --eval EXPR    evaluate EXPR\n"
-         "-i  --interactive  go to interactive mode\n"
-         "-m  --module NAME  load an ES6 module\n"
-         "-I  --include file include an additional file\n"
-         "    --std          make 'std' and 'os' available to the loaded script\n"
-#ifdef QJS_BIGNUM_EXT
-         "    --no-bignum    disable the bignum extensions (BigFloat, "
-         "BigDecimal)\n"
-#if HAVE_QJSCALC
-         "    --qjscalc      load the QJSCalc runtime (default if invoked as "
-         "qjscalc)\n"
-#endif
-#endif
-         "-T  --trace        trace memory allocation\n"
-         "-d  --dump         dump the memory usage stats\n"
-         "    --memory-limit n       limit the memory usage to 'n' bytes\n"
-         "    --stack-size n         limit the stack size to 'n' bytes\n"
-         "-q  --quit         just instantiate the interpreter and quit\n"
-#ifdef SIGUSR1
-         "\n"
-         "  USR1 signal starts interactive mode\n"
-#endif
-         "-l  --list         list modules\n",
-         CONFIG_VERSION,
-         exename);
-  exit(1);
-}
-
-/**
+/*
  *
- * @brief Implements the `evalFile`/`evalBuf` globals: evaluates a script/module from a
+ * Implements the `evalFile`/`evalBuf` globals: evaluates a script/module from a
  * file path or an in-memory string.
- * @param ctx JS context to evaluate in.
- * @param this_val Unused (native function receiver).
- * @param argc Argument count.
- * @param argv argv[0]: source (path for EVAL_FILE, code for EVAL_BUF); optional argv[1]:
- * either a file name override / flags bitmask, or an options object
- * ({backtrace_barrier, async, strict, strip, global}).
- * @param magic EVAL_FILE or EVAL_BUF.
- *
- * @returns The evaluation result (or a `{name, exports}` object if it's a module), or the
- * exception on failure.
  */
 static JSValue
 jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -2689,210 +2527,12 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
-/**
- * Resolves a JS value (module value, numeric index, or name string) to a
- * JSModuleDef, for the various `*Module` globals.
- *
- * @param ctx JS context.
- * @param value Module value / index / name to resolve.
- *
- * @returns The matching JSModuleDef, or 0 if not found.
- */
-JSModuleDef*
-jsm_module_def(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* m;
-
-  if((m = js_module_def(ctx, value)))
-    return m;
-
-  struct list_head* el;
-  int32_t id = -1, i = 0;
-  const char* name = 0;
-
-  if(JS_IsNumber(value))
-    JS_ToInt32(ctx, &id, value);
-  else
-    name = JS_ToCString(ctx, value);
-
-  list_for_each(el, &loaded_modules) {
-    LoadedModule* lm = list_entry(el, LoadedModule, link);
-    m = lm->module;
-
-    if(name) {
-      if(str_equal(lm->name, name))
-        break;
-
-    } else if(id == i)
-      break;
-    i++;
-  }
-
-  if(name)
-    JS_FreeCString(ctx, name);
-
-  return m;
-}
-
-/**
- * Dispatcher behind every `*Module` global
- * (see the FIND_MODULE... magic enum).
- *
- * @param ctx JS context.
- * @param this_val Unused (native function receiver).
- * @param argc Argument count.
- * @param argv Arguments; shape depends on `magic` (see each case).
- * @param magic Selects the operation to perform.
- *
- * @returns The operation's result, or an exception/JS_NULL/JS_UNDEFINED as appropriate.
- */
-static JSValue
-jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue val = JS_EXCEPTION;
-  JSModuleDef* m = 0;
-  const char* name = 0;
-
-  if(magic == RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) {
-    if(!(m = jsm_module_def(ctx, argv[0])))
-      return JS_ThrowTypeError(ctx,
-                               "%s: argument 1 expecting module",
-                               CONST_STRARRAY("normalizeModule",
-                                              "resolveModule",
-                                              "getModuleName",
-                                              "getModuleValue",
-                                              "getModuleObject",
-                                              "getModuleExports",
-                                              "getModuleImports",
-                                              "getModuleReqModules"
-                                              "getModuleMetaObject")[magic - NORMALIZE_MODULE]);
-  } else {
-    name = js_tostring(ctx, argv[0]);
-  }
-
-  if(magic == LOAD_MODULE || magic == REQUIRE_MODULE) {
-    char* path;
-
-    if((path = jsm_module_normalize(ctx, ".", name, 0))) {
-      js_free(ctx, (void*)name);
-      name = path;
-    }
-  }
-
-  switch(magic) {
-    case FIND_MODULE: {
-      if((m = jsm_module_find(ctx, name, 0)))
-        val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
-      else
-        val = JS_NULL;
-
-      break;
-    }
-    case FIND_MODULE_INDEX: {
-      int32_t start = 0;
-
-      if(argc > 1)
-        JS_ToInt32(ctx, &start, argv[1]);
-
-      m = jsm_module_find(ctx, name, start);
-      val = JS_NewInt32(ctx, jsm_module_indexof(m));
-      break;
-    }
-    case LOAD_MODULE: {
-      const char* key = 0;
-
-      if(argc > 1)
-        key = JS_ToCString(ctx, argv[1]);
-
-      if((m = jsm_module_load(ctx, name, key)))
-        val = JS_NewInt32(ctx, jsm_module_indexof(m));
-      else
-        val = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
-
-      if(key)
-        JS_FreeCString(ctx, key);
-
-      break;
-    }
-    case REQUIRE_MODULE: {
-      if((m = jsm_module_load(ctx, name, 0)))
-        val = JS_GetModuleNamespace(ctx, m);
-      else
-        val = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
-
-      break;
-    }
-    case LOCATE_MODULE: {
-      char* s;
-
-      if((s = jsm_module_locate(ctx, name, 0))) {
-        val = JS_NewString(ctx, s);
-        js_free(ctx, s);
-      } else
-        val = JS_NULL;
-
-      break;
-    }
-    case NORMALIZE_MODULE: {
-      const char *path, *module, *file;
-
-      path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
-
-      module = JS_ToCString(ctx, argv[1]);
-
-      if((file = jsm_module_normalize(ctx, path, module, 0))) {
-        val = JS_NewString(ctx, file);
-        js_free(ctx, (char*)file);
-      }
-
-      JS_FreeCString(ctx, path);
-      JS_FreeCString(ctx, module);
-      break;
-    }
-    case RESOLVE_MODULE: {
-      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
-      break;
-    }
-  }
-
-  if(name)
-    js_free(ctx, (char*)name);
-
-  return val;
-}
-
-/* Table of global functions/getters installed by main() via JS_SetPropertyFunctionList();
-   references EVAL_FILE/EVAL_BUF, the module-func magic enum, and jsm_start_interactive4
-   (forward-declared above). */
-static const JSCFunctionListEntry jsm_global_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, EVAL_FILE),
-    JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
-    JS_CGETSET_DEF("builtins", jsm_builtins, 0),
-    JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
-    JS_CGETSET_DEF("moduleEntries", jsm_modules_entries, 0),
-    JS_CFUNC_DEF("registerHooks", 1, jsm_register_hooks),
-    JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
-    JS_CGETSET_MAGIC_DEF("scriptFile", jsm_stack_get, 0, SCRIPT_FILE),
-    JS_CGETSET_MAGIC_DEF("scriptDir", jsm_stack_get, 0, SCRIPT_DIRNAME),
-    JS_CGETSET_MAGIC_DEF("__filename", jsm_stack_get, 0, SCRIPT_FILENAME),
-    JS_CGETSET_MAGIC_DEF("__dirname", jsm_stack_get, 0, SCRIPT_DIRNAME),
-    JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
-    JS_CFUNC_MAGIC_DEF("findModuleIndex", 1, jsm_module_func, FIND_MODULE_INDEX),
-    JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
-    JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
-    JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
-    JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
-    JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
-    JS_CFUNC_DEF("startInteractive", 0, jsm_start_interactive4),
-};
-
-/**
+/*
  * Evaluates the REPL bootstrap script (imports and starts `repl.REPL`) the first
  * time `interactive` is 1.
- *
- * @param ctx JS context to evaluate in.
- * @param global TRUE to bind the REPL instance as `globalThis.repl`, FALSE as `const repl`.
  */
 static void
-jsm_start_interactive(JSContext* ctx, BOOL global) {
+jsm_interactive_start(JSContext* ctx, BOOL global) {
   if(interactive == 1) {
     jsm_promise = js_eval_fmt(ctx,
                               JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_ASYNC,
@@ -2909,85 +2549,367 @@ jsm_start_interactive(JSContext* ctx, BOOL global) {
   }
 }
 
-/**
- * Implements the `startInteractive` global (JS-callable entry point).
- *
- * @param ctx JS context.
- * @param this_val Unused (native function receiver).
- * @param argc Argument count.
- * @param argv Optional argv[0]: boolean, whether to bind as a global (default TRUE).
- *
- * @returns JS_UNDEFINED.
- */
+/* Implements the `startInteractive` global (JS-callable entry point). */
 static JSValue
-jsm_start_interactive4(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+jsm_interactive_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   BOOL global = TRUE;
 
   if(argc > 0)
     global = JS_ToBool(ctx, argv[0]);
 
-  jsm_start_interactive(ctx, global);
-
+  jsm_interactive_start(ctx, global);
   return JS_UNDEFINED;
 }
 
-/**
- * JSJobFunc-shaped wrapper around jsm_start_interactive4(), used to defer REPL
+/*
+ * JSJobFunc-shaped wrapper around jsm_interactive_func(), used to defer REPL
  * startup to a job (see jsm_signal_handler).
- *
- * @param ctx JS context.
- * @param argc Argument count.
- * @param argv Job arguments, forwarded as-is.
- *
- * @returns Same as jsm_start_interactive4().
  */
 static JSValue
-jsm_start_interactive3(JSContext* ctx, int argc, JSValueConst argv[]) {
-  return jsm_start_interactive4(ctx, JS_NULL, argc, argv);
+jsm_interactive_job(JSContext* ctx, int argc, JSValueConst argv[]) {
+  return jsm_interactive_func(ctx, JS_NULL, argc, argv);
 }
 
-#ifndef _WIN32
-/**
- * SIGUSR1 handler: schedules a job to enter interactive mode.
+/* Magic values for jsm_module_func, the dispatcher behind every `*Module` global
+    (findModule, loadModule, normalizeModule, ...). */
+enum {
+  FIND_MODULE,
+  LOAD_MODULE,
+  REQUIRE_MODULE,
+  LOCATE_MODULE,
+  NORMALIZE_MODULE,
+  RESOLVE_MODULE,
+  GET_MODULE_NAME,
+  GET_MODULE_META,
+  GET_MODULE_NS,
+  GET_MODULE,
+};
+
+/*
+ * Dispatcher behind every `*Module` global (see the FIND_MODULE... magic enum).
  *
- * @param arg Signal number.
+ * Modules are always identified by their index in the loaded-module list
+ * (the order of `moduleList`), never by a JS_TAG_MODULE value: findModule()
+ * and loadModule() return that index, and resolveModule(),
+ * normalizeModule(), getModuleName(), getModuleMetaObject() and getModuleNS()
+ * take it (a module name is accepted as well).
  */
+static JSValue
+jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  static const char* const func_names[] = {
+      "findModule",
+      "loadModule",
+      "requireModule",
+      "locateModule",
+      "normalizeModule",
+      "resolveModule",
+      "getModuleName",
+      "getModuleMetaObject",
+      "getModuleNS",
+      "getModule",
+  };
+  JSValue ret = JS_EXCEPTION;
+  JSModuleDef* m = 0;
+  const char* name = 0;
+
+  if(magic == RESOLVE_MODULE || magic == GET_MODULE || magic == GET_MODULE_NAME || magic == GET_MODULE_META || magic == GET_MODULE_NS ||
+     (magic == NORMALIZE_MODULE && (JS_IsModule(argv[0]) || JS_IsNumber(argv[0])))) {
+    if(!(m = jsm_module_def(ctx, argv[0]))) {
+      if(magic == GET_MODULE)
+        return JS_NULL;
+
+      return JS_ThrowTypeError(ctx, "%s: argument 1 expecting module index", func_names[magic]);
+    }
+  } else {
+    name = js_tostring(ctx, argv[0]);
+  }
+
+  if(magic == LOAD_MODULE || magic == REQUIRE_MODULE) {
+    char* path;
+
+    if((path = jsm_module_normalize(ctx, ".", name, 0))) {
+      js_free(ctx, (void*)name);
+      name = path;
+    }
+  }
+
+  switch(magic) {
+    case FIND_MODULE: {
+      int32_t start = 0;
+
+      if(argc > 1)
+        JS_ToInt32(ctx, &start, argv[1]);
+
+      /* the full name first, then the short name ("extendArray") */
+      if(!(m = jsm_module_find(ctx, name, start))) {
+        struct list_head* el;
+        int32_t i = 0;
+
+        list_for_each(el, &loaded_modules) {
+          LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+          if(i++ >= start && jsm_short_match(lm->name, name)) {
+            m = lm->module;
+            break;
+          }
+        }
+      }
+
+      ret = JS_NewInt32(ctx, jsm_module_indexof(m));
+      break;
+    }
+    case LOAD_MODULE: {
+      const char* key = 0;
+
+      if(argc > 1)
+        key = JS_ToCString(ctx, argv[1]);
+
+      if((m = jsm_module_load(ctx, name, key)))
+        ret = JS_NewInt32(ctx, jsm_module_indexof(m));
+      else
+        ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
+
+      if(key)
+        JS_FreeCString(ctx, key);
+
+      break;
+    }
+    case REQUIRE_MODULE: {
+      if((m = jsm_module_load(ctx, name, 0)))
+        ret = JS_GetModuleNamespace(ctx, m);
+      else
+        ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
+
+      break;
+    }
+    case LOCATE_MODULE: {
+      char* s;
+
+      if((s = jsm_module_locate(ctx, name, 0))) {
+        ret = JS_NewString(ctx, s);
+        js_free(ctx, s);
+      } else
+        ret = JS_NULL;
+
+      break;
+    }
+    case NORMALIZE_MODULE: {
+      const char *path, *module, *file;
+
+      path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
+      module = JS_ToCString(ctx, argv[1]);
+
+      if((file = jsm_module_normalize(ctx, path, module, 0))) {
+        ret = JS_NewString(ctx, file);
+        js_free(ctx, (char*)file);
+      }
+
+      JS_FreeCString(ctx, path);
+      JS_FreeCString(ctx, module);
+      break;
+    }
+    case RESOLVE_MODULE: {
+      ret = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
+      break;
+    }
+    case GET_MODULE_NAME: {
+      JSAtom atom = JS_GetModuleName(ctx, m);
+
+      ret = JS_AtomToString(ctx, atom);
+      JS_FreeAtom(ctx, atom);
+      break;
+    }
+    case GET_MODULE_META: {
+      ret = JS_GetImportMeta(ctx, m);
+      break;
+    }
+    case GET_MODULE_NS: {
+      ret = JS_GetModuleNamespace(ctx, m);
+      break;
+    }
+    case GET_MODULE: {
+      struct list_head* el;
+      uint32_t i = 0;
+
+      ret = JS_NULL;
+
+      list_for_each(el, &loaded_modules) {
+        LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+        if(lm->module == m) {
+          ret = jsm_module_item(ctx, lm, i);
+          break;
+        }
+        ++i;
+      }
+      break;
+    }
+  }
+
+  if(name)
+    js_free(ctx, (char*)name);
+
+  return ret;
+}
+
+/* Table of global functions/getters installed by main() via JS_SetPropertyFunctionList();
+   references EVAL_FILE/EVAL_BUF, the module-func magic enum, and jsm_interactive_func
+   (forward-declared above). */
+static const JSCFunctionListEntry jsm_global_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, EVAL_FILE),
+    JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
+    JS_CGETSET_DEF("builtins", jsm_module_builtins, 0),
+    JS_CGETSET_MAGIC_DEF("moduleList", jsm_module_array, 0, 0),
+    JS_CFUNC_DEF("registerHooks", 1, jsm_hook_register),
+    JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
+    JS_CGETSET_MAGIC_DEF("scriptFile", jsm_stack_get, 0, SCRIPT_FILE),
+    JS_CGETSET_MAGIC_DEF("scriptDir", jsm_stack_get, 0, SCRIPT_DIRNAME),
+    JS_CGETSET_MAGIC_DEF("__filename", jsm_stack_get, 0, SCRIPT_FILENAME),
+    JS_CGETSET_MAGIC_DEF("__dirname", jsm_stack_get, 0, SCRIPT_DIRNAME),
+    JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
+    JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
+    JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
+    JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
+    JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
+    JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
+    JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
+    JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META),
+    JS_CFUNC_MAGIC_DEF("getModuleNS", 1, jsm_module_func, GET_MODULE_NS),
+    JS_CFUNC_MAGIC_DEF("getModule", 1, jsm_module_func, GET_MODULE),
+    JS_CFUNC_DEF("startInteractive", 0, jsm_interactive_func),
+};
+
+#ifndef _WIN32
+/* SIGUSR1 handler: schedules a job to enter interactive mode. */
 static void
 jsm_signal_handler(int arg) {
   switch(arg) {
     case SIGUSR1: {
       interactive = 1;
 
-      JS_EnqueueJob(jsm_ctx, &jsm_start_interactive3, 0, 0);
+      JS_EnqueueJob(jsm_ctx, &jsm_interactive_job, 0, 0);
       break;
     }
   }
 }
 #endif
 
-/**
- * JS_SetInterruptHandler() callback; currently a no-op (never requests interruption).
- *
- * @param rt Runtime being checked for interruption.
- * @param opaque The JSContext passed to JS_SetInterruptHandler (unused).
- *
- * @returns 0 (never interrupt).
- */
+/* JS_SetInterruptHandler() callback; currently a no-op (never requests interruption). */
 static int
 jsm_interrupt_handler(JSRuntime* rt, void* opaque) {
-  /*JSContext* ctx = opaque;*/
-
   return 0;
 }
 
-/**
+/*
+ * Installs the module loader on a runtime. With import attributes (unless
+ * JS_MODULE_LOADER_OLD), an attribute key the engine does not support, i.e. anything
+ * but `type`, is a TypeError when the import is resolved, as in js_module_check_attributes().
+ */
+static void
+jsm_set_module_loader(JSRuntime* rt) {
+#ifdef JS_MODULE_LOADER_OLD
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize_import, jsm_module_loader, NULL);
+#else
+  JS_SetModuleLoaderFunc2(rt, jsm_module_normalize_import, jsm_module_loader2, js_module_check_attributes, NULL);
+#endif
+}
+
+/* Populates jsm_builtins from quickjs-builtins.h (once per process). */
+static void
+jsm_init(JSContext* ctx) {
+  dbuf_init2(&jsm_builtins, 0, &vector_realloc);
+
+#define BUILTIN_NATIVE(name) vector_push(&jsm_builtins, (BuiltinModule)RECORD_NATIVE(name));
+#define BUILTIN_COMPILED(name) vector_push(&jsm_builtins, (BuiltinModule)RECORD_COMPILED(name));
+
+  BUILTIN_NATIVE(std)
+  BUILTIN_NATIVE(os)
+
+#include "quickjs-builtins.h"
+
+#undef BUILTIN_NATIVE
+#undef BUILTIN_COMPILED
+}
+
+/*
+ * Creates a new JSContext with the bignum extensions and builtin-module registry
+ * wired up. Also used as the worker-thread new-context callback.
+ */
+static JSContext*
+jsm_context_new(JSRuntime* rt) {
+  JSContext* ctx;
+
+  if(!(ctx = JS_NewContext(rt)))
+    return 0;
+
+  /* Main-thread startup sets this on jsm_rt directly (see main()), but a
+   * worker thread's JSRuntime (created fresh in worker_func(), see
+   * quickjs-libc.c) never goes through that path - this function is also
+   * registered as the worker new-context callback via
+   * js_std_set_worker_new_context_func(), so it must install the loader
+   * itself or bare specifiers (even 'os'/'std', already registered on this
+   * same rt) are unresolvable inside every worker. */
+  jsm_set_module_loader(rt);
+
+  /* loaded_modules is thread_local (jsm_module_find() walks it via
+   * list_for_each) and main() only ever init_list_head()s the main thread's
+   * own copy - a worker thread's copy is zero-initialized, not a valid empty
+   * circular list, so the first jsm_module_find() call from a worker
+   * dereferences NULL. Safe to call again for the main thread too: this
+   * always runs before anything has been added to the list. */
+  init_list_head(&loaded_modules);
+
+#ifdef QJS_BIGNUM_EXT
+  if(bignum_ext) {
+    JS_AddIntrinsicBigFloat(ctx);
+    JS_AddIntrinsicBigDecimal(ctx);
+    JS_AddIntrinsicOperators(ctx);
+    JS_EnableBignumExt(ctx, TRUE);
+  }
+
+#endif
+
+  jsm_init(ctx);
+  return ctx;
+}
+
+/* Prints command-line usage and exits(1). */
+static void
+jsm_help(void) {
+  printf("QuickJS version %s\n"
+         "usage: %s [options] [file [args]]\n"
+         "-h  --help         list options\n"
+         "-e  --eval EXPR    evaluate EXPR\n"
+         "-i  --interactive  go to interactive mode\n"
+         "-m  --module NAME  load an ES6 module\n"
+         "-I  --include file include an additional file\n"
+         "    --std          make 'std' and 'os' available to the loaded script\n"
+#ifdef QJS_BIGNUM_EXT
+         "    --no-bignum    disable the bignum extensions (BigFloat, "
+         "BigDecimal)\n"
+#if HAVE_QJSCALC
+         "    --qjscalc      load the QJSCalc runtime (default if invoked as "
+         "qjscalc)\n"
+#endif
+#endif
+         "-T  --trace        trace memory allocation\n"
+         "-d  --dump         dump the memory usage stats\n"
+         "    --memory-limit n       limit the memory usage to 'n' bytes\n"
+         "    --stack-size n         limit the stack size to 'n' bytes\n"
+         "-q  --quit         just instantiate the interpreter and quit\n"
+#ifdef SIGUSR1
+         "\n"
+         "  USR1 signal starts interactive mode\n"
+#endif
+         "-l  --list         list modules\n",
+         CONFIG_VERSION,
+         exename);
+  exit(1);
+}
+
+/*
  * qjsm entry point: parses CLI options, sets up the runtime/context, loads
  * -I includes and preload modules, then runs -e/a script file/the REPL.
- *
- * @param argc Argument count.
- * @param argv Argument vector.
- *
- * @returns Process exit code (0 on success, 1 on a script/eval failure, 2 on setup failure).
  */
 int
 main(int argc, char** argv) {
@@ -3009,7 +2931,7 @@ main(int argc, char** argv) {
 
   /* load jscalc runtime if invoked as 'qjscalc' */
 #if HAVE_QJSCALC
-  load_jscalc = !strcmp(exename, "qjscalc");
+  load_jscalc = str_equal(exename, "qjscalc");
 #endif
 
   /* cannot use getopt because we want to pass the command line to the script */
@@ -3043,12 +2965,12 @@ main(int argc, char** argv) {
       if((opt = *arg))
         arg++;
 
-      if(opt == 'h' || opt == '?' || !strcmp(longopt, "help")) {
+      if(opt == 'h' || opt == '?' || str_equal(longopt, "help")) {
         jsm_help();
         continue;
       }
 
-      if(opt == 'e' || !strcmp(longopt, "eval")) {
+      if(opt == 'e' || str_equal(longopt, "eval")) {
         if(*arg) {
           expr = arg;
           break;
@@ -3063,7 +2985,7 @@ main(int argc, char** argv) {
         exit(2);
       }
 
-      if(opt == 'I' || !strcmp(longopt, "include")) {
+      if(opt == 'I' || str_equal(longopt, "include")) {
         if(optind >= argc) {
           fprintf(stderr, "expecting filename");
           exit(1);
@@ -3078,12 +3000,12 @@ main(int argc, char** argv) {
         break;
       }
 
-      if(opt == 'i' || !strcmp(longopt, "interactive")) {
+      if(opt == 'i' || str_equal(longopt, "interactive")) {
         interactive = 1;
         break;
       }
 
-      if(opt == 'm' || !strcmp(longopt, "module")) {
+      if(opt == 'm' || str_equal(longopt, "module")) {
         const char* modules = optarg;
         size_t len;
 
@@ -3098,49 +3020,49 @@ main(int argc, char** argv) {
         break;
       }
 
-      if(opt == 'l' || !strcmp(longopt, "list")) {
+      if(opt == 'l' || str_equal(longopt, "list")) {
         list_modules++;
         break;
       }
 
-      if(opt == 'd' || !strcmp(longopt, "dump")) {
+      if(opt == 'd' || str_equal(longopt, "dump")) {
         dump_memory++;
         break;
       }
 
-      if(opt == 'T' || !strcmp(longopt, "trace")) {
+      if(opt == 'T' || str_equal(longopt, "trace")) {
         trace_memory++;
         break;
       }
 
-      if(!strcmp(longopt, "std")) {
+      if(str_equal(longopt, "std")) {
         load_std = 1;
         break;
       }
 
 #ifdef QJS_BIGNUM_EXT
-      if(!strcmp(longopt, "no-bignum")) {
+      if(str_equal(longopt, "no-bignum")) {
         bignum_ext = 0;
         break;
       }
 
-      if(!strcmp(longopt, "bignum")) {
+      if(str_equal(longopt, "bignum")) {
         bignum_ext = 1;
         break;
       }
 #if HAVE_QJSCALC
-      if(!strcmp(longopt, "qjscalc")) {
+      if(str_equal(longopt, "qjscalc")) {
         load_jscalc = 1;
         break;
       }
 #endif
 #endif
-      if(opt == 'q' || !strcmp(longopt, "quit")) {
+      if(opt == 'q' || str_equal(longopt, "quit")) {
         empty_run++;
         break;
       }
 
-      if(!strcmp(longopt, "memory-limit")) {
+      if(str_equal(longopt, "memory-limit")) {
         if(optind >= argc) {
           fprintf(stderr, "expecting memory limit");
           exit(1);
@@ -3150,7 +3072,7 @@ main(int argc, char** argv) {
         break;
       }
 
-      if(!strcmp(longopt, "stack-size")) {
+      if(str_equal(longopt, "stack-size")) {
         if(optind + 1 >= argc) {
           fprintf(stderr, "expecting stack size");
           exit(1);
@@ -3175,6 +3097,7 @@ main(int argc, char** argv) {
   /* set once a script/expr/include fails; with -i this no longer means an immediate exit
      (see below), but the process must still report failure via its exit code */
   BOOL had_error = FALSE;
+  int exit_code = 0;
 
   {
     const char* modules;
@@ -3190,7 +3113,7 @@ main(int argc, char** argv) {
           len++;
       }
 
-      DEBUG_MODULE = vector_counts(&debug_list, "modules");
+      debug_module = vector_counts(&debug_list, "modules");
     }
   }
 
@@ -3234,7 +3157,7 @@ main(int argc, char** argv) {
     BuiltinModule* rec;
 
     printf("Builtin modules:\n");
-    vector_foreach_t(&jsm_builtin_modules, rec) {
+    vector_foreach_t(&jsm_builtins, rec) {
       printf("  %s%s\n", rec->module_name, rec->module_func ? "" : ".js");
     }
 
@@ -3289,6 +3212,9 @@ main(int argc, char** argv) {
 
     dbuf_free(&db);
 
+    jsm_hooks_alive = TRUE;
+    atexit(jsm_atexit);
+
     {
       char** ptr;
 
@@ -3296,7 +3222,7 @@ main(int argc, char** argv) {
         JSModuleDef* m;
 
         if(!(m = jsm_module_load(jsm_ctx, *ptr, 0))) {
-          jsm_dump_error(jsm_ctx);
+          jsm_error_print(jsm_ctx);
           return 1;
         }
       }
@@ -3309,7 +3235,7 @@ main(int argc, char** argv) {
        (or INTERACTIVE=1, or a USR1 signal already having flipped `interactive`), a failure no
        longer tears the process down immediately - it's reported (see each site below) and the
        runtime is left alive, with whatever got defined before the failure, so
-       jsm_start_interactive() further down can still open a REPL on it. Without -i, behavior
+       jsm_interactive_start() further down can still open a REPL on it. Without -i, behavior
        is unchanged: exit immediately. */
     for(size_t i = 0; i < include_count; i++) {
       if(jsm_stack_load(jsm_ctx, include_list[i], FALSE, FALSE) == -1) {
@@ -3341,11 +3267,13 @@ main(int argc, char** argv) {
         if(js_eval_str(jsm_ctx, expr, "<cmdline>", 0) == -1) {
           JSValue exc = JS_GetException(jsm_ctx);
 
-          fprintf(stderr, "Error evaluating expression: ");
-          js_error_print(jsm_ctx, exc);
-          JS_FreeValue(jsm_ctx, exc);
+          if(!jsm_hook_bool(jsm_ctx, "uncaught", 1, &exc)) {
+            fprintf(stderr, "Error evaluating expression: ");
+            js_error_print(jsm_ctx, exc);
+            had_error = TRUE;
+          }
 
-          had_error = TRUE;
+          JS_FreeValue(jsm_ctx, exc);
         }
       } else if(optind >= argc) {
         /* interactive mode */
@@ -3367,15 +3295,40 @@ main(int argc, char** argv) {
       interactive = 1;
 
     if(interactive == 1)
-      jsm_start_interactive(jsm_ctx, TRUE);
+      jsm_interactive_start(jsm_ctx, TRUE);
 
-    js_std_loop(jsm_ctx);
+    /* process.on('beforeExit') may schedule more work: run the loop again while it did.
+       An idle js_std_loop() returns in a few µs, so a longer one means work was done. */
+    for(;;) {
+      struct timespec t0, t1;
+      BOOL jobs;
+
+      js_std_loop(jsm_ctx);
+
+      if(!jsm_hook_bool(jsm_ctx, "beforeExit", 0, 0))
+        break;
+
+      jobs = JS_IsJobPending(jsm_rt);
+      clock_gettime(CLOCK_MONOTONIC, &t0);
+      js_std_loop(jsm_ctx);
+      clock_gettime(CLOCK_MONOTONIC, &t1);
+
+      if(!jobs && (t1.tv_sec - t0.tv_sec) * 1000000000L + (t1.tv_nsec - t0.tv_nsec) < 10000)
+        break;
+    }
   }
 
-  JSValue exception = jsm_get_error(jsm_ctx);
+  JSValue exception = jsm_error_get(jsm_ctx);
 
   if(!JS_IsNull(exception) && !JS_IsUninitialized(exception))
     js_error_print(jsm_ctx, exception);
+
+  if(jsm_hooks_alive) {
+    exit_code = jsm_hook_exit(jsm_ctx, had_error ? 1 : 0);
+    jsm_hooks_alive = FALSE;
+  } else {
+    exit_code = had_error ? 1 : 0;
+  }
 
   if(dump_memory) {
     JSMemoryUsage stats;
@@ -3416,11 +3369,18 @@ main(int argc, char** argv) {
     printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
 
-  return had_error ? 1 : 0;
+  return exit_code;
 
 fail:
+  exit_code = 1;
+
+  if(jsm_hooks_alive) {
+    exit_code = jsm_hook_exit(jsm_ctx, 1);
+    jsm_hooks_alive = FALSE;
+  }
+
   js_std_free_handlers(jsm_rt);
   JS_FreeContext(jsm_ctx);
   JS_FreeRuntime(jsm_rt);
-  return 1;
+  return exit_code;
 }

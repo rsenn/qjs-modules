@@ -5,7 +5,6 @@
 #include <unistd.h>
 #endif
 #include <time.h>
-int performance_counter_gettime(int, struct timespec*);
 #include "defines.h"
 #include <quickjs.h>
 #include <cutils.h>
@@ -102,6 +101,10 @@ int performance_counter_gettime(int, struct timespec*);
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <signal.h>
+#ifndef _WIN32
+#include <grp.h>
+#include <sys/stat.h>
+#endif
 #endif
 
 #ifdef HAVE_FCNTL_H
@@ -239,6 +242,7 @@ qjs_tempnam(const char* dir, const char* template) {
 #define ColorToBits(c) ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | ColorRed(c) << 2)
 
 BOOL JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
+int performance_counter_gettime(int, struct timespec*);
 
 /**
  * \addtogroup quickjs-misc
@@ -248,8 +252,6 @@ BOOL JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
 #ifndef HAVE_MEMMEM
 void* memmem(const void*, size_t, const void*, size_t);
 #endif
-
-// static thread_local int inotify_fd = -1;
 
 typedef struct pcg_state_setseq_64 {
   uint64_t state, inc;
@@ -298,7 +300,7 @@ pcg32_random_bounded_divisionless(uint32_t range) {
     }
   }
 
-  return multiresult >> 32; // [0, range)
+  return multiresult >> 32;
 }
 
 typedef enum {
@@ -348,7 +350,6 @@ clear_screen(intptr_t h, ClearMode mode, BOOL line) {
   if(!FillConsoleOutputAttribute((HANDLE)h, sbi.wAttributes, n, coords, &w))
     return FALSE;
 
-  // SetConsoleCursorPosition((HANDLE)h, coords);
   return TRUE;
 }
 
@@ -542,7 +543,6 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, "quickjs"));
   JS_SetPropertyStr(ctx, ret, "sourceUrl", JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
-
   return ret;
 }
 
@@ -570,7 +570,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   size_t n = inputbuffer_length(&buf);
 
   if(s) {
-    if(n == SIZE_MAX /* && memchr(s, '\0', n)*/)
+    if(n == SIZE_MAX)
       ret = JS_NewString(ctx, (const char*)s);
     else
       ret = JS_NewStringLen(ctx, (const char*)s, n);
@@ -584,14 +584,10 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static JSValue
 js_misc_strcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  const char *a, *b;
   size_t alen, blen;
-
-  a = JS_ToCStringLen(ctx, &alen, argv[0]);
-  b = JS_ToCStringLen(ctx, &blen, argv[1]);
-
-  ret = JS_NewInt32(ctx, byte_diff2(a, alen, b, blen));
+  const char* a = JS_ToCStringLen(ctx, &alen, argv[0]);
+  const char* b = JS_ToCStringLen(ctx, &blen, argv[1]);
+  JSValue ret = JS_NewInt32(ctx, byte_diff2(a, alen, b, blen));
 
   JS_FreeCString(ctx, a);
   JS_FreeCString(ctx, b);
@@ -998,7 +994,13 @@ static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   char x[PATH_MAX];
-  static const char* const links[] = {"/cmdline", "/environ", "/stat", "/maps", "/mounts"};
+  static const char* const links[] = {
+      "/cmdline",
+      "/environ",
+      "/stat",
+      "/maps",
+      "/mounts",
+  };
   static const char seps[] = {'\0', '\0', ' ', '\n', '\n'};
   static const int max_items[] = {-1, -1, -1, 6, 6};
   size_t p = str_copyn(x, "/proc/", sizeof(x));
@@ -1114,21 +1116,6 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-#ifndef __wasi__
-/*static JSValue
-js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  char resolved[PATH_MAX];
-  const char* path = JS_ToCString(ctx, argv[0]);
-  char* result;
-
-#ifndef __wasi__
-  if((result = realpath(path, resolved)))
-#endif
-    return JS_NewString(ctx, result);
-  return JS_NULL;
-}*/
-#endif
-
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *dir = 0, *pfx = 0;
@@ -1148,6 +1135,7 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   if(dir)
     JS_FreeCString(ctx, dir);
+
   if(pfx)
     JS_FreeCString(ctx, pfx);
 
@@ -1188,10 +1176,11 @@ js_misc_glob_errfunc(const char* epath, int eerrno) {
   JSContext* ctx;
 
   if((ctx = js_misc_glob_errfunc_ctx) && JS_IsFunction(ctx, js_misc_glob_errfunc_fn)) {
-    JSValueConst argv[2] = {JS_NewString(ctx, epath), JS_NewInt32(ctx, eerrno)};
-
+    JSValueConst argv[2] = {
+        JS_NewString(ctx, epath),
+        JS_NewInt32(ctx, eerrno),
+    };
     JS_FreeValue(ctx, JS_Call(ctx, js_misc_glob_errfunc_fn, JS_NULL, 2, argv));
-
     JS_FreeValue(ctx, argv[0]);
     JS_FreeValue(ctx, argv[1]);
   }
@@ -1772,7 +1761,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 #endif
     case FUNC_GETSID: {
-      // sret = getsid();
+      ret = getsid(argc > 0 ? js_toint32(ctx, argv[0]) : 0);
       break;
     }
 #if !defined(__wasi__) && !defined(_WIN32)
@@ -1949,6 +1938,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       if(!JS_IsNumber(argv[0]))
         JS_FreeAtom(ctx, name);
+
       break;
     }
   }
@@ -2614,16 +2604,12 @@ enum {
   IS_BIGFLOAT,
   IS_BIGINT,
   IS_BOOL,
-  /*IS_CFUNCTION,
-  IS_BOUNDFUNCTION,
-  IS_JSFUNCTION,*/
   IS_CONSTRUCTOR,
   IS_EMPTYSTRING,
   IS_ERROR,
   IS_EXCEPTION,
   IS_EXTENSIBLE,
   IS_FUNCTION,
-  // IS_HTMLDDA,
   IS_INSTANCEOF,
   IS_INTEGER,
   IS_JOBPENDING,
@@ -2653,9 +2639,6 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
 #endif
     case IS_BIGINT: r = JS_IsBigInt(ctx, arg); break;
     case IS_BOOL: r = JS_IsBool(arg); break;
-    // case IS_CFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_C_FUNCTION; break;
-    // case IS_BOUNDFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_BOUND_FUNCTION; break;
-    // case IS_JSFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_BYTECODE_FUNCTION; break;
     case IS_CONSTRUCTOR: r = JS_IsConstructor(ctx, arg); break;
     case IS_EMPTYSTRING: {
       const char* s = JS_ToCString(ctx, arg);
@@ -2668,7 +2651,6 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
     case IS_FUNCTION: r = JS_IsFunction(ctx, arg); break;
-    // case IS_HTMLDDA: r = JS_VALUE_GET_TAG(arg) == JS_TAG_OBJECT &&  JS_VALUE_GET_PTR(arg)->is_HTMLDDA; break;
     case IS_INSTANCEOF: r = JS_IsInstanceOf(ctx, arg, argv[1]); break;
     case IS_INTEGER: r = JS_IsNumber(arg) && JS_VALUE_GET_TAG(arg) != JS_TAG_FLOAT64; break;
     case IS_JOBPENDING: r = JS_IsJobPending(JS_GetRuntime(ctx)); break;
@@ -2742,8 +2724,6 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if((wd = inotify_add_watch(fd, filename, flags)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
 
-    // printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
-
     ret = JS_NewInt32(ctx, wd);
   } else if(argc >= 2 && JS_IsNumber(argv[1])) {
     int r;
@@ -2754,14 +2734,10 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if((r = inotify_rm_watch(fd, wd)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
 
-    // printf("inotify_add_watch(%d, %d) = %d\n", fd, wd, r);
-
     ret = JS_NewInt32(ctx, r);
   } else {
     if((fd = inotify_init1(IN_NONBLOCK)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_init1(IN_NONBLOCK) failed (%s)", strerror(errno));
-
-    // printf("inotify_init1() = %d\n", fd);
 
     ret = JS_NewInt32(ctx, fd);
   }
@@ -2820,28 +2796,286 @@ js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
+/* signal names as `kill()` accepts them: "SIGINT" and "INT" both give SIGINT. */
+static const struct {
+  const char* name;
+  int number;
+} js_misc_signals[] = {
+#define SIGNAL(n) {#n + 3, n}
+#ifdef SIGHUP
+    SIGNAL(SIGHUP),
+#endif
+#ifdef SIGINT
+    SIGNAL(SIGINT),
+#endif
+#ifdef SIGQUIT
+    SIGNAL(SIGQUIT),
+#endif
+#ifdef SIGILL
+    SIGNAL(SIGILL),
+#endif
+#ifdef SIGTRAP
+    SIGNAL(SIGTRAP),
+#endif
+#ifdef SIGABRT
+    SIGNAL(SIGABRT),
+#endif
+#ifdef SIGBUS
+    SIGNAL(SIGBUS),
+#endif
+#ifdef SIGFPE
+    SIGNAL(SIGFPE),
+#endif
+#ifdef SIGKILL
+    SIGNAL(SIGKILL),
+#endif
+#ifdef SIGUSR1
+    SIGNAL(SIGUSR1),
+#endif
+#ifdef SIGSEGV
+    SIGNAL(SIGSEGV),
+#endif
+#ifdef SIGUSR2
+    SIGNAL(SIGUSR2),
+#endif
+#ifdef SIGPIPE
+    SIGNAL(SIGPIPE),
+#endif
+#ifdef SIGALRM
+    SIGNAL(SIGALRM),
+#endif
+#ifdef SIGTERM
+    SIGNAL(SIGTERM),
+#endif
+#ifdef SIGSTKFLT
+    SIGNAL(SIGSTKFLT),
+#endif
+#ifdef SIGCHLD
+    SIGNAL(SIGCHLD),
+#endif
+#ifdef SIGCONT
+    SIGNAL(SIGCONT),
+#endif
+#ifdef SIGSTOP
+    SIGNAL(SIGSTOP),
+#endif
+#ifdef SIGTSTP
+    SIGNAL(SIGTSTP),
+#endif
+#ifdef SIGTTIN
+    SIGNAL(SIGTTIN),
+#endif
+#ifdef SIGTTOU
+    SIGNAL(SIGTTOU),
+#endif
+#ifdef SIGURG
+    SIGNAL(SIGURG),
+#endif
+#ifdef SIGXCPU
+    SIGNAL(SIGXCPU),
+#endif
+#ifdef SIGXFSZ
+    SIGNAL(SIGXFSZ),
+#endif
+#ifdef SIGVTALRM
+    SIGNAL(SIGVTALRM),
+#endif
+#ifdef SIGPROF
+    SIGNAL(SIGPROF),
+#endif
+#ifdef SIGWINCH
+    SIGNAL(SIGWINCH),
+#endif
+#ifdef SIGIO
+    SIGNAL(SIGIO),
+#endif
+#ifdef SIGPOLL
+    SIGNAL(SIGPOLL),
+#endif
+#ifdef SIGPWR
+    SIGNAL(SIGPWR),
+#endif
+#ifdef SIGSYS
+    SIGNAL(SIGSYS),
+#endif
+#ifdef SIGBREAK
+    SIGNAL(SIGBREAK),
+#endif
+#undef SIGNAL
+};
+
+/* converts a signal number or name ("SIGINT", "INT") to its number.
+ *
+ *   JSValueConst  value  a number, or a name with or without the "SIG" prefix
+ *   int*          sig    receives the signal number
+ *
+ *   returns 0, or -1 with an exception pending (TypeError for an unknown name).
+ */
+static int
+js_misc_signal(JSContext* ctx, JSValueConst value, int* sig) {
+  const char* str;
+
+  if(JS_IsNumber(value))
+    return JS_ToInt32(ctx, sig, value);
+
+  if(!(str = JS_ToCString(ctx, value)))
+    return -1;
+
+  const char* name = strncasecmp(str, "SIG", 3) ? str : str + 3;
+
+  for(size_t i = 0; i < countof(js_misc_signals); i++) {
+    if(!strcasecmp(name, js_misc_signals[i].name)) {
+      *sig = js_misc_signals[i].number;
+      JS_FreeCString(ctx, str);
+      return 0;
+    }
+  }
+
+  JS_ThrowTypeError(ctx, "unknown signal name '%s'", str);
+  JS_FreeCString(ctx, str);
+  return -1;
+}
+
 static JSValue
 js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  uint64_t handle;
-  uint32_t exitcode = 0;
-
-  JS_ToIndex(ctx, &handle, argv[0]);
+  int sig = SIGTERM;
+  int64_t handle = js_toint64(ctx, argv[0]);
 
   if(argc > 1)
-    JS_ToUint32(ctx, &exitcode, argv[1]);
+    if(js_misc_signal(ctx, argv[1], &sig))
+      return JS_EXCEPTION;
 
-#if !(defined(_WIN32) && !defined(__MSYS__))
-  else
-    exitcode = SIGTERM;
-
-  ret = js_syscallerror_result(ctx, "kill", kill(handle, exitcode));
+#if defined(_WIN32) && !(defined(__MSYS__) || defined(__CYGWIN__))
+  ret = JS_NewBool(ctx, TerminateProcess((HANDLE)handle, sig));
 #else
-  ret = JS_NewBool(ctx, TerminateProcess((HANDLE)handle, exitcode));
+  ret = js_syscallerror_result(ctx, "kill", kill(handle, sig));
 #endif
 
   return ret;
 }
+
+static JSValue
+js_misc_signum(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int sig = SIGTERM;
+
+  if(argc > 0)
+    if(js_misc_signal(ctx, argv[0], &sig))
+      return JS_EXCEPTION;
+
+  return JS_NewInt32(ctx, sig);
+}
+
+static JSValue
+js_misc_signame(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  if(argc > 0 && JS_IsNumber(argv[0])) {
+    int sig = js_toint32(ctx, argv[0]);
+
+    for(size_t i = 0; i < countof(js_misc_signals); i++)
+      if(js_misc_signals[i].number == sig)
+        return JS_NewString(ctx, js_misc_signals[i].name);
+  }
+
+  return JS_UNDEFINED;
+}
+
+#ifndef _WIN32
+/* umask: sets the file mode creation mask and returns the previous one.
+ *
+ * ```js
+ * const old = umask(0o22);
+ * ```
+ *
+ *   number  mask  new mask, 0..0o777
+ *
+ *   returns  the previous mask
+ *   throws   RangeError if `mask` is outside 0..0o777
+ */
+static JSValue
+js_misc_umask(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t mask;
+
+  if(JS_ToInt32(ctx, &mask, argv[0]))
+    return JS_EXCEPTION;
+
+  if(mask < 0 || mask > 0777)
+    return JS_ThrowRangeError(ctx, "umask: mask out of range");
+
+  return JS_NewInt32(ctx, umask(mask));
+}
+
+/* setgroups: sets the supplementary group list of the process.
+ *
+ * ```js
+ * setgroups([4, 24, 27]);
+ * ```
+ *
+ *   number[]  groups  group ids
+ *
+ *   throws   SyscallError (EPERM without privileges)
+ */
+static JSValue
+js_misc_setgroups(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int64_t len, i;
+  gid_t* groups;
+  JSValue ret;
+
+  if(JS_ToInt64(ctx, &len, JS_GetPropertyStr(ctx, argv[0], "length")) || len < 0)
+    return JS_ThrowTypeError(ctx, "setgroups: argument 1 must be an array");
+
+  if(!(groups = js_malloc(ctx, sizeof(gid_t) * (len + 1))))
+    return JS_EXCEPTION;
+
+  for(i = 0; i < len; i++) {
+    JSValue v = JS_GetPropertyUint32(ctx, argv[0], i);
+    int32_t g;
+    int r = JS_ToInt32(ctx, &g, v);
+
+    JS_FreeValue(ctx, v);
+
+    if(r) {
+      js_free(ctx, groups);
+      return JS_EXCEPTION;
+    }
+
+    groups[i] = g;
+  }
+
+  ret = js_syscallerror_result(ctx, "setgroups", setgroups(len, groups));
+  js_free(ctx, groups);
+  return ret;
+}
+
+/* initgroups: sets the group list to the groups `user` belongs to plus `group`.
+ *
+ * ```js
+ * initgroups("daemon", 1);
+ * ```
+ *
+ *   string  user   user name
+ *   number  group  extra group id
+ *
+ *   throws   SyscallError (EPERM without privileges)
+ */
+static JSValue
+js_misc_initgroups(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char* user;
+  int32_t group;
+  JSValue ret;
+
+  if(!(user = JS_ToCString(ctx, argv[0])))
+    return JS_EXCEPTION;
+
+  if(JS_ToInt32(ctx, &group, argv[1])) {
+    JS_FreeCString(ctx, user);
+    return JS_EXCEPTION;
+  }
+
+  ret = js_syscallerror_result(ctx, "initgroups", initgroups(user, group));
+  JS_FreeCString(ctx, user);
+  return ret;
+}
+#endif
 
 #if HAVE_SETSID
 static JSValue
@@ -3191,7 +3425,7 @@ js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
-#if !defined(_WIN32)
+#ifndef _WIN32
 static int64_t
 timespec_to_ms(const struct timespec* tv) {
   return (int64_t)tv->tv_sec * 1000 + (tv->tv_nsec / 1000000);
@@ -3250,7 +3484,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, obj, "gid", new64.u(ctx, st.st_gid));
     JS_SetPropertyStr(ctx, obj, "rdev", new64.u(ctx, st.st_rdev));
     JS_SetPropertyStr(ctx, obj, "size", new64.u(ctx, st.st_size));
-#if !defined(_WIN32)
+#ifndef _WIN32
     JS_SetPropertyStr(ctx, obj, "blocks", new64.u(ctx, st.st_blocks));
 #endif
 
@@ -3314,7 +3548,7 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 }
 
 #ifndef __wasi__
-#if defined(_WIN32)
+#ifdef _WIN32
 
 /* Windows 10 built-in VT100 emulation */
 #define __ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
@@ -3430,7 +3664,6 @@ js_misc_enqueue_job(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
-    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
@@ -3454,6 +3687,112 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("exec", 2, js_misc_exec),
 #endif
     JS_CFUNC_DEF("kill", 1, js_misc_kill),
+    JS_CFUNC_DEF("signum", 1, js_misc_signum),
+    JS_CFUNC_DEF("signame", 1, js_misc_signame),
+#ifdef SIGHUP
+    JS_CONSTANT(SIGHUP),
+#endif
+#ifdef SIGINT
+    JS_CONSTANT(SIGINT),
+#endif
+#ifdef SIGQUIT
+    JS_CONSTANT(SIGQUIT),
+#endif
+#ifdef SIGILL
+    JS_CONSTANT(SIGILL),
+#endif
+#ifdef SIGTRAP
+    JS_CONSTANT(SIGTRAP),
+#endif
+#ifdef SIGABRT
+    JS_CONSTANT(SIGABRT),
+#endif
+#ifdef SIGBUS
+    JS_CONSTANT(SIGBUS),
+#endif
+#ifdef SIGFPE
+    JS_CONSTANT(SIGFPE),
+#endif
+#ifdef SIGKILL
+    JS_CONSTANT(SIGKILL),
+#endif
+#ifdef SIGUSR1
+    JS_CONSTANT(SIGUSR1),
+#endif
+#ifdef SIGSEGV
+    JS_CONSTANT(SIGSEGV),
+#endif
+#ifdef SIGUSR2
+    JS_CONSTANT(SIGUSR2),
+#endif
+#ifdef SIGPIPE
+    JS_CONSTANT(SIGPIPE),
+#endif
+#ifdef SIGALRM
+    JS_CONSTANT(SIGALRM),
+#endif
+#ifdef SIGTERM
+    JS_CONSTANT(SIGTERM),
+#endif
+#ifdef SIGSTKFLT
+    JS_CONSTANT(SIGSTKFLT),
+#endif
+#ifdef SIGCHLD
+    JS_CONSTANT(SIGCHLD),
+#endif
+#ifdef SIGCONT
+    JS_CONSTANT(SIGCONT),
+#endif
+#ifdef SIGSTOP
+    JS_CONSTANT(SIGSTOP),
+#endif
+#ifdef SIGTSTP
+    JS_CONSTANT(SIGTSTP),
+#endif
+#ifdef SIGTTIN
+    JS_CONSTANT(SIGTTIN),
+#endif
+#ifdef SIGTTOU
+    JS_CONSTANT(SIGTTOU),
+#endif
+#ifdef SIGURG
+    JS_CONSTANT(SIGURG),
+#endif
+#ifdef SIGXCPU
+    JS_CONSTANT(SIGXCPU),
+#endif
+#ifdef SIGXFSZ
+    JS_CONSTANT(SIGXFSZ),
+#endif
+#ifdef SIGVTALRM
+    JS_CONSTANT(SIGVTALRM),
+#endif
+#ifdef SIGPROF
+    JS_CONSTANT(SIGPROF),
+#endif
+#ifdef SIGWINCH
+    JS_CONSTANT(SIGWINCH),
+#endif
+#ifdef SIGIO
+    JS_CONSTANT(SIGIO),
+#endif
+#ifdef SIGPOLL
+    JS_CONSTANT(SIGPOLL),
+#endif
+#ifdef SIGPWR
+    JS_CONSTANT(SIGPWR),
+#endif
+#ifdef SIGSYS
+    JS_CONSTANT(SIGSYS),
+#endif
+#ifdef SIGBREAK
+    JS_CONSTANT(SIGBREAK),
+#endif
+#ifndef _WIN32
+    JS_CFUNC_DEF("umask", 1, js_misc_umask),
+    JS_CFUNC_DEF("setgroups", 1, js_misc_setgroups),
+    JS_CFUNC_DEF("initgroups", 2, js_misc_initgroups),
+#endif
 #if HAVE_SETSID
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif
@@ -3559,10 +3898,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slicearraybuffer),
-    // JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
-    // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),
     JS_CFUNC_DEF("compareArrayBuffer", 2, js_misc_comparearraybuffer),
 #if HAVE_FMEMOPEN
@@ -3611,7 +3948,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
     JS_CFUNC_MAGIC_DEF("setTextAttribute", 2, js_misc_settextattr, SET_TEXT_ATTRIBUTES),
     JS_CFUNC_MAGIC_DEF("setTextColor", 2, js_misc_settextattr, SET_TEXT_COLOR),
-#if defined(_WIN32)
+#ifdef _WIN32
     JS_CFUNC_MAGIC_DEF("setConsoleMode", 2, js_misc_consolemode, SET_CONSOLE_MODE),
     JS_CFUNC_MAGIC_DEF("getConsoleMode", 1, js_misc_consolemode, GET_CONSOLE_MODE),
 #endif
@@ -3672,16 +4009,12 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isBigFloat", 1, js_misc_is, IS_BIGFLOAT),
     JS_CFUNC_MAGIC_DEF("isBigInt", 1, js_misc_is, IS_BIGINT),
     JS_CFUNC_MAGIC_DEF("isBool", 1, js_misc_is, IS_BOOL),
-    /*JS_CFUNC_MAGIC_DEF("isCFunction", 1, js_misc_is, IS_CFUNCTION),
-    JS_CFUNC_MAGIC_DEF("isBoundFunction", 1, js_misc_is, IS_BOUNDFUNCTION),
-    JS_CFUNC_MAGIC_DEF("isJSFunction", 1, js_misc_is, IS_JSFUNCTION),*/
     JS_CFUNC_MAGIC_DEF("isConstructor", 1, js_misc_is, IS_CONSTRUCTOR),
     JS_CFUNC_MAGIC_DEF("isEmptyString", 1, js_misc_is, IS_EMPTYSTRING),
     JS_CFUNC_MAGIC_DEF("isError", 1, js_misc_is, IS_ERROR),
     JS_CFUNC_MAGIC_DEF("isException", 1, js_misc_is, IS_EXCEPTION),
     JS_CFUNC_MAGIC_DEF("isExtensible", 1, js_misc_is, IS_EXTENSIBLE),
     JS_CFUNC_MAGIC_DEF("isFunction", 1, js_misc_is, IS_FUNCTION),
-    // JS_CFUNC_MAGIC_DEF("isHTMLDDA", 1, js_misc_is, IS_HTMLDDA),
     JS_CFUNC_MAGIC_DEF("isInstanceOf", 1, js_misc_is, IS_INSTANCEOF),
     JS_CFUNC_MAGIC_DEF("isInteger", 1, js_misc_is, IS_INTEGER),
     JS_CFUNC_MAGIC_DEF("isJobPending", 1, js_misc_is, IS_JOBPENDING),

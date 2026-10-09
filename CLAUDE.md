@@ -68,6 +68,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Skills
+
+**Always load the `quickjs-native-bindings` and `quickjs-scripting` skills** at the
+start of any work in this repo, before reading or editing code.
+
 ## Project Philosophy
 
 ### Core Mission

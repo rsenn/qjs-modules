@@ -182,9 +182,8 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   back as real implementations (`Buffer` and `readline`, 2026-10-07). `lib/perf_hooks.js` now has User
   Timing (`mark`, `measure`, entries, `PerformanceObserver`, 2026-10-08); missing: `timerify`,
   histograms, `monitorEventLoopDelay`, `eventLoopUtilization`.
-- `lib/module.js` (Node's `node:module`) only implements `builtinModules`, `isBuiltin()`,
-  `createRequire()`, `registerHooks()`. Missing: `Module` class, async `register()` hooks,
-  `syncBuiltinESMExports()`, `SourceMap`.
+- `lib/module.js` (Node's `node:module`) covers the whole export list; `register()`,
+  `.node` addons and the compile cache are refused, see `doc/js/module.md`.
 
 **WebAssembly: `.wasm` imports** *(investigated 2026-10-06)* — the `WebAssembly` global is
 done (`lib/webassembly.js`, opt-in, with `*Streaming`); `.wasm` ESM import is done (`lib/wasm-loader.js`, opt-in, instance phase only); wasm3 is the leading runtime candidate (see the findings below).
@@ -331,7 +330,7 @@ node:-prefix audit):
   `"exports"`, or `"main"` fields (`src/qjsm.c:jsm_module_package()` only handles an internal
   `"_moduleAliases"` map) — real Node package layouts resolve wrong without opting into
   the `lib/nodeModulesLoader.js` demo loader.
-- `.mjs` forces module-eval mode (`src/qjsm.c:jsm_module_load_hooked()`) but `.cjs` has no special handling
+- `.mjs` forces module-eval mode (`src/qjsm.c:jsm_hook_load()`) but `.cjs` has no special handling
   (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
   `"type"`).
 - No global `require()` by default (only via explicit `import` of `lib/require.js`) —
@@ -360,8 +359,6 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
 - `fs`: the whole `*Sync`-free async-callback API (`readFile`, `writeFile`, `access`,
   `stat`, `mkdir`, `rm`, `cp`, `glob`, ...), `promises`, `ReadStream`/`WriteStream` -
   qjsm's `fs` is sync-only plus a hand-rolled `fsPromises`, no callback style at all
-- `module`: `Module` class, async `register()`, `syncBuiltinESMExports()`, `SourceMap` (already
-  tracked above)
 - `path`: `posix`, `win32`, `matchesGlob`, `toNamespacedPath`
 - `perf_hooks`: `Performance*` classes, `createHistogram`, `monitorEventLoopDelay`
 - `process`: has `cwd`, `chdir`, `kill`, `stdin`/`stdout`/`stderr`, `exit`, `hrtime`,
@@ -597,8 +594,8 @@ done inline since each is either large or a judgment call on API shape.
   (`had_error`, `sargs`, `include_list`, ...) that would need to move into a small context
   struct or be threaded through as parameters.
 - **`jsm_module_func()` is a single function** dispatching on a `magic` enum
-  that mixes unrelated concerns: module bookkeeping (`ADD_MODULE`/`FIND_MODULE`/
-  `FIND_MODULE_INDEX`), path resolution (`NORMALIZE_MODULE`/`LOCATE_MODULE`/`LOAD_MODULE`), and
+  that mixes unrelated concerns: module bookkeeping (`ADD_MODULE`/`FIND_MODULE`),
+  path resolution (`NORMALIZE_MODULE`/`LOCATE_MODULE`/`LOAD_MODULE`), and
   the `MODULE_LOADER` hook registry.
 - **`jsm_module_loader()` (the `JSModuleLoaderFunc` implementation) does six distinct things
   in one function** (~140 lines) with several `goto end;`/`goto again;` jumps: `data:` URL
@@ -703,3 +700,33 @@ of cyaml.
 6. Remove/resolve the Tier 12 entry above once this lands (either fold its `read()` request
    into this work, or explicitly drop the yread.c push-parser design if cyaml covers the
    need without it).
+
+## Tier 14 — `lib/process.js` gaps vs. Node.js `process` (updated 2026-10-09)
+
+Compared against the Node.js `process` docs (`/tmp/process.md`) and the export list
+of `node:process` (`/tmp/process.describe.txt`). Everything in that export list is
+implemented now (including named exports); events `exit beforeExit
+uncaughtException uncaughtExceptionMonitor unhandledRejection rejectionHandled
+warning SIG*` are wired through `__qjsm_hooks__` (`src/qjsm.c`). What differs:
+
+- **stubs:** `getActiveResourcesInfo()` returns `[]`; `binding()` always throws;
+  `allowedNodeEnvironmentFlags` is an empty `Set`; `features` reports no
+  inspector/tls/uv; `report` has `getReport()/writeReport()` with a small payload.
+- **not implemented:** `channel connected send disconnect` (no IPC),
+  `permission`, `noDeprecation throwDeprecation traceDeprecation
+  traceProcessWarnings` (+ the `DeprecationWarning` handling), `'message'`,
+  `'disconnect'`, `'worker'`, `'workerMessage'` events.
+- **approximations:** CPU times come from `/proc/*/stat` ticks (10 ms resolution);
+  `memoryUsage()` has only a real `rss`; `resourceUsage()` fills fields it cannot
+  read with 0; `uptime()` uses `/proc` start time; `getBuiltinModule()` loads
+  through `requireModule()`; `dlopen()` ignores `flags`; `setSourceMapsEnabled()`
+  only records the flag; `getgroups()` reads `/proc/self/status`.
+- **event limits:** exceptions inside timer/IO callbacks never reach
+  `uncaughtException` (printed by `js_std_loop()`); a rejection listener must exist
+  before the rejection; `std.exit(n)` reports code 1 to `exit` listeners;
+  `beforeExit` re-entry is decided by the loop taking >10 µs.
+- **behaviour:** `nextTick` runs as a promise job (order vs. `Promise.then`
+  differs from Node); `stdin/stdout/stderr` are `std` FILE objects with Node's
+  `fd isTTY columns rows getWindowSize getColorDepth hasColors` added, not
+  streams (per CLAUDE.md, no Node streams); `emitWarning()` ignores `ctor`;
+  `uid gid euid egid` accessors remain as non-Node extras.
