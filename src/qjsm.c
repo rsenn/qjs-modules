@@ -67,6 +67,22 @@
   if(debug_module >= (level)) \
     printf("(%zu) %-21s" fmt "\n", jsm_stack_count(), __FUNCTION__, args);
 
+/* Logs one line of the module-load tree (verbosity >= 1): `kind` is a fixed-width tag, one
+ * "| " guide per module currently being loaded indents it under the module that loads it.
+ *
+ * ```
+ * import  lib/process.js: "os" => os
+ * load    os (builtin)
+ * | import  lib/util.js: "path" => path
+ * ```
+ */
+#define DEBUG_TREE(kind, fmt, args...) \
+  if(debug_module >= 1) { \
+    for(size_t d_ = 0; d_ < jsm_stack_count(); d_++) \
+      fputs("| ", stdout); \
+    printf("%-7s " fmt "\n", kind, args); \
+  }
+
 /* --- extern declarations for functions defined elsewhere (quickjs-libc.c / libc) --- */
 
 #if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID)
@@ -208,6 +224,30 @@ BUILTIN_COMPILED(qjscalc);
 static size_t jsm_stack_count(void);
 static JSModuleDef* jsm_module_at(int);
 static JSModuleDef* jsm_hook_load(JSContext*, const char*, void*);
+
+/* shortens a path for debug output: "/cwd/lib/a.js" -> "lib/a.js", "<input>" -> "<main>".
+ *
+ * borrowed: the result points into `path` or a static string. */
+static const char*
+jsm_debug_path(const char* path) {
+  static thread_local char cwd[4096];
+  const char* p;
+  size_t n;
+
+  if(!strcmp(path, "<input>"))
+    return "<main>";
+
+  if(!cwd[0] && !getcwd(cwd, sizeof(cwd) - 1))
+    cwd[0] = '\0';
+
+  if((n = strlen(cwd)) && !strncmp(path, cwd, n) && path[n] == '/')
+    return path + n + 1;
+
+  if((p = strstr(path, "/qjs-modules/")))
+    return p + 13;
+
+  return path;
+}
 
 /* --- functions --- */
 
@@ -653,28 +693,104 @@ jsm_builtin_is_native(const char* name) {
 }
 
 #ifndef JS_MODULE_LOADER_OLD
-/* does the import being loaded carry `with { type: 'native' }`. */
-static BOOL
-jsm_import_is_native(JSContext* ctx) {
+/* reads an import attribute of the import being loaded as a C string.
+ *
+ *   const char*  key   attribute name, e.g. "type"
+ *
+ *   returns const char*  the value to JS_FreeCString(), or NULL if unset
+ */
+static const char*
+jsm_import_attribute(JSContext* ctx, const char* key) {
   JSValue v;
-  const char* str;
-  BOOL ret = FALSE;
+  const char* str = 0;
 
   if(JS_IsUndefined(JSM_IMPORT_ATTRIBUTES()))
-    return FALSE;
+    return 0;
 
-  v = JS_GetPropertyStr(ctx, JSM_IMPORT_ATTRIBUTES(), "type");
+  v = JS_GetPropertyStr(ctx, JSM_IMPORT_ATTRIBUTES(), key);
 
-  if((str = JS_ToCString(ctx, v))) {
-    ret = str_equal(str, "native");
+  if(!JS_IsUndefined(v))
+    str = JS_ToCString(ctx, v);
+
+  JS_FreeValue(ctx, v);
+  return str;
+}
+
+/* which modules the import being loaded may resolve to.
+ *
+ * ```js
+ * import x from 'm' with { type: 'native' };  // 1
+ * import x from 'm' with { native: 'true' };  // 1
+ * import x from 'm' with { native: 'false' }; // 0
+ * import x from 'm';                          // -1
+ * ```
+ *
+ *   returns int  1 only native modules, 0 only non-native, -1 either
+ */
+static int
+jsm_import_native(JSContext* ctx) {
+  const char* str;
+  int ret = -1;
+
+  if((str = jsm_import_attribute(ctx, "type"))) {
+    if(str_equal(str, "native"))
+      ret = 1;
     JS_FreeCString(ctx, str);
   }
 
-  JS_FreeValue(ctx, v);
+  if((str = jsm_import_attribute(ctx, "native"))) {
+    ret = str_equal(str, "true") ? 1 : str_equal(str, "false") ? 0 : ret;
+    JS_FreeCString(ctx, str);
+  }
+
+  return ret;
+}
+
+/* checks the keys and values of import attributes: `type` and `native` only.
+ *
+ * ```js
+ * import x from 'm' with { native: 'maybe' }; // TypeError
+ * ```
+ *
+ *   returns int  0 if valid, -1 with an exception pending
+ */
+static int
+jsm_check_attributes(JSContext* ctx, void* opaque, JSValueConst attributes) {
+  JSPropertyEnum* tab;
+  uint32_t i, len;
+  int ret = 0;
+
+  if(JS_GetOwnPropertyNames(ctx, &tab, &len, attributes, JS_GPN_ENUM_ONLY | JS_GPN_STRING_MASK))
+    return -1;
+
+  for(i = 0; i < len && !ret; i++) {
+    const char* key = JS_AtomToCString(ctx, tab[i].atom);
+
+    if(!key) {
+      ret = -1;
+    } else if(str_equal(key, "native")) {
+      JSValue v = JS_GetProperty(ctx, attributes, tab[i].atom);
+      const char* val = JS_ToCString(ctx, v);
+
+      if(!val)
+        ret = -1;
+      else if(!str_equal(val, "true") && !str_equal(val, "false"))
+        (void)JS_ThrowTypeError(ctx, "import attribute 'native' must be 'true' or 'false', not '%s'", val), ret = -1;
+
+      JS_FreeCString(ctx, val);
+      JS_FreeValue(ctx, v);
+    } else if(!str_equal(key, "type")) {
+      (void)JS_ThrowTypeError(ctx, "import attribute '%s' is not supported", key), ret = -1;
+    }
+
+    JS_FreeCString(ctx, key);
+  }
+
+  JS_FreePropertyEnum(ctx, tab, len);
   return ret;
 }
 #else
-#define jsm_import_is_native(ctx) FALSE
+#define jsm_import_native(ctx) (-1)
 #endif
 
 /*
@@ -995,7 +1111,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
       if(JS_IsString(target)) {
         file = js_tostring(ctx, target);
 
-        DEBUG_MODULE(1, "(2) %-30s => %s (package.json)", module, file);
+        DEBUG_TREE("alias", "%s => %s (package.json)", module, file);
       }
 
       JS_FreeValue(ctx, target);
@@ -1334,7 +1450,8 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *s = 0, *tmp, *name = js_strdup(ctx, module_name);
   JSModuleDef* m = 0;
   int i = 0;
-  BOOL hooked = FALSE, native = jsm_import_is_native(ctx);
+  BOOL hooked = FALSE;
+  int native = jsm_import_native(ctx); /* 1 native only, 0 non-native only, -1 either */
 
   DEBUG_MODULE(2, "(i: %d, name: \"%s\", opaque: %p)", i++, name, opaque);
 
@@ -1379,8 +1496,8 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     name = tmp;
   }
 
-  if(native && !str_ends(name, CONFIG_SHEXT) && !jsm_builtin_is_native(name)) {
-    /* type 'native': "foo" can only be a shared object, so search "foo.so" */
+  if(native > 0 && !str_ends(name, CONFIG_SHEXT) && !jsm_builtin_is_native(name)) {
+    /* native: "foo" can only be a shared object, so search "foo.so" */
     size_t len = strlen(name);
 
     if((tmp = js_malloc(ctx, len + sizeof(CONFIG_SHEXT)))) {
@@ -1394,10 +1511,34 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   if(!name[path_component1(name)]) {
     BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(name)) && (!native || rec->module_func)) {
-      DEBUG_MODULE(1, "(i: %d) \"%s\" -> \"%s\" (builtin)", i, module_name, rec->module_name);
+    if((rec = jsm_builtin_find(name)) && (native < 0 || !native == !rec->module_func)) {
+      DEBUG_TREE("load", "%s (builtin%s)", rec->module_name, rec->module_func ? ", native" : "");
       m = jsm_builtin_init(ctx, rec);
       goto end;
+    }
+  }
+
+  if(native == 0 && !module_has_suffix(name) && !str_ends(name, ".json") && !(!name[path_component1(name)] && jsm_builtin_find(name))) {
+    /* native: false, "foo" can only be a script: "foo.js", else "foo/index.js" */
+    static const char* const suffixes[] = {".js", "/index.js"};
+
+    for(size_t k = 0; k < countof(suffixes); k++) {
+      size_t len = strlen(name);
+      char* cand = js_malloc(ctx, len + strlen(suffixes[k]) + 1);
+
+      if(!cand)
+        break;
+
+      memcpy(cand, name, len);
+      strcpy(cand + len, suffixes[k]);
+      tmp = jsm_module_locate(ctx, cand, opaque);
+      js_free(ctx, cand);
+
+      if(tmp) {
+        js_free(ctx, name);
+        name = tmp;
+        break;
+      }
     }
   }
 
@@ -1410,12 +1551,14 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     s = js_strdup(ctx, name);
 
   if(s) {
-    DEBUG_MODULE(1, "(i: %d) \"%s\" -> \"%s\"", i, module_name, s);
+    DEBUG_TREE("load", "%s%s", jsm_debug_path(s), str_ends(s, CONFIG_SHEXT) ? " (native)" : str_equal(s, module_name) ? "" : " (file)");
 
     jsm_stack_push(ctx, s);
 
-    if(native && !str_ends(s, CONFIG_SHEXT)) {
-      JS_ThrowTypeError(ctx, "no native module '%s' (import type 'native' needs a builtin C module or a %s file)", module_name, CONFIG_SHEXT);
+    if(native > 0 && !str_ends(s, CONFIG_SHEXT)) {
+      JS_ThrowTypeError(ctx, "no native module '%s' (import with native: true needs a builtin C module or a %s file)", module_name, CONFIG_SHEXT);
+    } else if(native == 0 && str_ends(s, CONFIG_SHEXT)) {
+      JS_ThrowTypeError(ctx, "no non-native module '%s' (import with native: false cannot load a %s file)", module_name, CONFIG_SHEXT);
     } else if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
     } else {
@@ -1473,7 +1616,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     js_free(ctx, s);
 
   } else {
-    DEBUG_MODULE(1, "\"%s\" -> null", name);
+    DEBUG_TREE("FAIL", "%s: not found", name);
   }
 
 end:
@@ -1516,6 +1659,15 @@ jsm_module_loader2(JSContext* ctx, const char* module_name, void* opaque, JSValu
 }
 #endif
 
+/* is `path` the file lib/node/<bare>.js, the node layer for module `bare`. */
+static BOOL
+jsm_is_node_layer(const char* path, const char* bare) {
+  char suffix[80];
+
+  snprintf(suffix, sizeof(suffix), "/node/%s.js", bare);
+  return str_ends(path, suffix);
+}
+
 /*
  * The engine's module-name normalizer: resolves `name` (as imported from `path`)
  * to a builtin name or absolute file path (the default resolution, no hooks).
@@ -1532,7 +1684,8 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   if(!strchr(bare, '/') && strlen(bare) < sizeof(node_shim) - 6 && (bare != name || !jsm_builtin_find(bare))) {
     snprintf(node_shim, sizeof(node_shim), "node_%s", bare);
 
-    if(jsm_builtin_find(node_shim))
+    /* the shim itself imports the native module of the same name: no redirect */
+    if(jsm_builtin_find(node_shim) && !str_equal(path, node_shim) && !jsm_is_node_layer(path, bare))
       name = node_shim;
   }
 
@@ -1590,7 +1743,7 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   if(file == 0)
     file = js_strdup(ctx, name);
 
-  DEBUG_MODULE(1, "%s: \"%s\" => \"%s\"", path, name, file);
+  DEBUG_TREE("import", "%s: \"%s\" => %s", jsm_debug_path(path), name, jsm_debug_path(file));
   return file;
 }
 
@@ -2865,7 +3018,7 @@ jsm_set_module_loader(JSRuntime* rt) {
 #ifdef JS_MODULE_LOADER_OLD
   JS_SetModuleLoaderFunc(rt, jsm_module_normalize_import, jsm_module_loader, NULL);
 #else
-  JS_SetModuleLoaderFunc2(rt, jsm_module_normalize_import, jsm_module_loader2, js_module_check_attributes, NULL);
+  JS_SetModuleLoaderFunc2(rt, jsm_module_normalize_import, jsm_module_loader2, jsm_check_attributes, NULL);
 #endif
 }
 
