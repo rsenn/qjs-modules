@@ -246,7 +246,7 @@ array_find(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
       if(ret < 0)
         break;
-      
+
       if(ret)
         return i;
     }

@@ -279,7 +279,7 @@ doc/
     ├── README.md
     ├── Polyfills: abort.md, asyncIterator.md, events.md
     │              iterator.md
-    │              parsel.md, describe-class.md
+    │              parsel.md, describe.md
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md
     │             streams.md, io.md, tty.md, repl.md, require.md
     │             module.md, stack.md, inotify.md, terminal.md

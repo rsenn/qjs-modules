@@ -120,7 +120,7 @@ property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flag
       if(it->idx < it->tab_atom_len)
         return it;
   }
-  
+
   return 0;
 }
 

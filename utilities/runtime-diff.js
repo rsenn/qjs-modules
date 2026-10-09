@@ -2,9 +2,9 @@
 
 // runtime-diff.js - compares class/object/module structure across JS runtimes.
 //
-// Generates a small, dependency-free probe script (lib/describe-class.js's and
-// lib/describe-object.js's source inlined directly, so it needs no module resolution
-// beyond the names being probed) that:
+// Generates a small, dependency-free probe script (the describeClass()/describeObject()
+// part of lib/describe.js inlined directly, so it needs no module resolution beyond
+// the names being probed) that:
 //   - dynamically imports each given module name and describeClass()/describeObject()s
 //     every export
 //   - looks up each given global identifier on globalThis and describes it the same way
@@ -68,16 +68,18 @@ function isRuntimeAvailable(bin) {
 
 // --- probe script generation ---------------------------------------------------------
 
-function stripExport(src) {
-  return src.replace(/^export\s+/m, '');
+// the describe functions of lib/describe.js: everything before its CLI part
+function describeSource() {
+  const src = loadFile('lib/describe.js');
+
+  return src
+    .slice(0, src.indexOf('/* --- the runtime'))
+    .replace(/^#!.*\n/, '')
+    .replace(/^export\s+/gm, '');
 }
 
 function buildProbeScript(moduleNames, globalNames) {
-  const describeClassSrc = stripExport(loadFile('lib/describe-class.js'));
-  const describeObjectSrc = stripExport(loadFile('lib/describe-object.js'));
-
-  return `${describeClassSrc}
-${describeObjectSrc}
+  return `${describeSource()}
 
 function isClassLike(fn) {
   if(typeof fn !== 'function') return false;
@@ -404,7 +406,7 @@ function printHelp() {
   puts(
     `Usage: ${scriptArgs[0]} [OPTIONS] <module-name...>\n\n` +
       'Describes each given module (dynamically imported) and/or global identifier via\n' +
-      'lib/describe-class.js/lib/describe-object.js, in each selected runtime, prints\n' +
+      'describeClass()/describeObject() of lib/describe.js, in each selected runtime, prints\n' +
       'the result back as readable JS, and diffs member-name sets across runtimes when\n' +
       'more than one ran. See the file header comment for the full method/caveats.\n\n' +
       '<module-name...>  module specifiers to import() and describe\n\n' +

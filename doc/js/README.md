@@ -77,7 +77,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [lexers](lexers.md) — Lexer for a file or language name
 
 ### Utilities
-- describe-class (`lib/describe-class.js`) — Class description utilities (undocumented)
+- describe (`lib/describe.js`) — describeClass()/describeObject(), also a command-line tool (undocumented)
 - dbi (`lib/dbi.js`) — Database interface (undocumented)
 
 ## Module Classification

@@ -306,7 +306,7 @@ tree), and its `wasm.h` drops such imports outright.
   and snapshots, though the maintainer calls it minimal maintenance.
 
 *Status (2026-10-07):* `quickjs-wasm.c` is scaffolded over `include/wasm-backend.h`, with
-`src/wasm3-backend.c` wired into CMake (`cmake/BuildWasm3.cmake`) and
+`src/wasm3-backend.c` wired into CMake (`cmake/deps/BuildWasm3.cmake`) and
 `tests/unittests/test-wasm.js` passing. `src/wamr-backend.c` is selectable with `-DWASM_BACKEND=wamr`
 (function imports only; exported Table is read-only). Memory/Table/Global constructors,
 imports and `Module.customSections` work on wasm3; `lib/wasi.js` (`WASI`) works on both.

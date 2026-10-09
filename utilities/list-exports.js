@@ -206,7 +206,7 @@ function AddExport(tokens) {
       type: ImportType(tokens),
       tokens,
       exported,
-      range: [+tokens[0]?.loc, +tokens.last?.loc],
+      range: [+tokens[0]?.loc, +tokens.back?.loc],
     },
     { code, loc: tokens[0]?.loc },
     file ? { file } : {},
@@ -216,7 +216,7 @@ function AddExport(tokens) {
 }
 
 function AddImport(tokens) {
-  let range = [+tokens[0]?.loc, +tokens?.last?.loc],
+  let range = [+tokens[0]?.loc, +tokens?.back?.loc],
     code = tokens.map(tok => tok.lexeme).join('');
   tokens = tokens.filter(tok => tok.type != 'whitespace');
   let type = ImportType(tokens),
@@ -236,7 +236,7 @@ function AddImport(tokens) {
       let idx = 0,
         specifier = [],
         specifiers = [];
-      
+
       if(IsKeyword('import', tokens[idx])) ++idx;
       if(IsPunctuator('{', tokens[idx])) ++idx;
 
@@ -389,7 +389,7 @@ function ListExports(file, output, params) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.back != table[tok.lexeme]) throw new Error(`top '${stack.back}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -433,7 +433,7 @@ function ListExports(file, output, params) {
       if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
     }
 
-    let n = balancers.last?.depth;
+    let n = balancers.back?.depth;
 
     if(debug >= 2) log('ListExports', console.config({ compact: 2 }), { tok });
 
@@ -444,7 +444,7 @@ function ListExports(file, output, params) {
       lexer.popState();
     } else {
       balancer(tok);
-      if(n > 0 && balancers.last.depth == 0) log('balancer');
+      if(n > 0 && balancers.back.depth == 0) log('balancer');
       if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
         impexp = What[tok.lexeme.toUpperCase()];
         let prev = tokens[tokens.length - 1];
@@ -458,7 +458,7 @@ function ListExports(file, output, params) {
         if([';', '\n'].indexOf(tok.lexeme) != -1) {
           cond = false;
 
-          if(imp.some(i => i.lexeme == 'from')) 
+          if(imp.some(i => i.lexeme == 'from'))
             if(impexp == What.IMPORT) imports.push(AddImport(imp));
 
           if(impexp == What.EXPORT) exports.push(AddExport(imp));

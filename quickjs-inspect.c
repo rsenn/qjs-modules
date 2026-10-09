@@ -39,7 +39,9 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 static thread_local JSValue object_tostring;
 
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
-#define IS_COMPACT(d) (opts->compact == INT32_MIN ? 1 : opts->compact >= 0 ? (d) > opts->compact : 0)
+/* compact: true (INT32_MIN) is leaf-relative compaction with no depth limit, like a negative number:
+   the expanded output is joined afterwards, but only where the result fits breakLength */
+#define IS_COMPACT(d) (opts->compact >= 0 ? (d) > opts->compact : 0)
 
 #define VALID_BASE(b) ((b) == 2 || (b) == 8 || (b) == 10 || (b) == 16)
 
@@ -423,6 +425,37 @@ compact_whitespace(uint8_t* buf, size_t start, size_t end) {
   return w;
 }
 
+/* Width of buf[start..end) once compact_whitespace() has joined its lines,
+   plus the width of the text already on the line where the region starts. */
+static size_t
+compact_width(const uint8_t* buf, size_t start, size_t end) {
+  size_t r = start, w = 0;
+
+  while(r > 0 && buf[r - 1] != '\n')
+    --r;
+
+  /* colour escapes take no room on screen */
+  for(; r < end; w++) {
+    if(r < start || buf[r] != '\n') {
+      if(buf[r] == 0x1b && r + 1 < end && buf[r + 1] == '[') {
+        r += 2;
+        while(r < end && !(buf[r] >= 0x40 && buf[r] <= 0x7e))
+          r++;
+        r++;
+        w--;
+        continue;
+      }
+      r++;
+    } else {
+      r++;
+      while(r < end && buf[r] == ' ')
+        r++;
+    }
+  }
+
+  return w;
+}
+
 /* Propagate a child object's leaf_depth to the parent level on the stack. */
 static void
 compact_propagate_leaf(Vector* stack, int32_t leaf_depth) {
@@ -437,7 +470,7 @@ compact_propagate_leaf(Vector* stack, int32_t leaf_depth) {
 /* Pop a level off the compact stack, compute its leaf_depth, compact the
    buffer region if it qualifies, and propagate to the parent level. */
 static void
-compact_close_level(Vector* stack, DynBuf* dbuf, int32_t compact_threshold) {
+compact_close_level(Vector* stack, DynBuf* dbuf, int32_t compact_threshold, int32_t break_length) {
   if(vector_empty(stack))
     return;
 
@@ -447,7 +480,7 @@ compact_close_level(Vector* stack, DynBuf* dbuf, int32_t compact_threshold) {
 
   int32_t leaf_depth = cl.has_sub_objects ? (cl.min_child_leaf - 1) : -1;
 
-  if(leaf_depth >= compact_threshold && dbuf && cl.buf_offset <= dbuf->size) {
+  if(leaf_depth >= compact_threshold && dbuf && cl.buf_offset <= dbuf->size && compact_width(dbuf->buf, cl.buf_offset, dbuf->size) <= (size_t)break_length) {
     size_t new_end = compact_whitespace(dbuf->buf, cl.buf_offset, dbuf->size);
     dbuf->size = new_end;
   }
@@ -1488,8 +1521,8 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   int index = 0, ret;
   JSPromiseStateEnum state = -1;
-  BOOL numeric_compact = opts->compact != INT32_MIN && opts->compact != INT32_MAX;
-  BOOL negative_compact = opts->compact < 0 && numeric_compact;
+  BOOL numeric_compact = opts->compact != INT32_MAX;
+  BOOL negative_compact = opts->compact < 0;
 
   if((ret = inspect_object(insp, obj, depth)))
     return ret;
@@ -1563,7 +1596,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   if(!it) {
     writer_puts(wr, is_array ? "]" : "}");
     if(negative_compact) {
-      compact_close_level(&insp->compact_stack, insp->dbuf, opts->compact);
+      compact_close_level(&insp->compact_stack, insp->dbuf, opts->compact, opts->break_length);
     }
   }
 
@@ -1721,7 +1754,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       writer_puts(wr, is_array ? "]" : "}");
 
       if(negative_compact) {
-        compact_close_level(&insp->compact_stack, insp->dbuf, opts->compact);
+        compact_close_level(&insp->compact_stack, insp->dbuf, opts->compact, opts->break_length);
       }
 
       if(!it)

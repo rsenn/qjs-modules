@@ -92,4 +92,17 @@ tests({
     eq(plain({ a: { b: [] } }), '{\n a: {\n  b: []\n }\n}');
     eq(plain({ a: [], b: {} }, { compact: true }), '{ a: [], b: {} }');
   },
+  'compact: true and a negative compact respect breakLength'() {
+    const o = { alpha: 'a'.repeat(20), arr: [1, 2, 3, 'c'.repeat(22)], nested: { x: { y: 'e'.repeat(26), w: 'f'.repeat(22) } } };
+
+    for(const compact of [true, -1, -2])
+      for(const breakLength of [40, 60, 80]) {
+        const lines = plain(o, { compact, breakLength, depth: 6 }).split('\n');
+
+        assert(lines.every(l => l.length <= breakLength), `compact ${compact} breakLength ${breakLength}:\n${lines.join('\n')}`);
+      }
+
+    eq(plain({ a: [1, 2, 3], b: { c: 1 } }, { compact: true, breakLength: 80 }), '{ a: [ 1, 2, 3 ], b: { c: 1 } }');
+    eq(plain({ a: [1, 2, 3], b: { c: 1 } }, { compact: true, breakLength: 30 }), '{\n a: [ 1, 2, 3 ],\n b: { c: 1 }\n}');
+  },
 });

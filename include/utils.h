@@ -344,7 +344,7 @@ const char* js_value_typeof(JSValueConst);
 const char* js_value_type_name(ValueType type);
 const char* js_value_typestr(JSContext*, JSValueConst);
 
-/* clang-format off */ 
+/* clang-format off */
 void*        js_value_ptr(JSValueConst v);
 JSValueConst js_value_mkptr(int tag, void* ptr);
 JSValueConst js_value_mkobj(void*);

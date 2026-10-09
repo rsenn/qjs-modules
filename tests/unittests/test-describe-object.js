@@ -1,4 +1,4 @@
-import { describeObject } from '../../lib/describe-object.js';
+import { describeObject } from '../../lib/describe.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 class Base {

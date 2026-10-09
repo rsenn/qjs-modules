@@ -1615,7 +1615,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, lexer_ctor, lexer_proto);
   JS_SetPropertyFunctionList(ctx, lexer_ctor, js_lexer_static_funcs, countof(js_lexer_static_funcs));
-  
+
   if(m) {
     JS_SetModuleExport(ctx, m, "Token", token_ctor);
     JS_SetModuleExport(ctx, m, "Lexer", lexer_ctor);

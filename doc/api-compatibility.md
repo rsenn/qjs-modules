@@ -538,11 +538,13 @@ directly for Bun-compatible code.
 
 **Notes:** Pure-JS reimplementation of the native `deep` module's recursive traversal/comparison API for use in runtimes without the C binding; per CLAUDE.md's overlap-resolution decision it's documented only under `doc/native/deep.md` (C is authoritative) to avoid duplication.
 
-### lib/describe-class.js
-**Module:** `describe-class`  
+### lib/describe.js
+**Module:** `describe`  
 **Classification:** Custom  
 **Exports:**
 - `describeClass(Ctor, opts)` - introspects a constructor's static/prototype chains (methods, getters, setters, fields) into a plain-object description
+- `describeObject(obj, opts)` - the same for a plain object or function
+- `describeFunction`, `describeMembers`, `describeAny`, `paramNames`, `lookup`, `load` - helpers of the command-line tool (`qjsm lib/describe.js [--json] [--class] <module>`)
 
 **Notes:** Reflection/introspection helper with no standard JS equivalent; used for tooling/debugging (e.g. generating docs or REPL help from a class definition).
 

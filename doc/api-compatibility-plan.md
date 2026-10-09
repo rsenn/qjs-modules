@@ -91,7 +91,7 @@ Based on the inventory in /tmp/js-inventory.md:
 - **database** - Database abstraction
 - **db** - Database utilities
 - **dbi** - Database interface
-- **describe-class** - Class description
+- **describe** - Class/object description
 - **extendArray** - Array extensions
 - **extendArrayBuffer** - ArrayBuffer extensions
 - **extendAsyncFunction** - AsyncFunction extensions
