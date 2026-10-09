@@ -76,6 +76,22 @@ function(get_compiled_modules OUTVAR)
 endfunction()
  
 #
+# module_depends <MODULE> <DEP>...
+#
+# Declare that native module MODULE links the native modules DEP...
+# (module names, no prefix): module_depends(deep location pointer) links
+# qjs-deep with qjs-location qjs-pointer and qjs-deep-static with
+# qjs-location-static qjs-pointer-static, and qjsm pulls them in too.
+# Call before make_module(MODULE).
+#
+macro(module_depends MODULE)
+  foreach(_md_dep ${ARGN})
+    list(APPEND ${MODULE}_LIBRARIES "qjs-${_md_dep}")
+  endforeach(_md_dep ${ARGN})
+  list(REMOVE_DUPLICATES ${MODULE}_LIBRARIES)
+endmacro(module_depends)
+
+#
 # module_path <NAME> <OUTVAR>
 #
 # Store the path of NAME inside the precompiled-modules directory
@@ -157,11 +173,15 @@ endfunction()
 # (default modules/<name>.c) with the MODULES imports given as -M.
 #
 function(compile_module SOURCE)
-  basename(BASE "${SOURCE}" .js)
+  string(REGEX REPLACE "lib/" "" BASE "${SOURCE}")
+  string(REGEX REPLACE "\\.js$" "" BASE "${BASE}")
+  string(REGEX REPLACE "[/]" "_" BASE "${BASE}")
 
-  if(COMPILE_MODULE_CNAME)
-    set(BASE "${COMPILE_MODULE_CNAME}")
-  endif(COMPILE_MODULE_CNAME)
+  #message("compile_module(\n\tSOURCE ${SOURCE}\n\tBASE ${BASE}\n)")
+  
+  #if(COMPILE_MODULE_CNAME)
+  #  set(BASE "${COMPILE_MODULE_CNAME}")
+  #endif(COMPILE_MODULE_CNAME)
 
   #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
 
@@ -178,17 +198,31 @@ function(compile_module SOURCE)
     set(OUTPUT_FILE "${MODULES_DIR}/${BASE}.c")
   endif(OUT AND NOT "${OUT}" STREQUAL "")
 
+    string(REGEX REPLACE "_" "-" TARGET_NAME "qjs-${BASE}-js")
+    
+  relative_paths(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/modules" "${OUTPUT_FILE}")
+  string(REGEX REPLACE "/" "_" OUTPUT_FILE "${OUTPUT_FILE}")
+  set(OUTPUT_FILE "modules/${OUTPUT_FILE}")
+
+
   list(APPEND COMPILED_MODULES "${OUTPUT_FILE}")
-  list(APPEND COMPILED_TARGETS "qjs-${BASE}-js")
+  list(APPEND COMPILED_TARGETS "${TARGET_NAME}")
 
   set(COMPILED_MODULES "${COMPILED_MODULES}" PARENT_SCOPE)
   set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
 
   unset(ADD_MODULES)
 
+  string(REGEX REPLACE "qjs-\(.*\)-js" "\\1" COMPILE_MODULE_CNAME "${TARGET_NAME}")
+  string(REGEX REPLACE "-" "_" COMPILE_MODULE_CNAME "${COMPILE_MODULE_CNAME}")
+  
   # COMPILE_MODULE_CNAME: C name of the generated data (qjsc -N), default is the file's basename
   if(COMPILE_MODULE_CNAME)
     list(APPEND ADD_MODULES -N "qjsc_${COMPILE_MODULE_CNAME}")
+  endif()
+
+  if(${COMPILE_MODULE_CNAME}_MODULES)
+    list(APPEND ARGLIST ${${COMPILE_MODULE_CNAME}_MODULES})
   endif()
 
   foreach(MOD IN ITEMS ${ARGLIST})
@@ -196,7 +230,7 @@ function(compile_module SOURCE)
   endforeach(MOD IN ITEMS ${ARGLIST})
 
   add_custom_target(
-    "qjs-${BASE}-js" ALL
+    "${TARGET_NAME}" ALL
     BYPRODUCTS "${OUTPUT_FILE}"
     COMMAND "${QJSC}" ${ADD_MODULES} -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}"
     DEPENDS ${QJSC_DEPS}
