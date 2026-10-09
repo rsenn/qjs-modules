@@ -1,4 +1,4 @@
-import { classifyStatement, findFunctions, findIdentifiers, findTypes } from '../../utilities/c-extract.js';
+import { classifyStatement, findFunctions, findIdentifiers, findTypes } from '../../utilities/extract-c.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const byName = (list, name) => list.find(d => d.name == name);

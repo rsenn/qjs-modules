@@ -1482,6 +1482,16 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   char* file = 0;
   BuiltinModule* bltin = 0;
   const char* bare = str_start(name, "node:") ? name + 5 : name;
+  char node_shim[64];
+
+  /* `node:<name>` with a lib/node/<name>.js layer resolves to builtin "node_<name>";
+     a bare name does too when no builtin of that name exists (buffer) */
+  if(!strchr(bare, '/') && strlen(bare) < sizeof(node_shim) - 6 && (bare != name || !jsm_builtin_find(bare))) {
+    snprintf(node_shim, sizeof(node_shim), "node_%s", bare);
+
+    if(jsm_builtin_find(node_shim))
+      name = node_shim;
+  }
 
   /* Node's subpath builtins live in flat modules: "fs/promises" -> "fsPromises" */
   if(str_equal(bare, "fs/promises"))

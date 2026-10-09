@@ -110,7 +110,7 @@ if(DEFINED CACHE{BUILTINS_COMPILED})
 endif()
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert assertStrict bun buffer console events fs fsPromises module nodeModulesLoader perf_hooks process readline readlinePromises repl require timers timersPromises tty url util)
+  set(BUILTINS_COMPILED assert assertStrict bun console events fs fsPromises module nodeModulesLoader perf_hooks process readline readlinePromises repl require timers timersPromises tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
@@ -201,6 +201,8 @@ if(NOT "${QJS_PROBE_STAMP}" STREQUAL "${QUICKJS_PROBE_STAMP}")
     HAVE_JS_GETMODULELOADEROPAQUE
     HAVE_JS_GETCLASSID
     HAVE_JS_ISUNCATCHABLEERROR
+    HAVE_JS_GETMODULESTATUS
+    HAVE_JS_ISMODULEASYNC
     HAVE_JS_DEBUGGERBUILDBACKTRACE
     HAVE_DBUF_CLAIM
     HAVE_DBUF_REALLOC
@@ -738,6 +740,13 @@ endif(NOT JS_MODULE_LOADER_SETTINGS)
 set(JS_MODULE_LOADER_SETTINGS "${JS_MODULE_LOADER_SETTINGS}" CACHE BOOL "New js_module_loader() with 4 arguments")
 set(JS_MODULE_LOADER_OLD "${JS_MODULE_LOADER_OLD}" CACHE BOOL "Old js_module_loader() with 3 arguments")
 
+# detected or derived, not for editing: hidden from ccmake/cmake-gui unless "advanced" is shown
+foreach(ADVANCED_VAR JS_MODULE_LOADER_OLD JS_MODULE_LOADER_SETTINGS CONFIG_SHEXT CONFIG_VERSION OPENBSD_GLOB)
+  if(DEFINED CACHE{${ADVANCED_VAR}})
+    mark_as_advanced(${ADVANCED_VAR})
+  endif()
+endforeach(ADVANCED_VAR)
+
 if(JS_MODULE_LOADER_SETTINGS)
   message(STATUS "js_module_loader(): 4 arguments (settings)")
 else()
@@ -769,6 +778,18 @@ check_library_exists("${QUICKJS_LIBRARY}" JS_IsUncatchableError "${QUICKJS_LIBRA
 if(HAVE_JS_ISUNCATCHABLEERROR)
   add_definitions(-DHAVE_JS_ISUNCATCHABLEERROR)
 endif(HAVE_JS_ISUNCATCHABLEERROR)
+
+# module status / top-level-await accessors, listed by moduleList and getModule()
+check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleStatus "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULESTATUS)
+check_library_exists("${QUICKJS_LIBRARY}" JS_IsModuleAsync "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISMODULEASYNC)
+
+if(HAVE_JS_GETMODULESTATUS)
+  add_definitions(-DHAVE_JS_GETMODULESTATUS)
+endif(HAVE_JS_GETMODULESTATUS)
+
+if(HAVE_JS_ISMODULEASYNC)
+  add_definitions(-DHAVE_JS_ISMODULEASYNC)
+endif(HAVE_JS_ISMODULEASYNC)
 
 check_library_exists("${QUICKJS_LIBRARY}" dbuf_claim "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
 
@@ -1118,25 +1139,25 @@ set(COMMON_MODULES "")
 
 set(assert_MODULES inspect)
 set(assertStrict_MODULES assert)
-set(buffer_MODULES misc blob)
 set(console_MODULES util inspect)
 set(db_MODULES list)
-set(fs_MODULES syscallerror directory events path mmap misc textcode)
+set(fs_MODULES syscallerror directory node:events path mmap misc textcode)
 set(fsPromises_MODULES fs misc textcode)
 set(timersPromises_MODULES timers)
 set(io_MODULES util misc)
-set(module_MODULES path)
+set(module_MODULES fs)
 set(parser_MODULES path list)
-set(process_MODULES path util misc events)
-set(readline_MODULES events textcode misc timers)
+set(process_MODULES path util misc node:events)
+set(readline_MODULES node:events textcode misc timers)
 set(readlinePromises_MODULES readline)
 set(repl_MODULES util inspect path io process)
-set(require_MODULES util path)
+set(require_MODULES util path process)
 set(perf_hooks_MODULES misc timers)
-set(stack_MODULES inspect location)
 set(tty_MODULES util misc)
 set(url_MODULES util path)
 set(util_MODULES timers inspect path misc textcode)
+set(node_util_MODULES assert)
+set(node_child_process_MODULES buffer)
 set(inspect_MODULES pointer)
 
 if(NOT DEFINED QUICKJS_SOURCES_ROOT)
@@ -1176,8 +1197,27 @@ foreach(LIB_MODULE ${BUILTINS_COMPILED})
   module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
   compile_module(lib/${LIB_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
 
-  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${LIB_MODULE})\n")
+  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${LIB_MODULE})\n")
 endforeach(LIB_MODULE ${BUILTINS_COMPILED})
+
+# lib/node/<name>.js: Node-shaped layers, builtin "node_<name>" served for `node:<name>`
+set(BUILTINS_NODE buffer child_process events util)
+set(node_buffer_MODULES misc blob)
+set(node_child_process_MODULES child_process node:events misc sockets process)
+set(node_events_MODULES)
+set(node_util_MODULES util inspect misc textcode assert)
+
+foreach(NODE_MODULE ${BUILTINS_NODE})
+  set(LIB_MODULE node_${NODE_MODULE})
+  set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
+
+  module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
+  set(COMPILE_MODULE_CNAME "${LIB_MODULE}")
+  compile_module(lib/node/${NODE_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
+  unset(COMPILE_MODULE_CNAME)
+
+  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${LIB_MODULE})\n")
+endforeach(NODE_MODULE ${BUILTINS_NODE})
 
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
@@ -1277,7 +1317,15 @@ set(BUILTIN_MODULES ""
     CACHE STRING
           "Mixed list: module names (auto-routed into BUILTINS_COMPILED/BUILTINS_NATIVE) or paths to externally-built qjs-<name> module build directories (routed into EXTERNAL_MODULES)")
 
+# the names BUILTIN_MODULES accepts: quickjs-<name>.c as <name> ('-' written '_') and
+# lib/<name>.js; get_native_modules()/get_compiled_modules() list them
+get_native_modules(NATIVE_MODULES)
+get_compiled_modules(COMPILED_MODULE_NAMES)
+
 foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
+  string(REPLACE "_" "-" BUILTIN_NATIVE_NAME "${BUILTIN_MODULE}")
+  string(REPLACE "-" "_" BUILTIN_NATIVE_KEY "${BUILTIN_MODULE}")
+
   if(IS_DIRECTORY "${BUILTIN_MODULE}")
     set(_bm_dir "${BUILTIN_MODULE}")
     set(_bm_name "")
@@ -1305,22 +1353,24 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
         message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' -- no lib${_bm_name}.a/.so found in that directory")
       endif()
     endif()
-  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${BUILTIN_MODULE}.c")
-    if(NOT BUILTIN_MODULE IN_LIST BUILTINS_NATIVE)
-      list(APPEND BUILTINS_NATIVE "${BUILTIN_MODULE}")
+  elseif(BUILTIN_NATIVE_KEY IN_LIST NATIVE_MODULES)
+    if(NOT BUILTIN_NATIVE_NAME IN_LIST BUILTINS_NATIVE)
+      list(APPEND BUILTINS_NATIVE "${BUILTIN_NATIVE_NAME}")
     endif()
-  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/${BUILTIN_MODULE}.js")
-    if(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
+  elseif(BUILTIN_MODULE IN_LIST COMPILED_MODULE_NAMES)
+    if(BUILTIN_MODULE MATCHES "[^A-Za-z0-9_]")
+      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is not a C identifier (a '-' or '/' in lib/${BUILTIN_MODULE}.js) -- the builtin table needs one, skipping")
+    elseif(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
       list(APPEND BUILTINS_COMPILED "${BUILTIN_MODULE}")
       set(MODLIST ${COMMON_MODULES} ${${BUILTIN_MODULE}_MODULES})
       module_path("${BUILTIN_MODULE}.c" BUILTIN_MODULE_OUT)
       compile_module(lib/${BUILTIN_MODULE}.js "${BUILTIN_MODULE_OUT}" ${MODLIST})
       target_sources(compiled PRIVATE "${BUILTIN_MODULE_OUT}")
-      add_dependencies(compiled "${BUILTIN_MODULE}.c")
-      set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}jsm_builtin_compiled(${BUILTIN_MODULE})\n")
+      add_dependencies(compiled "qjs-${BUILTIN_MODULE}-js")
+      set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${BUILTIN_MODULE})\n")
     endif()
   else()
-    message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, or existing directory -- skipping")
+    message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, or existing directory -- skipping (native: ${NATIVE_MODULES}; compiled: ${COMPILED_MODULE_NAMES})")
   endif()
 endforeach()
 
@@ -1395,7 +1445,7 @@ set(QJSM_STATIC_LIBS "")
 foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
   string(REGEX REPLACE "-" "_" NATIVE_MODULE "${NATIVE_BUILTIN}")
-  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${NATIVE_MODULE})\n")
+  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${NATIVE_MODULE})\n")
 endforeach()
 
 # Modules built as qjs-<name>-static libraries (BUILD_STATIC_MODULES) that aren't
@@ -1408,14 +1458,14 @@ foreach(STATIC_MODULE_NAME ${STATIC_MODULE_NAMES})
   list(FIND BUILTINS_NATIVE_EXCLUDE "${STATIC_MODULE_NAME}" _NATIVE_EXCLUDED_INDEX)
   if(_NATIVE_BUILTIN_INDEX EQUAL -1 AND (_NATIVE_EXCLUDED_INDEX EQUAL -1 OR STATIC_MODULE_NAME IN_LIST NATIVE_REQUIRED))
     string(REGEX REPLACE "-" "_" STATIC_MODULE_SYMBOL "${STATIC_MODULE_NAME}")
-    set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${STATIC_MODULE_SYMBOL})\n")
+    set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${STATIC_MODULE_SYMBOL})\n")
     list(APPEND QJSM_STATIC_LIBS "qjs-${STATIC_MODULE_NAME}-static")
   endif()
 endforeach()
 
 foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
   string(REGEX REPLACE "-" "_" EXTERNAL_MODULE_SYMBOL "${EXTERNAL_MODULE}")
-  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}jsm_builtin_native(${EXTERNAL_MODULE_SYMBOL})\n")
+  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${EXTERNAL_MODULE_SYMBOL})\n")
 
   if(DEFINED ${EXTERNAL_MODULE}_MODULE)
     list(APPEND QJSM_STATIC_LIBS "${${EXTERNAL_MODULE}_MODULE}")
@@ -1431,8 +1481,8 @@ if(BUILTIN_HEADER)
   message(STATUS "Builtin modules:\n${BUILTIN_HEADER}")
 endif()
 
-set(BUILTIN_HEADER "#ifndef jsm_builtin_native\n#define jsm_builtin_native(x)\n#endif\n")
-set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef jsm_builtin_compiled\n#define jsm_builtin_compiled(x)\n#endif\n")
+set(BUILTIN_HEADER "#ifndef BUILTIN_NATIVE\n#define BUILTIN_NATIVE(x)\n#endif\n")
+set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef BUILTIN_COMPILED\n#define BUILTIN_COMPILED(x)\n#endif\n")
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h"
      "${BUILTIN_HEADER}\n${NATIVE_BUILTIN_HEADER}\n${COMPILED_BUILTIN_HEADER}")
@@ -1505,7 +1555,7 @@ install(TARGETS qjsm DESTINATION bin)
 file(GLOB INSTALL_SCRIPTS utilities/extract-structs.js utilities/jsonpp.js utilities/list-exports.js
      utilities/resolve-imports.js utilities/xml-shell.js utilities/nm-symbols.js utilities/remove-dead-functions.js
      utilities/deadwood.js utilities/source-scanner.js utilities/unused-functions.js utilities/runtime-diff.js
-     utilities/c-extract.js utilities/highlight.js utilities/extract-comments.js utilities/parse-ast.js examples/html2md.js)
+     utilities/extract-c.js utilities/highlight.js utilities/extract-comments.js utilities/parse-ast.js examples/html2md.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)

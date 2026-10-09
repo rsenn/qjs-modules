@@ -551,6 +551,3 @@ function(getenv_default OUTPUT_VAR VAR_NAME)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif()
 endfunction()
-
-
-init_colors()

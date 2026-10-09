@@ -993,12 +993,12 @@ function main(...args) {
   if(!files.length && !params.help && !isatty(0)) files.push('-');
 
   if(locModes.some(m => !LOC_MODES.includes(m))) {
-    console.log(`c-extract.js: --loc: expected ${LOC_MODES.join(', ')}`);
+    console.log(`extract-c.js: --loc: expected ${LOC_MODES.join(', ')}`);
     return 1;
   }
 
   if(params.help || !files.length) {
-    console.log(`Usage: c-extract.js [-p REGEXP] [-l] [-t] [-i] [-f] [-L MODE] [-s DIR] [-o FILE] FILE|DIR...
+    console.log(`Usage: extract-c.js [-p REGEXP] [-l] [-t] [-i] [-f] [-L MODE] [-s DIR] [-o FILE] FILE|DIR...
 
   -p, --pattern REGEXP  only functions/types whose name matches (default: all)
   -l, --list            print "file:line:column: name" instead of the source / IR

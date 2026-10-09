@@ -39,6 +39,46 @@ endmacro(quickjs_module_options)
 # (${CMAKE_BINARY_DIR}/modules), centralized so CMakeLists.txt's several
 # compile_module() call sites (BUILTINS_COMPILED loop, BUILTIN_MODULES
 # auto-routing) don't each reconstruct that path string by hand.
+##
+## get_native_modules <OUTPUT-VARIABLE>
+##
+## Names of the native modules, one per quickjs-<name>.c in the source directory,
+## with '-' written '_': quickjs-child-process.c -> child_process.
+##
+function(get_native_modules OUTVAR)
+  file(GLOB FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-*.c")
+
+  set(NAMES "")
+  foreach(FILE ${FILES})
+    string(REGEX REPLACE "^quickjs-(.*)\\.c$" "\\1" NAME "${FILE}")
+    string(REPLACE "-" "_" NAME "${NAME}")
+    list(APPEND NAMES "${NAME}")
+  endforeach(FILE ${FILES})
+
+  list(SORT NAMES)
+  set("${OUTVAR}" "${NAMES}" PARENT_SCOPE)
+endfunction(get_native_modules OUTVAR)
+
+##
+## get_compiled_modules <OUTPUT-VARIABLE>
+##
+## Names of the JS modules that can be compiled into a builtin, one per .js file
+## below lib/ without the extension: lib/fsPromises.js -> fsPromises,
+## lib/xml/read.js -> xml/read.
+##
+function(get_compiled_modules OUTVAR)
+  file(GLOB_RECURSE FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/lib" "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js")
+
+  set(NAMES "")
+  foreach(FILE ${FILES})
+    string(REGEX REPLACE "\\.js$" "" NAME "${FILE}")
+    list(APPEND NAMES "${NAME}")
+  endforeach(FILE ${FILES})
+
+  list(SORT NAMES)
+  set("${OUTVAR}" "${NAMES}" PARENT_SCOPE)
+endfunction(get_compiled_modules OUTVAR)
+
 function(module_path NAME OUTVAR)
   set("${OUTVAR}" "${CMAKE_BINARY_DIR}/modules/${NAME}" PARENT_SCOPE)
 endfunction(module_path NAME OUTVAR)
@@ -98,6 +138,9 @@ endfunction(config_module TARGET_NAME)
 
 function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
+  if(COMPILE_MODULE_CNAME)
+    set(BASE "${COMPILE_MODULE_CNAME}")
+  endif(COMPILE_MODULE_CNAME)
   #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
 
   set(ARGLIST "${ARGN}")
@@ -119,6 +162,10 @@ function(compile_module SOURCE)
   set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
 
   unset(ADD_MODULES)
+  # COMPILE_MODULE_CNAME: C name of the generated data (qjsc -N), default is the file's basename
+  if(COMPILE_MODULE_CNAME)
+    list(APPEND ADD_MODULES -N "qjsc_${COMPILE_MODULE_CNAME}")
+  endif(COMPILE_MODULE_CNAME)
   foreach(MOD IN ITEMS ${ARGLIST})
     list(APPEND ADD_MODULES -M "${MOD}")
   endforeach(MOD IN ITEMS ${ARGLIST})

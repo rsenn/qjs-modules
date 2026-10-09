@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* Node's util surface: format, promisify, callbackify, parseArgs, isDeepStrictEqual */
-import { callbackify, debuglog, deprecate, format, isDeepStrictEqual, parseArgs, promisify } from 'util';
+import { callbackify, debuglog, deprecate, format, isDeepStrictEqual, parseArgs, promisify } from 'node:util';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* the message a call rejects with */

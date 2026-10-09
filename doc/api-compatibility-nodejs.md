@@ -20,6 +20,39 @@ The list of all modules is the directory listing of that URL:
 dlynx.sh https://github.com/nodejs/node/raw/refs/heads/main/doc/api/ | grep '\.md$' | uniq
 ```
 
+## `lib/node/*`: Node-shaped layers (2026-10-09)
+
+Modules whose Node API differs from the qjs-modules helpers live in `lib/node/<name>.js`
+and are compiled as builtin `node_<name>` (CMake `BUILTINS_NODE`). `node:<name>` resolves
+to them; a bare `<name>` does too when no builtin of that name exists (`buffer`).
+
+| file | serves | notes |
+| --- | --- | --- |
+| `lib/node/buffer.js` | `node:buffer`, `buffer` | moved from `lib/buffer.js` |
+| `lib/node/events.js` | `node:events` | `EventEmitter`, `once`, `on`, ...; `EventTarget` stays in `lib/events.js` |
+| `lib/node/child_process.js` | `node:child_process` | layer over the native `child_process` |
+| `lib/node/util.js` | `node:util` | Node's util; the bare `util` keeps the internal helpers |
+
+Compile-time imports of these from other `lib/*.js` files need `-M node:events` in
+`<module>_MODULES` (qjsc cannot resolve `node:` names otherwise).
+
+### `lib/node/util.js` vs. `util.md`
+
+Implemented: `inspect` (port of Node's formatter: depth, grouping, `<ref *1>`, classes, errors with
+`cause`, typed arrays, `numericSeparator`, `sorted`, `getters`, `colors`/`styles`/`defaultOptions`,
+`inspect.custom`), `format`/`formatWithOptions`, `types` (brand checks), `promisify` (+custom),
+`callbackify`, `deprecate`, `debuglog`/`debug`, `inherits`, `isDeepStrictEqual` (+`skipPrototype`),
+`isPartialDeepStrictEqual`, `parseArgs` (+tokens, `allowNegative`), `parseEnv`, `styleText`,
+`stripVTControlCharacters`, `toUSVString`, `TextDecoder`/`TextEncoder`, `MIMEType`/`MIMEParams`,
+`diff`, `debounce`, `throttle`, `getCallSites`, `getSystemError{Name,Map,Message}`,
+`convertProcessSignalToExitCode`, `aborted`, `transferableAbort*`, `markPromiseAsHandled`,
+legacy `is*`/`_extend`/`log`/`_errnoException`.
+
+Gaps (engine limits): `inspect` cannot show Proxy target/handler, `Map`/`Set` iterator contents or
+`WeakSet`/`WeakMap` entries; `types.isProxy/isExternal/isKeyObject/isCryptoKey` are `false`;
+`ref()`/`unref()` of `debounce`/`throttle` are no-ops; `TextDecoder` supports utf-8, utf-16le and
+windows-1252 only; `getCallSites().scriptId` is `'0'` and `sourceMap` is ignored.
+
 ## `lib/process.js` gaps vs. Node.js `process` (updated 2026-10-09)
 
 Compared against the Node.js `process` docs (`/tmp/process.md`) and the export list
@@ -531,6 +564,19 @@ exporting `posix`, `win32`, the default export and `path/posix`, `path/win32`; r
 `fnmatch` for `matchesGlob`. Run the 190-case battery against it.
 
 ## `quickjs-child-process.c` gaps vs. Node.js `child_process` (found 2026-10-09)
+
+**Status (2026-10-09):** the bare `child_process` stays the native module; `node:child_process`
+now loads `lib/node/child_process.js` (builtin `node_child_process`, mapped in
+`jsm_module_normalize_core()`; CMake: `BUILTINS_NODE`), a layer over the native primitives
+that adds: `spawn/spawnSync/exec/execSync/execFile/execFileSync/fork` argument handling,
+`ChildProcess` as an `EventEmitter` (`spawn exit close error`), `stdout/stderr` readers and
+`stdin` writer objects (`data/end`, `setEncoding`, async iterator, `write/end`), `shell`,
+`input`, `encoding`, `maxBuffer`, `timeout`, `killSignal`, `signal`, ENOENT/EACCES errors,
+`Command failed:` errors from the sync calls, Buffer results, `kill()` by name,
+`util.promisify` for `exec/execFile`. Not done: IPC for `fork()` (`send`, `'message'`),
+`argv0 uid gid detached`, real streams (CLAUDE.md), non-blocking stdin writes, `ref/unref`.
+Native findings: the SIGCHLD handler reaches `os.signal` through the global `os` (the layer
+defines it when missing), and `spawn(file, optionsObject)` still crashes natively.
 
 Compared against `/tmp/node-doc/child_process.md` and the source (`quickjs-child-process.c`,
 696 lines) with a short probe under node 22 and `qjsm`
