@@ -2646,20 +2646,15 @@ js_module_namespace_sync(JSContext* ctx, const char* module_name) {
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
-  JSValue set_handler = JS_UNDEFINED, ns = js_global_get_str(ctx, global_obj ? global_obj : "os");
   const char* module_name = global_obj ? global_obj : "os";
+  JSValue set_handler, ns = js_module_namespace_sync(ctx, module_name);
 
-  if(js_is_null_or_undefined(ns)) {
-    JS_FreeValue(ctx, ns);
-    ns = js_module_namespace_sync(ctx, module_name);
-
-    if(JS_IsException(ns))
-      return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
+  if(JS_IsException(ns)) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
   }
 
-  if(!js_is_null_or_undefined(ns))
-    set_handler = JS_GetPropertyStr(ctx, ns, handlers[!!write]);
-
+  set_handler = JS_GetPropertyStr(ctx, ns, handlers[!!write]);
   JS_FreeValue(ctx, ns);
 
   if(js_is_null_or_undefined(set_handler))

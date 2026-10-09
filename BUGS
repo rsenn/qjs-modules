@@ -868,3 +868,15 @@
     [path.resolve('/'), path.resolve('/a/..'), path.dirname('/x')];
     // expected (node): [ '/', '/', '/' ]
     // actual: [ '<cwd>/\u0000', '', '.' ]
+
+- arraybuffer-sink-invalid-free (quickjs-arraybuffer-sink.c): the
+  ArrayBuffer free callback js_arraybuffer_sink_free() calls libc free()
+  on a buffer the DynBuf may have grown with a different allocator, so
+  finalizing the buffer aborts with "munmap_chunk(): invalid pointer"
+  (valgrind: Invalid free() at quickjs-arraybuffer-sink.c:57). Seen as
+  test-arraybuffer-sink.js aborting after "write() accepts a string, an
+  ArrayBuffer and a typed array".
+
+    valgrind -q qjsm tests/unittests/test-arraybuffer-sink.js
+    // expected: no memory error
+    // actual: Invalid free() in js_arraybuffer_sink_free
