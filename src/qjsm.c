@@ -38,10 +38,6 @@
 #endif
 #endif
 
-#ifndef QJS_BIGNUM_EXT
-#warning No bignum!
-#endif
-
 #ifndef CONFIG_SHEXT
 #ifdef _WIN32
 #define CONFIG_SHEXT ".dll"
@@ -647,6 +643,39 @@ jsm_builtin_find(const char* name) {
 
   return 0;
 }
+
+/* is `name` a builtin backed by a C init function (not bytecode). */
+static BOOL
+jsm_builtin_is_native(const char* name) {
+  BuiltinModule* rec = jsm_builtin_find(name);
+
+  return rec && rec->module_func;
+}
+
+#ifndef JS_MODULE_LOADER_OLD
+/* does the import being loaded carry `with { type: 'native' }`. */
+static BOOL
+jsm_import_is_native(JSContext* ctx) {
+  JSValue v;
+  const char* str;
+  BOOL ret = FALSE;
+
+  if(JS_IsUndefined(JSM_IMPORT_ATTRIBUTES()))
+    return FALSE;
+
+  v = JS_GetPropertyStr(ctx, JSM_IMPORT_ATTRIBUTES(), "type");
+
+  if((str = JS_ToCString(ctx, v))) {
+    ret = str_equal(str, "native");
+    JS_FreeCString(ctx, str);
+  }
+
+  JS_FreeValue(ctx, v);
+  return ret;
+}
+#else
+#define jsm_import_is_native(ctx) FALSE
+#endif
 
 /*
  * Lazily initializes (native-calls or bytecode-loads) a builtin module the first
@@ -1305,7 +1334,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *s = 0, *tmp, *name = js_strdup(ctx, module_name);
   JSModuleDef* m = 0;
   int i = 0;
-  BOOL hooked = FALSE;
+  BOOL hooked = FALSE, native = jsm_import_is_native(ctx);
 
   DEBUG_MODULE(2, "(i: %d, name: \"%s\", opaque: %p)", i++, name, opaque);
 
@@ -1350,10 +1379,22 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     name = tmp;
   }
 
+  if(native && !str_ends(name, CONFIG_SHEXT) && !jsm_builtin_is_native(name)) {
+    /* type 'native': "foo" can only be a shared object, so search "foo.so" */
+    size_t len = strlen(name);
+
+    if((tmp = js_malloc(ctx, len + sizeof(CONFIG_SHEXT)))) {
+      memcpy(tmp, name, len);
+      memcpy(tmp + len, CONFIG_SHEXT, sizeof(CONFIG_SHEXT));
+      js_free(ctx, name);
+      name = tmp;
+    }
+  }
+
   if(!name[path_component1(name)]) {
     BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(name))) {
+    if((rec = jsm_builtin_find(name)) && (!native || rec->module_func)) {
       DEBUG_MODULE(1, "(i: %d) \"%s\" -> \"%s\" (builtin)", i, module_name, rec->module_name);
       m = jsm_builtin_init(ctx, rec);
       goto end;
@@ -1373,7 +1414,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
     jsm_stack_push(ctx, s);
 
-    if(str_ends(s, ".json")) {
+    if(native && !str_ends(s, CONFIG_SHEXT)) {
+      JS_ThrowTypeError(ctx, "no native module '%s' (import type 'native' needs a builtin C module or a %s file)", module_name, CONFIG_SHEXT);
+    } else if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
     } else {
       if(!(m = jsm_module_find(ctx, s, 0)))
