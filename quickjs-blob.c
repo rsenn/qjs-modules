@@ -2,6 +2,7 @@
 #include "quickjs-blob.h"
 #include "quickjs-stream.h"
 #include "utils.h"
+#include "js-utils.h"
 #include "buffer-utils.h"
 #include "iteration.h"
 #include "debug.h"
@@ -222,19 +223,19 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   switch(magic) {
     case BLOB_ARRAYBUFFER: {
-      ret = js_promise_resolve(ctx, js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val));
+      ret = promise_immediate(ctx, FALSE, js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val));
       break;
     }
     case BLOB_BYTES: {
       JSValue buf = js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val);
 
-      ret = js_promise_resolve(ctx, js_typedarray_new(ctx, 8, FALSE, FALSE, buf));
+      ret = promise_immediate(ctx, FALSE, js_typedarray_new(ctx, 8, FALSE, FALSE, buf));
 
       JS_FreeValue(ctx, buf);
       break;
     }
     case BLOB_TEXT: {
-      ret = js_promise_resolve(ctx, JS_NewStringLen(ctx, (const char*)blob->data, blob->size));
+      ret = promise_immediate(ctx, FALSE, JS_NewStringLen(ctx, (const char*)blob->data, blob->size));
       break;
     }
     case BLOB_SLICE: {

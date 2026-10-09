@@ -110,7 +110,8 @@ if(DEFINED CACHE{BUILTINS_COMPILED})
 endif()
 
 if(NOT DEFINED BUILTINS_COMPILED)
-  set(BUILTINS_COMPILED assert assertStrict bun console events fs fsPromises module nodeModulesLoader perf_hooks process readline readlinePromises repl require timers timersPromises tty url util)
+  set(BUILTINS_COMPILED assert assertStrict bun console events fs fsPromises module nodeModulesLoader perf_hooks
+                        process readline readlinePromises repl require timers timersPromises tty url util)
 endif(NOT DEFINED BUILTINS_COMPILED)
 
 if(NOT DEFINED BUILTINS_NATIVE)
@@ -211,7 +212,8 @@ if(NOT "${QJS_PROBE_STAMP}" STREQUAL "${QUICKJS_PROBE_STAMP}")
     JS_MODULE_LOADER_OLD)
     unset(${QJS_PROBE} CACHE)
   endforeach()
-  set(QUICKJS_PROBE_STAMP "${QJS_PROBE_STAMP}" CACHE INTERNAL "Hash of the quickjs library/header the probes ran against")
+  set(QUICKJS_PROBE_STAMP "${QJS_PROBE_STAMP}" CACHE INTERNAL
+                                                     "Hash of the quickjs library/header the probes ran against")
 endif()
 
 #check_function_def(JS_PROMISE_STATE JS_PromiseState)
@@ -271,7 +273,8 @@ if(HAVE_JS_GETMODULELOADERFUNC)
   add_definitions(-DHAVE_JS_GETMODULELOADERFUNC)
 endif(HAVE_JS_GETMODULELOADERFUNC)
 
-check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADEROPAQUE)
+check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}"
+                     HAVE_JS_GETMODULELOADEROPAQUE)
 if(HAVE_JS_GETMODULELOADEROPAQUE)
   add_definitions(-DHAVE_JS_GETMODULELOADEROPAQUE)
 endif(HAVE_JS_GETMODULELOADEROPAQUE)
@@ -314,7 +317,9 @@ check_include_def(libbf.h)
 include(CheckCSourceCompiles)
 set(CMAKE_REQUIRED_INCLUDES_OLD "${CMAKE_REQUIRED_INCLUDES}")
 list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
-check_c_source_compiles("#include <quickjs.h>\nint main(void){ return JS_TAG_BIG_FLOAT + (int)sizeof(&JS_EnableBignumExt) + (int)sizeof(&JS_AddIntrinsicOperators); }" HAVE_QUICKJS_BIGNUM_EXT)
+check_c_source_compiles(
+  "#include <quickjs.h>\nint main(void){ return JS_TAG_BIG_FLOAT + (int)sizeof(&JS_EnableBignumExt) + (int)sizeof(&JS_AddIntrinsicOperators); }"
+  HAVE_QUICKJS_BIGNUM_EXT)
 set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES_OLD}")
 
 set(CONFIG_BIGNUM OFF)
@@ -486,10 +491,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES
-    arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
-    textcode sockets stream
-    syscallerror inspect tree-walker virtual xml yaml)
+set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate
+                    queue repeater textcode sockets stream syscallerror inspect tree-walker virtual xml yaml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -870,7 +873,8 @@ endif(NOT HAVE_INET_NTOP)
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
-file(GLOB tutf8e_SOURCES third_party/tutf8e/include/*.h third_party/tutf8e/include/tutf8e/*.h third_party/tutf8e/src/*.c)
+file(GLOB tutf8e_SOURCES third_party/tutf8e/include/*.h third_party/tutf8e/include/tutf8e/*.h
+     third_party/tutf8e/src/*.c)
 file(GLOB libutf_SOURCES third_party/libutf/src/*.c third_party/libutf/include/*.h)
 # CMAKE_SYSTEM_PROCESSOR alone isn't enough: it's left empty by the mingw
 # cross toolchain files here (they never set it), so it always evaluated
@@ -881,12 +885,14 @@ file(GLOB libutf_SOURCES third_party/libutf/src/*.c third_party/libutf/include/*
 # undefined reference at link time. Ask the compiler directly instead,
 # matching crypt_blowfish.c's own condition.
 include(CheckCSourceCompiles)
-check_c_source_compiles("
+check_c_source_compiles(
+  "
 #ifndef __i386__
 #error not i386
 #endif
 int main(void) { return 0; }
-" HAVE_I386)
+"
+  HAVE_I386)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)" OR HAVE_I386)
   set(X86 TRUE)
 else()
@@ -1022,7 +1028,8 @@ if(DO_TESTS)
       set(BIGNUM_ARG)
     endif()
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env "QUICKJS_MODULE_PATH=${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib" "${QJSM}" ${BIGNUM_ARG} "${TEST}")
+             COMMAND env "QUICKJS_MODULE_PATH=${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}/lib" "${QJSM}"
+                     ${BIGNUM_ARG} "${TEST}")
 
     # a test marked `@portable` in its first lines also runs on the other runtimes
     # that are installed: <name>.node, <name>.bun, <name>.deno
@@ -1106,27 +1113,28 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
-file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
-file(GLOB LIBPARSER ${CMAKE_CURRENT_SOURCE_DIR}/lib/parser/*.js)
-file(GLOB LIBXML ${CMAKE_CURRENT_SOURCE_DIR}/lib/xml/*.js)
-list(REMOVE_ITEM LIBJS lib/require.js)
-list(REMOVE_ITEM LIBJS lib/fs.js)
-list(REMOVE_ITEM LIBJS lib/std.js)
-list(REMOVE_ITEM LIBJS lib/os.js)
+#file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
+#file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
+#file(GLOB LIBPARSER ${CMAKE_CURRENT_SOURCE_DIR}/lib/parser/*.js)
+#file(GLOB LIBXML ${CMAKE_CURRENT_SOURCE_DIR}/lib/xml/*.js)
 
-list(
-  FILTER
-  LIBJS
-  EXCLUDE
-  REGEX
-  "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|syscallerror|textcode|tree_walker|xml)\.js$"
+#file(GLOB_RECURSE LIBJS LIST_DIRECTORIES false CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
+
+#list(REMOVE_ITEM LIBJS lib/require.js)
+#list(REMOVE_ITEM LIBJS lib/fs.js)
+#list(REMOVE_ITEM LIBJS lib/std.js)
+#list(REMOVE_ITEM LIBJS lib/os.js)
+
+#list(FILTER LIBJS EXCLUDE REGEX "lib/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|syscallerror|textcode|tree_walker|xml)\.js$")
+
+#dump_list(LIBJS)
+
+install(
+  DIRECTORY lib/
+  DESTINATION "${QUICKJS_JS_MODULE_DIR}"
+  FILES_MATCHING PATTERN "*.js" 
+  REGEX "lib/(archive|arraybuffer[-_]sink|bcrypt|bjson|blob|child[-_]process|deep|directory|gpio|inspect|json|lexer|list|location|magic|misc|mmap|mysql|path|pgsql|pointer|predicate|queue|repeater|serial|sockets|sqlite|stream|syscallerror|textcode|tree[-_]walker|virtual|wasm|xml|yaml)\\.js$" EXCLUDE
 )
-
-install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
-install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
-install(FILES ${LIBPARSER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/parser")
-install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
 # not cached (see the top of this file): pass -DBUILTINS_COMPILED=... to override
 set(BUILTINS_COMPILED "${BUILTINS_COMPILED}")
@@ -1203,7 +1211,7 @@ endforeach(LIB_MODULE ${BUILTINS_COMPILED})
 # lib/node/<name>.js: Node-shaped layers, builtin "node_<name>" served for `node:<name>`
 set(BUILTINS_NODE buffer child_process events util)
 set(node_buffer_MODULES misc blob)
-set(node_child_process_MODULES child_process node:events misc sockets process)
+set(node_child_process_MODULES child_process node:events node:buffer misc sockets process)
 set(node_events_MODULES)
 set(node_util_MODULES util inspect misc textcode assert)
 
@@ -1290,9 +1298,8 @@ if(TARGET qjs-child-process-static)
   target_link_libraries(qjs-child-process-static PRIVATE qjs-pointer-static)
 endif(TARGET qjs-child-process-static)
 
-
 set(QJSM_SOURCES src/qjsm.c)
-  
+
 set(json_SOURCES ${json_SOURCES} src/json.c)
 set(mysql_SOURCES ${mysql_SOURCES} src/async-closure.c)
 set(mysql_LIBS ${mysql_LIBS} modules)
@@ -1313,9 +1320,12 @@ endif(LINK_STATIC)
 # This is evaluated here, before BUILTINS_COMPILED's compile_module() loop's own output
 # targets (modules/*.c above, the "compiled" library) and BUILTINS_NATIVE/EXTERNAL_MODULES
 # are consumed further down, so an entry routed to any of the three actually takes effect.
-set(BUILTIN_MODULES ""
-    CACHE STRING
-          "Mixed list: module names (auto-routed into BUILTINS_COMPILED/BUILTINS_NATIVE) or paths to externally-built qjs-<name> module build directories (routed into EXTERNAL_MODULES)")
+set(BUILTIN_MODULES
+    ""
+    CACHE
+      STRING
+      "Mixed list: module names (auto-routed into BUILTINS_COMPILED/BUILTINS_NATIVE) or paths to externally-built qjs-<name> module build directories (routed into EXTERNAL_MODULES)"
+)
 
 # the names BUILTIN_MODULES accepts: quickjs-<name>.c as <name> ('-' written '_') and
 # lib/<name>.js; get_native_modules()/get_compiled_modules() list them
@@ -1339,7 +1349,10 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
     endwhile()
 
     if("${_bm_name}" STREQUAL "")
-      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is a directory but no ancestor directory is named 'qjs-<name>' -- skipping")
+      message(
+        WARNING
+          "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is a directory but no ancestor directory is named 'qjs-<name>' -- skipping"
+      )
     else()
       find_library(_bm_lib_${_bm_name} NAMES "${_bm_name}" PATHS "${BUILTIN_MODULE}" NO_DEFAULT_PATH)
       if(_bm_lib_${_bm_name})
@@ -1348,7 +1361,8 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
         # module's own transitive system-library dependencies, which this auto-detection
         # can't know about -- it only locates the module's own lib<name>.a/.so), that
         # explicit value wins over the auto-detected bare path.
-        set(${_bm_name}_MODULE "${_bm_lib_${_bm_name}}" CACHE STRING "Static library for external module '${_bm_name}', found via BUILTIN_MODULES")
+        set(${_bm_name}_MODULE "${_bm_lib_${_bm_name}}"
+            CACHE STRING "Static library for external module '${_bm_name}', found via BUILTIN_MODULES")
       else()
         message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' -- no lib${_bm_name}.a/.so found in that directory")
       endif()
@@ -1359,7 +1373,10 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
     endif()
   elseif(BUILTIN_MODULE IN_LIST COMPILED_MODULE_NAMES)
     if(BUILTIN_MODULE MATCHES "[^A-Za-z0-9_]")
-      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is not a C identifier (a '-' or '/' in lib/${BUILTIN_MODULE}.js) -- the builtin table needs one, skipping")
+      message(
+        WARNING
+          "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is not a C identifier (a '-' or '/' in lib/${BUILTIN_MODULE}.js) -- the builtin table needs one, skipping"
+      )
     elseif(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
       list(APPEND BUILTINS_COMPILED "${BUILTIN_MODULE}")
       set(MODLIST ${COMMON_MODULES} ${${BUILTIN_MODULE}_MODULES})
@@ -1370,7 +1387,10 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
       set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${BUILTIN_MODULE})\n")
     endif()
   else()
-    message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, or existing directory -- skipping (native: ${NATIVE_MODULES}; compiled: ${COMPILED_MODULE_NAMES})")
+    message(
+      WARNING
+        "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, or existing directory -- skipping (native: ${NATIVE_MODULES}; compiled: ${COMPILED_MODULE_NAMES})"
+    )
   endif()
 endforeach()
 
@@ -1472,7 +1492,7 @@ foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
   else()
     message(
       WARNING
-      "EXTERNAL_MODULES contains '${EXTERNAL_MODULE}' but ${EXTERNAL_MODULE}_MODULE is not set -- qjsm will fail to link"
+        "EXTERNAL_MODULES contains '${EXTERNAL_MODULE}' but ${EXTERNAL_MODULE}_MODULE is not set -- qjsm will fail to link"
     )
   endif()
 endforeach()
@@ -1493,7 +1513,6 @@ target_link_libraries(qjsm PUBLIC ${LIBM})
 if(COMPILED_TARGETS)
   add_dependencies(qjsm ${COMPILED_TARGETS})
 endif(COMPILED_TARGETS)
-
 
 if(LIBDL)
   link_libraries(${LIBDL})
@@ -1552,10 +1571,25 @@ target_compile_definitions(
 
 install(TARGETS qjsm DESTINATION bin)
 
-file(GLOB INSTALL_SCRIPTS utilities/extract-structs.js utilities/jsonpp.js utilities/list-exports.js
-     utilities/resolve-imports.js utilities/xml-shell.js utilities/nm-symbols.js utilities/remove-dead-functions.js
-     utilities/deadwood.js utilities/source-scanner.js utilities/unused-functions.js utilities/runtime-diff.js
-     utilities/extract-c.js utilities/highlight.js utilities/extract-comments.js utilities/parse-ast.js examples/html2md.js)
+file(
+  GLOB
+  INSTALL_SCRIPTS
+  utilities/extract-structs.js
+  utilities/jsonpp.js
+  utilities/list-exports.js
+  utilities/resolve-imports.js
+  utilities/xml-shell.js
+  utilities/nm-symbols.js
+  utilities/remove-dead-functions.js
+  utilities/deadwood.js
+  utilities/source-scanner.js
+  utilities/unused-functions.js
+  utilities/runtime-diff.js
+  utilities/extract-c.js
+  utilities/highlight.js
+  utilities/extract-comments.js
+  utilities/parse-ast.js
+  examples/html2md.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)
@@ -1564,10 +1598,6 @@ symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
 symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")
 
-
-file(GLOB_RECURSE JS_SCRIPTS 
-  examples/*.js
-  utilities/*.js
-)
+file(GLOB_RECURSE JS_SCRIPTS examples/*.js utilities/*.js)
 
 add_custom_target(js SOURCES ${JS_SCRIPTS})

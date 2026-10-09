@@ -1,7 +1,7 @@
 #!/usr/bin/env qjsm
 
 // Applies a dead-function report - either from `nm-symbols.js --dead-code` (see there
-// for how the report is produced) or the identifier list `c-extract.js -i -L start,end`
+// for how the report is produced) or the identifier list `extract-c.js -i -L start,end`
 // / `-L range` writes (dead = a function with no references) - by surgically deleting each listed function - and, for
 // functions defined in a .c file, its matching header prototype - via the same
 // paren/brace-balancing token scan lib/c-functions.js uses for detection.
@@ -27,7 +27,7 @@ function printHelp() {
       "Removes the functions listed in a nm-symbols.js '--dead-code' report (or a\n" +
       'hand-trimmed copy of one - either the full report object, or a bare array of\n' +
       '{ file, name, startLine, endLine } entries), or the unreferenced functions of a\n' +
-      "`c-extract.js -i -L start,end ... -o identifiers.json` (or `-L range`, or `-L loc`)\n" +
+      "`extract-c.js -i -L start,end ... -o identifiers.json` (or `-L range`, or `-L loc`)\n" +
       'identifier list. For each entry: re-locates the\n' +
       "function in its file by name + start line (skipping it with a warning if the\n" +
       "file's changed since the report was generated), then deletes the full\n" +
@@ -53,7 +53,7 @@ function parsePosition(pos) {
 }
 
 /**
- * Turns the output of `c-extract.js -i` into removal entries: every function that has a
+ * Turns the output of `extract-c.js -i` into removal entries: every function that has a
  * declaration but no references. The declaration's position must say which file it is in
  * (`-L start|end|loc|range|file` - a plain `-L line` has no file) and where: a
  * "<file>:<line>:<column>" `start`, a `loc`, or a `range` (matched by character offset).
@@ -68,7 +68,7 @@ export function entriesFromIdentifiers(records) {
 
     if(at) entries.push({ file: at.file, name, startLine: at.line });
     else if(d.range?.file != null) entries.push({ file: d.range.file, name, startOffset: d.range.start });
-    else throw new Error(`${name}: declaration has no file/position - run c-extract.js with -L start,end, loc or range`);
+    else throw new Error(`${name}: declaration has no file/position - run extract-c.js with -L start,end, loc or range`);
   }
 
   return entries;
@@ -218,10 +218,10 @@ function main(...args) {
   const raw = JSON.parse(loadFile(jsonPath));
   let entries = Array.isArray(raw) ? raw : raw.deadFunctions;
 
-  // `c-extract.js -i` identifier records carry a `declaration` instead of file/name/startLine
+  // `extract-c.js -i` identifier records carry a `declaration` instead of file/name/startLine
   if(Array.isArray(entries) && entries.some(e => 'declaration' in e)) entries = entriesFromIdentifiers(entries);
 
-  if(!Array.isArray(entries)) throw new Error(`${jsonPath}: expected an array, a report object with a 'deadFunctions' array, or a c-extract.js -i identifier list`);
+  if(!Array.isArray(entries)) throw new Error(`${jsonPath}: expected an array, a report object with a 'deadFunctions' array, or a extract-c.js -i identifier list`);
 
   const say = s => err.puts(s);
 

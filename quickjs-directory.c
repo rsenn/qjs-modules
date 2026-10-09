@@ -10,6 +10,11 @@
  * @{
  */
 
+typedef struct DirectoryOptions {
+  int32_t flags, mask;
+  unsigned recursive : 1;
+} DirectoryOptions;
+
 /*
  * src/getdents.c only implements the getdents_*() API declared in getdents.h
  * for Windows (FindFirstFile/FindNextFile) and Linux/Android (getdents64()/
@@ -277,17 +282,16 @@ static JSValue
 js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   Directory* directory;
-  int32_t* opts;
+  DirectoryOptions* opts;
+  int i = 0;
 
-  if(!(directory = js_malloc(ctx, getdents_size() + sizeof(int32_t) * 2)))
+  if(!(directory = js_malloc(ctx, getdents_size() + sizeof(DirectoryOptions))))
     return JS_EXCEPTION;
 
   getdents_clear(directory);
 
-  opts = ((int32_t*)((char*)directory + getdents_size()));
-
-  opts[0] = FLAG_BOTH;
-  opts[1] = TYPE_MASK;
+  opts = (DirectoryOptions*)((char*)directory + getdents_size());
+  *opts = (DirectoryOptions){FLAG_BOTH, TYPE_MASK, FALSE};
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -301,29 +305,60 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   if(JS_IsException(obj))
     goto fail;
 
-  if(argc > 0) {
-    if(JS_IsNumber(argv[0])) {
+  if(i < argc) {
+    if(JS_IsNumber(argv[i])) {
       int32_t fd = -1;
 
-      JS_ToInt32(ctx, &fd, argv[0]);
+      JS_ToInt32(ctx, &fd, argv[i]);
       getdents_adopt(directory, fd);
+      i++;
     } else {
       const char* dir;
-      dir = JS_ToCString(ctx, argv[0]);
 
-      getdents_open(directory, dir);
-      JS_FreeCString(ctx, dir);
+      if((dir = JS_ToCString(ctx, argv[0]))) {
+        getdents_open(directory, dir);
+        JS_FreeCString(ctx, dir);
+        i++;
+      }
     }
   }
 
-  if(argc > 1)
-    JS_ToInt32(ctx, &opts[0], argv[1]);
+  if(i < argc && JS_IsObject(argv[i])) {
+    opts->flags = js_get_propertystr_int32(ctx, argv[i], "flags");
+    opts->mask = js_get_propertystr_int32(ctx, argv[i], "mask");
+    opts->recursive = js_get_propertystr_bool(ctx, argv[i], "recursive");
 
-  if(argc > 2)
-    JS_ToInt32(ctx, &opts[1], argv[2]);
+    if(i == 0) {
+      if(js_has_propertystr(ctx, argv[i], "fd")) {
+        getdents_adopt(directory, js_get_propertystr_int64(ctx, argv[i], "fd"));
+      } else if(js_has_propertystr(ctx, argv[i], "path")) {
+        const char* dir;
+
+        if((dir = js_get_propertystr_cstring(ctx, argv[i], "path"))) {
+          getdents_open(directory, dir);
+          JS_FreeCString(ctx, dir);
+        }
+      } else {
+        JS_ThrowInternalError(ctx, "options object must have .fd (Number) or .path (String) property");
+        goto fail;
+      }
+    }
+
+  } else {
+
+    if(i == 0) {
+      JS_ThrowInternalError(ctx, "argument 1 must be Number | String");
+      goto fail;
+    }
+
+    if(i < argc && JS_IsNumber(argv[i]))
+      if(!JS_ToInt32(ctx, &opts->flags, argv[i]))
+        if(++i < argc && JS_IsNumber(argv[i]))
+          if(!JS_ToInt32(ctx, &opts->mask, argv[i]))
+            i++;
+  }
 
   JS_SetOpaque(obj, directory);
-
   return obj;
 
 fail:
@@ -342,8 +377,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   switch(magic) {
     case DIRECTORY_OPEN: {
-      const char* dir;
-      dir = JS_ToCString(ctx, argv[0]);
+      const char* dir = JS_ToCString(ctx, argv[0]);
 
       if(getdents_open(directory, dir))
         ret = JS_ThrowInternalError(ctx, "getdents_open(%s) failed: %s", dir, strerror(errno));

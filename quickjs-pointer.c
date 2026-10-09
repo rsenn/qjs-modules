@@ -474,7 +474,6 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
     case METHOD_SPLICE: {
-      // int64_t s, l;
       IndexRange rng = INDEX_RANGE_INIT();
 
       js_index_range(ctx, ptr->n, argc, argv, 0, &rng);
@@ -899,21 +898,7 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   pointer_proto = JS_NewObjectProto(ctx, array_proto);
   JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
 
-  //  JSValue array_ctor = js_global_get_str(ctx, "Array");
-
-  /*
-
-  //JS_DefinePropertyValueStr(ctx, pointer_proto, "concat", JS_GetPropertyStr(ctx, array_proto, "concat"), JS_PROP_CONFIGURABLE);
-  //JS_DefinePropertyValueStr(ctx, pointer_proto, "slice", JS_GetPropertyStr(ctx, array_proto, "slice"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "keys", JS_GetPropertyStr(ctx, array_proto, "keys"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "values", JS_GetPropertyStr(ctx, array_proto, "values"), JS_PROP_CONFIGURABLE);*/
-
   JS_FreeValue(ctx, array_proto);
-
-  js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
 
   pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
 

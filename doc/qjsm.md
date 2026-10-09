@@ -88,7 +88,7 @@ name of this loaded module" and "list everything that's loaded" are not).
 `qjsm` keeps its own parallel list, `loaded_modules` (a `struct list_head` of
 `LoadedModule { name, module }` records), appended to by `jsm_module_loader()`
 every time it resolves a specifier. `moduleList`/`moduleEntries`,
-`findModule`/`findModuleIndex`, and the loader's own re-entrancy cache
+`findModule`, and the loader's own re-entrancy cache
 (`jsm_module_find()`) all walk this shadow list rather than reaching into engine
 internals — see [Implementation notes](#implementation-notes-and-history) for
 why that restraint matters.
@@ -195,22 +195,26 @@ Every one of these is installed via `JS_SetPropertyFunctionList()` in `main()`
 (`jsm_global_funcs[]`), dispatched through a single C function
 (`jsm_module_func()`) keyed by a `magic` enum — one dispatcher, one place to
 reason about the module-identifier argument conventions shared across all of
-them (a `Module` value, a loaded-module name, or a `loaded_modules` index are
-all accepted interchangeably where it makes sense).
+them. A module is identified by its index in `loaded_modules` (the order of
+`moduleList`); these functions never hand out a raw `Module` value. Where a module
+is taken as an argument, a loaded-module name is accepted too.
 
 | Global | Description |
 | --- | --- |
-| `findModule(name)` | Look up an already-loaded module by name (or index/`Module` value). Returns `null`, not an exception, if nothing matches. |
-| `findModuleIndex(name, [start])` | Same lookup, returning its position in `loaded_modules` (`-1` if not found). |
+| `findModule(name, [start])` | Look up an already-loaded module by name, starting at index `start`. Returns its position in `loaded_modules`, or `-1` (not an exception) if nothing matches. Index `0` is valid. |
 | `loadModule(path, [name])` | Synthesizes and evaluates `import tmp from 'path'; globalThis[name] = tmp;` (or `import * as tmp`/`tmp()` for the `*`/`!` modifiers — see `jsm_module_script()`). This is what `-m` and the REPL's `\i` ultimately call. |
 | `requireModule(name)` | CommonJS-flavored `require()`: loads the module and returns its full namespace object (`JS_GetModuleNamespace()`), rather than binding it onto `globalThis`. |
-| `resolveModule(moduleValue)` | Runs `JS_ResolveModule()` (link the module's imports/exports) on an already-loaded `Module` value. |
-| `normalizeModule(pathOrModule, specifier)` | Exposes `jsm_module_normalize()` directly — what would `specifier` resolve to, importing from `pathOrModule`? |
+| `resolveModule(index)` | Runs `JS_ResolveModule()` (link the module's imports/exports) on an already-loaded module. |
+| `getModuleName(index)` | The module's name (`JS_GetModuleName()`). |
+| `getModuleMetaObject(index)` | The module's `import.meta` object (`JS_GetImportMeta()`). |
+| `getModuleNS(index)` | The module's namespace object (`JS_GetModuleNamespace()`). |
+| `normalizeModule(pathOrIndex, specifier)` | Exposes `jsm_module_normalize()` directly — what would `specifier` resolve to, importing from `pathOrModule`? |
 | `locateModule(name)` | Path-search only (`jsm_module_locate()`): where would `QUICKJS_MODULE_PATH`/extension search find `name`, without importing it? Returns `null` if not found. |
 | `registerHooks({resolve?, load?})` | Node's synchronous `module.registerHooks()` — see [Module customization hooks](#module-customization-hooks). Also exported as `registerHooks` from the `module` builtin. |
-| `moduleList` *(getter)* | Array of `{name, builtin}` for every loaded module. |
+| `moduleList` *(getter)* | Array of module items, see [Module items](#module-items). |
+| `getModule(nameOrIndex)` | The `moduleList` item for a module, or `null` if it isn't loaded. |
 | `moduleEntries` *(getter)* | Array of `[name, moduleValue]` pairs, skipping synthetic (`<...>`-named) modules. |
-| `builtins` *(getter)* | Array of every registered builtin module's name, initialized or not. |
+| `builtins` *(getter)* | Module items (see [Module items](#module-items)) for every registered builtin. One not loaded yet has only `name`, `kind` and `builtin`. |
 | `evalFile(path, [asModule])` / `evalBuf(source, [filename], [asModule])` | Evaluate a file or in-memory source, optionally as a module (in which case the return value is `{name, exports}` rather than the completion value). |
 | `scriptList` / `scriptFile` / `scriptDir` / `__filename` / `__dirname` *(getters)* | Views of the include/import stack (`jsm_stack`) — which file is currently executing and its ancestry. |
 | `startInteractive()` | Drops into the REPL from script code, same as `-i`/`SIGUSR1`. |
@@ -220,6 +224,23 @@ load) was removed — see
 [Implementation notes](#implementation-notes-and-history): the queue it wrote
 to is only ever drained once, at startup, before any user script can run, so
 calling it from script code was a silent no-op.
+
+### Module items
+
+`moduleList` and `getModule()` return items with these properties; `index` is
+the argument the other `*Module` functions take.
+
+| Property | Meaning |
+| --- | --- |
+| `index` | position in `moduleList` (load order; fixed once the module is loaded) |
+| `name` | resolved module name |
+| `kind` | `'native'`, `'compiled'`, `'data'`, `'json'` or `'js'` |
+| `builtin` | registered in the builtin table |
+| `path` | file the module was loaded from (absent for builtins and `data:`) |
+| `url`, `main` | the module's `import.meta.url` / `import.meta.main`, when set |
+| `parent` | `index` of the module that imported it first (absent for the entry point and eval'd code) |
+| `hooked` | `true` when produced by a `registerHooks()` hook; absent otherwise |
+| `status`, `async` | `'unlinked'` … `'evaluated'`, and whether it uses top-level await (needs the engine's `JS_GetModuleStatus()`) |
 
 ## Module customization hooks
 

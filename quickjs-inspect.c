@@ -339,7 +339,6 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "breakLength", js_number_new(ctx, opts->break_length));
   JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
 
-  // if(opts->proto_chain)
   JS_SetPropertyStr(ctx, ret, "protoChain", js_number_new(ctx, opts->proto_chain));
 
   arr = JS_NewArray(ctx);
@@ -459,13 +458,11 @@ compact_close_level(Vector* stack, DynBuf* dbuf, int32_t compact_threshold) {
 static void
 put_escaped(Writer* wr, const char* str, size_t len) {
   char buf[FMT_ULONG];
-  size_t i = 0;
-  const uint8_t *pos, *end, *next;
   static const uint8_t* table = escape_singlequote_tab;
 
-  for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
+  for(const uint8_t *next, *pos = (const uint8_t*)str, *end = pos + len; pos < end; pos = next) {
     size_t clen;
-    int32_t c;
+    int c;
     uint8_t r, ch;
 
     if((c = unicode_from_utf8(pos, end - pos, &next)) < 0)
@@ -474,8 +471,6 @@ put_escaped(Writer* wr, const char* str, size_t len) {
     clen = next - pos;
     ch = c;
     r = c > 0xff ? 0 : table[c];
-
-    // if(clen >= 2) r = 'u';
 
     if(r == 'u' && clen > 1 && (c & 0xff) == 0) {
       r = 'x';
@@ -497,8 +492,6 @@ put_escaped(Writer* wr, const char* str, size_t len) {
     } else {
       writer_write(wr, pos, next - pos);
     }
-
-    i++;
   }
 }
 
@@ -832,7 +825,6 @@ inspect_regexp(Inspector* insp, JSValueConst value, int32_t depth) {
     writer_puts(wr, COLOR_RED);
 
   writer_write(wr, str, len);
-  // put_escaped(wr, str, len);
 
   if(opts->colors)
     writer_puts(wr, COLOR_NONE);
@@ -889,40 +881,6 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
     }
 
     if((str = js_tostringlen(ctx, &len, num))) {
-      /* XXX: stripping exponents - bad idea
-      size_t pos;
-      int32_t exponent = 0;
-
-      if((pos = byte_chrs(str, len, "eE", 2)) + 1 < len) {
-        scan_int(str + pos + 1, &exponent);
-      }
-
-      if(exponent < 0) {
-        len = pos;
-
-        if((pos = byte_chr(str, len, '.')) < len) {
-          for(; pos > 0; --pos) {
-            str[pos] = str[pos - 1];
-            exponent++;
-          }
-          str[0] = '.';
-          pos = 1;
-        } else {
-          pos = 0;
-        }
-
-        int add = abs(exponent);
-        size_t newlen = len + add + pos;
-        str = js_realloc(ctx, str, newlen + 1);
-        char* bound = &str[pos + add];
-        memmove(bound, &str[pos], len);
-        str[newlen] = '\0';
-        if(pos == 0)
-          str[pos++] = '.';
-        memset(&str[pos], '0', bound - &str[pos]);
-        len = newlen;
-
-      } else */
       if(len > 1 && opts->number_precision >= 0)
         for(size_t i = len; i > 0; --i) {
           switch(str[i - 1]) {
@@ -1192,33 +1150,14 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
         if(has_class_key)
           tag = js_get_property_string(ctx, value, opts->class_key.atom);
         else
-          tag = 0; // js_strdup(ctx, "Object");
+          tag = 0;
 
         if(tag) {
           writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
           writer_puts(wr, tag);
           writer_puts(wr, opts->colors ? COLOR_NONE " " : " ");
         }
-      } /*else if(!is_array) {
-        const char* s = 0;
-
-        if(s == 0 && JS_IsFunction(ctx, object_tostring))
-          s = js_object_tostring2(ctx, object_tostring, value);
-
-        if(s && !strncmp(s, "[object ", 8)) {
-          const char* e = strchr(s, ']');
-          size_t slen = e - (s + 8);
-
-          if(slen != 6 || memcmp(s + 8, "Object", 6)) {
-            writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "[");
-            writer_write(wr, s + 8, e - (s + 8));
-            writer_puts(wr, opts->colors ? COLOR_NONE " " : "] ");
-          }
-        }
-
-        if(s)
-          JS_FreeCString(ctx, s);
-      }*/
+      }
     }
 
     if(js_global_instanceof(ctx, value, "String"))
@@ -1230,7 +1169,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
     JSValue name = JS_GetPropertyStr(ctx, value, "name");
 
     writer_puts(wr, opts->colors ? COLOR_MARINE "[" : "[");
-    writer_puts(wr, "Function" /*js_object_classname(ctx, value)*/);
+    writer_puts(wr, "Function");
 
     if(!JS_IsUndefined(name)) {
       const char* s = JS_ToCString(ctx, name);
@@ -1763,13 +1702,13 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       it = property_recursion_pop(&insp->hier, ctx);
 
       if(numeric_compact) {
-        BOOL had_entries = !(prev_idx == 0);
+        BOOL had_entries = prev_idx != 0;
 
         --depth;
 
         if(had_entries)
           writer_putnl_indent(wr, depth);
-      } else if(!(/*depth == 1 &&*/ prev_idx == 0)) {
+      } else if(prev_idx != 0) {
         adjust_spacing(wr, opts, &depth, -1);
       } else {
         --depth;

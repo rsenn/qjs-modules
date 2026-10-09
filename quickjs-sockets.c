@@ -1312,11 +1312,6 @@ enum {
   PROP_OPEN,
   PROP_EOF,
   PROP_MODE,
-  /*PROP_SYSCALL,
-  PROP_ERRNO,
-  PROP_ERROR,
-  PROP_RET,
-  PROP_AF,*/
   PROP_LOCAL,
   PROP_REMOTE,
   PROP_NONBLOCK,
@@ -2036,44 +2031,6 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 #endif
       break;
     }
-
-      /*case PROP_SYSCALL: {
-        if(s.sysno > 0) {
-          const char* name;
-
-          if((name = socketcall_name(s.sysno)))
-            ret = JS_NewString(ctx, name);
-        }
-
-        break;
-      }
-
-      case PROP_ERRNO: {
-        ret = JS_NewUint32(ctx, socket_error(s));
-        break;
-      }
-
-      case PROP_ERROR: {
-        if(s.error)
-          ret = js_syscallerror_new(ctx, socket_syscall(s), s.error);
-
-        break;
-      }
-
-      case PROP_RET: {
-        ret = JS_NewInt32(ctx, s.ret);
-        break;
-      }
-
-      case PROP_AF: {
-        int af = socket_address_family(s);
-
-        if(af >= 0)
-          ret = JS_NewInt32(ctx, af);
-
-        break;
-      }*/
-
     case PROP_LOCAL: {
       SockAddr a;
       socklen_t len = sizeof(SockAddr);
@@ -2189,12 +2146,6 @@ static const JSCFunctionListEntry js_sockets_funcs[] = {
 
 static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("fd", js_socket_get, 0, PROP_FD, JS_PROP_C_W_E),
-    /*JS_CGETSET_MAGIC_FLAGS_DEF("ret", js_socket_get, js_socket_set, PROP_RET,
-    JS_PROP_CONFIGURABLE), JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, PROP_ERRNO),
-    JS_CGETSET_MAGIC_DEF("syscall", js_socket_get, 0, PROP_SYSCALL),
-    JS_CGETSET_MAGIC_DEF("error", js_socket_get, 0, PROP_ERROR),
-    JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, PROP_ERRNO),
-    JS_CGETSET_MAGIC_DEF("af", js_socket_get, 0, PROP_AF),*/
     JS_CGETSET_MAGIC_DEF("local", js_socket_get, 0, PROP_LOCAL),
     JS_CGETSET_MAGIC_DEF("remote", js_socket_get, 0, PROP_REMOTE),
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, PROP_OPEN),
@@ -2233,12 +2184,6 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
 
 static const JSCFunctionListEntry js_asyncsocket_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("fd", js_socket_get, 0, PROP_FD, JS_PROP_C_W_E),
-    /*JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_asyncsocket_set, PROP_RET),
-    JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, PROP_ERRNO),
-    JS_CGETSET_MAGIC_DEF("syscall", js_socket_get, 0, PROP_SYSCALL),
-    JS_CGETSET_MAGIC_DEF("error", js_socket_get, 0, PROP_ERROR),
-    JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, PROP_ERRNO),
-    JS_CGETSET_MAGIC_DEF("af", js_socket_get, 0, PROP_AF),*/
     JS_CGETSET_MAGIC_DEF("local", js_socket_get, 0, PROP_LOCAL),
     JS_CGETSET_MAGIC_DEF("remote", js_socket_get, 0, PROP_REMOTE),
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, PROP_OPEN),

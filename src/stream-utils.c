@@ -25,7 +25,7 @@ typedef struct {
   JSValue func_obj, this_obj;
   int ref_count;
   void* rd_wr;
-  int nargs;  /* 2 for (buf, len), 3 for (buf, offset, len) */
+  int nargs; /* 2 for (buf, len), 3 for (buf, offset, len) */
 } JSFunc;
 
 typedef struct {
@@ -111,8 +111,8 @@ jsfunc_dup(JSFunc* fw) {
 static int
 jsfunc_detect_nargs(JSContext* ctx, JSValueConst func_obj) {
   JSValue length_val = JS_GetPropertyStr(ctx, func_obj, "length");
-  int nargs = 2;  /* default to 2-arg signature */
-  
+  int nargs = 2; /* default to 2-arg signature */
+
   if(!JS_IsException(length_val) && !JS_IsUndefined(length_val)) {
     int32_t length;
     if(JS_ToInt32(ctx, &length, length_val) == 0) {
@@ -120,7 +120,7 @@ jsfunc_detect_nargs(JSContext* ctx, JSValueConst func_obj) {
     }
   }
   JS_FreeValue(ctx, length_val);
-  
+
   return nargs;
 }
 
@@ -130,18 +130,18 @@ is_std_file_object(JSContext* ctx, JSValueConst obj) {
   // Check if the object has both read and write methods, which is characteristic of std FILE
   JSValue read_method = JS_GetPropertyStr(ctx, obj, "read");
   JSValue write_method = JS_GetPropertyStr(ctx, obj, "write");
-  
+
   BOOL has_read = JS_IsFunction(ctx, read_method);
   BOOL has_write = JS_IsFunction(ctx, write_method);
-  
+
   JS_FreeValue(ctx, read_method);
   JS_FreeValue(ctx, write_method);
-  
+
   // Also check if it has other std FILE characteristics like close method
   JSValue close_method = JS_GetPropertyStr(ctx, obj, "close");
   BOOL has_close = JS_IsFunction(ctx, close_method);
   JS_FreeValue(ctx, close_method);
-  
+
   // A std FILE object should have read, write, and close methods
   return has_read && has_write && has_close;
 }
@@ -149,7 +149,7 @@ is_std_file_object(JSContext* ctx, JSValueConst obj) {
 static JSValue
 jsfunc_invoke(JSFunc* fw, void* buf, size_t len, BOOL copy) {
   JSValue ret;
-  
+
   if(fw->nargs == 3) {
     JSValueConst args[3] = {
         copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
@@ -181,14 +181,14 @@ jsfunc_invoke(JSFunc* fw, void* buf, size_t len, BOOL copy) {
     JS_FreeValue(fw->ctx, args[0]);
     JS_FreeValue(fw->ctx, args[1]);
   }
-  
+
   return ret;
 }
 
 static JSValue
 jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
   JSValue ret;
-  
+
   if(fw->nargs == 3) {
     JSValueConst args[3] = {
         copy ? JS_NewArrayBufferCopy(fw->ctx, (uint8_t*)buf, len) : JS_NewArrayBuffer(fw->ctx, (uint8_t*)buf, len, 0, 0, FALSE),
@@ -216,7 +216,7 @@ jsfunc_call(JSFunc* fw, void* buf, size_t len, BOOL copy) {
     JS_FreeValue(fw->ctx, args[0]);
     JS_FreeValue(fw->ctx, args[1]);
   }
-  
+
   return ret;
 }
 

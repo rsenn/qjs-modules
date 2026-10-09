@@ -92,7 +92,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         --argc;
         ++argv;
       }
-      
+
       if(argc > 1) {
         int64_t index = INT64_MAX;
         JS_ToInt64Ext(ctx, &index, argv[1]);
@@ -312,7 +312,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
         if(!(p = path_at3(a, &len, i)) || (len == 0 && i > 0))
           break;
-        
+
         JS_SetPropertyUint32(ctx, ret, idx++, JS_NewStringLen(ctx, p, len));
       }
 

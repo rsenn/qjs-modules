@@ -143,13 +143,30 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
 
   # WASI has no ACLs, extended attributes or host crypto, and no tools are built
   if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
-    list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DENABLE_ACL:BOOL=OFF" "-DENABLE_XATTR:BOOL=OFF" "-DENABLE_NETTLE:BOOL=OFF"
-         "-DENABLE_MBEDTLS:BOOL=OFF" "-DENABLE_PCRE2POSIX:BOOL=OFF" "-DENABLE_TAR:BOOL=OFF" "-DENABLE_CPIO:BOOL=OFF"
-         "-DENABLE_CAT:BOOL=OFF" "-DENABLE_UNZIP:BOOL=OFF"
-         # src/wasi/wasi_compat.h supplies these, so the link-only probes cannot see them
-         "-DHAVE_FCHDIR:INTERNAL=1" "-DHAVE_GETPWUID_R:INTERNAL=1" "-DHAVE_GETGRGID_R:INTERNAL=1")
-    set(LIBARCHIVE_C_FLAGS "-w -I${SOURCE}/src/wasi -include ${SOURCE}/src/wasi/wasi_compat.h -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_GETPID -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_MMAN")
-    list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DCMAKE_EXE_LINKER_FLAGS:STRING=-lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman")
+    list(
+      APPEND
+      LIBARCHIVE_DEP_ARGS_${SUFFIX}
+      "-DENABLE_ACL:BOOL=OFF"
+      "-DENABLE_XATTR:BOOL=OFF"
+      "-DENABLE_NETTLE:BOOL=OFF"
+      "-DENABLE_MBEDTLS:BOOL=OFF"
+      "-DENABLE_PCRE2POSIX:BOOL=OFF"
+      "-DENABLE_TAR:BOOL=OFF"
+      "-DENABLE_CPIO:BOOL=OFF"
+      "-DENABLE_CAT:BOOL=OFF"
+      "-DENABLE_UNZIP:BOOL=OFF"
+      # src/wasi/wasi_compat.h supplies these, so the link-only probes cannot see them
+      "-DHAVE_FCHDIR:INTERNAL=1"
+      "-DHAVE_GETPWUID_R:INTERNAL=1"
+      "-DHAVE_GETGRGID_R:INTERNAL=1")
+    set(LIBARCHIVE_C_FLAGS
+        "-w -I${SOURCE}/src/wasi -include ${SOURCE}/src/wasi/wasi_compat.h -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_GETPID -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_MMAN"
+    )
+    list(
+      APPEND
+      LIBARCHIVE_DEP_ARGS_${SUFFIX}
+      "-DCMAKE_EXE_LINKER_FLAGS:STRING=-lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman"
+    )
   endif()
 
   ExternalProject_Add(

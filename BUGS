@@ -857,3 +857,14 @@
     await db.connect({ host: '127.0.0.1', port: 1, user: 'x', password: '', db: 'y' });
     // expected: rejects with MySQLError, or db.error is a message string
     // actual: resolves; db.errno === 2002, db.error === null
+
+- path-root-handling (quickjs-path.c): `path` mishandles the root directory.
+  resolve('/') returns "<cwd>/\0", resolve('/a/..') returns "", and
+  dirname('/') and dirname('/x') return "." instead of "/". lib/module.js
+  carries its own posix helpers to avoid it. found while writing the
+  node:module port.
+
+    import * as path from 'path';
+    [path.resolve('/'), path.resolve('/a/..'), path.dirname('/x')];
+    // expected (node): [ '/', '/', '/' ]
+    // actual: [ '<cwd>/\u0000', '', '.' ]

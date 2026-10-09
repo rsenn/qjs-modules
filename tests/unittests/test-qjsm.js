@@ -7,7 +7,7 @@ const [file, dir] = [__filename, __dirname];
 
 tests({
   'every module global is a function'() {
-    for(const name of ['findModule', 'findModuleIndex', 'loadModule', 'requireModule', 'resolveModule', 'normalizeModule', 'locateModule', 'registerHooks', 'evalBuf', 'evalFile'])
+    for(const name of ['findModule', 'loadModule', 'requireModule', 'resolveModule', 'normalizeModule', 'locateModule', 'getModule', 'getModuleName', 'getModuleMetaObject', 'getModuleNS', 'registerHooks', 'evalBuf', 'evalFile'])
       eq('function', typeof globalThis[name]);
   },
 
@@ -15,7 +15,7 @@ tests({
     const path = builtins.find(b => b.name == 'path');
 
     assert(path, 'path missing');
-    eq(true, path.native);
+    eq('native', path.kind);
   },
 
   'builtins includes compiled JS modules'() {
@@ -42,17 +42,66 @@ tests({
     eq('path', normalizeModule('/x.js', 'node:path'));
   },
 
-  'findModule returns null for an unknown module'() {
-    eq(null, findModule('nonexistent-xyz'));
+  'findModule returns the module index'() {
+    const index = findModule('path');
+
+    eq('number', typeof index);
+    assert(index >= 0, 'path not found');
+    eq(index, moduleList.findIndex(m => m.name == 'path'));
   },
 
-  'findModule finds a loaded module'() {
-    assert(findModule('path') !== null, 'path not found');
+  'moduleList items describe the module'() {
+    const item = moduleList.find(m => m.name == 'path');
+
+    eq('native', item.kind);
+    eq(true, item.builtin);
+    eq(undefined, item.hooked);
+    eq(moduleList.findIndex(m => m.name == 'path'), item.index);
   },
 
-  'findModuleIndex is -1 when unknown, an index when loaded'() {
-    eq(-1, findModuleIndex('nonexistent-xyz'));
-    assert(findModuleIndex('path') >= 0, 'path index');
+  'getModule returns the moduleList item by name or index'() {
+    const item = moduleList.find(m => m.name == 'path');
+
+    eq(JSON.stringify(item), JSON.stringify(getModule('path')));
+    eq(JSON.stringify(item), JSON.stringify(getModule(item.index)));
+  },
+
+  'getModule is null for an unknown module'() {
+    eq(null, getModule('nonexistent-xyz'));
+  },
+
+  'getModuleName returns the module name'() {
+    eq('path', getModuleName(findModule('path')));
+  },
+
+  'getModuleNS returns the namespace'() {
+    eq('function', typeof getModuleNS(findModule('path')).join);
+  },
+
+  'getModuleMetaObject returns an object'() {
+    eq('object', typeof getModuleMetaObject(findModule('path')));
+  },
+
+  'getModuleName of an unknown index throws'() {
+    let error;
+
+    try {
+      getModuleName(1e6);
+    } catch(e) {
+      error = e;
+    }
+
+    assert(error instanceof TypeError, 'expected TypeError');
+  },
+
+  'findModule is -1 when unknown'() {
+    eq(-1, findModule('nonexistent-xyz'));
+  },
+
+  'findModule starts searching at an offset'() {
+    const index = findModule('path');
+
+    eq(-1, findModule('path', index + 1));
   },
 
   'locateModule returns null for an unknown module'() {

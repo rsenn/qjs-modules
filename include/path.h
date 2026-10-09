@@ -54,7 +54,7 @@ char is_junction(const char*);
 #define path_isdotslash(p) ((p)[0] == '.' && path_issep((p)[1]))
 #define path_isdotdot(p) ((p)[0] == '.' && (p)[1] == '.' && ((p)[2] == '\0' || path_issep((p)[2])))
 
-#define path_isrelative(p) !path_isabsolute1(p) // (path_isdotslash(p) || path_isdotdot(p))
+#define path_isrelative(p) !path_isabsolute1(p)
 #define path_isexplicit(p) (path_isabs(p) || path_isdot(p) || path_isdotdot(p))
 #define path_isimplicit(p) (!path_isexplicit(p))
 

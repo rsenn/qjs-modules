@@ -91,10 +91,8 @@ static const ImpliedEndTag default_implied_end_tags[] = {
  * 206 on a real 16MB export whose actual <DL> nesting is a handful of
  * levels), instead of staying flat. */
 static const char* const block_closing_tags[] = {
-    "address", "article", "aside",  "blockquote", "details", "div",  "dl",     "fieldset", "figcaption",
-    "figure",  "footer",  "form",   "h1",         "h2",      "h3",   "h4",     "h5",       "h6",
-    "header",  "hr",      "main",   "menu",       "nav",     "ol",   "p",      "pre",      "section",
-    "table",   "ul",      "dt",     "dd",         "li",      0,
+    "address", "article", "aside", "blockquote", "details", "div", "dl", "fieldset", "figcaption", "figure",  "footer", "form", "h1", "h2", "h3", "h4", "h5",
+    "h6",      "header",  "hr",    "main",       "menu",    "nav", "ol", "p",        "pre",        "section", "table",  "ul",   "dt", "dd", "li", 0,
 };
 
 static const char* const block_closable_open_tags[] = {"p", "li", "dt", "dd", 0};

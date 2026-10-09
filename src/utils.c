@@ -137,6 +137,7 @@ __list_sort(struct list_head* head, int (*cmp)(struct list_head* a, struct list_
   list = head->next;
   list_del(head);
   insize = 1;
+
   for(;;) {
     p = oldhead = list;
     list = tail = NULL;
@@ -146,10 +147,11 @@ __list_sort(struct list_head* head, int (*cmp)(struct list_head* a, struct list_
       nmerges++;
       q = p;
       psize = 0;
+
       for(i = 0; i < insize; i++) {
         psize++;
-        q = q->next == oldhead ? NULL : q->next;
-        if(!q)
+
+        if(!(q = q->next == oldhead ? NULL : q->next))
           break;
       }
 
@@ -159,12 +161,14 @@ __list_sort(struct list_head* head, int (*cmp)(struct list_head* a, struct list_
           e = q;
           q = q->next;
           qsize--;
+
           if(q == oldhead)
             q = NULL;
         } else if(!qsize || !q) {
           e = p;
           p = p->next;
           psize--;
+
           if(p == oldhead)
             p = NULL;
         } else if(cmp(p, q, opaque) <= 0) {
@@ -177,6 +181,7 @@ __list_sort(struct list_head* head, int (*cmp)(struct list_head* a, struct list_
           e = q;
           q = q->next;
           qsize--;
+
           if(q == oldhead)
             q = NULL;
         }
@@ -185,9 +190,11 @@ __list_sort(struct list_head* head, int (*cmp)(struct list_head* a, struct list_
           tail->next = e;
         else
           list = e;
+
         e->prev = tail;
         tail = e;
       }
+
       p = q;
     }
 
@@ -224,34 +231,6 @@ __list_reverse(struct list_head* head) {
     }
   }
 }
-
-/**
- * Delete a list entry by making the prev/next entries point to each other.
- *
- * This is only for internal list manipulation where we know
- * the prev/next entries already!
- */
-
-/**
- * @brief delete from one list and add as another's head
- * @param list the entry to move
- * @param head the head that will precede our entry
- */
-
-/**
- * @brief delete from one list and add as another's tail
- * @param list the entry to move
- * @param head the head that will follow our entry
- */
-/**
- * @brief replace old entry by new one
- * @param old the element to be replaced
- * @param new the new element to insert
- *
- * If @old was empty, it will be overwritten.
- */
-
-/* merge result: dprev <-> (shead <-> ... <-> stail) <-> dnext */
 
 int
 regexp_flags_fromstring(const char* s) {
@@ -339,7 +318,6 @@ regexp_from_dbuf(DynBuf* dbuf, int flags) {
   dbuf->buf = 0;
   dbuf->allocated_size = 0;
   dbuf->size = 0;
-
   return re;
 }
 
@@ -892,11 +870,7 @@ int
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   JSPropertyEnum *atoms_a = 0, *atoms_b = 0;
   uint32_t natoms_a, natoms_b;
-  // int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
   int ret = -1;
-
-  // assert(ta == TYPE_OBJECT);
-  // assert(tb == TYPE_OBJECT);
 
   if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     goto end;
@@ -1204,7 +1178,20 @@ js_get_propertystr_int64(JSContext* ctx, JSValueConst obj, const char* prop) {
   if(JS_IsUndefined(value) || JS_IsException(value))
     return 0;
 
-  JS_ToInt64(ctx, &ret, value);
+  JS_ToInt64Ext(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+uint32_t
+js_get_propertystr_uint32(JSContext* ctx, JSValueConst obj, const char* prop) {
+  uint32_t ret;
+  JSValue value = JS_GetPropertyStr(ctx, obj, prop);
+
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  JS_ToUint32(ctx, &ret, value);
   JS_FreeValue(ctx, value);
   return ret;
 }
@@ -1217,7 +1204,7 @@ js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop) {
   if(JS_IsUndefined(value) || JS_IsException(value))
     return 0;
 
-  JS_ToIndex(ctx, &ret, value);
+  ret = js_touint64(ctx, value);
   JS_FreeValue(ctx, value);
   return ret;
 }
@@ -1429,7 +1416,6 @@ void
 js_propertyenums_clear(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   for(uint32_t i = 0; i < len; i++)
     JS_FreeAtom(ctx, props[i].atom);
-  // js_free(ctx, props);
 }
 
 void
@@ -1592,14 +1578,6 @@ js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
   return ret;
 }
 
-/*void
-js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
-  int i;
-
-  for(i = 0; i < nvalues; i++) JS_FreeValue(ctx, values[i]);
-  js_free(ctx, values);
-}*/
-
 void
 js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values) {
   for(int i = 0; i < nvalues; i++)
@@ -1681,7 +1659,7 @@ js_value_type(JSContext* ctx, JSValueConst value) {
   if((flag = js_value_type_get(ctx, value)) == FLAG_INVALID)
     return 0;
 
-  if(flag == FLAG_ARRAY /*|| flag == FLAG_FUNCTION*/)
+  if(flag == FLAG_ARRAY)
     type |= TYPE_OBJECT;
 
   type |= 1 << flag;
@@ -1994,7 +1972,7 @@ js_is_primitive(JSValueConst obj) {
  * for the lifetime of the process once assigned - one probe per type, cached
  * by the caller, replaces an instanceof-plus-prototype-walk on every call. */
 static JSClassID
-js_probe_class_id(JSContext* ctx, const char* class_name, int argc, JSValueConst* argv) {
+js_probe_class_id(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
   JSValue ctor = js_global_get_str(ctx, class_name);
   JSClassID id = JS_INVALID_CLASS_ID;
 
@@ -2146,7 +2124,12 @@ js_is_regexp(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
+#ifdef HAVE_JS_PROMISE_STATE
+  /* -1 when `value` is no Promise (the enum has no negative member, hence the cast) */
+  return (int)JS_PromiseState(ctx, value) >= 0;
+#else
   return JS_IsObject(value) && js_global_instanceof(ctx, value, "Promise");
+#endif
 }
 
 BOOL
@@ -2236,7 +2219,8 @@ js_operators_create(JSContext* ctx, JSValue* this_obj) {
   JSValue operators = js_global_get_str(ctx, "Operators");
   JSValue create_fun = JS_UNDEFINED;
 
-  /* Engines built without operator overloading have no Operators global; reading a property off undefined would leave a pending exception. */
+  /* Engines built without operator overloading have no Operators global; reading a property off undefined would leave a
+   * pending exception. */
   if(JS_IsObject(operators))
     create_fun = JS_GetPropertyStr(ctx, operators, "create");
 
@@ -2269,8 +2253,6 @@ js_number_integral(JSValueConst value) {
 
     if((num - i) < DBL_EPSILON)
       return TRUE;
-
-    // return fmod(num, 1.0l) == 0.0l;
   }
 
   return FALSE;
@@ -2375,13 +2357,6 @@ js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
 
   return len;
 }
-
-/*void
-js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
-  JSString* jstr = opaque;
-
-  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
-}*/
 
 static void
 js_arraybuffer_mmap_free(JSRuntime* rt, void* opaque, void* ptr) {
@@ -2639,7 +2614,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
 
 JSValue
 js_error_stack(JSContext* ctx) {
-  JSValue error = JS_NewError(ctx); // js_object_error(ctx, "");
+  JSValue error = JS_NewError(ctx);
   JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
 
   JS_FreeValue(ctx, error);
@@ -2658,7 +2633,8 @@ js_module_namespace_sync(JSContext* ctx, const char* module_name) {
   if(JS_IsException(promise))
     return promise;
 
-  while(JS_PromiseState(ctx, promise) == JS_PROMISE_PENDING && JS_ExecutePendingJob(rt, &job_ctx) > 0) {}
+  while(JS_PromiseState(ctx, promise) == JS_PROMISE_PENDING && JS_ExecutePendingJob(rt, &job_ctx) > 0) {
+  }
 
   if(JS_PromiseState(ctx, promise) == JS_PROMISE_FULFILLED)
     ns = JS_PromiseResult(ctx, promise);
@@ -2694,7 +2670,6 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
 
 BOOL
 js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handler) {
-
   if(JS_IsException(set_handler))
     return FALSE;
 
@@ -2711,30 +2686,7 @@ js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handl
     return FALSE;
 
   JS_FreeValue(ctx, ret);
-
   return TRUE;
-}
-
-JSValue
-js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
-  return js_invoke(ctx, promise, "then", 1, &func);
-}
-
-JSValue
-js_promise_immediate(JSContext* ctx, BOOL reject, JSValueConst value) {
-  JSValue ret, promise, resolving_funcs[2];
-  promise = JS_NewPromiseCapability(ctx, resolving_funcs);
-  ret = JS_Call(ctx, resolving_funcs[!!reject], JS_UNDEFINED, 1, &value);
-  JS_FreeValue(ctx, ret);
-
-  JS_FreeValue(ctx, resolving_funcs[0]);
-  JS_FreeValue(ctx, resolving_funcs[1]);
-  return promise;
-}
-
-JSValue
-js_promise_resolve(JSContext* ctx, JSValueConst value) {
-  return js_promise_immediate(ctx, FALSE, value);
 }
 
 JSValue
@@ -2752,7 +2704,7 @@ js_to_source(JSContext* ctx, JSValueConst this_obj) {
 }
 
 void
-arguments_dump(Arguments const* args, /*JSContext* ctx,*/ DynBuf* dbuf) {
+arguments_dump(Arguments const* args, DynBuf* dbuf) {
   int n = args->c, i;
 
   if(n > 1)
@@ -2855,9 +2807,14 @@ js_atom_tostring(JSContext* ctx, JSAtom atom) {
 uint64_t
 js_touint64(JSContext* ctx, JSValueConst value) {
   uint64_t ret = 0;
-  if(JS_ToIndex(ctx, &ret, value)) {
+  BOOL is_bigint = JS_IsBigInt(ctx, value);
+
+  if(is_bigint || JS_ToIndex(ctx, &ret, value)) {
     int64_t i64;
-    JS_GetException(ctx);
+
+    if(!is_bigint)
+      JS_GetException(ctx);
+
     if(!JS_ToInt64Ext(ctx, &i64, value))
       ret = i64;
   }
@@ -3066,9 +3023,6 @@ js_function_cclosure(JSContext* ctx, CClosureFunc* func, int length, int magic, 
   ccr->opaque_finalize = opaque_finalize;
 
   JS_SetOpaque(func_obj, ccr);
-
-  // JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
-
   return func_obj;
 }
 

@@ -983,8 +983,6 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_ids, countof(js_predicate_ids));
   JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_types, countof(js_predicate_types));
 
-  js_set_inspect_method(ctx, predicate_proto, js_predicate_inspect);
-
   /* Builds Predicate.prototype[Symbol.operatorSet] via the same
    * Operators.create(selfOps, leftDef, rightDef, ...) mechanism user code
    * uses (see doc/js/predicate.md) - just called from C instead of

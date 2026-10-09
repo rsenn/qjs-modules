@@ -3689,105 +3689,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("kill", 1, js_misc_kill),
     JS_CFUNC_DEF("signum", 1, js_misc_signum),
     JS_CFUNC_DEF("signame", 1, js_misc_signame),
-#ifdef SIGHUP
-    JS_CONSTANT(SIGHUP),
-#endif
-#ifdef SIGINT
-    JS_CONSTANT(SIGINT),
-#endif
-#ifdef SIGQUIT
-    JS_CONSTANT(SIGQUIT),
-#endif
-#ifdef SIGILL
-    JS_CONSTANT(SIGILL),
-#endif
-#ifdef SIGTRAP
-    JS_CONSTANT(SIGTRAP),
-#endif
-#ifdef SIGABRT
-    JS_CONSTANT(SIGABRT),
-#endif
-#ifdef SIGBUS
-    JS_CONSTANT(SIGBUS),
-#endif
-#ifdef SIGFPE
-    JS_CONSTANT(SIGFPE),
-#endif
-#ifdef SIGKILL
-    JS_CONSTANT(SIGKILL),
-#endif
-#ifdef SIGUSR1
-    JS_CONSTANT(SIGUSR1),
-#endif
-#ifdef SIGSEGV
-    JS_CONSTANT(SIGSEGV),
-#endif
-#ifdef SIGUSR2
-    JS_CONSTANT(SIGUSR2),
-#endif
-#ifdef SIGPIPE
-    JS_CONSTANT(SIGPIPE),
-#endif
-#ifdef SIGALRM
-    JS_CONSTANT(SIGALRM),
-#endif
-#ifdef SIGTERM
-    JS_CONSTANT(SIGTERM),
-#endif
-#ifdef SIGSTKFLT
-    JS_CONSTANT(SIGSTKFLT),
-#endif
-#ifdef SIGCHLD
-    JS_CONSTANT(SIGCHLD),
-#endif
-#ifdef SIGCONT
-    JS_CONSTANT(SIGCONT),
-#endif
-#ifdef SIGSTOP
-    JS_CONSTANT(SIGSTOP),
-#endif
-#ifdef SIGTSTP
-    JS_CONSTANT(SIGTSTP),
-#endif
-#ifdef SIGTTIN
-    JS_CONSTANT(SIGTTIN),
-#endif
-#ifdef SIGTTOU
-    JS_CONSTANT(SIGTTOU),
-#endif
-#ifdef SIGURG
-    JS_CONSTANT(SIGURG),
-#endif
-#ifdef SIGXCPU
-    JS_CONSTANT(SIGXCPU),
-#endif
-#ifdef SIGXFSZ
-    JS_CONSTANT(SIGXFSZ),
-#endif
-#ifdef SIGVTALRM
-    JS_CONSTANT(SIGVTALRM),
-#endif
-#ifdef SIGPROF
-    JS_CONSTANT(SIGPROF),
-#endif
-#ifdef SIGWINCH
-    JS_CONSTANT(SIGWINCH),
-#endif
-#ifdef SIGIO
-    JS_CONSTANT(SIGIO),
-#endif
-#ifdef SIGPOLL
-    JS_CONSTANT(SIGPOLL),
-#endif
-#ifdef SIGPWR
-    JS_CONSTANT(SIGPWR),
-#endif
-#ifdef SIGSYS
-    JS_CONSTANT(SIGSYS),
-#endif
-#ifdef SIGBREAK
-    JS_CONSTANT(SIGBREAK),
-#endif
+
 #ifndef _WIN32
     JS_CFUNC_DEF("umask", 1, js_misc_umask),
     JS_CFUNC_DEF("setgroups", 1, js_misc_setgroups),
@@ -4173,13 +4075,576 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 };
 
+static const JSCFunctionListEntry js_misc_sigconst[] =
+    {
+#ifdef SIGHUP
+        JS_CONSTANT(SIGHUP),
+#endif
+#ifdef SIGINT
+        JS_CONSTANT(SIGINT),
+#endif
+#ifdef SIGQUIT
+        JS_CONSTANT(SIGQUIT),
+#endif
+#ifdef SIGILL
+        JS_CONSTANT(SIGILL),
+#endif
+#ifdef SIGTRAP
+        JS_CONSTANT(SIGTRAP),
+#endif
+#ifdef SIGABRT
+        JS_CONSTANT(SIGABRT),
+#endif
+#ifdef SIGBUS
+        JS_CONSTANT(SIGBUS),
+#endif
+#ifdef SIGFPE
+        JS_CONSTANT(SIGFPE),
+#endif
+#ifdef SIGKILL
+        JS_CONSTANT(SIGKILL),
+#endif
+#ifdef SIGUSR1
+        JS_CONSTANT(SIGUSR1),
+#endif
+#ifdef SIGSEGV
+        JS_CONSTANT(SIGSEGV),
+#endif
+#ifdef SIGUSR2
+        JS_CONSTANT(SIGUSR2),
+#endif
+#ifdef SIGPIPE
+        JS_CONSTANT(SIGPIPE),
+#endif
+#ifdef SIGALRM
+        JS_CONSTANT(SIGALRM),
+#endif
+#ifdef SIGTERM
+        JS_CONSTANT(SIGTERM),
+#endif
+#ifdef SIGSTKFLT
+        JS_CONSTANT(SIGSTKFLT),
+#endif
+#ifdef SIGCHLD
+        JS_CONSTANT(SIGCHLD),
+#endif
+#ifdef SIGCONT
+        JS_CONSTANT(SIGCONT),
+#endif
+#ifdef SIGSTOP
+        JS_CONSTANT(SIGSTOP),
+#endif
+#ifdef SIGTSTP
+        JS_CONSTANT(SIGTSTP),
+#endif
+#ifdef SIGTTIN
+        JS_CONSTANT(SIGTTIN),
+#endif
+#ifdef SIGTTOU
+        JS_CONSTANT(SIGTTOU),
+#endif
+#ifdef SIGURG
+        JS_CONSTANT(SIGURG),
+#endif
+#ifdef SIGXCPU
+        JS_CONSTANT(SIGXCPU),
+#endif
+#ifdef SIGXFSZ
+        JS_CONSTANT(SIGXFSZ),
+#endif
+#ifdef SIGVTALRM
+        JS_CONSTANT(SIGVTALRM),
+#endif
+#ifdef SIGPROF
+        JS_CONSTANT(SIGPROF),
+#endif
+#ifdef SIGWINCH
+        JS_CONSTANT(SIGWINCH),
+#endif
+#ifdef SIGIO
+        JS_CONSTANT(SIGIO),
+#endif
+#ifdef SIGPOLL
+        JS_CONSTANT(SIGPOLL),
+#endif
+#ifdef SIGPWR
+        JS_CONSTANT(SIGPWR),
+#endif
+#ifdef SIGSYS
+        JS_CONSTANT(SIGSYS),
+#endif
+#ifdef SIGBREAK
+        JS_CONSTANT(SIGBREAK),
+#endif
+};
+
+static const JSCFunctionListEntry js_misc_errnoconst[] = {
+#ifdef E2BIG
+    JS_CONSTANT(E2BIG),
+#endif
+#ifdef EACCES
+    JS_CONSTANT(EACCES),
+#endif
+#ifdef EADDRINUSE
+    JS_CONSTANT(EADDRINUSE),
+#endif
+#ifdef EADDRNOTAVAIL
+    JS_CONSTANT(EADDRNOTAVAIL),
+#endif
+#ifdef EAFNOSUPPORT
+    JS_CONSTANT(EAFNOSUPPORT),
+#endif
+#ifdef EAGAIN
+    JS_CONSTANT(EAGAIN),
+#endif
+#ifdef EALREADY
+    JS_CONSTANT(EALREADY),
+#endif
+#ifdef EBADF
+    JS_CONSTANT(EBADF),
+#endif
+#ifdef EBADMSG
+    JS_CONSTANT(EBADMSG),
+#endif
+#ifdef EBUSY
+    JS_CONSTANT(EBUSY),
+#endif
+#ifdef ECANCELED
+    JS_CONSTANT(ECANCELED),
+#endif
+#ifdef ECHILD
+    JS_CONSTANT(ECHILD),
+#endif
+#ifdef ECONNABORTED
+    JS_CONSTANT(ECONNABORTED),
+#endif
+#ifdef ECONNREFUSED
+    JS_CONSTANT(ECONNREFUSED),
+#endif
+#ifdef ECONNRESET
+    JS_CONSTANT(ECONNRESET),
+#endif
+#ifdef EDEADLK
+    JS_CONSTANT(EDEADLK),
+#endif
+#ifdef EDESTADDRREQ
+    JS_CONSTANT(EDESTADDRREQ),
+#endif
+#ifdef EDOM
+    JS_CONSTANT(EDOM),
+#endif
+#ifdef EDQUOT
+    JS_CONSTANT(EDQUOT),
+#endif
+#ifdef EEXIST
+    JS_CONSTANT(EEXIST),
+#endif
+#ifdef EFAULT
+    JS_CONSTANT(EFAULT),
+#endif
+#ifdef EFBIG
+    JS_CONSTANT(EFBIG),
+#endif
+#ifdef EHOSTUNREACH
+    JS_CONSTANT(EHOSTUNREACH),
+#endif
+#ifdef EIDRM
+    JS_CONSTANT(EIDRM),
+#endif
+#ifdef EILSEQ
+    JS_CONSTANT(EILSEQ),
+#endif
+#ifdef EINPROGRESS
+    JS_CONSTANT(EINPROGRESS),
+#endif
+#ifdef EINTR
+    JS_CONSTANT(EINTR),
+#endif
+#ifdef EINVAL
+    JS_CONSTANT(EINVAL),
+#endif
+#ifdef EIO
+    JS_CONSTANT(EIO),
+#endif
+#ifdef EISCONN
+    JS_CONSTANT(EISCONN),
+#endif
+#ifdef EISDIR
+    JS_CONSTANT(EISDIR),
+#endif
+#ifdef ELOOP
+    JS_CONSTANT(ELOOP),
+#endif
+#ifdef EMFILE
+    JS_CONSTANT(EMFILE),
+#endif
+#ifdef EMLINK
+    JS_CONSTANT(EMLINK),
+#endif
+#ifdef EMSGSIZE
+    JS_CONSTANT(EMSGSIZE),
+#endif
+#ifdef EMULTIHOP
+    JS_CONSTANT(EMULTIHOP),
+#endif
+#ifdef ENAMETOOLONG
+    JS_CONSTANT(ENAMETOOLONG),
+#endif
+#ifdef ENETDOWN
+    JS_CONSTANT(ENETDOWN),
+#endif
+#ifdef ENETRESET
+    JS_CONSTANT(ENETRESET),
+#endif
+#ifdef ENETUNREACH
+    JS_CONSTANT(ENETUNREACH),
+#endif
+#ifdef ENFILE
+    JS_CONSTANT(ENFILE),
+#endif
+#ifdef ENOBUFS
+    JS_CONSTANT(ENOBUFS),
+#endif
+#ifdef ENODATA
+    JS_CONSTANT(ENODATA),
+#endif
+#ifdef ENODEV
+    JS_CONSTANT(ENODEV),
+#endif
+#ifdef ENOENT
+    JS_CONSTANT(ENOENT),
+#endif
+#ifdef ENOEXEC
+    JS_CONSTANT(ENOEXEC),
+#endif
+#ifdef ENOLCK
+    JS_CONSTANT(ENOLCK),
+#endif
+#ifdef ENOLINK
+    JS_CONSTANT(ENOLINK),
+#endif
+#ifdef ENOMEM
+    JS_CONSTANT(ENOMEM),
+#endif
+#ifdef ENOMSG
+    JS_CONSTANT(ENOMSG),
+#endif
+#ifdef ENOPROTOOPT
+    JS_CONSTANT(ENOPROTOOPT),
+#endif
+#ifdef ENOSPC
+    JS_CONSTANT(ENOSPC),
+#endif
+#ifdef ENOSR
+    JS_CONSTANT(ENOSR),
+#endif
+#ifdef ENOSTR
+    JS_CONSTANT(ENOSTR),
+#endif
+#ifdef ENOSYS
+    JS_CONSTANT(ENOSYS),
+#endif
+#ifdef ENOTCONN
+    JS_CONSTANT(ENOTCONN),
+#endif
+#ifdef ENOTDIR
+    JS_CONSTANT(ENOTDIR),
+#endif
+#ifdef ENOTEMPTY
+    JS_CONSTANT(ENOTEMPTY),
+#endif
+#ifdef ENOTSOCK
+    JS_CONSTANT(ENOTSOCK),
+#endif
+#ifdef ENOTSUP
+    JS_CONSTANT(ENOTSUP),
+#endif
+#ifdef ENOTTY
+    JS_CONSTANT(ENOTTY),
+#endif
+#ifdef ENXIO
+    JS_CONSTANT(ENXIO),
+#endif
+#ifdef EOPNOTSUPP
+    JS_CONSTANT(EOPNOTSUPP),
+#endif
+#ifdef EOVERFLOW
+    JS_CONSTANT(EOVERFLOW),
+#endif
+#ifdef EPERM
+    JS_CONSTANT(EPERM),
+#endif
+#ifdef EPIPE
+    JS_CONSTANT(EPIPE),
+#endif
+#ifdef EPROTO
+    JS_CONSTANT(EPROTO),
+#endif
+#ifdef EPROTONOSUPPORT
+    JS_CONSTANT(EPROTONOSUPPORT),
+#endif
+#ifdef EPROTOTYPE
+    JS_CONSTANT(EPROTOTYPE),
+#endif
+#ifdef ERANGE
+    JS_CONSTANT(ERANGE),
+#endif
+#ifdef EROFS
+    JS_CONSTANT(EROFS),
+#endif
+#ifdef ESPIPE
+    JS_CONSTANT(ESPIPE),
+#endif
+#ifdef ESRCH
+    JS_CONSTANT(ESRCH),
+#endif
+#ifdef ESTALE
+    JS_CONSTANT(ESTALE),
+#endif
+#ifdef ETIME
+    JS_CONSTANT(ETIME),
+#endif
+#ifdef ETIMEDOUT
+    JS_CONSTANT(ETIMEDOUT),
+#endif
+#ifdef ETXTBSY
+    JS_CONSTANT(ETXTBSY),
+#endif
+#ifdef EWOULDBLOCK
+    JS_CONSTANT(EWOULDBLOCK),
+#endif
+#ifdef EXDEV
+    JS_CONSTANT(EXDEV),
+#endif
+#ifdef _WIN32
+#ifdef WSAEINTR
+    JS_CONSTANT(WSAEINTR),
+#endif
+#ifdef WSAEBADF
+    JS_CONSTANT(WSAEBADF),
+#endif
+#ifdef WSAEACCES
+    JS_CONSTANT(WSAEACCES),
+#endif
+#ifdef WSAEFAULT
+    JS_CONSTANT(WSAEFAULT),
+#endif
+#ifdef WSAEINVAL
+    JS_CONSTANT(WSAEINVAL),
+#endif
+#ifdef WSAEMFILE
+    JS_CONSTANT(WSAEMFILE),
+#endif
+#ifdef WSAEWOULDBLOCK
+    JS_CONSTANT(WSAEWOULDBLOCK),
+#endif
+#ifdef WSAEINPROGRESS
+    JS_CONSTANT(WSAEINPROGRESS),
+#endif
+#ifdef WSAEALREADY
+    JS_CONSTANT(WSAEALREADY),
+#endif
+#ifdef WSAENOTSOCK
+    JS_CONSTANT(WSAENOTSOCK),
+#endif
+#ifdef WSAEDESTADDRREQ
+    JS_CONSTANT(WSAEDESTADDRREQ),
+#endif
+#ifdef WSAEMSGSIZE
+    JS_CONSTANT(WSAEMSGSIZE),
+#endif
+#ifdef WSAEPROTOTYPE
+    JS_CONSTANT(WSAEPROTOTYPE),
+#endif
+#ifdef WSAENOPROTOOPT
+    JS_CONSTANT(WSAENOPROTOOPT),
+#endif
+#ifdef WSAEPROTONOSUPPORT
+    JS_CONSTANT(WSAEPROTONOSUPPORT),
+#endif
+#ifdef WSAESOCKTNOSUPPORT
+    JS_CONSTANT(WSAESOCKTNOSUPPORT),
+#endif
+#ifdef WSAEOPNOTSUPP
+    JS_CONSTANT(WSAEOPNOTSUPP),
+#endif
+#ifdef WSAEPFNOSUPPORT
+    JS_CONSTANT(WSAEPFNOSUPPORT),
+#endif
+#ifdef WSAEAFNOSUPPORT
+    JS_CONSTANT(WSAEAFNOSUPPORT),
+#endif
+#ifdef WSAEADDRINUSE
+    JS_CONSTANT(WSAEADDRINUSE),
+#endif
+#ifdef WSAEADDRNOTAVAIL
+    JS_CONSTANT(WSAEADDRNOTAVAIL),
+#endif
+#ifdef WSAENETDOWN
+    JS_CONSTANT(WSAENETDOWN),
+#endif
+#ifdef WSAENETUNREACH
+    JS_CONSTANT(WSAENETUNREACH),
+#endif
+#ifdef WSAENETRESET
+    JS_CONSTANT(WSAENETRESET),
+#endif
+#ifdef WSAECONNABORTED
+    JS_CONSTANT(WSAECONNABORTED),
+#endif
+#ifdef WSAECONNRESET
+    JS_CONSTANT(WSAECONNRESET),
+#endif
+#ifdef WSAENOBUFS
+    JS_CONSTANT(WSAENOBUFS),
+#endif
+#ifdef WSAEISCONN
+    JS_CONSTANT(WSAEISCONN),
+#endif
+#ifdef WSAENOTCONN
+    JS_CONSTANT(WSAENOTCONN),
+#endif
+#ifdef WSAESHUTDOWN
+    JS_CONSTANT(WSAESHUTDOWN),
+#endif
+#ifdef WSAETOOMANYREFS
+    JS_CONSTANT(WSAETOOMANYREFS),
+#endif
+#ifdef WSAETIMEDOUT
+    JS_CONSTANT(WSAETIMEDOUT),
+#endif
+#ifdef WSAECONNREFUSED
+    JS_CONSTANT(WSAECONNREFUSED),
+#endif
+#ifdef WSAELOOP
+    JS_CONSTANT(WSAELOOP),
+#endif
+#ifdef WSAENAMETOOLONG
+    JS_CONSTANT(WSAENAMETOOLONG),
+#endif
+#ifdef WSAEHOSTDOWN
+    JS_CONSTANT(WSAEHOSTDOWN),
+#endif
+#ifdef WSAEHOSTUNREACH
+    JS_CONSTANT(WSAEHOSTUNREACH),
+#endif
+#ifdef WSAENOTEMPTY
+    JS_CONSTANT(WSAENOTEMPTY),
+#endif
+#ifdef WSAEPROCLIM
+    JS_CONSTANT(WSAEPROCLIM),
+#endif
+#ifdef WSAEUSERS
+    JS_CONSTANT(WSAEUSERS),
+#endif
+#ifdef WSAEDQUOT
+    JS_CONSTANT(WSAEDQUOT),
+#endif
+#ifdef WSAESTALE
+    JS_CONSTANT(WSAESTALE),
+#endif
+#ifdef WSAEREMOTE
+    JS_CONSTANT(WSAEREMOTE),
+#endif
+#ifdef WSASYSNOTREADY
+    JS_CONSTANT(WSASYSNOTREADY),
+#endif
+#ifdef WSAVERNOTSUPPORTED
+    JS_CONSTANT(WSAVERNOTSUPPORTED),
+#endif
+#ifdef WSANOTINITIALISED
+    JS_CONSTANT(WSANOTINITIALISED),
+#endif
+#ifdef WSAEDISCON
+    JS_CONSTANT(WSAEDISCON),
+#endif
+#ifdef WSAENOMORE
+    JS_CONSTANT(WSAENOMORE),
+#endif
+#ifdef WSAECANCELLED
+    JS_CONSTANT(WSAECANCELLED),
+#endif
+#ifdef WSAEINVALIDPROCTABLE
+    JS_CONSTANT(WSAEINVALIDPROCTABLE),
+#endif
+#ifdef WSAEINVALIDPROVIDER
+    JS_CONSTANT(WSAEINVALIDPROVIDER),
+#endif
+#ifdef WSAEPROVIDERFAILEDINIT
+    JS_CONSTANT(WSAEPROVIDERFAILEDINIT),
+#endif
+#ifdef WSASYSCALLFAILURE
+    JS_CONSTANT(WSASYSCALLFAILURE),
+#endif
+#ifdef WSASERVICE_NOT_FOUND
+    JS_CONSTANT(WSASERVICE_NOT_FOUND),
+#endif
+#ifdef WSATYPE_NOT_FOUND
+    JS_CONSTANT(WSATYPE_NOT_FOUND),
+#endif
+#ifdef WSA_E_NO_MORE
+    JS_CONSTANT(WSA_E_NO_MORE),
+#endif
+#ifdef WSA_E_CANCELLED
+    JS_CONSTANT(WSA_E_CANCELLED),
+#endif
+#ifdef WSAEREFUSED
+    JS_CONSTANT(WSAEREFUSED),
+#endif
+#endif
+};
+
+static const JSCFunctionListEntry js_misc_dlopenconst[] = {
+#ifdef RTLD_LAZY
+    JS_CONSTANT(RTLD_LAZY),
+#endif
+#ifdef RTLD_NOW
+    JS_CONSTANT(RTLD_NOW),
+#endif
+#ifdef RTLD_GLOBAL
+    JS_CONSTANT(RTLD_GLOBAL),
+#endif
+#ifdef RTLD_LOCAL
+    JS_CONSTANT(RTLD_LOCAL),
+#endif
+#ifdef RTLD_DEEPBIND
+    JS_CONSTANT(RTLD_DEEPBIND),
+#endif
+};
+
+static const JSCFunctionListEntry js_misc_prioconst[] = {
+#ifdef PRIORITY_LOW
+    JS_CONSTANT(PRIORITY_LOW),
+#endif
+#ifdef PRIORITY_BELOW_NORMAL
+    JS_CONSTANT(PRIORITY_BELOW_NORMAL),
+#endif
+#ifdef PRIORITY_NORMAL
+    JS_CONSTANT(PRIORITY_NORMAL),
+#endif
+#ifdef PRIORITY_ABOVE_NORMAL
+    JS_CONSTANT(PRIORITY_ABOVE_NORMAL),
+#endif
+#ifdef PRIORITY_HIGH
+    JS_CONSTANT(PRIORITY_HIGH),
+#endif
+#ifdef PRIORITY_HIGHEST
+    JS_CONSTANT(PRIORITY_HIGHEST),
+#endif
+};
+
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
   vector_init(&js_misc_atexit_functions, ctx);
   atexit(&js_misc_atexit_handler);
 
-  if(m)
+  if(m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
+    JS_SetModuleExportList(ctx, m, js_misc_sigconst, countof(js_misc_sigconst));
+    JS_SetModuleExportList(ctx, m, js_misc_errnoconst, countof(js_misc_errnoconst));
+    JS_SetModuleExportList(ctx, m, js_misc_dlopenconst, countof(js_misc_dlopenconst));
+    JS_SetModuleExportList(ctx, m, js_misc_prioconst, countof(js_misc_prioconst));
+  }
 
   return 0;
 }
@@ -4194,8 +4659,13 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_misc_init)))
+  if((m = JS_NewCModule(ctx, module_name, js_misc_init))) {
     JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
+    JS_AddModuleExportList(ctx, m, js_misc_sigconst, countof(js_misc_sigconst));
+    JS_AddModuleExportList(ctx, m, js_misc_errnoconst, countof(js_misc_errnoconst));
+    JS_AddModuleExportList(ctx, m, js_misc_dlopenconst, countof(js_misc_dlopenconst));
+    JS_AddModuleExportList(ctx, m, js_misc_prioconst, countof(js_misc_prioconst));
+  }
 
   return m;
 }

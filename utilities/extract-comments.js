@@ -433,7 +433,7 @@ Output:
   -j, --json             same as -f json
   -n, --ndjson           same as -f ndjson
   -k, --comment-key KEY  JSON property for the text (default: comment)
-  -L, --loc MODE[,MODE]  JSON positions (default: loc), as c-extract.js:
+  -L, --loc MODE[,MODE]  JSON positions (default: loc), as extract-c.js:
                          line   .line and .column
                          offset .offset (character offset)
                          loc    .loc   { line, column, file }

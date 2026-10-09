@@ -11,4 +11,4 @@ syntax highlighting.
 | --- | --- | --- | --- |
 | `REPL` | — | class | The REPL engine: prompt, line editing, history, completion, evaluation, output. |
 | `REPLServer` | — | class | Wraps a `REPL` to serve a session (Node `repl`-style). |
-| `loadModule(moduleName)` | 1 | async function | Dynamically imports a module for use inside the REPL. |
+| `loadModule(moduleName)` | 1 | async function | Dynamically imports a module for use inside the REPL. A leading `*` assigns its exports onto `globalThis`, `!` calls its default export, `=` binds the default export as `globalThis.<name>` (`\i =require`); with none the namespace is bound as `globalThis.<name>`. |

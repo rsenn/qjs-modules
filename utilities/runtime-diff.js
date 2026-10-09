@@ -98,7 +98,7 @@ const globalNames = ${JSON.stringify(globalNames)};
 
 // Node/Deno/Bun all implement node:module's builtinModules (Deno/Bun for Node
 // compat). qjsm has no node:module, but does expose its own registry as the native
-// \`builtins\` global (jsm_builtins() in src/qjsm.c) - {name, native|compiled}[]
+// \`builtins\` global (jsm_builtins() in src/qjsm.c) - module items (see doc/qjsm.md)
 // instead of a flat string array, so it's mapped to match.
 try {
   const { builtinModules } = await import('node:module');

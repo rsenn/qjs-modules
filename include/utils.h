@@ -230,28 +230,28 @@ BOOL js_global_instanceof(JSContext*, JSValueConst, const char* prop);
 
 typedef enum {
   FLAG_UNDEFINED = 0,
-  FLAG_NULL,   // 1
-  FLAG_BOOL,   // 2
-  FLAG_INT,    // 3
-  FLAG_OBJECT, // 4
-  FLAG_STRING, // 5
-  FLAG_SYMBOL, // 6
+  FLAG_NULL,
+  FLAG_BOOL,
+  FLAG_INT,
+  FLAG_OBJECT,
+  FLAG_STRING,
+  FLAG_SYMBOL,
 #ifdef QJS_BIGNUM_EXT
-  FLAG_BIG_FLOAT, // 7
+  FLAG_BIG_FLOAT,
 #endif
-  FLAG_BIG_INT, // 8
+  FLAG_BIG_INT,
 #ifdef QJS_BIGNUM_EXT
-  FLAG_BIG_DECIMAL, // 9
+  FLAG_BIG_DECIMAL,
 #endif
-  FLAG_FLOAT64,           // 10
-  FLAG_NAN,               // 11
-  FLAG_FUNCTION,          // 12
-  FLAG_ARRAY,             // 13
-  FLAG_MODULE,            // 14
-  FLAG_FUNCTION_BYTECODE, // 15
-  FLAG_UNINITIALIZED,     // 16
-  FLAG_CATCH_OFFSET,      // 17
-  FLAG_EXCEPTION,         // 18
+  FLAG_FLOAT64,
+  FLAG_NAN,
+  FLAG_FUNCTION,
+  FLAG_ARRAY,
+  FLAG_MODULE,
+  FLAG_FUNCTION_BYTECODE,
+  FLAG_UNINITIALIZED,
+  FLAG_CATCH_OFFSET,
+  FLAG_EXCEPTION,
   FLAG_INVALID = -1,
 } ValueTypeFlag;
 
@@ -693,18 +693,10 @@ char* js_get_property_string(JSContext*, JSValueConst obj, JSAtom prop);
 char* js_get_propertystr_string(JSContext*, JSValueConst obj, const char* prop);
 char* js_get_propertystr_stringlen(JSContext*, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext*, JSValueConst obj, const char* prop);
-uint32_t js_get_propertystr_unt32(JSContext*, JSValueConst obj, const char* prop);
+uint32_t js_get_propertystr_uint32(JSContext*, JSValueConst obj, const char* prop);
 int64_t js_get_propertystr_int64(JSContext*, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext*, JSValueConst obj, const char* prop);
 JSAtom js_get_propertystr_atom(JSContext*, JSValueConst obj, const char* prop);
-
-static inline void
-js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
-  JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_DefinePropertyValue(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
-  JS_FreeAtom(ctx, inspect_symbol);
-}
-
 JSValue js_get_tostringtag_value(JSContext*, JSValueConst obj);
 void js_set_tostringtag_value(JSContext*, JSValueConst obj, JSValueConst value);
 const char* js_get_tostringtag_cstr(JSContext*, JSValueConst obj);
@@ -727,8 +719,6 @@ JSAtom js_class_atom(JSContext*, JSClassID id);
 JSValue js_class_value(JSContext*, JSClassID id);
 JSClassID js_class_id(JSContext*, JSClassID id);
 JSClassID js_class_find(JSContext*, JSAtom);
-
-
 
 static inline BOOL
 js_is_object(JSContext* ctx, JSValueConst val) {
@@ -795,9 +785,7 @@ int js_propenum_cmp(const void* a, const void* b, void* ptr);
 int64_t js_array_clear(JSContext*, JSValueConst array);
 
 size_t js_strv_length(char** strv);
-
 char** js_strv_dup(JSContext*, char** strv);
-
 void js_strv_free(JSContext*, char** strv);
 void js_strv_free_rt(JSRuntime*, char** strv);
 JSValue js_strv_to_array(JSContext*, char** strv);
@@ -810,7 +798,6 @@ JSValue js_intv_to_array(JSContext*, int const*, size_t);
 char** js_array_to_argv(JSContext*, size_t*, JSValueConst);
 int32_t* js_array_to_int32v(JSContext*, size_t*, JSValueConst);
 int64_t* js_array_to_int64v(JSContext*, size_t*, JSValueConst);
-
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 
 JSValue js_invoke(JSContext*, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
@@ -864,19 +851,6 @@ JSValue js_error_stack(JSContext*);
 
 JSValue js_iohandler_fn(JSContext*, BOOL write, const char* global_obj);
 BOOL js_iohandler_set(JSContext*, JSValueConst set_handler, int fd, JSValue handler);
-
-JSValue js_promise_immediate(JSContext*, BOOL reject, JSValueConst promise);
-JSValue js_promise_resolve(JSContext*, JSValueConst promise);
-JSValue js_promise_then(JSContext*, JSValueConst promise, JSValueConst func);
-
-static inline JSValue
-js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
-  JSValue tmp, ret;
-  tmp = js_promise_resolve(ctx, promise);
-  ret = js_promise_then(ctx, tmp, func);
-  JS_FreeValue(ctx, tmp);
-  return ret;
-}
 
 JSValue js_generator_prototype(JSContext*);
 

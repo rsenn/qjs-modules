@@ -89,11 +89,6 @@ dbuf_init_ctx(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx ? JS_GetRuntime(ctx) : 0, ctx ? (DynBufReallocFunc*)&js_realloc_rt : 0);
 }
 
-
-
-
-
-
 void
 dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
@@ -331,7 +326,6 @@ dbuf_put_int32(DynBuf* db, int32_t num) {
   dbuf_put(db, (const uint8_t*)buf, fmt_long(buf, num));
 }
 
-
 int
 dbuf_reserve_start(DynBuf* s, size_t len) {
   if(unlikely((s->size + len) > s->allocated_size)) {
@@ -354,8 +348,6 @@ dbuf_reserve(DynBuf* s, size_t len) {
 
   return &s->buf[s->size];
 }
-
-
 
 JSValue
 dbuf_tostring(DynBuf* s, JSContext* ctx) {

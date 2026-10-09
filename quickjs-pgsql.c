@@ -252,7 +252,6 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
     const char* src = JS_ToCStringLen(ctx, &len, val);
 
     dbuf_put(out, (const uint8_t*)src, len);
-    // js_pgconn_print_value(ctx, pq, out, val);
     JS_FreeValue(ctx, val);
   } else if(js_is_arraybuffer(ctx, value)) {
     InputBuffer input = js_input_buffer(ctx, value);
@@ -1253,7 +1252,6 @@ static const JSCFunctionListEntry js_pgconn_funcs[] = {
     JS_CFUNC_DEF("valueString", 0, js_pgconn_value_string),
     JS_CFUNC_DEF("valuesString", 1, js_pgconn_values_string),
     JS_CFUNC_DEF("insertQuery", 2, js_pgconn_insert_query),
-    // JS_CFUNC_MAGIC_DEF("escapeString", 1, js_pgconn_methods, METHOD_ESCAPE_STRING),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGconn", JS_PROP_CONFIGURABLE),
 };
 
@@ -1782,7 +1780,6 @@ static JSClassDef js_pgresult_class = {
 
 static const JSCFunctionListEntry js_pgresult_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_pgresult_get, 0, PROP_EOF),
-    // JS_ITERATOR_NEXT_DEF("next", 0, js_pgresult_next, METHOD_NEXT),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_pgresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_pgresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_pgresult_functions, METHOD_FETCH_FIELD),

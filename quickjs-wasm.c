@@ -500,7 +500,8 @@ static JSClassDef wasm_memory_class = {"Memory", .finalizer = memory_finalizer, 
 
 /* the backing store is owned by the engine: no free callback. */
 static void
-no_free(JSRuntime* rt, void* opaque, void* ptr) {}
+no_free(JSRuntime* rt, void* opaque, void* ptr) {
+}
 
 /* Memory.prototype.buffer: an ArrayBuffer over the live memory; replaced
  * (and the old one detached) whenever the engine moved or grew it. */
@@ -1232,12 +1233,12 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
 
   if(!mod)
     return argc > 0 ? JS_EXCEPTION : JS_ThrowTypeError(ctx, "WebAssembly.Instance needs a Module");
-  
+
   e = env_of(mod->env);
 
   if(WB_GetModuleImports(e->ctx, mod->mod, &descs, &n))
     return throw_backend(ctx, e);
-  
+
   if(n && !(argc > 1 && JS_IsObject(argv[1])))
     return JS_ThrowTypeError(ctx, "imports must be an object when the module has imports");
 
@@ -1267,19 +1268,19 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
     throw_backend(ctx, e);
     goto fail;
   }
-  
+
   free(imports);
   imports = NULL;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
- 
+
   obj = JS_NewObjectProtoClass(ctx, proto, wasm_instance_class_id);
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
- 
+
   JS_SetOpaque(obj, inst);
 
   if(WB_GetInstanceExports(e->ctx, inst->inst, &exps, &nexp) || WB_GetModuleExports(e->ctx, mod->mod, &edescs, &nedesc)) {
@@ -1303,7 +1304,7 @@ js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
       JS_FreeValue(ctx, exports);
       goto fail_obj;
     }
- 
+
     JS_DefinePropertyValueStr(ctx, exports, exps[i].name, v, JS_PROP_ENUMERABLE);
   }
   JS_PreventExtensions(ctx, exports);
@@ -1345,10 +1346,10 @@ js_validate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 
   if(argc < 1 || !(bytes = get_bytes(ctx, argv[0], &len)))
     return JS_ThrowTypeError(ctx, "argument is not a BufferSource");
-  
+
   if(JS_IsException(env = env_get(ctx)))
     return env;
-  
+
   e = env_of(env);
 
   ret = JS_NewBool(ctx, !WB_ValidateModule(e->ctx, bytes, len));
@@ -1398,7 +1399,8 @@ static const JSCFunctionListEntry js_global_proto_funcs[] = {
 /* registers one class: id, class def, prototype with its methods, constructor.
  * returns the constructor, or JS_EXCEPTION. */
 static JSValue
-define_class(JSContext* ctx, JSClassID* id, JSClassDef* def, JSValue* proto, const JSCFunctionListEntry* funcs, int nfuncs, JSCFunction* ctor, const char* name) {
+define_class(
+    JSContext* ctx, JSClassID* id, JSClassDef* def, JSValue* proto, const JSCFunctionListEntry* funcs, int nfuncs, JSCFunction* ctor, const char* name) {
   JSValue c;
 
   JS_NewClassID(id);
@@ -1427,12 +1429,23 @@ js_wasm_init(JSContext* ctx, JSModuleDef* m) {
   funcref_atom = JS_ValueToAtom(ctx, sym);
   JS_FreeValue(ctx, sym);
 
-  module_ctor = define_class(ctx, &wasm_module_class_id, &wasm_module_class, &module_proto, js_module_proto_funcs, countof(js_module_proto_funcs), js_module_ctor, "Module");
+  module_ctor = define_class(
+      ctx, &wasm_module_class_id, &wasm_module_class, &module_proto, js_module_proto_funcs, countof(js_module_proto_funcs), js_module_ctor, "Module");
   JS_SetPropertyFunctionList(ctx, module_ctor, js_module_static_funcs, countof(js_module_static_funcs));
-  instance_ctor = define_class(ctx, &wasm_instance_class_id, &wasm_instance_class, &instance_proto, js_instance_proto_funcs, countof(js_instance_proto_funcs), js_instance_ctor, "Instance");
-  memory_ctor = define_class(ctx, &wasm_memory_class_id, &wasm_memory_class, &memory_proto, js_memory_proto_funcs, countof(js_memory_proto_funcs), js_memory_ctor, "Memory");
-  table_ctor = define_class(ctx, &wasm_table_class_id, &wasm_table_class, &table_proto, js_table_proto_funcs, countof(js_table_proto_funcs), js_table_ctor, "Table");
-  global_ctor = define_class(ctx, &wasm_global_class_id, &wasm_global_class, &global_proto, js_global_proto_funcs, countof(js_global_proto_funcs), js_global_ctor, "Global");
+  instance_ctor = define_class(ctx,
+                               &wasm_instance_class_id,
+                               &wasm_instance_class,
+                               &instance_proto,
+                               js_instance_proto_funcs,
+                               countof(js_instance_proto_funcs),
+                               js_instance_ctor,
+                               "Instance");
+  memory_ctor = define_class(
+      ctx, &wasm_memory_class_id, &wasm_memory_class, &memory_proto, js_memory_proto_funcs, countof(js_memory_proto_funcs), js_memory_ctor, "Memory");
+  table_ctor =
+      define_class(ctx, &wasm_table_class_id, &wasm_table_class, &table_proto, js_table_proto_funcs, countof(js_table_proto_funcs), js_table_ctor, "Table");
+  global_ctor = define_class(
+      ctx, &wasm_global_class_id, &wasm_global_class, &global_proto, js_global_proto_funcs, countof(js_global_proto_funcs), js_global_ctor, "Global");
 
   for(int i = 0; i < 3; i++) {
     char src[160];
