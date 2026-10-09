@@ -849,6 +849,7 @@ char* js_error_tostring(JSContext*, JSValueConst);
 void js_error_print(JSContext*, JSValueConst);
 JSValue js_error_stack(JSContext*);
 
+JSValue js_module_namespace_sync(JSContext*, const char* module_name);
 JSValue js_iohandler_fn(JSContext*, BOOL write, const char* global_obj);
 BOOL js_iohandler_set(JSContext*, JSValueConst set_handler, int fd, JSValue handler);
 

@@ -77,7 +77,20 @@ static BOOL child_process_handler;
 static void
 child_process_signal(JSContext* ctx, JSValueConst handler) {
   JSValue os = js_global_get_str(ctx, "os");
-  JSValue sig = JS_GetPropertyStr(ctx, os, "signal");
+  JSValue sig;
+
+  /* os is no global under qjsm: take the module namespace */
+  if(js_is_null_or_undefined(os)) {
+    JS_FreeValue(ctx, os);
+    os = js_module_namespace_sync(ctx, "os");
+  }
+
+  if(JS_IsException(os)) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return;
+  }
+
+  sig = JS_GetPropertyStr(ctx, os, "signal");
   JS_FreeValue(ctx, os);
   JSValueConst args[] = {
       JS_NewInt32(ctx, SIGCHLD),

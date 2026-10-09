@@ -1,4 +1,4 @@
-import { ChildProcess, exec, execSync, kill, spawn, spawnSync } from 'child_process';
+import { ChildProcess, exec, execSync, kill, spawn, spawnSync } from 'child_process.so';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* child_process has a history of nondeterministic crashes (see the
@@ -47,6 +47,7 @@ tests({
      * doc/native/child-process.md's `kill(pid, signal)` signature. */
     const child = spawn('sh', ['-c', 'sleep 30']);
     kill(child, 'SIGTERM');
+    console.log('child', child, child.wait);
     const status = await child.wait();
     eq(status.exitCode !== 0 || status.signalCode !== null, true);
   },

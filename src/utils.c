@@ -2624,7 +2624,7 @@ js_error_stack(JSContext* ctx) {
 
 /* Namespace of an already-loadable module, for hosts (qjsm) that don't expose os/io as globals.
    JS_LoadModule() settles through the job queue even for a loaded module, so the jobs are run here. */
-static JSValue
+JSValue
 js_module_namespace_sync(JSContext* ctx, const char* module_name) {
   JSRuntime* rt = JS_GetRuntime(ctx);
   JSContext* job_ctx;
