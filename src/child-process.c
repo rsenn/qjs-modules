@@ -5,9 +5,6 @@
 #include <sys/unistd.h>
 #endif
 #include "child-process.h"
-#include "utils.h"
-#include "property-enumeration.h"
-#include "char-utils.h"
 #include "path.h"
 #include "debug.h"
 
@@ -72,80 +69,94 @@
  * @{
  */
 static struct list_head child_process_list = LIST_HEAD_INIT(child_process_list);
-static BOOL child_process_handler;
-
-static void
-child_process_signal(JSContext* ctx, JSValueConst handler) {
-  JSValue os = js_module_namespace_sync(ctx, "os");
-  JSValue sig;
-
-  if(JS_IsException(os)) {
-    JS_FreeValue(ctx, JS_GetException(ctx));
-    return;
-  }
-
-  sig = JS_GetPropertyStr(ctx, os, "signal");
-  JS_FreeValue(ctx, os);
-  JSValueConst args[] = {
-      JS_NewInt32(ctx, SIGCHLD),
-      handler,
-  };
-
-  JSValue ret = JS_Call(ctx, sig, JS_NULL, countof(args), args);
-  JS_FreeValue(ctx, sig);
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, ret);
-}
-
-JSValue
-child_process_exitcode(JSContext* ctx, ChildProcess* cp) {
-  if(cp->exitcode != -1 && !cp->signaled)
-    return JS_NewInt32(ctx, cp->exitcode);
-
-  return JS_NULL;
-}
-
-JSValue
-child_process_signalcode(JSContext* ctx, ChildProcess* cp) {
-  if(cp->signaled && cp->termsig > 0 && cp->termsig < 32)
-    return JS_NewString(ctx, child_process_signals[cp->termsig]);
-
-  return JS_NULL;
-}
 
 void
-child_process_notify(JSContext* ctx, ChildProcess* cp) {
-  if(js_is_null_or_undefined(cp->onexit))
-    return;
-
-  JSValue exitcode = child_process_exitcode(ctx, cp);
-  JSValue signalcode = child_process_signalcode(ctx, cp);
-  JSValueConst args[] = {exitcode, signalcode};
-
-  JSValue ret = JS_Call(ctx, cp->onexit, JS_UNDEFINED, countof(args), args);
-  JS_FreeValue(ctx, ret);
-  JS_FreeValue(ctx, exitcode);
-  JS_FreeValue(ctx, signalcode);
+child_process_notify(ChildProcess* cp) {
+  if(cp->onexit)
+    cp->onexit(cp->opaque);
 }
 
-static JSValue
-child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-#ifdef HAVE_WAITPID
+#ifdef _WIN32
+/* waitpid() for Windows: the exit code is encoded as a POSIX wait status,
+ * `(code & 0xff) << 8`, so WIFEXITED()/WEXITSTATUS() work unchanged.
+ *
+ *   pid    -1 waits for any child in child_process_list; else that child
+ *   flags  WNOHANG polls (returns 0 while running); 0 blocks
+ *
+ * returns the pid reaped, 0 (WNOHANG, nothing exited), or -1 with errno
+ * set to ECHILD. WUNTRACED has no Windows equivalent and is ignored. */
+static int
+child_process_waitpid(int pid, int* status, int flags) {
+  HANDLE handles[MAXIMUM_WAIT_OBJECTS];
+  ChildProcess* procs[MAXIMUM_WAIT_OBJECTS];
+  struct list_head* el;
+  DWORD n = 0, r, code = 0;
+
+  list_for_each(el, &child_process_list) {
+    ChildProcess* cp = list_entry(el, ChildProcess, link);
+
+    if(cp->handle && (pid == -1 || cp->pid == pid) && n < MAXIMUM_WAIT_OBJECTS) {
+      handles[n] = (HANDLE)cp->handle;
+      procs[n++] = cp;
+    }
+  }
+
+  if(!n) {
+    errno = ECHILD;
+    return -1;
+  }
+
+  r = WaitForMultipleObjects(n, handles, FALSE, (flags & WNOHANG) ? 0 : INFINITE);
+
+  if(r == WAIT_TIMEOUT)
+    return 0;
+
+  if(r >= WAIT_OBJECT_0 + n)
+    return -1;
+
+  GetExitCodeProcess(handles[r - WAIT_OBJECT_0], &code);
+  CloseHandle(handles[r - WAIT_OBJECT_0]);
+  procs[r - WAIT_OBJECT_0]->handle = 0;
+  *status = (code & 0xff) << 8;
+  return procs[r - WAIT_OBJECT_0]->pid;
+}
+
+#define waitpid child_process_waitpid
+#endif
+
+/* waitpid(-1, WNOHANG) for one child; the exited child is unlinked.
+ * returns it, or NULL if none exited. */
+static ChildProcess*
+child_process_reap(void) {
+#if defined(HAVE_WAITPID) || defined(_WIN32)
   int status = 0, pid;
   ChildProcess* cp;
 
   if((pid = waitpid(-1, &status, WNOHANG)) != -1)
-    if((cp = child_process_get(pid))) {
+    if((cp = child_process_get(pid)))
       if(child_process_status(cp, status)) {
-        child_process_remove(cp, ctx);
-        child_process_notify(ctx, cp);
+        child_process_remove(cp);
+        return cp;
       }
-    }
-
-  return JS_UNDEFINED;
-#else
-  return JS_ThrowInternalError(ctx, "Have no waitpid() implementation!");
 #endif
+  return NULL;
+}
+
+/* reaps one exited child and calls its onexit; the SIGCHLD action.
+ *
+ * JS thread only: onexit may call into JS, so it must not run from a raw
+ * signal context; the binding calls it from its os.signal() handler. */
+void
+child_process_sigchld(int signum) {
+  ChildProcess* cp;
+
+  if((cp = child_process_reap()))
+    child_process_notify(cp);
+}
+
+bool
+child_process_empty(void) {
+  return list_empty(&child_process_list);
 }
 
 ChildProcess*
@@ -163,10 +174,10 @@ child_process_get(int pid) {
 }
 
 ChildProcess*
-child_process_new(JSContext* ctx) {
+child_process_new(void) {
   ChildProcess* child;
 
-  if((child = js_mallocz(ctx, sizeof(ChildProcess)))) {
+  if((child = calloc(1, sizeof(ChildProcess)))) {
     child->use_path = true;
     child->exited = child->signaled = child->stopped = child->continued = false;
 
@@ -175,68 +186,20 @@ child_process_new(JSContext* ctx) {
     child->termsig = -1;
     child->stopsig = -1;
     child->pid = -1;
-
     child->uid = -1;
     child->gid = -1;
-
     child->num_fds = 0;
-
     child->child_fds = child->parent_fds = child->pipe_fds = NULL;
-
-    child->onexit = JS_UNDEFINED;
-
-    if(!child_process_handler) {
-      JSValue fn = JS_NewCFunction(ctx, child_process_sigchld, "sigchld", 0);
-      child_process_signal(ctx, fn);
-      JS_FreeValue(ctx, fn);
-      child_process_handler = TRUE;
-    }
+    child->onexit = NULL;
+    child->opaque = NULL;
   }
 
   return child;
 }
 
 void
-child_process_remove(ChildProcess* cp, JSContext* ctx) {
+child_process_remove(ChildProcess* cp) {
   list_del(&cp->link);
-
-  if(list_empty(&child_process_list)) {
-    child_process_signal(ctx, JS_NULL);
-    child_process_handler = FALSE;
-  }
-}
-
-char**
-child_process_environment(JSContext* ctx, JSValueConst object) {
-  PropertyEnumeration propenum;
-  Vector args;
-
-  if(property_enumeration_init(&propenum, ctx, object, PROPENUM_DEFAULT_FLAGS))
-    return 0;
-
-  vector_init(&args, ctx);
-
-  do {
-    size_t namelen, valuelen;
-    const char* name = property_enumeration_keystrlen(&propenum, &namelen, ctx);
-    const char* value = property_enumeration_valuestrlen(&propenum, &valuelen, ctx);
-    char* var = js_malloc(ctx, namelen + 1 + valuelen + 1);
-
-    memcpy(var, name, namelen);
-    var[namelen] = '=';
-    memcpy(&var[namelen + 1], value, valuelen);
-    var[namelen + 1 + valuelen] = '\0';
-
-    JS_FreeCString(ctx, name);
-    JS_FreeCString(ctx, value);
-
-    vector_push(&args, var);
-
-  } while(property_enumeration_next(&propenum));
-
-  vector_emplace(&args, sizeof(char*));
-
-  return (char**)vector_begin(&args);
 }
 
 #ifdef _WIN32
@@ -310,6 +273,8 @@ child_process_spawn(ChildProcess* cp) {
     pid = -1;
   } else {
     pid = pinfo.dwProcessId;
+    cp->handle = (intptr_t)pinfo.hProcess;
+    CloseHandle(pinfo.hThread);
   }
 
 #elif defined(POSIX_SPAWN)
@@ -425,50 +390,18 @@ child_process_status(ChildProcess* cp, int status) {
 
 int
 child_process_wait(ChildProcess* cp, int flags) {
-#ifdef _WIN32
-  DWORD exitcode = 0;
-  HANDLE hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, cp->pid);
-
-  for(;;) {
-    DWORD ret = WaitForSingleObject(hproc, INFINITE);
-
-    if(ret == WAIT_TIMEOUT)
-      continue;
-
-    if(ret == WAIT_FAILED)
-      return -1;
-
-    if(ret == WAIT_OBJECT_0) {
-      GetExitCodeProcess(hproc, &exitcode);
-      CloseHandle(hproc);
-
-      if(exitcode == STILL_ACTIVE)
-        return -1;
-
-      cp->exitcode = exitcode;
-      return cp->pid;
-    }
-  }
-
-  return -1;
-
-/*#elif defined(POSIX_SPAWN)
-
-  return -1;*/
-#else
   int status = 0, pid = waitpid(cp ? cp->pid : -1, &status, flags);
 
-  if((cp && pid == cp->pid) || (cp = child_process_get(pid)))
+  if((cp && pid == cp->pid) || (pid > 0 && (cp = child_process_get(pid))))
     child_process_status(cp, status);
 
   return pid;
-#endif
 }
 
 int
 child_process_kill(ChildProcess* cp, int signum) {
 #ifdef _WIN32
-  if(TerminateProcess((HANDLE)cp->pid, 0))
+  if(cp->handle && TerminateProcess((HANDLE)cp->handle, 0))
     return 0;
   return -1;
 #else
@@ -476,29 +409,42 @@ child_process_kill(ChildProcess* cp, int signum) {
 #endif
 }
 
+static void
+child_process_strv_free(char** strv) {
+  for(size_t i = 0; strv[i]; i++)
+    free(strv[i]);
+
+  free(strv);
+}
+
 void
-child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
+child_process_free(ChildProcess* cp) {
+#ifdef _WIN32
+  if(cp->handle)
+    CloseHandle((HANDLE)cp->handle);
+#endif
+
   if(cp->link.next)
     list_del(&cp->link);
 
   if(cp->file)
-    js_free_rt(rt, cp->file);
+    free(cp->file);
 
   if(cp->cwd)
-    js_free_rt(rt, cp->cwd);
+    free(cp->cwd);
 
   if(cp->args)
-    js_strv_free_rt(rt, cp->args);
+    child_process_strv_free(cp->args);
 
   if(cp->env)
-    js_strv_free_rt(rt, cp->env);
+    child_process_strv_free(cp->env);
 
   if(cp->child_fds) {
     for(int i = 0; i < cp->num_fds; i++)
       if(cp->pipe_fds && cp->pipe_fds[i])
         close(cp->child_fds[i]);
 
-    js_free_rt(rt, cp->child_fds);
+    free(cp->child_fds);
   }
 
   if(cp->parent_fds) {
@@ -506,15 +452,13 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
       if(cp->pipe_fds && cp->pipe_fds[i])
         close(cp->parent_fds[i]);
 
-    js_free_rt(rt, cp->parent_fds);
+    free(cp->parent_fds);
   }
 
   if(cp->pipe_fds)
-    js_free_rt(rt, cp->pipe_fds);
+    free(cp->pipe_fds);
 
-  JS_FreeValueRT(rt, cp->onexit);
-
-  js_free_rt(rt, cp);
+  free(cp);
 }
 
 const char* child_process_signals[32] = {

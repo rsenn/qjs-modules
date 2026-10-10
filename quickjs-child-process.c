@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
+#include "property-enumeration.h"
 #include "child-process.h"
 #include "debug.h"
 
@@ -37,6 +38,148 @@ enum {
 VISIBLE JSClassID js_child_process_class_id = 0;
 static JSValue child_process_proto, child_process_ctor;
 
+static BOOL child_process_handler;
+
+/* os.signal(SIGCHLD, handler); a null handler uninstalls. never throws. */
+static void
+child_process_signal(JSContext* ctx, JSValueConst handler) {
+  JSValue os = js_module_namespace_sync(ctx, "os");
+  JSValue sig;
+
+  if(JS_IsException(os)) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return;
+  }
+
+  sig = JS_GetPropertyStr(ctx, os, "signal");
+  JS_FreeValue(ctx, os);
+  JSValueConst args[] = {
+      JS_NewInt32(ctx, SIGCHLD),
+      handler,
+  };
+
+  JSValue ret = JS_Call(ctx, sig, JS_NULL, countof(args), args);
+  JS_FreeValue(ctx, sig);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, ret);
+}
+
+static void
+js_child_process_handler_update(JSContext* ctx, BOOL install);
+
+static JSValue
+js_child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  child_process_sigchld(SIGCHLD);
+  js_child_process_handler_update(ctx, FALSE);
+  return JS_UNDEFINED;
+}
+
+/* installs the SIGCHLD handler (install) or uninstalls it once no child is left. */
+static void
+js_child_process_handler_update(JSContext* ctx, BOOL install) {
+  if(install && !child_process_handler) {
+    JSValue fn = JS_NewCFunction(ctx, js_child_process_sigchld, "sigchld", 0);
+    child_process_signal(ctx, fn);
+    JS_FreeValue(ctx, fn);
+    child_process_handler = TRUE;
+  } else if(!install && child_process_handler && child_process_empty()) {
+    child_process_signal(ctx, JS_NULL);
+    child_process_handler = FALSE;
+  }
+}
+
+/* child_process_new() plus the SIGCHLD handler. returns NULL with errno set. */
+static ChildProcess*
+js_child_process_new(JSContext* ctx) {
+  ChildProcess* cp;
+
+  if((cp = child_process_new()))
+    js_child_process_handler_update(ctx, TRUE);
+
+  return cp;
+}
+
+static void
+js_child_process_remove(JSContext* ctx, ChildProcess* cp) {
+  child_process_remove(cp);
+  js_child_process_handler_update(ctx, FALSE);
+}
+
+/* trampoline: onexit(opaque) of a ChildProcess calling a JS function.
+ *
+ * refcount: `func` is owned (dup'd); malloc'd, freed by onexit_clear(). */
+typedef struct {
+  JSContext* ctx;
+  JSValue func;
+  ChildProcess* cp;
+} ChildProcessExit;
+
+static JSValue
+child_process_exitcode(JSContext* ctx, ChildProcess* cp) {
+  if(cp->exitcode != -1 && !cp->signaled)
+    return JS_NewInt32(ctx, cp->exitcode);
+
+  return JS_NULL;
+}
+
+static JSValue
+child_process_signalcode(JSContext* ctx, ChildProcess* cp) {
+  if(cp->signaled && cp->termsig > 0 && cp->termsig < 32)
+    return JS_NewString(ctx, child_process_signals[cp->termsig]);
+
+  return JS_NULL;
+}
+
+/* ChildProcess.onexit: calls func(exitcode, signalcode). never throws. */
+static void
+js_child_process_onexit_call(void* opaque) {
+  ChildProcessExit* t = opaque;
+  JSValue args[] = {child_process_exitcode(t->ctx, t->cp), child_process_signalcode(t->ctx, t->cp)};
+  JSValue ret = JS_Call(t->ctx, t->func, JS_UNDEFINED, countof(args), args);
+
+  JS_FreeValue(t->ctx, ret);
+  JS_FreeValue(t->ctx, args[0]);
+  JS_FreeValue(t->ctx, args[1]);
+}
+
+static void
+js_child_process_onexit_clear(JSRuntime* rt, ChildProcess* cp) {
+  ChildProcessExit* t = cp->opaque;
+
+  if(t) {
+    JS_FreeValueRT(rt, t->func);
+    free(t);
+  }
+
+  cp->onexit = NULL;
+  cp->opaque = NULL;
+}
+
+/* installs `func` (borrowed) as onexit; a non-function just clears it.
+ * returns 0, or -1 with errno set. */
+static int
+js_child_process_onexit_set(JSContext* ctx, ChildProcess* cp, JSValueConst func) {
+  ChildProcessExit* t = NULL;
+
+  if(JS_IsFunction(ctx, func)) {
+    if(!(t = malloc(sizeof(ChildProcessExit))))
+      return -1;
+
+    t->ctx = ctx;
+    t->func = JS_DupValue(ctx, func);
+    t->cp = cp;
+  }
+
+  js_child_process_onexit_clear(JS_GetRuntime(ctx), cp);
+
+  if(t) {
+    cp->onexit = js_child_process_onexit_call;
+    cp->opaque = t;
+  }
+
+  return 0;
+}
+
 ChildProcess*
 js_child_process_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_child_process_class_id);
@@ -54,7 +197,7 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   ChildProcess* cp;
   JSValue proto, obj = JS_UNDEFINED;
 
-  if(!(cp = child_process_new(ctx)))
+  if(!(cp = js_child_process_new(ctx)))
     return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -71,7 +214,7 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   return obj;
 
 fail:
-  js_free(ctx, cp);
+  free(cp);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -80,8 +223,94 @@ static void
 js_child_process_finalizer(JSRuntime* rt, JSValue val) {
   ChildProcess* cp;
 
-  if((cp = JS_GetOpaque(val, js_child_process_class_id)))
-    child_process_free_rt(cp, rt);
+  if((cp = JS_GetOpaque(val, js_child_process_class_id))) {
+    js_child_process_onexit_clear(rt, cp);
+    child_process_free(cp);
+  }
+}
+
+/* libc-allocated copy of `value` as a string; ChildProcess frees it with free().
+ * returns NULL with an exception pending. */
+static char*
+js_child_process_tostring(JSContext* ctx, JSValueConst value) {
+  const char* s;
+  char* ret;
+
+  if(!(s = JS_ToCString(ctx, value)))
+    return 0;
+
+  ret = strdup(s);
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+
+/* libc-allocated NULL-terminated argv from a JS array of strings. */
+static char**
+js_child_process_argv(JSContext* ctx, JSValueConst array, size_t skip) {
+  size_t i, len = js_array_length(ctx, array);
+  char** ret = calloc(skip + len + 1, sizeof(char*));
+
+  for(i = 0; ret && i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+
+    ret[skip + i] = js_child_process_tostring(ctx, item);
+    JS_FreeValue(ctx, item);
+  }
+
+  return ret;
+}
+
+static char**
+js_child_process_environ_dup(void) {
+  size_t i, len = 0;
+  char** ret;
+
+  while(environ[len])
+    ++len;
+
+  if((ret = calloc(len + 1, sizeof(char*))))
+    for(i = 0; i < len; i++)
+      ret[i] = strdup(environ[i]);
+
+  return ret;
+}
+
+static char**
+js_child_process_environment(JSContext* ctx, JSValueConst object) {
+  PropertyEnumeration propenum;
+  char** ret = 0;
+  size_t n = 0;
+
+  if(property_enumeration_init(&propenum, ctx, object, PROPENUM_DEFAULT_FLAGS))
+    return 0;
+
+  do {
+    size_t namelen, valuelen;
+    const char* name = property_enumeration_keystrlen(&propenum, &namelen, ctx);
+    const char* value = property_enumeration_valuestrlen(&propenum, &valuelen, ctx);
+    char *var = malloc(namelen + 1 + valuelen + 1), **tmp = realloc(ret, sizeof(char*) * (n + 2));
+
+    if(var && tmp) {
+      memcpy(var, name, namelen);
+      var[namelen] = '=';
+      memcpy(&var[namelen + 1], value, valuelen);
+      var[namelen + 1 + valuelen] = '\0';
+      (ret = tmp)[n++] = var;
+      ret[n] = 0;
+    } else {
+      free(var);
+      if(tmp)
+        ret = tmp;
+    }
+
+    JS_FreeCString(ctx, name);
+    JS_FreeCString(ctx, value);
+  } while(property_enumeration_next(&propenum));
+
+  if(!ret)
+    ret = calloc(1, sizeof(char*));
+
+  return ret;
 }
 
 static int
@@ -91,15 +320,15 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
   JSValue value = JS_GetPropertyStr(ctx, obj, "env");
 
   if(JS_IsObject(value))
-    cp->env = child_process_environment(ctx, value);
+    cp->env = js_child_process_environment(ctx, value);
   else
-    cp->env = js_strv_dup(ctx, environ);
+    cp->env = js_child_process_environ_dup();
 
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, obj, "cwd");
   if(JS_IsString(value))
-    cp->cwd = js_tostring(ctx, value);
+    cp->cwd = js_child_process_tostring(ctx, value);
 
   JS_FreeValue(ctx, value);
 
@@ -117,8 +346,8 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
   }
 
   len = js_array_length(ctx, value);
-  parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
-  child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+  parent_fds = cp->parent_fds = calloc(len + 1, sizeof(int));
+  child_fds = cp->child_fds = calloc(len + 1, sizeof(int));
   cp->pipe_fds = NULL;
   cp->num_fds = len;
 
@@ -139,7 +368,7 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
         int fds[2];
 
         if(!cp->pipe_fds)
-          cp->pipe_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+          cp->pipe_fds = calloc(len + 1, sizeof(int));
         cp->pipe_fds[i] = 1;
 
         if(pipe(fds) == -1)
@@ -172,10 +401,8 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
   }
 
   value = JS_GetPropertyStr(ctx, obj, "onExit");
-  if(JS_IsFunction(ctx, value))
-    cp->onexit = value;
-  else
-    JS_FreeValue(ctx, value);
+  js_child_process_onexit_set(ctx, cp, value);
+  JS_FreeValue(ctx, value);
 
   return 0;
 }
@@ -238,7 +465,7 @@ child_process_result(JSContext* ctx, ChildProcess* cp) {
   JS_DefinePropertyValueStr(ctx, obj, "output", output, JS_PROP_CONFIGURABLE);
 
   child_process_wait_blocking(cp);
-  child_process_remove(cp, ctx);
+  js_child_process_remove(ctx, cp);
 
   JS_SetPropertyStr(ctx, obj, "status", child_process_exitcode(ctx, cp));
   JS_SetPropertyStr(ctx, obj, "signal", child_process_signalcode(ctx, cp));
@@ -251,32 +478,28 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   JSValue ret;
   ChildProcess* cp;
 
-  if(!(cp = child_process_new(ctx)))
+  if(!(cp = js_child_process_new(ctx)))
     return JS_EXCEPTION;
 
   ret = js_child_process_wrap(ctx, cp);
 
   if(JS_IsArray(ctx, argv[0])) {
-    cp->args = js_array_to_argv(ctx, NULL, argv[0]);
+    cp->args = js_child_process_argv(ctx, argv[0], 0);
 
-    if(cp->args[0])
-      cp->file = js_strdup(ctx, cp->args[0]);
+    if(cp->args && cp->args[0])
+      cp->file = strdup(cp->args[0]);
   } else {
-    cp->file = js_tostring(ctx, argv[0]);
+    cp->file = js_child_process_tostring(ctx, argv[0]);
 
     if(argc > 1) {
-      int n = js_array_length(ctx, argv[1]);
-
-      cp->args = js_mallocz(ctx, sizeof(char*) * (n + 2));
-      cp->args[0] = js_strdup(ctx, cp->file);
-
-      js_array_copys(ctx, argv[1], n, &cp->args[1]);
+      cp->args = js_child_process_argv(ctx, argv[1], 1);
+      cp->args[0] = strdup(cp->file);
 
       --argc;
       ++argv;
     } else {
-      cp->args = js_malloc(ctx, sizeof(char*) * 2);
-      cp->args[0] = js_strdup(ctx, cp->file);
+      cp->args = malloc(sizeof(char*) * 2);
+      cp->args[0] = strdup(cp->file);
       cp->args[1] = 0;
     }
   }
@@ -301,7 +524,7 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret;
   ChildProcess* cp;
 
-  if(!(cp = child_process_new(ctx)))
+  if(!(cp = js_child_process_new(ctx)))
     return JS_EXCEPTION;
 
   ret = js_child_process_wrap(ctx, cp);
@@ -311,11 +534,11 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!shell)
     shell = "/bin/sh";
 
-  cp->file = js_strdup(ctx, shell);
-  cp->args = js_realloc(ctx, cp->args, sizeof(char*) * 4);
-  cp->args[0] = js_strdup(ctx, "sh");
-  cp->args[1] = js_strdup(ctx, "-c");
-  cp->args[2] = js_tostring(ctx, argv[0]);
+  cp->file = strdup(shell);
+  cp->args = realloc(cp->args, sizeof(char*) * 4);
+  cp->args[0] = strdup("sh");
+  cp->args[1] = strdup("-c");
+  cp->args[2] = js_child_process_tostring(ctx, argv[0]);
   cp->args[3] = 0;
 
   if(argc > 1 && JS_IsObject(argv[1]))
@@ -391,7 +614,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_ONEXIT: {
-      ret = js_is_null_or_undefined(cp->onexit) ? JS_NULL : JS_DupValue(ctx, cp->onexit);
+      ret = cp->opaque ? JS_DupValue(ctx, ((ChildProcessExit*)cp->opaque)->func) : JS_NULL;
       break;
     }
   }
@@ -408,8 +631,7 @@ js_child_process_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, 
 
   switch(magic) {
     case CHILD_PROCESS_ONEXIT: {
-      JS_FreeValue(ctx, cp->onexit);
-      cp->onexit = JS_IsFunction(ctx, value) ? JS_DupValue(ctx, value) : JS_UNDEFINED;
+      js_child_process_onexit_set(ctx, cp, value);
       break;
     }
   }
@@ -433,8 +655,8 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     int pid;
 
     if((pid = child_process_wait(cp, flags)) != -1 && pid == cp->pid) {
-      child_process_remove(cp, ctx);
-      child_process_notify(ctx, cp);
+      js_child_process_remove(ctx, cp);
+      child_process_notify(cp);
     }
   }
 

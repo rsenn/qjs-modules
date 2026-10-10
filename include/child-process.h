@@ -1,7 +1,6 @@
 #ifndef CHILD_PROCESS_H
 #define CHILD_PROCESS_H
 
-#include <quickjs.h>
 #include <list.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -17,27 +16,28 @@ typedef struct ChildProcess {
   char** args;
   char** env;
   intptr_t pid;
+  intptr_t handle; /* Windows: process HANDLE, 0 once reaped */
   int status, exitcode, termsig, stopsig;
   bool use_path : 1, exited : 1, signaled : 1, stopped : 1, continued : 1, killed : 1;
   int uid, gid;
   int num_fds;
   int *child_fds, *parent_fds, *pipe_fds;
   struct list_head link;
-  JSValue onexit;
+  void (*onexit)(void* opaque); /* called once when the child has exited */
+  void* opaque;                 /* passed to onexit; not owned */
 } ChildProcess;
 
 ChildProcess* child_process_get(int);
-ChildProcess* child_process_new(JSContext*);
-char** child_process_environment(JSContext*, JSValueConst);
+ChildProcess* child_process_new(void);
 int child_process_spawn(ChildProcess*);
 bool child_process_status(ChildProcess*, int);
 int child_process_wait(ChildProcess*, int);
 int child_process_kill(ChildProcess*, int);
-void child_process_free_rt(ChildProcess*, JSRuntime*);
-void child_process_remove(ChildProcess*, JSContext*);
-void child_process_notify(JSContext*, ChildProcess*);
-JSValue child_process_exitcode(JSContext*, ChildProcess*);
-JSValue child_process_signalcode(JSContext*, ChildProcess*);
+void child_process_free(ChildProcess*);
+void child_process_remove(ChildProcess*);
+void child_process_sigchld(int);
+bool child_process_empty(void);
+void child_process_notify(ChildProcess*);
 
 extern const char* child_process_signals[32];
 
