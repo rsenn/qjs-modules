@@ -1,4 +1,4 @@
-import { classifyStatement, findDefines, findFunctions, findIdentifiers, findTypes } from '../../utilities/extract-c.js';
+import { browserEvent, callTree, callees, callers, classifyStatement, findDefines, findFunctions, findIdentifiers, findTypes, format, formatRows, makeBrowser, makeInputFilter, parseInput, reachable, renderBrowser, rowAt, show, showable, srcColAt, locate, pointerString, codeFor, base64 } from '../../utilities/extract-c.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const byName = (list, name) => list.find(d => d.name == name);
@@ -29,7 +29,235 @@ const DEFS = `#define CONST 213
 #define LOG(fmt, ...) f(fmt, __VA_ARGS__)
 `;
 
+const SHOW_SRC = `struct S { int a; char *b; };
+static int leaf(void) { return 1; }
+int leaf(void);
+int main(void) { return leaf(); }
+`;
+const read = () => SHOW_SRC.split('\n');
+
+const CG_SRC = `static int leaf(int v) {
+  return v + 1;
+}
+
+static int mid(int v) {
+  int r = leaf(v);
+  return leaf(r) + helper(r);
+}
+
+static int helper(int v) {
+  return mid(v - 1) + printf("x");
+}
+
+int main(void) {
+  return mid(1);
+}
+`;
+const cgRead = () => CG_SRC.split('\n');
+const cgIds = () => findIdentifiers(CG_SRC, 'cg.c');
+
 tests({
+  'makeInputFilter() takes mouse and cursor reports out of the byte stream'() {
+    const seen = [];
+    const f = makeInputFilter(ev => seen.push(`${ev.button}@${ev.x},${ev.y}${ev.press ? '' : '!'}`), (r, c) => seen.push(`cursor ${r};${c}`));
+    const feed = s => [...s].flatMap(c => f(c.charCodeAt(0)));
+
+    eq(feed('a\x1b[<0;12;5Mb\x1b[<2;3;4m\x1b[12;40Rc').map(b => String.fromCharCode(b)).join(''), 'abc');
+    eq(seen.join(' '), 'left@12,5 right@3,4! cursor 12;40');
+  },
+  'makeInputFilter() passes other escape sequences on unchanged'() {
+    const f = makeInputFilter(() => {}, () => {});
+    const feed = s => [...s].flatMap(c => f(c.charCodeAt(0))).map(b => String.fromCharCode(b)).join('');
+    eq(feed('\x1b[1;5C'), '\x1b[1;5C');
+    eq(feed('\x1bb'), '\x1bb');
+    eq(feed('\x1b[A'), '\x1b[A');
+  },
+  'base64() encodes UTF-8 with padding'() {
+    eq(base64('a'), 'YQ==');
+    eq(base64('ab'), 'YWI=');
+    eq(base64('abc'), 'YWJj');
+    eq(base64('/a/b.c:1:2'), 'L2EvYi5jOjE6Mg==');
+  },
+  'srcColAt() maps a display offset back to a source column'() {
+    eq(srcColAt('int x;', 0, 0, 4), 5);
+    eq(srcColAt('\tint x;', 0, 0, 0), 1);
+    eq(srcColAt('\tint x;', 0, 0, 1), 1);
+    eq(srcColAt('\tint x;', 0, 0, 2), 2);
+    eq(srcColAt('abcdefgh', 4, 1, 1), 5);
+    eq(srcColAt('abc', 0, 0, 99), 4);
+  },
+  'pointerString() writes .prop[0].value paths'() {
+    eq(pointerString(['references', 3, 'in']), '.references[3].in');
+    eq(pointerString([2, 'fields', 0]), '[2].fields[0]');
+    eq(pointerString([]), '');
+  },
+  'rowAt() finds the show() row under a cell, counting wrapped rows'() {
+    const rows = ['aaaa', 'b'.repeat(25), 'cc'];
+    const hit = (x, y) => rowAt(rows, 10, 20, x, y);
+
+    eq(hit(1, 15)?.row, rows[0]);
+    eq(String(hit(5, 16)?.row), 'b'.repeat(25));
+    eq(hit(5, 18)?.x, 25);
+    eq(String(hit(1, 19)?.row), 'cc');
+    assert(hit(1, 20) === null && hit(1, 14) === null);
+  },
+  'formatRows() rows know the pointer and source location of what they show'() {
+    const ids = findIdentifiers(SHOW_SRC, 's.c');
+    const { rows } = formatRows(ids.get('leaf'), { color: false, read });
+    const findRow = text => rows.find(r => String(r).includes(text));
+
+    const head = findRow('reference    s.c:4:25');
+    const file = locate(head, head.cells.find(c => c.atoms.at(-1) == 'file').x0);
+    eq(pointerString(file.atoms), '.references[0].file');
+
+    const code = findRow('4 │ int main');
+    const at = locate(code, code.code.x0 + 24);
+    eq(pointerString(at.atoms), '.references[0]');
+    eq(`${at.src.file}:${at.src.line}:${at.src.column}`, 's.c:4:25');
+
+    const kind = locate(rows[0], 3);
+    eq(pointerString(kind.atoms), '.declaration.kind');
+  },
+  'codeFor() reaches the record from globalThis'() {
+    const ids = findIdentifiers(SHOW_SRC, 's.c');
+    const leaf = ids.get('leaf');
+    const hit = { atoms: ['references', 1], item: 0 };
+
+    eq(codeFor(leaf, hit, { ids }), 'globalThis.ids.get("leaf").references[1]');
+    eq(codeFor(leaf, hit, { records: [1, leaf] }), 'globalThis.records[1].references[1]');
+    eq(codeFor([leaf], hit, { records: [leaf] }), 'globalThis.shown[0].references[1]');
+    const list = [leaf];
+    eq(codeFor(list, { atoms: ['name'], item: 0 }, { records: list }), 'globalThis.records[0].name');
+    eq(codeFor(leaf, { atoms: [], root: 'ids.get("leaf")' }, {}), 'globalThis.ids.get("leaf")');
+  },
+  'callees() and callers() follow references made inside function bodies'() {
+    const ids = cgIds();
+    eq(callees(ids, 'mid').map(s => s.callee).join(), 'leaf,leaf,helper');
+    eq(callers(ids, 'leaf').map(s => s.caller).join(), 'mid,mid');
+    assert(!callees(ids, 'helper').some(s => s.callee == 'printf'), 'external functions are not callees');
+  },
+  'reachable() collects the call graph in both directions'() {
+    const ids = cgIds();
+    eq([...reachable(ids, 'main')].sort().join(), 'helper,leaf,main,mid');
+    eq([...reachable(ids, 'leaf', true)].sort().join(), 'helper,leaf,main,mid');
+  },
+  'callTree() marks recursion and stops at depth'() {
+    const t = callTree(cgIds(), 'main', { depth: 3, color: false });
+    assert(t.includes('mid ↻'), t);
+    assert(!callTree(cgIds(), 'main', { depth: 1, color: false }).includes('leaf'));
+  },
+  'parseInput() splits keys and SGR mouse reports'() {
+    const ev = parseInput('\x1b[A\x1b[<0;12;5M\x1b[<65;3;4M\x1b[<0;1;1m\x1b[Zq\r\x7f\x1b');
+    eq(ev.map(e => (e.type == 'key' ? e.key : `${e.button}@${e.x},${e.y}${e.press ? '' : '!'}`)).join(' '), 'up left@12,5 wheeldown@3,4 left@1,1! shifttab q enter backspace esc');
+  },
+  'makeBrowser() is null for a function without a body'() {
+    assert(makeBrowser(cgIds(), 'printf', cgRead) === null);
+    assert(makeBrowser(cgIds(), 'mid', cgRead) !== null);
+  },
+  'a click on a call site descends, a breadcrumb click and right-click go back'() {
+    const b = makeBrowser(cgIds(), 'main', cgRead);
+    const click = (x, y, button = 0) => browserEvent(b, ...[{ type: 'mouse', button: ['left', 'middle', 'right'][button], x, y, press: true }, renderBrowser(b, 60, 12, false)]);
+    const site = renderBrowser(b, 60, 12, false).sites[0];
+
+    click(site.x1, site.y);
+    eq(b.stack.map(f => f.name).join(), 'main,mid');
+
+    const inner = renderBrowser(b, 60, 12, false).sites[2];
+    click(inner.x0, inner.y);
+    eq(b.stack.map(f => f.name).join(), 'main,mid,helper');
+
+    click(5, 5, 2);
+    eq(b.stack.map(f => f.name).join(), 'main,mid');
+    click(1, 1);
+    eq(b.stack.map(f => f.name).join(), 'main');
+  },
+  'a click beside a call site does nothing; keys select, descend and quit'() {
+    const b = makeBrowser(cgIds(), 'mid', cgRead);
+    const lay = () => renderBrowser(b, 60, 12, false);
+    const key = k => browserEvent(b, { type: 'key', key: k }, lay());
+    const s = lay().sites[0];
+
+    browserEvent(b, { type: 'mouse', button: 'left', x: s.x1 + 2, y: s.y, press: true }, lay());
+    eq(b.stack.length, 1);
+
+    key('tab');
+    key('tab');
+    eq(b.stack[0].sel, 2);
+    key('enter');
+    eq(b.stack.at(-1).name, 'helper');
+    key('esc');
+    key('q');
+    assert(b.done);
+  },
+  'renderBrowser() highlights call sites at the clicked columns'() {
+    const b = makeBrowser(cgIds(), 'mid', cgRead);
+    const { lines, sites } = renderBrowser(b, 60, 12, false);
+    for(const s of sites) {
+      const row = lines[s.y - 1];
+      assert(/^(leaf|helper)$/.test(row.slice(s.x0 - 1, s.x1)), `${row.slice(s.x0 - 1, s.x1)} in ${row}`);
+    }
+  },
+  'format() lays out an identifier with its declaration, prototype and reference'() {
+    const ids = findIdentifiers(SHOW_SRC, 's.c');
+    const out = format(ids.get('leaf'), { color: false, read });
+    assert(out.includes('function leaf  static · 1 prototype · 1 reference'), out);
+    assert(out.includes('declaration  s.c:2:12'), out);
+    assert(out.includes('2 │ static int leaf(void) { return 1; }'), out);
+    assert(out.includes('prototype    s.c:3:5'), out);
+    assert(out.includes('reference    s.c:4:25  in main'), out);
+  },
+  'format() flags an unreferenced identifier'() {
+    const ids = findIdentifiers('static int dead(void) { return 0; }\n', 'd.c');
+    assert(format(ids.get('dead'), { color: false, read: () => ['static int dead(void) { return 0; }'] }).includes('✗ unreferenced'));
+  },
+  'format() lists struct fields with offset and size'() {
+    const [s] = findTypes(SHOW_SRC, 's.c');
+    const out = format({ ...s, file: 's.c' }, { color: false, read });
+    assert(out.includes('struct S  size 16 · align 8'), out);
+    assert(/\+8\s+8\s+char \*\s+b/.test(out), out);
+  },
+  'format() with color uses xterm-256 escapes, without it none'() {
+    const [s] = findTypes(SHOW_SRC, 's.c');
+    const rec = { ...s, file: 's.c' };
+    assert(format(rec, { color: true, read }).includes('\x1b[38;5;'));
+    assert(!format(rec, { color: false, read }).includes('\x1b'));
+  },
+  'format() reports an unreadable source file instead of throwing'() {
+    const ids = findIdentifiers(SHOW_SRC, 'gone.c');
+    assert(format(ids.get('main'), { color: false, read: () => null }).includes('cannot read gone.c'));
+  },
+  'show.filter limits format() by file, kind and name'() {
+    const ids = findIdentifiers(SHOW_SRC, 's.c');
+    const list = [...ids.values()].filter(e => e.declaration);
+    const fmt = () => format(list, { color: false, read });
+    const { filter } = show;
+
+    try {
+      filter.name = /^lea/;
+      assert(fmt().includes('(1 of ') && fmt().includes('function leaf') && !fmt().includes('function main'), fmt());
+
+      filter.name = null;
+      filter.kind = new Set(['function']);
+      assert(fmt().includes('function main') && !fmt().includes('struct S'), fmt());
+
+      filter.file = /nomatch/;
+      assert(fmt().includes('(0 of ') && !fmt().includes('■'), fmt());
+
+      filter.file = /s\.c$/;
+      assert(fmt().includes('function leaf'), fmt());
+    } finally {
+      filter.file = filter.kind = filter.name = null;
+    }
+
+    assert(!fmt().includes('filter'));
+  },
+  'showable() accepts records and arrays of them, nothing else'() {
+    const ids = findIdentifiers(SHOW_SRC, 's.c');
+    assert(showable(ids.get('leaf')));
+    assert(showable(findDefines('#define A 1\n', 'a.h').map(d => ({ ...d, file: 'a.h' }))));
+    assert(!showable({}) && !showable([]) && !showable('x') && !showable(null) && !showable(ids));
+    assert(!showable([ids.get('leaf'), 1]));
+  },
   'findDefines() tells object-like defines from function-like macros'() {
     const d = findDefines(DEFS, 'd.h');
     eq(d.map(x => `${x.kind} ${x.name}`).join(','), 'define CONST,macro MAX,macro LOG');
