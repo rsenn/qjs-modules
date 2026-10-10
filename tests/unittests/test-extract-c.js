@@ -1,4 +1,4 @@
-import { classifyStatement, findFunctions, findIdentifiers, findTypes } from '../../utilities/extract-c.js';
+import { classifyStatement, findDefines, findFunctions, findIdentifiers, findTypes } from '../../utilities/extract-c.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const byName = (list, name) => list.find(d => d.name == name);
@@ -23,7 +23,25 @@ int main(int argc, char* argv[]) {
 }
 `;
 
+const DEFS = `#define CONST 213
+#define MAX(a, b) \\
+  ((a) > (b) ? (a) : (b))
+#define LOG(fmt, ...) f(fmt, __VA_ARGS__)
+`;
+
 tests({
+  'findDefines() tells object-like defines from function-like macros'() {
+    const d = findDefines(DEFS, 'd.h');
+    eq(d.map(x => `${x.kind} ${x.name}`).join(','), 'define CONST,macro MAX,macro LOG');
+    eq(byName(d, 'CONST').value, '213');
+  },
+  'findDefines() reports macro params, variadic as "..." and joins continuations'() {
+    const d = findDefines(DEFS, 'd.h');
+    eq(byName(d, 'MAX').params.join(','), 'a,b');
+    eq(byName(d, 'MAX').value, '((a) > (b) ? (a) : (b))');
+    eq(byName(d, 'LOG').params.join(','), 'fmt,...');
+    eq(byName(d, 'MAX').endLine, 3);
+  },
   'findFunctions() finds every function by name'() {
     const funcs = findFunctions(FUNCS, 'f.c');
     eq(funcs.map(f => f.name).join(','), 'add,noop,main');

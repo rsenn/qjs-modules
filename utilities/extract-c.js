@@ -2,9 +2,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as std from 'std';
-import { isatty, readdir } from 'os';
+import { isatty, readdir, SIGINT, signal, setTimeout } from 'os';
 import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
+import process from 'process';
 
 const COMMENT = new Set(['singleLineComment', 'multiLineComment']);
 const AGG = new Set(['struct', 'union', 'class']);
@@ -731,12 +732,47 @@ function parseDirective(tok) {
     const body = tok.lexeme.slice(bodyOff).replace(/\\\r?\n/g, m => ' '.repeat(m.length));
     const toks = lex(body, tok.loc.filename).filter(t => !COMMENT.has(t.type));
 
-    return { define: ppToken(tok, nameOff, m[1]), params, body: toks.map(t => ppToken(tok, bodyOff + t.charPos, t.lexeme, { type: t.type, charLength: t.charLength })), refs: [] };
+    return { define: ppToken(tok, nameOff, m[1]), fnlike: !!m[2], params, body: toks.map(t => ppToken(tok, bodyOff + t.charPos, t.lexeme, { type: t.type, charLength: t.charLength })), refs: [] };
   }
 
   if(PP_EXPR.has(d[1])) return { define: null, params: [], refs: [...ppWords(tok, tok.lexeme.slice(d[0].length), d[0].length)].filter(t => t.lexeme != 'defined' && !t.lexeme.startsWith('__has_')) };
 
   return null;
+}
+
+/**
+ * Finds `#define` directives: kind 'define' for `#define CONST 213`, 'macro' for the
+ * function-like `#define MAX(a, b) ...` (`params` lists the parameter names). `value` is the
+ * replacement text on one line; `offset`/`end` cover the whole directive.
+ */
+export function findDefines(source, filename) {
+  const out = [];
+
+  for(const tok of lex(source, filename)) {
+    if(tok.type != 'preprocessor') continue;
+
+    const pp = parseDirective(tok);
+    if(!pp?.define) continue;
+
+    const { line, column } = tok.loc;
+    const value = pp.body.length ? source.slice(pp.body[0].charPos, pp.body.at(-1).charPos + pp.body.at(-1).charLength).replace(/\\\r?\n/g, ' ').replace(/\s+/g, ' ') : '';
+    const { line: endLine, column: endColumn } = posAt(tok, tok.lexeme.length);
+
+    out.push({
+      name: pp.define.lexeme,
+      kind: pp.fnlike ? 'macro' : 'define',
+      line,
+      column,
+      offset: tok.charPos,
+      end: tok.charPos + tok.charLength,
+      endLine,
+      endColumn,
+      ...(pp.fnlike ? { params: pp.params.map(t => (t.lexeme == '__VA_ARGS__' ? '...' : t.lexeme)) } : {}),
+      value,
+    });
+  }
+
+  return out;
 }
 
 /**
@@ -750,13 +786,14 @@ function parseDirective(tok) {
  * same-named statics in different files share one record. Pass the returned map back
  * in as `ids` to accumulate across files. Tolerant by design: unbalanced brackets,
  * macros and unknown constructs degrade to "all identifiers are references" instead
- * of throwing.
+ * of throwing. `pre` is the preprocessed text of `source`: `#define`s and conditionals are
+ * still read from `source`, everything else from `pre`.
  *
  * @returns {Map<string, {name: string, declaration: object|null, prototype: object[], references: object[]}>}
  */
-export function findIdentifiers(source, filename, ids = new Map()) {
+export function findIdentifiers(source, filename, ids = new Map(), pre) {
   const all = lex(source, filename).filter(t => !COMMENT.has(t.type));
-  const ts = all.filter(t => t.type != 'preprocessor');
+  const ts = (pre === undefined ? all : lex(pre, filename).filter(t => !COMMENT.has(t.type))).filter(t => t.type != 'preprocessor');
   const entry = name => ids.get(name) ?? ids.set(name, { name, declaration: null, prototype: [], references: [] }).get(name);
   const pos = t => ({ file: filename, line: t.loc.line, column: t.loc.column, offset: t.charPos, end: t.charPos + t.charLength, endLine: t.loc.line, endColumn: t.loc.column + t.charLength });
 
@@ -931,6 +968,7 @@ function expandPaths(paths) {
   });
 }
 
+const KINDS = ['function', 'define', 'macro', 'typedef', 'struct', 'union', 'class', 'enum'];
 const LOC_MODES = ['line', 'offset', 'loc', 'range', 'file', 'start', 'end'];
 
 /**
@@ -956,20 +994,154 @@ function placed(rec, file, modes) {
   return out;
 }
 
-function placedIdentifier(e, modes) {
+function placedIdentifier(e, modes, count) {
   return {
     ...e,
+    ...(count ? { references: e.references.length } : {}),
     declaration: e.declaration && placed(e.declaration, undefined, modes),
     prototype: e.prototype.map(p => placed(p, undefined, modes)),
-    references: e.references.map(r => placed(r, undefined, modes)),
+    ...(count ? {} : { references: e.references.map(r => placed(r, undefined, modes)) }),
   };
 }
 
 // declaration kinds `-i` leaves out: not what a symbol listing is after
 const HIDDEN_KINDS = new Set(['macro', 'enumerator', 'label']);
 
-function main(...args) {
-  let pattern, list, types, identifiers, fields, splitDir, output;
+/** `{ endLine, endColumn }` of character offset `off` in `source`. */
+function endPos(source, off) {
+  const before = source.slice(0, off),
+    nl = before.lastIndexOf('\n');
+  return { endLine: before.split('\n').length, endColumn: off - nl };
+}
+
+const ENTRY = '<entry>',
+  FILE_SCOPE = '<file-scope>';
+
+/**
+ * Names declared in `ids` that no walk from the entry points reaches. Edges run from the
+ * enclosing function/macro of each reference to the referenced name; references outside
+ * any function (initializers, array sizes, prototypes) count as roots, so they keep their
+ * targets alive. Matching is by bare name.
+ */
+function unvisited(ids) {
+  const edges = new Map(),
+    seen = new Set([ENTRY, FILE_SCOPE]),
+    todo = [ENTRY, FILE_SCOPE];
+
+  for(const e of ids.values())
+    for(const r of e.references) {
+      const from = r.in ?? FILE_SCOPE;
+      if(!edges.has(from)) edges.set(from, new Set());
+      edges.get(from).add(e.name);
+    }
+
+  while(todo.length)
+    for(const to of edges.get(todo.pop()) ?? [])
+      if(!seen.has(to)) {
+        seen.add(to);
+        todo.push(to);
+      }
+
+  return [...ids.values()].filter(e => e.declaration && !seen.has(e.name));
+}
+
+/** Predicate for a reference-count expression: `1`, `<=2`, `>1`, `!=0` or the inclusive range `1,4`; null if malformed. */
+function countTest(expr) {
+  let m;
+  if((m = /^\s*(\d+)\s*,\s*(\d+)\s*$/.exec(expr))) return n => n >= +m[1] && n <= +m[2];
+  if(!(m = /^\s*(<=|>=|==|!=|<|>|=)?\s*(\d+)\s*$/.exec(expr))) return null;
+  const v = +m[2];
+  return { '<=': n => n <= v, '>=': n => n >= v, '<': n => n < v, '>': n => n > v, '!=': n => n != v }[m[1]] ?? (n => n == v);
+}
+
+/**
+ * Runs `prog` (e.g. `cpp`, `gcc -E`) on `file` and returns the text of `file` alone: lines of
+ * included headers are dropped, the rest stay on the line they came from (via the `# N "file"`
+ * markers), so positions match the original file. Macros are expanded, `#define`s are gone.
+ * Returns null with a message on stderr if the preprocessor fails.
+ */
+function preprocess(prog, file, includes) {
+  const quote = v => `'${v.replace(/'/g, `'\\''`)}'`;
+  const f = std.popen(`${prog} ${includes.map(d => '-I' + quote(d)).join(' ')} ${quote(file)}`, 'r');
+  const text = f.readAsString();
+  if(f.close() != 0) {
+    std.err.puts(`extract-c.js: ${prog} failed on ${file}\n`);
+    return null;
+  }
+
+  const out = [];
+  let main = null,
+    mine = false,
+    no = 1;
+
+  for(const l of text.split('\n')) {
+    const m = /^# (\d+) "((?:[^"\\]|\\.)*)"/.exec(l);
+
+    if(m) {
+      no = +m[1];
+      if(main === null && !m[2].startsWith('<')) main = m[2];
+      mine = m[2] === main;
+      continue;
+    }
+
+    if(mine) out[no - 1] = l;
+    no++;
+  }
+
+  return Array.from(out, l => l ?? '').join('\n');
+}
+
+/** Example `jq` queries for the JSON just written to `file`; `mode` is 'identifiers', 'types' or 'records' (-F alone). */
+function jqHints(file, mode, count) {
+  const q = {
+    identifiers: [
+      [count ? `.[] | select(.references == 0) | .name` : `.[] | select(.references | length == 0) | .name`, 'unused identifiers'],
+      [`.[] | select(.declaration.kind == "function") | "\\(.name) \\(.declaration.line)"`, 'functions with line'],
+      [`map(.name) | sort | .[]`, 'all names'],
+    ],
+    types: [
+      [`.[] | select(.type == "struct") | "\\(.name) \\(.size)"`, 'struct names and sizes'],
+      [`.[] | select(.type == "typedef") | "\\(.name) = \\(.target)"`, 'typedef targets'],
+      [`map(.name) | sort | .[]`, 'all names'],
+    ],
+    records: [
+      [`group_by(.kind) | map({ (.[0].kind): length }) | add`, 'count per kind'],
+      [`.[] | select(.kind == "define") | "\\(.name) = \\(.value)"`, 'defines with value'],
+      [`map(.name) | sort | .[]`, 'all names'],
+    ],
+  }[mode];
+
+  return `wrote ${file}; try:\n` + q.map(([expr, what]) => `  jq -r '${expr}' ${file}  # ${what}`).join('\n');
+}
+
+/**
+ * Opens a REPL on `vars`, set as properties of globalThis, and resolves when it is left
+ * (Ctrl-D, `\\q`); the caller reads the properties back, so reassigning them there changes
+ * what is written.
+ */
+async function openRepl(vars) {
+  const { REPL } = await import('repl');
+
+  Object.assign(globalThis, vars);
+  std.err.puts(`extract-c.js: REPL, globalThis has ${Object.keys(vars).join(', ')}; Ctrl-D writes the output\n`);
+
+  const repl = (globalThis.repl = new REPL('extract-c ', false));
+
+  repl.exit = function() {
+    for(const handler of this.cleanupHandlers) handler.call(this);
+    this.running = false;
+  };
+  repl.loadSaveOptions();
+  repl.historyLoad();
+
+  await repl.run();
+  signal(SIGINT, null);
+}
+
+async function main(...args) {
+  let pattern, list, types, identifiers, fields, splitDir, output, kinds, count, countExpr, deps, entries, prog, wantRepl;
+  const includes = [];
+  const defaultPrep = () => (std.popen('command -v cpp >/dev/null 2>&1', 'r').close() == 0 ? 'cpp' : 'gcc -E');
   let locModes = ['line'];
 
   const params = getOpt(
@@ -979,6 +1151,15 @@ function main(...args) {
       types: [false, () => (types = true), 't'],
       identifiers: [false, () => (identifiers = true), 'i'],
       fields: [false, () => (fields = true), 'f'],
+      count: [false, () => (count = true), 'c'],
+      'count-filter': [true, v => (countExpr = v), 'C'],
+      deps: [false, () => (deps = identifiers = true), 'd'],
+      main: [true, v => (entries = v.split(',')), 'm'],
+      preprocess: [false, () => (prog = defaultPrep()), 'E'],
+      include: [true, v => includes.push(v), 'I'],
+      preprocessor: [true, v => (prog = v), 'e'],
+      repl: [false, () => (wantRepl = true), 'r'],
+      filter: [true, v => (kinds = v.split(',')), 'F'],
       loc: [true, v => (locModes = v.split(',')), 'L'],
       split: [true, v => (splitDir = v), 's'],
       output: [true, v => (output = v), 'o'],
@@ -997,8 +1178,19 @@ function main(...args) {
     return 1;
   }
 
+  const countOk = countExpr === undefined ? null : countTest(countExpr);
+  if(countExpr !== undefined && !countOk) {
+    console.log(`extract-c.js: --count-filter: expected N, <N, <=N, >N, >=N, !=N or MIN,MAX`);
+    return 1;
+  }
+
+  if(kinds?.some(k => !KINDS.includes(k))) {
+    console.log(`extract-c.js: --filter: expected ${KINDS.join(', ')}`);
+    return 1;
+  }
+
   if(params.help || !files.length) {
-    console.log(`Usage: extract-c.js [-p REGEXP] [-l] [-t] [-i] [-f] [-L MODE] [-s DIR] [-o FILE] FILE|DIR...
+    console.log(`Usage: extract-c.js [-p REGEXP] [-l] [-t] [-i] [-f] [-c] [-C EXPR] [-d] [-m NAME[,NAME]] [-E] [-e PROG] [-I DIR] [-r] [-F KIND[,KIND]] [-L MODE] [-s DIR] [-o FILE] FILE|DIR...
 
   -p, --pattern REGEXP  only functions/types whose name matches (default: all)
   -l, --list            print "file:line:column: name" instead of the source / IR
@@ -1009,8 +1201,43 @@ function main(...args) {
                         references (across all FILEs) as JSON, leaving out names
                         without a declaration, macros, enumerators and labels;
                         with -l one
-                        "file:line:column: kind name (N references)" line per name
+                        "file:line:column: kind name<TAB>prototypes<TAB>references"
+                        line per name
   -f, --fields          with -i, also list struct/union fields (<parent>.<field>)
+  -c, --count           with -i, "references" is the number of references, not
+                        the list: jq '.[] | select(.references == 0)' dumps
+                        the unused identifiers
+  -C, --count-filter EXPR
+                        with -i, only identifiers whose reference count matches:
+                        N, <N, <=N, >N, >=N, !=N, or an inclusive range MIN,MAX
+  -d, --deps            with -i, build the dependency graph and print the
+                        identifiers no walk from the entry points reaches to
+                        stdout (the -i output then only goes to -o FILE)
+  -m, --main NAME[,NAME]
+                        entry points for -d (default: main); each gains one
+                        reference, so main is counted as used
+  -E, --preprocess      run the sources through cpp (else gcc -E) before looking at
+                        functions, types and identifiers; #defines are always read
+                        from the unpreprocessed text. Included headers' content is
+                        dropped, lines stay put; offsets/ranges and function text
+                        refer to the expanded source
+  -e, --preprocessor PROG
+                        like -E with this command, e.g. -e 'gcc -E -Iinclude'
+                        (the file name is appended)
+  -I, --include DIR     add DIR to the preprocessor's include path (repeatable);
+                        only used with -E / -e
+  -r, --repl            open a REPL before the output is written; globalThis gets
+                        files, ids (Map of identifiers), records (the JSON IR),
+                        chunks (the text output), dead (with -d) and the find*
+                        functions. Reassigning them changes the output. Ctrl-D
+                        writes it. The same REPL opens when Ctrl-C is pressed
+                        once while the files are being read (twice aborts)
+  -F, --filter KIND[,KIND]
+                        only these kinds: function, define (#define CONST 1),
+                        macro (#define F(x) ...), typedef, struct, union, class,
+                        enum. Alone it emits all matching records as JSON IR
+                        (functions with their source as .text); with -t / -i it
+                        narrows that output
   -L, --loc MODE[,MODE]  how -t/-i JSON reports positions (default: line):
                         line   .line and .column
                         offset .offset (character offset)
@@ -1029,33 +1256,82 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
 
   if(splitDir) fs.mkdirSync(splitDir, { recursive: true });
 
-  const chunks = [],
+  let chunks = [],
     irs = [],
     ids = new Map();
 
-  for(const arg of files) {
+  const progress = isatty(2);
+  const redraw = text => {
+    std.err.puts(text);
+    std.err.flush();
+  };
+
+  if(wantRepl && !isatty(0)) {
+    std.err.puts('extract-c.js: --repl needs a terminal on standard input\n');
+    return 1;
+  }
+
+  /* Ctrl-C once asks for the REPL, twice aborts; handled between files */
+  if(progress) {
+    signal(SIGINT, () => {
+      if(wantRepl) {
+        redraw('\r\x1b[K');
+        std.exit(130);
+      }
+      wantRepl = true;
+      redraw('\r\x1b[Kextract-c.js: REPL after the last file (Ctrl-C again aborts)\n');
+    });
+  }
+
+  for(const [n, arg] of files.entries()) {
+    if(progress) {
+      redraw(`\r${n + 1}/${files.length}`);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
     const file = arg == '-' ? '<stdin>' : arg;
     const source = arg == '-' ? std.in.readAsString() : fs.readFileSync(arg, 'utf8');
+    let code = source;
+
+    if(prog) {
+      if(arg == '-') {
+        std.err.puts('extract-c.js: cannot preprocess standard input\n');
+        return 1;
+      }
+      if((code = preprocess(prog, arg, includes)) === null) return 1;
+    }
 
     if(identifiers) {
-      findIdentifiers(source, file, ids);
+      findIdentifiers(source, file, ids, prog ? code : undefined);
+      continue;
+    }
+
+    if(kinds && !types) {
+      const recs = [];
+      if(kinds.includes('function')) for(const f of findFunctions(code, file)) recs.push({ name: f.name, kind: 'function', line: f.line, column: f.column, offset: f.start, end: f.end, ...endPos(code, f.end), text: code.slice(f.start, f.end) });
+      for(const d of findDefines(source, file)) if(kinds.includes(d.kind)) recs.push(d);
+      for(const { type, ...d } of findTypes(code, file)) if(kinds.includes(type)) recs.push({ kind: type, ...d });
+
+      for(const d of recs.filter(d => !pattern || pattern.test(d.name ?? '')).sort((a, b) => a.line - b.line || a.column - b.column)) {
+        if(list) chunks.push(`${file}:${d.line}:${d.column}: ${d.kind} ${d.name}\n`);
+        else irs.push(placed(d, file, locModes));
+      }
       continue;
     }
 
     if(types) {
-      for(const d of findTypes(source, file).filter(d => !pattern || pattern.test(d.name ?? ''))) {
+      for(const d of findTypes(code, file).filter(d => (!pattern || pattern.test(d.name ?? '')) && (!kinds || kinds.includes(d.type)))) {
         if(list) chunks.push(`${file}:${d.line}:${d.column}: ${d.type} ${d.name}\n`);
         else irs.push(placed(d, file, locModes));
       }
       continue;
     }
 
-    const all = findFunctions(source, file);
+    const all = findFunctions(code, file);
     const funcs = pattern ? all.filter(f => pattern.test(f.name)) : all;
-    const preamble = all.length ? source.slice(0, all[0].start).trimEnd() : '';
+    const preamble = all.length ? code.slice(0, all[0].start).trimEnd() : '';
 
     for(const f of funcs) {
-      const text = source.slice(f.start, f.end);
+      const text = code.slice(f.start, f.end);
 
       if(splitDir) {
         const dest = path.join(splitDir, f.name + '.c');
@@ -1066,26 +1342,69 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     }
   }
 
-  if(identifiers) {
-    for(const e of ids.values()) {
-      if(pattern && !pattern.test(e.name)) continue;
-      if(!e.declaration || HIDDEN_KINDS.has(e.declaration.kind)) continue;
-      if(!fields && e.declaration.kind == 'field') continue;
-      const at = e.declaration;
-      if(list) chunks.push(`${at.file}:${at.line}:${at.column}: ${at.kind} ${e.name} (${e.references.length} references)\n`);
-      else irs.push(placedIdentifier(e, locModes));
+  if(progress) {
+    signal(SIGINT, null);
+    if(files.length) redraw('\r\x1b[K');
+  }
+
+  const shown = e => {
+    if(pattern && !pattern.test(e.name)) return false;
+    if(!e.declaration) return false;
+    if(kinds ? !kinds.includes(e.declaration.kind) : HIDDEN_KINDS.has(e.declaration.kind)) return false;
+    return fields || kinds || e.declaration.kind != 'field';
+  };
+  const line = e => `${e.declaration.file}:${e.declaration.line}:${e.declaration.column}: ${e.declaration.kind} ${e.name}\t${e.prototype.length}\t${e.references.length}\n`;
+  let dead = null;
+
+  if(deps) {
+    const noRef = { file: ENTRY, line: 0, column: 0, offset: 0, end: 0, endLine: 0, endColumn: 0, in: ENTRY };
+
+    for(const name of entries ?? ['main']) {
+      const e = ids.get(name);
+      if(!e?.declaration) {
+        std.err.puts(`extract-c.js: --main: no declaration of '${name}'\n`);
+        return 1;
+      }
+      e.references.push({ ...noRef });
     }
+
+    dead = unvisited(ids).filter(shown);
+  }
+
+  if(identifiers && (!deps || output)) {
+    for(const e of ids.values()) {
+      if(!shown(e) || (countOk && !countOk(e.references.length))) continue;
+      if(list) chunks.push(line(e));
+      else irs.push(placedIdentifier(e, locModes, count));
+    }
+  }
+
+  if(wantRepl) {
+    await openRepl({ files, ids, records: irs, chunks, dead, findFunctions, findTypes, findDefines, findIdentifiers });
+    ({ records: irs, chunks, dead } = globalThis);
   }
 
   if(irs.length) chunks.push(JSON.stringify(irs, null, 2));
 
   if(chunks.length) {
     const out = chunks.join('');
-    if(output) fs.writeFileSync(output, out);
+    if(output) {
+      fs.writeFileSync(output, out);
+      if(irs.length) std.err.puts(jqHints(output, identifiers ? 'identifiers' : kinds && !types ? 'records' : 'types', count) + '\n');
+    }
     else console.log(out.trimEnd());
   }
+
+  if(dead) console.log(list ? dead.map(line).join('').trimEnd() : JSON.stringify(dead.map(e => placedIdentifier(e, locModes, count)), null, 2));
 
   return 0;
 }
 
-if(isMainModule(import.meta.url)) process.exit(main(...scriptArgs.slice(1)));
+if(isMainModule(import.meta.url))
+  main(...scriptArgs.slice(1)).then(
+    rc => process.exit(rc),
+    e => {
+      std.err.puts(`${e?.stack ?? e}\n`);
+      process.exit(1);
+    },
+  );
