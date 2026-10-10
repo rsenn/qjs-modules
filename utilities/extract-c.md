@@ -48,6 +48,26 @@ With `-E`/`-e` everything else is read from the preprocessed text.
 
 A progress counter `n/total` is redrawn on stderr when it is a terminal.
 
+### References and dependencies
+
+Two views of the same edges. A **reference** to `parse` made inside `main` is a **dependency** of
+`main` on `parse`.
+
+| | Means | JSON (`-i`) | REPL |
+| --- | --- | --- | --- |
+| `references` | who uses this name | list of positions (with `in`), or the count with `-c` | `ids.get(name).references` |
+| `dependencies` | what this name's body uses | list of `{ name, file/line/column… }`, or the count with `-c` | `dependencies(name)` |
+
+Whatever has a body owns the references in it: a function's body and signature, a struct/union/enum
+(member types, array-size macros, enumerator values), a typedef, a variable's initializer
+(`{ cb }` makes `tbl` depend on `cb`), a macro's body. Locals and parameters are not entered, and
+member accesses (`pp.i.v`) are not recorded, so dependencies are on types, functions, variables and
+macros, not on fields. References from prototypes stay unowned (roots for `-d`).
+
+```sh
+extract-c.js -i -c -F function src/ | jq '.[] | select(.dependencies == 0)'   # leaf functions
+```
+
 ### Dependency walk (`-d`)
 
 Edges run from the function or macro enclosing a reference to the name
@@ -119,6 +139,40 @@ The output of the latest `show()` (until the next command runs) is clickable.
 | left | works out what is under the cursor: the source `file:line:col` (on source text, the character clicked) and the JSON pointer of the part shown, e.g. `.references[3]`, `.declaration.file`, `.fields[1].type`; shows both and the code in a status row at the bottom of the screen; inserts `globalThis.records[2].references[3]` into the prompt (a second click replaces it); copies the absolute `file:line:col` to the clipboard |
 | right | opens that location in the editor (`subl /abs/file.c:88:14` makes Sublime Text jump there) |
 
+### The info pane
+
+A left click on an identifier in source text (or on a record's name) also opens a small box at the
+lower left of the screen, drawn with `lib/terminal.js` (`Screen.box()`, `setScrollRegion()`):
+
+```
+┌─────────── mid ───────────┐
+│ function · static          │   kind, prototypes
+│ /src/x.c:6:12 · lines 6–8  │   declaration, body range
+│ referenced 1×  ·  1 dependency
+│ click: show(ids.get("mid"))│
+└────────────────────────────┘
+```
+
+The content above scrolls up and the rows leave the scroll region, so the pane never covers
+output, and it is redrawn after every prompt update. Clicking the pane runs `show()` on that record
+as if typed (what was already on the prompt line is kept). A name that is not declared in the
+scanned files (a local, a field, `printf`) gets a pane saying so, and clicking it does nothing. The
+pane closes when the next command runs, in the scrollback view it is drawn over the frame.
+
+### Scrolling back through earlier output
+
+Mouse reporting takes the wheel away from the terminal's own scrollback, so the REPL has its own.
+The wheel (up) or PgUp at the prompt opens every earlier `show()` output (the last 100) on the
+alternate screen, newest at the bottom; the old output is clickable too.
+
+| Input | Does |
+| --- | --- |
+| wheel, PgUp / PgDn, ↑ ↓, Home / End | scroll |
+| left / right click | as on the prompt: pointer + location in the status bar, code into the prompt, clipboard / editor |
+| wheel down or PgDn at the end, `q`, Enter, Esc | back to the prompt |
+
+PgUp keeps its usual history-search meaning while `\mouse` is off or nothing was shown yet.
+
 The code starts from `records[i]`, `dead[i]`, `ids.get("name")` when the shown value is one
 of those, else from `globalThis.shown`, which holds the value of the last `show()`.
 
@@ -129,13 +183,14 @@ rows wrapped by the terminal are counted. Mouse and cursor reports are taken out
 before the line editor sees them. Reporting mouse events means the terminal's own selection
 needs Shift and the wheel no longer scrolls the scrollback; `\mouse off` undoes that.
 
-Limits: only the latest `show()` output can be clicked; a resize or a cleared screen
+Limits: at the prompt only the latest `show()` output can be clicked (older ones in the scrollback view); a resize or a cleared screen
 invalidates it; the terminal must answer the cursor query.
 
 ### Call graph
 
 ```js
-callees('mid')            // [{ callee, file, line, column }]: defined functions called in mid
+dependencies('Outer')     // [{ name, file, line, column, ... }]: everything the body uses
+callees('mid')            // the dependencies of mid that are defined functions
 callers('leaf')           // [{ caller, file, line, column }]
 reachable('main')         // Set of names; reachable('leaf', true) follows callers
 callTree('main', { depth: 3, up: false })   // indented text, ↻ marks recursion
@@ -157,7 +212,7 @@ main › mid › leaf                              breadcrumb (clickable)
  2 │   return v + 1;                            C highlighting, call
  3 │ }                                          sites underlined
 called by: mid                                 callers
-click/Enter descend · … · q quit               keys / status
+click/Enter open · … · q quit               keys / status
 ```
 
 | Input | Action |
@@ -170,9 +225,10 @@ click/Enter descend · … · q quit               keys / status
 | wheel, ↑ ↓ PgUp PgDn Home End | scroll |
 | `q`, Ctrl-C, Ctrl-D | quit |
 
-A call site is a reference inside the function whose name is followed by `(`
-and whose callee is defined in the scanned files; function-pointer uses and
-external calls are not highlighted.
+Every dependency in the body is highlighted: bright and underlined where it can be opened
+(a function, macro, struct/union/enum or typedef defined in the scanned files), dim underlined
+otherwise (`printf`, variables). Tab / ← → skip the dim ones; clicking one says why nothing
+opens. A struct, typedef, enum or macro opens just like a function, showing its own body.
 
 ### Design
 

@@ -1,4 +1,4 @@
-import { browserEvent, callTree, callees, callers, classifyStatement, findDefines, findFunctions, findIdentifiers, findTypes, format, formatRows, makeBrowser, makeInputFilter, parseInput, reachable, renderBrowser, rowAt, show, showable, srcColAt, locate, pointerString, codeFor, base64 } from '../../utilities/extract-c.js';
+import { browserEvent, callTree, callees, callers, classifyStatement, dependencies, findDefines, findFunctions, findIdentifiers, findTypes, format, formatRows, placedIdentifier, makeBrowser, makeInputFilter, makePager, pagerEvent, renderPager, clipAnsi, identAtColumn, identAt, recordInfo, paneContent, drawPane, parseInput, reachable, renderBrowser, rowAt, show, showable, srcColAt, locate, pointerString, codeFor, base64 } from '../../utilities/extract-c.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const byName = (list, name) => list.find(d => d.name == name);
@@ -56,7 +56,145 @@ int main(void) {
 const cgRead = () => CG_SRC.split('\n');
 const cgIds = () => findIdentifiers(CG_SRC, 'cg.c');
 
+const DEP_SRC = `#define LIM 4
+typedef struct Inner { int v; } Inner;
+struct Outer {
+  Inner a;
+  char buf[LIM];
+};
+typedef struct Pair { struct Outer o; Inner i; } Pair;
+enum E { E1 = LIM, E2 };
+static int cb(void) { return 0; }
+static int (*tbl[])(void) = { cb };
+int use(void) {
+  Inner x;
+  return cb() + LIM + tbl[0]();
+}
+`;
+const depRead = () => DEP_SRC.split('\n');
+
 tests({
+  'dependencies() lists what struct, enum, typedef, initializer and function bodies use'() {
+    const ids = findIdentifiers(DEP_SRC, 'd.c');
+    const names = n => dependencies(ids, n).map(d => d.name).join();
+
+    eq(names('Outer'), 'Inner,LIM');
+    eq(names('E'), 'LIM');
+    eq(names('Pair'), 'Outer,Inner');
+    eq(names('tbl'), 'cb');
+    eq(names('use'), 'Inner,cb,LIM,tbl');
+  },
+  'a declaration owns the references in its own body, so -d can walk through types'() {
+    const ids = findIdentifiers(DEP_SRC, 'd.c');
+    eq(ids.get('LIM').references.map(r => r.in).join(), 'Outer,E,use');
+    eq(ids.get('cb').references.map(r => r.in).join(), 'tbl,use');
+  },
+  'format() shows the lines of a body that use something'() {
+    const ids = findIdentifiers(DEP_SRC, 'd.c');
+    show.ids = ids;
+    try {
+      const out = format(ids.get('Outer'), { color: false, read: depRead });
+      assert(out.includes('dependencies 2 uses of 2 names'), out);
+      assert(out.includes('4 │   Inner a;  → Inner'), out);
+      assert(out.includes('5 │   char buf[LIM];  → LIM'), out);
+    } finally {
+      show.ids = null;
+    }
+  },
+  'format() shows placed records (what -i writes), whose dependencies lost their hidden position'() {
+    const ids = findIdentifiers(DEP_SRC, 'd.c');
+    for(const count of [false, true]) {
+      const rec = placedIdentifier(ids.get('Outer'), ['line'], count, ids);
+      show.ids = ids;
+      try {
+        const out = format(rec, { color: false, read: depRead });
+        assert(out.includes('dependencies 2 uses of 2 names'), out);
+        assert(out.includes('4 │   Inner a;  → Inner'), out);
+      } finally {
+        show.ids = null;
+      }
+    }
+  },
+  'the browser opens a struct and descends into the types it uses'() {
+    const b = makeBrowser(findIdentifiers(DEP_SRC, 'd.c'), 'Pair', depRead);
+    const lay = () => renderBrowser(b, 70, 12, false);
+    eq(b.stack[0].kind, 'typedef');
+    eq(lay().sites.map(s => s.open).join(), 'true,true');
+
+    browserEvent(b, { type: 'key', key: 'enter' }, lay());
+    eq(b.stack.map(f => f.name).join(), 'Pair,Outer');
+    assert(lay().lines[1].includes('struct Outer'));
+  },
+  'a dependency that cannot be opened is shown but skipped by Tab'() {
+    const b = makeBrowser(findIdentifiers(CG_SRC, 'cg.c'), 'helper', cgRead);
+    const fr = b.stack[0];
+    eq(fr.sites.map(s => `${s.name}:${s.open}`).join(), 'mid:true,printf:false');
+    const lay = renderBrowser(b, 60, 12, false);
+    browserEvent(b, { type: 'key', key: 'tab' }, lay);
+    eq(fr.sel, 0);
+    browserEvent(b, { type: 'mouse', button: 'left', x: lay.sites[1].x0, y: lay.sites[1].y, press: true }, lay);
+    eq(b.stack.length, 1);
+    assert(b.status.includes('printf'));
+  },
+  'identAtColumn() finds the identifier under a source column'() {
+    const text = '  return leaf(r) + 12;';
+    eq(identAtColumn(text, 10), 'leaf');
+    eq(identAtColumn(text, 13), 'leaf');
+    eq(identAtColumn(text, 14), null);
+    eq(identAtColumn(text, 4), null);
+    eq(identAtColumn(text, 19), null);
+  },
+  'identAt() names the identifier in a source row and the name cell of a header'() {
+    const ids = findIdentifiers(SHOW_SRC, 's.c');
+    const shown = { value: ids.get('leaf') };
+    const { rows } = formatRows(ids.get('leaf'), { color: false, read });
+    const code = rows.find(r => String(r).includes('4 │ int main'));
+
+    eq(identAt(code, code.code.x0 + 24, shown), 'leaf');
+    eq(identAt(code, code.code.x0 + 4, shown), 'main');
+    eq(identAt(code, code.code.x0, shown), null);
+    eq(identAt(rows[0], rows[0].cells.find(c => c.atoms[0] == 'name').x0, shown), 'leaf');
+  },
+  'recordInfo() and paneContent() describe a record'() {
+    const ids = findIdentifiers(CG_SRC, 'cg.c');
+    const info = recordInfo(ids, 'mid', cgRead);
+    eq(`${info.kind} ${info.line} ${info.references} ${info.dependencies}`, 'function 5 2 3');
+    eq(`${info.range.from}-${info.range.to}`, '5-8');
+
+    const [kind, where, counts, hint] = paneContent(info).map(c => c[0]);
+    eq(kind, 'function · static');
+    eq(where, 'cg.c:5:12 · lines 5–8');
+    eq(counts, 'referenced 2×  ·  3 dependencies');
+    assert(hint.includes('show(ids.get("mid"))'));
+    assert(paneContent(recordInfo(ids, 'printf', cgRead))[0][0].includes('external or unknown'));
+  },
+  'drawPane() draws a titled box with the record data through terminal.js'() {
+    const out = [];
+    const f = { puts: s => out.push(s), flush() {} };
+    drawPane(recordInfo(findIdentifiers(CG_SRC, 'cg.c'), 'mid', cgRead), 20, 1, 40, f);
+    const text = out.join('').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '|');
+
+    assert(text.includes('┌') && text.includes('┘'), text);
+    assert(text.includes(' mid '), text);
+    assert(text.includes('cg.c:5:12 · lines 5–8'), text);
+    assert(text.includes('referenced 2×  ·  3 dependencies'), text);
+    assert(out.join('').includes('\x1b[20;1H'));
+  },
+  'recordInfo() has no kind for names that are not declared, so the pane offers no show()'() {
+    const ids = findIdentifiers(CG_SRC, 'cg.c');
+    eq(recordInfo(ids, 'printf', cgRead).kind, null);
+    eq(recordInfo(ids, 'nosuchname', cgRead).kind, null);
+    eq(paneContent(recordInfo(ids, 'printf', cgRead))[3][0], 'nothing to show');
+  },
+  'the pager reports a click on the info pane'() {
+    const p = makePager([{ value: 1, rows: ['x'.repeat(30), 'y'.repeat(30)] }]);
+    p.pane = { name: 'leaf', info: {}, width: 20 };
+    renderPager(p, 30, 12, false);
+
+    eq(pagerEvent(p, { type: 'mouse', button: 'left', x: 2, y: 8, press: true }).pane, true);
+    assert(pagerEvent(p, { type: 'mouse', button: 'left', x: 25, y: 8, press: true })?.pane !== true);
+    assert(pagerEvent(p, { type: 'mouse', button: 'left', x: 2, y: 2, press: true })?.pane !== true);
+  },
   'makeInputFilter() takes mouse and cursor reports out of the byte stream'() {
     const seen = [];
     const f = makeInputFilter(ev => seen.push(`${ev.button}@${ev.x},${ev.y}${ev.press ? '' : '!'}`), (r, c) => seen.push(`cursor ${r};${c}`));
@@ -71,6 +209,55 @@ tests({
     eq(feed('\x1b[1;5C'), '\x1b[1;5C');
     eq(feed('\x1bb'), '\x1bb');
     eq(feed('\x1b[A'), '\x1b[A');
+  },
+  'makeInputFilter() hands keys to onKey and drops everything while grabbing'() {
+    const keys = [];
+    let grab = false;
+    const f = makeInputFilter(() => {}, () => {}, k => (keys.push(k), k == 'pgup' || grab), () => grab);
+    const feed = s => [...s].flatMap(c => f(c.charCodeAt(0))).map(b => String.fromCharCode(b)).join('');
+
+    eq(feed('\x1b[5~'), '');
+    eq(feed('\x1b[6~'), '\x1b[6~');
+    grab = true;
+    eq(feed('q\x1b[B\x1bx'), '');
+    eq(keys.join(' '), 'pgup pgdn q down esc x');
+  },
+  'clipAnsi() cuts to the visible width and keeps escapes balanced'() {
+    eq(clipAnsi('abcdef', 3), 'abc');
+    eq(clipAnsi('\x1b[31mabcdef\x1b[0m', 3), '\x1b[31mabc\x1b[0m');
+    eq(clipAnsi('ab', 5), 'ab');
+  },
+  'a pager scrolls through every earlier show() output and exits past the end'() {
+    const entry = n => ({ value: n, rows: Array.from({ length: 5 }, (_, i) => `row ${n}.${i}`) });
+    const p = makePager([entry(1), entry(2), entry(3)]);
+    const lay = () => renderPager(p, 40, 8, false);
+    const wheel = button => pagerEvent(p, { type: 'mouse', button, x: 1, y: 1, press: true });
+
+    eq(lay().lines[6], 'row 3.4');
+    eq(p.top, 11);
+    eq(p.lines.length, 18);
+
+    wheel('wheelup');
+    eq(p.top, 8);
+    pagerEvent(p, { type: 'key', key: 'pgup' });
+    eq(p.top, 2);
+    pagerEvent(p, { type: 'key', key: 'home' });
+    eq(p.top, 0);
+    assert(lay().lines[0].includes('show() #1'));
+    pagerEvent(p, { type: 'key', key: 'end' });
+    eq(wheel('wheeldown'), 'exit');
+    eq(pagerEvent(p, { type: 'key', key: 'q' }), 'exit');
+  },
+  'a click in the pager hands back the row and the entry it belongs to'() {
+    const entry = { value: 'v', rows: ['r0', 'r1'] };
+    const p = makePager([entry]);
+    renderPager(p, 40, 10, false);
+    const r = pagerEvent(p, { type: 'mouse', button: 'left', x: 2, y: 3, press: true });
+
+    eq(String(r.hit.line.row), 'r1');
+    assert(r.hit.line.entry === entry);
+    eq(r.hit.x, 2);
+    assert(pagerEvent(p, { type: 'mouse', button: 'left', x: 2, y: 3, press: false }) === undefined);
   },
   'base64() encodes UTF-8 with padding'() {
     eq(base64('a'), 'YQ==');

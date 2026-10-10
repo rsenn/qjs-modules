@@ -314,8 +314,7 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
       [' '] = &&l_next,        [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,       [35 ... 43] = &&l_err, [','] = &&l_next,        ['-'] = &&l_num_s,
       [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,     [92 ... 92] = &&l_err,   [']'] = &&l_arr_e,
       [94 ... 101] = &&l_err,  ['f'] = &&l_false_f,       [103 ... 109] = &&l_err, ['n'] = &&l_null_n,    [111 ... 115] = &&l_err, ['t'] = &&l_true_t,
-      [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err, ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_obj[] = {

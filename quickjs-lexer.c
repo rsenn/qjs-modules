@@ -492,15 +492,16 @@ lexer_handle(Lexer* lex, JSValueConst this_val, JSValueConst handler, JSContext*
   ret = JS_Call(ctx, handler, this_val, countof(args), args);
 
   JS_FreeValue(ctx, ret);
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
 
   do_resume = JS_GetPropertyUint32(ctx, data[0], 0);
+
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
 
   if(JS_IsBool(do_resume))
     result = JS_ToBool(ctx, do_resume);
 
-  JS_FreeValue(ctx, data[0]);
+  //JS_FreeValue(ctx, data[0]);
   return result;
 }
 

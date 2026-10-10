@@ -7,6 +7,7 @@ import * as os from 'os';
 import { isatty, read, readdir, SIGINT, signal, setTimeout, ttyGetWinSize } from 'os';
 import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
+import { Screen, setScrollRegion, resetScrollRegion } from 'terminal';
 import process from 'process';
 
 const COMMENT = new Set(['singleLineComment', 'multiLineComment']);
@@ -936,8 +937,16 @@ export function findIdentifiers(source, filename, ids = new Map(), pre) {
 
       const fnName = s.fn ? d.declared.find(x => x.kind == 'prototype')?.tok.lexeme : undefined;
 
+      /* what the declaration's own references belong to: the function, else the typedef/variable, else the one tag */
+      let owner = fnName;
+      if(owner === undefined) {
+        const names = d.declared.filter(x => x.kind == 'typedef' || x.kind == 'data');
+        const tags = d.declared.filter(x => TAG_KINDS.has(x.kind));
+        owner = names.length == 1 ? names[0].tok.lexeme : !names.length && tags.length == 1 ? tags[0].tok.lexeme : undefined;
+      }
+
       for(const x of d.declared) declare(x, isStatic, s.fn && x.tok.lexeme == fnName);
-      for(const t of d.refs) ref(t, fnName);
+      for(const t of d.refs) ref(t, owner);
 
       if(s.fn) scanBody(s.body, fnName, new Set(d.params.map(t => t.lexeme)));
     } catch(e) {
@@ -983,7 +992,7 @@ const COLOR = {
   pos: 180,
   dim: 245,
   warn: 203,
-  label: { declaration: 39, prototype: 178, reference: 108 },
+  label: { declaration: 39, prototype: 178, reference: 108, dependency: 175 },
   kind: { function: 39, data: 114, struct: 214, union: 214, class: 214, enum: 178, typedef: 141, macro: 203, define: 215, field: 150, enumerator: 150, label: 245 },
   code: { keyword: 141, string: 150, number: 215, comment: 244, directive: 109, ident: 252 },
 };
@@ -1147,6 +1156,47 @@ function location(label, p, o, { note = '', mark = true, atoms = [], obj = p, ro
 
 const rule = o => o.paint(COLOR.rule, '─'.repeat(Math.min(o.width, 72)));
 
+/**
+ * The lines of a body that use something: a `dependencies` header (use and name counts, each name
+ * with how often) and one source row per line, every dependency on it emphasised.
+ */
+function dependencyRows(deps, o, { atoms = [], computed = false, root } = {}) {
+  const names = new Map();
+  for(const d of deps) names.set(d.name, (names.get(d.name) ?? 0) + 1);
+
+  const list = [];
+  for(const [name, n] of [...names].slice(0, 12)) list.push([name, o.ids?.get(name)?.declaration ? COLOR.kind[o.ids.get(name).declaration.kind] ?? COLOR.dim : COLOR.dim], [n > 1 ? `×${n}` : '', COLOR.dim], [' ']);
+  if(names.size > 12) list.push([`+${names.size - 12}`, COLOR.dim]);
+
+  const head = parts(o, [['dependencies'.padEnd(13), COLOR.label.dependency, atoms.length ? atoms : undefined], [`${deps.length} use${deps.length == 1 ? '' : 's'} of ${names.size} name${names.size == 1 ? '' : 's'}  `, COLOR.dim], ...list], { atoms });
+  const rows = [head];
+
+  const byLine = new Map();
+  for(const [i, d] of deps.entries()) {
+    const k = `${d.file}\0${d.line}`;
+    byLine.set(k, [...(byLine.get(k) ?? []), [d, i]]);
+  }
+
+  for(const group of [...byLine.values()].slice(0, o.refs)) {
+    const first = group[0][0];
+    const lines = o.read(first.file);
+    const text = lines?.[first.line - 1];
+    const at = computed ? [group[0][1]] : [...atoms, group[0][1]];
+    const used = [...new Set(group.map(([d]) => d.name))].join(', ');
+
+    if(text === undefined) {
+      rows.push(tag(`  ${' '.repeat(o.gw)} ${o.paint(COLOR.gutter, '│')} ${o.paint(COLOR.warn, `(cannot read ${first.file})`)}`, { atoms: at }));
+      continue;
+    }
+
+    const hl = highlightC(text, group.map(([d]) => [1, d.column]), o.paint, o.width)[0];
+    rows.push(tag(`  ${String(first.line).padStart(o.gw)} ${o.paint(COLOR.gutter, '│')} ${hl}  ${o.paint(COLOR.dim, '→ ' + used)}`, { atoms: at, src: { file: first.file, line: first.line, column: first.column }, code: { file: first.file, line: first.line, text, x0: o.gw + 6, from: 0, lead: 0 }, ...(root ? { root } : {}) }));
+  }
+  if(byLine.size > o.refs) rows.push(o.paint(COLOR.dim, `… ${byLine.size - o.refs} more lines`));
+
+  return rows.map(r => (root && typeof r != 'string' ? Object.assign(r, { root }) : r));
+}
+
 function formatIdentifier(r, o) {
   const d = pos(r.declaration);
   const raw = o.ids?.get(r.name);
@@ -1154,10 +1204,12 @@ function formatIdentifier(r, o) {
   const refs = (Array.isArray(r.references) ? r.references : raw?.references) ?? [];
   const nrefs = Array.isArray(r.references) ? r.references.length : typeof r.references == 'number' ? r.references : refs.length;
   const protos = (r.prototype?.length ? r.prototype : raw?.prototype) ?? [];
-  const meta = [r.declaration.static ? 'static' : null, `${protos.length} prototype${protos.length == 1 ? '' : 's'}`, nrefs ? `${nrefs} reference${nrefs == 1 ? '' : 's'}` : null].filter(Boolean).join(' · ');
+  const computedDeps = !Array.isArray(r.dependencies);
+  const deps = (computedDeps ? (o.ids ? dependencies(o.ids, r.name) : []) : r.dependencies).map(x => ({ ...pos(x), name: x.name }));
+  const meta = [r.declaration.static ? 'static' : null, `${protos.length} prototype${protos.length == 1 ? '' : 's'}`, nrefs ? `${nrefs} reference${nrefs == 1 ? '' : 's'}` : null, deps.length ? `${deps.length} dependenc${deps.length == 1 ? 'y' : 'ies'}` : null].filter(Boolean).join(' · ');
   const root = fromRaw ? `ids.get(${JSON.stringify(r.name)})` : undefined;
 
-  o.gw = Math.max(String(d.line).length, ...protos.map(p => String(pos(p).line).length), ...refs.slice(0, o.refs).map(p => String(pos(p).line).length));
+  o.gw = Math.max(String(d.line).length, ...protos.map(p => String(pos(p).line).length), ...refs.slice(0, o.refs).map(p => String(pos(p).line).length), ...deps.map(x => String(x.line).length));
 
   const out = [
     parts(
@@ -1177,7 +1229,8 @@ function formatIdentifier(r, o) {
   for(const [i, p] of protos.entries()) out.push(...location('prototype', pos(p), o, { atoms: ['prototype', i], obj: p, root: fromRaw ? root : undefined }));
   for(const [i, p] of refs.slice(0, o.refs).entries()) out.push(...location('reference', pos(p), o, { note: pos(p).in ? `in ${pos(p).in}` : '', atoms: ['references', i], obj: p, root: fromRaw ? root : undefined }));
   if(refs.length > o.refs) out.push(o.paint(COLOR.dim, `… ${refs.length - o.refs} more references`));
-  else if(nrefs > refs.length && !refs.length) out.push(o.paint(COLOR.dim, `(${nrefs} references; use ids.get('${r.name}') for their locations)`));
+  if(deps.length) out.push(...dependencyRows(deps, o, computedDeps ? { computed: true, root: `dependencies(${JSON.stringify(r.name)})` } : { atoms: ['dependencies'] }));
+  if(refs.length <= o.refs && nrefs > refs.length && !refs.length) out.push(o.paint(COLOR.dim, `(${nrefs} references; use ids.get('${r.name}') for their locations)`));
   return out;
 }
 
@@ -1395,16 +1448,19 @@ export function codeFor(shown, hit, roots) {
 /**
  * show: prints `format(value, opts)` to stdout; returns a marker the REPL does not echo. `show.ids`
  * (set by `--repl`) resolves reference lists of `-c` records; `show.last` keeps the rows of the
- * latest output for clicks.
+ * latest output for clicks and `show.history` those of the last 100 (the REPL's scrollback).
  */
 export function show(value, opts) {
   const { text, rows, cols } = formatRows(value, opts);
   std.out.puts(text + '\n');
   show.last = { value, rows, cols };
+  show.history.push(show.last);
+  if(show.history.length > 100) show.history.shift();
   return SHOWN;
 }
 show.ids = null;
 show.last = null;
+show.history = [];
 show.filter = filter;
 
 const LOC_MODES = ['line', 'offset', 'loc', 'range', 'file', 'start', 'end'];
@@ -1433,13 +1489,15 @@ function placed(rec, file, modes) {
   return out;
 }
 
-function placedIdentifier(e, modes, count) {
+export function placedIdentifier(e, modes, count, ids) {
+  const deps = ids ? dependencies(ids, e.name) : [];
   return {
     ...e,
     ...(count ? { references: e.references.length } : {}),
     declaration: e.declaration && placed(e.declaration, undefined, modes),
     prototype: e.prototype.map(p => placed(p, undefined, modes)),
     ...(count ? {} : { references: e.references.map(r => placed(r, undefined, modes)) }),
+    dependencies: count ? deps.length : deps.map(d => placed(d, undefined, modes)),
   };
 }
 
@@ -1577,7 +1635,7 @@ function setFilter(args) {
 
 const callIndexCache = new WeakMap();
 
-/** Map caller -> [{ callee, file, line, column }]: every reference made from inside a function, from `ids`. */
+/** Map owner -> [{ name, callee, file, line, column, ... }]: every reference made from inside a function, type, variable or macro, from `ids`. */
 function callIndex(ids) {
   if(!callIndexCache.has(ids)) {
     const index = new Map();
@@ -1585,7 +1643,7 @@ function callIndex(ids) {
       for(const r of e.references) {
         if(!r.in) continue;
         if(!index.has(r.in)) index.set(r.in, []);
-        index.get(r.in).push({ callee: e.name, file: r.file, line: r.line, column: r.column });
+        index.get(r.in).push({ ...r, callee: e.name, name: e.name });
       }
     callIndexCache.set(ids, index);
   }
@@ -1593,6 +1651,21 @@ function callIndex(ids) {
 }
 
 const isDefined = (ids, name) => ids.get(name)?.declaration?.kind == 'function';
+
+/**
+ * dependencies: everything the body of `name` (a function, struct/union/enum/typedef, variable
+ * initializer or macro) refers to, one entry per use in source order.
+ *
+ * ```js
+ * dependencies(ids, 'main')  // [{ name: 'parse', file, line, column, ... }, { name: 'LIMIT', ... }]
+ * ```
+ *
+ * The inverse of `references`: a reference to `parse` made inside `main` is a dependency of `main`
+ * on `parse`. Locals and parameters are not entered into `ids`, so they are not listed.
+ */
+export function dependencies(ids, name) {
+  return (callIndex(ids).get(name) ?? []).map(({ callee, in: owner, ...d }) => d).sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line || a.column - b.column));
+}
 
 /** Functions defined in `ids` that `name` refers to, as call sites `[{ callee, file, line, column }]`. */
 export function callees(ids, name) {
@@ -1671,9 +1744,16 @@ function fileInfo(read, file) {
         starts.push(at);
         at += l.length + 1;
       }
+      let types, defines;
       info = {
         lines,
         funcs: findFunctions(text, file),
+        get types() {
+          return (types ??= findTypes(text, file));
+        },
+        get defines() {
+          return (defines ??= findDefines(text, file));
+        },
         lineOf: off => Math.max(1, starts.findLastIndex(s => s <= off) + 1),
       };
     }
@@ -1682,22 +1762,42 @@ function fileInfo(read, file) {
   return fileInfoCache.get(key);
 }
 
-/** The browser's view of one function: its source lines and the call sites inside them that can be descended into. */
+const OPENABLE = new Set(['function', 'macro', 'struct', 'union', 'enum', 'class', 'typedef']);
+
+/** True if `name` is declared in `ids` as something the browser can open (function, macro, type). */
+const canOpen = (ids, name) => OPENABLE.has(ids.get(name)?.declaration?.kind) && !!ids.get(name).declaration.file;
+
+/** The first and last source line of the body of declaration `d` named `name`, or null. */
+function bodyRange(info, name, d) {
+  if(d.kind == 'function') {
+    const f = info.funcs.find(f => f.name == name && f.line == d.line) ?? info.funcs.find(f => f.name == name);
+    return { from: f ? info.lineOf(f.start) : d.line, to: f ? info.lineOf(f.end - 1) : Math.min(info.lines.length, d.line + 30) };
+  }
+  if(d.kind == 'macro') {
+    const m = info.defines.find(m => m.name == name && m.line == d.line) ?? info.defines.find(m => m.name == name);
+    return { from: m?.line ?? d.line, to: m?.endLine ?? d.line };
+  }
+  const t = info.types.find(t => t.name == name && t.line <= d.line && (t.endLine ?? t.line) >= d.line) ?? info.types.find(t => t.name == name);
+  return { from: t?.line ?? d.line, to: t?.endLine ?? t?.line ?? d.line };
+}
+
+/**
+ * The browser's view of one declaration (function, macro, struct/union/enum/typedef): its source
+ * lines and every dependency used inside them; `open` marks those that can be descended into.
+ */
 function openFrame(b, name) {
   const d = b.ids.get(name)?.declaration;
-  const info = d?.kind == 'function' && d.file ? fileInfo(b.read, d.file) : null;
+  const info = d && OPENABLE.has(d.kind) && d.file ? fileInfo(b.read, d.file) : null;
   if(!info) return null;
 
-  const f = info.funcs.find(f => f.name == name && f.line == d.line) ?? info.funcs.find(f => f.name == name);
-  const from = f ? info.lineOf(f.start) : d.line;
-  const to = f ? info.lineOf(f.end - 1) : Math.min(info.lines.length, d.line + 30);
+  const { from, to } = bodyRange(info, name, d);
   const lines = info.lines.slice(from - 1, to);
 
-  const sites = callees(b.ids, name)
-    .filter(s => s.file == d.file && s.line >= from && s.line <= to && /^\s*\(/.test(lines[s.line - from].slice(s.column - 1 + s.callee.length)))
-    .sort((a, b) => a.line - b.line || a.column - b.column);
+  const sites = dependencies(b.ids, name)
+    .filter(s => s.file == d.file && s.line >= from && s.line <= to)
+    .map(s => ({ ...s, callee: s.name, open: canOpen(b.ids, s.name) }));
 
-  return { name, file: d.file, from, to, lines, sites, top: 0, sel: sites.length ? 0 : -1 };
+  return { name, kind: d.kind, file: d.file, from, to, lines, sites, top: 0, sel: sites.findIndex(s => s.open) };
 }
 
 /**
@@ -1712,7 +1812,7 @@ export function makeBrowser(ids, name, read = readLines) {
   return b;
 }
 
-const SITE_STYLE = { call: '\x1b[4;1;38;5;81m', sel: '\x1b[1;38;5;16;48;5;220m' };
+const SITE_STYLE = { call: '\x1b[4;1;38;5;81m', sel: '\x1b[1;38;5;16;48;5;220m', dep: '\x1b[4;38;5;243m' };
 const expandedCol = (line, col) => col + (line.slice(0, col - 1).match(/\t/g)?.length ?? 0);
 
 /**
@@ -1745,7 +1845,8 @@ export function renderBrowser(b, cols, rows, color = true) {
   }
   out.push(crumb);
 
-  out.push(`${paint(COLOR.kind.function, '■ function')} ${paint(255, fr.name)}  ${where({ file: fr.file, line: fr.from, column: 1 }, { paint })}${paint(COLOR.dim, `–${fr.to}  ${fr.sites.length} call${fr.sites.length == 1 ? '' : 's'}`)}`);
+  const nopen = fr.sites.filter(s => s.open).length;
+  out.push(`${paint(COLOR.kind[fr.kind] ?? COLOR.dim, '■ ' + fr.kind)} ${paint(255, fr.name)}  ${where({ file: fr.file, line: fr.from, column: 1 }, { paint })}${paint(COLOR.dim, `–${fr.to}  ${fr.sites.length} dependenc${fr.sites.length == 1 ? 'y' : 'ies'}, ${nopen} to open`)}`);
 
   /* body */
   const win = fr.lines.slice(fr.top, fr.top + bodyH);
@@ -1754,17 +1855,19 @@ export function renderBrowser(b, cols, rows, color = true) {
   for(const [i, s] of fr.sites.entries()) {
     const li = s.line - fr.from - fr.top;
     if(li < 0 || li >= win.length) continue;
-    marks.push([li + 1, s.column, i == fr.sel ? 'sel' : 'call']);
+    marks.push([li + 1, s.column, i == fr.sel ? 'sel' : s.open ? 'call' : 'dep']);
     const x0 = gw + 3 + expandedCol(win[li], s.column);
-    sites.push({ y: 3 + li, x0, x1: x0 + s.callee.length - 1, index: i });
+    sites.push({ y: 3 + li, x0, x1: x0 + s.callee.length - 1, index: i, open: s.open });
   }
   const rendered = highlightC(win.join('\n'), marks, paint, Math.max(10, cols - gw - 4));
   for(let i = 0; i < bodyH; i++) out.push(i < win.length ? `${paint(COLOR.dim, String(fr.from + fr.top + i).padStart(gw))} ${paint(COLOR.gutter, '│')} ${rendered[i] ?? ''}` : paint(COLOR.gutter, '~'));
 
-  /* callers, status */
-  const names = [...new Set(callers(b.ids, fr.name).map(s => s.caller))];
-  out.push(paint(COLOR.dim, `called by: ${names.length ? names.slice(0, 6).join(', ') + (names.length > 6 ? ` (+${names.length - 6})` : '') : '-'}`));
-  out.push(b.status ? paint(COLOR.warn, b.status) : paint(COLOR.dim, 'click/Enter descend · Tab/←→ next call · right-click/Backspace/Esc back · wheel/↑↓ scroll · q quit'));
+  /* referenced by, status */
+  const refs = b.ids.get(fr.name)?.references ?? [];
+  const names = [...new Set(refs.filter(r => r.in).map(r => r.in))];
+  const elsewhere = refs.filter(r => !r.in).length;
+  out.push(paint(COLOR.dim, `referenced by: ${names.length ? names.slice(0, 6).join(', ') + (names.length > 6 ? ` (+${names.length - 6})` : '') : '-'}${elsewhere ? `  (+${elsewhere} outside functions)` : ''}`));
+  out.push(b.status ? paint(COLOR.warn, b.status) : paint(COLOR.dim, 'click/Enter open · Tab/←→ next dependency · right-click/Backspace/Esc back · wheel/↑↓ scroll · q quit'));
 
   return { lines: out, crumbs, sites, bodyH };
 }
@@ -1784,12 +1887,12 @@ function descend(b, index) {
   const fr = b.stack.at(-1);
   const site = fr.sites[index];
   if(!site) return;
-  fr.sel = index;
-  const next = openFrame(b, site.callee);
+  const next = site.open ? openFrame(b, site.callee) : null;
+  if(site.open) fr.sel = index;
   if(next) {
     b.stack.push(next);
     b.status = '';
-  } else b.status = `${site.callee}: no body in the scanned files`;
+  } else b.status = `${site.callee}: nothing to open (no body in the scanned files)`;
 }
 
 /**
@@ -1840,9 +1943,12 @@ export function browserEvent(b, ev, lay) {
     case 'left':
     case 'shifttab':
     case 'p':
-      if(fr.sites.length) {
+      if(fr.sites.some(s => s.open)) {
         const dir = ['left', 'shifttab', 'p'].includes(ev.key) ? -1 : 1;
-        fr.sel = (fr.sel + dir + fr.sites.length) % fr.sites.length;
+        let i = fr.sel;
+        do i = (i + dir + fr.sites.length) % fr.sites.length;
+        while(!fr.sites[i].open);
+        fr.sel = i;
         reveal(fr, lay.bodyH);
       }
       break;
@@ -1868,6 +1974,7 @@ export function browserEvent(b, ev, lay) {
 }
 
 const KEYS = { '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left', '\x1bOA': 'up', '\x1bOB': 'down', '\x1bOC': 'right', '\x1bOD': 'left', '\x1b[5~': 'pgup', '\x1b[6~': 'pgdn', '\x1b[H': 'home', '\x1b[F': 'end', '\x1b[1~': 'home', '\x1b[4~': 'end', '\x1b[Z': 'shifttab', '\x1b[3~': 'delete' };
+const charKey = c => (c == '\x1b' ? 'esc' : c == '\r' || c == '\n' ? 'enter' : c == '\x7f' || c == '\b' ? 'backspace' : c == '\t' ? 'tab' : c == '\x03' ? 'ctrl-c' : c == '\x04' ? 'ctrl-d' : c);
 const BUTTONS = { 0: 'left', 1: 'middle', 2: 'right', 64: 'wheelup', 65: 'wheeldown' };
 
 /**
@@ -1898,7 +2005,7 @@ export function parseInput(s) {
     }
 
     const c = s[i++];
-    events.push({ type: 'key', key: c == '\x1b' ? 'esc' : c == '\r' || c == '\n' ? 'enter' : c == '\x7f' || c == '\b' ? 'backspace' : c == '\t' ? 'tab' : c == '\x03' ? 'ctrl-c' : c == '\x04' ? 'ctrl-d' : c });
+    events.push({ type: 'key', key: charKey(c) });
   }
 
   return events;
@@ -1953,17 +2060,37 @@ export function browse(ids, name) {
 /* ---- clicks on show() output in the REPL ---- */
 
 /**
- * Splits mouse reports and cursor-position replies out of the byte stream the REPL reads.
- * Returns a function taking one byte and returning the bytes to pass on (none while a sequence
- * may still be completing); `onMouse({ button, x, y, press })` and `onCursor(row, col)` fire for
- * `ESC [ < b ; x ; y M|m` and `ESC [ row ; col R`.
+ * Splits mouse reports, cursor-position replies and (when wanted) keys out of the byte stream the
+ * REPL reads. Returns a function taking one byte and returning the bytes to pass on (none while a
+ * sequence may still be completing).
+ *
+ *   onMouse({ button, x, y, press })   for `ESC [ < b ; x ; y M|m`
+ *   onCursor(row, col)                 for `ESC [ row ; col R`
+ *   onKey(key) -> boolean              every key (names as in `parseInput()`); true consumes it
+ *   grabbing() -> boolean              while true no byte reaches the REPL
  */
-export function makeInputFilter(onMouse, onCursor) {
+export function makeInputFilter(onMouse, onCursor, onKey = () => false, grabbing = () => false) {
   let held = '';
 
   return byte => {
     const c = String.fromCharCode(byte);
-    if(!held && c != '\x1b') return [byte];
+
+    if(!held) {
+      if(c == '\x1b') {
+        held = c;
+        return [];
+      }
+      return (byte < 128 && onKey(charKey(c))) || grabbing() ? [] : [byte];
+    }
+
+    /* ESC followed by something that starts no sequence */
+    if(held == '\x1b' && c != '[' && c != 'O') {
+      held = '';
+      if(!grabbing()) return [0x1b, byte];
+      onKey('esc');
+      onKey(charKey(c));
+      return [];
+    }
 
     held += c;
 
@@ -1978,12 +2105,112 @@ export function makeInputFilter(onMouse, onCursor) {
       onCursor(+m[1], +m[2]);
       return [];
     }
-    if(held == '\x1b' || /^\x1b\[<?[\d;]*$/.test(held)) return [];
+    if(held == '\x1bO' || /^\x1b\[<?[\d;]*$/.test(held)) return [];
 
-    const bytes = [...held].map(ch => ch.charCodeAt(0));
+    if(/^\x1b(?:\[[\d;]*[A-Za-z~]|O[A-D])$/.test(held) && onKey(KEYS[held] ?? 'other')) {
+      held = '';
+      return [];
+    }
+
+    const bytes = grabbing() ? [] : [...held].map(ch => ch.charCodeAt(0));
     held = '';
     return bytes;
   };
+}
+
+/* ---- scrollback over earlier show() output ---- */
+
+/** `s` cut to `w` visible characters, escapes kept and closed with a reset. */
+export function clipAnsi(s, w) {
+  let out = '',
+    seen = 0,
+    cut = false;
+
+  for(const [t] of String(s).matchAll(/\x1b\[[0-9;]*m|[^]/gu)) {
+    if(t[0] == '\x1b') out += t;
+    else if(seen < w) {
+      out += t;
+      seen++;
+    } else {
+      cut = true;
+      break;
+    }
+  }
+
+  return out.includes('\x1b') ? out + '\x1b[0m' : out;
+}
+
+/** A scrollable list of every row of the show() outputs in `history` (`[{ value, rows }]`), oldest first, starting at the bottom. */
+export function makePager(history) {
+  const lines = [];
+  for(const [i, entry] of history.entries()) {
+    lines.push({ text: `── show() #${i + 1} ${'─'.repeat(24)}`, entry });
+    for(const row of entry.rows) lines.push({ row, entry });
+  }
+  return { lines, top: Infinity, bodyH: 1, message: '' };
+}
+
+/** Draws pager `p` on `cols` x `rows`: `{ lines, bodyH }`; the last line is the status bar. */
+export function renderPager(p, cols, rows, color = true) {
+  const bodyH = Math.max(1, rows - 1);
+  p.bodyH = bodyH;
+  p.top = clamp(p.top, 0, Math.max(0, p.lines.length - bodyH));
+
+  const paint = color ? (code, t) => `\x1b[38;5;${code}m${t}\x1b[0m` : (code, t) => t;
+  const body = p.lines.slice(p.top, p.top + bodyH).map(l => clipAnsi(l.row ?? paint(COLOR.rule, l.text), cols));
+
+  const text = p.message || ` scrollback ${p.top + 1}-${Math.min(p.lines.length, p.top + bodyH)} of ${p.lines.length}  ·  wheel/PgUp/PgDn/↑↓ scroll  ·  click: pointer + location  ·  q back`;
+  const bar = text.slice(0, cols).padEnd(cols);
+
+  return { lines: [...body, color ? `\x1b[0;48;5;236;38;5;252m${bar}\x1b[0m` : bar], bodyH };
+}
+
+/**
+ * Applies a mouse or key event to pager `p`: scrolls it, returns 'exit' (q, Enter, or scrolling past
+ * the end), `{ pane: true }` for a click on the info pane (`p.pane = { name, info, width }`) or
+ * `{ hit: { line, x, button } }` for a left or right click on a row.
+ */
+export function pagerEvent(p, ev) {
+  const max = Math.max(0, p.lines.length - p.bodyH);
+  p.top = clamp(p.top, 0, max);
+  if(ev.type != 'mouse' || ev.press) p.message = '';
+
+  const scroll = by => {
+    if(by > 0 && p.top >= max) return 'exit';
+    p.top = clamp(p.top + by, 0, max);
+  };
+
+  if(ev.type == 'mouse') {
+    if(!ev.press) return;
+    if(ev.button == 'wheelup') return scroll(-3);
+    if(ev.button == 'wheeldown') return scroll(3);
+    if(ev.button == 'left' && p.pane && ev.x <= p.pane.width && ev.y > p.bodyH - PANE_H && ev.y <= p.bodyH) return { pane: true };
+    if((ev.button == 'left' || ev.button == 'right') && ev.y <= p.bodyH && p.lines[p.top + ev.y - 1]) return { hit: { line: p.lines[p.top + ev.y - 1], x: ev.x, button: ev.button } };
+    return;
+  }
+
+  switch (ev.key) {
+    case 'q':
+    case 'enter':
+    case 'esc':
+    case 'ctrl-c':
+    case 'ctrl-d':
+      return 'exit';
+    case 'up':
+      return scroll(-1);
+    case 'down':
+      return scroll(1);
+    case 'pgup':
+      return scroll(-(p.bodyH - 1));
+    case 'pgdn':
+      return scroll(p.bodyH - 1);
+    case 'home':
+      p.top = 0;
+      break;
+    case 'end':
+      p.top = max;
+      break;
+  }
 }
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -2066,6 +2293,7 @@ function installMouse(repl, roots) {
 
   const status = text => {
     const sz = size();
+    state.statusText = text;
     if(!sz || !state.on) return;
     const line = text.slice(0, sz[0] - 1).padEnd(sz[0] - 1);
     out(`\x1b7\x1b[${sz[1]};1H\x1b[0;48;5;236;38;5;252m${line}\x1b[0m\x1b8`);
@@ -2081,17 +2309,66 @@ function installMouse(repl, roots) {
     if(sz) out(`\x1b[r\x1b7\x1b[${sz[1]};1H\x1b[2K\x1b8`);
   };
 
-  const finish = (ev, cursorRow) => {
-    const shown = show.last;
+  /* the info pane at the lower left of the screen: the content scrolls up, the rows leave the scroll region */
+  const paneOpen = (name, cursorRow, cursorCol) => {
     const sz = size();
-    const cols = sz?.[0] ?? shown.cols;
-    if(cols != shown.cols) return status('terminal was resized: run show() again');
+    if(!sz) return;
+    const [cols, R] = sz;
+    const width = Math.max(30, Math.min(cols - 2, 60));
+    let row = cursorRow;
 
-    const promptLen = visibleLength(repl.prompt ?? '');
-    const promptRow = cursorRow - Math.floor((promptLen + repl.cursorPos) / cols);
-    const hit = rowAt(shown.rows, cols, promptRow, ev.x, ev.y);
+    if(!state.pane) {
+      const scroll = Math.max(0, PANE_H - ((R - 1) - cursorRow));
+      out(`\x1b[${R - 1};1H${'\n'.repeat(scroll)}`);
+      setScrollRegion(1, R - 1 - PANE_H, std.out);
+      row -= scroll;
+    }
+    state.pane = { name, info: recordInfo(roots().ids, name), x1: width, y0: R - PANE_H, y1: R - 1 };
+    paneDraw();
+    out(`\x1b[${row};${cursorCol}H`);
+  };
+  const paneDraw = () => {
+    const pane = state.pane;
+    if(pane) drawPane(pane.info, pane.y0, 1, pane.x1);
+  };
+  const paneClose = () => {
+    if(!state.pane) return;
+    const sz = size();
+    if(sz) {
+      const sc = new Screen(std.out).write('\x1b7');
+      for(let y = state.pane.y0; y <= state.pane.y1; y++) sc.moveTo(y, 1).clearLine(2);
+      sc.flush();
+      setScrollRegion(1, sz[1] - 1, std.out);
+      out('\x1b8');
+    }
+    state.pane = null;
+  };
+
+  /* runs show() on a record as if typed at the prompt, keeping what was already typed */
+  const runShow = name => {
+    const saved = repl.cmd;
+    const ids = roots().ids;
+    const rec = ids.get(name);
+    if(!showable(rec)) return status(`${name}: nothing to show`);
+
+    /* typed as ids.get(...) unless the session replaced `ids`, then through `shown` */
+    if(globalThis.ids !== ids) globalThis.shown = rec;
+    repl.cmd = globalThis.ids === ids ? `show(globalThis.ids.get(${JSON.stringify(name)}))` : 'show(globalThis.shown)';
+    repl.cursorPos = repl.cmd.length;
+    repl.update();
+    repl.handleKey('\r');
+    state.inserted = '';
+    if(saved) {
+      repl.cmd = saved;
+      repl.cursorPos = saved.length;
+      repl.update();
+    }
+  };
+
+  /* what a click on `hit` ({ row, x }) of the show() output `shown` does; returns the status text */
+  const perform = (ev, shown, hit, inPager) => {
     const loc = hit && locate(hit.row, hit.x);
-    if(!loc) return status('nothing to point at here');
+    if(!loc) return 'nothing to point at here';
 
     globalThis.shown = shown.value;
     const code = codeFor(shown.value, loc, roots());
@@ -2111,15 +2388,81 @@ function installMouse(repl, roots) {
       }
       repl.insert(code);
       state.inserted = code;
-      repl.update();
+      if(!inPager) repl.update();
     }
 
-    status(` ${ptr}   ${where ?? ''}   ${code}${note ? '   [' + note + ']' : ''}`);
+    return ` ${ptr}   ${where ?? ''}   ${code}${note ? '   [' + note + ']' : ''}`;
   };
+
+  /* a click at the prompt: the output sits right above it, found from the cursor row */
+  const finish = (ev, cursorRow, cursorCol) => {
+    const shown = show.last;
+    const sz = size();
+    const cols = sz?.[0] ?? shown.cols;
+    if(cols != shown.cols) return status('terminal was resized: run show() again');
+
+    const promptLen = visibleLength(repl.prompt ?? '');
+    const promptRow = cursorRow - Math.floor((promptLen + repl.cursorPos) / cols);
+    const hit = rowAt(shown.rows, cols, promptRow, ev.x, ev.y);
+    const name = ev.button == 'left' && hit && identAt(hit.row, hit.x, shown);
+    if(name) paneOpen(name, cursorRow, cursorCol);
+    status(perform(ev, shown, hit, false));
+  };
+
+  /* the scrollback over every earlier show() output, on the alternate screen */
+  const pagerDraw = () => {
+    const [cols, rows] = size() ?? [80, 24];
+    out('\x1b[H' + renderPager(state.pager, cols, rows).lines.map(l => l + '\x1b[K').join('\r\n') + '\x1b[J');
+    const pane = state.pager.pane;
+    if(pane && rows - 1 > PANE_H) drawPane(pane.info, rows - PANE_H, 1, pane.width);
+  };
+  const pagerOpen = () => {
+    paneClose();
+    state.pager = makePager(show.history);
+    out('\x1b[?1049h\x1b[?25l\x1b[r');
+    pagerDraw();
+  };
+  const pagerClose = () => {
+    state.pager = null;
+    out('\x1b[?25h\x1b[?1049l');
+    reserve(false);
+    repl.update();
+  };
+  const pagerInput = ev => {
+    const p = state.pager;
+    const r = pagerEvent(p, ev);
+
+    if(r == 'exit') return pagerClose();
+    if(r?.pane) {
+      const name = p.pane.name;
+      if(!p.pane.info.kind) p.message = `${name}: nothing to show, it is not declared in the scanned files`;
+      else {
+        pagerClose();
+        return runShow(name);
+      }
+    }
+    if(r?.hit) {
+      const hit = r.hit.line.row && { row: r.hit.line.row, x: r.hit.x };
+      p.message = perform(r.hit, r.hit.line.entry, hit, true);
+      const name = r.hit.button == 'left' && hit && identAt(hit.row, hit.x, r.hit.line.entry);
+      if(name) p.pane = { name, info: recordInfo(roots().ids, name), width: Math.min(size()?.[0] ?? 80, 60) };
+    }
+    pagerDraw();
+  };
+  const canPage = () => state.on && show.history.length > 0;
 
   const filterInput = makeInputFilter(
     ev => {
+      if(state.pager) return pagerInput({ type: 'mouse', ...ev });
+      if(ev.press && ev.button == 'wheelup' && canPage()) return pagerOpen();
       if(!ev.press || (ev.button != 'left' && ev.button != 'right')) return;
+
+      const pane = state.pane;
+      if(pane && ev.button == 'left' && ev.y >= pane.y0 && ev.y <= pane.y1 && ev.x <= pane.x1) {
+        if(!pane.info.kind) return status(`${pane.name}: nothing to show, it is not declared in the scanned files`);
+        paneClose();
+        return runShow(pane.name);
+      }
       if(!show.last) return status('no show() output to click');
 
       state.pending = ev;
@@ -2135,8 +2478,20 @@ function installMouse(repl, roots) {
     (row, col) => {
       const ev = state.pending;
       state.pending = null;
-      if(ev) finish(ev, row);
+      if(ev) finish(ev, row, col);
     },
+    key => {
+      if(state.pager) {
+        pagerInput({ type: 'key', key });
+        return true;
+      }
+      if(key == 'pgup' && canPage()) {
+        pagerOpen();
+        return true;
+      }
+      return false;
+    },
+    () => !!state.pager,
   );
 
   const handleByte = repl.handleByte.bind(repl);
@@ -2144,9 +2499,23 @@ function installMouse(repl, roots) {
     for(const b of filterInput(byte)) handleByte(b);
   };
 
+  /* the prompt redraw clears everything below it: put the pane and the status bar back */
+  const update = repl.update.bind(repl);
+  repl.update = (...args) => {
+    const r = update(...args);
+    if(state.on && (state.pane || state.statusText)) {
+      out('\x1b7');
+      paneDraw();
+      if(state.statusText) status(state.statusText);
+      out('\x1b8');
+    }
+    return r;
+  };
+
   /* a command being evaluated scrolls the earlier output away */
   const evalStart = repl.evalAndPrintStart.bind(repl);
   repl.evalAndPrintStart = (...args) => {
+    paneClose();
     show.last = null;
     state.inserted = '';
     return evalStart(...args);
@@ -2164,12 +2533,14 @@ function installMouse(repl, roots) {
     },
     off() {
       if(!state.on) return;
+      paneClose();
       modes(false);
       release();
       state.on = false;
     },
     suspend() {
       if(!state.on) return;
+      paneClose();
       modes(false);
       out('\x1b[r');
     },
@@ -2179,6 +2550,74 @@ function installMouse(repl, roots) {
       reserve(false);
     },
   };
+}
+
+/* ---- the info pane for a clicked identifier ---- */
+
+/** The identifier token covering 1-based `col` of the single line of C `text`, or null. */
+export function identAtColumn(text, col) {
+  try {
+    const lexer = new CLexer(text, undefined, '<ident>');
+    let t;
+    while((t = lexer.nextToken())) {
+      if(t.loc.line != 1 || t.loc.column > col) break;
+      if(t.type == 'identifier' && col < t.loc.column + t.lexeme.length) return t.lexeme;
+    }
+  } catch(e) {}
+  return null;
+}
+
+/** The name a click on `row` at screen column `x` refers to: the identifier under it in source text, or a record's name cell; null if none. `shown` is the `show.last` entry. */
+export function identAt(row, x, shown) {
+  const loc = locate(row, x);
+  if(!loc) return null;
+  if(row.code) return identAtColumn(row.code.text, loc.src.column);
+
+  const rec = Array.isArray(shown.value) ? shown.value[row.item] : shown.value;
+  return pointerString(loc.atoms) == '.name' && typeof rec?.name == 'string' ? rec.name : null;
+}
+
+/** What the pane shows about `name`: kind, where it is declared (and its body lines), counts. */
+export function recordInfo(ids, name, read = readLines) {
+  const e = ids.get(name),
+    d = e?.declaration;
+  const info = { name, kind: d?.kind ?? null, static: !!d?.static, file: d?.file, line: d?.line, column: d?.column, range: null, references: e?.references.length ?? 0, prototypes: e?.prototype.length ?? 0, dependencies: dependencies(ids, name).length };
+
+  if(d && OPENABLE.has(d.kind) && d.file) {
+    const fi = fileInfo(read, d.file);
+    if(fi) info.range = bodyRange(fi, name, d);
+  }
+
+  return info;
+}
+
+const PANE_H = 6;
+
+/** The four content lines of the pane for `info` (kind, location, counts, hint), as `[text, color]`. */
+export function paneContent(info) {
+  const path = info.file ? `${info.file}:${info.line}:${info.column}${info.range ? ` · lines ${info.range.from}–${info.range.to}` : ''}` : 'not declared in the scanned files';
+  const kind = info.kind ? `${info.kind}${info.static ? ' · static' : ''}${info.prototypes ? ` · ${info.prototypes} prototype${info.prototypes == 1 ? '' : 's'}` : ''}` : 'external or unknown';
+
+  return [
+    [kind, COLOR.kind[info.kind] ?? COLOR.dim],
+    [path, COLOR.path],
+    [`referenced ${info.references}×  ·  ${info.dependencies} dependenc${info.dependencies == 1 ? 'y' : 'ies'}`, COLOR.pos],
+    [info.kind ? `click: show(ids.get(${JSON.stringify(info.name)}))` : 'nothing to show', COLOR.dim],
+  ];
+}
+
+/**
+ * Draws the info pane for `info` as a `width` x `PANE_H` box with its top-left cell at (row, col),
+ * through terminal.js's Screen; a path that does not fit loses its start (`…tail`).
+ */
+export function drawPane(info, row, col, width, f = std.out) {
+  const inner = width - 2;
+  const fit = t => (t.length > inner ? '…' + t.slice(t.length - inner + 1) : t.padEnd(inner));
+  const sc = new Screen(f);
+
+  sc.sgr(0, 38, 5, COLOR.rule).box(row, col, width, PANE_H, { title: info.name });
+  for(const [i, [text, code]] of paneContent(info).entries()) sc.moveTo(row + 1 + i, col + 1).sgr(0, 38, 5, code).write(fit(' ' + text));
+  sc.resetAttrs().flush();
 }
 
 /** The text of the REPL's `\help` directive: each global with what it holds right now, then examples. */
@@ -2195,11 +2634,12 @@ function helpText(vars, color) {
       ['repl', 'the REPL', '`repl._` is the last result'],
     ],
     'call graph': [
-      ['callees(name)', '', 'call sites in name\'s body that reach defined functions: [{ callee, file, line, column }]'],
+      ['dependencies(name)', '', 'everything name\'s body (function, struct, typedef, enum, macro, initializer) uses: [{ name, file, line, column }]; the inverse of references'],
+      ['callees(name)', '', 'the dependencies that are defined functions: [{ callee, file, line, column }]'],
       ['callers(name)', '', 'functions whose body refers to name: [{ caller, file, line, column }]'],
       ['reachable(name, up?)', '', 'Set of names reachable through calls (up: through callers)'],
       ['callTree(name, { depth, up })', '', 'indented tree text; ↻ marks recursion; print it with console.log'],
-      ['browse(name)', '', 'full-screen browser: click a highlighted call to descend, right-click back'],
+      ['browse(name)', '', 'full-screen browser of a function, struct or macro: click a highlighted dependency to open it, right-click back'],
     ],
     functions: [
       ['show(value, opts)', '', 'print records colored, with their source; value is a record, an `ids` entry or an array of them; opts: color, width, lines, refs, items'],
@@ -2530,12 +2970,12 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     for(const e of ids.values()) {
       if(!shown(e) || (countOk && !countOk(e.references.length))) continue;
       if(list) chunks.push(line(e));
-      else irs.push(placedIdentifier(e, locModes, count));
+      else irs.push(placedIdentifier(e, locModes, count, ids));
     }
   }
 
   if(wantRepl) {
-    await openRepl({ files, ids, records: irs, chunks, dead, findFunctions, findTypes, findDefines, findIdentifiers, show, format, callees: n => callees(ids, n), callers: n => callers(ids, n), reachable: (n, up) => reachable(ids, n, up), callTree: (n, o) => callTree(ids, n, o), browse: n => browse(ids, n) });
+    await openRepl({ files, ids, records: irs, chunks, dead, findFunctions, findTypes, findDefines, findIdentifiers, show, format, callees: n => callees(ids, n), dependencies: n => dependencies(ids, n), callers: n => callers(ids, n), reachable: (n, up) => reachable(ids, n, up), callTree: (n, o) => callTree(ids, n, o), browse: n => browse(ids, n) });
     ({ records: irs, chunks, dead } = globalThis);
   }
 
@@ -2550,7 +2990,7 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     else console.log(out.trimEnd());
   }
 
-  if(dead) console.log(list ? dead.map(line).join('').trimEnd() : JSON.stringify(dead.map(e => placedIdentifier(e, locModes, count)), null, 2));
+  if(dead) console.log(list ? dead.map(line).join('').trimEnd() : JSON.stringify(dead.map(e => placedIdentifier(e, locModes, count, ids)), null, 2));
 
   return 0;
 }
