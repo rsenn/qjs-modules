@@ -1590,7 +1590,7 @@ js_jsonwriter_text(JSContext* ctx, JsonWriter* wr, JSValueConst val, BOOL quoted
     return js_jsonwriter_ret(ctx, jwrite_null(wr));
   }
 
-  r = quoted ? jwrite_string(wr, str, len) : jwrite_raw(wr, str, len);
+  r = quoted ? jwrite_string(wr, str, len) : jwrite_number(wr, str, len);
   JS_FreeCString(ctx, str);
   return js_jsonwriter_ret(ctx, r);
 }
@@ -1614,7 +1614,7 @@ js_jsonwriter_value(void* opaque, JSContext* ctx, JSValueConst val) {
     return js_jsonwriter_ret(ctx, jwrite_null(wr));
 
   if(JS_IsBool(val))
-    return js_jsonwriter_ret(ctx, jwrite_bool(wr, JS_ToBool(ctx, val)));
+    return js_jsonwriter_ret(ctx, JS_ToBool(ctx, val) ? jwrite_true(wr) : jwrite_false(wr));
 
   if(JS_IsString(val))
     return js_jsonwriter_text(ctx, wr, val, TRUE);
@@ -1626,9 +1626,6 @@ js_jsonwriter_value(void* opaque, JSContext* ctx, JSValueConst val) {
 
     if(isnan(d) || isinf(d))
       return js_jsonwriter_ret(ctx, jwrite_null(wr));
-
-    if(wr->opts.hex_numbers && d == floor(d) && fabs(d) <= 9007199254740991.0)
-      return js_jsonwriter_ret(ctx, jwrite_int64(wr, (int64_t)d));
   }
 
   return js_jsonwriter_text(ctx, wr, val, !js_is_numeric(ctx, val));

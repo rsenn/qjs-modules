@@ -29,7 +29,7 @@ typedef struct {
  * jwrite_init(&wr, NULL, NULL);
  * jwrite_object_start(&wr);
  * jwrite_key(&wr, "id", 2);
- * jwrite_int64(&wr, 7);
+ * jwrite_number(&wr, "7", 1);
  * jwrite_object_end(&wr);
  * jwrite_free(&wr);          // {"id": 7}, indented
  * ```
@@ -56,6 +56,8 @@ enum {
   JWRITE_E_NOT_ARRAY,         /* object_end inside an array */
   JWRITE_E_NOT_OBJECT,        /* array_end inside an object */
   JWRITE_E_PENDING_KEY,       /* object_end right after a key */
+  JWRITE_E_SOURCE,            /* jwrite_error(): the input reported an error */
+  JWRITE_E_NUMBER,            /* number text empty, or with a byte no number has */
 };
 
 /* the text for a failed event's return value: jwrite_error_message(-r) */
@@ -66,18 +68,77 @@ const char* jwrite_error_message(int code);
 void jwrite_init(JsonWriter*, DynBufReallocFunc* realloc_func, void* opaque);
 void jwrite_free(JsonWriter*);
 
-ssize_t jwrite_object_start(JsonWriter*);
+/* The events, one per jr_type_t of jread.h and in its order. Valueless
+ * events take the writer only; the others take `str`/`len`.
+ *
+ *   jr_type_t               jwrite call
+ *   jr_type_error           jwrite_error(wr, str, len)   message; writes nothing
+ *   jr_type_null            jwrite_null(wr)
+ *   jr_type_true            jwrite_true(wr)
+ *   jr_type_false           jwrite_false(wr)
+ *   jr_type_number          jwrite_number(wr, str, len)  the number as text
+ *   jr_type_string          jwrite_string(wr, str, len)  decoded UTF-8, escaped here
+ *   jr_type_array_start     jwrite_array_start(wr)
+ *   jr_type_array_end       jwrite_array_end(wr)
+ *   jr_type_object_start    jwrite_object_start(wr)
+ *   jr_type_object_end      jwrite_object_end(wr)
+ *   jr_type_key             jwrite_key(wr, str, len)     decoded UTF-8, escaped here
+ *
+ * jwrite_number() writes `str` as given: "1e400" and "12345678901234567890"
+ * stay as they are. With hex_numbers set, a plain integer (-31, 255) becomes
+ * -0x1f, 0xff. It returns -JWRITE_E_NUMBER for empty text, a first byte
+ * other than a digit, '+', '-' or '.', or a later byte other than a letter,
+ * a digit, '+', '-' or '.'.
+ *
+ * jwrite_error() returns -JWRITE_E_SOURCE without writing, so a stream of
+ * jr events stops at the error with the writer's state intact. */
+ssize_t jwrite_error(JsonWriter*, const char* str, size_t len);
+ssize_t jwrite_null(JsonWriter*);
+ssize_t jwrite_true(JsonWriter*);
+ssize_t jwrite_false(JsonWriter*);
+ssize_t jwrite_number(JsonWriter*, const char* str, size_t len);
+ssize_t jwrite_string(JsonWriter*, const char* str, size_t len);
 ssize_t jwrite_array_start(JsonWriter*);
-ssize_t jwrite_object_end(JsonWriter*);
 ssize_t jwrite_array_end(JsonWriter*);
+ssize_t jwrite_object_start(JsonWriter*);
+ssize_t jwrite_object_end(JsonWriter*);
 ssize_t jwrite_key(JsonWriter*, const char* str, size_t len);
 
-ssize_t jwrite_null(JsonWriter*);
-ssize_t jwrite_bool(JsonWriter*, int b);
-ssize_t jwrite_int64(JsonWriter*, int64_t n);
-ssize_t jwrite_double(JsonWriter*, double d);
-ssize_t jwrite_string(JsonWriter*, const char* str, size_t len);
-ssize_t jwrite_raw(JsonWriter*, const char* str, size_t len);
+/* JsonWriteInterface: the jwrite events as function pointers, so a
+ * producer can drive any sink without knowing it is a JsonWriter.
+ *
+ * Like WalkInterface, minus the engine: no JSContext, no JSValue. One member
+ * per jwrite event, named after the jr_type_t it mirrors (`true_`/`false_`
+ * because `true`/`false` are macros).
+ *
+ * ```c
+ * JsonWriteInterface w = jwrite_interface(&wr);
+ * w.object_start(w.opaque);
+ * w.key(w.opaque, "id", 2);
+ * w.number(w.opaque, "7", 1);
+ * w.object_end(w.opaque);
+ * ```
+ *
+ * Every member returns what its jwrite call returns: the bytes written
+ * (>= 0), or -JWRITE_E_*. `opaque` is passed as the first argument. */
+typedef struct {
+  void* opaque;
+  ssize_t (*error)(void*, const char* str, size_t len);
+  ssize_t (*null)(void*);
+  ssize_t (*true_)(void*);
+  ssize_t (*false_)(void*);
+  ssize_t (*number)(void*, const char* str, size_t len);
+  ssize_t (*string)(void*, const char* str, size_t len);
+  ssize_t (*array_start)(void*);
+  ssize_t (*array_end)(void*);
+  ssize_t (*object_start)(void*);
+  ssize_t (*object_end)(void*);
+  ssize_t (*key)(void*, const char* str, size_t len);
+} JsonWriteInterface;
+
+/* jwrite_interface: the interface of a JsonWriter; `opaque` is `wr`.
+ * never throws; `wr` must outlive the returned struct. */
+JsonWriteInterface jwrite_interface(JsonWriter* wr);
 
 /* Writer-level helpers, no JsonWriter needed. Both return the bytes written
  * (> 0), 0 when the Writer is blocked, or -1 on a real error; a zero-length

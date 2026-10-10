@@ -176,12 +176,13 @@ void jwrite_callback(jr_type_t, const jr_str_t*, void* user_data);
 ### The writer path
 
 - **No JS values, no `JSContext`.** `jwrite.c` is pure C: key and value tokens go straight
-  to `jwrite_key(wr, str, len)`, `jwrite_string(wr, str, len)` and `jwrite_raw(wr, str, len)`.
+  to `jwrite_key(wr, str, len)`, `jwrite_string(wr, str, len)` and `jwrite_number(wr, str, len)`.
   They share the writer's ordering checks, commas and indentation, so the writer's options
   apply as usual (`indent`, `bareKeys`, `singleQuotes`, `minify`).
 - **Number text passes through as written.** `12345678901234567890` and `1e2` are not
-  re-formatted: the callback uses `jwrite_raw`. With `hexNumbers` set, it would parse the
-  token and call `jwrite_int64` for a safe integer, and fall back to the raw text otherwise.
+  re-formatted: the callback uses `jwrite_number`, which writes the text as given. With
+  `hexNumbers` set, `jwrite_number` turns a plain integer (up to 18 digits) into hex and
+  writes anything else as given.
 - **Errors.** A `jr_callback` returns `void`, so the first failure (a negative `jwrite_*`
   result, `-JWRITE_E_*`) is kept in the sink and later events are ignored. `write()` and
   `close()` then throw, using the message from `jwrite_error_message()`.

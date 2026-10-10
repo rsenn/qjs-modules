@@ -107,6 +107,8 @@ static const char* const jwrite_messages[] = {
     "expected arrayEnd, got objectEnd",
     "expected objectEnd, got arrayEnd",
     "expected value for key",
+    "input reported an error",
+    "invalid number text",
 };
 
 /* jwrite_error_message: the text for a JWRITE_E_* code (not the negative).
@@ -373,8 +375,8 @@ jwrite_literal(JsonWriter* wr, const char* str, size_t len) {
 }
 
 ssize_t
-jwrite_raw(JsonWriter* wr, const char* str, size_t len) {
-  return jwrite_literal(wr, str, len);
+jwrite_error(JsonWriter* wr, const char* str, size_t len) {
+  return -JWRITE_E_SOURCE;
 }
 
 ssize_t
@@ -383,57 +385,61 @@ jwrite_null(JsonWriter* wr) {
 }
 
 ssize_t
-jwrite_bool(JsonWriter* wr, int b) {
-  return b ? jwrite_literal(wr, "true", 4) : jwrite_literal(wr, "false", 5);
+jwrite_true(JsonWriter* wr) {
+  return jwrite_literal(wr, "true", 4);
 }
 
-/* jwrite_int64: decimal, or 0xff / -0x1f with the hex_numbers option. */
 ssize_t
-jwrite_int64(JsonWriter* wr, int64_t n) {
+jwrite_false(JsonWriter* wr) {
+  return jwrite_literal(wr, "false", 5);
+}
+
+/* number text: a digit, '+', '-' or '.' first, then letters, digits and
+ * those; keeps ',' quotes and brackets out of a value written verbatim. */
+static BOOL
+jwrite_is_number(const char* s, size_t len) {
+  if(len == 0 || !(isdigit((unsigned char)s[0]) || s[0] == '+' || s[0] == '-' || s[0] == '.'))
+    return FALSE;
+
+  for(size_t i = 1; i < len; i++)
+    if(!(isalnum((unsigned char)s[i]) || s[i] == '+' || s[i] == '-' || s[i] == '.'))
+      return FALSE;
+
+  return TRUE;
+}
+
+/* hex_numbers: "-31" -> "-0x1f" in buf; returns the length, or 0 when the
+ * text is not a plain integer of at most 18 digits. */
+static size_t
+jwrite_hex_text(const char* s, size_t len, char buf[32]) {
+  size_t i = s[0] == '-';
+  unsigned long long n = 0;
+
+  if(len == i || len - i > 18)
+    return 0;
+
+  for(size_t j = i; j < len; j++) {
+    if(!isdigit((unsigned char)s[j]))
+      return 0;
+
+    n = n * 10 + (s[j] - '0');
+  }
+
+  return snprintf(buf, 32, "%s0x%llx", i ? "-" : "", n);
+}
+
+ssize_t
+jwrite_number(JsonWriter* wr, const char* str, size_t len) {
   char buf[32];
-  int len;
+  size_t n;
 
-  if(wr->opts.hex_numbers)
-    len = snprintf(buf, sizeof(buf), "%s0x%llx", n < 0 ? "-" : "", (unsigned long long)(n < 0 ? -(uint64_t)n : (uint64_t)n));
-  else
-    len = snprintf(buf, sizeof(buf), "%lld", (long long)n);
+  if(!jwrite_is_number(str, len))
+    return -JWRITE_E_NUMBER;
 
-  return jwrite_literal(wr, buf, len);
-}
+  if(wr->opts.hex_numbers && (n = jwrite_hex_text(str, len, buf)))
+    return jwrite_literal(wr, buf, n);
 
-/* jwrite_double: NaN and infinity become null; integers up to 2^53 go
- * through jwrite_int64(); other values use the shortest of %.15g..%.17g
- * that reads back equal, so 0.00001 is written 1e-5 (JS: 0.00001). */
-ssize_t
-jwrite_double(JsonWriter* wr, double d) {
-  char buf[40], *e;
-  int p;
-
-  if(isnan(d) || isinf(d))
-    return jwrite_null(wr);
-
-  if(d == floor(d) && fabs(d) <= 9007199254740991.0)
-    return jwrite_int64(wr, (int64_t)d);
-
-  for(p = 15; p <= 17; p++) {
-    snprintf(buf, sizeof(buf), "%.*g", p, d);
-
-    if(strtod(buf, 0) == d)
-      break;
-  }
-
-  /* 1e-07 -> 1e-7 */
-  if((e = strchr(buf, 'e')) && (e[1] == '-' || e[1] == '+')) {
-    char* digits = e + 2;
-    char* nz = digits;
-
-    while(nz[0] == '0' && nz[1])
-      nz++;
-
-    memmove(digits, nz, strlen(nz) + 1);
-  }
-
-  return jwrite_literal(wr, buf, strlen(buf));
+  return jwrite_literal(wr, str, len);
 }
 
 ssize_t
@@ -449,4 +455,35 @@ jwrite_string(JsonWriter* wr, const char* str, size_t len) {
   wr->written += r;
   jwrite_after_value(wr);
   return w + r;
+}
+
+/* the JsonWriteInterface members: each casts `opaque` back to the writer */
+static ssize_t jwrite_if_error(void* wr, const char* str, size_t len) { return jwrite_error(wr, str, len); }
+static ssize_t jwrite_if_null(void* wr) { return jwrite_null(wr); }
+static ssize_t jwrite_if_true(void* wr) { return jwrite_true(wr); }
+static ssize_t jwrite_if_false(void* wr) { return jwrite_false(wr); }
+static ssize_t jwrite_if_number(void* wr, const char* str, size_t len) { return jwrite_number(wr, str, len); }
+static ssize_t jwrite_if_string(void* wr, const char* str, size_t len) { return jwrite_string(wr, str, len); }
+static ssize_t jwrite_if_array_start(void* wr) { return jwrite_array_start(wr); }
+static ssize_t jwrite_if_array_end(void* wr) { return jwrite_array_end(wr); }
+static ssize_t jwrite_if_object_start(void* wr) { return jwrite_object_start(wr); }
+static ssize_t jwrite_if_object_end(void* wr) { return jwrite_object_end(wr); }
+static ssize_t jwrite_if_key(void* wr, const char* str, size_t len) { return jwrite_key(wr, str, len); }
+
+JsonWriteInterface
+jwrite_interface(JsonWriter* wr) {
+  return (JsonWriteInterface){
+      wr,
+      jwrite_if_error,
+      jwrite_if_null,
+      jwrite_if_true,
+      jwrite_if_false,
+      jwrite_if_number,
+      jwrite_if_string,
+      jwrite_if_array_start,
+      jwrite_if_array_end,
+      jwrite_if_object_start,
+      jwrite_if_object_end,
+      jwrite_if_key,
+  };
 }
