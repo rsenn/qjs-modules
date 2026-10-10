@@ -1,5 +1,5 @@
 import * as std from 'std';
-import { read, write, JSONL, JsonParser, JsonPushParser, JsonSerializer } from 'json';
+import { read, write, JSONL, JsonParser, JsonPushParser, JsonSerializer, JsonWriter } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER } = JsonParser;
@@ -743,4 +743,72 @@ tests({
 
     eqArr(values, [{ a: 1 }, [2, 3], 'x']);
   },
+
+'JsonWriter: bareKeys, singleQuotes, hexNumbers, minify'() {
+  const emit = options => {
+    const buf = new Uint8Array(256);
+    const w = new JsonWriter(buf, options);
+
+    w.objectStart();
+    w.key('id');
+    w.value(255);
+    w.key('kebab-key');
+    w.value("it's");
+    w.key('list');
+    w.arrayStart();
+    w.value(-31);
+    w.value(1.5);
+    w.arrayEnd();
+    w.objectEnd();
+
+    return String.fromCharCode(...buf.subarray(0, buf.indexOf(0)));
+  };
+
+  eq(emit({}), '{"id":255,"kebab-key":"it\'s","list":[-31,1.5]}');
+  eq(emit({ bareKeys: true }), '{id:255,"kebab-key":"it\'s",list:[-31,1.5]}');
+  eq(emit({ singleQuotes: true }), "{'id':255,'kebab-key':'it\\'s','list':[-31,1.5]}");
+  eq(emit({ hexNumbers: true }), '{"id":0xff,"kebab-key":"it\'s","list":[-0x1f,1.5]}');
+  eq(emit({ indent: 2, minify: true }), '{"id":255,"kebab-key":"it\'s","list":[-31,1.5]}');
+  eq(emit({ bareKeys: true, singleQuotes: true, hexNumbers: true, minify: true }), "{id:0xff,'kebab-key':'it\\'s',list:[-0x1f,1.5]}");
+},
+
+'JsonWriter: written counts every byte, whatever the options'() {
+  const optionSets = [undefined, 2, { minify: true, indent: 4 }, { indent: 2, bareKeys: true, singleQuotes: true, hexNumbers: true }];
+
+  for(const options of optionSets) {
+    const buf = new Uint8Array(256);
+    const w = new JsonWriter(buf, options);
+
+    w.objectStart();
+    w.key('a-b');
+    w.arrayStart();
+    w.value("x'y");
+    w.value(255);
+    w.arrayEnd();
+    w.objectEnd();
+
+    eq(w.written, buf.indexOf(0));
+  }
+},
+'JsonWriter: structural mistakes throw TypeError, a full buffer throws Error'() {
+  const fails = (fn, message) => {
+    try {
+      fn();
+    } catch(e) {
+      eq(e.message, message);
+      return;
+    }
+
+    assert(false, 'expected: ' + message);
+  };
+  const writer = () => new JsonWriter(new Uint8Array(64));
+  let w;
+
+  fails(() => writer().arrayEnd(), 'JsonWriter: unmatched arrayEnd');
+  fails(() => writer().key('k'), 'JsonWriter: key cannot be at root level');
+  fails(() => (w = writer(), w.objectStart(), w.value(1)), 'JsonWriter: expected key');
+  fails(() => (w = writer(), w.objectStart(), w.key('a'), w.key('b')), 'JsonWriter: expected value for previous key');
+  fails(() => (w = writer(), w.arrayStart(), w.key('a')), 'JsonWriter: key cannot be used inside an array');
+  fails(() => (w = new JsonWriter(new Uint8Array(4)), w.objectStart(), w.key('toolong')), 'JsonWriter: write failed');
+},
 });

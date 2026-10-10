@@ -147,6 +147,86 @@ p.write('3]}}');
 console.log(p.root); // { a: { b: [1, 2, 3] } }
 ```
 
+## Planned: streaming `jread` events into a `JsonBuilder` or a `JsonWriter`
+
+> **Not yet implemented, unsure if it ever will be.** This section is a design sketch kept
+> for reference. None of the names below exist; `JsonPushParser` today works as described
+> above.
+
+`jr_read(cb, chunk, len, user_data, state)` already reports every token through a callback.
+The idea is two ready-made callbacks, so that the C parser can feed either sink directly,
+chunk by chunk, with no JS value built in between.
+
+### Sinks
+
+| Sink | Callback | `user_data` | Notes |
+| --- | --- | --- | --- |
+| `JsonBuilder` (`jbuild.h`) | `jbuild_callback` | the `JsonBuilder*` | The existing builder-mode callback, moved out of `quickjs-json.c`. Needs no new logic. |
+| `JsonWriter` (`jwrite.h`) | `jwrite_callback` | a `JsonWriteSink*` | New. Writes formatted JSON text as tokens arrive. |
+
+```c
+typedef struct { JsonWriter* wr; ssize_t error; } JsonWriteSink;   /* error: first -JWRITE_E_*, or 0 */
+
+void jbuild_callback(jr_type_t, const jr_str_t*, void* user_data);
+void jwrite_callback(jr_type_t, const jr_str_t*, void* user_data);
+```
+
+`jread.h` itself stays generic and gains nothing: the callbacks sit next to their sinks.
+
+### The writer path
+
+- **No JS values, no `JSContext`.** `jwrite.c` is pure C: key and value tokens go straight
+  to `jwrite_key(wr, str, len)`, `jwrite_string(wr, str, len)` and `jwrite_raw(wr, str, len)`.
+  They share the writer's ordering checks, commas and indentation, so the writer's options
+  apply as usual (`indent`, `bareKeys`, `singleQuotes`, `minify`).
+- **Number text passes through as written.** `12345678901234567890` and `1e2` are not
+  re-formatted: the callback uses `jwrite_raw`. With `hexNumbers` set, it would parse the
+  token and call `jwrite_int64` for a safe integer, and fall back to the raw text otherwise.
+- **Errors.** A `jr_callback` returns `void`, so the first failure (a negative `jwrite_*`
+  result, `-JWRITE_E_*`) is kept in the sink and later events are ignored. `write()` and
+  `close()` then throw, using the message from `jwrite_error_message()`.
+
+### `JsonPushParser` modes
+
+| Mode | Chosen when | Callback | `user_data` |
+| --- | --- | --- | --- |
+| builder | default, as today | `jbuild_callback` | the parser's builder |
+| writer | the constructor argument is a `JsonWriter` | `jwrite_callback` | the parser's `JsonWriteSink` |
+| JS callbacks | a function or an options object, as today | `jread_callback` | the parser |
+
+In writer mode the parser keeps a reference to the `JsonWriter` so it stays alive, and
+`write()` and `close()` throw when the sink reports an error instead of swallowing it.
+`root` is `undefined` and `path` is empty, since no tree is built.
+
+```js
+const w = new JsonWriter(out, { indent: 2 });
+const p = new JsonPushParser(w);   // events go straight to the writer
+p.write('{"a":[1,');
+p.write('2]}');
+p.close();                         // out now holds the reformatted document
+```
+
+### Relation to `WalkInterface`
+
+`WalkInterface` (`walk.h`) is the generic sink shape used by the value walker. These two
+callbacks are fast paths beside it that skip the `JSValue` round trip. A third adapter,
+`jread` to `WalkInterface`, could serve arbitrary sinks later.
+
+### Steps, if it is ever built
+
+1. Move `jread_callback_build` to `jbuild.c` as `jbuild_callback`; the existing
+   `JsonPushParser` tests must still pass.
+2. Add `JsonWriteSink` and `jwrite_callback`, built on the existing pure `jwrite_*` events;
+   test with a C harness feeding chunked input.
+3. Add the constructor mode and the `write()`/`close()` error checks. Tests: reformatting
+   equals `JSON.stringify(JSON.parse(s), null, 2)`; large integers survive; a too-small
+   output buffer throws.
+
+### Open question
+
+Pass number tokens through as written (`1e2` stays `1e2`), or normalize them as
+`JSON.parse` followed by a write would (`100`)? Pass-through is the recommendation.
+
 ## JsonSerializer
 
 A "pull" JSON serializer: it traverses the value lazily, producing only as much text as
@@ -190,17 +270,25 @@ output by calling `objectStart()`, `arrayStart()`, `key()`, `value()`, `arrayEnd
 `objectEnd()` in document order. Output goes to a `Writer` (from `stream-utils.h`) — a buffer,
 fd, or any writable sink. Handles comma separation, indentation, and key/value ordering
 automatically, and throws `TypeError` on structural mistakes (e.g. a `key()` outside an object,
-a missing value after a key, mismatched end calls).
+a missing value after a key, mismatched end calls), and an `Error` when the output buffer is full.
 
 ```js
-new JsonWriter(output?, options?)   // output is a buffer or writer; options may be a number (indent) or {indent}
+new JsonWriter(output?, options?)   // output is a buffer or writer; options may be a number (indent) or {indent, bareKeys, singleQuotes, hexNumbers, minify}
 ```
 
 `output` may be:
 - a writable buffer (`ArrayBuffer`, typed array), or
 - an object exposing a `write(buf, offset, length)` method.
 
-`options` is either a number (the indent width, default 0 = compact) or an object with an `indent` property.
+`options` is either a number (the indent width, default 0 = compact) or an object with any of these keys (all default off). They are read once, when the writer is constructed; the writer has no properties for them.
+
+| Key | Effect |
+| --- | --- |
+| `indent` | Spaces per nesting level; 0 writes no newlines. |
+| `bareKeys` | Write keys that are plain identifiers (`[A-Za-z_$][A-Za-z0-9_$]*`) unquoted: `id: 1`. Other keys stay quoted. JSON5. |
+| `singleQuotes` | Write strings and quoted keys in `'...'`; `'` is escaped, `"` is not. JSON5. |
+| `hexNumbers` | Write integral numbers (\|n\| up to 2^53-1) as `0xff` / `-0x1f`; other numbers are unchanged. JSON5. |
+| `minify` | No whitespace at all (no newlines, indentation or space after `:`), whatever `indent` says. |
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
@@ -210,8 +298,7 @@ new JsonWriter(output?, options?)   // output is a buffer or writer; options may
 | `arrayEnd()` | 0 | method | Writes `]`, closing the current array. Throws if not inside an array. Returns bytes written. |
 | `key(name)` | 1 | method | Writes `"name":` inside the current object. Throws if not inside an object, or if the previous key still expects a value. Returns bytes written. |
 | `value(val)` | 1 | method | Writes a JSON primitive (string, number, boolean, null). Inside an object, must follow a `key()`. Inside an array, writes the next element. Returns bytes written. |
-| `written` | — | getter | Total number of bytes written so far. |
-| `indent` | — | getter/setter | The indentation width (number of spaces per level). Default 0 (compact, no whitespace). |
+| `written` | — | getter | Total number of bytes written so far, counting every byte of output. |
 
 ```js
 import { JsonWriter } from 'json';
