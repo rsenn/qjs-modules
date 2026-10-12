@@ -930,7 +930,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   char x[PATH_MAX];
   int i = 0;
   int64_t fd = -1;
-  size_t p = str_copyn(x, "/proc/", sizeof(x));
+  size_t p = str_copyn(x, "/proc/", sizeof(x) - 1);
   static const char* const links[] = {"/exe", "/cwd", "/root", "/fd/"};
 
   if(magic == FUNC_GETFILEDESCRIPTOR) {
@@ -1003,7 +1003,7 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   };
   static const char seps[] = {'\0', '\0', ' ', '\n', '\n'};
   static const int max_items[] = {-1, -1, -1, 6, 6};
-  size_t p = str_copyn(x, "/proc/", sizeof(x));
+  size_t p = str_copyn(x, "/proc/", sizeof(x) - 1);
 
   if(argc > 0) {
     int64_t pid = -1;
@@ -2968,7 +2968,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   }
 
   /* wait for the process to actually exit (e.g., up to 5000 milliseconds) */
-  DWORD waitResult = WaitForSingleObject(hProcess, 5000);
+DWORD waitResult = WaitForSingleObject(hProcess, 5000);
   CloseHandle(hProcess);
 
   if(waitResult == WAIT_FAILED)

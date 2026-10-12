@@ -1574,7 +1574,7 @@ then_jsstream(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
         ssize_t r;
 
         if((r = queue_write(fr->rd_wr, inputbuffer_data(&input), len)) <= 0)
-          ret = JS_ThrowInternalError(ctx, "queue_write() returned %zd", r);
+          ret = JS_ThrowInternalError(ctx, "queue_write() returned %"PRId64,  (int64_t)r);
       }
 
       inputbuffer_free(&input, ctx);

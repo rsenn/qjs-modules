@@ -1143,7 +1143,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
       if(len > 0 && (len % sizeof(struct pollfd)) == 0) {
         memcpy(pfds, data, MIN_NUM(len, sizeof(struct pollfd) * nfds));
       } else {
-        ret = JS_ThrowInternalError(ctx, "pfds[] length = %zu", len);
+        ret = JS_ThrowInternalError(ctx, "pfds[] length = %"PRIu64"", (uint64_t)len);
         goto end;
       }
     }
@@ -1177,7 +1177,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
       if(len > 0 && (len % sizeof(struct pollfd)) == 0) {
         memcpy(data, pfds, MIN_NUM(len, sizeof(struct pollfd) * nfds));
       } else {
-        ret = JS_ThrowInternalError(ctx, "pfds[] length = %zu", len);
+        ret = JS_ThrowInternalError(ctx, "pfds[] length = %"PRIu64, (uint64_t)len);
         goto end;
       }
     }
@@ -1735,10 +1735,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       OffsetLength off = OFFSET_LENGTH_0();
 
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, 0, &off);
-
-#ifdef DEBUG_OUTPUT_
-      printf("%s(): recv(%d, %zu, %zu, %zu)\n", __func__, socket_handle(*s), off.offset, off.length, offsetlength_size(off, buf.size));
-#endif
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
