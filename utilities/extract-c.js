@@ -451,7 +451,15 @@ export function findTypes(source, filename) {
       if(!dd.name || dd === named) continue;
       const m = sized(d.base, dd);
       reg.set(dd.name, m);
-      out.push(mk(dd.name, 'typedef', m.size, m.align, s[0].loc.line, { column: s[0].loc.column, offset: Math.min(...s.map(t => t.charPos)), end: Math.max(...s.map(t => t.charPos + t.charLength)), ...endOf(s), target: m.type }));
+      out.push(
+        mk(dd.name, 'typedef', m.size, m.align, s[0].loc.line, {
+          column: s[0].loc.column,
+          offset: Math.min(...s.map(t => t.charPos)),
+          end: Math.max(...s.map(t => t.charPos + t.charLength)),
+          ...endOf(s),
+          target: m.type,
+        }),
+      );
     }
   }
 
@@ -516,7 +524,7 @@ function topGroups(ts) {
   for(let i = 0; i < ts.length; i++) {
     if(ts[i].lexeme == '(') {
       const e = matching(ts, i);
-        groups.push([i, e]);
+      groups.push([i, e]);
       i = e;
     } else if(ts[i].lexeme == '[' || ts[i].lexeme == '{') i = matching(ts, i);
   }
@@ -758,7 +766,12 @@ export function findDefines(source, filename) {
     if(!pp?.define) continue;
 
     const { line, column } = tok.loc;
-    const value = pp.body.length ? source.slice(pp.body[0].charPos, pp.body.at(-1).charPos + pp.body.at(-1).charLength).replace(/\\\r?\n/g, ' ').replace(/\s+/g, ' ') : '';
+    const value = pp.body.length
+      ? source
+          .slice(pp.body[0].charPos, pp.body.at(-1).charPos + pp.body.at(-1).charLength)
+          .replace(/\\\r?\n/g, ' ')
+          .replace(/\s+/g, ' ')
+      : '';
     const { line: endLine, column: endColumn } = posAt(tok, tok.lexeme.length);
 
     out.push({
@@ -808,7 +821,8 @@ export function findIdentifiers(source, filename, ids = new Map(), pre) {
   const declare = (d, isStatic, isFn) => {
     const e = entry(d.name ?? d.tok.lexeme);
     if(d.kind == 'prototype' && !isFn) e.prototype.push(pos(d.tok));
-    else if(!e.declaration || (WEAK_KINDS.has(e.declaration.kind) && !WEAK_KINDS.has(d.kind))) e.declaration = { kind: isFn ? 'function' : d.kind, ...pos(d.tok), ...(isStatic ? { static: true } : {}), ...(d.in ? { in: d.in } : {}) };
+    else if(!e.declaration || (WEAK_KINDS.has(e.declaration.kind) && !WEAK_KINDS.has(d.kind)))
+      e.declaration = { kind: isFn ? 'function' : d.kind, ...pos(d.tok), ...(isStatic ? { static: true } : {}), ...(d.in ? { in: d.in } : {}) };
   };
 
   const scanBody = (body, fn, locals) => {
@@ -820,8 +834,7 @@ export function findIdentifiers(source, filename, ids = new Map(), pre) {
         else if(isIdent(st[0]) && st[1]?.lexeme == ':') {
           declare({ tok: st[0], kind: 'label', in: fn }, false, false);
           st = st.slice(2);
-        }
-        else if(l == 'case') {
+        } else if(l == 'case') {
           const c = st.findIndex(t => t.lexeme == ':');
           const e = c < 0 ? st.length : c;
           for(const t of refTokens(st.slice(1, e))) ref(t, fn, locals);
@@ -1005,7 +1018,7 @@ const pos = p => p?.[SRC] ?? p;
 export function showable(v) {
   if(Array.isArray(v)) return v.length > 0 && v.every(showable);
   if(!v || typeof v != 'object' || typeof v.name != 'string') return false;
-  return !!(v.declaration && v.prototype) || !!(v.kind || v.type) && (v.line !== undefined || !!v[SRC]);
+  return !!(v.declaration && v.prototype) || (!!(v.kind || v.type) && (v.line !== undefined || !!v[SRC]));
 }
 
 const sourceCache = new Map();
@@ -1051,7 +1064,11 @@ function highlightC(text, marks, paint, width) {
       else if(NUMBER.test(t.type)) code = COLOR.code.number;
       else if(t.type == t.lexeme && /^[a-z_]\w*$/.test(t.lexeme)) code = COLOR.code.keyword;
       else if(t.type != 'identifier') code = COLOR.dim;
-      put(t.lexeme, code, marks.find(([l, c]) => l == t.loc.line && c == t.loc.column));
+      put(
+        t.lexeme,
+        code,
+        marks.find(([l, c]) => l == t.loc.line && c == t.loc.column),
+      );
     }
   } catch(e) {
     return text.split('\n').map(l => l.slice(0, width));
@@ -1165,10 +1182,19 @@ function dependencyRows(deps, o, { atoms = [], computed = false, root } = {}) {
   for(const d of deps) names.set(d.name, (names.get(d.name) ?? 0) + 1);
 
   const list = [];
-  for(const [name, n] of [...names].slice(0, 12)) list.push([name, o.ids?.get(name)?.declaration ? COLOR.kind[o.ids.get(name).declaration.kind] ?? COLOR.dim : COLOR.dim], [n > 1 ? `×${n}` : '', COLOR.dim], [' ']);
+  for(const [name, n] of [...names].slice(0, 12))
+    list.push([name, o.ids?.get(name)?.declaration ? (COLOR.kind[o.ids.get(name).declaration.kind] ?? COLOR.dim) : COLOR.dim], [n > 1 ? `×${n}` : '', COLOR.dim], [' ']);
   if(names.size > 12) list.push([`+${names.size - 12}`, COLOR.dim]);
 
-  const head = parts(o, [['dependencies'.padEnd(13), COLOR.label.dependency, atoms.length ? atoms : undefined], [`${deps.length} use${deps.length == 1 ? '' : 's'} of ${names.size} name${names.size == 1 ? '' : 's'}  `, COLOR.dim], ...list], { atoms });
+  const head = parts(
+    o,
+    [
+      ['dependencies'.padEnd(13), COLOR.label.dependency, atoms.length ? atoms : undefined],
+      [`${deps.length} use${deps.length == 1 ? '' : 's'} of ${names.size} name${names.size == 1 ? '' : 's'}  `, COLOR.dim],
+      ...list,
+    ],
+    { atoms },
+  );
   const rows = [head];
 
   const byLine = new Map();
@@ -1189,8 +1215,20 @@ function dependencyRows(deps, o, { atoms = [], computed = false, root } = {}) {
       continue;
     }
 
-    const hl = highlightC(text, group.map(([d]) => [1, d.column]), o.paint, o.width)[0];
-    rows.push(tag(`  ${String(first.line).padStart(o.gw)} ${o.paint(COLOR.gutter, '│')} ${hl}  ${o.paint(COLOR.dim, '→ ' + used)}`, { atoms: at, src: { file: first.file, line: first.line, column: first.column }, code: { file: first.file, line: first.line, text, x0: o.gw + 6, from: 0, lead: 0 }, ...(root ? { root } : {}) }));
+    const hl = highlightC(
+      text,
+      group.map(([d]) => [1, d.column]),
+      o.paint,
+      o.width,
+    )[0];
+    rows.push(
+      tag(`  ${String(first.line).padStart(o.gw)} ${o.paint(COLOR.gutter, '│')} ${hl}  ${o.paint(COLOR.dim, '→ ' + used)}`, {
+        atoms: at,
+        src: { file: first.file, line: first.line, column: first.column },
+        code: { file: first.file, line: first.line, text, x0: o.gw + 6, from: 0, lead: 0 },
+        ...(root ? { root } : {}),
+      }),
+    );
   }
   if(byLine.size > o.refs) rows.push(o.paint(COLOR.dim, `… ${byLine.size - o.refs} more lines`));
 
@@ -1206,7 +1244,14 @@ function formatIdentifier(r, o) {
   const protos = (r.prototype?.length ? r.prototype : raw?.prototype) ?? [];
   const computedDeps = !Array.isArray(r.dependencies);
   const deps = (computedDeps ? (o.ids ? dependencies(o.ids, r.name) : []) : r.dependencies).map(x => ({ ...pos(x), name: x.name }));
-  const meta = [r.declaration.static ? 'static' : null, `${protos.length} prototype${protos.length == 1 ? '' : 's'}`, nrefs ? `${nrefs} reference${nrefs == 1 ? '' : 's'}` : null, deps.length ? `${deps.length} dependenc${deps.length == 1 ? 'y' : 'ies'}` : null].filter(Boolean).join(' · ');
+  const meta = [
+    r.declaration.static ? 'static' : null,
+    `${protos.length} prototype${protos.length == 1 ? '' : 's'}`,
+    nrefs ? `${nrefs} reference${nrefs == 1 ? '' : 's'}` : null,
+    deps.length ? `${deps.length} dependenc${deps.length == 1 ? 'y' : 'ies'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const root = fromRaw ? `ids.get(${JSON.stringify(r.name)})` : undefined;
 
   o.gw = Math.max(String(d.line).length, ...protos.map(p => String(pos(p).line).length), ...refs.slice(0, o.refs).map(p => String(pos(p).line).length), ...deps.map(x => String(x.line).length));
@@ -1227,7 +1272,8 @@ function formatIdentifier(r, o) {
   ];
   out.push(...location('declaration', d, o, { note: d.in ? `in ${d.in}` : '', atoms: ['declaration'], obj: r.declaration }));
   for(const [i, p] of protos.entries()) out.push(...location('prototype', pos(p), o, { atoms: ['prototype', i], obj: p, root: fromRaw ? root : undefined }));
-  for(const [i, p] of refs.slice(0, o.refs).entries()) out.push(...location('reference', pos(p), o, { note: pos(p).in ? `in ${pos(p).in}` : '', atoms: ['references', i], obj: p, root: fromRaw ? root : undefined }));
+  for(const [i, p] of refs.slice(0, o.refs).entries())
+    out.push(...location('reference', pos(p), o, { note: pos(p).in ? `in ${pos(p).in}` : '', atoms: ['references', i], obj: p, root: fromRaw ? root : undefined }));
   if(refs.length > o.refs) out.push(o.paint(COLOR.dim, `… ${refs.length - o.refs} more references`));
   if(deps.length) out.push(...dependencyRows(deps, o, computedDeps ? { computed: true, root: `dependencies(${JSON.stringify(r.name)})` } : { atoms: ['dependencies'] }));
   if(refs.length <= o.refs && nrefs > refs.length && !refs.length) out.push(o.paint(COLOR.dim, `(${nrefs} references; use ids.get('${r.name}') for their locations)`));
@@ -1240,7 +1286,12 @@ function formatType(r, o) {
   const meta = [r.size != null ? `size ${r.size}` : null, r.align != null ? `align ${r.align}` : null, r.target ? `= ${r.target}` : null].filter(Boolean).join(' · ');
   o.gw = String(p.endLine ?? p.line).length;
 
-  const out = [parts(o, [[`■ ${kind}`, COLOR.kind[kind] ?? COLOR.dim, [r.kind ? 'kind' : 'type']], [' '], [r.name ?? '<anonymous>', 255, ['name']], ['  '], [meta, COLOR.dim, ['size']]], { atoms: [], src: { file: p.file, line: p.line, column: p.column } })];
+  const out = [
+    parts(o, [[`■ ${kind}`, COLOR.kind[kind] ?? COLOR.dim, [r.kind ? 'kind' : 'type']], [' '], [r.name ?? '<anonymous>', 255, ['name']], ['  '], [meta, COLOR.dim, ['size']]], {
+      atoms: [],
+      src: { file: p.file, line: p.line, column: p.column },
+    }),
+  ];
   if(p.file) out.push(...location('declaration', p, o, { mark: false, obj: r }));
 
   const fields = r.fields ?? [];
@@ -1303,7 +1354,12 @@ function formatDefine(r, o) {
 function formatFunction(r, o) {
   const p = pos(r);
   o.gw = String(p.endLine ?? p.line).length;
-  const out = [parts(o, [['■ function', COLOR.kind.function, ['kind']], [' '], [r.name, 255, ['name']], ['  '], [`${(p.endLine ?? p.line) - p.line + 1} lines`, COLOR.dim]], { atoms: [], src: { file: p.file, line: p.line, column: p.column } })];
+  const out = [
+    parts(o, [['■ function', COLOR.kind.function, ['kind']], [' '], [r.name, 255, ['name']], ['  '], [`${(p.endLine ?? p.line) - p.line + 1} lines`, COLOR.dim]], {
+      atoms: [],
+      src: { file: p.file, line: p.line, column: p.column },
+    }),
+  ];
   if(p.file) out.push(...location('declaration', p, o, { obj: r }));
   return out;
 }
@@ -1373,7 +1429,7 @@ export function formatRows(value, opts = {}) {
   for(const [n, [r, idx]] of shownItems.entries()) {
     if(n) rows.push(rule(o));
     const part = r.declaration && r.prototype ? formatIdentifier(r, o) : r.kind == 'define' || r.kind == 'macro' ? formatDefine(r, o) : r.kind == 'function' ? formatFunction(r, o) : formatType(r, o);
-    for (const row of part) rows.push(Object.assign(typeof row == 'string' ? tag(row, {}) : row, { item: idx }));
+    for(const row of part) rows.push(Object.assign(typeof row == 'string' ? tag(row, {}) : row, { item: idx }));
   }
   if(entries.length > shownItems.length) rows.push(o.paint(COLOR.dim, `… ${entries.length - shownItems.length} more`));
 
@@ -1517,7 +1573,7 @@ const ENTRY = '<entry>',
 /**
  * Names declared in `ids` that no walk from the entry points reaches. Edges run from the
  * enclosing function/macro of each reference to the referenced name; references outside
- * any function (initializers, array sizes, prototypes) count as roots, so they keep their
+ * any function(initializers, array sizes, prototypes) count as roots, so they keep their
  * targets alive. Matching is by bare name.
  */
 function unvisited(ids) {
@@ -1683,7 +1739,7 @@ export function reachable(ids, name, up = false) {
     todo = [name];
 
   while(todo.length)
-    for(const n of (up ? callers(ids, todo.pop()).map(s => s.caller) : callees(ids, todo.pop()).map(s => s.callee)))
+    for(const n of up ? callers(ids, todo.pop()).map(s => s.caller) : callees(ids, todo.pop()).map(s => s.callee))
       if(!seen.has(n)) {
         seen.add(n);
         todo.push(n);
@@ -1715,7 +1771,7 @@ export function callTree(ids, name, opts = {}) {
   const out = [paint(COLOR.kind.function, name)];
 
   const walk = (n, prefix, path) => {
-    const next = [...new Set((opts.up ? callers(ids, n).map(s => s.caller) : callees(ids, n).map(s => s.callee)))];
+    const next = [...new Set(opts.up ? callers(ids, n).map(s => s.caller) : callees(ids, n).map(s => s.callee))];
     for(const [i, c] of next.entries()) {
       const last = i == next.length - 1;
       const cycle = path.includes(c);
@@ -1846,7 +1902,9 @@ export function renderBrowser(b, cols, rows, color = true) {
   out.push(crumb);
 
   const nopen = fr.sites.filter(s => s.open).length;
-  out.push(`${paint(COLOR.kind[fr.kind] ?? COLOR.dim, '■ ' + fr.kind)} ${paint(255, fr.name)}  ${where({ file: fr.file, line: fr.from, column: 1 }, { paint })}${paint(COLOR.dim, `–${fr.to}  ${fr.sites.length} dependenc${fr.sites.length == 1 ? 'y' : 'ies'}, ${nopen} to open`)}`);
+  out.push(
+    `${paint(COLOR.kind[fr.kind] ?? COLOR.dim, '■ ' + fr.kind)} ${paint(255, fr.name)}  ${where({ file: fr.file, line: fr.from, column: 1 }, { paint })}${paint(COLOR.dim, `–${fr.to}  ${fr.sites.length} dependenc${fr.sites.length == 1 ? 'y' : 'ies'}, ${nopen} to open`)}`,
+  );
 
   /* body */
   const win = fr.lines.slice(fr.top, fr.top + bodyH);
@@ -1860,13 +1918,19 @@ export function renderBrowser(b, cols, rows, color = true) {
     sites.push({ y: 3 + li, x0, x1: x0 + s.callee.length - 1, index: i, open: s.open });
   }
   const rendered = highlightC(win.join('\n'), marks, paint, Math.max(10, cols - gw - 4));
-  for(let i = 0; i < bodyH; i++) out.push(i < win.length ? `${paint(COLOR.dim, String(fr.from + fr.top + i).padStart(gw))} ${paint(COLOR.gutter, '│')} ${rendered[i] ?? ''}` : paint(COLOR.gutter, '~'));
+  for(let i = 0; i < bodyH; i++)
+    out.push(i < win.length ? `${paint(COLOR.dim, String(fr.from + fr.top + i).padStart(gw))} ${paint(COLOR.gutter, '│')} ${rendered[i] ?? ''}` : paint(COLOR.gutter, '~'));
 
   /* referenced by, status */
   const refs = b.ids.get(fr.name)?.references ?? [];
   const names = [...new Set(refs.filter(r => r.in).map(r => r.in))];
   const elsewhere = refs.filter(r => !r.in).length;
-  out.push(paint(COLOR.dim, `referenced by: ${names.length ? names.slice(0, 6).join(', ') + (names.length > 6 ? ` (+${names.length - 6})` : '') : '-'}${elsewhere ? `  (+${elsewhere} outside functions)` : ''}`));
+  out.push(
+    paint(
+      COLOR.dim,
+      `referenced by: ${names.length ? names.slice(0, 6).join(', ') + (names.length > 6 ? ` (+${names.length - 6})` : '') : '-'}${elsewhere ? `  (+${elsewhere} outside functions)` : ''}`,
+    ),
+  );
   out.push(b.status ? paint(COLOR.warn, b.status) : paint(COLOR.dim, 'click/Enter open · Tab/←→ next dependency · right-click/Backspace/Esc back · wheel/↑↓ scroll · q quit'));
 
   return { lines: out, crumbs, sites, bodyH };
@@ -1973,7 +2037,24 @@ export function browserEvent(b, ev, lay) {
   }
 }
 
-const KEYS = { '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left', '\x1bOA': 'up', '\x1bOB': 'down', '\x1bOC': 'right', '\x1bOD': 'left', '\x1b[5~': 'pgup', '\x1b[6~': 'pgdn', '\x1b[H': 'home', '\x1b[F': 'end', '\x1b[1~': 'home', '\x1b[4~': 'end', '\x1b[Z': 'shifttab', '\x1b[3~': 'delete' };
+const KEYS = {
+  '\x1b[A': 'up',
+  '\x1b[B': 'down',
+  '\x1b[C': 'right',
+  '\x1b[D': 'left',
+  '\x1bOA': 'up',
+  '\x1bOB': 'down',
+  '\x1bOC': 'right',
+  '\x1bOD': 'left',
+  '\x1b[5~': 'pgup',
+  '\x1b[6~': 'pgdn',
+  '\x1b[H': 'home',
+  '\x1b[F': 'end',
+  '\x1b[1~': 'home',
+  '\x1b[4~': 'end',
+  '\x1b[Z': 'shifttab',
+  '\x1b[3~': 'delete',
+};
 const charKey = c => (c == '\x1b' ? 'esc' : c == '\r' || c == '\n' ? 'enter' : c == '\x7f' || c == '\b' ? 'backspace' : c == '\t' ? 'tab' : c == '\x03' ? 'ctrl-c' : c == '\x04' ? 'ctrl-d' : c);
 const BUTTONS = { 0: 'left', 1: 'middle', 2: 'right', 64: 'wheelup', 65: 'wheeldown' };
 
@@ -1989,7 +2070,7 @@ const BUTTONS = { 0: 'left', 1: 'middle', 2: 'right', 64: 'wheelup', 65: 'wheeld
 export function parseInput(s) {
   const events = [];
 
-  for(let i = 0; i < s.length; ) {
+  for(let i = 0; i < s.length;) {
     const mouse = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])/.exec(s.slice(i));
     if(mouse) {
       events.push({ type: 'mouse', button: BUTTONS[+mouse[1] & ~28] ?? 'other', x: +mouse[2], y: +mouse[3], press: mouse[4] == 'M' });
@@ -2260,7 +2341,16 @@ function openInEditor(tpl, src) {
   if(!tpl) return 'no editor found; set one with \\editor CMD {loc}';
 
   const file = absolute(src.file);
-  const args = tpl.split(/\s+/).filter(Boolean).map(a => a.replace(/\{loc\}/g, `${file}:${src.line}:${src.column}`).replace(/\{file\}/g, file).replace(/\{line\}/g, src.line).replace(/\{column\}/g, src.column));
+  const args = tpl
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(a =>
+      a
+        .replace(/\{loc\}/g, `${file}:${src.line}:${src.column}`)
+        .replace(/\{file\}/g, file)
+        .replace(/\{line\}/g, src.line)
+        .replace(/\{column\}/g, src.column),
+    );
 
   try {
     return os.exec(args, { block: false, usePath: true }) > 0 ? null : `${args[0]}: failed to start`;
@@ -2318,7 +2408,7 @@ function installMouse(repl, roots) {
     let row = cursorRow;
 
     if(!state.pane) {
-      const scroll = Math.max(0, PANE_H - ((R - 1) - cursorRow));
+      const scroll = Math.max(0, PANE_H - (R - 1 - cursorRow));
       out(`\x1b[${R - 1};1H${'\n'.repeat(scroll)}`);
       setScrollRegion(1, R - 1 - PANE_H, std.out);
       row -= scroll;
@@ -2377,7 +2467,7 @@ function installMouse(repl, roots) {
     let note = '';
 
     if(ev.button == 'right') {
-      note = where ? openInEditor(state.editor, loc.src) ?? `opened in ${state.editor.split(/\s+/)[0]}` : 'no source location';
+      note = where ? (openInEditor(state.editor, loc.src) ?? `opened in ${state.editor.split(/\s+/)[0]}`) : 'no source location';
     } else {
       if(where) note = `copied via ${copyText(state.clip, `${absolute(loc.src.file)}:${loc.src.line}:${loc.src.column}`)}`;
 
@@ -2412,7 +2502,13 @@ function installMouse(repl, roots) {
   /* the scrollback over every earlier show() output, on the alternate screen */
   const pagerDraw = () => {
     const [cols, rows] = size() ?? [80, 24];
-    out('\x1b[H' + renderPager(state.pager, cols, rows).lines.map(l => l + '\x1b[K').join('\r\n') + '\x1b[J');
+    out(
+      '\x1b[H' +
+        renderPager(state.pager, cols, rows)
+          .lines.map(l => l + '\x1b[K')
+          .join('\r\n') +
+        '\x1b[J',
+    );
     const pane = state.pager.pane;
     if(pane && rows - 1 > PANE_H) drawPane(pane.info, rows - PANE_H, 1, pane.width);
   };
@@ -2581,7 +2677,18 @@ export function identAt(row, x, shown) {
 export function recordInfo(ids, name, read = readLines) {
   const e = ids.get(name),
     d = e?.declaration;
-  const info = { name, kind: d?.kind ?? null, static: !!d?.static, file: d?.file, line: d?.line, column: d?.column, range: null, references: e?.references.length ?? 0, prototypes: e?.prototype.length ?? 0, dependencies: dependencies(ids, name).length };
+  const info = {
+    name,
+    kind: d?.kind ?? null,
+    static: !!d?.static,
+    file: d?.file,
+    line: d?.line,
+    column: d?.column,
+    range: null,
+    references: e?.references.length ?? 0,
+    prototypes: e?.prototype.length ?? 0,
+    dependencies: dependencies(ids, name).length,
+  };
 
   if(d && OPENABLE.has(d.kind) && d.file) {
     const fi = fileInfo(read, d.file);
@@ -2616,7 +2723,10 @@ export function drawPane(info, row, col, width, f = std.out) {
   const sc = new Screen(f);
 
   sc.sgr(0, 38, 5, COLOR.rule).box(row, col, width, PANE_H, { title: info.name });
-  for(const [i, [text, code]] of paneContent(info).entries()) sc.moveTo(row + 1 + i, col + 1).sgr(0, 38, 5, code).write(fit(' ' + text));
+  for(const [i, [text, code]] of paneContent(info).entries())
+    sc.moveTo(row + 1 + i, col + 1)
+      .sgr(0, 38, 5, code)
+      .write(fit(' ' + text));
   sc.resetAttrs().flush();
 }
 
@@ -2627,14 +2737,18 @@ function helpText(vars, color) {
   const rows = {
     data: [
       ['files', count(vars.files, 'files'), 'the input files, as given (directories expanded)'],
-      ['ids', count(vars.ids, 'identifiers'), 'Map name -> { name, declaration, prototype[], references[] }; every position has file, line, column, offset, end, endLine, endColumn and, in a function, `in`'],
+      [
+        'ids',
+        count(vars.ids, 'identifiers'),
+        'Map name -> { name, declaration, prototype[], references[] }; every position has file, line, column, offset, end, endLine, endColumn and, in a function, `in`',
+      ],
       ['records', count(vars.records, 'records'), 'the JSON IR that gets written; reassign it to change the output'],
       ['chunks', count(vars.chunks, 'chunks'), 'the text output (-l lines, function sources); reassign to change it'],
       ['dead', vars.dead ? count(vars.dead, 'identifiers') : 'null (needs -d)', 'identifiers no walk from the entry points reaches'],
       ['repl', 'the REPL', '`repl._` is the last result'],
     ],
     'call graph': [
-      ['dependencies(name)', '', 'everything name\'s body (function, struct, typedef, enum, macro, initializer) uses: [{ name, file, line, column }]; the inverse of references'],
+      ['dependencies(name)', '', "everything name's body (function, struct, typedef, enum, macro, initializer) uses: [{ name, file, line, column }]; the inverse of references"],
       ['callees(name)', '', 'the dependencies that are defined functions: [{ callee, file, line, column }]'],
       ['callers(name)', '', 'functions whose body refers to name: [{ caller, file, line, column }]'],
       ['reachable(name, up?)', '', 'Set of names reachable through calls (up: through callers)'],
@@ -2665,7 +2779,16 @@ function helpText(vars, color) {
   }
 
   out.push(paint(COLOR.label.declaration, 'directives'));
-  for(const [name, what] of [['\\help', 'this text'], ['\\banner', 'the startup banner again'], ['\\browse [function]', 'the call-graph browser (default main)'], ['\\mouse [on|off]', 'clicks on show() output: left = pointer + location to status row, prompt and clipboard; right = open in editor'], ['\\editor CMD {loc}', 'editor template ({loc} {file} {line} {column}); default subl/sublime_text'], ['\\clip CMD', 'clipboard command (default DISPLAY=:0 xclip -in)'], ['\\filter [file RE] [kind K,..] [name RE]', 'show() only records matching all given parts; `\\filter clear` resets, `\\filter` shows it']]) out.push(`  ${paint(COLOR.code.keyword, name.padEnd(38))} ${paint(COLOR.dim, what)}`);
+  for(const [name, what] of [
+    ['\\help', 'this text'],
+    ['\\banner', 'the startup banner again'],
+    ['\\browse [function]', 'the call-graph browser (default main)'],
+    ['\\mouse [on|off]', 'clicks on show() output: left = pointer + location to status row, prompt and clipboard; right = open in editor'],
+    ['\\editor CMD {loc}', 'editor template ({loc} {file} {line} {column}); default subl/sublime_text'],
+    ['\\clip CMD', 'clipboard command (default DISPLAY=:0 xclip -in)'],
+    ['\\filter [file RE] [kind K,..] [name RE]', 'show() only records matching all given parts; `\\filter clear` resets, `\\filter` shows it'],
+  ])
+    out.push(`  ${paint(COLOR.code.keyword, name.padEnd(38))} ${paint(COLOR.dim, what)}`);
   out.push(paint(COLOR.label.declaration, 'examples'), ...examples.map(e => '  ' + highlightC(e, [], paint, 200).join('')));
   return out.join('\n') + '\n';
 }
@@ -2703,15 +2826,18 @@ async function openRepl(vars) {
   repl.directives.mouse = [arg => (arg == 'off' ? mouse.off() : mouse.on()), 'clicks on show() output: \\mouse [on|off]'];
   repl.directives.editor = [(...cmd) => (cmd.length ? (mouse.state.editor = cmd.join(' ')) : say(`editor: ${mouse.state.editor ?? 'none'}`)), 'right click opens the location: \\editor CMD {loc}'];
   repl.directives.clip = [(...cmd) => (cmd.length ? (mouse.state.clip = cmd.join(' ')) : say(`clipboard: ${mouse.state.clip}`)), 'left click copies the location: \\clip CMD'];
-  repl.directives.browse = [name => {
-    const start = name ?? (isDefined(vars.ids, 'main') ? 'main' : null);
-    mouse.suspend();
-    try {
-      if(!start || !browse(vars.ids, start)) say(`browse: ${start ?? 'no main'}: no function body in the scanned files; usage: \\browse NAME`);
-    } finally {
-      mouse.resume();
-    }
-  }, 'call-graph browser (mouse): \\browse [function]'];
+  repl.directives.browse = [
+    name => {
+      const start = name ?? (isDefined(vars.ids, 'main') ? 'main' : null);
+      mouse.suspend();
+      try {
+        if(!start || !browse(vars.ids, start)) say(`browse: ${start ?? 'no main'}: no function body in the scanned files; usage: \\browse NAME`);
+      } finally {
+        mouse.resume();
+      }
+    },
+    'call-graph browser (mouse): \\browse [function]',
+  ];
   repl.directives.filter = [(...args) => std.out.puts(setFilter(args)), 'limit show() to file/kind/name (\\filter clear to reset)'];
   repl.directives.banner = [banner, 'show the startup banner again'];
   repl.directives.help = [() => std.out.puts(helpText(vars, isatty(1))), 'globals and functions of this session'];
@@ -2842,7 +2968,7 @@ async function main(...args) {
                         start  .start "<file>:<line>:<column>"
                         end    .end   "<file>:<line>:<column>" (just past the last character)
   -s, --split DIR       write each function to DIR/<name>.c, prefixed with the
-                        text preceding the file's first function (#includes etc.)
+                        text preceding the file's first function(#includes etc.)
   -o, --output FILE     write to FILE instead of stdout
 
 A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
@@ -2902,7 +3028,9 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
 
     if(kinds && !types) {
       const recs = [];
-      if(kinds.includes('function')) for(const f of findFunctions(code, file)) recs.push({ name: f.name, kind: 'function', line: f.line, column: f.column, offset: f.start, end: f.end, ...endPos(code, f.end), text: code.slice(f.start, f.end) });
+      if(kinds.includes('function'))
+        for(const f of findFunctions(code, file))
+          recs.push({ name: f.name, kind: 'function', line: f.line, column: f.column, offset: f.start, end: f.end, ...endPos(code, f.end), text: code.slice(f.start, f.end) });
       for(const d of findDefines(source, file)) if(kinds.includes(d.kind)) recs.push(d);
       for(const { type, ...d } of findTypes(code, file)) if(kinds.includes(type)) recs.push({ kind: type, ...d });
 
@@ -2975,7 +3103,25 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
   }
 
   if(wantRepl) {
-    await openRepl({ files, ids, records: irs, chunks, dead, findFunctions, findTypes, findDefines, findIdentifiers, show, format, callees: n => callees(ids, n), dependencies: n => dependencies(ids, n), callers: n => callers(ids, n), reachable: (n, up) => reachable(ids, n, up), callTree: (n, o) => callTree(ids, n, o), browse: n => browse(ids, n) });
+    await openRepl({
+      files,
+      ids,
+      records: irs,
+      chunks,
+      dead,
+      findFunctions,
+      findTypes,
+      findDefines,
+      findIdentifiers,
+      show,
+      format,
+      callees: n => callees(ids, n),
+      dependencies: n => dependencies(ids, n),
+      callers: n => callers(ids, n),
+      reachable: (n, up) => reachable(ids, n, up),
+      callTree: (n, o) => callTree(ids, n, o),
+      browse: n => browse(ids, n),
+    });
     ({ records: irs, chunks, dead } = globalThis);
   }
 
@@ -2986,11 +3132,19 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
     if(output) {
       fs.writeFileSync(output, out);
       if(irs.length) std.err.puts(jqHints(output, identifiers ? 'identifiers' : kinds && !types ? 'records' : 'types', count) + '\n');
-    }
-    else console.log(out.trimEnd());
+    } else console.log(out.trimEnd());
   }
 
-  if(dead) console.log(list ? dead.map(line).join('').trimEnd() : JSON.stringify(dead.map(e => placedIdentifier(e, locModes, count, ids)), null, 2));
+  if(dead)
+    console.log(
+      list
+        ? dead.map(line).join('').trimEnd()
+        : JSON.stringify(
+            dead.map(e => placedIdentifier(e, locModes, count, ids)),
+            null,
+            2,
+          ),
+    );
 
   return 0;
 }

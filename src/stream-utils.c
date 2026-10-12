@@ -115,10 +115,11 @@ jsfunc_detect_nargs(JSContext* ctx, JSValueConst func_obj) {
 
   if(!JS_IsException(length_val) && !JS_IsUndefined(length_val)) {
     int32_t length;
-    if(JS_ToInt32(ctx, &length, length_val) == 0) {
+
+    if(!JS_ToInt32(ctx, &length, length_val)) 
       nargs = (length >= 3) ? 3 : 2;
-    }
   }
+  
   JS_FreeValue(ctx, length_val);
 
   return nargs;

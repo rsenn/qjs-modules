@@ -1,5 +1,5 @@
 #!/usr/bin/env qjsm
-import { getOpt, getOptHelp } from '../lib/util.js';
+import { getOptHelp } from 'util';
 import * as std from 'std';
 import * as os from 'os';
 import { JsonParser, JsonWriter } from 'json';
@@ -63,20 +63,6 @@ function writeAtomic(file, text) {
     os.remove(tmp);
     throw new Error(`cannot replace '${file}'`);
   }
-}
-
-function usage(exitCode) {
-  std.puts(
-    `Usage: ${scriptArgs[0]} [OPTIONS] <files...>\n\n` +
-      `Streaming JSON pretty-printer (JsonParser-based; no files means stdin).\n\n` +
-      `  -i, --indent <N>   spaces per nesting level (default: 2)\n` +
-      `  -c, --compact      dense single-line output (same as --indent=0)\n` +
-      `  -o, --output FILE  write to FILE instead of stdout\n` +
-      `  -w, --write        rewrite each input file in place, atomically via temp file +\n` +
-      `                     rename (DESTRUCTIVE; a file that fails to parse is left alone)\n` +
-      `  -h, --help         show this help\n`,
-  );
-  std.exit(exitCode);
 }
 
 /* Streams the token sequence produced by JsonParser straight to output text —
@@ -186,16 +172,15 @@ function main(...args) {
 
   const params = getOptHelp(
     {
-      //help: [false, () => usage(0), 'h'],
-      indent: ['NUM', v => (opts.indent = +v), 'i'],
+      indent: ['NUM', num => (opts.indent = +num), 'i'],
       compact: [false, () => ((opts.minify = true), (opts.indent = 0)), 'c'],
       output: ['FILE', null, 'o'],
       write: [false, () => (inPlace = true), 'w'],
       'bare-keys': [false, () => (opts.bareKeys = true), 'b'],
       'single-quotes': [false, () => (opts.singleQuotes = true), 's'],
       'hex-numbers': [false, () => (opts.hexNumbers = true), 'x'],
-      'minify': [false, () => (opts.minify = true), 'm'],
-      '@': 'files',
+      minify: [false, () => (opts.minify = true), 'm'],
+      '@': '*files',
     },
     args,
     {
@@ -206,7 +191,7 @@ function main(...args) {
       'bare-keys': `don't quote keys unless needed (JSON5)`,
       'single-quotes': `use single-quotes instead of double (JSON5)`,
       'hex-numbers': `use hexadecimal number literals (JSON5)`,
-      'minify': `output compacted (JSON5)`
+      minify: `output compacted (JSON5)`,
     },
   );
 
@@ -230,7 +215,7 @@ function main(...args) {
           /* buffered: the file is only opened for writing once the whole input parsed */
           const sink = new ArrayBufferSink();
 
-          prettyPrint(reader, file, opts, sink);
+          prettyPrint(reader, file, opts, (buf, len) => sink.write(buf, 0, len));
           sink.write('\n');
 
           writeAtomic(file, sink.flush());
