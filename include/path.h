@@ -1,12 +1,12 @@
 #ifndef PATH_H
 #define PATH_H
 
-#include <ctype.h>
+#include "char-utils.h"
+//#include <ctype.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
 #include <cutils.h>
 
 #ifdef _WIN32

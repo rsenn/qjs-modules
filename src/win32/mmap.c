@@ -20,7 +20,7 @@
 
 /* Include mmap-win32.h instead of sys/mman.h and link with mmap-win32.o */
 
-#if defined(_WIN32)
+#if WINDOWS_NATIVE
 
 #include <errno.h>
 #include <windows.h>
@@ -176,4 +176,4 @@ mprotect(void* addr, size_t length, int prot) {
   return -1;
 }
 
-#endif /* _WIN32 */
+#endif /* WINDOWS_NATIVE */

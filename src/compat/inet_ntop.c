@@ -1,12 +1,12 @@
-#if !defined(HAVE_INET_NTOP) && !defined(__MSYS__) && !defined(__CYGWIN__) && !defined(__MINGW32__)
-#ifdef _WIN32
+#ifndef HAVE_INET_NTOP
+#if WINDOWS_NATIVE
 #include <winsock2.h>
 #include <windows.h>
 #define socklen_t int
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
-#endif
+#endif /* WINDOWS_NATIVE */
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
@@ -80,4 +80,4 @@ inet_ntop(int af, const void* a0, char* s, socklen_t l) {
   errno = ENOSPC;
   return 0;
 }
-#endif /* !defined(HAVE_INET_NTOP) && !defined(__MSYS__) */
+#endif /* !defined(HAVE_INET_NTOP) */

@@ -1,5 +1,5 @@
 #include <time.h>
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #include <windows.h>
 
 LARGE_INTEGER
@@ -68,4 +68,4 @@ int
 performance_counter_gettime(int X, struct timespec* tv) {
   return clock_gettime(X, tv);
 }
-#endif
+#endif /* WINDOWS_NATIVE */

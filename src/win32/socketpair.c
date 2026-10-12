@@ -17,7 +17,7 @@
  *     of a child process.
  *   add argument make_overlapped
  */
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #include <string.h>
 #include <io.h>
 #include <winsock2.h>
@@ -86,4 +86,4 @@ socketpair(int af, int type, int proto, SOCKET socks[2]) {
   WSASetLastError(e);
   return SOCKET_ERROR;
 }
-#endif /* defined(_WIN32) */
+#endif /* WINDOWS_NATIVE */

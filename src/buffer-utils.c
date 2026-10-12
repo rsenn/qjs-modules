@@ -2,8 +2,9 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #include <windows.h>
+#include <io.h>
 #elif defined(HAVE_TERMIOS_H)
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -59,6 +60,34 @@ int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_
 static ssize_t
 alloc_len(size_t len) {
   return ((len + (len >> 2) + 30) + 31) & (~(size_t)31);
+}
+
+static ssize_t
+fd_filesize(int fd) {
+  ssize_t size;
+
+#if WINDOWS_NATIVE
+  HANDLE h = (HANDLE)_get_osfhandle(fd);
+  size = GetFileSize(h, NULL);
+#elif defined(HAVE_FSTAT)
+  struct stat st;
+  if(fstat(fd, &st) < 0)
+    return -1;
+
+  size = st.st_size;
+#else
+  seek_pos pos;
+
+  if((pos = _lseek(fd, 0, SEEK_CUR)) >= 0) {
+    size = _lseek(fd, 0, SEEK_END);
+
+    if(_lseek(fd, pos, SEEK_SET) == pos)
+      if(size >= 0)
+        return size;
+  }
+#endif
+
+  return size;
 }
 
 /**
@@ -563,23 +592,18 @@ block_free(MemoryBlock* mb, JSRuntime* rt) {
 MemoryBlock
 block_mmap(const char* filename, BOOL shared) {
   MemoryBlock mb = BLOCK_INIT();
-
-#if defined(HAVE_FSTAT) && !defined(_WIN32)
   int fd;
 
   if((fd = open(filename, O_RDONLY)) != -1) {
-    struct stat st;
+    ssize_t size;
 
-    if(fstat(fd, &st) != -1) {
-      mb.size = st.st_size;
+    if((mb.size = fd_filesize(fd))) {
       if((mb.base = mmap(0, mb.size, PROT_READ, shared ? MAP_SHARED : MAP_PRIVATE, fd, 0)) == (void*)-1)
         mb.base = 0;
     }
+
     close(fd);
   }
-#else
-#warning no block_mmap() implementation!
-#endif
 
   return mb;
 }

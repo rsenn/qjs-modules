@@ -55,13 +55,14 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
 }
 
 size_t
-byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
-  const char* b;
+byte_chrs(const void* in, size_t len, const char needle[], size_t nl) {
+  const char *s = in, *t = s + len;
 
-  if((b = memmem(haystack, hlen, what, wlen)))
-    return b - (const char*)haystack;
+  for(; s != t; s++)
+    if(byte_chr(needle, nl, *s))
+      break;
 
-  return hlen;
+  return s - (const char*)in;
 }
 
 size_t
@@ -69,25 +70,75 @@ byte_finds(const void* haystack, size_t hlen, const char* what) {
   return byte_findb(haystack, hlen, what, strlen(what));
 }
 
+#ifndef HAVE_MEMRCHR
 size_t
-byte_equal(const void* s, size_t n, const void* t) {
-  return memcmp(s, t, n) == 0;
-}
+byte_rchr(const void* haystack, size_t len, char needle) {
+  const char *s = (const char*)haystack, *t = s + len;
 
-void
-byte_copy(void* out, size_t len, const void* in) {
-  memcpy(out, in, len);
+  for(;;) {
+    --t;
+
+    if(s > t)
+      break;
+
+    if(*t == needle)
+      return (size_t)(t - s);
+  }
+
+  return len;
+}
+#endif
+
+#ifndef HAVE_MEMMEM
+size_t
+byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
+  size_t last;
+  const char* s = (const char*)haystack;
+
+  if(hlen < wlen)
+    return hlen;
+
+  last = hlen - wlen;
+
+  for(size_t i = 0; i <= last; i++) {
+    if(byte_equal(s, wlen, what))
+      return i;
+
+    s++;
+  }
+
+  return hlen;
+}
+#endif
+
+size_t
+str_copy(char* out, const char* in) {
+  char* s = out;
+  const char* t = in;
+
+  for(;;) {
+    if(!(*s = *t))
+      break;
+
+    ++s;
+    ++t;
+  }
+
+  return (size_t)(s - out);
 }
 
 size_t
 fmt_long(void* x, int32_t i) {
   char* dest = x;
+
   if(i < 0) {
     if(dest)
       *dest++ = '-';
+
     return fmt_ulong(dest, (uint32_t)-i) + 1;
-  } else
-    return fmt_ulong(dest, (uint32_t)i);
+  }
+
+  return fmt_ulong(dest, (uint32_t)i);
 }
 
 size_t
@@ -108,6 +159,7 @@ fmt_ulong(void* x, uint32_t i) {
 size_t
 fmt_longlong(void* x, int64_t i) {
   char* dest = x;
+
   if(i < 0) {
     if(dest)
       *dest++ = '-';
@@ -222,7 +274,11 @@ scan_int(const char* src, int32_t* dest) {
 }
 
 #ifndef MAXLONG
-#define MAXLONG (((uint32_t)-1) >> 1)
+#ifdef LONG_MAX
+#define MAXLONG LONG_MAX
+#else
+#define MAXLONG ((~(unsigned long)0) >> 1)
+#endif
 #endif
 
 size_t

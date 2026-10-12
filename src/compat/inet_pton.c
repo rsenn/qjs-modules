@@ -1,11 +1,11 @@
 #ifndef HAVE_INET_PTON
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #include <windows.h>
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#endif
+#endif /* WINDOWS_NATIVE */
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>

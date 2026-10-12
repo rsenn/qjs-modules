@@ -35,7 +35,14 @@ check_no_warnings_flags(CMAKE_C_FLAGS_DEBUG)
 check_debug_symbols_flags(CMAKE_C_FLAGS_DEBUG)
 
 check_inline()
+
 check_windows_native(WINDOWS_NATIVE)
+var2define(WINDOWS_NATIVE)
+
+check_functions(memrchr memmem)
+check_functions(getegid geteuid getgid getpid getppid getsid getuid setegid seteuid setgid setuid)
+
+check_functions(uname)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
 
@@ -266,9 +273,6 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions_def(memrchr)
-
-
 check_include_def(libbf.h)
 
 # Upstream removed BigFloat/BigDecimal/operator overloading (2025-04-26), so
@@ -350,7 +354,6 @@ check_function_def(ioctl)
 check_function_def(realpath)
 check_functions_def(link linkat symlink symlinkat)
 check_function_def(strverscmp)
-check_function_def(memmem)
 check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
 check_includes_def(fcntl.h alloca.h wordexp.h sys/inotify.h)
@@ -391,9 +394,6 @@ if(HAVE_INOTIFY)
 endif(HAVE_INOTIFY)
 
 check_function_and_include(sysinfo sys/sysinfo.h)
-
-check_function_def(gettid)
-check_function_def(uname)
 
 if(NOT NO_TEMPNAM)
   check_function_def(tempnam)
@@ -640,15 +640,15 @@ if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/compat/readlink.c)
 endif(WIN32 OR MINGW)
 
-#
 if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/win32/socketpair.c)
   set(HAVE_INET_PTON TRUE)
+  set(HAVE_INET_NTOP TRUE)
 
   check_include_def(afunix.h)
 else()
-  check_function_exists(inet_pton HAVE_INET_PTON)
+  check_functions(inet_pton inet_ntop)
 endif()
 
 set(CMAKE_REQUIRED_QUIET OFF)
@@ -1198,6 +1198,16 @@ foreach(NODE_MODULE ${BUILTINS_NODE})
   set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${LIB_MODULE})\n")
 endforeach(NODE_MODULE ${BUILTINS_NODE})]]
 
+#dump_list(BUILTINS_COMPILED BUILTINS_NATIVE BUILTIN_MODULES)
+
+if(NOT COMPILED_MODULES)
+  message(WARNING "No compiled modules")
+else()
+  add_library(compiled STATIC ${COMPILED_MODULES})
+endif()
+
+
+
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
 
@@ -1344,7 +1354,6 @@ endforeach()
 #relative_paths(COMPILED_FILES "${CMAKE_CURRENT_BINARY_DIR}" ${COMPILED_MODULES})
 #dump_list(COMPILED_MODULES)
 
-add_library(compiled STATIC ${COMPILED_MODULES})
 
 # Names of externally-built native modules to statically link into qjsm, each
 # providing a js_init_module_<name>(JSContext*, const char*) entry point

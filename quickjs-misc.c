@@ -1736,7 +1736,7 @@ enum {
 
 static JSValue
 js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t ret = 0;
+  int32_t ret = -1;
 
   switch(magic) {
 #if HAVE_GETTID
@@ -1746,82 +1746,82 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 #endif
 
-#ifndef __wasi__
+#ifdef HAVE_GETPID
     case FUNC_GETPID: {
       ret = getpid();
       break;
     }
 #endif
 
-#if !defined(__wasi__) && !defined(_WIN32)
+#ifdef HAVE_GETPPID
     case FUNC_GETPPID: {
       ret = getppid();
       break;
     }
 #endif
+#ifdef HAVE_GETSID
     case FUNC_GETSID: {
       ret = getsid(argc > 0 ? js_toint32(ctx, argv[0]) : 0);
       break;
     }
-#if !defined(__wasi__) && !defined(_WIN32)
+#endif
+#ifdef HAVE_GETUID
     case FUNC_GETUID: {
       ret = getuid();
       break;
     }
+#endif
+#ifdef HAVE_GETGID
     case FUNC_GETGID: {
       ret = getgid();
       break;
     }
+#endif
+#ifdef HAVE_GETEUID
     case FUNC_GETEUID: {
       ret = geteuid();
       break;
     }
+#endif
+#ifdef HAVE_GETEGID
     case FUNC_GETEGID: {
       ret = getegid();
       break;
     }
+#endif
+#ifdef HAVE_SETUID
     case FUNC_SETUID: {
-#ifndef __ANDROID__
       int32_t uid;
 
       JS_ToInt32(ctx, &uid, argv[0]);
       ret = setuid(uid);
-#else
-      ret = -1;
-#endif
       break;
     }
+#endif
+#ifdef HAVE_SETGID
     case FUNC_SETGID: {
-#ifndef __ANDROID__
       int32_t gid;
 
       JS_ToInt32(ctx, &gid, argv[0]);
       ret = setgid(gid);
-#else
-      ret = -1;
-#endif
       break;
     }
+#endif
+#ifdef HAVE_SETEUID
     case FUNC_SETEUID: {
-#ifndef __ANDROID__
       int32_t euid;
 
       JS_ToInt32(ctx, &euid, argv[0]);
       ret = seteuid(euid);
-#else
-      ret = -1;
-#endif
       break;
     }
+#endif
+#ifdef HAVE_SETEGID
     case FUNC_SETEGID: {
-#ifndef __ANDROID__
       int32_t egid;
 
       JS_ToInt32(ctx, &egid, argv[0]);
       ret = setegid(egid);
-#else
-      ret = -1;
-#endif
       break;
     }
 #endif
@@ -2935,18 +2935,47 @@ js_misc_signal(JSContext* ctx, JSValueConst value, int* sig) {
   return -1;
 }
 
+static const int termsig =
+#ifdef SIGTERM
+    SIGTERM
+#else
+    0
+#endif
+    ;
+
 static JSValue
 js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  int sig = SIGTERM;
+  int sig = termsig;
   int64_t handle = js_toint64(ctx, argv[0]);
 
   if(argc > 1)
     if(js_misc_signal(ctx, argv[1], &sig))
       return JS_EXCEPTION;
 
-#if defined(_WIN32) && !(defined(__MSYS__) || defined(__CYGWIN__))
-  ret = JS_NewBool(ctx, TerminateProcess((HANDLE)handle, sig));
+#if WINDOWS_NATIVE
+  // open a handle to the process with PROCESS_TERMINATE and SYNCHRONIZE rights
+  HANDLE hProcess = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, (DWORD)handle);
+  if(hProcess == NULL)
+    return js_syscallerror_result(ctx, "OpenProcess", GetLastError());
+
+  /* terminate the process */
+  BOOL success = TerminateProcess(hProcess, (UINT)sig);
+
+  if(!success) {
+    CloseHandle(hProcess);
+    return js_syscallerror_result(ctx, "TerminateProcess", GetLastError());
+  }
+
+  /* wait for the process to actually exit (e.g., up to 5000 milliseconds) */
+  DWORD waitResult = WaitForSingleObject(hProcess, 5000);
+  CloseHandle(hProcess);
+
+  if(waitResult == WAIT_FAILED)
+    return js_syscallerror_result(ctx, "WaitForSingleObject", GetLastError());
+
+  /* or return exit status confirmation */
+  ret = JS_TRUE;
 #else
   ret = js_syscallerror_result(ctx, "kill", kill(handle, sig));
 #endif
@@ -2956,7 +2985,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
 static JSValue
 js_misc_signum(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int sig = SIGTERM;
+  int sig = termsig;
 
   if(argc > 0)
     if(js_misc_signal(ctx, argv[0], &sig))
@@ -3445,7 +3474,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   JS_ToInt32(ctx, &fd, argv[0]);
 
-  if(argc > 1) 
+  if(argc > 1)
     use_bigint = JS_IsObject(argv[1]) ? js_get_propertystr_bool(ctx, argv[1], "bigint") : JS_ToBool(ctx, argv[1]);
 
   new64.i = use_bigint ? JS_NewBigInt64 : js_newint64;
@@ -3526,13 +3555,13 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       intptr_t hnd = -1;
       int32_t flags = 0;
 
-if(argc > 0)
-       hnd= js_toint64(ctx,  argv[0]);
+      if(argc > 0)
+        hnd = js_toint64(ctx, argv[0]);
 
       if(argc > 1)
         JS_ToInt32(ctx, &flags, argv[1]);
 
-      ret = JS_NewInt32(ctx, _open_osfhandle((HANDLE)hnd, flags));
+      ret = JS_NewInt32(ctx, _open_osfhandle(hnd, flags));
       break;
     }
   }
@@ -4071,106 +4100,105 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 };
 
-static const JSCFunctionListEntry js_misc_sigconst[] =
-    {
+static const JSCFunctionListEntry js_misc_sigconst[] = {
 #ifdef SIGHUP
-        JS_CONSTANT(SIGHUP),
+    JS_CONSTANT(SIGHUP),
 #endif
 #ifdef SIGINT
-        JS_CONSTANT(SIGINT),
+    JS_CONSTANT(SIGINT),
 #endif
 #ifdef SIGQUIT
-        JS_CONSTANT(SIGQUIT),
+    JS_CONSTANT(SIGQUIT),
 #endif
 #ifdef SIGILL
-        JS_CONSTANT(SIGILL),
+    JS_CONSTANT(SIGILL),
 #endif
 #ifdef SIGTRAP
-        JS_CONSTANT(SIGTRAP),
+    JS_CONSTANT(SIGTRAP),
 #endif
 #ifdef SIGABRT
-        JS_CONSTANT(SIGABRT),
+    JS_CONSTANT(SIGABRT),
 #endif
 #ifdef SIGBUS
-        JS_CONSTANT(SIGBUS),
+    JS_CONSTANT(SIGBUS),
 #endif
 #ifdef SIGFPE
-        JS_CONSTANT(SIGFPE),
+    JS_CONSTANT(SIGFPE),
 #endif
 #ifdef SIGKILL
-        JS_CONSTANT(SIGKILL),
+    JS_CONSTANT(SIGKILL),
 #endif
 #ifdef SIGUSR1
-        JS_CONSTANT(SIGUSR1),
+    JS_CONSTANT(SIGUSR1),
 #endif
 #ifdef SIGSEGV
-        JS_CONSTANT(SIGSEGV),
+    JS_CONSTANT(SIGSEGV),
 #endif
 #ifdef SIGUSR2
-        JS_CONSTANT(SIGUSR2),
+    JS_CONSTANT(SIGUSR2),
 #endif
 #ifdef SIGPIPE
-        JS_CONSTANT(SIGPIPE),
+    JS_CONSTANT(SIGPIPE),
 #endif
 #ifdef SIGALRM
-        JS_CONSTANT(SIGALRM),
+    JS_CONSTANT(SIGALRM),
 #endif
 #ifdef SIGTERM
-        JS_CONSTANT(SIGTERM),
+    JS_CONSTANT(SIGTERM),
 #endif
 #ifdef SIGSTKFLT
-        JS_CONSTANT(SIGSTKFLT),
+    JS_CONSTANT(SIGSTKFLT),
 #endif
 #ifdef SIGCHLD
-        JS_CONSTANT(SIGCHLD),
+    JS_CONSTANT(SIGCHLD),
 #endif
 #ifdef SIGCONT
-        JS_CONSTANT(SIGCONT),
+    JS_CONSTANT(SIGCONT),
 #endif
 #ifdef SIGSTOP
-        JS_CONSTANT(SIGSTOP),
+    JS_CONSTANT(SIGSTOP),
 #endif
 #ifdef SIGTSTP
-        JS_CONSTANT(SIGTSTP),
+    JS_CONSTANT(SIGTSTP),
 #endif
 #ifdef SIGTTIN
-        JS_CONSTANT(SIGTTIN),
+    JS_CONSTANT(SIGTTIN),
 #endif
 #ifdef SIGTTOU
-        JS_CONSTANT(SIGTTOU),
+    JS_CONSTANT(SIGTTOU),
 #endif
 #ifdef SIGURG
-        JS_CONSTANT(SIGURG),
+    JS_CONSTANT(SIGURG),
 #endif
 #ifdef SIGXCPU
-        JS_CONSTANT(SIGXCPU),
+    JS_CONSTANT(SIGXCPU),
 #endif
 #ifdef SIGXFSZ
-        JS_CONSTANT(SIGXFSZ),
+    JS_CONSTANT(SIGXFSZ),
 #endif
 #ifdef SIGVTALRM
-        JS_CONSTANT(SIGVTALRM),
+    JS_CONSTANT(SIGVTALRM),
 #endif
 #ifdef SIGPROF
-        JS_CONSTANT(SIGPROF),
+    JS_CONSTANT(SIGPROF),
 #endif
 #ifdef SIGWINCH
-        JS_CONSTANT(SIGWINCH),
+    JS_CONSTANT(SIGWINCH),
 #endif
 #ifdef SIGIO
-        JS_CONSTANT(SIGIO),
+    JS_CONSTANT(SIGIO),
 #endif
 #ifdef SIGPOLL
-        JS_CONSTANT(SIGPOLL),
+    JS_CONSTANT(SIGPOLL),
 #endif
 #ifdef SIGPWR
-        JS_CONSTANT(SIGPWR),
+    JS_CONSTANT(SIGPWR),
 #endif
 #ifdef SIGSYS
-        JS_CONSTANT(SIGSYS),
+    JS_CONSTANT(SIGSYS),
 #endif
 #ifdef SIGBREAK
-        JS_CONSTANT(SIGBREAK),
+    JS_CONSTANT(SIGBREAK),
 #endif
 };
 

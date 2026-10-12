@@ -32,8 +32,8 @@ size_t ansi_skip(const char*, size_t);
 size_t ansi_truncate(const char*, size_t, size_t limit);
 size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
 size_t byte_finds(const void*, size_t, const char* what);
-size_t byte_equal(const void* s, size_t n, const void* t);
-void byte_copy(void* out, size_t len, const void* in);
+size_t byte_chrs(const void* in, size_t len, const char needle[], size_t nl);
+size_t str_copy(char* out, const char* in);
 char* str_escape(const char*);
 size_t fmt_long(void*, int32_t);
 size_t fmt_ulong(void*, uint32_t);
@@ -80,6 +80,7 @@ byte_chr(const void* in, size_t len, char c) {
   return len;
 }
 
+#ifdef HAVE_MEMRCHR
 static inline size_t
 byte_rchr(const void* haystack, size_t len, char needle) {
   const char* s;
@@ -89,22 +90,28 @@ byte_rchr(const void* haystack, size_t len, char needle) {
 
   return len;
 }
+#else
+size_t byte_rchr(const void* haystack, size_t len, char needle);
+#endif
 
+#ifdef HAVE_MEMMEM
 static inline size_t
-byte_chrs(const void* in, size_t len, const char needle[], size_t nl) {
-  const char *s = in, *t = s + len;
+byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
+  const char* b;
 
-  for(; s != t; s++)
-    if(memchr(needle, *s, nl))
-      break;
+  if((b = memmem(haystack, hlen, what, wlen)))
+    return b - (const char*)haystack;
 
-  return s - (const char*)in;
+  return hlen;
 }
+#else
+ size_t byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen);
+#endif
 
-static inline int
-byte_diff(const void* a, size_t len, const void* b) {
-  return memcmp(a, b, len);
-}
+#define byte_copy(out, len, in) memcpy((out), (in), (len))
+#define byte_copyr(out, len, in) memmove((out), (in), (len))
+#define byte_diff(a, len, b) memcmp((a), (b), (len))
+#define byte_equal(a, len, b) (!memcmp((a), (b), (len)))
 
 static inline int
 byte_diff2(const char* a, size_t alen, const char* b, size_t blen) {
@@ -115,7 +122,7 @@ byte_diff2(const char* a, size_t alen, const char* b, size_t blen) {
   if(blen < alen)
     return a[blen];
 
-  return memcmp(a, b, alen);
+  return byte_diff(a, alen, b);
 }
 
 static inline size_t
@@ -177,7 +184,7 @@ str_endb(const char* in, const char* suffix, size_t n) {
   if((alen = strlen(in)) < n)
     return 0;
 
-  return !memcmp(in + alen - n, suffix, n);
+  return byte_equal(in + alen - n, n, suffix);
 }
 
 /* str_ends returns 1 if in ends in suffix, 0 otherwise */
@@ -219,11 +226,6 @@ str_copyn(char* out, const char* in, size_t n) {
   }
 
   return (size_t)(t - out);
-}
-
-static inline size_t
-str_copy(char* out, const char* in) {
-  return str_copyn(out, in, (~(size_t)0) >> 1);
 }
 
 static inline char*
