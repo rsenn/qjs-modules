@@ -95,6 +95,17 @@ dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
   dbuf_init2(s, rt, (DynBufReallocFunc*)&js_realloc_rt);
 }
 
+static size_t
+predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
+  size_t pos;
+
+  for(pos = 0; pos < len; pos++)
+    if(pred(str[pos]))
+      break;
+
+  return pos;
+}
+
 void
 dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   for(size_t j, i = 0; i < len;) {
@@ -259,7 +270,7 @@ dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t 
       break;
 
     if(escape_char == '%') {
-      int hi = scan_fromhex(str[i + 1]), lo = scan_fromhex(str[i + 2]);
+      int hi = from_hex(str[i + 1]), lo = from_hex(str[i + 2]);
       uint8_t c = (hi << 4) | (lo & 0xf);
       dbuf_putc(db, c);
 

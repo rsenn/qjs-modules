@@ -952,8 +952,8 @@ read_urldecoded(intptr_t fd, void* buf, size_t len, struct StreamReader* rd) {
         if((r = reader_read(u->parent, &lo, 1)) < 0)
           return x > y ? x - y : r;
 
-        int h = scan_fromhex(hi);
-        int l = r == 0 ? -1 : scan_fromhex(lo);
+        int h = from_hex(hi);
+        int l = r == 0 ? -1 : from_hex(lo);
 
         if(h >= 0 && l >= 0) {
           c = (h << 4) | l;
@@ -1477,8 +1477,8 @@ transform_urldecode(Reader* rd, Writer* wr) {
         if((lo = reader_getc(rd)) == STREAM_ERROR)
           return -1;
 
-        int h = scan_fromhex(hi);
-        int l = lo == STREAM_EOF ? -1 : scan_fromhex(lo);
+        int h = from_hex(hi);
+        int l = lo == STREAM_EOF ? -1 : from_hex(lo);
 
         if(h >= 0 && l >= 0) {
           c = (h << 4) | l;

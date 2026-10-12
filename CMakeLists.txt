@@ -27,6 +27,16 @@ option(DO_TESTS "Perform tests" ON)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Checks.cmake)
+
+check_source_definitions(ATFILE GNU LARGEFILE LARGE_FILE LARGEFILE64 POSIX POSIX_C XOPEN XOPEN_EXTENDED)
+
+check_no_unused_warn_flags()
+check_no_warnings_flags(CMAKE_C_FLAGS_DEBUG)
+check_debug_symbols_flags(CMAKE_C_FLAGS_DEBUG)
+
+check_inline()
+check_windows_native(WINDOWS_NATIVE)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
 
 if(NOT CMAKE_CROSSCOMPILING)
@@ -871,7 +881,6 @@ set(CMAKE_REQUIRED_QUIET ON)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
-compiler_flags_debug()
 add_definitions(-DNDEBUG)
 
 check_function_def(js_debugger_build_backtrace)

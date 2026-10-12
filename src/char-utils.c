@@ -285,7 +285,7 @@ scan_xlonglong(const char* src, uint64_t* dest) {
   int64_t l = 0;
   unsigned char c;
 
-  while((c = scan_fromhex(*tmp)) < 16) {
+  while((c = from_hex(*tmp)) < 16) {
     l = (l << 4) + c;
     ++tmp;
   }

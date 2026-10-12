@@ -6,7 +6,6 @@
 #include "utils.h"
 #include "iteration.h"
 #include <list.h>
-#include <string.h>
 #include "debug.h"
 
 /**

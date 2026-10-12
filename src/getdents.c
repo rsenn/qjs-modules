@@ -1,12 +1,10 @@
 /* getdents.c: the Directory reader behind quickjs-directory.c.
  * depends on: char-utils.h (Windows: utf8_towcs, utf8_fromwcs).
  * rule: getdents_read() hands out entries in place, no copy per entry. */
-#define _GNU_SOURCE
-#include "getdents.h"
 #include "char-utils.h"
+#include "getdents.h"
 #include <errno.h>
 #include <stdlib.h>
-#include <string.h>
 
 /**
  * \addtogroup getdents

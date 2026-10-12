@@ -5,11 +5,6 @@
 
 #include "char-utils.h"
 #include "jwrite.h"
-/*#include <ctype.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>*/
 
 /* jwrite_put() and jwrite_put_string() return the bytes on full success,
  * 0 if the writer ran out of room (a chunked destination signalling

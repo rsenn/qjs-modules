@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <limits.h>
-#include <string.h>
 
 #include "path.h"
 #include "utils.h"

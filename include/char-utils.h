@@ -21,223 +21,7 @@
 #define is_whitespace_char(c) ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
 
 #define str_equal(s, t) (!strcmp((s), (t)))
-
-static inline size_t
-byte_chr(const void* str, size_t len, char c) {
-  const char* s = memchr(str, c, len);
-
-  if(s)
-    return s - (const char*)str;
-
-  return len;
-}
-
-static inline size_t
-byte_rchr(const void* haystack, size_t len, char needle) {
-  const char* s = memrchr(haystack, needle, len);
-
-  if(s)
-    return s - (const char*)haystack;
-
-  return len;
-}
-
-static inline size_t
-byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
-  const char *s = str, *t = s + len;
-
-  for(; s != t; s++)
-    if(memchr(needle, *s, nl))
-      break;
-
-  return s - (const char*)str;
-}
-
-static inline int
-byte_diff(const void* a, size_t len, const void* b) {
-  size_t i;
-
-  for(i = 0; i < len; ++i) {
-    int r = ((unsigned char*)a)[i] - ((unsigned char*)b)[i];
-
-    if(r)
-      return r;
-  }
-
-  return 0;
-}
-
-static inline int
-byte_diff2(const char* a, size_t alen, const char* b, size_t blen) {
-
-  if(alen < blen)
-    return -b[alen];
-
-  if(blen < alen)
-    return a[blen];
-
-  return byte_diff(a, alen, b);
-}
-
-static inline size_t
-str_chr(const char* in, char needle) {
-  const char *t, c = needle;
-
-  for(t = in; *t; ++t)
-    if(*t == c)
-      break;
-
-  return (size_t)(t - in);
-}
-
-static inline size_t
-str_chrs(const char* in, const char needles[], size_t nn) {
-  const char* t;
-  size_t i;
-
-  for(t = in; *t; ++t)
-    for(i = 0; i < nn; i++)
-      if(*t == needles[i])
-        return (size_t)(t - in);
-
-  return (size_t)(t - in);
-}
-
-static inline size_t
-str_rchr(const char* s, char needle) {
-  const char *in, *found = 0;
-
-  for(in = s; *in; ++in)
-    if(*in == needle)
-      found = in;
-
-  return (size_t)((found ? found : in) - s);
-}
-
-static inline size_t
-str_nchrs(const char* in, const char needles[], size_t nn) {
-  const char* t;
-  size_t i;
-
-  for(t = in; *t; ++t) {
-    for(i = 0; i < nn; i++)
-      if(*t == needles[i])
-        break;
-
-    if(i == nn)
-      break;
-  }
-
-  return (size_t)(t - in);
-}
-static inline int
-str_endb(const char* a, const char* x, size_t n) {
-  size_t alen = strlen(a);
-  a += alen - n;
-
-  return alen >= n && !memcmp(a, x, n);
-}
-
-/* str_ends returns 1 if the b is a suffix of a, 0 otherwise */
-static inline int
-str_ends(const char* a, const char* b) {
-  return str_endb(a, b, strlen(b));
-}
-
-static inline int
-str_startb(const char* a, const char* x, size_t len) {
-  size_t i;
-
-  for(i = 0;; i++) {
-    if(i == len)
-      return 1;
-
-    if(a[i] != x[i])
-      break;
-  }
-
-  return 0;
-}
-
-static inline int
-str_start(const char* a, const char* b) {
-  return str_startb(a, b, strlen(b));
-}
-
 #define str_contains(s, needle) (!!strchr((s), (needle)))
-
-static inline size_t
-str_count(const char* s, char c) {
-  size_t i, count = 0;
-
-  for(i = 0; s[i]; i++)
-    if(s[i] == c)
-      ++count;
-
-  return count;
-}
-
-static inline size_t
-str_copy(char* out, const char* in) {
-  char* s;
-
-  for(s = out; (*s = *in); ++s)
-    ++in;
-
-  return (size_t)(s - out);
-}
-
-static inline size_t
-str_copyn(char* out, const char* in, size_t n) {
-  char* s;
-
-  for(s = out; n-- && (*s = *in); ++s)
-    ++in;
-
-  *s = '\0';
-  return (size_t)(s - out);
-}
-
-static inline char*
-str_ndup(const char* s, size_t n) {
-  char* r = malloc(n + 1);
-
-  if(r == NULL)
-    return NULL;
-
-  memcpy(r, s, n);
-  r[n] = '\0';
-  return r;
-}
-
-static inline size_t
-predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
-  size_t pos;
-
-  for(pos = 0; pos < len; pos++)
-    if(pred(str[pos]))
-      break;
-
-  return pos;
-}
-
-static inline char
-escape_char_letter(char c) {
-  switch(c) {
-    case '\0': return '0';
-    case '\a': return 'a';
-    case '\b': return 'b';
-    case '\t': return 't';
-    case '\n': return 'n';
-    case '\v': return 'v';
-    case '\f': return 'f';
-    case '\r': return 'r';
-    case '\\': return '\\';
-    case '\'': return '\'';
-  }
-
-  return 0;
-}
 
 #define FMT_LONG 41  /* enough space to hold -2^127 in decimal, plus \0 */
 #define FMT_ULONG 40 /* enough space to hold 2^128 - 1 in decimal, plus \0 */
@@ -282,6 +66,195 @@ int case_lowerc(int);
 int case_diffb(const void*, size_t, const void* T);
 size_t case_findb(const void*, size_t, const void* what, size_t wlen);
 size_t case_finds(const void*, const char*);
+BOOL utf16_multiword(const void*);
+size_t u64toa_base(char*, uint64_t num, int base);
+size_t i64toa_base(char*, int64_t num, int base);
+
+static inline size_t
+byte_chr(const void* in, size_t len, char c) {
+  const char* s;
+
+  if((s = memchr(in, c, len)))
+    return s - (const char*)in;
+
+  return len;
+}
+
+static inline size_t
+byte_rchr(const void* haystack, size_t len, char needle) {
+  const char* s;
+
+  if((s = memrchr(haystack, needle, len)))
+    return s - (const char*)haystack;
+
+  return len;
+}
+
+static inline size_t
+byte_chrs(const void* in, size_t len, const char needle[], size_t nl) {
+  const char *s = in, *t = s + len;
+
+  for(; s != t; s++)
+    if(memchr(needle, *s, nl))
+      break;
+
+  return s - (const char*)in;
+}
+
+static inline int
+byte_diff(const void* a, size_t len, const void* b) {
+  return memcmp(a, b, len);
+}
+
+static inline int
+byte_diff2(const char* a, size_t alen, const char* b, size_t blen) {
+
+  if(alen < blen)
+    return -b[alen];
+
+  if(blen < alen)
+    return a[blen];
+
+  return memcmp(a, b, alen);
+}
+
+static inline size_t
+str_chr(const char* in, char needle) {
+  const char* s;
+
+  for(s = in; *s; ++s)
+    if(*s == needle)
+      break;
+
+  return (size_t)(s - in);
+}
+
+static inline size_t
+str_chrs(const char* in, const char needles[], size_t nn) {
+  const char* s;
+
+  for(s = in; *s; s++)
+    for(size_t i = 0; i < nn; i++)
+      if(*s == needles[i])
+        return (size_t)(s - in);
+
+  return (size_t)(s - in);
+}
+
+static inline size_t
+str_rchr(const char* in, char needle) {
+  const char *s, *found = NULL;
+
+  for(s = in; *s; s++)
+    if(*s == needle)
+      found = s;
+
+  return (size_t)((found ? found : s) - in);
+}
+
+static inline size_t
+str_nchrs(const char* in, const char needles[], size_t nn) {
+  const char* s;
+
+  for(s = in; *s; s++) {
+    size_t i;
+
+    for(i = 0; i < nn; i++)
+      if(*s == needles[i])
+        break;
+
+    if(i == nn)
+      break;
+  }
+
+  return (size_t)(s - in);
+}
+
+static inline int
+str_endb(const char* in, const char* suffix, size_t n) {
+  size_t alen;
+
+  if((alen = strlen(in)) < n)
+    return 0;
+
+  return !memcmp(in + alen - n, suffix, n);
+}
+
+/* str_ends returns 1 if in ends in suffix, 0 otherwise */
+static inline int
+str_ends(const char* in, const char* suffix) {
+  return str_endb(in, suffix, strlen(suffix));
+}
+
+static inline int
+str_startb(const char* in, const char* prefix, size_t len) {
+  return !strncmp(in, prefix, len);
+}
+
+static inline int
+str_start(const char* in, const char* prefix) {
+  return str_startb(in, prefix, strlen(prefix));
+}
+
+static inline size_t
+str_count(const char* in, char c) {
+  size_t i, count = 0;
+
+  for(i = 0; in[i]; i++)
+    if(in[i] == c)
+      ++count;
+
+  return count;
+}
+
+static inline size_t
+str_copyn(char* out, const char* in, size_t n) {
+  char* t;
+
+  if(!(t = memccpy(out, in, '\0', n))) {
+    t = out + n;
+    *t = '\0';
+  } else {
+    t--;
+  }
+
+  return (size_t)(t - out);
+}
+
+static inline size_t
+str_copy(char* out, const char* in) {
+  return str_copyn(out, in, (~(size_t)0) >> 1);
+}
+
+static inline char*
+str_ndup(const char* in, size_t n) {
+  char* out;
+
+  if(!(out = malloc(n + 1)))
+    return out;
+
+  memcpy(out, in, n);
+  out[n] = '\0';
+  return out;
+}
+
+static inline char
+escape_char_letter(char c) {
+  switch(c) {
+    case '\0': return '0';
+    case '\a': return 'a';
+    case '\b': return 'b';
+    case '\t': return 't';
+    case '\n': return 'n';
+    case '\v': return 'v';
+    case '\f': return 'f';
+    case '\r': return 'r';
+    case '\\': return '\\';
+    case '\'': return '\'';
+  }
+
+  return 0;
+}
 
 /* Total byte length of a UTF-8 sequence, judged by its lead byte (0 = invalid lead byte) */
 static inline size_t
@@ -306,27 +279,8 @@ utf8_charcode(const void* in, size_t len) {
   return utf8_charcode2(in, len, 0);
 }
 
-static inline int
-scan_fromhex(const char c) {
-  if(is_digit_char(c))
-    return c - '0';
-
-  if(c >= 'a' && c <= 'f')
-    return c - 'a' + 10;
-
-  if(c >= 'A' && c <= 'F')
-    return c - 'A' + 10;
-
-  return -1;
-}
-
-BOOL utf16_multiword(const void*);
-
-size_t u64toa_base(char*, uint64_t num, int base);
-size_t i64toa_base(char*, int64_t num, int base);
-
 static inline char
-is_quotable_char(const char c) {
+is_quotable_char(char c) {
   switch(c) {
     case '"': return c;
     case '\\': return c;
@@ -341,20 +295,20 @@ is_quotable_char(const char c) {
   return 0;
 }
 
-static inline int
-is_number_char(const char c) {
+static inline BOOL
+is_number_char(char c) {
   if(is_digit_char(c))
-    return 1;
+    return TRUE;
 
   switch(c) {
     case '.':
     case 'e':
     case 'E':
     case '+':
-    case '-': return 1;
+    case '-': return TRUE;
   }
 
-  return 0;
+  return FALSE;
 }
 
 static inline BOOL
@@ -374,27 +328,27 @@ is_escape_char(int c) {
 
 /* bare_keys: ES5 IdentifierName, ASCII only; anything else stays quoted. */
 static inline BOOL
-is_identifier(const char* s, size_t len) {
-  if(len == 0 || is_digit_char((unsigned char)s[0]))
+is_identifier(const char* in, size_t len) {
+  if(len == 0 || is_digit_char((unsigned char)in[0]))
     return FALSE;
 
   for(size_t i = 0; i < len; i++)
-    if(!(is_alphanumeric_char((unsigned char)s[i]) || is_digit_char((unsigned char)s[i]) || s[i] == '_' || s[i] == '$'))
+    if(!(is_alphanumeric_char((unsigned char)in[i]) || is_digit_char((unsigned char)in[i]) || in[i] == '_' || in[i] == '$'))
       return FALSE;
 
   return TRUE;
 }
 
 static inline BOOL
-is_integer(const char* str) {
-  if(*str == '-')
-    ++str;
+is_integer(const char* in) {
+  if(*in == '-')
+    ++in;
 
-  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
+  if(!(*in >= '1' && *in <= '9') && !(*in == '0' && in[1] == '\0'))
     return FALSE;
 
-  while(*++str)
-    if(!is_digit_char(*str))
+  while(*++in)
+    if(!is_digit_char(*in))
       return FALSE;
 
   return TRUE;
@@ -403,24 +357,24 @@ is_integer(const char* str) {
 /* number text: a digit, '+', '-' or '.' first, then letters, digits and
  * those; keeps ',' quotes and brackets out of a value written verbatim. */
 static inline BOOL
-is_number(const char* s, size_t len) {
-  if(len == 0 || !(is_digit_char((unsigned char)s[0]) || s[0] == '+' || s[0] == '-' || s[0] == '.'))
+is_number(const char* in, size_t len) {
+  if(len == 0 || !(is_digit_char((unsigned char)in[0]) || in[0] == '+' || in[0] == '-' || in[0] == '.'))
     return FALSE;
 
   for(size_t i = 1; i < len; i++)
-    if(!(is_digit_char((unsigned char)s[i]) || is_alphanumeric_char((unsigned char)s[i]) || s[i] == '+' || s[i] == '-' || s[i] == '.'))
+    if(!(is_digit_char((unsigned char)in[i]) || is_alphanumeric_char((unsigned char)in[i]) || in[i] == '+' || in[i] == '-' || in[i] == '.'))
       return FALSE;
 
   return TRUE;
 }
 
 static inline BOOL
-is_xnumber(const char* s, size_t len) {
-  if(len < 3 || !str_start(s, "0x"))
+is_xnumber(const char* in, size_t len) {
+  if(len < 3 || !str_start(in, "0x"))
     return FALSE;
 
   for(size_t i = 2; i < len; i++)
-    if(!(is_xdigit_char((unsigned char)s[i]) || s[i] == '.'))
+    if(!(is_xdigit_char((unsigned char)in[i]) || in[i] == '.'))
       return FALSE;
 
   return TRUE;
