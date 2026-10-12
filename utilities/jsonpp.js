@@ -1,8 +1,10 @@
 #!/usr/bin/env qjsm
-import { getOpt } from 'util';
+import { getOpt, getOptHelp } from '../lib/util.js';
 import * as std from 'std';
 import * as os from 'os';
-import { JsonParser } from 'json';
+import { JsonParser, JsonWriter } from 'json';
+import { toString, toArrayBuffer } from 'util';
+import { ArrayBufferSink } from 'arraybuffer_sink';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT } = JsonParser;
 
@@ -45,7 +47,9 @@ function writeAtomic(file, text) {
   const f = std.fdopen(fd, 'w');
 
   try {
-    f.puts(text);
+    if(typeof text == 'string') f.puts(text);
+    else f.write(text, 0, text.byteLength);
+
     f.flush();
 
     if(f.error()) throw new Error(`write '${tmp}' failed`);
@@ -79,136 +83,131 @@ function usage(exitCode) {
  * it never builds the parsed value in memory (unlike JSON.parse + JSON.stringify),
  * so output for the front of a document starts before the rest has been tokenized,
  * and numbers are copied verbatim instead of being rounded through a JS number. */
-function prettyPrint(reader, filename, indent, put) {
+function prettyPrint(reader, filename, opts, write) {
+  const pending = [];
+  let comma = false,
+    ws = '';
+
   const parser = new JsonParser(reader, filename);
-  const stack = [];
-  let afterKey = false;
+  const writer = new JsonWriter((buf, len) => {
+    let r = 0;
+    const str = toString(buf, 0, len);
+
+    if(comma) {
+      if(!/^\s/.test(str)) {
+        for(let comment of pending) {
+          const b = toArrayBuffer(comment.replaceAll('\n', ws) + ws);
+          const tmp = write(b, b.byteLength);
+          if(tmp > 0) r += tmp;
+        }
+
+        pending.splice(0, pending.length);
+        comma = false;
+      } else {
+        ws += str;
+      }
+    } else if(str == ',') {
+      comma = true;
+      ws = '';
+    }
+
+    const tmp = write(buf, len);
+    if(tmp > 0) r += tmp;
+
+    return r;
+  }, opts);
 
   parser.comments = true;
 
   /* Comments arrive between tokens but the comma before the next element is only written
    * once that element is seen, so they wait here and are written right before it (after
    * the comma) or before the closing bracket, never between a value and its comma. */
-  const pending = [];
-
-  function flushComments(depth) {
-    for(const c of pending) {
-      put(c);
-      put(c.startsWith('//') ? '\n' + ' '.repeat(indent * depth) : ' ');
-    }
-
-    pending.length = 0;
-  }
-
-  function pad(depth) {
-    if(indent) put('\n' + ' '.repeat(indent * depth));
-  }
-
-  function beforeValue() {
-    if(afterKey) {
-      afterKey = false;
-      flushComments(stack.length);
-      return;
-    }
-
-    const frame = stack[stack.length - 1];
-
-    if(frame) {
-      if(frame.count++ > 0) put(',');
-      pad(stack.length);
-    }
-
-    flushComments(stack.length);
-  }
 
   for(;;) {
     const tok = parser.parse();
 
+    const { token } = parser;
+
     switch (tok) {
       case NEED_DATA:
       case NONE:
-        if(stack.length || afterKey) throw new Error('unexpected end of input');
-
-        for(const c of pending) put('\n' + c);
-
+        if(writer.depth) throw new Error('unexpected end of input');
         return;
 
       case COMMENT:
-        pending.push(parser.token);
+        pending.push(token);
         break;
 
       case OBJECT:
-      case ARRAY: {
-        beforeValue();
-        put(tok === OBJECT ? '{' : '[');
-        stack.push({ count: 0 });
+        writer.objectStart();
         break;
-      }
 
       case OBJECT_END:
-      case ARRAY_END: {
-        const frame = stack.pop();
-
-        const had = pending.length > 0;
-
-        for(const c of pending) {
-          pad(stack.length + 1);
-          put(c);
-        }
-
-        pending.length = 0;
-        if(frame.count > 0 || had) pad(stack.length);
-        put(tok === OBJECT_END ? '}' : ']');
+        writer.objectEnd();
         break;
-      }
 
-      case KEY: {
-        const frame = stack[stack.length - 1];
-        if(frame.count++ > 0) put(',');
-        pad(stack.length);
-        flushComments(stack.length);
-        put(JSON.stringify(parser.token) + ':' + (indent ? ' ' : ''));
-        afterKey = true;
+      case ARRAY:
+        writer.arrayStart();
         break;
-      }
 
-      case STRING: {
-        beforeValue();
-        put(JSON.stringify(parser.token));
+      case ARRAY_END:
+        writer.arrayEnd();
         break;
-      }
+
+      case KEY:
+        writer.key(token);
+        break;
+
+      case STRING:
+        writer.value(token);
+        break;
 
       case NUMBER: {
-        beforeValue();
-        put(parser.token);
+        let num = parseFloat(token);
+
+        if(num + '' != token) num = BigInt(token);
+
+        writer.value(num);
         break;
       }
 
       case TRUE:
       case FALSE:
-      case NULL: {
-        beforeValue();
-        put(tok === TRUE ? 'true' : tok === FALSE ? 'false' : 'null');
+      case NULL:
+        writer.value(tok === TRUE ? true : tok === FALSE ? false : null);
         break;
-      }
     }
   }
 }
 
 function main(...args) {
-  let indent = 2;
-  let inPlace = false;
+  let inPlace = false,
+    opts = { indent: 2 };
 
-  const params = getOpt(
+  const params = getOptHelp(
     {
-      help: [false, () => usage(0), 'h'],
-      indent: [true, v => (indent = +v), 'i'],
-      compact: [false, () => (indent = 0), 'c'],
-      output: [true, null, 'o'],
+      //help: [false, () => usage(0), 'h'],
+      indent: ['NUM', v => (opts.indent = +v), 'i'],
+      compact: [false, () => ((opts.minify = true), (opts.indent = 0)), 'c'],
+      output: ['FILE', null, 'o'],
       write: [false, () => (inPlace = true), 'w'],
+      'bare-keys': [false, () => (opts.bareKeys = true), 'b'],
+      'single-quotes': [false, () => (opts.singleQuotes = true), 's'],
+      'hex-numbers': [false, () => (opts.hexNumbers = true), 'x'],
+      'minify': [false, () => (opts.minify = true), 'm'],
       '@': 'files',
     },
     args,
+    {
+      indent: `spaces per nesting level (default: 2)`,
+      compact: `dense single-line output (same as --indent=0)`,
+      output: `write to FILE instead of stdout`,
+      write: `rewrite each input file in place, atomically via temp file +\nrename (DESTRUCTIVE; a file that fails to parse is left alone)`,
+      'bare-keys': `don't quote keys unless needed (JSON5)`,
+      'single-quotes': `use single-quotes instead of double (JSON5)`,
+      'hex-numbers': `use hexadecimal number literals (JSON5)`,
+      'minify': `output compacted (JSON5)`
+    },
   );
 
   const files = params['@'].length ? params['@'] : ['-'];
@@ -229,15 +228,19 @@ function main(...args) {
       try {
         if(inPlace) {
           /* buffered: the file is only opened for writing once the whole input parsed */
-          const chunks = [];
+          const sink = new ArrayBufferSink();
 
-          prettyPrint(reader, file, indent, s => chunks.push(s));
-          chunks.push('\n');
+          prettyPrint(reader, file, opts, sink);
+          sink.write('\n');
 
-          writeAtomic(file, chunks.join(''));
+          writeAtomic(file, sink.flush());
         } else {
-          prettyPrint(reader, file === '-' ? '<stdin>' : file, indent, put);
-          put('\n');
+          const write = (buf, len) => std.out.write(buf, 0, len ?? buf.byteLength);
+
+          prettyPrint(reader, file === '-' ? '<stdin>' : file, opts, write);
+
+          std.out.puts('\n');
+          std.out.flush();
         }
       } finally {
         reader.close();

@@ -501,7 +501,7 @@ lexer_handle(Lexer* lex, JSValueConst this_val, JSValueConst handler, JSContext*
   if(JS_IsBool(do_resume))
     result = JS_ToBool(ctx, do_resume);
 
-  //JS_FreeValue(ctx, data[0]);
+  // JS_FreeValue(ctx, data[0]);
   return result;
 }
 
@@ -1174,7 +1174,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       if(lex->reader.read)
         return JS_ThrowTypeError(ctx, "Lexer.input: a stream input is not kept in memory");
 
-      ret = block_to_arraybuffer(lex->input.block, ctx);
+      ret = block_arraybuffer_copy(lex->input.block, ctx);
       break;
     }
     case LEXER_LEXEME: {
@@ -1392,7 +1392,8 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                   lexer_state_top(lex, 0),
                                   lexer_state_name(lex, lexer_state_top(lex, 0)),
                                   /*   lexeme,*/
-                                  (int)(byte_chr((const char*)LEXER_PTR(lex), lex->size - LEXER_IDX(lex), '\n') + MIN_NUM((size_t)lex->loc.column, LEXER_IDX(lex))),
+                                  (int)(byte_chr((const char*)LEXER_PTR(lex), lex->size - LEXER_IDX(lex), '\n') +
+                                        MIN_NUM((size_t)lex->loc.column, LEXER_IDX(lex))),
                                   LEXER_PTR(lex) - MIN_NUM((size_t)lex->loc.column, LEXER_IDX(lex)),
                                   lex->loc.column + 1,
                                   "^");

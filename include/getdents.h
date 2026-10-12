@@ -47,9 +47,9 @@ size_t getdents_size(void);
 
 /* underlying descriptor (POSIX fd, Windows search handle).
  *
- *   returns ptrdiff_t  the descriptor, or -1 when not open
+ *   returns intptr_t  the descriptor, or -1 when not open
  */
-ptrdiff_t getdents_handle(Directory*);
+intptr_t getdents_handle(Directory*);
 
 /* allocates a cleared Directory.
  *

@@ -11,8 +11,6 @@
  * \defgroup buffer-utils buffer-utils: Buffer Utilities
  * @{
  */
-ssize_t alloc_len(uintptr_t);
-
 int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
@@ -25,6 +23,10 @@ int64_t array_search(void*, size_t, size_t elsz, void* needle);
 #define DBUF_INIT_RT(rt) \
   (DynBuf) { \
     0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, (rt) \
+  }
+#define DBUF_INIT_ALLOC(allocator, allocator_opaque) \
+  (DynBuf) { \
+    0, 0, 0, 0, (allocator), (allocator_opaque) \
   }
 
 void dbuf_init_ctx(JSContext* ctx, DynBuf* s);
@@ -54,6 +56,7 @@ size_t dbuf_token_pop(DynBuf*, char);
 size_t dbuf_token_push(DynBuf*, const char*, size_t, char);
 JSValue dbuf_tostring(DynBuf*, JSContext*);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);
+JSValue dbuf_toarraybuffer(DynBuf*, JSContext*);
 ssize_t dbuf_load(DynBuf*, const char*);
 int dbuf_vprintf(DynBuf*, const char*, va_list);
 size_t dbuf_bitflags(DynBuf*, uint32_t, const char* const[]);
@@ -105,6 +108,7 @@ int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 MemoryBlock block_mmap(const char*, BOOL);
 int block_from_file(MemoryBlock*, const char*, JSContext*);
+MemoryBlock block_from_dynbuf(DynBuf* s);
 
 /* clang-format off */
 static inline void* block_data(MemoryBlock mb) { return mb.base; }
@@ -120,11 +124,19 @@ block_from_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
 }
 
 static inline JSValue
-block_to_arraybuffer(MemoryBlock mb, JSContext* ctx) {
+block_arraybuffer_copy(MemoryBlock mb, JSContext* ctx) {
   if(mb.base)
     return JS_NewArrayBufferCopy(ctx, mb.base, mb.size);
 
   return JS_NULL;
+}
+
+static inline JSValue
+block_arraybuffer(MemoryBlock* mb, JSFreeArrayBufferDataFunc* free_func, void* opaque, JSContext* ctx) {
+  JSValue ret = JS_NewArrayBuffer(ctx, mb->base, mb->size, free_func, opaque, FALSE);
+  mb->base = NULL;
+  mb->size = 0;
+  return ret;
 }
 
 static inline MemoryBlock
@@ -277,10 +289,10 @@ typedef struct {
 #define RANGE_0() (PointerRange) RANGE_INIT(0, 0)
 
 int range_overlap(PointerRange, PointerRange);
-PointerRange range_from_buf(const void*, uintptr_t);
+PointerRange range_from_buf(const void*, size_t);
 PointerRange range_from_str(const char*);
-int range_resize(PointerRange*, uintptr_t);
-int range_write(PointerRange*, const void*, uintptr_t);
+int range_resize(PointerRange*, size_t);
+int range_write(PointerRange*, const void*, size_t);
 int range_puts(PointerRange*, const void*);
 int range_append(PointerRange*, PointerRange);
 

@@ -45,19 +45,19 @@ typedef struct {
 } JsonWriter;
 
 enum {
-  JWRITE_E_WRITE = 1,         /* the Writer refused the bytes */
-  JWRITE_E_NOMEM,             /* the frame stack could not grow */
-  JWRITE_E_EXPECTED_KEY,      /* value inside an object, no key before it */
-  JWRITE_E_KEY_AT_ROOT,       /* key outside any container */
-  JWRITE_E_KEY_IN_ARRAY,      /* key inside an array */
-  JWRITE_E_EXPECTED_VALUE,    /* key written twice in a row */
-  JWRITE_E_UNMATCHED_OBJECT,  /* object_end with nothing open */
-  JWRITE_E_UNMATCHED_ARRAY,   /* array_end with nothing open */
-  JWRITE_E_NOT_ARRAY,         /* object_end inside an array */
-  JWRITE_E_NOT_OBJECT,        /* array_end inside an object */
-  JWRITE_E_PENDING_KEY,       /* object_end right after a key */
-  JWRITE_E_SOURCE,            /* jwrite_error(): the input reported an error */
-  JWRITE_E_NUMBER,            /* number text empty, or with a byte no number has */
+  JWRITE_E_WRITE = 1,        /* the Writer refused the bytes */
+  JWRITE_E_NOMEM,            /* the frame stack could not grow */
+  JWRITE_E_EXPECTED_KEY,     /* value inside an object, no key before it */
+  JWRITE_E_KEY_AT_ROOT,      /* key outside any container */
+  JWRITE_E_KEY_IN_ARRAY,     /* key inside an array */
+  JWRITE_E_EXPECTED_VALUE,   /* key written twice in a row */
+  JWRITE_E_UNMATCHED_OBJECT, /* object_end with nothing open */
+  JWRITE_E_UNMATCHED_ARRAY,  /* array_end with nothing open */
+  JWRITE_E_NOT_ARRAY,        /* object_end inside an array */
+  JWRITE_E_NOT_OBJECT,       /* array_end inside an object */
+  JWRITE_E_PENDING_KEY,      /* object_end right after a key */
+  JWRITE_E_SOURCE,           /* jwrite_error(): the input reported an error */
+  JWRITE_E_NUMBER,           /* number text empty, or with a byte no number has */
 };
 
 /* the text for a failed event's return value: jwrite_error_message(-r) */

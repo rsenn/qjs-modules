@@ -1,10 +1,11 @@
 #include "predicate.h"
-#include <quickjs.h>
-#include <libregexp.h>
-#include <ctype.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 #include "debug.h"
+
+#include <libregexp.h>
+#include <ctype.h>
+#include <math.h>
 
 /**
  * \addtogroup predicate

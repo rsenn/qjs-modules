@@ -81,7 +81,7 @@ struct JsonParser {
   int skip_depth;
 
   /* json_getc_skipws(): comment scan state, 0 outside a comment */
-  int cmt_state;
+  int cmt_state, cmt_column;
   BOOL comments; /* report comments as JSON_TYPE_COMMENT instead of skipping them */
 };
 

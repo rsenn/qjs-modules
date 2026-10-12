@@ -56,9 +56,9 @@
 
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
-ssize_t
-alloc_len(uintptr_t len) {
-  return ((len + (len >> 2) + 30) + 31) & (~(uintptr_t)31);
+static ssize_t
+alloc_len(size_t len) {
+  return ((len + (len >> 2) + 30) + 31) & (~(size_t)31);
 }
 
 /**
@@ -69,11 +69,9 @@ alloc_len(uintptr_t len) {
 int64_t
 array_search(void* a, size_t m, size_t elsz, void* needle) {
   char* ptr = a;
-  int64_t n, ret;
+  size_t n = m / elsz;
 
-  n = m / elsz;
-
-  for(ret = 0; ret < n; ret++) {
+  for(size_t ret = 0; ret < n; ret++) {
     if(!memcmp(ptr, needle, elsz))
       return ret;
 
@@ -84,17 +82,22 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
 }
 
 #undef js_realloc_rt
+
 void
 dbuf_init_ctx(JSContext* ctx, DynBuf* s) {
-  dbuf_init2(s, ctx ? JS_GetRuntime(ctx) : 0, ctx ? (DynBufReallocFunc*)&js_realloc_rt : 0);
+  assert(ctx);
+  dbuf_init_rt(JS_GetRuntime(ctx), s);
+}
+
+void
+dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
+  assert(rt);
+  dbuf_init2(s, rt, (DynBufReallocFunc*)&js_realloc_rt);
 }
 
 void
 dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
-  size_t i = 0, j;
-  char c;
-
-  while(i < len) {
+  for(size_t j, i = 0; i < len;) {
     if((j = predicate_find(&str[i], len - i, pred))) {
       dbuf_append(db, (const uint8_t*)&str[i], j);
       i += j;
@@ -109,6 +112,7 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
       dbuf_append(db, (const uint8_t*)"x1b", 3);
     } else {
       int r = pred(str[i]);
+      char c;
 
       dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
 
@@ -175,11 +179,9 @@ const uint8_t escape_backquote_tab[256] = {
 
 void
 dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
-  size_t clen;
-  int32_t c;
-  const uint8_t *pos, *end, *next;
-
-  for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
+  for(const uint8_t *next, *pos = (const uint8_t*)str, *end = pos + len; pos < end; pos = next) {
+    size_t clen;
+    int32_t c;
     uint8_t r, ch;
 
     if((c = unicode_from_utf8(pos, end - pos, &next)) < 0)
@@ -189,10 +191,8 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
     ch = c;
     r = (clen >= 2 || c > 0xff) ? 'u' : table[c];
 
-    if(r == 'u' && clen > 1 && (c & 0xffffff00) == 0) {
+    if(r == 'u' && clen > 1 && (c & 0xffffff00) == 0)
       r = 'x';
-      // ch = c >> 8;
-    }
 
     if(r == '%') {
       static const char hexdigits[] = "0123456789ABCDEF";
@@ -217,10 +217,7 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
 
 void
 dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(const char*, size_t*)) {
-  size_t i = 0, j;
-  // char c;
-
-  while(i < len) {
+  for(size_t j, i = 0; i < len;) {
     int r = 0;
 
     if((j = byte_chr(&str[i], len - i, '\\'))) {
@@ -241,7 +238,7 @@ dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(con
     }
 
     if(r >= 0)
-      dbuf_putc(db, /*n > 1 ||*/ r ? /*(r > 1 && r < 256) ?*/ r : str[i]);
+      dbuf_putc(db, r ? r : str[i]);
 
     i += n;
   }
@@ -361,6 +358,28 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   return r;
 }
 
+static void
+dbuf_freearraybuffer(JSRuntime* rt, void* opaque, void* ptr) {
+  DynBufReallocFunc* realloc_func = opaque;
+
+  ptr = realloc_func(rt, ptr, 0);
+  assert(ptr == NULL);
+}
+
+/*
+  void JSFreeArrayBufferDataFunc(JSRuntime *rt, void *opaque, void *ptr);
+  void *DynBufReallocFunc       (void *opaque, void *ptr, size_t size);
+*/
+
+JSValue
+dbuf_toarraybuffer(DynBuf* s, JSContext* ctx) {
+  assert(s->opaque == NULL || (s->realloc_func == &js_realloc_rt && s->opaque == JS_GetRuntime(ctx)));
+  assert(s->buf);
+
+  MemoryBlock block = block_from_dynbuf(s);
+  return block_arraybuffer(&block, dbuf_freearraybuffer, s->realloc_func, ctx);
+}
+
 ssize_t
 dbuf_load(DynBuf* s, const char* filename) {
   FILE* fp;
@@ -391,17 +410,15 @@ dbuf_load(DynBuf* s, const char* filename) {
 
 int
 dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
-
   s->size += vsnprintf((char*)(s->buf + s->size), s->allocated_size - s->size, fmt, ap);
-
   return 0;
 }
 
 size_t
 dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
-  size_t i, n = 0;
+  size_t n = 0;
 
-  for(i = 0; i < sizeof(bits) * 8; i++) {
+  for(size_t i = 0; i < sizeof(bits) * 8; i++) {
     if(bits & (1 << i)) {
       size_t len = strlen(names[i]);
 
@@ -558,7 +575,7 @@ block_mmap(const char* filename, BOOL shared) {
 
 int
 block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
-#if 0 // defined(HAVE_FSTAT) && !defined(_WIN32)
+#if defined(HAVE_FSTAT) && !defined(_WIN32)
   int fd;
   void* ptr;
   struct stat st;
@@ -622,6 +639,20 @@ block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
 #endif
 
   return -1;
+}
+
+MemoryBlock
+block_from_dynbuf(DynBuf* s) {
+  MemoryBlock ret = {s->buf, s->size};
+
+  if(s->allocated_size > ret.size)
+    ret.base = s->realloc_func(s->opaque, ret.base, ret.size);
+
+  s->buf = NULL;
+  s->size = 0;
+  s->allocated_size = 0;
+
+  return ret;
 }
 
 int
@@ -715,7 +746,7 @@ range_overlap(PointerRange a, PointerRange b) {
 }
 
 PointerRange
-range_from_buf(const void* x, uintptr_t n) {
+range_from_buf(const void* x, size_t n) {
   return (PointerRange){(char*)x, (char*)x + n};
 }
 
@@ -725,11 +756,11 @@ range_from_str(const char* s) {
 }
 
 int
-range_resize(PointerRange* r, uintptr_t newlen) {
-  uintptr_t len = range_size(*r);
+range_resize(PointerRange* r, size_t newlen) {
+  size_t len = range_size(*r);
 
   if(newlen > len) {
-    uintptr_t res = alloc_len(len + 1);
+    size_t res = alloc_len(len + 1);
 
     if(newlen < res)
       return -1;
@@ -741,7 +772,7 @@ range_resize(PointerRange* r, uintptr_t newlen) {
 }
 
 int
-range_write(PointerRange* r, const void* x, uintptr_t n) {
+range_write(PointerRange* r, const void* x, size_t n) {
   ssize_t len = range_size(*r);
   ssize_t a = alloc_len(len + n + 1);
 
@@ -797,7 +828,6 @@ inputbuffer_clone(const InputBuffer* in, JSContext* ctx) {
   InputBuffer ret = INPUTBUFFER();
 
   inputbuffer_clone2(&ret, in, ctx);
-
   return ret;
 }
 
@@ -930,11 +960,8 @@ indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[]
 
 inline int
 inputbuffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *ptr, *next;
-  int cp;
-
-  next = ptr = inputbuffer_pointer(in);
-  cp = unicode_from_utf8(ptr, inputbuffer_remain(in), &next);
+  const uint8_t *next, *ptr = inputbuffer_pointer(in);
+  int cp = unicode_from_utf8(ptr, inputbuffer_remain(in), &next);
 
   *lenp = next - ptr;
 
@@ -996,8 +1023,10 @@ unicode_decode_utf8(const uint8_t* buf, int max_len, void* out) {
 int
 unicode_encode_utf8(uint8_t* buf, int max_len, unsigned int c) {
   int len = unicode_len_utf8(c);
+
   if(len > 0 && len <= max_len)
     return unicode_to_utf8(buf, c);
+
   return len;
 }
 

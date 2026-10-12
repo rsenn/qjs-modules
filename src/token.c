@@ -2,7 +2,7 @@
 #include "debug.h"
 #include "token.h"
 
-static uint64_t token_seq;
+static thread_local uint64_t token_seq;
 
 /**
  * \addtogroup token

@@ -53,8 +53,8 @@ enum {
 
 static void
 js_arraybuffer_sink_free(JSRuntime* rt, void* opaque, void* ptr) {
-  /* the DynBuf grows via libc realloc (dbuf_default_realloc), not the engine's allocator */
-  free(ptr);
+  /* the DynBuf grows via js_realloc_rt */
+  js_free_rt(rt, ptr);
 }
 
 static JSValue
@@ -85,24 +85,10 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
       inputbuffer_free(&buf, ctx);
       break;
     }
-    case METHOD_FLUSH: {
-      if(s->buf && s->size) {
-        ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
-
-        dbuf_init_ctx(ctx, s);
-      }
-
-      break;
-    }
+    case METHOD_FLUSH:
     case METHOD_END: {
-      if(s->buf && s->size) {
-        ret = JS_NewArrayBuffer(ctx, s->buf, s->size, js_arraybuffer_sink_free, 0, FALSE);
-
-        s->buf = 0;
-
-        dbuf_free(s);
-      }
-
+      if(s->buf && s->size)
+        ret = dbuf_toarraybuffer(s, ctx);
       break;
     }
   }

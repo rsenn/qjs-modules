@@ -10,16 +10,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* jwrite_put() and jwrite_put_string() return the bytes on full success, 0 if the writer ran out of
- * room (a chunked destination signalling "retry later"), or -1 on a real error. Callers
- * must check the return value before mutating any traversal state, so a blocked write can
- * be retried later without having advanced past what was actually delivered.
+/* jwrite_put() and jwrite_put_string() return the bytes on full success,
+ * 0 if the writer ran out of room (a chunked destination signalling
+ * retry later"), or -1 on a real error.
+ * Callers must check the return value before mutating any traversal state,
+ * so a blocked write can be retried later without having advanced past what
+ * was actually delivered.
  *
- * All multi-byte pieces (escapes, numbers, indentation, literals) are written one byte at
- * a time via jwrite_put() rather than as a single bulk write: against a bounded destination
- * (see JsonSerializer's zero-copy .read(buffer)) a bulk write is all-or-nothing, so any
- * atomic unit wider than the caller's buffer could never be delivered at all. Byte-granular
- * writes guarantee forward progress as long as the destination has room for at least 1 byte. */
+ * All multi-byte pieces (escapes, numbers, indentation, literals) are
+ * written one byte at a time via jwrite_put() rather than as a single
+ * bulk write: against a bounded destination (see JsonSerializer's zero-copy
+ * .read(buffer)) a bulk write is all-or-nothing, so any atomic unit wider
+ * than the caller's buffer could never be delivered at all. Byte-granular
+ * writes guarantee forward progress as long as the destination has room
+ * for at least 1 byte. */
+
 /* jwrite_put: writes `len` bytes one at a time.
  *
  * returns len, 1 for len 0, 0 when the Writer is blocked, -1 on error. */
@@ -31,12 +36,10 @@ jwrite_put(Writer* wr, const void* buf, size_t len) {
     return 1;
 
   for(size_t i = 0; i < len; i++) {
-    ssize_t w = writer_putc(wr, p[i]);
+    ssize_t w;
 
-    if(w < 0)
-      return -1;
-    if(w == 0)
-      return 0;
+    if((w = writer_putc(wr, p[i])) <= 0)
+      return w;
   }
 
   return (ssize_t)len;
@@ -188,6 +191,8 @@ jwrite_indent(JsonWriter* wr) {
 
       w += r;
     }
+  } else if(!wr->opts.minify) {
+    w = jwrite_outc(wr, ' ');
   }
 
   return w;
@@ -197,8 +202,9 @@ static ssize_t
 jwrite_comma_indent(JsonWriter* wr, uint32_t count) {
   ssize_t r, w = 0;
 
-  if(count > 0 && (w = jwrite_outc(wr, ',')) < 0)
-    return w;
+  if(count > 0)
+    if((w = jwrite_outc(wr, ',')) < 0)
+      return w;
 
   if((r = jwrite_indent(wr)) < 0)
     return r;
@@ -270,7 +276,7 @@ jwrite_key(JsonWriter* wr, const char* kstr, size_t klen) {
 
   w += r;
 
-  if(jwrite_pretty(wr)) {
+  if(!wr->opts.minify) {
     if((r = jwrite_outc(wr, ' ')) < 0)
       return r;
 
@@ -458,17 +464,50 @@ jwrite_string(JsonWriter* wr, const char* str, size_t len) {
 }
 
 /* the JsonWriteInterface members: each casts `opaque` back to the writer */
-static ssize_t jwrite_if_error(void* wr, const char* str, size_t len) { return jwrite_error(wr, str, len); }
-static ssize_t jwrite_if_null(void* wr) { return jwrite_null(wr); }
-static ssize_t jwrite_if_true(void* wr) { return jwrite_true(wr); }
-static ssize_t jwrite_if_false(void* wr) { return jwrite_false(wr); }
-static ssize_t jwrite_if_number(void* wr, const char* str, size_t len) { return jwrite_number(wr, str, len); }
-static ssize_t jwrite_if_string(void* wr, const char* str, size_t len) { return jwrite_string(wr, str, len); }
-static ssize_t jwrite_if_array_start(void* wr) { return jwrite_array_start(wr); }
-static ssize_t jwrite_if_array_end(void* wr) { return jwrite_array_end(wr); }
-static ssize_t jwrite_if_object_start(void* wr) { return jwrite_object_start(wr); }
-static ssize_t jwrite_if_object_end(void* wr) { return jwrite_object_end(wr); }
-static ssize_t jwrite_if_key(void* wr, const char* str, size_t len) { return jwrite_key(wr, str, len); }
+static ssize_t
+jwrite_if_error(void* wr, const char* str, size_t len) {
+  return jwrite_error(wr, str, len);
+}
+static ssize_t
+jwrite_if_null(void* wr) {
+  return jwrite_null(wr);
+}
+static ssize_t
+jwrite_if_true(void* wr) {
+  return jwrite_true(wr);
+}
+static ssize_t
+jwrite_if_false(void* wr) {
+  return jwrite_false(wr);
+}
+static ssize_t
+jwrite_if_number(void* wr, const char* str, size_t len) {
+  return jwrite_number(wr, str, len);
+}
+static ssize_t
+jwrite_if_string(void* wr, const char* str, size_t len) {
+  return jwrite_string(wr, str, len);
+}
+static ssize_t
+jwrite_if_array_start(void* wr) {
+  return jwrite_array_start(wr);
+}
+static ssize_t
+jwrite_if_array_end(void* wr) {
+  return jwrite_array_end(wr);
+}
+static ssize_t
+jwrite_if_object_start(void* wr) {
+  return jwrite_object_start(wr);
+}
+static ssize_t
+jwrite_if_object_end(void* wr) {
+  return jwrite_object_end(wr);
+}
+static ssize_t
+jwrite_if_key(void* wr, const char* str, size_t len) {
+  return jwrite_key(wr, str, len);
+}
 
 JsonWriteInterface
 jwrite_interface(JsonWriter* wr) {

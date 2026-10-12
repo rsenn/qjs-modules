@@ -764,7 +764,7 @@ tests({
     return String.fromCharCode(...buf.subarray(0, buf.indexOf(0)));
   };
 
-  eq(emit({}), '{"id":255,"kebab-key":"it\'s","list":[-31,1.5]}');
+  eq(emit({ minify: true }), '{"id":255,"kebab-key":"it\'s","list":[-31,1.5]}');
   eq(emit({ bareKeys: true }), '{id:255,"kebab-key":"it\'s",list:[-31,1.5]}');
   eq(emit({ singleQuotes: true }), "{'id':255,'kebab-key':'it\\'s','list':[-31,1.5]}");
   eq(emit({ hexNumbers: true }), '{"id":0xff,"kebab-key":"it\'s","list":[-0x1f,1.5]}');

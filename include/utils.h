@@ -4,15 +4,8 @@
 #include <quickjs.h>
 #include <list.h>
 #include <cutils.h>
-#include <string.h>
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <time.h>
-/*#ifdef HAVE_THREADS_H
-#include <threads.h>
-#endif*/
 #include "defines.h"
 
 #if defined(__EMSCRIPTEN__) && defined(__GNUC__)
@@ -37,6 +30,7 @@ typedef struct JSObject JSObject;
 
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
 #define MAX_SAFE_INTEGER 9007199254740991
+#define MIN_SAFE_INTEGER -9007199254740991
 #define JS_EVAL_IS_MAIN (1 << 2)
 #define JS_EVAL_FLAG_MASK (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | JS_EVAL_FLAG_ASYNC)
 
@@ -95,6 +89,14 @@ void __list_splice(struct list_head*, struct list_head*);
 void list_splice(struct list_head*, struct list_head*);
 void __list_sort(struct list_head*, int (*cmp)(struct list_head*, struct list_head*, void*), void*);
 void __list_reverse(struct list_head*);
+
+static inline struct list_head*
+list_init_if_zero(struct list_head* head) {
+  if(head->next == NULL && head->prev == NULL)
+    init_list_head(head);
+
+  return head;
+}
 
 #define list_first(list, type, member) list_entry(list_front((list)), type, member)
 #define list_first_entry(ptr, type, member) list_entry((ptr)->next, type, member)
@@ -433,6 +435,8 @@ js_tostring_free(JSContext* ctx, JSValue value) {
 }
 
 wchar_t* js_towstringlen(JSContext*, size_t* lenp, JSValueConst value);
+JSValue js_newuint64(JSContext*, uint64_t);
+JSValue js_newint64(JSContext*, int64_t);
 JSValue js_newpointer(JSContext*, void*);
 
 static inline wchar_t*
@@ -854,10 +858,19 @@ JSValue js_iohandler_fn(JSContext*, BOOL write, const char* global_obj);
 BOOL js_iohandler_set(JSContext*, JSValueConst set_handler, int fd, JSValue handler);
 
 JSValue js_generator_prototype(JSContext*);
+JSValue js_asyncgenerator_prototype(JSContext*);
 
 static inline JSValue
 js_generator_constructor(JSContext* ctx) {
   JSValue proto = js_generator_prototype(ctx);
+  JSValue ret = js_object_constructor(ctx, proto);
+  JS_FreeValue(ctx, proto);
+  return ret;
+}
+
+static inline JSValue
+js_asyncgenerator_constructor(JSContext* ctx) {
+  JSValue proto = js_asyncgenerator_prototype(ctx);
   JSValue ret = js_object_constructor(ctx, proto);
   JS_FreeValue(ctx, proto);
   return ret;

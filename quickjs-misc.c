@@ -822,12 +822,12 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(!found)
     return JS_NULL;
 
-  ptrdiff_t ofs = found - haystack.base;
+  int64_t ofs = found - haystack.base;
 
-  if(ofs > MAX_SAFE_INTEGER || (n && JS_IsBigInt(ctx, argv[i])))
+  if(n && JS_IsBigInt(ctx, argv[i]))
     return JS_NewBigUint64(ctx, ofs);
 
-  return JS_NewInt64(ctx, ofs);
+  return js_newint64(ctx, ofs);
 }
 
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
@@ -1112,7 +1112,6 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ret = JS_NewArray(ctx);
   JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ts.tv_sec));
   JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ts.tv_nsec));
-
   return ret;
 }
 
@@ -3446,14 +3445,11 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   JS_ToInt32(ctx, &fd, argv[0]);
 
-  if(argc > 1 && JS_IsObject(argv[1])) {
-    JSValue bi = JS_GetPropertyStr(ctx, argv[1], "bigint");
-    use_bigint = JS_ToBool(ctx, bi);
-    JS_FreeValue(ctx, bi);
-  }
+  if(argc > 1) 
+    use_bigint = JS_IsObject(argv[1]) ? js_get_propertystr_bool(ctx, argv[1], "bigint") : JS_ToBool(ctx, argv[1]);
 
-  new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
-  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue (*)(JSContext*, uint64_t))&JS_NewInt64;
+  new64.i = use_bigint ? JS_NewBigInt64 : js_newint64;
+  new64.u = use_bigint ? JS_NewBigUint64 : js_newuint64;
 
 #if HAVE_FSTAT
   if((res = fstat(fd, &st)) == -1)
@@ -3505,7 +3501,6 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   JS_SetPropertyUint32(ctx, ret, 0, obj);
   JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt32(ctx, err));
-
   return ret;
 }
 
@@ -3524,19 +3519,20 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       int32_t fd = -1;
 
       JS_ToInt32(ctx, &fd, argv[0]);
-      ret = JS_NewInt64(ctx, _get_osfhandle(fd));
+      ret = js_newint64(ctx, _get_osfhandle(fd));
       break;
     }
     case FUNC_OPEN_OSFHANDLE: {
-      int64_t hnd = -1;
+      intptr_t hnd = -1;
       int32_t flags = 0;
 
-      JS_ToInt64(ctx, &hnd, argv[0]);
+if(argc > 0)
+       hnd= js_toint64(ctx,  argv[0]);
 
       if(argc > 1)
         JS_ToInt32(ctx, &flags, argv[1]);
 
-      ret = JS_NewInt32(ctx, _open_osfhandle((intptr_t)hnd, flags));
+      ret = JS_NewInt32(ctx, _open_osfhandle((HANDLE)hnd, flags));
       break;
     }
   }

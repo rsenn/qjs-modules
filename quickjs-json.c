@@ -1490,7 +1490,6 @@ static JSClassDef js_jsonserializer_class = {
 /* JsonWriter: push-based incremental JSON writer                         */
 /* ---------------------------------------------------------------------- */
 
-
 static JSClassID js_jsonwriter_class_id = 0;
 static JSValue jsonwriter_proto, jsonwriter_ctor;
 
@@ -1509,20 +1508,19 @@ js_jsonwriter_options(JSContext* ctx, JSValueConst obj, JsonWriteOptions* opts) 
   memset(opts, 0, sizeof(*opts));
 
   if(JS_IsNumber(obj)) {
-    opts->indent = js_toint32(ctx, obj);
+    opts->indent = js_touint32(ctx, obj);
     return;
   }
 
   if(!JS_IsObject(obj))
     return;
 
-  if(js_has_propertystr(ctx, obj, "indent"))
-    opts->indent = js_toint32_free(ctx, JS_GetPropertyStr(ctx, obj, "indent"));
-
   opts->bare_keys = js_get_propertystr_bool(ctx, obj, "bareKeys");
   opts->single_quotes = js_get_propertystr_bool(ctx, obj, "singleQuotes");
   opts->hex_numbers = js_get_propertystr_bool(ctx, obj, "hexNumbers");
-  opts->minify = js_get_propertystr_bool(ctx, obj, "minify");
+
+  if(!(opts->minify = js_get_propertystr_bool(ctx, obj, "minify")))
+    opts->indent = js_get_propertystr_uint32(ctx, obj, "indent");
 }
 
 /* js_jsonwriter_ret: turns a jwrite_*() result into a JS outcome.
@@ -1616,9 +1614,6 @@ js_jsonwriter_value(void* opaque, JSContext* ctx, JSValueConst val) {
   if(JS_IsBool(val))
     return js_jsonwriter_ret(ctx, JS_ToBool(ctx, val) ? jwrite_true(wr) : jwrite_false(wr));
 
-  if(JS_IsString(val))
-    return js_jsonwriter_text(ctx, wr, val, TRUE);
-
   if(JS_IsNumber(val)) {
     double d;
 
@@ -1646,7 +1641,8 @@ js_jsonwriter_walk(void* opaque) {
 
 enum {
   WRITER_WRITTEN,
-  WRITER_LEVEL,
+  WRITER_DEPTH,
+  WRITER_COUNT,
   WRITER_STACK,
 };
 
@@ -1660,12 +1656,19 @@ js_jsonwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case WRITER_WRITTEN: ret = JS_NewInt64(ctx, wr->written); break;
-    case WRITER_LEVEL: ret = JS_NewInt32(ctx, vector_size(&wr->stack, sizeof(JsonWriterFrame))); break;
-    case WRITER_STACK: {
-      ret = JS_NewArray(ctx);
+    case WRITER_DEPTH: ret = JS_NewUint32(ctx, vector_size(&wr->stack, sizeof(JsonWriterFrame))); break;
+    case WRITER_COUNT: {
+      if(!vector_empty(&wr->stack))
+        ret = JS_NewUint32(ctx, (vector_end_t(&wr->stack, JsonWriterFrame) - 1)->count);
 
+      break;
+    }
+    case WRITER_STACK: {
       JsonWriterFrame* frame;
       uint32_t i = 0;
+
+      ret = JS_NewArray(ctx);
+
       vector_foreach_t(&wr->stack, frame) {
         JSValue item = JS_NewObjectProto(ctx, JS_NULL);
         JS_SetPropertyStr(ctx, item, "isObject", JS_NewBool(ctx, frame->is_object));
@@ -1736,7 +1739,7 @@ static JSClassDef js_jsonwriter_class = {
 
 static const JSCFunctionListEntry js_jsonwriter_funcs[] = {
     JS_CGETSET_MAGIC_DEF("written", js_jsonwriter_get, 0, WRITER_WRITTEN),
-    JS_CGETSET_MAGIC_DEF("level", js_jsonwriter_get, 0, WRITER_LEVEL),
+    JS_CGETSET_MAGIC_DEF("depth", js_jsonwriter_get, 0, WRITER_DEPTH),
     JS_CGETSET_MAGIC_DEF("stack", js_jsonwriter_get, 0, WRITER_STACK),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonWriter", JS_PROP_CONFIGURABLE),
 };

@@ -13,7 +13,7 @@ enum {
 };
 
 /* internal json_getc_skipws() result: a complete comment is in json->token */
-#define JSON_COMMENT_SIG (-200)
+#define C_SIG (-200)
 
 /* skips whitespace and C/C++ comments, returns the next significant byte.
  *
@@ -23,44 +23,60 @@ enum {
  * ```
  *
  * with `json->comments` set, a finished comment is kept in the token and
- * JSON_COMMENT_SIG is returned instead of skipping it.
+ * C_SIG is returned instead of skipping it.
  *
  * a '/' not followed by '/' or '*' is returned as a plain byte (an error
  * for the caller); the byte after it is pushed back. */
 static int
 json_getc_skipws(JsonParser* json) {
-  int c;
+  int c, ws_column = 0;
   size_t pos = json->token.size;
+
+  enum {
+    C_NONE = 0,
+    C_START,
+    C_ONELINE,
+    C_MULTILINE,
+    C_MULTILINE_END,
+  };
 
   for(;;) {
     if((c = json_getc(json)) < 0) {
       if(c == STREAM_EOF && json->cmt_state == 2 && json->comments) {
         json->cmt_state = 0;
-        return JSON_COMMENT_SIG;
+        return C_SIG;
       }
 
       return c;
     }
 
     switch(json->cmt_state) {
-      case 0:
+      case C_NONE:
         if(c == '/') {
-          json->cmt_state = 1;
+          json->cmt_state = C_START;
+          json->cmt_column = ws_column;
           break;
         }
+
+        if(is_whitespace_char(c) && c != '\n') {
+          ws_column++;
+          break;
+        }
+
+        ws_column = 0;
 
         if(!is_whitespace_char(c))
           return c;
 
         break;
 
-      case 1:
+      case C_START:
         if(c == '/') {
-          json->cmt_state = 2;
+          json->cmt_state = C_ONELINE;
         } else if(c == '*') {
-          json->cmt_state = 3;
+          json->cmt_state = C_MULTILINE;
         } else {
-          json->cmt_state = 0;
+          json->cmt_state = C_NONE;
           json_ungetc(json, c);
           json->token.size = pos;
           dbuf_putc(&json->token, '/');
@@ -69,36 +85,54 @@ json_getc_skipws(JsonParser* json) {
 
         break;
 
-      case 2:
+      case C_ONELINE:
         if(c == '\n') {
           json->cmt_state = 0;
 
           if(json->comments) {
             --json->token.size; /* the newline is not part of the comment */
-            return JSON_COMMENT_SIG;
+            return C_SIG;
           }
         }
 
         break;
 
-      case 3:
+      case C_MULTILINE:
         if(c == '*')
-          json->cmt_state = 4;
+          json->cmt_state = C_MULTILINE_END;
 
         break;
 
-      case 4:
+      case C_MULTILINE_END:
         if(c == '/') {
-          json->cmt_state = 0;
+          json->cmt_state = C_NONE;
 
           if(json->comments)
-            return JSON_COMMENT_SIG;
+            return C_SIG;
         } else if(c != '*') {
-          json->cmt_state = 3;
+          json->cmt_state = C_MULTILINE;
         }
 
         break;
     }
+
+    /* eat leading indentation */
+    if(json->cmt_state == C_MULTILINE)
+      if(c == '\n') {
+        int eat = json->cmt_column;
+
+        while(--eat >= 0) {
+          if((c = json_getc(json)) < 0) {
+            if(c == STREAM_EOF)
+              return C_SIG;
+
+            return c;
+          }
+
+          if(is_whitespace_char(c))
+            json->token.size--;
+        }
+      }
 
     if(!(json->comments && json->cmt_state))
       json->token.size = pos;
@@ -518,7 +552,7 @@ json_parse(JsonParser* json) {
 
     c = json_getc_skipws(json);
 
-    if(c == JSON_COMMENT_SIG)
+    if(c == C_SIG)
       return JSON_TYPE_COMMENT;
 
     if(c < 0)

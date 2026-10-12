@@ -1,14 +1,10 @@
-
-#undef _ISOC99_SOURCE
-#define _ISOC99_SOURCE 1
 #include "utils.h"
 #include "defines.h"
 #include "vector.h"
 #include "buffer-utils.h"
 #include "debug.h"
 #include "path.h"
-#include <list.h>
-#include <cutils.h>
+
 #include <libregexp.h>
 #include <time.h>
 #include <math.h>
@@ -28,8 +24,8 @@
 #include <alloca.h>
 #endif
 
-static JSValue generator_prototype, asyncgenerator_prototype, typedarray_prototype;
-// static JSModuleDef* io_module;
+static thread_local JSValue generator_prototype, asyncgenerator_prototype, typedarray_prototype;
+static thread_local JSClassID js_cclosure_class_id;
 
 /**
  * \addtogroup utils
@@ -2166,7 +2162,7 @@ js_typedarray_prototype(JSContext* ctx) {
     JSValue ta_proto = JS_GetPrototype(ctx, u8_proto);
 
     JS_FreeValue(ctx, u8_proto);
-    typedarray_prototype = JS_DupValue(ctx, ta_proto);
+    typedarray_prototype = ta_proto;
     return ta_proto;
   }
 
@@ -2891,11 +2887,27 @@ js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
 }
 
 JSValue
+js_newint64(JSContext* ctx, int64_t v) {
+  if(v > MAX_SAFE_INTEGER || v < MIN_SAFE_INTEGER)
+    return JS_NewBigInt64(ctx, v);
+
+  return JS_NewInt64(ctx, v);
+}
+
+JSValue
+js_newuint64(JSContext* ctx, uint64_t v) {
+  if(v > MAX_SAFE_INTEGER)
+    return JS_NewBigUint64(ctx, v);
+
+  return JS_NewInt64(ctx, v);
+}
+
+JSValue
 js_newpointer(JSContext* ctx, void* ptr) {
   if(ptr == 0)
     return JS_NULL;
 
-  return DEF6432(JS_NewBigUint64, JS_NewUint32)(ctx, (uintptr_t)ptr);
+  return DEF6432(js_newuint64, JS_NewUint32)(ctx, (uintptr_t)ptr);
 }
 
 JSValue
@@ -2932,8 +2944,6 @@ typedef struct {
   void* opaque;
   void (*opaque_finalize)(JSRuntime*, void*);
 } CClosureRecord;
-
-static thread_local JSClassID js_cclosure_class_id;
 
 static inline CClosureRecord*
 js_cclosure_data(JSValueConst value) {
@@ -2983,7 +2993,7 @@ js_cclosure_finalizer(JSRuntime* rt, JSValue val) {
   }
 }
 
-static JSClassDef js_cclosure_class = {
+static thread_local JSClassDef js_cclosure_class = {
     .class_name = "JSCClosure",
     .finalizer = js_cclosure_finalizer,
     .call = js_cclosure_call,
@@ -3034,6 +3044,24 @@ js_generator_prototype(JSContext* ctx) {
     generator_prototype = JS_DupValue(ctx, ret);
   } else {
     ret = JS_DupValue(ctx, generator_prototype);
+  }
+
+  return ret;
+}
+
+JSValue
+js_asyncgenerator_prototype(JSContext* ctx) {
+  JSValue ret;
+
+  if(JS_VALUE_GET_TAG(asyncgenerator_prototype) != JS_TAG_OBJECT) {
+    const char* code = "(async function *agen() {})()";
+    JSValue agen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+
+    ret = JS_GetPrototype(ctx, agen);
+    JS_FreeValue(ctx, agen);
+    asyncgenerator_prototype = JS_DupValue(ctx, ret);
+  } else {
+    ret = JS_DupValue(ctx, asyncgenerator_prototype);
   }
 
   return ret;

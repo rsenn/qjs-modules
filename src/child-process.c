@@ -7,6 +7,7 @@
 #include "child-process.h"
 #include "path.h"
 #include "debug.h"
+#include "utils.h"
 
 #include <stdlib.h>
 #include <errno.h>
@@ -68,7 +69,7 @@
  * \addtogroup child-process
  * @{
  */
-static struct list_head child_process_list = LIST_HEAD_INIT(child_process_list);
+static thread_local struct list_head child_process_list;
 
 void
 child_process_notify(ChildProcess* cp) {
@@ -91,6 +92,8 @@ child_process_waitpid(int pid, int* status, int flags) {
   ChildProcess* procs[MAXIMUM_WAIT_OBJECTS];
   struct list_head* el;
   DWORD n = 0, r, code = 0;
+
+  list_init_if_zero(&child_process_list);
 
   list_for_each(el, &child_process_list) {
     ChildProcess* cp = list_entry(el, ChildProcess, link);
@@ -156,12 +159,14 @@ child_process_sigchld(int signum) {
 
 bool
 child_process_empty(void) {
-  return list_empty(&child_process_list);
+  return list_empty(list_init_if_zero(&child_process_list));
 }
 
 ChildProcess*
 child_process_get(int pid) {
   struct list_head* el;
+
+  list_init_if_zero(&child_process_list);
 
   list_for_each(el, &child_process_list) {
     ChildProcess* cp = list_entry(el, ChildProcess, link);
@@ -355,6 +360,8 @@ child_process_spawn(ChildProcess* cp) {
         cp->child_fds[i] = -1;
         cp->pipe_fds[i] = -1;
       }
+
+  list_init_if_zero(&child_process_list);
 
   list_add_tail(&cp->link, &child_process_list);
 
