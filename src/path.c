@@ -1097,7 +1097,7 @@ path_root2(const char* x, size_t n) {
   if(n > 0 && x[0] == PATHSEP_C)
     return 1;
 
-  if(n >= 3 && isalnum(x[0]) && x[1] == ':' && path_issep(x[2]))
+  if(n >= 3 && is_alphanumeric_char(x[0]) && x[1] == ':' && path_issep(x[2]))
     return 3;
 
   return 0;

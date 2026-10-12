@@ -30,7 +30,6 @@
 
 size_t ansi_skip(const char*, size_t);
 size_t ansi_truncate(const char*, size_t, size_t limit);
-size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
 size_t byte_finds(const void*, size_t, const char* what);
 size_t byte_chrs(const void* in, size_t len, const char needle[], size_t nl);
 size_t str_copy(char* out, const char* in);
