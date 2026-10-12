@@ -5,7 +5,8 @@
 #include <cutils.h>
 #include <stdarg.h>
 
-#include "char-utils.h"
+#include "defines.h"
+// #include "char-utils.h"
 
 /**
  * \defgroup buffer-utils buffer-utils: Buffer Utilities

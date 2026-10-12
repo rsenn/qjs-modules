@@ -61,6 +61,10 @@
 
 #ifndef HAVE_GLOB
 
+#include "char-utils.h"
+#include "path.h"
+#include "compat/openbsd-glob.h"
+
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -71,7 +75,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -83,10 +86,6 @@
 #ifndef S_ISLNK
 #define S_ISLNK(m) (0)
 #endif
-
-#include "compat/openbsd-glob.h"
-#include "path.h"
-#include "char-utils.h"
 
 #ifndef HAVE_LSTAT
 #define lstat stat

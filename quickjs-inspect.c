@@ -1019,8 +1019,9 @@ inspect_key(Inspector* insp, JSAtom key) {
   const char* str = 0;
   JSValue value = JS_AtomToValue(ctx, key);
   BOOL is_string = JS_IsString(value);
+  size_t len;
 
-  if(is_string && (str = JS_AtomToCString(ctx, key)) && is_identifier(str)) {
+  if(is_string && (str = JS_AtomToCStringLen(ctx, &len, key)) && is_identifier(str, len)) {
     writer_puts(wr, str);
   } else {
     if(!is_string)

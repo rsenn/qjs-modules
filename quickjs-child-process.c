@@ -1,10 +1,10 @@
-#include "defines.h"
-#include "utils.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
+#include "utils.h"
+#include "defines.h"
 #include "property-enumeration.h"
-#include "child-process.h"
 #include "debug.h"
+#include "child-process.h"
 
 /**
  * \defgroup quickjs-child-process quickjs-child_process: Child process

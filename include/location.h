@@ -1,8 +1,8 @@
 #ifndef LOCATION_H
 #define LOCATION_H
 
-#include "utils.h"
 #include "char-utils.h"
+#include "utils.h"
 
 #ifdef JS_LOCATION_MODULE
 #define LOCATION_API VISIBLE

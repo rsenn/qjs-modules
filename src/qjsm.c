@@ -1,4 +1,10 @@
-#include <stdlib.h>
+#include "char-utils.h"
+#include "buffer-utils.h"
+
+#include <errno.h>
+#include <signal.h>
+
+/*#include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <inttypes.h>
@@ -6,10 +12,10 @@
 #include <strings.h>
 #include <assert.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <time.h>
-#include <signal.h>
+*/
+
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif

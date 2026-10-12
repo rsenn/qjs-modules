@@ -272,15 +272,6 @@ js_walk_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return w < 0 ? JS_EXCEPTION : JS_NewInt64(ctx, w);
 }
 
-static const JSCFunctionListEntry js_walk_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("key", 1, js_walk_method, WALK_METHOD_KEY),
-    JS_CFUNC_MAGIC_DEF("objectStart", 0, js_walk_method, WALK_METHOD_OBJECT_START),
-    JS_CFUNC_MAGIC_DEF("arrayStart", 0, js_walk_method, WALK_METHOD_ARRAY_START),
-    JS_CFUNC_MAGIC_DEF("objectEnd", 0, js_walk_method, WALK_METHOD_OBJECT_END),
-    JS_CFUNC_MAGIC_DEF("arrayEnd", 0, js_walk_method, WALK_METHOD_ARRAY_END),
-    JS_CFUNC_MAGIC_DEF("value", 1, js_walk_method, WALK_METHOD_VALUE),
-};
-
 static const JSCFunctionListEntry js_walk_tag[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WalkInterface", JS_PROP_CONFIGURABLE),
 };
@@ -293,7 +284,16 @@ static const JSCFunctionListEntry js_walk_tag[] = {
  *   returns int  0, or -1 with an exception pending. */
 int
 js_walk_define(JSContext* ctx, JSValueConst obj) {
-  return JS_SetPropertyFunctionList(ctx, obj, js_walk_funcs, countof(js_walk_funcs));
+  static const JSCFunctionListEntry funcs[] = {
+      JS_CFUNC_MAGIC_DEF("key", 1, js_walk_method, WALK_METHOD_KEY),
+      JS_CFUNC_MAGIC_DEF("objectStart", 0, js_walk_method, WALK_METHOD_OBJECT_START),
+      JS_CFUNC_MAGIC_DEF("arrayStart", 0, js_walk_method, WALK_METHOD_ARRAY_START),
+      JS_CFUNC_MAGIC_DEF("objectEnd", 0, js_walk_method, WALK_METHOD_OBJECT_END),
+      JS_CFUNC_MAGIC_DEF("arrayEnd", 0, js_walk_method, WALK_METHOD_ARRAY_END),
+      JS_CFUNC_MAGIC_DEF("value", 1, js_walk_method, WALK_METHOD_VALUE),
+  };
+
+  return JS_SetPropertyFunctionList(ctx, obj, funcs, countof(funcs));
 }
 
 static void

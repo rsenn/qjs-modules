@@ -1,10 +1,12 @@
-#include "property-enumeration.h"
-#include "defines.h"
-#include <assert.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include "char-utils.h"
 #include "buffer-utils.h"
+#include "defines.h"
 #include "pointer.h"
+#include "property-enumeration.h"
+
+/*#include <assert.h>
+#include <stdint.h>
+#include <stdlib.h>*/
 
 /**
  * \addtogroup property-enumeration

@@ -1,10 +1,10 @@
-#include "defines.h"
-#include "quickjs-syscallerror.h"
-#include "buffer-utils.h"
 #include "char-utils.h"
+#include "buffer-utils.h"
 #include "utils.h"
+#include "defines.h"
 #include <errno.h>
 #include "debug.h"
+#include "quickjs-syscallerror.h"
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #include <windows.h>
@@ -81,7 +81,6 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf, JSContext* ctx) {
 
       --dbuf->size;
     }
-
 #else
     const char* msg;
 
@@ -102,22 +101,6 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf, JSContext* ctx) {
 
   dbuf_0(dbuf);
 }
-
-/*static char*
-stack_get(JSContext* ctx) {
-  JSValue error = js_global_new(ctx, "Error", 0, 0);
-  JSValue st = JS_GetPropertyStr(ctx, error, "stack");
-  const char* stack = JS_ToCString(ctx, st);
-  size_t pos = str_chr(stack, '\n');
-
-  if(stack[pos])
-    pos++;
-
-  char* ret = js_strdup(ctx, stack + pos);
-  JS_FreeCString(ctx, stack);
-  JS_FreeValue(ctx, error);
-  return ret;
-}*/
 
 SyscallError*
 js_syscallerror_data2(JSContext* ctx, JSValueConst value) {

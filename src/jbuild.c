@@ -3,9 +3,8 @@
  * rule: a container is attached to its parent when it is pushed, so the
  * partial tree is always reachable from jbuild_root(). */
 
-#include "jbuild.h"
 #include "char-utils.h"
-#include <string.h>
+#include "jbuild.h"
 
 typedef struct JsonBuilderFrame {
   struct JsonBuilderFrame* parent;

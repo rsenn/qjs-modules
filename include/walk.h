@@ -48,11 +48,11 @@ typedef enum {
  * {a: [1]} gives: object_start, key("a"), array_start, value(1),
  * array_end, object_end. */
 typedef struct {
-  Vector stack;        /* PropertyEnumeration, one per open container */
-  WalkInterface walk;  /* the callbacks, copied by value */
-  int flags;           /* JS_GPN_* flags for the property enumeration */
-  JSValue root;        /* the value being walked, owned */
-  unsigned state : 2;  /* WALK_START, WALK_RUNNING, WALK_DONE */
+  Vector stack;          /* PropertyEnumeration, one per open container */
+  WalkInterface walk;    /* the callbacks, copied by value */
+  int flags;             /* JS_GPN_* flags for the property enumeration */
+  JSValue root;          /* the value being walked, owned */
+  unsigned state : 2;    /* WALK_START, WALK_RUNNING, WALK_DONE */
   unsigned key_done : 1; /* key reported for the top frame's property */
   unsigned entered : 1;  /* the last event was a container start */
 } WalkIterator;

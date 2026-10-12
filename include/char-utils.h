@@ -1,6 +1,8 @@
 #ifndef CHAR_UTILS_H
 #define CHAR_UTILS_H
 
+#define _GNU_SOURCE 1
+
 #include <cutils.h>
 #include <string.h>
 #include "debug.h"
@@ -20,83 +22,6 @@
 
 #define str_equal(s, t) (!strcmp((s), (t)))
 
-static inline char
-is_quotable_char(const char c) {
-  switch(c) {
-    case '"': return c;
-    case '\\': return c;
-    case '/': return c;
-    case 'b': return '\b';
-    case 'f': return '\f';
-    case 'n': return '\n';
-    case 'r': return '\r';
-    case 't': return '\t';
-  }
-
-  return 0;
-}
-
-static inline int
-is_number_char(const char c) {
-  if(is_digit_char(c))
-    return 1;
-
-  switch(c) {
-    case '.':
-    case 'e':
-    case 'E':
-    case '+':
-    case '-': return 1;
-  }
-
-  return 0;
-}
-
-static inline BOOL
-is_utf16_high_surrogate(const uint32_t c) {
-  return c >= 0xd800 && c < 0xdc00;
-}
-
-static inline BOOL
-is_utf16_low_surrogate(const uint32_t c) {
-  return c >= 0xdc00 && c < 0xe000;
-}
-
-static inline int
-is_escape_char(int c) {
-  return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
-}
-
-// #define is_dot_char(c) ((c) == '.')0
-// #define is_backslash_char(c) ((c) == '\\')
-
-static inline int
-is_identifier(const char* str) {
-  if(!((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z') || *str == '$' || *str == '_'))
-    return 0;
-
-  while(*++str)
-    if(!is_identifier_char(*str))
-      return 0;
-
-  return 1;
-}
-
-static inline int
-is_integer(const char* str) {
-  if(*str == '-')
-    ++str;
-
-  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
-    return 0;
-
-  while(*++str)
-    if(!is_digit_char(*str))
-      return 0;
-
-  return 1;
-}
-
 static inline size_t
 byte_chr(const void* str, size_t len, char c) {
   const char* s = memchr(str, c, len);
@@ -109,27 +34,20 @@ byte_chr(const void* str, size_t len, char c) {
 
 static inline size_t
 byte_rchr(const void* haystack, size_t len, char needle) {
-  const char *s, *t;
+  const char* s = memrchr(haystack, needle, len);
 
-  for(s = (const char*)haystack, t = s + len;;) {
-    --t;
-
-    if(s > t)
-      break;
-
-    if(*t == needle)
-      return (size_t)(t - s);
-  }
+  if(s)
+    return s - (const char*)haystack;
 
   return len;
 }
 
 static inline size_t
 byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
-  const char *s, *t;
+  const char *s = str, *t = s + len;
 
-  for(s = str, t = s + len; s != t; s++)
-    if(byte_chr(needle, nl, *s) < nl)
+  for(; s != t; s++)
+    if(memchr(needle, *s, nl))
       break;
 
   return s - (const char*)str;
@@ -406,6 +324,107 @@ BOOL utf16_multiword(const void*);
 
 size_t u64toa_base(char*, uint64_t num, int base);
 size_t i64toa_base(char*, int64_t num, int base);
+
+static inline char
+is_quotable_char(const char c) {
+  switch(c) {
+    case '"': return c;
+    case '\\': return c;
+    case '/': return c;
+    case 'b': return '\b';
+    case 'f': return '\f';
+    case 'n': return '\n';
+    case 'r': return '\r';
+    case 't': return '\t';
+  }
+
+  return 0;
+}
+
+static inline int
+is_number_char(const char c) {
+  if(is_digit_char(c))
+    return 1;
+
+  switch(c) {
+    case '.':
+    case 'e':
+    case 'E':
+    case '+':
+    case '-': return 1;
+  }
+
+  return 0;
+}
+
+static inline BOOL
+is_utf16_high_surrogate(const uint32_t c) {
+  return c >= 0xd800 && c < 0xdc00;
+}
+
+static inline BOOL
+is_utf16_low_surrogate(const uint32_t c) {
+  return c >= 0xdc00 && c < 0xe000;
+}
+
+static inline int
+is_escape_char(int c) {
+  return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
+}
+
+/* bare_keys: ES5 IdentifierName, ASCII only; anything else stays quoted. */
+static inline BOOL
+is_identifier(const char* s, size_t len) {
+  if(len == 0 || is_digit_char((unsigned char)s[0]))
+    return FALSE;
+
+  for(size_t i = 0; i < len; i++)
+    if(!(is_alphanumeric_char((unsigned char)s[i]) || is_digit_char((unsigned char)s[i]) || s[i] == '_' || s[i] == '$'))
+      return FALSE;
+
+  return TRUE;
+}
+
+static inline BOOL
+is_integer(const char* str) {
+  if(*str == '-')
+    ++str;
+
+  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
+    return FALSE;
+
+  while(*++str)
+    if(!is_digit_char(*str))
+      return FALSE;
+
+  return TRUE;
+}
+
+/* number text: a digit, '+', '-' or '.' first, then letters, digits and
+ * those; keeps ',' quotes and brackets out of a value written verbatim. */
+static inline BOOL
+is_number(const char* s, size_t len) {
+  if(len == 0 || !(is_digit_char((unsigned char)s[0]) || s[0] == '+' || s[0] == '-' || s[0] == '.'))
+    return FALSE;
+
+  for(size_t i = 1; i < len; i++)
+    if(!(is_digit_char((unsigned char)s[i]) || is_alphanumeric_char((unsigned char)s[i]) || s[i] == '+' || s[i] == '-' || s[i] == '.'))
+      return FALSE;
+
+  return TRUE;
+}
+
+static inline BOOL
+is_xnumber(const char* s, size_t len) {
+  if(len < 3 || !str_start(s, "0x"))
+    return FALSE;
+
+  for(size_t i = 2; i < len; i++)
+    if(!(is_xdigit_char((unsigned char)s[i]) || s[i] == '.'))
+      return FALSE;
+
+  return TRUE;
+}
 
 /**
  * @}

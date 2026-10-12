@@ -1,7 +1,7 @@
-#include "predicate.h"
-#include "quickjs-predicate.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "debug.h"
+#include "quickjs-predicate.h"
 
 #include <libregexp.h>
 #include <ctype.h>

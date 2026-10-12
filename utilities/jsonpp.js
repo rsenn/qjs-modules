@@ -5,6 +5,7 @@ import * as os from 'os';
 import { JsonParser, JsonWriter } from 'json';
 import { toString, toArrayBuffer } from 'util';
 import { ArrayBufferSink } from 'arraybuffer_sink';
+import { mkstempSync } from 'fs';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT } = JsonParser;
 
@@ -39,19 +40,14 @@ function writeAtomic(file, text) {
 
   if(err) throw new Error(`cannot stat '${file}'`);
 
-  const tmp = `${file}.jsonpp-${Date.now()}.tmp`;
-  const fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, st.mode & 0o7777);
-
+  const fd = mkstempSync(`${file}.jsonpp-XXXXXX.tmp`);
   if(fd < 0) throw new Error(`cannot create '${tmp}'`);
-
   const f = std.fdopen(fd, 'w');
 
   try {
     if(typeof text == 'string') f.puts(text);
     else f.write(text, 0, text.byteLength);
-
     f.flush();
-
     if(f.error()) throw new Error(`write '${tmp}' failed`);
   } catch(error) {
     f.close();
@@ -108,13 +104,11 @@ function prettyPrint(reader, filename, opts, write) {
   /* Comments arrive between tokens but the comma before the next element is only written
    * once that element is seen, so they wait here and are written right before it (after
    * the comma) or before the closing bracket, never between a value and its comma. */
-
   for(;;) {
-    const tok = parser.parse();
-
+    const event = parser.parse();
     const { token } = parser;
 
-    switch (tok) {
+    switch (event) {
       case NEED_DATA:
       case NONE:
         if(writer.depth) throw new Error('unexpected end of input');
@@ -150,7 +144,6 @@ function prettyPrint(reader, filename, opts, write) {
 
       case NUMBER: {
         let num = parseFloat(token);
-
         if(num + '' != token) num = BigInt(token);
 
         writer.value(num);
@@ -159,23 +152,25 @@ function prettyPrint(reader, filename, opts, write) {
 
       case TRUE:
       case FALSE:
+        writer.value(event === TRUE);
+        break;
+
       case NULL:
-        writer.value(tok === TRUE ? true : tok === FALSE ? false : null);
+        writer.value(null);
         break;
     }
   }
 }
 
 function main(...args) {
-  let inPlace = false,
-    opts = { indent: 2 };
+  const opts = { indent: 2 };
 
   const params = getOptHelp(
     {
       indent: ['NUM', num => (opts.indent = +num), 'i'],
       compact: [false, () => ((opts.minify = true), (opts.indent = 0)), 'c'],
       output: ['FILE', null, 'o'],
-      write: [false, () => (inPlace = true), 'w'],
+      write: [false, null, 'w'],
       'bare-keys': [false, () => (opts.bareKeys = true), 'b'],
       'single-quotes': [false, () => (opts.singleQuotes = true), 's'],
       'hex-numbers': [false, () => (opts.hexNumbers = true), 'x'],
@@ -201,8 +196,9 @@ function main(...args) {
 
   let failed = false;
 
-  if(inPlace && (params.output || files.includes('-'))) {
+  if(params.write && (params.output || files.includes('-'))) {
     std.err.puts('--write needs file arguments and cannot be combined with --output\n');
+    std.err.flush();
     std.exit(2);
   }
 
@@ -211,7 +207,7 @@ function main(...args) {
       const reader = fileReader(file);
 
       try {
-        if(inPlace) {
+        if(params.write) {
           /* buffered: the file is only opened for writing once the whole input parsed */
           const sink = new ArrayBufferSink();
 
@@ -220,12 +216,12 @@ function main(...args) {
 
           writeAtomic(file, sink.flush());
         } else {
-          const write = (buf, len) => std.out.write(buf, 0, len ?? buf.byteLength);
+          const write = (buf, len) => out.write(buf, 0, len ?? buf.byteLength);
 
           prettyPrint(reader, file === '-' ? '<stdin>' : file, opts, write);
 
-          std.out.puts('\n');
-          std.out.flush();
+          out.puts('\n');
+          out.flush();
         }
       } finally {
         reader.close();

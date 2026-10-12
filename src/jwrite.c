@@ -3,12 +3,13 @@
  * rule: no JSContext or JSValue anywhere; every byte goes through
  * jwrite_out(), so `written` counts all output. */
 
+#include "char-utils.h"
 #include "jwrite.h"
-#include <ctype.h>
+/*#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string.h>*/
 
 /* jwrite_put() and jwrite_put_string() return the bytes on full success,
  * 0 if the writer ran out of room (a chunked destination signalling
@@ -156,19 +157,6 @@ jwrite_outc(JsonWriter* wr, int c) {
   return jwrite_out(wr, &b, 1);
 }
 
-/* bare_keys: ES5 IdentifierName, ASCII only; anything else stays quoted. */
-static BOOL
-jwrite_is_identifier(const char* s, size_t len) {
-  if(len == 0 || isdigit((unsigned char)s[0]))
-    return FALSE;
-
-  for(size_t i = 0; i < len; i++)
-    if(!(isalnum((unsigned char)s[i]) || s[i] == '_' || s[i] == '$'))
-      return FALSE;
-
-  return TRUE;
-}
-
 static BOOL
 jwrite_pretty(const JsonWriter* wr) {
   return wr->opts.indent > 0 && !wr->opts.minify;
@@ -258,7 +246,7 @@ jwrite_key(JsonWriter* wr, const char* kstr, size_t klen) {
   if((w = jwrite_comma_indent(wr, top->count)) < 0)
     return w;
 
-  if(wr->opts.bare_keys && jwrite_is_identifier(kstr, klen)) {
+  if(wr->opts.bare_keys && is_identifier(kstr, klen)) {
     r = jwrite_out(wr, kstr, klen);
   } else if((r = jwrite_put_string(&wr->writer, kstr, klen, wr->opts.single_quotes ? '\'' : '"')) > 0) {
     wr->written += r;
@@ -400,38 +388,30 @@ jwrite_false(JsonWriter* wr) {
   return jwrite_literal(wr, "false", 5);
 }
 
-/* number text: a digit, '+', '-' or '.' first, then letters, digits and
- * those; keeps ',' quotes and brackets out of a value written verbatim. */
-static BOOL
-jwrite_is_number(const char* s, size_t len) {
-  if(len == 0 || !(isdigit((unsigned char)s[0]) || s[0] == '+' || s[0] == '-' || s[0] == '.'))
-    return FALSE;
-
-  for(size_t i = 1; i < len; i++)
-    if(!(isalnum((unsigned char)s[i]) || s[i] == '+' || s[i] == '-' || s[i] == '.'))
-      return FALSE;
-
-  return TRUE;
-}
-
 /* hex_numbers: "-31" -> "-0x1f" in buf; returns the length, or 0 when the
  * text is not a plain integer of at most 18 digits. */
 static size_t
 jwrite_hex_text(const char* s, size_t len, char buf[32]) {
-  size_t i = s[0] == '-';
-  unsigned long long n = 0;
+  size_t r, i = s[0] == '-';
+  uint64_t n = 0;
 
-  if(len == i || len - i > 18)
+  if(len == i)
     return 0;
 
-  for(size_t j = i; j < len; j++) {
-    if(!isdigit((unsigned char)s[j]))
-      return 0;
+  if(len - i > 18)
+    return 0;
 
-    n = n * 10 + (s[j] - '0');
+  if(len - i > 2 && str_start(&s[i], "0x")) {
+    r = 2 + scan_xlonglong(&s[i + 2], &n);
+
+  } else {
+    r = scan_ulonglong(&s[i], &n);
   }
 
-  return snprintf(buf, 32, "%s0x%llx", i ? "-" : "", n);
+  if(r + i < len)
+    return 0;
+
+  return snprintf(buf, 32, "%s0x%" PRIu64, i ? "-" : "", n);
 }
 
 ssize_t
@@ -439,7 +419,7 @@ jwrite_number(JsonWriter* wr, const char* str, size_t len) {
   char buf[32];
   size_t n;
 
-  if(!jwrite_is_number(str, len))
+  if(!is_number(str, len) && !is_xnumber(str, len))
     return -JWRITE_E_NUMBER;
 
   if(wr->opts.hex_numbers && (n = jwrite_hex_text(str, len, buf)))

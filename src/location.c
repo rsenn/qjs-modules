@@ -1,7 +1,7 @@
-#include <stddef.h>
-#include "location.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "debug.h"
+#include "location.h"
 
 /**
  * \addtogroup location

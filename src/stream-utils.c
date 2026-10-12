@@ -1,8 +1,9 @@
-#include "stream-utils.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "defines.h"
 #include "queue.h"
 #include "js-utils.h"
+#include "stream-utils.h"
 
 #include <assert.h>
 #include <errno.h>

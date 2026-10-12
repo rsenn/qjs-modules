@@ -1,12 +1,12 @@
 #ifndef STREAM_UTILS_H
 #define STREAM_UTILS_H
 
-#include "cutils.h"
-#include <sys/types.h>
-#include <string.h>
-#include <stdbool.h>
-#include "buffer-utils.h"
 #include "location.h"
+#include "buffer-utils.h"
+
+#include <cutils.h>
+#include <sys/types.h>
+#include <stdbool.h>
 
 /**
  * \defgroup stream-utils stream-utils: Utilities for stream I/O

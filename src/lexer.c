@@ -1,10 +1,12 @@
+#include "char-utils.h"
+#include "buffer-utils.h"
 #include "lexer.h"
 #include "debug.h"
 #include "location.h"
+#include "token.h"
+
 #include <libregexp.h>
 #include <ctype.h>
-#include "buffer-utils.h"
-#include "token.h"
 
 /**
  * \addtogroup lexer

@@ -1,8 +1,7 @@
-#include "defines.h"
-#include <quickjs.h>
-#include "quickjs-predicate.h"
 #include "buffer-utils.h"
+#include "defines.h"
 #include "debug.h"
+#include "quickjs-predicate.h"
 
 /**
  * \addtogroup quickjs-predicate

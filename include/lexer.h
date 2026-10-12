@@ -5,7 +5,6 @@
 #include "vector.h"
 #include "buffer-utils.h"
 #include "stream-utils.h"
-#include <string.h>
 
 /**
  * \defgroup lexer lexer: Lexical scanner, regex based

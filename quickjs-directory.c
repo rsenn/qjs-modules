@@ -1,9 +1,9 @@
+#include "char-utils.h"
+#include "utils.h"
 #include "defines.h"
 #include "getdents.h"
-#include "utils.h"
-#include "char-utils.h"
+
 #include <errno.h>
-#include <string.h>
 
 /**
  * \defgroup quickjs-directory quickjs-directory: Directory reader

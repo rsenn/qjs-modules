@@ -1,7 +1,8 @@
+#include "char-utils.h"
+#include "buffer-utils.h"
 #include "utils.h"
 #include "defines.h"
 #include "vector.h"
-#include "buffer-utils.h"
 #include "debug.h"
 #include "path.h"
 

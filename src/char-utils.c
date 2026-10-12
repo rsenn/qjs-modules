@@ -1,6 +1,3 @@
-#define _GNU_SOURCE
-#include <string.h>
-
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "libutf/include/libutf.h"
@@ -259,15 +256,15 @@ scan_ulonglong(const char* src, uint64_t* dest) {
 
   while((c = (unsigned char)(*tmp - '0')) < 10) {
     uint64_t n;
-    n = l << 3ll;
+    n = l << 3;
 
-    if((n >> 3ll) != l)
+    if((n >> 3) != l)
       break;
 
-    if(n + (l << 1ll) < n)
+    if(n + (l << 1) < n)
       break;
 
-    n += l << 1ll;
+    n += l << 1;
 
     if(n + c < n)
       break;

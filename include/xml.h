@@ -1,11 +1,12 @@
 #ifndef XML_H
 #define XML_H
 
+#include "stream-utils.h"
+#include "location.h"
+
 #include <stdint.h>
 #include <stddef.h>
 #include <cutils.h>
-#include "stream-utils.h"
-#include "location.h"
 
 #ifdef __cplusplus
 extern "C" {

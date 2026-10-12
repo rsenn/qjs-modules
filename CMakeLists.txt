@@ -256,6 +256,9 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
+check_functions_def(memrchr)
+
+
 check_include_def(libbf.h)
 
 # Upstream removed BigFloat/BigDecimal/operator overloading (2025-04-26), so

@@ -3,11 +3,11 @@
  * License: https://github.com/naleksiev/xread/blob/master/LICENSE
  */
 
-#include "xread.h"
-#include "xml_entities.h"
 #include "char-utils.h"
+#include "xml_entities.h"
+#include "xread.h"
+
 #include <stdlib.h>
-#include <string.h>
 
 /* Pastes __LINE__ into a label name, so each XR_DISPATCH_*() call site gets its own
  * unique "resume here" label - see the comment above XR_DISPATCH_NEXT() below. */

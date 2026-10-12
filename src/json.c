@@ -1,5 +1,5 @@
-#include "json.h"
 #include "char-utils.h"
+#include "json.h"
 
 enum {
   ERROR = -1,

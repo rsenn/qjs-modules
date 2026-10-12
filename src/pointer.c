@@ -1,9 +1,7 @@
-#include "defines.h"
-#include "quickjs-pointer.h"
-#include "pointer.h"
-#include "utils.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "debug.h"
+#include "quickjs-pointer.h"
 
 /**
  * \addtogroup pointer

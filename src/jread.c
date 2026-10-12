@@ -3,10 +3,9 @@
  * License: https://github.com/naleksiev/jread/blob/master/LICENSE
  */
 
-#include "jread.h"
 #include "char-utils.h" /* is_utf16_high_surrogate/is_utf16_low_surrogate, unicode_to_utf8, UTF8_CHAR_LEN_MAX */
+#include "jread.h"
 #include <stdlib.h>
-#include <string.h>
 
 /* Pastes __LINE__ into a label name, so each JR_DISPATCH_*() call site gets its own
  * unique "resume here" label - see the comment above JR_DISPATCH_NEXT() below. */

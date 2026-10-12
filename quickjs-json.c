@@ -1,20 +1,19 @@
+#include "char-utils.h"
 #include "stream-utils.h"
 #include "utils.h"
-#include "virtual-properties.h"
-#include "json.h"
+/*#include "virtual-properties.h"*/
 #include "vector.h"
 #include "property-enumeration.h"
-#include "char-utils.h"
-#include "quickjs-location.h"
-#include "vector.h"
 #include <ctype.h>
 #include <math.h>
 #define SJ_IMPL
 #include "sj.h"
+#include "json.h"
 #include "jread.h"
 #include "jwrite.h"
 #include "walk.h"
 #include "jbuild.h"
+#include "quickjs-location.h"
 
 #define REC_DEPTH(v) vector_size((v), sizeof(PropertyEnumeration))
 #define REC_TOP(v) vector_back((v), sizeof(PropertyEnumeration))
@@ -1639,6 +1638,11 @@ js_jsonwriter_walk(void* opaque) {
   };
 }
 
+/*static JsonWriteInterface
+js_jsonwriter_interface(void* opaque) {
+  return jwrite_interface(opaque);
+}*/
+
 enum {
   WRITER_WRITTEN,
   WRITER_DEPTH,
@@ -2027,8 +2031,10 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
   jsonwriter_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, jsonwriter_proto, js_jsonwriter_funcs, countof(js_jsonwriter_funcs));
+
   js_walk_register(js_jsonwriter_class_id, js_jsonwriter_walk);
   js_walk_define(ctx, jsonwriter_proto);
+
   JS_SetClassProto(ctx, js_jsonwriter_class_id, jsonwriter_proto);
   JS_SetConstructor(ctx, jsonwriter_ctor, jsonwriter_proto);
 

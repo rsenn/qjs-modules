@@ -1,10 +1,11 @@
-#include "defines.h"
-#include "quickjs-sockets.h"
-#include "quickjs-syscallerror.h"
-#include "utils.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
+#include "utils.h"
+#include "defines.h"
 #include "debug.h"
 #include "iteration.h"
+#include "quickjs-syscallerror.h"
+#include "quickjs-sockets.h"
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 int socketpair(int, int, int, SOCKET[2]);

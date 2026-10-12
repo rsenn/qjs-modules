@@ -1,8 +1,9 @@
-#include "defines.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
+#include "defines.h"
+
 #include <errno.h>
-#include <string.h>
 #include "libserialport/libserialport.h"
 
 /**
