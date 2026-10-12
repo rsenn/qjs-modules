@@ -14,11 +14,13 @@ function(add_cflags ADD)
   else()
     set(OUTPUT_VAR "${ARGV1}")
   endif()
+  
+  #message_func("add_cflags" ${ADD} ${OUTPUT_VAR})
 
   set(RESULT "${${OUTPUT_VAR}}")
   string(REGEX REPLACE " +" ";" FLAGS "${RESULT}")
   string(REGEX REPLACE "^;+" "" FLAGS "${FLAGS}")
-  list(REMOVE_DUPLICATES FLAGS)
+  list(REMOVE_DUPLICATES FLAGS) 
   if(NOT ADD IN_LIST FLAGS)
     list(APPEND RESULT ${ADD})
   endif()
@@ -36,7 +38,6 @@ endfunction()
 function(set_init OUTPUT_VAR)
   set(RESULT "")
   set_add(RESULT ${ARGN})
-  list(SORT RESULT)
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif()
@@ -54,7 +55,6 @@ function(set_add OUTPUT_VAR)
       list(APPEND RESULT "${ITEM}")
     endif()
   endforeach()
-
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif()
@@ -222,22 +222,24 @@ endfunction()
 #
 function(escape_string OUTPUT_VAR STR)
   string(REPLACE "\\" "\\\\" RESULT "${STR}")
+
   string(REPLACE "\n" "\\n" RESULT "${RESULT}")
   string(REPLACE "\r" "\\r" RESULT "${RESULT}")
   string(REPLACE "\t" "\\t" RESULT "${RESULT}")
   string(REPLACE "${ANSI_ESCAPE}" "\\e" RESULT "${RESULT}")
   string(REPLACE "" "\\v" RESULT "${RESULT}")
   string(REPLACE "" "\\f" RESULT "${RESULT}")
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif(OUTPUT_VAR)
 endfunction()
 
 #
-# unescape_string <OUTPUT-VAR> <STR>
-#
 # Store STR in OUTPUT-VAR with backslash escape sequences (\n, \r, \t, \e,
 # \x1b, \033) turned back into characters.
+#
+# unescape_string <OUTPUT-VAR> <STR>
 #
 function(unescape_string OUTPUT_VAR STR)
   string(REPLACE "\\n" "\n" RESULT "${STR}")
@@ -248,18 +250,20 @@ function(unescape_string OUTPUT_VAR STR)
   string(REPLACE "\\e" "${ANSI_ESCAPE}"  RESULT "${RESULT}")
   string(REPLACE "\\v" ""  RESULT "${RESULT}")
   string(REPLACE "\\f" ""   RESULT "${RESULT}")
+
   string(REPLACE "\\\\" "\\" RESULT "${RESULT}")
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif(OUTPUT_VAR)
 endfunction()
 
+# Assign the elements of the list ITEMS, in order, to the variables VAR0, ...
+# (a macro).
+#
 # ITEMS contains multiple items
 #
 # assign_items <ITEMS> [VAR0, ...]
-#
-# Assign the elements of the list ITEMS, in order, to the variables VAR0, ...
-# (a macro).
 #
 macro(assign_items ITEMS)
   set(__L "${ITEMS}")
@@ -274,17 +278,15 @@ endmacro()
 #
 # assign_list <LIST> [VAR0...]
 #
-# Like assign_items, but LIST is the name of a list variable.
-#
 macro(assign_list LIST)
   assign_items("${${LIST}}" ${ARGN})
 endmacro()
 
 #
-# eat_line <BUFFER-VAR> <RESULT-VAR>
-#
 # Move the first line of BUFFER-VAR into RESULT-VAR and leave the rest in
 # BUFFER-VAR.
+#
+# eat_line <BUFFER-VAR> <RESULT-VAR>
 #
 function(eat_line BUFFER_VAR RESULT_VAR)
   set(BUF "${${BUFFER_VAR}}")
@@ -296,7 +298,6 @@ function(eat_line BUFFER_VAR RESULT_VAR)
   else()
     math(EXPR NEXT_POS "${NL_POS} + 1")
   endif()
-
   string(SUBSTRING "${BUF}" "0" "${NL_POS}" RESULT)
   string(SUBSTRING "${BUF}"  "${NEXT_POS}"  -1 REST)
   set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
@@ -305,8 +306,8 @@ endfunction()
 
 #
 # add_prefix <OUTPUT-VAR> <PREFIX> [ARGS...]
-#
 # Store ARGS, each with PREFIX prepended, in OUTPUT-VAR.
+#
 #
 macro(add_prefix OUTPUT_VAR PREFIX)
   unset("${OUTPUT_VAR}" PARENT_SCOPE)
@@ -317,8 +318,8 @@ endmacro()
 
 #
 # add_suffix <OUTPUT-VAR> <SUFFIX> [ARGS...]
-#
 # Store ARGS, each with SUFFIX appended, in OUTPUT-VAR.
+#
 #
 macro(add_suffix OUTPUT_VAR SUFFIX)
   unset("${OUTPUT_VAR}" PARENT_SCOPE)
@@ -623,11 +624,10 @@ function(named_dump MSG)
     set(RESULT "${RESULT}${NEWLINE}${LINE}")
     math(EXPR INDEX "${INDEX} + 1")
   endforeach()
-
   if(NOT END STREQUAL "")
     set(RESULT "${RESULT}${NEWLINE}${END}")
   endif()
-
+  
   message("${RESULT}")
 endfunction()
 
@@ -636,8 +636,6 @@ set(DUMP_FORMAT INDENT "  " START " {" END "}" PROP ": " QUOTE "'" COMMA "," NEW
 #
 # dump [VAR-NAMES...]
 #
-# Print the name and value of each of VAR-NAMES.
-#
 function(dump)
   named_dump("Variable dump" ${ARGN})
 endfunction()
@@ -645,30 +643,30 @@ endfunction()
 #
 # dump_list <VAR-NAME>
 #
+# Print the name and value of each of VAR-NAMES.
+#
 # Print every element of the list variable VAR-NAME on its own numbered line.
 #
-function(dump_list)
+function(dump_list VAR_NAME)
   assign_named_var(DUMP_FORMAT)
-  foreach(VAR_NAME ${ARGN})
-    message("List dump of ${VAR_NAME}:")
-    list(LENGTH "${VAR_NAME}" NUM_ITEMS)
-    set(INDEX 0)
-    while(${INDEX} LESS ${NUM_ITEMS})
-      list(GET "${VAR_NAME}" "${INDEX}" ITEM)
-      message("${INDENT}${INDEX}: ${ITEM}")
-      math(EXPR INDEX "${INDEX} + 1")
-    endwhile()
-  endforeach()
+  message("List dump of ${VAR_NAME}:")
+  list(LENGTH "${VAR_NAME}" NUM_ITEMS)
+  set(INDEX 0)
+  while(${INDEX} LESS ${NUM_ITEMS})
+    list(GET "${VAR_NAME}" "${INDEX}" ITEM)
+    message("${INDENT}${INDEX}: ${ITEM}")
+    math(EXPR INDEX "${INDEX} + 1")
+  endwhile()
 endfunction()
 
 #
 # make_list <OUTPUT-VAR> <MAX_LINE_LEN>
 #
+function(make_list OUTPUT_VAR MAX_LINE_LEN)
+  assign_named_var(LIST_FORMAT)
 # Store the words in the arguments in OUTPUT-VAR as lines no longer than
 # MAX_LINE_LEN, laid out as set by LIST_FORMAT.
 #
-function(make_list OUTPUT_VAR MAX_LINE_LEN)
-  assign_named_var(LIST_FORMAT)
   set(RESULT "")
   set(LINE "")
   string(REPLACE " " ";" ARGS "${ARGN}")
@@ -683,7 +681,6 @@ function(make_list OUTPUT_VAR MAX_LINE_LEN)
       set(LINE "${LINE}${SEP}${ITEM}")
     endif()
   endforeach()
-
   if(LINE)
     set(RESULT "${RESULT}\n${INDENT}${LINE}")
   endif()
@@ -851,16 +848,11 @@ endfunction()
 #
 # message_unescaped [STRINGS...]
 #
-# Print STRINGS joined together, after turning escape sequences such as \n
-# and \e into characters.
-#
 function(message_unescaped)
   set(S "")
-
   foreach(ARG ${ARGN})
     set(S "${S}${ARG}")
   endforeach()
-
   unescape_string(S "${S}")
   message("${S}")
 endfunction()
@@ -877,9 +869,52 @@ function(message_func FUNC)
   foreach(ARG ${ARGN})
     set(S "${S} ${ARG}")
   endforeach()
-
   unescape_string(S "${S}")
   message("${S}")
+endfunction()
+
+#
+# init_colors
+#
+macro(init_colors)
+  set(ANSI_ESCAPE "")
+  set(SEMI "╎")
+  set(COLORS
+    NONE "${ANSI_ESCAPE}[0m"
+    BLACK "${ANSI_ESCAPE}[0${SEMI}30m"
+    RED "${ANSI_ESCAPE}[0${SEMI}31m"
+    GREEN "${ANSI_ESCAPE}[0${SEMI}32m"
+    BROWN "${ANSI_ESCAPE}[0${SEMI}33m"
+    BLUE "${ANSI_ESCAPE}[0${SEMI}34m"
+    MAGENTA "${ANSI_ESCAPE}[0${SEMI}35m"
+    CYAN "${ANSI_ESCAPE}[0${SEMI}36m"
+    LIGHTGRAY "${ANSI_ESCAPE}[0${SEMI}37m"
+    DARKGRAY "${ANSI_ESCAPE}[1${SEMI}30m"
+    LIGHTRED "${ANSI_ESCAPE}[1${SEMI}31m"
+    LIGHTGREEN "${ANSI_ESCAPE}[1${SEMI}32m"
+    YELLOW "${ANSI_ESCAPE}[1${SEMI}33m"
+    LIGHTBLUE "${ANSI_ESCAPE}[1${SEMI}34m"
+    LIGHTMAGENTA "${ANSI_ESCAPE}[1${SEMI}35m"
+    LIGHTCYAN "${ANSI_ESCAPE}[1${SEMI}36m"
+    WHITE "${ANSI_ESCAPE}[1${SEMI}37m" 
+  )
+  string(REPLACE ";" "\n" CMAP "${COLORS}")
+  string(REPLACE "${SEMI}" ";" CMAP "${CMAP}")
+
+  assign_named_prefix(COLOR_ ${CMAP})
+endmacro()
+
+#
+# getenv <OUTPUT-VAR> <VAR-NAME>
+#
+function(getenv OUTPUT_VAR VAR_NAME)
+  if(OUTPUT_VAR)
+    if(DEFINED ENV{${VAR_NAME}})
+      set("${OUTPUT_VAR}" "$ENV{${VAR_NAME}}" PARENT_SCOPE)
+    else()
+      unset("${OUTPUT_VAR}" PARENT_SCOPE)
+    endif()
+  endif()
 endfunction()
 
 #
@@ -934,55 +969,6 @@ function(message_table TITLE)
 endfunction()
 
 #
-# init_colors
-#
-# Define the ANSI escape sequence variables COLOR_NONE, COLOR_RED, ... used
-# for colored messages (a macro).
-#
-macro(init_colors)
-  set(ANSI_ESCAPE "")
-  set(SEMI "╎")
-  set(COLORS
-    NONE "${ANSI_ESCAPE}[0m"
-    BLACK "${ANSI_ESCAPE}[0${SEMI}30m"
-    RED "${ANSI_ESCAPE}[0${SEMI}31m"
-    GREEN "${ANSI_ESCAPE}[0${SEMI}32m"
-    BROWN "${ANSI_ESCAPE}[0${SEMI}33m"
-    BLUE "${ANSI_ESCAPE}[0${SEMI}34m"
-    MAGENTA "${ANSI_ESCAPE}[0${SEMI}35m"
-    CYAN "${ANSI_ESCAPE}[0${SEMI}36m"
-    LIGHTGRAY "${ANSI_ESCAPE}[0${SEMI}37m"
-    DARKGRAY "${ANSI_ESCAPE}[1${SEMI}30m"
-    LIGHTRED "${ANSI_ESCAPE}[1${SEMI}31m"
-    LIGHTGREEN "${ANSI_ESCAPE}[1${SEMI}32m"
-    YELLOW "${ANSI_ESCAPE}[1${SEMI}33m"
-    LIGHTBLUE "${ANSI_ESCAPE}[1${SEMI}34m"
-    LIGHTMAGENTA "${ANSI_ESCAPE}[1${SEMI}35m"
-    LIGHTCYAN "${ANSI_ESCAPE}[1${SEMI}36m"
-    WHITE "${ANSI_ESCAPE}[1${SEMI}37m"
-  )
-  string(REPLACE ";" "\n" CMAP "${COLORS}")
-  string(REPLACE "${SEMI}" ";" CMAP "${CMAP}")
-  assign_named_prefix(COLOR_ ${CMAP})
-endmacro()
-
-#
-# getenv <OUTPUT-VAR> <VAR-NAME>
-#
-# Store the value of the environment variable VAR-NAME in OUTPUT-VAR, or
-# unset OUTPUT-VAR if it is not set.
-#
-function(getenv OUTPUT_VAR VAR_NAME)
-  if(OUTPUT_VAR)
-    if(DEFINED ENV{${VAR_NAME}})
-      set("${OUTPUT_VAR}" "$ENV{${VAR_NAME}}" PARENT_SCOPE)
-    else()
-      unset("${OUTPUT_VAR}" PARENT_SCOPE)
-    endif()
-  endif()
-endfunction()
-
-#
 # getenv_default <OUTPUT-VAR> <VAR-NAME> [DEFAULT-VALUE]
 #
 # Store the value of the environment variable VAR-NAME in OUTPUT-VAR, or
@@ -994,8 +980,10 @@ function(getenv_default OUTPUT_VAR VAR_NAME)
   else()
     set(RESULT "${ARGN}")
   endif()
-
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif()
 endfunction()
+# Store the value of the environment variable VAR-NAME in OUTPUT-VAR, or
+# DEFAULT-VALUE if it is not set.
+#
