@@ -5,6 +5,7 @@
 #if WINDOWS_NATIVE
 #include <windows.h>
 #include <io.h>
+#define lseek _lseek
 #elif defined(HAVE_TERMIOS_H)
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -76,12 +77,12 @@ fd_filesize(int fd) {
 
   size = st.st_size;
 #else
-  seek_pos pos;
+  long pos;
 
-  if((pos = _lseek(fd, 0, SEEK_CUR)) >= 0) {
-    size = _lseek(fd, 0, SEEK_END);
+  if((pos = lseek(fd, 0, SEEK_CUR)) >= 0) {
+    size = lseek(fd, 0, SEEK_END);
 
-    if(_lseek(fd, pos, SEEK_SET) == pos)
+    if(lseek(fd, pos, SEEK_SET) == pos)
       if(size >= 0)
         return size;
   }

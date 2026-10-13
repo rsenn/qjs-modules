@@ -1,3 +1,9 @@
+/* Have quickjs-config.h */
+#cmakedefine HAVE_QUICKJS_CONFIG_H 1
+
+/* The module loader search path */
+#cmakedefine QUICKJS_MODULE_PATH "@QUICKJS_MODULE_PATH@"
+
 /* Define this if you have afunix.h */
 #cmakedefine HAVE_AFUNIX_H 1
 
