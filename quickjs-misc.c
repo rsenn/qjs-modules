@@ -3458,6 +3458,18 @@ js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc > 2)
     JS_ToInt32(ctx, &arg, argv[2]);
 
+#ifdef F_GETPATH
+  if(cmd == F_GETPATH) {
+    char path[PATH_MAX + 1];
+
+    // fills `path` instead of taking an int: returns the string, or -1 as usual
+    if(fcntl(fd, F_GETPATH, path) == -1)
+      return js_syscall_result(ctx, fcntl, fd, -1, 0);
+
+    return JS_NewString(ctx, path);
+  }
+#endif
+
   return js_syscall_result(ctx, fcntl, fd, cmd, arg);
 }
 #endif
@@ -3800,6 +3812,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(F_DUPFD_CLOEXEC),
     JS_CONSTANT(F_GETFD),
     JS_CONSTANT(F_GETFL),
+#ifdef F_GETPATH
+    JS_CONSTANT(F_GETPATH),
+#endif
     JS_CONSTANT(F_GETLK),
     JS_CONSTANT(F_RDLCK),
     JS_CONSTANT(F_SETFD),

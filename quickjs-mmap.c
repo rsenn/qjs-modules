@@ -5,6 +5,8 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #if WINDOWS_NATIVE
+#include <windows.h>
+#include <wchar.h>
 #include "compat/mmap-win32.h"
 #else
 #include <sys/mman.h>
@@ -111,6 +113,72 @@ js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_NewInt32(ctx, mprotect(data + offset, MIN_NUM(length, (int64_t)len), flags));
 }
 
+#if WINDOWS_NATIVE
+/* converts a device path to a drive path in place.
+ *
+ *   `\\Device\\HarddiskVolume2\\a.txt` -> `C:\\a.txt`
+ *
+ *   wchar_t*  path  NUL-terminated GetMappedFileNameW() result
+ *   size_t    size  capacity of `path` in wchar_t
+ *
+ *   never throws: returns 1 if a drive matched, 0 otherwise.
+ */
+static int
+mmap_dos_path(wchar_t* path, size_t size) {
+  wchar_t drives[512], name[MAX_PATH], drive[3] = L" :";
+
+  if(!GetLogicalDriveStringsW(countof(drives) - 1, drives))
+    return 0;
+
+  for(const wchar_t* p = drives; *p; p += wcslen(p) + 1) {
+    drive[0] = *p;
+
+    if(QueryDosDeviceW(drive, name, countof(name))) {
+      size_t n = wcslen(name), len = wcslen(path);
+
+      if(n < len && path[n] == L'\\' && !_wcsnicmp(path, name, n) && len - n + 2 < size) {
+        memmove(path + 2, path + n, (len - n + 1) * sizeof(wchar_t));
+        path[0] = drive[0];
+        path[1] = L':';
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static JSValue
+js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  typedef DWORD(WINAPI get_mapped_filename_fn)(HANDLE, LPVOID, LPWSTR, DWORD);
+  static get_mapped_filename_fn* get_mapped_filename;
+  wchar_t path[MAX_PATH + 1];
+  char utf8[MAX_PATH * 3 + 1];
+  uint8_t* data;
+  DWORD n;
+  int u;
+
+  if(!(data = js_topointer(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer | Number");
+
+  if(!get_mapped_filename) {
+    HMODULE psapi = LoadLibraryA("psapi.dll");
+
+    if(!psapi || !(get_mapped_filename = (get_mapped_filename_fn*)GetProcAddress(psapi, "GetMappedFileNameW")))
+      return JS_ThrowInternalError(ctx, "GetMappedFileNameW() not available");
+  }
+
+  if(!(n = get_mapped_filename(GetCurrentProcess(), data, path, countof(path) - 1)))
+    return JS_UNDEFINED;
+
+  path[n] = 0;
+  mmap_dos_path(path, countof(path));
+
+  if(!(u = WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8, sizeof(utf8), NULL, NULL)))
+    return JS_ThrowInternalError(ctx, "Unable to convert file name");
+
+  return JS_NewStringLen(ctx, utf8, u - 1);
+}
+#else
 static JSValue
 js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* data;
@@ -149,6 +217,7 @@ js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   block_free(&b, JS_GetRuntime(ctx));
   return ret;
 }
+#endif
 
 static JSValue
 js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
