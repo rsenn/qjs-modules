@@ -73,6 +73,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Always load the `quickjs-native-bindings` and `quickjs-scripting` skills** at the
 start of any work in this repo, before reading or editing code.
 
+## Safeguards when running qjsm/qjs/tests
+
+**Always** run `qjsm`, `qjs`, test binaries and any script under limits; a
+runaway run (module-loading avalanche, leak) once OOM-froze the machine
+(31 GB RAM, no swap, a `qjsm` at 23 GB):
+
+```sh
+timeout 60 systemd-run --user --scope -q -p MemoryMax=4G -p MemorySwapMax=0 qjsm script.js
+# or, when systemd-run is unavailable:
+( ulimit -v 4000000; timeout 60 qjsm script.js )
+```
+
+- Never run an unbounded loop/watch, a fuzz or an unknown script without a `timeout`.
+- Also applies to `ctest`: wrap it the same way (`--timeout 60`).
+- If a run hits the limit, that is the finding: investigate, do not raise the limit.
+
 ## Project Philosophy
 
 ### Core Mission
