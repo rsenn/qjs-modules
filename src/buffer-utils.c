@@ -733,7 +733,8 @@ offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst ar
           tmp += size - ol->offset;
 
         if(tmp < 0 /*|| tmp > ol->length*/) {
-          JS_ThrowRangeError(ctx, "length argument %" PRId64 " out of range (offset is %" PRId64 ", size is %" PRId64 ")", (int64_t)tmp, (int64_t)ol->offset, (int64_t)size);
+          JS_ThrowRangeError(
+              ctx, "length argument %" PRId64 " out of range (offset is %" PRId64 ", size is %" PRId64 ")", (int64_t)tmp, (int64_t)ol->offset, (int64_t)size);
           return -1;
         }
 

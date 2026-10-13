@@ -5,7 +5,7 @@ import * as os from 'os';
 import { JsonParser, JsonWriter } from 'json';
 import { toString, toArrayBuffer } from 'util';
 import { ArrayBufferSink } from 'arraybuffer_sink';
-import { mkstempSync } from 'fs';
+import { mkstempSync, nameSync } from 'fs';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT } = JsonParser;
 
@@ -40,8 +40,10 @@ function writeAtomic(file, text) {
 
   if(err) throw new Error(`cannot stat '${file}'`);
 
-  const fd = mkstempSync(`${file}.jsonpp-XXXXXX.tmp`);
+  let tmp;
+  const fd = mkstempSync((tmp = `${file}.jsonpp-XXXXXX`));
   if(fd < 0) throw new Error(`cannot create '${tmp}'`);
+  else tmp = nameSync(fd);
   const f = std.fdopen(fd, 'w');
 
   try {

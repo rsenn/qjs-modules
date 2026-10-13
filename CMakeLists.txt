@@ -26,6 +26,7 @@ option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Checks.cmake)
 
 check_source_definitions(ATFILE GNU LARGEFILE LARGE_FILE LARGEFILE64 POSIX POSIX_C XOPEN XOPEN_EXTENDED)

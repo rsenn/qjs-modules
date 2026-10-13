@@ -1,8 +1,8 @@
 #include "defines.h"
-#include <cutils.h>
-#include <quickjs.h>
 #include "utils.h"
 #include "buffer-utils.h"
+#include <quickjs.h>
+#include <cutils.h>
 #include <string.h>
 
 /**

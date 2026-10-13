@@ -1,9 +1,6 @@
 # Compat.cmake: helpers qjs-modules uses that cmake/Functions.cmake and
 # cmake/Checks.cmake (shared with shish) do not have.
 include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-include(CheckFunctionExists)
-include(CheckIncludeFileCXX)
 
 #
 # canonicalize <OUTPUT-VARIABLE> <STR>
@@ -130,31 +127,6 @@ function(relative_path OUT_VAR RELATIVE_TO)
   set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
 endfunction()
 
-#
-# check_include_cxx_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
-#
-# Check for the C++ header INCLUDE; on success cache RESULT-VARIABLE and add
-# -DPREPROCESSOR-DEFINITION=1 (names default to HAVE_<INCLUDE>) (a macro).
-#
-macro(check_include_cxx_def INC)
-  if(ARGC GREATER_EQUAL 2)
-    set(RESULT_VAR "${ARGV1}")
-    set(PREPROC_DEF "${ARGV2}")
-  else(ARGC GREATER_EQUAL 2)
-    clean_name("${INC}" INC_D)
-    string(TOUPPER "HAVE_${INC_D}" RESULT_VAR)
-    string(TOUPPER "HAVE_${INC_D}" PREPROC_DEF)
-  endif(ARGC GREATER_EQUAL 2)
-
-  check_include_file_cxx("${INC}" "${RESULT_VAR}")
-  if(${${RESULT_VAR}})
-    set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
-
-    if(NOT "${PREPROC_DEF}" STREQUAL "")
-      var2define("${PREPROC_DEF}" 1)
-    endif(NOT "${PREPROC_DEF}" STREQUAL "")
-  endif(${${RESULT_VAR}})
-endmacro()
 
 #
 # contains <LIST-NAME> <VALUE> <OUTPUT-VARIABLE>
@@ -199,17 +171,6 @@ macro(rpath_append VAR)
     endif("${${VAR}}" STREQUAL "")
   endforeach(VALUE ${ARGN})
 endmacro()
-
-#
-# check_external <NAME> <LIBS> <LINKER-FLAGS> <OUTPUT-VARIABLE>
-#
-# Check that a program using the external function NAME compiles and links
-# against LIBS, storing the result in OUTPUT-VARIABLE.
-#
-function(check_external NAME LIBS LDFLAGS OUTPUT_VAR)
-  try_code("test-${NAME}.c" "\n  extern int ${NAME}(void);\n  int main() {\n    ${NAME}();\n    return 0;\n  }\n  "
-           "${OUTPUT_VAR}" OUT "${LIBS}" "${LDFLAGS}")
-endfunction()
 
 ##
 ## try_code <FILENAME> <CODE> <RESULT-VARIABLE> <OUTPUT-VARIABLE> <LIBS> <LINKER-FLAGS>
@@ -296,42 +257,6 @@ macro(append_vars STR)
 
     string(REPLACE ";" " " LIST "${LIST}")
     set("${L}" "${LIST}" PARENT_SCOPE)
-  endforeach()
-endmacro()
-
-#
-# check_flag <FLAG> <VAR> [FLAG-VARS...]
-#
-# If the C compiler accepts FLAG, cache the result in VAR (derived from FLAG if
-# empty) and append FLAG to each of FLAG-VARS.
-#
-function(check_flag FLAG VAR)
-  if(NOT VAR OR VAR STREQUAL "")
-    string(TOUPPER "${FLAG}" TMP)
-    string(REGEX REPLACE "[^0-9A-Za-z]" _ VAR "${TMP}")
-  endif()
-
-  set(CMAKE_REQUIRED_QUIET ON)
-  check_c_compiler_flag("${FLAG}" "${VAR}")
-  set(CMAKE_REQUIRED_QUIET OFF)
-
-  if(${VAR})
-    append_vars(${FLAG} ${ARGN})
-    message(STATUS "Compiler flag ${FLAG}: supported")
-  else()
-    message(STATUS "Compiler flag ${FLAG}: not supported")
-  endif()
-endfunction()
-
-#
-# check_flags <FLAGS>
-#
-# Run check_flag for every flag in the list FLAGS, appending the supported
-# ones to the variables in ARGN (a macro).
-#
-macro(check_flags FLAGS)
-  foreach(FLAG ${FLAGS})
-    check_flag(${FLAG} "" ${ARGN})
   endforeach()
 endmacro()
 

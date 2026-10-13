@@ -1,6 +1,58 @@
+- consolidate cmake build scripts
+
+   1. all the HAVE_* definitions should not be -D preprocessor arguments
+      anymore - put them into config.h.cmake
+
+   2. lots of ugly cruft in CMakeLists.txt should be factored out to
+      a function/macro in cmake/ directory
+
+         - llseek() function
+         - ...
+
+      tidy CMakeLists.txt, modularize.
+
+      move generic stuff which can be used in other projects into a
+      script in cmake/
+
+    3. many things are checked for, but no corresponding #if in the 
+       source code. remove unused cruft. add comments to CMakeLists.txt 
+       in which module/source it is needed and how.
+
+    4. module/builtin configuration logic is very hacky, make it cleaner
+
+    5. set_*() functions in Functions.cmake maybe not needed (was a bad idea)
+
+    6. Compat.cmake is somehow a misnomer, it has utility functions like
+       Functions.cmake
+
+    7. CMakeLists.txt & cmake/ got maintenance hell... eliminate dead code,
+    
+    8. it's unclear yet how the user will select the modules he wants
+       to have as builtin in qjsm - come up with a solid concept
+       
+
+- nameSync() in lib/fs.js
+
+  js_mmap_filename() in quickjs-mmap.c has no WINDOWS implementation
+
+  ../../c-utils/lib/stralloc/open_filename.c
+  ../../c-utils/lib/stralloc/mmap_filename.c
+
+   on a non-windows system we have these methods:
+     - fcntl(fd, F_GETPATH, buf)
+     - mmap() the file and read /proc/self/maps to find
+       the mapped range will give the filename
+
+   on windows we do:
+      1. mmap() the file (via src/win32/mmap.c compat layer)
+      2. use GetMappedFileNameW() from psapi.dll on the address;
+         this gives a path with a device name, not drive letter
+      3. use GetLogicalDriveStringsW() & QueryDosDevice() to 
+         get the drive letter
+
+
 - js_is_* functions using string compration etc. is SLOW
 
 - fix XML enumeration
-
 - make XML writer outputting via a function call instead of DynBuf
 - make XML reader streaming?

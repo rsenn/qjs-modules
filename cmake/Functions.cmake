@@ -1,7 +1,3 @@
-include(CheckLibraryExists)
-include(CheckCCompilerFlag)
-include(CheckCSourceCompiles)
-
 #
 # add_cflags <ADD> [OUTPUT_VAR]
 #
@@ -987,3 +983,166 @@ endfunction()
 # Store the value of the environment variable VAR-NAME in OUTPUT-VAR, or
 # DEFAULT-VALUE if it is not set.
 #
+
+#
+# clean_name <STRING> <OUTPUT-VAR>
+#
+function(clean_name STR OUTPUT_VAR)
+  string(TOUPPER "${STR}" STR)
+  string(REGEX REPLACE "[^A-Za-z0-9_]" "_" STR "${STR}")
+
+  if(OUTPUT_VAR)
+    set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
+  endif()
+endfunction()
+
+#
+# have_includes <OUTPUT-VAR> [INCLUDES...]
+#
+function(have_includes OUTPUT_VAR)
+  set(LIST "")
+  foreach(INC ${ARGN})
+    clean_name("HAVE_${INC}" RESULT_VAR)
+
+    if(${${RESULT_VAR}})
+      list(APPEND LIST "${INC}")
+    endif()
+  endforeach()
+
+  if(OUTPUT_VAR)
+    set("${OUTPUT_VAR}" "${LIST}" PARENT_SCOPE)
+  endif()
+endfunction()
+
+# define_name_value <LIST> <NAME> [VALUE]
+#
+# Add/replace a definition on LIST. If a VALUE is given the definition
+# will be -D<NAME>=<VALUE>, otherwise only -D<NAME>
+#
+macro(define_name_value LIST NAME)
+  set(DEF "${NAME}")
+
+  if(${ARGC} GREATER_EQUAL 2)
+    set(DEF "${DEF}=${ARGV1}")
+  endif()
+
+  list(FILTER "${LIST}" EXCLUDE REGEX "^(${NAME}[:=].*|${NAME})$")
+
+  if("${LIST}" MATCHES "(^${NAME}=|^${NAME}$|;${NAME}$|;${NAME}=)")
+    message(FATAL_ERROR "Definition ${NAME} is already in ${LIST}")
+  else()
+    list(APPEND "${LIST}" "${DEF}")
+
+    set("${LIST}" "${${LIST}}" PARENT_SCOPE)
+  endif()
+endmacro()
+
+# undefine_name <LIST> <NAME>
+#
+# Remove a definition from LIST.
+#
+macro(undefine_name LIST NAME)
+  list(FILTER "${LIST}" EXCLUDE REGEX "^(${NAME}[:=].*|${NAME})$")
+
+  set("${LIST}" "${${LIST}}" PARENT_SCOPE)
+endmacro()
+
+# define_if <INPUT-VARIABLE> [DEFINITION-NAME]
+#
+# Define -D <DEFINITION-NAME> if ${<INPUT-VARIABLE>} is TRUE or
+# remove -D <DEFINITION-NAME> if ${<INPUT-VARIABLE>} is FALSE
+# 
+# [DEFINITION-NAME] defaults to <INPUT-VARIABLE>
+#
+function(define_if INPUT_VAR)
+  if(DEFINED "${INPUT_VAR}")
+    if(${ARGC} GREATER_EQUAL 2)
+      set(NAME "${ARGV1}")
+    else()
+      set(NAME "${INPUT_VAR}")
+    endif()
+
+    set(DEFS "${ALL_DEFINITIONS}")
+
+    if(${${INPUT_VAR}}) 
+      define_name_value(DEFS "${NAME}")
+    else()
+      undefine_name(DEFS "${NAME}")
+    endif()
+
+    set(ALL_DEFINITIONS "${DEFS}" PARENT_SCOPE)
+  else()
+    message(WARNING "define_if(${ARGV}) Variable ${INPUT_VAR} is not defined")
+  endif()
+endfunction()
+
+# register_definitions <NAME[=VALUE]...>
+#
+# Add multiple definitions in the form <NAME>[=<VALUE>] 
+#
+function(register_definitions)
+  set(DEFS "${ALL_DEFINITIONS}")
+
+  foreach(ARG ${ARGN})
+    if(ARG MATCHES "^([^=]*)=(.*)$")
+      set(NAME "${CMAKE_MATCH_1}")
+      set(VALUE "${CMAKE_MATCH_2}")
+
+      define_name_value(DEFS "${NAME}" "${VALUE}")
+    else()
+      define_name_value(DEFS "${ARG}")
+    endif()
+  endforeach()
+
+  set(ALL_DEFINITIONS "${DEFS}" PARENT_SCOPE)
+endfunction()
+
+#
+# message_table <TITLE> [KEY VALUE]...
+#
+# One status line for TITLE, then the rows aligned under it; rows with an
+# empty value are left out, a list value goes one item to a line.
+#
+#   -- QuickJS
+#   --   interpreter  /usr/local/bin/qjs
+#   --   library      /usr/local/lib/libquickjs.so
+#
+function(message_table TITLE)
+  set(WIDTH 0)
+  math(EXPR LAST "${ARGC} - 1")
+
+  foreach(I RANGE 1 ${LAST} 2)
+    string(LENGTH "${ARGV${I}}" LEN)
+    if(LEN GREATER WIDTH)
+      set(WIDTH ${LEN})
+    endif()
+  endforeach()
+
+  message(STATUS "${TITLE}")
+
+  foreach(I RANGE 1 ${LAST} 2)
+    math(EXPR J "${I} + 1")
+    set(KEY "${ARGV${I}}")
+    set(VALUE "${ARGV${J}}")
+
+    if(NOT VALUE STREQUAL "")
+      string(LENGTH "${KEY}" LEN)
+      while(LEN LESS WIDTH)
+        set(KEY "${KEY} ")
+        math(EXPR LEN "${LEN} + 1")
+      endwhile()
+      set(PAD "")
+      string(REGEX REPLACE "." " " PAD "${KEY}")
+      set(FIRST TRUE)
+
+      foreach(ITEM ${VALUE})
+        if(FIRST)
+          message(STATUS "  ${KEY}  ${ITEM}")
+          set(FIRST FALSE)
+        else()
+          message(STATUS "  ${PAD}  ${ITEM}")
+        endif()
+      endforeach()
+    endif()
+  endforeach()
+endfunction()
