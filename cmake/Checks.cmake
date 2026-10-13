@@ -42,12 +42,15 @@ endfunction()
 macro(check_ldflag FLAG VAR)
   set(CHECK_LDFLAG_SAVED "${CMAKE_EXE_LINKER_FLAGS}")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FLAG}")
+  
   set(CMAKE_REQUIRED_QUIET TRUE)
   check_c_source_compiles("int main(void) { return 0; }" ${VAR})
   set(CMAKE_REQUIRED_QUIET FALSE)
+  
   set(CMAKE_EXE_LINKER_FLAGS "${CHECK_LDFLAG_SAVED}")
-   message(CHECK_START "Linker flag ${FLAG}")
- if(${VAR})
+  message(CHECK_START "Linker flag ${FLAG}")
+ 
+  if(${VAR})
     message(CHECK_PASS "supported")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FLAG}")
   else()
@@ -72,6 +75,7 @@ function(check_inline)
     if(NOT RESULT)
       set(CMAKE_REQUIRED_DEFINITIONS "-DTESTKEYWORD=${KEYWORD}")
       check_c_source_compiles("typedef int foo_t;\nstatic TESTKEYWORD foo_t static_foo(){return 0;}\nfoo_t foo(){return 0;}\nint main(int argc, char *argv[]){return 0;}\n" HAVE_${KEYWORD})
+
       if(HAVE_${KEYWORD})
         set(RESULT "${KEYWORD}")
       endif()
@@ -85,7 +89,7 @@ function(check_inline)
   if(${ARGC} LESS_EQUAL 0)
     if(NOT "${RESULT}" STREQUAL "")
       if(NOT "${RESULT}" MATCHES "^inline$")
-        add_definitions("-Dinline=${RESULT}")
+        register_definitions("inline=${RESULT}")
       endif()
     endif()
   endif()
@@ -115,14 +119,18 @@ function(check_compile RESULT_VAR SOURCE)
     string(REGEX REPLACE "^(have|support)-" "" DESC "${C_NAME}")
     string(REPLACE - " " DESC "${DESC}")
   endif()
+
   message(CHECK_START "Checking ${DESC}")
+  
   try_compile(COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" OUTPUT_VARIABLE "OUTPUT" 
     CMAKE_FLAGS "${CMAKE_FLAGS}"
     COMPILE_DEFINITIONS "${COMPILE_DEFINITIONS}"
     LINK_OPTIONS "${LINK_OPTIONS}"
     LINK_LIBRARIES "${LINK_LIBRARIES}"
   )
+  
   file(REMOVE "${C_SOURCE}")
+  
   if(COMPILE_RESULT)
     message(CHECK_PASS "yes")
   else()
@@ -157,9 +165,10 @@ macro(check_run RESULT_VAR SOURCE)
   message(CHECK_START "Checking ${DESC} (run)")
   try_run(RUN_RESULT COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" COMPILE_OUTPUT_VARIABLE "OUTPUT" LINK_LIBRARIES "${ARGN}")
   file(REMOVE "${C_SOURCE}")
+ 
   if(COMPILE_RESULT AND RUN_RESULT)
     message(CHECK_PASS "yes")
-    # add_definitions(-D${RESULT_VAR})
+    # register_definitions(${RESULT_VAR})
   else()
     set(COMPILE_LOG "${CMAKE_CURRENT_BINARY_DIR}/run-${C_NAME}.log")
     message(CHECK_FAIL "no (see ${COMPILE_LOG})")
@@ -168,7 +177,7 @@ macro(check_run RESULT_VAR SOURCE)
     list(FILTER OUTPUT INCLUDE REGEX "error")
   endif()
  
-   if(RESULT_VAR)
+  if(RESULT_VAR)
     set("${RESULT_VAR}" "${COMPILE_RESULT}" CACHE BOOL "Support ${NAME}")
   endif()
 endmacro()
@@ -180,25 +189,23 @@ macro(check_include_def INC)
   if(${ARGC} LESS 3)
     clean_name("${INC}" INC_D)
   endif()
+  
   if(${ARGC} GREATER_EQUAL 2)
     set(RESULT_VAR "${ARGV1}")
   else()
     string(TOUPPER "HAVE_${INC_D}" RESULT_VAR)
   endif()
-  if(${ARGC} GREATER_EQUAL 3)
-    set(PREPROC_DEF "${ARGV2}")
-  else()
-    string(TOUPPER "HAVE_${INC_D}" PREPROC_DEF)
-  endif()
+
   check_include_file("${INC}" RESULT)
-  if(RESULT_VAR)
-    if(RESULT)
-      set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
-      if(NOT "${PREPROC_DEF}" STREQUAL "")
-        var2define("${PREPROC_DEF}" 1)
-      endif()
+
+  set("${RESULT_VAR}" "${RESULT}" CACHE INTERNAL "Define this if you have the '${INC}' header file")
+
+  if(RESULT) 
+    if(${ARGC} GREATER_EQUAL 3)
+      var2define("${ARGV2}" 1)
     endif()
   endif()
+
   set_add(CHECKED_INCLUDES "${INC}")
 endmacro()
 
@@ -209,6 +216,8 @@ macro(check_includes)
   foreach(INC ${ARGN})
     clean_name("HAVE_${INC}" RESULT_VAR)
     check_include_def("${INC}" "${RESULT_VAR}")
+
+    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -217,7 +226,8 @@ endmacro()
 #
 macro(check_includes_def)
   foreach(INC ${ARGN})
-    check_include_def("${INC}")
+    clean_name("HAVE_${INC}" RESULT_VAR)
+    check_include_def("${INC}" "${RESULT_VAR}" "${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -227,6 +237,7 @@ endmacro()
 function(clean_name STR OUTPUT_VAR)
   string(TOUPPER "${STR}" STR)
   string(REGEX REPLACE "[^A-Za-z0-9_]" "_" STR "${STR}")
+
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
   endif()
@@ -246,14 +257,15 @@ macro(check_include_def INC)
   endif()
 
   check_include_file("${INC}" "${RESULT_VAR}")
-  if(RESULT_VAR)
-    if(${${RESULT_VAR}})
-      set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
-      if(NOT "${PREPROC_DEF}" STREQUAL "")
-        var2define("${PREPROC_DEF}" 1)
-      endif()
+
+  set("${RESULT_VAR}" "${${RESULT_VAR}}" CACHE INTERNAL "Define this if you have the '${INC}' header file")
+
+  if(${${RESULT_VAR}})
+    if(NOT "${PREPROC_DEF}" STREQUAL "")
+      var2define("${PREPROC_DEF}" 1)
     endif()
   endif()
+
   set_add(CHECKED_INCLUDES "${INC}")
 endmacro()
 
@@ -264,6 +276,8 @@ macro(check_includes)
   foreach(INC ${ARGN})
     clean_name("HAVE_${INC}" RESULT_VAR)
     check_include_def("${INC}" "${RESULT_VAR}")
+
+    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -272,7 +286,7 @@ endmacro()
 #
 macro(check_includes_def)
   foreach(INC ${ARGN})
-    check_include_def("${INC}")
+    check_include_def("${INC}" )
   endforeach()
 endmacro()
 
@@ -283,6 +297,7 @@ function(have_includes OUTPUT_VAR)
   set(LIST "")
   foreach(INC ${ARGN})
     clean_name("HAVE_${INC}" RESULT_VAR)
+
     if(${${RESULT_VAR}})
       list(APPEND LIST "${INC}")
     endif()
@@ -305,12 +320,12 @@ macro(check_function_def FUNC)
     string(TOUPPER "HAVE_${FUNC}" PREPROC_DEF)
   endif()
   check_function_exists("${FUNC}" "${RESULT_VAR}")
-  if(RESULT_VAR)
-    if(${${RESULT_VAR}})
-      set("${RESULT_VAR}" TRUE CACHE BOOL "Define this if you have the '${FUNC}' function")
-      if(NOT "${PREPROC_DEF}" STREQUAL "")
-        add_definitions(-D${PREPROC_DEF})
-      endif()
+
+  set("${RESULT_VAR}" "${${RESULT_VAR}}" TRUE CACHE BOOL "Define this if you have the '${FUNC}' function")
+
+  if(${${RESULT_VAR}})
+    if(NOT "${PREPROC_DEF}" STREQUAL "")
+      add_definitions("-D${PREPROC_DEF}")
     endif()
   endif()
 endmacro()
@@ -322,6 +337,8 @@ macro(check_functions)
   foreach(FUNC ${ARGN})
     string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
     check_function_def("${FUNC}" "${RESULT_VAR}")
+
+    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -340,9 +357,14 @@ endmacro()
 macro(check_function_and_include FUNC INC)
   clean_name("HAVE_${INC}" INC_RESULT)
   clean_name("HAVE_${FUNC}" FUNC_RESULT)
-  check_include_def("${INC}" "${INC_RESULT}" "${INC_RESULT}")
+  check_include_def("${INC}" "${INC_RESULT}")
+
+  define_if("${INC_RESULT}")
+
   if(${${INC_RESULT}})
-    check_function_def("${FUNC}" "${FUNC_RESULT}" "${FUNC_RESULT}")
+    check_function_def("${FUNC}" "${FUNC_RESULT}")
+
+    define_if("${FUNC_RESULT}")
   endif()
 endmacro()
 
@@ -351,15 +373,20 @@ endmacro()
 #
 macro(check_source_definitions)
   set(SOURCE_DEFINITIONS)
+
   if(${ARGC} GREATER_EQUAL 1)
     set(SOURCE_TYPES ${ARGN})
   else()
     set(SOURCE_TYPES "ATFILE;GNU;LARGEFILE;LARGE_FILE;LARGEFILE64;POSIX;POSIX_C;XOPEN;XOPEN_EXTENDED")
   endif() 
+  
   foreach(TYPE ${SOURCE_TYPES})
-    set_add(SOURCE_DEFINITIONS -D_${TYPE}_SOURCE)
+    set_add(SOURCE_DEFINITIONS "${TYPE}_SOURCE")
   endforeach()
-  add_definitions(${SOURCE_DEFINITIONS})
+  
+  register_definitions(${SOURCE_DEFINITIONS})
+  #add_definitions(${SOURCE_DEFINITIONS})
+
   list(APPEND CMAKE_REQUIRED_DEFINITIONS ${SOURCE_DEFINITIONS})
 endmacro()
 
@@ -368,22 +395,27 @@ endmacro()
 #
 function(check_sys_siglist_declaration)
   if(${ARGC} LESS 1)
-    set(OUTPUT_VAR "HAVE_SYS_SIGLIST_DECLARATION")
+    set(OUTPUT_VAR HAVE_SYS_SIGLIST_DECLARATION)
   else()
     set(OUTPUT_VAR "${ARGV0}")
   endif()
+
   if(${ARGC} LESS 2)
-    set(PREPROC_DEF "HAVE_SYS_SIGLIST_DECLARATION")
+    set(PREPROC_DEF HAVE_SYS_SIGLIST_DECLARATION)
   else()
     set(PREPROC_DEF "${ARGV1}")
   endif()
  
+  set(DEFS "${ALL_DEFINITIONS}")
+
   check_symbol_exists(sys_siglist "signal.h" SYM_EXISTS)
   if(SYM_EXISTS)
-    add_definitions(-D${PREPROC_DEF})
+    define_name_value(DEFS "${PREPROC_DEF}")
   endif()
+
+  set(ALL_DEFINITIONS "${DEFS}" PARENT_SCOPE)
  
-  check_warn_flag(-Wall WARN_ALL)
+  #check_warn_flag(-Wall WARN_ALL)
  
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${SYM_EXISTS}" PARENT_SCOPE)
@@ -397,9 +429,11 @@ endfunction()
 #
 macro(check_warn_flag FLAG RESULT_VAR)
   message(CHECK_START "Checking warning flag ${FLAG}")
+  
   set(CMAKE_REQUIRED_QUIET TRUE)
   check_c_compiler_flag("${FLAG}" ${RESULT_VAR})
   set(CMAKE_REQUIRED_QUIET FALSE)
+
   if(${RESULT_VAR})
     message(CHECK_PASS "supported")
     set(WERROR_FLAG "${WERROR_FLAG} ${FLAG}")
@@ -412,9 +446,9 @@ endmacro()
 # check_no_unused_warn_flags
 #
 macro(check_no_unused_warn_flags)
-  check_warn_flag(-Wno-unused-variable WARN_NO_UNUSED_VARIABLE)
-  check_warn_flag(-Wno-unused-function WARN_NO_UNUSED_FUNCTION)
-  check_warn_flag(-Wno-error=unused-but-set-variable WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE)
+  check_warn_flag("-Wno-unused-variable" WARN_NO_UNUSED_VARIABLE)
+  check_warn_flag("-Wno-unused-function" WARN_NO_UNUSED_FUNCTION)
+  check_warn_flag("-Wno-error=unused-but-set-variable" WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE)
 endmacro()
 
 
@@ -459,9 +493,7 @@ function(check_windows_native)
     set(RESULT FALSE)
   endif()
 
-  if(OUTPUT_VAR)
-    set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
-  endif()
+  set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
 endfunction()
 
 #
@@ -473,6 +505,7 @@ function(check_winsock2)
   else()
     set(OUTPUT_VAR "${ARGV0}")
   endif()
+
   if(${ARGC} LESS 2)
     set(LIBRARY_VAR WINSOCK2_LIBRARY)
   else()
@@ -480,15 +513,19 @@ function(check_winsock2)
   endif()
  
   check_windows_native(WIN_NATIVE)
+
   if(WIN_NATIVE)
     check_library_exists(ws2_32 gethostname /usr/lib HAVE_WS2_32)
+  
     if(NOT HAVE_WS2_32)
       check_library_exists(wsock32 gethostname /usr/lib HAVE_WSOCK32)
     endif()
   endif()
+  
   if(HAVE_WSOCK32)
     set(LIBRARY wsock32)
   endif()
+  
   if(HAVE_WS2_32)
     set(LIBRARY ws2_32)
   endif()
@@ -502,6 +539,9 @@ function(check_winsock2)
   endif()
 endfunction()
 
+#
+# check_socket_library [RESULT-VAR] 
+#
 function(check_socket_library)
   if(${ARGC} GREATER_EQUAL 1)
     set(RESULT_VAR "${ARGV0}")
@@ -513,6 +553,7 @@ function(check_socket_library)
     check_winsock2(HAVE_WINSOCK RESULT)
   else()
     check_library_exists(socket "connect" /usr/lib HAVE_LIBSOCKET)
+
     if(HAVE_LIBSOCKET)
       set(RESULT "socket")
     else()
@@ -520,9 +561,7 @@ function(check_socket_library)
     endif()
   endif()
 
-  if(RESULT_VAR)
-    set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
-  endif()
+  set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
 endfunction()
 
 #
@@ -534,6 +573,7 @@ function(check_lowfat)
   else()
     set(RESULT_VAR HAVE_LIBOWFAT)
   endif()
+
   if(${ARGC} GREATER_EQUAL 2)
     set(LIB_VAR "${ARGV1}")
   else()
@@ -544,20 +584,17 @@ function(check_lowfat)
   if(RESULT)
     set(LIB owfat_debug)
   endif()
+
   if(NOT RESULT)
     check_library_exists(owfat buffer_init /usr/lib64 RESULT)
+  
     if(RESULT)
       set(LIB owfat)
     endif()
   endif()
   
-  if(RESULT_VAR)
-    set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
-  endif()
-  
-  if(LIB_VAR)
-    set("${LIB_VAR}" "${LIB}" PARENT_SCOPE)
-  endif()
+  set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
+  set("${LIB_VAR}" "${LIB}" PARENT_SCOPE)
 endfunction()
 
 #
@@ -591,6 +628,7 @@ function(check_pointer_size)
   if(NOT SIZEOF_POINTER)
     foreach(n 4 8 2)
       check_c_source_compiles("typedef char t[sizeof(void*) == ${n} ? 1 : -1]; int main(void) { return 0; }" POINTER_SIZE_IS_${n})
+ 
       if(POINTER_SIZE_IS_${n})
         set(SIZEOF_POINTER ${n})
         break()
@@ -602,7 +640,7 @@ function(check_pointer_size)
     math(EXPR POINTER_BITS "${SIZEOF_POINTER} * 8")
     message(CHECK_PASS "${POINTER_BITS}bit")
     set(POINTER_SIZE "${SIZEOF_POINTER}")
-    add_definitions(-DPOINTER_SIZE=${POINTER_SIZE})
+    register_definitions(POINTER_SIZE=${POINTER_SIZE})
   else()
     message(CHECK_FAIL "failed")
   endif()
@@ -628,9 +666,9 @@ function(check_type_exists TYPE RESULT_VAR)
     set(SRC "#include <${INC}>\n${SRC}")
   endforeach()
 
-  check_compile("${RESULT_VAR}" "${SRC}" "for type ${TYPE}")
+  check_compile(RESULT "${SRC}" "for type ${TYPE}")
 
-  set("${RESULT_VAR}" "${HAVE_${TYPE}}" PARENT_SCOPE)
+  set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
 endfunction()
 
 #
@@ -643,17 +681,14 @@ function(check_type_exists_def TYPE)
     clean_name("HAVE_${TYPE}" RESULT_VAR)
   endif()
 
-  #list(SUBLIST ARGN 2 -1 REST)
-  #assign_named_items(${REST})
+  list(SUBLIST ARGN 2 -1 REST)
+ 
+  check_type_exists("${TYPE}" RESULT ${REST})
 
-  check_type_exists("${TYPE}" "${RESULT_VAR}" ${REST})
+  set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
 
-  set("${RESULT_VAR}" "${${RESULT_VAR}}" PARENT_SCOPE)
-
-  if(${${RESULT_VAR}})
-    if(${ARGC} GREATER_EQUAL 3)
-        add_definitions("-D${ARGV2}_=1")
-    endif()
+  if(${ARGC} GREATER_EQUAL 3 AND NOT "${ARGV2}" STREQUAL "")
+    define_if("${RESULT_VAR}" "${ARGV2}")
   endif()
 endfunction()
 
@@ -662,7 +697,11 @@ endfunction()
 #
 macro(check_types)
   foreach(TYPE ${ARGN})
-    check_type_exists_def("${TYPE}")
+    clean_name("HAVE_${TYPE}_TYPE" RESULT_VAR)
+
+    check_type_exists_def("${TYPE}" "${RESULT_VAR}")
+
+    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -687,33 +726,46 @@ function(check_alloca)
   endif()
 
   set(CMAKE_REQUIRED_QUIET TRUE)
+
+  if(NOT DEFINED HAVE_ALLOCA_H)
+    check_include_def(alloca.h HAVE_ALLOCA_H)
+    set(HAVE_ALLOCA_H "${HAVE_ALLOCA_H}" PARENT_SCOPE)
+  endif()
+
   if(HAVE_ALLOCA_H)
     set_add(CMAKE_REQUIRED_INCLUDES alloca.h)
     check_symbol_exists(alloca alloca.h HAVE_ALLOCA_SYMBOL)
-  endif()  
+  endif()
+
   check_compile(HAVE_ALLOCA_ALLOCA_H "#include <stdlib.h>\n#include <alloca.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}"
     "alloca() in <alloca.h>")
+  
   if(NOT HAVE_ALLOCA_ALLOCA_H)
     check_compile(HAVE_ALLOCA_MALLOC_H "#include <stdlib.h>\n#include <malloc.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}"
       "alloca() in <malloc.h>")
   endif()
+  
   if(HAVE_ALLOCA_ALLOCA_H OR HAVE_ALLOCA_MALLOC_H)
-    set(HAVE_ALLOCA TRUE)
-    add_definitions(-DHAVE_ALLOCA)
+    set(RESULT TRUE)
+  
     if(HAVE_ALLOCA_MALLOC_H)
       set(ALLOCA_HEADER "malloc.h" CACHE STRING "Header for alloca()")
     else()
       set(ALLOCA_HEADER "alloca.h" CACHE STRING "Header for alloca()")
     endif()
+
+    set(ALLOCA_HEADER "${ALLOCA_HEADER}" PARENT_SCOPE)
+  else()
+    set(RESULT FALSE)
   endif()
-  if(NOT HAVE_ALLOCA)
-    set(ALLOCA_HEADER "")
-  endif()
+  
   set(CMAKE_REQUIRED_QUIET FALSE)
 
-  if(OUTPUT_VAR)
-    set("${OUTPUT_VAR}" "${HAVE_ALLOCA}" PARENT_SCOPE)
-  endif()
+  define_if(RESULT HAVE_ALLOCA)
+
+  set(ALL_DEFINITIONS "${ALL_DEFINITIONS}" PARENT_SCOPE)
+
+  set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
 endfunction()
 
 #
@@ -722,13 +774,13 @@ endfunction()
 macro(check_memory_mapping)
   check_include_file(sys/mman.h HAVE_SYS_MMAN_H)
   if(HAVE_SYS_MMAN_H)
-    set(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} sys/mman.h)
-    set_add(CMAKE_REQUIRED_INCLUDES sys/mman.h)
+    set_add(CMAKE_EXTRA_INCLUDE_FILES sys/mman.h)
+    #set_add(CMAKE_REQUIRED_INCLUDES sys/mman.h)
   endif()
 
   check_function_exists(mmap HAVE_MMAP_FUNC)
-  check_function_exists(munmap HAVE_MUNMAP)
-  check_function_exists(mremap HAVE_MREMAP)
+  check_function_exists(munmap HAVE_MUNMAP_FUNC)
+  #check_function_exists(mremap HAVE_MREMAP_FUNC)
 
   # whether the platform can support memory-mapped file I/O at all -- either
   # POSIX mmap(2)/munmap(2) (sys/mman.h present and both functions found), or
@@ -737,7 +789,7 @@ macro(check_memory_mapping)
   # option(), see CMakeLists.txt) may only be ON when this is true; HAVE_MMAP
   # (the compiler define lib/mmap/ and its callers actually check) tracks
   # USE_MMAP's final, validated value, not raw platform capability.
-  if(HAVE_SYS_MMAN_H AND HAVE_MMAP_FUNC AND HAVE_MUNMAP)
+  if(HAVE_SYS_MMAN_H AND HAVE_MMAP_FUNC AND HAVE_MUNMAP_FUNC)
     set(HAVE_MMAP_SUPPORT TRUE)
   elseif(WIN32 OR WIN64 OR MINGW OR WINDOWS OR CMAKE_SYSTEM_NAME STREQUAL "WASI") # WASI: -lwasi-emulated-mman
     set(HAVE_MMAP_SUPPORT TRUE)
@@ -748,7 +800,7 @@ macro(check_memory_mapping)
     set(USE_MMAP OFF CACHE BOOL "Use mmap() for memory-mapped file I/O" FORCE)
   endif()
 
-  set(HAVE_MMAP ${USE_MMAP} CACHE BOOL "Have the mmap() function")
+  set(HAVE_MMAP "${HAVE_MMAP_SUPPORT}" CACHE BOOL "Have the mmap() function")
 endmacro()
 
 #
@@ -857,14 +909,17 @@ function(check_fork_function)
   endif()
 endfunction()
 
+#
+# check_termios_winsize
+#
 macro(check_termios_winsize)
-  check_includes_def(termios.h sys/ioctl.h)
+  check_includes(termios.h sys/ioctl.h)
+
   if(HAVE_TERMIOS_H AND HAVE_SYS_IOCTL_H)
     set(GET_COLUMNS "#include <unistd.h>\n#include <fcntl.h>\n#include <termios.h>\n#include <sys/ioctl.h>\n#include <stdio.h>\n\nint\nmain() {\n\tstruct winsize sz;\n\tint fd = isatty(0) ? dup(0) : open(\"/dev/tty\", O_RDWR);\n\n\tif(!isatty(fd)) {\n\t\tfputs(\"not a tty\\n\", stderr);\n\t\tfflush(stderr);\n\t\treturn 1;\n\t}\n\n\tif(ioctl(fd, TIOCGWINSZ, &sz) == -1) {\n\t\tperror(\"ioctl\");\n\t\treturn 1;\n\t}\n\n\tclose(fd);\n\n\tprintf(\"%u\\n\", sz.ws_col);\n\treturn 0;\n}\n" )
     check_compile(HAVE_WINSIZE "${GET_COLUMNS}" "TIOCGWINSZ")
-    if(HAVE_WINSIZE)
-      add_definitions(-DHAVE_WINSIZE=1)
-    endif()
+
+    define_if(HAVE_WINSIZE)
   endif()
 endmacro()
 
@@ -872,12 +927,8 @@ endmacro()
 # check_pw_functions
 #
 macro(check_pw_functions)
-  check_include_file(pwd.h HAVE_PWD_H)
-  check_include_file(grp.h HAVE_GRP_H)
-  check_function_exists(getpwuid_r HAVE_GETPWUID_R)
-  check_function_exists(getpwuid HAVE_GETPWUID)
-  check_function_exists(getgrgid_r HAVE_GETGRGID_R)
-  check_function_exists(getgrgid HAVE_GETGRGID)
+  check_includes(pwd.h grp.h)
+  check_functions(getpwuid_r getpwuid getgrgid_r getgrgid)
 endmacro()
 
 #
@@ -887,13 +938,10 @@ macro(check_sig_functions)
   check_function_exists(sigprocmask HAVE_SIGPROCMASK)
 
   if(NOT HAVE_SIGPROCMASK)
-    check_function_exists(sigblock HAVE_SIGBLOCK)
-    check_function_exists(sigsetmask HAVE_SIGSETMASK)
-    check_function_exists(sigpause HAVE_SIGPAUSE)
+    check_functions(sigblock sigsetmask  sigpause)
   endif()
 
-  check_function_exists(sigaction HAVE_SIGACTION)
-  check_function_exists(setpgid HAVE_SETPGID)
+  check_functions(sigaction setpgid)
 endmacro()
 
 #
@@ -983,4 +1031,88 @@ function(check_debug_symbols_flags)
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${FLAGS}" PARENT_SCOPE)
   endif()
+endfunction()
+
+# define_name_value <LIST> <NAME> [VALUE]
+#
+# Add/replace a definition on LIST. If a VALUE is given the definition
+# will be -D<NAME>=<VALUE>, otherwise only -D<NAME>
+#
+macro(define_name_value LIST NAME)
+  set(DEF "${NAME}")
+
+  if(${ARGC} GREATER_EQUAL 2)
+    set(DEF "${DEF}=${ARGV1}")
+  endif()
+
+  list(FILTER "${LIST}" EXCLUDE REGEX "^(${NAME}[:=].*|${NAME})$")
+
+  if("${LIST}" MATCHES "(^${NAME}=|^${NAME}$|;${NAME}$|;${NAME}=)")
+    message(FATAL_ERROR "Definition ${NAME} is already in ${LIST}")
+  else()
+    list(APPEND "${LIST}" "${DEF}")
+  
+    set("${LIST}" "${${LIST}}" PARENT_SCOPE)
+  endif()
+endmacro()
+
+# undefine_name <LIST> <NAME>
+#
+# Remove a definition from LIST.
+#
+macro(undefine_name LIST NAME)
+  list(FILTER "${LIST}" EXCLUDE REGEX "^(${NAME}[:=].*|${NAME})$")
+
+  set("${LIST}" "${${LIST}}" PARENT_SCOPE)
+endmacro()
+
+# define_if <INPUT-VARIABLE> [DEFINITION-NAME]
+#
+# Define -D <DEFINITION-NAME> if ${<INPUT-VARIABLE>} is TRUE or
+# remove -D <DEFINITION-NAME> if ${<INPUT-VARIABLE>} is FALSE
+# 
+# [DEFINITION-NAME] defaults to <INPUT-VARIABLE>
+#
+function(define_if INPUT_VAR)
+  if(DEFINED "${INPUT_VAR}")
+    if(${ARGC} GREATER_EQUAL 2)
+      set(NAME "${ARGV1}")
+    else()
+      set(NAME "${INPUT_VAR}")
+    endif()
+
+    set(DEFS "${ALL_DEFINITIONS}")
+
+    if(${${INPUT_VAR}}) 
+      define_name_value(DEFS "${NAME}")
+    else()
+      undefine_name(DEFS "${NAME}")
+    endif()
+
+    set(ALL_DEFINITIONS "${DEFS}" PARENT_SCOPE)
+  else()
+    message(WARNING "define_if(${ARGV}) Variable ${INPUT_VAR} is not defined")
+  endif()
+endfunction()
+
+
+# register_definitions <NAME[=VALUE]...>
+#
+# Add multiple definitions in the form <NAME>[=<VALUE>] 
+#
+function(register_definitions)
+  set(DEFS "${ALL_DEFINITIONS}")
+
+  foreach(ARG ${ARGN})
+    if(ARG MATCHES "^([^=]*)=(.*)$")
+      set(NAME "${CMAKE_MATCH_1}")
+      set(VALUE "${CMAKE_MATCH_2}")
+
+      define_name_value(DEFS "${NAME}" "${VALUE}")
+    else()
+      define_name_value(DEFS "${ARG}")
+    endif()
+  endforeach()
+
+  set(ALL_DEFINITIONS "${DEFS}" PARENT_SCOPE)
 endfunction()

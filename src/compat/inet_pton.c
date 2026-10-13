@@ -1,7 +1,7 @@
 #ifndef HAVE_INET_PTON
 #if WINDOWS_NATIVE
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>

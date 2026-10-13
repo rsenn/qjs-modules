@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #include "compat/mmap-win32.h"
 #else
 #include <sys/mman.h>
@@ -46,13 +46,13 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   if(argc <= 5 || !JS_IsNumber(argv[5]) || JS_ToIndex(ctx, &offset, argv[5]))
     offset = 0;
 
-  if(!(ptr = mmap((void*)addr, length, prot, flags, fd, offset)))
+  if(!(ptr = mmap((void*)(uintptr_t)addr, length, prot, flags, fd, offset)))
     return JS_ThrowInternalError(ctx, "Could not mmap %lu bytes of memory", (unsigned long)length);
 
   if(ptr == MAP_FAILED)
     return JS_NewInt32(ctx, -1);
 
-  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length, !!(flags & MAP_SHARED));
+  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)(uintptr_t)length, !!(flags & MAP_SHARED));
 }
 
 static JSValue

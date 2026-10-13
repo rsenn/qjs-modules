@@ -187,7 +187,7 @@ js_deep_predicate(JSContext* ctx, JSValueConst fn, JSValueConst value, const Vec
 
 static JSValue
 js_deep_return(JSContext* ctx, Vector* frames, int32_t flags, void* opaque) {
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
   PropertyEnumeration* it = property_recursion_top(frames);
   path_func_type* path_fn = js_deep_pathfunc(flags);
 

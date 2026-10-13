@@ -98,7 +98,7 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
 
   while(!vector_empty(&stack)) {
     ParseFrame* top = vector_back(&stack, sizeof(ParseFrame));
-    sj_Value k, v;
+    sj_Value k = {0}, v = {0};
     BOOL more;
 
     if(top->is_object)

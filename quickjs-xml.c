@@ -769,7 +769,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
               location_count(&loc, buf, start - buf);
               file = location_file(&loc, ctx);
               xml_debug(
-                  "mismatch </%.*s> at %s:%u:%u (byte %zu/char %zu)", (int)namelen, name, file, loc.line + 1, loc.column + 1, loc.byte_offset, loc.char_offset);
+                  "mismatch </%.*s> at %s:%u:%u (byte %"PRIu64"/char %"PRIu64")", (int)namelen, name, file, loc.line + 1, loc.column + 1, (uint64_t)loc.byte_offset, (uint64_t)loc.char_offset);
               ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line + 1, loc.column + 1);
 
               if(file)
@@ -1114,7 +1114,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       flat = FALSE;
   }
 
-  xml_debug("js_xml_write len=%zu, children=%s, flat=%d\n", len, JS_ToCString(ctx, children), flat);
+  xml_debug("js_xml_write len=%"PRIu64", children=%s, flat=%d\n", (uint64_t)len, JS_ToCString(ctx, children), flat);
 
   if(flat)
     ret = js_xml_write_list(ctx, obj, len, &output);

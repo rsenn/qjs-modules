@@ -70,7 +70,7 @@
    collide. */
 #define DEBUG_MODULE(level, fmt, args...) \
   if(debug_module >= (level)) \
-    printf("(%zu) %-21s" fmt "\n", jsm_stack_count(), __FUNCTION__, args);
+    printf("(%" PRIu64 ") %-21s" fmt "\n", (uint64_t)jsm_stack_count(), __FUNCTION__, args);
 
 /* Logs one line of the module-load tree (verbosity >= 1): `kind` is a fixed-width tag, one
  * "| " guide per module currently being loaded indents it under the module that loads it.
@@ -2460,7 +2460,7 @@ jsm_trace_malloc_usable_size(const void* ptr) {
 #if defined(__APPLE__)
   return malloc_size(ptr);
 #elif defined(_WIN32)
-  return _msize(ptr);
+  return _msize((void*)ptr);
 #elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
@@ -2474,7 +2474,7 @@ jsm_trace_malloc_usable_size(const void* ptr) {
 
 /*
  * printf-like tracer for -T/--trace allocator events; only understands "%p" and
- * "%zd" conversions (everything else is copied through verbatim).
+ * PRId64 conversions (everything else is copied through verbatim).
  */
 static void
 FORMAT_STRING(2, 3) jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, ...) {
@@ -2485,14 +2485,14 @@ FORMAT_STRING(2, 3) jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, .
 
   while((c = *fmt++) != '\0') {
     if(c == '%') {
-      /* only handle %p and %zd */
+      /* only handle %p and PRId64 */
       if(*fmt == 'p') {
         uint8_t* ptr;
 
         if(!(ptr = va_arg(ap, void*)))
           printf("0");
         else
-          printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
+          printf("H%+06lld.%" PRId64, jsm_trace_malloc_ptr_offset(ptr, s->opaque), (int64_t)jsm_trace_malloc_usable_size(ptr));
 
         fmt++;
         continue;
@@ -2501,7 +2501,7 @@ FORMAT_STRING(2, 3) jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, .
       if(fmt[0] == 'z' && fmt[1] == 'd') {
         size_t sz = va_arg(ap, size_t);
 
-        printf("%zd", sz);
+        printf("%" PRIu64, (uint64_t)sz);
         fmt += 2;
         continue;
       }
@@ -2531,7 +2531,7 @@ jsm_trace_malloc(JSMallocState* s, size_t size) {
     return 0;
 
   ptr = malloc(size);
-  jsm_trace_malloc_printf(s, "A %zd -> %p\n", size, ptr);
+  jsm_trace_malloc_printf(s, "A %" PRIu64 " -> %p\n", (uint64_t)size, ptr);
 
   if(ptr) {
     s->malloc_count++;
@@ -2568,7 +2568,7 @@ jsm_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
   old_size = jsm_trace_malloc_usable_size(ptr);
 
   if(size == 0) {
-    jsm_trace_malloc_printf(s, "R %zd %p\n", size, ptr);
+    jsm_trace_malloc_printf(s, "R %" PRId64 " %p\n", (uint64_t)size, ptr);
     s->malloc_count--;
     s->malloc_size -= old_size + MALLOC_OVERHEAD;
     free(ptr);
@@ -2578,7 +2578,7 @@ jsm_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
   if(s->malloc_size + size - old_size > s->malloc_limit)
     return 0;
 
-  jsm_trace_malloc_printf(s, "R %zd %p", size, ptr);
+  jsm_trace_malloc_printf(s, "R %" PRIu64 " %p", (uint64_t)size, ptr);
 
   ptr = realloc(ptr, size);
   jsm_trace_malloc_printf(s, " -> %p\n", ptr);
@@ -3053,7 +3053,10 @@ jsm_help(void) {
          "\n"
          "  USR1 signal starts interactive mode\n"
 #endif
-         "-l  --list         list modules\n",
+         "-l  --list         list modules\n"
+         "\n"
+         "-N  --no-node-hooks  disable node:* module loader hooks\n"
+         "-P  --no-process     disable 'process' global\n",
          CONFIG_VERSION,
          exename);
   exit(1);
@@ -3068,6 +3071,7 @@ main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
   char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 0, list_modules = 0;
+  char no_node_hooks = 0, no_process_global = 0;
   const char* include_list[32];
   size_t memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -3234,6 +3238,16 @@ main(int argc, char** argv) {
         break;
       }
 
+      if(opt == 'N' || str_equal(longopt, "no-node-hooks")) {
+        no_node_hooks++;
+        break;
+      }
+
+      if(opt == 'P' || str_equal(longopt, "no-process")) {
+        no_process_global++;
+        break;
+      }
+
       if(opt) {
         fprintf(stderr, "%s: unknown option '-%c'\n", exename, opt);
       } else {
@@ -3336,7 +3350,10 @@ main(int argc, char** argv) {
 
     js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
-    dbuf_putstr(&db, "import 'nodeHooks';\nimport process from 'process';\nglobalThis.process = process;\n");
+    if(!no_node_hooks)
+      dbuf_putstr(&db, "import 'nodeHooks';\n");
+    if(!no_process_global)
+      dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
 
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 

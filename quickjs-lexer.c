@@ -176,7 +176,7 @@ JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Lexer* lex = 0;
   Location* loc = 0;
-  Token* tok;
+  Token* tok = 0;
   InputBuffer in = INPUTBUFFER();
   int32_t id = -1;
   int64_t char_offset = -1;
@@ -907,7 +907,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       }
 
       if(start < lex->base || end < start || end - lex->base > lex->size)
-        return JS_ThrowRangeError(ctx, "getRange(): %zu-%zu is outside the buffered input", start, end);
+        return JS_ThrowRangeError(ctx, "getRange(): %" PRIu64 "-%" PRIu64 " is outside the buffered input", (uint64_t)start, (uint64_t)end);
 
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[start - lex->base], end - start);
       break;
@@ -1212,7 +1212,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         size_t offset = utf8_byteoffset(lex->data, lex->size, newpos);
 
         if(offset > lex->size)
-          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, lex->size);
+          return JS_ThrowRangeError(ctx, "new .byte_offset not within range 0 - %" PRIu64, (uint64_t)lex->size);
 
         lex->byte_offset = offset;
         lex->char_offset = newpos;

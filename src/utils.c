@@ -3094,6 +3094,30 @@ js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int 
 
   return ret;
 }
+
+JSValue
+js_std_file(JSContext* ctx) {
+  const char* module_name = "std";
+  JSValue ns = js_module_namespace_sync(ctx, module_name);
+
+  if(JS_IsException(ns)) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return JS_ThrowReferenceError(ctx, "'%s' module required", module_name);
+  }
+
+  JSValue fileObj = JS_GetPropertyStr(ctx, ns, "out");
+  JS_FreeValue(ctx, ns);
+
+  if(JS_IsException(fileObj))
+    return JS_EXCEPTION;
+
+  if(js_is_null_or_undefined(fileObj))
+    return JS_ThrowReferenceError(ctx, "no 'out' object in module '%s'", module_name);
+
+  JSValue ret = JS_GetPrototype(ctx, fileObj);
+  JS_FreeValue(ctx, fileObj);
+  return ret;
+}
 /**
  * @}
  */

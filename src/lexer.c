@@ -45,7 +45,7 @@ int
 lexer_state_push(Lexer* lex, const char* state) {
   int32_t id;
 #ifdef DEBUG_OUTPUT_
-  printf("lexer_state_push(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), state);
+  printf("lexer_state_push(%"PRIu64"): %s\n", (uint64_t)vector_size(&lex->state_stack, sizeof(int32_t)), state);
 #endif
   if((id = lexer_state_findb(lex, state, strlen(state))) >= 0) {
     vector_push(&lex->state_stack, lex->state);
@@ -61,7 +61,7 @@ lexer_state_pop(Lexer* lex) {
   int32_t id = lex->state;
 
 #ifdef DEBUG_OUTPUT_
-  printf("lexer_state_pop(%zu): %s\n", n, lexer_state_name(lex, id));
+  printf("lexer_state_pop(%"PRIu64"): %s\n", (uint64_t)n, lexer_state_name(lex, id));
 #endif
 
   if(!vector_empty(&lex->state_stack)) {
@@ -336,7 +336,7 @@ lexer_peek_window(Lexer* lex, unsigned start_rule, uint8_t** reach, JSContext* c
 #ifdef DEBUG_OUTPUT
       const char* filename = lex->loc.file == -1 ? 0 : JS_AtomToCString(ctx, lex->loc.file);
 
-      printf("%s%s%" PRIu32 ":%-4" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
+      printf("%s%s%" PRId32 ":%" PRId32 " #%i %-20s - /%s/ [%"PRIu64"] %.*s\n",
              filename ? filename : "",
              filename ? ":" : "",
              lex->loc.line + 1,
@@ -344,7 +344,7 @@ lexer_peek_window(Lexer* lex, unsigned start_rule, uint8_t** reach, JSContext* c
              (int)(rule - start),
              rule->name,
              rule->expr,
-             capture[1] - capture[0],
+             (uint64_t)(capture[1] - capture[0]),
              (int)(capture[1] - capture[0]),
              capture[0]);
       JS_FreeCString(ctx, filename);

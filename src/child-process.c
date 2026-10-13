@@ -4,6 +4,8 @@
 #define __GNU_VISIBLE 1
 #include <sys/unistd.h>
 #endif
+
+#include "defines.h"
 #include "child-process.h"
 #include "path.h"
 #include "debug.h"

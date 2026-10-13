@@ -127,15 +127,15 @@ if(WIN32 OR MINGW)
 endif(WIN32 OR MINGW)
 
 if(ANDROID)
-  add_definitions(-DANDROID)
+  register_definitions(ANDROID)
 endif(ANDROID)
 
 if(DEBUG_OUTPUT)
-  add_definitions(-DDEBUG_OUTPUT)
+  register_definitions(DEBUG_OUTPUT)
 endif(DEBUG_OUTPUT)
 
 if(DEBUG_ALLOC)
-  add_definitions(-DDEBUG_ALLOC)
+  register_definitions(DEBUG_ALLOC)
 endif(DEBUG_ALLOC)
 
 find_quickjs()
@@ -205,18 +205,14 @@ if(LIBPTHREAD_LIBRARY)
   message(STATUS "Thread library: ${LIBPTHREAD_LIBRARY}")
 endif()
 
-check_library_exists(quickjs js_std_file "${QUICKJS_LIBRARY_DIR}" HAVE_JS_STD_FILE)
-
-var2define(HAVE_JS_STD_FILE)
-
 check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
 if(HAVE_JS_PROMISE_STATE)
-  add_definitions(-DHAVE_JS_PROMISE_STATE)
+  register_definitions(HAVE_JS_PROMISE_STATE)
 endif(HAVE_JS_PROMISE_STATE)
 
 check_library_exists(quickjs JS_PromiseResult "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_RESULT)
 if(HAVE_JS_PROMISE_RESULT)
-  add_definitions(-DHAVE_JS_PROMISE_RESULT)
+  register_definitions(HAVE_JS_PROMISE_RESULT)
 endif(HAVE_JS_PROMISE_RESULT)
 
 set(CMAKE_REQUIRED_LINK_DIRECTORIES_OLD "${CMAKE_REQUIRED_LINK_DIRECTORIES}")
@@ -235,20 +231,20 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 # actual QUICKJS_LIBRARY file instead.
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADERFUNC)
 if(HAVE_JS_GETMODULELOADERFUNC)
-  add_definitions(-DHAVE_JS_GETMODULELOADERFUNC)
+  register_definitions(HAVE_JS_GETMODULELOADERFUNC)
 endif(HAVE_JS_GETMODULELOADERFUNC)
 
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}"
                      HAVE_JS_GETMODULELOADEROPAQUE)
 if(HAVE_JS_GETMODULELOADEROPAQUE)
-  add_definitions(-DHAVE_JS_GETMODULELOADEROPAQUE)
+  register_definitions(HAVE_JS_GETMODULELOADEROPAQUE)
 endif(HAVE_JS_GETMODULELOADEROPAQUE)
 
 check_function_def(js_debugger_build_backtrace HAVE_JS_DEBUGGERBUILDBACKTRACE)
 
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetClassID "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETCLASSID)
 if(HAVE_JS_GETCLASSID)
-  add_definitions(-DHAVE_JS_GETCLASSID)
+  register_definitions(HAVE_JS_GETCLASSID)
 endif(HAVE_JS_GETCLASSID)
 
 set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES_OLD}")
@@ -289,7 +285,7 @@ endif()
 
 if(CONFIG_BIGNUM)
   list(APPEND CONFIG_DEFS QJS_BIGNUM_EXT=1)
-  add_definitions(-DQJS_BIGNUM_EXT=1)
+  register_definitions(QJS_BIGNUM_EXT=1)
 endif(CONFIG_BIGNUM)
 
 if(CONFIG_BIGNUM)
@@ -304,7 +300,7 @@ check_functions_def(vfork fork waitpid execvpe setsid)
 
 if(NOT HAVE_VFORK)
   if(HAVE_FORK)
-    add_definitions(-DHAVE_VFORK -Dvfork=fork)
+    register_definitions(HAVE_VFORK -Dvfork=fork)
   endif(HAVE_FORK)
 endif(NOT HAVE_VFORK)
 
@@ -315,7 +311,7 @@ check_include_def(sys/syscall.h)
 if(USE_SPAWN)
   check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
   if(HAVE_SPAWN)
-    add_definitions(-DPOSIX_SPAWN=1)
+    register_definitions(POSIX_SPAWN=1)
   endif(HAVE_SPAWN)
 endif(USE_SPAWN)
 
@@ -323,7 +319,7 @@ check_includes_def(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h 
                    linux/phonet.h linux/if_alg.h)
 
 if(HAVE_LINUX_IPX_H)
-  add_definitions(-DHAVE_LINUX_NETWORK_HEADERS)
+  register_definitions(HAVE_LINUX_NETWORK_HEADERS)
 endif(HAVE_LINUX_IPX_H)
 
 check_include_def(threads.h)
@@ -343,10 +339,10 @@ if(NOT HAVE_GETDENTS64)
   check_external(getdents "" "" HAVE_GETDENTS)
   #check_function_exists(getdents HAVE_GETDENTS)
   if(HAVE_GETDENTS)
-    add_definitions(-DHAVE_GETDENTS)
+    register_definitions(HAVE_GETDENTS)
   endif(HAVE_GETDENTS)
 else(NOT HAVE_GETDENTS64)
-  add_definitions(-DHAVE_GETDENTS64)
+  register_definitions(HAVE_GETDENTS64)
 endif(NOT HAVE_GETDENTS64)
 
 check_include_def(termios.h)
@@ -390,7 +386,7 @@ check_function_and_include(wordexp wordexp.h)
 check_function_and_include(inotify_init1 sys/inotify.h HAVE_INOTIFY)
 
 if(HAVE_INOTIFY)
-  add_definitions(-DHAVE_INOTIFY)
+  register_definitions(HAVE_INOTIFY)
 endif(HAVE_INOTIFY)
 
 check_function_and_include(sysinfo sys/sysinfo.h)
@@ -515,7 +511,7 @@ if(MODULE_MAGIC)
         set(LIBMAGIC_DB "${LIBMAGIC_DB_static}")
       endif()
     endif()
-    add_definitions(-DHAVE_LIBMAGIC=1)
+    register_definitions(HAVE_LIBMAGIC=1)
   elseif(NOT LIBMAGIC_LIBRARY)
     set(magic_LIBRARIES magic)
   endif()
@@ -527,11 +523,11 @@ if(MODULE_MYSQL)
   find_mariadb()
 
   if(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
-    add_definitions(-DMYSQL_NO_ASYNC)
+    register_definitions(MYSQL_NO_ASYNC)
   endif(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
 
   if(NOT HAVE_MYSQL_OPTIONSV)
-    add_definitions(-DMYSQL_NOT_MARIADB)
+    register_definitions(MYSQL_NOT_MARIADB)
   endif(NOT HAVE_MYSQL_OPTIONSV)
 endif(MODULE_MYSQL)
 
@@ -687,7 +683,7 @@ else()
 endif()
 
 if(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
-  add_definitions(-DJS_MODULE_LOADER_OLD)
+  register_definitions(JS_MODULE_LOADER_OLD)
 endif(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
 
 unset(CMAKE_REQUIRED_FLAGS)
@@ -696,7 +692,7 @@ unset(CMAKE_REQUIRED_INCLUDES)
 check_library_exists("${QUICKJS_LIBRARY}" JS_IsUncatchableError "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISUNCATCHABLEERROR)
 
 if(HAVE_JS_ISUNCATCHABLEERROR)
-  add_definitions(-DHAVE_JS_ISUNCATCHABLEERROR)
+  register_definitions(HAVE_JS_ISUNCATCHABLEERROR)
 endif(HAVE_JS_ISUNCATCHABLEERROR)
 
 # module status / top-level-await accessors, listed by moduleList and getModule()
@@ -704,11 +700,11 @@ check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleStatus "${QUICKJS_LIBRARY_
 check_library_exists("${QUICKJS_LIBRARY}" JS_IsModuleAsync "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISMODULEASYNC)
 
 if(HAVE_JS_GETMODULESTATUS)
-  add_definitions(-DHAVE_JS_GETMODULESTATUS)
+  register_definitions(HAVE_JS_GETMODULESTATUS)
 endif(HAVE_JS_GETMODULESTATUS)
 
 if(HAVE_JS_ISMODULEASYNC)
-  add_definitions(-DHAVE_JS_ISMODULEASYNC)
+  register_definitions(HAVE_JS_ISMODULEASYNC)
 endif(HAVE_JS_ISMODULEASYNC)
 
 check_library_exists("${QUICKJS_LIBRARY}" dbuf_claim "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
@@ -718,11 +714,11 @@ if(NOT HAVE_DBUF_CLAIM)
 endif(NOT HAVE_DBUF_CLAIM)
 
 if(HAVE_DBUF_REALLOC)
-  add_definitions(-DQUICKJS_DBUF_REALLOC)
+  register_definitions(QUICKJS_DBUF_REALLOC)
 endif(HAVE_DBUF_REALLOC)
 
 if(HAVE_DBUF_CLAIM)
-  add_definitions(-DQUICKJS_DBUF_CLAIM)
+  register_definitions(QUICKJS_DBUF_CLAIM)
 endif(HAVE_DBUF_CLAIM)
 
 # quickjs (between 2025-09-13 and 2026-06-04) renamed dbuf_realloc(buf, new_size) to
@@ -739,27 +735,27 @@ endif()
 
 check_library_exists("${socket_LIBRARIES}" recvmmsg "" HAVE_RECVMMSG)
 if(HAVE_RECVMMSG)
-  add_definitions(-DHAVE_RECVMMSG)
+  register_definitions(HAVE_RECVMMSG)
 endif()
 
 check_library_exists("${socket_LIBRARIES}" recvmsg "" HAVE_RECVMSG)
 if(HAVE_RECVMSG)
-  add_definitions(-DHAVE_RECVMSG)
+  register_definitions(HAVE_RECVMSG)
 endif()
 
 check_library_exists("${socket_LIBRARIES}" sendmmsg "" HAVE_SENDMMSG)
 if(HAVE_SENDMMSG)
-  add_definitions(-DHAVE_SENDMMSG)
+  register_definitions(HAVE_SENDMMSG)
 endif()
 
 check_library_exists("${socket_LIBRARIES}" sendmsg "" HAVE_SENDMSG)
 if(HAVE_SENDMSG)
-  add_definitions(-DHAVE_SENDMSG)
+  register_definitions(HAVE_SENDMSG)
 endif()
 
 check_library_exists("${socket_LIBRARIES}" accept4 "" HAVE_ACCEPT4)
 if(HAVE_ACCEPT4)
-  add_definitions(-DHAVE_ACCEPT4)
+  register_definitions(HAVE_ACCEPT4)
 endif()
 
 #if(NOT HAVE_INET_PTON)
@@ -767,7 +763,7 @@ endif()
 #endif(NOT HAVE_INET_PTON)
 
 if(HAVE_INET_PTON)
-  add_definitions(-DHAVE_INET_PTON)
+  register_definitions(HAVE_INET_PTON)
 else(HAVE_INET_PTON)
 endif(HAVE_INET_PTON)
 
@@ -881,7 +877,7 @@ set(CMAKE_REQUIRED_QUIET ON)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
-add_definitions(-DNDEBUG)
+register_definitions(NDEBUG)
 
 check_function_def(js_debugger_build_backtrace)
 
@@ -940,7 +936,7 @@ check_c_source_runs(
     # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
 
 if(HAVE__BUILTIN_MUL_OVERFLOW)
-  add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
+  register_definitions(HAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
@@ -1207,6 +1203,8 @@ else()
 endif()
 
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+add_definitions(-DHAVE_CONFIG_H)
 
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
@@ -1605,3 +1603,5 @@ symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")
 file(GLOB_RECURSE JS_SCRIPTS examples/*.js utilities/*.js)
 
 add_custom_target(js SOURCES ${JS_SCRIPTS})
+
+dump_list(ALL_DEFINITIONS)

@@ -1040,7 +1040,7 @@ js_pgconn_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   ret = PQconnectPoll(pq->conn);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s ret=%d fd=%d" PRId32 "\n", __func__, ret, fd);
+  printf("%s ret=%d fd=%" PRId32 "\n", __func__, ret, fd);
 #endif
 
   promise = JS_NewPromiseCapability(ctx, &data[2]);

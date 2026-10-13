@@ -3,8 +3,10 @@
 
 #define _GNU_SOURCE 1
 
-#include <cutils.h>
 #include <string.h>
+#include <cutils.h>
+
+#include "defines.h"
 #include "debug.h"
 
 /**

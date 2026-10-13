@@ -238,7 +238,7 @@ directory_namestr(JSContext* ctx, DirEntry* entry) {
 
 static JSValue
 js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
-  JSValue name, ret;
+  JSValue name = JS_UNDEFINED, ret = JS_UNDEFINED;
   int type = -1;
 
   if(dflags & FLAG_NAME)

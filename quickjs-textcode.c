@@ -77,7 +77,7 @@ textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
         }
 
         if(!libutf_c16_to_c32(u16, &cp)) {
-          ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: not a valid utf-16 code at (%"PRIu64": 0x%04x, 0x%04x): %i", (uint64_t)i, ptr[0], ptr[1], cp);
+          ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: not a valid utf-16 code at (%" PRIu64 ": 0x%04x, 0x%04x): %i", (uint64_t)i, ptr[0], ptr[1], cp);
           break;
         }
 
@@ -99,7 +99,7 @@ textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
         cp = uint32_get_endian(ptr, dec->endian);
 
         if(!libutf_c32_to_c8(cp, &len, (char*)tmp)) {
-          ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: not a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %i", i, ptr[0], ptr[1], cp);
+          ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: not a valid utf-32 code at (%" PRIu64 ": 0x%04x, 0x%04x): %i", (uint64_t)i, ptr[0], ptr[1], cp);
           break;
         }
 
@@ -135,7 +135,7 @@ textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
   dec->buflen = 0;
 
   if(remain > UTF8_CHAR_LEN_MAX) {
-    ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: %"PRIu64" bytes remaining", (uint64_t)remain);
+    ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: %" PRIu64 " bytes remaining", (uint64_t)remain);
 
   } else {
     memcpy(dec->buf, inputbuffer_pointer(&in), remain);
@@ -324,7 +324,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, Writer wr, JSContext* ctx) 
       int len;
 
       if(!libutf_c32_to_c16(cp, &len, u16)) {
-        JS_ThrowInternalError(ctx, "TextEncoder.encode: not a valid code point at (%zu) [%ti]: %i", i, (next - ptr), cp);
+        JS_ThrowInternalError(ctx, "TextEncoder.encode: not a valid code point at (%" PRIu64 ") [%" PRId64 "]: %i", (uint64_t)i, (int64_t)(next - ptr), cp);
         return -1;
       }
 

@@ -1,3 +1,5 @@
+#include "defines.h"
+
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #include <errno.h>

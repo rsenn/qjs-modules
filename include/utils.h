@@ -876,7 +876,7 @@ js_asyncgenerator_constructor(JSContext* ctx) {
   return ret;
 }
 
-JSValue js_std_file(JSContext*, FILE* f);
+JSValue js_std_file(JSContext*);
 
 struct OffsetLength;
 union IndexRange;

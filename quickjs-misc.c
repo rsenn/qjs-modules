@@ -1,9 +1,14 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
 #else
 #include <unistd.h>
 #endif
+
 #include <time.h>
 #include "defines.h"
 #include <quickjs.h>
@@ -313,7 +318,7 @@ typedef enum {
 static BOOL
 clear_screen(intptr_t h, ClearMode mode, BOOL line) {
   COORD coords = {0, 0};
-  DWORD w, n;
+  DWORD w, n = 0;
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
   if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
@@ -2968,7 +2973,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   }
 
   /* wait for the process to actually exit (e.g., up to 5000 milliseconds) */
-DWORD waitResult = WaitForSingleObject(hProcess, 5000);
+  DWORD waitResult = WaitForSingleObject(hProcess, 5000);
   CloseHandle(hProcess);
 
   if(waitResult == WAIT_FAILED)
@@ -4035,7 +4040,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(TIOCSPGRP),
     JS_CONSTANT(TIOCGWINSZ),
     JS_CONSTANT(TIOCSWINSZ),
-    JS_CONSTANT(SIGWINCH),
     JS_CONSTANT(TIOCMGET),
     JS_CONSTANT(TIOCMBIS),
     JS_CONSTANT(TIOCMBIC),
