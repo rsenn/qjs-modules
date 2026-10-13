@@ -395,13 +395,13 @@ check_function_and_include(sysinfo sys/sysinfo.h)
 if(NOT NO_TEMPNAM)
   check_function_def(tempnam)
 else(NOT NO_TEMPNAM)
-  add_definitions(-UHAVE_TEMPNAM)
+  set(HAVE_TEMPNAM OFF)
 endif(NOT NO_TEMPNAM)
 
 if(NOT NO_MKSTEMP)
   check_function_def(mkstemp)
 else(NOT NO_MKSTEMP)
-  add_definitions(-UHAVE_MKSTEMP)
+  set(HAVE_MKSTEMP OFF)
 endif(NOT NO_MKSTEMP)
 
 #[[if(BUILD_PIGPIO)
@@ -512,7 +512,6 @@ if(MODULE_MAGIC)
         set(LIBMAGIC_DB "${LIBMAGIC_DB_static}")
       endif()
     endif()
-    register_definitions(HAVE_LIBMAGIC=1)
   elseif(NOT LIBMAGIC_LIBRARY)
     set(magic_LIBRARIES magic)
   endif()
@@ -935,10 +934,6 @@ check_c_source_runs(
   " # include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b,
     # c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n return
     # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
-
-if(HAVE__BUILTIN_MUL_OVERFLOW)
-  register_definitions(HAVE__BUILTIN_MUL_OVERFLOW)
-endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})

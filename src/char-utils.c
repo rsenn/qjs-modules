@@ -59,7 +59,7 @@ byte_chrs(const void* in, size_t len, const char needle[], size_t nl) {
   const char *s = in, *t = s + len;
 
   for(; s != t; s++)
-    if(byte_chr(needle, nl, *s))
+    if(byte_chr(needle, nl, *s) < nl)
       break;
 
   return s - (const char*)in;

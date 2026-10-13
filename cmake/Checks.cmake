@@ -234,12 +234,6 @@ macro(check_include_def INC)
 
   set("${RESULT_VAR}" "${RESULT}" CACHE INTERNAL "Define this if you have the '${INC}' header file")
 
-  if(RESULT) 
-    if(${ARGC} GREATER_EQUAL 3)
-      var2define("${ARGV2}" 1)
-    endif()
-  endif()
-
   set_add(CHECKED_INCLUDES "${INC}")
 endmacro()
 
@@ -282,12 +276,6 @@ macro(check_include_def INC)
 
   set("${RESULT_VAR}" "${${RESULT_VAR}}" CACHE INTERNAL "Define this if you have the '${INC}' header file")
 
-  if(${${RESULT_VAR}})
-    if(NOT "${PREPROC_DEF}" STREQUAL "")
-      var2define("${PREPROC_DEF}" 1)
-    endif()
-  endif()
-
   set_add(CHECKED_INCLUDES "${INC}")
 endmacro()
 
@@ -316,7 +304,7 @@ endmacro()
 # check_include_cxx_def <INCLUDE> [RESULT-VARIABLE] [PREPROCESSOR-DEFINITION]
 #
 # Check for the C++ header INCLUDE; on success cache RESULT-VARIABLE and add
-# -DPREPROCESSOR-DEFINITION=1 (names default to HAVE_<INCLUDE>) (a macro).
+# HAVE_<INCLUDE> for config.h (a macro).
 #
 macro(check_include_cxx_def INC)
   if(ARGC GREATER_EQUAL 2)
@@ -332,9 +320,6 @@ macro(check_include_cxx_def INC)
   if(${${RESULT_VAR}})
     set("${RESULT_VAR}" TRUE CACHE INTERNAL "Define this if you have the '${INC}' header file")
 
-    if(NOT "${PREPROC_DEF}" STREQUAL "")
-      var2define("${PREPROC_DEF}" 1)
-    endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
 endmacro()
 
@@ -353,11 +338,6 @@ macro(check_function_def FUNC)
 
   set("${RESULT_VAR}" "${${RESULT_VAR}}" TRUE CACHE BOOL "Define this if you have the '${FUNC}' function")
 
-  if(${${RESULT_VAR}})
-    if(NOT "${PREPROC_DEF}" STREQUAL "")
-      add_definitions("-D${PREPROC_DEF}")
-    endif()
-  endif()
 endmacro()
 
 #

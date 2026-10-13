@@ -12,7 +12,6 @@ macro(find_libmagic)
   set(CMAKE_REQUIRED_INCLUDES "${old_REQUIRED_INCLUDES}")
 
   if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
-    add_definitions(-DHAVE_LIBMAGIC=1)
     if(NOT DEFINED LIBMAGIC_LIBRARY)
       set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
     endif(NOT DEFINED LIBMAGIC_LIBRARY)

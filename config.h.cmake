@@ -160,6 +160,9 @@
 /* Define this if you have the malloc_usable_size() function */
 #cmakedefine HAVE_MALLOC_USABLE_SIZE 1
 
+/* Define this if the compiler has __builtin_mul_overflow() */
+#cmakedefine HAVE__BUILTIN_MUL_OVERFLOW 1
+
 /* Define this if you have the memmem() function */
 #cmakedefine HAVE_MEMMEM 1
 

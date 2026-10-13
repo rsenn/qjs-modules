@@ -150,19 +150,11 @@ macro(find_quickjs)
   check_include_file(quickjs.h HAVE_QUICKJS_H)
   check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
 
-  if(HAVE_QUICKJS_CONFIG_H)
-    add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
-  endif(HAVE_QUICKJS_CONFIG_H)
-
   if(NOT HAVE_QUICKJS_H)
 
   endif(NOT HAVE_QUICKJS_H)
 
   include_directories(${QUICKJS_INCLUDE_DIR})
-
-  if(HAVE_QUICKJS_CONFIG_H)
-    add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
-  endif(HAVE_QUICKJS_CONFIG_H)
 
   find_program(QJS qjs PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
   find_program(QJSC qjsc PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
