@@ -880,3 +880,17 @@
     valgrind -q qjsm tests/unittests/test-arraybuffer-sink.js
     // expected: no memory error
     // actual: Invalid free() in js_arraybuffer_sink_free
+
+- check-source-definitions-no-dash-d (cmake/Checks.cmake): the macro
+  check_source_definitions() appends bare names (GNU_SOURCE, XOPEN_SOURCE
+  ...) to CMAKE_REQUIRED_DEFINITIONS, which try_compile hands to the
+  compiler as arguments without "-D". The compiler reads them as input
+  files, so every check_function_exists()/check_include_file() probe fails.
+  A fresh configure ends with an empty HAVE_* set (config.h has no
+  HAVE_SYS_WAIT_H, so src/child-process.c fails with "implicit declaration
+  of function 'waitpid'"). An existing build directory is unaffected, its
+  cache still holds the results from before.
+
+    cmake -S . -B /tmp/b && grep -c 'define HAVE' /tmp/b/config.h
+    // expected: 73 (what build/x86_64-linux-gnu/config.h has)
+    // actual: 0, the log shows "Looking for getegid - not found"

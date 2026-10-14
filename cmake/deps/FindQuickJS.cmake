@@ -1,4 +1,79 @@
+# FindQuickJS.cmake: quickjs for qjs-* projects - an installation, a built source
+# tree, or one BuildQuickJS.cmake builds.
+#
+#   find_quickjs([<prefix>])   sets QUICKJS_PREFIX, QUICKJS_INCLUDE_DIR(S), QUICKJS_LIBRARY
+#                              (+ _DIR, _STATIC_LIBRARY, _SHARED_LIBRARY), QJS, QJSC
+#   configure_quickjs()        QUICKJS_C_MODULE_DIR, QUICKJS_JS_MODULE_DIR, QUICKJS_MODULE_PATH
+#
+# where quickjs comes from, first match wins:
+#   1. a parent project that builds quickjs: QUICKJS_BUILD_ROOT is set (or TARGET quickjs)
+#   2. BUILD_QUICKJS=ON, or AUTO and no installation found: BuildQuickJS.cmake builds it
+#   3. an installation: <prefix>/include/quickjs/quickjs.h, found or given as <prefix>
+#
+# from a built source tree (1, 2) headers and libraries come from the build tree and
+# QUICKJS_INSTALL_LIBRARY_DIR is the directory they have after install (use it for rpaths).
+
+set(_QUICKJS_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+include("${_QUICKJS_CMAKE_DIR}/BuildQuickJS.cmake" OPTIONAL)
+
+#
+# quickjs_installed <OUTPUT-VARIABLE> [<prefix>]
+#
+# Whether an installed quickjs.h exists in the places find_quickjs() searches.
+#
+function(quickjs_installed OUTVAR)
+  set(_prefix "${ARGV1}")
+  if(NOT _prefix)
+    set(_prefix "${QUICKJS_PREFIX}")
+  endif()
+
+  unset(_QUICKJS_PROBE_H CACHE)
+  find_file(_QUICKJS_PROBE_H quickjs.h
+            PATHS "${_prefix}/include/quickjs" "${_prefix}/include" "${CMAKE_INSTALL_PREFIX}/include/quickjs"
+                  "/usr/local/include/quickjs" "/usr/include/quickjs" "${QUICKJS_ROOT}/include/quickjs"
+                  "${QuickJS_DIR}/include/quickjs")
+
+  if(_QUICKJS_PROBE_H)
+    set(${OUTVAR} TRUE PARENT_SCOPE)
+  else()
+    set(${OUTVAR} FALSE PARENT_SCOPE)
+  endif()
+
+  unset(_QUICKJS_PROBE_H CACHE)
+endfunction()
+
+#
+# find_quickjs
+#
+# Builds quickjs when asked to (see the top of this file), then looks it up.
+#
 macro(find_quickjs)
+  string(TOUPPER "${BUILD_QUICKJS}" _qjs_mode)
+
+  if(QUICKJS_BUILD_ROOT OR TARGET quickjs)
+    set(_qjs_mode OFF)
+  elseif("${_qjs_mode}" STREQUAL "AUTO")
+    quickjs_installed(_qjs_have ${ARGN})
+
+    if(_qjs_have)
+      set(_qjs_mode OFF)
+    else()
+      set(_qjs_mode ON)
+    endif()
+  endif()
+
+  if(_qjs_mode AND NOT "${_qjs_mode}" STREQUAL "OFF")
+    if(NOT COMMAND build_quickjs)
+      message(FATAL_ERROR "BUILD_QUICKJS needs BuildQuickJS.cmake next to FindQuickJS.cmake")
+    endif()
+
+    build_quickjs()
+  endif()
+
+  _find_quickjs(${ARGN})
+endmacro()
+
+macro(_find_quickjs)
   include(CheckIncludeFile)
 
   if(ARGN)
@@ -98,12 +173,37 @@ macro(find_quickjs)
   endif(NOT QUICKJS_LIBRARY)
 
   if(QUICKJS_BUILD_ROOT)
+    # a built tree: the library directory quickjs gets once installed (parent project
+    # or BuildQuickJS.cmake) is what an installed binary needs in its rpath
+    if(NOT QUICKJS_INSTALL_LIBRARY_DIR AND QUICKJS_LIBRARY_DIR)
+      if(IS_ABSOLUTE "${QUICKJS_LIBRARY_DIR}")
+        set(QUICKJS_INSTALL_LIBRARY_DIR "${QUICKJS_LIBRARY_DIR}")
+      else()
+        set(QUICKJS_INSTALL_LIBRARY_DIR "${QUICKJS_PREFIX}/${QUICKJS_LIBRARY_DIR}")
+      endif()
+    endif()
+
     link_directories(${QUICKJS_BUILD_ROOT})
     set(QUICKJS_LIBRARY quickjs)
+
+    # a library built by BuildQuickJS.cmake: the full path gives the build tree an rpath
+    if(NOT TARGET quickjs)
+      foreach(LIBNAME libquickjs.so libquickjs.dylib libquickjs.dll.a libquickjs.a)
+        if(EXISTS "${QUICKJS_BUILD_ROOT}/${LIBNAME}")
+          set(QUICKJS_LIBRARY "${QUICKJS_BUILD_ROOT}/${LIBNAME}")
+          break()
+        endif()
+      endforeach()
+    endif()
+
     set(QUICKJS_LIBRARY_DIR "${QUICKJS_BUILD_ROOT}")
     set(QUICKJS_INCLUDE_DIR "${QUICKJS_SOURCES_ROOT};${QUICKJS_BUILD_ROOT}")
   else(QUICKJS_BUILD_ROOT)
     link_directories(${QUICKJS_LIBRARY_DIR})
+
+    if(NOT QUICKJS_INSTALL_LIBRARY_DIR)
+      set(QUICKJS_INSTALL_LIBRARY_DIR "${QUICKJS_LIBRARY_DIR}")
+    endif()
   endif(QUICKJS_BUILD_ROOT)
 
   set(CMAKE_LIBRARY_PATH "${QUICKJS_LIBRARY_DIR}")
@@ -150,18 +250,26 @@ macro(find_quickjs)
   check_include_file(quickjs.h HAVE_QUICKJS_H)
   check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
 
-  if(NOT HAVE_QUICKJS_H)
-
-  endif(NOT HAVE_QUICKJS_H)
+  if(HAVE_QUICKJS_CONFIG_H)
+    add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
+  endif(HAVE_QUICKJS_CONFIG_H)
 
   include_directories(${QUICKJS_INCLUDE_DIR})
 
-  find_program(QJS qjs PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
-  find_program(QJSC qjsc PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
+  find_program(QJS qjs PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
+  find_program(QJSC qjsc PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
+
+  # the module shell, for projects that run their tests with it; qjs-modules builds its own
+  if(NOT DEFINED QUICKJS_FIND_QJSM)
+    set(QUICKJS_FIND_QJSM ON)
+  endif(NOT DEFINED QUICKJS_FIND_QJSM)
+  if(QUICKJS_FIND_QJSM)
+    find_program(QJSM qjsm PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
+  endif(QUICKJS_FIND_QJSM)
 
   set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
   set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
-endmacro()
+endmacro(_find_quickjs)
 
 macro(configure_quickjs)
   if(NOT QUICKJS_PREFIX)
@@ -223,5 +331,12 @@ macro(configure_quickjs_module_path)
   set(QUICKJS_MODULE_PATH "${MODULE_PATH}" CACHE PATH "QuickJS modules search path")
 endmacro()
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
+# message_table(), set_add() ... come from Functions.cmake, next to this file or one level up
+foreach(_dir "${_QUICKJS_CMAKE_DIR}" "${_QUICKJS_CMAKE_DIR}/..")
+  if(NOT COMMAND message_table AND EXISTS "${_dir}/Functions.cmake")
+    include("${_dir}/Functions.cmake")
+  endif()
+  if(NOT COMMAND addprefix AND EXISTS "${_dir}/Compat.cmake")
+    include("${_dir}/Compat.cmake")
+  endif()
+endforeach()
