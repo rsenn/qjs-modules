@@ -1,3 +1,18 @@
+/* quickjs-config.h first: its QUICKJS_MODULE_PATH is dropped in favour of
+   the one in config.h, which cmake merged from it and the configured path */
+#ifdef HAVE_QUICKJS_CONFIG_H
+#include <quickjs-config.h>
+#ifdef QUICKJS_MODULE_PATH
+#define JSM_HEADER_MODULE_PATH QUICKJS_MODULE_PATH
+#undef QUICKJS_MODULE_PATH
+#endif
+#endif
+
+#include "config.h"
+
+#if !defined(QUICKJS_MODULE_PATH) && defined(JSM_HEADER_MODULE_PATH)
+#define QUICKJS_MODULE_PATH JSM_HEADER_MODULE_PATH
+#endif
 #include "char-utils.h"
 #include "buffer-utils.h"
 
@@ -28,9 +43,7 @@
 #include <dlfcn.h>
 #endif
 
-#ifdef HAVE_QUICKJS_CONFIG_H
-#include <quickjs-config.h>
-#else
+#ifndef HAVE_QUICKJS_CONFIG_H
 #warning HAVE_QUICKJS_CONFIG_H has not been defined!
 #endif
 
@@ -90,7 +103,7 @@
 
 /* --- extern declarations for functions defined elsewhere (quickjs-libc.c / libc) --- */
 
-#if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID)
+#if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID) && !defined(__ANDROID__)
 #if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
 extern size_t malloc_usable_size(void*);
@@ -2461,7 +2474,7 @@ jsm_trace_malloc_usable_size(const void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize((void*)ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(__ANDROID__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size((void*)ptr);

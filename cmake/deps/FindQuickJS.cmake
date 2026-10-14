@@ -328,6 +328,22 @@ macro(configure_quickjs_module_path)
     string(REPLACE ":" ";" MODULE_PATH "${MODULE_PATH}")
   endif(NOT WIN32)
 
+  # the path of quickjs-config.h comes first, then ours, without duplicates
+  set(_HEADER_PATH "")
+  foreach(_dir "${QUICKJS_INCLUDE_DIR}" "${QUICKJS_BUILD_ROOT}")
+    if(_dir AND EXISTS "${_dir}/quickjs-config.h")
+      file(STRINGS "${_dir}/quickjs-config.h" _line REGEX "^#define[ \t]+QUICKJS_MODULE_PATH[ \t]+\"")
+      string(REGEX REPLACE "^[^\"]*\"(.*)\"[^\"]*$" "\\1" _line "${_line}")
+      if(NOT WIN32)
+        string(REPLACE ":" ";" _line "${_line}")
+      endif(NOT WIN32)
+      set_add(_HEADER_PATH ${_line})
+      break()
+    endif()
+  endforeach()
+  set_add(_HEADER_PATH ${MODULE_PATH})
+  set(MODULE_PATH "${_HEADER_PATH}")
+
   set(QUICKJS_MODULE_PATH "${MODULE_PATH}" CACHE PATH "QuickJS modules search path")
 endmacro()
 
