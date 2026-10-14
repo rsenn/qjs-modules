@@ -327,8 +327,8 @@ node:-prefix audit):
   `js_module_set_import_meta(ctx, module, FALSE, FALSE)`; `import.meta` has only `url` and
   `main`, no `filename`/`dirname`) — Node/Deno/Bun all support these.
 - The default filesystem module loader never consults `package.json`'s `"type"`,
-  `"exports"`, or `"main"` fields (`src/qjsm.c:jsm_module_package()` only handles an internal
-  `"_moduleAliases"` map) — real Node package layouts resolve wrong without opting into
+  `"exports"`, or `"main"` fields (only the `"_moduleAliases"` map is handled, by the builtin `lib/packageAliases.js`
+  resolve hook, since 2026-10-14; `jsm_module_package()` is gone from `src/qjsm.c`) — real Node package layouts resolve wrong without opting into
   the `lib/nodeModulesLoader.js` demo loader.
 - `.mjs` forces module-eval mode (`src/qjsm.c:jsm_hook_load()`) but `.cjs` has no special handling
   (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
@@ -381,8 +381,8 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
 `console`, `fs`, `path`, `perf_hooks`, and especially `util` (100+ names - `util` is this
 project's internal POSIX/reflection grab-bag, not just the Node `util` surface) all carry
 qjs-modules-specific extras on the *same* module name Node scripts expect. Since
-`jsm_builtin_find()` (`src/qjsm.c`) strips a leading `node:` unconditionally for *any*
-registered builtin - not just ones that are actually part of Node's API - `node:yaml`
+the `node:` prefix is mapped to `lib/node/<name>.js`, else to the bare name, for *any*
+registered builtin by `lib/nodeHooks.js` (the C side no longer knows `node:`, 2026-10-14) - not just ones that are actually part of Node's API - `node:yaml`
 and any other qjsm-only module name also resolves under the `node:` prefix even though
 Node/Bun have no such module (confirmed: Bun errors `No such built-in module: node:yaml`,
 qjsm resolves it fine). A Node/Bun script that imports a typo'd or wrong `node:`-prefixed
@@ -584,7 +584,7 @@ done inline since each is either large or a judgment call on API shape.
 - **`jsm_module_loader()` (the `JSModuleLoaderFunc` implementation) does six distinct things
   in one function** (~140 lines) with several `goto end;`/`goto again;` jumps: `data:` URL
   handling, dispatch through the external loader chain (`jsm_call_loaders`), circular-import
-  detection, `package.json` alias resolution, builtin-module lookup, and filesystem
+  detection, builtin-module lookup (`package.json` aliasing left the loader on 2026-10-14), and filesystem
   resolution + the "could not load module" error formatting. Worth splitting along those
   seams (e.g. `jsm_resolve_data_url`, `jsm_run_external_loaders`, `jsm_warn_circular`) so each
   piece can be reasoned about independently — risky to do without first having a test that
@@ -601,7 +601,7 @@ done inline since each is either large or a judgment call on API shape.
   `{shortopt, longopt, handler}` table walked by one loop, without pulling in libc `getopt`.
 - **Global mutable state is spread across ~10 independent `thread_local`/`static` variables**
   (`jsm_stack`, `jsm_builtin_modules`, `module_list`, `debug_list`, `module_loaders`,
-  `loaded_modules`, `package_json`, `exename`/`exelen`, `jsm_rt`/`jsm_ctx`, `interactive`,
+  `loaded_modules`, `jsm_disabled_names`, `jsm_builtin_depth`, `exename`/`exelen`, `jsm_rt`/`jsm_ctx`, `interactive`,
   `DEBUG_MODULE`) instead of one grouped `struct`. Not urgent, but would make the module's
   state easier to audit and would be a prerequisite for ever running more than one `qjsm`
   runtime per process.
@@ -1384,3 +1384,16 @@ the rewriter copies what it keeps (the held key) and `jwrite_*` copies into the 
   a sink error. Check whether `jwrite_*` can return 0 at all.
 - **Position in errors:** the pull side has `json->loc`/`json->pos`, the push side has nothing
   until the event sink gains a byte offset (Tier 14).
+
+## Tier 14 — qjsm closed builtins: follow-ups (2026-10-14)
+
+Builtins are closed (`doc/qjsm-layout.md` 4.1); what is left:
+
+- Run the full `ctest` suite and regenerate the configure snapshot baseline (disk was full).
+- JS API to disable a builtin at run time (today: `--disable-builtin`, `QJSM_DISABLE_BUILTINS`).
+- A ready-made JS tracing hook for `registerHooks()` (the C `DEBUG=modules` trace stays).
+- `qjsm_scan_imports` only sees literal specifiers; a computed `import(x)` inside a builtin
+  is not followed (build-time) and not restricted (run time).
+- `QJSM_INSTALL_BUILTIN_NATIVE` / manifest / build-info blob: see `doc/qjsm-layout.md` 3-6.
+- Default build now links libarchive (`vfs` -> `archive`); decide whether `vfs` should
+  depend on it softly.

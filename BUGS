@@ -915,3 +915,18 @@
     qjsm -e 'print(1)' 2>&1 >/dev/null
     // expected: nothing
     // actual: TypeError: not an object
+
+- stream-registered-twice (cmake/qjsm.cmake): `stream` is both a native
+  module and a JS builtin name once `streams` is pulled in as a dependency;
+  the builtin table gets two entries for related names. Observed while
+  resolving BUILTINS_NEEDED, not yet checked which one `import 'stream'`
+  reaches.
+
+    qjsm -l | grep -i stream
+
+- import-so-suffix-misses-installed (src/qjsm.c): `import 'path.so'` does
+  not reach an installed `path.so` when `path` is also builtin; the builtin
+  shadows it and there is no spelling for the installed file (see
+  doc/qjsm-layout.md 4).
+
+    qjsm -e 'import("path.so").then(m=>print(Object.keys(m).length))'

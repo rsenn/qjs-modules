@@ -1,4 +1,6 @@
 - consolidate cmake build scripts
+   (2026-10-14: item 2 largely done, CMakeLists.txt split into 12 sections, the
+   ALL_DEFINITIONS/register_definitions machinery removed; see TODO.md Tier 14)
 
    1. all the HAVE_* definitions should not be -D preprocessor arguments
       anymore - put them into config.h.cmake
