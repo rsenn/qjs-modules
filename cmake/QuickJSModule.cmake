@@ -179,8 +179,12 @@ function(make_module FNAME)
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
-    install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    # ${VNAME}_NO_INSTALL: the module is built (and loadable from the build tree) but not installed,
+    # e.g. a native module that qjsm has built in
+    if(NOT ${VNAME}_NO_INSTALL)
+      install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
+              PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    endif()
 
     config_module(${TARGET_NAME})
 
@@ -283,7 +287,30 @@ function(make_module FNAME)
     # space-joined display string above (for the status message), no longer a
     # proper list.
     set(_module_cmake_libs "${LIBS}")
+    if(DEFINED ${VNAME}_LIBRARIES_static)
+      set(_module_cmake_libs "${${VNAME}_LIBRARIES_static}")
+    endif()
     list(REMOVE_ITEM _module_cmake_libs compiled modules)
+    # an IMPORTED target (a vendored libfoo.a) means nothing in the other configure: its file
+    set(_module_cmake_resolved "")
+    foreach(_lib ${_module_cmake_libs})
+      set(_loc "")
+      if(TARGET "${_lib}")
+        get_target_property(_imported "${_lib}" IMPORTED)
+        if(_imported)
+          get_target_property(_loc "${_lib}" IMPORTED_LOCATION)
+          if(NOT _loc)
+            get_target_property(_loc "${_lib}" IMPORTED_LOCATION_RELEASE)
+          endif()
+        endif()
+      endif()
+      if(_loc)
+        list(APPEND _module_cmake_resolved "${_loc}")
+      else()
+        list(APPEND _module_cmake_resolved "${_lib}")
+      endif()
+    endforeach()
+    set(_module_cmake_libs "${_module_cmake_resolved}")
     list(TRANSFORM _module_cmake_libs REPLACE "^qjs-" "")
     get_target_property(_module_cmake_lib_path "${STATIC_TARGET_NAME}" ARCHIVE_OUTPUT_DIRECTORY)
     if(NOT _module_cmake_lib_path)

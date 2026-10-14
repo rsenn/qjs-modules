@@ -82,7 +82,7 @@ again, `.json`, default loader. The module path comes only from
 
 ## 3. Layout as configuration
 
-### 3.1 Variables [proposed]
+### 3.1 Variables [implemented]
 
 One table, all cache variables, each with a default derived from the previous
 one, so `-DCMAKE_INSTALL_PREFIX` alone gives a consistent layout:
@@ -108,7 +108,7 @@ installation "somewhere in a folder" (tarball, portable app). RUNPATH likewise
 (`$ORIGIN/../lib/<multiarch>`). [open] Windows and macOS equivalents
 (`@executable_path`, DLL search).
 
-### 3.3 Report at configure time [proposed]
+### 3.3 Report at configure time [implemented]
 
 The configure summary prints the table above with the resolved values, for each
 row where it came from (default, cache, command line), the resulting search path
@@ -125,7 +125,7 @@ in order, and a verdict line:
 
 The last line is the check from section 4.
 
-## 4. Builtin versus installed: one rule [proposed]
+## 4. Builtin versus installed: one rule [implemented]
 
 Make an installation unambiguous:
 
@@ -166,7 +166,7 @@ module it imports statically is itself a builtin, built from the same `lib/`
 the importer was built against.
 
 *cmake.* `qjsm_resolve_builtins` scans each builtin's literal `import`/`export
-from` specifiers (`qjsm_scan_imports`; computed specifiers are not seen) and
+from` specifiers (`qjsm_scan_imports`; computed specifiers are reported, not followed) and
 adds what they name to `BUILTINS_NEEDED` (`_JS`, `_NATIVE` for the split).
 
 - Weak: derived on every configure, never cached. Remove the dependants from
@@ -175,8 +175,9 @@ adds what they name to `BUILTINS_NEEDED` (`_JS`, `_NATIVE` for the split).
   not installed as `.js`; needed natives join the link closure (their
   libraries and extra sources follow).
 - The configure summary prints "Pulled in as dependencies of the builtins" as
-  `name (js|C) <- importers`. Side effect: the default build now links
-  libarchive (`vfs` -> `archive`).
+  `name (js|C) <- importers`. `vfs` loads `archive` on first use (`requireModule`), so it is not a build
+  dependency: the default qjsm no longer links libarchive and `archive.so` is found on the
+  module path when an archive is opened.
 - Names containing `-` are emitted with `BUILTIN_COMPILED_AS(symbol, "name")`
   (`simple_queue` / "simple-queue").
 - A builtin does not import `node:x`: C knows nothing of that prefix. The
@@ -191,7 +192,11 @@ adds what they name to `BUILTINS_NEEDED` (`_JS`, `_NATIVE` for the split).
 - the window is per thread and covers the builtin and its dependencies, so a
   C->JS->C chain stays inside it.
 - run-time dynamic `import()` called by a builtin (e.g. `require.js`) is *not*
-  inside the window; it is the user's request and resolves normally.
+  inside the window; it is the user's request and resolves normally. [decided
+  2026-10-14] This is not restricted: `require()`, the REPL and `describe` exist to load
+  what the user names. A literal `import('x')` is followed at build time like a static
+  import (so `process` pulls in `node/events`); a computed one is listed in the configure
+  summary ("Builtins with a computed import()", `qjsm_scan_computed_imports`).
 
 *Hooks.* `registerHooks()` hooks do not see imports of a builtin or its
 dependencies, so they cannot redirect them. `--hooks-on-builtins` /
@@ -205,8 +210,9 @@ resolution and never to a builtin's own imports.
 
 *Disabling.* `--disable-builtin a,b` or `QJSM_DISABLE_BUILTINS=a,b` mark
 builtins unfindable (`-l` shows "(disabled)", the `builtins` global skips
-them). A builtin importing a disabled one fails with the error above. There is
-no JS API to disable one at run time (open, see 9).
+them). A builtin importing a disabled one fails with the error above. From JS,
+`disableBuiltin(...names)` does the same at run time (returns the names switched off;
+modules already loaded stay loaded).
 
 *Compat.* Node (`nodeHooks`, `node/*`), module-alias (`packageAliases`), Bun
 and Web platform layers are builtins like any other and so opt-out: leave them
@@ -220,11 +226,11 @@ prints nothing.
 marks, colors on a terminal, `NO_COLOR` honored) and a count line at exit;
 `DEBUG=modules,modules,...` adds the C-level `DEBUG_MODULE()` detail. It stays
 in C because it also sees what happens before any hook exists and does not
-perturb hook chains. [open] a ready-made JS tracing hook.
+perturb hook chains. The JS counterpart is `lib/traceHooks.js` (`doc/js/traceHooks.md`).
 
 ## 5. Build info in qjsm
 
-### 5.1 Fields [proposed]
+### 5.1 Fields [implemented]
 
 | Field | Source | Note |
 |---|---|---|
@@ -246,7 +252,7 @@ builds, always relinks). Options: `SOURCE_DATE_EPOCH` when set, otherwise the
 configure time; a separate tiny object (`qjsm-buildinfo.c`) regenerated on every
 build so only that object and the link change.
 
-### 5.2 Carrying it [proposed]
+### 5.2 Carrying it [implemented]
 
 - Generated file `qjsm-buildinfo.c` in the build directory, written by CMake at
   configure time (static part) plus a build-time step for the volatile part
@@ -262,7 +268,7 @@ build so only that object and the link change.
   - `qjsm --version` (one line) and `qjsm --build-info` (JSON);
   - the global `qjsm.info` / `import { buildInfo } from 'module'`.
 
-### 5.3 Compatibility check [proposed]
+### 5.3 Compatibility check [implemented]
 
 At start qjsm compares `quickjs.version`/`bytecode` of the info blob with the
 linked libquickjs. A mismatch (builtin bytecode compiled by another qjsc than the
@@ -271,7 +277,7 @@ engine that runs it) is a hard error naming both versions, not a crash in
 
 ## 6. Reading the baked-in data from JS
 
-### 6.1 The C side [proposed]
+### 6.1 The C side [implemented]
 
 `qjsm.c` owns four things that are today only reachable through the loader:
 
@@ -303,7 +309,7 @@ JS can write to an ArrayBuffer; a write faults. Either freeze (a typed array on 
 copy-on-first-write wrapper) or copy: 34 modules are about 640 KiB, so a copy per
 `bytecode(name)` call is acceptable and safe. Start with copies.
 
-### 6.2 `lib/module.js` [proposed]
+### 6.2 `lib/module.js` [implemented]
 
 Names follow Node where Node has one (`builtinModules`, `isBuiltin`,
 `findPackageJSON` already exist in `lib/module.js`):
@@ -323,7 +329,8 @@ Names follow Node where Node has one (`builtinModules`, `isBuiltin`,
 On Node/Bun/Deno the same functions exist with the portable parts only
 (`builtinModules`, `isBuiltin`, `layout()` from `process.execPath`/import maps),
 so a script can call `Module.layout()` everywhere. [open] where that shim lives
-(`lib/` polyfill versus a separate package).
+(`lib/` polyfill versus a separate package). Today the functions exist in qjsm only;
+`Module.buildInfo` is `undefined` elsewhere.
 
 ## 7. Cross-runtime layout
 
@@ -376,7 +383,7 @@ parts, and a test for the new behaviour (`tests/unittests/test-module.js`).
 3. Copy or view for bytecode blobs (6.1).
 4. Where the cross-runtime `Module.*` shim lives (6.2).
 5. Native modules in the generated maps (7).
-6. JS API to disable a builtin at run time (CLI/env only today).
+6. ~~JS API to disable a builtin at run time~~ `disableBuiltin()` global, done 2026-10-14.
 7. Do installed natives that are also builtin ever matter? `qjs` (not qjsm) can
    load `fs.so` from the module path; if the answer is yes, option
    `QJSM_INSTALL_BUILTIN_NATIVE` stays, defaulting to `OFF`.

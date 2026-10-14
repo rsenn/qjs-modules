@@ -139,6 +139,12 @@ typedef struct {
   BOOL disabled; /* --disable-builtin / QJSM_DISABLE_BUILTINS: not found by name */
 } BuiltinModule;
 
+/* from the generated qjsm-buildinfo.c (cmake/qjsm-layout.cmake): "QJSM-BUILDINFO\0" and one JSON
+   document in the ELF section .qjsm.info, and the one-line version */
+extern const char qjsm_buildinfo[];
+extern const char qjsm_version_line[];
+#define QJSM_BUILDINFO_MAGIC_SIZE sizeof("QJSM-BUILDINFO")
+
 /* Opaque state threaded through the jsm_trace_malloc* allocator, used to compute
     pointer offsets relative to a fixed base address for -T/--trace output. */
 struct trace_malloc_data {
@@ -475,6 +481,15 @@ jsm_error_get(JSContext* ctx) {
   return JS_GetException(jsm_ctx);
 }
 
+/* runs the pending jobs (promise reactions, top-level await of the preloaded
+ * modules) until none is left; never waits for timers or I/O. */
+static void
+jsm_run_jobs(JSContext* ctx) {
+  JSContext* job_ctx;
+
+  while(JS_ExecutePendingJob(JS_GetRuntime(ctx), &job_ctx) > 0) {}
+}
+
 /* Prints the context's current pending exception to stderr. */
 static void
 jsm_error_print(JSContext* ctx) {
@@ -579,9 +594,9 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
       char* file;
 
       if((file = jsm_stack_top())) {
-        char* dir = path_dirname1(file);
-        ret = JS_NewString(ctx, dir);
-        free(dir);
+        size_t n = path_dirlen(file, strlen(file));
+
+        ret = n ? JS_NewStringLen(ctx, file, n) : JS_NewString(ctx, ".");
       }
 
       break;
@@ -954,34 +969,46 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   return rec->def;
 }
 
-/* Searches a ';'/'\n'-separated list of directories for `module_name`. */
+static int
+jsm_isfile_cb(const char* p, void* arg) {
+  (void)arg;
+  return path_isfile1(p);
+}
+
+/* searches a PATH-style list of directories (";" or ":", ";" only on Windows) for `module_name` */
 static char*
 jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
+  size_t ln = strlen(list), nl = strlen(module_name), cap = ln + nl + 2, n;
   char* t;
-  size_t i;
 
   DEBUG_MODULE(4, "(module_name: \"%s\", list: \"%s\")", module_name, list);
 
-  if(!(t = js_malloc(ctx, strlen(list) + 1 + strlen(module_name) + 1)))
+  if(!(t = js_malloc(ctx, cap)))
     return 0;
 
-  for(; *list; list += i) {
-    if((i = str_chrs(list, ";\n", 2)) == 0)
-      break;
-
-    str_copyn(t, list, i);
-    t[i] = '/';
-    str_copy(&t[i + 1], module_name);
-
-    if(path_isfile1(t))
-      return t;
-
-    if(list[i])
-      ++i;
-  }
+  if((n = path_search(t, cap, list, ln, module_name, nl, jsm_isfile_cb, NULL)))
+    return t;
 
   js_free(ctx, t);
   return 0;
+}
+
+/* absolute canonical form of `p` against the current directory, allocated with js_malloc;
+ * 0 on failure
+ *
+ *   "x/../y.js" in /home/me -> "/home/me/y.js"
+ */
+static char*
+jsm_abspath(JSContext* ctx, const char* p) {
+  char* cwd = path_getcwd0();
+  size_t pn = strlen(p), cn = cwd ? strlen(cwd) : 0, cap = cn + pn + 4;
+  char* out = cwd ? js_malloc(ctx, cap) : 0;
+
+  if(out)
+    path_abs(out, cap, p, pn, cwd, cn);
+
+  free(cwd);
+  return out;
 }
 
 /*
@@ -1112,15 +1139,16 @@ jsm_short_name(const char* name, const char** start) {
       break;
     }
 
-  for(p = end; p > name && p[-1] != '/' && p[-1] != '\\';)
-    --p;
+  size_t bl;
 
-  if(end - p == 5 && !strncmp(p, "index", 5) && p > name) {
+  p = path_basename(name, end - name, &bl);
+
+  if(bl == 5 && !strncmp(p, "index", 5) && p > name) {
     end = p - 1;
-    for(p = end; p > name && p[-1] != '/' && p[-1] != '\\';)
-      --p;
+    p = path_basename(name, end - name, &bl);
   }
 
+  end = p + bl;
   *start = p;
   return end - p;
 }
@@ -1561,7 +1589,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
   }
 
-  if(!name[path_component1(name)]) {
+  if(path_isname(name)) {
     BuiltinModule* rec;
 
     if((rec = jsm_builtin_find(name)) && (native < 0 || !native == !rec->module_func)) {
@@ -1571,7 +1599,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
   }
 
-  if(native == 0 && !module_has_suffix(name) && !str_ends(name, ".json") && !(!name[path_component1(name)] && jsm_builtin_find(name))) {
+  if(native == 0 && !module_has_suffix(name) && !str_ends(name, ".json") && !(path_isname(name) && jsm_builtin_find(name))) {
     /* native: false, "foo" can only be a script: "foo.js", else "foo/index.js" */
     static const char* const suffixes[] = {".js", "/index.js"};
 
@@ -1738,34 +1766,24 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
        so relative specifiers are skipped here and left to the load hook;
        `<...>` importers (eval, REPL) have none either */
   } else if(path[0] != '<' && strncmp(path, "data:", 5) && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
-    DynBuf dir;
-    size_t dsl;
+    /* importer's directory + name, leading "./" kept: "dir/a.js" + "./b" -> "dir/./b" -> "dir/b" */
+    size_t pn = strlen(path), nn = strlen(name), dn = path_dirlen(path, pn), cap = pn + nn + 4, n, dsl;
+    char* buf = js_malloc(ctx, cap);
 
-    dbuf_init_ctx(ctx, &dir);
-    dsl = path_dirlen1(path);
+    if(buf) {
+      n = path_cat(buf, cap, dn ? path : ".", dn ? dn : 1, name, nn);
+      dsl = path_skipdotslash2(buf, n);
 
-    if(!dsl)
-      dbuf_putstr(&dir, ".");
-    else
-      path_append3(path, dsl, &dir);
+      /* XXX BUG: should use path_normalize* to resolve symlinks */
+      n = dsl + path_canon(buf + dsl, cap - dsl, buf + dsl, n - dsl);
+      buf[n] = '\0';
+    }
 
-    path_append2(name, &dir);
-    dsl = path_skipdotslash2((const char*)dir.buf, dir.size);
-
-    /* XXX BUG: should use path_normalize* to resolve symlinks */
-    dir.size = dsl + path_normalize2((char*)dir.buf + dsl, dir.size - dsl);
-    dbuf_0(&dir);
-
-    file = (char*)dir.buf;
-  } else if(has_suffix(name, CONFIG_SHEXT) && !name[path_component1(name)]) {
+    file = buf;
+  } else if(has_suffix(name, CONFIG_SHEXT) && path_isname(name)) {
     file = jsm_search_path(ctx, name);
   } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
-    /* path_absolute1() allocates with libc realloc, but `file` is released with js_free() */
-    char* abs = path_absolute1(name);
-
-    path_normalize1(abs);
-    file = js_strdup(ctx, abs);
-    free(abs);
+    file = jsm_abspath(ctx, name);
   }
 
   if(file == 0)
@@ -1804,7 +1822,7 @@ jsm_url_frompath(JSContext* ctx, const char* path) {
   DynBuf db;
   static const char hex[] = "0123456789ABCDEF";
 
-  if(path[0] != '/')
+  if(!path_isabs(path))
     return js_strdup(ctx, path);
 
   dbuf_init_ctx(ctx, &db);
@@ -1896,7 +1914,7 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
     file = jsm_module_normalize_core(ctx, base, tmp);
     js_free(ctx, tmp);
 
-    if(!(!file[path_component1(file)] && jsm_builtin_find(file)) && is_searchable(file) && (alias = jsm_module_locate(ctx, file, 0))) {
+    if(!(path_isname(file) && jsm_builtin_find(file)) && is_searchable(file) && (alias = jsm_module_locate(ctx, file, 0))) {
       js_free(ctx, file);
       file = alias;
     }
@@ -1941,7 +1959,7 @@ jsm_default_load(JSContext* ctx, JSValueConst urlv) {
 
     source = JS_NewStringLen(ctx, (const char*)code.buf, code.size);
     dbuf_free(&code);
-  } else if(!name[path_component1(name)] && jsm_builtin_find(name)) {
+  } else if(path_isname(name) && jsm_builtin_find(name)) {
     format = "builtin";
   } else if(has_suffix(name, CONFIG_SHEXT)) {
     format = "addon";
@@ -2120,10 +2138,10 @@ jsm_hook_normalize(JSContext* ctx, const char* path, const char* name) {
 
   if(path[0] && path[0] != '<' && !str_equal(path, ".")) {
     /* a relative importer ("p.mjs") becomes an absolute file URL, as in Node */
-    char* abs = path[0] != '/' && path[str_chr(path, ':')] == 0 ? path_absolute1(path) : 0;
+    char* abs = !path_isabs(path) && path[str_chr(path, ':')] == 0 ? jsm_abspath(ctx, path) : 0;
 
     url = jsm_url_frompath(ctx, abs ? abs : path);
-    free(abs);
+    js_free(ctx, abs);
     context = jsm_hook_context(ctx, "parentURL", url);
     js_free(ctx, url);
   } else {
@@ -2253,7 +2271,7 @@ jsm_hook_load(JSContext* ctx, const char* name, void* opaque) {
     if(JS_IsNull(src) || JS_IsUndefined(src)) {
       JS_ThrowTypeError(ctx, "load hook returned no source for format '%s'", format);
     } else if((bytes = jsm_hook_bytes(ctx, src, &len, &is_str))) {
-      BOOL is_file = name[0] == '/';
+      BOOL is_file = path_isabs(name);
 
       if(str_equal(format, "json")) {
         DynBuf db;
@@ -2488,6 +2506,10 @@ jsm_module_array(JSContext* ctx, JSValueConst this_val, int magic) {
 
   list_for_each(el, &loaded_modules) {
     LoadedModule* lm = list_entry(el, LoadedModule, link);
+
+    /* an entry is registered before its module exists while it is being loaded */
+    if(!lm->module)
+      continue;
 
     JS_SetPropertyUint32(ctx, ret, i, jsm_module_item(ctx, lm, i));
     ++i;
@@ -3009,12 +3031,148 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 /* Table of global functions/getters installed by main() via JS_SetPropertyFunctionList();
    references EVAL_FILE/EVAL_BUF, the module-func magic enum, and jsm_interactive_func
    (forward-declared above). */
+/* disableBuiltin: switches builtins off at run time (--disable-builtin from JS).
+ *
+ * ```js
+ * disableBuiltin('bun', 'fs/promises'); // ['bun', 'fsPromises']
+ * ```
+ *
+ *   string...  builtin names; the Node subpaths ('fs/promises', 'node/events') are accepted
+ *
+ *   returns  array of the builtins switched off; unknown and already disabled names are skipped
+ *   throws   TypeError for an argument that is not a string
+ *
+ * a disabled builtin is not found by name any more, so a later import of it (or of a
+ * builtin that needs it) fails; modules already loaded stay loaded.
+ * wired in as the global `disableBuiltin`. */
+static JSValue
+jsm_disable_builtin(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t n = 0;
+
+  for(int i = 0; i < argc; i++) {
+    const char* name = JS_ToCString(ctx, argv[i]);
+    BuiltinModule* rec;
+
+    if(!name || !JS_IsString(argv[i])) {
+      if(name)
+        JS_FreeCString(ctx, name);
+
+      JS_FreeValue(ctx, ret);
+      return JS_ThrowTypeError(ctx, "disableBuiltin: argument %d is not a string", i + 1);
+    }
+
+    if((rec = jsm_builtin_lookup(name))) {
+      rec->disabled = TRUE;
+      JS_SetPropertyUint32(ctx, ret, n++, JS_NewString(ctx, rec->module_name));
+    }
+
+    JS_FreeCString(ctx, name);
+  }
+
+  return ret;
+}
+
+/* the bytecode version of the running engine: the first byte JS_WriteObject() emits.
+ * never throws: returns the version, or -1 if nothing could be written. */
+static int
+jsm_bytecode_version(JSContext* ctx) {
+  size_t len;
+  uint8_t* buf;
+  int version = -1;
+
+  if((buf = JS_WriteObject(ctx, &len, JS_UNDEFINED, JS_WRITE_OBJ_BYTECODE))) {
+    if(len)
+      version = buf[0];
+
+    js_free(ctx, buf);
+  }
+
+  return version;
+}
+
+/* exits with an error when the builtin bytecode was compiled by a qjsc whose bytecode version
+ * differs from the engine's: loading it would fail inside JS_ReadObject(). */
+static void
+jsm_check_bytecode(JSContext* ctx) {
+  BuiltinModule* rec;
+  int engine = jsm_bytecode_version(ctx);
+
+  vector_foreach_t(&jsm_builtins, rec) {
+    if(rec->byte_code && rec->byte_code_len && engine >= 0 && rec->byte_code[0] != engine) {
+      fprintf(stderr, "%s: builtin '%s' has bytecode version %d, the engine (QuickJS %s) reads %d: rebuild qjsm with the qjsc of that engine\n", exename, rec->module_name, rec->byte_code[0], CONFIG_VERSION, engine);
+      exit(2);
+    }
+  }
+}
+
+/* buildInfo: what qjsm was built from, as an object (the JSON of qjsm-buildinfo.c).
+ *
+ * ```js
+ * buildInfo.qjsm.commit;   // '1ca75f0d548f'
+ * buildInfo.layout.native; // 'lib/x86_64-linux-gnu/quickjs'
+ * buildInfo.bytecode;      // bytecode version of the running engine
+ * ```
+ *
+ *   qjsm        { version, commit, dirty, date }
+ *   quickjs     { version }          the engine qjsm was built with
+ *   qjsc        { version, path }    the compiler of the builtin bytecode
+ *   compiler, target, buildType      strings
+ *   layout      { prefix, native, js, data, modulePath }  paths of the install
+ *   builtin     { native: [...], js: [...] }
+ *   bytecode    number               added at run time
+ *
+ * wired in as the global getter `buildInfo`. */
+static JSValue
+jsm_build_info(JSContext* ctx, JSValueConst this_val) {
+  const char* json = qjsm_buildinfo + QJSM_BUILDINFO_MAGIC_SIZE;
+  JSValue info = JS_ParseJSON(ctx, json, strlen(json), "<buildinfo>");
+
+  if(!JS_IsException(info))
+    JS_SetPropertyStr(ctx, info, "bytecode", JS_NewInt32(ctx, jsm_bytecode_version(ctx)));
+
+  return info;
+}
+
+/* getBuiltinBytecode: the qjsc bytecode a JS builtin was compiled to.
+ *
+ * ```js
+ * getBuiltinBytecode('assert'); // ArrayBuffer (a copy)
+ * getBuiltinBytecode('path');   // null: a native builtin has no bytecode
+ * getBuiltinBytecode('nope');   // undefined
+ * ```
+ *
+ *   string  name  builtin name, the Node subpaths ('fs/promises') accepted
+ *
+ *   returns  ArrayBuffer, null for a native builtin, undefined for no such builtin
+ *   throws   TypeError for a name that is not a string
+ *
+ * wired in as the global function `getBuiltinBytecode`. */
+static JSValue
+jsm_builtin_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char* name;
+  BuiltinModule* rec;
+  JSValue ret = JS_UNDEFINED;
+
+  if(argc < 1 || !JS_IsString(argv[0]) || !(name = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "getBuiltinBytecode: name must be a string");
+
+  if((rec = jsm_builtin_lookup(name)))
+    ret = rec->byte_code ? JS_NewArrayBufferCopy(ctx, rec->byte_code, rec->byte_code_len) : JS_NULL;
+
+  JS_FreeCString(ctx, name);
+  return ret;
+}
+
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, EVAL_FILE),
     JS_CFUNC_MAGIC_DEF("evalBuf", 1, jsm_eval_script, EVAL_BUF),
     JS_CGETSET_DEF("builtins", jsm_module_builtins, 0),
     JS_CGETSET_MAGIC_DEF("moduleList", jsm_module_array, 0, 0),
     JS_CFUNC_DEF("registerHooks", 1, jsm_hook_register),
+    JS_CFUNC_DEF("disableBuiltin", 1, jsm_disable_builtin),
+    JS_CGETSET_DEF("buildInfo", jsm_build_info, 0),
+    JS_CFUNC_DEF("getBuiltinBytecode", 1, jsm_builtin_bytecode),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
     JS_CGETSET_MAGIC_DEF("scriptFile", jsm_stack_get, 0, SCRIPT_FILE),
     JS_CGETSET_MAGIC_DEF("scriptDir", jsm_stack_get, 0, SCRIPT_DIRNAME),
@@ -3174,6 +3332,8 @@ jsm_help(void) {
          "qjscalc)\n"
 #endif
 #endif
+         "    --version      print the qjsm version, commit and QuickJS version\n"
+         "    --build-info   print what qjsm was built from (JSON)\n"
          "-T  --trace        trace memory allocation\n"
          "-d  --dump         dump the memory usage stats\n"
          "    --memory-limit n       limit the memory usage to 'n' bytes\n"
@@ -3215,7 +3375,12 @@ main(int argc, char** argv) {
   init_list_head(&loaded_modules);
 
 
-  exename = strdup(argv[0] + path_basename1(argv[0]));
+  {
+    size_t bl;
+    const char* b = path_basename(argv[0], strlen(argv[0]), &bl);
+
+    exename = strndup(b, bl);
+  }
   exelen = strlen(exename);
 
   /* load jscalc runtime if invoked as 'qjscalc' */
@@ -3234,10 +3399,15 @@ main(int argc, char** argv) {
     if(!*arg)
       break;
 
+    /* took: `optarg` is the next argument; a flag option must give it back */
+    int took = 0;
+
     if(arg[1])
       optarg = &arg[1];
-    else
+    else {
       optarg = argv[++optind];
+      took = 1;
+    }
 
     if(*arg == '-') {
       longopt = arg + 1;
@@ -3291,6 +3461,7 @@ main(int argc, char** argv) {
 
       if(opt == 'i' || str_equal(longopt, "interactive")) {
         interactive = 1;
+        optind -= took;
         break;
       }
 
@@ -3387,6 +3558,16 @@ main(int argc, char** argv) {
         break;
       }
 
+      if(str_equal(longopt, "version")) {
+        puts(qjsm_version_line);
+        exit(0);
+      }
+
+      if(str_equal(longopt, "build-info")) {
+        puts(qjsm_buildinfo + QJSM_BUILDINFO_MAGIC_SIZE);
+        exit(0);
+      }
+
       if(str_equal(longopt, "hooks-on-builtins")) {
         jsm_hooks_builtin = TRUE;
         break;
@@ -3394,11 +3575,13 @@ main(int argc, char** argv) {
 
       if(opt == 'N' || str_equal(longopt, "no-node-hooks")) {
         no_node_hooks++;
+        optind -= took;
         break;
       }
 
       if(opt == 'P' || str_equal(longopt, "no-process")) {
         no_process_global++;
+        optind -= took;
         break;
       }
 
@@ -3483,6 +3666,8 @@ main(int argc, char** argv) {
     exit(2);
   }
 
+  jsm_check_bytecode(jsm_ctx);
+
   if(list_modules) {
     BuiltinModule* rec;
 
@@ -3519,10 +3704,19 @@ main(int argc, char** argv) {
       dbuf_putstr(&db, "import 'nodeHooks';\n");
     if(jsm_builtin_find("packageAliases"))
       dbuf_putstr(&db, "import 'packageAliases';\n");
+    JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
+
+    /* the hooks run to completion before 'process' is loaded: its
+       import('node:events') resolves through them */
+    if(db.size) {
+      dbuf_0(&db);
+      js_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
+      jsm_run_jobs(jsm_ctx);
+      db.size = 0;
+    }
+
     if(!no_process_global && jsm_builtin_find("process"))
       dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
-
-    JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 
     if(jsm_builtin_find("bun"))
       dbuf_putstr(&db, "import Bun from 'bun';\nglobalThis.Bun = Bun;\n");
@@ -3538,12 +3732,15 @@ main(int argc, char** argv) {
                   "globalThis.clearTimeout = os.clearTimeout;\n");
     }
 
+    /* scriptArgs only exists when a file is run, not for -e or the REPL */
     sargs = js_global_get_str(jsm_ctx, "scriptArgs");
-    JS_DefinePropertyValueStr(jsm_ctx, sargs, "-1", JS_NewString(jsm_ctx, argv[0]), 0);
+    if(JS_IsObject(sargs))
+      JS_DefinePropertyValueStr(jsm_ctx, sargs, "-1", JS_NewString(jsm_ctx, argv[0]), 0);
 
     if(db.size) {
       dbuf_0(&db);
       js_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
+      jsm_run_jobs(jsm_ctx);
     }
 
     dbuf_free(&db);

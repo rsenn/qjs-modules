@@ -108,6 +108,9 @@ reachable from a one-liner.
 
 ## Module resolution pipeline
 
+`QUICKJS_MODULE_PATH` is a list of directories separated by `;`, and on non-Windows systems also by `:`
+(the POSIX convention). Scripts that build it for portability (cmake, tests) always use `;`.
+
 `jsm_module_normalize(path, name)` and `jsm_module_loader(name)` run in that
 order for every `import`/`import()`. Normalize tries, in order:
 
@@ -211,6 +214,9 @@ is taken as an argument, a loaded-module name is accepted too.
 | `normalizeModule(pathOrIndex, specifier)` | Exposes `jsm_module_normalize()` directly — what would `specifier` resolve to, importing from `pathOrModule`? |
 | `locateModule(name)` | Path-search only (`jsm_module_locate()`): where would `QUICKJS_MODULE_PATH`/extension search find `name`, without importing it? Returns `null` if not found. |
 | `registerHooks({resolve?, load?})` | Node's synchronous `module.registerHooks()` — see [Module customization hooks](#module-customization-hooks). Also exported as `registerHooks` from the `module` builtin. |
+| `disableBuiltin(...names)` | Switches builtins off at run time, like `--disable-builtin`; returns the names switched off. A disabled builtin is not found by name, so a later import of it fails; modules already loaded stay loaded. |
+| `buildInfo` | The parsed build-info blob (version, commit, layout, builtin lists, `bytecode` engine version); `qjsm --build-info` prints it as JSON, `--version` one line. |
+| `getBuiltinBytecode(name)` | `ArrayBuffer` copy of a JS builtin's bytecode, `null` for a native builtin, `undefined` if unknown. |
 | `moduleList` *(getter)* | Array of module items, see [Module items](#module-items). |
 | `getModule(nameOrIndex)` | The `moduleList` item for a module, or `null` if it isn't loaded. |
 | `moduleEntries` *(getter)* | Array of `[name, moduleValue]` pairs, skipping synthetic (`<...>`-named) modules. |
@@ -374,3 +380,20 @@ qjsm [options] [file [args]]
 imports) has run, before `-I` includes, before `-e`, before the REPL. See
 [Module resolution pipeline](#module-resolution-pipeline) for what a bare
 module name in `-m`/`loadModule()` resolves against.
+
+## Out-of-tree modules as builtins
+
+Build the sibling project with `-DBUILD_STATIC=ON` (it writes `quickjs-<mod>.a` and
+`quickjs-<mod>.module.cmake` into its build dir), then name it in `BUILTIN_MODULES`:
+
+```sh
+cmake -B build -DBUILTIN_MODULES="<defaults>;../qjs-ffi/build;../qjs-sound/build/quickjs-sndfile.module.cmake"
+```
+
+- a directory (below a `qjs-<name>` ancestor) registers every `quickjs-*.module.cmake` in it
+- one `quickjs-<mod>.module.cmake` file registers just that module
+- the archive is partial-linked with only `js_init_module_<mod>` kept global, so the
+  helper copies each project carries (`js_error_print`, ...) do not collide
+- two modules embedding different copies of one vendored library (sound's `stk` and
+  `labsound`, both RtAudio) cannot share one executable; list one of them
+- an explicit `BUILTIN_MODULES` replaces the default list, so give the defaults too

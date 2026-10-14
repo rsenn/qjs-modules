@@ -158,6 +158,9 @@ tests({
     const searchPath = [path.getcwd(), path.resolve('..')].join(path.delimiter);
 
     eq(path.search(searchPath, path.basename(path.getcwd())), path.getcwd());
+
+    // an empty element is the current directory, not the root
+    eq(path.search(path.delimiter + '/nonexistent', 'tests'), 'tests');
   },
   'relative()'() {
     const base = path.basename(path.getcwd());

@@ -964,8 +964,14 @@ message(STATUS "Native modules: ${MODULE_COUNT} (${QUICKJS_MODULES})")
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   file(GLOB MODULE_SOURCE quickjs-${JS_MODULE}.[ch])
-  make_module(${JS_MODULE} ${MODULE_SOURCE})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
+
+  # a native module that is built into qjsm is not installed as a .so as well (doc/qjsm-layout.md 4)
+  if(NOT QJSM_INSTALL_BUILTIN_NATIVE AND ("${QJSM_MODULE}" IN_LIST BUILTINS_NATIVE OR "${QJSM_MODULE}" IN_LIST BUILTINS_NEEDED_NATIVE))
+    set(${QJSM_MODULE}_NO_INSTALL ON)
+  endif()
+
+  make_module(${JS_MODULE} ${MODULE_SOURCE})
 
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
@@ -1000,6 +1006,8 @@ if(LINK_STATIC)
 endif(LINK_STATIC)
 
 qjsm_process_builtins()
+
+qjsm_layout()
 
 qjsm_add_executable()
 

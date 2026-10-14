@@ -29,21 +29,26 @@ char is_junction(const char*);
 #define PATHSEP_S "/"
 #define PATHSEP_C '/'
 #define PATHDELIM_S ";"
+#define PATHLISTSEP_CHARS ":;"
+#define path_islistsep(c) ((c) == ':' || (c) == ';')
 #define path_issep(c) ((c) == '/' || (c) == '\\')
 #elif defined(_WIN32)
 #define PATHSEP_C '\\'
 #define PATHSEP_S "\\"
 #define PATHDELIM_S ";"
+#define PATHLISTSEP_CHARS ";"
+#define path_islistsep(c) ((c) == ';')
 #define path_issep(c) ((c) == '/' || (c) == '\\')
 #else
 #define PATHSEP_S "/"
 #define PATHSEP_C '/'
 #define PATHDELIM_S ":"
+#define PATHLISTSEP_CHARS ":;"
+#define path_islistsep(c) ((c) == ':' || (c) == ';')
 #define path_issep(c) ((c) == '/')
 #endif
 
 #define path_isabs(p) (path_issep((p)[0]) || ((p)[0] && (p)[1] == ':' && path_issep((p)[2])))
-#define path_isrel(p) (!path_isabs(p))
 #ifdef _WIN32
 #define path_isname(p) ((p)[str_chrs((p), "\\/", 2)] == '\0')
 #else
@@ -55,24 +60,21 @@ char is_junction(const char*);
 
 #define path_isrelative(p) !path_isabsolute1(p)
 #define path_isexplicit(p) (path_isabs(p) || path_isdot(p) || path_isdotdot(p))
-#define path_isimplicit(p) (!path_isexplicit(p))
 
-typedef struct {
-  size_t sz1, sz2;
-} SizePair;
+/* lexical core (src/path-core.c, shared with c-utils and shish): (pointer, length) in,
+ * caller's buffer out; a writer returns the length, or what it needs when `cap` is too small */
+size_t path_rootlen(const char* p, size_t n);
+const char* path_basename(const char* p, size_t n, size_t* len);
+size_t path_dirlen(const char* p, size_t n);
+size_t path_cat(char* out, size_t cap, const char* a, size_t an, const char* b, size_t bn);
+size_t path_canon(char* out, size_t cap, const char* p, size_t n);
+size_t path_abs(char* out, size_t cap, const char* p, size_t n, const char* cwd, size_t cwdn);
+size_t path_rel(char* out, size_t cap, const char* p, size_t pn, const char* base, size_t bn);
+size_t path_common(const char* a, size_t an, const char* b, size_t bn, size_t* blen);
+size_t path_extoff(const char* p, size_t n);
 
 char* path_dup3(const char* path, size_t n, DynBuf* db);
-char* path_dup1(const char* path);
 char* path_dup2(const char* path, size_t n);
-int path_absolute3(const char* path, size_t len, DynBuf* db);
-char* path_absolute2(const char* path, size_t len);
-char* path_absolute1(const char* path);
-void path_append2(const char* x, DynBuf* db);
-void path_append3(const char* x, size_t len, DynBuf* db);
-size_t path_normalize3(const char* path, size_t n, DynBuf* db);
-size_t path_normalize1(char* path);
-size_t path_normalize2(char* path, size_t nb);
-SizePair path_common4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_components3(const char* p, size_t len, uint32_t n);
 const char* path_at4(const char* p, size_t plen, size_t* len_ptr, int i);
 const char* path_at3(const char* p, size_t* len_ptr, int i);
@@ -82,9 +84,6 @@ int path_slice4(const char* p, int start, int end, DynBuf* db);
 int path_exists1(const char* p);
 int path_exists2(const char* p, size_t len);
 int path_isin4(const char* p, size_t len, const char* dir, size_t dirlen);
-const char* path_extname1(const char* p);
-size_t path_extpos1(const char* p);
-size_t path_extlen1(const char* p);
 int path_fnmatch5(const char* pattern, size_t plen, const char* string, size_t slen, int flags);
 char* path_getcwd1(DynBuf* db);
 char* path_getcwd0(void);
@@ -100,18 +99,12 @@ int path_issocket1(const char* p);
 int path_issymlink1(const char* p);
 int path_resolve3(const char* path, DynBuf* db, int symbolic);
 int path_realpath3(const char*, size_t len, DynBuf* buf);
-int path_relative3(const char* path, const char* relative_to, DynBuf* out);
-char* path_relative1(const char* path);
-char* path_relative2(const char* path, const char* relative_to);
-int path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
-size_t path_root2(const char* x, size_t n);
-size_t path_dirlen2(const char*, size_t);
-size_t path_dirlen1(const char*);
-char* path_dirname1(const char*);
-size_t path_basename1(const char*);
-size_t path_basename3(const char*, size_t*, size_t);
 int path_readlink2(const char* path, DynBuf* dir);
-char* path_search(const char** path_ptr, const char* name, DynBuf* db);
+size_t path_listlen(const char* l, size_t n);
+size_t path_listnext(const char* l, size_t n, size_t pos);
+size_t path_search(char* out, size_t cap, const char* l, size_t ln, const char* name, size_t nl, int (*ok)(const char*, void*), void* arg);
+#define PATH_LIST_FOREACH(l, n, elem, elen) \
+  for(size_t pl_pos_ = 0; pl_pos_ != (size_t)-1 && ((elem) = (l) + pl_pos_, (elen) = path_listlen((elem), (n)-pl_pos_), 1); pl_pos_ = path_listnext((l), (n), pl_pos_))
 int path_diff4(const char* a, size_t la, const char* b, size_t lb);
 
 static inline int
@@ -197,16 +190,6 @@ path_skip2(const char* s, size_t n) {
 }
 
 static inline size_t
-path_skip3(const char* s, size_t* len, size_t n) {
-  const char *p = s, *e = s + n;
-  p += path_component3(s, e - p, 0);
-  if(len)
-    *len = p - s;
-  p += path_separator2(p, e - p);
-  return p - s;
-}
-
-static inline size_t
 path_right2(const char* s, size_t n) {
   const char* p = s + n - 1;
   while(p > s && path_issep(*p))
@@ -218,25 +201,6 @@ path_right2(const char* s, size_t n) {
   return p - s;
 }
 
-static inline size_t
-path_right3(const char* s, size_t* len, size_t n) {
-  const char *p = s + n - 1, *e;
-  while(p > s && path_issep(*p))
-    --p;
-  e = p + 1;
-  while(p > s && !path_issep(*p))
-    --p;
-  if(path_issep(*p))
-    ++p;
-  *len = e - p;
-  return p - s;
-}
-
-static inline size_t
-path_right1(const char* s) {
-  return path_right2(s, strlen(s));
-}
-
 static inline int
 path_getsep1(const char* path) {
   while(*path) {
@@ -246,13 +210,6 @@ path_getsep1(const char* path) {
   }
 
   return '\0';
-}
-
-static inline const char*
-path_trimdotslash1(const char* s) {
-  while(*s && path_isdotslash(s))
-    s += path_skip1(s);
-  return s;
 }
 
 static inline size_t

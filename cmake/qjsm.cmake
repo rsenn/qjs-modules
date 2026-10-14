@@ -11,12 +11,14 @@
 #   qjsm_declare_imports      <name>_MODULES import lists of the compiled lib/*.js
 #   qjsm_compile_builtins     qjsc runs, "compiled" library
 #   qjsm_process_builtins     entries routed, dependencies closed, quickjs-builtins.h written
+#   qjsm_layout               build info, manifest and layout report (qjsm-layout.cmake)
 #   qjsm_add_executable       the qjsm target
 #
 # macros, not functions: they set variables the rest of CMakeLists.txt reads.
 
 set(_QJSM_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 include(${_QJSM_CMAKE_DIR}/qjsm-bytecode.cmake)
+include(${_QJSM_CMAKE_DIR}/qjsm-layout.cmake)
 
 #
 # get_native_modules <OUTPUT-VARIABLE>
@@ -107,6 +109,32 @@ function(qjsm_scan_imports OUTPUT_VAR FILE)
 
   list(REMOVE_DUPLICATES SPECS)
   set("${OUTPUT_VAR}" "${SPECS}" PARENT_SCOPE)
+endfunction()
+
+#
+# qjsm_scan_computed_imports <OUTPUT-VAR> <JS-FILE>
+#
+# The `import(<expression>)` calls of FILE whose argument is not a string literal:
+#
+#   return import(m)      ->  "import(m)"
+#
+# qjsm_scan_imports cannot follow them, so what they load is looked up at run time like any
+# user import (a builtin's dynamic import() is the user's request, see doc/qjsm-layout.md 4.1).
+#
+function(qjsm_scan_computed_imports OUTPUT_VAR FILE)
+  file(READ "${FILE}" CONTENT)
+  set(CONTENT "\n${CONTENT}")
+
+  string(REGEX MATCHALL "[^A-Za-z0-9_$.]import[ \t]*\\([ \t]*[^'\"` \t)][^)\n]*\\)" FOUND "${CONTENT}")
+
+  set(CALLS "")
+  foreach(ITEM ${FOUND})
+    string(REGEX REPLACE "^[^i]+" "" CALL "${ITEM}")
+    list(APPEND CALLS "${CALL}")
+  endforeach()
+
+  list(REMOVE_DUPLICATES CALLS)
+  set("${OUTPUT_VAR}" "${CALLS}" PARENT_SCOPE)
 endfunction()
 
 #
@@ -609,6 +637,26 @@ function(qjsm_native_dependencies LINK_VAR RUNTIME_VAR)
   set("${RUNTIME_VAR}" "${RUNTIME}" PARENT_SCOPE)
 endfunction()
 
+# qjsm_external_sidecar(<quickjs-mod.module.cmake>)
+#
+# Registers one externally-built module: includes the sidecar make_module() wrote, checks
+# that its archive exists, appends <mod> to EXTERNAL_MODULES and caches <mod>_MODULE.
+macro(qjsm_external_sidecar _sc_file)
+  get_filename_component(_bm_mod "${_sc_file}" NAME)
+  string(REGEX REPLACE "^quickjs-(.*)\\.module\\.cmake$" "\\1" _bm_mod "${_bm_mod}")
+  include("${_sc_file}")
+  if(NOT EXISTS "${${_bm_mod}_MODULE_LIBRARY}")
+    message(WARNING "BUILTIN_MODULES entry '${_sc_file}' -- ${${_bm_mod}_MODULE_LIBRARY} not built (configure the project with -DBUILD_STATIC=ON)")
+  else()
+    list(APPEND EXTERNAL_MODULES "${_bm_mod}")
+    message(STATUS "qjsm: external module '${_bm_mod}' from ${${_bm_mod}_MODULE_LIBRARY}")
+    set(${_bm_mod}_MODULE "${${_bm_mod}_MODULE}"
+        CACHE STRING "Static library and dependencies of external module '${_bm_mod}', found via BUILTIN_MODULES")
+    set(${_bm_mod}_MODULE_LINK_FLAGS "${${_bm_mod}_MODULE_LINK_FLAGS}"
+        CACHE STRING "Link flags of external module '${_bm_mod}'")
+  endif()
+endmacro()
+
 # qjsm_init_builtins()
 #
 # BUILTIN_MODULES default (BUILTINS_NATIVE + BUILTINS_COMPILED) and its cache entry.
@@ -734,6 +782,26 @@ elseif(_bytecode_expected GREATER 0)
   message("  bytecode compiled into qjsm: known after the build (printed when qjsm is linked)\n")
 endif()
 
+set(_computed_lines "")
+foreach(_cb ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/${_cb}.js")
+    qjsm_scan_computed_imports(_computed "${CMAKE_CURRENT_SOURCE_DIR}/lib/${_cb}.js")
+    string(REPLACE ";" "  " _computed "${_computed}")
+    if(_computed)
+      list(APPEND _computed_lines "${_cb}  ${_computed}")
+    endif()
+  endif()
+endforeach()
+list(REMOVE_DUPLICATES _computed_lines)
+if(_computed_lines)
+  message("=> Builtins with a computed import() (not followed at build time, resolved at run time)")
+  message("")
+  foreach(_line ${_computed_lines})
+    message("  ${_line}")
+  endforeach()
+  message("")
+endif()
+
 if(BUILTINS_NEEDED)
   list(LENGTH BUILTINS_NEEDED _needed_count)
   message("=> Pulled in as dependencies of the builtins (${_needed_count}), compiled in as well")
@@ -814,7 +882,7 @@ set(terminal_MODULES misc process)
 set(tty_MODULES util misc)
 set(url_MODULES util path)
 set(util_MODULES timers inspect path misc textcode)
-set(vfs_MODULES fs fs fsPromises path util archive extendArray io queue)
+set(vfs_MODULES fs fs fsPromises path util extendArray io queue)
 set(webassembly_MODULES wasm)
 set(node_buffer_MODULES misc blob)
 set(node_child_process_MODULES child_process node/events node/buffer misc sockets process)
@@ -887,20 +955,30 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
           "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is a directory but no ancestor directory is named 'qjs-<name>' -- skipping"
       )
     else()
-      find_library(_bm_lib_${_bm_name} NAMES "${_bm_name}" PATHS "${_bm_path}" NO_DEFAULT_PATH)
-      if(_bm_lib_${_bm_name})
-        list(APPEND EXTERNAL_MODULES "${_bm_name}")
-        message(STATUS "qjsm: external module '${_bm_name}' from ${_bm_lib_${_bm_name}}")
-        # No FORCE: if <name>_MODULE was already set explicitly (e.g. to also list the
-        # module's own transitive system-library dependencies, which this auto-detection
-        # can't know about -- it only locates the module's own lib<name>.a/.so), that
-        # explicit value wins over the auto-detected bare path.
-        set(${_bm_name}_MODULE "${_bm_lib_${_bm_name}}"
-            CACHE STRING "Static library for external module '${_bm_name}', found via BUILTIN_MODULES")
+      # quickjs-<mod>.module.cmake sidecars (one per module a project builds, written by
+      # make_module()): <mod>_MODULE_LIBRARY = the archive, _LIBRARIES = what it links
+      file(GLOB _bm_sidecars "${_bm_path}/quickjs-*.module.cmake")
+      if(_bm_sidecars)
+        foreach(_bm_sidecar ${_bm_sidecars})
+          qjsm_external_sidecar("${_bm_sidecar}")
+        endforeach()
       else()
-        message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' -- no lib${_bm_name}.a/.so found in that directory")
+        find_library(_bm_lib_${_bm_name} NAMES "lib${_bm_name}.a" "quickjs-${_bm_name}.a" "${_bm_name}" PATHS "${_bm_path}" NO_DEFAULT_PATH)
+        if(_bm_lib_${_bm_name})
+          list(APPEND EXTERNAL_MODULES "${_bm_name}")
+          message(STATUS "qjsm: external module '${_bm_name}' from ${_bm_lib_${_bm_name}}")
+          # No FORCE: an explicit <name>_MODULE (e.g. listing the module's own system
+          # libraries, which a bare archive cannot tell us) wins over this bare path.
+          set(${_bm_name}_MODULE "${_bm_lib_${_bm_name}}"
+              CACHE STRING "Static library for external module '${_bm_name}', found via BUILTIN_MODULES")
+        else()
+          message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' -- no quickjs-*.module.cmake and no lib${_bm_name}.a in that directory")
+        endif()
       endif()
     endif()
+  elseif(EXISTS "${_bm_path}" AND _bm_path MATCHES "quickjs-[^/]*\\.module\\.cmake$")
+    # one module of a multi-module project (e.g. qjs-sound/build/quickjs-sndfile.module.cmake)
+    qjsm_external_sidecar("${_bm_path}")
   elseif(EXISTS "${_bm_path}" AND _bm_path MATCHES "\\.js$")
     # a JS file: compiled into qjsm as builtin <basename>
     get_filename_component(_bm_name "${_bm_path}" NAME_WE)
@@ -1031,6 +1109,44 @@ foreach(NATIVE_BUILTIN ${_native_all})
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${NATIVE_MODULE})\n")
 endforeach()
 
+if(EXTERNAL_MODULES)
+  list(REMOVE_DUPLICATES EXTERNAL_MODULES)
+endif()
+unset(QJSM_EXTERNAL_TARGETS)
+# externally-built modules: entry point js_init_module_<name> in <name>_MODULE's archive
+foreach(_ext ${EXTERNAL_MODULES})
+  string(REPLACE "-" "_" _ext_id "${_ext}")
+  set(_ext_libs ${${_ext}_MODULE})
+  list(GET _ext_libs 0 _ext_archive)
+  # the archive carries its own copies of helpers (js_error_print, js_function_prototype, ...)
+  # that libmodules and other archives define too; partial-link it and keep only the entry
+  # point global so the copies stay private
+  if(UNIX AND CMAKE_OBJCOPY AND CMAKE_AR AND _ext_archive MATCHES "\\.a$")
+    set(_ext_dir "${CMAKE_CURRENT_BINARY_DIR}/external")
+    set(_ext_out "${_ext_dir}/quickjs-${_ext}.a")
+    add_custom_command(
+      OUTPUT "${_ext_out}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${_ext_dir}"
+      COMMAND ${CMAKE_C_COMPILER} -r -nostdlib -Wl,--whole-archive "${_ext_archive}" -Wl,--no-whole-archive -o "${_ext_dir}/${_ext}.o"
+      COMMAND ${CMAKE_OBJCOPY} --keep-global-symbol=js_init_module_${_ext_id} "${_ext_dir}/${_ext}.o"
+      COMMAND ${CMAKE_COMMAND} -E remove -f "${_ext_out}"
+      COMMAND ${CMAKE_AR} rcs "${_ext_out}" "${_ext_dir}/${_ext}.o"
+      DEPENDS "${_ext_archive}"
+      COMMENT "qjsm: isolating the symbols of external module ${_ext}"
+      VERBATIM)
+    add_custom_target(qjsm-external-${_ext} DEPENDS "${_ext_out}")
+    list(APPEND QJSM_EXTERNAL_TARGETS qjsm-external-${_ext})
+    list(REMOVE_AT _ext_libs 0)
+    list(PREPEND _ext_libs "${_ext_out}")
+  endif()
+  list(APPEND QJSM_STATIC_LIBS ${_ext_libs})
+  if(${_ext}_MODULE_LINK_FLAGS)
+    separate_arguments(_ext_flags UNIX_COMMAND "${${_ext}_MODULE_LINK_FLAGS}")
+    list(APPEND QJSM_EXTERNAL_LINK_OPTIONS ${_ext_flags})
+  endif()
+  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${_ext_id})\n")
+endforeach()
+
 
 
 if(BUILTIN_HEADER)
@@ -1056,6 +1172,10 @@ if(COMPILED_TARGETS)
   add_dependencies(qjsm ${COMPILED_TARGETS})
 endif(COMPILED_TARGETS)
 
+if(QJSM_EXTERNAL_TARGETS)
+  add_dependencies(qjsm ${QJSM_EXTERNAL_TARGETS})
+endif()
+
 if(LIBDL)
   link_libraries(${LIBDL})
 endif(LIBDL)
@@ -1063,7 +1183,7 @@ endif(LIBDL)
 link_directories(${QJSM_LIBDIR})
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
-set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w")
+set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR};${QJSM_EXTERNAL_LINK_OPTIONS}" COMPILE_FLAGS "-w")
 
 if(EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   # -lquickjs pulls in quickjs-libc.c's js_std_file/std.popen(), which calls
@@ -1236,6 +1356,10 @@ endmacro(qjsm_report_compat)
 #   -- qjsm: what is baked in
 #   --   C modules (13)  bjson blob ...
 macro(qjsm_report)
+  if(QJSM_LAYOUT_REPORT)
+    message("${QJSM_LAYOUT_REPORT}")
+  endif()
+
   set(_rep_native_names "")
   foreach(_rep_name ${BUILTINS_NATIVE})
     string(REPLACE "_" "-" _rep_name "${_rep_name}")

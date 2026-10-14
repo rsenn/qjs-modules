@@ -1387,6 +1387,412 @@ the rewriter copies what it keeps (the held key) and `jwrite_*` copies into the 
 
 ## Tier 14 — qjsm closed builtins: follow-ups (2026-10-14)
 
+Builtins are closed (`doc/qjsm-layout.md` 4.1). Done 2026-10-14: `disableBuiltin()`,
+`lib/traceHooks.js`, computed-`import()` report at configure time, `vfs` loads `archive`
+lazily, `QJSM_INSTALL_BUILTIN_NATIVE`, `manifest.json`, build-info blob (`--version`,
+`--build-info`, `buildInfo`, `Module.layout/builtins/bytecode/installed/manifest/verify`).
+What is left:
+
+- `cmake --install --prefix X` relocates only `bin/` and `share/`; native and JS modules go to
+  the absolute `QUICKJS_C_MODULE_DIR`/`QUICKJS_JS_MODULE_DIR` (`qjsm-layout.md` 3.2).
+- Generated `package.json` / import maps for Node, Bun, Deno (`qjsm-layout.md` 7).
+- Configure snapshot baseline not regenerated (no stored baseline found in the tree).
+- ctest: 13 of 138 fail (arraybuffer-sink, buffer, directory, extract-c, globals, json,
+  lexer-cpp, misc, mmap, node-child-process, node-util, sql, util-node); unrelated to the
+  builtin work, each needs its own look.
+
+## Tier 15 — PoC: streaming JSON transformer, pure-C call chain, no tree
+
+> API now specified by Tier 17 (`JsonRewriter`, `jrewrite_*`): this tier's rules become hooks/options of it and its
+> tests become the rewriter's test suite.
+
+Proves Tier 14's adapter A1 (`jr_callback` → `jwrite_*`) with real filtering logic, as a
+test: bytes in → `jr_read` → **filter callback** → `jwrite_*` → `Writer` → bytes out. No
+tree is built and nothing crosses C → JS → C: the whole chain is plain function calls
+inside one `jr_read()` call.
+
+```
+ chunk ──► jr_read(cb = jrewrite_event, ud = JsonRewriter*, &jr_state)
+              │ per token: (jr_type_t, jr_str_t*)
+              ▼
+          jrewrite_event ── decides: forward / drop / rewrite / hold one event
+              │ jwrite_object_start · array_start · key · string · jwrite_number · …
+              ▼
+          JsonWriter ──► Writer (DynBuf in the test) ──► expected-output comparison
+```
+
+### Scope and placement
+
+- **Placement:** `tests/c/jstream.c` first (PoC lives next to its test, no new public
+  header, nothing exported to JS). Promote to `src/jrewrite.[ch]` only if it holds up, as the
+  engine-free `jr → jwrite` pump of Tier 14 (A1/A3).
+- **Not in scope:** any JS-visible class/function (no new public API per project
+  principles), `JsonBuilder`/`WalkIterator` (both engine-bound), schema validation.
+
+### The filter (`JsonRewriter`)
+
+State, all plain C:
+
+```c
+typedef struct {
+  JsonWriter* wr;               /* the sink; NULL-safe checks not needed */
+  Vector frames;                /* of Frame { is_object, index; } = the path, no values stored */
+  int skip;                     /* >0: inside a dropped subtree; counts nested starts */
+  char* held; size_t held_len;  /* one buffered key, copied (jr_str_t is borrowed) */
+  unsigned error : 1, blocked : 1;
+  const JsonRewriterRule* rules; size_t nrules;   /* what to do, see below */
+} JsonRewriter;
+```
+
+Rules, chosen so each one needs a different streaming technique (that is the point of the
+PoC); each is a test fixture, not a feature of a library:
+
+| Rule | Example | Technique it exercises |
+| --- | --- | --- |
+| passthrough / reformat | `{"a":[1,2]}` → pretty (`indent=2`) or minified | forward every event; `jwrite` owns commas/indent |
+| drop key by name (any depth) | drop `secret` | `key` event: do not forward, set `skip` for the *next value*; a container value raises `skip` until its matching end |
+| depth limit | max depth 2, deeper containers become `null` (or are dropped) | `frames` size on each `*_start`; emit one `jwrite_null` and skip the rest |
+| pick path | keep only `$.a.b[2]` (stream out just that value) | path match on `frames`+held key; nothing is written outside the match; stops early (caller ignores later events) |
+| redact by key | `"password": "x"` → `"password": "***"` | hold the key, decide on the value event, then forward key + replacement |
+| number fidelity | `12345678901234567890`, `1e400`, `-0`, `0.10` pass through unchanged | `jwrite_number` with the token text — impossible via a JS number tree |
+
+### Event handling (`jrewrite_event`)
+
+| `jr_type_t` | Normal | While `skip > 0` | Error |
+| --- | --- | --- | --- |
+| `object_start` / `array_start` | `jwrite_*_start`, push frame | `skip++` | |
+| `object_end` / `array_end` | `jwrite_*_end`, pop frame | `skip--`; at 0 the dropped value is complete | |
+| `key` | apply drop/redact/pick rule; else hold or `jwrite_key` | ignored | |
+| `string` | `jwrite_string` (jr decodes escapes, jwrite re-escapes) | ignored | |
+| `number` | `jwrite_number(text)` | ignored | |
+| `true` / `false` / `null` | `jwrite_true` / `jwrite_false` / `jwrite_null` | ignored | |
+| `error` | set `error`, drop all later events (jr resyncs, but the writer's frame state would not match) | same | |
+
+- `borrowed:` `jr_str_t.cstr` is valid only until the callback returns (accumulator
+  buffer); anything kept across events (the held key) is copied.
+- Each `jwrite_*` return is checked: `< 0` → `error`; `jr_callback` returns `void`, so
+  failures are sticky flags the caller reads after `jr_read()` returns.
+- Output strings are re-escaped by `jwrite`, so `"é"` and `"\/"` come out as `é`
+  and `/`; expected files are canonical, not byte-identical to the input (numbers are).
+
+### Tests (the PoC's acceptance criteria)
+
+1. **Chunking invariance**: feed each input in 1-byte, 2-byte, 7-byte, and whole chunks;
+   the output must be identical (`jr_read` resumes mid-token, mid-escape, mid-keyword).
+2. **Every rule above** against small fixtures (inputs and expected outputs inline in
+   the `.c`, generated once with `node -e 'JSON.stringify(...)'` and checked in).
+3. **Bounded memory**: a generated input of ≥ 50 MB (one big array of small objects,
+   produced chunk by chunk, never held whole) runs through the chain; assert peak
+   `frames` depth and that RSS stays flat (`getrusage` before/after < a few MiB). This is
+   what "no tree" is for.
+4. **Errors**: truncated input (`{"a":[1,`) → `jr_finish` error, `error` flag set, no
+   crash, no writes after the error; garbage mid-stream → same.
+5. **Idempotence**: filter(passthrough, indent 0) of its own output is unchanged.
+6. **No engine**: the test never creates a `JSRuntime`/`JSContext` and passes none
+   anywhere; a stray `JS_*` call on a missing context would crash it.
+
+### Build / wiring
+
+- `tests/c/jstream.c` is built only with `DO_TESTS` as an executable linked against the
+  `modules` static library (for now) and registered with `add_test(NAME jstream COMMAND …)`
+  next to the JS tests loop in `CMakeLists.txt` (~l.895-925); the glob there only matches
+  `test-*.js`, so the C test needs its own `add_executable`/`add_test`.
+- **Purity gate (phase 2):** link the same test from only `jread.c jwrite.c jrewrite.c` +
+  `cutils.c` + a pure `vector` + a pure `writer`, with no `libquickjs`; an undefined `JS_*`
+  symbol then fails the link. Verified blockers today (`nm -u` of the objects):
+  `jread.o` needs `vector_free/put/realloc`, `unicode_to_utf8`; `jwrite.o` needs
+  `vector_free/put`, `dbuf_init2`, `writer_free`, `writer_write`. Those live in `vector.c`
+  and `stream-utils.c`, which also hold `JS_*` code → split out a pure `vector` core and a
+  pure `writer` core (this is Tier 14 step 2, now with a test that enforces it).
+
+### Steps
+
+1. Skeleton: `tests/c/jstream.c` with a `DynBuf` `Writer`, `JsonWriter`, `jr_state_t`, a
+   pass-through `jrewrite_event`, and the chunking-invariance test (rule 1 + test 1).
+2. Add `drop key` (needs `skip`), then `depth limit`, then `redact` (needs the held key),
+   then `pick path` (needs `frames`); each with its fixtures before the next.
+3. Number fidelity + error tests; the 50 MB bounded-memory test.
+4. CMake: `add_executable`/`add_test`, run under ASan once.
+5. Phase 2: purity gate (pure `vector`/`writer` split), then decide promotion to
+   `src/jrewrite.[ch]` and the Tier 14 adapters A1/A3 built from this code.
+
+### Findings this PoC is expected to surface (decide when hit)
+
+- **`jr_callback` has no return value**: a filter that finds its answer early (pick path)
+  or a blocked `Writer` cannot tell `jr_read` to stop; sticky flags + the caller ceasing to
+  feed chunks is the workaround. A `int`-returning `jr_callback` (nonzero = stop) would be a
+  small change to `jread.h`; weigh against the other callers (`JsonPushParser`).
+- **No position in events**: errors cannot report offset/line; Tier 14 lists this as a gap
+  in the sink (comment event, byte offset).
+- **Comments** (`//`, `/* */`) are skipped by `jr` silently; a transformer cannot preserve
+  them. Fine for the PoC, relevant for a JSON5 round-tripper.
+
+## Tier 16 — thin C connectors: pull parser (`json.h`) and `JsonPushParser` → `JsonWriter`
+
+Folded into Tier 17. The pull connector is `jrewrite_pull()`, the push connector is
+`jrewrite_callback()` (a `jr_callback`), the `JsonPushParser(jsonWriter)` constructor form and the
+`writer_buffered` check are Tier 17's "JS wiring", and this tier's facts, type map and tests
+(equivalence at 1/2/7-byte chunks, number fidelity, NEED_DATA classification, resume, comments,
+writer failure, the "no JS call per token or byte" counting test) are Tier 17's tests 1, 6, 9, 11-13.
+Nothing is implemented separately under the `jconnect_*` names.
+
+## Tier 17 — `JsonRewriter` (`jrewrite`): the filtering dispatcher between `jread` and `jwrite`
+
+One engine-free C object that takes jread's events in, keeps track of where in the document
+it is, filters and transforms, and gives jwrite's events out. It replaces the loose pieces of
+Tiers 15/16 (`jconnect_feed`/`push`/`pull` and the Tier 15 PoC's filter callback) by one type whose
+default options are the plain pass-through. Name: `jrewrite` pairs with `jread`/`jwrite`/`jbuild`.
+
+```
+ jr_read ─────► jrewrite_callback ─┐
+ json_parse ──► jrewrite_event ────┼─► [ state · depth gate · key hold · drop · hook ] ─► JsonWriteInterface ─► JsonWriter ─► Writer
+ another JsonWriteInterface ───────┘            (JsonRewriter)                       └─► another JsonRewriter (chain)
+```
+
+Possible now because `jwrite` mirrors `jr_type_t` one to one (error, null, true, false, number,
+string, array_start/end, object_start/end, key), so input and output speak the same eleven events
+and the dispatcher is a plain `switch`.
+
+### API (`include/jrewrite.h`, `src/jrewrite.c`; pure C, libc allocation)
+
+```c
+typedef struct JsonRewriter JsonRewriter;
+
+typedef enum { JREWRITE_PASS = 0, JREWRITE_DROP, JREWRITE_STOP } JsonRewriteAction;
+typedef enum { JREWRITE_DEEP_EMPTY, JREWRITE_DEEP_NULL, JREWRITE_DEEP_DROP } JsonRewriteDeep;
+
+/* what a hook sees: one *member* (key + value, or a bare array element / root value). */
+typedef struct {
+  jr_type_t type;               /* null true false number string array_start object_start; never key/end/error */
+  const char* str; size_t len;  /* scalar text (decoded UTF-8 for strings, raw text for numbers) */
+  const char* key; size_t key_len;  /* NULL outside objects; the held key */
+  unsigned depth;               /* open containers around this event; root value = 0 */
+  uint32_t index;               /* position in the parent in the *input*, 0-based */
+} JsonRewriteEvent;
+
+typedef JsonRewriteAction JsonRewriteFn(JsonRewriter*, JsonRewriteEvent*, void* ud);
+
+typedef struct {
+  unsigned min_depth;                 /* 0 = none; see "depth" below */
+  unsigned max_depth;                 /* UINT_MAX = none */
+  JsonRewriteDeep deep;                /* what a container at max_depth turns into */
+  const char* const* drop_keys; size_t ndrop_keys;  /* exact name, any depth */
+  JsonRewriteFn* filter; void* filter_ud;            /* optional, runs last */
+  unsigned track_path : 1;            /* keep ancestor keys so jrewrite_path() works */
+} JsonRewriteOptions;
+
+void jrewrite_init(JsonRewriter*, JsonWriteInterface sink, const JsonRewriteOptions*);
+void jrewrite_free(JsonRewriter*);
+
+void jrewrite_event(JsonRewriter*, jr_type_t, const char* str, size_t len);   /* the dispatcher */
+void jrewrite_callback(jr_type_t, const jr_str_t*, void* ud);                  /* a jr_callback, ud = rewriter */
+JsonWriteInterface jrewrite_interface(JsonRewriter*);                         /* as a sink: chainable */
+
+/* pull: runs json_parse() of include/json.h until it stops, feeding jrewrite_event().
+ * returns JREWRITE_DONE (clean end at depth 0) | JREWRITE_NEED_DATA (reader dry inside a
+ * value; resumable: call again) | JREWRITE_PARSE (first parse error, message in json->error)
+ * | JREWRITE_WRITE (first sink error, code in jrewrite_error()). Comments are dropped. */
+int jrewrite_pull(JsonParser*, JsonRewriter*);
+
+/* state, never throws */
+int      jrewrite_error(const JsonRewriter*);          /* 0, or -JWRITE_E_* / -JREWRITE_E_*; sticky, first failure */
+unsigned jrewrite_depth(const JsonRewriter*);          /* open containers in the input */
+size_t   jrewrite_path(const JsonRewriter*, char* buf, size_t cap);  /* "$.a[2].b"; needs track_path */
+BOOL     jrewrite_done(const JsonRewriter*);           /* a root value just completed */
+const JsonRewriteStats* jrewrite_stats(const JsonRewriter*);  /* events_in/out, dropped, root_values, max_depth_seen */
+```
+
+Errors: writer codes pass through (`-JWRITE_E_*`); the connector adds `JREWRITE_E_STRUCTURE` (a hook
+changed a container type, or the input nests wrongly), and the input's `error` event becomes
+`-JWRITE_E_SOURCE` (`jwrite_error` does the same on the writer side).
+
+### Semantics
+
+**Depth.** The depth of an event is the number of containers open around it; a root value has
+depth 0, its children 1. A container start has the depth of the container itself.
+
+| Option | Effect on `{"a":{"b":[1,2]}}` |
+| --- | --- |
+| none | `{"a":{"b":[1,2]}}` |
+| `max_depth = 1`, `JREWRITE_DEEP_EMPTY` | `{"a":{}}`: the container at depth 1 is emitted empty, its contents skipped |
+| `max_depth = 1`, `JREWRITE_DEEP_NULL` | `{"a":null}` |
+| `max_depth = 1`, `JREWRITE_DEEP_DROP` | `{}`: member `a` dropped, key included |
+| `min_depth = 1` | `{"b":[1,2]}`: events at depth < 1 (the root braces, key `a`) are hidden; the value at depth 1 becomes a root value (like jq `.[]`); several give a sequence |
+| `min_depth = 2` | `[1,2]` |
+
+- Hidden containers still push a frame (state tracking continues); their keys are dropped
+  because a key needs an enclosing object in the output.
+- Several root values need a separator: `JsonWriteOptions` gets `jsonl : 1` (each root value
+  followed by `\n`). This is a prerequisite change in `jwrite.c` (small: the root check in
+  `jwrite_after_value`) and also answers Tier 16's "concatenated documents" question.
+- `max_depth` and `min_depth` together select a band of levels.
+
+**Members, not events, are filtered.** Keys are held (copied; `jr_str_t` is borrowed) until the
+next event, so a decision can use key and value together and a dropped member removes its key
+too. The hook is called once per member with the key attached; it never sees `key`, `*_end` or
+`error` events on their own.
+
+**Hook rights.** It returns `JREWRITE_PASS`, `JREWRITE_DROP` (member and, for a container, its subtree) or
+`JREWRITE_STOP` (finish: later events are ignored, `jrewrite_done()` stays true; the caller stops feeding).
+It may change `ev->key/key_len` (rename), `ev->str/len` (new value text), and `ev->type` among
+the scalar types (`number`→`string`, anything→`null`). Changing to or from a container type is
+`JREWRITE_E_STRUCTURE`. Storage for new text comes from `jrewrite_scratch(c, len)`, valid until the
+next event (the hook must not return pointers into its own stack).
+
+**Event flow** (per input event):
+
+| Input | State | Action |
+| --- | --- | --- |
+| `error` | any | store `-JWRITE_E_SOURCE`, stop forwarding |
+| any | error or stopped | ignored |
+| `key` | skipping a subtree | ignored |
+| `key` | in an object | copy into the held-key buffer |
+| scalar / start | skipping a subtree | ignored; a start raises the skip count |
+| scalar / start | normal | depth gate → `drop_keys` on the held key → hook → forward with key |
+| end | skipping | lower the skip count |
+| end | normal | pop the frame; forward the end if the container was emitted; if the stack is empty, a root value is complete (`jrewrite_done`, `root_values++`) |
+
+**State tracked**: frame stack (`is_object`, input index,
+`emit`, key offset/len), held key, skip count, depth, `max_depth_seen`, counters
+(`events_in`, `events_out`, `dropped`, `root_values`), sticky error, `done`/`stopped`, and with
+`track_path` an append-only buffer of ancestor keys (frames store offsets, popping truncates:
+no per-frame allocation) from which `jrewrite_path()` renders `$.a[2].b`.
+
+### Uses (each a test, none a library feature)
+
+| Use | Configuration |
+| --- | --- |
+| reformat / minify / JSON5-ify | defaults; writer options choose the format |
+| strip secrets | `drop_keys = {"password","token"}` |
+| outline of a big document | `max_depth = 2`, `JREWRITE_DEEP_NULL` |
+| stream the items of a huge array | `min_depth = 1` + `jsonl` |
+| pick `$.a.b[2]` | hook compares `jrewrite_path()`, returns `JREWRITE_STOP` after the match |
+| redact | hook returns `JREWRITE_PASS` with `ev->str` replaced |
+| rename keys (`snake_case`→`camelCase`) | hook rewrites `ev->key` via `jrewrite_scratch` |
+| count / validate only | sink = a no-op interface; read `jrewrite_stats()` |
+| two stages | `jrewrite_interface(second)` as the sink of the first |
+
+### Tests (`tests/c/jrewrite.c`, the Tier 15 harness)
+
+1. Defaults equal the plain `jr` → `jwrite` chain for the whole corpus, at chunk sizes 1, 2, 7 and whole.
+2. The depth table above, each row, with arrays and nested mixes; `min`+`max` band.
+3. `drop_keys`: at root, nested, in an array of objects, last member of an object (comma state),
+   only member (`{}` remains), key whose value is a container.
+4. Hook: rename, redact, change type, `JREWRITE_DROP` on a container, `JREWRITE_STOP`, illegal container
+   type change → `JREWRITE_E_STRUCTURE`.
+5. State: `jrewrite_path` at every event of a sample, `root_values`/`jrewrite_done` over `1 2 [3]`,
+   stats counts.
+6. Errors: `error` event, truncated input (`jr_finish`), writer failing after N bytes, nothing
+   written after the first error.
+7. Chain of two connectors equals one connector with both rules.
+8. Bounded memory: ≥ 50 MB generated input, flat RSS, `max_depth_seen` as expected.
+9. Pull: `jrewrite_pull` over a `Reader` equals the push result; `[1,2` → `NEED_DATA`, `[1,2]`, ``
+   and whitespace → `DONE`, `[1,x]` → `PARSE` with nothing written after; resume after the reader
+   runs dry (append, call again); comments skipped with `json->comments` set; a number text
+   such as `12345678901234567890`, `1e400`, `-0`, `0.10` passes unchanged.
+10. Purity gate (after Tier 14 step 2): linked without `libquickjs`.
+
+JS (`tests/unittests/test-json.js`):
+11. `new JsonPushParser(new JsonWriter(sink, {indent: 2}))` fed a corpus in chunks equals
+    `JSON.stringify(v, null, 2)`.
+12. **No crossing (the point of the tier):** `sink` counts its calls; for ≥ 100k values the count
+    stays orders of magnitude below the token or byte count (bounded by the buffer size). A
+    `JsonPushParser` with a callbacks object is the contrast case (calls scale with tokens).
+13. Lifetime: drop the only JS reference to the `JsonWriter`, keep writing through the parser,
+    `gc()`: no crash, output intact.
+
+### Facts the pull and push sides rest on (read from the code)
+
+| Fact | Where | Consequence |
+| --- | --- | --- |
+| `json_parse()` returns one `JsonValueType` per call; string/key/number/comment text is in `json->token` | `json.h`, `json.c` | the pull side maps the type and passes `(json->token.buf, .size)` to `jrewrite_event()` |
+| strings and keys are **decoded** in the token, numbers are raw text | `json.c` ~l.273/315 | same data as `jr_str_t`; `jwrite_string` re-escapes, `jwrite_number` keeps numbers verbatim |
+| clean EOF and "ran out mid-value" both return `JSON_NEED_DATA` (reader `0` → `NEED_DATA`, `<0` → `JSON_ERROR`) | `json.c` l.222-226 | `jrewrite_pull` classifies it: `json->stack.len == 0 && tok_kind == JSON_TOK_NONE` is a clean end, else truncated |
+| `JSON_ERROR` sets `json->error`; the parser resyncs by itself on the next call | `json.c` | the pump stops at the first error; continuing would feed events the writer's frame stack cannot match |
+| `JSON_TYPE_COMMENT` only appears with `json->comments` set | `json.h` | `jwrite` has no comment event: dropped |
+| `jr_callback` returns `void`; `jr_read()` cannot be stopped from a callback | `jread.h` | the rewriter keeps a sticky error and a `stopped` flag; the caller stops feeding |
+| `jwrite_put()` writes **one byte at a time** through the `Writer` | `jwrite.c` | a JS-backed `Writer` (`writer_from_jsfunction`/`jsstream`) would run one JS call per output byte: wrap it with `writer_buffered()` |
+| `js_jsonwriter_constructor` calls `writer_from_js()` and does not wrap the result | `quickjs-json.c` ~l.1696 | verify whether `writer_from_js` buffers; if not, add `writer_buffered` there |
+| `json_init()` needs a `JSContext` (`dbuf_init_ctx`, `location_new(ctx)`); `json_getc()` calls `location_nextchar(json->loc, c)` unguarded | `json.c` l.109-141, l.205 | `jrewrite_pull` takes an initialised parser and uses no ctx, but building a parser still needs one until a ctx-free init exists (step 8) |
+
+Type map (the only table, in `jrewrite_event`; the pull side translates first):
+
+| `jr_type_t` | `JsonValueType` (pull) | `jwrite` call |
+| --- | --- | --- |
+| `object_start` / `object_end` | `OBJECT` / `OBJECT_END` | `object_start` / `object_end` |
+| `array_start` / `array_end` | `ARRAY` / `ARRAY_END` | `array_start` / `array_end` |
+| `key` | `KEY` | `key(text, len)` |
+| `string` | `STRING` | `string(text, len)` |
+| `number` | `NUMBER` | `number(text, len)` |
+| `true` / `false` / `null` | `TRUE` / `FALSE` / `NULL` | `true_` / `false_` / `null` |
+| `error` | `JSON_ERROR` | `error(msg, len)`, returns `-JWRITE_E_SOURCE`, writes nothing |
+| none | `COMMENT` | none: skipped |
+| none | `NEED_DATA` | ends the pump |
+
+`borrowed:` text pointers are valid only until the next `json_parse()` / the callback returns;
+the rewriter copies what it keeps (the held key) and `jwrite_*` copies into the `Writer`.
+
+### JS wiring (no new public API at first)
+
+- **Push:** `new JsonPushParser(jsonWriter)`: the constructor takes a function or a callbacks
+  object; add "an object of class `JsonWriter`" as a third form (detect with
+  `JS_GetOpaque(arg, js_jsonwriter_class_id)`). The parser owns a `JsonRewriter` whose sink is
+  `jwrite_interface(writer)`; `refcount:` it keeps a `JS_DupValue` of the writer object,
+  released in the finalizer, so the writer cannot be collected under it. `write(chunk)` runs
+  `jr_read(jrewrite_callback, …)` entirely in C; `close()` = `jr_finish` plus a check of
+  `jrewrite_error()`, throwing `SyntaxError` for parse errors and the `jwrite` message for
+  writer errors. The only JS involvement is the user's `Writer` endpoint.
+- **Pull:** C only. `JsonParser` (JS class) is token-at-a-time; pulling a whole stream into a
+  writer has no standard JS shape and no user, so no JS entry point.
+- **Options from JS**, if a use case shows up: declarative only, `new JsonPushParser(writer,
+  { minDepth, maxDepth, dropKeys })`. A JS `filter` function would put a JS call back into
+  every member (C → JS → C) and is deliberately left out.
+- The Deno-style streams in `lib/jsonStreams.js` (Tier 14 A9) are where a standard JS surface
+  could later sit on top of this.
+
+### Steps
+
+1. `JsonWriteOptions.jsonl` in `jwrite.c` + a test (also settles "concatenated documents").
+2. `jrewrite.[ch]`: struct, `jrewrite_init/free`, `jrewrite_event` pass-through,
+   `jrewrite_callback`, `jrewrite_interface`; tests 1 and 6.
+3. Frames, depth, `max_depth` with the three policies; test 2.
+4. Held key, `drop_keys`, skip counting; test 3.
+5. Hook (`JsonRewriteEvent`, actions, scratch); test 4.
+6. `track_path`, stats, `done`; test 5.
+7. `jrewrite_pull` with the NEED_DATA classification; test 9.
+8. Wire `JsonPushParser(jsonWriter)`; tests 11 and 13; check/add `writer_buffered` in the
+   `JsonWriter` constructor; test 12.
+9. Chain + memory tests (7, 8); register `jrewrite.c` in the `modules` library and CTest
+   (`add_executable`/`add_test` next to the JS test loop, `CMakeLists.txt` ~l.895-925; the glob
+   only matches `test-*.js`); ASan once.
+10. Phase 2, engine-free: `json_init` without `JSContext` (libc allocator, optional `Location`:
+    guard `location_nextchar` and the `json->loc` uses); Tier 14 step 2 (pure `vector`/`writer`
+    split); link the C tests without `libquickjs` as the purity gate (test 10).
+11. Rebuild the Tier 15 PoC rules on `JsonRewriter`; mark Tier 14 A1/A2/A3 and Tiers 15/16 done.
+12. Docs: `doc/native/json.md` (rewriter section, `JsonPushParser(writer)` form, comments
+    dropped, `jsonl`).
+
+### Open questions
+
+- **`min_depth` meaning:** the "sequence of children" reading above (jq `.[]`) vs. keeping the
+  children's own keys. The first needs `jsonl`; the second is impossible with a JSON writer
+  (keys at root). Chosen: sequence.
+- **Hook sees only members:** a rule that needs the container's end (e.g. "drop empty objects")
+  cannot be written; it would need a lookahead of one event. Add only when a use case appears.
+- **Early stop:** `JREWRITE_STOP` and `jrewrite_done` only mark the state; `jr_read` cannot be interrupted
+  from a callback, so the caller must stop feeding. An `int`-returning `jr_callback` would fix
+  that at the source (Tier 15 finding).
+- **Duplicate keys, NaN-like number text:** passed through unchanged; `jwrite_number` already
+  rejects text that cannot be a number.
+- **Blocked writer:** `jwrite` mutates its frame stack before writing, so an event refused by a
+  blocked `Writer` (return 0) cannot be replayed. Until `jwrite` is retry-safe the rewriter
+  requires a non-blocking `Writer` (buffer / dynbuf / buffered fd) and reports a blocked write as
+  a sink error. Check whether `jwrite_*` can return 0 at all.
+- **Position in errors:** the pull side has `json->loc`/`json->pos`, the push side has nothing
+  until the event sink gains a byte offset (Tier 14).
+
+## Tier 14 — qjsm closed builtins: follow-ups (2026-10-14)
+
 Builtins are closed (`doc/qjsm-layout.md` 4.1); what is left:
 
 - Run the full `ctest` suite and regenerate the configure snapshot baseline (disk was full).

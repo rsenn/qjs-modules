@@ -240,6 +240,26 @@ tests({
     eq('ERR_FEATURE_UNAVAILABLE', code);
   },
 
+  'build info (qjsm only)'() {
+    if(!Module.buildInfo) return;
+
+    const l = Module.layout();
+    const list = Module.builtins();
+    const assertEntry = list.find(b => b.name == 'assert');
+
+    eq('string', typeof Module.buildInfo.qjsm.version);
+    assert(Array.isArray(l.search) && l.search.length > 0);
+    eq('js', assertEntry.kind);
+    assert(assertEntry.size > 0);
+    eq(assertEntry.size, Module.bytecode('assert').byteLength);
+    assert(Module.bytecode('assert') instanceof ArrayBuffer);
+    eq(null, Module.bytecode('blob'));
+    eq(undefined, Module.bytecode('no-such-builtin'));
+    assert(Array.isArray(Module.installed()));
+    assert(Array.isArray(Module.verify()));
+    assert(Module.manifest() === null || typeof Module.manifest().qjsm == 'object');
+  },
+
   'teardown'() {
     os.exec(['rm', '-rf', dir]);
   },

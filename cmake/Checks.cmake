@@ -343,7 +343,7 @@ macro(check_source_definitions)
   endif() 
 
   foreach(TYPE ${SOURCE_TYPES})
-    set_add(SOURCE_DEFINITIONS "${TYPE}_SOURCE")
+    set_add(SOURCE_DEFINITIONS "-D${TYPE}_SOURCE")
   endforeach()
 
   list(APPEND CMAKE_REQUIRED_DEFINITIONS ${SOURCE_DEFINITIONS})

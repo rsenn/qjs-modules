@@ -1,5 +1,7 @@
 /* the module globals installed by src/qjsm.c, qjsm only */
 import 'path';
+import * as os from 'os';
+import * as std from 'std';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* the getters follow the running script, so read them while it is the top frame */
@@ -7,7 +9,7 @@ const [file, dir] = [__filename, __dirname];
 
 tests({
   'every module global is a function'() {
-    for(const name of ['findModule', 'loadModule', 'requireModule', 'resolveModule', 'normalizeModule', 'locateModule', 'getModule', 'getModuleName', 'getModuleMetaObject', 'getModuleNS', 'registerHooks', 'evalBuf', 'evalFile'])
+    for(const name of ['findModule', 'loadModule', 'requireModule', 'resolveModule', 'normalizeModule', 'locateModule', 'getModule', 'getModuleName', 'getModuleMetaObject', 'getModuleNS', 'registerHooks', 'disableBuiltin', 'evalBuf', 'evalFile'])
       eq('function', typeof globalThis[name]);
   },
 
@@ -28,8 +30,8 @@ tests({
     assert(moduleList.some(m => m.name == 'path'), 'path not in moduleList');
   },
 
-  'moduleEntries is non-empty'() {
-    assert(moduleEntries.length > 0, 'empty');
+  'moduleList is non-empty'() {
+    assert(moduleList.length > 0, 'empty');
   },
 
   'normalizeModule resolves relative specifiers against the importer'() {
@@ -104,6 +106,30 @@ tests({
     eq(-1, findModule('path', index + 1));
   },
 
+  'QUICKJS_MODULE_PATH splits on ";" and, off Windows, on ":"'() {
+    const base = `${std.getenv('TMPDIR') ?? '/tmp'}/qjsm-test-mp-${os.getpid()}`;
+    const old = std.getenv('QUICKJS_MODULE_PATH');
+
+    os.mkdir(base);
+    os.mkdir(`${base}/a`);
+    os.mkdir(`${base}/b`);
+    std.open(`${base}/b/sepmod.js`, 'w').close();
+
+    try {
+      std.setenv('QUICKJS_MODULE_PATH', `${base}/a;${base}/b`);
+      eq(`${base}/b/sepmod.js`, locateModule('sepmod'));
+
+      if(os.platform != 'win32') {
+        std.setenv('QUICKJS_MODULE_PATH', `${base}/a:${base}/b`);
+        eq(`${base}/b/sepmod.js`, locateModule('sepmod'));
+      }
+    } finally {
+      if(old === undefined) std.unsetenv('QUICKJS_MODULE_PATH');
+      else std.setenv('QUICKJS_MODULE_PATH', old);
+      os.exec(['rm', '-rf', base]);
+    }
+  },
+
   'locateModule returns null for an unknown module'() {
     eq(null, locateModule('nonexistent-xyz'));
   },
@@ -132,6 +158,30 @@ tests({
     }
 
     assert(error && /nonexistent-xyz/.test(error.message), String(error));
+  },
+
+  'disableBuiltin switches a builtin off at run time'() {
+    assert(builtins.some(b => b.name == 'iterator'), 'iterator missing');
+
+    eq('iterator', disableBuiltin('iterator', 'no-such-builtin', 'iterator')[0]);
+    eq(0, disableBuiltin('iterator', 'no-such-builtin').length);
+    assert(!builtins.some(b => b.name == 'iterator'), 'iterator still listed');
+  },
+
+  'disableBuiltin takes the Node subpath names'() {
+    eq('fsPromises', disableBuiltin('fs/promises')[0]);
+  },
+
+  'disableBuiltin rejects what is not a string'() {
+    let error;
+
+    try {
+      disableBuiltin(42);
+    } catch(e) {
+      error = e;
+    }
+
+    assert(error instanceof TypeError, String(error));
   },
 
   'evalBuf evaluates a script'() {

@@ -40,3 +40,17 @@ The internals Node exposes on `Module` are there too: `_cache`, `_pathCache`,
 | `.node` extension | throws `ERR_DLOPEN_FAILED` |
 | `findPackageJSON()` | returns `undefined` for a missing package (Node 22 throws) |
 | `createRequire()` | resolves with `lib/require.js`, not `Module._load()` |
+
+## qjsm build information (not in Node)
+
+Present on `qjsm`; `Module.buildInfo` is `undefined` on other runtimes.
+
+| Export | Returns |
+| --- | --- |
+| `buildInfo` | the info blob baked into `qjsm` (same as `qjsm --build-info`) |
+| `layout()` | compiled-in prefix, native/JS/data dirs and the effective search path (`QUICKJS_MODULE_PATH` applied) |
+| `builtins()` | `[{name, kind: 'native' \| 'js', size?}]`, `size` = bytes of bytecode |
+| `bytecode(name)` | `ArrayBuffer` copy of a JS builtin's bytecode; `null` for a native one; `undefined` if unknown |
+| `installed()` | `[{name, kind, path, shadowed}]` found on the search path |
+| `manifest()` | the installed `share/qjsm/manifest.json`, or `null` |
+| `verify()` | differences between binary, manifest and disk (empty array: all agree) |

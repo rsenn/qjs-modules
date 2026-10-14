@@ -63,6 +63,123 @@ enum {
   PATH_TOARRAY,
 };
 
+/* Node's path.dirname length (not POSIX: the separator run before the basename loses one
+ * byte only), 0 for "."
+ *
+ *   "/tmp/x" -> 4    "/foo" -> 1    "a//b" -> 2 ("a/")    "//a" -> 2
+ */
+static int
+js_path_exists_cb(const char* p, void* arg) {
+  (void)arg;
+  return path_exists1(p);
+}
+
+static size_t
+js_path_dirlen(const char* path, size_t n) {
+  int hasroot, matched = 1;
+  ssize_t end = -1, i;
+
+  if(n == 0)
+    return 0;
+
+  hasroot = path_issep(path[0]);
+
+  for(i = n - 1; i >= 1; --i) {
+    if(path_issep(path[i])) {
+      if(!matched) {
+        end = i;
+        break;
+      }
+    } else {
+      matched = 0;
+    }
+  }
+
+  if(end == -1)
+    return hasroot ? 1 : 0;
+
+  return hasroot && end == 1 ? 2 : end;
+}
+
+/* extension of a[0..n) per Node's path.extname: `pos` is the offset of the dot (n if none),
+ * `len` the bytes from it to the end of the basename
+ *
+ *   "a/b.tar.gz" -> ".gz"    ".bashrc" -> none    "a.txt/" -> ".txt"
+ */
+static size_t
+js_path_extpos(const char* a, size_t n) {
+  return path_extoff(a, n);
+}
+
+static size_t
+js_path_extlen(const char* a, size_t n) {
+  size_t off = path_extoff(a, n), bl;
+  const char* b = path_basename(a, n, &bl);
+
+  return off == n ? 0 : (size_t)(b - a) + bl - off;
+}
+
+/* basename of a[0..n) as Node's path.basename sees it: `*len` bytes at the returned
+ * offset; empty for "" and for a path of only separators
+ *
+ *   "/tmp/test/" -> pos 5 len 4    "/" -> pos 1 len 0
+ */
+static size_t
+js_path_basename(const char* a, size_t n, size_t* len) {
+  const char* b = path_basename(a, n, len);
+
+  if(*len && path_issep(*b)) {
+    *len = 0;
+    return n;
+  }
+
+  return b - a;
+}
+
+/* normalizes p[0..n) into `db` the way Node's path.normalize does: "" is ".", a
+ * trailing separator stays
+ *
+ *   "a//b/../c/" -> "a/c/"    "" -> "."
+ */
+static void
+js_path_normalize(const char* p, size_t n, DynBuf* db) {
+  size_t w;
+
+  db->size = 0;
+
+  if(dbuf_claim(db, n + 4))
+    return;
+
+  w = path_canon((char*)db->buf, db->allocated_size, p, n);
+  db->size = w;
+
+  if(n && path_issep(p[n - 1]) && w && !path_issep(db->buf[w - 1]))
+    dbuf_putc(db, PATHSEP_C);
+
+  dbuf_0(db);
+}
+
+/* like js_path_normalize() after joining the current directory in front of a relative `p`
+ * (what path.absolute does)
+ */
+static void
+js_path_absolute(const char* p, size_t n, DynBuf* db) {
+  DynBuf tmp;
+
+  dbuf_init2(&tmp, 0, 0);
+
+  if(!path_isabsolute2(p, n) && path_getcwd1(&tmp) && tmp.size) {
+    if(n && tmp.buf[tmp.size - 1] != PATHSEP_C)
+      dbuf_putc(&tmp, PATHSEP_C);
+  } else {
+    tmp.size = 0;
+  }
+
+  dbuf_put(&tmp, (const uint8_t*)p, n);
+  js_path_normalize((const char*)tmp.buf, tmp.size, db);
+  dbuf_free(&tmp);
+}
+
 static JSValue
 js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
@@ -101,7 +218,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         alen = index;
       }
 
-      size_t pos = path_basename3(a, &len, alen);
+      size_t pos = js_path_basename(a, alen, &len);
 
       if(blen > 0 && blen <= alen) {
         if(blen == alen && !byte_diff(a, blen, b))
@@ -121,7 +238,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
     case PATH_DIRNAME:
     case PATH_DIRLEN: {
-      size_t pos = path_dirlen2(a, alen);
+      size_t pos = js_path_dirlen(a, alen);
 
       if(magic == PATH_DIRNAME)
         ret = pos > 0 ? JS_NewStringLen(ctx, a, pos) : JS_NewStringLen(ctx, ".", 1);
@@ -145,15 +262,15 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case PATH_EXTNAME: {
-      ret = JS_NewStringLen(ctx, path_extname1(a), path_extlen1(a));
+      ret = JS_NewStringLen(ctx, a + js_path_extpos(a, alen), js_path_extlen(a, alen));
       break;
     }
     case PATH_EXTPOS: {
-      ret = JS_NewUint32(ctx, utf8_strlen(a, path_extpos1(a)));
+      ret = JS_NewUint32(ctx, utf8_strlen(a, js_path_extpos(a, alen)));
       break;
     }
     case PATH_EXTLEN: {
-      ret = JS_NewUint32(ctx, utf8_strlen(path_extname1(a), path_extlen1(a)));
+      ret = JS_NewUint32(ctx, utf8_strlen(a + js_path_extpos(a, alen), js_path_extlen(a, alen)));
       break;
     }
     case PATH_GETCWD: {
@@ -352,11 +469,11 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   switch(magic) {
     case PATH_ABSOLUTE: {
-      path_absolute3(a, alen, &db);
+      js_path_absolute(a, alen, &db);
       break;
     }
     case PATH_NORMALIZE: {
-      path_normalize3(a, alen, &db);
+      js_path_normalize(a, alen, &db);
       break;
     }
     case PATH_REALPATH: {
@@ -365,25 +482,14 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       break;
     }
     case PATH_SEARCH: {
-      const char* pathstr = a;
-      /* DynBuf db = DBUF_INIT_0();
-       dbuf_init_ctx(ctx, &db);*/
-
-      for(;;) {
-        char* file;
-
-        if(!(file = path_search(&pathstr, b, &db))) {
-          ret = JS_NULL;
-          break;
-        }
-
-        if(path_exists1(file)) {
-          ret = JS_NewString(ctx, file);
-          break;
-        }
+      if(dbuf_claim(&db, alen + blen + 2)) {
+        ret = JS_EXCEPTION;
+        break;
       }
 
-      // dbuf_free(&db);
+      size_t n = path_search((char*)db.buf, db.allocated_size, a, alen, b, blen, js_path_exists_cb, NULL);
+
+      ret = n ? JS_NewStringLen(ctx, (const char*)db.buf, n) : JS_NULL;
       break;
     }
     case PATH_RELATIVE: {
@@ -404,19 +510,49 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         from = path_getcwd1(&buf);
       } else if(path_isrelative(from)) {
         dbuf_init_ctx(ctx, &buf);
-        path_absolute3(a, alen, &buf);
+        js_path_absolute(a, alen, &buf);
         dbuf_0(&buf);
         from = (const char*)buf.buf;
       }
 
       if(path_isrelative(to)) {
         dbuf_init_ctx(ctx, &buf2);
-        path_absolute3(b, blen, &buf2);
+        js_path_absolute(b, blen, &buf2);
         dbuf_0(&buf2);
         to = (const char*)buf2.buf;
       }
 
-      path_relative3(to, from, &db);
+      {
+        /* both sides absolute and canonical, without trailing separators, like path.resolve() */
+        DynBuf fb = DBUF_INIT_0(), tb = DBUF_INIT_0();
+        size_t fn, tn, need;
+
+        dbuf_init_ctx(ctx, &fb);
+        dbuf_init_ctx(ctx, &tb);
+        js_path_absolute(from, strlen(from), &fb);
+        js_path_absolute(to, strlen(to), &tb);
+
+        fn = fb.size;
+        tn = tb.size;
+
+        while(fn > 1 && path_issep(fb.buf[fn - 1]))
+          --fn;
+        while(tn > 1 && path_issep(tb.buf[tn - 1]))
+          --tn;
+
+        need = path_rel(NULL, 0, (const char*)tb.buf, tn, (const char*)fb.buf, fn);
+
+        if(need == (size_t)-1) {
+          dbuf_put(&db, tb.buf, tn);
+        } else if(!dbuf_claim(&db, need + 2)) {
+          path_rel((char*)db.buf, db.allocated_size, (const char*)tb.buf, tn, (const char*)fb.buf, fn);
+          /* path.relative('/a', '/a') is '' in Node */
+          db.size = need == 1 && db.buf[0] == '.' ? 0 : need;
+        }
+
+        dbuf_free(&fb);
+        dbuf_free(&tb);
+      }
 
       if(to == (const char*)buf2.buf)
         dbuf_free(&buf2);
@@ -466,7 +602,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     JS_FreeCString(ctx, str);
   }
 
-  path_normalize3((const char*)db.buf, db.size, &out);
+  js_path_normalize((const char*)db.buf, db.size, &out);
   ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
 
   dbuf_free(&db);
@@ -522,7 +658,7 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc < 1 || !(str = JS_ToCStringLen(ctx, &len, argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
-  basepos = path_basename3(str, &baselen, len);
+  basepos = js_path_basename(str, len, &baselen);
   rootlen = len > 0 && path_issep(str[0]) ? 1 : 0;
 
   if(baselen == 0) {
@@ -531,8 +667,8 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     extlen = 0;
   } else {
     dirlen = basepos == 0 ? 0 : basepos == 1 && rootlen ? 1 : basepos - 1;
-    extpos = path_extpos1(str);
-    extlen = path_extlen1(str);
+    extpos = js_path_extpos(str, len);
+    extlen = js_path_extlen(str, len);
   }
 
   ret = JS_NewObject(ctx);
@@ -672,7 +808,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_FreeCString(ctx, str);
   }
 
-  path_absolute3((const char*)joined.buf, joined.size, &out);
+  js_path_absolute((const char*)joined.buf, joined.size, &out);
 
   while(out.size > 1 && path_issep(out.buf[out.size - 1]))
     out.size--;
