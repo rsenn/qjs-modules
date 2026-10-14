@@ -87,18 +87,22 @@
 
 /* Logs one line of the module-load tree (verbosity >= 1): `kind` is a fixed-width tag, one
  * "| " guide per module currently being loaded indents it under the module that loads it.
+ * Tags are colored when stdout is a terminal: import (blue), load (green), FAIL (red);
+ * "(builtin)" and "(disk)" marks in the text tell where a module came from.
  *
  * ```
- * import  lib/process.js: "os" => os
- * load    os (builtin)
- * | import  lib/util.js: "path" => path
+ * import  lib/process.js: "os" => os (builtin)
+ * load    os (builtin, dependency)
+ * | import  lib/util.js: "path" => path (builtin)
  * ```
  */
 #define DEBUG_TREE(kind, fmt, args...) \
   if(debug_module >= 1) { \
+    const char *c_ = jsm_debug_color(kind), *g_ = jsm_debug_color("|"), *r_ = c_[0] ? "\x1b[0m" : ""; \
     for(size_t d_ = 0; d_ < jsm_stack_count(); d_++) \
-      fputs("| ", stdout); \
-    printf("%-7s " fmt "\n", kind, args); \
+      printf("%s|%s ", g_, g_[0] ? "\x1b[0m" : ""); \
+    printf("%s%-7s%s " fmt "\n", c_, kind, r_, args); \
+    jsm_debug_count(kind); \
   }
 
 /* --- extern declarations for functions defined elsewhere (quickjs-libc.c / libc) --- */
@@ -132,6 +136,7 @@ typedef struct {
   uint32_t byte_code_len;
   JSModuleDef* def;
   BOOL initialized;
+  BOOL disabled; /* --disable-builtin / QJSM_DISABLE_BUILTINS: not found by name */
 } BuiltinModule;
 
 /* Opaque state threaded through the jsm_trace_malloc* allocator, used to compute
@@ -177,7 +182,7 @@ static thread_local struct list_head loaded_modules;
 
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
-static JSValue package_json, jsm_promise;
+static JSValue jsm_promise;
 static BOOL jsm_hooks_alive = FALSE; /* process hooks may still run (context not torn down) */
 static int jsm_exit_code = 0;        /* code reported to 'exit' when libc exit() is reached directly */
 static char* exename;
@@ -193,6 +198,15 @@ static const char* const module_extensions = CONFIG_SHEXT SEMI ".js" SEMI "/inde
 static thread_local Vector jsm_stack = VECTOR_INIT();
 static thread_local Vector jsm_builtins = VECTOR_INIT();
 static thread_local char* jsm_importer; /* importer seen by the last normalize, for LoadedModule.parent */
+
+/* > 0 while the static imports of a compiled builtin are being resolved: nothing but builtins is
+   resolved or loaded then, and no hook sees it unless jsm_hooks_builtin is set */
+static thread_local int jsm_builtin_depth;
+static BOOL jsm_hooks_builtin; /* --hooks-on-builtins / QJSM_HOOKS_ON_BUILTINS=1 */
+
+/* builtins switched off before the runtime starts */
+static const char* jsm_disabled_names[64];
+static size_t jsm_disabled_count;
 
 /* registerHooks() state */
 static thread_local JSValue* module_hooks;
@@ -217,6 +231,7 @@ static int bignum_ext = 1;
 #define BUILTIN_COMPILED(name) \
   extern const uint8_t qjsc_##name[]; \
   extern const uint32_t qjsc_##name##_size;
+#define BUILTIN_COMPILED_AS(name, str) BUILTIN_COMPILED(name)
 
 /* quickjs-builtins.h expands to one BUILTIN_NATIVE(name)/BUILTIN_COMPILED(name)
    invocation per builtin module; here that generates the `extern` declarations for each
@@ -233,8 +248,10 @@ BUILTIN_COMPILED(qjscalc);
 
 #undef BUILTIN_NATIVE
 #undef BUILTIN_COMPILED
+#undef BUILTIN_COMPILED_AS
 
 #define RECORD_COMPILED(name) {#name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE}
+#define RECORD_COMPILED_AS(name, str) {str, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE}
 #define RECORD_NATIVE(name) {#name, js_init_module_##name, 0, 0, 0, FALSE}
 
 /* --- function prototypes --- */
@@ -265,6 +282,39 @@ jsm_debug_path(const char* path) {
     return p + 13;
 
   return path;
+}
+
+/* ANSI color for a trace tag, "" unless stdout is a terminal. */
+static const char*
+jsm_debug_color(const char* kind) {
+  static thread_local int tty = -1;
+
+  if(tty < 0)
+    tty = isatty(1) && !getenv("NO_COLOR");
+  if(!tty)
+    return "";
+
+  return !strcmp(kind, "import") ? "\x1b[34m" : !strcmp(kind, "load") ? "\x1b[32m" : !strcmp(kind, "FAIL") ? "\x1b[1;31m" : "\x1b[90m";
+}
+
+static thread_local unsigned jsm_debug_counts[3];
+
+/* counts import/load/FAIL lines and registers the summary printer on first use. */
+static void
+jsm_debug_summary(void) {
+  if(debug_module >= 1)
+    printf("modules: %u imports, %u loads, %u failures\n", jsm_debug_counts[0], jsm_debug_counts[1], jsm_debug_counts[2]);
+}
+
+static void
+jsm_debug_count(const char* kind) {
+  static BOOL registered;
+
+  if(!registered) {
+    registered = TRUE;
+    atexit(jsm_debug_summary);
+  }
+  jsm_debug_counts[!strcmp(kind, "import") ? 0 : !strcmp(kind, "load") ? 1 : 2]++;
 }
 
 /* --- functions --- */
@@ -685,9 +735,55 @@ static BuiltinModule*
 jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
 
-  vector_foreach_t(&jsm_builtins, rec) if(str_equal(rec->module_name, name)) return rec;
+  vector_foreach_t(&jsm_builtins, rec) if(!rec->disabled && str_equal(rec->module_name, name)) return rec;
 
   return 0;
+}
+
+/* looks up the builtin a specifier inside a builtin refers to.
+ *
+ *   "fs"          builtin fs
+ *   "fs/promises" builtin fsPromises (the Node subpath builtins)
+ *   "node/events" builtin node_events (lib/node/events.js is registered with '/' written '_')
+ *
+ * borrowed: the record of the table, or NULL (also when the builtin is disabled). */
+static BuiltinModule*
+jsm_builtin_lookup(const char* name) {
+  BuiltinModule* rec;
+  char* flat;
+
+  if(str_equal(name, "fs/promises"))
+    name = "fsPromises";
+  else if(str_equal(name, "timers/promises"))
+    name = "timersPromises";
+  else if(str_equal(name, "assert/strict"))
+    name = "assertStrict";
+  else if(str_equal(name, "readline/promises"))
+    name = "readlinePromises";
+
+  if((rec = jsm_builtin_find(name)))
+    return rec;
+
+  if(name[0] == '.' || name[str_chr(name, '/')] != '/' || !(flat = strdup(name)))
+    return 0;
+
+  for(char* p = flat; *p; p++)
+    if(*p == '/')
+      *p = '_';
+
+  rec = jsm_builtin_find(flat);
+  free(flat);
+  return rec;
+}
+
+/* is `name` a builtin that exists but was disabled at start. */
+static BOOL
+jsm_builtin_is_disabled(const char* name) {
+  BuiltinModule* rec;
+
+  vector_foreach_t(&jsm_builtins, rec) if(rec->disabled && str_equal(rec->module_name, name)) return TRUE;
+
+  return FALSE;
 }
 
 /* is `name` a builtin backed by a C init function (not bytecode). */
@@ -835,7 +931,12 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
 
       m = js_value_ptr(obj);
 
-      if(JS_ResolveModule(ctx, obj) < 0) {
+      /* the static imports of a builtin: builtins only, from here down */
+      jsm_builtin_depth++;
+      int resolved = JS_ResolveModule(ctx, obj);
+      jsm_builtin_depth--;
+
+      if(resolved < 0) {
         JS_FreeValue(ctx, obj);
         jsm_stack_pop(ctx);
         return 0;
@@ -851,36 +952,6 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   jsm_stack_pop(ctx);
 
   return rec->def;
-}
-
-/* Loads and parses a JSON file. */
-static JSValue
-jsm_load_json(JSContext* ctx, const char* file) {
-  uint8_t* buf;
-  size_t len;
-
-  if(!(buf = js_load_file(ctx, &len, file)))
-    return JS_ThrowInternalError(ctx, "Loading '%s' failed", file);
-
-  return JS_ParseJSON(ctx, (const char*)buf, len, file);
-}
-
-/*
- * Loads and caches package.json (in the `package_json` global), tolerating a
- * missing/invalid file.
- */
-static JSValue
-jsm_load_package(JSContext* ctx, const char* file) {
-  if(js_is_null_or_undefined(package_json) || JS_VALUE_GET_TAG(package_json) == 0) {
-    package_json = jsm_load_json(ctx, file ? file : "package.json");
-
-    if(JS_IsException(package_json)) {
-      JS_GetException(ctx);
-      package_json = JS_NULL;
-    }
-  }
-
-  return package_json;
 }
 
 /* Searches a ';'/'\n'-separated list of directories for `module_name`. */
@@ -1099,35 +1170,6 @@ jsm_module_def(JSContext* ctx, JSValueConst value) {
     JS_FreeCString(ctx, name);
 
   return m;
-}
-
-/* Resolves `module` through package.json's "_moduleAliases" map, if present. */
-static char*
-jsm_module_package(JSContext* ctx, const char* module) {
-  char *file = 0, *rel = path_isabsolute1(module) ? path_relative1(module) : strdup(module);
-
-  JSValueConst package = jsm_load_package(ctx, "package.json");
-
-  if(JS_IsObject(package)) {
-    JSValue aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
-
-    if(!JS_IsException(aliases) && JS_IsObject(aliases)) {
-      JSValue target = JS_GetPropertyStr(ctx, aliases, path_trimdotslash1(rel));
-
-      if(JS_IsString(target)) {
-        file = js_tostring(ctx, target);
-
-        DEBUG_TREE("alias", "%s => %s (package.json)", module, file);
-      }
-
-      JS_FreeValue(ctx, target);
-    }
-
-    JS_FreeValue(ctx, aliases);
-  }
-
-  free(rel);
-  return file;
 }
 
 /*
@@ -1461,6 +1503,30 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
   DEBUG_MODULE(2, "(i: %d, name: \"%s\", opaque: %p)", i++, name, opaque);
 
+  /* the static imports of a builtin: only builtins, no hook, never a file */
+  if(jsm_builtin_depth > 0 && !jsm_hooks_builtin) {
+    BuiltinModule* rec;
+
+    if((rec = jsm_builtin_find(name))) {
+      DEBUG_TREE("load", "%s (builtin, dependency)", rec->module_name);
+      m = jsm_builtin_init(ctx, rec);
+    } else {
+      JS_ThrowReferenceError(ctx, "builtin dependency '%s' is not a builtin", name);
+    }
+    goto end;
+  }
+
+  /* a builtin by its name is found before the hooks run: nothing can put a file in its place */
+  if(module_hooks_len && !jsm_hooks_builtin && !has_dot_or_slash(name)) {
+    BuiltinModule* rec;
+
+    if((rec = jsm_builtin_find(name)) && (native < 0 || !native == !rec->module_func)) {
+      DEBUG_TREE("load", "%s (builtin%s)", rec->module_name, rec->module_func ? ", native" : "");
+      m = jsm_builtin_init(ctx, rec);
+      goto end;
+    }
+  }
+
   if(module_hooks_len) {
     hooked = TRUE;
     m = jsm_hook_load(ctx, name, opaque);
@@ -1482,11 +1548,6 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
   if(jsm_stack_find(name) != 0)
     printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", name, jsm_stack_string());
-
-  if((tmp = jsm_module_package(ctx, name))) {
-    js_free(ctx, name);
-    name = tmp;
-  }
 
   if(native > 0 && !str_ends(name, CONFIG_SHEXT) && !jsm_builtin_is_native(name)) {
     /* native: "foo" can only be a shared object, so search "foo.so" */
@@ -1834,11 +1895,6 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
 
     file = jsm_module_normalize_core(ctx, base, tmp);
     js_free(ctx, tmp);
-
-    if((alias = jsm_module_package(ctx, file))) {
-      js_free(ctx, file);
-      file = alias;
-    }
 
     if(!(!file[path_component1(file)] && jsm_builtin_find(file)) && is_searchable(file) && (alias = jsm_module_locate(ctx, file, 0))) {
       js_free(ctx, file);
@@ -2306,10 +2362,40 @@ jsm_hook_register(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
+/* normalize for an import inside a builtin: builtins only. an import of anything else is an
+ * error that names the builtin, the specifier and the reason; it is never looked up on disk.
+ *
+ * exception pending: returns NULL */
+static char*
+jsm_module_normalize_builtin(JSContext* ctx, const char* path, const char* name) {
+  BuiltinModule* rec = jsm_builtin_lookup(name);
+
+  if(rec) {
+    DEBUG_TREE("import", "%s: \"%s\" => %s (builtin)", jsm_debug_path(path), name, rec->module_name);
+    return js_strdup(ctx, rec->module_name);
+  }
+
+  JS_ThrowReferenceError(ctx,
+                         "builtin '%s' imports '%s', %s",
+                         jsm_debug_path(path),
+                         name,
+                         jsm_builtin_is_disabled(name) ? "which is disabled (--disable-builtin)"
+                                                       : "which is not a builtin: builtins never load modules from disk");
+  return 0;
+}
+
 static char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
-  if(module_hooks_len)
+  if(jsm_builtin_depth > 0 && !jsm_hooks_builtin)
+    return jsm_module_normalize_builtin(ctx, path, name);
+
+  if(module_hooks_len) {
+    /* a builtin by its name is resolved before the hooks run */
+    if(!jsm_hooks_builtin && !has_dot_or_slash(name) && jsm_builtin_find(name))
+      return jsm_module_normalize_core(ctx, path, name);
+
     return jsm_hook_normalize(ctx, path, name);
+  }
 
   return jsm_module_normalize_core(ctx, path, name);
 }
@@ -2427,6 +2513,9 @@ jsm_module_builtins(JSContext* ctx, JSValueConst this_val) {
     JSValue entry = JS_UNDEFINED;
     struct list_head* el;
     int index = 0;
+
+    if(rec->disabled)
+      continue;
 
     if(rec->def)
       list_for_each(el, &loaded_modules) {
@@ -2986,6 +3075,7 @@ jsm_init(JSContext* ctx) {
 
 #define BUILTIN_NATIVE(name) vector_push(&jsm_builtins, (BuiltinModule)RECORD_NATIVE(name));
 #define BUILTIN_COMPILED(name) vector_push(&jsm_builtins, (BuiltinModule)RECORD_COMPILED(name));
+#define BUILTIN_COMPILED_AS(name, str) vector_push(&jsm_builtins, (BuiltinModule)RECORD_COMPILED_AS(name, str));
 
   BUILTIN_NATIVE(std)
   BUILTIN_NATIVE(os)
@@ -2994,6 +3084,16 @@ jsm_init(JSContext* ctx) {
 
 #undef BUILTIN_NATIVE
 #undef BUILTIN_COMPILED
+#undef BUILTIN_COMPILED_AS
+
+  for(size_t i = 0; i < jsm_disabled_count; i++) {
+    BuiltinModule* rec;
+
+    vector_foreach_t(&jsm_builtins, rec) {
+      if(str_equal(rec->module_name, jsm_disabled_names[i]))
+        rec->disabled = TRUE;
+    }
+  }
 }
 
 /*
@@ -3038,6 +3138,23 @@ jsm_context_new(JSRuntime* rt) {
   return ctx;
 }
 
+/* switches off the builtins in a ','-separated list: they are not found by name afterwards,
+ * so an import of one fails, and so does the import of a builtin that needs one. */
+static void
+jsm_disable_builtins(const char* list) {
+  size_t len;
+
+  for(size_t i = 0; list[i]; i += len) {
+    len = str_chr(&list[i], ',');
+
+    if(len && jsm_disabled_count < countof(jsm_disabled_names))
+      jsm_disabled_names[jsm_disabled_count++] = str_ndup(&list[i], len);
+
+    if(list[i + len] == ',')
+      len++;
+  }
+}
+
 /* Prints command-line usage and exits(1). */
 static void
 jsm_help(void) {
@@ -3069,7 +3186,11 @@ jsm_help(void) {
          "-l  --list         list modules\n"
          "\n"
          "-N  --no-node-hooks  disable node:* module loader hooks\n"
-         "-P  --no-process     disable 'process' global\n",
+         "-P  --no-process     disable 'process' global\n"
+         "    --disable-builtin names  switch off builtins (comma separated, or\n"
+         "                     QJSM_DISABLE_BUILTINS); an import of one fails\n"
+         "    --hooks-on-builtins  let registerHooks() hooks see the imports of\n"
+         "                     builtins too (or QJSM_HOOKS_ON_BUILTINS=1)\n",
          CONFIG_VERSION,
          exename);
   exit(1);
@@ -3093,7 +3214,6 @@ main(int argc, char** argv) {
 
   init_list_head(&loaded_modules);
 
-  package_json = JS_UNDEFINED;
 
   exename = strdup(argv[0] + path_basename1(argv[0]));
   exelen = strlen(exename);
@@ -3251,6 +3371,27 @@ main(int argc, char** argv) {
         break;
       }
 
+      if(str_start(longopt, "disable-builtin") && (longopt[15] == '\0' || longopt[15] == '=')) {
+        const char* names;
+
+        if(longopt[15] == '=') {
+          names = longopt + 16;
+        } else if(optind + 1 < argc) {
+          names = argv[++optind];
+        } else {
+          fprintf(stderr, "%s: --disable-builtin needs a list of builtin names\n", exename);
+          exit(2);
+        }
+
+        jsm_disable_builtins(names);
+        break;
+      }
+
+      if(str_equal(longopt, "hooks-on-builtins")) {
+        jsm_hooks_builtin = TRUE;
+        break;
+      }
+
       if(opt == 'N' || str_equal(longopt, "no-node-hooks")) {
         no_node_hooks++;
         break;
@@ -3277,6 +3418,16 @@ main(int argc, char** argv) {
      (see below), but the process must still report failure via its exit code */
   BOOL had_error = FALSE;
   int exit_code = 0;
+
+  {
+    const char* env;
+
+    if((env = getenv("QJSM_DISABLE_BUILTINS")))
+      jsm_disable_builtins(env);
+
+    if((env = getenv("QJSM_HOOKS_ON_BUILTINS")) && *env && !str_equal(env, "0"))
+      jsm_hooks_builtin = TRUE;
+  }
 
   {
     const char* modules;
@@ -3337,7 +3488,7 @@ main(int argc, char** argv) {
 
     printf("Builtin modules:\n");
     vector_foreach_t(&jsm_builtins, rec) {
-      printf("  %s%s\n", rec->module_name, rec->module_func ? "" : ".js");
+      printf("  %s%s%s\n", rec->module_name, rec->module_func ? "" : ".js", rec->disabled ? "  (disabled)" : "");
     }
 
     return 0;
@@ -3363,9 +3514,12 @@ main(int argc, char** argv) {
 
     js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
-    if(!no_node_hooks)
+    /* the hooks are optional builtins: without them there is nothing to preload */
+    if(!no_node_hooks && jsm_builtin_find("nodeHooks"))
       dbuf_putstr(&db, "import 'nodeHooks';\n");
-    if(!no_process_global)
+    if(jsm_builtin_find("packageAliases"))
+      dbuf_putstr(&db, "import 'packageAliases';\n");
+    if(!no_process_global && jsm_builtin_find("process"))
       dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
 
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));

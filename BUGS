@@ -599,40 +599,6 @@
     misc.objectClassId({});   // 0, every time (should be a real class id)
     misc.objectRefCount({});  // a different huge number every run
 
-- jsonserializer-read-throws-uninitialized-value (quickjs-json.c:1201-1214,
-  1417-1420): `new JsonSerializer(value, indent).read(n)` throws a garbage,
-  non-Error exception - `typeof e` is `"unknown"`, `e.constructor` and
-  `e.message` are `undefined`, `e instanceof Error` is `false` - whenever
-  `indent` is a nonzero number and `value` is a container (object or
-  array); a primitive value, `indent` of `0`, or a string `indent` are all
-  fine. Root cause: `sw_indent()` (quickjs-json.c:1201-1214, and the
-  sibling `sw_string`/`sw_primitive`/etc. helpers at ~1176-1341) sets
-  `js->error = TRUE` whenever `write_indent()`'s `skip_writer` probe
-  returns negative, but never calls any `JS_Throw*` function on that path -
-  `js_json_serializer_read()` (quickjs-json.c:1417-1420) then does
-  `return JS_EXCEPTION;` with no exception ever having been set on `ctx`,
-  so whatever was previously in `ctx->current_exception` (apparently an
-  uninitialized/TDZ-sentinel JSValue on a fresh context) leaks out as the
-  thrown value. Didn't root-cause why `write_indent`'s skip-writer probe
-  returns negative in the first place for this input (that's the remaining
-  open question - whether it's a legitimate OOM-style error being
-  mishandled, or the probe itself is buggy for this indent+container
-  combination).
-
-  Found while investigating a user-reported
-  "Possibly unhandled promise rejection: ReferenceError: arg is not
-  initialized / at log (lib/console.js:100:52) / at run
-  (lib/tinytest.js:62:22)" - that's this bug's corrupted exception value
-  blowing up lib/console.js's `for(let arg of args)` loop (console.js:100)
-  when tinytest.js:62 tries to log the "JsonSerializer: indent option
-  matches write() options" test's failure in tests/unittests/test-json.js
-  (a pre-existing test file, not one written by me) - the real bug is in
-  quickjs-json.c, not in that test or in console.js/tinytest.js.
-
-    import { JsonSerializer } from 'json';
-    const s = new JsonSerializer({ a: 1, b: [2, 3] }, 2);
-    s.read(1000);   // throws a non-Error; typeof result is "unknown"
-
 - syscallerror-stack-always-null (quickjs-syscallerror.c:206, 289-292):
   `new SyscallError(syscall, errno).stack` is always `null`, 100%
   reproducible, despite doc/native/syscallerror.md documenting it as
@@ -894,3 +860,39 @@
     cmake -S . -B /tmp/b && grep -c 'define HAVE' /tmp/b/config.h
     // expected: 73 (what build/x86_64-linux-gnu/config.h has)
     // actual: 0, the log shows "Looking for getegid - not found"
+
+- relative-link-directory-multiarch (CMakeLists.txt): a relative
+  "lib/<multiarch>" ends up in LINK_DIRECTORIES, so every module links with
+  -Llib/x86_64-linux-gnu (and qjsm with -L<source dir>/lib/x86_64-linux-gnu),
+  and each configure prints one CMP0081 "Relative paths not allowed in
+  LINK_DIRECTORIES" dev warning per module target (34 of them). Looks like
+  the multiarch libdir (CMAKE_ARCH_LIBDIR) is used where QUICKJS_LIBRARY_DIR
+  is meant.
+
+    cmake -S . -B /tmp/b 2>&1 | grep -c CMP0081
+    grep -o -- '-Llib/[^ ]*' /tmp/b/CMakeFiles/qjs-bjson.dir/link.txt
+    // expected: 0 warnings, no relative -L
+    // actual: one warning per module, "-Llib/x86_64-linux-gnu"
+
+- uncaught-error-report-not-a-function (lib/process.js): with the installed
+  qjsm (/usr/local/bin/qjsm, built from this tree on 2026-10-14) an uncaught
+  exception is not reported: instead of the error, qjsm prints "TypeError:
+  not a function" with a stack of process.js rejection()/emitUncaught(), so
+  the real message (here "boom", or "could not load module ...") is only
+  visible when it also reaches the "Error evaluating" line. lib/process.js
+  has uncommitted changes in the working tree; not checked whether they fix it.
+
+    echo 'throw new Error("boom");' > b.mjs && qjsm b.mjs
+    // expected: Error: boom, with its stack
+    // actual: TypeError: not a function, at rejection (lib/process.js:214)
+
+- eval-prints-not-an-object (src/qjsm.c, preloads): with the default builtins
+  `qjsm -e 'print(1)'` prints "TypeError: not an object" on stderr before
+  the output of the expression; the installed qjsm built before the builtin
+  dependency work does not. The line disappears only when nodeHooks,
+  packageAliases and process are all disabled (--disable-builtin), so it
+  comes from the preload step, not from one of them. Exit status is 0.
+
+    qjsm -e 'print(1)' 2>&1 >/dev/null
+    // expected: nothing
+    // actual: TypeError: not an object

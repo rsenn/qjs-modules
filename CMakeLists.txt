@@ -1,6 +1,21 @@
+# qjs-modules: native C modules and JS libraries for QuickJS, and the qjsm shell that
+# bundles them.
+#
+#    1. Project              5. QuickJS                 9. Tests
+#    2. Options              6. System checks          10. Libraries, module targets
+#    3. Helper scripts       7. Modules, dependencies  11. qjsm and its builtins
+#    4. Platform checks      8. Sources, engine API    12. Install and summary
+
+##############################################################################
+# 1. Project
+##############################################################################
+
 cmake_minimum_required(VERSION 3.5)
 
 project(qjs-modules VERSION 0.9 LANGUAGES C ASM)
+
+message(STATUS "qjs-modules ${PROJECT_VERSION} for ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}, "
+               "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}, build type '${CMAKE_BUILD_TYPE}'")
 
 # include-file checks link CMAKE_REQUIRED_LIBRARIES (libquickjs), as the function checks do
 if(POLICY CMP0075)
@@ -9,63 +24,28 @@ endif()
 
 set(CMAKE_C_STANDARD 11)
 
+##############################################################################
+# 2. Options
+# the switches of the project; MODULE_<NAME> turns an optional native module on or off
+##############################################################################
+
+# targets without a dynamic loader get static libraries only
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+  message(STATUS "No shared libraries on this target: BUILD_SHARED_LIBS forced OFF")
 endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
 
 if(NOT BUILD_SHARED_LIBS)
   set(BUILD_STATIC_LIBS TRUE)
 endif(NOT BUILD_SHARED_LIBS)
 
-option(LINK_STATIC "Link 
-
-libraries" OFF)
-#option(BUILD_PIGPIO "Build pigpio library" OFF)
+option(LINK_STATIC "Link libraries statically into the executables" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Checks.cmake)
-
-check_source_definitions(ATFILE GNU LARGEFILE LARGE_FILE LARGEFILE64 POSIX POSIX_C XOPEN XOPEN_EXTENDED)
-
-check_no_unused_warn_flags()
-check_no_warnings_flags(CMAKE_C_FLAGS_DEBUG)
-check_debug_symbols_flags(CMAKE_C_FLAGS_DEBUG)
-
-check_inline()
-
-check_windows_native(WINDOWS_NATIVE)
-var2define(WINDOWS_NATIVE)
-
-check_functions(memrchr memmem)
-check_functions(getegid geteuid getgid getpid getppid getsid getuid setegid seteuid setgid setuid)
-
-check_functions(uname)
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
-
-if(NOT CMAKE_CROSSCOMPILING)
-  run_code(
-    "tryposixspawn.c"
-    "#include <spawn.h>\nint\nmain(void) {\n  pid_t pid;\n  posix_spawn_file_actions_t actions;\n  posix_spawnattr_t attr;\n  char* const argv[2] = {\"/bin/true\", 0};\n  char* const envp[1] = {0};\n  posix_spawnattr_setflags(&attr, 0);\n  posix_spawn_file_actions_init(&actions);\n  return posix_spawn(&pid, argv[0], 0, 0, argv, envp);\n}\n"
-    RUN_RESULT
-    OUTPUT
-    ""
-    "")
-  if("${RUN_RESULT}" STREQUAL "0")
-    set(HAVE_POSIX_SPAWN TRUE)
-  endif()
-endif(NOT CMAKE_CROSSCOMPILING)
-
-if(HAVE_POSIX_SPAWN)
-  option(USE_SPAWN "Use POSIX spawn()" ON)
-else(HAVE_POSIX_SPAWN)
-  option(USE_SPAWN "Use POSIX spawn()" OFF)
-endif(HAVE_POSIX_SPAWN)
-
+# optional native modules
+#
 # archive/magic/mysql/pgsql/sqlite all bind to native system libraries
 # (libarchive, libmagic, libmariadb, libpq, libsqlite3) that pkg-config
 # happily "finds" on the host even while cross-compiling for wasm (it isn't
@@ -106,6 +86,69 @@ endif()
 option(MODULE_WASM "Build 'wasm' module" ON)
 option(OPENBSD_GLOB "Use the bundled OpenBSD glob() (src/compat/glob.c) instead of the system glob()" ON)
 
+##############################################################################
+# 3. Helper scripts
+# cmake/Functions.cmake  list/string/path helpers, message_table()
+# cmake/Compat.cmake     small compatibility helpers
+# cmake/Checks.cmake     check_*_def() wrappers that fill config.h
+##############################################################################
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Compat.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Checks.cmake)
+
+##############################################################################
+# 4. Platform checks
+# headers, functions and compiler flags; the results end up in config.h
+##############################################################################
+
+message(STATUS "Probing platform headers, functions and compiler flags (results go to config.h)")
+
+check_source_definitions(ATFILE GNU LARGEFILE LARGE_FILE LARGEFILE64 POSIX POSIX_C XOPEN XOPEN_EXTENDED)
+
+check_no_unused_warn_flags()
+check_no_warnings_flags(CMAKE_C_FLAGS_DEBUG)
+check_debug_symbols_flags(CMAKE_C_FLAGS_DEBUG)
+
+check_inline()
+
+check_windows_native(WINDOWS_NATIVE)
+var2define(WINDOWS_NATIVE)
+
+check_functions(memrchr memmem)
+check_functions(getegid geteuid getgid getpid getppid getsid getuid setegid seteuid setgid setuid)
+
+check_functions(uname)
+
+# posix_spawn() is only trusted when a test program using it runs
+if(NOT CMAKE_CROSSCOMPILING)
+  run_code(
+    "tryposixspawn.c"
+    "#include <spawn.h>\nint\nmain(void) {\n  pid_t pid;\n  posix_spawn_file_actions_t actions;\n  posix_spawnattr_t attr;\n  char* const argv[2] = {\"/bin/true\", 0};\n  char* const envp[1] = {0};\n  posix_spawnattr_setflags(&attr, 0);\n  posix_spawn_file_actions_init(&actions);\n  return posix_spawn(&pid, argv[0], 0, 0, argv, envp);\n}\n"
+    RUN_RESULT
+    OUTPUT
+    ""
+    "")
+  if("${RUN_RESULT}" STREQUAL "0")
+    set(HAVE_POSIX_SPAWN TRUE)
+  endif()
+endif(NOT CMAKE_CROSSCOMPILING)
+
+if(HAVE_POSIX_SPAWN)
+  option(USE_SPAWN "Use POSIX spawn()" ON)
+else(HAVE_POSIX_SPAWN)
+  option(USE_SPAWN "Use POSIX spawn()" OFF)
+endif(HAVE_POSIX_SPAWN)
+if(HAVE_POSIX_SPAWN)
+  message(STATUS "posix_spawn(): works (USE_SPAWN=${USE_SPAWN})")
+else()
+  message(STATUS "posix_spawn(): not usable (USE_SPAWN=${USE_SPAWN})")
+endif()
+
+##############################################################################
+# 5. QuickJS
+# find (or build, -DBUILD_QUICKJS=ON) the engine; probe what its library exports
+##############################################################################
 
 include(FindPkgConfig)
 
@@ -128,18 +171,6 @@ endif(WASI)
 if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif(WIN32 OR MINGW)
-
-if(ANDROID)
-  register_definitions(ANDROID)
-endif(ANDROID)
-
-if(DEBUG_OUTPUT)
-  register_definitions(DEBUG_OUTPUT)
-endif(DEBUG_OUTPUT)
-
-if(DEBUG_ALLOC)
-  register_definitions(DEBUG_ALLOC)
-endif(DEBUG_ALLOC)
 
 find_quickjs()
 configure_quickjs()
@@ -186,8 +217,6 @@ if(NOT "${QJS_PROBE_STAMP}" STREQUAL "${QUICKJS_PROBE_STAMP}")
                                                      "Hash of the quickjs library/header the probes ran against")
 endif()
 
-#check_function_def(JS_PROMISE_STATE JS_PromiseState)
-
 check_library_exists(m sqrt "" HAVE_LIBMATH)
 if(HAVE_LIBMATH)
   set(LIBM m)
@@ -209,14 +238,8 @@ if(LIBPTHREAD_LIBRARY)
 endif()
 
 check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
-if(HAVE_JS_PROMISE_STATE)
-  register_definitions(HAVE_JS_PROMISE_STATE)
-endif(HAVE_JS_PROMISE_STATE)
 
 check_library_exists(quickjs JS_PromiseResult "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_RESULT)
-if(HAVE_JS_PROMISE_RESULT)
-  register_definitions(HAVE_JS_PROMISE_RESULT)
-endif(HAVE_JS_PROMISE_RESULT)
 
 set(CMAKE_REQUIRED_LINK_DIRECTORIES_OLD "${CMAKE_REQUIRED_LINK_DIRECTORIES}")
 set(CMAKE_REQUIRED_LIBRARIES_OLD "${CMAKE_REQUIRED_LIBRARIES}")
@@ -233,22 +256,13 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 # a stale true here is a link failure, not a harmless no-op). Check the
 # actual QUICKJS_LIBRARY file instead.
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADERFUNC)
-if(HAVE_JS_GETMODULELOADERFUNC)
-  register_definitions(HAVE_JS_GETMODULELOADERFUNC)
-endif(HAVE_JS_GETMODULELOADERFUNC)
 
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}"
                      HAVE_JS_GETMODULELOADEROPAQUE)
-if(HAVE_JS_GETMODULELOADEROPAQUE)
-  register_definitions(HAVE_JS_GETMODULELOADEROPAQUE)
-endif(HAVE_JS_GETMODULELOADEROPAQUE)
 
 check_function_def(js_debugger_build_backtrace HAVE_JS_DEBUGGERBUILDBACKTRACE)
 
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetClassID "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETCLASSID)
-if(HAVE_JS_GETCLASSID)
-  register_definitions(HAVE_JS_GETCLASSID)
-endif(HAVE_JS_GETCLASSID)
 
 set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES_OLD}")
 set(CMAKE_REQUIRED_LINK_DIRECTORIES "${CMAKE_REQUIRED_LINK_DIRECTORIES_OLD}")
@@ -266,6 +280,11 @@ if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
   endif()
 endif()
 
+##############################################################################
+# 6. System checks
+# headers and functions the modules use; HAVE_* values land in config.h
+##############################################################################
+
 include(CheckFunctionExists)
 include(CheckIncludeFile)
 include(CheckCSourceRuns)
@@ -274,38 +293,11 @@ set(CMAKE_REQUIRED_QUIET OFF)
 
 check_include_def(libbf.h)
 
-# Upstream removed BigFloat/BigDecimal/operator overloading (2025-04-26), so
-# probe quickjs.h itself; a stray libbf.h says nothing about the engine.
-#[[check_compile(HAVE_QUICKJS_BIGNUM_EXT
-  "#include <quickjs.h>\nint main(void){ return JS_TAG_BIG_FLOAT + (int)sizeof(&JS_EnableBignumExt) + (int)sizeof(&JS_AddIntrinsicOperators); }"
-  COMPILE_DEFINITIONS "-I${QUICKJS_INCLUDE_DIR}")
-
-set(CONFIG_BIGNUM OFF)
-
-if(HAVE_LIBBF_H AND HAVE_QUICKJS_BIGNUM_EXT)
-  set(CONFIG_BIGNUM ON)
-endif()
-
-if(CONFIG_BIGNUM)
-  list(APPEND CONFIG_DEFS QJS_BIGNUM_EXT=1)
-  register_definitions(QJS_BIGNUM_EXT=1)
-endif(CONFIG_BIGNUM)
-
-if(CONFIG_BIGNUM)
-  message(STATUS "Bignum extension: enabled")
-else()
-  message(STATUS "Bignum extension: not in this QuickJS")
-endif()]]
+# the BigFloat/BigDecimal extension was removed upstream (2025-04-26): CONFIG_BIGNUM stays off
 
 set(CMAKE_REQUIRED_QUIET ON)
 
 check_functions_def(vfork fork waitpid execvpe setsid)
-
-if(NOT HAVE_VFORK)
-  if(HAVE_FORK)
-    register_definitions(HAVE_VFORK -Dvfork=fork)
-  endif(HAVE_FORK)
-endif(NOT HAVE_VFORK)
 
 check_functions_def(execve execvpe)
 check_include_def(sys/wait.h)
@@ -313,17 +305,10 @@ check_include_def(sys/syscall.h)
 
 if(USE_SPAWN)
   check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
-  if(HAVE_SPAWN)
-    register_definitions(POSIX_SPAWN=1)
-  endif(HAVE_SPAWN)
 endif(USE_SPAWN)
 
 check_includes_def(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linux/netlink.h linux/atalk.h
                    linux/phonet.h linux/if_alg.h)
-
-if(HAVE_LINUX_IPX_H)
-  register_definitions(HAVE_LINUX_NETWORK_HEADERS)
-endif(HAVE_LINUX_IPX_H)
 
 check_include_def(threads.h)
 check_include_def(sys/mman.h)
@@ -337,15 +322,8 @@ if(NOT ANDROID)
 endif(NOT ANDROID)
 
 check_external(getdents64 "" "" HAVE_GETDENTS64)
-#check_function_exists(getdents64 HAVE_GETDENTS64)
 if(NOT HAVE_GETDENTS64)
   check_external(getdents "" "" HAVE_GETDENTS)
-  #check_function_exists(getdents HAVE_GETDENTS)
-  if(HAVE_GETDENTS)
-    register_definitions(HAVE_GETDENTS)
-  endif(HAVE_GETDENTS)
-else(NOT HAVE_GETDENTS64)
-  register_definitions(HAVE_GETDENTS64)
 endif(NOT HAVE_GETDENTS64)
 
 check_include_def(termios.h)
@@ -369,7 +347,6 @@ check_functions_def(utime utimes futimes lutimes)
 check_include_def(sys/time.h)
 
 check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
-#check_include_def(fnmatch.h)
 
 check_function_and_include(fcntl fcntl.h)
 check_function_and_include(fnmatch fnmatch.h)
@@ -388,10 +365,6 @@ check_function_and_include(wordexp wordexp.h)
 
 check_function_and_include(inotify_init1 sys/inotify.h HAVE_INOTIFY)
 
-if(HAVE_INOTIFY)
-  register_definitions(HAVE_INOTIFY)
-endif(HAVE_INOTIFY)
-
 check_function_and_include(sysinfo sys/sysinfo.h)
 
 if(NOT NO_TEMPNAM)
@@ -406,23 +379,13 @@ else(NOT NO_MKSTEMP)
   set(HAVE_MKSTEMP OFF)
 endif(NOT NO_MKSTEMP)
 
-#[[if(BUILD_PIGPIO)
-  include(ExternalProject)
-  ExternalProject_Add(
-    pigpio
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pigpio
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
-    CMAKE_CACHE_ARGS
-      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
-      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+##############################################################################
+# 7. Modules and their dependencies
+# QUICKJS_MODULES is the list of native modules that get built; each optional one
+# needs its library (system, or built from third_party/)
+##############################################################################
 
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
-
-else(BUILD_PIGPIO)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
-endif(BUILD_PIGPIO)]]
+message(STATUS "Selecting native modules and locating their libraries")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${QUICKJS_INCLUDE_DIRS})
@@ -524,13 +487,6 @@ if(MODULE_MYSQL)
 
   find_mariadb()
 
-  if(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
-    register_definitions(MYSQL_NO_ASYNC)
-  endif(NOT LIBMARIADB_HAVE_ASYNC_FUNCTIONS)
-
-  if(NOT HAVE_MYSQL_OPTIONSV)
-    register_definitions(MYSQL_NOT_MARIADB)
-  endif(NOT HAVE_MYSQL_OPTIONSV)
 endif(MODULE_MYSQL)
 
 if(MODULE_PGSQL)
@@ -613,6 +569,12 @@ else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 
+##############################################################################
+# 8. Sources and engine API
+# portable fallbacks for missing libc functions, the js_module_loader()/dbuf API of the
+# linked QuickJS, and the sources of the helper libraries
+##############################################################################
+
 if(EXISTS "${QUICKJS_H}")
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
@@ -628,11 +590,6 @@ check_function_def(memmem)
 if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} src/compat/memmem.c)
 endif(NOT HAVE_MEMMEM)
-
-#module_depends(deep predicate pointer location)
-#module_depends(xml location inspect)
-#module_depends(json location)
-#module_depends(blob stream)
 
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/compat/readlink.c)
@@ -684,44 +641,20 @@ else()
   message(STATUS "js_module_loader(): 3 arguments")
 endif()
 
-if(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
-  register_definitions(JS_MODULE_LOADER_OLD)
-endif(JS_MODULE_LOADER_OLD AND NOT JS_MODULE_LOADER_SETTINGS)
-
 unset(CMAKE_REQUIRED_FLAGS)
 unset(CMAKE_REQUIRED_INCLUDES)
 
 check_library_exists("${QUICKJS_LIBRARY}" JS_IsUncatchableError "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISUNCATCHABLEERROR)
 
-if(HAVE_JS_ISUNCATCHABLEERROR)
-  register_definitions(HAVE_JS_ISUNCATCHABLEERROR)
-endif(HAVE_JS_ISUNCATCHABLEERROR)
-
 # module status / top-level-await accessors, listed by moduleList and getModule()
 check_library_exists("${QUICKJS_LIBRARY}" JS_GetModuleStatus "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULESTATUS)
 check_library_exists("${QUICKJS_LIBRARY}" JS_IsModuleAsync "${QUICKJS_LIBRARY_DIR}" HAVE_JS_ISMODULEASYNC)
-
-if(HAVE_JS_GETMODULESTATUS)
-  register_definitions(HAVE_JS_GETMODULESTATUS)
-endif(HAVE_JS_GETMODULESTATUS)
-
-if(HAVE_JS_ISMODULEASYNC)
-  register_definitions(HAVE_JS_ISMODULEASYNC)
-endif(HAVE_JS_ISMODULEASYNC)
 
 check_library_exists("${QUICKJS_LIBRARY}" dbuf_claim "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_CLAIM)
 
 if(NOT HAVE_DBUF_CLAIM)
   check_library_exists("${QUICKJS_LIBRARY}" dbuf_realloc "${QUICKJS_LIBRARY_DIR}" HAVE_DBUF_REALLOC)
 endif(NOT HAVE_DBUF_CLAIM)
-
-if(HAVE_DBUF_REALLOC)
-  register_definitions(QUICKJS_DBUF_REALLOC)
-endif(HAVE_DBUF_REALLOC)
-
-if(HAVE_DBUF_CLAIM)
-  register_definitions(QUICKJS_DBUF_CLAIM)
-endif(HAVE_DBUF_CLAIM)
 
 # quickjs (between 2025-09-13 and 2026-06-04) renamed dbuf_realloc(buf, new_size) to
 # dbuf_claim(buf, additional_size), where additional_size = new_size - buf->size. Whichever of
@@ -736,38 +669,14 @@ else()
 endif()
 
 check_library_exists("${socket_LIBRARIES}" recvmmsg "" HAVE_RECVMMSG)
-if(HAVE_RECVMMSG)
-  register_definitions(HAVE_RECVMMSG)
-endif()
 
 check_library_exists("${socket_LIBRARIES}" recvmsg "" HAVE_RECVMSG)
-if(HAVE_RECVMSG)
-  register_definitions(HAVE_RECVMSG)
-endif()
 
 check_library_exists("${socket_LIBRARIES}" sendmmsg "" HAVE_SENDMMSG)
-if(HAVE_SENDMMSG)
-  register_definitions(HAVE_SENDMMSG)
-endif()
 
 check_library_exists("${socket_LIBRARIES}" sendmsg "" HAVE_SENDMSG)
-if(HAVE_SENDMSG)
-  register_definitions(HAVE_SENDMSG)
-endif()
 
 check_library_exists("${socket_LIBRARIES}" accept4 "" HAVE_ACCEPT4)
-if(HAVE_ACCEPT4)
-  register_definitions(HAVE_ACCEPT4)
-endif()
-
-#if(NOT HAVE_INET_PTON)
-#  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
-#endif(NOT HAVE_INET_PTON)
-
-if(HAVE_INET_PTON)
-  register_definitions(HAVE_INET_PTON)
-else(HAVE_INET_PTON)
-endif(HAVE_INET_PTON)
 
 if(NOT HAVE_INET_PTON)
   set(sockets_SOURCES ${sockets_SOURCES} src/compat/inet_pton.c)
@@ -815,10 +724,6 @@ endif(X86)
 if(HAVE_SYS_MMAN_H)
   set(gpio_SOURCES src/gpio.c include/gpio.h)
 endif(HAVE_SYS_MMAN_H)
-
-# if(pigpio_LIBRARY)
-#   set(gpio_LIBRARIES ${pigpio_LIBRARY})
-# endif(pigpio_LIBRARY)
 
 include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libutf/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tutf8e/include)
@@ -879,9 +784,14 @@ set(CMAKE_REQUIRED_QUIET ON)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
-register_definitions(NDEBUG)
 
 check_function_def(js_debugger_build_backtrace)
+
+##############################################################################
+# 9. Tests
+# one ctest entry per tests/test_*.js, run with qjsm; tests marked @portable also run
+# under node, bun and deno when installed
+##############################################################################
 
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 
@@ -930,6 +840,10 @@ if(DO_TESTS)
       endforeach(RUNTIME node bun deno)
     endif(TEST_HEAD MATCHES "@portable")
   endforeach(TEST ${TESTS})
+  list(LENGTH TESTS TEST_COUNT)
+  message(STATUS "Tests: ${TEST_COUNT} registered with ctest, run with: ctest (or make test)")
+else(DO_TESTS)
+  message(STATUS "Tests: disabled (DO_TESTS=OFF)")
 endif(DO_TESTS)
 
 check_c_source_runs(
@@ -937,9 +851,13 @@ check_c_source_runs(
     # c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n return
     # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
 
+##############################################################################
+# 10. Libraries and module targets
+# libmodules.a (shared helpers), then qjs-<name> (.so) and qjs-<name>-static (.a) per module
+##############################################################################
+
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
-
 
 set(QJSM_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -982,17 +900,17 @@ link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 
 set(predicate_LIBRARIES ${LIBM})
 
-# set(deep_LIBRARIES qjs-pointer qjs-predicate ${LIBM})
-# set(deep_DEPS qjs-predicate qjs-pointer)
-
-# set(xml_LIBRARIES qjs-location)
-# set(xml_DEPS qjs-location)
-
 set(lexer_DEPS qjs-predicate)
 
 file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
+
+##############################################################################
+# 11. qjsm and its builtins
+# what is baked into the qjsm binary: native C modules, JS modules compiled to bytecode
+# by qjsc, and external qjs-<name> modules; see cmake/qjsm.cmake
+##############################################################################
 
 qjsm_init_builtins()
 
@@ -1029,7 +947,6 @@ endif(NOT "${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
 qjsm_compile_builtins()
 
-
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 add_definitions(-DHAVE_CONFIG_H)
 
@@ -1041,6 +958,9 @@ target_link_libraries(modules PUBLIC m)
 set(COMMON_LIBRARIES modules compiled)
 
 get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
+
+list(LENGTH QUICKJS_MODULES MODULE_COUNT)
+message(STATUS "Native modules: ${MODULE_COUNT} (${QUICKJS_MODULES})")
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   file(GLOB MODULE_SOURCE quickjs-${JS_MODULE}.[ch])
@@ -1071,7 +991,6 @@ endif(TARGET qjs-predicate)
 # block above) are picked up automatically by make_module()'s generic per-variant
 # ${VNAME}_LIBRARIES_shared/_static handling.
 
-
 set(json_SOURCES ${json_SOURCES} src/json.c)
 set(mysql_SOURCES ${mysql_SOURCES} src/async-closure.c)
 set(mysql_LIBS ${mysql_LIBS} modules)
@@ -1083,6 +1002,10 @@ endif(LINK_STATIC)
 qjsm_process_builtins()
 
 qjsm_add_executable()
+
+##############################################################################
+# 12. Install and summary
+##############################################################################
 
 file(
   GLOB
@@ -1110,9 +1033,61 @@ install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
 symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")
+list(LENGTH INSTALL_SCRIPTS INSTALL_SCRIPT_COUNT)
+message(STATUS "Install: ${INSTALL_SCRIPT_COUNT} utility scripts to ${CMAKE_INSTALL_PREFIX}/bin")
 
 file(GLOB_RECURSE JS_SCRIPTS examples/*.js utilities/*.js)
 
 add_custom_target(js SOURCES ${JS_SCRIPTS})
 
-dump_list(ALL_DEFINITIONS)
+# the summary of this configure: what will be built, with what, and what was generated
+set(DISABLED_MODULES "")
+foreach(MODULE archive magic mysql pgsql sqlite bcrypt serial gpio wasm)
+  string(TOUPPER "${MODULE}" MODULE_UPPER)
+  if(NOT MODULE_${MODULE_UPPER})
+    list(APPEND DISABLED_MODULES "${MODULE} (MODULE_${MODULE_UPPER}=OFF)")
+  elseif(NOT "${MODULE}" IN_LIST QUICKJS_MODULES AND NOT "${MODULE}" IN_LIST INSTALLED_NATIVE)
+    list(APPEND DISABLED_MODULES "${MODULE} (library not found)")
+  endif()
+endforeach()
+
+set(MODULE_KINDS "")
+if(BUILD_SHARED)
+  list(APPEND MODULE_KINDS "shared (qjs-<name>${CMAKE_SHARED_LIBRARY_SUFFIX})")
+endif()
+if(BUILD_STATIC)
+  list(APPEND MODULE_KINDS "static (quickjs-<name>.a)")
+endif()
+
+if(OPENBSD_GLOB)
+  set(GLOB_IMPLEMENTATION "bundled OpenBSD glob()")
+else()
+  set(GLOB_IMPLEMENTATION "system glob()")
+endif()
+
+if(DO_TESTS)
+  set(TEST_SUMMARY "${TEST_COUNT} registered with ctest")
+else()
+  set(TEST_SUMMARY "disabled (DO_TESTS=OFF)")
+endif()
+
+wrap_list(MODULE_LINES 60 ${QUICKJS_MODULES})
+wrap_list(NOT_BUILT_LINES 60 ${DISABLED_MODULES})
+
+message("")
+message_table("qjs-modules ${PROJECT_VERSION}"
+  "system" "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}"
+  "compiler" "${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})"
+  "build type" "${CMAKE_BUILD_TYPE}"
+  "install prefix" "${CMAKE_INSTALL_PREFIX}"
+  "module kinds" "${MODULE_KINDS}"
+  "native modules (${MODULE_COUNT})" "${MODULE_LINES}"
+  "not built" "${NOT_BUILT_LINES}"
+  "wasm backend" "${WASM_BACKEND}"
+  "glob()" "${GLOB_IMPLEMENTATION}"
+  "tests" "${TEST_SUMMARY}"
+  "generated" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+
+qjsm_report()
+
+message(STATUS "Next: build with 'cmake --build ${CMAKE_BINARY_DIR}', install with 'cmake --install ${CMAKE_BINARY_DIR}'")

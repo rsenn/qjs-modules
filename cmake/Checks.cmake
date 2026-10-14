@@ -120,14 +120,6 @@ function(check_inline)
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
   endif()
-
-  if(${ARGC} LESS_EQUAL 0)
-    if(NOT "${RESULT}" STREQUAL "")
-      if(NOT "${RESULT}" MATCHES "^inline$")
-        register_definitions("inline=${RESULT}")
-      endif()
-    endif()
-  endif()
 endfunction()
 
 #
@@ -220,49 +212,6 @@ endmacro()
 # check_include_def <INCLUDE> [RESULT-VAR] [PREPROC_DEF]
 #
 macro(check_include_def INC)
-  if(${ARGC} LESS 3)
-    clean_name("${INC}" INC_D)
-  endif()
-
-  if(${ARGC} GREATER_EQUAL 2)
-    set(RESULT_VAR "${ARGV1}")
-  else()
-    string(TOUPPER "HAVE_${INC_D}" RESULT_VAR)
-  endif()
-
-  check_include_file("${INC}" RESULT)
-
-  set("${RESULT_VAR}" "${RESULT}" CACHE INTERNAL "Define this if you have the '${INC}' header file")
-
-  set_add(CHECKED_INCLUDES "${INC}")
-endmacro()
-
-#
-# check_includes <INCLUDE-FILES...>
-#
-macro(check_includes)
-  foreach(INC ${ARGN})
-    clean_name("HAVE_${INC}" RESULT_VAR)
-    check_include_def("${INC}" "${RESULT_VAR}")
-
-    define_if("${RESULT_VAR}")
-  endforeach()
-endmacro()
-
-#
-# check_includes_def <INCLUDE-FILES...>
-#
-macro(check_includes_def)
-  foreach(INC ${ARGN})
-    clean_name("HAVE_${INC}" RESULT_VAR)
-    check_include_def("${INC}" "${RESULT_VAR}" "${RESULT_VAR}")
-  endforeach()
-endmacro()
-
-#
-# check_include_def <INCLUDE> [RESULT-VAR] [PREPROC_DEF]
-#
-macro(check_include_def INC)
   if(${ARGC} GREATER_EQUAL 2)
     set(RESULT_VAR "${ARGV1}")
     set(PREPROC_DEF "${ARGV2}")
@@ -286,8 +235,6 @@ macro(check_includes)
   foreach(INC ${ARGN})
     clean_name("HAVE_${INC}" RESULT_VAR)
     check_include_def("${INC}" "${RESULT_VAR}")
-
-    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -347,8 +294,6 @@ macro(check_functions)
   foreach(FUNC ${ARGN})
     string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
     check_function_def("${FUNC}" "${RESULT_VAR}")
-
-    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -369,12 +314,8 @@ macro(check_function_and_include FUNC INC)
   clean_name("HAVE_${FUNC}" FUNC_RESULT)
   check_include_def("${INC}" "${INC_RESULT}")
 
-  define_if("${INC_RESULT}")
-
   if(${${INC_RESULT}})
     check_function_def("${FUNC}" "${FUNC_RESULT}")
-
-    define_if("${FUNC_RESULT}")
   endif()
 endmacro()
 
@@ -405,8 +346,6 @@ macro(check_source_definitions)
     set_add(SOURCE_DEFINITIONS "${TYPE}_SOURCE")
   endforeach()
 
-  register_definitions(${SOURCE_DEFINITIONS})
-
   list(APPEND CMAKE_REQUIRED_DEFINITIONS ${SOURCE_DEFINITIONS})
 endmacro()
 
@@ -420,20 +359,7 @@ function(check_sys_siglist_declaration)
     set(OUTPUT_VAR "${ARGV0}")
   endif()
 
-  if(${ARGC} LESS 2)
-    set(PREPROC_DEF HAVE_SYS_SIGLIST_DECLARATION)
-  else()
-    set(PREPROC_DEF "${ARGV1}")
-  endif()
-
-  set(DEFS "${ALL_DEFINITIONS}")
-
   check_symbol_exists(sys_siglist "signal.h" SYM_EXISTS)
-  if(SYM_EXISTS)
-    define_name_value(DEFS "${PREPROC_DEF}")
-  endif()
-
-  set(ALL_DEFINITIONS "${DEFS}" PARENT_SCOPE)
 
   if(OUTPUT_VAR)
     set("${OUTPUT_VAR}" "${SYM_EXISTS}" PARENT_SCOPE)
@@ -655,7 +581,6 @@ function(check_pointer_size)
     math(EXPR POINTER_BITS "${SIZEOF_POINTER} * 8")
     message(CHECK_PASS "${POINTER_BITS}bit")
     set(POINTER_SIZE "${SIZEOF_POINTER}")
-    register_definitions(POINTER_SIZE=${POINTER_SIZE})
   else()
     message(CHECK_FAIL "failed")
   endif()
@@ -701,10 +626,6 @@ function(check_type_exists_def TYPE)
   check_type_exists("${TYPE}" RESULT ${REST})
 
   set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
-
-  if(${ARGC} GREATER_EQUAL 3 AND NOT "${ARGV2}" STREQUAL "")
-    define_if("${RESULT_VAR}" "${ARGV2}")
-  endif()
 endfunction()
 
 #
@@ -715,8 +636,6 @@ macro(check_types)
     clean_name("HAVE_${TYPE}_TYPE" RESULT_VAR)
 
     check_type_exists_def("${TYPE}" "${RESULT_VAR}")
-
-    define_if("${RESULT_VAR}")
   endforeach()
 endmacro()
 
@@ -775,10 +694,6 @@ function(check_alloca)
   endif()
 
   set(CMAKE_REQUIRED_QUIET FALSE)
-
-  define_if(RESULT HAVE_ALLOCA)
-
-  set(ALL_DEFINITIONS "${ALL_DEFINITIONS}" PARENT_SCOPE)
 
   set("${OUTPUT_VAR}" "${RESULT}" PARENT_SCOPE)
 endfunction()
@@ -922,8 +837,6 @@ macro(check_termios_winsize)
   if(HAVE_TERMIOS_H AND HAVE_SYS_IOCTL_H)
     set(GET_COLUMNS "#include <unistd.h>\n#include <fcntl.h>\n#include <termios.h>\n#include <sys/ioctl.h>\n#include <stdio.h>\n\nint\nmain() {\n\tstruct winsize sz;\n\tint fd = isatty(0) ? dup(0) : open(\"/dev/tty\", O_RDWR);\n\n\tif(!isatty(fd)) {\n\t\tfputs(\"not a tty\\n\", stderr);\n\t\tfflush(stderr);\n\t\treturn 1;\n\t}\n\n\tif(ioctl(fd, TIOCGWINSZ, &sz) == -1) {\n\t\tperror(\"ioctl\");\n\t\treturn 1;\n\t}\n\n\tclose(fd);\n\n\tprintf(\"%u\\n\", sz.ws_col);\n\treturn 0;\n}\n" )
     check_compile(HAVE_WINSIZE "${GET_COLUMNS}" "TIOCGWINSZ")
-
-    define_if(HAVE_WINSIZE)
   endif()
 endmacro()
 

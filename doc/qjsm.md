@@ -134,20 +134,19 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
    `node:os` stays unresolved (this engine's `os` is *not* Node's `os`).
 3. **Registered hooks** (`registerHooks()`, see below) — when any are registered,
-   steps 1-2 and 4-7 collapse into the hook chain's final `nextLoad()` and a
+   steps 1-2 and 4-6 collapse into the hook chain's final `nextLoad()` and a
    `load` hook can answer for any URL (`data:` included). With none registered
    this step is skipped and the steps below run exactly as before.
-4. **`package.json` `_moduleAliases`** (`jsm_module_package()`) — a Node
-   `module-alias`-style map, read once per process and cached
-   (`jsm_load_package()`), keyed by the specifier relative to cwd.
-5. **Builtin registry** (again, now that aliasing/hooks may have rewritten the
-   name).
-6. **`.json` suffix** — `jsm_module_json()` wraps the file's contents as
+4. **Builtin registry** (again, now that hooks may have rewritten the name).
+   `package.json` `_moduleAliases` is applied by the builtin `packageAliases`
+   as a resolve hook, so it never overrides a builtin; imports made *by* a
+   builtin only see the builtin table ([layout 4.1](qjsm-layout.md)).
+5. **`.json` suffix** — `jsm_module_json()` wraps the file's contents as
    `export default <parsed JSON>` and compiles that.
-7. **Everything else** — the engine's own default loader
+6. **Everything else** — the engine's own default loader
    (`js_module_loader()`), i.e. read-and-compile a file from disk.
 
-Every module that resolves this way (steps 1-7, plus builtins) gets a
+Every module that resolves this way (steps 1-6, plus builtins) gets a
 `LoadedModule` entry appended to `loaded_modules`, whether or not it's
 `import`ed again later — that shadow list is qjsm's only source of truth for
 "what's loaded" (see [Design ideas](#design-ideas)).
@@ -362,7 +361,10 @@ qjsm [options] [file [args]]
     --memory-limit n   limit the memory usage to 'n' bytes
     --stack-size n     limit the stack size to 'n' bytes
 -q  --quit          just instantiate the interpreter and quit
--l  --list          list modules
+-l  --list          list modules (disabled ones are marked)
+    --disable-builtin a,b   builtins not to find by name (env QJSM_DISABLE_BUILTINS)
+    --hooks-on-builtins     let registerHooks() hooks see bare builtin names
+                            (env QJSM_HOOKS_ON_BUILTINS=1)
 
   USR1 signal starts interactive mode
 ```

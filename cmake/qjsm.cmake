@@ -15,6 +15,9 @@
 #
 # macros, not functions: they set variables the rest of CMakeLists.txt reads.
 
+set(_QJSM_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+include(${_QJSM_CMAKE_DIR}/qjsm-bytecode.cmake)
+
 #
 # get_native_modules <OUTPUT-VARIABLE>
 #
@@ -54,6 +57,160 @@ function(get_compiled_modules OUTVAR)
   list(SORT NAMES)
   set("${OUTVAR}" "${NAMES}" PARENT_SCOPE)
 endfunction()
+
+# qjsm_header_compiled(<NAME>)
+#
+# Adds the line of the bytecode builtin NAME to COMPILED_BUILTIN_HEADER. The C symbols of qjsc
+# have '/' and '-' written '_' (qjsc_node_events, qjsc_simple_queue); a name with a '-' keeps it
+# as the module name, so `import 'simple-queue'` finds the builtin: BUILTIN_COMPILED_AS(symbol, "name").
+macro(qjsm_header_compiled NAME)
+  string(REGEX REPLACE "[/-]" "_" _hc_symbol "${NAME}")
+
+  if("${NAME}" MATCHES "-")
+    string(REPLACE "/" "_" _hc_name "${NAME}")
+    set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED_AS(${_hc_symbol}, \"${_hc_name}\")\n")
+  else()
+    set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${_hc_symbol})\n")
+  endif()
+endmacro()
+
+#
+# qjsm_scan_imports <OUTPUT-VAR> <JS-FILE>
+#
+# The module specifiers a JS file imports with a literal string:
+#
+# ```js
+# import x from 'a';  import 'b';  export * from 'c';  import { y,
+#   z } from 'd';  await import('e');
+# ```
+#
+# gives a b c d e. Specifiers computed at run time (require(name), import(variable))
+# are not seen, and neither is anything in a comment that does not start a line.
+#
+function(qjsm_scan_imports OUTPUT_VAR FILE)
+  file(READ "${FILE}" CONTENT)
+  set(CONTENT "\n${CONTENT}")
+
+  set(SPECS "")
+  foreach(PATTERN
+          "\n[ \t]*(import|export)[ \t]+[^'\"`=(;\n]*from[ \t]*['\"][^'\"\n]+['\"]"
+          "\n[ \t]*import[ \t]*['\"][^'\"\n]+['\"]"
+          "\n[ \t]*}[ \t]*from[ \t]*['\"][^'\"\n]+['\"]"
+          "import[ \t]*\\([ \t]*['\"][^'\"\n]+['\"][ \t]*\\)")
+    string(REGEX MATCHALL "${PATTERN}" FOUND "${CONTENT}")
+
+    foreach(ITEM ${FOUND})
+      string(REGEX REPLACE "^[^'\"]*['\"]([^'\"]+)['\"].*$" "\\1" SPEC "${ITEM}")
+      list(APPEND SPECS "${SPEC}")
+    endforeach()
+  endforeach()
+
+  list(REMOVE_DUPLICATES SPECS)
+  set("${OUTPUT_VAR}" "${SPECS}" PARENT_SCOPE)
+endfunction()
+
+#
+# qjsm_import_kind <SPECIFIER> <KIND-VAR> <NAME-VAR>
+#
+# What a specifier in a builtin refers to, as the loader resolves it for a builtin:
+#
+#   JS      lib/<name>.js           NAME is the lib name: node/events, fsPromises
+#   NATIVE  quickjs-<name>.c        NAME has '_' for '-': child_process
+#   ENGINE  std and os, always compiled in
+#   OTHER   a path, URL or something else; not a module of this tree
+#
+# `node:<name>` is the layer lib/node/<name>.js when there is one, else <name>; the Node
+# subpath builtins (fs/promises) are the flat modules the loader maps them to. Reads
+# NATIVE_MODULES and COMPILED_MODULE_NAMES from the caller.
+#
+function(qjsm_import_kind SPEC KIND_VAR NAME_VAR)
+  set(KIND OTHER)
+  set(NAME "${SPEC}")
+  set(NODE FALSE)
+
+  if(SPEC MATCHES "^node:(.*)$")
+    set(NAME "${CMAKE_MATCH_1}")
+    set(NODE TRUE)
+  endif()
+
+  if(NAME STREQUAL "fs/promises")
+    set(NAME fsPromises)
+  elseif(NAME STREQUAL "timers/promises")
+    set(NAME timersPromises)
+  elseif(NAME STREQUAL "assert/strict")
+    set(NAME assertStrict)
+  elseif(NAME STREQUAL "readline/promises")
+    set(NAME readlinePromises)
+  endif()
+
+  string(REPLACE "-" "_" NATIVE_NAME "${NAME}")
+
+  if(NAME MATCHES "^[./]" OR (NOT NODE AND NAME MATCHES "^[A-Za-z][A-Za-z0-9+.-]*:"))
+    set(KIND OTHER)
+  elseif(NATIVE_NAME STREQUAL "std" OR NATIVE_NAME STREQUAL "os")
+    set(KIND ENGINE)
+  elseif(NODE AND "node/${NAME}" IN_LIST COMPILED_MODULE_NAMES)
+    set(KIND JS)
+    set(NAME "node/${NAME}")
+  elseif(NATIVE_NAME IN_LIST NATIVE_MODULES)
+    set(KIND NATIVE)
+    set(NAME "${NATIVE_NAME}")
+  elseif(NAME IN_LIST COMPILED_MODULE_NAMES)
+    set(KIND JS)
+  endif()
+
+  set("${KIND_VAR}" "${KIND}" PARENT_SCOPE)
+  set("${NAME_VAR}" "${NAME}" PARENT_SCOPE)
+endfunction()
+
+# qjsm_need_specs(<IMPORTER>)
+#
+# Takes the specifiers in _specs, imported by the builtin IMPORTER, and adds what they refer to
+# to BUILTINS_NEEDED_JS (queued for scanning in _need_queue) and BUILTINS_NEEDED_NATIVE.
+# A native module that is not built cannot be compiled in: that is a warning, the builtin
+# would fail to import it.
+macro(qjsm_need_specs IMPORTER)
+  foreach(_qn_spec ${_specs})
+    qjsm_import_kind("${_qn_spec}" _qn_kind _qn_name)
+
+    if(_qn_kind STREQUAL "JS")
+      if(NOT _qn_name IN_LIST BUILTINS_COMPILED)
+        if(NOT _qn_name IN_LIST BUILTINS_NEEDED_JS)
+          list(APPEND BUILTINS_NEEDED_JS "${_qn_name}")
+          list(APPEND _need_queue "${_qn_name}")
+        endif()
+        string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _qn_key "${_qn_name}")
+        list(APPEND QJSM_NEEDED_BY_${_qn_key} "${IMPORTER}")
+      endif()
+    elseif(_qn_kind STREQUAL "NATIVE")
+      string(REPLACE "_" "-" _qn_dash "${_qn_name}")
+      if(NOT _qn_name IN_LIST BUILTINS_NATIVE AND NOT _qn_dash IN_LIST BUILTINS_NATIVE)
+        if(_qn_dash IN_LIST QUICKJS_MODULES)
+          if(NOT _qn_name IN_LIST BUILTINS_NEEDED_NATIVE)
+            list(APPEND BUILTINS_NEEDED_NATIVE "${_qn_name}")
+          endif()
+          string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _qn_key "${_qn_name}")
+          list(APPEND QJSM_NEEDED_BY_${_qn_key} "${IMPORTER}")
+        else()
+          message(WARNING "builtin '${IMPORTER}' imports the native module '${_qn_spec}', which is not built "
+                          "(not in QUICKJS_MODULES): it cannot be compiled in and the import will fail")
+        endif()
+      endif()
+    endif()
+  endforeach()
+endmacro()
+
+# qjsm_need_closure()
+#
+# Scans every lib/<name>.js in _need_queue for imports and follows them, until nothing new
+# turns up: the builtins a builtin needs are builtins too.
+macro(qjsm_need_closure)
+  while(_need_queue)
+    list(POP_FRONT _need_queue _qn_cur)
+    qjsm_scan_imports(_specs "${CMAKE_CURRENT_SOURCE_DIR}/lib/${_qn_cur}.js")
+    qjsm_need_specs("${_qn_cur}")
+  endwhile()
+endmacro()
 
 #
 # module_depends <MODULE> <DEP>...
@@ -350,6 +507,108 @@ function(make_script OUTPUT_FILE TEXT INCLUDES)
   file(WRITE "${OUTPUT_FILE}" "${S}")
 endfunction()
 
+#
+# qjsm_native_closure <OUTPUT-VAR> [MODULES...]
+#
+# MODULES plus the native modules they link (<name>_LIBRARIES entries qjs-<other>),
+# transitively, as dashed names: deep -> deep pointer predicate location.
+#
+function(qjsm_native_closure OUTPUT_VAR)
+  set(ALL "")
+  foreach(MODULE ${ARGN})
+    string(REPLACE "_" "-" MODULE "${MODULE}")
+    list(APPEND ALL "${MODULE}")
+  endforeach()
+  list(REMOVE_DUPLICATES ALL)
+
+  set(CHANGED TRUE)
+  while(CHANGED)
+    set(CHANGED FALSE)
+    foreach(MODULE ${ALL})
+      string(REPLACE "-" "_" VAR "${MODULE}")
+      foreach(DEP ${${VAR}_LIBRARIES})
+        # the match is read into a variable first: ${CMAKE_MATCH_1} inside the same if() would
+        # still hold the previous match when the arguments are expanded
+        if(DEP MATCHES "^qjs-(.+)$")
+          set(OTHER "${CMAKE_MATCH_1}")
+
+          if(NOT OTHER IN_LIST ALL AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${OTHER}.c")
+            list(APPEND ALL "${OTHER}")
+            set(CHANGED TRUE)
+          endif()
+        endif()
+      endforeach()
+    endforeach()
+  endwhile()
+
+  set("${OUTPUT_VAR}" "${ALL}" PARENT_SCOPE)
+endfunction()
+
+#
+# qjsm_native_dependencies <LINK-VAR> <RUNTIME-VAR> [MODULES...]
+#
+# What the native MODULES (and the modules they link) add to qjsm beyond libquickjs and
+# libm, as file names:
+#
+#   LINK-VAR     libraries linked in:      libarchive.so  sqlite3.a
+#   RUNTIME-VAR  of those, the shared ones qjsm needs at run time: libarchive.so
+#
+# a bare library name (`magic`) is looked up like -lmagic would be; a CMake target is named
+# as it is, and counts as run time only when it is a shared library.
+#
+function(qjsm_native_dependencies LINK_VAR RUNTIME_VAR)
+  qjsm_native_closure(ALL ${ARGN})
+
+  set(LINKED "")
+  set(RUNTIME "")
+
+  foreach(MODULE ${ALL})
+    string(REPLACE "-" "_" VAR "${MODULE}")
+
+    foreach(LIB ${${MODULE}_LIBRARIES} ${${VAR}_LIBRARIES})
+      if(LIB MATCHES "^(qjs-.*|-L.*|m|c|dl|pthread|-lm|-lc|-ldl|-lpthread|optimized|debug|general)$" OR LIB MATCHES "[$]<")
+        continue()
+      endif()
+
+      set(FILE "${LIB}")
+      set(SHARED FALSE)
+
+      if(TARGET "${LIB}")
+        get_target_property(TYPE "${LIB}" TYPE)
+        if(TYPE STREQUAL "SHARED_LIBRARY")
+          set(SHARED TRUE)
+        endif()
+        set(NAME "${LIB}")
+      else()
+        if(NOT IS_ABSOLUTE "${FILE}")
+          string(REGEX REPLACE "^-l" "" FILE "${FILE}")
+          find_library(QJSM_DEP_${FILE} NAMES "${FILE}")
+          set(FOUND "${QJSM_DEP_${FILE}}")
+          unset(QJSM_DEP_${FILE} CACHE)
+          if(FOUND)
+            set(FILE "${FOUND}")
+          endif()
+        endif()
+
+        get_filename_component(NAME "${FILE}" NAME)
+        if(NAME MATCHES "\\.(so(\\.[0-9.]+)?|dylib|dll)$")
+          set(SHARED TRUE)
+        endif()
+      endif()
+
+      list(APPEND LINKED "${NAME}")
+      if(SHARED)
+        list(APPEND RUNTIME "${NAME}")
+      endif()
+    endforeach()
+  endforeach()
+
+  list(REMOVE_DUPLICATES LINKED)
+  list(REMOVE_DUPLICATES RUNTIME)
+  set("${LINK_VAR}" "${LINKED}" PARENT_SCOPE)
+  set("${RUNTIME_VAR}" "${RUNTIME}" PARENT_SCOPE)
+endfunction()
+
 # qjsm_init_builtins()
 #
 # BUILTIN_MODULES default (BUILTINS_NATIVE + BUILTINS_COMPILED) and its cache entry.
@@ -379,7 +638,7 @@ if(NOT DEFINED BUILTIN_MODULES)
   endif()
 
   if(NOT DEFINED BUILTINS_COMPILED)
-       set(BUILTINS_COMPILED assert assertStrict bun commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module nodeHooks password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty typescript url util vfs webassembly)
+       set(BUILTINS_COMPILED assert assertStrict bun commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module nodeHooks packageAliases password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty typescript url util vfs webassembly)
   endif(NOT DEFINED BUILTINS_COMPILED)
 
   if(DEFINED CACHE{BUILTINS_NATIVE})
@@ -409,6 +668,9 @@ endmacro(qjsm_init_builtins)
 # splits BUILTIN_MODULES into BUILTINS_NATIVE/BUILTINS_COMPILED against what the tree has,
 # prints the module tables and installs the lib/*.js that are not baked in.
 macro(qjsm_resolve_builtins)
+list(LENGTH BUILTIN_MODULES _bm_count)
+message(STATUS "qjsm: resolving ${_bm_count} BUILTIN_MODULES entries against lib/*.js and quickjs-*.c")
+
 #
 # Get the native & compiled modules list
 #
@@ -422,21 +684,77 @@ set_remove(COMPILED_MODULE_NAMES ${NATIVE_MODULES})
 set_intersection(BUILTINS_NATIVE NATIVE_MODULES BUILTIN_MODULES)
 set_intersection(BUILTINS_COMPILED COMPILED_MODULE_NAMES BUILTIN_MODULES)
 
-#dump_list(BUILTINS_NATIVE BUILTINS_COMPILED)
+# A compiled builtin never loads a .js file from disk, so everything it imports is compiled in
+# too: BUILTINS_NEEDED_JS and BUILTINS_NEEDED_NATIVE, found from the imports of the
+# BUILTINS_COMPILED and followed to the end. Not cached: take the builtin away and what only it
+# needed goes with it. Compiled in is BUILTIN_MODULES plus these.
+set(BUILTINS_NEEDED_JS "")
+set(BUILTINS_NEEDED_NATIVE "")
+set(_need_queue ${BUILTINS_COMPILED})
+qjsm_need_closure()
+set(BUILTINS_NEEDED ${BUILTINS_NEEDED_JS} ${BUILTINS_NEEDED_NATIVE})
 
 set(COLUMNS 80)
 
 message("")
 
-set_extra(INSTALLED_NATIVE NATIVE_MODULES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED})
+set_extra(INSTALLED_NATIVE NATIVE_MODULES ${BUILTINS_NATIVE} ${BUILTINS_NEEDED_NATIVE} ${BUILTINS_COMPILED})
 print_columns("=> Builtin C native modules" BUILTINS_NATIVE ${COLUMNS})
+
+qjsm_native_dependencies(BUILTIN_LINK_DEPS BUILTIN_RUNTIME_DEPS ${BUILTINS_NATIVE})
+if(BUILTIN_LINK_DEPS)
+  string(REPLACE ";" "  " _deps "${BUILTIN_LINK_DEPS}")
+  message("  links in:           ${_deps}")
+  if(BUILTIN_RUNTIME_DEPS)
+    string(REPLACE ";" "  " _deps "${BUILTIN_RUNTIME_DEPS}")
+    message("  needs at run time:  ${_deps}")
+  else()
+    message("  needs at run time:  nothing, all linked statically")
+  endif()
+  message("")
+endif()
+
 print_columns("=> Installed C native modules" INSTALLED_NATIVE ${COLUMNS})
 
-set_extra(INSTALLED_JS COMPILED_MODULE_NAMES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED})
+set_extra(INSTALLED_JS COMPILED_MODULE_NAMES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
 print_columns("=> Builtin JS modules" BUILTINS_COMPILED ${COLUMNS})
-print_columns("=> Installed JS modules" INSTALLED_JS ${COLUMNS})
 
-make_filter_re(EXCLUDE_REGEX ${NATIVE_MODULES} ${BUILTINS_COMPILED})
+# qjsc writes the bytecode while building, so the total is only known from an earlier build
+set(_bytecode_files "")
+foreach(_bc ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+  string(REPLACE "/" "_" _bc "${_bc}")
+  list(APPEND _bytecode_files "${CMAKE_CURRENT_BINARY_DIR}/modules/${_bc}.c")
+endforeach()
+list(LENGTH _bytecode_files _bytecode_expected)
+qjsm_bytecode_size(_bytecode_total _bytecode_found ${_bytecode_files})
+if(_bytecode_found EQUAL _bytecode_expected AND _bytecode_found GREATER 0)
+  qjsm_format_bytes(_bytecode_text ${_bytecode_total})
+  message("  bytecode compiled into qjsm: ${_bytecode_text} in ${_bytecode_found} files, from the last build\n")
+elseif(_bytecode_expected GREATER 0)
+  message("  bytecode compiled into qjsm: known after the build (printed when qjsm is linked)\n")
+endif()
+
+if(BUILTINS_NEEDED)
+  list(LENGTH BUILTINS_NEEDED _needed_count)
+  message("=> Pulled in as dependencies of the builtins (${_needed_count}), compiled in as well")
+  message("")
+  foreach(_needed ${BUILTINS_NEEDED_JS} ${BUILTINS_NEEDED_NATIVE})
+    if(_needed IN_LIST BUILTINS_NEEDED_JS)
+      set(_needed_kind "js")
+    else()
+      set(_needed_kind "C")
+    endif()
+    string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _needed_key "${_needed}")
+    string(REPLACE ";" " " _needed_by "${QJSM_NEEDED_BY_${_needed_key}}")
+    message("  ${_needed} (${_needed_kind})  <-  ${_needed_by}")
+  endforeach()
+  message("")
+endif()
+
+list(LENGTH INSTALLED_JS _installed_js_count)
+message("=> Installed JS modules (${_installed_js_count})\n")
+
+make_filter_re(EXCLUDE_REGEX ${NATIVE_MODULES} ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
 
 #
 # Install all scripts in lib/ directory
@@ -482,8 +800,8 @@ set(io_MODULES util misc)
 set(module_MODULES fs)
 set(parser_MODULES path util list)
 set(password_MODULES bcrypt)
-set(process_MODULES path util misc node:events)
-set(readline_MODULES node:events textcode misc timers)
+set(process_MODULES path util misc node/events)
+set(readline_MODULES node/events textcode misc timers)
 set(readlinePromises_MODULES readline)
 set(repl_MODULES util inspect path io process)
 set(require_MODULES util path process)
@@ -498,7 +816,7 @@ set(util_MODULES timers inspect path misc textcode)
 set(vfs_MODULES fs fs fsPromises path util archive extendArray io queue)
 set(webassembly_MODULES wasm)
 set(node_buffer_MODULES misc blob)
-set(node_child_process_MODULES child_process node:events node:buffer misc sockets process)
+set(node_child_process_MODULES child_process node/events node/buffer misc sockets process)
 set(node_util_MODULES assert misc)
 set(inspect_MODULES pointer)
 endmacro(qjsm_declare_imports)
@@ -512,37 +830,18 @@ set(COMPILED_BUILTIN_HEADER "")
 
 set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}\n/* Compiled .js builtins */\n")
 
-foreach(LIB_MODULE ${BUILTINS_COMPILED})
+list(LENGTH BUILTINS_COMPILED _qjsc_count)
+message(STATUS "qjsc: compiling ${_qjsc_count} lib/*.js builtins to bytecode in ${CMAKE_CURRENT_BINARY_DIR}/modules (${QJSC})")
+
+foreach(LIB_MODULE ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
 
   module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
   compile_module(lib/${LIB_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
 
-  string(REGEX REPLACE "[/]" "_" BC_NAME "${LIB_MODULE}")
-
-  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${BC_NAME})\n")
-endforeach(LIB_MODULE ${BUILTINS_COMPILED})
-
-# lib/node/<name>.js: Node-shaped layers, builtin "node_<name>", mapped from `node:<name>` by lib/nodeHooks.js
-#[[set(BUILTINS_NODE buffer child_process events util)
-set(node_buffer_MODULES misc blob)
-set(node_child_process_MODULES child_process node:events node:buffer misc sockets process)
-set(node_events_MODULES)
-set(node_util_MODULES util inspect misc textcode assert)
-
-foreach(NODE_MODULE ${BUILTINS_NODE})
-  set(LIB_MODULE node_${NODE_MODULE})
-  set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
-
-  module_path("${LIB_MODULE}.c" LIB_MODULE_OUT)
-  set(COMPILE_MODULE_CNAME "${LIB_MODULE}")
-  compile_module(lib/node/${NODE_MODULE}.js "${LIB_MODULE_OUT}" ${MODLIST})
-  unset(COMPILE_MODULE_CNAME)
-
-  set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${LIB_MODULE})\n")
-endforeach(NODE_MODULE ${BUILTINS_NODE})]]
-
-#dump_list(BUILTINS_COMPILED BUILTINS_NATIVE BUILTIN_MODULES)
+  qjsm_header_compiled("${LIB_MODULE}")
+endforeach(LIB_MODULE ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+set(QJSM_COMPILED_NEEDED ${BUILTINS_NEEDED_JS})
 
 if(NOT COMPILED_MODULES)
   message(WARNING "No compiled modules")
@@ -565,8 +864,6 @@ macro(qjsm_process_builtins)
 foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
   string(REPLACE "_" "-" BUILTIN_NATIVE_NAME "${BUILTIN_MODULE}")
   string(REPLACE "-" "_" BUILTIN_NATIVE_KEY "${BUILTIN_MODULE}")
-
-  #dump(BUILTIN_MODULE)
 
   # a path entry may be relative to the source dir
   get_filename_component(_bm_path "${BUILTIN_MODULE}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -592,6 +889,7 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
       find_library(_bm_lib_${_bm_name} NAMES "${_bm_name}" PATHS "${_bm_path}" NO_DEFAULT_PATH)
       if(_bm_lib_${_bm_name})
         list(APPEND EXTERNAL_MODULES "${_bm_name}")
+        message(STATUS "qjsm: external module '${_bm_name}' from ${_bm_lib_${_bm_name}}")
         # No FORCE: if <name>_MODULE was already set explicitly (e.g. to also list the
         # module's own transitive system-library dependencies, which this auto-detection
         # can't know about -- it only locates the module's own lib<name>.a/.so), that
@@ -609,22 +907,25 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
       message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' -- '${_bm_name}' is not a C identifier, skipping")
     elseif(NOT _bm_name IN_LIST BUILTINS_COMPILED)
       list(APPEND BUILTINS_COMPILED "${_bm_name}")
+      message(STATUS "qjsc: compiling ${_bm_path} to bytecode, builtin '${_bm_name}'")
       set(MODLIST ${COMMON_MODULES} ${${_bm_name}_MODULES})
       module_path("${_bm_name}.c" BUILTIN_MODULE_OUT)
       # compile_module() prefixes the source dir, so hand it a relative path
       file(RELATIVE_PATH _bm_rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_bm_path}")
       compile_module("${_bm_rel}" "${BUILTIN_MODULE_OUT}" ${MODLIST})
-      
-     # dump(_bm_name)
-      string(REGEX REPLACE "[/]" "_" BC_NAME "${_bm_name}")
 
-      set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${BC_NAME})\n")
+      qjsm_scan_imports(_specs "${_bm_path}")
+      set(_need_queue "")
+      qjsm_need_specs("${_bm_name}")
+      qjsm_need_closure()
+      qjsm_header_compiled("${_bm_name}")
     endif()
   elseif(EXISTS "${_bm_path}" AND _bm_path MATCHES "\\.(a|so|dylib|lib)$")
     # a prebuilt module library: lib<name>.a / <name>.so -> external module <name>
     get_filename_component(_bm_name "${_bm_path}" NAME_WE)
     string(REGEX REPLACE "^(lib|quickjs-)" "" _bm_name "${_bm_name}")
     list(APPEND EXTERNAL_MODULES "${_bm_name}")
+    message(STATUS "qjsm: external module '${_bm_name}' from ${_bm_path}")
     set(${_bm_name}_MODULE "${_bm_path}"
         CACHE STRING "Static library for external module '${_bm_name}', given via BUILTIN_MODULES")
   elseif(BUILTIN_NATIVE_KEY IN_LIST NATIVE_MODULES)
@@ -643,9 +944,10 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
       module_path("${BUILTIN_MODULE}.c" BUILTIN_MODULE_OUT)
       compile_module(lib/${BUILTIN_MODULE}.js "${BUILTIN_MODULE_OUT}" ${MODLIST})
 
-      string(REGEX REPLACE "[/]" "_" BC_NAME "${BUILTIN_MODULE}")
+      set(_need_queue "${BUILTIN_MODULE}")
+      qjsm_need_closure()
 
-      set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}BUILTIN_COMPILED(${BC_NAME})\n")
+      qjsm_header_compiled("${BUILTIN_MODULE}")
     endif()
   else()
     message(
@@ -655,9 +957,18 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
   endif()
 endforeach()
 
-#relative_paths(COMPILED_FILES "${CMAKE_CURRENT_BINARY_DIR}" ${COMPILED_MODULES})
-#dump_list(COMPILED_MODULES)
-
+# what the modules routed above need and the first pass did not know about
+foreach(_lm ${BUILTINS_NEEDED_JS})
+  if(NOT _lm IN_LIST QJSM_COMPILED_NEEDED)
+    list(APPEND QJSM_COMPILED_NEEDED "${_lm}")
+    set(MODLIST ${COMMON_MODULES} ${${_lm}_MODULES})
+    module_path("${_lm}.c" BUILTIN_MODULE_OUT)
+    compile_module(lib/${_lm}.js "${BUILTIN_MODULE_OUT}" ${MODLIST})
+    qjsm_header_compiled("${_lm}")
+    string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _needed_key "${_lm}")
+    message(STATUS "qjsm: also compiling lib/${_lm}.js, needed by ${QJSM_NEEDED_BY_${_needed_key}}")
+  endif()
+endforeach()
 
 # Names of externally-built native modules to statically link into qjsm, each
 # providing a js_init_module_<name>(JSContext*, const char*) entry point
@@ -672,148 +983,65 @@ endforeach()
 # this file (e.g. a real find_package(nanovg) would also set nanovg_LIBRARY).
 set(EXTERNAL_MODULES "${EXTERNAL_MODULES}" CACHE STRING "Externally-built native modules to statically link into qjsm")
 
-# Core modules that always get a qjs-<name>-static library (no MODULE_X toggle gates
-# them) but aren't part of the default qjsm builtin set: still buildable/embeddable,
-# just not registered/linked into qjsm unless required (see NATIVE_REQUIRED below) or
-# added back to BUILTINS_NATIVE.
-# if(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
-#   # xml stays out of this list: lib/xml.js is a same-named JS polyfill that would
-#   # silently shadow the native module instead of failing to load if the native one
-#   # isn't registered as a builtin.
-#   set(BUILTINS_NATIVE_EXCLUDE "arraybuffer-sink;child-process;lexer;location;repeater;tree-walker;virtual")
-# endif(NOT DEFINED BUILTINS_NATIVE_EXCLUDE)
-
-# set(BUILTINS_NATIVE_EXCLUDE "${BUILTINS_NATIVE_EXCLUDE}"
-#     CACHE STRING "Native modules to build but not register as qjsm builtins by default (overridden by NATIVE_REQUIRED)")
-
-# Enforce module dependencies: a native module required by any builtin (compiled JS or
-# native) must itself be a builtin, however BUILTINS_NATIVE/BUILTINS_NATIVE_EXCLUDE are
-# configured. Computed as the transitive closure over two existing dependency sources
-# (no separate list to keep in sync):
-#   - ${name}_MODULES  -- a compiled JS builtin's own import list (e.g. fs_MODULES
-#     already lists syscallerror/directory/misc/textcode; assert_MODULES lists
-#     deep/inspect), filtered down to entries that are themselves native modules.
-#   - ${name}_LIBRARIES -- a native module's own C-level link dependencies on other
-#     native modules (e.g. deep_LIBRARIES=qjs-pointer;qjs-predicate, because
-#     quickjs-deep.c calls js_pointer_wrap()/js_predicate_class_id() directly, not
-#     just via JS import).
-set(NATIVE_REQUIRED ${BUILTINS_NATIVE})
-
-foreach(LIB_MODULE ${BUILTINS_COMPILED})
-  foreach(DEP ${${LIB_MODULE}_MODULES})
-    string(REGEX REPLACE "[-_]" "-" DEP2 "${DEP}")
-    string(REGEX REPLACE ".*:" "" DEP "${DEP2}")
-    #if(NOT DEP STREQUAL DEP2)
-    #endif()
-    if(NOT DEP IN_LIST BUILTINS_COMPILED AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${DEP}.c")
-      list(APPEND NATIVE_REQUIRED "${DEP}")
-    endif()
-  endforeach()
-endforeach()
-
-set(_native_required_changed TRUE)
-while(_native_required_changed)
-  set(_native_required_changed FALSE)
-  list(REMOVE_DUPLICATES NATIVE_REQUIRED)
-  foreach(MOD ${NATIVE_REQUIRED})
-    foreach(LIBDEP ${${MOD}_LIBRARIES})
-      if(LIBDEP MATCHES "^qjs-(.+)$")
-        if(NOT CMAKE_MATCH_1 IN_LIST NATIVE_REQUIRED)
-          list(APPEND NATIVE_REQUIRED "${CMAKE_MATCH_1}")
-          set(_native_required_changed TRUE)
-        endif()
-      endif()
-    endforeach()
-  endforeach()
-endwhile()
-
 set(NATIVE_BUILTIN_HEADER "")
 set(QJSM_STATIC_LIBS "")
-
 
 set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}/* native C builtins */\n")
 
 # BUILTINS_NATIVE plus the native modules they link (module_depends), transitively
-set(_native_all "")
-foreach(NATIVE_BUILTIN ${BUILTINS_NATIVE})
-  string(REPLACE "_" "-" NATIVE_BUILTIN "${NATIVE_BUILTIN}")
-  list(APPEND _native_all "${NATIVE_BUILTIN}")
+qjsm_native_closure(_native_all ${BUILTINS_NATIVE} ${BUILTINS_NEEDED_NATIVE})
+
+set(_native_pulled "${_native_all}")
+foreach(_nb ${BUILTINS_NATIVE})
+  string(REPLACE "_" "-" _nb "${_nb}")
+  list(REMOVE_ITEM _native_pulled "${_nb}")
 endforeach()
-set(_native_changed TRUE)
-while(_native_changed)
-  set(_native_changed FALSE)
-  foreach(_nm ${_native_all})
-    string(REPLACE "-" "_" _nm_var "${_nm}")
-    foreach(_nd ${${_nm_var}_LIBRARIES})
-      if(_nd MATCHES "^qjs-(.+)$" AND NOT CMAKE_MATCH_1 IN_LIST _native_all
-         AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/quickjs-${CMAKE_MATCH_1}.c")
-        list(APPEND _native_all "${CMAKE_MATCH_1}")
-        set(_native_changed TRUE)
-      endif()
-    endforeach()
-  endforeach()
-endwhile()
+if(_native_pulled)
+  message(STATUS "qjsm: native modules linked in as dependencies: ${_native_pulled}")
+endif()
 
 foreach(NATIVE_BUILTIN ${_native_all})
   string(REPLACE "_" "-" NATIVE_SOURCE "${NATIVE_BUILTIN}")
   string(REPLACE "-" "_" NATIVE_MODULE_VAR "${NATIVE_BUILTIN}")
-  # system libraries of the module (not the qjs-* targets, whose sources are compiled in)
-  foreach(_ld_lib ${${NATIVE_BUILTIN}_LIBRARIES} ${${NATIVE_MODULE_VAR}_LIBRARIES})
+  # system libraries of the module (not the qjs-* targets, whose sources are compiled in); the
+  # static variants are what an executable links
+  foreach(_ld_lib ${${NATIVE_BUILTIN}_LIBRARIES} ${${NATIVE_MODULE_VAR}_LIBRARIES} ${${NATIVE_MODULE_VAR}_LIBRARIES_static})
     if(NOT _ld_lib MATCHES "^qjs-")
       list(APPEND QJSM_LDADD "${_ld_lib}")
     endif()
   endforeach()
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_SOURCE}.c)
+
+  # sources the module needs besides its quickjs-<name>.c, unless libmodules already has them
+  foreach(_src ${${NATIVE_MODULE_VAR}_SOURCES})
+    get_filename_component(_src_abs "${_src}" ABSOLUTE)
+    set(_in_library FALSE)
+    foreach(_lib_src ${LIBRARY_SOURCES})
+      get_filename_component(_lib_abs "${_lib_src}" ABSOLUTE)
+      if(_lib_abs STREQUAL _src_abs)
+        set(_in_library TRUE)
+      endif()
+    endforeach()
+    if(NOT _in_library AND NOT _src MATCHES "^quickjs-")
+      list(APPEND QJSM_SOURCES "${_src}")
+    endif()
+  endforeach()
   string(REGEX REPLACE "-" "_" NATIVE_MODULE "${NATIVE_BUILTIN}")
   set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${NATIVE_MODULE})\n")
 endforeach()
 
 
 
-#[[set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}\n/* static native C builtins */\n")
-
-# Modules built as qjs-<name>-static libraries (BUILD_STATIC) that aren't
-# already compiled directly into qjsm via BUILTINS_NATIVE above: link the library in
-# and register it, unless excluded via BUILTINS_NATIVE_EXCLUDE -- except a module in
-# NATIVE_REQUIRED always gets registered regardless of BUILTINS_NATIVE_EXCLUDE, since
-# something already included depends on it.
-foreach(STATIC_MODULE_NAME ${STATIC_MODULE_NAMES})
-  list(FIND BUILTINS_NATIVE "${STATIC_MODULE_NAME}" _NATIVE_BUILTIN_INDEX)
-  list(FIND BUILTINS_NATIVE_EXCLUDE "${STATIC_MODULE_NAME}" _NATIVE_EXCLUDED_INDEX)
-  if(_NATIVE_BUILTIN_INDEX EQUAL -1 AND (_NATIVE_EXCLUDED_INDEX EQUAL -1 OR STATIC_MODULE_NAME IN_LIST NATIVE_REQUIRED))
-    string(REGEX REPLACE "-" "_" STATIC_MODULE_SYMBOL "${STATIC_MODULE_NAME}")
-    set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${STATIC_MODULE_SYMBOL})\n")
-    list(APPEND QJSM_STATIC_LIBS "qjs-${STATIC_MODULE_NAME}-static")
-  endif()
-endforeach()]]
-
-#[[set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}\n/* external native C builtins */")
-
-foreach(EXTERNAL_MODULE ${EXTERNAL_MODULES})
-  string(REGEX REPLACE "[-_]" "_" EXTERNAL_MODULE "${EXTERNAL_MODULE}")
-  string(REGEX REPLACE ".*:" "" EXTERNAL_MODULE_SYMBOL "${EXTERNAL_MODULE}")
-
-  set(NATIVE_BUILTIN_HEADER "${NATIVE_BUILTIN_HEADER}BUILTIN_NATIVE(${EXTERNAL_MODULE_SYMBOL})\n")
-
-  if(DEFINED ${EXTERNAL_MODULE}_MODULE)
-    list(APPEND QJSM_STATIC_LIBS "${${EXTERNAL_MODULE}_MODULE}")
-  else()
-    message(
-      WARNING
-        "EXTERNAL_MODULES contains '${EXTERNAL_MODULE}' but ${EXTERNAL_MODULE}_MODULE is not set -- qjsm will fail to link"
-    )
-  endif()
-endforeach()]]
-
 if(BUILTIN_HEADER)
   message(STATUS "Builtin modules:\n${BUILTIN_HEADER}")
 endif()
 
 set(BUILTIN_HEADER "#ifndef BUILTIN_NATIVE\n#define BUILTIN_NATIVE(x)\n#endif\n")
-set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef BUILTIN_COMPILED\n#define BUILTIN_COMPILED(x)\n#endif\n")
+set(BUILTIN_HEADER "${BUILTIN_HEADER}\n#ifndef BUILTIN_COMPILED\n#define BUILTIN_COMPILED(x)\n#endif\n\n#ifndef BUILTIN_COMPILED_AS\n#define BUILTIN_COMPILED_AS(x, name)\n#endif\n")
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h"
      "${BUILTIN_HEADER}\n${NATIVE_BUILTIN_HEADER}\n${COMPILED_BUILTIN_HEADER}")
+message(STATUS "qjsm: wrote ${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h")
 endmacro(qjsm_process_builtins)
 
 # qjsm_add_executable()
@@ -883,4 +1111,180 @@ target_compile_definitions(
                LIBMAGIC_DB="${LIBMAGIC_DB}" ${CONFIG_DEFS})
 
 install(TARGETS qjsm DESTINATION bin)
+
+# the bytecode only exists once qjsc has run
+set(_bytecode_files "")
+foreach(_bc ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+  string(REPLACE "/" "_" _bc "${_bc}")
+  list(APPEND _bytecode_files "${CMAKE_CURRENT_BINARY_DIR}/modules/${_bc}.c")
+endforeach()
+string(REPLACE ";" "|" _bytecode_files "${_bytecode_files}")
+add_custom_command(TARGET qjsm POST_BUILD
+                   COMMAND "${CMAKE_COMMAND}" "-DFILES=${_bytecode_files}" -P "${_QJSM_CMAKE_DIR}/qjsm-bytecode.cmake"
+                   VERBATIM)
 endmacro(qjsm_add_executable)
+
+# qjsm_report_compat()
+#
+# Node.js, Bun and Web compatibility are not switches: they are the builtins that provide them.
+# This lists each one present in the build, with the specifiers it provides, what it rewrites
+# and the globals it defines. Prints nothing when none of their builtins is compiled in.
+#
+#   -- compatibility: Node.js
+#   --   builtins   nodeHooks node/buffer ...
+#   --   provides   node:buffer node:child_process ...
+#   --   rewrites   node:<name>  ->  node_<name> if that builtin exists, else <name>
+#   --   globals    process
+macro(qjsm_report_compat)
+  set(_cb ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+  set(_cn ${BUILTINS_NATIVE} ${BUILTINS_NEEDED_NATIVE})
+
+  # Node.js
+  set(_node_builtins "")
+  foreach(_m nodeHooks node/buffer node/child_process node/events node/util module process fsPromises
+             timersPromises assertStrict readlinePromises)
+    if(_m IN_LIST _cb)
+      list(APPEND _node_builtins "${_m}")
+    endif()
+  endforeach()
+
+  if(_node_builtins)
+    set(_provides "")
+    set(_rewrites "")
+    set(_globals "")
+
+    foreach(_m ${_node_builtins})
+      if(_m MATCHES "^node/(.*)$")
+        list(APPEND _provides "node:${CMAKE_MATCH_1}")
+      endif()
+    endforeach()
+
+    if("module" IN_LIST _node_builtins)
+      list(APPEND _provides "node:module")
+    endif()
+
+    if("nodeHooks" IN_LIST _node_builtins)
+      list(APPEND _rewrites "node:<name>  ->  node_<name> if that builtin exists, else <name> (node:os is left alone)"
+                            "run by the nodeHooks resolve hook, off with -N / --no-node-hooks")
+    endif()
+
+    foreach(_alias "fsPromises:fs/promises" "timersPromises:timers/promises" "assertStrict:assert/strict"
+                   "readlinePromises:readline/promises")
+      string(REPLACE ":" ";" _pair "${_alias}")
+      list(GET _pair 0 _target)
+      list(GET _pair 1 _from)
+      if(_target IN_LIST _node_builtins)
+        list(APPEND _rewrites "${_from}  ->  ${_target}   (in the loader, no hook)")
+      endif()
+    endforeach()
+
+    if("process" IN_LIST _node_builtins)
+      list(APPEND _globals "process (off with -P / --no-process)")
+    endif()
+
+    wrap_list(_node_lines 56 ${_node_builtins})
+    wrap_list(_provides_lines 56 ${_provides})
+    message("")
+    message_table("compatibility: Node.js"
+      "builtins" "${_node_lines}"
+      "provides" "${_provides_lines}"
+      "rewrites" "${_rewrites}"
+      "globals" "${_globals}")
+  endif()
+
+  # module-alias
+  if("packageAliases" IN_LIST _cb)
+    message("")
+    message_table("compatibility: module-alias (package.json)"
+      "builtins" "packageAliases"
+      "provides" "nothing, it only rewrites"
+      "rewrites" "a specifier named in ./package.json \"_moduleAliases\" -> its target, after the builtins"
+      "globals" "none")
+  endif()
+
+  # Bun
+  if("bun" IN_LIST _cb)
+    message("")
+    message_table("compatibility: Bun"
+      "builtins" "bun"
+      "provides" "bun (Bun.plugin(), on top of registerHooks())"
+      "rewrites" "none itself, plugins registered by a script resolve and load"
+      "globals" "Bun (just { plugin })")
+  endif()
+
+  # Web platform
+  if("globals" IN_LIST _cb)
+    wrap_list(_web_lines 56 URL URLSearchParams TextEncoder TextDecoder AbortController AbortSignal EventTarget Blob atob
+              btoa setTimeout clearTimeout setInterval clearInterval setImmediate clearImmediate queueMicrotask
+              structuredClone crypto performance "the WHATWG streams classes")
+    message("")
+    message_table("compatibility: Web platform"
+      "builtins" "globals"
+      "provides" "globals (imported for its side effect)"
+      "rewrites" "Blob.prototype.stream() wrapped to return a full ReadableStream"
+      "globals" "${_web_lines}")
+  endif()
+endmacro(qjsm_report_compat)
+
+# qjsm_report()
+#
+# the end-of-configure summary of the qjsm build: what is baked in and from where, what
+# qjsc generates, how the binary finds modules and libraries at run time, and which
+# compatibility layers came with the builtins. Nothing at all when no builtin is compiled in.
+#
+#   -- qjsm: what is baked in
+#   --   C modules (13)  bjson blob ...
+macro(qjsm_report)
+  set(_rep_native_names "")
+  foreach(_rep_name ${BUILTINS_NATIVE})
+    string(REPLACE "_" "-" _rep_name "${_rep_name}")
+    list(APPEND _rep_native_names "${_rep_name}")
+  endforeach()
+  list(REMOVE_DUPLICATES _rep_native_names)
+  list(REMOVE_DUPLICATES QJSM_LDADD)
+  list(LENGTH _rep_native_names _rep_native)
+  list(LENGTH BUILTINS_COMPILED _rep_compiled)
+  list(LENGTH BUILTINS_NEEDED_JS _rep_needed_js)
+  list(LENGTH COMPILED_MODULES _rep_bytecode)
+  list(LENGTH EXTERNAL_MODULES _rep_external)
+
+  math(EXPR _rep_all "${_rep_native} + ${_rep_compiled} + ${_rep_needed_js} + ${_rep_external}")
+  list(LENGTH _native_pulled _rep_pulled)
+  math(EXPR _rep_all "${_rep_all} + ${_rep_pulled}")
+
+  if(_rep_all GREATER 0)
+    wrap_list(_rep_native_lines 56 ${_rep_native_names})
+    wrap_list(_rep_compiled_lines 56 ${BUILTINS_COMPILED})
+    wrap_list(_rep_needed_lines 56 ${BUILTINS_NEEDED_JS})
+    wrap_list(_rep_pulled_lines 56 ${_native_pulled})
+    wrap_list(_rep_ldadd_lines 56 ${QJSM_LDADD})
+
+    message("")
+    message_table("qjsm: what is baked in"
+      "C modules (${_rep_native})" "${_rep_native_lines}"
+      "C modules, as dependencies (${_rep_pulled})" "${_rep_pulled_lines}"
+      "JS modules, bytecode (${_rep_compiled})" "${_rep_compiled_lines}"
+      "JS modules, as dependencies (${_rep_needed_js})" "${_rep_needed_lines}"
+      "external modules (${_rep_external})" "${EXTERNAL_MODULES}"
+      "libraries linked" "${_rep_ldadd_lines}"
+      "static libraries" "${QJSM_STATIC_LIBS}")
+
+    if(_rep_bytecode GREATER 0)
+      message_table("qjsc: generated files"
+        "compiler" "${QJSC}"
+        "bytecode sources" "${_rep_bytecode} in ${CMAKE_CURRENT_BINARY_DIR}/modules"
+        "bytecode library" "${CMAKE_CURRENT_BINARY_DIR}/libcompiled.a"
+        "builtin table" "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h")
+    endif()
+
+    qjsm_report_compat()
+  endif()
+
+  message_table("qjsm: executable"
+    "built as" "${CMAKE_CURRENT_BINARY_DIR}/qjsm"
+    "installed as" "${CMAKE_INSTALL_PREFIX}/bin/qjsm"
+    "default module path" "${QUICKJS_MODULE_PATH}"
+    "libquickjs" "${QUICKJS_LIBRARY}"
+    "run time library dir" "${QUICKJS_INSTALL_LIBRARY_DIR}"
+    "override at run time" "QUICKJS_MODULE_PATH=<dir>[:<dir>...]")
+endmacro(qjsm_report)
