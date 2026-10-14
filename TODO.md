@@ -980,6 +980,21 @@ the serializer block below the `JsonWriter` block).
   (`sw_string` per value).
 - **Indent changes mid-stream** (setter) now apply from the next event only, as before.
 
+### Tier 14 follow-ups (2026-10-14)
+
+- **`JsonWriter` raw-number write.** `utilities/jsonpp.js` normalizes floats and
+  exponents (`1e3` becomes `1000`, `1.50` becomes `1.5`) because JS cannot hand
+  `jwrite_number()` the token text; only plain integers pass through (via `BigInt`).
+  Exact pass-through is the recommendation in `doc/native/json.md`, but no
+  Bun/Deno/Node counterpart exists, so only if `jsonpp` needs it.
+- **`jsonpp --write` is not streaming.** It buffers the whole output so a file that
+  fails to parse is left alone; streaming to the temp file and renaming at the end
+  gives the same safety with bounded memory.
+- **`jsonpp` writes a value together with its following comma**, so output lags one
+  element behind the input (matters for `tail -f` use).
+- **Decide `JsonSerializer.read()` EOF value and `JsonWriter` default spacing:** see
+  `BUGS` (`jsonserializer-read-eof-returns-undefined`, `jsonwriter-default-output-vs-test`).
+
 ## Tier 15 — PoC: streaming JSON transformer, pure-C call chain, no tree
 
 > API now specified by Tier 17 (`JsonRewriter`, `jrewrite_*`): this tier's rules become hooks/options of it and its

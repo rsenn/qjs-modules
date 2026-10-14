@@ -599,6 +599,25 @@
     misc.objectClassId({});   // 0, every time (should be a real class id)
     misc.objectRefCount({});  // a different huge number every run
 
+- jsonserializer-read-eof-returns-undefined (quickjs-json.c,
+  js_json_serializer_read): doc/native/json.md says `read(n)` returns `''`
+  once exhausted, but it returns `undefined` (checked 4 reads in a row on
+  `new JsonSerializer({a:1}, 2)`: string, then `undefined` x3). A loop
+  written to the documented contract, `while((c = s.read(n)) !== '')`,
+  never ends. Callers must test truthiness. Decide: return `''` (matches
+  the doc) or change the doc.
+
+    const s = new JsonSerializer({ a: 1 }, 2);
+    s.read(1000); s.read(1000);   // second call: undefined, not ''
+
+- jsonwriter-default-output-vs-test (src/jwrite.c:177,
+  tests/unittests/test-json.js:768): test "JsonWriter: bareKeys,
+  singleQuotes, hexNumbers, minify" expects `{id:255,"kebab-key":"it's",
+  list:[-31,1.5]}` for `{bareKeys:true}` (compact), but jwrite writes
+  `{ id: 255, "kebab-key": "it's", list: [ -31, 1.5 ] }` unless `minify`
+  is set. Either the test or the writer's default spacing is wrong; that
+  test is the one failure in test-json.js.
+
 - syscallerror-stack-always-null (quickjs-syscallerror.c:206, 289-292):
   `new SyscallError(syscall, errno).stack` is always `null`, 100%
   reproducible, despite doc/native/syscallerror.md documenting it as

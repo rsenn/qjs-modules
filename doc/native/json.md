@@ -239,7 +239,7 @@ new JsonSerializer(value, indent?)   // length 1; indent defaults to 0 (compact)
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `read(n)` | 1 | method | Returns a string of up to `n` characters of serialized JSON, `''` once exhausted. |
+| `read(n)` | 1 | method | Returns a string of up to `n` characters of serialized JSON; once exhausted it returns `undefined` (not `''`), so loop on truthiness. |
 | `read(buffer, offset?, length?)` | 1–3 | method | Writes serialized bytes directly into the given `ArrayBuffer`/`TypedArray` (no intermediate copy), starting at `offset` for up to `length` bytes — or the whole buffer if omitted. Returns the number of bytes written, `0` once exhausted. Suited to chunking output straight into e.g. a network buffer. |
 | `location` | — | getter | A `Location` reflecting how far into the output stream production has advanced (enumerable). |
 
@@ -250,7 +250,7 @@ let s = new JsonSerializer({ a: 1, b: [2, 3] });
 let out = '';
 let chunk;
 
-while((chunk = s.read(4)) !== '') out += chunk;
+while((chunk = s.read(4))) out += chunk;
 
 console.log(out); // {"a":1,"b":[2,3]}
 ```
