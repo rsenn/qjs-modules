@@ -793,6 +793,11 @@ check_function_def(js_debugger_build_backtrace)
 # under node, bun and deno when installed
 ##############################################################################
 
+# cmake-level checks: cmake -P scripts under tests/cmake/
+add_test(NAME cmake-scan-computed-imports
+         COMMAND ${CMAKE_COMMAND} -DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/scan-computed-imports.cmake)
+
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 
 # tests of modules that are off by default

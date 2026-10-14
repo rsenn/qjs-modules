@@ -125,7 +125,8 @@ function(qjsm_scan_computed_imports OUTPUT_VAR FILE)
   file(READ "${FILE}" CONTENT)
   set(CONTENT "\n${CONTENT}")
 
-  string(REGEX MATCHALL "[^A-Za-z0-9_$.]import[ \t]*\\([ \t]*[^'\"` \t)][^)\n]*\\)" FOUND "${CONTENT}")
+  # no ';' in the argument: it would split the match into several list items
+  string(REGEX MATCHALL "[^A-Za-z0-9_$.]import[ \t]*\\([ \t]*[^'\"` \t);][^);\n]*\\)" FOUND "${CONTENT}")
 
   set(CALLS "")
   foreach(ITEM ${FOUND})

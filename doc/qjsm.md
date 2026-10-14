@@ -394,6 +394,7 @@ cmake -B build -DBUILTIN_MODULES="<defaults>;../qjs-ffi/build;../qjs-sound/build
 - one `quickjs-<mod>.module.cmake` file registers just that module
 - the archive is partial-linked with only `js_init_module_<mod>` kept global, so the
   helper copies each project carries (`js_error_print`, ...) do not collide
+- a C++ module's `quickjs-<mod>.module.cmake` lists `stdc++`, since qjsm is linked as C
 - two modules embedding different copies of one vendored library (sound's `stk` and
   `labsound`, both RtAudio) cannot share one executable; list one of them
 - an explicit `BUILTIN_MODULES` replaces the default list, so give the defaults too
