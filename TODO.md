@@ -1397,3 +1397,77 @@ Builtins are closed (`doc/qjsm-layout.md` 4.1); what is left:
 - `QJSM_INSTALL_BUILTIN_NATIVE` / manifest / build-info blob: see `doc/qjsm-layout.md` 3-6.
 - Default build now links libarchive (`vfs` -> `archive`); decide whether `vfs` should
   depend on it softly.
+
+## Tier 15 — Bun compatibility layer: `Bun.*` in `lib/bun.js` (planned 2026-10-14)
+
+`lib/bun.js` is a compiled builtin (`bun`, default on) and `qjsm` installs its default
+export as `globalThis.Bun`. Tests live in `tests/unittests/test-bun*.js`; they use the
+`Bun` global when the builtin is compiled in and import `../../lib/bun.js` otherwise
+(check both: `QJSM_DISABLE_BUILTINS=bun qjsm tests/unittests/test-bun-file.js`).
+Rules: copy Bun's names, argument shapes, return values and error fields (probe `bun -e`
+first, per "Survey the other runtimes"); every phase adds a `test-bun-<area>.js`, a section
+in `doc/js/bun.md`, and a line in the `compatibility: Bun` table in `cmake/qjsm.cmake`.
+`Bun` is not a runtime-detection signal (`typeof Bun` is `'object'` here).
+
+Phases are sorted by leverage (CLAUDE.md: lift an own API to a standard one, then
+cheap wrappers over code that already exists, then new engine work).
+
+### Phase 1 — `Bun.file`, `Bun.write`, stdio (DONE 2026-10-14)
+
+`Bun.file(path | URL | fd, {type?})` → lazy `Blob` subclass: `name`, `type` (by extension),
+`size`, `lastModified`, `text/json/arrayBuffer/bytes/stream/slice/exists/delete/unlink/writer`.
+`Bun.write(path | URL | fd | BunFile, string | binary | Blob | BunFile)`, `Bun.stdin/stdout/stderr`,
+`FileSink` (`write/flush/end/ref/unref`). Known gaps: `formData()`, `Bun.file(...).write()`-style
+S3 methods, `Bun.write(dest, Response)` only via a duck-typed `arrayBuffer()`, `size` of a
+slice is clamped to the file (Bun reports `end - start`), `FileSink.start()`, `fs.watch`-based
+`Bun.file(...).watch`, and `Bun.write` of a sliced BunFile writes the whole file path.
+
+### Phase 2 — lift own modules to their Bun names (highest leverage, code already exists)
+
+| API | Backed by | Note |
+| --- | --- | --- |
+| `Bun.password.hash/verify(+Sync)` | `lib/password.js` (bcrypt) | the module already follows Bun's shape; re-export, add the `argon2` error |
+| `Bun.JSONL.parse/parseChunk` | `json` native | done in the module; only the alias is missing |
+| `Bun.ArrayBufferSink` | `arraybuffer-sink` native | same shape as Bun's |
+| `Bun.deepEquals(a, b, strict?)`, `Bun.deepMatch` | `deep` | `deep` is internal; this gives it a standard name |
+| `Bun.inspect(v, opts)` | `inspect` | `Bun.inspect.custom`, `Bun.inspect.table` later |
+| `Bun.mmap(path)` | `mmap` | returns `Uint8Array`; Bun's `shared`/`sync` options |
+| `Bun.Glob` (`scan`, `scanSync`, `match`) | `fs` glob / `path.fnmatch` | |
+| `Bun.XML` / `Bun.YAML` / `Bun.TOML` / `Bun.JSON5` / `Bun.JSONC` `.parse` | `xml`, `yaml` (Tier 12/13), new parsers | XML and YAML first, the other three only if a user shows up |
+
+### Phase 3 — process and environment (cheap, pure wrappers)
+
+`Bun.env`, `Bun.argv`, `Bun.main`, `Bun.version`, `Bun.revision`, `Bun.sleep(ms | Date)`,
+`Bun.sleepSync`, `Bun.nanoseconds`, `Bun.which(cmd, {PATH, cwd})`, `Bun.pathToFileURL`,
+`Bun.fileURLToPath`, `Bun.resolveSync/resolve`, `Bun.isMainThread`, `Bun.gc`, `Bun.peek`,
+`Bun.escapeHTML`, `Bun.stripANSI`, `Bun.stringWidth`, `Bun.concatArrayBuffers`,
+`Bun.randomUUIDv7`, `Bun.indexOfLine`, `Bun.semver`, `Bun.color`, `Bun.enableANSIColors`,
+`Bun.readableStreamTo{Text,JSON,Bytes,ArrayBuffer,Blob,Array}`.
+
+### Phase 4 — `Bun.spawn` / `Bun.spawnSync` and `Bun.$`
+
+On `child_process`: `{ cmd, cwd, env, stdin/stdout/stderr: 'pipe' | 'inherit' | 'ignore' | BunFile | fd,
+onExit }` → `Subprocess` (`pid`, `exited`, `exitCode`, `signalCode`, `kill()`, `stdin` as
+`FileSink`, `stdout`/`stderr` as `ReadableStream`); `spawnSync` → `{ stdout, stderr, exitCode, success }`.
+`Bun.$` (shell tagged template) only after this works. Needs the stream plumbing of
+`BunFile.stream()` and `FileSink` from phase 1.
+
+### Phase 5 — hashing and compression
+
+`Bun.hash` (wyhash, crc32, adler32, cityHash32/64, murmur...), `Bun.CryptoHasher`,
+`Bun.SHA1/SHA256/SHA512...`, `Bun.sha`, `Bun.gzipSync/gunzipSync/deflateSync/inflateSync`
+(+ zstd). Check first what `archive`/`bcrypt` already link (zlib?) before adding a dependency.
+
+### Phase 6 — databases
+
+`Bun.sql` / `Bun.SQL` (tagged template) over `sqlite`, `pgsql`, `mysql`; `Bun.SQL` option
+`adapter`. Needs a design pass: the three native modules have different result shapes.
+
+### Out of scope here (sibling projects or no standard target)
+
+| API | Where |
+| --- | --- |
+| `Bun.serve`, `Bun.fetch`, `Bun.connect`, `Bun.listen`, `Bun.udpSocket`, `Bun.WebSocket` | `../qjs-lws/` (`lib/serve.js`, `lib/tcpsocket.js`, `lib/udpsocket.js` already target these names; wire `Bun.*` there, not here) |
+| `Bun.FFI` / `bun:ffi` | `../qjs-ffi/` |
+| `Bun.Transpiler`, `Bun.build`, `Bun.markdown`, `Bun.Image` | needs a transpiler/bundler/renderer the engine does not have |
+| `Bun.S3Client`, `Bun.s3`, `Bun.redis`, `Bun.RedisClient`, `Bun.secrets`, `Bun.Cookie/CookieMap`, `Bun.CSRF`, `Bun.cron`, `Bun.WebView`, `Bun.Terminal`, `Bun.FileSystemRouter`, `Bun.embeddedFiles`, `Bun.openInEditor`, `Bun.generateHeapSnapshot`, `Bun.shrink`, `Bun.unsafe` | no user, no standard target; decide only when a script asks |

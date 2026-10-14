@@ -3525,7 +3525,7 @@ main(int argc, char** argv) {
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 
     if(jsm_builtin_find("bun"))
-      dbuf_putstr(&db, "import { plugin } from 'bun';\nglobalThis.Bun = { plugin };\n");
+      dbuf_putstr(&db, "import Bun from 'bun';\nglobalThis.Bun = Bun;\n");
 
     if(load_std) {
       dbuf_putstr(&db,

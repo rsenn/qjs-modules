@@ -779,6 +779,7 @@ set(COMMON_MODULES "")
 set(abort_MODULES events)
 set(assert_MODULES inspect)
 set(assertStrict_MODULES assert)
+set(bun_MODULES blob fs path stream textcode url)
 set(commonjs_MODULES require path)
 set(console_MODULES util inspect)
 set(db_MODULES util list)
@@ -1207,9 +1208,9 @@ macro(qjsm_report_compat)
     message("")
     message_table("compatibility: Bun"
       "builtins" "bun"
-      "provides" "bun (Bun.plugin(), on top of registerHooks())"
+      "provides" "bun (Bun.plugin(), Bun.file(), Bun.write(), Bun.stdin/stdout/stderr)"
       "rewrites" "none itself, plugins registered by a script resolve and load"
-      "globals" "Bun (just { plugin })")
+      "globals" "Bun")
   endif()
 
   # Web platform
