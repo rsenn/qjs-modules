@@ -6,7 +6,7 @@ import { assert, eq, tests } from '../../lib/tinytest.js';
 const Bun = globalThis.Bun ?? (await import('../../lib/bun.js')).default;
 const { Blob } = globalThis.Blob ? globalThis : await import('blob');
 const { URL } = globalThis.URL ? globalThis : await import('url');
-const ROOT = fs.mkdtempSync('/tmp/qjs-bun-file-');
+const ROOT = fs.mkdtempSync(`${globalThis.process?.env?.TMPDIR ?? '/tmp'}/qjs-bun-file-`);
 const at = name => `${ROOT}/${name}`;
 
 async function rejection(promise) {
