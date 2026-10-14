@@ -347,6 +347,9 @@ write_indent(Writer* wr, int indent, int n, DynBuf* ws) {
     if((w = writer_putc(wr, '\n')) <= 0)
       return (int)w;
 
+    if(count <= 0)
+      return 1;
+
     if(oldsize < (size_t)count) {
       if(dbuf_claim(ws, count - ws->size))
         return -1;

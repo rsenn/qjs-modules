@@ -569,15 +569,15 @@ tests({
       eqArr(JSON.parse(out), v);
     }
   },
-  /*'JsonSerializer: indent option matches write() options'() {
+  'JsonSerializer: indent option matches write() options'() {
     let s = new JsonSerializer({ a: 1, b: [2, 3] }, 2);
     let out = '',
       chunk;
 
-    while((chunk = s.read(1000)) !== '') out += chunk;
+    while((chunk = s.read(1000))) out += chunk;
 
     eq(out, write({ a: 1, b: [2, 3] }, 2));
-  },*/
+  },
   'JsonSerializer: read(buffer) writes directly into an ArrayBuffer/TypedArray'() {
     function utf8decode(bytes) {
       let out = '',

@@ -12,15 +12,18 @@ const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE
 /* Wraps a file (or stdin, fd 0) as a JsonParser reader method: JsonParser calls
  * read(buf, len) to pull raw bytes on demand, straight off the fd via os.read()
  * (a raw read(2), unlike std's FILE* which is buffered) — so the input is never
- * read into one big string up front the way readAsString()/readFileSync() would,
- * and nothing is held back in a stdio buffer either. */
-function fileReader(file) {
+ * read into one big string up front the way readAsString()/readFileSync() would.
+ * beforeRead() runs just before each read(2), which may block: main() passes a
+ * flush of the stdio buffer, so output reaches a pipe before waiting for input. */
+function fileReader(file, beforeRead) {
   const fd = file === '-' ? 0 : os.open(file, os.O_RDONLY);
 
   if(fd < 0) throw new Error(`cannot open '${file}'`);
 
   return {
     read(buf, len) {
+      beforeRead?.();
+
       const n = os.read(fd, buf, 0, len);
       if(n < 0) throw new Error(`read '${file}' failed`);
       return n;
@@ -146,7 +149,7 @@ function prettyPrint(reader, filename, opts, write) {
 
       case NUMBER: {
         let num = parseFloat(token);
-        if(num + '' != token) num = BigInt(token);
+        if(num + '' != token && /^-?\d+$/.test(token)) num = BigInt(token);
 
         writer.value(num);
         break;
@@ -206,7 +209,7 @@ function main(...args) {
 
   for(const file of files) {
     try {
-      const reader = fileReader(file);
+      const reader = fileReader(file, () => !params.write && out.flush());
 
       try {
         if(params.write) {
