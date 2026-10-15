@@ -61,7 +61,7 @@ char is_junction(const char*);
 #define path_isrelative(p) !path_isabsolute1(p)
 #define path_isexplicit(p) (path_isabs(p) || path_isdot(p) || path_isdotdot(p))
 
-/* lexical core (src/path-core.c, shared with c-utils and shish): (pointer, length) in,
+/* lexical core (src/path-lib.c, shared with c-utils and shish): (pointer, length) in,
  * caller's buffer out; a writer returns the length, or what it needs when `cap` is too small */
 size_t path_rootlen(const char* p, size_t n);
 const char* path_basename(const char* p, size_t n, size_t* len);
