@@ -1,0 +1,4 @@
+Interface.constructor()
+Interface.prototype.question()
+class Interface extends Interface
+function createInterface()

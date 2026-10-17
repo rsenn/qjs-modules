@@ -1,0 +1,56 @@
+Error.EACCES: number = 13
+Error.EBADF: number = 9
+Error.EBUSY: number = 16
+Error.EEXIST: number = 17
+Error.EINVAL: number = 22
+Error.EIO: number = 5
+Error.ENOENT: number = 2
+Error.ENOSPC: number = 28
+Error.ENOSYS: number = 38
+Error.EPERM: number = 1
+Error.EPIPE: number = 32
+err.columns: get
+err.fd: get
+err.getColorDepth()
+err.getWindowSize()
+err.hasColors()
+err.isTTY: get
+err.rows: get
+function __printObject()
+function evalScript()
+function exit()
+function fdopen()
+function gc()
+function getenv()
+function getenviron()
+function loadFile()
+function loadScript()
+function open()
+function parseExtJSON()
+function popen()
+function printf()
+function puts()
+function setenv()
+function sprintf()
+function strerror()
+function tmpfile()
+function unsetenv()
+function urlGet()
+in.columns: get
+in.fd: get
+in.isTTY: get
+in.rows: get
+object Error
+object err
+object in
+object out
+out.columns: get
+out.fd: get
+out.getColorDepth()
+out.getWindowSize()
+out.hasColors()
+out.isTTY: get
+out.rows: get
+value SEEK_CUR: number = 1
+value SEEK_END: number = 2
+value SEEK_SET: number = 0

@@ -1,0 +1,77 @@
+Directory.BOTH: number = 3
+Directory.NAME: number = 1
+Directory.TYPE: number = 2
+Directory.TYPE_BLK: number = 8
+Directory.TYPE_CHR: number = 16
+Directory.TYPE_DIR: number = 2
+Directory.TYPE_FIFO: number = 32
+Directory.TYPE_LNK: number = 4
+Directory.TYPE_MASK: number = 127
+Directory.TYPE_REG: number = 1
+Directory.TYPE_SOCK: number = 64
+Directory.constructor()
+Directory.prototype.BOTH: number = 3
+Directory.prototype.NAME: number = 1
+Directory.prototype.TYPE: number = 2
+Directory.prototype.TYPE_BLK: number = 8
+Directory.prototype.TYPE_CHR: number = 16
+Directory.prototype.TYPE_DIR: number = 2
+Directory.prototype.TYPE_FIFO: number = 32
+Directory.prototype.TYPE_LNK: number = 4
+Directory.prototype.TYPE_MASK: number = 127
+Directory.prototype.TYPE_REG: number = 1
+Directory.prototype.TYPE_SOCK: number = 64
+Directory.prototype.adopt()
+Directory.prototype.close()
+Directory.prototype.next()
+Directory.prototype.open()
+Directory.prototype.return()
+Directory.prototype.throw()
+Directory.prototype.valueOf()
+Directory.prototype[Symbol.iterator]()
+Directory.prototype[Symbol.toStringTag]: string = "Directory"
+class Directory
+class default
+default.BOTH: number = 3
+default.NAME: number = 1
+default.TYPE: number = 2
+default.TYPE_BLK: number = 8
+default.TYPE_CHR: number = 16
+default.TYPE_DIR: number = 2
+default.TYPE_FIFO: number = 32
+default.TYPE_LNK: number = 4
+default.TYPE_MASK: number = 127
+default.TYPE_REG: number = 1
+default.TYPE_SOCK: number = 64
+default.constructor()
+default.prototype.BOTH: number = 3
+default.prototype.NAME: number = 1
+default.prototype.TYPE: number = 2
+default.prototype.TYPE_BLK: number = 8
+default.prototype.TYPE_CHR: number = 16
+default.prototype.TYPE_DIR: number = 2
+default.prototype.TYPE_FIFO: number = 32
+default.prototype.TYPE_LNK: number = 4
+default.prototype.TYPE_MASK: number = 127
+default.prototype.TYPE_REG: number = 1
+default.prototype.TYPE_SOCK: number = 64
+default.prototype.adopt()
+default.prototype.close()
+default.prototype.next()
+default.prototype.open()
+default.prototype.return()
+default.prototype.throw()
+default.prototype.valueOf()
+default.prototype[Symbol.iterator]()
+default.prototype[Symbol.toStringTag]: string = "Directory"
+value BOTH: number = 3
+value NAME: number = 1
+value TYPE: number = 2
+value TYPE_BLK: number = 8
+value TYPE_CHR: number = 16
+value TYPE_DIR: number = 2
+value TYPE_FIFO: number = 32
+value TYPE_LNK: number = 4
+value TYPE_MASK: number = 127
+value TYPE_REG: number = 1
+value TYPE_SOCK: number = 64

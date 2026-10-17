@@ -1,0 +1,21 @@
+AbortController.constructor()
+AbortController.prototype.abort()
+AbortController.prototype.signal: object = null
+AbortController.prototype[Symbol.toStringTag]: string = "AbortController"
+AbortSignal.abort()
+AbortSignal.any()
+AbortSignal.constructor()
+AbortSignal.prototype.aborted: boolean = false
+AbortSignal.prototype.dispatchEvent()
+AbortSignal.prototype.onabort: object = null
+AbortSignal.prototype.reason: undefined = undefined
+AbortSignal.prototype.throwIfAborted()
+AbortSignal.prototype[Symbol.toStringTag]: string = "AbortSignal"
+AbortSignal.timeout()
+class AbortController
+class AbortSignal extends EventTarget
+class default
+default.constructor()
+default.prototype.abort()
+default.prototype.signal: object = null
+default.prototype[Symbol.toStringTag]: string = "AbortController"

@@ -1,0 +1,40 @@
+Performance.constructor()
+Performance.prototype.clearMarks()
+Performance.prototype.clearMeasures()
+Performance.prototype.getEntries()
+Performance.prototype.getEntriesByName()
+Performance.prototype.getEntriesByType()
+Performance.prototype.mark()
+Performance.prototype.measure()
+Performance.prototype.now()
+Performance.prototype.timeOrigin: get
+Performance.prototype.toJSON()
+Performance.prototype[Symbol.toStringTag]: get
+PerformanceEntry.constructor()
+PerformanceEntry.prototype.detail: get
+PerformanceEntry.prototype.duration: get
+PerformanceEntry.prototype.entryType: get
+PerformanceEntry.prototype.name: get
+PerformanceEntry.prototype.startTime: get
+PerformanceEntry.prototype.toJSON()
+PerformanceEntry.prototype[Symbol.toStringTag]: get
+PerformanceObserver.constructor()
+PerformanceObserver.notify()
+PerformanceObserver.prototype.disconnect()
+PerformanceObserver.prototype.observe()
+PerformanceObserver.prototype.takeRecords()
+PerformanceObserver.prototype[Symbol.toStringTag]: get
+PerformanceObserver.supportedEntryTypes: get
+PerformanceObserverEntryList.constructor()
+PerformanceObserverEntryList.prototype.getEntries()
+PerformanceObserverEntryList.prototype.getEntriesByName()
+PerformanceObserverEntryList.prototype.getEntriesByType()
+class Performance
+class PerformanceEntry
+class PerformanceObserver
+class PerformanceObserverEntryList
+function PerformanceMark()
+function PerformanceMeasure()
+function now()
+object default
+object performance

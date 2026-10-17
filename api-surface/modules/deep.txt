@@ -1,0 +1,102 @@
+DeepIterator.constructor()
+DeepIterator.prototype.leave()
+DeepIterator.prototype.next()
+DeepIterator.prototype.path: get
+DeepIterator.prototype.return()
+DeepIterator.prototype.skip()
+DeepIterator.prototype[Symbol.iterator]()
+DeepIterator.prototype[Symbol.toStringTag]: string = "Deep Iterator"
+class DeepIterator extends (anonymous)
+default.FILTER_HAS_KEY: number = 1073741824
+default.FILTER_KEY_OF: number = 0
+default.FILTER_NEGATE: number = 2147483648
+default.NO_RECURSE: number = 2
+default.NO_THROW: number = 268435456
+default.PATH_AS_ARRAY: number = 0
+default.PATH_AS_POINTER: number = 134217728
+default.PATH_AS_STRING: number = 67108864
+default.RECURSE: number = 0
+default.RETURN_PATH: number = 16777216
+default.RETURN_PATH_VALUE: number = 50331648
+default.RETURN_VALUE: number = 33554432
+default.RETURN_VALUE_PATH: number = 0
+default.TYPE_ALL: number = 4095
+default.TYPE_ARRAY: number = 2048
+default.TYPE_BIG_INT: number = 128
+default.TYPE_BOOL: number = 4
+default.TYPE_CATCH_OFFSET: number = 32768
+default.TYPE_EXCEPTION: number = 65536
+default.TYPE_FLOAT64: number = 256
+default.TYPE_FUNCTION: number = 1024
+default.TYPE_FUNCTION_BYTECODE: number = 8192
+default.TYPE_INT: number = 8
+default.TYPE_MODULE: number = 4096
+default.TYPE_NAN: number = 512
+default.TYPE_NULL: number = 2
+default.TYPE_NUMBER: number = 904
+default.TYPE_OBJECT: number = 16
+default.TYPE_PRIMITIVE: number = 1007
+default.TYPE_STRING: number = 32
+default.TYPE_SYMBOL: number = 64
+default.TYPE_UNDEFINED: number = 1
+default.TYPE_UNINITIALIZED: number = 16384
+default.YIELD: number = 1
+default.YIELD_NO_RECURSE: number = 3
+default.clone()
+default.equals()
+default.find()
+default.flatten()
+default.forEach()
+default.get()
+default.iterate()
+default.pathOf()
+default.select()
+default.set()
+default.unset()
+function clone()
+function equals()
+function find()
+function flatten()
+function forEach()
+function get()
+function iterate()
+function pathOf()
+function select()
+function set()
+function unset()
+object default
+value FILTER_HAS_KEY: number = 1073741824
+value FILTER_KEY_OF: number = 0
+value FILTER_NEGATE: number = 2147483648
+value NO_RECURSE: number = 2
+value NO_THROW: number = 268435456
+value PATH_AS_ARRAY: number = 0
+value PATH_AS_POINTER: number = 134217728
+value PATH_AS_STRING: number = 67108864
+value RECURSE: number = 0
+value RETURN_PATH: number = 16777216
+value RETURN_PATH_VALUE: number = 50331648
+value RETURN_VALUE: number = 33554432
+value RETURN_VALUE_PATH: number = 0
+value TYPE_ALL: number = 4095
+value TYPE_ARRAY: number = 2048
+value TYPE_BIG_INT: number = 128
+value TYPE_BOOL: number = 4
+value TYPE_CATCH_OFFSET: number = 32768
+value TYPE_EXCEPTION: number = 65536
+value TYPE_FLOAT64: number = 256
+value TYPE_FUNCTION: number = 1024
+value TYPE_FUNCTION_BYTECODE: number = 8192
+value TYPE_INT: number = 8
+value TYPE_MODULE: number = 4096
+value TYPE_NAN: number = 512
+value TYPE_NULL: number = 2
+value TYPE_NUMBER: number = 904
+value TYPE_OBJECT: number = 16
+value TYPE_PRIMITIVE: number = 1007
+value TYPE_STRING: number = 32
+value TYPE_SYMBOL: number = 64
+value TYPE_UNDEFINED: number = 1
+value TYPE_UNINITIALIZED: number = 16384
+value YIELD: number = 1
+value YIELD_NO_RECURSE: number = 3

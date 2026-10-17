@@ -1,0 +1,8 @@
+ArrayBufferSink.constructor()
+ArrayBufferSink.prototype.end()
+ArrayBufferSink.prototype.flush()
+ArrayBufferSink.prototype.size: get
+ArrayBufferSink.prototype.write()
+ArrayBufferSink.prototype[Symbol.for('qjs.dynbuf')]()
+ArrayBufferSink.prototype[Symbol.toStringTag]: string = "ArrayBufferSink"
+class ArrayBufferSink

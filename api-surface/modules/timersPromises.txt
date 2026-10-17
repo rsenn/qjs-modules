@@ -1,0 +1,11 @@
+default.scheduler: object = {}
+default.setImmediate()
+default.setInterval()
+default.setTimeout()
+function setImmediate()
+function setInterval()
+function setTimeout()
+object default
+object scheduler
+scheduler.wait()
+scheduler.yield()

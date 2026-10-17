@@ -1,0 +1,13 @@
+default.file()
+default.plugin()
+default.stderr: object = {}
+default.stdin: object = {}
+default.stdout: object = {}
+default.write()
+function file()
+function plugin()
+function write()
+object default
+object stderr
+object stdin
+object stdout

@@ -1,0 +1,87 @@
+Lexer.FIRST: number = 0
+Lexer.LAST: number = 1
+Lexer.LONGEST: number = 2
+Lexer.YIELD_ID: number = 0
+Lexer.YIELD_OBJ: number = 1
+Lexer.constructor()
+Lexer.escape()
+Lexer.fromFile()
+Lexer.prototype.addRule()
+Lexer.prototype.back()
+Lexer.prototype.begin()
+Lexer.prototype.byteLength: get
+Lexer.prototype.bytePos: get
+Lexer.prototype.charLength: get
+Lexer.prototype.charPos: get/set
+Lexer.prototype.currentLine()
+Lexer.prototype.define()
+Lexer.prototype.end()
+Lexer.prototype.eof: get
+Lexer.prototype.fileName: get/set
+Lexer.prototype.getRule()
+Lexer.prototype.input: get
+Lexer.prototype.lex()
+Lexer.prototype.lexeme: get
+Lexer.prototype.loc: get
+Lexer.prototype.mode: get/set
+Lexer.prototype.next()
+Lexer.prototype.nextToken()
+Lexer.prototype.peek()
+Lexer.prototype.peekToken()
+Lexer.prototype.popState()
+Lexer.prototype.pushState()
+Lexer.prototype.ruleNames: get
+Lexer.prototype.rules: get
+Lexer.prototype.seq: get
+Lexer.prototype.setInput()
+Lexer.prototype.size: get
+Lexer.prototype.skipBytes()
+Lexer.prototype.skipChars()
+Lexer.prototype.skipToken()
+Lexer.prototype.skipUntil()
+Lexer.prototype.state: get/set
+Lexer.prototype.stateDepth: get
+Lexer.prototype.stateStack: get
+Lexer.prototype.states: get
+Lexer.prototype.tokenClass()
+Lexer.prototype.tokens: get
+Lexer.prototype.topState()
+Lexer.prototype[Symbol.iterator]()
+Lexer.prototype[Symbol.toStringTag]: string = "Lexer"
+Lexer.toString()
+Lexer.unescape()
+Location.constructor()
+Location.count()
+Location.prototype.byteOffset: get
+Location.prototype.charOffset: get
+Location.prototype.clone()
+Location.prototype.column: get
+Location.prototype.copy()
+Location.prototype.equal()
+Location.prototype.file: get/set
+Location.prototype.line: get
+Location.prototype.nextChar()
+Location.prototype.toString()
+Location.prototype[Symbol.toPrimitive]()
+Location.prototype[Symbol.toStringTag]: string = "Location"
+Token.EOF: number = -1
+Token.constructor()
+Token.prototype.byteLength: get
+Token.prototype.bytePos: get
+Token.prototype.byteRange: get
+Token.prototype.charLength: get
+Token.prototype.charPos: get
+Token.prototype.charRange: get
+Token.prototype.id: get
+Token.prototype.lexeme: get
+Token.prototype.lexer: get
+Token.prototype.loc: get/set
+Token.prototype.rule: get
+Token.prototype.seq: get
+Token.prototype.toString()
+Token.prototype.type: get
+Token.prototype[Symbol.toPrimitive]()
+Token.prototype[Symbol.toStringTag]: string = "Token"
+class Lexer
+class Location
+class Token

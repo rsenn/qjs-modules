@@ -1,0 +1,34 @@
+function filename()
+function mmap()
+function mprotect()
+function msync()
+function munmap()
+function toString()
+value EBUSY: number = 16
+value EFAULT: number = 14
+value EINVAL: number = 22
+value ENOMEM: number = 12
+value MAP_ANONYMOUS: number = 32
+value MAP_DENYWRITE: number = 2048
+value MAP_EXECUTABLE: number = 4096
+value MAP_FAILED: number = -1
+value MAP_FIXED: number = 16
+value MAP_GROWSDOWN: number = 256
+value MAP_HUGETLB: number = 262144
+value MAP_LOCKED: number = 8192
+value MAP_NONBLOCK: number = 65536
+value MAP_NORESERVE: number = 16384
+value MAP_POPULATE: number = 32768
+value MAP_PRIVATE: number = 2
+value MAP_SHARED: number = 1
+value MAP_STACK: number = 131072
+value MAP_TYPE: number = 15
+value MS_ASYNC: number = 1
+value MS_INVALIDATE: number = 2
+value MS_SYNC: number = 4
+value PROT_EXEC: number = 4
+value PROT_GROWSDOWN: number = 16777216
+value PROT_GROWSUP: number = 33554432
+value PROT_NONE: number = 0
+value PROT_READ: number = 1
+value PROT_WRITE: number = 2

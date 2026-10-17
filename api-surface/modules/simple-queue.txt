@@ -1,0 +1,9 @@
+SimpleQueue.constructor()
+SimpleQueue.prototype.forEach()
+SimpleQueue.prototype.length: get
+SimpleQueue.prototype.peek()
+SimpleQueue.prototype.push()
+SimpleQueue.prototype.shift()
+SimpleQueue.prototype[Symbol.iterator]()
+SimpleQueue.prototype[Symbol.toStringTag]: string = "SimpleQueue"
+class SimpleQueue

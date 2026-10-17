@@ -1,0 +1,154 @@
+ChildProcess.SIGABRT: number = 6
+ChildProcess.SIGALRM: number = 14
+ChildProcess.SIGBUS: number = 7
+ChildProcess.SIGCHLD: number = 17
+ChildProcess.SIGCONT: number = 18
+ChildProcess.SIGFPE: number = 8
+ChildProcess.SIGHUP: number = 1
+ChildProcess.SIGILL: number = 4
+ChildProcess.SIGINT: number = 2
+ChildProcess.SIGIO: number = 29
+ChildProcess.SIGKILL: number = 9
+ChildProcess.SIGPIPE: number = 13
+ChildProcess.SIGPOLL: number = 29
+ChildProcess.SIGPROF: number = 27
+ChildProcess.SIGPWR: number = 30
+ChildProcess.SIGQUIT: number = 3
+ChildProcess.SIGSEGV: number = 11
+ChildProcess.SIGSTKFLT: number = 16
+ChildProcess.SIGSTOP: number = 19
+ChildProcess.SIGSYS: number = 31
+ChildProcess.SIGTERM: number = 15
+ChildProcess.SIGTRAP: number = 5
+ChildProcess.SIGTSTP: number = 20
+ChildProcess.SIGTTIN: number = 21
+ChildProcess.SIGTTOU: number = 22
+ChildProcess.SIGURG: number = 23
+ChildProcess.SIGUSR1: number = 10
+ChildProcess.SIGUSR2: number = 12
+ChildProcess.SIGVTALRM: number = 26
+ChildProcess.SIGWINCH: number = 28
+ChildProcess.SIGXCPU: number = 24
+ChildProcess.SIGXFSZ: number = 25
+ChildProcess.WNOHANG: number = 1
+ChildProcess.WNOWAIT: number = 16777216
+ChildProcess.WUNTRACED: number = 2
+ChildProcess.constructor()
+ChildProcess.exec()
+ChildProcess.execSync()
+ChildProcess.kill()
+ChildProcess.prototype.exitCode: get
+ChildProcess.prototype.kill()
+ChildProcess.prototype.killed: get
+ChildProcess.prototype.onExit: get/set
+ChildProcess.prototype.pid: get
+ChildProcess.prototype.signalCode: get
+ChildProcess.prototype.spawnargs: get
+ChildProcess.prototype.spawnfile: get
+ChildProcess.prototype.stderr: get
+ChildProcess.prototype.stdin: get
+ChildProcess.prototype.stdio: get
+ChildProcess.prototype.stdout: get
+ChildProcess.prototype.wait()
+ChildProcess.prototype[Symbol.toPrimitive]()
+ChildProcess.prototype[Symbol.toStringTag]: string = "ChildProcess"
+ChildProcess.spawn()
+ChildProcess.spawnSync()
+class ChildProcess
+class default
+default.SIGABRT: number = 6
+default.SIGALRM: number = 14
+default.SIGBUS: number = 7
+default.SIGCHLD: number = 17
+default.SIGCONT: number = 18
+default.SIGFPE: number = 8
+default.SIGHUP: number = 1
+default.SIGILL: number = 4
+default.SIGINT: number = 2
+default.SIGIO: number = 29
+default.SIGKILL: number = 9
+default.SIGPIPE: number = 13
+default.SIGPOLL: number = 29
+default.SIGPROF: number = 27
+default.SIGPWR: number = 30
+default.SIGQUIT: number = 3
+default.SIGSEGV: number = 11
+default.SIGSTKFLT: number = 16
+default.SIGSTOP: number = 19
+default.SIGSYS: number = 31
+default.SIGTERM: number = 15
+default.SIGTRAP: number = 5
+default.SIGTSTP: number = 20
+default.SIGTTIN: number = 21
+default.SIGTTOU: number = 22
+default.SIGURG: number = 23
+default.SIGUSR1: number = 10
+default.SIGUSR2: number = 12
+default.SIGVTALRM: number = 26
+default.SIGWINCH: number = 28
+default.SIGXCPU: number = 24
+default.SIGXFSZ: number = 25
+default.WNOHANG: number = 1
+default.WNOWAIT: number = 16777216
+default.WUNTRACED: number = 2
+default.constructor()
+default.exec()
+default.execSync()
+default.kill()
+default.prototype.exitCode: get
+default.prototype.kill()
+default.prototype.killed: get
+default.prototype.onExit: get/set
+default.prototype.pid: get
+default.prototype.signalCode: get
+default.prototype.spawnargs: get
+default.prototype.spawnfile: get
+default.prototype.stderr: get
+default.prototype.stdin: get
+default.prototype.stdio: get
+default.prototype.stdout: get
+default.prototype.wait()
+default.prototype[Symbol.toPrimitive]()
+default.prototype[Symbol.toStringTag]: string = "ChildProcess"
+default.spawn()
+default.spawnSync()
+function exec()
+function execSync()
+function kill()
+function spawn()
+function spawnSync()
+value SIGABRT: number = 6
+value SIGALRM: number = 14
+value SIGBUS: number = 7
+value SIGCHLD: number = 17
+value SIGCONT: number = 18
+value SIGFPE: number = 8
+value SIGHUP: number = 1
+value SIGILL: number = 4
+value SIGINT: number = 2
+value SIGIO: number = 29
+value SIGKILL: number = 9
+value SIGPIPE: number = 13
+value SIGPOLL: number = 29
+value SIGPROF: number = 27
+value SIGPWR: number = 30
+value SIGQUIT: number = 3
+value SIGSEGV: number = 11
+value SIGSTKFLT: number = 16
+value SIGSTOP: number = 19
+value SIGSYS: number = 31
+value SIGTERM: number = 15
+value SIGTRAP: number = 5
+value SIGTSTP: number = 20
+value SIGTTIN: number = 21
+value SIGTTOU: number = 22
+value SIGURG: number = 23
+value SIGUSR1: number = 10
+value SIGUSR2: number = 12
+value SIGVTALRM: number = 26
+value SIGWINCH: number = 28
+value SIGXCPU: number = 24
+value SIGXFSZ: number = 25
+value WNOHANG: number = 1
+value WNOWAIT: number = 16777216
+value WUNTRACED: number = 2

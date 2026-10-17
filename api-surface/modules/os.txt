@@ -1,0 +1,75 @@
+Worker.constructor()
+Worker.prototype.onmessage: get/set
+Worker.prototype.postMessage()
+class Worker
+function chdir()
+function clearTimeout()
+function close()
+function dup()
+function dup2()
+function exec()
+function getcwd()
+function getpid()
+function isatty()
+function kill()
+function lstat()
+function mkdir()
+function now()
+function open()
+function pipe()
+function read()
+function readdir()
+function readlink()
+function realpath()
+function remove()
+function rename()
+function seek()
+function setReadHandler()
+function setTimeout()
+function setWriteHandler()
+function signal()
+function sleep()
+function sleepAsync()
+function stat()
+function symlink()
+function ttyGetWinSize()
+function ttySetRaw()
+function utimes()
+function waitpid()
+function write()
+value O_APPEND: number = 1024
+value O_CREAT: number = 64
+value O_EXCL: number = 128
+value O_RDONLY: number = 0
+value O_RDWR: number = 2
+value O_TRUNC: number = 512
+value O_WRONLY: number = 1
+value SIGABRT: number = 6
+value SIGALRM: number = 14
+value SIGCHLD: number = 17
+value SIGCONT: number = 18
+value SIGFPE: number = 8
+value SIGILL: number = 4
+value SIGINT: number = 2
+value SIGPIPE: number = 13
+value SIGQUIT: number = 3
+value SIGSEGV: number = 11
+value SIGSTOP: number = 19
+value SIGTERM: number = 15
+value SIGTSTP: number = 20
+value SIGTTIN: number = 21
+value SIGTTOU: number = 22
+value SIGUSR1: number = 10
+value SIGUSR2: number = 12
+value S_IFBLK: number = 24576
+value S_IFCHR: number = 8192
+value S_IFDIR: number = 16384
+value S_IFIFO: number = 4096
+value S_IFLNK: number = 40960
+value S_IFMT: number = 61440
+value S_IFREG: number = 32768
+value S_IFSOCK: number = 49152
+value S_ISGID: number = 1024
+value S_ISUID: number = 2048
+value WNOHANG: number = 1
+value platform: string = "linux"

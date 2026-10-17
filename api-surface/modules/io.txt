@@ -1,0 +1,38 @@
+DescriptorMap.constructor()
+DescriptorMap.prototype.delete()
+DescriptorMap.prototype.get()
+DescriptorMap.prototype.keys()
+DescriptorMap.prototype.set()
+DescriptorMap.prototype[Symbol.toStringTag]: string = "DescriptorMap"
+HandlerEntry.constructor()
+HandlerEntry.isHandlers()
+HandlerEntry.prototype.active: get
+HandlerEntry.prototype[Symbol.toStringTag]: string = "HandlerEntry"
+IOReadDecorator.getByte()
+IOReadDecorator.getline()
+IOReadDecorator.readAsString()
+IOReadDecorator.tell()
+IOWriteDecorator.printf()
+IOWriteDecorator.putByte()
+IOWriteDecorator.puts()
+Multiplexer.constructor()
+Multiplexer.instance: object = {}
+Multiplexer.prototype.check()
+Multiplexer.prototype.close()
+Multiplexer.prototype.fds()
+Multiplexer.prototype.getHandler()
+Multiplexer.prototype.on()
+Multiplexer.prototype.once()
+Multiplexer.prototype[Symbol.toStringTag]: string = "Multiplexer"
+class DescriptorMap extends Array
+class HandlerEntry extends Array
+class Multiplexer
+function checkFileDescriptor()
+function setHandler()
+function setReadHandler()
+function setWriteHandler()
+object IOReadDecorator
+object IOWriteDecorator
+object default
+value READ: number = 0
+value WRITE: number = 1

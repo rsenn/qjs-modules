@@ -1,0 +1,26 @@
+Interface.constructor()
+Interface.prototype.clearLine()
+Interface.prototype.close()
+Interface.prototype.closed: get
+Interface.prototype.columns: get
+Interface.prototype.getCursorPos()
+Interface.prototype.getPrompt()
+Interface.prototype.input: get
+Interface.prototype.output: get
+Interface.prototype.pause()
+Interface.prototype.prompt()
+Interface.prototype.question()
+Interface.prototype.resume()
+Interface.prototype.setPrompt()
+Interface.prototype.write()
+Interface.prototype[Symbol.asyncIterator]()
+class Interface extends EventEmitter
+function clearLine()
+function clearScreenDown()
+function createInterface()
+function cursorTo()
+function emitKeypressEvents()
+function moveCursor()
+object promises
+promises.Interface()
+promises.createInterface()

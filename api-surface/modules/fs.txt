@@ -1,0 +1,411 @@
+Dir.constructor()
+Dir.prototype.closeSync()
+Dir.prototype.path: get
+Dir.prototype.readSync()
+Dir.prototype[Symbol.iterator]()
+Dirent.constructor()
+Dirent.prototype.isBlockDevice()
+Dirent.prototype.isCharacterDevice()
+Dirent.prototype.isDirectory()
+Dirent.prototype.isFIFO()
+Dirent.prototype.isFile()
+Dirent.prototype.isSocket()
+Dirent.prototype.isSymbolicLink()
+Dirent.prototype.name: undefined = undefined
+Dirent.prototype[Symbol.toStringTag]: string = "Dirent"
+FileHandle.constructor()
+FileHandle.prototype.appendFile()
+FileHandle.prototype.chmod()
+FileHandle.prototype.chown()
+FileHandle.prototype.close()
+FileHandle.prototype.datasync()
+FileHandle.prototype.fd: get
+FileHandle.prototype.read()
+FileHandle.prototype.readFile()
+FileHandle.prototype.stat()
+FileHandle.prototype.sync()
+FileHandle.prototype.truncate()
+FileHandle.prototype.utimes()
+FileHandle.prototype.write()
+FileHandle.prototype.writeFile()
+FileHandle.prototype[Symbol.toStringTag]: string = "FileHandle"
+Stats.constructor()
+Stats.prototype.atime: undefined = undefined
+Stats.prototype.blocks: undefined = undefined
+Stats.prototype.ctime: undefined = undefined
+Stats.prototype.dev: undefined = undefined
+Stats.prototype.gid: undefined = undefined
+Stats.prototype.ino: undefined = undefined
+Stats.prototype.isBlockDevice()
+Stats.prototype.isCharacterDevice()
+Stats.prototype.isDirectory()
+Stats.prototype.isFIFO()
+Stats.prototype.isFile()
+Stats.prototype.isSocket()
+Stats.prototype.isSymbolicLink()
+Stats.prototype.mode: undefined = undefined
+Stats.prototype.mtime: undefined = undefined
+Stats.prototype.nlink: undefined = undefined
+Stats.prototype.rdev: undefined = undefined
+Stats.prototype.size: undefined = undefined
+Stats.prototype.uid: undefined = undefined
+Stats.prototype[Symbol.toStringTag]: string = "Stats"
+class Dir
+class Dirent
+class FileHandle
+class Stats
+class inotify_event extends ArrayBuffer
+constants.COPYFILE_EXCL: number = 1
+constants.COPYFILE_FICLONE: number = 2
+constants.COPYFILE_FICLONE_FORCE: number = 4
+constants.F_OK: number = 0
+constants.O_APPEND: number = 1024
+constants.O_CREAT: number = 64
+constants.O_DIRECT: number = 16384
+constants.O_DIRECTORY: number = 65536
+constants.O_DSYNC: number = 4096
+constants.O_EXCL: number = 128
+constants.O_NOATIME: number = 262144
+constants.O_NOCTTY: number = 256
+constants.O_NOFOLLOW: number = 131072
+constants.O_NONBLOCK: number = 2048
+constants.O_RDONLY: number = 0
+constants.O_RDWR: number = 2
+constants.O_SYNC: number = 1052672
+constants.O_TRUNC: number = 512
+constants.O_WRONLY: number = 1
+constants.R_OK: number = 4
+constants.S_IFBLK: number = 24576
+constants.S_IFCHR: number = 8192
+constants.S_IFDIR: number = 16384
+constants.S_IFIFO: number = 4096
+constants.S_IFLNK: number = 40960
+constants.S_IFMT: number = 61440
+constants.S_IFREG: number = 32768
+constants.S_IFSOCK: number = 49152
+constants.S_IRGRP: number = 32
+constants.S_IROTH: number = 4
+constants.S_IRUSR: number = 256
+constants.S_IRWXG: number = 56
+constants.S_IRWXO: number = 7
+constants.S_IRWXU: number = 448
+constants.S_IWGRP: number = 16
+constants.S_IWOTH: number = 2
+constants.S_IWUSR: number = 128
+constants.S_IXGRP: number = 8
+constants.S_IXOTH: number = 1
+constants.S_IXUSR: number = 64
+constants.W_OK: number = 2
+constants.X_OK: number = 1
+default.EACCES: number = 13
+default.EAGAIN: number = 11
+default.EBUSY: number = 16
+default.EEXIST: number = 17
+default.EINVAL: number = 22
+default.EIO: number = 5
+default.ENOENT: number = 2
+default.ENOSPC: number = 28
+default.ENOSYS: number = 38
+default.EPERM: number = 1
+default.EWOULDBLOCK: number = 11
+default.FD_CLOEXEC: number = 1
+default.F_DUPFD: number = 0
+default.F_DUPFD_CLOEXEC: number = 1030
+default.F_GETFD: number = 1
+default.F_GETFL: number = 3
+default.F_GETLK: number = 5
+default.F_RDLCK: number = 0
+default.F_SETFD: number = 2
+default.F_SETFL: number = 4
+default.F_SETLK: number = 6
+default.F_SETLKW: number = 7
+default.F_UNLCK: number = 2
+default.F_WRLCK: number = 1
+default.O_APPEND: number = 1024
+default.O_ASYNC: number = 8192
+default.O_CLOEXEC: number = 524288
+default.O_CREAT: number = 64
+default.O_DSYNC: number = 4096
+default.O_EXCL: number = 128
+default.O_NOCTTY: number = 256
+default.O_NONBLOCK: number = 2048
+default.O_RDONLY: number = 0
+default.O_RDWR: number = 2
+default.O_SYNC: number = 1052672
+default.O_TRUNC: number = 512
+default.O_WRONLY: number = 1
+default.Stats()
+default.access()
+default.accessSync()
+default.appendFile()
+default.buffer()
+default.bufferFrom()
+default.bufferSize()
+default.bufferToString()
+default.chdir()
+default.chmod()
+default.chown()
+default.close()
+default.closeSync()
+default.constants: object = {"COPYFILE_EXCL":1,"COPYFILE_FICLONE":2,"COPYFILE_FICLONE...
+default.copyFile()
+default.cp()
+default.createReadStream()
+default.createWriteStream()
+default.exists()
+default.existsSync()
+default.fdatasync()
+default.fdatasyncSync()
+default.fdopenSync()
+default.fileno()
+default.fopenSync()
+default.fstat()
+default.fstatSync()
+default.fsync()
+default.fsyncSync()
+default.ftruncate()
+default.ftruncateSync()
+default.getcwd()
+default.gets()
+default.isatty()
+default.link()
+default.lstat()
+default.lstatSync()
+default.mkdir()
+default.mkdirSync()
+default.mkdtemp()
+default.mkstempSync()
+default.nameSync()
+default.onRead()
+default.onWrite()
+default.open()
+default.openSync()
+default.pipe()
+default.promises: object = {"constants":{"COPYFILE_EXCL":1,"COPYFILE_FICLONE":2,"COP...
+default.puts()
+default.read()
+default.readAllSync()
+default.readFile()
+default.readFileSync()
+default.readSync()
+default.readdir()
+default.readdirSync()
+default.readerSync()
+default.readlink()
+default.readlinkSync()
+default.realpath()
+default.realpathSync()
+default.rename()
+default.renameSync()
+default.rm()
+default.rmdir()
+default.seek()
+default.sizeSync()
+default.stat()
+default.statSync()
+default.stderr: object = {}
+default.stdin: object = {}
+default.stdout: object = {}
+default.symlink()
+default.symlinkSync()
+default.tell()
+default.tempnamSync()
+default.tmpfileSync()
+default.truncate()
+default.unlink()
+default.unlinkSync()
+default.utimes()
+default.waitRead()
+default.waitWrite()
+default.walkSync()
+default.watch()
+default.write()
+default.writeFile()
+default.writeFileSync()
+default.writeSync()
+function InvalidBuffer()
+function access()
+function accessSync()
+function appendFile()
+function appendFileSync()
+function buffer()
+function bufferArgument()
+function bufferArguments()
+function bufferFrom()
+function bufferSize()
+function bufferToString()
+function chdir()
+function chmod()
+function chmodSync()
+function chown()
+function chownSync()
+function close()
+function closeSync()
+function copyFile()
+function copyFileSync()
+function cp()
+function cpSync()
+function createReadStream()
+function createWriteStream()
+function exists()
+function existsSync()
+function fdatasync()
+function fdatasyncSync()
+function fdopenSync()
+function fileno()
+function flushSync()
+function fopenSync()
+function fstat()
+function fstatSync()
+function fsync()
+function fsyncSync()
+function ftruncate()
+function ftruncateSync()
+function getcwd()
+function gets()
+function isatty()
+function lchownSync()
+function link()
+function linkSync()
+function lstat()
+function lstatSync()
+function lutimesSync()
+function mkdir()
+function mkdirSync()
+function mkdtemp()
+function mkdtempSync()
+function mkstempSync()
+function nameSync()
+function onRead()
+function onWrite()
+function open()
+function openSync()
+function opendirSync()
+function pipe()
+function puts()
+function read()
+function readAllSync()
+function readFile()
+function readFileSync()
+function readFullySync()
+function readSync()
+function readdir()
+function readdirSync()
+function readerSync()
+function readlink()
+function readlinkSync()
+function realpath()
+function realpathSync()
+function rename()
+function renameSync()
+function rm()
+function rmSync()
+function rmdir()
+function rmdirSync()
+function seek()
+function sizeSync()
+function stat()
+function statSync()
+function stringOrBufferArguments()
+function symlink()
+function symlinkSync()
+function tell()
+function tempnamSync()
+function throwIfNull()
+function tmpfileSync()
+function truncate()
+function truncateSync()
+function unlink()
+function unlinkSync()
+function utimes()
+function utimesSync()
+function waitRead()
+function waitWrite()
+function walkSync()
+function watch()
+function write()
+function writeFile()
+function writeFileSync()
+function writeSync()
+inotify_event.constructor()
+inotify_event.from()
+inotify_event.prototype.cookie: get/set
+inotify_event.prototype.len: get/set
+inotify_event.prototype.mask: get/set
+inotify_event.prototype.name: get/set
+inotify_event.prototype.toString()
+inotify_event.prototype.wd: get/set
+object constants
+object default
+object promises
+object stderr
+object stdin
+object stdout
+promises.access()
+promises.appendFile()
+promises.chmod()
+promises.chown()
+promises.constants: object = {"COPYFILE_EXCL":1,"COPYFILE_FICLONE":2,"COPYFILE_FICLONE...
+promises.copyFile()
+promises.cp()
+promises.lchown()
+promises.link()
+promises.lstat()
+promises.lutimes()
+promises.mkdir()
+promises.mkdtemp()
+promises.mkdtempDisposable()
+promises.open()
+promises.opendir()
+promises.readFile()
+promises.readdir()
+promises.readlink()
+promises.realpath()
+promises.rename()
+promises.rm()
+promises.rmdir()
+promises.stat()
+promises.symlink()
+promises.truncate()
+promises.unlink()
+promises.utimes()
+promises.watch()
+promises.writeFile()
+promises[Symbol.toStringTag]: string = "Module"
+stderr.columns: get
+stderr.fd: get
+stderr.getColorDepth()
+stderr.getWindowSize()
+stderr.hasColors()
+stderr.isTTY: get
+stderr.rows: get
+stdin.columns: get
+stdin.fd: get
+stdin.isTTY: get
+stdin.rows: get
+stdout.columns: get
+stdout.fd: get
+stdout.getColorDepth()
+stdout.getWindowSize()
+stdout.hasColors()
+stdout.isTTY: get
+stdout.rows: get
+value FD_CLOEXEC: number = 1
+value F_DUPFD: number = 0
+value F_DUPFD_CLOEXEC: number = 1030
+value F_GETFD: number = 1
+value F_GETFL: number = 3
+value F_GETLK: number = 5
+value F_RDLCK: number = 0
+value F_SETFD: number = 2
+value F_SETFL: number = 4
+value F_SETLK: number = 6
+value F_SETLKW: number = 7
+value F_UNLCK: number = 2
+value F_WRLCK: number = 1
+value O_ASYNC: number = 8192
+value O_CLOEXEC: number = 524288
+value O_DSYNC: number = 4096
+value O_NOCTTY: number = 256
+value O_NONBLOCK: number = 2048
+value O_SYNC: number = 1052672

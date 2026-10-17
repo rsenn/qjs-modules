@@ -1,0 +1,15 @@
+Location.constructor()
+Location.count()
+Location.prototype.byteOffset: get
+Location.prototype.charOffset: get
+Location.prototype.clone()
+Location.prototype.column: get
+Location.prototype.copy()
+Location.prototype.equal()
+Location.prototype.file: get/set
+Location.prototype.line: get
+Location.prototype.nextChar()
+Location.prototype.toString()
+Location.prototype[Symbol.toPrimitive]()
+Location.prototype[Symbol.toStringTag]: string = "Location"
+class Location

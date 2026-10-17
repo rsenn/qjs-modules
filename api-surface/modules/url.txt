@@ -1,0 +1,34 @@
+URL.canParse()
+URL.constructor()
+URL.parse()
+URL.prototype.auth: get
+URL.prototype.hash: get/set
+URL.prototype.host: get/set
+URL.prototype.hostname: object = null
+URL.prototype.href: get/set
+URL.prototype.origin: get
+URL.prototype.path: get
+URL.prototype.pathname: object = null
+URL.prototype.port: object = null
+URL.prototype.protocol: object = null
+URL.prototype.search: get/set
+URL.prototype.searchParams: object = null
+URL.prototype.toString()
+URLSearchParams.constructor()
+URLSearchParams.prototype.append()
+URLSearchParams.prototype.delete()
+URLSearchParams.prototype.entries()
+URLSearchParams.prototype.forEach()
+URLSearchParams.prototype.get()
+URLSearchParams.prototype.getAll()
+URLSearchParams.prototype.has()
+URLSearchParams.prototype.keys()
+URLSearchParams.prototype.set()
+URLSearchParams.prototype.size: get
+URLSearchParams.prototype.sort()
+URLSearchParams.prototype.toString()
+URLSearchParams.prototype.values()
+class URL
+class URLSearchParams
+function fileURLToPath()
+function pathToFileURL()

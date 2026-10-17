@@ -1,0 +1,946 @@
+AsyncGeneratorFunction.constructor()
+AsyncGeneratorFunction.prototype.prototype: object = {}
+AsyncGeneratorFunction.prototype[Symbol.toStringTag]: string = "AsyncGeneratorFunction"
+AsyncGeneratorPrototype.next()
+AsyncGeneratorPrototype.return()
+AsyncGeneratorPrototype.throw()
+AsyncGeneratorPrototype[Symbol.toStringTag]: string = "AsyncGenerator"
+Generator.prototype: object = {}
+GeneratorFunction.constructor()
+GeneratorFunction.prototype.prototype: object = {}
+GeneratorFunction.prototype[Symbol.toStringTag]: string = "GeneratorFunction"
+GeneratorPrototype.next()
+GeneratorPrototype.return()
+GeneratorPrototype.throw()
+GeneratorPrototype[Symbol.toStringTag]: string = "Generator"
+Generator[Symbol.toStringTag]: string = "GeneratorFunction"
+MapIterator.concat()
+MapIterator.constructor()
+MapIterator.from()
+MapIterator.prototype.drop()
+MapIterator.prototype.every()
+MapIterator.prototype.filter()
+MapIterator.prototype.find()
+MapIterator.prototype.flatMap()
+MapIterator.prototype.forEach()
+MapIterator.prototype.map()
+MapIterator.prototype.reduce()
+MapIterator.prototype.some()
+MapIterator.prototype.take()
+MapIterator.prototype.toArray()
+MapIterator.prototype[Symbol.iterator]()
+MapIterator.prototype[Symbol.toStringTag]: get/set
+SetIterator.concat()
+SetIterator.constructor()
+SetIterator.from()
+SetIterator.prototype.drop()
+SetIterator.prototype.every()
+SetIterator.prototype.filter()
+SetIterator.prototype.find()
+SetIterator.prototype.flatMap()
+SetIterator.prototype.forEach()
+SetIterator.prototype.map()
+SetIterator.prototype.reduce()
+SetIterator.prototype.some()
+SetIterator.prototype.take()
+SetIterator.prototype.toArray()
+SetIterator.prototype[Symbol.iterator]()
+SetIterator.prototype[Symbol.toStringTag]: get/set
+TypeIds.array: number = 4
+TypeIds.float64: number = 0
+TypeIds.int: number = 5
+TypeIds.nan: number = 1
+TypeIds.object: number = 3
+TypeIds.undefined: number = 1
+TypedArray.constructor()
+TypedArray.from()
+TypedArray.of()
+TypedArray.prototype.at()
+TypedArray.prototype.buffer: get
+TypedArray.prototype.byteLength: get
+TypedArray.prototype.byteOffset: get
+TypedArray.prototype.copyWithin()
+TypedArray.prototype.entries()
+TypedArray.prototype.every()
+TypedArray.prototype.fill()
+TypedArray.prototype.filter()
+TypedArray.prototype.find()
+TypedArray.prototype.findIndex()
+TypedArray.prototype.findLast()
+TypedArray.prototype.findLastIndex()
+TypedArray.prototype.forEach()
+TypedArray.prototype.includes()
+TypedArray.prototype.indexOf()
+TypedArray.prototype.join()
+TypedArray.prototype.keys()
+TypedArray.prototype.lastIndexOf()
+TypedArray.prototype.length: get
+TypedArray.prototype.map()
+TypedArray.prototype.reduce()
+TypedArray.prototype.reduceRight()
+TypedArray.prototype.reverse()
+TypedArray.prototype.set()
+TypedArray.prototype.slice()
+TypedArray.prototype.some()
+TypedArray.prototype.sort()
+TypedArray.prototype.subarray()
+TypedArray.prototype.toLocaleString()
+TypedArray.prototype.toReversed()
+TypedArray.prototype.toSorted()
+TypedArray.prototype.toString()
+TypedArray.prototype.values()
+TypedArray.prototype.with()
+TypedArray.prototype[Symbol.iterator]()
+TypedArray.prototype[Symbol.toStringTag]: get
+TypedArray[Symbol.species]: get
+ansiStyles.ansi256ToAnsi()
+ansiStyles.bgBlack: object = {"open":"\u001b[40m","close":"\u001b[49m"}
+ansiStyles.bgBlackBright: object = {"open":"\u001b[100m","close":"\u001b[49m"}
+ansiStyles.bgBlue: object = {"open":"\u001b[44m","close":"\u001b[49m"}
+ansiStyles.bgBlueBright: object = {"open":"\u001b[104m","close":"\u001b[49m"}
+ansiStyles.bgColor: object = {"bgBlack":{"open":"\u001b[40m","close":"\u001b[49m"},"bg...
+ansiStyles.bgCyan: object = {"open":"\u001b[46m","close":"\u001b[49m"}
+ansiStyles.bgCyanBright: object = {"open":"\u001b[106m","close":"\u001b[49m"}
+ansiStyles.bgGray: object = {"open":"\u001b[100m","close":"\u001b[49m"}
+ansiStyles.bgGreen: object = {"open":"\u001b[42m","close":"\u001b[49m"}
+ansiStyles.bgGreenBright: object = {"open":"\u001b[102m","close":"\u001b[49m"}
+ansiStyles.bgGrey: object = {"open":"\u001b[100m","close":"\u001b[49m"}
+ansiStyles.bgMagenta: object = {"open":"\u001b[45m","close":"\u001b[49m"}
+ansiStyles.bgMagentaBright: object = {"open":"\u001b[105m","close":"\u001b[49m"}
+ansiStyles.bgRed: object = {"open":"\u001b[41m","close":"\u001b[49m"}
+ansiStyles.bgRedBright: object = {"open":"\u001b[101m","close":"\u001b[49m"}
+ansiStyles.bgWhite: object = {"open":"\u001b[47m","close":"\u001b[49m"}
+ansiStyles.bgWhiteBright: object = {"open":"\u001b[107m","close":"\u001b[49m"}
+ansiStyles.bgYellow: object = {"open":"\u001b[43m","close":"\u001b[49m"}
+ansiStyles.bgYellowBright: object = {"open":"\u001b[103m","close":"\u001b[49m"}
+ansiStyles.black: object = {"open":"\u001b[30m","close":"\u001b[39m"}
+ansiStyles.blackBright: object = {"open":"\u001b[1;30m","close":"\u001b[39m"}
+ansiStyles.blue: object = {"open":"\u001b[34m","close":"\u001b[39m"}
+ansiStyles.blueBright: object = {"open":"\u001b[1;34m","close":"\u001b[39m"}
+ansiStyles.bold: object = {"open":"\u001b[1m","close":"\u001b[22m"}
+ansiStyles.codes: object = {}
+ansiStyles.color: object = {"black":{"open":"\u001b[30m","close":"\u001b[39m"},"red"...
+ansiStyles.cyan: object = {"open":"\u001b[36m","close":"\u001b[39m"}
+ansiStyles.cyanBright: object = {"open":"\u001b[1;36m","close":"\u001b[39m"}
+ansiStyles.dim: object = {"open":"\u001b[2m","close":"\u001b[22m"}
+ansiStyles.gray: object = {"open":"\u001b[1;30m","close":"\u001b[39m"}
+ansiStyles.green: object = {"open":"\u001b[32m","close":"\u001b[39m"}
+ansiStyles.greenBright: object = {"open":"\u001b[1;32m","close":"\u001b[39m"}
+ansiStyles.grey: object = {"open":"\u001b[1;30m","close":"\u001b[39m"}
+ansiStyles.hexToAnsi()
+ansiStyles.hexToAnsi256()
+ansiStyles.hexToRgb()
+ansiStyles.hidden: object = {"open":"\u001b[8m","close":"\u001b[28m"}
+ansiStyles.inverse: object = {"open":"\u001b[7m","close":"\u001b[27m"}
+ansiStyles.italic: object = {"open":"\u001b[3m","close":"\u001b[23m"}
+ansiStyles.magenta: object = {"open":"\u001b[35m","close":"\u001b[39m"}
+ansiStyles.magentaBright: object = {"open":"\u001b[1;35m","close":"\u001b[39m"}
+ansiStyles.modifier: object = {"reset":{"open":"\u001b[0m","close":"\u001b[0m"},"bold":...
+ansiStyles.overline: object = {"open":"\u001b[53m","close":"\u001b[55m"}
+ansiStyles.red: object = {"open":"\u001b[31m","close":"\u001b[39m"}
+ansiStyles.redBright: object = {"open":"\u001b[1;31m","close":"\u001b[39m"}
+ansiStyles.reset: object = {"open":"\u001b[0m","close":"\u001b[0m"}
+ansiStyles.rgbToAnsi()
+ansiStyles.rgbToAnsi256()
+ansiStyles.strikethrough: object = {"open":"\u001b[9m","close":"\u001b[29m"}
+ansiStyles.underline: object = {"open":"\u001b[4m","close":"\u001b[24m"}
+ansiStyles.white: object = {"open":"\u001b[37m","close":"\u001b[39m"}
+ansiStyles.whiteBright: object = {"open":"\u001b[1;37m","close":"\u001b[39m"}
+ansiStyles.yellow: object = {"open":"\u001b[33m","close":"\u001b[39m"}
+ansiStyles.yellowBright: object = {"open":"\u001b[1;33m","close":"\u001b[39m"}
+class AsyncGeneratorFunction extends Function
+class GeneratorFunction extends Function
+class MapIterator
+class SetIterator
+class TypedArray
+errors.'0': object = null
+errors.'1': string = "EPERM"
+errors.'10': string = "ECHILD"
+errors.'100': string = "ENETDOWN"
+errors.'101': string = "ENETUNREACH"
+errors.'102': string = "ENETRESET"
+errors.'103': string = "ECONNABORTED"
+errors.'104': string = "ECONNRESET"
+errors.'105': string = "ENOBUFS"
+errors.'106': string = "EISCONN"
+errors.'107': string = "ENOTCONN"
+errors.'108': string = "ESHUTDOWN"
+errors.'109': string = "ETOOMANYREFS"
+errors.'11': string = "EAGAIN"
+errors.'110': string = "ETIMEDOUT"
+errors.'111': string = "ECONNREFUSED"
+errors.'112': string = "EHOSTDOWN"
+errors.'113': string = "EHOSTUNREACH"
+errors.'114': string = "EALREADY"
+errors.'115': string = "EINPROGRESS"
+errors.'116': string = "ESTALE"
+errors.'117': string = "EUCLEAN"
+errors.'118': string = "ENOTNAM"
+errors.'119': string = "ENAVAIL"
+errors.'12': string = "ENOMEM"
+errors.'120': string = "EISNAM"
+errors.'121': string = "EREMOTEIO"
+errors.'122': string = "EDQUOT"
+errors.'123': string = "ENOMEDIUM"
+errors.'124': string = "EMEDIUMTYPE"
+errors.'125': string = "ECANCELED"
+errors.'126': string = "ENOKEY"
+errors.'127': string = "EKEYEXPIRED"
+errors.'128': string = "EKEYREVOKED"
+errors.'129': string = "EKEYREJECTED"
+errors.'13': string = "EACCES"
+errors.'130': string = "EOWNERDEAD"
+errors.'131': string = "ENOTRECOVERABLE"
+errors.'132': string = "ERFKILL"
+errors.'14': string = "EFAULT"
+errors.'15': string = "ENOTBLK"
+errors.'16': string = "EBUSY"
+errors.'17': string = "EEXIST"
+errors.'18': string = "EXDEV"
+errors.'19': string = "ENODEV"
+errors.'2': string = "ENOENT"
+errors.'20': string = "ENOTDIR"
+errors.'21': string = "EISDIR"
+errors.'22': string = "EINVAL"
+errors.'23': string = "ENFILE"
+errors.'24': string = "EMFILE"
+errors.'25': string = "ENOTTY"
+errors.'26': string = "ETXTBSY"
+errors.'27': string = "EFBIG"
+errors.'28': string = "ENOSPC"
+errors.'29': string = "ESPIPE"
+errors.'3': string = "ESRCH"
+errors.'30': string = "EROFS"
+errors.'31': string = "EMLINK"
+errors.'32': string = "EPIPE"
+errors.'33': string = "EDOM"
+errors.'34': string = "ERANGE"
+errors.'35': string = "EDEADLK"
+errors.'36': string = "ENAMETOOLONG"
+errors.'37': string = "ENOLCK"
+errors.'38': string = "ENOSYS"
+errors.'39': string = "ENOTEMPTY"
+errors.'4': string = "EINTR"
+errors.'40': object = null
+errors.'41': object = null
+errors.'42': string = "ENOMSG"
+errors.'43': string = "EIDRM"
+errors.'44': string = "ECHRNG"
+errors.'45': string = "EL2NSYNC"
+errors.'46': string = "EL3HLT"
+errors.'47': string = "EL3RST"
+errors.'48': string = "ELNRNG"
+errors.'49': string = "EUNATCH"
+errors.'5': string = "EIO"
+errors.'50': string = "ENOCSI"
+errors.'51': string = "EL2HLT"
+errors.'52': string = "EBADE"
+errors.'53': string = "EBADR"
+errors.'54': string = "EXFULL"
+errors.'55': string = "ENOANO"
+errors.'56': string = "EBADRQC"
+errors.'57': object = null
+errors.'58': string = ""
+errors.'59': string = "EBFONT"
+errors.'6': string = "ENXIO"
+errors.'60': string = "ENOSTR"
+errors.'61': string = "ENODATA"
+errors.'62': string = "ETIME"
+errors.'63': string = "ENOSR"
+errors.'64': string = "ENONET"
+errors.'65': string = "ENOPKG"
+errors.'66': string = "EREMOTE"
+errors.'67': string = "ENOLINK"
+errors.'68': string = "EADV"
+errors.'69': string = "ESRMNT"
+errors.'7': string = "E2BIG"
+errors.'70': string = "ECOMM"
+errors.'71': string = "EPROTO"
+errors.'72': string = "EMULTIHOP"
+errors.'73': string = "EDOTDOT"
+errors.'74': string = "EBADMSG"
+errors.'75': string = "EOVERFLOW"
+errors.'76': string = "ENOTUNIQ"
+errors.'77': string = "EBADFD"
+errors.'78': string = "EREMCHG"
+errors.'79': string = "ELIBACC"
+errors.'8': string = "ENOEXEC"
+errors.'80': string = "ELIBBAD"
+errors.'81': string = "ELIBSCN"
+errors.'82': string = "ELIBMAX"
+errors.'83': string = "ELIBEXEC"
+errors.'84': string = "EILSEQ"
+errors.'85': string = "ERESTART"
+errors.'86': string = "ESTRPIPE"
+errors.'87': string = "EUSERS"
+errors.'88': string = "ENOTSOCK"
+errors.'89': string = "EDESTADDRREQ"
+errors.'9': string = "EBADF"
+errors.'90': string = "EMSGSIZE"
+errors.'91': string = "EPROTOTYPE"
+errors.'92': string = "ENOPROTOOPT"
+errors.'93': string = "EPROTONOSUPPORT"
+errors.'94': string = "ESOCKTNOSUPPORT"
+errors.'95': string = "EOPNOTSUPP"
+errors.'96': string = "EPFNOSUPPORT"
+errors.'97': string = "EAFNOSUPPORT"
+errors.'98': string = "EADDRINUSE"
+errors.'99': string = "EADDRNOTAVAIL"
+errors.length: number = 133
+function AsyncFunction()
+function Membrane()
+function _get_osfhandle()
+function _open_osfhandle()
+function abbreviate()
+function access()
+function add()
+function addremovehas()
+function allObjects()
+function and()
+function arrayFacade()
+function arrayToBitfield()
+function arraysInCommon()
+function assert()
+function assertEqual()
+function assign()
+function atexit()
+function atob()
+function atomToString()
+function atomToValue()
+function atos()
+function bindMethods()
+function bindProperties()
+function bitfieldSet()
+function bitfieldToArray()
+function bits()
+function btoa()
+function bufferToString()
+function bytesToUTF8()
+function camelize()
+function catchFunction()
+function catchable()
+function chain()
+function chainArray()
+function chainRight()
+function charCode()
+function charLength()
+function chmod()
+function chown()
+function chunkArray()
+function clamp()
+function classAtom()
+function classId()
+function className()
+function clearImmediate()
+function clearInterval()
+function clearLine()
+function clearScreen()
+function codePointsToString()
+function compareArrayBuffer()
+function concatArrayBuffer()
+function copyArrayBuffer()
+function copyFunctionNameAndLength()
+function curry()
+function daemon()
+function decamelize()
+function declare()
+function decodeHTMLEntities()
+function decorate()
+function decorateProperty()
+function define()
+function defineGetter()
+function defineGetterSetter()
+function defineGettersSetters()
+function defineProperties()
+function defineProperty()
+function dequote()
+function difference()
+function div()
+function dupArrayBuffer()
+function dupAtom()
+function enqueueJob()
+function entries()
+function enumerable()
+function eraseIf()
+function error()
+function escape()
+function evalBinary()
+function exec()
+function extend()
+function fchmod()
+function fchown()
+function fcntl()
+function fdatasync()
+function filter()
+function filterKeys()
+function finallyFunction()
+function findAtom()
+function fmemopen()
+function fnName()
+function fork()
+function freeAtom()
+function freeze()
+function fromEntries()
+function fromUnixTime()
+function fstat()
+function fsync()
+function ftruncate()
+function functionName()
+function futimes()
+function generate()
+function getCommandLine()
+function getConstructorChain()
+function getConstructorOf()
+function getEnvironment()
+function getExecutable()
+function getFileDescriptor()
+function getFunctionArguments()
+function getMethodNames()
+function getMethods()
+function getOpt()
+function getOptHelp()
+function getOrCreate()
+function getOwnPropertyDescriptor()
+function getOwnPropertyDescriptors()
+function getOwnPropertyNames()
+function getOwnPropertySymbols()
+function getPerformanceCounter()
+function getProcMaps()
+function getProcMounts()
+function getProcStat()
+function getProperties()
+function getPropertyNames()
+function getPrototypeChain()
+function getPrototypeOf()
+function getRelease()
+function getRootDirectory()
+function getScreenSize()
+function getSetArgument()
+function getSystemErrorMap()
+function getSystemErrorName()
+function getTypeId()
+function getTypeName()
+function getTypeStr()
+function getWorkingDirectory()
+function getegid()
+function geteuid()
+function getgid()
+function getpid()
+function getppid()
+function getset()
+function getsid()
+function getter()
+function gettersetter()
+function gettid()
+function getuid()
+function glob()
+function hasBuiltIn()
+function hasFn()
+function hasGetSet()
+function hasOwn()
+function hasOwnProperty()
+function hasProperty()
+function hasPrototype()
+function hash()
+function histogram()
+function hrtime()
+function immutableClass()
+function inRange()
+function indexOf()
+function inherits()
+function initgroups()
+function inserter()
+function inspect()
+function instrument()
+function intersect()
+function intersection()
+function is()
+function isArray()
+function isArrayBuffer()
+function isArrowFunction()
+function isAsync()
+function isBigDecimal()
+function isBigFloat()
+function isBigInt()
+function isBool()
+function isBrowser()
+function isClass()
+function isConstructor()
+function isEmptyString()
+function isError()
+function isException()
+function isExtensible()
+function isFrozen()
+function isFunction()
+function isIndex()
+function isInstanceOf()
+function isInteger()
+function isJobPending()
+function isLiveObject()
+function isMainModule()
+function isNative()
+function isNull()
+function isNumber()
+function isNumeric()
+function isObject()
+function isPropertyKey()
+function isPrototypeOf()
+function isRegisteredClass()
+function isSealed()
+function isString()
+function isSymbol()
+function isUncatchableError()
+function isUndefined()
+function isUninitialized()
+function isoDate()
+function keys()
+function kill()
+function lazyProperties()
+function lazyProperty()
+function lcfirst()
+function lchown()
+function length()
+function link()
+function linkat()
+function lookupObject()
+function lutimes()
+function map()
+function mapAdapter()
+function mapFunction()
+function mapFunctional()
+function mapObject()
+function mapWrapper()
+function matchAll()
+function memoize()
+function merge()
+function mkstemp()
+function mod()
+function modifier()
+function moveCursor()
+function mul()
+function nonenumerable()
+function noop()
+function not()
+function numericIndex()
+function objectClassId()
+function objectOpaque()
+function objectRefCount()
+function observeProperties()
+function omit()
+function once()
+function or()
+function pad()
+function padAnsi()
+function padEndAnsi()
+function padFn()
+function padStartAnsi()
+function partition()
+function partitionArray()
+function pick()
+function pow()
+function predicate()
+function preventExtensions()
+function promiseResult()
+function promiseState()
+function properties()
+function propertyIsEnumerable()
+function propertyLookup()
+function propertyLookupHandlers()
+function prototypeIterator()
+function push()
+function pushUnique()
+function queueMicrotask()
+function quote()
+function rand()
+function randFloat()
+function randInt()
+function randStr()
+function randb()
+function randi()
+function range()
+function readObject()
+function remover()
+function repeat()
+function repeater()
+function requireObject()
+function roundDigits()
+function roundTo()
+function seal()
+function searchAll()
+function searchArrayBuffer()
+function setCursorPosition()
+function setFunctionName()
+function setImmediate()
+function setInterval()
+function setPrototypeOf()
+function setTextAttribute()
+function setTextColor()
+function setegid()
+function seteuid()
+function setgid()
+function setgroups()
+function setsid()
+function setter()
+function setuid()
+function shorten()
+function signame()
+function signum()
+function slice()
+function sliceArrayBuffer()
+function split()
+function srand()
+function startInteractive()
+function stoa()
+function strcmp()
+function stripAnsi()
+function sub()
+function symlink()
+function symlinkat()
+function symmetricDifference()
+function tempnam()
+function toArrayBuffer()
+function toBigInt()
+function toLocaleString()
+function toPointer()
+function toString()
+function toUnixTime()
+function transformer()
+function trim()
+function truncate()
+function tryCatch()
+function tryFunction()
+function ttySetRaw()
+function typeFlag()
+function typeIsObject()
+function typeName()
+function typeString()
+function ucfirst()
+function umask()
+function uname()
+function unescape()
+function union()
+function unique()
+function uniquePred()
+function unixTime()
+function unlink()
+function utime()
+function utimes()
+function valueOf()
+function valuePointer()
+function valueTag()
+function valueToAtom()
+function valueType()
+function values()
+function vfork()
+function waitCancellable()
+function waitFor()
+function watch()
+function weakAssoc()
+function weakDefine()
+function weakGetSet()
+function weakMapper()
+function wordexp()
+function wrapFunction()
+function wrapGenerator()
+function wrapGeneratorMethods()
+function wrapGetSet()
+function writeObject()
+function xor()
+object AsyncGeneratorPrototype
+object Generator
+object GeneratorPrototype
+object TypeIds
+object ansiStyles
+object errors
+object types
+types.isAnyArrayBuffer()
+types.isArgumentsObject()
+types.isArrayBuffer()
+types.isArrayBufferView()
+types.isArrayLike()
+types.isAsyncFunction()
+types.isAsyncGenerator()
+types.isAsyncGeneratorFunction()
+types.isAsyncIterable()
+types.isBigInt64Array()
+types.isBigIntObject()
+types.isBigUint64Array()
+types.isBooleanObject()
+types.isBoxedPrimitive()
+types.isConstructor()
+types.isDataView()
+types.isDate()
+types.isFloat32Array()
+types.isFloat64Array()
+types.isGenerator()
+types.isGeneratorFunction()
+types.isGeneratorObject()
+types.isInt16Array()
+types.isInt32Array()
+types.isInt8Array()
+types.isIterable()
+types.isIterator()
+types.isMap()
+types.isMapIterator()
+types.isModuleNamespaceObject()
+types.isNativeError()
+types.isNumberObject()
+types.isPromise()
+types.isProxy()
+types.isRegExp()
+types.isSet()
+types.isSetIterator()
+types.isSharedArrayBuffer()
+types.isStringObject()
+types.isSymbolObject()
+types.isTypedArray()
+types.isUint16Array()
+types.isUint32Array()
+types.isUint8Array()
+types.isUint8ClampedArray()
+types.isWeakMap()
+types.isWeakSet()
+value AT_EMPTY_PATH: number = 4096
+value AT_SYMLINK_FOLLOW: number = 1024
+value BACKGROUND_BLUE: number = 16
+value BACKGROUND_GREEN: number = 32
+value BACKGROUND_INTENSITY: number = 128
+value BACKGROUND_RED: number = 64
+value CLOCK_BOOTTIME: number = 7
+value CLOCK_BOOTTIME_ALARM: number = 9
+value CLOCK_MONOTONIC: number = 1
+value CLOCK_MONOTONIC_COARSE: number = 6
+value CLOCK_MONOTONIC_RAW: number = 4
+value CLOCK_PROCESS_CPUTIME_ID: number = 2
+value CLOCK_REALTIME: number = 0
+value CLOCK_REALTIME_ALARM: number = 8
+value CLOCK_REALTIME_COARSE: number = 5
+value CLOCK_TAI: number = 11
+value CLOCK_THREAD_CPUTIME_ID: number = 3
+value COMMON_LVB_REVERSE_VIDEO: number = 16384
+value E2BIG: number = 7
+value EACCES: number = 13
+value EADDRINUSE: number = 98
+value EADDRNOTAVAIL: number = 99
+value EAFNOSUPPORT: number = 97
+value EAGAIN: number = 11
+value EALREADY: number = 114
+value EBADF: number = 9
+value EBADMSG: number = 74
+value EBUSY: number = 16
+value ECANCELED: number = 125
+value ECHILD: number = 10
+value ECONNABORTED: number = 103
+value ECONNREFUSED: number = 111
+value ECONNRESET: number = 104
+value EDEADLK: number = 35
+value EDESTADDRREQ: number = 89
+value EDOM: number = 33
+value EDQUOT: number = 122
+value EEXIST: number = 17
+value EFAULT: number = 14
+value EFBIG: number = 27
+value EHOSTUNREACH: number = 113
+value EIDRM: number = 43
+value EILSEQ: number = 84
+value EINPROGRESS: number = 115
+value EINTR: number = 4
+value EINVAL: number = 22
+value EIO: number = 5
+value EISCONN: number = 106
+value EISDIR: number = 21
+value ELOOP: number = 40
+value EMFILE: number = 24
+value EMLINK: number = 31
+value EMSGSIZE: number = 90
+value EMULTIHOP: number = 72
+value ENAMETOOLONG: number = 36
+value ENETDOWN: number = 100
+value ENETRESET: number = 102
+value ENETUNREACH: number = 101
+value ENFILE: number = 23
+value ENOBUFS: number = 105
+value ENODATA: number = 61
+value ENODEV: number = 19
+value ENOENT: number = 2
+value ENOEXEC: number = 8
+value ENOLCK: number = 37
+value ENOLINK: number = 67
+value ENOMEM: number = 12
+value ENOMSG: number = 42
+value ENOPROTOOPT: number = 92
+value ENOSPC: number = 28
+value ENOSR: number = 63
+value ENOSTR: number = 60
+value ENOSYS: number = 38
+value ENOTCONN: number = 107
+value ENOTDIR: number = 20
+value ENOTEMPTY: number = 39
+value ENOTSOCK: number = 88
+value ENOTSUP: number = 95
+value ENOTTY: number = 25
+value ENXIO: number = 6
+value EOPNOTSUPP: number = 95
+value EOVERFLOW: number = 75
+value EPERM: number = 1
+value EPIPE: number = 32
+value EPROTO: number = 71
+value EPROTONOSUPPORT: number = 93
+value EPROTOTYPE: number = 91
+value ERANGE: number = 34
+value EROFS: number = 30
+value ESPIPE: number = 29
+value ESRCH: number = 3
+value ESTALE: number = 116
+value ETIME: number = 62
+value ETIMEDOUT: number = 110
+value ETXTBSY: number = 26
+value EWOULDBLOCK: number = 11
+value EXDEV: number = 18
+value FD_CLOEXEC: number = 1
+value FOREGROUND_BLUE: number = 1
+value FOREGROUND_GREEN: number = 2
+value FOREGROUND_INTENSITY: number = 8
+value FOREGROUND_RED: number = 4
+value F_DUPFD: number = 0
+value F_DUPFD_CLOEXEC: number = 1030
+value F_GETFD: number = 1
+value F_GETFL: number = 3
+value F_GETLK: number = 5
+value F_OK: number = 0
+value F_RDLCK: number = 0
+value F_SETFD: number = 2
+value F_SETFL: number = 4
+value F_SETLK: number = 6
+value F_SETLKW: number = 7
+value F_UNLCK: number = 2
+value F_WRLCK: number = 1
+value GLOB_ABORTED: number = -2
+value GLOB_ALTDIRFUNC: number = 64
+value GLOB_APPEND: number = 1
+value GLOB_BRACE: number = 128
+value GLOB_DOOFFS: number = 2
+value GLOB_ERR: number = 4
+value GLOB_MAGCHAR: number = 256
+value GLOB_MARK: number = 8
+value GLOB_NOCHECK: number = 16
+value GLOB_NOESCAPE: number = 4096
+value GLOB_NOMAGIC: number = 512
+value GLOB_NOMATCH: number = -3
+value GLOB_NOSORT: number = 32
+value GLOB_NOSPACE: number = -1
+value GLOB_NOSYS: number = -4
+value GLOB_QUOTE: number = 1024
+value GLOB_TILDE: number = 2048
+value IN_ACCESS: number = 1
+value IN_ALL_EVENTS: number = 4095
+value IN_ATTRIB: number = 4
+value IN_CLOEXEC: number = 524288
+value IN_CLOSE: number = 24
+value IN_CLOSE_NOWRITE: number = 16
+value IN_CLOSE_WRITE: number = 8
+value IN_CREATE: number = 256
+value IN_DELETE: number = 512
+value IN_DELETE_SELF: number = 1024
+value IN_DONT_FOLLOW: number = 33554432
+value IN_EXCL_UNLINK: number = 67108864
+value IN_IGNORED: number = 32768
+value IN_ISDIR: number = 1073741824
+value IN_MASK_ADD: number = 536870912
+value IN_MODIFY: number = 2
+value IN_MOVE: number = 192
+value IN_MOVED_FROM: number = 64
+value IN_MOVED_TO: number = 128
+value IN_MOVE_SELF: number = 2048
+value IN_NONBLOCK: number = 2048
+value IN_ONESHOT: number = -2147483648
+value IN_ONLYDIR: number = 16777216
+value IN_OPEN: number = 32
+value IN_Q_OVERFLOW: number = 16384
+value IN_UNMOUNT: number = 8192
+value JS_EVAL_FLAG_BACKTRACE_BARRIER: number = 64
+value JS_EVAL_FLAG_COMPILE_ONLY: number = 32
+value JS_EVAL_FLAG_MASK: number = 232
+value JS_EVAL_FLAG_STRICT: number = 8
+value JS_EVAL_IS_MAIN: number = 4
+value JS_EVAL_TYPE_DIRECT: number = 2
+value JS_EVAL_TYPE_GLOBAL: number = 0
+value JS_EVAL_TYPE_INDIRECT: number = 3
+value JS_EVAL_TYPE_MASK: number = 3
+value JS_EVAL_TYPE_MODULE: number = 1
+value JS_PROMISE_FULFILLED: number = 1
+value JS_PROMISE_PENDING: number = 0
+value JS_PROMISE_REJECTED: number = 2
+value O_APPEND: number = 1024
+value O_CLOEXEC: number = 524288
+value O_CREAT: number = 64
+value O_DIRECT: number = 16384
+value O_DSYNC: number = 4096
+value O_EXCL: number = 128
+value O_NOATIME: number = 262144
+value O_NOCTTY: number = 256
+value O_NONBLOCK: number = 2048
+value O_RDONLY: number = 0
+value O_RDWR: number = 2
+value O_SYNC: number = 1052672
+value O_TRUNC: number = 512
+value O_WRONLY: number = 1
+value R_OK: number = 4
+value SIGABRT: number = 6
+value SIGALRM: number = 14
+value SIGBUS: number = 7
+value SIGCHLD: number = 17
+value SIGCONT: number = 18
+value SIGFPE: number = 8
+value SIGHUP: number = 1
+value SIGILL: number = 4
+value SIGINT: number = 2
+value SIGIO: number = 29
+value SIGKILL: number = 9
+value SIGPIPE: number = 13
+value SIGPOLL: number = 29
+value SIGPROF: number = 27
+value SIGPWR: number = 30
+value SIGQUIT: number = 3
+value SIGSEGV: number = 11
+value SIGSTKFLT: number = 16
+value SIGSTOP: number = 19
+value SIGSYS: number = 31
+value SIGTERM: number = 15
+value SIGTRAP: number = 5
+value SIGTSTP: number = 20
+value SIGTTIN: number = 21
+value SIGTTOU: number = 22
+value SIGURG: number = 23
+value SIGUSR1: number = 10
+value SIGUSR2: number = 12
+value SIGVTALRM: number = 26
+value SIGWINCH: number = 28
+value SIGXCPU: number = 24
+value SIGXFSZ: number = 25
+value TIOCCBRK: number = 21544
+value TIOCGPGRP: number = 21519
+value TIOCGWINSZ: number = 21523
+value TIOCINQ: number = 21531
+value TIOCLINUX: number = 21532
+value TIOCMBIC: number = 21527
+value TIOCMBIS: number = 21526
+value TIOCMGET: number = 21525
+value TIOCMSET: number = 21528
+value TIOCPKT: number = 21536
+value TIOCSBRK: number = 21543
+value TIOCSCTTY: number = 21518
+value TIOCSPGRP: number = 21520
+value TIOCSWINSZ: number = 21524
+value WRDE_BADCHAR: number = 2
+value WRDE_BADVAL: number = 3
+value WRDE_CMDSUB: number = 4
+value WRDE_NOCMD: number = 4
+value WRDE_NOSPACE: number = 1
+value WRDE_SHOWERR: number = 16
+value WRDE_SYNTAX: number = 5
+value WRDE_UNDEF: number = 32
+value W_OK: number = 2
+value X_OK: number = 1
+value inotify_event_size: number = 16
+value inspectSymbol: symbol = Symbol(quickjs.inspect.custom)

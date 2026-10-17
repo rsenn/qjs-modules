@@ -1,0 +1,37 @@
+ReadStream.constructor()
+ReadStream.prototype.addListener()
+ReadStream.prototype.emit()
+ReadStream.prototype.listenerCount()
+ReadStream.prototype.off()
+ReadStream.prototype.on()
+ReadStream.prototype.once()
+ReadStream.prototype.rawMode: get
+ReadStream.prototype.removeAllListeners()
+ReadStream.prototype.removeListener()
+ReadStream.prototype.setRawMode()
+ReadStream.prototype[Symbol.toStringTag]: string = "ReadStream"
+WriteStream.constructor()
+WriteStream.prototype.addListener()
+WriteStream.prototype.clearLine()
+WriteStream.prototype.clearScreenDown()
+WriteStream.prototype.cursorTo()
+WriteStream.prototype.emit()
+WriteStream.prototype.getColorDepth()
+WriteStream.prototype.getWindowSize()
+WriteStream.prototype.hasColors()
+WriteStream.prototype.listenerCount()
+WriteStream.prototype.moveCursor()
+WriteStream.prototype.off()
+WriteStream.prototype.on()
+WriteStream.prototype.once()
+WriteStream.prototype.removeAllListeners()
+WriteStream.prototype.removeListener()
+WriteStream.prototype.write()
+WriteStream.prototype[Symbol.toStringTag]: string = "WriteStream"
+class ReadStream extends Object
+class WriteStream extends Object
+default.ReadStream()
+default.WriteStream()
+default.isatty()
+function isatty()
+object default

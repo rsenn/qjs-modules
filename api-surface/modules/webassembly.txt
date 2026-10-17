@@ -1,0 +1,60 @@
+CompileError.constructor(m)
+Global.constructor()
+Global.prototype.value: get/set
+Global.prototype.valueOf()
+Global.prototype[Symbol.toStringTag]: string = "WebAssembly.Global"
+LinkError.constructor(m)
+Memory.constructor()
+Memory.prototype.buffer: get
+Memory.prototype.grow()
+Memory.prototype[Symbol.toStringTag]: string = "WebAssembly.Memory"
+RuntimeError.constructor(m)
+Table.constructor()
+Table.prototype.get()
+Table.prototype.grow()
+Table.prototype.length: get
+Table.prototype.set()
+Table.prototype[Symbol.toStringTag]: string = "WebAssembly.Table"
+WebAssembly.CompileError(m)
+WebAssembly.Global()
+WebAssembly.Instance()
+WebAssembly.LinkError(m)
+WebAssembly.Memory()
+WebAssembly.Module()
+WebAssembly.RuntimeError(m)
+WebAssembly.Table()
+WebAssembly.compile()
+WebAssembly.compileStreaming()
+WebAssembly.instantiate()
+WebAssembly.instantiateStreaming()
+WebAssembly.validate()
+WebAssembly[Symbol.toStringTag]: string = "WebAssembly"
+class CompileError extends Error
+class Global
+class LinkError extends Error
+class Memory
+class RuntimeError extends Error
+class Table
+default.CompileError(m)
+default.Global()
+default.Instance()
+default.LinkError(m)
+default.Memory()
+default.Module()
+default.RuntimeError(m)
+default.Table()
+default.compile()
+default.compileStreaming()
+default.instantiate()
+default.instantiateStreaming()
+default.validate()
+default[Symbol.toStringTag]: string = "WebAssembly"
+function Instance()
+function Module()
+function compile()
+function compileStreaming()
+function instantiate()
+function instantiateStreaming()
+function validate()
+object WebAssembly
+object default

@@ -1,0 +1,5 @@
+function compare()
+function genSalt()
+function hash()
+value HASHSIZE: number = 64
+value SALTSIZE: number = 29

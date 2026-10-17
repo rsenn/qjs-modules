@@ -1,0 +1,56 @@
+XMLNodeParser.constructor()
+XMLNodeParser.prototype.depth: get
+XMLNodeParser.prototype.location: get
+XMLNodeParser.prototype.parse()
+XMLNodeParser.prototype[Symbol.toStringTag]: string = "XMLNodeParser"
+XMLParser.ATTRIBUTE: number = 2
+XMLParser.ELEMENT_END: number = 3
+XMLParser.ELEMENT_START: number = 1
+XMLParser.PARSE_AGAIN: number = -2
+XMLParser.PARSE_ERROR: number = -1
+XMLParser.PARSE_OK: number = 0
+XMLParser.TEXT: number = 4
+XMLParser.constructor()
+XMLParser.prototype.depth: get
+XMLParser.prototype.eventName: get
+XMLParser.prototype.eventValue: get
+XMLParser.prototype.hasValue: get
+XMLParser.prototype.location: get
+XMLParser.prototype.onattribute: set
+XMLParser.prototype.onelementend: set
+XMLParser.prototype.onelementstart: set
+XMLParser.prototype.ontext: set
+XMLParser.prototype.parse()
+XMLParser.prototype.root: get
+XMLParser.prototype.tolerant: get/set
+XMLParser.prototype[Symbol.toStringTag]: string = "XMLParser"
+XMLPushParser.constructor()
+XMLPushParser.prototype.close()
+XMLPushParser.prototype.path: get
+XMLPushParser.prototype.root: get
+XMLPushParser.prototype.write()
+XMLPushParser.prototype[Symbol.toStringTag]: string = "XMLPushParser"
+XMLSerializer.constructor()
+XMLSerializer.prototype.finished: get
+XMLSerializer.prototype.read()
+XMLSerializer.prototype.root: get
+XMLSerializer.prototype[Symbol.toStringTag]: string = "XMLSerializer"
+XMLWriter.constructor()
+XMLWriter.prototype.attribute()
+XMLWriter.prototype.elementEnd()
+XMLWriter.prototype.elementStart()
+XMLWriter.prototype.indent: get/set
+XMLWriter.prototype.state: get
+XMLWriter.prototype.text()
+XMLWriter.prototype.written: get
+XMLWriter.prototype[Symbol.toStringTag]: string = "XMLWriter"
+class XMLNodeParser
+class XMLParser
+class XMLPushParser
+class XMLSerializer
+class XMLWriter
+default.read()
+default.write()
+function read()
+function write()
+object default

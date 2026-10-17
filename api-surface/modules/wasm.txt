@@ -1,0 +1,27 @@
+CompileError.constructor(m)
+Global.constructor()
+Global.prototype.value: get/set
+Global.prototype.valueOf()
+Global.prototype[Symbol.toStringTag]: string = "WebAssembly.Global"
+LinkError.constructor(m)
+Memory.constructor()
+Memory.prototype.buffer: get
+Memory.prototype.grow()
+Memory.prototype[Symbol.toStringTag]: string = "WebAssembly.Memory"
+RuntimeError.constructor(m)
+Table.constructor()
+Table.prototype.get()
+Table.prototype.grow()
+Table.prototype.length: get
+Table.prototype.set()
+Table.prototype[Symbol.toStringTag]: string = "WebAssembly.Table"
+class CompileError extends Error
+class Global
+class LinkError extends Error
+class Memory
+class RuntimeError extends Error
+class Table
+function Instance()
+function Module()
+function validate()
+value backend: string = "wasm3"

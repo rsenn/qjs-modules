@@ -1,0 +1,45 @@
+DereferenceError.constructor()
+DereferenceError.prototype.message: get
+DereferenceError.prototype.name: string = "DereferenceError"
+DereferenceError.prototype.pointer: get
+DereferenceError.prototype.pos: get
+DereferenceError.prototype.root: get
+DereferenceError.prototype[Symbol.toStringTag]: string = "DereferenceError"
+Pointer.constructor()
+Pointer.from()
+Pointer.fromAtoms()
+Pointer.isPointer()
+Pointer.of()
+Pointer.ofAtoms()
+Pointer.prototype.at()
+Pointer.prototype.atoms: get
+Pointer.prototype.common()
+Pointer.prototype.compare()
+Pointer.prototype.concat()
+Pointer.prototype.deref()
+Pointer.prototype.down()
+Pointer.prototype.endsWith()
+Pointer.prototype.equal()
+Pointer.prototype.hier()
+Pointer.prototype.length: get
+Pointer.prototype.path: get/set
+Pointer.prototype.pop()
+Pointer.prototype.push()
+Pointer.prototype.relativeTo()
+Pointer.prototype.shift()
+Pointer.prototype.slice()
+Pointer.prototype.splice()
+Pointer.prototype.startsWith()
+Pointer.prototype.toArray()
+Pointer.prototype.toPrimitive()
+Pointer.prototype.toRFC6901()
+Pointer.prototype.toString()
+Pointer.prototype.truncate()
+Pointer.prototype.unshift()
+Pointer.prototype.up()
+Pointer.prototype.values()
+Pointer.prototype[Symbol.iterator]()
+Pointer.prototype[Symbol.toStringTag]: string = "Pointer"
+Pointer[Symbol.species]()
+class DereferenceError extends ReferenceError
+class Pointer extends Array

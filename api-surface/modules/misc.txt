@@ -1,0 +1,404 @@
+function _get_osfhandle()
+function _open_osfhandle()
+function access()
+function and()
+function arrayToBitfield()
+function atexit()
+function atob()
+function atomToString()
+function atomToValue()
+function atos()
+function bitfieldSet()
+function bitfieldToArray()
+function bits()
+function btoa()
+function charCode()
+function charLength()
+function chmod()
+function chown()
+function classAtom()
+function classId()
+function className()
+function clearLine()
+function clearScreen()
+function compareArrayBuffer()
+function concatArrayBuffer()
+function copyArrayBuffer()
+function daemon()
+function dequote()
+function dupArrayBuffer()
+function dupAtom()
+function enqueueJob()
+function error()
+function escape()
+function evalBinary()
+function exec()
+function fchmod()
+function fchown()
+function fcntl()
+function fdatasync()
+function findAtom()
+function fmemopen()
+function fork()
+function freeAtom()
+function fstat()
+function fsync()
+function ftruncate()
+function futimes()
+function getCommandLine()
+function getEnvironment()
+function getExecutable()
+function getFileDescriptor()
+function getPerformanceCounter()
+function getProcMaps()
+function getProcMounts()
+function getProcStat()
+function getPrototypeChain()
+function getRelease()
+function getRootDirectory()
+function getScreenSize()
+function getTypeId()
+function getTypeName()
+function getTypeStr()
+function getWorkingDirectory()
+function getegid()
+function geteuid()
+function getgid()
+function getpid()
+function getppid()
+function getsid()
+function gettid()
+function getuid()
+function glob()
+function hrtime()
+function immutableClass()
+function initgroups()
+function isArray()
+function isArrayBuffer()
+function isBigDecimal()
+function isBigFloat()
+function isBigInt()
+function isBool()
+function isConstructor()
+function isEmptyString()
+function isError()
+function isException()
+function isExtensible()
+function isFunction()
+function isInstanceOf()
+function isInteger()
+function isJobPending()
+function isLiveObject()
+function isNull()
+function isNumber()
+function isObject()
+function isRegisteredClass()
+function isString()
+function isSymbol()
+function isUncatchableError()
+function isUndefined()
+function isUninitialized()
+function kill()
+function lchown()
+function link()
+function linkat()
+function lutimes()
+function mkstemp()
+function moveCursor()
+function not()
+function objectClassId()
+function objectOpaque()
+function objectRefCount()
+function or()
+function promiseResult()
+function promiseState()
+function quote()
+function rand()
+function randb()
+function randi()
+function readObject()
+function searchArrayBuffer()
+function setCursorPosition()
+function setTextAttribute()
+function setTextColor()
+function setegid()
+function seteuid()
+function setgid()
+function setgroups()
+function setsid()
+function setuid()
+function signame()
+function signum()
+function sliceArrayBuffer()
+function srand()
+function stoa()
+function strcmp()
+function symlink()
+function symlinkat()
+function tempnam()
+function toArrayBuffer()
+function toPointer()
+function toString()
+function truncate()
+function ttySetRaw()
+function typeFlag()
+function typeName()
+function typeString()
+function umask()
+function uname()
+function unescape()
+function unlink()
+function utime()
+function utimes()
+function valuePointer()
+function valueTag()
+function valueToAtom()
+function valueType()
+function vfork()
+function watch()
+function wordexp()
+function writeObject()
+function xor()
+value AT_EMPTY_PATH: number = 4096
+value AT_SYMLINK_FOLLOW: number = 1024
+value BACKGROUND_BLUE: number = 16
+value BACKGROUND_GREEN: number = 32
+value BACKGROUND_INTENSITY: number = 128
+value BACKGROUND_RED: number = 64
+value CLOCK_BOOTTIME: number = 7
+value CLOCK_BOOTTIME_ALARM: number = 9
+value CLOCK_MONOTONIC: number = 1
+value CLOCK_MONOTONIC_COARSE: number = 6
+value CLOCK_MONOTONIC_RAW: number = 4
+value CLOCK_PROCESS_CPUTIME_ID: number = 2
+value CLOCK_REALTIME: number = 0
+value CLOCK_REALTIME_ALARM: number = 8
+value CLOCK_REALTIME_COARSE: number = 5
+value CLOCK_TAI: number = 11
+value CLOCK_THREAD_CPUTIME_ID: number = 3
+value COMMON_LVB_REVERSE_VIDEO: number = 16384
+value E2BIG: number = 7
+value EACCES: number = 13
+value EADDRINUSE: number = 98
+value EADDRNOTAVAIL: number = 99
+value EAFNOSUPPORT: number = 97
+value EAGAIN: number = 11
+value EALREADY: number = 114
+value EBADF: number = 9
+value EBADMSG: number = 74
+value EBUSY: number = 16
+value ECANCELED: number = 125
+value ECHILD: number = 10
+value ECONNABORTED: number = 103
+value ECONNREFUSED: number = 111
+value ECONNRESET: number = 104
+value EDEADLK: number = 35
+value EDESTADDRREQ: number = 89
+value EDOM: number = 33
+value EDQUOT: number = 122
+value EEXIST: number = 17
+value EFAULT: number = 14
+value EFBIG: number = 27
+value EHOSTUNREACH: number = 113
+value EIDRM: number = 43
+value EILSEQ: number = 84
+value EINPROGRESS: number = 115
+value EINTR: number = 4
+value EINVAL: number = 22
+value EIO: number = 5
+value EISCONN: number = 106
+value EISDIR: number = 21
+value ELOOP: number = 40
+value EMFILE: number = 24
+value EMLINK: number = 31
+value EMSGSIZE: number = 90
+value EMULTIHOP: number = 72
+value ENAMETOOLONG: number = 36
+value ENETDOWN: number = 100
+value ENETRESET: number = 102
+value ENETUNREACH: number = 101
+value ENFILE: number = 23
+value ENOBUFS: number = 105
+value ENODATA: number = 61
+value ENODEV: number = 19
+value ENOENT: number = 2
+value ENOEXEC: number = 8
+value ENOLCK: number = 37
+value ENOLINK: number = 67
+value ENOMEM: number = 12
+value ENOMSG: number = 42
+value ENOPROTOOPT: number = 92
+value ENOSPC: number = 28
+value ENOSR: number = 63
+value ENOSTR: number = 60
+value ENOSYS: number = 38
+value ENOTCONN: number = 107
+value ENOTDIR: number = 20
+value ENOTEMPTY: number = 39
+value ENOTSOCK: number = 88
+value ENOTSUP: number = 95
+value ENOTTY: number = 25
+value ENXIO: number = 6
+value EOPNOTSUPP: number = 95
+value EOVERFLOW: number = 75
+value EPERM: number = 1
+value EPIPE: number = 32
+value EPROTO: number = 71
+value EPROTONOSUPPORT: number = 93
+value EPROTOTYPE: number = 91
+value ERANGE: number = 34
+value EROFS: number = 30
+value ESPIPE: number = 29
+value ESRCH: number = 3
+value ESTALE: number = 116
+value ETIME: number = 62
+value ETIMEDOUT: number = 110
+value ETXTBSY: number = 26
+value EWOULDBLOCK: number = 11
+value EXDEV: number = 18
+value FD_CLOEXEC: number = 1
+value FOREGROUND_BLUE: number = 1
+value FOREGROUND_GREEN: number = 2
+value FOREGROUND_INTENSITY: number = 8
+value FOREGROUND_RED: number = 4
+value F_DUPFD: number = 0
+value F_DUPFD_CLOEXEC: number = 1030
+value F_GETFD: number = 1
+value F_GETFL: number = 3
+value F_GETLK: number = 5
+value F_OK: number = 0
+value F_RDLCK: number = 0
+value F_SETFD: number = 2
+value F_SETFL: number = 4
+value F_SETLK: number = 6
+value F_SETLKW: number = 7
+value F_UNLCK: number = 2
+value F_WRLCK: number = 1
+value GLOB_ABORTED: number = -2
+value GLOB_ALTDIRFUNC: number = 64
+value GLOB_APPEND: number = 1
+value GLOB_BRACE: number = 128
+value GLOB_DOOFFS: number = 2
+value GLOB_ERR: number = 4
+value GLOB_MAGCHAR: number = 256
+value GLOB_MARK: number = 8
+value GLOB_NOCHECK: number = 16
+value GLOB_NOESCAPE: number = 4096
+value GLOB_NOMAGIC: number = 512
+value GLOB_NOMATCH: number = -3
+value GLOB_NOSORT: number = 32
+value GLOB_NOSPACE: number = -1
+value GLOB_NOSYS: number = -4
+value GLOB_QUOTE: number = 1024
+value GLOB_TILDE: number = 2048
+value IN_ACCESS: number = 1
+value IN_ALL_EVENTS: number = 4095
+value IN_ATTRIB: number = 4
+value IN_CLOEXEC: number = 524288
+value IN_CLOSE: number = 24
+value IN_CLOSE_NOWRITE: number = 16
+value IN_CLOSE_WRITE: number = 8
+value IN_CREATE: number = 256
+value IN_DELETE: number = 512
+value IN_DELETE_SELF: number = 1024
+value IN_DONT_FOLLOW: number = 33554432
+value IN_EXCL_UNLINK: number = 67108864
+value IN_IGNORED: number = 32768
+value IN_ISDIR: number = 1073741824
+value IN_MASK_ADD: number = 536870912
+value IN_MODIFY: number = 2
+value IN_MOVE: number = 192
+value IN_MOVED_FROM: number = 64
+value IN_MOVED_TO: number = 128
+value IN_MOVE_SELF: number = 2048
+value IN_NONBLOCK: number = 2048
+value IN_ONESHOT: number = -2147483648
+value IN_ONLYDIR: number = 16777216
+value IN_OPEN: number = 32
+value IN_Q_OVERFLOW: number = 16384
+value IN_UNMOUNT: number = 8192
+value JS_EVAL_FLAG_BACKTRACE_BARRIER: number = 64
+value JS_EVAL_FLAG_COMPILE_ONLY: number = 32
+value JS_EVAL_FLAG_MASK: number = 232
+value JS_EVAL_FLAG_STRICT: number = 8
+value JS_EVAL_IS_MAIN: number = 4
+value JS_EVAL_TYPE_DIRECT: number = 2
+value JS_EVAL_TYPE_GLOBAL: number = 0
+value JS_EVAL_TYPE_INDIRECT: number = 3
+value JS_EVAL_TYPE_MASK: number = 3
+value JS_EVAL_TYPE_MODULE: number = 1
+value JS_PROMISE_FULFILLED: number = 1
+value JS_PROMISE_PENDING: number = 0
+value JS_PROMISE_REJECTED: number = 2
+value O_APPEND: number = 1024
+value O_CLOEXEC: number = 524288
+value O_CREAT: number = 64
+value O_DIRECT: number = 16384
+value O_DSYNC: number = 4096
+value O_EXCL: number = 128
+value O_NOATIME: number = 262144
+value O_NOCTTY: number = 256
+value O_NONBLOCK: number = 2048
+value O_RDONLY: number = 0
+value O_RDWR: number = 2
+value O_SYNC: number = 1052672
+value O_TRUNC: number = 512
+value O_WRONLY: number = 1
+value R_OK: number = 4
+value SIGABRT: number = 6
+value SIGALRM: number = 14
+value SIGBUS: number = 7
+value SIGCHLD: number = 17
+value SIGCONT: number = 18
+value SIGFPE: number = 8
+value SIGHUP: number = 1
+value SIGILL: number = 4
+value SIGINT: number = 2
+value SIGIO: number = 29
+value SIGKILL: number = 9
+value SIGPIPE: number = 13
+value SIGPOLL: number = 29
+value SIGPROF: number = 27
+value SIGPWR: number = 30
+value SIGQUIT: number = 3
+value SIGSEGV: number = 11
+value SIGSTKFLT: number = 16
+value SIGSTOP: number = 19
+value SIGSYS: number = 31
+value SIGTERM: number = 15
+value SIGTRAP: number = 5
+value SIGTSTP: number = 20
+value SIGTTIN: number = 21
+value SIGTTOU: number = 22
+value SIGURG: number = 23
+value SIGUSR1: number = 10
+value SIGUSR2: number = 12
+value SIGVTALRM: number = 26
+value SIGWINCH: number = 28
+value SIGXCPU: number = 24
+value SIGXFSZ: number = 25
+value TIOCCBRK: number = 21544
+value TIOCGPGRP: number = 21519
+value TIOCGWINSZ: number = 21523
+value TIOCINQ: number = 21531
+value TIOCLINUX: number = 21532
+value TIOCMBIC: number = 21527
+value TIOCMBIS: number = 21526
+value TIOCMGET: number = 21525
+value TIOCMSET: number = 21528
+value TIOCPKT: number = 21536
+value TIOCSBRK: number = 21543
+value TIOCSCTTY: number = 21518
+value TIOCSPGRP: number = 21520
+value TIOCSWINSZ: number = 21524
+value WRDE_BADCHAR: number = 2
+value WRDE_BADVAL: number = 3
+value WRDE_CMDSUB: number = 4
+value WRDE_NOCMD: number = 4
+value WRDE_NOSPACE: number = 1
+value WRDE_SHOWERR: number = 16
+value WRDE_SYNTAX: number = 5
+value WRDE_UNDEF: number = 32
+value W_OK: number = 2
+value X_OK: number = 1
+value inotify_event_size: number = 16

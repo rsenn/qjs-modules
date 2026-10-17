@@ -1,0 +1,10 @@
+function read()
+function write()
+value JS_READ_OBJ_BYTECODE: number = 1
+value JS_READ_OBJ_REFERENCE: number = 8
+value JS_READ_OBJ_ROM_DATA: number = 2
+value JS_READ_OBJ_SAB: number = 4
+value JS_WRITE_OBJ_BSWAP: number = 2
+value JS_WRITE_OBJ_BYTECODE: number = 1
+value JS_WRITE_OBJ_REFERENCE: number = 8
+value JS_WRITE_OBJ_SAB: number = 4

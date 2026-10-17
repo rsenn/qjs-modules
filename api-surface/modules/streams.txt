@@ -1,0 +1,33 @@
+ByteLengthQueuingStrategy.constructor(init)
+ByteLengthQueuingStrategy.prototype.size(chunk)
+CountQueuingStrategy.constructor(init)
+CountQueuingStrategy.prototype.size()
+ReadableStream.constructor(underlyingSource, strategy)
+ReadableStream.fromReader()
+ReadableStream.prototype.cancel(reason)
+ReadableStream.prototype.getReader(options)
+ReadableStream.prototype.locked: get
+ReadableStream.prototype.values()
+ReadableStream.prototype[Symbol.asyncIterator]()
+TransformStream.constructor(transformer, writableStrategy, readableStrategy)
+WritableStream.constructor(underlyingSink, strategy)
+WritableStream.prototype._advanceQueue()
+WritableStream.prototype._checkBackpressure()
+WritableStream.prototype._error(e)
+WritableStream.prototype.abort(reason)
+WritableStream.prototype.close()
+WritableStream.prototype.getWriter()
+WritableStream.prototype.locked: get
+class ByteLengthQueuingStrategy
+class CountQueuingStrategy
+class ReadableStream
+class TransformStream
+class WritableStream
+function ByLineStream()
+function FileSystemReadableFileStream()
+function FileSystemReadableStream()
+function FileSystemWritableFileStream()
+function LineStreamIterator()
+function StreamReadIterator()
+function TextDecoderStream()
+function TextEncoderStream()

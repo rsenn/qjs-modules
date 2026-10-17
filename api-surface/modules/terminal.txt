@@ -1,0 +1,88 @@
+BOX_DOUBLE.bl: string = "╚"
+BOX_DOUBLE.br: string = "╝"
+BOX_DOUBLE.h: string = "═"
+BOX_DOUBLE.tl: string = "╔"
+BOX_DOUBLE.tr: string = "╗"
+BOX_DOUBLE.v: string = "║"
+BOX_SINGLE.bl: string = "└"
+BOX_SINGLE.br: string = "┘"
+BOX_SINGLE.h: string = "─"
+BOX_SINGLE.tl: string = "┌"
+BOX_SINGLE.tr: string = "┐"
+BOX_SINGLE.v: string = "│"
+Screen.constructor()
+Screen.prototype.bg()
+Screen.prototype.box()
+Screen.prototype.clear()
+Screen.prototype.clearLine()
+Screen.prototype.fg()
+Screen.prototype.fillRect()
+Screen.prototype.flush()
+Screen.prototype.moveTo()
+Screen.prototype.resetAttrs()
+Screen.prototype.sgr()
+Screen.prototype.write()
+class Screen
+function centeredRect()
+function commandChar()
+function commandNumberChar()
+function commandSequence()
+function cursorBackward()
+function cursorDown()
+function cursorForward()
+function cursorHide()
+function cursorHome()
+function cursorHorizontalAbsolute()
+function cursorNextLine()
+function cursorOrigin()
+function cursorPosition()
+function cursorPreviousLine()
+function cursorQuery()
+function cursorRestore()
+function cursorSave()
+function cursorShow()
+function cursorUp()
+function deviceReset()
+function devicecodeQuery()
+function devicestatusQuery()
+function disableRawMode()
+function enableRawMode()
+function eraseInDisplay()
+function eraseInLine()
+function escapeChar()
+function escapeNumberChar()
+function escapeSequence()
+function hslToRgb()
+function linewrapDisable()
+function linewrapEnable()
+function mousetrackingDisable()
+function mousetrackingEnable()
+function numberSequence()
+function numbersSequence()
+function readKey()
+function resetScrollRegion()
+function reverseVideoOff()
+function reverseVideoOn()
+function rgbBackground()
+function rgbForeground()
+function scrollDown()
+function scrollUp()
+function setAlternateScreen()
+function setNormalScreen()
+function setScreen()
+function setScrollRegion()
+function sgr()
+function tabClear()
+function tabSet()
+function tabsClearall()
+function windowSize()
+object BOX_DOUBLE
+object BOX_SINGLE
+object terminal
+terminal.columns: get
+terminal.fd: get
+terminal.getColorDepth()
+terminal.getWindowSize()
+terminal.hasColors()
+terminal.isTTY: get
+terminal.rows: get

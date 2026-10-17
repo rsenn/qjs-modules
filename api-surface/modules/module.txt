@@ -1,0 +1,216 @@
+Module.Module()
+Module.SourceMap()
+Module._cache: object = {}
+Module._debug()
+Module._extensions: object = {}
+Module._findPath()
+Module._initPaths()
+Module._load()
+Module._nodeModulePaths()
+Module._pathCache: object = {}
+Module._preloadModules()
+Module._readPackage: get/set
+Module._resolveFilename()
+Module._resolveLookupPaths()
+Module._stat: get/set
+Module.buildInfo: object = {"qjsm":{"version":"0.9","commit":"ecdf0ca7e473","dirty":...
+Module.builtinModules: object = ["abort","arraybuffer_sink","assert","assertStrict","bcry...
+Module.builtins()
+Module.bytecode()
+Module.constants: object = {"compileCacheStatus":{"FAILED":0,"ENABLED":1,"ALREADY_EN...
+Module.constructor()
+Module.createRequire()
+Module.enableCompileCache()
+Module.findPackageJSON()
+Module.findSourceMap()
+Module.flushCompileCache()
+Module.getCompileCacheDir()
+Module.getSourceMapsSupport()
+Module.globalPaths: object = ["/home/roman/.node_libraries","/home/roman/.node_modules...
+Module.installed()
+Module.isBuiltin()
+Module.layout()
+Module.manifest()
+Module.prototype._compile()
+Module.prototype.isPreloading: get
+Module.prototype.load()
+Module.prototype.parent: get/set
+Module.prototype.require()
+Module.register()
+Module.registerHooks()
+Module.runMain()
+Module.setSourceMapsSupport()
+Module.stripTypeScriptTypes()
+Module.syncBuiltinESMExports()
+Module.verify()
+Module.wrap()
+Module.wrapper: object = ["(function (exports, require, module, __filename, __dirn...
+SourceMap.constructor()
+SourceMap.prototype.findEntry()
+SourceMap.prototype.findOrigin()
+SourceMap.prototype.lineLengths: get
+SourceMap.prototype.payload: get
+_extensions.'.js'()
+_extensions.'.json'()
+_extensions.'.node'()
+buildInfo.buildType: string = "Debug"
+buildInfo.builtin: object = {"native":["arraybuffer_sink","bcrypt","bjson","blob","ch...
+buildInfo.bytecode: number = 5
+buildInfo.compiler: string = "GNU 16.0.1"
+buildInfo.layout: object = {"prefix":"/usr/local","native":"lib/x86_64-linux-gnu/qui...
+buildInfo.qjsc: object = {"version":"2026-06-04","path":"/usr/local/bin/qjsc"}
+buildInfo.qjsm: object = {"version":"0.9","commit":"ecdf0ca7e473","dirty":true,"da...
+buildInfo.quickjs: object = {"version":"2026-06-04"}
+buildInfo.target: string = "x86_64-linux-gnu"
+builtinModules.'0': string = "abort"
+builtinModules.'1': string = "arraybuffer_sink"
+builtinModules.'10': string = "console"
+builtinModules.'11': string = "deep"
+builtinModules.'12': string = "directory"
+builtinModules.'13': string = "events"
+builtinModules.'14': string = "fs"
+builtinModules.'15': string = "fs/promises"
+builtinModules.'16': string = "globals"
+builtinModules.'17': string = "inspect"
+builtinModules.'18': string = "io"
+builtinModules.'19': string = "iterator"
+builtinModules.'2': string = "assert"
+builtinModules.'20': string = "json"
+builtinModules.'21': string = "lexer"
+builtinModules.'22': string = "location"
+builtinModules.'23': string = "misc"
+builtinModules.'24': string = "mmap"
+builtinModules.'25': string = "module"
+builtinModules.'26': string = "nodeHooks"
+builtinModules.'27': string = "node_buffer"
+builtinModules.'28': string = "node_child_process"
+builtinModules.'29': string = "node_events"
+builtinModules.'3': string = "assertStrict"
+builtinModules.'30': string = "node_util"
+builtinModules.'31': string = "os"
+builtinModules.'32': string = "password"
+builtinModules.'33': string = "path"
+builtinModules.'34': string = "perf_hooks"
+builtinModules.'35': string = "pointer"
+builtinModules.'36': string = "predicate"
+builtinModules.'37': string = "process"
+builtinModules.'38': string = "readline"
+builtinModules.'39': string = "readline/promises"
+builtinModules.'4': string = "bcrypt"
+builtinModules.'40': string = "repl"
+builtinModules.'41': string = "require"
+builtinModules.'42': string = "simple-queue"
+builtinModules.'43': string = "sockets"
+builtinModules.'44': string = "std"
+builtinModules.'45': string = "stream"
+builtinModules.'46': string = "stream"
+builtinModules.'47': string = "streams"
+builtinModules.'48': string = "syscallerror"
+builtinModules.'49': string = "terminal"
+builtinModules.'5': string = "bjson"
+builtinModules.'50': string = "textcode"
+builtinModules.'51': string = "timers"
+builtinModules.'52': string = "timers/promises"
+builtinModules.'53': string = "tty"
+builtinModules.'54': string = "typescript"
+builtinModules.'55': string = "url"
+builtinModules.'56': string = "util"
+builtinModules.'57': string = "vfs"
+builtinModules.'58': string = "wasm"
+builtinModules.'59': string = "webassembly"
+builtinModules.'6': string = "blob"
+builtinModules.'60': string = "xml"
+builtinModules.'7': string = "bun"
+builtinModules.'8': string = "child_process"
+builtinModules.'9': string = "commonjs"
+builtinModules.length: number = 61
+class Module
+class SourceMap
+class default
+constants.compileCacheStatus: object = {"FAILED":0,"ENABLED":1,"ALREADY_ENABLED":2,"DISABLED":3}
+default.Module()
+default.SourceMap()
+default._cache: object = {}
+default._debug()
+default._extensions: object = {}
+default._findPath()
+default._initPaths()
+default._load()
+default._nodeModulePaths()
+default._pathCache: object = {}
+default._preloadModules()
+default._readPackage: get/set
+default._resolveFilename()
+default._resolveLookupPaths()
+default._stat: get/set
+default.buildInfo: object = {"qjsm":{"version":"0.9","commit":"ecdf0ca7e473","dirty":...
+default.builtinModules: object = ["abort","arraybuffer_sink","assert","assertStrict","bcry...
+default.builtins()
+default.bytecode()
+default.constants: object = {"compileCacheStatus":{"FAILED":0,"ENABLED":1,"ALREADY_EN...
+default.constructor()
+default.createRequire()
+default.enableCompileCache()
+default.findPackageJSON()
+default.findSourceMap()
+default.flushCompileCache()
+default.getCompileCacheDir()
+default.getSourceMapsSupport()
+default.globalPaths: object = ["/home/roman/.node_libraries","/home/roman/.node_modules...
+default.installed()
+default.isBuiltin()
+default.layout()
+default.manifest()
+default.prototype._compile()
+default.prototype.isPreloading: get
+default.prototype.load()
+default.prototype.parent: get/set
+default.prototype.require()
+default.register()
+default.registerHooks()
+default.runMain()
+default.setSourceMapsSupport()
+default.stripTypeScriptTypes()
+default.syncBuiltinESMExports()
+default.verify()
+default.wrap()
+default.wrapper: object = ["(function (exports, require, module, __filename, __dirn...
+function _debug()
+function _findPath()
+function _initPaths()
+function _load()
+function _nodeModulePaths()
+function _preloadModules()
+function _resolveFilename()
+function _resolveLookupPaths()
+function builtins()
+function bytecode()
+function createRequire()
+function enableCompileCache()
+function findPackageJSON()
+function findSourceMap()
+function flushCompileCache()
+function getCompileCacheDir()
+function getSourceMapsSupport()
+function installed()
+function isBuiltin()
+function layout()
+function manifest()
+function register()
+function registerHooks()
+function runMain()
+function setSourceMapsSupport()
+function stripTypeScriptTypes()
+function syncBuiltinESMExports()
+function verify()
+globalPaths.'0': string = "/home/roman/.node_libraries"
+globalPaths.'1': string = "/home/roman/.node_modules"
+globalPaths.'2': string = "/usr/local/lib/node"
+globalPaths.length: number = 3
+object _cache
+object _extensions
+object _pathCache
+object buildInfo
+object builtinModules
+object constants
+object globalPaths

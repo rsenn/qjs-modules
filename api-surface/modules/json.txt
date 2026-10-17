@@ -1,0 +1,90 @@
+JSONL.parse()
+JSONL.parseChunk()
+JsonParser.ARRAY: number = 2
+JsonParser.ARRAY_END: number = 3
+JsonParser.COMMENT: number = 10
+JsonParser.FALSE: number = 7
+JsonParser.KEY: number = 4
+JsonParser.NEED_DATA: number = -2
+JsonParser.NONE: number = -1
+JsonParser.NULL: number = 8
+JsonParser.NUMBER: number = 9
+JsonParser.OBJECT: number = 0
+JsonParser.OBJECT_END: number = 1
+JsonParser.STRING: number = 5
+JsonParser.TRUE: number = 6
+JsonParser.constructor()
+JsonParser.prototype.ARRAY: number = 2
+JsonParser.prototype.ARRAY_END: number = 3
+JsonParser.prototype.COMMENT: number = 10
+JsonParser.prototype.FALSE: number = 7
+JsonParser.prototype.KEY: number = 4
+JsonParser.prototype.NEED_DATA: number = -2
+JsonParser.prototype.NONE: number = -1
+JsonParser.prototype.NULL: number = 8
+JsonParser.prototype.NUMBER: number = 9
+JsonParser.prototype.OBJECT: number = 0
+JsonParser.prototype.OBJECT_END: number = 1
+JsonParser.prototype.STRING: number = 5
+JsonParser.prototype.TRUE: number = 6
+JsonParser.prototype.comments: get/set
+JsonParser.prototype.depth: get
+JsonParser.prototype.location: get
+JsonParser.prototype.next()
+JsonParser.prototype.parse()
+JsonParser.prototype.pos: get
+JsonParser.prototype.state: get
+JsonParser.prototype.token: get
+JsonParser.prototype[Symbol.iterator]()
+JsonParser.prototype[Symbol.toStringTag]: string = "JsonParser"
+JsonPushParser.constructor()
+JsonPushParser.prototype.TYPE_ARRAY: number = 6
+JsonPushParser.prototype.TYPE_ARRAY_END: number = 7
+JsonPushParser.prototype.TYPE_ARRAY_START: number = 6
+JsonPushParser.prototype.TYPE_ERROR: number = 0
+JsonPushParser.prototype.TYPE_FALSE: number = 3
+JsonPushParser.prototype.TYPE_KEY: number = 10
+JsonPushParser.prototype.TYPE_NULL: number = 1
+JsonPushParser.prototype.TYPE_NUMBER: number = 4
+JsonPushParser.prototype.TYPE_OBJECT: number = 8
+JsonPushParser.prototype.TYPE_OBJECT_END: number = 9
+JsonPushParser.prototype.TYPE_OBJECT_START: number = 8
+JsonPushParser.prototype.TYPE_STRING: number = 5
+JsonPushParser.prototype.TYPE_TRUE: number = 2
+JsonPushParser.prototype.close()
+JsonPushParser.prototype.location: get
+JsonPushParser.prototype.path: get
+JsonPushParser.prototype.root: get
+JsonPushParser.prototype.write()
+JsonPushParser.prototype[Symbol.toStringTag]: string = "JsonPushParser"
+JsonSerializer.constructor()
+JsonSerializer.prototype.blocked: get
+JsonSerializer.prototype.error: get
+JsonSerializer.prototype.finished: get
+JsonSerializer.prototype.indent: get/set
+JsonSerializer.prototype.location: get
+JsonSerializer.prototype.next()
+JsonSerializer.prototype.path: get
+JsonSerializer.prototype.read()
+JsonSerializer.prototype.root: get
+JsonSerializer.prototype.started: get
+JsonSerializer.prototype[Symbol.iterator]()
+JsonSerializer.prototype[Symbol.toStringTag]: string = "JsonSerializer"
+JsonWriter.constructor()
+JsonWriter.prototype.arrayEnd()
+JsonWriter.prototype.arrayStart()
+JsonWriter.prototype.depth: get
+JsonWriter.prototype.key()
+JsonWriter.prototype.objectEnd()
+JsonWriter.prototype.objectStart()
+JsonWriter.prototype.stack: get
+JsonWriter.prototype.value()
+JsonWriter.prototype.written: get
+JsonWriter.prototype[Symbol.toStringTag]: string = "JsonWriter"
+class JsonParser
+class JsonPushParser
+class JsonSerializer
+class JsonWriter
+function read()
+function write()
+object JSONL

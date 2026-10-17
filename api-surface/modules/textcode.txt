@@ -1,0 +1,15 @@
+TextDecoder.constructor()
+TextDecoder.prototype.buffered: get
+TextDecoder.prototype.decode()
+TextDecoder.prototype.encoding: get
+TextDecoder.prototype.endian: get
+TextDecoder.prototype[Symbol.toStringTag]: string = "TextDecoder"
+TextEncoder.constructor()
+TextEncoder.prototype.buffered: get
+TextEncoder.prototype.encode()
+TextEncoder.prototype.encodeInto()
+TextEncoder.prototype.encoding: get
+TextEncoder.prototype.endian: get
+TextEncoder.prototype[Symbol.toStringTag]: string = "TextEncoder"
+class TextDecoder
+class TextEncoder

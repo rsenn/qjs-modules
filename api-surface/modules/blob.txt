@@ -1,0 +1,11 @@
+Blob.constructor()
+Blob.prototype.arrayBuffer()
+Blob.prototype.bytes()
+Blob.prototype.json()
+Blob.prototype.size: get
+Blob.prototype.slice()
+Blob.prototype.stream()
+Blob.prototype.text()
+Blob.prototype.type: get
+Blob.prototype[Symbol.toStringTag]: string = "Blob"
+class Blob

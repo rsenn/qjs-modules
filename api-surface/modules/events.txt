@@ -1,0 +1,8 @@
+EventTarget.constructor()
+EventTarget.prototype.addEventListener()
+EventTarget.prototype.dispatchEvent()
+EventTarget.prototype.removeEventListener()
+EventTarget.prototype[Symbol.toStringTag]: string = "EventTarget"
+class EventTarget
+function EventTargetProperties()
+function waitOne()

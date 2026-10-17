@@ -1,0 +1,314 @@
+argv.'0': string = "/usr/local/bin/qjsm"
+argv.'1': string = "/home/roman/Sources/quickjs/qjs-modules/lib/describe.js"
+argv.'2': string = "--flat"
+argv.'3': string = "process"
+argv.length: number = 4
+config.target_defaults: object = {"cflags":[],"default_configuration":"Release","defines":...
+config.variables: object = {"host_arch":"x64","target_arch":"x64","quickjs_version":...
+default._events: object = {"newListener":[null],"removeListener":[null]}
+default.abort()
+default.addUncaughtExceptionCaptureCallback()
+default.allowedNodeEnvironmentFlags: object = {}
+default.arch: string = "x64"
+default.argv0: string = "/usr/local/bin/qjsm"
+default.argv: object = ["/usr/local/bin/qjsm","/home/roman/Sources/quickjs/qjs-m...
+default.assert()
+default.availableMemory()
+default.binding()
+default.chdir()
+default.config: object = {"target_defaults":{"cflags":[],"default_configuration":"...
+default.constrainedMemory()
+default.cpuUsage()
+default.cwd()
+default.debugPort: number = 9229
+default.dlopen()
+default.domain: object = null
+default.egid: get/set
+default.emitWarning()
+default.env: object = {"PYENV_VIRTUALENV_INIT":"1","GJS_DEBUG_TOPICS":"JS ERROR...
+default.euid: get/set
+default.execArgv: object = []
+default.execPath: string = "/usr/local/bin/qjsm"
+default.execve()
+default.exit()
+default.exitCode: get/set
+default.features: object = {"inspector":false,"debug":false,"uv":false,"ipv6":true,"...
+default.finalization: object = {}
+default.getActiveResourcesInfo()
+default.getBuiltinModule()
+default.getegid()
+default.geteuid()
+default.getgid()
+default.getgroups()
+default.getuid()
+default.gid: get/set
+default.hasUncaughtExceptionCaptureCallback()
+default.hrtime()
+default.initgroups()
+default.kill()
+default.loadEnvFile()
+default.mainModule: undefined = undefined
+default.memoryUsage()
+default.moduleLoadList: get
+default.nextTick()
+default.openStdin()
+default.pid: get
+default.platform: string = "linux"
+default.ppid: get
+default.reallyExit()
+default.ref()
+default.release: object = {"name":"qjsm","sourceUrl":"https://bellard.org/quickjs/q...
+default.report: object = {"compact":false,"directory":"","filename":"","reportOnFa...
+default.resourceUsage()
+default.setSourceMapsEnabled()
+default.setUncaughtExceptionCaptureCallback()
+default.setegid()
+default.seteuid()
+default.setgid()
+default.setgroups()
+default.setuid()
+default.sourceMapsEnabled: get
+default.stderr: object = {}
+default.stdin: object = {}
+default.stdout: object = {}
+default.threadCpuUsage()
+default.title: string = "qjsm"
+default.uid: get/set
+default.umask()
+default.unref()
+default.uptime()
+default.version: string = "v2026-06-04"
+default.versions: object = {"quickjs":"2026-06-04","qjsm":"2026-06-04"}
+env.BUN_INSTALL: string = "/home/roman/.bun"
+env.CINNAMON_VERSION: string = "6.4.14"
+env.CLUTTER_IM_MODULE: string = "ibus"
+env.COLORTERM: string = "truecolor"
+env.COMPIZ_CONFIG_PROFILE: string = "mint"
+env.DBUS_SESSION_BUS_ADDRESS: string = "unix:path=/run/user/1000/bus"
+env.DEFAULTS_PATH: string = "/usr/share/gconf/cinnamon.default.path"
+env.DESKTOP_SESSION: string = "cinnamon"
+env.DISPLAY: string = ":0"
+env.EDITOR: string = "vim"
+env.EMAIL: string = "roman.l.senn@gmail.com"
+env.EMSDK: string = "/opt/emsdk"
+env.EMSDK_NODE: string = "/opt/emsdk/node/24.19.0_64bit/bin/node"
+env.GDMSESSION: string = "cinnamon"
+env.GDM_LANG: string = "en_US"
+env.GIO_LAUNCHED_DESKTOP_FILE: string = "/usr/share/applications/xfce4-terminal.desktop"
+env.GIO_LAUNCHED_DESKTOP_FILE_PID: string = "3063"
+env.GJS_DEBUG_OUTPUT: string = "stderr"
+env.GJS_DEBUG_TOPICS: string = "JS ERROR;JS LOG"
+env.GNOME_DESKTOP_SESSION_ID: string = "this-is-deprecated"
+env.GPG_AGENT_INFO: string = "/run/user/1000/gnupg/S.gpg-agent:0:1"
+env.GTK3_MODULES: string = "gtk-vector-screenshot:xapp-gtk3-module"
+env.GTK_IM_MODULE: string = "ibus"
+env.GTK_MODULES: string = "gail:atk-bridge"
+env.HISTFILE: string = "/home/roman/.bash_history"
+env.HISTFILESIZE: string = "-1"
+env.HISTSIZE: string = "262144"
+env.HOME: string = "/home/roman"
+env.LANG: string = "en_US.UTF-8"
+env.LANGUAGE: string = "en_US:en"
+env.LC_ADDRESS: string = "de_CH.UTF-8"
+env.LC_IDENTIFICATION: string = "de_CH.UTF-8"
+env.LC_MEASUREMENT: string = "de_CH.UTF-8"
+env.LC_MONETARY: string = "de_CH.UTF-8"
+env.LC_NAME: string = "de_CH.UTF-8"
+env.LC_NUMERIC: string = "de_CH.UTF-8"
+env.LC_PAPER: string = "de_CH.UTF-8"
+env.LC_TELEPHONE: string = "de_CH.UTF-8"
+env.LC_TIME: string = "de_CH.UTF-8"
+env.LE_WORKING_DIR: string = "/home/roman/.acme.sh"
+env.LOGNAME: string = "roman"
+env.LS_COLORS: string = "rs=0:di=01;38;5;39:ln=01;36:mh=00:pi=38;5;226:so=038;5;2...
+env.MANDATORY_PATH: string = "/usr/share/gconf/cinnamon.mandatory.path"
+env.NVM_BIN: string = "/home/roman/.nvm/versions/node/v22.23.3/bin"
+env.NVM_CD_FLAGS: string = ""
+env.NVM_DIR: string = "/home/roman/.nvm"
+env.NVM_INC: string = "/home/roman/.nvm/versions/node/v22.23.3/include/node"
+env.OLDPWD: string = "/home/roman/Sources/c-utils"
+env.PAGER: string = "less"
+env.PAM_KWALLET5_LOGIN: string = "/run/user/1000/kwallet5.socket"
+env.PASSWORD: string = "lalala"
+env.PATH: string = "/opt/emsdk:/opt/emsdk/upstream/emscripten:/home/roman/.p...
+env.PLAYER: string = "mplayer\n-vf\nscale=1280:720"
+env.PROMPT_COMMAND: string = "history -a; history -c; history -r"
+env.PWD: string = "/home/roman/Sources/quickjs/qjs-modules"
+env.PYENV_ROOT: string = "/home/roman/.pyenv"
+env.PYENV_SHELL: string = "bash"
+env.PYENV_VIRTUALENV_INIT: string = "1"
+env.QT_ACCESSIBILITY: string = "1"
+env.QT_AUTO_SCREEN_SCALE_FACTOR: string = "0"
+env.QT_IM_MODULE: string = "ibus"
+env.QUICKJS_MODULE_PATH: string = ""
+env.SERP_API_KEY: string = "9112109912bccedbbe88e8102e03295703442747d759b353638d87af...
+env.SESSION_MANAGER: string = "local/gniltag:@/tmp/.ICE-unix/2206,unix/gniltag:/tmp/.IC...
+env.SHELL: string = "/bin/bash"
+env.SHLVL: string = "2"
+env.SSH_AUTH_SOCK: string = "/run/user/1000/keyring/ssh"
+env.TERM: string = "xterm-256color"
+env.TERM_PROGRAM: string = "tmux"
+env.TERM_PROGRAM_VERSION: string = "3.4"
+env.TMUX: string = "/tmp/tmux-1000/default,1579753,0"
+env.TMUX_PANE: string = "%3"
+env.USER: string = "roman"
+env.VISUAL: string = "vim"
+env.VTE_VERSION: string = "7600"
+env.WINDOWID: string = "77594627"
+env.WINEDEBUG: string = "-winediag,-ntlm,-msvcrt"
+env.XAUTHORITY: string = "/home/roman/.Xauthority"
+env.XDG_ACTIVATION_TOKEN: string = "cinnamon/Xfce Terminal/2636-0-gniltag_TIME20960"
+env.XDG_CONFIG_DIRS: string = "/etc/xdg/xdg-cinnamon:/etc/xdg"
+env.XDG_CURRENT_DESKTOP: string = "X-Cinnamon"
+env.XDG_DATA_DIRS: string = "/usr/share/gnome:/usr/share/cinnamon:/usr/share/gnome:/h...
+env.XDG_GREETER_DATA_DIR: string = "/var/lib/lightdm-data/roman"
+env.XDG_RUNTIME_DIR: string = "/run/user/1000"
+env.XDG_SEAT: string = "seat0"
+env.XDG_SEAT_PATH: string = "/org/freedesktop/DisplayManager/Seat0"
+env.XDG_SESSION_CLASS: string = "user"
+env.XDG_SESSION_DESKTOP: string = "cinnamon"
+env.XDG_SESSION_ID: string = "c2"
+env.XDG_SESSION_PATH: string = "/org/freedesktop/DisplayManager/Session0"
+env.XDG_SESSION_TYPE: string = "x11"
+env.XDG_VTNR: string = "7"
+env.XMODIFIERS: string = "@im=ibus"
+env._: string = "./utilities/api-surface.sh"
+execArgv.length: number = 0
+features.cached_builtins: boolean = true
+features.debug: boolean = false
+features.inspector: boolean = false
+features.ipv6: boolean = true
+features.require_module: boolean = true
+features.tls: boolean = false
+features.tls_alpn: boolean = false
+features.tls_ocsp: boolean = false
+features.tls_sni: boolean = false
+features.typescript: boolean = false
+features.uv: boolean = false
+finalization.register()
+finalization.registerBeforeExit()
+finalization.unregister()
+function abort()
+function addUncaughtExceptionCaptureCallback()
+function assert()
+function availableMemory()
+function binding()
+function chdir()
+function constrainedMemory()
+function cpuUsage()
+function cwd()
+function dlopen()
+function emitWarning()
+function execve()
+function exit()
+function getActiveResourcesInfo()
+function getBuiltinModule()
+function getegid()
+function geteuid()
+function getgid()
+function getgroups()
+function getuid()
+function hasUncaughtExceptionCaptureCallback()
+function hrtime()
+function initgroups()
+function kill()
+function loadEnvFile()
+function memoryUsage()
+function nextTick()
+function openStdin()
+function reallyExit()
+function ref()
+function resourceUsage()
+function setSourceMapsEnabled()
+function setUncaughtExceptionCaptureCallback()
+function setegid()
+function seteuid()
+function setgid()
+function setgroups()
+function setuid()
+function threadCpuUsage()
+function umask()
+function unref()
+function uptime()
+moduleLoadList.'0': string = "NativeModule nodeHooks"
+moduleLoadList.'1': string = "NativeModule os"
+moduleLoadList.'10': string = "NativeModule node_events"
+moduleLoadList.'11': string = "NativeModule mmap"
+moduleLoadList.'12': string = "NativeModule syscallerror"
+moduleLoadList.'13': string = "NativeModule textcode"
+moduleLoadList.'14': string = "NativeModule directory"
+moduleLoadList.'15': string = "NativeModule fs"
+moduleLoadList.'16': string = "NativeModule stream"
+moduleLoadList.'17': string = "NativeModule util"
+moduleLoadList.'18': string = "NativeModule url"
+moduleLoadList.'19': string = "NativeModule bun"
+moduleLoadList.'2': string = "NativeModule path"
+moduleLoadList.'20': string = "NativeModule node_events"
+moduleLoadList.'3': string = "NativeModule misc"
+moduleLoadList.'4': string = "NativeModule std"
+moduleLoadList.'5': string = "NativeModule timers"
+moduleLoadList.'6': string = "NativeModule inspect"
+moduleLoadList.'7': string = "NativeModule util"
+moduleLoadList.'8': string = "NativeModule process"
+moduleLoadList.'9': string = "NativeModule blob"
+moduleLoadList.length: number = 21
+object allowedNodeEnvironmentFlags
+object argv
+object config
+object default
+object env
+object execArgv
+object features
+object finalization
+object moduleLoadList
+object release
+object report
+object stderr
+object stdin
+object stdout
+object versions
+release.name: string = "qjsm"
+release.sourceUrl: string = "https://bellard.org/quickjs/quickjs-2026-06-04.tar.xz"
+report.compact: boolean = false
+report.directory: string = ""
+report.excludeNetwork: boolean = false
+report.filename: string = ""
+report.getReport()
+report.reportOnFatalError: boolean = false
+report.reportOnSignal: boolean = false
+report.reportOnUncaughtException: boolean = false
+report.signal: string = "SIGUSR2"
+report.writeReport()
+stderr.columns: get
+stderr.fd: get
+stderr.getColorDepth()
+stderr.getWindowSize()
+stderr.hasColors()
+stderr.isTTY: get
+stderr.rows: get
+stdin.columns: get
+stdin.fd: get
+stdin.isTTY: get
+stdin.rows: get
+stdout.columns: get
+stdout.fd: get
+stdout.getColorDepth()
+stdout.getWindowSize()
+stdout.hasColors()
+stdout.isTTY: get
+stdout.rows: get
+value arch: string = "x64"
+value argv0: string = "/usr/local/bin/qjsm"
+value debugPort: number = 9229
+value domain: null = null
+value execPath: string = "/usr/local/bin/qjsm"
+value exitCode: undefined = undefined
+value mainModule: undefined = undefined
+value pid: number = 609804
+value platform: string = "linux"
+value ppid: number = 609803
+value sourceMapsEnabled: boolean = false
+value title: string = "qjsm"
+value version: string = "v2026-06-04"
+versions.qjsm: string = "2026-06-04"
+versions.quickjs: string = "2026-06-04"

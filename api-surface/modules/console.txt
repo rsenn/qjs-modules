@@ -1,0 +1,12 @@
+Console.constructor()
+Console.prototype.config()
+Console.prototype.time()
+Console.prototype.timeEnd()
+Console.prototype.timeLog()
+ConsoleOptions.constructor()
+ConsoleOptions.merge()
+ConsoleOptions.prototype.merge()
+class Console
+class ConsoleOptions
+function default()
+function inspect()

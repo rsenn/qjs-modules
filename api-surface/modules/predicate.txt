@@ -1,0 +1,144 @@
+Predicate.ADD: number = 7
+Predicate.AND: number = 17
+Predicate.ATAN2: number = 15
+Predicate.BAND: number = 13
+Predicate.BNOT: number = 5
+Predicate.BOR: number = 12
+Predicate.CHARSET: number = 1
+Predicate.DIV: number = 10
+Predicate.EQUAL: number = 22
+Predicate.EVERY: number = 30
+Predicate.HAS: number = 24
+Predicate.INDEX: number = 28
+Predicate.INSTANCEOF: number = 20
+Predicate.MEMBER: number = 25
+Predicate.MOD: number = 11
+Predicate.MUL: number = 9
+Predicate.NOT: number = 4
+Predicate.NOTNOT: number = 3
+Predicate.OR: number = 16
+Predicate.POW: number = 14
+Predicate.PROPERTY: number = 23
+Predicate.PROTOTYPEIS: number = 21
+Predicate.REGEXP: number = 19
+Predicate.SHIFT: number = 26
+Predicate.SLICE: number = 27
+Predicate.SOME: number = 30
+Predicate.SQRT: number = 6
+Predicate.STRING: number = 2
+Predicate.SUB: number = 8
+Predicate.TYPE: number = 0
+Predicate.TYPE_ALL: number = 4095
+Predicate.TYPE_ARRAY: number = 2048
+Predicate.TYPE_BIG_INT: number = 128
+Predicate.TYPE_BOOL: number = 4
+Predicate.TYPE_FLOAT64: number = 256
+Predicate.TYPE_FUNCTION: number = 1024
+Predicate.TYPE_INT: number = 8
+Predicate.TYPE_NULL: number = 2
+Predicate.TYPE_NUMBER: number = 904
+Predicate.TYPE_OBJECT: number = 16
+Predicate.TYPE_PRIMITIVE: number = 1007
+Predicate.TYPE_STRING: number = 32
+Predicate.TYPE_SYMBOL: number = 64
+Predicate.TYPE_UNDEFINED: number = 1
+Predicate.XOR: number = 18
+Predicate.add()
+Predicate.and()
+Predicate.atan2()
+Predicate.band()
+Predicate.bnot()
+Predicate.bor()
+Predicate.charset()
+Predicate.constructor()
+Predicate.div()
+Predicate.equal()
+Predicate.every()
+Predicate.function()
+Predicate.has()
+Predicate.index()
+Predicate.instanceOf()
+Predicate.member()
+Predicate.mod()
+Predicate.mul()
+Predicate.not()
+Predicate.notnot()
+Predicate.or()
+Predicate.pow()
+Predicate.property()
+Predicate.prototype.call()
+Predicate.prototype.eval()
+Predicate.prototype.id: get
+Predicate.prototype.keys()
+Predicate.prototype.length: get
+Predicate.prototype.toSource()
+Predicate.prototype.toString()
+Predicate.prototype.values()
+Predicate.prototypeIs()
+Predicate.prototype[Symbol.toStringTag]: string = "Predicate"
+Predicate.regexp()
+Predicate.shift()
+Predicate.slice()
+Predicate.some()
+Predicate.sqrt()
+Predicate.string()
+Predicate.sub()
+Predicate.type()
+Predicate.xor()
+PredicateOperators.'%'()
+PredicateOperators.'&'()
+PredicateOperators.'*'()
+PredicateOperators.'**'()
+PredicateOperators.'+'()
+PredicateOperators.'-'()
+PredicateOperators.'/'()
+PredicateOperators.'|'()
+class Predicate
+function add()
+function and()
+function atan2()
+function band()
+function bnot()
+function bor()
+function charset()
+function div()
+function equal()
+function every()
+function function()
+function has()
+function index()
+function instanceOf()
+function member()
+function mod()
+function mul()
+function not()
+function notnot()
+function or()
+function pow()
+function property()
+function prototypeIs()
+function regexp()
+function shift()
+function slice()
+function some()
+function sqrt()
+function string()
+function sub()
+function type()
+function xor()
+object PredicateOperators
+value PredicateOperatorSet: undefined = undefined
+value TYPE_ALL: number = 4095
+value TYPE_ARRAY: number = 2048
+value TYPE_BIG_INT: number = 128
+value TYPE_BOOL: number = 4
+value TYPE_FLOAT64: number = 256
+value TYPE_FUNCTION: number = 1024
+value TYPE_INT: number = 8
+value TYPE_NULL: number = 2
+value TYPE_NUMBER: number = 904
+value TYPE_OBJECT: number = 16
+value TYPE_PRIMITIVE: number = 1007
+value TYPE_STRING: number = 32
+value TYPE_SYMBOL: number = 64
+value TYPE_UNDEFINED: number = 1
