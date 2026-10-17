@@ -10,7 +10,7 @@ objects and serializes such a tree back to text. Element objects are `{tagName, 
 | Function | Args | Description |
 | --- | --- | --- |
 | `read(input, inputName?, options?)` | 1–3 | Parses XML/HTML text into an array/tree of element objects. `input` is a string or buffer. `inputName` is an optional filename for error messages. `options` is either a boolean (`flat` mode) or an object with `flat`, `tolerant`, `location`, and `selfClosingTags` (array of void-element tag names). When `location` is true, returns `[tree, locationMap]` instead of just the tree. |
-| `write(value, maxDepth?)` | 1–2 | Serializes a parsed tree (or flat list) back into XML/HTML text. `maxDepth` limits traversal depth (default: unlimited). |
+| `write(value, maxDepth?)` | 1–2 | Serializes a parsed tree (or flat list) back into XML/HTML text. `maxDepth` limits traversal depth (default: unlimited). See "Layout of `write()`" below. |
 
 Both are also reachable through the module's `default` export object.
 
@@ -25,6 +25,23 @@ Both are also reachable through the module's `default` export object.
 | `</>` | closes nothing |
 | input ending inside a tag | the tag is dropped (an unterminated comment or declaration keeps the rest as its `tagName`) |
 
+
+### Layout of `write()`
+
+`write()` walks the value with the element-tree walker (`include/xml/xwalk.h`) and lays it out in `src/xml/xtreewrite.c`
+(`xwrite_tree`) through `src/xml/xlayout.c`. Both shapes of `read()` are accepted; a list whose last entry has no `children`
+array is a flat list.
+
+| rule | tree | flat list |
+| --- | --- | --- |
+| indent | 2 spaces per level; the children of a root element are at level 0 | the level moves after a `dt` start tag and back at a `/x` marker |
+| self-closing `<a />` | `children` missing or empty | the next entry is its own `/a` marker (dropped), or `a` is the last entry |
+| text | multiline (own line) when its list has more than one entry; otherwise it follows the tag directly and trailing whitespace before it is dropped | multiline when it contains a newline |
+| `maxDepth` | an element cut off is written with `>` and no close tag | not used |
+| comment `<!-- -->`, `<!x>`, `<?x?>` | raw name, no attributes; `?` names never get a close tag | same |
+| final newline | trimmed | kept |
+
+Text and attribute values are escaped (`& < >`, and `"` in attributes); an attribute value `true` is written bare.
 
 ## XMLParser
 
@@ -205,6 +222,10 @@ An event-driven XML writer: instead of serializing a tree, the caller drives out
 `elementStart()`, `attribute()`, `text()`, and `elementEnd()` in document order. Output goes to a
 `Writer` (from `stream-utils.h`) — a buffer, fd, or any writable sink. Handles indentation
 automatically.
+
+The methods are the `XmlEventSink` interface (`include/xml/xsink.h`, the twin of the walk interface), so the same
+object can be handed to anything that drives an `XmlEventSink`; failures carry a stable `err.code`
+(`mismatched-end-tag`, `unmatched-end-tag`, `attribute-outside-tag`, `write-failed`).
 
 ```js
 new XMLWriter(output, options?)   // output is a buffer or writer; options may be a number (indent) or {indent}

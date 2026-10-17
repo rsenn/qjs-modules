@@ -1921,10 +1921,28 @@ Steps (each keeps ctest as it is; J = json, X = xml; both after Phase M):
 | EV4 (done) | `jread_pump` / `json_pump`, `xread_pump` / `xml_pump`: each parser can drive any sink; `quickjs-json.c` and `quickjs-xml.c` choose source, sink, `Reader`, `Writer` only | done 2026-10-17: `jread_pump`, `jread_pump_finish`, `json_pump` (`src/json/jpump.c`, declared in `jevent.h`) and `xread_pump`, `xread_pump_finish`, `xml_pump` (`src/xml/xpump.c`, in `xevent.h`); `tests/c/pump-roundtrip.c` (ctest `c-pump-roundtrip`): all four parsers into the writers at chunk sizes 1, 4, 7, 1000 and whole, a JSON error event, a failing sink stopping `xml_pump`. Limits found: sink members carry no position (`JsonEvent.at` only exists for `jevent_send` callers; the position stays in `jr_state_t.err_*` / `JsonParser.err_at` / `XMLParser.tag_line`), and the pull `JsonParser` cannot tell the end of its input from a pause (`json_pump` returns `JSON_PUMP_AGAIN` at both). Also fixed: `json_clear()` leaked the container stack (`BitSet`); the bindings are not on the pumps yet (next: `JsonPushParser`/`XMLPushParser` call `*_pump` instead of their own callbacks) |
 | EV5 | `xwalk` and `jwalk` drive an `XmlEventSink` / `JsonEventSink` (`WalkInterface` becomes the engine-side adapter of it) | `write()`, `XMLTreeSerializer` byte-identical |
 | EV6 | rename `jwrite_interface` and delete the alias after one release; align the push-parser callback names; `JsonRewriter` / `XmlRewriter` on sinks | per Tier 17 / Phase 8 |
+| EV7 (done) | JS wrappers of the sinks, twins of `js_walk_wrap/define/register`: `js_xmlsink_*` (`include/xml/xsink.h`) and `js_jsonsink_*` (`include/json/jsink.h`); `XMLWriter` is decorated with the `XmlEventSink` methods over `xwrite` (new: `comment`, `declaration`, `instruction`, `cdata`, `error`) | done 2026-10-17: `test-xml.js` 161; the JSON wrapper compiles, nothing uses it yet |
+| EV8 | JS objects as sinks for the C pumps: the handshake `Symbol.for('qjs.jsonsink')` / `Symbol.for('qjs.xmlsink')` (an object answering with its sink), a tee sink; `JsonWriter` on `js_jsonsink_*` (its methods take JS values, so decide first whether it keeps its own set) | `XMLPushParser` / `JsonPushParser` can be plugged into any writer, builder or tee |
 
 Notes: `JsonEvent.at` is filled only when the source tracks a position (`jr`, `xr` with `SourcePos`); a sink must not require it.
 `WalkInterface` stays engine-bound (`JSContext`, `JSValue`); the engine-free `*EventSink` is the one the C-only couplings use.
 Tier 18 and Tier 20 refer here for everything about events; their own "event protocol" paragraphs are superseded where they differ.
+
+Pending after the 2026-10-17 session (event model, none of it started unless a step above says so):
+
+- `write()` on `XmlWriter` with `XW_PRETTY` instead of the legacy layout (`xlayout`, `xtreewrite`; about 700 lines go): changes
+  the output of `xml.write()`, so the golden fixture is regenerated. Decision open; the flat list already walks through `xwalk`.
+- `XMLPushParser`: the `text` callback is `(name, value)` but `XMLWriter.text(str)` takes one argument, and `close()` does not
+  flush; fix together with EV8 so a push parser plugs into an `XMLWriter`.
+- `XMLNodeParser` still assembles its flat list itself; move it onto the `XmlBuilder` flat sink (Phase 7).
+- The parsers do not produce the typed markup events (`XE_COMMENT`, `XE_DECLARATION`, `XE_INSTRUCTION`, `XE_CDATA`) yet; comments,
+  declarations and instructions arrive as elements with magic names, and `XmlEventSink` consumers see them that way.
+- Lenient `xml.read` repairs report through `onParseError` (now only the strict path does).
+- `Blob.prototype.json()` errors do not carry `loc` yet (Tier 23).
+- The pumps are not what the bindings use yet: `quickjs-json.c` / `quickjs-xml.c` still call the parser loops directly (EV4 gate).
+- `api-surface/` generated files still list the old `XMLSerializer` (regenerate after the rename to `XMLTreeSerializer`).
+- Unrelated ctest failures seen 2026-10-17: `test-globals` (Blob stream through TextDecoderStream), `test-misc` (valuePointer),
+  `test-mmap` (filename), `test-lexer-cpp` (escaped newline in a directive), `test-sql` (live database).
 
 ## Tier 18 — `json` module: lift to standard shapes (spec 2026-10-17)
 
