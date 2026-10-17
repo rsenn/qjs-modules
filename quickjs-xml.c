@@ -12,7 +12,6 @@
 #include "quickjs-location.h"
 #include "xml/xwrite.h"
 #include "xml/xsink.h"
-#include "xml/xlayout.h"
 #include "xml/xtreewrite.h"
 #include "xml/xread.h"
 #include "xml/xbuilder.h"
@@ -252,163 +251,6 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   return ret;
 }
 
-/* xml_write_attributes: the own enumerable properties of `attributes` as xlay_attribute() calls.
- * `true` is a bare attribute, anything else its string value. */
-static int
-xml_write_attributes(JSContext* ctx, JSValueConst attributes, XmlLayout* lay) {
-  PropertyEnumeration props = {0};
-  int ret = 0;
-
-  property_enumeration_init(&props, ctx, JS_DupValue(ctx, attributes), PROPENUM_DEFAULT_FLAGS);
-
-  for(size_t i = 0; ret == 0 && i < props.tab_atom_len; i++) {
-    const char* keystr;
-    JSValue value;
-
-    property_enumeration_setpos(&props, i);
-    keystr = property_enumeration_keystr(&props, ctx);
-    value = property_enumeration_value(&props, ctx);
-
-    if(JS_IsBool(value) && JS_ToBool(ctx, value)) {
-      ret = xlay_attribute(lay, keystr, strlen(keystr), 0, 0);
-    } else {
-      size_t vlen;
-      const char* valuestr = JS_ToCStringLen(ctx, &vlen, value);
-
-      ret = valuestr ? xlay_attribute(lay, keystr, strlen(keystr), valuestr, vlen) : -1;
-      JS_FreeCString(ctx, valuestr);
-    }
-
-    JS_FreeCString(ctx, keystr);
-    JS_FreeValue(ctx, value);
-  }
-
-  property_enumeration_reset(&props, JS_GetRuntime(ctx));
-  return ret;
-}
-
-/* js_xml_write_tree: the layout of an element tree; `obj` is an array of elements and texts.
- *
- * returns the string, or JS_EXCEPTION. */
-static JSValue
-js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output) {
-  if(xwrite_tree(ctx, obj, max_depth, writer_from_dynbuf(output)) < 0)
-    return JS_EXCEPTION;
-
-  return JS_NewStringLen(ctx, (const char*)output->buf, output->size);
-}
-
-/* xml_write_flat_element: one entry of a flat list as layout calls; `{tagName: '/x'}` is an end marker.
- *
- * returns 0, or -1 with an exception pending. */
-static int
-xml_write_flat_element(JSContext* ctx, JSValueConst element, XmlLayout* lay, int depth, BOOL self_closing) {
-  size_t len;
-  const char* tag = js_get_propertystr_cstringlen(ctx, element, "tagName", &len);
-  int r = 0;
-
-  if(!tag)
-    return -1;
-
-  if(len == 0) {
-    JS_FreeCString(ctx, tag);
-    return 0;
-  }
-
-  if(tag[0] == '/') {
-    r = xlay_end_marker(lay, depth, tag + 1, len - 1);
-  } else {
-    JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
-
-    r = xlay_start(lay, depth, tag, len);
-
-    if(r == 0 && JS_IsObject(attributes))
-      r = xml_write_attributes(ctx, attributes, lay);
-
-    if(r == 0)
-      r = xlay_open_end(lay, self_closing);
-
-    JS_FreeValue(ctx, attributes);
-  }
-
-  JS_FreeCString(ctx, tag);
-  return r;
-}
-
-static JSValue
-js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) {
-  XmlLayout lay;
-  int32_t depth = 0;
-  BOOL single_line = FALSE;
-  JSValue str = JS_EXCEPTION, value = JS_UNDEFINED, next = JS_GetPropertyUint32(ctx, obj, 0);
-  const char *tagName = 0, *nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
-  int r = 0;
-
-  xlay_init(&lay, writer_from_dynbuf(output), 0, 0);
-
-  for(size_t i = 0; r == 0 && i < len; i++) {
-    JS_FreeValue(ctx, value);
-    value = next;
-    next = JS_GetPropertyUint32(ctx, obj, i + 1);
-
-    tagName = nextTag;
-    nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
-
-    if(JS_IsString(value)) {
-      size_t slen;
-      const char* s = JS_ToCStringLen(ctx, &slen, value);
-
-      if(!s) {
-        r = -1;
-      } else {
-        single_line = str_count(s, '\n') == 0;
-        r = xlay_text(&lay, depth, !single_line, s, slen);
-        JS_FreeCString(ctx, s);
-      }
-    } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
-      const char* tag;
-
-      if((tag = js_get_propertystr_cstring(ctx, value, "tagName"))) {
-        /* self-closing: the next entry is this element's own end marker, or this is the
-         * last entry; a following text does not count */
-        BOOL self_closing = (nextTag && nextTag[0] == '/' && !strcmp(tag, &nextTag[1])) || (tag[0] != '/' && i + 1 >= len);
-
-        if(tag[0] == '/')
-          depth--;
-
-        r = xml_write_flat_element(ctx, value, &lay, single_line ? 0 : depth, self_closing);
-
-        if(self_closing) {
-          JS_FreeValue(ctx, next);
-          next = JS_GetPropertyUint32(ctx, obj, ++i + 1);
-        } else if(tag[0] != '/' && tag[0] != '?' && tag[0] != '!' && !strcasecmp(tag, "dt"))
-          depth++;
-
-        JS_FreeCString(ctx, tag);
-      }
-
-      single_line = FALSE;
-    }
-
-    if(tagName)
-      JS_FreeCString(ctx, tagName);
-  }
-
-  JS_FreeValue(ctx, value);
-  JS_FreeValue(ctx, next);
-
-  if(nextTag)
-    JS_FreeCString(ctx, nextTag);
-
-  if(r == 0 && xlay_finish(&lay, 0) == 0)
-    str = JS_NewStringLen(ctx, (const char*)output->buf, output->size);
-  else if(!JS_HasException(ctx))
-    JS_ThrowInternalError(ctx, "xml.write(): out of memory");
-
-  xlay_free(&lay);
-  return str;
-}
-
 static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf output = {0};
@@ -441,10 +283,10 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   xml_debug("js_xml_write len=%"PRIu64", children=%s, flat=%d\n", (uint64_t)len, JS_ToCString(ctx, children), flat);
 
-  if(flat)
-    ret = js_xml_write_list(ctx, obj, len, &output);
+  if(xwrite_tree(ctx, obj, max_depth, flat, writer_from_dynbuf(&output)) < 0)
+    ret = JS_EXCEPTION;
   else
-    ret = js_xml_write_tree(ctx, obj, max_depth, &output);
+    ret = JS_NewStringLen(ctx, (const char*)output.buf, output.size);
 
   dbuf_free(&output);
 

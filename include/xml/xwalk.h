@@ -17,7 +17,9 @@
  * An element reports exactly those three keys, in that order, each read with a plain
  * property get (a prototype getter works) and skipped when undefined. Any other
  * property is never read, so a back-link such as `parentNode` is never followed.
- * A root array is a list of elements (and texts). */
+ * A root array is a list of elements (and texts): a tree's top level, or a whole flat list,
+ * whose elements have no `children` and whose `{tagName: '/x'}` end markers are plain
+ * elements here; what they mean is the consumer's (xtreewrite.c). */
 typedef struct {
   const char *tag, *attributes, *children;
 } XwalkShape;

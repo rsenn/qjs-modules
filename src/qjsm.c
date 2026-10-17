@@ -781,6 +781,7 @@ jsm_builtin_find(const char* name) {
  *
  *   "fs"          builtin fs
  *   "fs/promises" builtin fsPromises (the Node subpath builtins)
+ *   "path/posix"  builtin path (path.posix is the module itself)
  *   "node/events" builtin node_events (lib/node/events.js is registered with '/' written '_')
  *
  * borrowed: the record of the table, or NULL (also when the builtin is disabled). */
@@ -797,6 +798,8 @@ jsm_builtin_lookup(const char* name) {
     name = "assertStrict";
   else if(str_equal(name, "readline/promises"))
     name = "readlinePromises";
+  else if(str_equal(name, "path/posix"))
+    name = "path";
 
   if((rec = jsm_builtin_find(name)))
     return rec;
@@ -1786,6 +1789,8 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     name = "assertStrict";
   else if(str_equal(name, "readline/promises"))
     name = "readlinePromises";
+  else if(str_equal(name, "path/posix"))
+    name = "path";
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)

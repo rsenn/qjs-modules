@@ -1,4 +1,4 @@
-/* xtreewrite.c: xwrite_tree(), xml.write() of an element tree.
+/* xtreewrite.c: xwrite_tree(), xml.write() of an element tree or a flat list.
  * depends on: xwalk.h (the events), xlayout.h (the bytes).
  * rule: the start tag is written when its element ends or gets children, so
  * self-closing follows from `children`. */
@@ -8,9 +8,9 @@
 #include "xml/xtreewrite.h"
 #include "xml/xlayout.h"
 #include "xml/xwalk.h"
-#include "utils.h"
 #include "vector.h"
 #include <string.h>
+#include <strings.h>
 
 /* what an XmlTreeFrame is: a list of items, an element, or an element's attributes */
 enum { XTW_LIST, XTW_ELEMENT, XTW_ATTRS };
@@ -32,6 +32,12 @@ typedef struct {
   Vector frames; /* XmlTreeFrame, one per open container */
   char* attr;    /* ATTRS: the attribute name just reported, owned */
   int32_t max_depth;
+  int flat;      /* flat list: no `children`, end markers are entries */
+  int depth;     /* flat: the depth of the next tag; moves on `dt` and `/x` */
+  int single_line; /* flat: the last entry was a text without newline */
+  char* pend;    /* flat: the element whose start tag waits for the next entry, owned */
+  size_t pend_len;
+  int pend_dt;   /* flat: pend is a `dt`, the next entries nest */
 } XmlTreeWriter;
 
 static XmlTreeFrame*
@@ -107,6 +113,30 @@ xtw_open_end(XmlTreeWriter* tw, XmlTreeFrame* f, int self_closing) {
   return xlay_open_end(&tw->lay, self_closing);
 }
 
+/* xtw_resolve: ends the start tag that waits in a flat list.
+ *
+ *   self_closing  when
+ *   1             the next entry is its own `/name` marker, or the list ended
+ *   0             anything else follows; a `dt` then nests the next entries
+ *
+ * returns 0, or -1 when the Writer refused bytes. */
+static int
+xtw_resolve(XmlTreeWriter* tw, JSContext* ctx, int self_closing) {
+  int r;
+
+  if(!tw->pend)
+    return 0;
+
+  r = xlay_open_end(&tw->lay, self_closing);
+
+  if(!self_closing && tw->pend_dt)
+    tw->depth++;
+
+  js_free(ctx, tw->pend);
+  tw->pend = 0;
+  return r;
+}
+
 static ssize_t
 xtw_array_start(void* opaque, JSContext* ctx) {
   XmlTreeWriter* tw = opaque;
@@ -139,6 +169,28 @@ xtw_value(void* opaque, JSContext* ctx, JSValueConst value) {
 
     if(!s)
       return -1;
+
+    if(tw->flat) {
+      int marker = len > 0 && s[0] == '/', own = marker && tw->pend && tw->pend_len == len - 1 && !memcmp(tw->pend, s + 1, len - 1), r = 0;
+
+      if(own) {
+        r = xtw_resolve(tw, ctx, 1); /* the marker of the waiting element: no entry of its own */
+      } else if(xtw_resolve(tw, ctx, 0) < 0) {
+        r = -1;
+      } else if(marker) {
+        tw->depth--;
+        r = xlay_end_marker(&tw->lay, tw->single_line ? 0 : tw->depth, s + 1, len - 1);
+      } else if(len) {
+        r = xlay_start(&tw->lay, tw->single_line ? 0 : tw->depth, s, len);
+        f->tag = js_strndup(ctx, s, len);
+        f->len = len;
+        f->open = f->tag != 0;
+      }
+
+      tw->single_line = 0;
+      JS_FreeCString(ctx, s);
+      return r < 0 || (len && !marker && !f->tag) ? xtw_fail(ctx) : 0;
+    }
 
     if(len && (f->tag = js_strndup(ctx, s, len))) {
       f->len = len;
@@ -173,6 +225,8 @@ xtw_value(void* opaque, JSContext* ctx, JSValueConst value) {
       if(r < 0)
         return xtw_fail(ctx);
     }
+  } else if(f->kind == XTW_LIST && tw->flat && !JS_IsString(value) && xtw_resolve(tw, ctx, 0) < 0) {
+    return xtw_fail(ctx);
   } else if(f->kind == XTW_LIST && JS_IsString(value)) {
     size_t len;
     const char* s = JS_ToCStringLen(ctx, &len, value);
@@ -181,7 +235,19 @@ xtw_value(void* opaque, JSContext* ctx, JSValueConst value) {
     if(!s)
       return -1;
 
-    r = xlay_text(&tw->lay, MAX_NUM(0, level - 2), WALK_TOP(&tw->it.walk)->tab_atom_len > 1, s, len);
+    if(tw->flat) {
+      int multiline = memchr(s, '\n', len) != 0;
+
+      r = xtw_resolve(tw, ctx, 0);
+
+      if(r == 0)
+        r = xlay_text(&tw->lay, tw->depth, multiline, s, len);
+
+      tw->single_line = !multiline;
+    } else {
+      r = xlay_text(&tw->lay, MAX_NUM(0, level - 2), WALK_TOP(&tw->it.walk)->tab_atom_len > 1, s, len);
+    }
+
     JS_FreeCString(ctx, s);
 
     if(r < 0)
@@ -198,7 +264,13 @@ xtw_object_end(void* opaque, JSContext* ctx) {
   int r = 0;
 
   if(f->kind == XTW_ELEMENT) {
-    if(f->tag) {
+    if(f->tag && tw->flat) {
+      /* flat: the start tag waits for the next entry */
+      tw->pend = f->tag;
+      tw->pend_len = f->len;
+      tw->pend_dt = f->tag[0] != '/' && f->tag[0] != '?' && f->tag[0] != '!' && !strcasecmp(f->tag, "dt");
+      f->tag = 0;
+    } else if(f->tag) {
       if(f->open)
         r = xtw_open_end(tw, f, 1);
       else if(f->closes)
@@ -220,19 +292,23 @@ xtw_array_end(void* opaque, JSContext* ctx) {
   XmlTreeWriter* tw = opaque;
 
   vector_pop(&tw->frames, sizeof(XmlTreeFrame));
-  return 0;
+
+  /* flat: an element left waiting at the end of the list is self-closing */
+  return tw->flat && vector_empty(&tw->frames) && xtw_resolve(tw, ctx, 1) < 0 ? xtw_fail(ctx) : 0;
 }
 
-/* xwrite_tree: writes the element tree `tree` through `writer` in the xml.write() layout.
+/* xwrite_tree: writes an element tree or a flat list through `writer` in the xml.write() layout.
  *
- *   JSValueConst  tree       array of elements and texts
- *   int32_t       max_depth  levels of children written; INT32_MAX: all
+ *   JSValueConst  tree       array of elements and texts; with `flat` of elements without
+ *                            `children` and `{tagName: '/x'}` end markers
+ *   int32_t       max_depth  levels of children written; INT32_MAX: all (tree only)
+ *   int           flat       1: the list is flat; its output keeps the final newline
  *   Writer        writer     destination
  *
  * returns 0, or -1 with an exception pending. */
 int
-xwrite_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, Writer writer) {
-  XmlTreeWriter tw = {.max_depth = max_depth};
+xwrite_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, int flat, Writer writer) {
+  XmlTreeWriter tw = {.max_depth = max_depth, .flat = flat};
   WalkInterface iface = {&tw, xtw_key, xtw_object_start, xtw_array_start, xtw_object_end, xtw_array_end, xtw_value, 0};
   XmlTreeFrame* f;
   int r = -1;
@@ -245,7 +321,7 @@ xwrite_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, Writer writer)
 
     while((n = xwalk_next(&tw.it, ctx)) > 0) {}
 
-    if(n == 0 && xlay_finish(&tw.lay, 1) == 0)
+    if(n == 0 && xlay_finish(&tw.lay, !flat) == 0)
       r = 0;
     else if(!JS_HasException(ctx))
       JS_ThrowInternalError(ctx, "xml.write(): out of memory");
@@ -255,6 +331,7 @@ xwrite_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, Writer writer)
 
   vector_foreach_t(&tw.frames, f) js_free(ctx, f->tag);
   js_free(ctx, tw.attr);
+  js_free(ctx, tw.pend);
   vector_free(&tw.frames);
   xlay_free(&tw.lay);
   return r;
