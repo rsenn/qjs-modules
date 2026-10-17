@@ -79,6 +79,8 @@ typedef struct {
 typedef struct {
   Vector stack;           /* PropertyEnumeration, one per open container */
   Vector meta;            /* array position per open container, parallel to stack */
+  uintptr_t* active;      /* hash set of the objects in `stack`: the circularity check is O(1) */
+  uint32_t active_cap, active_len; /* slots (a power of two or 0) and used slots */
   WalkInterface iface;    /* the callbacks, copied by value */
   WalkHooks hooks;        /* copied by value */
   int flags;              /* JS_GPN_* flags for the property enumeration */

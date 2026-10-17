@@ -16,6 +16,103 @@ typedef struct {
 
 #define WALK_META(it) ((WalkMeta*)vector_back(&(it)->meta, sizeof(WalkMeta)))
 
+/* the objects of the open containers, as a hash set of their addresses (open addressing,
+ * 0 is an empty slot): a walk of depth n costs O(n), not O(n^2) as a scan of the stack would */
+static uint32_t
+walk_active_slot(uintptr_t p, uint32_t cap) {
+  return (uint32_t)(((uint64_t)p * 0x9E3779B97F4A7C15ull) >> 32) & (cap - 1);
+}
+
+static BOOL
+walk_active_has(const WalkIterator* it, uintptr_t p) {
+  uint32_t mask = it->active_cap - 1;
+
+  if(!it->active_cap)
+    return FALSE;
+
+  for(uint32_t i = walk_active_slot(p, it->active_cap); it->active[i]; i = (i + 1) & mask)
+    if(it->active[i] == p)
+      return TRUE;
+
+  return FALSE;
+}
+
+/* returns 0, or -1 with an exception pending (out of memory) */
+static int
+walk_active_add(WalkIterator* it, JSContext* ctx, uintptr_t p) {
+  uint32_t mask;
+
+  if((it->active_len + 1) * 2 > it->active_cap) {
+    uint32_t cap = it->active_cap ? it->active_cap * 2 : 64;
+    uintptr_t* tab = js_mallocz(ctx, sizeof(uintptr_t) * cap);
+
+    if(!tab)
+      return -1;
+
+    for(uint32_t j = 0; j < it->active_cap; j++) {
+      if(it->active[j]) {
+        uint32_t i = walk_active_slot(it->active[j], cap);
+
+        while(tab[i])
+          i = (i + 1) & (cap - 1);
+
+        tab[i] = it->active[j];
+      }
+    }
+
+    js_free(ctx, it->active);
+    it->active = tab;
+    it->active_cap = cap;
+  }
+
+  mask = it->active_cap - 1;
+
+  uint32_t i = walk_active_slot(p, it->active_cap);
+
+  while(it->active[i])
+    i = (i + 1) & mask;
+
+  it->active[i] = p;
+  it->active_len++;
+  return 0;
+}
+
+static void
+walk_active_del(WalkIterator* it, uintptr_t p) {
+  uint32_t mask = it->active_cap - 1, i, j;
+
+  if(!it->active_cap)
+    return;
+
+  for(i = walk_active_slot(p, it->active_cap); it->active[i] != p; i = (i + 1) & mask)
+    if(!it->active[i])
+      return;
+
+  /* backward-shift deletion keeps every probe sequence unbroken */
+  for(j = i;;) {
+    it->active[i] = 0;
+
+    for(;;) {
+      uint32_t k;
+
+      j = (j + 1) & mask;
+
+      if(!it->active[j]) {
+        it->active_len--;
+        return;
+      }
+
+      k = walk_active_slot(it->active[j], it->active_cap);
+
+      if(!(i <= j ? (i < k && k <= j) : (i < k || k <= j)))
+        break;
+    }
+
+    it->active[i] = it->active[j];
+    i = j;
+  }
+}
+
 /* walk_prepare_plain: the default prepare; objects are containers, the rest values. */
 static int
 walk_prepare_plain(void* opaque, JSContext* ctx, JSValueConst holder, JSValueConst key, JSValue* val) {
@@ -46,6 +143,8 @@ walk_init(WalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface ifa
   it->entered = FALSE;
   it->pending_kind = WALK_KIND_VALUE;
   it->root_omitted = FALSE;
+  it->active = 0;
+  it->active_cap = it->active_len = 0;
   return 0;
 }
 
@@ -66,7 +165,7 @@ walk_enter(WalkIterator* it, JSContext* ctx, JSValue obj) {
   PropertyEnumeration* top;
   uint32_t length = 0;
 
-  if(property_recursion_circular(&it->stack, obj)) {
+  if(walk_active_has(it, (uintptr_t)JS_VALUE_GET_PTR(obj))) {
     JS_FreeValue(ctx, obj);
     JS_ThrowTypeError(ctx, "%s", it->hooks.circular ? it->hooks.circular : "circular structure");
     return -1;
@@ -102,6 +201,9 @@ walk_enter(WalkIterator* it, JSContext* ctx, JSValue obj) {
   }
 
   top = WALK_TOP(it);
+
+  if(walk_active_add(it, ctx, (uintptr_t)JS_VALUE_GET_PTR(top->obj)) < 0)
+    return -1;
 
   if(it->hooks.keys && it->hooks.keys(it->hooks.opaque, ctx, top, array))
     return -1;
@@ -274,6 +376,7 @@ walk_next(WalkIterator* it, JSContext* ctx) {
 
 end:
   r = (array ? it->iface.array_end : it->iface.object_end)(opaque, ctx);
+  walk_active_del(it, (uintptr_t)JS_VALUE_GET_PTR(top->obj));
   property_recursion_pop(&it->stack, ctx);
   vector_pop(&it->meta, sizeof(WalkMeta));
 
@@ -324,6 +427,9 @@ void
 walk_close_rt(WalkIterator* it, JSRuntime* rt) {
   property_recursion_free(&it->stack, rt);
   vector_free(&it->meta);
+  js_free_rt(rt, it->active);
+  it->active = 0;
+  it->active_cap = it->active_len = 0;
   JS_FreeValueRT(rt, it->root);
   JS_FreeValueRT(rt, it->pending);
   it->root = it->pending = JS_UNDEFINED;
