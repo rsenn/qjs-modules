@@ -462,7 +462,7 @@ jwrite_string(JsonWriter* wr, const char* str, size_t len) {
   return w + r;
 }
 
-/* the JsonWriteInterface members: each casts `opaque` back to the writer */
+/* the JsonEventSink members: each casts `opaque` back to the writer */
 static ssize_t
 jwrite_if_error(void* wr, const char* str, size_t len) {
   return jwrite_error(wr, str, len);
@@ -508,9 +508,9 @@ jwrite_if_key(void* wr, const char* str, size_t len) {
   return jwrite_key(wr, str, len);
 }
 
-JsonWriteInterface
-jwrite_interface(JsonWriter* wr) {
-  return (JsonWriteInterface){
+JsonEventSink
+jwrite_sink(JsonWriter* wr) {
+  return (JsonEventSink){
       wr,
       jwrite_if_error,
       jwrite_if_null,

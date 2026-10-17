@@ -642,6 +642,7 @@ typedef struct PushParser {
   JSContext* ctx;
   jr_state_t jrs;
   JsonBuilder builder;
+  JsonEventSink sink; /* jbuild_sink(&builder) */
   JSValue callback_fn, callbacks_obj, callbacks[jr_type_key + 1 - jr_type_error];
   unsigned use_builder : 1;
   Location* loc;
@@ -732,27 +733,12 @@ json_pushparser_error(JsonPushParser* pp) {
 static void
 jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
   JsonPushParser* pp = user_data;
+  JsonEvent ev = {.type = type, .str = data ? data->cstr : NULL, .len = data ? data->len : 0};
 
-  switch(type) {
-    case jr_type_object_start:
-    case jr_type_array_start: jbuild_push(&pp->builder, type); break;
-
-    case jr_type_object_end:
-    case jr_type_array_end: jbuild_pop(&pp->builder); break;
-
-    case jr_type_key:
-      if(data)
-        jbuild_key(&pp->builder, data->cstr, data->len);
-      break;
-
-    case jr_type_null:
-    case jr_type_true:
-    case jr_type_false:
-    case jr_type_number:
-    case jr_type_string: jbuild_value(&pp->builder, type, data ? data->cstr : NULL, data ? data->len : 0); break;
-
-    case jr_type_error: json_pushparser_error(pp); break;
-  }
+  if(type == jr_type_error)
+    json_pushparser_error(pp);
+  else
+    jevent_send(&pp->sink, &ev);
 }
 
 static void
@@ -890,6 +876,7 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->ctx = ctx;
   jr_state_init(&pp->jrs);
   jbuild_init(&pp->builder, ctx);
+  pp->sink = jbuild_sink(&pp->builder);
 
   if(!(pp->loc = location_new(ctx))) {
     jr_state_free(&pp->jrs);

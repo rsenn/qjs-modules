@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "json/jevent.h"
 #include "stream-utils.h"
 #include "vector.h"
 
@@ -114,41 +115,18 @@ ssize_t jwrite_object_start(JsonWriter*);
 ssize_t jwrite_object_end(JsonWriter*);
 ssize_t jwrite_key(JsonWriter*, const char* str, size_t len);
 
-/* JsonWriteInterface: the jwrite events as function pointers, so a
- * producer can drive any sink without knowing it is a JsonWriter.
- *
- * Like WalkInterface, minus the engine: no JSContext, no JSValue. One member
- * per jwrite event, named after the jr_type_t it mirrors (`true_`/`false_`
- * because `true`/`false` are macros).
- *
- * ```c
- * JsonWriteInterface w = jwrite_interface(&wr);
- * w.object_start(w.opaque);
- * w.key(w.opaque, "id", 2);
- * w.number(w.opaque, "7", 1);
- * w.object_end(w.opaque);
- * ```
- *
- * Every member returns what its jwrite call returns: the bytes written
- * (>= 0), or -JWRITE_E_*. `opaque` is passed as the first argument. */
-typedef struct {
-  void* opaque;
-  ssize_t (*error)(void*, const char* str, size_t len);
-  ssize_t (*null)(void*);
-  ssize_t (*true_)(void*);
-  ssize_t (*false_)(void*);
-  ssize_t (*number)(void*, const char* str, size_t len);
-  ssize_t (*string)(void*, const char* str, size_t len);
-  ssize_t (*array_start)(void*);
-  ssize_t (*array_end)(void*);
-  ssize_t (*object_start)(void*);
-  ssize_t (*object_end)(void*);
-  ssize_t (*key)(void*, const char* str, size_t len);
-} JsonWriteInterface;
+/* JsonWriteInterface: the former name of JsonEventSink (json/jevent.h); kept for one release. */
+typedef JsonEventSink JsonWriteInterface;
 
-/* jwrite_interface: the interface of a JsonWriter; `opaque` is `wr`.
+/* jwrite_sink: the sink of a JsonWriter; `opaque` is `wr`.
  * never throws; `wr` must outlive the returned struct. */
-JsonWriteInterface jwrite_interface(JsonWriter* wr);
+JsonEventSink jwrite_sink(JsonWriter* wr);
+
+/* jwrite_interface: the former name of jwrite_sink(). */
+static inline JsonEventSink
+jwrite_interface(JsonWriter* wr) {
+  return jwrite_sink(wr);
+}
 
 /* Writer-level helpers, no JsonWriter needed. Both return the bytes written
  * (> 0), 0 when the Writer is blocked, or -1 on a real error; a zero-length

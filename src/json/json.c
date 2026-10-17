@@ -199,6 +199,8 @@ void
 json_clear(JsonParser* json, JSRuntime* rt) {
   reader_free(&json->reader);
   dbuf_free(&json->token);
+  free(json->stack.ptr); /* bitset_resize() uses libc realloc */
+  json->stack = BITSET_INIT();
 
   if(json->loc)
     location_free(json->loc, rt);

@@ -20,13 +20,14 @@ jbuild_init(JsonBuilder* b, JSContext* ctx) {
   b->top = NULL;
   b->root = JS_UNDEFINED;
   b->has_root = FALSE;
+  b->plain_objects = FALSE;
 }
 
 void
 jbuild_push(JsonBuilder* b, jr_type_t type) {
   JSContext* ctx = b->ctx;
   BOOL is_object = (type == jr_type_object_start);
-  JSValue container = is_object ? JS_NewObjectProto(ctx, JS_NULL) : JS_NewArray(ctx);
+  JSValue container = is_object ? (b->plain_objects ? JS_NewObject(ctx) : JS_NewObjectProto(ctx, JS_NULL)) : JS_NewArray(ctx);
 
   char* child_key = NULL;
   uint32_t child_index = 0;
@@ -154,6 +155,11 @@ jbuild_value(JsonBuilder* b, jr_type_t type, const char* data, size_t len) {
 }
 
 JSValue
+jbuild_top(JsonBuilder* b) {
+  return b->top ? JS_DupValue(b->ctx, b->top->obj) : JS_UNDEFINED;
+}
+
+JSValue
 jbuild_path(JsonBuilder* b) {
   JSContext* ctx = b->ctx;
   JSValue ret = JS_NewArray(ctx);
@@ -230,4 +236,78 @@ jbuild_free(JsonBuilder* b, JSRuntime* rt) {
   JS_FreeValueRT(rt, b->root);
   b->root = JS_UNDEFINED;
   b->has_root = FALSE;
+}
+
+/* the JsonEventSink members: each casts `opaque` back to the builder */
+static ssize_t
+jbuild_if_error(void* b, const char* str, size_t len) {
+  return 0;
+}
+static ssize_t
+jbuild_if_null(void* b) {
+  jbuild_value(b, jr_type_null, NULL, 0);
+  return 0;
+}
+static ssize_t
+jbuild_if_true(void* b) {
+  jbuild_value(b, jr_type_true, NULL, 0);
+  return 0;
+}
+static ssize_t
+jbuild_if_false(void* b) {
+  jbuild_value(b, jr_type_false, NULL, 0);
+  return 0;
+}
+static ssize_t
+jbuild_if_number(void* b, const char* str, size_t len) {
+  jbuild_value(b, jr_type_number, str, len);
+  return 0;
+}
+static ssize_t
+jbuild_if_string(void* b, const char* str, size_t len) {
+  jbuild_value(b, jr_type_string, str, len);
+  return 0;
+}
+static ssize_t
+jbuild_if_array_start(void* b) {
+  jbuild_push(b, jr_type_array_start);
+  return 0;
+}
+static ssize_t
+jbuild_if_array_end(void* b) {
+  jbuild_pop(b);
+  return 0;
+}
+static ssize_t
+jbuild_if_object_start(void* b) {
+  jbuild_push(b, jr_type_object_start);
+  return 0;
+}
+static ssize_t
+jbuild_if_object_end(void* b) {
+  jbuild_pop(b);
+  return 0;
+}
+static ssize_t
+jbuild_if_key(void* b, const char* str, size_t len) {
+  jbuild_key(b, str, len);
+  return 0;
+}
+
+JsonEventSink
+jbuild_sink(JsonBuilder* b) {
+  return (JsonEventSink){
+      b,
+      jbuild_if_error,
+      jbuild_if_null,
+      jbuild_if_true,
+      jbuild_if_false,
+      jbuild_if_number,
+      jbuild_if_string,
+      jbuild_if_array_start,
+      jbuild_if_array_end,
+      jbuild_if_object_start,
+      jbuild_if_object_end,
+      jbuild_if_key,
+  };
 }
