@@ -771,6 +771,13 @@ js_is_array(JSContext* ctx, JSValueConst value) {
   return JS_IsArray(ctx, value) || js_is_typedarray(ctx, value);
 }
 
+/* true for what an input argument may be: a string, ArrayBuffer, SharedArrayBuffer, typed array or DataView.
+ * never throws. */
+static inline BOOL
+js_is_bytes_or_string(JSContext* ctx, JSValueConst value) {
+  return JS_IsString(value) || js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value) || js_is_dataview(ctx, value);
+}
+
 static inline BOOL
 js_is_bignumber(JSContext* ctx, JSValueConst value) {
 #ifdef QJS_BIGNUM_EXT

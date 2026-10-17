@@ -3,6 +3,7 @@
 
 #include "char-utils.h"
 #include "utils.h"
+#include "srcpos.h"
 
 #ifdef JS_LOCATION_MODULE
 #define LOCATION_API VISIBLE
@@ -22,7 +23,7 @@ typedef struct {
   };
   int32_t line, column;
   int64_t char_offset, byte_offset;
-  BOOL read_only : 1, has_filename : 1;
+  BOOL read_only : 1, has_filename : 1, cr : 1; /* cr: last byte counted was "\r" */
 } Location;
 
 #define LOCATION() (Location){0, {-1}, 0, 0, 0, 0, FALSE, FALSE};
@@ -40,6 +41,17 @@ LOCATION_API void location_release(Location*, JSRuntime*);
 LOCATION_API void location_free(Location*, JSRuntime*);
 LOCATION_API size_t location_count(Location*, const uint8_t*, size_t);
 LOCATION_API size_t location_nextchar(Location*, int c);
+/* location_from_srcpos: copies the position of an engine-free SourcePos into `loc`
+ * (Location is 0-based, SourcePos 1-based); file and ref_count are left alone. */
+static inline void
+location_from_srcpos(Location* loc, const SourcePos* pos) {
+  loc->line = pos->line - 1;
+  loc->column = pos->column - 1;
+  loc->char_offset = pos->char_offset;
+  loc->byte_offset = pos->byte_offset;
+  loc->cr = pos->cr;
+}
+
 LOCATION_API BOOL location_equal(const Location*, const Location*);
 LOCATION_API void location_copy(Location*, const Location*, JSContext*);
 LOCATION_API void location_copy_file(Location*, const Location*, JSContext*);

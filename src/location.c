@@ -124,51 +124,33 @@ location_initvalues(Location* loc) {
     loc->column = 0;
 }
 
+/* both counters share the rules of srcpos_advance(): "\n", "\r\n" (one break)
+ * and a lone "\r" end a line; columns are code points. */
 size_t
 location_count(Location* loc, const uint8_t* x, size_t n) {
   location_initvalues(loc);
 
+  SourcePos pos;
   size_t start = loc->char_offset;
 
-  for(size_t i = 0; i < n;) {
-    size_t bytes = utf8_charlen(x + i, n - i);
-
-    /* utf8_charlen() returns 0 for a sequence that's invalid or truncated by the end of
-     * this range (e.g. a multi-byte character split across two calls); treat it as a
-     * single raw byte so counting always makes forward progress instead of looping. */
-    if(bytes == 0)
-      bytes = 1;
-
-    if(bytes == 1 && x[i] == '\n') {
-      loc->line++;
-      loc->column = 0;
-    } else {
-      loc->column++;
-    }
-
-    loc->char_offset++;
-    loc->byte_offset += bytes;
-    i += bytes;
-  }
+  srcpos_init(&pos, 0);
+  pos.byte_offset = loc->byte_offset;
+  pos.char_offset = loc->char_offset;
+  pos.line = loc->line + 1;
+  pos.column = loc->column + 1;
+  pos.cr = loc->cr;
+  srcpos_advance(&pos, x, n);
+  location_from_srcpos(loc, &pos);
 
   return loc->char_offset - start;
 }
 
 size_t
 location_nextchar(Location* loc, int c) {
-  location_initvalues(loc);
+  uint8_t buf[8];
+  size_t bytes = unicode_to_utf8(buf, c);
 
-  size_t bytes = unicode_len_utf8(c);
-
-  if(c == '\n') {
-    loc->line++;
-    loc->column = 0;
-  } else {
-    loc->column++;
-  }
-
-  loc->char_offset++;
-  loc->byte_offset += bytes;
+  location_count(loc, buf, bytes);
 
   return bytes;
 }

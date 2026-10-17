@@ -42,6 +42,65 @@ js_location_wrap(JSContext* ctx, Location* loc) {
 }
 
 static JSValue
+js_syntax_error_vnew(JSContext* ctx, const Location* at, size_t length, const char* code, const char* fmt, va_list ap) {
+  char msg[512];
+  char* where;
+  Location* copy;
+  JSValue err, loc;
+  int n;
+
+  n = vsnprintf(msg, sizeof(msg), fmt, ap);
+
+  if(n < 0)
+    n = 0;
+  if((size_t)n >= sizeof(msg))
+    n = sizeof(msg) - 1;
+
+  if((where = location_tostring(at, ctx))) {
+    snprintf(msg + n, sizeof(msg) - n, " at %s", where);
+    js_free(ctx, where);
+  }
+
+  JS_ThrowSyntaxError(ctx, "%s", msg);
+  err = JS_GetException(ctx);
+
+  if((copy = location_clone(at, ctx))) {
+    loc = js_location_wrap(ctx, copy); /* refcount: wrap dups, drop the clone's own */
+    location_free(copy, JS_GetRuntime(ctx));
+    JS_DefinePropertyValueStr(ctx, err, "loc", loc, JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  }
+
+  JS_DefinePropertyValueStr(ctx, err, "length", JS_NewUint32(ctx, length), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, code), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+
+  return err;
+}
+
+JSValue
+js_syntax_error_new(JSContext* ctx, const Location* at, size_t length, const char* code, const char* fmt, ...) {
+  va_list ap;
+  JSValue ret;
+
+  va_start(ap, fmt);
+  ret = js_syntax_error_vnew(ctx, at, length, code, fmt, ap);
+  va_end(ap);
+
+  return ret;
+}
+
+JSValue
+js_throw_syntax_error(JSContext* ctx, const Location* at, size_t length, const char* code, const char* fmt, ...) {
+  va_list ap;
+  JSValue err;
+
+  va_start(ap, fmt);
+  err = js_syntax_error_vnew(ctx, at, length, code, fmt, ap);
+  va_end(ap);
+
+  return JS_Throw(ctx, err);
+}
+
+static JSValue
 js_location_tostring(JSContext* ctx, const Location* loc) {
   JSValue ret = JS_EXCEPTION;
   char* str;
