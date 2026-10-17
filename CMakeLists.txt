@@ -24,6 +24,11 @@ endif()
 
 set(CMAKE_C_STANDARD 11)
 
+# write compile_commands.json into the build dir (clangd, LSP); -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF disables it
+if("${CMAKE_EXPORT_COMPILE_COMMANDS}" STREQUAL "")
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Write compile_commands.json to the build directory" FORCE)
+endif()
+
 ##############################################################################
 # 2. Options
 # the switches of the project; MODULE_<NAME> turns an optional native module on or off
@@ -798,6 +803,22 @@ add_test(NAME cmake-scan-computed-imports
          COMMAND ${CMAKE_COMMAND} -DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/scan-computed-imports.cmake)
 
+# C unit tests of engine-free headers: tests/c/test-*.c, each a program that exits non-zero on failure
+file(GLOB C_TESTS tests/c/test-*.c)
+foreach(C_TEST ${C_TESTS})
+  get_filename_component(C_TEST_NAME "${C_TEST}" NAME_WE)
+  add_executable(${C_TEST_NAME} "${C_TEST}")
+  target_include_directories(${C_TEST_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  string(REGEX REPLACE "^test-" "" C_TEST_SHORT "${C_TEST_NAME}")
+  add_test(NAME "c-${C_TEST_SHORT}" COMMAND ${C_TEST_NAME})
+endforeach(C_TEST)
+
+# jread-positions needs the jread tokenizer, which uses Vector
+add_executable(jread-positions tests/c/jread-positions.c src/json/jread.c)
+target_include_directories(jread-positions PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(jread-positions PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-jread-positions COMMAND jread-positions)
+
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 
 # tests of modules that are off by default
@@ -873,7 +894,7 @@ if(NOT WASI)
   endif(EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 endif(NOT WASI)
 
-file(GLOB LIBRARY_SOURCES include/*.h include/compat/*.h src/*.c src/compat/*.c)
+file(GLOB LIBRARY_SOURCES include/*.h include/json/*.h include/xml/*.h include/compat/*.h src/*.c src/json/*.c src/xml/*.c src/compat/*.c)
 list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
 foreach(F wasm-sections.c wasm3-backend.c wamr-backend.c)
   list(REMOVE_ITEM LIBRARY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/${F}")
@@ -1002,7 +1023,7 @@ endif(TARGET qjs-predicate)
 # block above) are picked up automatically by make_module()'s generic per-variant
 # ${VNAME}_LIBRARIES_shared/_static handling.
 
-set(json_SOURCES ${json_SOURCES} src/json.c)
+set(json_SOURCES ${json_SOURCES} src/json/json.c)
 set(mysql_SOURCES ${mysql_SOURCES} src/async-closure.c)
 set(mysql_LIBS ${mysql_LIBS} modules)
 
