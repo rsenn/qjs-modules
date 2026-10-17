@@ -842,6 +842,24 @@ tests({
 
     eq(out, '<a t="say &quot;x&quot; &amp; &lt;y&gt;">1 &lt; 2 &amp; 3 &gt; 2</a>');
   },
+  'XMLWriter: is an XmlEventSink: comment, cdata, instruction, declaration, error codes'() {
+    let out = '';
+    const w = new XMLWriter(s => (out += toString(s)), -1);
+
+    w.elementStart('a');
+    w.comment(' c ');
+    w.cdata('x<y');
+    w.instruction('p q');
+    w.declaration('D');
+    w.elementEnd();
+
+    eq(out, '<a><!-- c --><![CDATA[x<y]]><?p q?><!D></a>');
+    eq(w.state, 3);
+
+    let err;
+    try { w.elementEnd('zz'); } catch(e) { err = e; }
+    eq(err.code, 'unmatched-end-tag');
+  },
   'XMLWriter: attribute(name, true) is written bare, a negative indent is compact'() {
     let out = '';
     const w = new XMLWriter(s => (out += toString(s)), -1);

@@ -11,6 +11,7 @@
 #include "virtual-properties.h"
 #include "quickjs-location.h"
 #include "xml/xwrite.h"
+#include "xml/xsink.h"
 #include "xml/xlayout.h"
 #include "xml/xtreewrite.h"
 #include "xml/xread.h"
@@ -2065,55 +2066,17 @@ xmlwriter_throw(JSContext* ctx, ssize_t r) {
   return JS_Throw(ctx, err);
 }
 
-/* XMLWriter methods (magic is the XML_* event):
- *
- *   magic              call                       writes
- *   XML_ELEMENT_START  elementStart(name)         <name
- *   XML_ATTRIBUTE      attribute(name[, value])   ` name="value"`; ` name` for undefined, null, true
- *   XML_TEXT           text(str)                  the escaped text
- *   XML_ELEMENT_END    elementEnd([name])         ` />` or </name>; no name: the open element
- *
- * returns the bytes written; throws as xmlwriter_throw(). */
-static JSValue
-js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  XMLWriter* wr;
-  const char *name = 0, *value = 0;
-  size_t nlen = 0, vlen = 0;
-  ssize_t w = 0;
+/* XMLWriter is an XmlEventSink object: elementStart, attribute, elementEnd, text, comment,
+ * declaration, instruction, cdata and error come from js_xmlsink_define() (xml/xsink.h) and
+ * write through xwrite.h; failures are thrown by xmlwriter_throw(). */
+static XmlEventSink
+js_xmlwriter_sink(void* opaque) {
+  return xwrite_sink(&((XMLWriter*)opaque)->xw);
+}
 
-  if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
-    return JS_EXCEPTION;
-
-  if(argc > 0 && !(magic == XML_ELEMENT_END && JS_IsUndefined(argv[0]))) {
-    if(!(name = JS_ToCStringLen(ctx, &nlen, argv[0])))
-      return JS_EXCEPTION;
-  } else if(magic != XML_ELEMENT_END) {
-    return JS_ThrowTypeError(ctx, "XMLWriter: a name or text is required");
-  }
-
-  if(magic == XML_ATTRIBUTE && argc > 1 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1]) && !(JS_IsBool(argv[1]) && JS_ToBool(ctx, argv[1])))
-    if(!(value = JS_ToCStringLen(ctx, &vlen, argv[1]))) {
-      JS_FreeCString(ctx, name);
-      return JS_EXCEPTION;
-    }
-
-  switch(magic) {
-    case XML_ATTRIBUTE: w = xwrite_attribute(&wr->xw, name, nlen, value, vlen); break;
-    case XML_ELEMENT_START: w = xwrite_element_start(&wr->xw, name, nlen); break;
-    case XML_ELEMENT_END: w = xwrite_element_end(&wr->xw, name, nlen); break;
-    case XML_TEXT: w = xwrite_text(&wr->xw, name, nlen); break;
-  }
-
-  if(name)
-    JS_FreeCString(ctx, name);
-  if(value)
-    JS_FreeCString(ctx, value);
-
-  if(w < 0)
-    return xmlwriter_throw(ctx, w);
-
-  wr->event = magic;
-  return JS_NewInt64(ctx, w);
+static void
+js_xmlwriter_note(void* opaque, int type) {
+  ((XMLWriter*)opaque)->event = type;
 }
 
 enum {
@@ -2233,10 +2196,6 @@ static JSClassDef js_xmlwriter_class = {
 };
 
 static const JSCFunctionListEntry js_xmlwriter_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("attribute", 2, js_xmlwriter_method, XML_ATTRIBUTE),
-    JS_CFUNC_MAGIC_DEF("elementStart", 1, js_xmlwriter_method, XML_ELEMENT_START),
-    JS_CFUNC_MAGIC_DEF("elementEnd", 1, js_xmlwriter_method, XML_ELEMENT_END),
-    JS_CFUNC_MAGIC_DEF("text", 1, js_xmlwriter_method, XML_TEXT),
     JS_CGETSET_MAGIC_DEF("state", js_xmlwriter_get, 0, WRITER_STATE),
     JS_CGETSET_MAGIC_DEF("written", js_xmlwriter_get, 0, WRITER_WRITTEN),
     JS_CGETSET_MAGIC_DEF("indent", js_xmlwriter_get, js_xmlwriter_set, WRITER_INDENT),
@@ -2321,6 +2280,8 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   xmlwriter_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, xmlwriter_proto, js_xmlwriter_funcs, countof(js_xmlwriter_funcs));
+  js_xmlsink_register(js_xmlwriter_class_id, js_xmlwriter_sink, xmlwriter_throw, js_xmlwriter_note);
+  js_xmlsink_define(ctx, xmlwriter_proto);
   JS_SetClassProto(ctx, js_xmlwriter_class_id, xmlwriter_proto);
   JS_SetConstructor(ctx, xmlwriter_ctor, xmlwriter_proto);
 

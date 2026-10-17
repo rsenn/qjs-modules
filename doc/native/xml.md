@@ -223,6 +223,11 @@ new XMLWriter(output, options?)   // output is a buffer or writer; options may b
 | `attribute(name, value?)` | 1–2 | method | Writes ` name="value"`. If `value` is omitted or `true`, writes a boolean/valueless attribute (`name` only). Returns bytes written. |
 | `elementEnd(name?)` | 0–1 | method | If called right after `elementStart()`/`attribute()` (no text or child elements in between), writes ` />` (self-closing). Otherwise writes `</name>`. Decrements the nesting level. Returns bytes written. |
 | `text(content)` | 1 | method | Writes text content. Returns bytes written. |
+| `comment(str)` | 1 | method | Writes `<!--str-->`. |
+| `cdata(str)` | 1 | method | Writes `<![CDATA[str]]>`. |
+| `instruction(str)` | 1 | method | Writes `<?str?>`. |
+| `declaration(str)` | 1 | method | Writes `<!str>`. |
+| `error(str)` | 1 | method | Writes nothing (the output has no form for an error); returns 0. |
 | `state` | — | getter | The event type of the last method call (an `xml_event_t` integer). |
 | `written` | — | getter | Total number of bytes written so far. |
 | `indent` | — | getter/setter | The indentation width (number of spaces per level). |
