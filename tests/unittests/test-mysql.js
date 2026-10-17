@@ -7,9 +7,6 @@ import { eq, tests } from '../../lib/tinytest.js';
 
 const live = (getenv('MYSQL_TEST') ?? '').split(',');
 
-/* the static escaping helpers crash until one instance exists (see BUGS) */
-const instance = new MySQL();
-
 const suite = {
   'exports the three classes'() {
     eq('function', typeof MySQL);

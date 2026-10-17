@@ -95,6 +95,7 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
     dbuf_putc(out, '\'');
     dst = (char*)dbuf_reserve(out, len * 2 + 1);
+    mysql_library_init(0, NULL, NULL); /* escaping needs the charset set up; no instance may exist yet */
     len = mysql_escape_string(dst, src, len);
     out->size += len;
     dbuf_putc(out, '\'');
@@ -899,6 +900,7 @@ js_mysql_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     return JS_EXCEPTION;
   }
 
+  mysql_library_init(0, NULL, NULL); /* escaping needs the charset set up; no instance may exist yet */
   len = mysql_escape_string(dst, src, len);
   ret = JS_NewStringLen(ctx, dst, len);
   js_free(ctx, dst);
