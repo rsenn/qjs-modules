@@ -285,6 +285,7 @@ hooks.deregister();   // also [Symbol.dispose], for `using`
 | Formats | `module`, `json`, `builtin`, `addon` (the last two with `source: null`); `commonjs`, `wasm` and the `*-typescript` formats throw `TypeError`. |
 | URLs | Hooks see `file:///abs/path`, `node:fs` (`os` and `std` stay bare), `data:` and any custom scheme; the module key (`loaded_modules`, `import.meta`, relative resolution) stays the plain path/bare name. |
 | Errors | An exception thrown by a hook propagates to the `import` (it no longer ends the process). |
+| `importAttributes` | `load` gets the real attributes (`{ type: 'file' }`); `resolve` always gets `{}` because the engine's normalize callback receives none (Node passes them to both, Bun to neither). |
 | Sync only | A hook returning a Promise throws `TypeError`; the async `module.register()`/`initialize` thread API is not provided. |
 | Scope | Per thread (workers start with none); not inherited. |
 

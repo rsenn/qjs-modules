@@ -17,7 +17,7 @@ const { add } = await import('./add.wasm');
 | Imports | each wasm import module name is a specifier resolved like a JS import (`"./env.js"`, `"env"`) and evaluated first |
 | Exports | every export becomes a named export; a global export holds its value, memories, tables and functions are the `wasm` objects |
 | Bytes | read again from the file at evaluation; the `.wasm` URL must be a `file:` path |
-| Not covered | `import source` (engine lacks it), `with { type: 'wasm' }` (the hooks' `importAttributes` is always empty) |
+| Not covered | `import source` (engine lacks it), `with { type: 'wasm' }` |
 
 ## Exports
 

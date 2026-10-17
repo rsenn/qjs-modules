@@ -2265,6 +2265,11 @@ jsm_hook_load(JSContext* ctx, const char* name, void* opaque) {
 
   context = jsm_hook_context(ctx, "format", 0);
 
+#ifndef JS_MODULE_LOADER_OLD
+  if(JS_IsObject(JSM_IMPORT_ATTRIBUTES()))
+    JS_SetPropertyStr(ctx, context, "importAttributes", JS_DupValue(ctx, JSM_IMPORT_ATTRIBUTES()));
+#endif
+
   if(hook_formats_set) {
     JSValue f = JS_GetPropertyStr(ctx, hook_formats, name);
 
