@@ -11,6 +11,10 @@
 #include "virtual-properties.h"
 #include "quickjs-location.h"
 #include "xml/xwrite.h"
+#include "xml/xlayout.h"
+#include "xml/xwalk.h"
+#include "xml/xread.h"
+#include "xml/xbuilder.h"
 #include "xml/xml_entities.h"
 #include "xml/xml.h"
 
@@ -51,297 +55,6 @@ typedef struct {
 #define xml_debug(args...)
 #endif
 
-static int32_t
-xml_num_children(JSContext* ctx, JSValueConst element) {
-  int64_t num_children = -1;
-  JSValue children = JS_GetPropertyStr(ctx, element, "children");
-
-  if(JS_IsArray(ctx, children))
-    num_children = js_array_length(ctx, children);
-
-  JS_FreeValue(ctx, children);
-  return num_children;
-}
-
-/* Escapes '&', '<', '>' (always) and '"' (only in an attribute value, which is
- * always double-quoted here) as their XML entities. Neither xml_write_attributes()
- * nor xml_write_string() did this at all before - dbuf_putstr()/dbuf_append() just
- * copied the raw JS string bytes straight into the output, so any value containing
- * one of these characters produced XML that doesn't parse back to the same tree (or
- * doesn't parse at all: an unescaped '"' inside an attribute value ends the value
- * early, an unescaped '<' starts a bogus tag). Not applied to tag/attribute names,
- * which aren't expected to contain these characters in well-formed input, or to
- * comment content (see xml_write_string()'s `escape` parameter), which isn't markup. */
-static void
-dbuf_put_escaped_xml(DynBuf* db, const char* s, size_t len, BOOL is_attr) {
-  size_t i;
-
-  for(i = 0; i < len; i++) {
-    unsigned char c = (unsigned char)s[i];
-
-    if(c == '&')
-      dbuf_putstr(db, "&amp;");
-    else if(c == '<')
-      dbuf_putstr(db, "&lt;");
-    else if(c == '>')
-      dbuf_putstr(db, "&gt;");
-    else if(c == '"' && is_attr)
-      dbuf_putstr(db, "&quot;");
-    else
-      dbuf_putc(db, c);
-  }
-}
-
-static void
-xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
-  size_t i;
-  PropertyEnumeration props = {0};
-
-  property_enumeration_init(&props, ctx, JS_DupValue(ctx, attributes), PROPENUM_DEFAULT_FLAGS);
-
-  for(i = 0; i < props.tab_atom_len; i++) {
-    const char *keystr, *valuestr;
-    JSValue value;
-
-    property_enumeration_setpos(&props, i);
-    keystr = property_enumeration_keystr(&props, ctx);
-    value = property_enumeration_value(&props, ctx);
-
-    dbuf_putc(db, ' ');
-    dbuf_putstr(db, keystr);
-
-    if(!(JS_IsBool(value) && JS_ToBool(ctx, value))) {
-      valuestr = JS_ToCString(ctx, value);
-
-      dbuf_putstr(db, "=\"");
-      dbuf_put_escaped_xml(db, valuestr, strlen(valuestr), TRUE);
-
-      JS_FreeCString(ctx, valuestr);
-      dbuf_putc(db, '"');
-    }
-
-    JS_FreeCString(ctx, keystr);
-    JS_FreeValue(ctx, value);
-  }
-
-  property_enumeration_reset(&props, JS_GetRuntime(ctx));
-}
-
-static inline void
-xml_write_indent(DynBuf* db, int32_t depth) {
-  while(depth-- > 0)
-    dbuf_putstr(db, "  ");
-}
-
-static void
-xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db, int32_t depth, BOOL escape) {
-  for(const char* p = textStr;;) {
-    size_t n;
-
-    if(0) {
-      while(textLen) {
-        if(byte_chr("\r\n \t", 4, *p) == 4)
-          break;
-
-        p++;
-        textLen--;
-      }
-    }
-
-    n = byte_chr(p, textLen, '\n');
-
-    if(escape)
-      dbuf_put_escaped_xml(db, p, n, FALSE);
-    else
-      dbuf_append(db, (const uint8_t*)p, n);
-
-    if(n < textLen)
-      n++;
-
-    p += n;
-    textLen -= n;
-
-    /*while(textLen > 0 &&  (p[0] == ' ' ||  p[0] == '\t')) {
-      textLen--;
-      p++;
-    }*/
-
-    if(textLen == 0)
-      break;
-
-    if(depth > 0) {
-      dbuf_putc(db, '\n');
-      xml_write_indent(db, depth + 1);
-    }
-  }
-}
-
-static void
-xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOOL multiline) {
-  const char* textStr;
-  size_t textLen;
-
-  textStr = JS_ToCStringLen(ctx, &textLen, text);
-
-  if(multiline)
-    xml_write_indent(db, depth);
-  else
-    while(db->size > 0 && is_whitespace_char(db->buf[db->size - 1]))
-      db->size--;
-
-  xml_write_string(ctx, textStr, textLen, db, multiline ? depth : 0, TRUE);
-  JS_FreeCString(ctx, textStr);
-
-  if(multiline)
-    dbuf_putc(db, '\n');
-}
-
-static void
-xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth, BOOL self_closing) {
-  JSValue attributes;
-  size_t tagLen;
-  const char* tagName;
-  BOOL isComment;
-
-  if(!(tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen)) || !tagName[0])
-    return;
-
-  /* An explicit `{tagName: '/x', ...}` end-marker object (only ever produced/consumed by
-   * js_xml_write_list()'s flat-list format, which represents a closing tag as its own
-   * separate list entry rather than via a `children` array) isn't a start tag at all -
-   * write a real closing tag for it and return, rather than falling into the start-tag/
-   * self-closing logic below (which used to render it as e.g. "</a />": '<' + "/a" +
-   * a self-closing suffix, garbling both the slash's meaning and the sibling element it
-   * was supposed to close). */
-  if(tagName[0] == '/') {
-    if(depth > 0)
-      xml_write_indent(db, depth);
-
-    dbuf_putstr(db, "</");
-    dbuf_put(db, (const uint8_t*)tagName + 1, tagLen - 1);
-    dbuf_putc(db, '>');
-    dbuf_putc(db, '\n');
-
-    JS_FreeCString(ctx, tagName);
-    return;
-  }
-
-  attributes = JS_GetPropertyStr(ctx, element, "attributes");
-  assert(tagName);
-  isComment = !strncmp(tagName, "!--", 3);
-
-  if(depth > 0)
-    xml_write_indent(db, depth);
-
-  if(tagName[0])
-    dbuf_putc(db, '<');
-
-  if(isComment) {
-    if(TRUE || byte_chr(tagName, tagLen, '\n') < tagLen)
-      dbuf_put(db, (const uint8_t*)tagName, tagLen);
-    else
-      xml_write_string(ctx, tagName, tagLen, db, depth - 1, FALSE);
-  } else if(tagName[0] == '!') {
-    dbuf_putstr(db, tagName);
-  } else {
-    dbuf_putstr(db, tagName);
-
-    if(JS_IsObject(attributes))
-      xml_write_attributes(ctx, attributes, db);
-  }
-
-  /* self_closing is decided entirely by the caller (js_xml_write_tree: a real
-   * `children` array's length; js_xml_write_list: whether the next flat-list entry is
-   * this element's own end marker) - this function used to also self-close whenever
-   * xml_num_children() <= 0 regardless of what the caller passed, which is correct for
-   * the tree writer (where that's exactly how it computes self_closing anyway) but
-   * wrong for the list writer, whose elements never have a `children` property at all
-   * (content there is later list entries, not a property) - xml_num_children() is
-   * always -1 for them, so every non-self-closing list element used to render
-   * self-closed regardless of having real subsequent content. */
-  if(tagName[0])
-    dbuf_putstr(db, tagName[0] == '?' ? "?>" : self_closing && !(tagName[0] == '!' || isComment) ? " />" : ">");
-
-  dbuf_putc(db, '\n');
-
-  JS_FreeCString(ctx, tagName);
-  JS_FreeValue(ctx, attributes);
-}
-
-static void
-xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
-  int32_t num_children = xml_num_children(ctx, element);
-
-  if(num_children > 0) {
-    size_t tagLen;
-    const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
-
-    if(tagName[0] != '?' && tagName[0]) {
-      if(db->size > 0 && db->buf[db->size - 1] == '\n')
-        xml_write_indent(db, depth);
-
-      dbuf_putstr(db, "</");
-      dbuf_append(db, (const uint8_t*)tagName, tagLen);
-      dbuf_putstr(db, ">");
-      dbuf_putc(db, '\n');
-    }
-
-    JS_FreeCString(ctx, tagName);
-  }
-}
-
-static PropertyEnumeration*
-xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth) {
-  PropertyEnumeration *it, *it2;
-  JSValue value = JS_UNDEFINED, children;
-
-  it = vector_back(vec, sizeof(PropertyEnumeration));
-  value = property_enumeration_value(it, ctx);
-
-  if(JS_IsObject(value)) {
-    children = JS_GetPropertyStr(ctx, value, "children");
-    JS_FreeValue(ctx, value);
-
-    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
-      if((it2 = property_recursion_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it2, 0))
-        return it2;
-
-      /* Either the push failed outright, or it pushed a frame for an empty children array
-       * with nothing to point at - in the latter case, pop that frame back off instead of
-       * leaving it orphaned on the stack (this used to silently truncate the rest of the
-       * traversal the moment any element had `children: []`). Either way,
-       * property_recursion_push() grows vec's backing storage before it can know whether
-       * the push will succeed, so `it` (captured before this call) may already be a stale
-       * pointer into freed memory - re-derive it fresh rather than reuse it. */
-      it = it2 ? property_recursion_pop(vec, ctx) : property_recursion_top(vec);
-    } else {
-      JS_FreeValue(ctx, children);
-    }
-
-  } else {
-    JS_FreeValue(ctx, value);
-  }
-
-  if(!it)
-    return 0;
-
-  while(!property_enumeration_next(it)) {
-    int32_t depth;
-
-    if((it = property_recursion_pop(vec, ctx)) == 0)
-      break;
-
-    value = property_enumeration_value(it, ctx);
-    depth = property_recursion_depth(vec) - 1;
-    depth = MAX_NUM(0, depth - 1);
-    xml_close_element(ctx, value, db, depth);
-
-    JS_FreeValue(ctx, value);
-  }
-
-  return it;
-}
-
 static JSValue
 make_tuple(JSContext* ctx, JSValue a, JSValue b) {
   JSValue ret = JS_NewArray(ctx);
@@ -358,177 +71,60 @@ make_tuple(JSContext* ctx, JSValue a, JSValue b) {
  *   flat  [{tagName, attributes}, 'text', {tagName: '/name'}, ...]
  *
  * returns the array (or [array, WeakMap] with location) or throws SyntaxError. */
-typedef struct {
-  JSValue elem, children, attrs;
-  uint32_t idx;
-  BOOL bang;
-} XRFrame;
-
-/* names beginning with `!` or `-` (the parser's EXCLAM and HYPHEN classes share a bit). */
-static BOOL
-xr_is_bang(const char* name, size_t len) {
-  return len && (name[0] == '!' || name[0] == '-');
-}
-
+/* js_xml_parse: the element tree or flat list of `buf`, driven by the event parser of
+ * src/xml/xml.c and built by XmlBuilder (src/xml/xbuilder.c).
+ *
+ *   tree  [{tagName, attributes, children}], children only on elements that stay open
+ *   flat  [{tagName, attributes}, 'text', {tagName: '/name'}, ...]
+ *
+ * returns the array (or [array, WeakMap] with location) or throws SyntaxError. */
 static JSValue
 js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, ParseOptions opts) {
   Reader reader = reader_from_bytes(buf, len);
   XMLParser xp;
-  XRFrame *frames = 0, *f;
-  size_t nframes = 0, cframes = 0;
-  JSValue ret = JS_NewArray(ctx), elem = JS_UNDEFINED, attrs = JS_UNDEFINED, result = JS_UNDEFINED;
-  uint32_t ridx = 0;
+  XmlBuilder xb;
+  JSValue ret;
   VirtualProperties vprop = {0};
   xml_event_t ev;
-  BOOL failed = FALSE, skip_end = FALSE;
+  BOOL failed = FALSE;
 
   xml_parser_init(&xp, &reader);
   xml_parser_set_tolerant(&xp, opts.tolerant);
   xml_parser_set_flat(&xp, opts.flat);
   xp.self_closing_tags = opts.self_closing_tags;
+  xbuild_init(&xb, ctx, XB_PLAIN | (opts.flat ? XB_FLAT : 0));
 
   if(opts.location)
     vprop = virtual_properties_map(ctx, js_object_new(ctx, "WeakMap", 0, 0));
 
   while((ev = xml_parser_run(&xp)) > XML_PARSE_OK || ev == XML_PARSE_AGAIN) {
+    BOOL located = FALSE;
+
     switch(ev) {
-      case XML_ELEMENT_START: {
-        const char* name = xp.event_name.data;
-        size_t nlen = xp.event_name.len;
-        BOOL bang = xr_is_bang(name, nlen);
-        JSValue container;
-        uint32_t* idx;
-
-        elem = JS_NewObject(ctx);
-        JS_SetPropertyStr(ctx, elem, "tagName", JS_NewStringLen(ctx, name, nlen));
-
-        skip_end = bang;
-
-        if(!bang) {
-          attrs = JS_NewObject(ctx);
-          JS_SetPropertyStr(ctx, elem, "attributes", JS_DupValue(ctx, attrs));
-        } else
-          attrs = JS_UNDEFINED;
-
-        if(opts.location)
-          virtual_set(&vprop, ctx, elem, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
-
-        if(!opts.flat && nframes) {
-          f = &frames[nframes - 1];
-
-          if(JS_IsUndefined(f->children)) {
-            f->children = JS_NewArray(ctx);
-            JS_SetPropertyStr(ctx, f->elem, "children", JS_DupValue(ctx, f->children));
-          }
-
-          container = f->children;
-          idx = &f->idx;
-        } else {
-          container = ret;
-          idx = &ridx;
-        }
-
-        JS_SetPropertyUint32(ctx, container, (*idx)++, JS_DupValue(ctx, elem));
-
-        if(!opts.flat) {
-          if(nframes == cframes) {
-            size_t n = cframes ? cframes * 2 : 16;
-            XRFrame* nf = js_realloc(ctx, frames, n * sizeof(XRFrame));
-
-            if(!nf) {
-              failed = TRUE;
-              goto done;
-            }
-
-            frames = nf;
-            cframes = n;
-          }
-
-          frames[nframes++] = (XRFrame){JS_DupValue(ctx, elem), JS_UNDEFINED, JS_DupValue(ctx, attrs), 0, bang};
-        }
-
-        JS_FreeValue(ctx, elem);
-        elem = JS_UNDEFINED;
+      case XML_ELEMENT_START:
+        xbuild_start(&xb, xp.event_name.data, xp.event_name.len);
+        located = TRUE;
         break;
-      }
 
-      case XML_ATTRIBUTE: {
-        JSValue target = opts.flat ? attrs : (nframes ? frames[nframes - 1].attrs : JS_UNDEFINED);
-        JSAtom prop = JS_NewAtomLen(ctx, xp.event_name.data, xp.event_name.len);
+      case XML_ATTRIBUTE: xbuild_attribute(&xb, xp.event_name.data, xp.event_name.len, xp.event_has_value ? (xp.event_value.data ? xp.event_value.data : "") : NULL, xp.event_value.len); break;
+      case XML_TEXT: xbuild_text(&xb, xp.event_value.data, xp.event_value.len); break;
 
-        if(!JS_IsUndefined(target))
-          JS_SetProperty(ctx, target, prop, xp.event_has_value ? JS_NewStringLen(ctx, xp.event_value.data ? xp.event_value.data : "", xp.event_value.len) : JS_TRUE);
-
-        JS_FreeAtom(ctx, prop);
+      case XML_ELEMENT_END:
+        xbuild_end(&xb, xp.event_name.data, xp.event_name.len, xp.self_closing);
+        located = opts.flat;
         break;
-      }
-
-      case XML_TEXT: {
-        JSValue container = ret, str = JS_NewStringLen(ctx, xp.event_value.data, xp.event_value.len);
-        uint32_t* idx = &ridx;
-
-        if(!opts.flat && nframes) {
-          f = &frames[nframes - 1];
-
-          if(JS_IsUndefined(f->children)) {
-            f->children = JS_NewArray(ctx);
-            JS_SetPropertyStr(ctx, f->elem, "children", JS_DupValue(ctx, f->children));
-          }
-
-          container = f->children;
-          idx = &f->idx;
-        }
-
-        JS_SetPropertyUint32(ctx, container, (*idx)++, str);
-        break;
-      }
-
-      case XML_ELEMENT_END: {
-        if(opts.flat) {
-          const char* name = xp.event_name.data;
-          size_t nlen = xp.event_name.len;
-
-          if(skip_end) { /* the end that comes with a comment or declaration */
-            skip_end = FALSE;
-          } else {
-            char* tag = js_malloc(ctx, nlen + 1);
-            JSValue e = JS_NewObject(ctx);
-
-            if(!tag) {
-              failed = TRUE;
-              JS_FreeValue(ctx, e);
-              goto done;
-            }
-
-            tag[0] = '/';
-            memcpy(tag + 1, name, nlen);
-            JS_SetPropertyStr(ctx, e, "tagName", JS_NewStringLen(ctx, tag, nlen + 1));
-            js_free(ctx, tag);
-
-            if(opts.location)
-              virtual_set(&vprop, ctx, e, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
-
-            JS_SetPropertyUint32(ctx, ret, ridx++, e);
-          }
-        } else if(nframes) {
-          f = &frames[nframes - 1];
-
-          /* an element left open gets its (possibly empty) children; <a/> and comments get none */
-          if(!f->bang && !xp.self_closing && JS_IsUndefined(f->children)) {
-            f->children = JS_NewArray(ctx);
-            JS_SetPropertyStr(ctx, f->elem, "children", JS_DupValue(ctx, f->children));
-          }
-
-          JS_FreeValue(ctx, f->elem);
-          JS_FreeValue(ctx, f->children);
-          JS_FreeValue(ctx, f->attrs);
-          nframes--;
-        }
-
-        break;
-      }
 
       default: break;
+    }
+
+    /* the end of a flat list's comment or declaration makes no entry (last is undefined) */
+    if(located && opts.location) {
+      JSValue last = xbuild_last(&xb);
+
+      if(!JS_IsUndefined(last))
+        virtual_set(&vprop, ctx, last, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
+
+      JS_FreeValue(ctx, last);
     }
   }
 
@@ -544,27 +140,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   }
 
   /* input that ends inside open elements: they keep (empty) children */
-  while(!failed && nframes) {
-    f = &frames[--nframes];
+  if(!failed)
+    xbuild_finish(&xb);
 
-    if(!f->bang && JS_IsUndefined(f->children))
-      JS_SetPropertyStr(ctx, f->elem, "children", JS_NewArray(ctx));
-
-    JS_FreeValue(ctx, f->elem);
-    JS_FreeValue(ctx, f->children);
-    JS_FreeValue(ctx, f->attrs);
-  }
-
-done:
-  while(nframes) {
-    f = &frames[--nframes];
-    JS_FreeValue(ctx, f->elem);
-    JS_FreeValue(ctx, f->children);
-    JS_FreeValue(ctx, f->attrs);
-  }
-
-  JS_FreeValue(ctx, attrs);
-  js_free(ctx, frames);
+  ret = xbuild_root(&xb);
+  xbuild_free(&xb, JS_GetRuntime(ctx));
   xml_parser_free(&xp);
   reader_free(&reader);
 
@@ -577,10 +157,8 @@ done:
     return JS_EXCEPTION;
   }
 
-  result = opts.location ? make_tuple(ctx, ret, vprop.this_obj) : ret;
-  return result;
+  return opts.location ? make_tuple(ctx, ret, vprop.this_obj) : ret;
 }
-
 
 /* xml_throw_at: throws a SyntaxError for a failure at `pos` of the input called `name`.
  *
@@ -673,51 +251,333 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   return ret;
 }
 
-static JSValue
-js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output) {
-  Vector enumerations = VECTOR(ctx);
-  JSValue str, value = JS_UNDEFINED;
-  PropertyEnumeration* it = property_recursion_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
+/* xml_write_attributes: the own enumerable properties of `attributes` as xlay_attribute() calls.
+ * `true` is a bare attribute, anything else its string value. */
+static int
+xml_write_attributes(JSContext* ctx, JSValueConst attributes, XmlLayout* lay) {
+  PropertyEnumeration props = {0};
+  int ret = 0;
 
-  do {
-    int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
+  property_enumeration_init(&props, ctx, JS_DupValue(ctx, attributes), PROPENUM_DEFAULT_FLAGS);
 
-    depth = MAX_NUM(0, depth - 1);
-    value = property_enumeration_value(it, ctx);
+  for(size_t i = 0; ret == 0 && i < props.tab_atom_len; i++) {
+    const char* keystr;
+    JSValue value;
 
-    if(JS_IsString(value)) {
-      xml_write_text(ctx, value, output, depth, it->tab_atom_len > 1);
-    } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
-      int32_t num_children = xml_num_children(ctx, value);
+    property_enumeration_setpos(&props, i);
+    keystr = property_enumeration_keystr(&props, ctx);
+    value = property_enumeration_value(&props, ctx);
 
-      xml_write_element(ctx, value, output, depth, num_children <= 0);
+    if(JS_IsBool(value) && JS_ToBool(ctx, value)) {
+      ret = xlay_attribute(lay, keystr, strlen(keystr), 0, 0);
+    } else {
+      size_t vlen;
+      const char* valuestr = JS_ToCStringLen(ctx, &vlen, value);
+
+      ret = valuestr ? xlay_attribute(lay, keystr, strlen(keystr), valuestr, vlen) : -1;
+      JS_FreeCString(ctx, valuestr);
     }
 
+    JS_FreeCString(ctx, keystr);
     JS_FreeValue(ctx, value);
-  } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));
-
-  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4))
-    output->size--;
-
-  dbuf_putc(output, '\0');
-
-  str = JS_NewString(ctx, (const char*)output->buf);
-
-  vector_foreach_t(&enumerations, it) {
-    property_enumeration_reset(it, JS_GetRuntime(ctx));
   }
-  vector_free(&enumerations);
+
+  property_enumeration_reset(&props, JS_GetRuntime(ctx));
+  return ret;
+}
+
+/* what an XwriteFrame is: a list of items, an element, or an element's attributes */
+enum { XW_LIST, XW_ELEMENT, XW_ATTRS };
+
+typedef struct {
+  int kind;
+  char* tag;       /* ELEMENT: its tagName, owned; NULL until the key is seen */
+  size_t len;
+  int depth;       /* ELEMENT: layout depth of its tags */
+  int open;        /* ELEMENT: start tag not ended yet */
+  int closes;      /* ELEMENT: children were written, so a close tag follows */
+  int key;         /* ELEMENT: which key is current, 1 tagName 2 attributes 3 children */
+} XwriteFrame;
+
+/* XmlTreeWrite: xml.write() of an element tree; xwalk events in, XmlLayout calls out. */
+typedef struct {
+  XmlLayout lay;
+  XwalkIterator it;
+  Vector frames; /* XwriteFrame, one per open container */
+  char* attr;    /* ATTRS: the attribute name just reported, owned */
+  int32_t max_depth;
+} XmlTreeWrite;
+
+static XwriteFrame*
+xtw_top(XmlTreeWrite* tw) {
+  return vector_empty(&tw->frames) ? 0 : vector_back(&tw->frames, sizeof(XwriteFrame));
+}
+
+static ssize_t
+xtw_fail(JSContext* ctx) {
+  if(!JS_HasException(ctx))
+    JS_ThrowInternalError(ctx, "xml.write(): out of memory");
+
+  return -1;
+}
+
+static ssize_t
+xtw_key(void* opaque, JSContext* ctx, JSValueConst key) {
+  XmlTreeWrite* tw = opaque;
+  XwriteFrame* f = xtw_top(tw);
+  const char* s = JS_ToCString(ctx, key);
+
+  if(!s)
+    return -1;
+
+  if(f->kind == XW_ELEMENT) {
+    f->key = !strcmp(s, "tagName") ? 1 : !strcmp(s, "attributes") ? 2 : 3;
+  } else if(f->kind == XW_ATTRS) {
+    js_free(ctx, tw->attr);
+    tw->attr = js_strdup(ctx, s);
+  }
+
+  JS_FreeCString(ctx, s);
+  return 0;
+}
+
+static ssize_t
+xtw_push(XmlTreeWrite* tw, JSContext* ctx, int kind) {
+  XwriteFrame* f;
+
+  if(!(f = vector_emplace(&tw->frames, sizeof(XwriteFrame))))
+    return xtw_fail(ctx);
+
+  memset(f, 0, sizeof(*f));
+  f->kind = kind;
+  return 0;
+}
+
+static ssize_t
+xtw_object_start(void* opaque, JSContext* ctx) {
+  XmlTreeWrite* tw = opaque;
+  XwriteFrame* f = xtw_top(tw);
+  int kind = !f || f->kind == XW_LIST ? XW_ELEMENT : XW_ATTRS;
+  int level = walk_depth(&tw->it.walk) / 2;
+
+  if(xtw_push(tw, ctx, kind) < 0)
+    return -1;
+
+  if(kind == XW_ELEMENT) {
+    f = xtw_top(tw);
+    f->depth = MAX_NUM(0, level - 2);
+  }
+
+  return 0;
+}
+
+/* xtw_open_end: ends the start tag of `f` if it is still open. */
+static int
+xtw_open_end(XmlTreeWrite* tw, XwriteFrame* f, int self_closing) {
+  if(!f->open)
+    return 0;
+
+  f->open = 0;
+  return xlay_open_end(&tw->lay, self_closing);
+}
+
+static ssize_t
+xtw_array_start(void* opaque, JSContext* ctx) {
+  XmlTreeWrite* tw = opaque;
+  XwriteFrame* f = xtw_top(tw);
+  uint32_t len = WALK_TOP(&tw->it.walk)->tab_atom_len;
+
+  if(f && f->kind == XW_ELEMENT && len > 0) {
+    int level = walk_depth(&tw->it.walk) / 2;
+
+    if(xtw_open_end(tw, f, 0) < 0)
+      return xtw_fail(ctx);
+
+    if(tw->max_depth == INT32_MAX || level < tw->max_depth)
+      f->closes = 1;
+    else
+      walk_skip(&tw->it.walk, ctx);
+  }
+
+  return xtw_push(tw, ctx, XW_LIST);
+}
+
+static ssize_t
+xtw_value(void* opaque, JSContext* ctx, JSValueConst value) {
+  XmlTreeWrite* tw = opaque;
+  XwriteFrame* f = xtw_top(tw);
+
+  if(f->kind == XW_ELEMENT && f->key == 1) {
+    size_t len;
+    const char* s = JS_ToCStringLen(ctx, &len, value);
+
+    if(!s)
+      return -1;
+
+    if(len && (f->tag = js_strndup(ctx, s, len))) {
+      f->len = len;
+      f->open = s[0] != '/';
+
+      if(s[0] == '/' ? xlay_end_marker(&tw->lay, f->depth, s + 1, len - 1) < 0 : xlay_start(&tw->lay, f->depth, s, len) < 0) {
+        JS_FreeCString(ctx, s);
+        return xtw_fail(ctx);
+      }
+    }
+
+    JS_FreeCString(ctx, s);
+  } else if(f->kind == XW_ATTRS) {
+    XwriteFrame* e = (XwriteFrame*)vector_at(&tw->frames, sizeof(XwriteFrame), (int32_t)vector_size(&tw->frames, sizeof(XwriteFrame)) - 2);
+
+    if(e->open && tw->attr) {
+      JSValue v = JS_DupValue(ctx, value);
+      size_t vlen = 0;
+      const char* s = 0;
+      int r;
+
+      if(JS_IsBool(v) && JS_ToBool(ctx, v)) {
+        r = xlay_attribute(&tw->lay, tw->attr, strlen(tw->attr), 0, 0);
+      } else {
+        s = JS_ToCStringLen(ctx, &vlen, v);
+        r = s ? xlay_attribute(&tw->lay, tw->attr, strlen(tw->attr), s, vlen) : -1;
+      }
+
+      JS_FreeCString(ctx, s);
+      JS_FreeValue(ctx, v);
+
+      if(r < 0)
+        return xtw_fail(ctx);
+    }
+  } else if(f->kind == XW_LIST && JS_IsString(value)) {
+    size_t len;
+    const char* s = JS_ToCStringLen(ctx, &len, value);
+    int level = (walk_depth(&tw->it.walk) + 1) / 2, r;
+
+    if(!s)
+      return -1;
+
+    r = xlay_text(&tw->lay, MAX_NUM(0, level - 2), WALK_TOP(&tw->it.walk)->tab_atom_len > 1, s, len);
+    JS_FreeCString(ctx, s);
+
+    if(r < 0)
+      return xtw_fail(ctx);
+  }
+
+  return 0;
+}
+
+static ssize_t
+xtw_object_end(void* opaque, JSContext* ctx) {
+  XmlTreeWrite* tw = opaque;
+  XwriteFrame* f = xtw_top(tw);
+  int r = 0;
+
+  if(f->kind == XW_ELEMENT) {
+    if(f->tag) {
+      if(f->open)
+        r = xtw_open_end(tw, f, 1);
+      else if(f->closes)
+        r = xlay_close(&tw->lay, f->depth, f->tag, f->len);
+    }
+
+    js_free(ctx, f->tag);
+  } else {
+    js_free(ctx, tw->attr);
+    tw->attr = 0;
+  }
+
+  vector_pop(&tw->frames, sizeof(XwriteFrame));
+  return r < 0 ? xtw_fail(ctx) : 0;
+}
+
+static ssize_t
+xtw_array_end(void* opaque, JSContext* ctx) {
+  XmlTreeWrite* tw = opaque;
+
+  vector_pop(&tw->frames, sizeof(XwriteFrame));
+  return 0;
+}
+
+/* js_xml_write_tree: the layout of an element tree; `obj` is an array of elements and texts.
+ *
+ * returns the string, or JS_EXCEPTION. */
+static JSValue
+js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output) {
+  XmlTreeWrite tw = {.max_depth = max_depth};
+  WalkInterface iface = {&tw, xtw_key, xtw_object_start, xtw_array_start, xtw_object_end, xtw_array_end, xtw_value, 0};
+  JSValue str = JS_EXCEPTION;
+  int r;
+
+  xlay_init(&tw.lay, writer_from_dynbuf(output), 0, 0);
+  vector_init(&tw.frames, ctx);
+
+  if(xwalk_init(&tw.it, ctx, obj, iface, 0) == 0) {
+    while((r = xwalk_next(&tw.it, ctx)) > 0) {}
+
+    if(r == 0 && xlay_finish(&tw.lay, 1) == 0)
+      str = JS_NewStringLen(ctx, (const char*)output->buf, output->size);
+    else if(!JS_HasException(ctx))
+      JS_ThrowInternalError(ctx, "xml.write(): out of memory");
+
+    xwalk_close(&tw.it, ctx);
+  }
+
+  XwriteFrame* f;
+  vector_foreach_t(&tw.frames, f) js_free(ctx, f->tag);
+  js_free(ctx, tw.attr);
+  vector_free(&tw.frames);
+  xlay_free(&tw.lay);
   return str;
+}
+
+/* xml_write_flat_element: one entry of a flat list as layout calls; `{tagName: '/x'}` is an end marker.
+ *
+ * returns 0, or -1 with an exception pending. */
+static int
+xml_write_flat_element(JSContext* ctx, JSValueConst element, XmlLayout* lay, int depth, BOOL self_closing) {
+  size_t len;
+  const char* tag = js_get_propertystr_cstringlen(ctx, element, "tagName", &len);
+  int r = 0;
+
+  if(!tag)
+    return -1;
+
+  if(len == 0) {
+    JS_FreeCString(ctx, tag);
+    return 0;
+  }
+
+  if(tag[0] == '/') {
+    r = xlay_end_marker(lay, depth, tag + 1, len - 1);
+  } else {
+    JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
+
+    r = xlay_start(lay, depth, tag, len);
+
+    if(r == 0 && JS_IsObject(attributes))
+      r = xml_write_attributes(ctx, attributes, lay);
+
+    if(r == 0)
+      r = xlay_open_end(lay, self_closing);
+
+    JS_FreeValue(ctx, attributes);
+  }
+
+  JS_FreeCString(ctx, tag);
+  return r;
 }
 
 static JSValue
 js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) {
+  XmlLayout lay;
   int32_t depth = 0;
   BOOL single_line = FALSE;
-  JSValue value = JS_UNDEFINED, next = JS_GetPropertyUint32(ctx, obj, 0);
+  JSValue str = JS_EXCEPTION, value = JS_UNDEFINED, next = JS_GetPropertyUint32(ctx, obj, 0);
   const char *tagName = 0, *nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
+  int r = 0;
 
-  for(size_t i = 0; i < len; i++) {
+  xlay_init(&lay, writer_from_dynbuf(output), 0, 0);
+
+  for(size_t i = 0; r == 0 && i < len; i++) {
     JS_FreeValue(ctx, value);
     value = next;
     next = JS_GetPropertyUint32(ctx, obj, i + 1);
@@ -726,36 +586,33 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
     nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
 
     if(JS_IsString(value)) {
-      const char* s = JS_ToCString(ctx, value);
-      uint32_t newlines = str_count(s, '\n');
+      size_t slen;
+      const char* s = JS_ToCStringLen(ctx, &slen, value);
 
-      JS_FreeCString(ctx, s);
-      single_line = newlines == 0;
-
-      xml_write_text(ctx, value, output, depth, !single_line);
+      if(!s) {
+        r = -1;
+      } else {
+        single_line = str_count(s, '\n') == 0;
+        r = xlay_text(&lay, depth, !single_line, s, slen);
+        JS_FreeCString(ctx, s);
+      }
     } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
       const char* tag;
 
       if((tag = js_get_propertystr_cstring(ctx, value, "tagName"))) {
-        /* Self-close either when the very next list entry is this element's own
-         * end marker (no content between them), or when this is the last entry in
-         * the whole list with nothing after it at all - the flat-list format has no
-         * `children` property to fall back on (unlike the tree writer), so an
-         * element with truly nothing following it can never get a real closing tag
-         * and must self-close instead of being left open. A following non-object
-         * value (e.g. text) does *not* count as "nothing after" - see
-         * xml_write_element()'s own comment for why the old num_children<=0
-         * fallback there wrongly self-closed every element with real content. */
+        /* self-closing: the next entry is this element's own end marker, or this is the
+         * last entry; a following text does not count */
         BOOL self_closing = (nextTag && nextTag[0] == '/' && !strcmp(tag, &nextTag[1])) || (tag[0] != '/' && i + 1 >= len);
 
         if(tag[0] == '/')
           depth--;
 
-        xml_write_element(ctx, value, output, single_line ? 0 : depth, self_closing);
+        r = xml_write_flat_element(ctx, value, &lay, single_line ? 0 : depth, self_closing);
 
-        if(self_closing)
+        if(self_closing) {
+          JS_FreeValue(ctx, next);
           next = JS_GetPropertyUint32(ctx, obj, ++i + 1);
-        else if(tag[0] != '/' && tag[0] != '?' && tag[0] != '!' && !strcasecmp(tag, "dt"))
+        } else if(tag[0] != '/' && tag[0] != '?' && tag[0] != '!' && !strcasecmp(tag, "dt"))
           depth++;
 
         JS_FreeCString(ctx, tag);
@@ -768,7 +625,19 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
       JS_FreeCString(ctx, tagName);
   }
 
-  return JS_NewStringLen(ctx, (const char*)output->buf, output->size);
+  JS_FreeValue(ctx, value);
+  JS_FreeValue(ctx, next);
+
+  if(nextTag)
+    JS_FreeCString(ctx, nextTag);
+
+  if(r == 0 && xlay_finish(&lay, 0) == 0)
+    str = JS_NewStringLen(ctx, (const char*)output->buf, output->size);
+  else if(!JS_HasException(ctx))
+    JS_ThrowInternalError(ctx, "xml.write(): out of memory");
+
+  xlay_free(&lay);
+  return str;
 }
 
 static JSValue
@@ -1427,185 +1296,6 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLTreeSerializer", JS_PROP_CONFIGURABLE),
 };
 
-#include "xml/xread.h"
-
-/*
- * XMLBuilder: builds a {tagName, attributes, children}-shaped JSValue tree from a
- * stream of element_start/attribute/element_end calls (e.g. driven by xr_read()'s
- * callback), independent of any particular parser's own bookkeeping.
- *
- * The path from the document root down to the currently-open element is a plain
- * singly-linked list of XMLBuilderFrame, one per open element plus a synthetic root
- * frame (element/attributes == JS_UNDEFINED) whose `children` is the top-level result
- * array. xml_builder_push() pushes a new frame (and appends its `element`
- * into the *parent* frame's `children`); xml_builder_pop() pops back to
- * frame->parent.
- */
-typedef struct XMLBuilderFrame {
-  struct XMLBuilderFrame* parent;
-  JSValue element;
-  JSValue attributes;
-  JSValue children;
-} XMLBuilderFrame;
-
-typedef struct XMLBuilder {
-  JSContext* ctx;
-  XMLBuilderFrame* top;
-  BOOL flat;
-} XMLBuilder;
-
-static void
-xml_builder_init(XMLBuilder* b, JSContext* ctx) {
-  XMLBuilderFrame* root = js_mallocz(ctx, sizeof(XMLBuilderFrame));
-  root->parent = 0;
-  root->element = JS_UNDEFINED;
-  root->attributes = JS_UNDEFINED;
-  root->children = JS_NewArray(ctx);
-  b->ctx = ctx;
-  b->top = root;
-  b->flat = FALSE; /* Initialize flat mode */
-}
-
-static void
-xml_builder_push(XMLBuilder* b, const char* name, size_t namelen) {
-  JSContext* ctx = b->ctx;
-  JSValue element = JS_NewObjectProto(ctx, JS_NULL);
-  JSValue attributes = JS_NewObjectProto(ctx, JS_NULL);
-  JSValue children = JS_NewArray(ctx);
-  JS_SetPropertyStr(ctx, element, "tagName", JS_NewStringLen(ctx, name, namelen));
-  JS_SetPropertyStr(ctx, element, "attributes", attributes);
-  JS_SetPropertyStr(ctx, element, "children", children);
-
-  if(b->flat) {
-    /* In flat mode, push directly to the absolute root array */
-    XMLBuilderFrame* root = b->top;
-    while(root->parent)
-      root = root->parent;
-    JS_FreeValue(ctx, js_invoke(ctx, root->children, "push", 1, &element));
-  } else {
-    JS_FreeValue(ctx, js_invoke(ctx, b->top->children, "push", 1, &element));
-  }
-
-  /* Always push a frame to track the tag name for closing */
-  XMLBuilderFrame* frame = js_mallocz(ctx, sizeof(XMLBuilderFrame));
-  frame->parent = b->top;
-  frame->element = JS_DupValue(ctx, element);
-  /* attributes/children were already consumed by JS_SetPropertyStr() above (it steals the
-   * val argument, same convention xml_builder_attribute() follows) - element's own
-   * "attributes"/"children" properties are their one remaining owner from that point on, so
-   * frame->attributes/frame->children need a fresh dup here, but there is no separate local
-   * ref left over to free below (unlike `element`, whose local ref was never consumed). */
-  frame->attributes = JS_DupValue(ctx, attributes);
-  frame->children = JS_DupValue(ctx, children);
-  b->top = frame;
-
-  JS_FreeValue(ctx, element);
-}
-
-static void
-xml_builder_pop(XMLBuilder* b) {
-  XMLBuilderFrame* frame = b->top;
-
-  if(!frame->parent)
-    return;
-
-  JSContext* ctx = b->ctx;
-
-  if(b->flat) {
-    /* Generate the closing tag object for the flat list */
-    JSValue tagName = JS_GetPropertyStr(ctx, frame->element, "tagName");
-    size_t tagLen;
-    const char* tagStr = JS_ToCStringLen(ctx, &tagLen, tagName);
-    JSValue close_tag = JS_NewObjectProto(ctx, JS_NULL);
-    char* closeStr = js_malloc(ctx, tagLen + 2);
-    closeStr[0] = '/';
-    memcpy(closeStr + 1, tagStr, tagLen);
-    closeStr[tagLen + 1] = '\0';
-    JS_SetPropertyStr(ctx, close_tag, "tagName", JS_NewString(ctx, closeStr));
-    js_free(ctx, closeStr);
-    JS_FreeCString(ctx, tagStr);
-    JS_FreeValue(ctx, tagName);
-
-    XMLBuilderFrame* root = frame->parent;
-    while(root->parent)
-      root = root->parent;
-    JS_FreeValue(ctx, js_invoke(ctx, root->children, "push", 1, &close_tag));
-    JS_FreeValue(ctx, close_tag);
-  }
-
-  b->top = frame->parent;
-  JS_FreeValue(ctx, frame->element);
-  JS_FreeValue(ctx, frame->attributes);
-  JS_FreeValue(ctx, frame->children);
-  js_free(ctx, frame);
-}
-
-/* The top-level array of root elements/text built so far (a new reference).
-   Typically called once the document is complete, before xml_builder_free(). */
-static JSValue
-xml_builder_root(XMLBuilder* b) {
-  XMLBuilderFrame* frame = b->top;
-
-  while(frame->parent)
-    frame = frame->parent;
-
-  return JS_DupValue(b->ctx, frame->children);
-}
-
-/* Releases every frame still on the stack, root included - so it's safe to call on an
- * incomplete tree (e.g. after a truncated/errored parse whose element_end calls never
- * caught up with its element_start calls). Callers that want the built tree must
- * xml_builder_root() (or otherwise dup what they need out of it) first.
- *
- * Takes an explicit JSRuntime* (rather than using b->ctx, like the rest of XMLBuilder)
- * so it's safe to call from a JSClassFinalizer, which only gets a JSRuntime* - the
- * JSContext a builder was initialized with is not guaranteed to still be alive by
- * then. */
-static void
-xml_builder_free(XMLBuilder* b, JSRuntime* rt) {
-  XMLBuilderFrame* frame = b->top;
-
-  while(frame) {
-    XMLBuilderFrame* parent = frame->parent;
-
-    JS_FreeValueRT(rt, frame->element);
-    JS_FreeValueRT(rt, frame->attributes);
-    JS_FreeValueRT(rt, frame->children);
-    js_free_rt(rt, frame);
-
-    frame = parent;
-  }
-
-  b->top = 0;
-}
-
-/* value == 0 means a valueless/boolean attribute (e.g. `<input disabled>`), stored
- * as the JS boolean `true` - matching the legacy js_xml_parse()/xml.read()
- * convention (see BUGS: xread-no-boolean-attributes). Every pre-existing caller
- * always passes a non-null value (even "" for an empty one), so this is additive. */
-static void
-xml_builder_attribute(XMLBuilder* b, const char* name, size_t namelen, const char* value, size_t valuelen) {
-  JSContext* ctx = b->ctx;
-  JSAtom prop = JS_NewAtomLen(ctx, name, namelen);
-  JSValue v = value ? JS_NewStringLen(ctx, value, valuelen) : JS_NewBool(ctx, TRUE);
-
-  JS_SetProperty(ctx, b->top->attributes, prop, v);
-  JS_FreeAtom(ctx, prop);
-}
-
-/* Appends a text-content string to the currently-open frame's children (a plain
- * JS string, alongside any element objects xml_builder_push() added) - used by
- * both XMLParser (include/xml/xml.h)'s XML_TEXT events and, since xread.h grew
- * xr_type_text (see BUGS: xread-no-text-content), xread_callback_build() below. */
-static void
-xml_builder_text(XMLBuilder* b, const char* text, size_t len) {
-  JSContext* ctx = b->ctx;
-  JSValue str = JS_NewStringLen(ctx, text, len);
-  JSValue ret = js_invoke(ctx, b->top->children, "push", 1, &str);
-
-  JS_FreeValue(ctx, ret);
-  JS_FreeValue(ctx, str);
-}
 
 typedef struct PushParser {
   JSContext* ctx;
@@ -1614,7 +1304,8 @@ typedef struct PushParser {
   JSValue attribute, element_start, element_end, error, text;
   JSValue on_parse_error; /* onParseError(err): receives the SyntaxError instead of a throw */
   JSValue last_error;     /* SyntaxError of the latest error, or JS_UNDEFINED */
-  XMLBuilder builder;
+  XmlBuilder builder;
+  XmlEventSink sink; /* xbuild_sink(&builder) */
   BOOL use_builder; /* build {tagName, attributes, children} tree
                        instead of forwarding events */
 } XMLPushParser;
@@ -1659,15 +1350,20 @@ xml_pushparser_report(XMLPushParser* pp, const SourcePos* pos, size_t length, co
 static void
 xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
   XMLPushParser* pp = user_data;
+  XmlEvent ev = {0};
 
   switch(type) {
     /* value == 0 for a boolean attribute */
-    case xr_type_attribute: xml_builder_attribute(&pp->builder, name->cstr, name->len, value ? value->cstr : 0, value ? value->len : 0); break;
-    case xr_type_element_start: xml_builder_push(&pp->builder, name->cstr, name->len); break;
-    case xr_type_element_end: xml_builder_pop(&pp->builder); break;
-    case xr_type_text: xml_builder_text(&pp->builder, value->cstr, value->len); break;
-    case xr_type_error: xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input"); break;
+    case xr_type_attribute:
+      ev = (XmlEvent){.type = XE_ATTRIBUTE, .name = name->cstr, .nlen = name->len, .value = value ? value->cstr : 0, .vlen = value ? value->len : 0};
+      break;
+    case xr_type_element_start: ev = (XmlEvent){.type = XE_ELEMENT_START, .name = name->cstr, .nlen = name->len}; break;
+    case xr_type_element_end: ev = (XmlEvent){.type = XE_ELEMENT_END}; break;
+    case xr_type_text: ev = (XmlEvent){.type = XE_TEXT, .name = value->cstr, .nlen = value->len}; break;
+    case xr_type_error: xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input"); return;
   }
+
+  xevent_send(&pp->sink, &ev);
 }
 
 static void
@@ -1765,7 +1461,7 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(pp->xrs.error) /* the error callback already ran; nothing left open to report */
     return JS_UNDEFINED;
 
-  if(pp->use_builder && pp->builder.top->parent) {
+  if(pp->use_builder && xbuild_depth(&pp->builder)) {
     if(xml_pushparser_report(pp, &pp->xrs.pos, 0, "unexpected-end", "XMLPushParser: unexpected end of input (unclosed element)"))
       return JS_UNDEFINED;
 
@@ -1782,7 +1478,7 @@ js_xml_pushparser_get_root(JSContext* ctx, JSValueConst this_val) {
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
 
-  return xml_builder_root(&pp->builder);
+  return xbuild_root(&pp->builder);
 }
 
 static JSValue
@@ -1798,28 +1494,16 @@ js_xml_pushparser_get_error(JSContext* ctx, JSValueConst this_val) {
 /* Array of tagName strings from the document root down to the currently-open
  * element, root-first - mirrors JsonPushParser's .path. Only reflects reality
  * when the builder is actually being fed (pp->use_builder); with custom
- * callbacks given instead, xml_builder_push()/pop() are never called, so this
+ * callbacks given instead, xbuild_start()/xbuild_end() are never called, so this
  * stays empty. */
 static JSValue
 js_xml_pushparser_get_path(JSContext* ctx, JSValueConst this_val) {
   XMLPushParser* pp;
-  XMLBuilderFrame* f;
-  uint32_t depth = 0, idx;
-  JSValue ret;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
 
-  for(f = pp->builder.top; f && f->parent; f = f->parent)
-    depth++;
-
-  ret = JS_NewArray(ctx);
-  idx = depth;
-
-  for(f = pp->builder.top; f && f->parent; f = f->parent)
-    JS_SetPropertyUint32(ctx, ret, --idx, JS_GetPropertyStr(ctx, f->element, "tagName"));
-
-  return ret;
+  return xbuild_path(&pp->builder);
 }
 
 static JSValue
@@ -1853,7 +1537,8 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
   xr_state_init(&pp->xrs);
 
-  xml_builder_init(&pp->builder, ctx);
+  xbuild_init(&pp->builder, ctx, 0);
+  pp->sink = xbuild_sink(&pp->builder);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -1872,7 +1557,7 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
 
   if((pp = JS_GetOpaque(val, js_xml_pushparser_class_id))) {
     xr_state_free(&pp->xrs);
-    xml_builder_free(&pp->builder, rt);
+    xbuild_free(&pp->builder, rt);
     JS_FreeValueRT(rt, pp->this_obj);
     JS_FreeValueRT(rt, pp->attribute);
     JS_FreeValueRT(rt, pp->element_start);
@@ -1905,7 +1590,7 @@ static JSClassDef js_xml_pushparser_class = {
    like input, .parse() advancing one token at a time, and getters for the
    current token/position - except .parse() returns the raw xml_event_t
    token id (an int) rather than a string, and, like XMLPushParser above,
-   every element/attribute/text event is also fed into an XMLBuilder as it
+   every element/attribute/text event is also fed into an XmlBuilder as it
    happens, so .root optionally gives the tree built so far without the
    caller having to do that bookkeeping itself.
    ---------------------------------------------------------------------- */
@@ -1934,7 +1619,8 @@ typedef struct {
   Reader reader;
   XMLParser xp;
   Location* loc;
-  XMLBuilder builder;
+  XmlBuilder builder;
+  XmlEventSink sink; /* xbuild_sink(&builder) */
   BOOL use_builder;
   JSValue element_start, element_end, attribute, text, error;
   JSValue this_obj;
@@ -1970,22 +1656,28 @@ xml_parser_sync_location(XmlParser* p) {
 
 static void
 xml_parser_build(XmlParser* p, xml_event_t ev) {
+  XmlEvent e = {0};
+
   switch(ev) {
-    case XML_ELEMENT_START: xml_builder_push(&p->builder, p->xp.event_name.data, p->xp.event_name.len); break;
-    case XML_ELEMENT_END: xml_builder_pop(&p->builder); break;
+    case XML_ELEMENT_START: e = (XmlEvent){.type = XE_ELEMENT_START, .name = p->xp.event_name.data, .nlen = p->xp.event_name.len}; break;
+    case XML_ELEMENT_END: xbuild_end(&p->builder, p->xp.event_name.data, p->xp.event_name.len, 0); return;
     case XML_ATTRIBUTE:
-      xml_builder_attribute(&p->builder,
-                            p->xp.event_name.data,
-                            p->xp.event_name.len,
-                            p->xp.event_has_value ? p->xp.event_value.data : "",
-                            p->xp.event_has_value ? p->xp.event_value.len : 0);
+      /* a valueless attribute is stored as "" here, `true` in XMLPushParser */
+      e = (XmlEvent){.type = XE_ATTRIBUTE,
+                     .name = p->xp.event_name.data,
+                     .nlen = p->xp.event_name.len,
+                     .value = p->xp.event_has_value ? p->xp.event_value.data : "",
+                     .vlen = p->xp.event_has_value ? p->xp.event_value.len : 0};
       break;
     case XML_TEXT:
-      if(p->xp.event_has_value)
-        xml_builder_text(&p->builder, p->xp.event_value.data, p->xp.event_value.len);
+      if(!p->xp.event_has_value)
+        return;
+      e = (XmlEvent){.type = XE_TEXT, .name = p->xp.event_value.data, .nlen = p->xp.event_value.len};
       break;
-    default: break;
+    default: return;
   }
+
+  xevent_send(&p->sink, &e);
 }
 
 static void
@@ -2113,7 +1805,7 @@ js_xml_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case XML_PARSER_ROOT: {
-      ret = xml_builder_root(&p->builder);
+      ret = xbuild_root(&p->builder);
       break;
     }
   }
@@ -2231,7 +1923,8 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
    * lifetime, since both live in this one allocation and are freed together in
    * the finalizer below. */
   xml_parser_init(&p->xp, &p->reader);
-  xml_builder_init(&p->builder, ctx);
+  xbuild_init(&p->builder, ctx, 0);
+  p->sink = xbuild_sink(&p->builder);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -2244,7 +1937,7 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
     xml_parser_free(&p->xp);
     reader_free(&p->reader);
     location_free(p->loc, JS_GetRuntime(ctx));
-    xml_builder_free(&p->builder, JS_GetRuntime(ctx));
+    xbuild_free(&p->builder, JS_GetRuntime(ctx));
     js_free(ctx, p);
     return JS_EXCEPTION;
   }
@@ -2260,7 +1953,7 @@ js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
   if((p = JS_GetOpaque(val, js_xml_parser_class_id))) {
     xml_parser_free(&p->xp);
     reader_free(&p->reader);
-    xml_builder_free(&p->builder, rt);
+    xbuild_free(&p->builder, rt);
 
     if(p->loc)
       location_free(p->loc, rt);
@@ -2564,12 +2257,11 @@ typedef struct {
 static JSClassID js_xmlwriter_class_id;
 static JSValue xmlwriter_proto, xmlwriter_ctor;
 
-/* xmlwriter_layout: spaces per level and layout for the `indent` option; negative is compact. */
+/* xmlwriter_set_indent: remembers `indent` as given (the getter returns it) and sets the layout. */
 static void
 xmlwriter_set_indent(XMLWriter* wr, int32_t indent) {
   wr->indent = indent;
-  wr->xw.opts.layout = indent < 0 ? XW_COMPACT : XW_PRETTY;
-  wr->xw.opts.indent = indent < 0 ? 0 : MIN_NUM(indent, 1023);
+  xwrite_set_indent(&wr->xw, indent);
 }
 
 /* xmlwriter_throw: maps a failed xwrite event (-r) to a JS exception.
@@ -2584,18 +2276,14 @@ xmlwriter_set_indent(XMLWriter* wr, int32_t indent) {
  * returns JS_EXCEPTION. */
 static JSValue
 xmlwriter_throw(JSContext* ctx, ssize_t r) {
-  const char* code = "write-failed";
+  const char* text = xwrite_error_message(-r);
   char msg[96];
   JSValue err;
 
-  switch(-r) {
-    case XWRITE_E_NOMEM: return JS_ThrowOutOfMemory(ctx);
-    case XWRITE_E_MISMATCH: code = "mismatched-end-tag"; break;
-    case XWRITE_E_UNMATCHED: code = "unmatched-end-tag"; break;
-    case XWRITE_E_NOT_IN_TAG: code = "attribute-outside-tag"; break;
-  }
+  if(-r == XWRITE_E_NOMEM)
+    return JS_ThrowOutOfMemory(ctx);
 
-  snprintf(msg, sizeof(msg), "XMLWriter: %s", xwrite_error_message(-r));
+  snprintf(msg, sizeof(msg), "XMLWriter: %s", text ? text : "write failed");
 
   if(-r == XWRITE_E_WRITE) {
     err = JS_NewError(ctx);
@@ -2605,7 +2293,7 @@ xmlwriter_throw(JSContext* ctx, ssize_t r) {
     err = JS_GetException(ctx);
   }
 
-  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, code), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, xwrite_error_code(-r)), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
   return JS_Throw(ctx, err);
 }
 

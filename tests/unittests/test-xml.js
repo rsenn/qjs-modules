@@ -1739,6 +1739,18 @@ tests({
         eq(e.loc.column, column);
       }
   },
+  'XMLPushParser: builder tree shape, bare attribute is true, .path follows the open elements'() {
+    const p = new XMLPushParser();
+
+    p.write('<a id="7" b>x<c/>y<d>');
+    eq(JSON.stringify(p.path), '["a","d"]');
+    p.write('</d></a>');
+    eq(JSON.stringify(p.path), '[]');
+    eq(
+      JSON.stringify(p.root),
+      '[{"tagName":"a","attributes":{"id":"7","b":true},"children":["x",{"tagName":"c","attributes":{},"children":[]},"y",{"tagName":"d","attributes":{},"children":[]}]}]',
+    );
+  },
   'XMLPushParser: onParseError receives the error and write()/close() do not throw'() {
     for(const [s, code, column] of [['<a>\n  <1/></a>', 'unexpected-character', 4], ['<a><b/>', 'unexpected-end', 8], ['<a>\n <b', 'unexpected-end', 4]]) {
       const errs = [];

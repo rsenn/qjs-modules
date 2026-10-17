@@ -819,6 +819,18 @@ target_include_directories(jread-positions PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(jread-positions PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-jread-positions COMMAND jread-positions)
 
+# events-sinks drives the writers through JsonEventSink and XmlEventSink
+add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c src/xml/xwrite.c)
+target_include_directories(events-sinks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(events-sinks PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-events-sinks COMMAND events-sinks)
+
+# pump-roundtrip: every parser driving a writer through the sinks, at several chunk sizes
+add_executable(pump-roundtrip tests/c/pump-roundtrip.c)
+target_include_directories(pump-roundtrip PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(pump-roundtrip PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-pump-roundtrip COMMAND pump-roundtrip)
+
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 
 # tests of modules that are off by default

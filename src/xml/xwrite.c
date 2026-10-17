@@ -29,6 +29,26 @@ xwrite_error_message(int code) {
   return code > 0 && code < (int)(sizeof(xwrite_messages) / sizeof(*xwrite_messages)) ? xwrite_messages[code] : 0;
 }
 
+const char*
+xwrite_error_code(int code) {
+  switch(code) {
+    case XWRITE_E_WRITE: return "write-failed";
+    case XWRITE_E_NOMEM: return "out-of-memory";
+    case XWRITE_E_UNMATCHED: return "unmatched-end-tag";
+    case XWRITE_E_MISMATCH: return "mismatched-end-tag";
+    case XWRITE_E_NOT_IN_TAG: return "attribute-outside-tag";
+    case XWRITE_E_UNCLOSED: return "unclosed-element";
+  }
+
+  return "";
+}
+
+void
+xwrite_set_indent(XmlWriter* wr, int indent) {
+  wr->opts.layout = indent < 0 ? XW_COMPACT : XW_PRETTY;
+  wr->opts.indent = indent < 0 ? 0 : (indent > 1023 ? 1023 : indent);
+}
+
 void
 xwrite_init(XmlWriter* wr, DynBufReallocFunc* realloc_func, void* opaque) {
   dbuf_init2(&wr->stack, opaque, realloc_func);
@@ -276,4 +296,58 @@ xwrite_cdata(XmlWriter* wr, const char* str, size_t len) {
 ssize_t
 xwrite_finish(XmlWriter* wr) {
   return vector_empty(&wr->stack) ? 0 : -XWRITE_E_UNCLOSED;
+}
+
+/* the XmlEventSink members: each casts `opaque` back to the writer */
+static ssize_t
+xwrite_if_error(void* wr, const char* str, size_t len) {
+  return 0;
+}
+static ssize_t
+xwrite_if_element_start(void* wr, const char* name, size_t len) {
+  return xwrite_element_start(wr, name, len);
+}
+static ssize_t
+xwrite_if_attribute(void* wr, const char* name, size_t nlen, const char* value, size_t vlen) {
+  return xwrite_attribute(wr, name, nlen, value, vlen);
+}
+static ssize_t
+xwrite_if_element_end(void* wr, const char* name, size_t len) {
+  return xwrite_element_end(wr, name, len);
+}
+static ssize_t
+xwrite_if_text(void* wr, const char* str, size_t len) {
+  return xwrite_text(wr, str, len);
+}
+static ssize_t
+xwrite_if_comment(void* wr, const char* str, size_t len) {
+  return xwrite_comment(wr, str, len);
+}
+static ssize_t
+xwrite_if_declaration(void* wr, const char* str, size_t len) {
+  return xwrite_declaration(wr, str, len);
+}
+static ssize_t
+xwrite_if_instruction(void* wr, const char* str, size_t len) {
+  return xwrite_instruction(wr, str, len);
+}
+static ssize_t
+xwrite_if_cdata(void* wr, const char* str, size_t len) {
+  return xwrite_cdata(wr, str, len);
+}
+
+XmlEventSink
+xwrite_sink(XmlWriter* wr) {
+  return (XmlEventSink){
+      wr,
+      xwrite_if_error,
+      xwrite_if_element_start,
+      xwrite_if_attribute,
+      xwrite_if_element_end,
+      xwrite_if_text,
+      xwrite_if_comment,
+      xwrite_if_declaration,
+      xwrite_if_instruction,
+      xwrite_if_cdata,
+  };
 }
