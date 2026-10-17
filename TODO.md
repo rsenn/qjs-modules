@@ -2529,7 +2529,7 @@ Steps, each green before the next:
 | 4a (done) | `git mv` `walk.[ch]` to `jwalk.[ch]`, rename `walk_*`/`Walk*` that are JSON-rule specific to `jwalk_*`/`Jwalk*`; update `quickjs-json.c`, CMake, `doc/native/json.md`, `utilities/quickjs-json.md` | `test-json.js` unchanged and green |
 | 4b (done) | extract `walk.[ch]` (stepper, stack, skip, circular, interface) and make `jwalk.c` call it with the three hooks | `test-json.js` green; differential `JsonWriter.stringify` vs `JSON.stringify` on the fuzz corpus unchanged |
 | 4c (done) | element-tree walking as `xwalk.[ch]` on `walk.h` hooks (not in `walk.c`) | `walk` has no JS surface, so the cases (getters, back-links, undefined, nested array as value, root array) were checked with a C harness; the JS-level `test-walk.js` cases ride on 4d's XML write tests |
-| 4d (done) | `xwalk.c` adapter into `xwrite`; `write(tree|list, maxDepth)` switches over (`XMLTreeSerializer` is Phase 5); delete the traversal half left by 3d: `js_xml_write_tree/list`, `js_xml_write` body, `xml_enumeration_next`, `xml_num_children` | golden test byte-identical, including `lib/dom.js` nodes; fuzz `write(read(x))` vs the old implementation equal | **Done: the tree goes through `xwalk` (`XmlTreeWrite` in `quickjs-xml.c`, lazy start tag, `walk_skip` at maxDepth), the flat list through `xml_write_flat_element`; both emit via `xlay_*`.**
+| 4d (done) | `xwalk.c` adapter into `xwrite`; `write(tree|list, maxDepth)` switches over (`XMLTreeSerializer` is Phase 5); delete the traversal half left by 3d: `js_xml_write_tree/list`, `js_xml_write` body, `xml_enumeration_next`, `xml_num_children` | golden test byte-identical, including `lib/dom.js` nodes; fuzz `write(read(x))` vs the old implementation equal | **Done: the tree goes through `xwalk` (`xwrite_tree` in `src/xml/xtreewrite.c`, lazy start tag, `walk_skip` at maxDepth), the flat list through `xml_write_flat_element`; both emit via `xlay_*`.**
 
 Risk: medium for 4b (it moves the `JSON.stringify` path; steps 4a and 4b are pure refactors and need no behaviour
 change), low for 4c and 4d. Saves about 450 lines in `quickjs-xml.c`; `walk.c` plus `jwalk.c` stay about the size of
@@ -2683,35 +2683,87 @@ Phase C — posix interface of `path` made Node-correct (changes behaviour; need
       qjsm's own form (x against the cwd; `utilities/resolve-imports.js` uses it), Node throws for the missing
       `to`; `format({ base: 5 })` returns `"5"`, Node returns the number 5.
 - [x] C5 `Function.length` as Node: `basename` 2, `join` 0, `relative` 2, `resolve` 0, the rest 1.
-- [ ] C6 `toNamespacedPath` (identity after validation) and `_makeLong` as the same function object.
-- [ ] C7 subpath table in `src/qjsm.c` (next to `fs/promises`): `path/posix` to `path`; test
+- [x] C6 `toNamespacedPath` (identity after validation) and `_makeLong` as the same function object.
+- [x] C7 subpath table in `src/qjsm.c` (next to `fs/promises`): `path/posix` to `path`; test
       `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/nodeHooks.js`.
-- [ ] C8 strike the fixed entries from `BUGS` (`path-functions-coerce-non-string-arguments`, the posix part of
-      `path-missing-node-names`).
-- [ ] C9 decision: `path.exists` follows symlinks (`stat`) like `fs.existsSync`? If yes: `quickjs-path.c` only,
-      `path_exists` (lstat) stays for the C callers; strike `path-exists-true-for-dangling-symlink`.
+- [ ] C8 `BUGS`: strike `path-functions-coerce-non-string-arguments` and the posix part of `path-missing-node-names`
+      (leave `win32` and `matchesGlob` in the entry until W11/G2). Verify with `rg -n 'path-functions-coerce' BUGS`.
+- [ ] C9 DECISION (user): `path.exists` follows symlinks (`stat`) like `fs.existsSync`, or keeps `lstat`?
+      If it follows: change `quickjs-path.c` only (`PATH_EXISTS` calls `stat`); `path_exists` (lstat) stays for the
+      C callers (module search); add a dangling-symlink case to `test-path.js`; strike
+      `path-exists-true-for-dangling-symlink` in `BUGS`; fix the `exists` row in `doc/api-compare-path.md`
+      section 2 and `doc/native/path.md`. If it keeps lstat: document it as a deliberate difference in both docs
+      and strike the `BUGS` entry as "won't fix".
+- [ ] C10 DECISION (user): `relative(x)` with one argument (qjsm's own form, x against the cwd). Node throws for
+      the missing `to`. If strict: change the four calls in `utilities/resolve-imports.js` (lines ~1971, 2079, 2360,
+      2380) to `path.relative(process.cwd(), x)`, drop the `argc == 1` branch in `PATH_RELATIVE`, add the Node
+      error case to `test-path-interface.js`. If kept: list it in `doc/api-compare-path.md` section 2 as an extra.
 
-Phase W — `path.win32` (needs T2, C7)
-- [ ] W1 `utilities/gen-path-golden.mjs --win32`: golden tables for `path.win32` (drive letters, UNC, `\\?\`,
-      device paths, per-drive `C:` handling with injected env/cwd).
-- [ ] W2 `lib/pathWin32.js` scaffold: `sep`, `delimiter`, `isAbsolute`, `toNamespacedPath`, `_makeLong`; golden slice
-      in `tests/unittests/test-path-win32.js` (imports `../../lib/pathWin32.js`, `@portable`).
+Phase W — `path.win32` (needs T2, C7; all steps are JS, no C until W10)
+Port source: node v22.23.3 `lib/path.js` (fetch with `curl -sL https://raw.githubusercontent.com/nodejs/node/v22.23.3/lib/path.js`;
+MIT, credit and version in the file header). A JS port of the `win32` object only: no primordials, ES module, no
+`internalBinding`; `process` is imported lazily and only read inside `resolve` and `toNamespacedPath`.
+Every step ends with its golden slice green in `tests/unittests/test-path-win32.js` under qjsm, node, bun, deno.
+- [ ] W1 `utilities/gen-path-golden.mjs --win32`: golden rows for `path.win32`; inputs: drive letters (`C:\a\b`,
+      `c:/x`, `C:`, `C:x`, `C:\`), UNC (`\\srv\share\x`, `//srv/share/`, `\\srv`), `\\?\C:\x`, `\\.\COM1`, mixed
+      separators, trailing separators, `..` above the root. `resolve` and `toNamespacedPath` rows carry their
+      injected state (`{ cwd: 'C:\\work', env: { '=C:': 'C:\\work', '=D:': 'D:\\other' } }`; the generator stubs
+      `process.cwd` and `process.env`, the test does the same), never the real environment.
+- [ ] W2 `lib/pathWin32.js` scaffold: `sep` `\`, `delimiter` `;`, `isAbsolute`, `toNamespacedPath`, `_makeLong` (the same
+      function), shared helpers (`isPathSeparator`, `isWindowsDeviceRoot`, `normalizeString`); new
+      `tests/unittests/test-path-win32.js` (`// @portable`, imports `../../lib/pathWin32.js`) with those slices.
 - [ ] W3 `normalize`, `join`.
-- [ ] W4 `resolve` (reads `process.cwd()`/`process.env` lazily; test with injected values).
+- [ ] W4 `resolve` (per-drive cwd from `process.env['=C:']`, falls back to `process.cwd()`); injected-state rows only.
 - [ ] W5 `relative`.
-- [ ] W6 `dirname`, `basename`, `extname`.
-- [ ] W7 `parse`, `format`.
-- [ ] W8 `posix`, `win32` cross links (`win32.posix`, `posix.win32`, `win32.win32`).
+- [ ] W6 `dirname`, `basename` (with suffix), `extname`.
+- [ ] W7 `parse`, `format`; the same ERR_INVALID_ARG_TYPE helper as C1 in JS (message text identical to the C one).
+- [ ] W8 `posix` / `win32` cross links: `win32.win32`, `win32.posix` (the native module), `posix.win32` (set in W10).
 - [ ] W9 register the builtin: `pathWin32` in `BUILTINS_COMPILED`, `set(pathWin32_MODULES process)` in
-      `cmake/qjsm.cmake`; subpath `path/win32` in the `src/qjsm.c` table.
-- [ ] W10 `path.win32` lazy getter in `quickjs-path.c` (`globalThis.requireModule('pathWin32')`); the
-      `@portable` win32 test now imports `node:path` and uses `.win32`.
-- [ ] W11 rows in the comment table of `lib/nodeHooks.js` and in `doc/native/path.md`; strike `path-missing-node-names`.
+      `cmake/qjsm.cmake`; `path/win32` in both tables of `src/qjsm.c` (next to `path/posix`); row in the comment
+      table of `lib/nodeHooks.js`. Check: `qjsm -l` lists it; `import('path/win32')` and `import('node:path/win32')`.
+- [ ] W10 `path.win32` lazy getter in `quickjs-path.c` (`globalThis.requireModule('pathWin32')`, as `lib/fs.js` does
+      for `fs.promises`), on the module, `default` and `posix`; the portable win32 test switches to
+      `import path from 'path'; const { win32 } = path;`. Add `win32` to the shared-names assertion in
+      `test-path-interface.js`.
+- [ ] W11 docs: `win32` rows in `doc/native/path.md`, `doc/api-compare-path.md` (surface table, findings),
+      `doc/api-interface-path.md` (mark done); strike `path-missing-node-names` in `BUGS` except `matchesGlob`.
+- [ ] W12 re-run `./dump-node-path.sh`: `compare.txt` must list only `matchesGlob` (until G2) and the qjsm extras.
 
 Phase G — `matchesGlob` (independent, last)
-- [ ] G1 glob engine (`*` `**` `?` `[...]` `{a,b}` leading `!`), shared with `Bun.Glob`, `fs.glob`, `Bun.Archive`
-      (Tier 19); golden-tested against node's `path.matchesGlob`; reuse Tier 19's engine if it exists first.
-- [ ] G2 `path.matchesGlob(path, pattern)` (and on `posix`/`win32`) on top of G1.
+- [ ] G1 glob engine (`*` `**` `?` `[...]` `{a,b}` leading `!`) as a pure function (JS first: `lib/glob.js`, no native
+      deps, portable); golden table from node's `path.matchesGlob` via `utilities/gen-path-golden.mjs --glob`
+      (patterns x paths, posix and win32 separators); shared with `Bun.Glob`, `fs.glob`, `Bun.Archive` (Tier 19):
+      reuse Tier 19's engine if it exists first, else this one is that engine.
+- [ ] G2 `path.matchesGlob(path, pattern)` on `path`, `posix` and `win32` on top of G1 (`quickjs-path.c` calls the
+      builtin lazily, like `win32`); validation as C1 with names `path` and `pattern`; `Function.length` 2;
+      `test-path-node.js` gets the golden rows; strike the rest of `path-missing-node-names` in `BUGS`.
+
+Phase X — the qjsm-only extras (needs T5; removals are breaking and need the user's go per method)
+The 38 names no runtime has (api-compare-path.md section 2). Rule of CLAUDE.md "Choosing the Next Task": no user
+in `examples/ utilities/ lib/ ~/Sources/plot-cv` and no sibling `qjs-*` plus no standard target means remove.
+- [ ] X1 apply the T5 table: list per method keep / remove with the usage found (file:line) in section 3.3 of
+      `doc/api-implement-path.md`; show it to the user, nothing is deleted before the answer.
+- [ ] X2 per approved family, one commit each: delete the JS method(s) and their `static js_path_*` helper in
+      `quickjs-path.c`, the cases in `test-path.js`, the rows in `doc/native/path.md` and
+      `doc/api-compare-path.md`; families: (a) component helpers `at components length slice toArray`, (b) offsets
+      `baselen basepos dirlen extlen extpos`, (c) scanning `skip skipSeparator right isSeparator getsep`,
+      (d) comparison `isin equal`, (e) `absolute canonical isRelative` (covered by `resolve` / `normalize` /
+      `!isAbsolute`), (f) filesystem extras that have a standard home `readlink realpath getcwd gethome exists`
+      (`fs.readlinkSync`, `fs.realpathSync`, `process.cwd`, `os.homedir`, `fs.existsSync`), (g) the `is*` type
+      tests (`fs.Stats`). Check the Tier 22 usage grep again right before each deletion.
+- [ ] X3 after each removal: `utilities/api-surface.sh` collect on the build before and after, `diff` is the changelog
+      entry (members removed means a major bump).
+
+Phase F — closing Tier 22
+- [ ] F1 `rg 'path_[a-z_]*[0-9]\(' src include quickjs-*.c` is empty, `ls src/path*.c` is `path-lib.c path-sys.c`
+      (checked 2026-10-17, repeat after phase X).
+- [ ] F2 `utilities/api-surface.sh` on the install tree of the commit before Tier 22 and on the last one;
+      `diff` goes into the release notes; suggested bump per its summary line.
+- [ ] F3 `ctest` full run against `/tmp/ctest-baseline.txt` (24 failures that predate Tier 22: wasm, wasi, mmap,
+      lexer-cpp, directory, extract-c, globals, misc, and the `.deno` cases under `ulimit -v`).
+- [ ] F4 skill follow-ups (need the user's approval): `path` entry in the `quickjs-scripting` skill's `modules.yaml`
+      and `deno-import-map.json`; a note in `quickjs-native-bindings` that a Node-compatible error is built from
+      `js_path_invalid_arg`-style code (message, `code` property set on the thrown object).
 
 Runtime notes (no code unless stated)
 - Bun: nothing to add, Bun's `path` is Node's; do not copy its `bound X`/`length 1` quirks. Re-run the
