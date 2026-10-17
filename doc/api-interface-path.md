@@ -56,7 +56,7 @@ Options for `win32`, the one big piece:
 | | idea | verdict |
 | --- | --- | --- |
 | A | all in C: the lexical core (`src/path-lib.c`) switches to Windows rules at run time | no: the core is built for one OS by macro (`WINDOWS`), turning it into a run-time switch touches every function |
-| B | a JS layer `node/path` that only `node:path` maps to (nodeHooks layer mechanism, like `node_events`) | no: bare `path` is what portable scripts import (quickjs-scripting skill), it would stay un-Node |
+| B | a JS layer `node/path` that only `node:path` maps to (loaders/node layer mechanism, like `node_events`) | no: bare `path` is what portable scripts import (quickjs-scripting skill), it would stay un-Node |
 | **C** | native `path` stays the module for both specifiers and becomes Node-correct for the shared names; `win32` is a pure-JS builtin `pathWin32` that `path.win32` loads lazily | yes |
 
 C in files:
@@ -66,7 +66,7 @@ C in files:
 | `quickjs-path.c` | validation, `length`s, `toNamespacedPath`/`_makeLong`, lazy `win32` getter (`globalThis.requireModule('pathWin32')`, as `lib/fs.js` does for `fs.promises`) |
 | `lib/pathWin32.js` (new builtin) | Node's win32 algorithms in JS, the same 17 names, `sep` `\`, `delimiter` `;`; imports nothing but `process` (lazily) |
 | `src/qjsm.c`, subpath table (next to `fs/promises`) | `path/posix` to `path`, `path/win32` to `pathWin32` |
-| `lib/nodeHooks.js` | no code change: `node:path` and `node:path/*` already pass their name on; only its comment table gets the rows |
+| `lib/loaders/node.js` | no code change: `node:path` and `node:path/*` already pass their name on; only its comment table gets the rows |
 | `cmake/qjsm.cmake` | `pathWin32` in `BUILTINS_COMPILED`, `set(pathWin32_MODULES process)` |
 | glob engine (section 6) | `path.matchesGlob` |
 

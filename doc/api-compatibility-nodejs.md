@@ -24,7 +24,7 @@ dlynx.sh https://github.com/nodejs/node/raw/refs/heads/main/doc/api/ | grep '\.m
 
 Modules whose Node API differs from the qjs-modules helpers live in `lib/node/<name>.js`
 and are compiled as builtin `node_<name>` (CMake `BUILTINS_NODE`). `node:<name>` resolves
-to them through the `registerHooks()` resolver in `lib/nodeHooks.js` (qjsm preloads it);
+to them through the `registerHooks()` resolver in `lib/loaders/node.js` (qjsm preloads it);
 a bare `<name>` no longer does, `import 'buffer'` needs `node:buffer`.
 
 | file | serves | notes |

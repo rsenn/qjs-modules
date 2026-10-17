@@ -204,7 +204,7 @@ dependencies, so they cannot redirect them. `--hooks-on-builtins` /
 (a hook then runs before the builtin is chosen). Default off.
 
 *Aliases.* `package.json` `_moduleAliases` is no longer in the C loader. The
-builtin `packageAliases` (preloaded, only when present) registers a resolve
+builtin `loaders_package-aliases` (preloaded, only when present) registers a resolve
 hook when `./package.json` has the key, so aliases apply after builtin
 resolution and never to a builtin's own imports.
 
@@ -214,7 +214,7 @@ them). A builtin importing a disabled one fails with the error above. From JS,
 `disableBuiltin(...names)` does the same at run time (returns the names switched off;
 modules already loaded stay loaded).
 
-*Compat.* Node (`nodeHooks`, `node/*`), module-alias (`packageAliases`), Bun
+*Compat.* Node (`loaders_node`, `node/*`), module-alias (`loaders_package-aliases`), Bun
 and Web platform layers are builtins like any other and so opt-out: leave them
 out of `BUILTIN_MODULES`/`BUILTINS_COMPILED` at build time or disable them on
 the command line. The configure summary reports each one present (specifiers
@@ -226,7 +226,7 @@ prints nothing.
 marks, colors on a terminal, `NO_COLOR` honored) and a count line at exit;
 `DEBUG=modules,modules,...` adds the C-level `DEBUG_MODULE()` detail. It stays
 in C because it also sees what happens before any hook exists and does not
-perturb hook chains. The JS counterpart is `lib/traceHooks.js` (`doc/js/traceHooks.md`).
+perturb hook chains. The JS counterpart is `lib/loaders/trace.js` (`doc/js/loaders/trace.md`).
 
 ## 5. Build info in qjsm
 

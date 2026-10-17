@@ -12,7 +12,7 @@ of this module:
 | --- | --- | --- |
 | native API | `quickjs-wasm.c` | this page |
 | `WebAssembly` global, `instantiate()`, `*Streaming()` | `lib/webassembly.js` | [webassembly](../js/webassembly.md) |
-| `import './x.wasm'` | `lib/wasm-loader.js` | [wasm-loader](../js/wasm-loader.md) |
+| `import './x.wasm'` | `lib/loaders/wasm.js` | [loaders/wasm](../js/loaders/wasm.md) |
 | WASI preview1 (`node:wasi`) | `lib/wasi.js` | [wasi](../js/wasi.md) |
 
 ```js
@@ -121,7 +121,7 @@ engines. How each engine links:
 
 ## Not yet supported
 
-- `import source` and `with { type: 'wasm' }` for `.wasm` ([`lib/wasm-loader.js`](../js/wasm-loader.md) covers plain imports)
+- `import source` and `with { type: 'wasm' }` for `.wasm` ([`lib/loaders/wasm.js`](../js/loaders/wasm.md) covers plain imports)
 - `externref` tables and globals, shared memories, `Tag`/`Exception`/`JSTag`
 - one function object per wasm function
 - multi-value host returns

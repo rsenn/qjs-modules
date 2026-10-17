@@ -186,7 +186,7 @@ WHATWG/Deno/Bun API gaps in `lib/`:
   `.node` addons and the compile cache are refused, see `doc/js/module.md`.
 
 **WebAssembly: `.wasm` imports** *(investigated 2026-10-06)* — the `WebAssembly` global is
-done (`lib/webassembly.js`, opt-in, with `*Streaming`); `.wasm` ESM import is done (`lib/wasm-loader.js`, opt-in, instance phase only); wasm3 is the leading runtime candidate (see the findings below).
+done (`lib/webassembly.js`, opt-in, with `*Streaming`); `.wasm` ESM import is done (`lib/loaders/wasm.js`, opt-in, instance phase only); wasm3 is the leading runtime candidate (see the findings below).
 
 *What other runtimes provide:*
 - **Browser / Node / Deno / Bun:** a global `WebAssembly` (W3C JS API): `Module`, `Instance`,
@@ -327,9 +327,8 @@ node:-prefix audit):
   `js_module_set_import_meta(ctx, module, FALSE, FALSE)`; `import.meta` has only `url` and
   `main`, no `filename`/`dirname`) — Node/Deno/Bun all support these.
 - The default filesystem module loader never consults `package.json`'s `"type"`,
-  `"exports"`, or `"main"` fields (only the `"_moduleAliases"` map is handled, by the builtin `lib/packageAliases.js`
-  resolve hook, since 2026-10-14; `jsm_module_package()` is gone from `src/qjsm.c`) — real Node package layouts resolve wrong without opting into
-  the `lib/nodeModulesLoader.js` demo loader.
+  `"exports"`, or `"main"` fields (only the `"_moduleAliases"` map is handled, by the builtin `lib/loaders/package-aliases.js`
+  resolve hook, since 2026-10-14; `jsm_module_package()` is gone from `src/qjsm.c`) — real Node package layouts resolve wrong (the old `nodeModulesLoader.js` demo loader was removed).
 - `.mjs` forces module-eval mode (`src/qjsm.c:jsm_hook_load()`) but `.cjs` has no special handling
   (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
   `"type"`).
@@ -382,7 +381,7 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
 project's internal POSIX/reflection grab-bag, not just the Node `util` surface) all carry
 qjs-modules-specific extras on the *same* module name Node scripts expect. Since
 the `node:` prefix is mapped to `lib/node/<name>.js`, else to the bare name, for *any*
-registered builtin by `lib/nodeHooks.js` (the C side no longer knows `node:`, 2026-10-14) - not just ones that are actually part of Node's API - `node:yaml`
+registered builtin by `lib/loaders/node.js` (the C side no longer knows `node:`, 2026-10-14) - not just ones that are actually part of Node's API - `node:yaml`
 and any other qjsm-only module name also resolves under the `node:` prefix even though
 Node/Bun have no such module (confirmed: Bun errors `No such built-in module: node:yaml`,
 qjsm resolves it fine). A Node/Bun script that imports a typo'd or wrong `node:`-prefixed
@@ -1388,7 +1387,7 @@ the rewriter copies what it keeps (the held key) and `jwrite_*` copies into the 
 ## Tier 14 — qjsm closed builtins: follow-ups (2026-10-14)
 
 Builtins are closed (`doc/qjsm-layout.md` 4.1). Done 2026-10-14: `disableBuiltin()`,
-`lib/traceHooks.js`, computed-`import()` report at configure time, `vfs` loads `archive`
+`lib/loaders/trace.js`, computed-`import()` report at configure time, `vfs` loads `archive`
 lazily, `QJSM_INSTALL_BUILTIN_NATIVE`, `manifest.json`, build-info blob (`--version`,
 `--build-info`, `buildInfo`, `Module.layout/builtins/bytecode/installed/manifest/verify`).
 What is left:
@@ -2764,7 +2763,7 @@ Phase C — posix interface of `path` made Node-correct (changes behaviour; need
 - [x] C5 `Function.length` as Node: `basename` 2, `join` 0, `relative` 2, `resolve` 0, the rest 1.
 - [x] C6 `toNamespacedPath` (identity after validation) and `_makeLong` as the same function object.
 - [x] C7 subpath table in `src/qjsm.c` (next to `fs/promises`): `path/posix` to `path`; test
-      `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/nodeHooks.js`.
+      `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/loaders/node.js`.
 - [x] C8 `BUGS`: strike `path-functions-coerce-non-string-arguments` and the posix part of `path-missing-node-names`
       (leave `win32` and `matchesGlob` in the entry until W11/G2). Verify with `rg -n 'path-functions-coerce' BUGS`.
 - [ ] C9 DECISION (user): `path.exists` follows symlinks (`stat`) like `fs.existsSync`, or keeps `lstat`?
@@ -2799,7 +2798,7 @@ Every step ends with its golden slice green in `tests/unittests/test-path-win32.
 - [ ] W8 `posix` / `win32` cross links: `win32.win32`, `win32.posix` (the native module), `posix.win32` (set in W10).
 - [ ] W9 register the builtin: `pathWin32` in `BUILTINS_COMPILED`, `set(pathWin32_MODULES process)` in
       `cmake/qjsm.cmake`; `path/win32` in both tables of `src/qjsm.c` (next to `path/posix`); row in the comment
-      table of `lib/nodeHooks.js`. Check: `qjsm -l` lists it; `import('path/win32')` and `import('node:path/win32')`.
+      table of `lib/loaders/node.js`. Check: `qjsm -l` lists it; `import('path/win32')` and `import('node:path/win32')`.
 - [ ] W10 `path.win32` lazy getter in `quickjs-path.c` (`globalThis.requireModule('pathWin32')`, as `lib/fs.js` does
       for `fs.promises`), on the module, `default` and `posix`; the portable win32 test switches to
       `import path from 'path'; const { win32 } = path;`. Add `win32` to the shared-names assertion in

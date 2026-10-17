@@ -1,6 +1,6 @@
-/* lib/traceHooks.js: the registerHooks() tracer, qjsm only */
+/* lib/loaders/trace.js: the registerHooks() tracer, qjsm only */
 import * as fs from 'fs';
-import { trace } from '../../lib/traceHooks.js';
+import { trace } from '../../lib/loaders/trace.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const DIR = fs.mkdtempSync(`${globalThis.process?.env?.TMPDIR ?? '/tmp'}/qjs-trace-hooks-`);

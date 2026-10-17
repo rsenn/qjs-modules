@@ -1,13 +1,13 @@
-# commonjs
+# loaders/commonjs
 
-Source: `lib/commonjs.js` (JS wrapper over `registerHooks()` and `lib/require.js`) — default export: `installCommonJS()`; qjsm only
+Source: `lib/loaders/commonjs.js` (JS wrapper over `registerHooks()` and `lib/require.js`) — default export: `installCommonJS()`; qjsm only
 
 Loads modules whose format is `commonjs`: files ending in `.cjs`, and any `load`
 result with `format: 'commonjs'`. Importing it also sets `globalThis.require` (the
 `require()` of `lib/require.js`).
 
 ```js
-import installCommonJS from 'commonjs';
+import installCommonJS from 'loaders_commonjs';
 
 installCommonJS();
 const { sum } = await import('./lib.cjs');   // lib.cjs: exports.sum = require('./dep.cjs').v + 1

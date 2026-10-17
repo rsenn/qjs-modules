@@ -1,5 +1,5 @@
-/* lib/wasm-loader.js: .wasm as an ES module, qjsm only */
-import installWasmLoader from '../../lib/wasm-loader.js';
+/* lib/loaders/wasm.js: .wasm as an ES module, qjsm only */
+import installWasmLoader from '../../lib/loaders/wasm.js';
 import * as wasm from 'wasm';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 

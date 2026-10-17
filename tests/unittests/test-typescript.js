@@ -1,5 +1,5 @@
-/* lib/typescript.js: .ts loader through the external swc CLI, qjsm only */
-import installTypeScript from '../../lib/typescript.js';
+/* lib/loaders/typescript.js: .ts loader through the external swc CLI, qjsm only */
+import installTypeScript from '../../lib/loaders/typescript.js';
 import * as os from 'os';
 import * as std from 'std';
 import { assert, eq, tests } from '../../lib/tinytest.js';

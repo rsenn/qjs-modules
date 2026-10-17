@@ -54,7 +54,7 @@ Key modules:
 - [fs](js/fs.md) — Node.js fs module
 - [fsPromises](js/fsPromises.md) — Promise-based fs API (also `fs/promises`)
 - [webassembly](js/webassembly.md) — the `WebAssembly` global (opt-in)
-- [wasm-loader](js/wasm-loader.md) — `.wasm` ES module loader (opt-in)
+- [loaders/wasm](js/loaders/wasm.md) — `.wasm` ES module loader (opt-in)
 - [wasi](js/wasi.md) — `node:wasi` (WASI preview1), portable across qjsm, node, bun, deno
 - [globals](js/globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
 - [jsonStreams](js/jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`

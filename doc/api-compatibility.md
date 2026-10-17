@@ -823,15 +823,6 @@ directly for Bun-compatible code.
 
 **Notes:** Backed by this engine's own builtin-module registry rather than a hand-maintained list, matching how Bun/Deno alias `node:module` to their own module systems. `registerHooks()` (synchronous customization hooks) is implemented; Node's `Module` class, async `register()` hooks, `syncBuiltinESMExports()` and `SourceMap` are not (see `TODO.md`).
 
-### lib/nodeModulesLoader.js
-**Module:** `nodeModulesLoader`  
-**Classification:** Custom (Node.js-style module resolution demo)  
-**Spec:** https://nodejs.org/api/modules.html#all-together  
-**Exports:**
-- default export: installs `registerHooks()` resolve/load hooks implementing Node-style `node_modules` resolution, `package.json` `"exports"`/`"module"`/`"main"` field lookup, and an experimental `.ts` transpile-via-`swc` loader
-
-**Notes:** Formerly named `module`/`lib/module.js`; renamed to free up the `module` specifier for Node's actual `node:module` API (see above). Approximates Node's CommonJS/ESM resolution algorithm for QuickJS's module loader hooks; the `.ts` loader path shells out to an external `swc` binary and is best-effort/dev-only.
-
 ### lib/parsel.js
 **Module:** `parsel`  
 **Classification:** Compatible (port of the `parsel-js` npm package)  
@@ -1111,7 +1102,7 @@ silently hashing with an unavailable algorithm.
 - `VirtualProvider`, `MemoryProvider`, `RealFSProvider`, `ComposableProvider` - as in `node:vfs`
 - `ArchiveProvider` - extra: read-only tar/zip/... view over the native `archive` module
 
-**Notes:** Mirrors `node:vfs`; `node:vfs` resolves to it via `nodeHooks`. Provider primitives differ from Node's (whole-file read/write instead of `open`). Missing: `mount()`/`unmount()`, streams, `watch`, `opendir`, `openAsBlob`, `registerProvider`. Distinct from `quickjs-virtual.c`'s `VirtualProperties`, which wraps a plain Object/Array/Map, not a filesystem.
+**Notes:** Mirrors `node:vfs`; `node:vfs` resolves to it via `loaders/node`. Provider primitives differ from Node's (whole-file read/write instead of `open`). Missing: `mount()`/`unmount()`, streams, `watch`, `opendir`, `openAsBlob`, `registerProvider`. Distinct from `quickjs-virtual.c`'s `VirtualProperties`, which wraps a plain Object/Array/Map, not a filesystem.
 
 ### lib/xml.js
 **Module:** `xml`  
@@ -1148,13 +1139,13 @@ silently hashing with an unavailable algorithm.
 **Runtime Compatibility:** the global exists natively in browsers, Node.js, Bun, Deno; here importing the module installs it (opt-in)  
 **Notes:** Property descriptors, rejection-instead-of-throw behaviour and `validate()` errors were probed against Node, Bun and Deno. See doc/js/webassembly.md.
 
-### lib/wasm-loader.js
-**Module:** `wasm-loader`  
+### lib/loaders/wasm.js
+**Module:** `loaders_wasm`  
 **Classification:** Standard (WebAssembly ESM integration, instance phase)  
 **Spec:** https://github.com/WebAssembly/esm-integration  
 **Exports:** `installWasmLoader()` (default and named) - registers `registerHooks()` resolve/load hooks for `.wasm`  
 **Runtime Compatibility:** Node.js (22.19+/24.5+) and Deno (2.1+) import `.wasm` natively; qjsm only here, opt-in  
-**Notes:** No `import source`, no `with { type: 'wasm' }`. See doc/js/wasm-loader.md.
+**Notes:** No `import source`, no `with { type: 'wasm' }`. See doc/js/loaders/wasm.md.
 
 ### lib/wasi.js
 **Module:** `wasi`  

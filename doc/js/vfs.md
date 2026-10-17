@@ -4,7 +4,7 @@ Source: `lib/vfs.js` (pure JS; `ArchiveProvider` needs the native [`archive`](..
 
 Virtual file systems with a `node:fs`-like API, modelled on Node's `node:vfs`
 (26.4+, experimental). `import vfs from 'node:vfs'` resolves here under qjsm
-(`nodeHooks`).
+(`loaders/node`).
 
 ```js
 import vfs from 'node:vfs';

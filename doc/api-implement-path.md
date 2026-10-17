@@ -90,6 +90,30 @@ These serve only the JS API (`at`, `components`, `length`, `slice`, `toArray`, `
 | `path_skipdotslash1/2`, `path_compare2` | `static` in `src/qjsm.c` (one client each: `:531`, `:1775`); try `path_canon` for the second first | `src/qjsm.c` |
 | `path_dup2/3` | deleted: `js_strndup`/`dbuf` at the two call sites | `src/path.c` only |
 
+### 3.3.1 Usage audit of the qjsm-only methods (2026-10-17, step T5)
+
+Searched: `lib/`, `examples/`, `utilities/` of this repo, `~/Sources/plot-cv` and every sibling
+`~/Sources/quickjs/qjs-*`, `.js/.mjs/.cjs` files that import `path` (default, namespace or named import),
+a hit being `ns.name` or the named import used. Locals called `path` (arrays, strings) were discarded by hand.
+
+| method | users (file:line) | standard home | verdict |
+| --- | --- | --- | --- |
+| `canonical` `equal` `isin` `isSeparator` `getsep` `search` `right` `skipSeparator` `at` `components` | none | none | remove |
+| `baselen` `basepos` `dirlen` `extlen` `extpos` | none | none | remove |
+| `isCharDev` `isBlockDev` `isFIFO` `isSocket` | none | `fs.Stats` | remove |
+| `readlink` | none | `fs.readlinkSync` | remove |
+| `slice` `length` `toArray` | `plot-cv/upload-server.js:31,114,120,677,679` only (an own `isin`/dir splitter) | `split('/')` | remove after porting that script (author's call) |
+| `absolute` | `lib/process.js:93`, `utilities/resolve-imports.js:142`, `utilities/list-exports.js:502,605`, plot-cv (8) | `path.resolve` | migrate callers to `resolve`, then remove |
+| `isRelative` | `utilities/resolve-imports.js:2068`, `utilities/list-exports.js:509`, plot-cv (6) | `!isAbsolute` | migrate callers, then remove |
+| `exists` `isFile` `isDirectory` | `utilities/resolve-imports.js` (15), `utilities/list-exports.js`, `utilities/source-scanner.js`, plot-cv, `qjs-opencv`, `qjs-debugger` | `fs.existsSync`, `fs.statSync(p).isFile()` | keep for now (many users); `exists` waits for decision C9 |
+| `getcwd` | `lib/process.js:26,732` (it is `process.cwd`), `utilities/resolve-imports.js:144`, plot-cv | `process.cwd` | keep: `process.js` is built on it |
+| `gethome` | `lib/repl.js:1428`, `qjs-debugger/gui/theme.js:15,16`, `plot-cv/google-contacts.js:42` | `os.homedir` | keep until qjsm has `os.homedir` |
+| `realpath` | plot-cv (3) | `fs.realpathSync` | keep for now |
+| `isSymlink` | `plot-cv/project-server.js:226` | `fs.lstatSync(p).isSymbolicLink()` | keep for now |
+| `fnmatch` | `plot-cv/project-server.js:55,85,211`, `plot-cv/upload-server.js:574` | `path.matchesGlob` (phase G) | keep; revisit after G2 |
+
+Nothing is deleted before the user answers (step X1).
+
 Decision gate before any of 3.3 is rewritten: run the usage audit (task 1 of Tier 22), then
 for each JS method either port it or delete method, test and doc row together.
 

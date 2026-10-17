@@ -687,7 +687,7 @@ if(NOT DEFINED BUILTIN_MODULES)
   endif()
 
   if(NOT DEFINED BUILTINS_COMPILED)
-       set(BUILTINS_COMPILED assert assertStrict bun commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module nodeHooks packageAliases password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty typescript url util vfs webassembly)
+       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module loaders/node loaders/package-aliases password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
   endif(NOT DEFINED BUILTINS_COMPILED)
 
   if(DEFINED CACHE{BUILTINS_NATIVE})
@@ -849,7 +849,7 @@ set(abort_MODULES events)
 set(assert_MODULES inspect)
 set(assertStrict_MODULES assert)
 set(bun_MODULES blob fs path stream textcode url)
-set(commonjs_MODULES require path)
+set(loaders_commonjs_MODULES require path)
 set(console_MODULES util inspect)
 set(db_MODULES util list)
 set(dom_MODULES fs util timers css3-selectors deep pointer tree_walker xml url file)
@@ -1253,7 +1253,7 @@ endmacro(qjsm_add_executable)
 # and the globals it defines. Prints nothing when none of their builtins is compiled in.
 #
 #   -- compatibility: Node.js
-#   --   builtins   nodeHooks node/buffer ...
+#   --   builtins   loaders/node node/buffer ...
 #   --   provides   node:buffer node:child_process ...
 #   --   rewrites   node:<name>  ->  node_<name> if that builtin exists, else <name>
 #   --   globals    process
@@ -1263,7 +1263,7 @@ macro(qjsm_report_compat)
 
   # Node.js
   set(_node_builtins "")
-  foreach(_m nodeHooks node/buffer node/child_process node/events node/util module process fsPromises
+  foreach(_m loaders/node node/buffer node/child_process node/events node/util module process fsPromises
              timersPromises assertStrict readlinePromises)
     if(_m IN_LIST _cb)
       list(APPEND _node_builtins "${_m}")
@@ -1285,9 +1285,9 @@ macro(qjsm_report_compat)
       list(APPEND _provides "node:module")
     endif()
 
-    if("nodeHooks" IN_LIST _node_builtins)
+    if("loaders/node" IN_LIST _node_builtins)
       list(APPEND _rewrites "node:<name>  ->  node_<name> if that builtin exists, else <name> (node:os is left alone)"
-                            "run by the nodeHooks resolve hook, off with -N / --no-node-hooks")
+                            "run by the loaders/node resolve hook, off with -N / --no-node-hooks")
     endif()
 
     foreach(_alias "fsPromises:fs/promises" "timersPromises:timers/promises" "assertStrict:assert/strict"
@@ -1315,10 +1315,10 @@ macro(qjsm_report_compat)
   endif()
 
   # module-alias
-  if("packageAliases" IN_LIST _cb)
+  if("loaders/package-aliases" IN_LIST _cb)
     message("")
     message_table("compatibility: module-alias (package.json)"
-      "builtins" "packageAliases"
+      "builtins" "loaders/package-aliases"
       "provides" "nothing, it only rewrites"
       "rewrites" "a specifier named in ./package.json \"_moduleAliases\" -> its target, after the builtins"
       "globals" "none")

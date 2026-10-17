@@ -1,6 +1,6 @@
-# traceHooks
+# loaders/trace
 
-Source: `lib/traceHooks.js` (pure JS, needs the qjsm global `registerHooks`) — exports: `trace`, default `trace`
+Source: `lib/loaders/trace.js` (pure JS, needs the qjsm global `registerHooks`) — exports: `trace`, default `trace`
 
 A tracer for the module loader built on `registerHooks()` (`doc/qjsm.md`): it
 logs every `resolve` and `load` that reaches the hook chain and passes each call
@@ -8,7 +8,7 @@ on unchanged. It is the JS counterpart of `DEBUG=modules`, which stays in C
 because it also sees what happens before any hook exists.
 
 ```js
-import { trace } from 'traceHooks';
+import { trace } from 'loaders_trace';
 
 const t = trace();                                    // lines on stderr
 const u = trace({ log: l => lines.push(l), filter: /^file:/ });

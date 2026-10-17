@@ -3733,10 +3733,10 @@ main(int argc, char** argv) {
     js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
     /* the hooks are optional builtins: without them there is nothing to preload */
-    if(!no_node_hooks && jsm_builtin_find("nodeHooks"))
-      dbuf_putstr(&db, "import 'nodeHooks';\n");
-    if(jsm_builtin_find("packageAliases"))
-      dbuf_putstr(&db, "import 'packageAliases';\n");
+    if(!no_node_hooks && jsm_builtin_find("loaders_node"))
+      dbuf_putstr(&db, "import 'loaders_node';\n");
+    if(jsm_builtin_find("loaders_package-aliases"))
+      dbuf_putstr(&db, "import 'loaders_package-aliases';\n");
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 
     /* the hooks run to completion before 'process' is loaded: its

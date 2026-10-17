@@ -1,5 +1,5 @@
-/* lib/commonjs.js: the 'commonjs' format loader, qjsm only */
-import installCommonJS from '../../lib/commonjs.js';
+/* lib/loaders/commonjs.js: the 'commonjs' format loader, qjsm only */
+import installCommonJS from '../../lib/loaders/commonjs.js';
 import * as os from 'os';
 import * as std from 'std';
 import { assert, eq, tests } from '../../lib/tinytest.js';

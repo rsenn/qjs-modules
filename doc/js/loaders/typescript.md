@@ -1,13 +1,13 @@
-# typescript
+# loaders/typescript
 
-Source: `lib/typescript.js` (JS wrapper over `registerHooks()`) — default export: `installTypeScript()`; qjsm only
+Source: `lib/loaders/typescript.js` (JS wrapper over `registerHooks()`) — default export: `installTypeScript()`; qjsm only
 
 Loads `.ts`, `.tsx` and `.mts` modules (format `module-typescript`) by running the
 external `swc` CLI (`npm i -g @swc/cli @swc/core`) through `std.popen`. Types are
 stripped, not checked; output target is es2022.
 
 ```js
-import installTypeScript from 'typescript';
+import installTypeScript from 'loaders_typescript';
 
 installTypeScript();
 const { A } = await import('./a.ts');

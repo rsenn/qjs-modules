@@ -31,15 +31,15 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [perf_hooks](perf_hooks.md) — Performance hooks
 - [module](module.md) — Module utilities, `registerHooks()`
 - [bun](bun.md) — `Bun.plugin()` runtime plugins
-- [commonjs](commonjs.md) — `commonjs` module format loader (`registerHooks()`)
-- [typescript](typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
+- [loaders/commonjs](loaders/commonjs.md) — `commonjs` module format loader (`registerHooks()`)
+- [loaders/typescript](loaders/typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
 - [globals](globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
 - [jsonStreams](jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [textLineStream](textLineStream.md) — Deno's `TextLineStream`
 - [timersPromises](timersPromises.md) — `timers/promises`
 - [wasi](wasi.md) — `WASI` (Node's `node:wasi`, preview1), portable: qjsm, node, bun, deno
 - [webassembly](webassembly.md) — the `WebAssembly` global over the `wasm` module (opt-in)
-- [wasm-loader](wasm-loader.md) — `.wasm` ES module loader (`registerHooks()`, opt-in)
+- [loaders/wasm](loaders/wasm.md) — `.wasm` ES module loader (`registerHooks()`, opt-in)
 - [require](require.md) — CommonJS require
 - [stack](stack.md) — Stack utilities
 

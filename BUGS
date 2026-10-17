@@ -833,8 +833,8 @@
 - eval-prints-not-an-object (src/qjsm.c, preloads): with the default builtins
   `qjsm -e 'print(1)'` prints "TypeError: not an object" on stderr before
   the output of the expression; the installed qjsm built before the builtin
-  dependency work does not. The line disappears only when nodeHooks,
-  packageAliases and process are all disabled (--disable-builtin), so it
+  dependency work does not. The line disappears only when loaders_node,
+  loaders_package-aliases and process are all disabled (--disable-builtin), so it
   comes from the preload step, not from one of them. Exit status is 0.
 
     qjsm -e 'print(1)' 2>&1 >/dev/null
@@ -917,28 +917,15 @@
     fs.existsSync('/tmp/dl');   // false
     // actual: path.exists is true
 
-- path-functions-coerce-non-string-arguments (quickjs-path.c,
-  js_path_method): basename, dirname, extname, isAbsolute, parse and join
-  turn any argument into a string with JS_ToCString and carry on. Node,
-  Bun and Deno throw TypeError (ERR_INVALID_ARG_TYPE) for every
-  non-string path; normalize, relative, resolve and format here already
-  do. Also: join('a', null) is "a/null" and join('a', 5) is "a/5".
+- path-missing-node-names (quickjs-path.c): path.win32, matchesGlob and
+  the specifier path/win32 (node:path/win32) do not exist. Node, Bun and
+  Deno have them. See doc/api-compare-path.md; plan in TODO.md Tier 22
+  (phases W and G).
 
-    import { basename, dirname, isAbsolute, join } from 'path';
-    basename(5);          // expected: TypeError
-    dirname({});          // expected: TypeError
-    isAbsolute(null);     // expected: TypeError
-    join('a', null);      // expected: TypeError
-    // actual: "5", ".", false, "a/null"
+    import win32 from 'path/win32';
+    // expected: the win32 path object
+    // actual: ReferenceError: could not load module 'path/win32'
 
-- path-missing-node-names (quickjs-path.c): path.win32, matchesGlob,
-  toNamespacedPath and _makeLong do not exist, and the specifiers
-  path/posix, path/win32, node:path/posix and node:path/win32 do not
-  resolve. Node, Bun and Deno have all of them. See doc/api-compare-path.md.
-
-    import posix from 'path/posix';
-    // expected: the posix path object
-    // actual: ReferenceError: could not load module 'path/posix'
 
 - json-read-does-not-decode-escapes (quickjs-json.c, js_json_parse over
   sj.h): read() returns string escapes undecoded, and accepts what

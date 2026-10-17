@@ -132,7 +132,7 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    `/javascript`or`/ecmascript` MIME evaluates the payload as a module's
    source (URL-decoded, or base64-decoded if `;base64` is present); `/json`
    MIME wraps it as `export default JSON.parse(...)` instead.
-2. **`node:` prefix** — not handled by the engine. `lib/nodeHooks.js`, a
+2. **`node:` prefix** — not handled by the engine. `lib/loaders/node.js`, a
    `registerHooks()` resolver preloaded by qjsm, maps `node:<name>` to the
    `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
    `node:os` stays unresolved (this engine's `os` is *not* Node's `os`).
@@ -141,7 +141,7 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    `load` hook can answer for any URL (`data:` included). With none registered
    this step is skipped and the steps below run exactly as before.
 4. **Builtin registry** (again, now that hooks may have rewritten the name).
-   `package.json` `_moduleAliases` is applied by the builtin `packageAliases`
+   `package.json` `_moduleAliases` is applied by the builtin `loaders_package-aliases`
    as a resolve hook, so it never overrides a builtin; imports made *by* a
    builtin only see the builtin table ([layout 4.1](qjsm-layout.md)).
 5. **`.json` suffix** — `jsm_module_json()` wraps the file's contents as
@@ -284,7 +284,7 @@ hooks.deregister();   // also [Symbol.dispose], for `using`
 | Scope | Per thread (workers start with none); not inherited. |
 
 The old `moduleLoader({normalize, loader})` global was removed; port
-`normalize` to `resolve` and `loader` to `load` (see `lib/nodeModulesLoader.js`).
+`normalize` to `resolve` and `loader` to `load` (see `lib/loaders/node.js`).
 
 ## REPL integration
 

@@ -1,12 +1,12 @@
-# wasm-loader
+# loaders/wasm
 
-Source: `lib/wasm-loader.js` (JS wrapper over `registerHooks()`) — default export: `installWasmLoader()`; qjsm only
+Source: `lib/loaders/wasm.js` (JS wrapper over `registerHooks()`) — default export: `installWasmLoader()`; qjsm only
 
 Loads `.wasm` files as ES modules (format `module-wasm`), the instance phase of the
 WebAssembly ESM integration. Opt-in: nothing is registered until it is called.
 
 ```js
-import installWasmLoader from 'wasm-loader';
+import installWasmLoader from 'loaders_wasm';
 
 installWasmLoader();
 const { add } = await import('./add.wasm');
