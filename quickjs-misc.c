@@ -967,7 +967,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   ssize_t r;
   DynBuf dbuf = DBUF_INIT_CTX(ctx);
 
-  if((r = path_readlink2(x, &dbuf)) > 0)
+  if((r = path_readlink(x, &dbuf)) > 0)
     ret = dbuf_tostring_free(&dbuf, ctx);
 
   return ret;

@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <limits.h>
 
 #include "path.h"
@@ -14,6 +15,284 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+/* component helpers behind at(), slice(), length(), isin(), equal() and
+ * friends: (p, n) views, or NUL-terminated when the name ends in _z.
+ *
+ *   js_path_comp / _z       length of the component at p (from pos)
+ *   js_path_sep / _z        length of the separator run at p
+ *   js_path_skip            component plus the separators after it
+ *   js_path_right           offset of the last component of p[0..n)
+ *   js_path_components      length of the first n components
+ *   js_path_length / _z     number of components
+ *   js_path_at / _z         component i: pointer, length in *len_ptr
+ *   js_path_slice_into      components start..end appended to db
+ *   js_path_diff / _equal   componentwise compare, "." components ignored
+ */
+static inline size_t
+js_path_comp_z(const char* p) {
+  const char* s = p;
+
+  while(*s && !path_issep(*s))
+    ++s;
+
+  return s - p;
+}
+
+static inline size_t
+js_path_comp(const char* p, size_t len, size_t pos) {
+  const char *start = p, *end = p + len;
+
+  if(pos > len)
+    pos = len;
+  p += pos;
+  while(p < end && !path_issep(*p))
+    ++p;
+  return p - start;
+}
+
+static inline size_t
+js_path_sep_z(const char* p) {
+  const char* s = p;
+
+  while(*s && path_issep(*s))
+    ++s;
+  return s - p;
+}
+
+static inline size_t
+js_path_sep(const char* p, size_t len) {
+  const char *start = p, *end = p + len;
+
+  while(p < end && path_issep(*p))
+    ++p;
+  return p - start;
+}
+
+static inline size_t
+js_path_skip(const char* s, size_t n) {
+  const char *p = s, *e = s + n;
+
+  p += js_path_comp(s, n, 0);
+  p += js_path_sep(p, e - p);
+  return p - s;
+}
+
+static inline size_t
+js_path_right(const char* s, size_t n) {
+  const char* p = s + n - 1;
+
+  while(p > s && path_issep(*p))
+    --p;
+  while(p > s && !path_issep(*p))
+    --p;
+  if(path_issep(*p))
+    ++p;
+  return p - s;
+}
+
+static inline int
+js_path_getsep(const char* path) {
+  while(*path) {
+    if(path_issep(*path))
+      return *path;
+    ++path;
+  }
+
+  return '\0';
+}
+
+static size_t
+js_path_components(const char* p, size_t len, uint32_t n) {
+  const char *s = p, *e = p + len;
+  size_t count = 0;
+
+  while(s < e) {
+    s += js_path_sep(s, e - s);
+
+    if(s == e)
+      break;
+
+    s += js_path_comp(s, e - s, 0);
+
+    if(--n <= 0)
+      break;
+
+    count++;
+  }
+
+  return count;
+}
+
+static const char*
+js_path_at(const char* p, size_t plen, size_t* len_ptr, int i) {
+  size_t next, len = 0;
+  const char* q;
+
+  for(q = p + plen; p < q;) {
+    len = js_path_comp(p, q - p, 0);
+    next = len + js_path_sep(&p[len], q - p - len);
+
+    if(i <= 0)
+      break;
+
+    p += next;
+    --i;
+  }
+
+  if(len_ptr)
+    *len_ptr = len;
+
+  return p;
+}
+
+static const char*
+js_path_at_z(const char* p, size_t* len_ptr, int i) {
+  size_t next, len;
+
+  for(;;) {
+    len = js_path_comp_z(p);
+    next = len + js_path_sep_z(&p[len]);
+
+    if(i <= 0)
+      break;
+
+    p += next;
+    --i;
+  }
+
+  if(len_ptr)
+    *len_ptr = len;
+
+  return p;
+}
+
+static size_t
+js_path_length(const char* p, size_t slen) {
+  int pos = 0;
+  size_t next, len;
+  const char* end = p + slen;
+
+  for(; p < end; p += next) {
+    len = js_path_comp_z(p);
+    next = len + js_path_sep_z(&p[len]);
+
+    if(pos && len == 0)
+      break;
+
+    ++pos;
+  }
+
+  return pos;
+}
+
+static size_t
+js_path_length_z(const char* p) {
+  return js_path_length(p, strlen(p));
+}
+
+static int
+js_path_slice_into(const char* p, int start, int end, DynBuf* db) {
+  int i;
+  size_t next, len;
+  size_t n = db->size;
+
+  for(i = 0; i < end; i++) {
+    len = js_path_comp_z(p);
+    next = len + js_path_sep_z(&p[len]);
+
+    if(i >= start) {
+      if((db->size > n && db->buf[db->size - 1] != PATHSEP_C) || (i == start && len == 0))
+        dbuf_putc(db, PATHSEP_C);
+
+      dbuf_put(db, (const uint8_t*)p, len);
+    }
+
+    p += next;
+  }
+
+  return i;
+}
+
+static int
+js_path_isin(const char* p, size_t len, const char* dir, size_t dirlen) {
+  size_t i;
+  size_t plen = js_path_length(p, len);
+  size_t dlen = js_path_length(dir, dirlen);
+
+  if(plen < dlen)
+    return 0;
+
+  for(i = 0; i < dlen; i++) {
+    size_t pcomplen, dcomplen;
+    const char *q, *pdir;
+    q = js_path_at(p, len, &pcomplen, i);
+    pdir = js_path_at(dir, dirlen, &dcomplen, i);
+
+    if(!(pcomplen == dcomplen && !strncmp(q, pdir, pcomplen)))
+      return 0;
+  }
+
+  return 1;
+}
+
+static int
+js_path_diff(const char* a, size_t la, const char* b, size_t lb) {
+  size_t aindex = 0, bindex = 0, alen = js_path_length(a, la), blen = js_path_length(b, lb);
+  int ret = 0;
+
+  while(aindex < alen && bindex < blen) {
+    size_t an, bn;
+    const char *p, *q;
+
+    do
+      p = js_path_at(a, la, &an, aindex++);
+    while(an == 1 && *p == '.');
+
+    do
+      q = js_path_at(b, lb, &bn, bindex++);
+    while(bn == 1 && *q == '.');
+
+    if(an != bn)
+      return an - bn;
+
+    if((ret = strncmp(p, q, an)))
+      return ret;
+  }
+
+  if(aindex < alen)
+    return alen - aindex;
+  if(bindex < blen)
+    return -(blen - bindex);
+
+  return 0;
+}
+
+static inline int
+js_path_equal(const char* a, size_t la, const char* b, size_t lb) {
+  return 0 == js_path_diff(a, la, b, lb);
+}
+
+/* file type bits that Windows' <sys/stat.h> lacks */
+#ifndef S_IFMT
+#define S_IFMT 0170000
+#endif
+#ifndef S_IFIFO
+#define S_IFIFO 0010000
+#endif
+#ifndef S_IFBLK
+#define S_IFBLK 0060000
+#endif
+#ifndef S_IFLNK
+#define S_IFLNK 0120000
+#endif
+#ifndef S_IFSOCK
+#define S_IFSOCK 0140000
+#endif
+
+/* JSCFunctionListEntry.magic is an int16_t: S_IFREG/S_IFLNK/S_IFSOCK do not fit,
+ * so the dispatch value is the type nibble, `S_IFDIR >> 12 == 4` */
+#define PATH_TYPE(flag) ((flag) >> 12)
 
 /**
  * \defgroup quickjs-path quickjs-path: Directory path
@@ -37,13 +316,6 @@ enum {
   PATH_GETSEP,
   PATH_IS_ABSOLUTE,
   PATH_IS_RELATIVE,
-  PATH_IS_DIRECTORY,
-  PATH_IS_FILE,
-  PATH_IS_CHARDEV,
-  PATH_IS_BLOCKDEV,
-  PATH_IS_FIFO,
-  PATH_IS_SOCKET,
-  PATH_IS_SYMLINK,
   PATH_LENGTH,
   PATH_COMPONENTS,
   PATH_READLINK,
@@ -71,7 +343,7 @@ enum {
 static int
 js_path_exists_cb(const char* p, void* arg) {
   (void)arg;
-  return path_exists1(p);
+  return path_exists_s(p);
 }
 
 static size_t
@@ -168,7 +440,7 @@ js_path_absolute(const char* p, size_t n, DynBuf* db) {
 
   dbuf_init2(&tmp, 0, 0);
 
-  if(!path_isabsolute2(p, n) && path_getcwd1(&tmp) && tmp.size) {
+  if(!path_isabs(p, n) && path_getcwd(&tmp) && tmp.size) {
     if(n && tmp.buf[tmp.size - 1] != PATHSEP_C)
       dbuf_putc(&tmp, PATHSEP_C);
   } else {
@@ -258,7 +530,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case PATH_EXISTS: {
-      ret = JS_NewBool(ctx, path_exists1(a));
+      ret = JS_NewBool(ctx, path_exists_s(a));
       break;
     }
     case PATH_EXTNAME: {
@@ -280,39 +552,11 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case PATH_IS_ABSOLUTE: {
-      ret = JS_NewBool(ctx, path_isabsolute2(a, alen));
+      ret = JS_NewBool(ctx, path_isabs(a, alen));
       break;
     }
     case PATH_IS_RELATIVE: {
-      ret = JS_NewBool(ctx, path_isrelative(a));
-      break;
-    }
-    case PATH_IS_DIRECTORY: {
-      ret = JS_NewBool(ctx, path_isdir1(a));
-      break;
-    }
-    case PATH_IS_FILE: {
-      ret = JS_NewBool(ctx, path_isfile1(a));
-      break;
-    }
-    case PATH_IS_CHARDEV: {
-      ret = JS_NewBool(ctx, path_ischardev1(a));
-      break;
-    }
-    case PATH_IS_BLOCKDEV: {
-      ret = JS_NewBool(ctx, path_isblockdev1(a));
-      break;
-    }
-    case PATH_IS_FIFO: {
-      ret = JS_NewBool(ctx, path_isfifo1(a));
-      break;
-    }
-    case PATH_IS_SOCKET: {
-      ret = JS_NewBool(ctx, path_issocket1(a));
-      break;
-    }
-    case PATH_IS_SYMLINK: {
-      ret = JS_NewBool(ctx, path_issymlink1(a));
+      ret = JS_NewBool(ctx, path_isrel_s(a));
       break;
     }
 
@@ -322,7 +566,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 #ifdef _WIN32
       home = getenv("USERPROFILE");
 #else
-      home = path_gethome1(getuid());
+      home = path_gethome(getuid());
 #endif
       ret = home ? JS_NewString(ctx, home) : JS_NULL;
       break;
@@ -332,13 +576,13 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case PATH_GETSEP: {
       char c;
 
-      if((c = path_getsep1(a)) != '\0')
+      if((c = js_path_getsep(a)) != '\0')
         ret = JS_NewStringLen(ctx, &c, 1);
 
       break;
     }
     case PATH_LENGTH: {
-      ret = JS_NewUint32(ctx, utf8_strlen(a, path_length2(a, alen)));
+      ret = JS_NewUint32(ctx, utf8_strlen(a, js_path_length(a, alen)));
       break;
     }
     case PATH_COMPONENTS: {
@@ -347,7 +591,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(argc > 1)
         JS_ToUint32(ctx, &n, argv[1]);
 
-      ret = JS_NewUint32(ctx, utf8_strlen(a, path_components3(a, alen, n)));
+      ret = JS_NewUint32(ctx, utf8_strlen(a, js_path_components(a, alen, n)));
       break;
     }
     case PATH_RIGHT:
@@ -366,21 +610,21 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       switch(magic) {
         case PATH_RIGHT: {
           // PATH_RIGHT always operates on the full string, not from a position
-          ret = JS_NewUint32(ctx, utf8_strlen(a, path_right2(a, alen)));
+          ret = JS_NewUint32(ctx, utf8_strlen(a, js_path_right(a, alen)));
           break;
         }
         case PATH_SKIP: {
-          size_t pos = n + path_skip2(a + n, alen - n);
+          size_t pos = n + js_path_skip(a + n, alen - n);
           ret = JS_NewInt64(ctx, pos == alen ? -1ll : (int64_t)utf8_strlen(a, pos));
           break;
         }
         case PATH_SKIP_SEPARATOR: {
-          uint32_t pos = n + path_separator2(a + n, alen - n);
+          uint32_t pos = n + js_path_sep(a + n, alen - n);
           ret = JS_NewUint32(ctx, utf8_strlen(a, pos));
           break;
         }
         default: {
-          ret = JS_NewBool(ctx, path_separator2(a + n, alen - n) == alen - n);
+          ret = JS_NewBool(ctx, js_path_sep(a + n, alen - n) == alen - n);
           break;
         }
       }
@@ -395,12 +639,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       JS_ToInt32(ctx, &idx, argv[1]);
 
       if(idx < 0) {
-        int32_t size = path_length1(a);
+        int32_t size = js_path_length_z(a);
 
         idx = MIN_NUM(size, ((idx % size) + size));
       }
 
-      p = path_at3(a, &len, idx);
+      p = js_path_at_z(a, &len, idx);
       ret = JS_NewStringLen(ctx, p, len);
       break;
     }
@@ -410,15 +654,15 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(argc > 2)
         JS_ToInt32(ctx, &flags, argv[2]);
 
-      ret = JS_NewInt32(ctx, path_fnmatch5(a, alen, b, blen, flags));
+      ret = JS_NewInt32(ctx, path_fnmatch(a, alen, b, blen, flags));
       break;
     }
     case PATH_ISIN: {
-      ret = JS_NewBool(ctx, path_isin4(a, alen, b, blen));
+      ret = JS_NewBool(ctx, js_path_isin(a, alen, b, blen));
       break;
     }
     case PATH_EQUAL: {
-      ret = JS_NewBool(ctx, path_equal4(a, alen, b, blen));
+      ret = JS_NewBool(ctx, js_path_equal(a, alen, b, blen));
       break;
     }
     case PATH_TOARRAY: {
@@ -429,7 +673,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         size_t len;
         const char* p;
 
-        if(!(p = path_at3(a, &len, i)) || (len == 0 && i > 0))
+        if(!(p = js_path_at_z(a, &len, i)) || (len == 0 && i > 0))
           break;
 
         JS_SetPropertyUint32(ctx, ret, idx++, JS_NewStringLen(ctx, p, len));
@@ -477,7 +721,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       break;
     }
     case PATH_REALPATH: {
-      if(!path_realpath3(a, alen, &db))
+      if(!path_exists(a, alen) || !path_resolve(a, alen, &db, 0, NULL, 0))
         ret = JS_NULL;
       break;
     }
@@ -507,15 +751,15 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       if(from == NULL) {
         dbuf_init_ctx(ctx, &buf);
-        from = path_getcwd1(&buf);
-      } else if(path_isrelative(from)) {
+        from = path_getcwd(&buf) ? (const char*)buf.buf : NULL;
+      } else if(path_isrel_s(from)) {
         dbuf_init_ctx(ctx, &buf);
         js_path_absolute(a, alen, &buf);
         dbuf_0(&buf);
         from = (const char*)buf.buf;
       }
 
-      if(path_isrelative(to)) {
+      if(path_isrel_s(to)) {
         dbuf_init_ctx(ctx, &buf2);
         js_path_absolute(b, blen, &buf2);
         dbuf_0(&buf2);
@@ -620,7 +864,7 @@ js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   dbuf_init_ctx(ctx, &db);
 
   if((str = JS_ToCString(ctx, argv[0]))) {
-    int32_t len = path_length1(str);
+    int32_t len = js_path_length_z(str);
 
     if(argc > 1 && JS_IsNumber(argv[1]))
       JS_ToInt32(ctx, &start, argv[1]);
@@ -640,7 +884,7 @@ js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if(end > len)
       end = len;
 
-    path_slice4(str, start, end, &db);
+    js_path_slice_into(str, start, end, &db);
   }
 
   ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
@@ -820,6 +1064,56 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
+/* path type tests: one function behind isDirectory, isFile, isCharDev, ...
+ *
+ * ```js
+ * path.isDirectory('/tmp');      // true; a symlink to a directory too
+ * path.isSymlink('/tmp/link');   // true; the link itself, not its target
+ * ```
+ *
+ *   string  path  file name to test
+ *
+ *   returns  true if the entry exists and has the type, else false
+ *   throws   TypeError if `path` is not a string
+ *
+ * wired in with JS_CFUNC_MAGIC_DEF(name, 1, js_path_istype, PATH_TYPE(S_IFx)).
+ *
+ *   magic     JS name      S_IF*      call
+ *   4         isDirectory  S_IFDIR    stat
+ *   8         isFile       S_IFREG    stat
+ *   2         isCharDev    S_IFCHR    stat
+ *   6         isBlockDev   S_IFBLK    stat
+ *   1         isFIFO       S_IFIFO    stat
+ *   12        isSocket     S_IFSOCK   stat
+ *   10        isSymlink    S_IFLNK    lstat
+ *
+ * every test follows symlinks (as fs.statSync, Deno.stat, pathlib) except
+ * isSymlink, which must not.
+ */
+static JSValue
+js_path_istype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  const char* a;
+  int ret = 0;
+
+  if(argc == 0 || !(a = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+#ifdef _WIN32
+  if(magic == PATH_TYPE(S_IFLNK))
+    ret = path_issymlink_s(a);
+  else
+#endif
+  {
+    struct stat st;
+
+    if((magic == PATH_TYPE(S_IFLNK) ? lstat(a, &st) : stat(a, &st)) == 0)
+      ret = PATH_TYPE(st.st_mode & S_IFMT) == magic;
+  }
+
+  JS_FreeCString(ctx, a);
+  return JS_NewBool(ctx, ret);
+}
+
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, PATH_BASENAME),
     JS_CFUNC_MAGIC_DEF("basepos", 1, js_path_method, PATH_BASEPOS),
@@ -838,13 +1132,13 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getsep", 1, js_path_method, PATH_GETSEP),
     JS_CFUNC_MAGIC_DEF("isAbsolute", 1, js_path_method, PATH_IS_ABSOLUTE),
     JS_CFUNC_MAGIC_DEF("isRelative", 1, js_path_method, PATH_IS_RELATIVE),
-    JS_CFUNC_MAGIC_DEF("isDirectory", 1, js_path_method, PATH_IS_DIRECTORY),
-    JS_CFUNC_MAGIC_DEF("isFile", 1, js_path_method, PATH_IS_FILE),
-    JS_CFUNC_MAGIC_DEF("isCharDev", 1, js_path_method, PATH_IS_CHARDEV),
-    JS_CFUNC_MAGIC_DEF("isBlockDev", 1, js_path_method, PATH_IS_BLOCKDEV),
-    JS_CFUNC_MAGIC_DEF("isFIFO", 1, js_path_method, PATH_IS_FIFO),
-    JS_CFUNC_MAGIC_DEF("isSocket", 1, js_path_method, PATH_IS_SOCKET),
-    JS_CFUNC_MAGIC_DEF("isSymlink", 1, js_path_method, PATH_IS_SYMLINK),
+    JS_CFUNC_MAGIC_DEF("isDirectory", 1, js_path_istype, PATH_TYPE(S_IFDIR)),
+    JS_CFUNC_MAGIC_DEF("isFile", 1, js_path_istype, PATH_TYPE(S_IFREG)),
+    JS_CFUNC_MAGIC_DEF("isCharDev", 1, js_path_istype, PATH_TYPE(S_IFCHR)),
+    JS_CFUNC_MAGIC_DEF("isBlockDev", 1, js_path_istype, PATH_TYPE(S_IFBLK)),
+    JS_CFUNC_MAGIC_DEF("isFIFO", 1, js_path_istype, PATH_TYPE(S_IFIFO)),
+    JS_CFUNC_MAGIC_DEF("isSocket", 1, js_path_istype, PATH_TYPE(S_IFSOCK)),
+    JS_CFUNC_MAGIC_DEF("isSymlink", 1, js_path_istype, PATH_TYPE(S_IFLNK)),
     JS_CFUNC_MAGIC_DEF("length", 1, js_path_method, PATH_LENGTH),
     JS_CFUNC_MAGIC_DEF("components", 1, js_path_method, PATH_COMPONENTS),
     JS_CFUNC_MAGIC_DEF("readlink", 1, js_path_method, PATH_READLINK),

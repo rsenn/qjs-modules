@@ -337,10 +337,10 @@ has_dot_or_slash(const char* s) {
   return !!s[str_chrs(s, "." PATHSEP_S, sizeof(PATHSEP_S))];
 }
 
-/* ModuleLoader-shaped wrapper around path_isfile1(): accepts a candidate path as-is. */
+/* ModuleLoader-shaped wrapper around path_isfile_s(): accepts a candidate path as-is. */
 static char*
 is_module(JSContext* ctx, const char* module_name) {
-  BOOL yes = path_isfile1(module_name);
+  BOOL yes = path_isfile_s(module_name);
 
   DEBUG_MODULE(3, "(module_name: \"%s\") = %s", module_name, yes ? "TRUE" : "FALSE");
 
@@ -517,6 +517,28 @@ jsm_stack_ptr(int i) {
   return 0;
 }
 
+/* length of the leading "./" runs of s[0..n): ".//./a" -> 5 */
+static size_t
+jsm_skip_dotslash(const char* s, size_t n) {
+  size_t i = 0;
+
+  while(i + 1 < n && s[i] == '.' && path_issep(s[i + 1])) {
+    i += 2;
+    while(i < n && path_issep(s[i]))
+      ++i;
+  }
+
+  return i;
+}
+
+/* strcmp() of a and b after their leading "./" runs. */
+static int
+jsm_path_compare(const char* a, const char* b) {
+  a += jsm_skip_dotslash(a, strlen(a));
+  b += jsm_skip_dotslash(b, strlen(b));
+  return strcmp(a, b);
+}
+
 /*
  * Looks for `module` already present on jsm_stack (used for circular-import
  * detection).
@@ -528,7 +550,7 @@ jsm_stack_find(const char* module) {
   if(jsm_stack.size == 0)
     return 0;
 
-  vector_foreach_t(&jsm_stack, ptr) if(!path_compare2(*ptr, module)) return ptr;
+  vector_foreach_t(&jsm_stack, ptr) if(!jsm_path_compare(*ptr, module)) return ptr;
   return 0;
 }
 
@@ -972,7 +994,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
 static int
 jsm_isfile_cb(const char* p, void* arg) {
   (void)arg;
-  return path_isfile1(p);
+  return path_isfile_s(p);
 }
 
 /* searches a PATH-style list of directories (";" or ":", ";" only on Windows) for `module_name` */
@@ -1000,14 +1022,20 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
  */
 static char*
 jsm_abspath(JSContext* ctx, const char* p) {
-  char* cwd = path_getcwd0();
-  size_t pn = strlen(p), cn = cwd ? strlen(cwd) : 0, cap = cn + pn + 4;
-  char* out = cwd ? js_malloc(ctx, cap) : 0;
+  DynBuf cwd;
+  size_t pn = strlen(p), cap;
+  char* out = 0;
 
-  if(out)
-    path_abs(out, cap, p, pn, cwd, cn);
+  dbuf_init2(&cwd, 0, 0);
 
-  free(cwd);
+  if(path_getcwd(&cwd)) {
+    cap = cwd.size + pn + 4;
+
+    if((out = js_malloc(ctx, cap)))
+      path_abs(out, cap, p, pn, (const char*)cwd.buf, cwd.size);
+  }
+
+  dbuf_free(&cwd);
   return out;
 }
 
@@ -1390,7 +1418,7 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
     DEBUG_MODULE(2, "(i: %d, module_name: \"%s\", opaque: %p) path: \"%s\"", i++, module_name, opaque, path);
 
     if(has_dot_or_slash(path))
-      if(path_isfile1(path))
+      if(path_isfile_s(path))
         break;
 
     if((tmp = jsm_search_module(ctx, path))) {
@@ -1589,7 +1617,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
   }
 
-  if(path_isname(name)) {
+  if(path_isname_s(name)) {
     BuiltinModule* rec;
 
     if((rec = jsm_builtin_find(name)) && (native < 0 || !native == !rec->module_func)) {
@@ -1599,7 +1627,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
   }
 
-  if(native == 0 && !module_has_suffix(name) && !str_ends(name, ".json") && !(path_isname(name) && jsm_builtin_find(name))) {
+  if(native == 0 && !module_has_suffix(name) && !str_ends(name, ".json") && !(path_isname_s(name) && jsm_builtin_find(name))) {
     /* native: false, "foo" can only be a script: "foo.js", else "foo/index.js" */
     static const char* const suffixes[] = {".js", "/index.js"};
 
@@ -1772,7 +1800,7 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
 
     if(buf) {
       n = path_cat(buf, cap, dn ? path : ".", dn ? dn : 1, name, nn);
-      dsl = path_skipdotslash2(buf, n);
+      dsl = jsm_skip_dotslash(buf, n);
 
       /* XXX BUG: should use path_normalize* to resolve symlinks */
       n = dsl + path_canon(buf + dsl, cap - dsl, buf + dsl, n - dsl);
@@ -1780,9 +1808,9 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     }
 
     file = buf;
-  } else if(has_suffix(name, CONFIG_SHEXT) && path_isname(name)) {
+  } else if(has_suffix(name, CONFIG_SHEXT) && path_isname_s(name)) {
     file = jsm_search_path(ctx, name);
-  } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
+  } else if(has_dot_or_slash(name) && path_exists_s(name) && path_isrel_s(name)) {
     file = jsm_abspath(ctx, name);
   }
 
@@ -1822,7 +1850,7 @@ jsm_url_frompath(JSContext* ctx, const char* path) {
   DynBuf db;
   static const char hex[] = "0123456789ABCDEF";
 
-  if(!path_isabs(path))
+  if(!path_isabs_s(path))
     return js_strdup(ctx, path);
 
   dbuf_init_ctx(ctx, &db);
@@ -1914,7 +1942,7 @@ jsm_default_resolve(JSContext* ctx, JSValueConst specifier, JSValueConst context
     file = jsm_module_normalize_core(ctx, base, tmp);
     js_free(ctx, tmp);
 
-    if(!(path_isname(file) && jsm_builtin_find(file)) && is_searchable(file) && (alias = jsm_module_locate(ctx, file, 0))) {
+    if(!(path_isname_s(file) && jsm_builtin_find(file)) && is_searchable(file) && (alias = jsm_module_locate(ctx, file, 0))) {
       js_free(ctx, file);
       file = alias;
     }
@@ -1959,7 +1987,7 @@ jsm_default_load(JSContext* ctx, JSValueConst urlv) {
 
     source = JS_NewStringLen(ctx, (const char*)code.buf, code.size);
     dbuf_free(&code);
-  } else if(path_isname(name) && jsm_builtin_find(name)) {
+  } else if(path_isname_s(name) && jsm_builtin_find(name)) {
     format = "builtin";
   } else if(has_suffix(name, CONFIG_SHEXT)) {
     format = "addon";
@@ -2138,7 +2166,7 @@ jsm_hook_normalize(JSContext* ctx, const char* path, const char* name) {
 
   if(path[0] && path[0] != '<' && !str_equal(path, ".")) {
     /* a relative importer ("p.mjs") becomes an absolute file URL, as in Node */
-    char* abs = !path_isabs(path) && path[str_chr(path, ':')] == 0 ? jsm_abspath(ctx, path) : 0;
+    char* abs = !path_isabs_s(path) && path[str_chr(path, ':')] == 0 ? jsm_abspath(ctx, path) : 0;
 
     url = jsm_url_frompath(ctx, abs ? abs : path);
     js_free(ctx, abs);
@@ -2271,7 +2299,7 @@ jsm_hook_load(JSContext* ctx, const char* name, void* opaque) {
     if(JS_IsNull(src) || JS_IsUndefined(src)) {
       JS_ThrowTypeError(ctx, "load hook returned no source for format '%s'", format);
     } else if((bytes = jsm_hook_bytes(ctx, src, &len, &is_str))) {
-      BOOL is_file = path_isabs(name);
+      BOOL is_file = path_isabs_s(name);
 
       if(str_equal(format, "json")) {
         DynBuf db;

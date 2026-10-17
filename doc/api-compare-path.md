@@ -1,0 +1,88 @@
+# `path`: qjsm against Node, Bun and Deno (2026-10-17)
+
+`quickjs-path.c` (qjsm `path`) compared with `node:path` in node 22.23.3, bun 1.4.2
+and deno 2.9.7. Supersedes section "`quickjs-path.c` gaps" of
+[api-compatibility-nodejs.md](api-compatibility-nodejs.md) where they disagree.
+
+Plan to close the gaps: [api-interface-path.md](api-interface-path.md) (Node/Bun/Deno compatibility)
+and [api-implement-path.md](api-implement-path.md) (C migration); steps in TODO.md Tier 22.
+
+Reproduce:
+
+```sh
+./dump-node-path.sh                                               # all four runtimes, /tmp/node-path-surface
+utilities/describe.sh -r qjsm --flat --no-arguments path          # one runtime
+utilities/describe.sh -r node --flat --no-arguments node:path     # likewise bun, deno
+~/.claude/skills/quickjs-scripting/scripts/portable-check.sh battery.mjs   # behaviour
+```
+
+Deno needs `describe.sh` run without the 4 GB `ulimit -v` (it aborts on startup under it).
+
+## 1. Node, Bun and Deno agree with each other
+
+The three export the same 17 names, and a 234-line battery (every function on 24
+paths, `join`/`relative`/`resolve`/`format` on edge inputs, argument validation)
+printed identical output on all three. Node is therefore the reference.
+
+## 2. Surface
+
+| group | names |
+| --- | --- |
+| in all four (13) | `basename` `delimiter` `dirname` `extname` `format` `isAbsolute` `join` `normalize` `parse` `posix` `relative` `resolve` `sep` |
+| only in Node/Bun/Deno (4) | `win32`, `toNamespacedPath`, `_makeLong`, `matchesGlob` |
+| only in qjsm (38) | see below |
+
+Missing here, by priority:
+
+| name | Node | note |
+| --- | --- | --- |
+| `matchesGlob(path, pattern)` | 22+ (experimental) | could wrap `fnmatch` with `FNM_PATHNAME`; Node semantics for `**`, `{a,b}` need checking |
+| `toNamespacedPath(path)` | all | identity on POSIX; one line |
+| `_makeLong(path)` | all | deprecated alias of `toNamespacedPath`; skip |
+| `win32` | all | whole Windows implementation; large, and `posix.win32` / `win32.posix` links with it |
+| subpaths `path/posix`, `path/win32`, `node:path/posix`, `node:path/win32` | all | do not resolve (`could not load module`); `path/posix` is cheap to alias, `path/win32` needs `win32` |
+
+Already fixed since the 2026-10-09 notes: the default export is the module itself
+(`import path from 'path'` has `join`), `path.posix === path` and
+`path.posix.posix === path.posix` hold, and every row of that file's table B matches.
+
+### Extras of qjsm (no Node, Bun or Deno equivalent)
+
+| names | what they are | standard analogue |
+| --- | --- | --- |
+| `isDirectory` `isFile` `isCharDev` `isBlockDev` `isFIFO` `isSocket` `isSymlink` | type tests on the `S_IF*` bits (stat; `isSymlink` lstat) | `fs.Stats.isDirectory()` etc., `Deno.stat` |
+| `exists` | lstat succeeds (true for a dangling link) | `fs.existsSync` (false for a dangling link) |
+| `readlink` `realpath` `getcwd` `gethome` | filesystem queries | `fs.readlinkSync` `fs.realpathSync` `process.cwd` `os.homedir` |
+| `fnmatch` `FNM_NOESCAPE` `FNM_NOMATCH` `FNM_PATHNAME` `FNM_PERIOD` | POSIX `fnmatch(3)` | `path.matchesGlob`, `fs.glob` |
+| `absolute` `canonical` `equal` `isin` `isRelative` `isSeparator` `getsep` `search` `right` `skip` `skipSeparator` | string-level helpers of the C library | `resolve`, `normalize`, `!isAbsolute`; the rest has none |
+| `at` `components` `length` `slice` `toArray` `baselen` `basepos` `dirlen` `extlen` `extpos` | path as a list of components, and offsets/lengths | `split('/')`; none standard |
+
+`isRelative` is `!isAbsolute`; `absolute`, `canonical` and `equal` are covered by
+`resolve`/`normalize`. Per the project rule (standards first, no qjs-modules-isms)
+these are the removal candidates if nothing in `examples/`, `utilities/`, `lib/` or
+a sibling project uses them (not checked here).
+
+## 3. Behaviour
+
+Of the 234 battery lines, qjsm differs from Node in 27. All of them are argument
+validation, none is a wrong result for a valid path:
+
+| call | qjsm | Node, Bun, Deno |
+| --- | --- | --- |
+| `basename`, `dirname`, `extname`, `isAbsolute`, `parse`, `join` with `undefined`, `null`, `5` or `{}` | coerces to a string (`basename(5)` is `"5"`, `dirname(5)` is `"."`, `isAbsolute(5)` is `false`) | `TypeError` |
+| `join('a', null)`, `join('a', 5)` | `"a/null"`, `"a/5"` | `TypeError` |
+| `typeof path.win32` | `undefined` | `object` |
+
+`normalize`, `relative`, `resolve` and `format` already throw `TypeError` like Node.
+
+## 4. Findings
+
+1. The valid-input behaviour of the 13 shared names matches Node, Bun and Deno on
+   every case of the battery, so the old "wrong results" warning no longer holds.
+2. Argument validation differs: six functions coerce instead of throwing. Node's rule
+   is `TypeError [ERR_INVALID_ARG_TYPE]` for any non-string path.
+3. Absent: `win32`, `matchesGlob`, `toNamespacedPath`, `path/posix`, `path/win32`.
+4. qjsm exports 38 names none of the three has. The `fs.Stats` predicates and
+   `fnmatch` have standard homes elsewhere; the component and offset helpers have
+   none.
+5. `exists` disagrees with `fs.existsSync` on dangling symlinks.

@@ -31,7 +31,7 @@ functions take a path string as the first argument.
 | --- | --- | --- |
 | `exists(path)` | 1 | Whether the path exists. |
 | `isAbsolute(path)` / `isRelative(path)` | 1 | Path kind. |
-| `isDirectory` / `isFile` / `isCharDev` / `isBlockDev` / `isFIFO` / `isSocket` / `isSymlink` | 1 | `stat`-based type predicates. |
+| `isDirectory` / `isFile` / `isCharDev` / `isBlockDev` / `isFIFO` / `isSocket` / `isSymlink` | 1 | Type predicates on the `S_IF*` bits. All follow symlinks (`stat`, like `fs.statSync`) except `isSymlink`, which tests the link itself (`lstat`). `false` if the entry is missing. |
 | `getcwd(buf)` | 1 | Current working directory. |
 | `gethome(buf)` | 1 | Home directory. |
 | `getsep(buf)` | 1 | Platform path separator. |

@@ -358,7 +358,12 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
       else
         h = pwd->pw_dir;
 #else
-    h = path_gethome();
+#ifdef _WIN32
+    h = getenv("USERPROFILE");
+#else
+    if((h = getenv("HOME")) == NULL)
+      h = path_gethome(getuid());
+#endif
 #endif
 #if HAVE_ISSETUGID
     }
@@ -375,7 +380,7 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
     else
       h = pwd->pw_dir;
 #else
-    h = path_gethome2((char*)patbuf, strlen((const char*)patbuf));
+    h = path_homeof((char*)patbuf, strlen((const char*)patbuf));
 #endif
   }
 

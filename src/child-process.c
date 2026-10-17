@@ -263,7 +263,7 @@ child_process_spawn(ChildProcess* cp) {
   sinfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
   sinfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  search = cp->use_path && path_isname(cp->file);
+  search = cp->use_path && path_isname_s(cp->file);
   file = search ? NULL : cp->file;
   args = argv_to_string(cp->args, ' ');
   env = cp->env ? argv_to_string(cp->env, '\0') : NULL;

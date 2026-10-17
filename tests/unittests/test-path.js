@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as std from 'std';
+import * as fs from 'fs';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -55,6 +56,17 @@ tests({
   'fnmatch()'() {
     eq(path.fnmatch('/tmp/*.obj', '/tmp/test.obj'), 0);
   },
+  'fnmatch() bracket expressions and classes'() {
+    const m = (p, s, f = 0) => path.fnmatch(p, s, f) === 0;
+
+    assert(m('[abc]', 'b') && !m('[abc]', 'd') && m('[!abc]', 'd') && m('[a-c]', 'b'));
+    assert(m('[]a]', ']') && m('[\\]]', ']') && m('[', '['));
+    assert(m('[[:alpha:]]', 'a') && !m('[[:alpha:]]', '1') && m('[[:digit:]]*', '9z'));
+    assert(m('[[:upper:][:digit:]]', 'A') && m('[[:upper:][:digit:]]', '7') && !m('[[:upper:][:digit:]]', 'a'));
+    assert(!m('[[:foo:]]', 'a'), 'an unknown class matches nothing');
+    assert(m('*', 'a/b') && !m('*', 'a/b', path.FNM_PATHNAME));
+    assert(!m('*', '.a', path.FNM_PERIOD) && m('.*', '.a', path.FNM_PERIOD));
+  },
   'getcwd()'() {
     eq(path.getcwd(), path.resolve('.'));
   },
@@ -96,6 +108,40 @@ tests({
   'isSymlink()'() {
     assert(path.isSymlink('/dev/fd'));
     assert(!path.isSymlink('.'));
+  },
+  'type tests follow symlinks, only isSymlink() does not'() {
+    const dir = fs.mkdtempSync(path.join(std.getenv('TMPDIR') ?? '/tmp', 'qjs-path-'));
+    const [d, f, ld, lf, bad] = ['d', 'f', 'ld', 'lf', 'bad'].map(n => path.join(dir, n));
+
+    try {
+      fs.mkdirSync(d);
+      fs.writeFileSync(f, 'x');
+      fs.symlinkSync(d, ld);
+      fs.symlinkSync(f, lf);
+      fs.symlinkSync(path.join(dir, 'missing'), bad);
+
+      assert(path.isDirectory(d) && path.isDirectory(ld));
+      assert(path.isFile(f) && path.isFile(lf));
+      assert(!path.isFile(ld) && !path.isDirectory(lf));
+      assert(path.isSymlink(ld) && path.isSymlink(lf) && !path.isSymlink(d) && !path.isSymlink(f));
+      assert(path.isSymlink(bad) && !path.isFile(bad) && !path.isDirectory(bad));
+      assert(!path.isDirectory(path.join(dir, 'missing')));
+      assert(!path.isCharDev(f) && !path.isBlockDev(f) && !path.isFIFO(f) && !path.isSocket(f));
+
+      for(const n of ['isDirectory', 'isFile', 'isCharDev', 'isBlockDev', 'isFIFO', 'isSocket', 'isSymlink']) {
+        let err;
+        try {
+          path[n]();
+        } catch(e) {
+          err = e;
+        }
+        assert(err instanceof TypeError, n + '() without an argument throws TypeError');
+      }
+    } finally {
+      for(const n of [ld, lf, bad, f]) fs.unlinkSync(n);
+      fs.rmdirSync(d);
+      fs.rmdirSync(dir);
+    }
   },
   'length()'() {
     eq(path.length('/tmp/test.obj'), 3);
