@@ -95,7 +95,7 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Blob* blob;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(blob = js_blob_data(ctx, this_val)))
+  if(!(blob = JS_GetOpaque2(ctx, this_val, js_blob_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -209,6 +209,7 @@ enum {
   BLOB_ARRAYBUFFER,
   BLOB_BYTES,
   BLOB_TEXT,
+  BLOB_JSON,
   BLOB_SLICE,
   BLOB_STREAM,
 };
@@ -218,7 +219,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   Blob* blob;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(blob = js_blob_data(ctx, this_val)))
+  if(!(blob = JS_GetOpaque2(ctx, this_val, js_blob_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -236,6 +237,42 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
     case BLOB_TEXT: {
       ret = promise_immediate(ctx, FALSE, JS_NewStringLen(ctx, (const char*)blob->data, blob->size));
+      break;
+    }
+    case BLOB_JSON: {
+      /* json(): text() then JSON.parse; a bad document rejects, never throws.
+       * the BOM is dropped; invalid UTF-8 decodes to U+FFFD like text(). */
+      const uint8_t* data = blob->data;
+      size_t size = blob->size;
+      JSValue str, parsed = JS_EXCEPTION;
+      const char* cstr;
+      size_t len;
+
+      if(size >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
+        data += 3;
+        size -= 3;
+      }
+
+      if(JS_IsException(str = JS_NewStringLen(ctx, (const char*)data, size)))
+        return JS_EXCEPTION;
+
+      /* JS_ParseJSON wants NUL-terminated input; JS_ToCStringLen provides it */
+      if((cstr = JS_ToCStringLen(ctx, &len, str))) {
+        parsed = JS_ParseJSON(ctx, cstr, len, "<blob>");
+        JS_FreeCString(ctx, cstr);
+      }
+
+      JS_FreeValue(ctx, str);
+
+      if(JS_IsException(parsed)) {
+        JSValue error = JS_GetException(ctx);
+
+        ret = promise_immediate(ctx, TRUE, error);
+        JS_FreeValue(ctx, error);
+      } else {
+        ret = promise_immediate(ctx, FALSE, parsed);
+        JS_FreeValue(ctx, parsed);
+      }
       break;
     }
     case BLOB_SLICE: {
@@ -307,6 +344,7 @@ static const JSCFunctionListEntry js_blob_funcs[] = {
     JS_CFUNC_MAGIC_DEF("arrayBuffer", 0, js_blob_method, BLOB_ARRAYBUFFER),
     JS_CFUNC_MAGIC_DEF("bytes", 0, js_blob_method, BLOB_BYTES),
     JS_CFUNC_MAGIC_DEF("text", 0, js_blob_method, BLOB_TEXT),
+    JS_CFUNC_MAGIC_DEF("json", 0, js_blob_method, BLOB_JSON),
     JS_CFUNC_MAGIC_DEF("stream", 0, js_blob_method, BLOB_STREAM),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_blob_method, BLOB_SLICE),
     JS_CGETSET_MAGIC_FLAGS_DEF("size", js_blob_get, 0, BLOB_SIZE, JS_PROP_ENUMERABLE),

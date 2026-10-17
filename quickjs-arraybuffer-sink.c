@@ -6,6 +6,7 @@
 #include <string.h>
 #include "debug.h"
 #include "buffer-utils.h"
+#include "utils.h"
 
 /**
  * \defgroup quickjs-tree-walker quickjs-arraybuffer_sink: Object tree walker
@@ -89,6 +90,9 @@ js_arraybuffer_sink_method(JSContext* ctx, JSValueConst this_val, int argc, JSVa
     case METHOD_END: {
       if(s->buf && s->size)
         ret = dbuf_toarraybuffer(s, ctx);
+      /* ended: write() checks realloc_func; dbuf_free() skips a NULL buf */
+      if(magic == METHOD_END)
+        s->realloc_func = NULL;
       break;
     }
   }
@@ -128,6 +132,28 @@ js_arraybuffer_sink_finalizer(JSRuntime* rt, JSValue val) {
   }
 }
 
+/* [Symbol.for('qjs.dynbuf')](): address of the sink's DynBuf, for C callers.
+ *
+ * ```js
+ * sink[Symbol.for('qjs.dynbuf')](); // e.g. 94283746591232
+ * ```
+ *
+ * stream-utils (writer_from_jsarraybuffersink) calls it once per Writer, then
+ * writes in C. borrowed: the address is valid while `sink` is referenced.
+ *
+ *   returns number   the DynBuf* as an integer
+ *   throws  TypeError if `this` is not an ArrayBufferSink
+ */
+static JSValue
+js_arraybuffer_sink_dynbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  DynBuf* s;
+
+  if(!(s = JS_GetOpaque2(ctx, this_val, js_arraybuffer_sink_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_NewInt64(ctx, (int64_t)(intptr_t)s);
+}
+
 static JSClassDef js_arraybuffer_sink_class = {
     .class_name = "ArrayBufferSink",
     .finalizer = js_arraybuffer_sink_finalizer,
@@ -149,6 +175,14 @@ js_arraybuffer_sink_init(JSContext* ctx, JSModuleDef* m) {
   arraybuffer_sink_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, arraybuffer_sink_proto, js_arraybuffer_sink_proto_funcs, countof(js_arraybuffer_sink_proto_funcs));
   JS_SetClassProto(ctx, js_arraybuffer_sink_class_id, arraybuffer_sink_proto);
+
+  {
+    JSAtom atom = js_symbol_for_atom(ctx, "qjs.dynbuf");
+    JSValue fn = JS_NewCFunction(ctx, js_arraybuffer_sink_dynbuf, "dynbuf", 0);
+
+    JS_DefinePropertyValue(ctx, arraybuffer_sink_proto, atom, fn, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE); // takes `fn`
+    JS_FreeAtom(ctx, atom);
+  }
 
   arraybuffer_sink_ctor = JS_NewCFunction2(ctx, js_arraybuffer_sink_constructor, "ArrayBufferSink", 1, JS_CFUNC_constructor, 0);
 

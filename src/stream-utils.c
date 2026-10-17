@@ -3,6 +3,7 @@
 #include "defines.h"
 #include "queue.h"
 #include "js-utils.h"
+#include "utils.h"
 #include "stream-utils.h"
 
 #include <assert.h>
@@ -284,6 +285,37 @@ write_dynbuf(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   return len;
 }
 
+/* a JS ArrayBufferSink written to in C: no JS call per chunk.
+ *
+ *   db   borrowed: owned by `obj`, stays valid while `obj` is referenced
+ *   obj  refcount: dup'd here, freed in sink_writer_free()
+ */
+typedef struct {
+  DynBuf* db;
+  JSValue obj;
+  JSContext* ctx;
+} SinkWriter;
+
+static ssize_t
+write_sink(intptr_t fd, const void* buf, size_t len, Writer* wr) {
+  SinkWriter* sw = (SinkWriter*)fd;
+
+  /* realloc_func is NULL once the sink was end()ed */
+  if(!sw->db->realloc_func || dbuf_put(sw->db, buf, len))
+    return -1;
+
+  return len;
+}
+
+static void
+sink_writer_free(void* opaque) {
+  SinkWriter* sw = opaque;
+
+  JS_FreeValue(sw->ctx, sw->obj);
+  JS_FreeContext(sw->ctx);
+  free(sw);
+}
+
 static ssize_t
 write_tee(intptr_t fd, const void* buf, size_t len, Writer* wr) {
   Writer* parent = (Writer*)fd;
@@ -506,6 +538,13 @@ write_jsfunction(intptr_t fd, const void* buf, size_t len, Writer* wr) {
     return -1;
   }
 
+  /* only a number is a byte count; any other return value (the callback's own, e.g. the
+   * result of `out += chunk`) means everything was accepted */
+  if(!JS_IsNumber(ret)) {
+    JS_FreeValue(fw->ctx, ret);
+    return len;
+  }
+
   int32_t written;
   if(JS_ToInt32(fw->ctx, &written, ret)) {
     JS_FreeValue(fw->ctx, ret);
@@ -663,9 +702,64 @@ writer_from_fd(intptr_t fd, bool close_on_end) {
   };
 }
 
+/* writer_from_jsarraybuffersink: writes straight into an ArrayBufferSink's DynBuf.
+ *
+ * ```js
+ * new XMLWriter(sink); // each chunk lands in C, sink.write() is never called
+ * ```
+ *
+ *   JSContext*    ctx    context of `value`
+ *   JSValueConst  value  any value; only an ArrayBufferSink matches
+ *
+ *   returns int          1 and *wr set if `value` is an ArrayBufferSink, else 0
+ *
+ * the sink module checks its own class in sink[Symbol.for('qjs.dynbuf')](),
+ * called once here; a lookalike method is trusted, as with other raw-pointer APIs.
+ * never throws: returns 0 on any mismatch, with no exception left pending.
+ */
+int
+writer_from_jsarraybuffersink(JSContext* ctx, JSValueConst value, Writer* wr) {
+  JSAtom atom;
+  JSValue fn, addr;
+  int64_t p = 0;
+  SinkWriter* sw;
+
+  if(!JS_IsObject(value))
+    return 0;
+
+  atom = js_symbol_for_atom(ctx, "qjs.dynbuf");
+  fn = JS_GetProperty(ctx, value, atom);
+  JS_FreeAtom(ctx, atom);
+
+  if(!JS_IsFunction(ctx, fn)) {
+    JS_FreeValue(ctx, fn);
+    return 0;
+  }
+
+  addr = JS_Call(ctx, fn, value, 0, NULL);
+  JS_FreeValue(ctx, fn);
+
+  if(JS_IsException(addr) || JS_ToInt64(ctx, &p, addr) || !p) {
+    JS_FreeValue(ctx, JS_GetException(ctx)); // JS_NULL when nothing is pending
+    JS_FreeValue(ctx, addr);
+    return 0;
+  }
+  JS_FreeValue(ctx, addr);
+
+  if(!(sw = malloc(sizeof(SinkWriter))))
+    return 0;
+
+  *sw = (SinkWriter){(DynBuf*)(intptr_t)p, JS_DupValue(ctx, value), JS_DupContext(ctx)};
+  *wr = (Writer){&write_sink, sw, &sink_writer_free};
+  return 1;
+}
+
 int
 writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr) {
   if(JS_IsObject(value)) {
+    if(writer_from_jsarraybuffersink(ctx, value, wr))
+      return 1;
+
     if(JS_IsFunction(ctx, value)) {
       *wr = writer_from_jsfunction(ctx, value);
       return 1;

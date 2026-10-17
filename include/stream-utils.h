@@ -41,6 +41,7 @@ Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_buf(OutputBuffer*);
 Writer writer_from_fd(intptr_t, bool);
 int writer_from_js(JSContext* ctx, JSValueConst value, Writer* wr);
+int writer_from_jsarraybuffersink(JSContext*, JSValueConst, Writer*);
 Writer writer_from_jsbuf(JSContext*, JSValueConst);
 Writer writer_from_jsfunction(JSContext*, JSValueConst);
 Writer writer_from_jsinvoke(JSContext*, const char*, JSValueConst);

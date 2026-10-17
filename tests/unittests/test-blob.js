@@ -414,4 +414,48 @@ tests({
     isTrue(done);
     equals(chunk, undefined);
   },
+
+  async 'json() parses the contents'() {
+    const value = await new Blob(['{"a":1,"b":[1,2]}']).json();
+
+    equals(JSON.stringify(value), '{"a":1,"b":[1,2]}');
+  },
+
+  async 'json() strips a UTF-8 BOM and ignores the type'() {
+    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf, 0x31])], { type: 'text/plain' });
+
+    equals(await blob.json(), 1);
+  },
+
+  async 'json() decodes invalid UTF-8 to U+FFFD'() {
+    const value = await new Blob([new Uint8Array([0x22, 0xff, 0x22])]).json();
+
+    equals(value, '\ufffd');
+  },
+
+  async 'json() keeps a lone surrogate escape'() {
+    equals((await new Blob(['"\\ud800"']).json()).charCodeAt(0), 0xd800);
+  },
+
+  async 'json() rejects with SyntaxError for what JSON.parse rejects'() {
+    for(const text of ['', '  \n', '{a:1}', '1 2', '[1,/*x*/2]', '{"a":1,}', 'NaN', 'undefined']) {
+      let error;
+
+      try {
+        await new Blob([text]).json();
+      } catch(e) {
+        error = e;
+      }
+
+      assert(error instanceof SyntaxError, `${JSON.stringify(text)}: expected SyntaxError, got ${error}`);
+    }
+  },
+
+  'json() returns a promise and throws TypeError synchronously on a wrong this'() {
+    const blob = new Blob(['1']);
+
+    isTrue(blob.json() instanceof Promise);
+    throwsJs(TypeError, () => Blob.prototype.json.call({}));
+    equals(Blob.prototype.json.length, 0);
+  },
 });
