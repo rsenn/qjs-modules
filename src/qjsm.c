@@ -1792,7 +1792,11 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   else if(str_equal(name, "path/posix"))
     name = "path";
 
-  if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
+  /* the subdirectories of lib/ that are baked in as flat builtins: "node/events" -> "node_events",
+     "loaders/node" -> "loaders_node"; without the builtin the name is searched as a file below */
+  if((str_start(name, "node/") || str_start(name, "loaders/")) && (bltin = jsm_builtin_lookup(name))) {
+    file = js_strdup(ctx, bltin->module_name);
+  } else if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)
       file = js_strdup(ctx, bltin->module_name);
     /* a `data:` importer has no directory (its "path" is the whole source URL),

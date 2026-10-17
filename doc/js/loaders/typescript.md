@@ -7,7 +7,7 @@ external `swc` CLI (`npm i -g @swc/cli @swc/core`) through `std.popen`. Types ar
 stripped, not checked; output target is es2022.
 
 ```js
-import installTypeScript from 'loaders_typescript';
+import installTypeScript from 'loaders/typescript';
 
 installTypeScript();
 const { A } = await import('./a.ts');

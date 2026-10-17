@@ -6,7 +6,7 @@ Loads `.wasm` files as ES modules (format `module-wasm`), the instance phase of 
 WebAssembly ESM integration. Opt-in: nothing is registered until it is called.
 
 ```js
-import installWasmLoader from 'loaders_wasm';
+import installWasmLoader from 'loaders/wasm';
 
 installWasmLoader();
 const { add } = await import('./add.wasm');

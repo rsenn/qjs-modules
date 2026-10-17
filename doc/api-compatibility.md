@@ -1140,7 +1140,7 @@ silently hashing with an unavailable algorithm.
 **Notes:** Property descriptors, rejection-instead-of-throw behaviour and `validate()` errors were probed against Node, Bun and Deno. See doc/js/webassembly.md.
 
 ### lib/loaders/wasm.js
-**Module:** `loaders_wasm`  
+**Module:** `loaders/wasm`  
 **Classification:** Standard (WebAssembly ESM integration, instance phase)  
 **Spec:** https://github.com/WebAssembly/esm-integration  
 **Exports:** `installWasmLoader()` (default and named) - registers `registerHooks()` resolve/load hooks for `.wasm`  

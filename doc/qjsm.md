@@ -136,6 +136,11 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    `registerHooks()` resolver preloaded by qjsm, maps `node:<name>` to the
    `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
    `node:os` stays unresolved (this engine's `os` is *not* Node's `os`).
+   The subdirectories of `lib/` that are baked in are also reachable by their path:
+   `import 'node/events'` is the builtin `node_events` and `import 'loaders/typescript'`
+   the builtin `loaders_typescript` (slash written `_`, `jsm_builtin_lookup()`); when
+   the builtin is absent or disabled the name is searched as a file (`node/events.js`
+   in the module path).
 3. **Registered hooks** (`registerHooks()`, see below) — when any are registered,
    steps 1-2 and 4-6 collapse into the hook chain's final `nextLoad()` and a
    `load` hook can answer for any URL (`data:` included). With none registered

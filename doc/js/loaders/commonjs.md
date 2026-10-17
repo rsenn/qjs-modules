@@ -7,7 +7,7 @@ result with `format: 'commonjs'`. Importing it also sets `globalThis.require` (t
 `require()` of `lib/require.js`).
 
 ```js
-import installCommonJS from 'loaders_commonjs';
+import installCommonJS from 'loaders/commonjs';
 
 installCommonJS();
 const { sum } = await import('./lib.cjs');   // lib.cjs: exports.sum = require('./dep.cjs').v + 1

@@ -8,7 +8,7 @@ on unchanged. It is the JS counterpart of `DEBUG=modules`, which stays in C
 because it also sees what happens before any hook exists.
 
 ```js
-import { trace } from 'loaders_trace';
+import { trace } from 'loaders/trace';
 
 const t = trace();                                    // lines on stderr
 const u = trace({ log: l => lines.push(l), filter: /^file:/ });
