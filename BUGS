@@ -316,25 +316,6 @@
     // { "@": ["foo"], "all": true, "g": "Math" } -- correct, only the
     // argument order differs
 
-- lib-tty-imports-nonexistent-fdopensync (lib/tty.js:3): `import { fdopenSync,
-  out } from 'std'` imports a `fdopenSync` export that doesn't exist - `std`
-  only has `fdopen` (js_std_fdopen, quickjs-libc.c:915). This breaks loading
-  the `tty` module entirely (`import('tty')`/`import('node:tty')` throws).
-  Found while running utilities/runtime-diff.js against node:tty on qjsm.
-
-    import('tty');
-    // ReferenceError/SyntaxError: Could not find export 'fdopenSync' in
-    // module 'std'
-
-- lib-html-streamsrchreftext-crashes-without-options (lib/html.js:69): calling
-  streamSrcHrefAndText(source) without a second argument crashes, because it
-  destructures `const { attributes = [...] } = options` with no fallback for
-  options itself being undefined. Found while fixing HTMLParser's own
-  constructor to tolerate a missing second argument (same file).
-
-    import('html').then(({ streamSrcHrefAndText }) => [...streamSrcHrefAndText('<a href="x">y</a>')]);
-    // TypeError: cannot read property 'attributes' of undefined
-
 - ctest-nondeterministic-failures (tests/test_childprocess.js, test_pointer.js,
   test_repeater.js, test_streams.js, test_dom.js): built against
   /opt/quickjs-2026-06-04, the same test gives different pass/fail results
@@ -599,25 +580,6 @@
     misc.objectClassId({});   // 0, every time (should be a real class id)
     misc.objectRefCount({});  // a different huge number every run
 
-- jsonserializer-read-eof-returns-undefined (quickjs-json.c,
-  js_json_serializer_read): doc/native/json.md says `read(n)` returns `''`
-  once exhausted, but it returns `undefined` (checked 4 reads in a row on
-  `new JsonSerializer({a:1}, 2)`: string, then `undefined` x3). A loop
-  written to the documented contract, `while((c = s.read(n)) !== '')`,
-  never ends. Callers must test truthiness. Decide: return `''` (matches
-  the doc) or change the doc.
-
-    const s = new JsonSerializer({ a: 1 }, 2);
-    s.read(1000); s.read(1000);   // second call: undefined, not ''
-
-- jsonwriter-default-output-vs-test (src/jwrite.c:177,
-  tests/unittests/test-json.js:768): test "JsonWriter: bareKeys,
-  singleQuotes, hexNumbers, minify" expects `{id:255,"kebab-key":"it's",
-  list:[-31,1.5]}` for `{bareKeys:true}` (compact), but jwrite writes
-  `{ id: 255, "kebab-key": "it's", list: [ -31, 1.5 ] }` unless `minify`
-  is set. Either the test or the writer's default spacing is wrong; that
-  test is the one failure in test-json.js.
-
 - syscallerror-stack-always-null (quickjs-syscallerror.c:206, 289-292):
   `new SyscallError(syscall, errno).stack` is always `null`, 100%
   reproducible, despite doc/native/syscallerror.md documenting it as
@@ -793,18 +755,6 @@
     // expected: rejection with an authentication error
     // actual: resolves undefined; repeated callbacks; process hangs
 
-- xmlparser-null-source-segfault (quickjs-xml.c): constructing an XMLParser
-  with a null source and calling parse() crashes the process with a
-  segmentation fault instead of throwing a TypeError. found when
-  examples/html2md.js was handed null by a failed file read. the constructor
-  itself accepts null without complaint, so the crash is in the parse path.
-  not root-caused.
-
-    import { XMLParser } from 'xml';
-    new XMLParser(null, { tolerant: true, builder: false }).parse();
-    // expected: TypeError (no input)
-    // actual: segmentation fault
-
 - fs-readfilesync-utf8-missing-file-returns-null (lib/fs.js:readFileSync):
   readFileSync(path, 'utf-8') returns null for a missing or unreadable file
   instead of throwing, because that encoding branch returns std.loadFile()
@@ -817,19 +767,6 @@
     readFileSync('/no/such.html', 'utf-8');
     // expected: throws SyscallError (ENOENT)
     // actual: returns null
-
-- mysql-static-escape-without-instance-segfault (quickjs-mysql.c):
-  MySQL.escapeString(), and MySQL.valuesString() which escapes through it,
-  segfault when called before any MySQL instance was constructed in the
-  process; after one `new MySQL()` they work. mysql_real_escape_string() is
-  being handed a NULL/uninitialised connection. found while writing
-  tests/unittests/test-mysql.js, which constructs an instance first to
-  avoid it. not root-caused.
-
-    import { MySQL } from 'mysql';
-    MySQL.escapeString("a'b");
-    // expected: "a\'b"
-    // actual: segmentation fault
 
 - mysql-error-null-after-failed-connect (quickjs-mysql.c): after
   `await db.connect(...)` to a closed port, db.errno is 2002 but db.error
@@ -853,18 +790,6 @@
     [path.resolve('/'), path.resolve('/a/..'), path.dirname('/x')];
     // expected (node): [ '/', '/', '/' ]
     // actual: [ '<cwd>/\u0000', '', '.' ]
-
-- arraybuffer-sink-invalid-free (quickjs-arraybuffer-sink.c): the
-  ArrayBuffer free callback js_arraybuffer_sink_free() calls libc free()
-  on a buffer the DynBuf may have grown with a different allocator, so
-  finalizing the buffer aborts with "munmap_chunk(): invalid pointer"
-  (valgrind: Invalid free() at quickjs-arraybuffer-sink.c:57). Seen as
-  test-arraybuffer-sink.js aborting after "write() accepts a string, an
-  ArrayBuffer and a typed array".
-
-    valgrind -q qjsm tests/unittests/test-arraybuffer-sink.js
-    // expected: no memory error
-    // actual: Invalid free() in js_arraybuffer_sink_free
 
 - check-source-definitions-no-dash-d (cmake/Checks.cmake): the macro
   check_source_definitions() appends bare names (GNU_SOURCE, XOPEN_SOURCE
@@ -930,3 +855,136 @@
   doc/qjsm-layout.md 4).
 
     qjsm -e 'import("path.so").then(m=>print(Object.keys(m).length))'
+
+- misc-classid-lookup-finds-nothing (src/utils.c:1356, js_class_find): the
+  runtime class-table scan returns -1 for every name, built-in classes
+  included, so `misc.classId()` is useless with the installed libquickjs
+  (1.4). js_class_array() cannot locate class_array inside JSRuntime.
+  found while trying to resolve the ArrayBufferSink class id from
+  src/stream-utils.c by name.
+
+    import { classId } from 'misc';
+    classId('Object');
+    // expected: a number
+    // actual: undefined
+
+- syscallerror-no-code-for-eloop (quickjs-syscallerror.c): SyscallError
+  built with errno 40 has `code === null` and no `SyscallError.ELOOP`
+  constant, though the message is right. found while writing lib/vfs.js,
+  which hardcodes 40.
+
+    import { SyscallError } from 'syscallerror';
+    new SyscallError('stat', 40).code;
+    // expected: 'ELOOP'
+    // actual: null
+
+- lexer-imports-util-by-file-path (lib/lexer/cpp.js:6,
+  lib/lexer/ecmascript.js:1): both import '../util.js', a file path, but
+  util is a builtin compiled into qjsm and `cmake --install` leaves
+  util.js out of lib/quickjs. In an installation without a stale
+  util.js (a fresh DESTDIR, a new prefix) lexer/cpp, lexer/ecmascript and
+  everything that imports them fail to load: lexer/c, lexer/bnf,
+  lexers, c-functions, parser/cpp. /usr/local only works because an old
+  install left util.js there. found by utilities/api-surface.sh.
+
+    // QUICKJS_MODULE_PATH=<fresh DESTDIR>/usr/local/lib/quickjs
+    import 'lexer/cpp.js';
+    // expected: loads (a bare 'util' resolves to the builtin)
+    // actual: ReferenceError: could not load module '.../util.js'
+
+- xmlserializer-read-n-splits-utf8 (quickjs-xml.c, js_xmlserializer_read):
+  read(n) in string mode cuts the output at n bytes and decodes each piece
+  on its own, so a multi-byte character that straddles a cut becomes
+  U+FFFD in both pieces; the concatenation differs from read(1000).
+  found by tests/tools/xml-write-golden.js.
+
+    const s = new XMLSerializer([{tagName: 'a', children: ['ü€']}]);
+    let out = '', c;
+    while((c = s.read(1)) !== '') out += c;
+    // expected: '<a>ü€</a>'
+    // actual: replacement characters in place of ü€
+
+- path-exists-true-for-dangling-symlink (quickjs-path.c, PATH_EXISTS ->
+  path_exists1 in src/path.c): exists() uses lstat(), so a symlink whose
+  target is missing counts as existing. fs.existsSync(), node:fs, Bun and
+  Deno follow the link and answer false. src/qjsm.c and the module search
+  also call path_exists1, so a fix needs a separate JS-facing stat() check.
+
+    import * as path from 'path';
+    import * as fs from 'fs';
+    // ln -s /nowhere /tmp/dl
+    path.exists('/tmp/dl');     // expected: false (as fs.existsSync)
+    fs.existsSync('/tmp/dl');   // false
+    // actual: path.exists is true
+
+- path-functions-coerce-non-string-arguments (quickjs-path.c,
+  js_path_method): basename, dirname, extname, isAbsolute, parse and join
+  turn any argument into a string with JS_ToCString and carry on. Node,
+  Bun and Deno throw TypeError (ERR_INVALID_ARG_TYPE) for every
+  non-string path; normalize, relative, resolve and format here already
+  do. Also: join('a', null) is "a/null" and join('a', 5) is "a/5".
+
+    import { basename, dirname, isAbsolute, join } from 'path';
+    basename(5);          // expected: TypeError
+    dirname({});          // expected: TypeError
+    isAbsolute(null);     // expected: TypeError
+    join('a', null);      // expected: TypeError
+    // actual: "5", ".", false, "a/null"
+
+- path-missing-node-names (quickjs-path.c): path.win32, matchesGlob,
+  toNamespacedPath and _makeLong do not exist, and the specifiers
+  path/posix, path/win32, node:path/posix and node:path/win32 do not
+  resolve. Node, Bun and Deno have all of them. See doc/api-compare-path.md.
+
+    import posix from 'path/posix';
+    // expected: the posix path object
+    // actual: ReferenceError: could not load module 'path/posix'
+
+- json-read-does-not-decode-escapes (quickjs-json.c, js_json_parse over
+  sj.h): read() returns string escapes undecoded, and accepts what
+  JSON.parse rejects: trailing commas, leading zeros (01), "1.", a raw tab
+  inside a string. Objects are null-prototype. found while writing
+  doc/api-compare-json.md.
+
+    read('"\\u0041\\n"');
+    // expected: 'A\n' (as JSON.parse)
+    // actual: '\\u0041\\n' (backslash, u, 0, 0, 4, 1, backslash, n)
+
+- xml-doctype-internal-subset-mangled (src/xml.c, bang-tag scan): a
+  DOCTYPE with an internal subset ends at the first '>' inside the
+  subset, so the subset is split into a bogus tag name and a text node
+  "]>", and entities declared in it are not available. found while
+  writing doc/api-compare-xml.md.
+
+    xml.read('<!DOCTYPE a [<!ENTITY foo "val">]><a>&foo;</a>');
+    // expected: a !DOCTYPE node holding the whole declaration
+    // actual: [{tagName: '!DOCTYPE a [<!ENTITY foo "val"'}, ']>', {tagName: 'a', ...}]
+
+- json-read-throws-internalerror (quickjs-json.c:61, parse_throw): a
+  parse error in read() is an InternalError, not a SyntaxError, and the
+  file name argument is dropped from the message. Also: bad argument types
+  throw ReferenceError ("expecting buffer or string") in json.read,
+  xml.read, JsonPushParser.write and XMLPushParser.write; TypeError is
+  the class for that. found while writing doc/api-compare-json.md.
+
+    try { json.read('{') } catch(e) { e.constructor.name }
+    // expected: 'SyntaxError'
+    // actual: 'InternalError'
+
+- jsonparser-error-position-after-token (src/json.c, quickjs-json.c:1560):
+  JsonParser reports the position after the offending token, one column
+  right of JSON.parse and json5 (2:8 for a bad token at 2:7); the error
+  carries the position only in its message.
+
+    new JsonParser('{"a":\n  [1, x]}', 'f.json').parse() // ... throws
+    // expected: message ends 'f.json:2:7'
+    // actual: 'f.json:2:8: expected a value'
+
+- xmlpushparser-silent-on-mismatch (quickjs-xml.c, xread_callback):
+  XMLPushParser.write() accepts a mismatched end tag without an error and
+  the position of a later close() failure is not reported.
+
+    const p = new XMLPushParser(); p.write('<a>\n <b></c></a>'); p.close();
+    // expected: SyntaxError at 2:5
+    // actual: no error, p.root holds a repaired tree
+

@@ -70,6 +70,15 @@ See [api-compatibility.md](api-compatibility.md) for:
 - Standards compatibility tracking (WHATWG, W3C, Node.js, etc.)
 - Roadmap for improving standards compliance
 
+Per-module studies of `json` and `xml` (comparison with Browser/Bun/Node/Deno and packages, how the
+implementation is split into `include/` + `src/` pieces, and the interfaces between them):
+
+| | json | xml |
+| --- | --- | --- |
+| comparison | [api-compare-json.md](api-compare-json.md) | [api-compare-xml.md](api-compare-xml.md) |
+| implementation split | [api-implement-json.md](api-implement-json.md) | [api-implement-xml.md](api-implement-xml.md) |
+| interfaces | [api-interface-json.md](api-interface-json.md) | [api-interface-xml.md](api-interface-xml.md) |
+
 ### General Documentation
 
 - [grammar.md](grammar.md) — JavaScript grammar specification

@@ -530,7 +530,7 @@ inlined, or removed to reduce maintenance burden and code duplication.
 ### 10.1 BitSet only used by one module (LOW - inline)
 **Problem:** `bitset.h/bitset.c` has only 2 uses:
 - Used only by `src/bitset.c` itself
-- Used only by `include/json.h` (which is used by `quickjs-json.c`)
+- Used only by `include/json/json.h` (which is used by `quickjs-json.c`)
 
 This is a small utility that's only needed by one consumer.
 
@@ -620,8 +620,8 @@ out of scope for that work and is deferred:
 - A `read(text)` function, symmetric with `write()`, decoding the same block-YAML subset
   back into a JS value.
 - If/when that's built, model it as a computed-goto push/SAX parser in
-  `src/yread.c`/`include/yread.h`, the same pattern `src/jread.c`/`include/jread.h` (JSON) and
-  `src/xread.c`/`include/xread.h` (XML) already use, rather than a recursive-descent parser
+  `src/yread.c`/`include/yread.h`, the same pattern `src/json/jread.c`/`include/json/jread.h` (JSON) and
+  `src/xml/xread.c`/`include/xml/xread.h` (XML) already use, rather than a recursive-descent parser
   inline in `quickjs-yaml.c`.
 - Scope stays pinned to the writer's own subset (block style, plain/quoted scalars, no
   anchors/aliases/multi-doc/flow/tags) — no need to handle full YAML 1.1/1.2.
@@ -649,7 +649,7 @@ separate follow-up, not bundled into the cyaml change itself.
 (and the README's "Event stream output" feature) that cyaml has no SAX-style push parser
 (no read-callback/handler registration) and no incremental pull parser (no "get next
 event" call that holds cursor state across calls) comparable to this project's own
-`src/jread.c`/`src/xread.c` computed-goto push parsers or the pull-style primitives
+`src/json/jread.c`/`src/xml/xread.c` computed-goto push parsers or the pull-style primitives
 `XMLPushParser`/JSON's streaming reader expose. `cyaml_parse()`/`cyaml_parse_stream()`
 take the entire source buffer up front and return a fully-built `cyaml_doc_t*` node tree;
 there is no way to feed it chunks incrementally or stop after N events. `cyaml_events()`/
@@ -793,17 +793,17 @@ source (`Reader`, chunks, fd, JS value) pumped into an event/callback sink that 
 | Entity | File | Direction | Model | Input | Output | Engine-free? |
 | --- | --- | --- | --- | --- | --- | --- |
 | `sj_*` | `include/sj.h` | bytes → tokens | pull, whole buffer | `char*`, len | `sj_Value`, `sj_iter_array/object` | yes (third-party, header-only) |
-| `jr_*` (`jread`) | `src/jread.c` | bytes → events | **push**, chunked, resumable mid-token, resyncs after errors | `jr_read(cb, chunk, len, ud, state)`, `jr_finish` | `jr_callback(jr_type_t, jr_str_t*, ud)` | code yes; `jread.h` includes `vector.h` → `quickjs.h` |
-| `JsonParser` (`json.h`) | `src/json.c` | bytes → events | **pull**, `Reader`, `JSON_NEED_DATA` to resume, comments, `Location` | `Reader` (4 KiB-block buffered) | one `JsonValueType` per `json_parse()` | no: `json_init(…, JSContext*)`, `json_free(…, JSRuntime*)`, `Location` |
-| `jwrite_*` (`JsonWriter`) | `src/jwrite.c` | events → bytes | **push** (caller calls `jwrite_object_start/key/int64/…`), `Writer` sink, backpressure via `Writer` returning 0 | event calls | bytes through `Writer`; `-JWRITE_E_*` | code yes; header includes `stream-utils.h`/`vector.h` → `quickjs.h` |
-| `jbuild_*` (`JsonBuilder`) | `src/jbuild.c` | events → JS value | push (`push/pop/key/value`), consumes `jr_type_t` | events | `JSValue` root | **no** (JSContext, JSValue) |
-| `WalkIterator` / `WalkInterface` | `src/walk.c` | JS value → events | **pull** (`walk_next()` = one event), or iface callbacks | `JSValue` | 6 callbacks (`key/object_start/array_start/object_end/array_end/value`) taking `JSContext*`, `JSValueConst` | **no** |
+| `jr_*` (`jread`) | `src/json/jread.c` | bytes → events | **push**, chunked, resumable mid-token, resyncs after errors | `jr_read(cb, chunk, len, ud, state)`, `jr_finish` | `jr_callback(jr_type_t, jr_str_t*, ud)` | code yes; `jread.h` includes `vector.h` → `quickjs.h` |
+| `JsonParser` (`json.h`) | `src/json/json.c` | bytes → events | **pull**, `Reader`, `JSON_NEED_DATA` to resume, comments, `Location` | `Reader` (4 KiB-block buffered) | one `JsonValueType` per `json_parse()` | no: `json_init(…, JSContext*)`, `json_free(…, JSRuntime*)`, `Location` |
+| `jwrite_*` (`JsonWriter`) | `src/json/jwrite.c` | events → bytes | **push** (caller calls `jwrite_object_start/key/int64/…`), `Writer` sink, backpressure via `Writer` returning 0 | event calls | bytes through `Writer`; `-JWRITE_E_*` | code yes; header includes `stream-utils.h`/`vector.h` → `quickjs.h` |
+| `jbuild_*` (`JsonBuilder`) | `src/json/jbuilder.c` | events → JS value | push (`push/pop/key/value`), consumes `jr_type_t` | events | `JSValue` root | **no** (JSContext, JSValue) |
+| `JwalkIterator` / `WalkInterface` | `src/json/jwalk.c` | JS value → events | **pull** (`jwalk_next()` = one event), or iface callbacks | `JSValue` | 6 callbacks (`key/object_start/array_start/object_end/array_end/value`) taking `JSContext*`, `JSValueConst` | **no** |
 | `JSON.read` | `quickjs-json.c` | bytes → JSValue | whole-buffer, `sj` + `parse_val` frame stack | string/buffer | value | no |
 | `JSON.write` | `quickjs-json.c` | JSValue → bytes | whole-value, own `PropertyEnumeration` stack + `Writer` | value | bytes/`Writer` | no |
 | `JSONL.parse/parseChunk` | `quickjs-json.c` | bytes → values | chunk-resumable, own boundary scanner (`jsonl_value_end`) then `sj` | string/Uint8Array | values + `read/done/error` | no |
 | `JsonPushParser` | `quickjs-json.c` | bytes → events/JSValue | push: `write(chunk)`, `close()`; `jr_read` → either `jbuild` (`.root`) or JS callbacks per `jr_type_t` | chunks | callbacks or `root` | no (wrapper of `jr_*` + `jbuild_*`) |
 | `JsonParser` (JS class) | `quickjs-json.c` | bytes → events | pull, `Reader` from fd/buffer/function/`read()` method; `[Symbol.iterator]` | any `reader_from_js` source | `JsonValueType` ints (+`NEED_DATA`) | no (wrapper of `json.c`) |
-| `JsonWriter` (JS class) | `quickjs-json.c` | JSValue/events → bytes | push; implements `WalkInterface` (`js_walk_register`) so a `WalkIterator` can drive it | `Writer` (`writer_from_js`) | bytes | no (wrapper of `jwrite_*` + walk) |
+| `JsonWriter` (JS class) | `quickjs-json.c` | JSValue/events → bytes | push; implements `WalkInterface` (`js_walk_register`) so a `JwalkIterator` can drive it | `Writer` (`writer_from_js`) | bytes | no (wrapper of `jwrite_*` + walk) |
 | `JsonSerializer` | `quickjs-json.c` | JSValue → bytes | **pull** `read(n)`, produces only n bytes, `skip`/`CappedBuf`/`blocked` | JSValue | n-byte chunks | no — own recursion + own `sw_*` writers; does **not** use `walk`/`jwrite` yet; to be migrated, see "JsonSerializer → walk migration" |
 | `jsonStreams.js` | `lib/jsonStreams.js` | JS-level | WHATWG `TransformStream`s (Deno `@std/json` shapes) | strings/values | values/strings | JS only, no native code |
 
@@ -820,8 +820,8 @@ There is no single event type; four exist side by side:
 | --- | --- | --- | --- |
 | `jr_type_t` + `jr_str_t` | `jread.h` | error, null, true, false, number, string, array_start/end, object_start/end, key | decoded text (escapes resolved), number as raw text; no position, no comments |
 | `JsonValueType` | `json.h` | OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT, + NEED_DATA/ERROR/RESYNC | token in `json->token`, position in `Location` |
-| `WalkEvent` / `WalkInterface` | `walk.h` | key, object_start, array_start, object_end, array_end, value | `JSValue` (key and value), engine-bound |
-| `jwrite_*` calls / `jbuild_*` calls | `jwrite.h`, `jbuild.h` | the same six + null/bool/int64/double/string/raw | C scalars (jwrite) / `jr_type_t`+text (jbuild) |
+| `WalkEvent` / `WalkInterface` | `jwalk.h` | key, object_start, array_start, object_end, array_end, value | `JSValue` (key and value), engine-bound |
+| `jwrite_*` calls / `jbuild_*` calls | `jwrite.h`, `jbuilder.h` | the same six + null/bool/int64/double/string/raw | C scalars (jwrite) / `jr_type_t`+text (jbuild) |
 
 Boundaries, where one layer hands over to the next:
 
@@ -829,7 +829,7 @@ Boundaries, where one layer hands over to the next:
  bytes ──Reader (pull)──► JsonParser/json_parse ──JsonValueType──┐
  bytes ──chunks (push)──► jr_read ──────────────jr_callback──────┼─► (sink)
  bytes ──whole buffer───► sj / JSONL / JSON.read ─► JSValue (no event stage)
- JSValue ──walk_next/WalkInterface──────────────────────────────┤
+ JSValue ──jwalk_next/WalkInterface──────────────────────────────┤
                                                                  ▼
  sinks: jbuild (→JSValue) · jwrite (→Writer→bytes) · JS callbacks (JsonPushParser)
 ```
@@ -844,8 +844,8 @@ Already connected: `jr_read → jbuild` (JsonPushParser), `walk → jwrite` (Jso
 | A1 | `jr_callback` → `jwrite_*` ("reformat"/minify/pretty/JSON5-ify while streaming) | no direct pump today; strings are already decoded by jr so `jwrite_string` re-escapes; numbers via `jwrite_number` | **yes** |
 | A2 | `json_parse` (pull) → `jr_callback` (`json_pump(JsonParser*, jr_callback, ud)`) | map `JsonValueType`→`jr_type_t`; lets the `Reader`-based parser feed the same sinks as the chunk parser; comments need a new event | needs `json.c` decoupled from `JSContext` first |
 | A3 | `Reader` → `jr_read` (`jr_pump(Reader*, cb, ud, state)`: read loop + `jr_finish`) | `jr_read` is chunk-only; every caller hand-writes the loop | **yes** |
-| A4 | `WalkIterator` → `jr_callback` (JS value → pure-C events) | one engine-bound adapter in `quickjs-json.c` emitting `jr_*` events; after it, jwrite/jbuild/JS-callbacks all consume value trees through the same sink instead of `WalkInterface` | adapter engine-bound, sink pure |
-| A5 | `JsonSerializer` rebuilt on `WalkIterator` + `JsonWriter` (**decided**, plan below) | removes the second serializer (own recursion, own writers, `skip`/`blocked` retry machinery); `walk_next()` is one event per call and resumable | no (walk is engine-bound) |
+| A4 | `JwalkIterator` → `jr_callback` (JS value → pure-C events) | one engine-bound adapter in `quickjs-json.c` emitting `jr_*` events; after it, jwrite/jbuild/JS-callbacks all consume value trees through the same sink instead of `WalkInterface` | adapter engine-bound, sink pure |
+| A5 | `JsonSerializer` rebuilt on `JwalkIterator` + `JsonWriter` (**decided**, plan below) | removes the second serializer (own recursion, own writers, `skip`/`blocked` retry machinery); `jwalk_next()` is one event per call and resumable | no (walk is engine-bound) |
 | A6 | `JSON.write` rebuilt on `walk` + `jwrite` | third copy of the same traversal; also gives `JSON.write` the JSON5 options | no |
 | A7 | `JSONL.parse/parseChunk` on `jr_read` | own boundary scanner + `sj`; `jr_read` already resumes mid-token and resyncs per value | engine-bound result, pure scan |
 | A8 | `jbuild` taking an allocator-agnostic tree (e.g. an arena of nodes) so `jr → tree → JSValue` | would let the whole read side stay pure C and convert once at the end | design question, not needed yet |
@@ -883,8 +883,8 @@ Already connected: `jr_read → jbuild` (JsonPushParser), `walk → jwrite` (Jso
 
 `JsonSerializer` (`quickjs-json.c`, "JsonSerializer" block, ~l.1060-1500) is the pull
 serializer: `read(n | buffer)` yields only as much text as asked. It re-implements the
-value traversal that `include/walk.h` already provides (`json_serializer_step_inner` ≈
-`walk_next` + `JsonWriter`), plus a retry mechanism (`skip`, `delivered`, `blocked`,
+value traversal that `include/json/jwalk.h` already provides (`json_serializer_step_inner` ≈
+`jwalk_next` + `JsonWriter`), plus a retry mechanism (`skip`, `delivered`, `blocked`,
 `CappedBuf`, `write_skip`) for a `Writer` that refuses bytes mid-event.
 
 #### Target shape
@@ -892,22 +892,22 @@ value traversal that `include/walk.h` already provides (`json_serializer_step_in
 ```c
 typedef struct {
   JSContext* ctx;
-  WalkIterator it;      /* the traversal; replaces `stack`, `is_primitive`, step_inner */
+  JwalkIterator it;      /* the traversal; replaces `stack`, `is_primitive`, step_inner */
   JsonWriter wr;        /* the formatting; replaces sw_*, write_indent/primitive/string */
   DynBuf out;           /* wr.writer = writer_from_dynbuf(&out); never blocks */
   size_t out_pos;       /* bytes of `out` already handed to read() */
-  JSValue root;         /* getter only; walk_close() clears it->root */
+  JSValue root;         /* getter only; jwalk_close() clears it->root */
   Location* loc;
   unsigned error : 1;
 } JsonSerializer;
 ```
 
-Core loop (both `read(n)` and `read(buffer)`): `while(avail < want && (r = walk_next(&it, ctx)) > 0) {}`
-with `avail = out.size - out_pos`; `r < 0` → `error`, `walk_close()`, return the exception as
+Core loop (both `read(n)` and `read(buffer)`): `while(avail < want && (r = jwalk_next(&it, ctx)) > 0) {}`
+with `avail = out.size - out_pos`; `r < 0` → `error`, `jwalk_close()`, return the exception as
 today; then take `n` characters (existing `utf8_strlen`/`utf8_byteoffset` code) or copy up to
 `cap` bytes into the buffer and keep the remainder in `out`.
 
-Why this works without a blocking writer: `walk_next()` does not retry an event (state is
+Why this works without a blocking writer: `jwalk_next()` does not retry an event (state is
 advanced before the callback runs), and `jwrite` mutates its frame state before writing, so
 a half-written event cannot be replayed. Writing into an unbounded `DynBuf` and slicing
 afterwards is what the string path of `read(n)` already does; the buffer path now does the
@@ -920,13 +920,13 @@ same instead of `CappedBuf`.
 | `stack` (`PropertyEnumeration` vector) | `it.stack` | same element type → `property_recursion_path(&it.stack, ctx)` keeps working for `.path` |
 | `started` | `it.state != WALK_START` | |
 | `finished` | `it.state == WALK_DONE` | still true while text remains buffered, as now |
-| `error` | `error` | set when `walk_next()` or `jwrite_*` fails |
+| `error` | `error` | set when `jwalk_next()` or `jwrite_*` fails |
 | `blocked` | removed / constant `false` | no blocking stage left; check usage before deleting (only `quickjs-json.c` found; tests do not read it) |
 | `indent` get/set | `wr.opts.indent` | the setter may run mid-stream; `jwrite` reads it per event |
-| `is_primitive` | gone | `walk_next()` reports a primitive root as one `value` event |
+| `is_primitive` | gone | `jwalk_next()` reports a primitive root as one `value` event |
 | `write_skip`, `write_capped`, `CappedBuf`, `skip`, `delivered`, `skip_writer`, `dest_writer` | deleted | retry machinery |
 | `sw_putc/sw_indent/sw_string/sw_primitive/sw_puts` | deleted | `jwrite_*` via `js_jsonwriter_walk` |
-| `json_serializer_step[_inner]` | deleted | `walk_next()` |
+| `json_serializer_step[_inner]` | deleted | `jwalk_next()` |
 | `location` | unchanged | `location_count(loc, bytes, n)` on the bytes handed out |
 
 `js_jsonwriter_walk()` is defined after the serializer; add a forward declaration (or move
@@ -936,7 +936,7 @@ the serializer block below the `JsonWriter` block).
 
 | Case | Serializer today | Walk + JsonWriter |
 | --- | --- | --- |
-| circular reference | falls through to the primitive writer: the object's `toString` string | `null` (`walk_next` substitutes `JS_NULL`) — matches the doc comment in `walk.c`; pick `null` |
+| circular reference | falls through to the primitive writer: the object's `toString` string | `null` (`jwalk_next` substitutes `JS_NULL`) — matches the doc comment in `jwalk.c`; pick `null` |
 | empty container with `indent` | writes `[` + newline + indent… (checked in code: `sw_indent` after the opening bracket unconditionally) | `jwrite` decides; compare against `JSON.stringify(v, null, n)` (the commented-out test at `test-json.js:572` was meant to assert this) |
 | `: ` after key | `:` plus a space only when `indent` is set | `jwrite` opts (`minify`, `indent`) |
 | undefined/function/symbol values | `null` | `null` (`js_jsonwriter_value`) — same |
@@ -951,14 +951,14 @@ the serializer block below the `JsonWriter` block).
    from the *old* implementation as expected strings. Also compare with `JSON.stringify`
    where the semantics are meant to agree.
 2. **Restructure the struct** as above (delete the retry members), `vector_init(&js->stack)`
-   → `walk_init(&js->it, ctx, root, js_jsonwriter_walk(&js->wr))`; `jwrite_init(&js->wr, …)`
+   → `jwalk_init(&js->it, ctx, root, js_jsonwriter_walk(&js->wr))`; `jwrite_init(&js->wr, …)`
    with `wr.writer = writer_from_dynbuf(&js->out)`, `wr.opts.indent = indent`.
 3. **Rewrite `js_jsonserializer_read`** around the loop above; unify the `n` and `buffer`
    branches on the shared `out` buffer; keep the return values (`JS_NewInt64(count)` for a
    buffer, string or `undefined` at EOF for a count — see existing tests 543-650).
 4. **Rewrite getters/setter/constructor/finalizer** per the mapping table; the finalizer
-   calls `walk_close(&js->it, ctx)` (needs a context: use `js->ctx`, or free through
-   `property_recursion_free` + `JS_FreeValueRT` with the runtime as `walk_close` does) and
+   calls `jwalk_close(&js->it, ctx)` (needs a context: use `js->ctx`, or free through
+   `property_recursion_free` + `JS_FreeValueRT` with the runtime as `jwalk_close` does) and
    `jwrite_free(&js->wr)`.
 5. **Delete what became unused** in `quickjs-json.c`: `write_capped`, `write_skip`,
    `sw_*`, `json_serializer_step*`, `CappedBuf`. Keep `write_json_primitive`,
@@ -966,7 +966,7 @@ the serializer block below the `JsonWriter` block).
    `grep` shows they are still used by `js_json_write` (l.369-460).
 6. **Verify**: `qjsm tests/unittests/test-json.js`, the new differential cases, and
    `utilities/jsonpp.js` against a few files; ASan run once (frames are freed in
-   `walk_close` on every path: done, error, finalizer mid-walk).
+   `jwalk_close` on every path: done, error, finalizer mid-walk).
 7. **Docs/tracking**: `doc/native/json.md` (JsonSerializer section: `blocked` gone, circular
    → `null`, indent output as chosen), drop the Open question above, mark A5 done.
 
@@ -1021,7 +1021,7 @@ inside one `jr_read()` call.
   header, nothing exported to JS). Promote to `src/jrewrite.[ch]` only if it holds up, as the
   engine-free `jr → jwrite` pump of Tier 14 (A1/A3).
 - **Not in scope:** any JS-visible class/function (no new public API per project
-  principles), `JsonBuilder`/`WalkIterator` (both engine-bound), schema validation.
+  principles), `JsonBuilder`/`JwalkIterator` (both engine-bound), schema validation.
 
 ### The filter (`JsonRewriter`)
 
@@ -1182,7 +1182,7 @@ void jrewrite_event(JsonRewriter*, jr_type_t, const char* str, size_t len);   /*
 void jrewrite_callback(jr_type_t, const jr_str_t*, void* ud);                  /* a jr_callback, ud = rewriter */
 JsonWriteInterface jrewrite_interface(JsonRewriter*);                         /* as a sink: chainable */
 
-/* pull: runs json_parse() of include/json.h until it stops, feeding jrewrite_event().
+/* pull: runs json_parse() of include/json/json.h until it stops, feeding jrewrite_event().
  * returns JREWRITE_DONE (clean end at depth 0) | JREWRITE_NEED_DATA (reader dry inside a
  * value; resumable: call again) | JREWRITE_PARSE (first parse error, message in json->error)
  * | JREWRITE_WRITE (first sink error, code in jrewrite_error()). Comments are dropped. */
@@ -1427,7 +1427,7 @@ inside one `jr_read()` call.
   header, nothing exported to JS). Promote to `src/jrewrite.[ch]` only if it holds up, as the
   engine-free `jr → jwrite` pump of Tier 14 (A1/A3).
 - **Not in scope:** any JS-visible class/function (no new public API per project
-  principles), `JsonBuilder`/`WalkIterator` (both engine-bound), schema validation.
+  principles), `JsonBuilder`/`JwalkIterator` (both engine-bound), schema validation.
 
 ### The filter (`JsonRewriter`)
 
@@ -1588,7 +1588,7 @@ void jrewrite_event(JsonRewriter*, jr_type_t, const char* str, size_t len);   /*
 void jrewrite_callback(jr_type_t, const jr_str_t*, void* ud);                  /* a jr_callback, ud = rewriter */
 JsonWriteInterface jrewrite_interface(JsonRewriter*);                         /* as a sink: chainable */
 
-/* pull: runs json_parse() of include/json.h until it stops, feeding jrewrite_event().
+/* pull: runs json_parse() of include/json/json.h until it stops, feeding jrewrite_event().
  * returns JREWRITE_DONE (clean end at depth 0) | JREWRITE_NEED_DATA (reader dry inside a
  * value; resumable: call again) | JREWRITE_PARSE (first parse error, message in json->error)
  * | JREWRITE_WRITE (first sink error, code in jrewrite_error()). Comments are dropped. */
@@ -1801,8 +1801,8 @@ Builtins are closed (`doc/qjsm-layout.md` 4.1); what is left:
 - `qjsm_scan_imports` only sees literal specifiers; a computed `import(x)` inside a builtin
   is not followed (build-time) and not restricted (run time).
 - `QJSM_INSTALL_BUILTIN_NATIVE` / manifest / build-info blob: see `doc/qjsm-layout.md` 3-6.
-- Default build now links libarchive (`vfs` -> `archive`); decide whether `vfs` should
-  depend on it softly.
+- Default build now links libarchive (`vfs` -> `archive`); `vfs` depends on it softly
+  (`ArchiveProvider` loads it on first use).
 
 ## Tier 15 — Bun compatibility layer: `Bun.*` in `lib/bun.js` (planned 2026-10-14)
 
@@ -1877,3 +1877,882 @@ onExit }` → `Subprocess` (`pid`, `exited`, `exitCode`, `signalCode`, `kill()`,
 | `Bun.FFI` / `bun:ffi` | `../qjs-ffi/` |
 | `Bun.Transpiler`, `Bun.build`, `Bun.markdown`, `Bun.Image` | needs a transpiler/bundler/renderer the engine does not have |
 | `Bun.S3Client`, `Bun.s3`, `Bun.redis`, `Bun.RedisClient`, `Bun.secrets`, `Bun.Cookie/CookieMap`, `Bun.CSRF`, `Bun.cron`, `Bun.WebView`, `Bun.Terminal`, `Bun.FileSystemRouter`, `Bun.embeddedFiles`, `Bun.openInEditor`, `Bun.generateHeapSnapshot`, `Bun.shrink`, `Bun.unsafe` | no user, no standard target; decide only when a script asks |
+
+## Event model: `json` and `xml` alike (plan 2026-10-17)
+
+Rule: every JSON concept has an XML twin with the same shape, and the code of one is written so the other can be read off it.
+`include/json/jevent.h` mirrors `include/xml/xevent.h`; `JsonWriteInterface` becomes **`JsonEventSink`**, `XmlEventSink` is its twin.
+Both are tables of function pointers with `opaque` first; a producer drives any sink without knowing what it is.
+
+| concept | JSON (`include/json/`) | XML (`include/xml/`) | state |
+| --- | --- | --- | --- |
+| event kinds | `jr_type_t` (`error, null, true, false, number, string, array_start, array_end, object_start, object_end, key`) | `XmlEventType` (`error, element_start, attribute, text, element_end`, plus `comment, declaration, instruction, cdata`); `xml_event_t` ids are a prefix of it | J: exists; X: Phase 1 |
+| one event | `JsonEvent { type, str, len, SourcePos at }` (`jr` fills `err_*` already) | `XmlEvent { type, name, value, has_value, SourcePos at }` | new, both |
+| sink | `JsonEventSink` (rename of `JsonWriteInterface`; members unchanged: `error, null, true_, false_, number, string, array_start, array_end, object_start, object_end, key`) | `XmlEventSink` (`error, element_start, attribute, text, element_end, comment, declaration, instruction, cdata`) | J: rename + `typedef` alias for one release; X: new |
+| sink constructors | `jwrite_sink(&JsonWriter)`, `jbuild_sink(&JsonBuilder)`, `jrewrite_sink(&JsonRewriter)` (were `jwrite_interface`, planned `jrewrite_interface`) | `xwrite_sink`, `xbuild_sink`, `xrewrite_sink` | rename J; new X |
+| pump (source drives sink) | `jread_pump` (push `jr` state to a sink), `json_pump(JsonParser*, sink)` (pull) | `xread_pump`, `xml_pump(XMLParser*, sink)`; `xwalk_pump` | new, both; `jwalk` already drives a sink |
+| writer | `JsonWriter` (`jwrite_*`) | `XmlWriter` (`xwrite_*`) | exists |
+| builder | `JsonBuilder` (`jbuild_*`) | `XmlBuilder` (`xbuild_*`), layered on `jbuilder` | J exists; X Phase 2 |
+| tree walker | `walk` + `jwalk` hooks | `walk` + `xwalk` hooks | exists |
+| rewriter (filter) | `JsonRewriter` (Tier 17) | `XmlRewriter` (Phase 8): both own a downstream sink and are sinks | planned |
+| error report | `err_code`, `err_pos`, `err_len` in `jr_state_t`; `JsonParser.err_*` | same names in `xr_state_t` (`xread`), `XMLParser.err_*` | done (Tier 23 E1c) |
+| position | `SourcePos` / `Location` | same | done |
+| strings | valid until the next event | same | rule, both |
+| failure value of a sink call | bytes written (>= 0) or `-J*_E_*` | bytes written (>= 0) or `-X*_E_*` | J exists; X exists in `xwrite` |
+
+JS classes follow the same table (names kept: `Json*` has no web twin, `XML*` follows `XMLSerializer`/`XMLHttpRequest`):
+
+| role | JSON | XML | alike already? |
+| --- | --- | --- | --- |
+| one-shot read | `json.read` / `JSON.parse` | `xml.read` | yes (errors: Tier 23) |
+| pull parser | `JsonParser` | `XMLParser`, `XMLNodeParser` | members `location`, `depth`, `error`; token ids differ (to unify with `JsonEvent`/`XmlEvent` types) |
+| push parser | `JsonPushParser` (`onError`) | `XMLPushParser` (`onParseError`) | callback names differ: decide one (recommended `onError` for both, `onParseError` an alias on XML since parse5 and the DOM use it) |
+| writer | `JsonWriter` | `XMLWriter` | methods differ in kind only (`objectStart`/`elementStart`) |
+| serializer | `JsonSerializer` | `XMLTreeSerializer` | both `read(n)`; renamed so `XMLSerializer` stays free for the DOM class |
+| builder result | `.root`, `.path` | `.root`, `.path` | yes |
+
+Steps (each keeps ctest as it is; J = json, X = xml; both after Phase M):
+
+| # | step | gate |
+| --- | --- | --- |
+| EV1 | `include/json/jevent.h`: `JsonEvent`, `JsonEventSink`; `JsonWriteInterface` kept as `typedef JsonEventSink`; `jwrite_sink()` next to `jwrite_interface()` | build; `JsonWriter` tests unchanged |
+| EV2 | `include/xml/xevent.h`: `XmlEvent`, `XmlEventSink`, `xwrite_sink()` | `xwrite` golden unchanged |
+| EV3 | `jbuild_sink()` / `xbuild_sink()` (Phase 2 `xbuilder`); the push parsers feed the sink instead of calling `jbuild_*` / `xml_builder_*` | `root` shapes unchanged, `read()` differential 0 |
+| EV4 | `jread_pump` / `json_pump`, `xread_pump` / `xml_pump`: each parser can drive any sink; `quickjs-json.c` and `quickjs-xml.c` choose source, sink, `Reader`, `Writer` only | a C test per pairing: parser to writer reproduces the input (minified) at chunk sizes 1, 7, whole |
+| EV5 | `xwalk` and `jwalk` drive an `XmlEventSink` / `JsonEventSink` (`WalkInterface` becomes the engine-side adapter of it) | `write()`, `XMLTreeSerializer` byte-identical |
+| EV6 | rename `jwrite_interface` and delete the alias after one release; align the push-parser callback names; `JsonRewriter` / `XmlRewriter` on sinks | per Tier 17 / Phase 8 |
+
+Notes: `JsonEvent.at` is filled only when the source tracks a position (`jr`, `xr` with `SourcePos`); a sink must not require it.
+`WalkInterface` stays engine-bound (`JSContext`, `JSValue`); the engine-free `*EventSink` is the one the C-only couplings use.
+Tier 18 and Tier 20 refer here for everything about events; their own "event protocol" paragraphs are superseded where they differ.
+
+## Tier 18 — `json` module: lift to standard shapes (spec 2026-10-17)
+
+Survey (probed node 22 / bun 1.4 / deno 2.9, plus npm `json5`, `jsonc-parser`, `stream-json`,
+`@streamparser/json`, `jsonparse`, `lossless-json`, jsr `@std/json`). Engine built-ins
+(`JSON.parse/stringify`, `rawJSON`, `isRawJSON`, reviver `context.source`) and JSON modules
+(`import x from './x.json' with {type:'json'}`) already work in qjsm. Only Bun has `JSON5`,
+`JSONC`, `JSONL` namespaces; only `Blob.prototype.json()` / `Response.json()` / `Body.json()`
+exist as JSON readers in the web platform.
+
+### Target surface of `json`
+
+| Export | Standard shape | Source | Status |
+| --- | --- | --- | --- |
+| `JSONL.parse`, `JSONL.parseChunk` | `Bun.JSONL` | Bun | done |
+| `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` | `@std/json` | Deno | done (`lib/jsonStreams.js`) |
+| `Blob.prototype.json()` | WHATWG Body-style mixin, Bun's Blob | Bun | this change (`quickjs-blob.c`, `JS_ParseJSON`) |
+| `JSON5.parse(text)` / `JSON5.stringify(v, null, space)` | `Bun.JSON5` (also npm `json5`) | Bun | planned |
+| `JSONC.parse(text)` | `Bun.JSONC` | Bun | planned |
+| `JsonPushParser` + `onValue`, `paths`, `end()` alias of `close()` | `@streamparser/json` `JSONParser` | npm | planned |
+| `JsonParser`, `JsonSerializer`, `JsonWriter`, `TYPE_*`/token constants | none (every library invents its own) | — | keep, internal engines |
+| `read(text)`, `write(v, replacer, space)` | `JSON.parse` / `JSON.stringify` | engine | deprecate after the above; callers: `plot-cv/yt-playlist.js`, `plot-cv/clang-ast.js` |
+
+### Spec decisions
+
+- `JSON5.parse` / `JSONC.parse`: one argument (`length` 1) like Bun, optional reviver is *not*
+  added (Bun ignores it). Built on `jread` + `jbuilder`; trailing data is a `SyntaxError`.
+- `JSON5.stringify(v, replacer, space)`: `length` 3 like Bun. Differs from `JSON.stringify`
+  only in output syntax (bare keys, single quotes, `NaN`/`Infinity`, trailing commas when
+  indented); Bun rejects a replacer function and BigInt, so does this; `undefined` for a
+  value with no JSON form. Built on `jwalk` + `JsonWriter` options.
+- `write(undefined)` returns `undefined` (as `JSON.stringify`); BOM and reviver follow
+  `JSON.parse` (BOM is a `SyntaxError`); none of this needs separate decisions once `read`
+  and `write` are deprecated.
+- No `JSONL.stringify`, no `JSONC.stringify` (Bun has neither).
+- Deep nesting: `JS_ParseJSON` recurses (RangeError past the C stack); Bun parses 100000 levels.
+  `JSON5.parse`/`JSONC.parse` built on `jread`/`jbuilder` do not recurse.
+
+### `Blob.prototype.json()` — Bun behaviour to match (probed on bun 1.4.2)
+
+| Input | Result |
+| --- | --- |
+| `new Blob(['{"a":1}']).json()` | `Promise` resolving to `{a: 1}` |
+| UTF-8 BOM first | stripped, then parsed |
+| empty or whitespace only | rejects `SyntaxError` |
+| bad JSON, `1 2`, JSON5 / comments, `NaN`, `undefined` | rejects `SyntaxError` |
+| invalid UTF-8 byte | decoded to U+FFFD, then parsed (`"\xff"` → `"�"`) |
+| lone surrogate escape `"\ud800"` | kept |
+| `type` option | ignored |
+| `this` not a Blob | throws `TypeError` synchronously (not a rejection) |
+| `length` / name | 0 / `json`; `File` and `Response(blob)` inherit |
+| property flags | method of `Blob.prototype`; standard `writable, configurable, non-enumerable` (Bun's `enumerable`, non-configurable is a quirk, not copied) |
+
+Message texts differ from Bun's (engine messages); the error *class* is what matches.
+
+### Order
+
+1. `Blob.prototype.json()` — done (`quickjs-blob.c`, tests in `test-blob.js`, probed against bun). Two known
+   differences, both deliberate: nesting past the C stack rejects with `SyntaxError` ("stack overflow")
+   because `JS_ParseJSON` recurses (Bun: 100000 levels fine); the method is `writable, non-enumerable,
+   configurable` (Bun's is enumerable, non-configurable). Closing the first needs a strict, non-recursive
+   `jread` mode that builds ordinary-prototype objects (`jbuilder` makes null-prototype ones and `jread`
+   accepts comments); build it with step 2, then point `Blob.json()` at it (blob.so would link json.so).
+2. `JSON5.parse`/`JSONC.parse` on `jread`+`jbuilder`; tests diffed against `bun`.
+3. `JSON5.stringify` on `jwalk`+`JsonWriter` (`bareKeys`, `singleQuotes`, special numbers).
+4. `JsonPushParser` `onValue`/`paths`/`end()`.
+5. Deprecate `read`/`write`, migrate the `plot-cv` callers, then remove.
+
+### Findings and status of `quickjs-json.c` (2026-10-17)
+
+Done in this round (all in `tests/unittests/test-json.js`, 71 tests; differential against
+`JSON.stringify` over 420 cases through both `write` and `JsonSerializer`, 0 differences;
+valgrind clean; about 1.2-1.4x the engine's `JSON.stringify`):
+
+- `jwalk` (on the generic `walk`) + `jwrite` follow `JSON.stringify` rule for rule: `toJSON(key)`, replacer function and
+  allow-list, boxed primitives, `undefined`/function/symbol, holes, `NaN`/`Infinity`, BigInt and
+  circular `TypeError`, `space`, `rawJSON`, lone surrogates as `\udXXX`. `JsonSerializer` is rebuilt on
+  them (one step per `read()`, output kept in a `DynBuf`, so user JS never runs twice).
+- `Writer` can write into a JS `ArrayBufferSink` without leaving C
+  (`sink[Symbol.for('qjs.dynbuf')]()` hand-off; each `.so` has its own copy of the static core
+  library, so a pointer cannot be shared by a global).
+
+Known limits of the write side:
+
+| Limit | Detail |
+| --- | --- |
+| deep nesting is O(n^2) | the circular check scans the stack; 200000 levels is slow (nothing recurses, so no overflow) |
+| string `space` | first 10 bytes only, not 10 characters |
+| `JsonWriter` options | the JS constructor has `indent` as a number but no indent *string* |
+| `JsonSerializer.blocked` | constant `false` (a step never waits for room) |
+
+Findings on the read side (not yet changed):
+
+| Finding | Detail |
+| --- | --- |
+| `read()` | duplicates `JSON.parse`; trailing data is an error; no comments |
+| `jread` / `jbuilder` | lenient (comments, NaN-like tokens accepted); `jbuild` builds null-prototype objects, so neither is a drop-in for `JSON.parse` results |
+| `JsonParser`, `JsonPushParser` | accept `//` and `/* */` comments; `JsonPushParser` resyncs after a bad value |
+| engine `JS_ParseJSON2(JS_PARSE_JSON_EXT)` | JSON5-like, but rejects `1.`, `\x` escapes, unicode bare keys; recursive (stack overflow near 100000 levels) |
+| `sj.h` | minimal and least conformant; not used for the new work |
+| `Blob.json()`, `Response.json()` | Bun and WHATWG name for "parse a body"; `Blob.json()` is done |
+
+Stream wrappers (`lib/jsonStreams.js`: `JsonParseStream`, `ConcatenatedJsonParseStream`,
+`JsonStringifyStream`) already exist and are diffed against `jsr:@std/json`.
+
+Open questions: strict `jread` mode (no comments, ordinary-prototype objects, non-recursive) to
+serve `JSON5.parse`/`JSONC.parse`/`Blob.json()` deep nesting; whether `JsonPushParser` gains
+`onValue`/`paths` (npm `@streamparser/json` shape) or stays callback-by-token.
+
+### Status and remaining work (re-assessed 2026-10-17)
+
+Documents written from this round: [`doc/api-compare-json.md`](doc/api-compare-json.md) (against Browser, Bun, Node,
+Deno and the npm/jsr packages, probed), [`doc/api-implement-json.md`](doc/api-implement-json.md) (the split, and the
+header-by-header lift candidates), [`doc/api-interface-json.md`](doc/api-interface-json.md) (C and JS interfaces).
+
+Done:
+
+| Item | Where |
+| --- | --- |
+| `Blob.prototype.json()`, 6 tests, probed against bun | `quickjs-blob.c`, `test-blob.js` |
+| `JSONL.parse` / `JSONL.parseChunk` | `quickjs-json.c` |
+| `JsonSerializer`, `write()` rebuilt on `jwalk` + `jwrite`; differential 0 on 420 cases | `src/json/jwalk.c`, `src/json/jwrite.c` |
+| `walk.[ch]` split into a generic walker plus `jwalk` (JSON rules as `WalkHooks`) | `src/walk.c`, `src/json/jwalk.c` (Tier 20 phase 4a, 4b) |
+| `jbuild.[ch]` renamed `jbuilder.[ch]` | `src/`, `include/` |
+| `lib/jsonStreams.js` (`@std/json` port) | `lib/` |
+
+Findings of the documentation round (not fixed, in `BUGS`):
+
+- `read()` does not decode string escapes at all and accepts what `JSON.parse` rejects (trailing commas, `01`, `1.`, raw tab);
+  `json-read-does-not-decode-escapes`. Reason enough to take `sj.h` out (step 4 of the lift list below).
+- `XMLTreeSerializer.read(n)` cuts at n bytes (`xmlserializer-read-n-splits-utf8`); `xml.read()` splits a DOCTYPE internal subset
+  (`xml-doctype-internal-subset-mangled`).
+
+Still to do, in order (details and line estimates in `doc/api-implement-json.md` section 4):
+
+1. Pure-C lifts: `jwrite_options_indent*` (the `space` rule), `walk_path()` (so `JsonSerializer.path` stops reaching into the stack),
+   UTF-16/UTF-8 offset helpers in `char-utils` (for `JSONL`).
+2. `jread` strict mode and JSON5/JSONC dialect flags; `jbuilder` prototype option and `jbuild_value_js()` (shared with Tier 20 `xbuilder`).
+3. `JSON5.parse`, `JSONC.parse`, `Blob.json()` on the strict reader (closes the nesting-depth difference with Bun).
+4. Deprecate `read()`/`write()`, migrate `plot-cv/yt-playlist.js` and `plot-cv/clang-ast.js`, remove `read()` and the vendored `sj`;
+   move the `JSONL` value scanner to `src/`.
+5. `JSON5.stringify`; `JsonPushParser` `onValue`, `paths`, `end()`.
+
+Expected `quickjs-json.c` size: 1809 now, about 1620 at the end.
+
+Parse errors and locations (`SyntaxError.loc`, codes, `onError`) are Tier 23; steps E0 and E1 can start before step 1 above, E2 and E3 follow
+step 2 and 3.
+
+## Tier 19 — `Bun.*` compatibility gaps in `lib/bun.js` (assessed 2026-10-17)
+
+Reference: `bun 1.4.2` exposes 115 top-level names on `Bun`; `lib/bun.js` has 6 (`plugin`, `file`,
+`write`, `stdin`, `stdout`, `stderr`). This tier lists the other 109 in two parts: what can be
+written now from code that already exists (part 1), and what needs functionality that does not
+exist yet (part 2). It refines Tier 15 (phases 2-6 there are covered here, with the same rules:
+probe `bun -e` first, copy names/arguments/errors, one `tests/unittests/test-bun-<area>.js`, a
+section in `doc/js/bun.md`, a line in the `compatibility: Bun` table of `cmake/qjsm.cmake`).
+Backing names were checked by listing module exports in qjsm, not by running the code against
+Bun; each item still needs its own probe-and-diff.
+
+### Part 1 — implementable now (the functionality exists)
+
+| `Bun.*` | Backed by | Work |
+| --- | --- | --- |
+| `JSONL.parse`, `JSONL.parseChunk` | `json` `JSONL` | alias only |
+| `ArrayBufferSink` | `arraybuffer_sink` | alias; same shape |
+| `password.hash/verify`, `hashSync/verifySync` | `lib/password.js` (`bcrypt`) | alias; add the argon2 error |
+| `deepEquals(a, b, strict?)`, `deepMatch(subset, a)` | `deep.equals` | probe `strict`; `deepMatch` is a subset test, not in `deep` (small) |
+| `inspect(v, opts)`, `inspect.custom`, `inspect.table` | `inspect.inspect` | alias; `custom` is a symbol, `table` is new formatting |
+| `mmap(path, {shared, sync})` | `mmap` | wrap into a `Uint8Array` |
+| `env`, `argv`, `main`, `cwd`, `version`, `revision`, `version_with_sha`, `isMainThread`, `origin` | `process`, `module` build info | plain properties (`origin` is `''`) |
+| `fileURLToPath`, `pathToFileURL` | `url` | alias |
+| `which(cmd, {PATH, cwd})` | `path.search` (confirm it walks `PATH`) | wrapper |
+| `Glob` (`match`, `scan`, `scanSync`) | `misc.glob`, `path.fnmatch`, `fs.walkSync` | class; `scan` options `cwd`, `dot`, `absolute`, `onlyFiles` |
+| `nanoseconds()`, `gc()` | `misc.hrtime`, `std.gc` | wrapper |
+| `sleep(ms \| Date)`, `sleepSync(ms)` | `timers/promises` `setTimeout`; `os.sleep` | wrapper |
+| `concatArrayBuffers(list, max?, asUint8?)` | `misc.concatArrayBuffer` | wrapper |
+| `allocUnsafe(n)` | `Uint8Array` | one line |
+| `peek(promise)`, `peek.status` | `misc.promiseState` / `promiseResult` | wrapper |
+| `stripANSI(s)` | `util.stripAnsi` | alias |
+| `stringWidth(s, opts)` | `util` width helper | current helper counts chars; Bun counts East Asian wide (`"日本a"` is 5) and zero-width: add the width table |
+| `escapeHTML(v)` | none needed | ~5 lines; `&lt; &amp; &gt; &quot; &#x27;` |
+| `readableStreamTo{Text,JSON,Bytes,ArrayBuffer,Blob,Array,FormData}` | `streams`, `textcode`, `Blob`, `JSON` | a reader loop each; `FormData` needs the qjs-lws `FormData`, do it last or skip |
+| `SQL`, `sql`, `postgres` | `lib/sql.js` | export; Bun's `postgres` is an alias of `sql` |
+| `YAML.stringify` | `yaml.write` | alias only; `YAML.parse` is part 2 |
+| `resolveSync(spec, from)`, `resolve` | `module._resolveFilename` | wrapper; probe the error shape |
+| `spawn`, `spawnSync` | `child_process` (native, `lib/node/child_process.js`) | adapter: `Subprocess` (`pid`, `exited`, `exitCode`, `signalCode`, `kill`, `stdin` as `FileSink`, `stdout/stderr` as `ReadableStream`), `spawnSync` result `{stdout, stderr, exitCode, success}` |
+| `$` (shell template) | on `spawn` | only after `spawn` works; a small parser for pipes, `&&`, redirects, globs |
+| `Archive` | `archive` (libarchive: tar, zip, filters) | high-level wrapper: `new Bun.Archive(files)`, `bytes()`, `extract(dir)`; probe Bun's shape first |
+| `XML.parse`, `XML.stringify` | `xml.read`, `xml.write` | converter between our element tree and Bun's `{"a":{"@x":"1","b":"t"}}` form; a native implementation was written and shelved in `attic/quickjs-xml-object.inc.c` (see `attic/README.md`) |
+| `semver.{satisfies, order}` | none | new pure JS (~100 lines), no dependency |
+| `color(input, fmt)` | `terminal.hslToRgb` | new pure JS parsers/formatters (hex, rgb, hsl, css names, `ansi`) |
+| `sliceAnsi`, `wrapAnsi` | `util.stripAnsi`, `ansiStyles` | new pure JS; needs the `stringWidth` table |
+| `indexOfLine(buf, offset)` | `misc.searchArrayBuffer` | wrapper |
+| `randomUUIDv7(enc?, ts?)` | `/dev/urandom` via `fs`, time | new pure JS; (`misc.rand` is not cryptographic, do not use it) |
+| `enableANSIColors` | `process.stdout.isTTY` | property |
+| `JSON5.parse`, `JSONC.parse`, `JSON5.stringify` | `json` | not yet: depends on Tier 18 steps 2-3 |
+
+Known gaps inside the six already done (Tier 15 phase 1): `formData()`, S3-style `BunFile.write`,
+`Bun.write(dest, Response)` only through a duck-typed `arrayBuffer()`, `size` of a slice is clamped
+to the file, `FileSink.start()`, `BunFile.watch`, `Bun.write` of a sliced BunFile writes the whole file.
+
+### Part 2 — functionality missing (what has to exist first)
+
+| `Bun.*` | Missing | Needed |
+| --- | --- | --- |
+| `hash` (wyhash, crc32, adler32, cityHash32/64, murmur32/64) | no hash functions anywhere in `lib/` or `quickjs-*.c` | new native `hash` module, or pure-JS ports (slow) |
+| `CryptoHasher`, `MD4`, `MD5`, `SHA1`, `SHA224`, `SHA256`, `SHA384`, `SHA512`, `SHA512_256`, `sha(data, enc?)` | no digest implementation | native binding to a digest library (OpenSSL/mbedtls/libgcrypt, or vendored); also gives `crypto.subtle.digest` and `randomUUIDv5` |
+| `randomUUIDv5` | needs SHA-1 | the digest module above |
+| `gzipSync`, `gunzipSync`, `deflateSync`, `inflateSync` | `archive` only wraps whole-archive filters, no zlib-framed bytes API | native zlib binding (also `CompressionStream`/`DecompressionStream`) |
+| `zstdCompress(+Sync)`, `zstdDecompress(+Sync)` | no zstd outside libarchive's archive filter | native zstd binding |
+| `TOML.parse/stringify` | no TOML parser | new parser (C or JS) |
+| `YAML.parse` | `yaml` module has `write` only | Tier 12/13 plan (cyaml reader) |
+| `dns.lookup`, `dns.prefetch`, `dns.getCacheStats` | no `getaddrinfo` binding in `sockets` | add to `sockets` |
+| `serve`, `fetch`, `connect`, `listen`, `udpSocket` | HTTP/TCP/UDP stack | `../qjs-lws/` (`lib/serve.js`, `tcpsocket.js`, `udpsocket.js`); wire `Bun.*` there, not here |
+| `FFI` | FFI | `../qjs-ffi/` |
+| `Transpiler`, `build`, `markdown`, `Image`, `registerMacro` | no transpiler, bundler, markdown or image engine | out of scope; `plugin()` already throws `TypeError` for loaders that need one |
+| `S3Client`, `s3`, `RedisClient`, `redis`, `secrets` | S3/Redis clients, OS keychain | out of scope (network/credential stores) |
+| `Cookie`, `CookieMap`, `CSRF` | cookie model, HMAC (needs digests) | pure JS possible later (WHATWG-style cookie parsing); `CSRF` needs the digest module |
+| `cron`, `WebView`, `Terminal`, `FileSystemRouter`, `embeddedFiles`, `openInEditor`, `generateHeapSnapshot`, `shrink`, `unsafe`, `jest`, `isStandaloneExecutable` | runtime-specific (scheduler, browser, pty, bundle, heap) | no standard target; skip, `isStandaloneExecutable` could be `false` |
+
+### Order
+
+1. Part 1 as three batches, each with tests and `doc/js/bun.md`: (a) aliases and process/environment
+   rows, (b) `Glob`, `which`, `sleep`, `readableStreamTo*`, `escapeHTML`, `stringWidth`, `peek`, (c) the
+   adapters (`spawn`/`spawnSync`, `Archive`, `XML`, `$`).
+2. Tier 18 steps 2-3, then the `JSON5`/`JSONC` rows.
+3. Part 2 in this order, by number of dependants: a digest module (unlocks 11 names plus `randomUUIDv5`, `CSRF`),
+   then zlib/zstd, `hash`, `dns`, `YAML.parse`, `TOML`.
+
+## Tier 20 — `quickjs-xml.c` onto engine-free C pieces, mirroring the `quickjs-json.c` refactor (planned 2026-10-17)
+
+Goal: `quickjs-xml.c` becomes what `quickjs-json.c` became, a binding layer (classes, argument parsing,
+getters, finalizers) over pure C pieces in `src/` that know nothing of JS values or each other. Today
+(2713 lines) the JS binding, three tree builders, three writers and two tokenizers live in one file.
+
+### Mapping, JSON side to XML side
+
+| role | JSON (done) | XML today | XML target |
+| --- | --- | --- | --- |
+| event protocol | `jr_type_t` (one enum for `jread`, `jbuilder`, `jwrite`), `JsonWriteInterface`, `WalkInterface` | two unrelated enums (`xml_event_t` in `xml.h`, `xr_type_t` in `xread.h`) and no write interface; `XMLWriter` borrows `xml_event_t` as method ids | `include/xevent.h`, phase 1 |
+| pull tokenizer | `src/json/json.c` | `src/xml/xml.c` (events; used by `read()`, `XMLParser`, `XMLNodeParser`) | keep |
+| push tokenizer | `src/json/jread.c` (`jr_callback`) | `src/xml/xread.c` (`xr_callback`) | keep first; maybe merge into `xml.c` (phase 5) |
+| events to JS value | `src/json/jbuilder.c` (`jbuild_*`) | three copies: the `read()` adapter (`XRFrame`), `XMLBuilder` (`XMLParser.root`, `XMLPushParser.root`), `XMLNodeParser` | `src/xbuilder.c` (`xbuild_*`), one engine for all |
+| events to text | `src/json/jwrite.c` (`jwrite_*`, `Writer`) | `xml_write_*` over JS values, `XMLWriter` inline, `XMLTreeSerializer` inline | `src/xml/xwrite.c` (`xwrite_*`) |
+| JS value to events | `src/json/jwalk.c` (renamed from `walk.c`, on top of a generic `src/walk.c`) | `property_enumeration` loops (`js_xml_write_tree/list`, `xml_enumeration_next`, `XMLTreeSerializer` stacks) | `src/xml/xwalk.c` (`xwalk_*`) |
+| filter between the two | `jrewrite` (Tier 17, planned) | none | `src/xrewrite.c` (phase 8) |
+
+### What is wrong today, with the evidence
+
+| Problem | Where | Effect |
+| --- | --- | --- |
+| three tree builders disagree | `read()` gives `true` for a valueless attribute and no `children` on `<a/>`; `XMLBuilder` gives `""` and always `children: []`; `XMLNodeParser` has its own flat form | the same document has three shapes; `XMLParser.root` is not `read()` |
+| two tokenizers disagree | `xread.c` has no tolerant mode, implied end tags, flat mode, raw-text tags or tag locations | `XMLPushParser` parses HTML differently from `read()` and `XMLParser` |
+| `XMLWriter` does not escape | `writer_putjs()` copies text and attribute values raw; `write()` escapes `& < > "` | `XMLWriter.text('a<b')` writes invalid XML |
+| `XMLTreeSerializer` replays | `skip`/`delivered`/`capped` re-run a step to resume (same design `JsonSerializer` had before its rewrite) | complex, and any user code in a step would run twice |
+| writer depends on JS | `xml_write_element` reads `tagName`/`attributes` itself | no way to write from C, from a parser or from a rewriter |
+| four writers, four rule sets | `write()` tree, `write()` flat list, `XMLTreeSerializer` and `XMLWriter` each format and escape on their own (table in Phase 3) | the same tree prints differently per entry point; one fix needs four edits |
+| `XMLWriter.attribute(n, true)` | `!(js_is_null_or_undefined(v) && JS_IsBool(v))` can never be false, so a value-less attribute is never written; `true` gives `n="true"` (by reading the code) | differs from `write()` and `XMLTreeSerializer`, which write `n` |
+| escaping helper twice | `dbuf_put_escaped_xml` (DynBuf) and `xsw_raw_escaped` (resumable) | two copies of one rule |
+| `xml_enumeration_next` | hand-rolled pointer juggling around `property_recursion_push` | already caused a use-after-free once (see its comment) |
+
+Size now (lines): `quickjs-xml.c` 2713 (parse adapter 220, write functions 300 + 150, `XMLTreeSerializer`
+600, `XMLBuilder` 175, `XMLPushParser` 230, `XMLParser` 360, `XMLNodeParser` 230, `XMLWriter` 210),
+`src/xml/xml.c` 910, `src/xml/xread.c` 409. Target for `quickjs-xml.c`: about 1200.
+
+### Status (re-assessed 2026-10-17)
+
+Companion documents: [`doc/api-compare-xml.md`](doc/api-compare-xml.md) (Browser, Bun, Node, Deno and eight packages, probed on one
+document), [`doc/api-implement-xml.md`](doc/api-implement-xml.md) (the split, line counts per section, lift candidates per
+header), [`doc/api-interface-xml.md`](doc/api-interface-xml.md) (event protocol, `xml_parser_run`, `xread`, `xwrite`, `xwalk`,
+planned `xbuilder`, JS contracts).
+
+Built and green, nothing committed:
+
+| piece | where | state |
+| --- | --- | --- |
+| `read()` on `src/xml/xml.c` | `quickjs-xml.c`, `xml.c` | done (differential 0, 150 tests); `quickjs-xml.c` was cut from 3064 to 2713 lines |
+| `jbuild.[ch]` renamed `jbuilder.[ch]`, `walk.[ch]` renamed `jwalk.[ch]` | `src/`, `include/` | done (4a) |
+| generic `walk.[ch]` (531 + 118 lines) with `WalkHooks`; `jwalk` on top (368 + 81) | `src/` | done (4b), `test-json.js` 71 green, `write()` equals `JSON.stringify` on the corpus |
+| `xwalk.[ch]` (149 + 61): element trees through the two hooks | `src/` | done (4c), checked with a C harness only; no caller, no JS-level test yet |
+| golden corpus for `write()`, `XMLTreeSerializer`, `XMLWriter` (98 cases) | `tests/fixtures/`, `tests/tools/`, `test-xml-write-golden.js` | done (3a) |
+| `xwrite.[ch]` (277 + 112): compact and pretty layouts, typed markup, `xwrite_put_escaped` | `src/` | done (3b), `tests/tools/xwrite-golden.c`: 51 identical, 10 differ only in the 3c changes, valgrind clean; no caller yet |
+
+Not started: Phase M (layout), Phase 1 (event protocol), Phase 2 (`xbuilder`), 3d, 3e, 4d, 5 to 10. Done since: 3c.
+
+Honest measure: `quickjs-xml.c` is still 2713 lines. The new code sits in `src/` and nothing has been removed from the
+class file since the `read()` cut; the lines come out in 3c (about 120), 3d (about 230), 4d (about 450) and 5 (about 450).
+ctest (non-deno): 7 failures, all pre-existing (`directory`, `extract-c`, `globals`, `lexer-cpp`, `misc`, `mmap`, `sql`);
+the wasm/wasi tests fail only under `ulimit -v 4000000` (wasm reserves address space), pass without it.
+
+Corrections to the plan found on the way:
+
+- Phase 1 is not on the critical path. `xbuilder` needs only `jbuilder`; `xwrite` and `xwalk` already have their own
+  calls. The shared event enum and `XMLWriteInterface` unify what exists, so they come after the first consumers work
+  (order below), and `xwrite_interface()` lands with them.
+- `xwalk` alone is not enough for `write()`: the tree layout needs the children count of an element (read the
+  `children` length when the adapter sees it open) and the flat list needs a one-event lookahead (self-closing iff the
+  next entry is the element's own `/x` marker). Both belong to the 4d adapter and are listed there.
+- `walk.c` enumerates an element's own keys before `xwalk`'s `keys` hook replaces them; a cheap waste kept to leave
+  `walk.c` free of tree knowledge. Revisit only if a profile shows it.
+- `write()` has odd layout rules the corpus now pins (children of the root at depth 0, `dt` indent in lists, multi-line
+  text losing its newline in the tree writer). Step 3d reproduces them with `XW_TREE`; do not "fix" them there.
+- New lift candidates from the header-by-header check (`doc/api-implement-xml.md` section 3): one `reader_from_js_input()` for the
+  input argument (about 7 call sites with 3 different helpers), one `xml_options_from_js()` for the four copies of option parsing,
+  one location-sync helper for `XMLParser`/`XMLNodeParser`; `XMLWriter.written` can come from `xwrite`'s counter; `property-enumeration.h`
+  and `char-utils.h` drop out of the binding once 3d and Phase 5 are done. Rejected: `dbuf_put_escaped_*` and `writer_escaped`
+  escape with backslashes, so `xwrite_put_escaped` stays.
+- Decided 2026-10-17: our class is renamed `XMLTreeSerializer` (done in `quickjs-xml.c`, tests, docs); `XMLSerializer` is left to the DOM class
+  `XMLSerializer().serializeToString(node)` (`doc/api-compare-xml.md` section 5), see the next item.
+- Open standards lift: export `lib/dom.js` `Parser` / `Serializer` as `DOMParser` / `XMLSerializer` (Browser priority).
+- Exceptions and locations for every XML parser (`SyntaxError.loc`, `code`, `onParseError`, `parser.error`, `<parsererror>` for `DOMParser`) are Tier 23; its
+  step E0 (right classes) and E1 (position tracking in `xread`/`xml.c`) fit before Phase 2, and E1c shares the decision on `xread` with Phase 6.
+- `xml.read()` does not parse a DOCTYPE internal subset (`BUGS`); the strict mode of Phase 9 needs it for entities, so fix it there.
+- `XMLTreeSerializer.read(n)` splits multi-byte characters (BUGS); Phase 5 can fix it for free by cutting on character
+  boundaries, but that is a behaviour change and goes in its own line of the ChangeLog.
+
+Next, in this order:
+
+| # | step | why now | gate |
+| --- | --- | --- | --- |
+| 1 (done) | 3c `XMLWriter` onto `xwrite` | first real caller of `xwrite` | done 2026-10-17 |
+| 1b | M layout move, then 1 `xevent.h` and 2 `xbuilder` (design priority, see Phase M and Phase 1 below) | every later step adds files; they should be born in `include/xml/` and implement the event vtable | builds, ctest as before; `read()` differential 0 |
+| 2 | 3d `XW_TREE` layout, `write()` emits through `xwrite` | removes about 230 lines; needs only `xwrite` | golden byte-identical, fuzz against `lib/xml/write.js` |
+| 3 | 4d `xwalk` adapter into `xwrite`, `write()` traversal replaced | first user of `xwalk`; adds the JS-level `test-walk` cases | golden identical, `lib/dom.js` nodes written |
+| 4 | 3e + 5 `XMLTreeSerializer` on `xwalk` + `xwrite` | removes the replay machinery, about 450 lines | serializer tests, equality with `write()` at read sizes 1, 7, 4096 |
+| 5 | 2 `xbuilder` (then 1 event protocol) | the three tree builders become one | `read()` differential still 0 |
+| 6 | 6, 7 push parser and plumbing | needs the measurement of Phase 6 first | differential at 1, 2, 7 byte chunks |
+| 7 | 8 `xrewrite`, 9 object tree, 10 clean-up | features on the finished pieces; 8 waits for Tier 17 | per phase |
+
+### Rules for every phase
+
+1. **Oracle first.** Before a phase changes behaviour-bearing code, keep the previous implementation
+   reachable: either a `readOld`-style temporary export, or a build of `HEAD` in a scratch worktree.
+   The differential harness used for the `read()` move (`xd2.js`: hand corpus plus 6000 token-soup
+   inputs, five option sets, location tuples compared) is to be saved as `tests/tools/xml-diff.js`
+   in phase 0 and reused; exit criterion of a phase is 0 differences on inputs that do not end inside
+   a tag, and a written list of every intended difference.
+2. **Which pieces use the QuickJS API** (same split as the JSON side: `jbuilder.h` and `jwalk.h` include
+   `quickjs.h`; `jread`, `json`, `jwrite` do not):
+
+   | piece | QuickJS API | why |
+   | --- | --- | --- |
+   | `xml.c`, `xread.c`, `xwrite.c`, `xrewrite.c`, the event header | none | text in, events out, text out |
+   | `xbuilder.c` | yes (`JSContext`, `JSValue`), through `jbuilder.h` | its product is a JS object tree; built on `jbuilder` |
+   | `walk.c`, `jwalk.c`, `xwalk.c` | yes (`JSContext`, `JSValue`) | their input is a JS object tree; `xwalk` is an adapter over `walk` |
+
+   The engine-free ones use libc or `DynBufReallocFunc` allocation (runtime-bound where a finalizer frees),
+   `Writer` and `Reader` from `stream-utils.h`, and error codes with a `*_error_message()` like `jwrite`.
+   `xbuilder` and `xwalk` keep everything else out of the class code: the binding only converts arguments.
+3. **One test file per piece** is not needed; `test-xml.js` grows by the cases each phase pins, plus
+   C-level behaviour through the existing classes. `ctest -R "dom|xml|html|vfs"` must stay green
+   (`lib/dom.js` depends on `read()`/`write()` output; see the compatibility notes in `doc/native/xml.md`).
+4. Update `doc/native/xml.md` and the header comments in the same phase; comments follow the CLAUDE.md rules.
+
+### Phase 0: baseline (small)
+
+- Done: the golden corpus (`tests/fixtures/xml-write-golden.json`, regenerated by `tests/tools/xml-write-golden.js`) and
+  `tests/unittests/test-xml-write-golden.js`; it covers `write()`, `XMLTreeSerializer` and `XMLWriter` (98 cases), so
+  later phases must not change it except where a step lists a visible change.
+- Open: save the `read()` differential harness (fuzz against the old parser, currently a scratch script) to
+  `tests/tools/xml-diff.js`; it needs the pre-refactor `read()` as an oracle (build it from commit `ecdf0ca7`).
+- Open: record the ctest failure set (7 pre-existing non-deno failures, see Status).
+
+### Phase M: layout (`include/json/`, `src/json/`, `include/xml/`, `src/xml/`)
+
+Decision proposed 2026-10-17, to be done before Phase 1 so the new files are born in place (nothing else in `~/Sources/quickjs`
+includes these headers; checked by grep, the only other hits are `.claude/worktrees/`).
+
+| now | after |
+| --- | --- |
+| `include/{jread,jbuilder,jwrite,jwalk,json}.h`, `src/{jread,jbuilder,jwrite,jwalk,json}.c` | `include/json/`, `src/json/` (same file names) |
+| `include/{xml,xread,xwrite,xwalk,xml_entities}.h`, `src/{xml,xread,xwrite,xwalk}.c` | `include/xml/`, `src/xml/` (same file names); new: `xevent.h`, `xbuilder.[ch]`, later `xrewrite.[ch]` |
+| `include/walk.h`, `src/walk.c` | stay: generic, used by both |
+
+- Includes become `#include "json/jread.h"` / `"xml/xwrite.h"` with `include/` as the one root; no extra include path.
+- CMake: `LIBRARY_SOURCES` globs `src/*.c` and `include/*.h`; add `src/json/*.c src/xml/*.c include/json/*.h include/xml/*.h`, and the
+  explicit `src/json/json.c`, `src/json/jread.c` entries and the two C tests (`tests/c/jread-positions.c`, `tests/tools/xwrite-golden.c`).
+- Do it with `git mv` (history follows) and one `sed` over `#include` lines, in one commit of its own, with the tree otherwise
+  committed or stashed: the files have uncommitted edits now, so `git` shows them as renames plus modifications.
+- Risk: low (mechanical); gate: build, ctest identical, `git diff -M --stat` shows renames only.
+
+### Phase 1: the XML event protocol (`include/xml/xevent.h`, new; twin of `include/json/jevent.h`, see "Event model" above)
+
+There is none today. Two enums exist side by side and neither is the contract of anything but its own parser:
+
+| | `xml_event_t` (`xml.h`, pull) | `xr_type_t` (`xread.h`, push) |
+| --- | --- | --- |
+| values | `PARSE_AGAIN -2, PARSE_ERROR -1, PARSE_OK 0, ELEMENT_START, ATTRIBUTE, ELEMENT_END, TEXT` | `attribute, element_start, element_end, error, text` |
+| delivery | returned by `xml_parser_run()`, data in `event_name/event_value/event_has_value` | callback `(type, name, value, user_data)` with `xr_str_t` |
+| value-less attribute | `event_has_value == 0` | `value == NULL` |
+
+What the protocol must fix, and the proposal:
+
+- (Superseded in part by the design-priority paragraph after this list: the table of function pointers is the core, the enum its index.) One enum `xe_type_t`: `error, element_start, attribute, text, element_end`, in one fixed order that `xwrite`'s methods, `xbuilder`'s
+  methods and both parsers share one to one (as `jwrite` mirrors `jr_type_t`). Status codes (`AGAIN`, `OK`) stay a separate
+  return type of the pull parser, not event kinds.
+- One string type `xe_str_t { const char* data; size_t len; }` and one callback `xe_callback(type, name, value, user_data)`;
+  `xread.c` and `xml.c` get a thin adapter each, `xr_type_t`/`xml_event_t` keep working as aliases for one release.
+- `XmlEventSink` (named `XMLWriteInterface` before; function pointers, twin of `JsonEventSink`, see "Event model" above): `element_start`, `attribute`, `text`, `element_end`, plus the
+  typed markup below, `opaque` first; implemented by `xwrite` and by `xrewrite` so writers and filters chain.
+- Markup that is not an element: comments, `<!DOCTYPE ...>`, `<?...?>` and CDATA currently arrive as ELEMENT_START with a magic tag
+  name (`"!-- c --"`, `"!DOCTYPE html"`, `"?xml"`) followed by an immediate ELEMENT_END (except `?`). `read()` and `lib/dom.js`
+  depend on that. Recommendation: add the typed events `comment`, `declaration`, `instruction`, `cdata` to the protocol and have
+  the parsers emit them; `xbuilder` maps them back to the magic-name elements in its legacy mode, so `read()` stays byte-identical,
+  and `xwrite` writes them natively instead of recognising the magic names. Phase 0's golden test pins both directions.
+- Positions: every event carries `tag_line/tag_column` (already in `XMLParser` since the `read()` work), as `jr` state does.
+- Ownership: strings are valid until the next event (`xml.c` already copies into `ev_name/ev_value` for this; `xread.c` points
+  into its accumulators, which the adapter must copy or document).
+
+Exit: both parsers deliver the same event sequence for the same input where their behaviours coincide (a test feeds one document
+to both and compares the sequences); `XMLWriter` method ids come from `xe_type_t`.
+
+**Design priority (2026-10-17): C-only coupling through event vtables.** `xml` and `json` are to be backed by engine-free pieces that
+plug into each other without a `JSValue` in between, as `quickjs-json.c` already does for JSON (`jread` callback to `jbuild_*`,
+`jwalk` to `JsonWriteInterface`). The XML side gets the same, built on what exists:
+
+- `xevent.h` defines `XmlEvent` (type, name, value, position; the same ids as `xml_event_t`, so `xml_parser_run()` results cast
+  to it) and **`XmlEventSink`**, a table of function pointers with an `opaque` first argument, like `JsonWriteInterface`:
+  `element_start`, `attribute`, `text`, `element_end`, `comment`, `declaration`, `instruction`, `cdata`, `error`.
+- Sinks: `xwrite_interface(&wr)` (writer), `xbuild_interface(&b)` (tree, on `jbuilder`), later `xrewrite` (filter that owns a
+  downstream sink) and a `tee`. Sources: `xml_parser_pump(XMLParser*, const XmlEventSink*)` (pull parser drives a sink until
+  `AGAIN`/`OK`/`ERROR`), `xr_read` with an adapter callback (push), `xwalk` (tree to events, through `WalkInterface`).
+- Couplings this makes C-only: parser to writer (`xml.read` to `xwrite`, a streaming reformatter), parser to builder, tree to
+  writer (`write()`, `XMLTreeSerializer`), and the same for JSON (`JsonWriteInterface` already; `jread` to a `JsonEventSink` that
+  `jbuilder` and `jwrite` implement). The JS classes then only pick a source, a sink and a `Reader`/`Writer` from
+  `stream-utils.h`, and take positions from `location.h`/`srcpos.h`.
+- Rule for every new piece: it takes or returns an `XmlEventSink`/`JsonWriteInterface`, never a callback of its own shape.
+
+### Phase 2: `xbuilder` (events to JS value; a thin layer over `jbuilder`)
+
+`xbuilder.c` does not get its own frame stack, key handling or attach logic: it translates XML events into
+`jbuild_*` calls and keeps only a tiny per-element state. `jbuilder` already attaches a container to its parent
+when it is pushed (the partial tree is always reachable from the root), owns the frames, and has `jbuild_path()`.
+
+| XML event | calls on the `JsonBuilder` |
+| --- | --- |
+| element_start `div` | `push(object)`, `key("tagName")`, `value(string,"div")`; position: `key("line")`, `value(number)` |
+| first attribute | `key("attributes")`, `push(object)` (remember: attributes open) |
+| attribute `id="x"` | `key("id")`, `value(string,"x")`; value-less attribute: `value(true)` |
+| first child or text | `pop()` if attributes open; `key("children")`, `push(array)` (remember: children open) |
+| text `hi` | `value(string,"hi")` |
+| element_end | `pop()` (children or attributes if open), `pop()` (the element); a self-closing element never opens `children` |
+
+The state is two bits per element (attributes open, children open) kept in a small stack next to the builder, or
+in an `xbuild_frame` that wraps `jbuild_push`.
+
+What `jbuilder` needs for this (small, backwards compatible, JSON callers unchanged):
+
+- an object prototype option: `jbuild_push` creates `JS_NewObjectProto(ctx, JS_NULL)` objects; `read()` trees are
+  plain objects (`lib/dom.js` calls `hasOwnProperty`, `Object.entries`), so add a `JSValue proto` field on
+  `JsonBuilder` (default `JS_NULL`; `xbuilder` sets `JS_UNDEFINED` meaning `Object.prototype`).
+- `jbuild_value_js(b, JSValue v)`: attach an already-made value (takes ownership) for line/column numbers,
+  avoiding the number-to-string-to-`scan_double` round trip of `jbuild_value(jr_type_number, ...)`.
+- optional later: `jbuild_key` copies the key with `js_malloc` per key; fine for XML (few keys per element), but
+  an interned-atom variant would help both formats.
+
+Decide the one shape and document it: keep `read()`'s (it is what `lib/dom.js` consumes): value-less attribute
+`true`, no `children` on a self-closing or declaration element, `children` (possibly empty) otherwise.
+`XMLParser.root` and `XMLPushParser.root` then change to match (a visible change: list it in the ChangeLog and
+`doc/native/xml.md`; both are rarely used, `lib/html.js` uses `XMLParser` events, not `.root`).
+
+- API: `xbuild_init/free`, `xbuild_start(name)`, `xbuild_attribute(name, value|NULL)`, `xbuild_text`, `xbuild_end`,
+  `xbuild_root`, `xbuild_path`, plus options `flat`, `location`, `legacy_attrs`; `include/xbuilder.h` includes
+  `jbuilder.h`.
+- Replaces the `read()` adapter (`XRFrame`), `XMLBuilder`, and `XMLNodeParser`'s flat node assembly.
+- Exit: `read()` differential still 0; `test-json.js` unchanged and green (the `jbuilder` changes), `test-xml.js`
+  updated only where `.root` shapes were pinned.
+- Risk: low. Saves about 400 lines in `quickjs-xml.c` and adds about 100 in `xbuilder.c` (instead of about 250
+  for a standalone builder).
+
+### Phase 3: `xwrite` (events to text; mirrors `jwrite`) and the move of `xml_write_*` out of `quickjs-xml.c`
+
+There was no complete plan for this; this is it. Four writers exist today, with different rules:
+
+| rule | `write()` tree | `write()` flat list | `XMLTreeSerializer` | `XMLWriter` |
+| --- | --- | --- | --- | --- |
+| text and attribute escaping (`& < >`, `"` in attributes) | yes | yes | yes | **no** |
+| value-less attribute (`true`) | bare name | bare name | bare name | `n="true"` (bug, see problems) |
+| whitespace | newline after every tag, 2 spaces per depth, text inline when it is the only child, trailing whitespace trimmed | newline after every tag, depth moves only on `dt` | none | `indent` option; never next to text |
+| empty element | `" />"` when `children` is empty or absent | `" />"` when the next entry is its own `/x` marker, or the last entry | `" />"` when no children | `" />"` when `elementEnd` follows `elementStart`/`attribute` |
+| comment, `!DOCTYPE`, `?pi` | `<tag>` verbatim (`?` gets `?>`), never self-closed | same | same | not supported |
+| output | `DynBuf` to string | `DynBuf` to string | `Writer`, resumable by replay | `Writer` |
+
+Target: one engine-free writer, `src/xml/xwrite.c` + `include/xml/xwrite.h`, that owns every formatting and escaping rule. The
+four entry points keep their JS surface and become event sources (the traversal half moves in Phases 4 and 5).
+
+**API** (mirrors `jwrite`; every call returns the bytes written >= 0, or `-XWRITE_E_*`; no `JSContext`):
+
+| call | writes |
+| --- | --- |
+| `xwrite_init(wr, realloc_func, opaque)`, `xwrite_free`, `xwrite_error_message(code)` | the frame stack uses the given allocator |
+| `xwrite_element_start(wr, name, len)` | `<name`, the tag stays open for attributes |
+| `xwrite_attribute(wr, name, len, value, vlen)` | ` name="escaped"`; `value == NULL`: ` name` |
+| `xwrite_children(wr, n)` | nothing; says the element has `n` children (-1 unknown), used by the `XW_TREE` layout only |
+| `xwrite_text(wr, str, len)` | `>` if the tag is open, then the escaped text |
+| `xwrite_element_end(wr, name, len)` | ` />` if no content since the start, else `</name>`; `name == NULL` uses the stacked one, a different name is `XWRITE_E_MISMATCH` |
+| `xwrite_markup(wr, name, len)` | `<name>` verbatim; a name starting with `?` ends with `?>`; the form legacy trees use for comments, doctypes and instructions |
+| `xwrite_comment`, `xwrite_declaration`, `xwrite_instruction`, `xwrite_cdata` | typed forms of the above (Phase 1 events); no new JS method is added for them |
+| `xwrite_put_escaped(Writer*, str, len, is_attr)` | the one escaping rule, also used by `XMLTreeSerializer` |
+
+Options (`XmlWriteOptions`): `indent` (spaces per level) and `layout`:
+
+| layout | rule | used by |
+| --- | --- | --- |
+| `XW_COMPACT` | no whitespace added | `XMLTreeSerializer`, `XMLWriter` with `indent` 0 |
+| `XW_PRETTY` | newline plus indent between tags, never next to text | `XMLWriter` |
+| `XW_TREE` | `write()`'s rules: newline after every tag, text inline only when `xwrite_children(wr, 1)`, continuation lines of multi-line text re-indented, trailing whitespace trimmed at `xwrite_finish`; the flat list uses it with n unknown | `write()` |
+
+`xwrite_interface(wr)` (lands with Phase 1) returns the `XMLWriteInterface` with `opaque` = `wr`, as `jwrite_interface()` does,
+so a parser or rewriter can drive an `xwrite` without knowing it.
+
+Not added (no consumer today): `void_tags`, `multiline_text`, name validation (names are written as given, because
+legacy trees put `/x`, `!--` and `?xml` in `tagName`).
+
+**Resumability**: not a property of `xwrite`. Phase 5 steps one event per `read()` call into an unbounded `DynBuf`, so
+a `Writer` that refuses bytes is an error (`XWRITE_E_WRITE`), as in `jwrite` for everything but its byte-wise puts.
+
+**Steps**, each green before the next:
+
+| step | change | gate |
+| --- | --- | --- |
+| 3a (done) | extend Phase 0's golden corpus (`tests/unittests/test-xml-write-golden.js`, `write()` only) with `XMLTreeSerializer` and `XMLWriter` outputs over escaping, comments, doctype, PI, empty elements, multi-line text, `indent` 0/2/4, depth cap; generated from the current build before touching code; `lib/xml/write.js` (a JS port of `js_xml_write`) is the second oracle | corpus checked in, passes on HEAD |
+| 3b (done) | `include/xml/xwrite.h`, `src/xml/xwrite.c` with `XW_COMPACT` and `XW_PRETTY`, error codes, `xwrite_put_escaped`; no caller yet | `tests/tools/xwrite-golden.c` reproduces the `XMLWriter` and `XMLTreeSerializer` corpus entries: 51 identical, 10 differ only in the 3c changes, valgrind clean |
+| 3c (done) | `XMLWriter` on `xwrite` (210 to 130 lines in `quickjs-xml.c`, which is 2897 lines because of Tier 23). **Visible changes, as planned:** text and attribute values are escaped; `attribute(n, true)` (also `undefined`, `null`, no argument) writes `n`; `indent < 0` is compact at level 0. **Also:** ordering mistakes throw `TypeError` with `code` (`mismatched-end-tag`, `unmatched-end-tag`, `attribute-outside-tag`), a refused write throws `Error` with `code` `write-failed`; `elementEnd()` without a name closes the open element; `written` is `xwrite`'s counter. `src/stream-utils.c` `write_jsfunction`: a callback return value that is not a number now means "all accepted" (`s => (out += s)` was a failed write) | `test-xml.js` 159, golden regenerated: exactly the 10 predicted cases differ |
+| 3d | `XW_TREE` layout; the byte-emitting functions of `write()` (`xml_write_attributes/string/text/element`, `xml_close_element`, `xml_write_indent`, `dbuf_put_escaped_xml`) become calls into `xwrite`, the traversal (`js_xml_write_tree/list`, `xml_enumeration_next`, `xml_num_children`) stays in `quickjs-xml.c` until 4d | golden byte-identical; fuzz `write(read(x))` against `lib/xml/write.js` equal |
+| 3e | `XMLTreeSerializer`'s `xsw_raw_escaped` and tag/attribute emission call `xwrite` where the replay design allows (the full switch is Phase 5) | `XMLTreeSerializer` tests unchanged |
+
+Moved or deleted by the end of 3e, from `quickjs-xml.c`: `dbuf_put_escaped_xml`, `xml_write_attributes`,
+`xml_write_indent`, `xml_write_string`, `xml_write_text`, `xml_write_element`, `xml_close_element` (about 230 lines), the
+`XMLWriter` method switch (about 120). Stays until Phase 4d: `xml_num_children`, `xml_enumeration_next`,
+`js_xml_write_tree/list`, `js_xml_write`. Stays until Phase 5: `XMLCappedBuf`, `xml_write_capped/skip`, `xsw_*`,
+`xmlserializer_*`.
+
+Risk: medium (many small formatting rules; the golden corpus is the safety net). Saves about 350 lines from
+`quickjs-xml.c`, adds about 380 to `src/` and 60 to `include/`.
+
+### Phase 4: a generic `walk`, `jwalk` on top of it, `xwalk` as an adapter
+
+Decision: `walk.[ch]` is `JSON.stringify`'s walker (toJSON, replacer, number rules), so it is renamed `jwalk.[ch]`
+like `jread`, `jwrite`, `jbuilder`. A new thin `walk.[ch]` is the generic stepper; `jwalk` becomes `walk` plus the
+JSON rules; XML trees are another configuration of `walk`. No separate `builder.c`: `jbuilder.c` already is the
+general builder (Phase 2 layers `xbuilder` on it).
+
+```
+quickjs-json.c --> jwalk.c (toJSON, replacer, boxed, NaN, bigint, rawJSON) --\
+                                                                              +--> walk.c --> property-enumeration.h
+quickjs-xml.c  --> xwalk.c (events adapter, Bun and default shape config) ---/
+```
+
+What `walk.c` owns (moved out of the current `walk.c`, no JSON knowledge): the frame stack
+(`PropertyEnumeration` per open container), step granularity (`walk_next` returns one event), `walk_skip`,
+`walk_depth`, circular check, close, the `WalkInterface` callbacks and `WalkEvent`.
+
+What `jwalk.c` keeps, as hooks that `walk.c` calls (NULL hook = plain behaviour):
+
+| hook | JSON implementation |
+| --- | --- |
+| `resolve(holder, key, value)` returns the value to report | `toJSON()`, then the replacer function, then unwrap `Number/String/Boolean` objects |
+| `keep(key atom)` | the array replacer's allow list |
+| `classify(value)` returns skip / value / container / raw / error | undefined, symbol, function skipped (null in arrays); `NaN`, `Infinity` to null; bigint TypeError; `JSON.rawJSON()` object to raw |
+
+Public JSON surface (`jwalk_init`, `jwalk_set_replacer`, `jwalk_next`, `jwalk_skip`, `jwalk_close`,
+`jwalk_root_omitted`, `JwalkIterator`) keeps its current behaviour exactly; `quickjs-json.c` is the only user.
+`WalkInterface` and `WalkEvent` stay in `walk.h` (generic); `raw()` is documented as only ever called by `jwalk`.
+
+`walk.c` stays a plain object/array walker (a thin layer over `property-enumeration.h`, `WALK_TOP`/`WALK_FRAME`
+macros for the frames, no tree knowledge). Element trees live in `xwalk.[ch]`, which depends on `walk.h` only, through
+the same two hooks `jwalk` uses:
+
+| piece | where | what |
+| --- | --- | --- |
+| `prepare` hook | `xwalk.c` | undefined omitted; an object is a container only where the shape has one (the root, an item of `children`/a root list, the value of `attributes`, an array under `children`); the rest are values |
+| `keys` hook | `xwalk.c` | an element's keys become `tagName`, `attributes`, `children` (those it has, read with a plain get so prototype getters work), replacing the enumerated own keys |
+| role of a container | `xwalk.c` | derived from the parent frame and its current key, no extra state in `walk.c` |
+| Bun tree | adapter | needs no shape: plain `walk`; the adapter classifies keys |
+
+Unlisted keys (`parentNode`, `ownerDocument`, `line`) are never read, so the circular check never fires on back-links.
+Values arrive raw; attribute values and text are converted with `JS_ToString` by the adapter.
+
+The adapter (`xwalk_adapter`, about 80 lines, a second part of `xwalk.c`) maps walk events to XML events on `XMLWriteInterface`:
+
+| walk event (depth, last key) | XML event |
+| --- | --- |
+| `object_start` at depth 1, or inside `children` | `element_start` (name comes with the next `value`) |
+| `key("tagName")` + `value(s)` | the element name |
+| `object_start` after `key("attributes")` | attributes open; each `key(k)` + `value(v)` is `attribute(k, v)`; `true` is a value-less attribute |
+| `array_start` after `key("children")` | children open |
+| `value(s)` inside `children` | `text(s)` |
+| `object_end` of the element | `element_end` (self-closing form when no `children` was opened) |
+
+For the Bun tree the same adapter classifies by key: a key starting with `'@'` is an attribute, `'#text'` is text, any
+other key is a child element (an array value means repeated elements); order inside an object follows insertion order,
+which is Bun's own limitation (text and elements of mixed content cannot be interleaved faithfully).
+
+The flat list shape (array of entries with `/x` end markers) is the same walk with the array as root; the adapter
+keeps the flat-list rule (self-closing iff the next entry is this element's own end marker) and `maxDepth`.
+
+Steps, each green before the next:
+
+| step | change | gate |
+| --- | --- | --- |
+| 4a (done) | `git mv` `walk.[ch]` to `jwalk.[ch]`, rename `walk_*`/`Walk*` that are JSON-rule specific to `jwalk_*`/`Jwalk*`; update `quickjs-json.c`, CMake, `doc/native/json.md`, `utilities/quickjs-json.md` | `test-json.js` unchanged and green |
+| 4b (done) | extract `walk.[ch]` (stepper, stack, skip, circular, interface) and make `jwalk.c` call it with the three hooks | `test-json.js` green; differential `JsonWriter.stringify` vs `JSON.stringify` on the fuzz corpus unchanged |
+| 4c (done) | element-tree walking as `xwalk.[ch]` on `walk.h` hooks (not in `walk.c`) | `walk` has no JS surface, so the cases (getters, back-links, undefined, nested array as value, root array) were checked with a C harness; the JS-level `test-walk.js` cases ride on 4d's XML write tests |
+| 4d | `xwalk.c` adapter into `xwrite`; `write(tree|list, maxDepth)` switches over (`XMLTreeSerializer` is Phase 5); delete the traversal half left by 3d: `js_xml_write_tree/list`, `js_xml_write` body, `xml_enumeration_next`, `xml_num_children` | golden test byte-identical, including `lib/dom.js` nodes; fuzz `write(read(x))` vs the old implementation equal |
+
+Risk: medium for 4b (it moves the `JSON.stringify` path; steps 4a and 4b are pure refactors and need no behaviour
+change), low for 4c and 4d. Saves about 450 lines in `quickjs-xml.c`; `walk.c` plus `jwalk.c` stay about the size of
+today's `walk.c` (834 lines) plus about 100 for the shape; `xwalk.c` adds about 80.
+
+### Phase 5: `XMLTreeSerializer` on `xwalk` + `xwrite` (mirrors the `JsonSerializer` rewrite)
+
+- One step per `read()` call into an unbounded `DynBuf` served in pieces; delete the replay machinery
+  (`skip`, `delivered`, `XMLCappedBuf`, the three-writer chain). Same `read(n)` / `read(buffer, offset, length)` /
+  `finished` / `root` surface.
+- Deletes `XMLCappedBuf`, `xml_write_capped/skip`, `xsw_*`, `xmlserializer_*` (what 3e left in place).
+- Test: the existing serializer tests, plus equality with `write()` for every golden input at read sizes 1, 7, 4096.
+- Risk: low once phases 3-4 are in. Saves about 450 lines.
+
+### Phase 6: push side and the two tokenizers
+
+- `XMLPushParser` onto `xbuild_*` (done in phase 2) and `xr_read`, `close()` via `xr_finish`.
+- Measure first: run the differential harness `read(x)` vs `XMLPushParser` fed in 1, 2 and 7 byte chunks and list the
+  differences caused by `xread.c` lacking tolerant mode, implied ends, flat mode, raw text and locations.
+- Decision after the measurement: (A) keep both tokenizers like `json.c`/`jread.c` and document the differences, or
+  (B) drive `xml.c` from a push `Reader` (it is already resumable through `XML_PARSE_AGAIN`) and delete `xread.c`/`xread.h`
+  (409 + 92 lines, one parser fewer to keep equal). Recommendation: B, unless the measurement shows `xread` is faster by
+  a margin that matters.
+
+### Phase 7: share the event plumbing of `XMLParser` and `XMLNodeParser`
+
+- `xml_parser_build/callback`, `xml_nodeparser_sync_location`, the location glue and the options parsing are written
+  twice; one `XmlParserBase` (reader, `XMLParser`, loc, filename) for both classes.
+- Saves about 150 lines; behaviour unchanged.
+
+### Phase 8: `xrewrite` (mirrors `jrewrite`, Tier 17)
+
+- Pure C filter between parse events and `xwrite`: drop elements/attributes/comments, rename, force void-tag
+  self-closing, minify or pretty-print, HTML to XML. Chain of rewriters. Constructor form
+  `new XMLParser(input, writer)` / `new XMLPushParser(xmlWriter)` with no JS call per token (counting test as in Tier 17).
+- Do it after `jrewrite` exists so the two share the design (state, depth gate, hook).
+
+### Phase 9: `XML.parse` / `XML.stringify` (Bun's object tree) as a mode of the same pieces
+
+- The shelved implementation in `attic/quickjs-xml-object.inc.c` (about 2000 lines, its own parser and writer) is the
+  spec and the test source (`attic/xml-object-tests.js`, expectations taken from bun 1.4.2). On the new pieces it is
+  an `xbuild` object mode (attributes as `'@name'`, `'#text'`, repeated names to arrays, whitespace-only runs next to
+  children dropped, strict XML 1.0 plus DOCTYPE entities) and an `xwalk` object mode (arrays repeat the element, node
+  form `{name, attributes, children}`), about 300 lines of binding in total.
+- The strict XML parser (errors as `SyntaxError: XML Parse error: ...`) is not `xml.c`, which is lenient by design:
+  add a `strict` option to `xml.c` (reject unquoted attributes, duplicate attributes, undeclared entities, `--` in
+  comments, text after the root, more than one root; declare entities from the DOCTYPE subset) rather than a second parser.
+
+### Phase 10: clean-up
+
+- Remove what the earlier phases leave unused; keep `quickjs-xml.c` to classes and conversions.
+- Decide about the JS ports `lib/xml/read.js`, `lib/xml/write.js` and `lib/lexer/xml.js`: they mirror `read()` and
+  `write()` (see `cmake/qjsm.cmake`, `lib/xml/read.js`); `lib/xml/write.js` is the second oracle of step 3d. Either keep them as a pure-JS oracle used by the harness, or
+  delete them once the harness uses the git oracle.
+- ChangeLog, `doc/native/xml.md`, `BUGS` (add what the phases find but do not fix).
+
+### Order and checkpoints
+
+| Phase | Depends on | Lines out of `quickjs-xml.c` (approx.) | Visible behaviour change |
+| --- | --- | --- | --- |
+| 0 baseline (golden corpus done as 3a; harness script still to save) | none | 0 | none |
+| 1 event protocol | 0 | 0 (adds a header and two adapters) | none (`xr_type_t`, `xml_event_t` stay as aliases) |
+| 2 `xbuilder` | 1 | 400 | `XMLParser.root`, `XMLPushParser.root` shapes |
+| 3 `xwrite` (3a, 3b done) | none (Phase 1 only for `xwrite_interface()`) | 350 | `XMLWriter` escapes, writes value-less attributes bare, `indent < 0` stops breaking at level 0 |
+| 4 `xwalk` (4a to 4c done) | 3 | 450 | none (golden) |
+| 5 `XMLTreeSerializer` | 3, 4 | 450 | none |
+| 6 push side | 2 | 100 (+ 500 if `xread` goes) | `XMLPushParser` HTML handling if option B |
+| 7 plumbing | none | 150 | none |
+| 8 `xrewrite` | 3, 6, Tier 17 | adds | new feature |
+| 9 object tree | 2, 4 | adds about 300 | new feature (`XML.parse`, `XML.stringify`) |
+| 10 clean-up | all | rest | none |
+
+Order of work: see Status above (3c, 3d, 4d, 5, then 2 and 1, then 6 to 10). Phases 0, 3a, 3b, 4a to 4c are done.
+
+## Tier 21 — `vfs` follow-ups (lib/vfs.js is now the `node:vfs` provider model, 2026-10-17)
+
+- `vfs.mount()`/`unmount()`/`mountPoint`: redirect `fs` and the module loader for paths
+  under a mount point (Node's `node:vfs` does both). Needs a `registerHooks` resolve/load
+  hook for imports and a patched `fs` dispatch; not started.
+- `createReadStream`/`createWriteStream` must be WHATWG streams (see CLAUDE.md), `watch`,
+  `opendir`, `openAsBlob`, `registerProvider`: missing versus `node:vfs`.
+- `quickjs-syscallerror.c`: `ELOOP` has no name (see `BUGS`).
+
+## Tier 22 — `path`: shish names in C, Node/Bun/Deno interface (plans: doc/api-implement-path.md, doc/api-interface-path.md, 2026-10-17)
+
+Result: no `path_*` C function ends in a digit and the names common with `~/Sources/shish/lib/path.h`
+mean the same; `src/path-lib.c` is shish's `path.h` and nothing else; `src/path.c` is gone; `path` and
+`node:path` have the surface and behaviour of Node's `node:path` (posix and win32).
+Rules: one step is one commit and ends with `ctest -R path` green (plus `test-path-node.js` under
+node/bun/deno once T2 exists); R steps change no behaviour, C/W/G steps change behaviour; a commit is
+never both; a step that changes a result quoted in `doc/api-compare-path.md` or `doc/native/path.md`
+updates that table; after each phase re-run `./dump-node-path.sh` and read `/tmp/node-path-surface/compare.txt`.
+
+Phase T — tests and tools first
+- [x] T1 `./dump-node-path.sh` (dumps node:path of node/bun/deno and `path` of qjsm to `/tmp/node-path-surface/`).
+- [x] T2 `utilities/gen-path-golden.mjs` (run with node): prints golden tables (posix; win32 later) as
+      JS source, inputs and node's outputs, for the tests below.
+- [x] T3 `tests/unittests/test-path-node.js`, first line `// @portable`: the posix valid-input golden
+      (basename dirname extname normalize isAbsolute parse join relative resolve format with the 234-case
+      inputs of api-compare-path.md, `sep`, `delimiter`, `posix === path`); passes now under qjsm, node, bun, deno.
+- [x] T4 `tests/unittests/test-path-interface.js` (qjsm only): `Function.length`, error name/code/message
+      (Node's text), exported name list; starts with the cases that pass today, a failing case is
+      added in the commit of its fix.
+- [ ] T5 audit (was Tier 22 task 1): grep `lib/`, `examples/`, `utilities/`, sibling `qjs-*`, `~/Sources/plot-cv`
+      for `at components skipSeparator right isSeparator isin equal canonical search getsep skip toArray
+      length slice`; write keep/remove per method into section 3.3 of doc/api-implement-path.md.
+- [ ] T6 differential tests before the rename: old `path_fnmatch5` against shish's `path_fnmatch` (patterns,
+      `FNM_PATHNAME` `NOESCAPE` `PERIOD`); old `path_realpath3` against `path_resolve(p, n, db, 0, 0, 0)`
+      (existing, missing, relative, symlinked).
+
+Phase R — C renames (behaviour-neutral), in this order
+- [x] R1 rename the 1-argument macros `path_isabs`, `path_isname`, `path_isrelative` to `path_isabs_s`,
+      `path_isname_s`, `path_isrel_s` at all 13 call sites (`src/qjsm.c:1592,1602,1783,1785,1825,1917,1962,2141,2274`,
+      `src/child-process.c:266`, `quickjs-path.c` ×3); nothing else.
+- [x] R2 `src/path-lib.c`: add `path_isabs(p, n)`, `path_isrel(p, n)`, `path_isname(p, n)` from `shish/lib/path/`;
+      define the `_s` macros through them; replace `path_isabsolute2` (`quickjs-path.c` ×2) and delete
+      `path_isabsolute1/2`.
+- [x] R3 `src/path-lib.c`: port `path_next`, `path_parentlen` (no client yet; used in R10).
+- [x] R4 `path_fnmatch`: port shish's into `src/path-lib.c` after T6 passes; the one client
+      (`quickjs-path.c` fnmatch) switches; delete `path_fnmatch5` from `src/path.c`/`include/path.h`
+      (done; the old one looped forever on `[[:class:]]`).
+- [x] R5 new `src/path-sys.c` (banner: non-lexical, `DynBuf` where shish has `stralloc`): move `path_exists(p, n)`,
+      `path_isfile(p, n)`, `path_issymlink(p, n)` and the `_s` macros there; switch `src/qjsm.c:343,975,1393,1785`,
+      `quickjs-path.c` (exists ×2, issymlink), the `path_search` callback; delete `path_exists1/2`, `path_isfile1`,
+      `path_issymlink1`.
+- [x] R6 `path_getcwd(DynBuf*)` in `src/path-sys.c`; clients `quickjs-path.c` ×2, `src/qjsm.c:1003`; delete
+      `path_getcwd0/1`.
+- [x] R7 `path_readlink(p, DynBuf*)`; client `quickjs-misc.c:970`; delete `path_readlink2`.
+- [x] R8 `path_gethome(int uid)` in `src/path-sys.c` (reads `/etc/passwd`), `path_homeof(user, n)` in
+      `src/path-sys.c`; `src/compat/glob.c` takes `~` from `getenv("HOME")` else `path_gethome(getuid())`,
+      `~user` from `path_homeof`; `quickjs-path.c:312`; delete `path_gethome()`/`1`/`2` of `src/path.c`.
+- [x] R9 `path_resolve(p, n, DynBuf*, symbolic, cwd, cwdn)` in `src/path-sys.c`; JS `realpath` keeps its
+      existence check; delete `path_resolve3`, `path_realpath3`.
+- [x] R10 JS-only helpers become `static` in `quickjs-path.c` (or go with their JS method, test and doc row,
+      per T5), one commit per family: (a) `length components at slice toArray`, (b) `skip skipSeparator right
+      isSeparator getsep`, (c) `isin equal` (`path_isin4`, `path_diff4`/`path_equal4`); `path_dup2/3` go with them.
+- [x] R11 `path_compare2`, `path_skipdotslash1/2` become `static` in `src/qjsm.c` (`:531`, `:1775`; try `path_canon`
+      for the second).
+- [x] R12 delete `src/path.c` and the digit-suffixed declarations and 14 `static inline` helpers of
+      `include/path.h`; check the CMake source list; verify `rg 'path_[a-z_]*[0-9]\('` over `src/ include/ quickjs-*.c`
+      is empty and `utilities/api-surface.sh` on `path` differs only by methods removed in R10; update `doc/native/path.md`.
+
+Phase C — posix interface of `path` made Node-correct (changes behaviour; needs R1-R2, T3, T4)
+- [ ] C1 `quickjs-path.c`: helper `js_path_check_string(ctx, v, name)` throwing `TypeError` with `code`
+      `ERR_INVALID_ARG_TYPE` and Node's message (`The "path" argument must be of type string. Received type
+      number (5)` / `Received null` / `Received an instance of Object`); applied to `isAbsolute` only.
+- [ ] C2 the same for `dirname`, `extname`, `basename` (`path`, and `suffix` when given).
+- [ ] C3 the same for `parse` and `join` (every argument, name `path`).
+- [ ] C4 compare `normalize relative resolve format` error code/message with Node's (`from`/`to`,
+      `paths[0]`, `pathObject` of type object); fix the differences.
+- [ ] C5 `Function.length` as Node: `basename` 2, `join` 0, `relative` 2, `resolve` 0, the rest 1.
+- [ ] C6 `toNamespacedPath` (identity after validation) and `_makeLong` as the same function object.
+- [ ] C7 subpath table in `src/qjsm.c` (next to `fs/promises`): `path/posix` to `path`; test
+      `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/nodeHooks.js`.
+- [ ] C8 strike the fixed entries from `BUGS` (`path-functions-coerce-non-string-arguments`, the posix part of
+      `path-missing-node-names`).
+- [ ] C9 decision: `path.exists` follows symlinks (`stat`) like `fs.existsSync`? If yes: `quickjs-path.c` only,
+      `path_exists` (lstat) stays for the C callers; strike `path-exists-true-for-dangling-symlink`.
+
+Phase W — `path.win32` (needs T2, C7)
+- [ ] W1 `utilities/gen-path-golden.mjs --win32`: golden tables for `path.win32` (drive letters, UNC, `\\?\`,
+      device paths, per-drive `C:` handling with injected env/cwd).
+- [ ] W2 `lib/pathWin32.js` scaffold: `sep`, `delimiter`, `isAbsolute`, `toNamespacedPath`, `_makeLong`; golden slice
+      in `tests/unittests/test-path-win32.js` (imports `../../lib/pathWin32.js`, `@portable`).
+- [ ] W3 `normalize`, `join`.
+- [ ] W4 `resolve` (reads `process.cwd()`/`process.env` lazily; test with injected values).
+- [ ] W5 `relative`.
+- [ ] W6 `dirname`, `basename`, `extname`.
+- [ ] W7 `parse`, `format`.
+- [ ] W8 `posix`, `win32` cross links (`win32.posix`, `posix.win32`, `win32.win32`).
+- [ ] W9 register the builtin: `pathWin32` in `BUILTINS_COMPILED`, `set(pathWin32_MODULES process)` in
+      `cmake/qjsm.cmake`; subpath `path/win32` in the `src/qjsm.c` table.
+- [ ] W10 `path.win32` lazy getter in `quickjs-path.c` (`globalThis.requireModule('pathWin32')`); the
+      `@portable` win32 test now imports `node:path` and uses `.win32`.
+- [ ] W11 rows in the comment table of `lib/nodeHooks.js` and in `doc/native/path.md`; strike `path-missing-node-names`.
+
+Phase G — `matchesGlob` (independent, last)
+- [ ] G1 glob engine (`*` `**` `?` `[...]` `{a,b}` leading `!`), shared with `Bun.Glob`, `fs.glob`, `Bun.Archive`
+      (Tier 19); golden-tested against node's `path.matchesGlob`; reuse Tier 19's engine if it exists first.
+- [ ] G2 `path.matchesGlob(path, pattern)` (and on `posix`/`win32`) on top of G1.
+
+Runtime notes (no code unless stated)
+- Bun: nothing to add, Bun's `path` is Node's; do not copy its `bound X`/`length 1` quirks. Re-run the
+  `.bun` ctest after every C/W step.
+- Deno: `tests/deno-import-map.json` already maps `path`. Needs the user's approval: add `path` to the
+  `quickjs-scripting` skill's `deno-import-map.json` and a `path` entry to its `modules.yaml`.
+  Optional, only if something needs it: `lib/stdPath.js`, a port of `jsr:@std/path` extras (`common`,
+  `SEPARATOR`, `toFileUrl`, `globToRegExp`), in the style of `lib/jsonStreams.js`.
+
+## Tier 23 — parse errors and locations for `json` and `xml` (planned 2026-10-17)
+
+Requirement: every JSON/XML parser has proper exception handling and location tracking; a parse failure is a `SyntaxError` with an own,
+non-enumerable `loc` (a `Location`), plus `length` and a stable `code`. Findings (how Browser, Bun, Node, Deno and the packages report parse errors,
+which of them have Location-like classes and custom exception classes): [`doc/api-compare-json.md`](doc/api-compare-json.md) sections 7 to 9 and
+[`doc/api-compare-xml.md`](doc/api-compare-xml.md) sections 7 to 9. The contract: [`doc/api-interface-json.md`](doc/api-interface-json.md) section 11 and
+[`doc/api-interface-xml.md`](doc/api-interface-xml.md) section 11. The plumbing and tests: `doc/api-implement-json.md` and `doc/api-implement-xml.md`, section 5.
+
+Summary of the findings that shape the design:
+
+- no runtime exposes a correct structured position on a parse `SyntaxError`; Bun's `line`/`column` on it are the throw site of the caller (same value
+  for every input), V8 gives a snippet in the message only, SpiderMonkey puts `line N column M` in the message;
+- structured positions exist in libraries: `json5` (`lineNumber`, `columnNumber`), `jsonc-parser` (`offset`, `length`, code), `@xmldom/xmldom`
+  (`ParseError.locator`), `fast-xml-parser` (`{code, line, col}`), `parse5` (`onParseError`, `startLine`...`endOffset`, spec code names), Bun's
+  bundler (`BuildMessage.position`, `AggregateError.errors`);
+- custom exception classes appear in tools and libraries (`ParseError`, `TokenizerError`, `BuildMessage`), the platform keeps `SyntaxError`;
+- browsers never throw for malformed XML (`DOMParser` returns a `<parsererror>` document) and HTML parsing never fails.
+
+Defects found on the way (in `BUGS` or fixed by step E0): `read()` throws `InternalError`; bad arguments throw `ReferenceError` in four places
+(`test-xml.js` line 153 pins this and changes with the step); `JsonParser` reports the position after the token (2:8 for 2:7); `JsonPushParser` and
+`XMLPushParser` errors carry no position; `XMLPushParser.write()` is silent on a mismatch.
+
+| Step | Change | Depends on | Gate |
+| --- | --- | --- | --- |
+| E0 (done) | `read()` throws `SyntaxError`, never `InternalError`; `TypeError` for bad arguments (`json.read`, `xml.read`, `JsonPushParser.write`, `XMLPushParser.write`); `JsonWriter` write failure not `InternalError` | none | done 2026-10-17: arguments are checked by type (`js_is_bytes_or_string`, in `utils.h`) instead of being stringified, so `read(5)`, `read(null)`, `read({})` are `TypeError`; empty text is a `SyntaxError`; the message of `read()` errors is `name:line:col: text`; a write failure is an `Error` with `code: 'write-failed'`; tests added in `test-json.js` and `test-xml.js` |
+| E1a (done) | `include/srcpos.h` (`SourcePos`, `srcpos_init(pos, utf16)`, `srcpos_advance`: `\n`, `\r\n` as one, lone `\r`; UTF-8 aware, a split inside a character or between `\r` and `\n` counts the same; `utf16` flag counts a 4-byte character as 2) with `tests/c/test-srcpos.c`, run by ctest as `c-srcpos` (CMake builds every `tests/c/test-*.c`) | none | chunk invariance for every split and piece size; two mutations of the header make it fail |
+| E1b | done: `js_syntax_error_new` / `js_throw_syntax_error` in `quickjs-location.[ch]`; `Location` counts through `srcpos_advance` (`\r`, `\r\n` as one break) and `location_from_srcpos()`; first consumer `xml.read` mismatch (`mismatched-end-tag`) | E1a | `test-xml.js` |
+| E1c (done) | `jread`: `SourcePos pos/tok`, `err_code` (`jr_error_t`, `jr_error_name()`: unexpected-token, bad-escape, bad-unicode-escape, invalid-utf8, control-character, invalid-literal, unexpected-end), `err_pos` (token start; the offending byte outside a token), `err_len` (bytes); `xread`: `pos`, `err_code` (unexpected-character, unexpected-end), `err_pos` = offending byte, `err_len`; `json.c`: `tok_start`/`err_at`/`err_len`/`err_code` (0-based, `JsonPos`); `xml.c`: `err_code`/`err_len` with `tag_line`/`tag_column`, `parse_getc` counts through `location_count` (`\r\n` one break, columns in characters) | E1a | `tests/c/jread-positions.c` (ctest `c-jread-positions`, 5 chunk sizes per case); `xread`/`json.c` fields have no test until E1d exposes them; `xread` stays token-less (offending byte only) because Tier 20 phase 6 may delete it |
+| E1d (done) | `json.read` (`parse_throw` over `sj`: position `r->cur`, codes unexpected-token / unexpected-end / trailing-data), `JsonParser` (`err_at`, token start), `JsonPushParser` write/close (`jrs.err_*`, chunk-invariant), `JSONL` newline error, `xml.read` empty input and mismatch, `XMLPushParser` write/close (`xrs.err_*`); message is `<text> at <file>:<line>:<column>`; bad arguments stay `TypeError`. Not converted: `JSONL` value errors come from `JS_ParseJSON` (engine message, no `loc`); `XMLParser` without input is a `TypeError` | E1b, E1c | `test-json.js`, `test-xml.js` (a separate `test-*-errors.js` comes with E2) |
+| E2 (partly done) | done: `JsonPushParser` `onError(err)` (builder and callback mode; `write()`/`close()` then do not throw) and `.error`; `XMLPushParser` `onParseError(err)` and `.error`; `XMLParser.error`, `XMLNodeParser.error` after `PARSE_ERROR`; `JSONL.parseChunk().error` and `JSONL.parse()` carry `loc` (start of the failing value, `length` spans it, code `invalid-json`). Open: lenient `xml.read` repairs to `onParseError` (needs `xml.c` to record repairs); `Blob.json()` rejection with `loc` (needs the strict `jread`, Tier 18 step 2); the old raw `error` key callbacks stay as they are | E1d | `test-json.js`, `test-xml.js` |
+| E3 | `AggregateError` for collecting use; strict `XML.parse` / `JSON5.parse` / `JSONC.parse` use the same `code`s | Tier 18 step 3, Tier 20 phase 9 | differential: which inputs are errors against Bun |
+| E4 | `DOMParser.parseFromString(s, 'text/xml')` returns a `<parsererror>` document and does not throw (`lib/dom.js`) | Tier 20 DOM export | test against the browser's observable shape |
+| E5 | decide the column unit (code points today, UTF-16 recommended) and apply it in `Location`; `SourcePos` already has the switch (`utf16`), so for the parsers it is the argument of `srcpos_init` | E1b | astral-character tests; `JSONL.parseChunk().read` agrees with `loc.charOffset` |
+
+Open decisions: the column unit (E5); whether lenient XML repairs use the HTML spec's code names or their own (recommended: spec names where one
+exists); whether `loc` also gets an `end` `Location` (recommended no: `length` suffices, `jsonc-parser` shape).
+

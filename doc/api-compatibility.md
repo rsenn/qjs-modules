@@ -394,7 +394,7 @@ directly for Bun-compatible code.
 - `XMLParser` - incremental pull parser (event-based, builds `.root` tree)
 - `XMLNodeParser` - pull parser yielding flat node-per-call
 - `XMLPushParser` - push-style parser fed via `.write()`
-- `XMLSerializer` - lazy pull serializer (name coincides with WHATWG `XMLSerializer` but different API: pull-based `.read(n)`, not `.serializeToString()`)
+- `XMLTreeSerializer` - lazy pull serializer of a `{tagName, attributes, children}` tree (`.read(n)`); named apart from the WHATWG `XMLSerializer` (`.serializeToString(node)`), which `lib/dom.js` is to provide
 - `XMLWriter` - event-driven writer with manual `elementStart`/`attribute`/`text`/`elementEnd` calls
 
 **Notes:** Produces/consumes plain `{tagName, attributes, children}` objects rather than DOM nodes; `XMLSerializer` name collides with the WHATWG `XMLSerializer` interface but the API is unrelated (pull-based, not `serializeToString`) — worth flagging as a naming trap for portability, not a real compatibility win.
@@ -1105,12 +1105,13 @@ silently hashing with an unavailable algorithm.
 
 ### lib/vfs.js
 **Module:** `vfs`  
-**Classification:** Custom (union filesystem)  
+**Classification:** Node.js (`node:vfs`, 26.4+, experimental)  
 **Exports:**
-- `UnionFS` class - Overlays multiple search paths (each with its own fs-like backend, e.g. `Archive`) into one namespace
-- `UnionFS.prototype.appendPath/prependPath/removePath/hasPath(path, impl)` - Manage search paths
+- `create(provider?)`, `VirtualFileSystem` - fs-like API (sync, callback, `.promises`, fds) over a provider
+- `VirtualProvider`, `MemoryProvider`, `RealFSProvider`, `ComposableProvider` - as in `node:vfs`
+- `ArchiveProvider` - extra: read-only tar/zip/... view over the native `archive` module
 
-**Notes:** Conceptually similar to the `unionfs`/`mount-fs` npm packages; not a standard API. Supports mounting `Archive` objects (tar/zip) as read-only filesystem layers alongside real `fs`. Distinct from `quickjs-virtual.c`'s `VirtualProperties`, which wraps a plain Object/Array/Map, not a filesystem.
+**Notes:** Mirrors `node:vfs`; `node:vfs` resolves to it via `nodeHooks`. Provider primitives differ from Node's (whole-file read/write instead of `open`). Missing: `mount()`/`unmount()`, streams, `watch`, `opendir`, `openAsBlob`, `registerProvider`. Distinct from `quickjs-virtual.c`'s `VirtualProperties`, which wraps a plain Object/Array/Map, not a filesystem.
 
 ### lib/xml.js
 **Module:** `xml`  
