@@ -5,6 +5,11 @@ Source: `quickjs-path.c` — module exports a flat list of functions.
 Filesystem path manipulation (Node `path`-like, with extra POSIX helpers). Most
 functions take a path string as the first argument.
 
+The Node functions (`basename`, `dirname`, `extname`, `format`, `isAbsolute`, `join`, `normalize`, `parse`,
+`relative`, `resolve`) throw `TypeError` with `code: 'ERR_INVALID_ARG_TYPE'` and Node's message for a
+non-string argument (`basename` also for a non-string `suffix`); `relative(x)` with one argument is qjsm's
+own form. The other functions coerce their arguments to strings.
+
 ## Components & names
 
 | Function | Args | Description |

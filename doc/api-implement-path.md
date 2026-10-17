@@ -10,7 +10,7 @@ thing in both projects. `src/path.c` goes away. The exact task list is in
 [api-interface-path.md](api-interface-path.md) are in the same list, ordered so a rename and a
 behaviour change never share a commit).
 
-## 1. Where things stand
+## 1. Where things stood (before R1; the work is done, see the status line above)
 
 - `src/path-lib.c` (398 lines) already implements part of shish's `path.h`: `path_rootlen`,
   `path_basename`, `path_dirlen`, `path_cat`, `path_canon`, `path_abs`, `path_common`,
@@ -28,7 +28,7 @@ behaviour change never share a commit).
 | --- | --- | --- |
 | `src/path-lib.c` | the implementation of shish's `path.h`, nothing else | no allocation, no syscalls except `path_gethome(uid)`'s file read; stralloc-free |
 | `src/path-sys.c` (new) | non-lexical code: stat/lstat/getcwd/readlink/resolve/home lookup | `DynBuf` where shish says `stralloc` |
-| `quickjs-path.c` | the JS-only helpers (`at`, `components`, `slice`, `toArray`, ...) as `static` functions | nothing here is exported to C |
+| `quickjs-path.c` | the JS-only helpers (`at`, `components`, `slice`, `toArray`, ...) as `static js_path_*` functions (digit-free names: `js_path_length`/`_z`, `js_path_at`/`_z`, `js_path_slice_into`, `js_path_isin`, `js_path_equal`, ...) | nothing here is exported to C |
 | `include/path.h` | declarations of the two files above, the `path_is*` macros that stay | one header, same names as shish |
 | `src/path.c` | deleted | |
 
@@ -119,7 +119,7 @@ qjsm tests under `ctest`; at the end `utilities/api-surface.sh` on the `path` mo
 after (`diff` must be empty apart from the deleted JS methods), and `rg 'path_[a-z]*[0-9]\('`
 returns nothing.
 
-## 5. Risks
+## 5. Risks (all handled by R1-R12; checked 2026-10-17)
 
 - Arity clash: `path_isabs`/`path_isname` exist today as 1-argument macros; shish's are
   2-argument functions. A half-done migration compiles into calls that silently use the macro.

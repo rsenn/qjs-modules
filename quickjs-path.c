@@ -452,12 +452,93 @@ js_path_absolute(const char* p, size_t n, DynBuf* db) {
   dbuf_free(&tmp);
 }
 
+/* js_path_invalid_arg: throws Node's ERR_INVALID_ARG_TYPE for argument `v`.
+ *
+ * ```js
+ * path.isAbsolute(5);  // TypeError [ERR_INVALID_ARG_TYPE]:
+ *                      // The "path" argument must be of type string. Received type number (5)
+ * ```
+ *
+ *   JSValueConst  v         the rejected argument
+ *   const char*   name      parameter name for the message: "path", "suffix", "paths[1]", ...
+ *   const char*   expected  "string" or "object"
+ *
+ * returns -1 with the exception pending.
+ */
+static int
+js_path_invalid_arg(JSContext* ctx, JSValueConst v, const char* name, const char* expected) {
+  JSValue err, tmp;
+  const char* s;
+  DynBuf db = DBUF_INIT_CTX(ctx);
+
+  dbuf_printf(&db, "The \"%s\" argument must be of type %s. Received ", name, expected);
+
+  if(JS_IsUndefined(v))
+    dbuf_putstr(&db, "undefined");
+  else if(JS_IsNull(v))
+    dbuf_putstr(&db, "null");
+  else if(JS_IsFunction(ctx, v)) {
+    tmp = JS_GetPropertyStr(ctx, v, "name");
+    s = JS_IsString(tmp) ? JS_ToCString(ctx, tmp) : 0;
+    dbuf_printf(&db, "function %s", s ? s : "");
+    if(s)
+      JS_FreeCString(ctx, s);
+    JS_FreeValue(ctx, tmp);
+  } else if(JS_IsObject(v)) {
+    JSValue ctor = JS_GetPropertyStr(ctx, v, "constructor");
+
+    tmp = JS_IsObject(ctor) ? JS_GetPropertyStr(ctx, ctor, "name") : JS_UNDEFINED;
+    s = JS_IsString(tmp) ? JS_ToCString(ctx, tmp) : 0;
+    dbuf_printf(&db, "an instance of %s", s && *s ? s : "Object");
+    if(s)
+      JS_FreeCString(ctx, s);
+    JS_FreeValue(ctx, tmp);
+    JS_FreeValue(ctx, ctor);
+  } else {
+    /* Symbol(x) cannot go through ToString: String(v) does it */
+    JSValue g = JS_GetGlobalObject(ctx), str = JS_GetPropertyStr(ctx, g, "String");
+
+    tmp = JS_Call(ctx, str, JS_UNDEFINED, 1, &v);
+    s = JS_IsString(tmp) ? JS_ToCString(ctx, tmp) : 0;
+    dbuf_printf(&db, "type %s (%s%s)", JS_IsNumber(v) ? "number" : JS_IsBool(v) ? "boolean" : JS_IsBigInt(ctx, v) ? "bigint" : "symbol", s ? s : "", JS_IsBigInt(ctx, v) ? "n" : "");
+    if(s)
+      JS_FreeCString(ctx, s);
+    JS_FreeValue(ctx, tmp);
+    JS_FreeValue(ctx, str);
+    JS_FreeValue(ctx, g);
+  }
+
+  dbuf_0(&db);
+  JS_ThrowTypeError(ctx, "%s", (const char*)db.buf);
+  dbuf_free(&db);
+
+  err = JS_GetException(ctx);
+  JS_SetPropertyStr(ctx, err, "code", JS_NewString(ctx, "ERR_INVALID_ARG_TYPE"));
+  JS_Throw(ctx, err);
+  return -1;
+}
+
+/* returns 0 if v is a string, or -1 with ERR_INVALID_ARG_TYPE pending. */
+static int
+js_path_check_string(JSContext* ctx, JSValueConst v, const char* name) {
+  return JS_IsString(v) ? 0 : js_path_invalid_arg(ctx, v, name, "string");
+}
+
 static JSValue
 js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
   char buf[PATH_MAX + 1];
   size_t alen = 0, blen = 0;
   JSValue ret = JS_UNDEFINED;
+
+  /* Node's functions reject a non-string; the qjsm-only helpers coerce */
+  if(magic == PATH_IS_ABSOLUTE || magic == PATH_BASENAME || magic == PATH_DIRNAME || magic == PATH_EXTNAME) {
+    if(js_path_check_string(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, "path"))
+      return JS_EXCEPTION;
+
+    if(magic == PATH_BASENAME && argc > 1 && !JS_IsUndefined(argv[1]) && js_path_check_string(ctx, argv[1], "suffix"))
+      return JS_EXCEPTION;
+  }
 
   if(argc > 0) {
     a = JS_ToCStringLen(ctx, &alen, argv[0]);
@@ -699,6 +780,15 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   size_t alen = 0, blen = 0;
   JSValue ret = JS_UNDEFINED;
 
+  /* relative(x) with one argument is qjsm's own form (x against the cwd) */
+  if(magic == PATH_NORMALIZE || magic == PATH_RELATIVE) {
+    if(js_path_check_string(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, magic == PATH_RELATIVE ? "from" : "path"))
+      return JS_EXCEPTION;
+
+    if(magic == PATH_RELATIVE && argc > 1 && js_path_check_string(ctx, argv[1], "to"))
+      return JS_EXCEPTION;
+  }
+
   if(argc > 0) {
     if(!JS_IsString(argv[0]))
       return JS_ThrowTypeError(ctx, "argument 1 must be a string");
@@ -830,7 +920,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   dbuf_init_ctx(ctx, &out);
 
   for(i = 0; i < argc; i++) {
-    if(!(str = JS_ToCStringLen(ctx, &len, argv[i]))) {
+    if(js_path_check_string(ctx, argv[i], "path") || !(str = JS_ToCStringLen(ctx, &len, argv[i]))) {
       dbuf_free(&db);
       dbuf_free(&out);
       return JS_EXCEPTION;
@@ -899,8 +989,8 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   size_t len = 0, basepos, baselen, rootlen, dirlen, extpos, extlen;
   JSValue ret;
 
-  if(argc < 1 || !(str = JS_ToCStringLen(ctx, &len, argv[0])))
-    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+  if(js_path_check_string(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, "path") || !(str = JS_ToCStringLen(ctx, &len, argv[0])))
+    return JS_EXCEPTION;
 
   basepos = js_path_basename(str, len, &baselen);
   rootlen = len > 0 && path_issep(str[0]) ? 1 : 0;
@@ -949,8 +1039,10 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   JSValue ret;
   DynBuf db = DBUF_INIT_0(), bb = DBUF_INIT_0();
 
-  if(!JS_IsObject(obj))
-    return JS_ThrowTypeError(ctx, "argument 1 must be an object");
+  if(!JS_IsObject(obj) || JS_IsFunction(ctx, obj)) {
+    js_path_invalid_arg(ctx, obj, "pathObject", "object");
+    return JS_EXCEPTION;
+  }
 
   dbuf_init_ctx(ctx, &db);
   dbuf_init_ctx(ctx, &bb);
@@ -1013,8 +1105,13 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSValue ret;
 
   for(i = 0; i < argc; i++)
-    if(!JS_IsString(argv[i]))
-      return JS_ThrowTypeError(ctx, "argument #%d is not a string", i);
+    if(!JS_IsString(argv[i])) {
+      char name[32];
+
+      snprintf(name, sizeof(name), "paths[%d]", i);
+      js_path_invalid_arg(ctx, argv[i], name, "string");
+      return JS_EXCEPTION;
+    }
 
   /* the last absolute argument wins */
   for(i = argc - 1; i >= 0; i--) {
@@ -1115,7 +1212,7 @@ js_path_istype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static const JSCFunctionListEntry js_path_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, PATH_BASENAME),
+    JS_CFUNC_MAGIC_DEF("basename", 2, js_path_method, PATH_BASENAME),
     JS_CFUNC_MAGIC_DEF("basepos", 1, js_path_method, PATH_BASEPOS),
     JS_CFUNC_MAGIC_DEF("baselen", 1, js_path_method, PATH_BASELEN),
     JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_method, PATH_DIRNAME),
@@ -1157,10 +1254,10 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("equal", 2, js_path_method, PATH_EQUAL),
     JS_CFUNC_MAGIC_DEF("toArray", 1, js_path_method, PATH_TOARRAY),
     JS_CFUNC_DEF("slice", 0, js_path_slice),
-    JS_CFUNC_DEF("join", 1, js_path_join),
+    JS_CFUNC_DEF("join", 0, js_path_join),
     JS_CFUNC_DEF("parse", 1, js_path_parse),
     JS_CFUNC_DEF("format", 1, js_path_format),
-    JS_CFUNC_DEF("resolve", 1, js_path_resolve),
+    JS_CFUNC_DEF("resolve", 0, js_path_resolve),
     JS_PROP_STRING_DEF("delimiter", PATHDELIM_S, JS_PROP_CONFIGURABLE),
     JS_PROP_STRING_DEF("sep", PATHSEP_S, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("FNM_NOMATCH", PATH_FNM_NOMATCH, JS_PROP_CONFIGURABLE),

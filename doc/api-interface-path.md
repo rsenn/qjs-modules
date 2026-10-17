@@ -40,9 +40,9 @@ Quirks that are **not** targets:
 
 | name | now | target |
 | --- | --- | --- |
-| `basename` `dirname` `extname` `isAbsolute` `parse` `join` | coerce non-strings | `TypeError`, `code: 'ERR_INVALID_ARG_TYPE'`, Node's message word for word (the part all three share is name and code) |
-| `normalize` `relative` `resolve` `format` | throw `TypeError` | check `code` and message equal Node's |
-| function `length` | 1 for all | node's: `basename` 2, `join` 0, `relative` 2, `resolve` 0, others 1 |
+| `basename` `dirname` `extname` `isAbsolute` `parse` `join` | done (C1-C3): `js_path_check_string` in `quickjs-path.c`; was: coerce non-strings | `TypeError`, `code: 'ERR_INVALID_ARG_TYPE'`, Node's message word for word (the part all three share is name and code) |
+| `normalize` `relative` `resolve` `format` | done (C4): Node's `code` and message; `relative(x)` stays qjsm's one-argument form | check `code` and message equal Node's |
+| function `length` | done (C5); was 1 for all | node's: `basename` 2, `join` 0, `relative` 2, `resolve` 0, others 1 |
 | `toNamespacedPath`, `_makeLong` | missing | identity on posix; the same function object |
 | `win32` | missing | full Windows implementation, `posix`/`win32` cross links |
 | `matchesGlob` | missing | node 22 semantics |
@@ -85,7 +85,10 @@ JS port of the algorithms, not a copy of the file: no primordials, ES module, no
 
 ## 5. Tests
 
-- Oracle: node 22 is run once by `utilities/gen-path-golden.mjs` (to write), which prints the golden
+Status: T2-T4 are written and pass (`utilities/gen-path-golden.mjs`, `test-path-node.js` under qjsm, node,
+bun and deno, `test-path-interface.js` under qjsm); `test-path-win32.js` waits for phase W.
+
+- Oracle: node 22 is run once by `utilities/gen-path-golden.mjs`, which prints the golden
   tables (inputs and node's outputs) as JS source. The expected values are literals in the test, so
   bun, deno and qjsm are compared against node without node being present.
 - `tests/unittests/test-path-node.js`, marked `@portable`: posix, valid inputs; ctest runs it under
