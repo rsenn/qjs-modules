@@ -8,16 +8,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as fsp from 'fsPromises';
 import { getuid, getgid } from 'misc';
-import { setTimeout, clearTimeout } from 'timers';
 import { assert, eq, tests } from '../../lib/tinytest.js';
-
-function withTimeout(promise, ms, label) {
-  let timer;
-  const timeout = new Promise((resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(`timeout: ${label}`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
 
 const TMPDIR = std.getenv('TMPDIR') ?? '/tmp';
 const ROOT = path.join(TMPDIR, `qjs-fsp-test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
@@ -412,57 +403,6 @@ try {
       await handle.close();
 
       eq(fs.readFileSync(file, 'utf-8'), '0123');
-    },
-
-    /* --- non-standard raw-fd helpers used by lib/vfs.js: read/write/reader/readAll --- */
-
-    async 'read()/write() operate on a raw fd'() {
-      const [rd, wr] = fs.pipe();
-      await fsp.write(wr, 'ping');
-      fs.closeSync(wr);
-
-      const buf = new ArrayBuffer(4);
-      const n = await fsp.read(rd, buf, 0, 4);
-      eq(n, 4);
-      eq(fs.bufferToString(buf, 0, 4), 'ping');
-      fs.closeSync(rd);
-    },
-
-    /* readAll()/reader() drain a pipe by reading until read() returns 0 (EOF).
-     * Fixed upstream in ../quickjs/quickjs-libc.c's js_os_poll(): a callback
-     * registered with os.setReadHandler() used to never fire for a fd whose
-     * only readability was EOF (the write end closed, nothing left to read) -
-     * see BUGS's (now-removed) os-setreadhandler-never-fires-for-eof-only-readiness. */
-    async 'readAll() drains a pipe to EOF'() {
-      const [rd, wr] = fs.pipe();
-      await fsp.write(wr, 'hello world');
-      fs.closeSync(wr);
-
-      const result = await withTimeout(fsp.readAll(rd, 4), 1000, 'readAll');
-      eq(result, 'hello world');
-
-      /* reader() (used internally by readAll()) closes `rd` itself once it
-       * observes EOF - no cleanup needed here. */
-    },
-
-    async 'reader() drains a pipe to EOF'() {
-      const [rd, wr] = fs.pipe();
-      await fsp.write(wr, 'abcdefgh');
-      fs.closeSync(wr);
-
-      const chunks = await withTimeout(
-        (async () => {
-          const parts = [];
-          for await(const chunk of fsp.reader(rd, 3)) parts.push(fs.bufferToString(chunk, 0, chunk.byteLength));
-          return parts;
-        })(),
-        1000,
-        'reader',
-      );
-
-      eq(chunks.join(''), 'abcdefgh');
-
-      /* reader() closes `rd` itself once it observes EOF - no cleanup needed here. */
     },
   });
 } finally {

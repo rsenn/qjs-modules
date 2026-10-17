@@ -13,8 +13,8 @@ It is reachable three ways, all the same functions: `import ... from 'fsPromises
 
 ## Exports
 
-All functions return promises (`watch()`/`reader()` return an async
-iterable/iterator instead).
+All functions return promises (`watch()` returns an async
+iterator instead).
 
 | Function | Args | Description |
 | --- | --- | --- |
@@ -51,29 +51,6 @@ always reject with "not implemented": they need the non-symlink-following
 syscalls, and no native binding exposes those (only the fd-based
 `fchown`/`futimes`, which — via `open()` — follow a symlink instead of
 operating on it). See `BUGS`'s `fspromises-lchown-lutimes-unimplemented`.
-
-### Non-standard: `read`, `write`, `reader`, `readAll`
-
-These four are **not** part of Node/Bun's real `fs/promises` API, which has
-no top-level raw-fd read/write functions at all (only `FileHandle` methods).
-They exist here because [`lib/vfs.js`](vfs.md)'s `UnionFS.prototype` mixes
-them in alongside the `*Sync` equivalents.
-
-| Function | Args | Description |
-| --- | --- | --- |
-| `read(fd, buf, offset, length)` | 4 | Reads into a buffer from a raw fd. |
-| `write(fd, buf, offset, length)` | 4 | Writes from a buffer to a raw fd. |
-| `reader(input, bufferOrBufSize=1024)` | 1–2 | Async-iterable chunk reader over a raw fd. |
-| `readAll(input, bufSize=1024)` | 1–2 | Reads a raw fd to completion, decoded as UTF-8. |
-
-**Known issue:** none of these four can currently complete a real
-read-to-EOF — the final read that's supposed to observe EOF hangs forever,
-because the runtime's `os.setReadHandler()` never fires for a file
-descriptor whose only reason to be readable is EOF (as opposed to actual
-data arriving). See `BUGS`'s
-`os-setreadhandler-never-fires-for-eof-only-readiness`. `read()`/`write()`
-work fine for a bounded, known byte count (they don't need to observe EOF);
-`reader()`/`readAll()` only work up until the final chunk.
 
 ### `watch(filename, options)`
 

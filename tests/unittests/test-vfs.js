@@ -2,56 +2,15 @@ import * as std from 'std';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Archive, ArchiveEntry } from 'archive';
-import { toString } from 'util';
-import { UnionFS, ArchiveFS } from '../../lib/vfs.js';
+import { TextDecoder, TextEncoder } from 'textcode';
+import vfs, { ArchiveProvider, ComposableProvider, MemoryProvider, RealFSProvider, VirtualFileSystem, VirtualProvider, create } from '../../lib/vfs.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
-
-/*
- * Fixture layout (built fresh under a scratch directory for every run):
- *
- *   <root>/dirA/file1.txt   = "content-A-file1"
- *   <root>/dirA/sub/nested.txt = "content-A-nested"
- *   <root>/dirB/file1.txt   = "content-B-file1"   (shadows dirA's copy)
- *   <root>/dirB/file2.txt   = "content-B-file2"
- *   <root>/test.tar         = tar archive with entries one.txt / two.txt
- */
 
 const TMPDIR = std.getenv('TMPDIR') ?? '/tmp';
 const ROOT = path.join(TMPDIR, `qjs-vfs-test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
-const DIR_A = path.join(ROOT, 'dirA');
-const DIR_B = path.join(ROOT, 'dirB');
-const SUB_A = path.join(DIR_A, 'sub');
+const REAL = path.join(ROOT, 'real');
 const TAR_PATH = path.join(ROOT, 'test.tar');
-
-const CONTENT_A_FILE1 = 'content-A-file1';
-const CONTENT_A_NESTED = 'content-A-nested';
-const CONTENT_B_FILE1 = 'content-B-file1';
-const CONTENT_B_FILE2 = 'content-B-file2';
-const CONTENT_ONE = 'content-one';
-const CONTENT_TWO = 'content-two';
-
-function buildFixture() {
-  fs.mkdirSync(ROOT);
-  fs.mkdirSync(DIR_A);
-  fs.mkdirSync(DIR_B);
-  fs.mkdirSync(SUB_A);
-
-  fs.writeFileSync(path.join(DIR_A, 'file1.txt'), CONTENT_A_FILE1);
-  fs.writeFileSync(path.join(SUB_A, 'nested.txt'), CONTENT_A_NESTED);
-  fs.writeFileSync(path.join(DIR_B, 'file1.txt'), CONTENT_B_FILE1);
-  fs.writeFileSync(path.join(DIR_B, 'file2.txt'), CONTENT_B_FILE2);
-
-  const ar = Archive.write(TAR_PATH);
-  for(const [name, content] of [
-    ['one.txt', CONTENT_ONE],
-    ['two.txt', CONTENT_TWO],
-  ]) {
-    const entry = new ArchiveEntry(name, { type: 'file', perm: 0o644, size: content.length });
-    ar.write(entry);
-    ar.write(content);
-  }
-  ar.close();
-}
+const json = JSON.stringify;
 
 function rmrf(p) {
   let st;
@@ -60,382 +19,440 @@ function rmrf(p) {
   } catch(e) {
     return;
   }
-  if(st.isDirectory()) {
-    for(const name of fs.readdirSync(p)) if(name != '.' && name != '..') rmrf(path.join(p, name));
-  }
-  fs.unlinkSync(p);
+  if(st.isDirectory()) for(const name of fs.readdirSync(p)) if(name != '.' && name != '..') rmrf(path.join(p, name));
+  st.isDirectory() ? fs.rmdirSync(p) : fs.unlinkSync(p);
 }
 
-buildFixture();
+function throws(fn, code) {
+  try {
+    fn();
+  } catch(e) {
+    eq(e.code, code, `expected ${code}, got ${e.code}: ${e.message}`);
+    return e;
+  }
+  throw new Error(`expected ${code}, nothing thrown`);
+}
+
+fs.mkdirSync(ROOT);
+fs.mkdirSync(REAL);
+fs.mkdirSync(path.join(REAL, 'sub'));
+fs.writeFileSync(path.join(REAL, 'file1.txt'), 'real-file1');
+fs.writeFileSync(path.join(REAL, 'sub', 'nested.txt'), 'real-nested');
+
+{
+  const ar = Archive.write(TAR_PATH);
+  for(const [name, content] of [
+    ['one.txt', 'content-one'],
+    ['dir/two.txt', 'content-two'],
+  ]) {
+    ar.write(new ArchiveEntry(name, { type: 'file', perm: 0o644, size: content.length }));
+    ar.write(content);
+  }
+  ar.close();
+}
 
 try {
   await tests({
-    /* --- UnionFS: registering and inspecting paths --- */
+    /* --- module surface --- */
 
-    'UnionFS.appendPath() adds a path once'() {
-      const vfs = new UnionFS();
-      assert(vfs.appendPath(DIR_A) === true, 'first appendPath() should succeed');
-      assert(!vfs.appendPath(DIR_A), 'appending the same path twice should not succeed again');
-      assert(vfs.appendPath(DIR_B) === true, 'appendPath() for a second distinct path should succeed');
-      assert(vfs.hasPath(DIR_A), 'hasPath() should find dirA');
-      assert(vfs.hasPath(DIR_B), 'hasPath() should find dirB');
-      assert(!vfs.hasPath(ROOT), 'hasPath() should not find an unregistered path');
+    'default export and named exports agree'() {
+      assert(vfs.create === create);
+      assert(vfs.MemoryProvider === MemoryProvider);
+      assert(create() instanceof VirtualFileSystem);
+      assert(create().provider instanceof MemoryProvider);
+      throws(() => create({}), undefined);
     },
 
-    'UnionFS.removePath() unregisters a path'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      vfs.appendPath(DIR_B);
+    /* --- MemoryProvider through VirtualFileSystem --- */
 
-      const [removedDir] = vfs.removePath(DIR_A);
-      eq(removedDir, path.resolve(DIR_A));
-      assert(!vfs.hasPath(DIR_A), 'dirA should no longer be registered');
-      assert(vfs.hasPath(DIR_B), 'dirB should remain registered');
+    'write, read and encodings'() {
+      const v = create();
+      v.writeFileSync('/a.txt', 'héllo');
+      eq(v.readFileSync('/a.txt', 'utf8'), 'héllo');
+      eq(v.readFileSync('/a.txt', { encoding: 'utf-8' }), 'héllo');
+      const b = v.readFileSync('/a.txt');
+      assert(b instanceof Uint8Array);
+      eq(b.length, 6);
+      v.writeFileSync('/b.bin', new Uint8Array([1, 2, 3]));
+      eq(json([...v.readFileSync('/b.bin')]), '[1,2,3]');
     },
 
-    'UnionFS.prependPath() adds a path to the front, taking precedence'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      eq(vfs.readFileSync('file1.txt', 'utf-8'), CONTENT_A_FILE1);
-
-      vfs.prependPath(DIR_B);
-      assert(vfs.hasPath(DIR_B));
-      eq(vfs.readFileSync('file1.txt', 'utf-8'), CONTENT_B_FILE1, 'dirB was prepended, so it now wins');
+    'paths are normalized'() {
+      const v = create();
+      v.mkdirSync('/d');
+      v.writeFileSync('d/../d/./x', '1');
+      eq(v.readFileSync('//d//x', 'utf8'), '1');
+      eq(v.readFileSync('/../../d/x', 'utf8'), '1');
     },
 
-    /* --- UnionFS: reading through the union --- */
-
-    'UnionFS.existsSync() / readFileSync() resolve across members, first path wins'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      vfs.appendPath(DIR_B);
-
-      assert(vfs.existsSync('file1.txt'), 'file1.txt exists in dirA');
-      assert(vfs.existsSync('file2.txt'), 'file2.txt exists in dirB');
-
-      /* file1.txt exists in both members; dirA was appended first so it wins */
-      eq(vfs.readFileSync('file1.txt', 'utf-8'), CONTENT_A_FILE1);
-      eq(vfs.readFileSync('file2.txt', { encoding: 'utf-8' }), CONTENT_B_FILE2);
+    'appendFileSync and flag a'() {
+      const v = create();
+      v.appendFileSync('/a', 'x');
+      v.appendFileSync('/a', 'y');
+      v.writeFileSync('/a', 'z', { flag: 'a' });
+      eq(v.readFileSync('/a', 'utf8'), 'xyz');
+      throws(() => v.writeFileSync('/a', 'q', { flag: 'wx' }), 'EEXIST');
     },
 
-    'UnionFS.existsSync() returns false for a nonexistent relative path'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      vfs.appendPath(DIR_B);
-
-      assert(!vfs.existsSync('nope.txt'), 'nope.txt does not exist anywhere in the union');
+    'stat returns fs.Stats with sizes, types and ino'() {
+      const v = create();
+      v.mkdirSync('/d');
+      v.writeFileSync('/d/f', '12345');
+      const st = v.statSync('/d/f');
+      assert(st instanceof fs.Stats);
+      assert(st.isFile() && !st.isDirectory());
+      eq(st.size, 5);
+      assert(v.statSync('/d').isDirectory());
+      assert(st.mtime instanceof Date);
+      assert(st.ino != v.statSync('/d').ino);
+      throws(() => v.statSync('/nope'), 'ENOENT');
+      eq(v.statSync('/nope', { throwIfNoEntry: false }), undefined);
     },
 
-    'UnionFS resolves absolute paths to the member that owns them'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      vfs.appendPath(DIR_B);
-
-      assert(vfs.existsSync(path.join(DIR_A, 'file1.txt')));
-      assert(vfs.existsSync(path.join(DIR_B, 'file2.txt')));
-      assert(!vfs.existsSync(path.join(DIR_A, 'file2.txt')), 'file2.txt does not exist under dirA');
+    'errors carry code and path'() {
+      const v = create();
+      const e = throws(() => v.readFileSync('/missing'), 'ENOENT');
+      eq(e.path, '/missing');
+      v.writeFileSync('/f', '');
+      throws(() => v.mkdirSync('/f/x'), 'ENOTDIR');
+      throws(() => v.readFileSync('/'), 'EISDIR');
+      throws(() => v.mkdirSync('/'), 'EEXIST');
     },
 
-    'UnionFS.statSync() / lstatSync() return usable Stats'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const st = vfs.statSync('file1.txt');
-      assert(st.isFile(), 'file1.txt should report as a file');
-      eq(st.size, CONTENT_A_FILE1.length);
-
-      const lst = vfs.lstatSync('file1.txt');
-      assert(lst.isFile(), 'lstatSync should also report a file');
+    'mkdirSync recursive returns first created dir'() {
+      const v = create();
+      eq(v.mkdirSync('/a/b/c', { recursive: true }), '/a');
+      eq(v.mkdirSync('/a/b/c', { recursive: true }), undefined);
+      eq(v.mkdirSync('/a/b/d', { recursive: true }), '/a/b/d');
+      throws(() => v.mkdirSync('/x/y'), 'ENOENT');
+      throws(() => v.mkdirSync('/a'), 'EEXIST');
     },
 
-    'UnionFS.sizeSync() / accessSync() work for absolute paths'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      eq(vfs.sizeSync(path.join(DIR_A, 'file1.txt')), CONTENT_A_FILE1.length);
-      eq(vfs.accessSync(path.join(DIR_A, 'file1.txt'), 0), 0);
+    'readdirSync: names, withFileTypes, recursive'() {
+      const v = create();
+      v.mkdirSync('/d/sub', { recursive: true });
+      v.writeFileSync('/d/f', '');
+      v.writeFileSync('/d/sub/g', '');
+      eq(json(v.readdirSync('/d').sort()), '["f","sub"]');
+      const ents = v.readdirSync('/d', { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1));
+      eq(ents[0].name, 'f');
+      assert(ents[0].isFile() && ents[1].isDirectory());
+      eq(ents[0].parentPath, '/d');
+      eq(json(v.readdirSync('/d', { recursive: true }).sort()), '["f","sub","sub/g"]');
+      throws(() => v.readdirSync('/d/f'), 'ENOTDIR');
     },
 
-    /* --- UnionFS: writing/mutating through the union --- */
-
-    'UnionFS.writeFileSync() / unlinkSync() work for an absolute path under a member'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const p = path.join(DIR_A, 'new-absolute.txt');
-      vfs.writeFileSync(p, 'fresh content');
-      eq(vfs.readFileSync(p, 'utf-8'), 'fresh content');
-
-      vfs.unlinkSync(p);
-      assert(!vfs.existsSync(p), 'file should be gone after unlinkSync');
+    'rmdir, unlink, rm'() {
+      const v = create();
+      v.mkdirSync('/d/e', { recursive: true });
+      v.writeFileSync('/d/f', '');
+      throws(() => v.rmdirSync('/d'), 'ENOTEMPTY');
+      throws(() => v.unlinkSync('/d'), 'EISDIR');
+      v.unlinkSync('/d/f');
+      v.rmdirSync('/d/e');
+      assert(!v.existsSync('/d/f') && !v.existsSync('/d/e'));
+      v.writeFileSync('/d/e', 'x');
+      throws(() => v.rmSync('/d'), 'EISDIR');
+      v.rmSync('/d', { recursive: true });
+      assert(!v.existsSync('/d'));
+      v.rmSync('/d', { force: true });
+      throws(() => v.rmSync('/d'), 'ENOENT');
     },
 
-    'UnionFS.writeFileSync() with a brand-new relative path lands in the first member'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      vfs.appendPath(DIR_B);
-
-      vfs.writeFileSync('brand-new-relative.txt', 'fresh');
-      const p = path.join(DIR_A, 'brand-new-relative.txt');
-      assert(fs.existsSync(p), 'the new file should be created under the first appended member');
-      eq(vfs.readFileSync('brand-new-relative.txt', 'utf-8'), 'fresh');
-
-      vfs.unlinkSync(p);
+    'rename files and directories'() {
+      const v = create();
+      v.mkdirSync('/a/b', { recursive: true });
+      v.writeFileSync('/a/b/f', 'x');
+      v.renameSync('/a', '/c');
+      eq(v.readFileSync('/c/b/f', 'utf8'), 'x');
+      assert(!v.existsSync('/a'));
+      v.writeFileSync('/g', 'new');
+      v.renameSync('/g', '/c/b/f');
+      eq(v.readFileSync('/c/b/f', 'utf8'), 'new');
+      throws(() => v.renameSync('/c', '/c/b/inside'), 'EINVAL');
+      throws(() => v.renameSync('/missing', '/x'), 'ENOENT');
     },
 
-    'UnionFS.mkdirSync() works for an absolute path under a member'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const d = path.join(DIR_A, 'new-absolute-dir');
-      vfs.mkdirSync(d);
-      assert(vfs.existsSync(d));
-      fs.unlinkSync(d);
+    'copyFileSync, truncateSync'() {
+      const v = create();
+      v.writeFileSync('/a', 'abcdef');
+      v.copyFileSync('/a', '/b');
+      eq(v.readFileSync('/b', 'utf8'), 'abcdef');
+      throws(() => v.copyFileSync('/a', '/b', fs.constants.COPYFILE_EXCL), 'EEXIST');
+      v.truncateSync('/b', 3);
+      eq(v.readFileSync('/b', 'utf8'), 'abc');
+      v.truncateSync('/b', 5);
+      eq(v.readFileSync('/b').length, 5);
     },
 
-    'UnionFS.mkdirSync() with a brand-new relative path lands in the first member'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      vfs.mkdirSync('new-relative-dir');
-      const d = path.join(DIR_A, 'new-relative-dir');
-      assert(fs.existsSync(d), 'the new directory should be created under the first appended member');
-
-      fs.unlinkSync(d);
+    'symlinks: readlink, stat vs lstat, loops, realpath'() {
+      const v = create();
+      v.mkdirSync('/real');
+      v.writeFileSync('/real/f', 'data');
+      v.symlinkSync('/real', '/link');
+      v.symlinkSync('f', '/real/rel');
+      eq(v.readlinkSync('/link'), '/real');
+      eq(v.readFileSync('/link/f', 'utf8'), 'data');
+      eq(v.readFileSync('/real/rel', 'utf8'), 'data');
+      assert(v.lstatSync('/link').isSymbolicLink());
+      assert(v.statSync('/link').isDirectory());
+      eq(v.realpathSync('/link/rel'), '/real/f');
+      v.symlinkSync('/l2', '/l1');
+      v.symlinkSync('/l1', '/l2');
+      const loop = throws(() => v.statSync('/l1'), null); // syscallerror has no ELOOP name
+      eq(loop.errno, 40);
+      throws(() => v.readlinkSync('/real/f'), 'EINVAL');
     },
 
-    'UnionFS.renameSync() / symlinkSync() / readlinkSync() / realpathSync() work for absolute paths'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const src = path.join(DIR_A, 'to-rename.txt');
-      const dst = path.join(DIR_A, 'renamed.txt');
-      vfs.writeFileSync(src, 'rename me');
-      vfs.renameSync(src, dst);
-      assert(vfs.existsSync(dst));
-      assert(!vfs.existsSync(src));
-
-      const link = path.join(DIR_A, 'a-link.txt');
-      vfs.symlinkSync(dst, link);
-      eq(vfs.readlinkSync(link), dst);
-      eq(vfs.realpathSync(link), path.resolve(dst));
-
-      vfs.unlinkSync(link);
-      vfs.unlinkSync(dst);
+    'chmod, utimes, mkdtemp, access'() {
+      const v = create();
+      v.writeFileSync('/f', '');
+      v.chmodSync('/f', 0o600);
+      eq(v.statSync('/f').mode & 0o777, 0o600);
+      v.utimesSync('/f', 1000, 2000);
+      eq(v.statSync('/f').mtimeMs, 2000000);
+      const d = v.mkdtempSync('/tmp-');
+      assert(d.startsWith('/tmp-') && v.statSync(d).isDirectory());
+      v.accessSync('/f');
+      throws(() => v.accessSync('/nope'), 'ENOENT');
     },
 
-    'UnionFS.readdirSync() lists a nested absolute directory'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const entries = vfs.readdirSync(SUB_A);
-      assert(entries.includes(path.join(SUB_A, 'nested.txt')), 'readdirSync() should list nested.txt');
+    'read-only memory provider throws EROFS'() {
+      const p = new MemoryProvider();
+      const v = create(p);
+      v.writeFileSync('/seed', 'initial');
+      p.setReadOnly();
+      assert(v.readonly);
+      throws(() => v.writeFileSync('/x', 'fail'), 'EROFS');
+      throws(() => v.mkdirSync('/d'), 'EROFS');
+      throws(() => v.unlinkSync('/seed'), 'EROFS');
+      throws(() => v.openSync('/seed', 'r+'), 'EROFS');
+      eq(v.readFileSync('/seed', 'utf8'), 'initial');
     },
 
-    'UnionFS.readdirSync() lists a union root path itself'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
+    /* --- file descriptors --- */
 
-      const entries = vfs.readdirSync(DIR_A);
-      assert(entries.includes(path.join(DIR_A, 'file1.txt')), 'readdirSync() should list file1.txt');
-      assert(entries.includes(path.join(DIR_A, 'sub')), 'readdirSync() should list the sub directory');
+    'fd: write, read back through another fd and a path read'() {
+      const v = create();
+      const fd = v.openSync('/f', 'w+');
+      assert(fd >= 10000);
+      eq(v.writeSync(fd, 'hello '), 6);
+      eq(v.writeSync(fd, new TextEncoder().encode('world!!'), 0, 5), 5);
+      eq(v.readFileSync('/f', 'utf8'), 'hello world', 'pending fd writes are visible to path calls');
+      const buf = new Uint8Array(5);
+      eq(v.readSync(fd, buf, 0, 5, 6), 5);
+      eq(new TextDecoder().decode(buf), 'world');
+      eq(v.fstatSync(fd).size, 11);
+      v.closeSync(fd);
+      throws(() => v.closeSync(fd), 'EBADF');
     },
 
-    'UnionFS.readdirSync(".") lists entries from every member'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-      vfs.appendPath(DIR_B);
-
-      const entries = vfs.readdirSync('.');
-      assert(entries.includes(path.join(DIR_A, 'file1.txt')), 'should include dirA/file1.txt');
-      assert(entries.includes(path.join(DIR_B, 'file2.txt')), 'should include dirB/file2.txt');
+    'fd: sequential reads move the position, 0 at EOF'() {
+      const v = create();
+      v.writeFileSync('/f', 'abcdef');
+      const fd = v.openSync('/f');
+      const buf = new Uint8Array(4);
+      eq(v.readSync(fd, buf), 4);
+      eq(v.readSync(fd, buf), 2);
+      eq(v.readSync(fd, buf), 0);
+      throws(() => v.writeSync(fd, 'x'), 'EBADF');
+      v.closeSync(fd);
     },
 
-    'UnionFS.tempnamSync() works for both a nested directory and a root path'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const name = vfs.tempnamSync(SUB_A, 'pfx');
-      assert(typeof name == 'string' && name.length > 0);
-
-      const rootName = vfs.tempnamSync(DIR_A, 'pfx');
-      assert(typeof rootName == 'string' && rootName.length > 0);
+    'fd: flags w truncates, a appends, x is exclusive, missing is ENOENT'() {
+      const v = create();
+      v.writeFileSync('/f', 'old');
+      let fd = v.openSync('/f', 'a');
+      v.writeSync(fd, '+new');
+      v.closeSync(fd);
+      eq(v.readFileSync('/f', 'utf8'), 'old+new');
+      fd = v.openSync('/f', 'w');
+      v.closeSync(fd);
+      eq(v.readFileSync('/f').length, 0);
+      throws(() => v.openSync('/f', 'wx'), 'EEXIST');
+      throws(() => v.openSync('/nope', 'r'), 'ENOENT');
+      throws(() => v.openSync('/f', 'zz'), undefined);
+      fd = v.openSync('/num', fs.constants.O_CREAT | fs.constants.O_WRONLY);
+      v.writeSync(fd, 'n');
+      v.closeSync(fd);
+      eq(v.readFileSync('/num', 'utf8'), 'n');
     },
 
-    'UnionFS.mkstempSync() creates a unique file for an absolute template'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const fd = vfs.mkstempSync(path.join(DIR_A, 'tmpXXXXXX'));
-      assert(typeof fd == 'number' && fd >= 0);
-
-      const name = vfs.nameSync(fd);
-      vfs.closeSync(fd);
-      assert(vfs.existsSync(name));
-      fs.unlinkSync(name);
+    'fd: ftruncateSync'() {
+      const v = create();
+      const fd = v.openSync('/f', 'w+');
+      v.writeSync(fd, 'abcdef');
+      v.ftruncateSync(fd, 2);
+      v.closeSync(fd);
+      eq(v.readFileSync('/f', 'utf8'), 'ab');
     },
 
-    'UnionFS.tmpfileSync() creates a writable, readable file in the first member'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
+    /* --- callback and promise forms --- */
 
-      const handle = vfs.tmpfileSync();
-      const name = vfs.nameSync(handle);
-      assert(name.startsWith(path.resolve(DIR_A)), 'tmpfile should be created under dirA');
-
-      vfs.writeSync(handle, 'tmpfile content');
-      vfs.closeSync(handle);
-
-      eq(vfs.readFileSync(name, 'utf-8'), 'tmpfile content');
-      fs.unlinkSync(name);
+    async 'callbacks'() {
+      const v = create();
+      await new Promise((res, rej) => v.writeFile('/a', 'cb', e => (e ? rej(e) : res())));
+      const data = await new Promise((res, rej) => v.readFile('/a', 'utf8', (e, d) => (e ? rej(e) : res(d))));
+      eq(data, 'cb');
+      const err = await new Promise(res => v.stat('/nope', e => res(e)));
+      eq(err.code, 'ENOENT');
+      const fd = await new Promise(res => v.open('/a', 'r', (e, fd) => res(fd)));
+      const buf = new Uint8Array(2);
+      const [n, b] = await new Promise(res => v.read(fd, buf, 0, 2, null, (e, n, b) => res([n, b])));
+      eq(n, 2);
+      assert(b === buf);
+      throws(() => v.readFile('/a'), undefined);
     },
 
-    'UnionFS exposes raw fd-based IO passthroughs'() {
-      const vfs = new UnionFS();
-      vfs.appendPath(DIR_A);
-
-      const fd = vfs.openSync('file1.txt', 'r');
-      const content = vfs.readAllSync(fd);
-      eq(content, CONTENT_A_FILE1);
+    async 'promises'() {
+      const v = create();
+      await v.promises.mkdir('/d/e', { recursive: true });
+      await v.promises.writeFile('/d/e/f', 'p');
+      eq(await v.promises.readFile('/d/e/f', 'utf8'), 'p');
+      eq(json(await v.promises.readdir('/d')), '["e"]');
+      assert((await v.promises.stat('/d')).isDirectory());
+      let code;
+      try {
+        await v.promises.readFile('/nope');
+      } catch(e) {
+        code = e.code;
+      }
+      eq(code, 'ENOENT');
+      assert(v.promises === v.promises);
     },
 
-    /* --- ArchiveFS --- */
+    /* --- custom provider: the primitives are enough --- */
 
-    'ArchiveFS default constructor (no explicit read flag) reads by default'() {
-      const afs = new ArchiveFS(TAR_PATH);
-
-      const entries = afs.readdirSync('.').slice().sort();
-      eq(entries.join(','), 'one.txt,two.txt');
+    'a VirtualProvider subclass with only the primitives gets the whole API'() {
+      class StaticProvider extends VirtualProvider {
+        get readonly() {
+          return true;
+        }
+        statSync(p) {
+          const mk = mode => ({ isDirectory: () => mode == 1, isFile: () => mode == 2, isSymbolicLink: () => false, mode, size: 3 });
+          if(p == '/') return mk(1);
+          if(p == '/hi') return mk(2);
+          throw Object.assign(new Error('nf'), { code: 'ENOENT' });
+        }
+        readdirSync(p) {
+          return ['hi'];
+        }
+        readFileSync(p) {
+          return new TextEncoder().encode('hey');
+        }
+      }
+      const v = create(new StaticProvider());
+      eq(v.readFileSync('/hi', 'utf8'), 'hey');
+      assert(v.existsSync('/hi') && !v.existsSync('/no'));
+      eq(json(v.readdirSync('/')), '["hi"]');
+      throws(() => v.mkdirSync('/d'), 'EROFS');
+      throws(() => v.statSync('/no'), 'ENOENT');
+      class Bare extends VirtualProvider {}
+      throws(() => create(new Bare()).statSync('/'), 'ERR_METHOD_NOT_IMPLEMENTED');
     },
 
-    'ArchiveFS(path, false) reads directory entries and file contents'() {
-      const afs = new ArchiveFS(TAR_PATH, false);
+    /* --- RealFSProvider --- */
 
-      const entries = afs.readdirSync('.').slice().sort();
-      eq(entries.join(','), 'one.txt,two.txt');
-
-      assert(afs.existsSync('one.txt'));
-      assert(!afs.existsSync('nope.txt'));
-
-      eq(afs.sizeSync('one.txt'), CONTENT_ONE.length);
-
-      const st = afs.statSync('two.txt');
-      eq(st.pathname, 'two.txt');
-      eq(st.size, CONTENT_TWO.length);
-
-      eq(afs.readFileSync('one.txt', { encoding: 'utf-8' }), CONTENT_ONE);
-
-      const raw = afs.readFileSync('two.txt');
-      assert(raw instanceof ArrayBuffer);
-      eq(raw.byteLength, CONTENT_TWO.length);
+    'RealFSProvider maps the root and reads/writes the real fs'() {
+      const v = create(new RealFSProvider(REAL));
+      eq(v.readFileSync('/file1.txt', 'utf8'), 'real-file1');
+      eq(v.readFileSync('/../../sub/nested.txt', 'utf8'), 'real-nested', '.. stops at the root');
+      assert(v.statSync('/sub').isDirectory());
+      v.writeFileSync('/new.txt', 'made-by-vfs');
+      eq(fs.readFileSync(path.join(REAL, 'new.txt'), 'utf-8'), 'made-by-vfs');
+      v.mkdirSync('/m/n', { recursive: true });
+      assert(fs.statSync(path.join(REAL, 'm', 'n')).isDirectory());
+      v.renameSync('/new.txt', '/m/moved.txt');
+      eq(v.readFileSync('/m/moved.txt', 'utf8'), 'made-by-vfs');
+      v.rmSync('/m', { recursive: true });
+      assert(!fs.existsSync(path.join(REAL, 'm')));
+      eq(json(v.readdirSync('/').sort()), '["file1.txt","sub"]');
+      throws(() => v.readFileSync('/nope'), 'ENOENT');
+      throws(() => new RealFSProvider(''), undefined);
     },
 
-    'ArchiveFS(path, false).openSync() reads entry data'() {
-      const afs = new ArchiveFS(TAR_PATH, false);
+    /* --- ComposableProvider --- */
 
-      const stream = afs.openSync('one.txt');
-      const buf = new ArrayBuffer(64);
-      const n = stream.read(buf, 0, 64);
-      eq(n, CONTENT_ONE.length);
-      eq(toString(buf, 0, n), CONTENT_ONE);
-      assert(stream.eof(), 'stream should report eof after reading the whole entry');
-
-      stream.close();
+    'ComposableProvider: first layer shadows, readdir merges'() {
+      const top = new MemoryProvider();
+      const v = create(new ComposableProvider([top, new RealFSProvider(REAL)]));
+      eq(v.readFileSync('/file1.txt', 'utf8'), 'real-file1');
+      v.writeFileSync('/file1.txt', 'shadow');
+      eq(v.readFileSync('/file1.txt', 'utf8'), 'shadow');
+      eq(fs.readFileSync(path.join(REAL, 'file1.txt'), 'utf-8'), 'real-file1', 'lower layer untouched');
+      v.writeFileSync('/only-top', 't');
+      eq(json(v.readdirSync('/').sort()), '["file1.txt","only-top","sub"]');
+      assert(v.statSync('/sub').isDirectory());
     },
 
-    'ArchiveFS({file, mode: Archive.READ}).openSync() reads data and reports eof correctly'() {
-      const afs = new ArchiveFS({ file: TAR_PATH, mode: Archive.READ });
-
-      const stream = afs.openSync('one.txt');
-      const buf = new ArrayBuffer(1);
-
-      assert(!stream.eof(), 'should not be eof before any bytes are read');
-
-      let out = '';
-      let n;
-      while((n = stream.read(buf, 0, 1)) > 0) out += toString(buf, 0, n);
-
-      eq(out, CONTENT_ONE);
-      assert(stream.eof(), 'should be eof once the whole entry has been read');
-
-      stream.close();
+    'ComposableProvider: write into a lower directory creates parents in the top layer'() {
+      const top = new MemoryProvider();
+      const v = create(new ComposableProvider([top, new RealFSProvider(REAL)]));
+      v.writeFileSync('/sub/added.txt', 'a');
+      eq(json(v.readdirSync('/sub').sort()), '["added.txt","nested.txt"]');
+      assert(top.existsSync('/sub/added.txt'));
+      assert(!fs.existsSync(path.join(REAL, 'sub', 'added.txt')));
     },
 
-    'ArchiveFS write mode works via either constructor form'() {
-      const writeTarget1 = path.join(ROOT, 'attempt1.tar');
-      const writeTarget2 = path.join(ROOT, 'attempt2.tar');
-      const payload = new Uint8Array([104, 105]).buffer; // "hi"
+    'ComposableProvider: removing hides lower copies, writing brings them back'() {
+      const v = create(new ComposableProvider([new MemoryProvider(), new RealFSProvider(REAL)]));
+      v.unlinkSync('/file1.txt');
+      assert(!v.existsSync('/file1.txt'));
+      throws(() => v.readFileSync('/file1.txt'), 'ENOENT');
+      assert(!v.readdirSync('/').includes('file1.txt'));
+      assert(fs.existsSync(path.join(REAL, 'file1.txt')));
+      v.writeFileSync('/file1.txt', 'again');
+      eq(v.readFileSync('/file1.txt', 'utf8'), 'again');
+      throws(() => v.rmdirSync('/sub'), 'ENOTEMPTY');
+      v.rmSync('/sub', { recursive: true });
+      assert(!v.existsSync('/sub') && !v.existsSync('/sub/nested.txt'));
+      assert(fs.existsSync(path.join(REAL, 'sub', 'nested.txt')));
+    },
 
-      /* String-form constructor with rw=true. */
-      const w1 = new ArchiveFS(writeTarget1, true);
-      const s1 = w1.openSync('demo.txt');
-      eq(s1[Symbol.toStringTag], 'WriteStream');
-      s1.write(payload, 0, 2);
-      s1.close();
+    'ComposableProvider: rename copies up from a lower layer'() {
+      const top = new MemoryProvider();
+      const v = create(new ComposableProvider([top, new RealFSProvider(REAL)]));
+      v.renameSync('/sub', '/moved');
+      eq(v.readFileSync('/moved/nested.txt', 'utf8'), 'real-nested');
+      assert(!v.existsSync('/sub'));
+      assert(top.existsSync('/moved/nested.txt'));
+      assert(fs.existsSync(path.join(REAL, 'sub', 'nested.txt')));
+    },
 
-      const r1 = new ArchiveFS(writeTarget1, false);
-      eq(r1.readdirSync('.').join(','), 'demo.txt');
-      eq(r1.readFileSync('demo.txt', { encoding: 'utf-8' }), 'hi');
+    'ComposableProvider: argument checks and providers copy'() {
+      throws(() => new ComposableProvider([]), undefined);
+      const p = new ComposableProvider([new MemoryProvider()]);
+      p.providers.pop();
+      eq(p.providers.length, 1);
+    },
 
-      /* Object-form constructor with an explicit numeric mode. */
-      const w2 = new ArchiveFS({ file: writeTarget2, mode: Archive.WRITE });
-      const s2 = w2.openSync('demo2.txt');
-      eq(s2[Symbol.toStringTag], 'WriteStream');
-      s2.write(payload, 0, 2);
-      s2.close();
+    /* --- ArchiveProvider --- */
 
-      const r2 = new ArchiveFS({ file: writeTarget2, mode: Archive.READ });
-      eq(r2.readdirSync('.').join(','), 'demo2.txt');
-      eq(r2.readFileSync('demo2.txt', { encoding: 'utf-8' }), 'hi');
+    'ArchiveProvider: read-only view of a tar file'() {
+      const v = create(new ArchiveProvider(TAR_PATH));
+      assert(v.readonly);
+      eq(json(v.readdirSync('/').sort()), '["dir","one.txt"]');
+      eq(json(v.readdirSync('/dir')), '["two.txt"]');
+      eq(v.readFileSync('/one.txt', 'utf8'), 'content-one');
+      eq(v.readFileSync('/dir/two.txt', 'utf8'), 'content-two');
+      eq(v.statSync('/one.txt').size, 11);
+      assert(v.statSync('/dir').isDirectory());
+      assert(v.statSync('/one.txt').isFile());
+      assert(!v.existsSync('/nope'));
+      throws(() => v.writeFileSync('/x', ''), 'EROFS');
+      throws(() => v.readFileSync('/dir'), 'EISDIR');
+      throws(() => v.statSync('/one.txt/x'), 'ENOTDIR');
+    },
+
+    'ArchiveProvider composes under a writable layer'() {
+      const v = create(new ComposableProvider([new MemoryProvider(), new ArchiveProvider(TAR_PATH)]));
+      v.writeFileSync('/one.txt', 'patched');
+      v.writeFileSync('/dir/three.txt', 'three');
+      eq(v.readFileSync('/one.txt', 'utf8'), 'patched');
+      eq(v.readFileSync('/dir/two.txt', 'utf8'), 'content-two');
+      eq(json(v.readdirSync('/dir').sort()), '["three.txt","two.txt"]');
     },
   });
 } finally {
   rmrf(ROOT);
 }
-
-/* ------------------------------------------------------------------ */
-/* Demo: combine an "overrides" directory with a "defaults" directory  */
-/* into a single read-through filesystem, then browse a tar archive    */
-/* the same way an on-disk directory would be browsed.                 */
-/* ------------------------------------------------------------------ */
-
-function demo() {
-  const root = path.join(TMPDIR, `qjs-vfs-demo-${Date.now()}-${Math.floor(Math.random() * 1e6)}`);
-  const defaults = path.join(root, 'defaults');
-  const overrides = path.join(root, 'overrides');
-
-  fs.mkdirSync(root);
-  fs.mkdirSync(defaults);
-  fs.mkdirSync(overrides);
-  fs.writeFileSync(path.join(defaults, 'config.json'), '{"mode":"default"}');
-  fs.writeFileSync(path.join(defaults, 'readme.txt'), 'default readme');
-  fs.writeFileSync(path.join(overrides, 'config.json'), '{"mode":"override"}');
-
-  const cfg = new UnionFS();
-  /* Whatever is appended first wins when the same name exists in both. */
-  cfg.appendPath(overrides);
-  cfg.appendPath(defaults);
-
-  console.log('=== UnionFS demo ===');
-  console.log('config.json (from overrides):', cfg.readFileSync('config.json', 'utf-8'));
-  console.log('readme.txt  (falls through to defaults):', cfg.readFileSync('readme.txt', 'utf-8'));
-
-  rmrf(root);
-
-  const tarPath = path.join(TMPDIR, `qjs-vfs-demo-${Date.now()}-${Math.floor(Math.random() * 1e6)}.tar`);
-  const ar = Archive.write(tarPath);
-  const greeting = 'hello from inside a tar file';
-  ar.write(new ArchiveEntry('greeting.txt', { type: 'file', perm: 0o644, size: greeting.length }));
-  ar.write(greeting);
-  ar.close();
-
-  const afs = new ArchiveFS(tarPath);
-
-  console.log('=== ArchiveFS demo ===');
-  console.log('entries:', afs.readdirSync('.'));
-  console.log('greeting.txt:', afs.readFileSync('greeting.txt', { encoding: 'utf-8' }));
-
-  fs.unlinkSync(tarPath);
-}
-
-demo();
