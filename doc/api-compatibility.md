@@ -231,7 +231,7 @@ directly for Bun-compatible code.
 **Spec:** https://nodejs.org/api/path.html  
 **Exports:**
 - Node-style: `basename`, `dirname`, `extname`, `join`, `parse`, `format`, `resolve`, `relative`, `normalize`, `sep`, `delimiter`
-- `posix` and the default export: the same functions (`path.posix === path`); no `win32`; `join()` as Node; Node's `TypeError [ERR_INVALID_ARG_TYPE]` is thrown by every Node function of the module (`Function.length` as Node too); `win32` is planned, see [api-interface-path.md](api-interface-path.md)
+- `posix` and the default export: the same functions (`path.posix === path`); no `win32`; `join()` as Node; Node's `TypeError [ERR_INVALID_ARG_TYPE]` is thrown by every Node function of the module (`Function.length` as Node too); `toNamespacedPath`/`_makeLong` and the `path/posix` subpath exist; `win32` is planned, see [api-interface-path.md](api-interface-path.md)
 - Extra POSIX-flavored helpers: `components`, `at`, `right`, `skip`, `fnmatch`, `realpath`, `canonical`, `getcwd`, `gethome`, the `is*` type tests
 
 **Notes:** Superset of Node's `path` module; the extra component/query helpers have no Node equivalent (Custom within an otherwise Compatible module).

@@ -209,5 +209,10 @@ tests({
   },
   'the shared functions exist'() {
     for(const n of names) eq(typeof path[n], 'function', n);
+  },
+  'toNamespacedPath is the identity on posix, _makeLong the same function'() {
+    assert(path._makeLong === path.toNamespacedPath);
+    eq(path.toNamespacedPath('/a/b'), '/a/b');
+    eq(path.toNamespacedPath(5), 5);
   }
 });

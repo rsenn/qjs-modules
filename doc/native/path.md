@@ -10,6 +10,9 @@ The Node functions (`basename`, `dirname`, `extname`, `format`, `isAbsolute`, `j
 non-string argument (`basename` also for a non-string `suffix`); `relative(x)` with one argument is qjsm's
 own form. The other functions coerce their arguments to strings.
 
+`toNamespacedPath(path)` returns `path` unchanged (POSIX); `_makeLong` is the same function. `path/posix`
+and `node:path/posix` import this module.
+
 ## Components & names
 
 | Function | Args | Description |

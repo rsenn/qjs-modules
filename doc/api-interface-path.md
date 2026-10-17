@@ -43,10 +43,10 @@ Quirks that are **not** targets:
 | `basename` `dirname` `extname` `isAbsolute` `parse` `join` | done (C1-C3): `js_path_check_string` in `quickjs-path.c`; was: coerce non-strings | `TypeError`, `code: 'ERR_INVALID_ARG_TYPE'`, Node's message word for word (the part all three share is name and code) |
 | `normalize` `relative` `resolve` `format` | done (C4): Node's `code` and message; `relative(x)` stays qjsm's one-argument form | check `code` and message equal Node's |
 | function `length` | done (C5); was 1 for all | node's: `basename` 2, `join` 0, `relative` 2, `resolve` 0, others 1 |
-| `toNamespacedPath`, `_makeLong` | missing | identity on posix; the same function object |
+| `toNamespacedPath`, `_makeLong` | done (C6) | identity on posix; the same function object |
 | `win32` | missing | full Windows implementation, `posix`/`win32` cross links |
 | `matchesGlob` | missing | node 22 semantics |
-| `path/posix`, `path/win32`, `node:path/...` | do not resolve | resolve |
+| `path/posix`, `path/win32`, `node:path/...` | `path/posix` and `node:path/posix` done (C7); `path/win32` waits for W | resolve |
 | the 38 qjsm-only names | exported | stay for now (Tier 22 decides each); never affect the 17 shared names |
 
 ## 3. Architecture
@@ -116,9 +116,11 @@ behaviour change.
 | --- | --- | --- |
 | T tests and tools | T1-T4 | first; every later step is checked against them |
 | R renames (api-implement-path.md) | R1-R12 | behaviour-neutral; one function family per commit |
-| C compat (this plan, posix) | C1-C9 | adds code at the entry of `js_path_method` or new functions; never edits a `path_*` call |
+| C compat (this plan, posix) | C1-C10 (C1-C7 done) | adds code at the entry of `js_path_method` or new functions; never edits a `path_*` call |
 | W win32 | W1-W12 | new files plus one getter; independent of R |
 | G glob | G1-G2 | last |
+| X qjsm-only extras | X1-X3 | after T5; each removal needs the user's go |
+| F closing | F1-F4 | last |
 
 Dependencies: R1-R3 before C1 (the isabs/isrel/isname functions are what the validation helper's
 neighbours call); C steps and R5-R12 may be done in either order; W needs T4 and C7; G needs nothing

@@ -1266,6 +1266,19 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_PROP_INT32_DEF("FNM_PERIOD", PATH_FNM_PERIOD, JS_PROP_CONFIGURABLE),
 };
 
+/* path.toNamespacedPath(path): Node's Windows long-path helper; on POSIX it returns `path`
+ * unchanged, even a non-string. `_makeLong` is the same function object.
+ *
+ * ```js
+ * path.toNamespacedPath('/a/b');   // '/a/b'
+ * path._makeLong === path.toNamespacedPath;   // true
+ * ```
+ */
+static JSValue
+js_path_tonamespaced(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_UNDEFINED;
+}
+
 /* path.posix: Node's name for the POSIX flavour, here the same functions as
  * the module itself; also the default export (`import path from 'path'`).
  * There is no path.win32. */
@@ -1274,8 +1287,14 @@ js_path_init(JSContext* ctx, JSModuleDef* m) {
   if(m) {
     JSValue posix = JS_NewObject(ctx);
 
+    JSValue ns = JS_NewCFunction(ctx, js_path_tonamespaced, "toNamespacedPath", 1);
+
     JS_SetModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
     JS_SetPropertyFunctionList(ctx, posix, js_path_funcs, countof(js_path_funcs));
+    JS_SetModuleExport(ctx, m, "toNamespacedPath", JS_DupValue(ctx, ns));
+    JS_SetModuleExport(ctx, m, "_makeLong", JS_DupValue(ctx, ns));
+    JS_SetPropertyStr(ctx, posix, "toNamespacedPath", JS_DupValue(ctx, ns));
+    JS_SetPropertyStr(ctx, posix, "_makeLong", ns);
     JS_SetPropertyStr(ctx, posix, "posix", JS_DupValue(ctx, posix)); // path.posix === path
     JS_SetModuleExport(ctx, m, "default", JS_DupValue(ctx, posix));
     JS_SetModuleExport(ctx, m, "posix", posix);
@@ -1298,6 +1317,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
     JS_AddModuleExport(ctx, m, "default");
     JS_AddModuleExport(ctx, m, "posix");
+    JS_AddModuleExport(ctx, m, "toNamespacedPath");
+    JS_AddModuleExport(ctx, m, "_makeLong");
   }
 
   return m;

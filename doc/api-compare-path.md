@@ -29,7 +29,7 @@ printed identical output on all three. Node is therefore the reference.
 | group | names |
 | --- | --- |
 | in all four (13) | `basename` `delimiter` `dirname` `extname` `format` `isAbsolute` `join` `normalize` `parse` `posix` `relative` `resolve` `sep` |
-| only in Node/Bun/Deno (4) | `win32`, `toNamespacedPath`, `_makeLong`, `matchesGlob` |
+| only in Node/Bun/Deno (4) | `win32`, `matchesGlob` (`toNamespacedPath` and `_makeLong` are done) |
 | only in qjsm (38) | see below |
 
 Missing here, by priority:
@@ -37,10 +37,10 @@ Missing here, by priority:
 | name | Node | note |
 | --- | --- | --- |
 | `matchesGlob(path, pattern)` | 22+ (experimental) | could wrap `fnmatch` with `FNM_PATHNAME`; Node semantics for `**`, `{a,b}` need checking |
-| `toNamespacedPath(path)` | all | identity on POSIX; one line |
-| `_makeLong(path)` | all | deprecated alias of `toNamespacedPath`; skip |
+| `toNamespacedPath(path)` | all | done (C6, 2026-10-17): identity on POSIX |
+| `_makeLong(path)` | all | done (C6): the same function object as `toNamespacedPath` |
 | `win32` | all | whole Windows implementation; large, and `posix.win32` / `win32.posix` links with it |
-| subpaths `path/posix`, `path/win32`, `node:path/posix`, `node:path/win32` | all | do not resolve (`could not load module`); `path/posix` is cheap to alias, `path/win32` needs `win32` |
+| subpaths `path/posix`, `path/win32`, `node:path/posix`, `node:path/win32` | all | `path/posix` and `node:path/posix` resolve to `path` (C7, done); `path/win32` needs `win32` |
 
 Already fixed since the 2026-10-09 notes: the default export is the module itself
 (`import path from 'path'` has `join`), `path.posix === path` and

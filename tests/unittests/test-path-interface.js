@@ -1,7 +1,7 @@
 /* path: the parts of node:path's interface beyond valid-input results
  * (those are test-path-node.js); qjsm only, since it pins down where qjsm
  * agrees with Node today. A case that fails is added with the fix for it:
- * win32, toNamespacedPath, matchesGlob. */
+ * win32, matchesGlob. */
 import path from 'path';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
@@ -84,5 +84,21 @@ tests({
     eq(path.basename('a.js', undefined), 'a.js');
     eq(caught(() => path.join('a', null)).message, 'The "path" argument must be of type string. Received null');
     eq(caught(() => path.join('a', 'b', 5)).code, 'ERR_INVALID_ARG_TYPE');
+  },
+  'toNamespacedPath and _makeLong are one identity function'() {
+    for(const p of [path, path.posix]) {
+      assert(p._makeLong === p.toNamespacedPath);
+      eq(p.toNamespacedPath.length, 1);
+      eq(p.toNamespacedPath('/a/b'), '/a/b');
+      eq(p.toNamespacedPath(5), 5);
+    }
+  },
+  async 'path/posix and node:path/posix are the module'() {
+    for(const name of ['path/posix', 'node:path/posix', 'node:path']) {
+      const m = await import(name);
+
+      assert(m.default === path, name);
+      assert(m._makeLong === m.toNamespacedPath, name);
+    }
   }
 });
