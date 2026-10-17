@@ -1,11 +1,11 @@
-#ifndef JBUILD_H
-#define JBUILD_H
+#ifndef JBUILDER_H
+#define JBUILDER_H
 
 #include <stddef.h>
 #include <quickjs.h>
-#include "jread.h"
+#include "json/jread.h"
 
-typedef struct JsonBuilderFrame JsonBuilderFrame; /* private to jbuild.c */
+typedef struct JsonBuilderFrame JsonBuilderFrame; /* private to jbuilder.c */
 
 /* JsonBuilder: builds a JS value from a stream of JSON events.
  *

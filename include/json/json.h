@@ -49,6 +49,12 @@ typedef enum {
 
 #define JSON_BLOCK_SIZE 16384
 
+/* where a character or token starts, counted as Location does (0-based line and column) */
+typedef struct {
+  int32_t line, column;
+  int64_t char_offset, byte_offset;
+} JsonPos;
+
 struct JsonParser {
   int state;
   Reader reader;
@@ -61,6 +67,13 @@ struct JsonParser {
   BitSet stack;
   Location* loc;
   const char* error;
+
+  /* error report: set when json_parse() returns JSON_ERROR. err_at is the start of the
+     offending token (a string or literal: its opening byte; otherwise the offending byte),
+     err_len the bytes from there through the offending byte, err_code a stable name */
+  JsonPos last_start, tok_start, err_at;
+  size_t err_len;
+  const char* err_code;
 
   /* resumable low-level token scan: preserved across json_parse() calls so a reader that
      runs dry mid-token (JSON_NEED_DATA) can be resumed correctly once more data arrives */

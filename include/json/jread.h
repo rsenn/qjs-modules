@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "vector.h"
+#include "srcpos.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +28,22 @@ typedef enum jr_type {
   jr_type_object_end,
   jr_type_key,
 } jr_type_t;
+
+/* jr_error_t: why a jr_type_error was reported; jr_error_name() gives the stable
+ * kebab-case name the bindings expose as `err.code`. */
+typedef enum jr_error {
+  JR_E_NONE,
+  JR_E_UNEXPECTED_TOKEN,
+  JR_E_BAD_ESCAPE,
+  JR_E_BAD_UNICODE_ESCAPE,
+  JR_E_INVALID_UTF8,
+  JR_E_CONTROL_CHARACTER,
+  JR_E_INVALID_LITERAL,
+  JR_E_UNEXPECTED_END,
+  JR_E_OUT_OF_MEMORY,
+} jr_error_t;
+
+const char* jr_error_name(jr_error_t code);
 
 typedef struct jr_str {
   const char* cstr;
@@ -69,6 +86,16 @@ typedef struct jr_state {
   int just_erred; /* reset at the top of every jr_read() call; set if *this* call hit an
                      error - lets a caller throw once per bad span instead of on every
                      future call to an already-resynced parser */
+  /* position: `pos` counts every byte fed so far; `tok` is where the token being
+   * scanned began; the err_* fields describe the last error, valid when it is reported:
+   * err_pos is the token start (the offending byte outside a token), err_len the bytes
+   * from there through the offending byte (0 at end of input). Chunk-size independent. */
+  SourcePos pos, tok;
+  const char* mark; /* chunk byte that `pos` has been advanced up to (jr_read() only) */
+  const void* tab;  /* one-shot dispatch table that read the last byte, or NULL */
+  jr_error_t err_code;
+  SourcePos err_pos;
+  size_t err_len;
 } jr_state_t;
 
 void jr_state_init(jr_state_t* state);

@@ -19,7 +19,43 @@ having it skipped. `JsonPushParser` always skips them.
 | Function | Args | Description |
 | --- | --- | --- |
 | `read(input, inputName?)` | 1–2 | Parses JSON text into a JS value. `input` is a string or buffer. `inputName` is an optional filename for error messages. Throws on trailing data after the root value. |
-| `write(value, indent?)` | 1–2 | Serializes a JS value to JSON text. `indent` (default 0) controls pretty-printing — when positive, each nesting level adds that many spaces of indentation. |
+| `write(value, replacer?, space?)` | 1–3 | `JSON.stringify(value, replacer, space)`, with the same result for every value (see [What is serialized](#what-is-serialized)). `write(value, 2)` is shorthand for `write(value, null, 2)`. Returns `undefined` when `value` has no JSON form (`undefined`, a function, a symbol). |
+
+### What is serialized
+
+`write()` and `JsonSerializer` follow `JSON.stringify` rule for rule, so a value serializes the
+same whichever one writes it (`tests/unittests/test-json.js` compares them on every case below):
+
+| JS value | Written as |
+| --- | --- |
+| `toJSON()` result | the result; called with the key as a string (`''` at the root, `'0'` for an array item); runs before the replacer |
+| `Date` | an ISO string, through its `toJSON()` |
+| `null`, boolean, string, finite number | itself |
+| `NaN`, `Infinity`, `-Infinity` | `null` |
+| `Number`, `String`, `Boolean` object | its primitive |
+| `undefined`, function, symbol | skipped in an object (key and value); `null` in an array; the whole call returns `undefined` at the root |
+| array hole | `null` |
+| array | its indices only; other properties are ignored |
+| object | its own enumerable string keys, integer keys first |
+| `JSON.rawJSON(text)` | `text`, as given |
+| `bigint` | throws `TypeError` |
+| circular reference | throws `TypeError` (`Converting circular structure to JSON`) |
+
+`replacer` is a function, called as `replacer.call(holder, key, value)` for every property
+including the root (`holder` is `{ '': value }` there), or an array whose string and number items
+are the only keys written, in its order. `space` is a number (spaces per level, 0 to 10) or a
+string (its first 10 characters per level, e.g. `'\t'`); no `space` writes no whitespace at all.
+Strings are written with lone surrogates as `\udXXX` escapes. Nesting depth is not limited
+(nothing recurses), so an object `JSON.stringify` rejects with a `RangeError` still serializes here.
+
+```js
+import { write } from 'json';
+
+write({ when: new Date(0), skipped: undefined, n: NaN }); // '{"when":"1970-01-01T00:00:00.000Z","n":null}'
+write([1, 2], null, '\t');                                 // '[\n\t1,\n\t2\n]'
+write({ a: 1, b: 2 }, ['b']);                              // '{"b":2}'
+write(1n);                                                 // TypeError
+```
 
 ## JSONL
 
@@ -147,6 +183,35 @@ p.write('3]}}');
 console.log(p.root); // { a: { b: [1, 2, 3] } }
 ```
 
+## Planned: lifting the module to standard shapes
+
+> **Spec, not yet implemented** except where marked. Full table and order of work: `TODO.md`
+> Tier 18. Nothing below changes `JsonParser`, `JsonPushParser`, `JsonSerializer` or
+> `JsonWriter` today.
+
+Other runtimes expose JSON through these names; the module converges on them:
+
+| Name | Shape | Origin | Status |
+| --- | --- | --- | --- |
+| `JSONL.parse`, `JSONL.parseChunk` | above | Bun | done |
+| `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` | `lib/jsonStreams.js` | Deno `@std/json` | done |
+| `Blob.prototype.json()` | see the `blob` doc | Bun, web Body mixins | done |
+| `JSON5.parse(text)`, `JSON5.stringify(value, replacer?, space?)` | Bun's `Bun.JSON5` | Bun | planned |
+| `JSONC.parse(text)` | Bun's `Bun.JSONC`: comments and trailing commas | Bun | planned |
+| `JsonPushParser` `onValue`, `paths`, `end()` | npm `@streamparser/json` `JSONParser` | npm | planned |
+
+`read()` and `write()` duplicate `JSON.parse` and `JSON.stringify` and are to be deprecated
+once `JSON5`/`JSONC` exist; `JsonParser`, `JsonSerializer` and `JsonWriter` stay as the
+engines behind the standard names, since no other runtime has a shape for them.
+
+```js
+import { JSON5, JSONC } from 'json';   // planned
+
+JSON5.parse("{a:'x', b:0x10, c:[1,],}"); // {a: 'x', b: 16, c: [1]}
+JSON5.stringify({ a: 1, 'b-c': 'x' });   // "{a:1,'b-c':'x'}"
+JSONC.parse('{/*c*/"a":1,}');            // {a: 1}
+```
+
 ## Planned: streaming `jread` events into a `JsonBuilder` or a `JsonWriter`
 
 > **Not yet implemented, unsure if it ever will be.** This section is a design sketch kept
@@ -161,7 +226,7 @@ chunk by chunk, with no JS value built in between.
 
 | Sink | Callback | `user_data` | Notes |
 | --- | --- | --- | --- |
-| `JsonBuilder` (`jbuild.h`) | `jbuild_callback` | the `JsonBuilder*` | The existing builder-mode callback, moved out of `quickjs-json.c`. Needs no new logic. |
+| `JsonBuilder` (`jbuilder.h`) | `jbuild_callback` | the `JsonBuilder*` | The existing builder-mode callback, moved out of `quickjs-json.c`. Needs no new logic. |
 | `JsonWriter` (`jwrite.h`) | `jwrite_callback` | a `JsonWriteSink*` | New. Writes formatted JSON text as tokens arrive. |
 
 ```c
@@ -209,13 +274,13 @@ p.close();                         // out now holds the reformatted document
 
 ### Relation to `WalkInterface`
 
-`WalkInterface` (`walk.h`) is the generic sink shape used by the value walker. These two
+`WalkInterface` (`jwalk.h`) is the generic sink shape used by the value walker. These two
 callbacks are fast paths beside it that skip the `JSValue` round trip. A third adapter,
 `jread` to `WalkInterface`, could serve arbitrary sinks later.
 
 ### Steps, if it is ever built
 
-1. Move `jread_callback_build` to `jbuild.c` as `jbuild_callback`; the existing
+1. Move `jread_callback_build` to `jbuilder.c` as `jbuild_callback`; the existing
    `JsonPushParser` tests must still pass.
 2. Add `JsonWriteSink` and `jwrite_callback`, built on the existing pure `jwrite_*` events;
    test with a C harness feeding chunked input.
@@ -234,14 +299,24 @@ A "pull" JSON serializer: it traverses the value lazily, producing only as much 
 requested per `.read()` call, rather than building the whole string up front.
 
 ```js
-new JsonSerializer(value, indent?)   // length 1; indent defaults to 0 (compact)
+new JsonSerializer(value, replacer?, space?)   // the arguments of JSON.stringify
+new JsonSerializer(value, indent)              // a number or string alone is the space; default: compact
 ```
+
+It serializes by the rules in [What is serialized](#what-is-serialized): `read()` returns exactly
+the text `write()` returns, in pieces. A value with no JSON form (`undefined`) gives no text at
+all, so the first `read()` is `undefined`. `toJSON()` and the replacer run once per property, as
+the walk reaches it, and an error they throw comes out of the `read()` that reached it; after an
+error the serializer is finished.
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
 | `read(n)` | 1 | method | Returns a string of up to `n` characters of serialized JSON; once exhausted it returns `undefined` (not `''`), so loop on truthiness. |
 | `read(buffer, offset?, length?)` | 1–3 | method | Writes serialized bytes directly into the given `ArrayBuffer`/`TypedArray` (no intermediate copy), starting at `offset` for up to `length` bytes — or the whole buffer if omitted. Returns the number of bytes written, `0` once exhausted. Suited to chunking output straight into e.g. a network buffer. |
 | `location` | — | getter | A `Location` reflecting how far into the output stream production has advanced (enumerable). |
+| `indent` | — | getter/setter | The `space` in effect: spaces per level (0 to 10), or the length of a string `space`. Setting it takes a number or string and applies from the next event. |
+| `path` | — | getter | The keys from the root to the property being written. |
+| `finished`, `started`, `error` | — | getter | Whether production is complete, has begun, or failed in the last `read()`. `blocked` is always `false`: a step never waits for room. |
 
 ```js
 import { JsonSerializer } from 'json';

@@ -1,4 +1,5 @@
 import * as std from 'std';
+import { ArrayBufferSink } from 'arraybuffer_sink';
 import { read, write, JSONL, JsonParser, JsonPushParser, JsonSerializer, JsonWriter } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
@@ -152,6 +153,21 @@ tests({
     assertThrows(() => read('"abc'), 'unclosed string');
     assertThrows(() => read('xyz'), 'unknown token');
   },
+  'read: a parse error is a SyntaxError that names the input and the position'() {
+    const e = assertThrows(() => read('{"a":\n  [1, x]}', 'f.json'));
+
+    eq(e.constructor, SyntaxError);
+    assert(e.message.endsWith(' at f.json:2:7'), e.message);
+    eq(assertThrows(() => read('xyz')).constructor, SyntaxError);
+    assert(assertThrows(() => read('xyz')).message.endsWith(' at <json>:1:1'));
+  },
+  'read: empty text is a SyntaxError, a non-string a TypeError'() {
+    eq(assertThrows(() => read('')).constructor, SyntaxError);
+    for(const v of [undefined, null, 5, {}, [], true]) eq(assertThrows(() => read(v)).constructor, TypeError);
+  },
+  'JsonPushParser.write: a non-string chunk is a TypeError'() {
+    for(const v of [undefined, null, 5, {}]) eq(assertThrows(() => new JsonPushParser().write(v)).constructor, TypeError);
+  },
 
   /* ---------- write: primitives ---------- */
   'write: primitives round-trip through read()'() {
@@ -186,12 +202,101 @@ tests({
     eq(write(Infinity), 'null');
     eq(write(-Infinity), 'null');
   },
-  'write: non-JSON values become null'() {
-    eq(write(undefined), 'null');
-    eq(write(() => 1), 'null');
-    eq(write(Symbol('s')), 'null');
+  'write: values without a JSON form'() {
+    eq(write(undefined), undefined);
+    eq(write(() => 1), undefined);
+    eq(write(Symbol('s')), undefined);
     eq(write([1, undefined, 2]), '[1,null,2]');
     eq(write([1, NaN, 2]), '[1,null,2]');
+    eq(write({ a: undefined, b: () => 1, c: Symbol('s'), d: 1 }), '{"d":1}');
+  },
+  'write and JsonSerializer match JSON.stringify'() {
+    const sym = Symbol('s');
+    const sparse = [1, , 3];
+    sparse.extra = 'x';
+    const shared = { v: 1 };
+    const cycle = {};
+    cycle.self = cycle;
+    class Point {
+      constructor() {
+        this.x = 1;
+      }
+      get y() {
+        return 2;
+      }
+    }
+    const cases = {
+      toJSON: { toJSON: () => ({ x: 1 }) },
+      'toJSON key': { a: { toJSON: k => 'key=' + k }, b: [{ toJSON: k => 'idx=' + k }] },
+      Date: new Date(0),
+      'Date in object': { d: new Date(86400000) },
+      'invalid Date': new Date(NaN),
+      'omitted properties': { a: undefined, b() {}, c: 1, d: sym, [sym]: 2 },
+      'array holes and undefined': [undefined, () => 1, sym, , 5],
+      'special numbers': [NaN, Infinity, -Infinity, -0, 1e21, 1.5],
+      'boxed primitives': [new Number(1.5), new String('s'), new Boolean(false), new Boolean(true), Object(sym)],
+      'top-level undefined': undefined,
+      'top-level function': () => 1,
+      'top-level symbol': sym,
+      'top-level primitives': 'x"y',
+      'string escapes': '  "\\\n\r\t\b\f\x01\x1f\x7f',
+      'lone surrogates': { 'k\ud800': '\ud800 \udc00 😀 \ud83d x', ok: 'é€😀' },
+      'sparse array with a property': sparse,
+      'class instance': new Point(),
+      'null prototype': Object.assign(Object.create(null), { a: 1 }),
+      'typed array': new Uint8Array([1, 2]),
+      'Map and Set': { m: new Map([[1, 2]]), s: new Set([1]) },
+      'empty containers': [{}, [], { a: {} }, { a: [] }],
+      'integer keys first': { 2: 'b', 1: 'a', x: 'c' },
+      'shared, not circular': [shared, shared, { shared }],
+      'rawJSON': { n: JSON.rawJSON('1e1000'), s: JSON.rawJSON('"x"') },
+      'array-like': { length: 2, 0: 'a', 1: 'b' },
+      'string object with a property': Object.assign(new String('ab'), { z: 1 }),
+    };
+    const args = [
+      [undefined, undefined],
+      [undefined, 2],
+      [undefined, '\t'],
+      [undefined, 20],
+      [(k, v) => (typeof v === 'number' ? v + 1 : v), 1],
+      [['a', 'c', 'a', 1, new String('x')], undefined],
+      [function(k, v) { return k === 'b' && !Array.isArray(this) ? undefined : v; }, '  '],
+      [null, 3],
+    ];
+    const serialize = (v, ...a) => {
+      const s = new JsonSerializer(v, ...a);
+      let out, chunk;
+      while((chunk = s.read(5)) !== undefined) out = (out ?? '') + chunk;
+      return out;
+    };
+    const attempt = (f, ...a) => {
+      try {
+        return f(...a);
+      } catch(e) {
+        return 'THROW ' + e.constructor.name;
+      }
+    };
+
+    for(const [name, v] of Object.entries(cases))
+      for(const [replacer, space] of args) {
+        const expected = attempt(JSON.stringify, v, replacer, space);
+
+        eq(attempt(write, v, replacer, space), expected, 'write: ' + name);
+        eq(attempt(serialize, v, replacer, space), expected, 'JsonSerializer: ' + name);
+      }
+  },
+  'write and JsonSerializer throw like JSON.stringify'() {
+    const cycle = {};
+    cycle.self = cycle;
+
+    for(const bad of [{ a: 1n }, Object(1n), cycle, { toJSON() { throw new RangeError('x'); } }, { get a() { throw new RangeError('x'); } }]) {
+      const expected = (() => { try { JSON.stringify(bad); } catch(e) { return e.constructor; } })();
+      const got = f => { try { f(); } catch(e) { return e.constructor; } };
+
+      assert(expected !== undefined);
+      eq(got(() => write(bad)), expected);
+      eq(got(() => new JsonSerializer(bad).read()), expected);
+    }
   },
   'write: nested containers'() {
     eq(write([[1, 2], [3, 4]]), '[[1,2],[3,4]]');
@@ -239,45 +344,37 @@ tests({
 
     assert(r.length === count && r[count - 1] === count - 1);
   },
-  'write: circular object (self) truncated, still parses back'() {
-    let a = { x: 1 };
-    a.self = a;
+  'write: circular structures throw TypeError'() {
+    const self = { x: 1 };
+    self.self = self;
 
-    let r = read(write(a));
+    const arr = [1, 2];
+    arr.push(arr);
 
-    assert(typeof r === 'object' && r.x === 1);
-  },
-  'write: circular array (self) truncated, still parses back'() {
-    let a = [1, 2];
-    a.push(a);
-
-    let r = read(write(a));
-
-    assert(Array.isArray(r) && r[0] === 1 && r[1] === 2);
-  },
-  'write: mutually circular objects, still parses back'() {
-    let a = { name: 'a' },
-      b = { name: 'b', a: a };
+    const a = { name: 'a' },
+      b = { name: 'b', a };
     a.b = b;
 
-    let r = read(write(a));
-
-    assert(typeof r === 'object' && r.name === 'a');
+    for(const v of [self, arr, a]) {
+      let err;
+      try {
+        write(v);
+      } catch(e) {
+        err = e;
+      }
+      assert(err instanceof TypeError, 'circular value throws TypeError');
+    }
   },
-  'write: circular value whose toString would overflow does not crash'() {
-    /* write_json_primitive's fallback calls JS_ToCString on the circular value;
-     * for a deeply nested element this triggers Array.prototype.join recursion
-     * that hits QuickJS's "stack overflow" InternalError. The writer must catch
-     * that and clear the exception rather than propagate/crash. */
+  'write: a shared, non-circular object is written twice'() {
+    const shared = { v: 1 };
+    eq(write([shared, shared, { shared }]), '[{"v":1},{"v":1},{"shared":{"v":1}}]');
+  },
+  'write: deep nesting does not overflow the stack'() {
     let inner = 42;
-    for(let i = 0; i < 800; i++) inner = [inner];
+    for(let i = 0; i < 50000; i++) inner = [inner];
 
-    let root = [inner, null];
-    root[1] = root;
-
-    let s = write(root);
-
-    assert(typeof s === 'string' && s.length > 0);
+    const s = write(inner);
+    assert(s.length === 2 * 50000 + 2);
   },
   'round-trip parity across value shapes'() {
     const cases = [
@@ -379,7 +476,96 @@ tests({
     assertThrows(() => drainParser('"a\\qb"'), 'invalid escape');
 
     let e = assertThrows(() => drainParser('{"a": xyz}'));
-    assert(/^\d+:\d+:/.test(e.message), e.message);
+    assert(/ at \d+:\d+$/.test(e.message), e.message);
+  },
+  'JsonParser: SyntaxError has loc at the token start, length and code'() {
+    let e = assertThrows(() => drainParser('{"a":\n  [1, x]}', 'f.json'));
+
+    eq(e.name, 'SyntaxError');
+    eq(e.code, 'unexpected-token');
+    eq(e.length, 1);
+    eq(String(e.loc), 'f.json:2:7');
+
+    e = assertThrows(() => drainParser('"a\\qb"', 'g.json'));
+    eq(e.code, 'bad-escape');
+    eq(String(e.loc), 'g.json:1:1');
+    eq(e.length, 4);
+  },
+  'JsonPushParser: errors carry loc, length and code whatever the chunk size'() {
+    const s = '{"a":\n  [1, "b\\qc"]}';
+
+    for(const step of [1, 3, 100]) {
+      const p = new JsonPushParser({});
+      let e;
+
+      try {
+        for(let i = 0; i < s.length; i += step) p.write(s.slice(i, i + step));
+      } catch(err) {
+        e = err;
+      }
+
+      assert(e instanceof SyntaxError);
+      eq(e.code, 'bad-escape');
+      eq(e.length, 4);
+      eq(e.loc.line, 2);
+      eq(e.loc.column, 7);
+    }
+
+    const q = new JsonPushParser({});
+
+    q.write('[1, 2');
+    let e = assertThrows(() => q.close());
+    eq(e.code, 'unexpected-end');
+    eq(e.length, 0);
+    eq(e.loc.column, 6);
+  },
+  'JsonPushParser: onError receives each error, write() and close() do not throw, .error holds the latest'() {
+    for(const callbacks of [false, true]) {
+      const errs = [];
+      const opts = { onError: e => errs.push(e) };
+
+      if(callbacks) Object.assign(opts, { value() {}, objectStart() {}, objectEnd() {}, arrayStart() {}, arrayEnd() {}, key() {} });
+
+      const p = new JsonPushParser(opts);
+
+      eq(p.error, null);
+      p.write('[1, x, 2, "a\\qb", 3');
+      p.close();
+
+      eq(errs.map(e => e.code).join(), 'unexpected-token,bad-escape,unexpected-end');
+      eq(errs[0].loc.column, 5);
+      eq(errs[1].loc.column, 11);
+      eq(errs[1].length, 4);
+      assert(errs[0] instanceof SyntaxError);
+      assert(p.error === errs[2]);
+    }
+  },
+  'JSONL.parseChunk: error is a SyntaxError at the failing value'() {
+    const r = JSONL.parseChunk('1\n{"a": x}\n3\n');
+
+    eq(r.values.length, 1);
+    eq(r.error.code, 'invalid-json');
+    eq(r.error.loc.line, 2);
+    eq(r.error.loc.column, 1);
+    eq(r.error.length, 8);
+  },
+  'json.read: errors carry loc, length and code'() {
+    let e = assertThrows(() => read('{"a":\n  [1, x]}', 'f.json'));
+
+    eq(e.code, 'unexpected-token');
+    eq(String(e.loc), 'f.json:2:7');
+
+    e = assertThrows(() => read('[1,2', 'f.json'));
+    eq(e.code, 'unexpected-end');
+    eq(e.length, 0);
+
+    e = assertThrows(() => read('{"a":1} x', 'f.json'));
+    eq(e.code, 'trailing-data');
+    eq(String(e.loc), 'f.json:1:9');
+
+    e = assertThrows(() => read(''));
+    eq(e.code, 'unexpected-end');
+    eq(e.loc.line, 1);
   },
   'JsonParser: .pos and .depth track position'() {
     let p = new JsonParser('{"a":[1,2]}');
@@ -540,6 +726,14 @@ tests({
   },
 
   /* ---------- JsonSerializer (pull, .read()) ---------- */
+  'JsonSerializer: read(n) returns undefined once exhausted'() {
+    const s = new JsonSerializer({ a: 1 }, 2);
+
+    eq(typeof s.read(1000), 'string');
+    eq(s.read(1000), undefined);
+    eq(s.read(1000), undefined);
+  },
+
   'JsonSerializer: read(n) round-trips, arbitrary chunk size'() {
     const cases = [
       null,
@@ -765,11 +959,25 @@ tests({
   };
 
   eq(emit({ minify: true }), '{"id":255,"kebab-key":"it\'s","list":[-31,1.5]}');
-  eq(emit({ bareKeys: true }), '{id:255,"kebab-key":"it\'s",list:[-31,1.5]}');
-  eq(emit({ singleQuotes: true }), "{'id':255,'kebab-key':'it\\'s','list':[-31,1.5]}");
-  eq(emit({ hexNumbers: true }), '{"id":0xff,"kebab-key":"it\'s","list":[-0x1f,1.5]}');
+  eq(emit({ bareKeys: true }), '{ id: 255, "kebab-key": "it\'s", list: [ -31, 1.5 ] }');
+  eq(emit({ singleQuotes: true }), "{ 'id': 255, 'kebab-key': 'it\\'s', 'list': [ -31, 1.5 ] }");
+  eq(emit({ hexNumbers: true }), '{ "id": 0xff, "kebab-key": "it\'s", "list": [ -0x1f, 1.5 ] }');
   eq(emit({ indent: 2, minify: true }), '{"id":255,"kebab-key":"it\'s","list":[-31,1.5]}');
   eq(emit({ bareKeys: true, singleQuotes: true, hexNumbers: true, minify: true }), "{id:0xff,'kebab-key':'it\\'s',list:[-0x1f,1.5]}");
+},
+
+'JsonWriter: writes into an ArrayBufferSink without calling its write()'() {
+  const sink = new ArrayBufferSink();
+  let calls = 0;
+  sink.write = () => ++calls;
+
+  const w = new JsonWriter(sink, { minify: true });
+  w.arrayStart();
+  w.value(1);
+  w.arrayEnd();
+
+  eq(calls, 0);
+  eq(String.fromCharCode(...new Uint8Array(sink.end())), '[1]');
 },
 
 'JsonWriter: written counts every byte, whatever the options'() {

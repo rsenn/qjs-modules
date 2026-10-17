@@ -1,6 +1,7 @@
-/* walk.c: walk_init(), walk_next(), walk_close().
- * depends on: property-enumeration.c (the frame stack), walk.h (callbacks).
- * rule: one callback per walk_next(); the walker knows no output format.
+/* walk.c: walk_init(), walk_next(), walk_close(), js_walk_*().
+ * depends on: property-enumeration.c (the frame stack), walk.h (callbacks, hooks).
+ * rule: one callback per walk_next(); the walker knows no output format and
+ * no value rules; WalkHooks.prepare decides what a property is.
  * also: js_walk_define()/js_walk_wrap(), the callbacks as a JS object. */
 
 #include "walk.h"
@@ -8,28 +9,50 @@
 
 enum { WALK_START, WALK_RUNNING, WALK_DONE };
 
+/* per open container: the next array index to report, and the array length */
+typedef struct {
+  uint32_t next, length;
+} WalkMeta;
+
+#define WALK_META(it) ((WalkMeta*)vector_back(&(it)->meta, sizeof(WalkMeta)))
+
+/* walk_prepare_plain: the default prepare; objects are containers, the rest values. */
+static int
+walk_prepare_plain(void* opaque, JSContext* ctx, JSValueConst holder, JSValueConst key, JSValue* val) {
+  return JS_IsObject(*val) ? WALK_KIND_CONTAINER : WALK_KIND_VALUE;
+}
+
+
 /* walk_init: starts walking `root`, reporting to `iface`; emits nothing yet.
  *
  *   WalkIterator*  it     iterator to initialize
  *   JSValueConst   root   value to walk, dup'ed (refcount: freed by close)
  *   WalkInterface  iface  callbacks, copied by value
+ *   WalkHooks      hooks  value rules, copied by value; zeroed for the plain ones
  *
  *   returns int  0, or -1 with an exception pending.
  */
 int
-walk_init(WalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface iface) {
-  vector_init(&it->stack, ctx);
-  it->walk = iface;
+walk_init(WalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface iface, WalkHooks hooks) {
+  vector_init_rt(&it->stack, JS_GetRuntime(ctx)); /* rt, not ctx: walk_close_rt() may run in a finalizer */
+  vector_init_rt(&it->meta, JS_GetRuntime(ctx));
+  it->iface = iface;
+  it->hooks = hooks;
   it->flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
   it->root = JS_DupValue(ctx, root);
+  it->pending = JS_UNDEFINED;
   it->state = WALK_START;
   it->key_done = FALSE;
+  it->entered = FALSE;
+  it->pending_kind = WALK_KIND_VALUE;
+  it->root_omitted = FALSE;
   return 0;
 }
 
-static BOOL
-walk_is_container(JSContext* ctx, JSValueConst val) {
-  return JS_IsObject(val) && !JS_IsFunction(ctx, val);
+/* walk_prepare: the hook, or the plain rule; returns a WalkKind or -1. */
+static int
+walk_prepare(WalkIterator* it, JSContext* ctx, JSValueConst holder, JSValueConst key, JSValue* val) {
+  return it->hooks.prepare ? it->hooks.prepare(it->hooks.opaque, ctx, holder, key, val) : walk_prepare_plain(NULL, ctx, holder, key, val);
 }
 
 /* walk_enter: pushes a frame for `obj` and emits its start event.
@@ -39,9 +62,38 @@ walk_is_container(JSContext* ctx, JSValueConst val) {
 static int
 walk_enter(WalkIterator* it, JSContext* ctx, JSValue obj) {
   BOOL array = JS_IsArray(ctx, obj);
+  WalkMeta* meta;
+  PropertyEnumeration* top;
+  uint32_t length = 0;
+
+  if(property_recursion_circular(&it->stack, obj)) {
+    JS_FreeValue(ctx, obj);
+    JS_ThrowTypeError(ctx, "%s", it->hooks.circular ? it->hooks.circular : "circular structure");
+    return -1;
+  }
+
+  if(array) {
+    JSValue lv = JS_GetPropertyStr(ctx, obj, "length");
+
+    if(JS_IsException(lv) || JS_ToUint32(ctx, &length, lv)) {
+      JS_FreeValue(ctx, lv);
+      JS_FreeValue(ctx, obj);
+      return -1;
+    }
+
+    JS_FreeValue(ctx, lv);
+  }
+
+  if(!(meta = vector_emplace(&it->meta, sizeof(WalkMeta)))) {
+    JS_FreeValue(ctx, obj);
+    return -1;
+  }
+
+  *meta = (WalkMeta){0, length};
 
   if(!property_recursion_push(&it->stack, ctx, obj, it->flags)) {
     JS_FreeValue(ctx, obj);
+    vector_pop(&it->meta, sizeof(WalkMeta));
 
     if(!JS_HasException(ctx))
       JS_ThrowInternalError(ctx, "walk: cannot enumerate properties");
@@ -49,27 +101,50 @@ walk_enter(WalkIterator* it, JSContext* ctx, JSValue obj) {
     return -1;
   }
 
+  top = WALK_TOP(it);
+
+  if(it->hooks.keys && it->hooks.keys(it->hooks.opaque, ctx, top, array))
+    return -1;
+
   it->key_done = FALSE;
   it->entered = TRUE;
 
-  if((array ? it->walk.array_start : it->walk.object_start)(it->walk.opaque, ctx) < 0)
+  if((array ? it->iface.array_start : it->iface.object_start)(it->iface.opaque, ctx) < 0)
     return -1;
 
   return array ? WALK_EVENT_ARRAY_START : WALK_EVENT_OBJECT_START;
 }
 
+/* walk_report: reports a prepared value, or enters a prepared container.
+ *
+ * refcount: takes `val`.
+ * returns the WalkEvent emitted, or -1 with an exception pending. */
+static int
+walk_report(WalkIterator* it, JSContext* ctx, int kind, JSValue val) {
+  ssize_t r;
+
+  if(kind == WALK_KIND_CONTAINER)
+    return walk_enter(it, ctx, val);
+
+  r = kind == WALK_KIND_RAW && it->iface.raw ? it->iface.raw(it->iface.opaque, ctx, val) : it->iface.value(it->iface.opaque, ctx, val);
+  JS_FreeValue(ctx, val);
+  return r < 0 ? -1 : WALK_EVENT_VALUE;
+}
+
 /* walk_next: reports the next event to the callbacks.
  *
  * {a: 1} gives, over three calls: object_start, key("a") + value(1)
- * (two calls), object_end; a circular reference is written as null.
+ * (two calls), object_end; what is skipped or rewritten is up to the hooks.
  *
  *   returns int  the WalkEvent emitted (> 0), 0 when done, -1 with an
- *                exception pending (callback error or enumeration failure).
+ *                exception pending (callback error, toJSON/replacer error,
+ *                BigInt, circular reference or enumeration failure).
  */
 int
 walk_next(WalkIterator* it, JSContext* ctx) {
-  void* opaque = it->walk.opaque;
+  void* opaque = it->iface.opaque;
   PropertyEnumeration* top;
+  WalkMeta* meta;
   ssize_t r;
   BOOL array;
   JSValue val;
@@ -80,56 +155,138 @@ walk_next(WalkIterator* it, JSContext* ctx) {
     return 0;
 
   if(it->state == WALK_START) {
+    JSValue key = JS_NewString(ctx, "");
+    int kind;
+
     it->state = WALK_RUNNING;
 
-    if(walk_is_container(ctx, it->root))
-      return walk_enter(it, ctx, JS_DupValue(ctx, it->root));
+    val = JS_DupValue(ctx, it->root);
+    kind = walk_prepare(it, ctx, JS_UNDEFINED, key, &val);
+    JS_FreeValue(ctx, key);
 
-    it->state = WALK_DONE;
-    return it->walk.value(opaque, ctx, it->root) < 0 ? -1 : WALK_EVENT_VALUE;
-  }
+    if(kind < 0) {
+      it->state = WALK_DONE;
+      return -1;
+    }
 
-  top = vector_back(&it->stack, sizeof(PropertyEnumeration));
-  array = JS_IsArray(ctx, top->obj);
+    if(kind == WALK_KIND_OMIT) {
+      it->state = WALK_DONE;
+      it->root_omitted = TRUE;
+      return 0;
+    }
 
-  if(top->idx >= top->tab_atom_len) {
-    r = (array ? it->walk.array_end : it->walk.object_end)(opaque, ctx);
-    property_recursion_pop(&it->stack, ctx);
-
-    if(vector_empty(&it->stack))
+    if(kind != WALK_KIND_CONTAINER)
       it->state = WALK_DONE;
 
-    return r < 0 ? -1 : array ? WALK_EVENT_ARRAY_END : WALK_EVENT_OBJECT_END;
+    return walk_report(it, ctx, kind, val);
   }
 
-  if(!array && !it->key_done) {
+  top = WALK_TOP(it);
+  meta = WALK_META(it);
+  array = JS_IsArray(ctx, top->obj);
+
+  /* the value of the key just reported */
+  if(!array && it->key_done) {
+    int kind = it->pending_kind;
+
+    val = it->pending;
+    it->pending = JS_UNDEFINED;
+    it->key_done = FALSE;
+
+    if(kind != WALK_KIND_CONTAINER)
+      top->idx++; /* a container advances it when it ends */
+
+    return walk_report(it, ctx, kind, val);
+  }
+
+  if(array) {
+    if(meta->next >= meta->length) {
+      top->idx = top->tab_atom_len;
+      goto end;
+    }
+
+    val = JS_GetPropertyUint32(ctx, top->obj, meta->next);
+
+    if(JS_IsException(val))
+      return -1;
+
+    {
+      JSValue key = JS_NewUint32(ctx, meta->next);
+      int kind = walk_prepare(it, ctx, top->obj, key, &val);
+
+      JS_FreeValue(ctx, key);
+
+      if(kind < 0)
+        return -1;
+
+      if(top->idx < top->tab_atom_len && meta->next < top->tab_atom_len)
+        top->idx = meta->next;
+
+      meta->next++;
+
+      if(kind == WALK_KIND_OMIT)
+        return it->iface.value(opaque, ctx, JS_NULL) < 0 ? -1 : WALK_EVENT_VALUE;
+
+      return walk_report(it, ctx, kind, val);
+    }
+  }
+
+  while(top->idx < top->tab_atom_len) {
     JSValue key = property_enumeration_key(top, ctx);
+    int kind;
 
     if(JS_IsException(key))
       return -1;
 
-    r = it->walk.key(opaque, ctx, key);
+    val = property_enumeration_value(top, ctx);
+
+    if(JS_IsException(val)) {
+      JS_FreeValue(ctx, key);
+      return -1;
+    }
+
+    kind = walk_prepare(it, ctx, top->obj, key, &val);
+
+    if(kind < 0) {
+      JS_FreeValue(ctx, key);
+      return -1;
+    }
+
+    if(kind == WALK_KIND_OMIT) {
+      JS_FreeValue(ctx, key);
+      top->idx++;
+      continue;
+    }
+
+    r = it->iface.key(opaque, ctx, key);
     JS_FreeValue(ctx, key);
 
-    if(r < 0)
+    if(r < 0) {
+      JS_FreeValue(ctx, val);
       return -1;
+    }
 
+    it->pending = val;
+    it->pending_kind = kind;
     it->key_done = TRUE;
     return WALK_EVENT_KEY;
   }
 
-  if(JS_IsException(val = property_enumeration_value(top, ctx)))
-    return -1;
+end:
+  r = (array ? it->iface.array_end : it->iface.object_end)(opaque, ctx);
+  property_recursion_pop(&it->stack, ctx);
+  vector_pop(&it->meta, sizeof(WalkMeta));
 
-  it->key_done = FALSE;
-  top->idx++; /* before the push: it may move the frames */
+  if(vector_empty(&it->stack)) {
+    it->state = WALK_DONE;
+  } else {
+    top = WALK_TOP(it);
 
-  if(walk_is_container(ctx, val) && !property_recursion_circular(&it->stack, val))
-    return walk_enter(it, ctx, val);
+    if(!JS_IsArray(ctx, top->obj))
+      top->idx++; /* the property the container was the value of */
+  }
 
-  r = it->walk.value(opaque, ctx, walk_is_container(ctx, val) ? JS_NULL : val);
-  JS_FreeValue(ctx, val);
-  return r < 0 ? -1 : WALK_EVENT_VALUE;
+  return r < 0 ? -1 : array ? WALK_EVENT_ARRAY_END : WALK_EVENT_OBJECT_END;
 }
 
 /* walk_skip: does not descend into the container just started.
@@ -144,27 +301,40 @@ walk_next(WalkIterator* it, JSContext* ctx) {
 int
 walk_skip(WalkIterator* it, JSContext* ctx) {
   PropertyEnumeration* top;
+  WalkMeta* meta;
 
   if(!it->entered) {
     JS_ThrowRangeError(ctx, "walk_skip: not right after a container start");
     return -1;
   }
 
-  top = vector_back(&it->stack, sizeof(PropertyEnumeration));
+  top = WALK_TOP(it);
+  meta = WALK_META(it);
   top->idx = top->tab_atom_len;
+  meta->next = meta->length;
   it->entered = FALSE;
   return 0;
 }
 
-/* walk_close: frees the frames and the root; safe after done or error.
+/* walk_close_rt: frees the frames and everything the iterator owns; safe after done or error.
  *
- * never throws; the iterator must be walk_init()'ed again to reuse. */
+ * the form for a finalizer, which has a runtime but no context. never throws;
+ * the iterator must be walk_init()'ed again to reuse. */
+void
+walk_close_rt(WalkIterator* it, JSRuntime* rt) {
+  property_recursion_free(&it->stack, rt);
+  vector_free(&it->meta);
+  JS_FreeValueRT(rt, it->root);
+  JS_FreeValueRT(rt, it->pending);
+  it->root = it->pending = JS_UNDEFINED;
+
+  it->state = WALK_DONE;
+}
+
+/* walk_close: walk_close_rt() for the runtime of `ctx`. */
 void
 walk_close(WalkIterator* it, JSContext* ctx) {
-  property_recursion_free(&it->stack, JS_GetRuntime(ctx));
-  JS_FreeValue(ctx, it->root);
-  it->root = JS_UNDEFINED;
-  it->state = WALK_DONE;
+  walk_close_rt(it, JS_GetRuntime(ctx));
 }
 
 /* WalkInterface as a JS object: key, objectStart, arrayStart, objectEnd,

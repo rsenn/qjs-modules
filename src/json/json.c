@@ -1,5 +1,5 @@
 #include "char-utils.h"
-#include "json.h"
+#include "json/json.h"
 
 enum {
   ERROR = -1,
@@ -235,8 +235,10 @@ done:
     dbuf_putc(&json->token, c);
 
     /* a replayed pushback char was already counted once, when it was first read */
-    if(from_reader)
+    if(from_reader) {
+      json->last_start = (JsonPos){json->loc->line, json->loc->column, json->loc->char_offset, json->loc->byte_offset};
       location_nextchar(json->loc, c);
+    }
   }
 
   return c;
@@ -266,7 +268,10 @@ json_need_or_error(int c) {
  * container's real close ends up popping json->stack one entry too many. See json.h's
  * skip_depth field and json_scan_error_skip() below. */
 static void
-json_error_skip_enter(JsonParser* json, int c) {
+json_error_skip_enter(JsonParser* json, int c, const char* code) {
+  json->err_code = code;
+  json->err_at = json->tok_start;
+  json->err_len = json->loc->byte_offset - json->tok_start.byte_offset;
   json->skip_depth = (c == '{' || c == '[') ? 1 : 0;
   json->tok_kind = JSON_TOK_ERROR_SKIP;
 }
@@ -300,7 +305,7 @@ json_scan_string(JsonParser* json) {
 
         if(!uc) {
           json->error = "invalid escape sequence in string";
-          json_error_skip_enter(json, c);
+          json_error_skip_enter(json, c, "bad-escape");
           return JSON_ERROR;
         }
 
@@ -320,7 +325,7 @@ json_scan_string(JsonParser* json) {
 
       if(!is_xdigit_char(c)) {
         json->error = "invalid unicode escape in string";
-        json_error_skip_enter(json, c);
+        json_error_skip_enter(json, c, "bad-unicode-escape");
         return JSON_ERROR;
       }
 
@@ -401,7 +406,7 @@ json_scan_literal(JsonParser* json) {
 
     if((uint8_t)json->literal_text[json->literal_pos] != c) {
       json->error = "invalid literal";
-      json_error_skip_enter(json, c);
+      json_error_skip_enter(json, c, "invalid-literal");
       return JSON_ERROR;
     }
 
@@ -558,6 +563,8 @@ json_parse(JsonParser* json) {
     if(c < 0)
       return json_need_or_error(c);
 
+    json->tok_start = json->last_start;
+
     if(json->state & EXPECTING_COMMA_OR_END) {
       json->state &= ~EXPECTING_COMMA_OR_END;
 
@@ -573,7 +580,7 @@ json_parse(JsonParser* json) {
        * would otherwise make this misfire right after the very first NDJSON line. */
       if(c != '}' && c != ']' && json->stack.len > 0) {
         json->error = "expected ',' or closing bracket";
-        json_error_skip_enter(json, c);
+        json_error_skip_enter(json, c, "unexpected-token");
         return JSON_ERROR;
       }
     }
@@ -583,7 +590,7 @@ json_parse(JsonParser* json) {
 
       if(c != ':') {
         json->error = "expected ':'";
-        json_error_skip_enter(json, c);
+        json_error_skip_enter(json, c, "unexpected-token");
         return JSON_ERROR;
       }
 
@@ -642,7 +649,7 @@ json_parse(JsonParser* json) {
       default:
         if(!is_number_char(c)) {
           json->error = "expected a value";
-          json_error_skip_enter(json, c);
+          json_error_skip_enter(json, c, "unexpected-token");
           return JSON_ERROR;
         }
 

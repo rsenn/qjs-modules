@@ -8,17 +8,13 @@
 #include <math.h>
 #define SJ_IMPL
 #include "sj.h"
-#include "json.h"
-#include "jread.h"
-#include "jwrite.h"
-#include "walk.h"
-#include "jbuild.h"
+#include "json/json.h"
+#include "json/jread.h"
+#include "json/jwrite.h"
+#include "json/jwalk.h"
+#include "json/jbuilder.h"
 #include "quickjs-location.h"
 
-#define REC_DEPTH(v) vector_size((v), sizeof(PropertyEnumeration))
-#define REC_TOP(v) vector_back((v), sizeof(PropertyEnumeration))
-#define REC_EMPLACE(v) vector_emplace((v), sizeof(PropertyEnumeration))
-#define REC_POP(v) vector_pop((v), sizeof(PropertyEnumeration))
 
 typedef struct {
   JSValue obj;
@@ -56,13 +52,65 @@ parse_make_container(JSContext* ctx, int type) {
   return type == SJ_OBJECT ? JS_NewObjectProto(ctx, JS_NULL) : JS_NewArray(ctx);
 }
 
+/* name of the input being parsed, for parse_throw(); JS thread only: set by js_json_parse() */
+static const char* parse_input_name;
+
+/* json_error_new: a SyntaxError for a failure at `pos` of the input called `name`.
+ *
+ *   const char*       name    input name for the message and loc.file ("f.json", "<json>")
+ *   const SourcePos*  pos     start of the offending token (1-based)
+ *   size_t            length  bytes it spans (0 at end of input)
+ *   const char*       code    stable kebab-case name
+ *
+ * returns the error object (refcount: a new reference), or JS_EXCEPTION. */
+static JSValue
+json_error_new(JSContext* ctx, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+  Location* at;
+  JSValue ret;
+
+  if(!(at = location_new(ctx)))
+    return JS_EXCEPTION;
+
+  location_set_filename(at, name ? name : "<json>", ctx);
+  location_from_srcpos(at, pos);
+  ret = js_syntax_error_new(ctx, at, length, code, "%s", msg);
+  location_free(at, JS_GetRuntime(ctx));
+  return ret;
+}
+
+/* json_throw: as json_error_new(), and throws it; returns JS_EXCEPTION. */
+static JSValue
+json_throw(JSContext* ctx, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+  JSValue err = json_error_new(ctx, name, pos, length, code, msg);
+
+  return JS_IsException(err) ? err : JS_Throw(ctx, err);
+}
+
+/* parse_throw: throws a SyntaxError with loc/length/code for a failure of the sj reader;
+ * `r->cur` is where the reader stopped, taken as the start of the bad token.
+ *
+ *   sj message                     code
+ *   unexpected eof, unclosed       unexpected-end
+ *   unexpected trailing data       trailing-data
+ *   anything else                  unexpected-token
+ *
+ * returns JS_EXCEPTION. */
 static JSValue
 parse_throw(JSContext* ctx, sj_Reader* r) {
-  int line, col;
+  const char* msg = r->error ? r->error : "parse error";
+  const char* code = "unexpected-token";
+  size_t length = r->cur < r->end ? 1 : 0;
+  SourcePos pos;
 
-  sj_location(r, &line, &col);
+  if(!strcmp(msg, "unexpected eof") || !strncmp(msg, "unclosed", 8))
+    code = "unexpected-end";
+  else if(!strcmp(msg, "unexpected trailing data"))
+    code = "trailing-data";
 
-  return JS_ThrowInternalError(ctx, "error: %d:%d: %s\n", line, col, r->error ? r->error : "parse error");
+  srcpos_init(&pos, 0);
+  srcpos_advance(&pos, r->data, r->cur - r->data);
+
+  return json_throw(ctx, parse_input_name, &pos, length, code, msg);
 }
 
 static void
@@ -166,7 +214,10 @@ parse_val(JSContext* ctx, sj_Reader* r, sj_Value root) {
 static JSValue
 js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
   sj_Reader r = sj_reader((char*)buf, len);
-  JSValue ret = parse_val(ctx, &r, sj_read(&r));
+  JSValue ret;
+
+  parse_input_name = input_name;
+  ret = parse_val(ctx, &r, sj_read(&r));
 
   if(!JS_IsException(ret)) {
     while(r.cur < r.end && (*r.cur == ' ' || *r.cur == '\n' || *r.cur == '\r' || *r.cur == '\t'))
@@ -185,12 +236,20 @@ js_json_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_
 static JSValue
 js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  InputBuffer input = js_input_chars(ctx, argv[0]);
+  InputBuffer input;
   const char* input_name = 0;
 
-  if(input.data == 0 || input.size == 0) {
-    JS_ThrowReferenceError(ctx, "json.read(): expecting buffer or string");
-    return JS_EXCEPTION;
+  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "json.read(): expecting buffer or string");
+
+  input = js_input_chars(ctx, argv[0]);
+
+  if(input.size == 0) {
+    SourcePos start;
+
+    inputbuffer_free(&input, ctx);
+    srcpos_init(&start, 0);
+    return json_throw(ctx, 0, &start, 0, "unexpected-end", "json.read(): unexpected end of input");
   }
 
   if(argc >= 2)
@@ -213,257 +272,143 @@ clear_pending_exception(JSContext* ctx) {
     JS_FreeValue(ctx, exc);
 }
 
-/* write_json_string: `str` as a JSON string in double quotes.
+/* JSON.stringify's `space` argument, in the form the writer takes it. */
+typedef struct {
+  int32_t indent;    /* spaces per level, 0..10 */
+  unsigned char len; /* bytes of str; when > 0 str is used instead of spaces */
+  char str[10];
+} JsonSpace;
+
+/* json_space_parse: a JSON.stringify `space` as a JsonSpace.
  *
- * returns 1 on success, 0 when the Writer is blocked, -1 on error. */
-static int
-write_json_string(Writer* wr, const char* s, size_t len) {
-  ssize_t r = jwrite_put_string(wr, s, len, '"');
-
-  return r > 0 ? 1 : (int)r;
-}
-
-/* write_json_primitive: a JS primitive as JSON text; objects reaching it
- * (circular references) are written as their toString string.
+ *   JS value          means
+ *   number            that many spaces, clamped to 0..10
+ *   string            its first 10 bytes (whole characters) per level, e.g. "\t"
+ *   anything else     no indentation
  *
- * returns what jwrite_put() returns, or 1 after a string. */
+ * returns 0, or -1 with an exception pending. */
 static int
-write_json_primitive(JSContext* ctx, Writer* wr, JSValueConst val) {
-  if(JS_IsNull(val))
-    return (int)jwrite_put(wr, "null", 4);
+json_space_parse(JSContext* ctx, JSValueConst space, JsonSpace* out) {
+  *out = (JsonSpace){0};
 
-  if(JS_IsUndefined(val) || JS_IsSymbol(val) || JS_IsFunction(ctx, val))
-    return (int)jwrite_put(wr, "null", 4);
-
-  if(JS_IsBool(val)) {
-    BOOL b = JS_ToBool(ctx, val);
-    return (int)(b ? jwrite_put(wr, "true", 4) : jwrite_put(wr, "false", 5));
-  }
-
-  if(JS_IsString(val)) {
-    size_t len;
-    const char* s = JS_ToCStringLen(ctx, &len, val);
-    int r;
-
-    if(s) {
-      r = write_json_string(wr, s, len);
-      JS_FreeCString(ctx, s);
-    } else {
-      r = (int)jwrite_put(wr, "null", 4);
-      clear_pending_exception(ctx);
-    }
-
-    return r;
-  }
-
-  if(JS_IsNumber(val)) {
+  if(JS_IsNumber(space)) {
     double d;
 
-    JS_ToFloat64(ctx, &d, val);
-
-    if(isnan(d) || isinf(d))
-      return (int)jwrite_put(wr, "null", 4);
-  }
-
-  if(js_is_numeric(ctx, val)) {
-    size_t len;
-    const char* s = JS_ToCStringLen(ctx, &len, val);
-    int r;
-
-    if(s) {
-      r = (int)jwrite_put(wr, (const uint8_t*)s, len);
-      JS_FreeCString(ctx, s);
-    } else {
-      r = (int)jwrite_put(wr, "null", 4);
-      clear_pending_exception(ctx);
-    }
-
-    return r;
-  }
-
-  /* an object that reached here (a circular container) is written as its
-   * toString, or null when that throws; the exception is discarded. */
-  {
-    size_t len;
-    const char* s = JS_ToCStringLen(ctx, &len, val);
-    int r;
-
-    if(s) {
-      r = write_json_string(wr, s, len);
-      JS_FreeCString(ctx, s);
-    } else {
-      r = (int)jwrite_put(wr, "null", 4);
-      clear_pending_exception(ctx);
-    }
-
-    return r;
-  }
-}
-
-static int
-write_push(Vector* stack, JSContext* ctx, JSValue obj, int flags) {
-  PropertyEnumeration* it;
-  JSPropertyEnum* tmp;
-  uint32_t len = 0;
-
-  if(JS_GetOwnPropertyNames(ctx, &tmp, &len, obj, flags)) {
-    JS_FreeValue(ctx, obj);
-    return -1;
-  }
-
-  if(!(it = REC_EMPLACE(stack))) {
-    js_propertyenums_free(ctx, tmp, len);
-    JS_FreeValue(ctx, obj);
-    return -1;
-  }
-
-  *it = (PropertyEnumeration)PROPENUM_INIT();
-  it->obj = obj;
-  it->tab_atom_len = len;
-
-  if(len > 0) {
-    if(!(it->tab_atom = js_malloc(ctx, sizeof(JSAtom) * len))) {
-      js_propertyenums_free(ctx, tmp, len);
-      JS_FreeValue(ctx, obj);
-      REC_POP(stack);
+    if(JS_ToFloat64(ctx, &d, space))
       return -1;
+
+    out->indent = !(d >= 1) ? 0 : d > 10 ? 10 : (int32_t)d;
+  } else if(JS_IsString(space)) {
+    size_t n;
+    const char* s = JS_ToCStringLen(ctx, &n, space);
+
+    if(!s)
+      return -1;
+
+    if(n > 10) {
+      n = 10;
+
+      while(n > 0 && ((unsigned char)s[n] & 0xC0) == 0x80)
+        n--;
     }
 
-    for(uint32_t i = 0; i < len; i++)
-      it->tab_atom[i] = JS_DupAtom(ctx, tmp[i].atom);
+    out->len = n;
+    memcpy(out->str, s, n);
+    out->indent = n;
+    JS_FreeCString(ctx, s);
   }
 
-  js_propertyenums_free(ctx, tmp, len);
   return 0;
 }
 
-static int
-write_indent(Writer* wr, int indent, int n, DynBuf* ws) {
-  if(indent) {
-    int count = indent * n;
-    size_t oldsize = ws->size;
-    ssize_t w;
-
-    if((w = writer_putc(wr, '\n')) <= 0)
-      return (int)w;
-
-    if(count <= 0)
-      return 1;
-
-    if(oldsize < (size_t)count) {
-      if(dbuf_claim(ws, count - ws->size))
-        return -1;
-
-      if((size_t)count > oldsize)
-        memset(&ws->buf[oldsize], ' ', ws->allocated_size - oldsize);
-
-      ws->size = count;
-    }
-
-    w = writer_write(wr, ws->buf, count);
-    return (int)w;
-  }
-
-  return 1;
+/* json_space_apply: puts `sp` into the writer options; no indent means minify,
+ * as JSON.stringify writes no whitespace then. */
+static void
+json_space_apply(const JsonSpace* sp, JsonWriteOptions* opts) {
+  opts->indent = sp->len ? 0 : sp->indent;
+  opts->indent_len = sp->len;
+  memcpy(opts->indent_str, sp->str, sp->len);
+  opts->minify = !(sp->indent || sp->len);
 }
 
+/* json_replacer_space: the (replacer, space) of write(value, ...) and new JsonSerializer(value, ...).
+ *
+ *   (v, null, 2)   (v, fn)   (v, [..], 2)   JSON.stringify's own forms
+ *   (v, 2)         (v, '\t')                 a number or string alone is the space
+ *
+ * never throws; a replacer that is neither a function nor an array is ignored. */
+static void
+json_replacer_space(JSContext* ctx, int argc, JSValueConst argv[], JSValueConst* replacer, JSValueConst* space) {
+  *replacer = *space = JS_UNDEFINED;
+
+  if(argc > 2) {
+    if(JS_IsFunction(ctx, argv[1]) || JS_IsArray(ctx, argv[1]))
+      *replacer = argv[1];
+
+    *space = argv[2];
+  } else if(argc == 2) {
+    if(JS_IsFunction(ctx, argv[1]) || JS_IsArray(ctx, argv[1]))
+      *replacer = argv[1];
+    else
+      *space = argv[1];
+  }
+}
+
+static WalkInterface js_jsonwriter_stringify_walk(void* opaque);
+
+/* write: JSON.stringify(), through walk (the rules) and jwrite (the text).
+ *
+ * ```js
+ * write({ a: new Date(0), b: undefined }, null, 2);   // '{\n  "a": "1970-01-01T00:00:00.000Z"\n}'
+ * write([1n]);                                         // TypeError
+ * ```
+ *
+ *   any              value     what to serialize
+ *   function|array   replacer  optional: JSON.stringify's replacer; with two arguments a number
+ *                              or string here is taken as `space` (write(value, 2))
+ *   number|string    space     optional: indentation
+ *
+ *   returns  the JSON text, or undefined when value has no JSON form
+ *   throws   TypeError for a bigint or a circular structure; what toJSON or the replacer throws
+ *
+ * exported as `write` by the json module. */
 static JSValue
 js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  DynBuf out, space;
-  Vector stack;
-  const int flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
-  int32_t indent = 0;
+  JSValueConst value = argc > 0 ? argv[0] : JS_UNDEFINED, replacer = JS_UNDEFINED, space = JS_UNDEFINED;
+  JsonSpace sp;
+  JsonWriter wr = {0};
+  JwalkIterator it;
+  DynBuf out;
+  JSValue ret;
+  int r;
 
-  if(argc > 1)
-    JS_ToInt32(ctx, &indent, argv[1]);
+  json_replacer_space(ctx, argc, argv, &replacer, &space);
+
+  if(json_space_parse(ctx, space, &sp))
+    return JS_EXCEPTION;
 
   dbuf_init_ctx(ctx, &out);
-  dbuf_init_ctx(ctx, &space);
-  Writer wr = writer_from_dynbuf(&out);
+  wr.writer = writer_from_dynbuf(&out);
+  json_space_apply(&sp, &wr.opts);
+  jwrite_init(&wr, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx));
+  jwalk_init(&it, ctx, value, js_jsonwriter_stringify_walk(&wr));
 
-  if(!JS_IsObject(argv[0]) || JS_IsFunction(ctx, argv[0])) {
-    write_json_primitive(ctx, &wr, argv[0]);
-    JSValue ret = dbuf_tostring_free(&out, ctx);
-    writer_free(&wr);
-    dbuf_free(&space);
-    return ret;
+  if(!JS_IsUndefined(replacer) && jwalk_set_replacer(&it, ctx, replacer)) {
+    r = -1;
+  } else {
+    while((r = jwalk_next(&it, ctx)) > 0) {}
   }
 
-  vector_init(&stack, ctx);
+  if(r < 0)
+    ret = JS_EXCEPTION;
+  else if(jwalk_root_omitted(&it))
+    ret = JS_UNDEFINED;
+  else
+    ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
 
-  if(write_push(&stack, ctx, JS_DupValue(ctx, argv[0]), flags)) {
-    writer_free(&wr);
-    dbuf_free(&space);
-    vector_free(&stack);
-    return JS_EXCEPTION;
-  }
-
-  writer_putc(&wr, JS_IsArray(ctx, argv[0]) ? '[' : '{');
-  write_indent(&wr, indent, REC_DEPTH(&stack), &space);
-
-  while(!vector_empty(&stack)) {
-    PropertyEnumeration* top = REC_TOP(&stack);
-    BOOL is_array = JS_IsArray(ctx, top->obj);
-
-    if(top->idx >= top->tab_atom_len) {
-      write_indent(&wr, indent, REC_DEPTH(&stack) - 1, &space);
-      writer_putc(&wr, is_array ? ']' : '}');
-      property_enumeration_reset(top, JS_GetRuntime(ctx));
-      REC_POP(&stack);
-      continue;
-    }
-
-    if(top->idx > 0) {
-      writer_putc(&wr, ',');
-      if(indent)
-        write_indent(&wr, indent, REC_DEPTH(&stack), &space);
-    }
-
-    if(!is_array) {
-      size_t klen;
-      const char* kstr = js_atom_to_cstringlen(ctx, &klen, top->tab_atom[top->idx]);
-
-      if(kstr) {
-        write_json_string(&wr, kstr, klen);
-        JS_FreeCString(ctx, kstr);
-      } else {
-        writer_puts(&wr, "\"\"");
-      }
-
-      writer_putc(&wr, ':');
-      if(indent)
-        writer_putc(&wr, ' ');
-    }
-
-    JSValue val = property_enumeration_value(top, ctx);
-    BOOL is_container = JS_IsObject(val) && !JS_IsFunction(ctx, val);
-
-    if(is_container && !property_recursion_circular(&stack, val)) {
-      writer_putc(&wr, JS_IsArray(ctx, val) ? '[' : '{');
-
-      top->idx++;
-
-      if(write_push(&stack, ctx, val, flags)) {
-        property_recursion_free(&stack, JS_GetRuntime(ctx));
-        writer_free(&wr);
-        dbuf_free(&space);
-        vector_free(&stack);
-        return JS_EXCEPTION;
-      }
-
-      write_indent(&wr, indent, REC_DEPTH(&stack), &space);
-
-    } else {
-      write_json_primitive(ctx, &wr, val);
-      JS_FreeValue(ctx, val);
-      top->idx++;
-    }
-  }
-
-  JSValue ret = dbuf_tostring_free(&out, ctx);
-  writer_free(&wr);
-  dbuf_free(&space);
-  vector_free(&stack);
+  jwalk_close(&it, ctx);
+  jwrite_free(&wr);
+  dbuf_free(&out);
   return ret;
 }
 
@@ -614,7 +559,26 @@ js_jsonl_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         break;
       }
 
-      error = JS_GetException(ctx);
+      /* loc is the start of the failing value, length spans it; the engine's own
+       * message says what is wrong inside it */
+      {
+        JSValue engine = JS_GetException(ctx), msg = JS_GetPropertyStr(ctx, engine, "message");
+        const char* text = JS_ToCString(ctx, msg);
+        SourcePos at;
+
+        srcpos_init(&at, 0);
+        srcpos_advance(&at, input.data, vs);
+        error = json_error_new(ctx, "<jsonl>", &at, e - vs, "invalid-json", text ? text : "invalid JSON");
+
+        if(text)
+          JS_FreeCString(ctx, text);
+        JS_FreeValue(ctx, msg);
+        JS_FreeValue(ctx, engine);
+
+        if(JS_IsException(error)) {
+          error = JS_GetException(ctx);
+        }
+      }
       break;
     }
 
@@ -625,7 +589,11 @@ js_jsonl_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       i++;
 
     if(i < n && input.data[i] != '\n') {
-      JS_ThrowSyntaxError(ctx, "JSONL: expected newline after value");
+      SourcePos at;
+
+      srcpos_init(&at, 0);
+      srcpos_advance(&at, input.data, i);
+      json_throw(ctx, "<jsonl>", &at, 1, "unexpected-token", "JSONL: expected newline after value");
       error = JS_GetException(ctx);
       break;
     }
@@ -677,6 +645,7 @@ typedef struct PushParser {
   JSValue callback_fn, callbacks_obj, callbacks[jr_type_key + 1 - jr_type_error];
   unsigned use_builder : 1;
   Location* loc;
+  JSValue last_error; /* SyntaxError of the latest error, or JS_UNDEFINED */
 } JsonPushParser;
 
 static JSValue
@@ -714,6 +683,52 @@ json_pushparser_tojs(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
   return JS_UNDEFINED;
 }
 
+/* json_pushparser_onerror: the callback `onError` of the options object, or undefined;
+ * refcount: a new reference. */
+static JSValue
+json_pushparser_onerror(JsonPushParser* pp) {
+  if(JS_IsUndefined(pp->callbacks_obj))
+    return JS_UNDEFINED;
+
+  JSValue fn = JS_GetPropertyStr(pp->ctx, pp->callbacks_obj, "onError");
+
+  if(JS_IsFunction(pp->ctx, fn))
+    return fn;
+
+  JS_FreeValue(pp->ctx, fn);
+  return JS_UNDEFINED;
+}
+
+/* json_pushparser_error: records the error jread just reported as `last_error` and passes
+ * it to `onError(err)`; runs for both the builder and the callback mode. */
+static void
+json_pushparser_error(JsonPushParser* pp) {
+  JSContext* ctx = pp->ctx;
+  const jr_state_t* st = &pp->jrs;
+  const char* msg = st->err_code == JR_E_UNEXPECTED_END ? "unexpected end of input" : "parse error";
+  JSValue fn, err = json_error_new(ctx, "<json>", &st->err_pos, st->err_len, jr_error_name(st->err_code), msg);
+
+  if(JS_IsException(err)) {
+    clear_pending_exception(ctx);
+    return;
+  }
+
+  JS_FreeValue(ctx, pp->last_error);
+  pp->last_error = JS_DupValue(ctx, err);
+
+  if(JS_IsFunction(ctx, (fn = json_pushparser_onerror(pp)))) {
+    JSValue ret = JS_Call(ctx, fn, pp->callbacks_obj, 1, &err);
+
+    if(JS_IsException(ret))
+      clear_pending_exception(ctx);
+    else
+      JS_FreeValue(ctx, ret);
+  }
+
+  JS_FreeValue(ctx, fn);
+  JS_FreeValue(ctx, err);
+}
+
 static void
 jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
   JsonPushParser* pp = user_data;
@@ -736,7 +751,7 @@ jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
     case jr_type_number:
     case jr_type_string: jbuild_value(&pp->builder, type, data ? data->cstr : NULL, data ? data->len : 0); break;
 
-    case jr_type_error: break;
+    case jr_type_error: json_pushparser_error(pp); break;
   }
 }
 
@@ -778,6 +793,24 @@ jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
   }
 }
 
+/* js_jsonpushparser_throw: throws the latest error (position and code from jread), unless
+ * the options object has `onError`, which already received it; returns JS_UNDEFINED then. */
+static JSValue
+js_jsonpushparser_throw(JSContext* ctx, JsonPushParser* pp, const char* msg) {
+  JSValue fn = json_pushparser_onerror(pp);
+  BOOL handled = !JS_IsUndefined(fn);
+
+  JS_FreeValue(ctx, fn);
+
+  if(handled)
+    return JS_UNDEFINED;
+
+  if(!JS_IsUndefined(pp->last_error))
+    return JS_Throw(ctx, JS_DupValue(ctx, pp->last_error));
+
+  return json_throw(ctx, "<json>", &pp->jrs.err_pos, pp->jrs.err_len, jr_error_name(pp->jrs.err_code), msg);
+}
+
 static JSValue
 js_jsonpushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JsonPushParser* pp;
@@ -786,12 +819,13 @@ js_jsonpushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
     return JS_EXCEPTION;
 
+  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "JsonPushParser.write(): expecting buffer or string");
+
   input = js_input_chars(ctx, argv[0]);
 
-  if(input.data == 0) {
-    JS_ThrowReferenceError(ctx, "JsonPushParser.write(): expecting buffer or string");
+  if(input.data == 0)
     return JS_EXCEPTION;
-  }
 
   jr_read(pp->use_builder ? &jread_callback_build : &jread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->jrs);
 
@@ -802,7 +836,7 @@ js_jsonpushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   /* just_erred (not the sticky error) - a resynced parser must not keep throwing on every
    * future write() call just because some earlier call hit a (already-reported) error. */
-  return pp->jrs.just_erred ? JS_ThrowSyntaxError(ctx, "parse error") : JS_UNDEFINED;
+  return pp->jrs.just_erred ? js_jsonpushparser_throw(ctx, pp, "parse error") : JS_UNDEFINED;
 }
 
 static JSValue
@@ -814,11 +848,8 @@ js_jsonpushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   jr_finish(pp->use_builder ? &jread_callback_build : &jread_callback, pp, &pp->jrs);
 
-  if(!pp->jrs.done)
-    return JS_ThrowSyntaxError(ctx, "unexpected end of input");
-
-  if(pp->jrs.error)
-    return JS_ThrowSyntaxError(ctx, "parse error");
+  if(!pp->jrs.done || pp->jrs.error)
+    return js_jsonpushparser_throw(ctx, pp, pp->jrs.done ? "parse error" : "unexpected end of input");
 
   return JS_UNDEFINED;
 }
@@ -827,6 +858,7 @@ enum {
   PUSHPARSER_ROOT,
   PUSHPARSER_PATH,
   PUSHPARSER_LOCATION,
+  PUSHPARSER_ERROR,
 };
 
 static JSValue
@@ -840,6 +872,7 @@ js_jsonpushparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case PUSHPARSER_ROOT: ret = jbuild_root(&pp->builder); break;
     case PUSHPARSER_PATH: ret = jbuild_path(&pp->builder); break;
+    case PUSHPARSER_ERROR: ret = JS_IsUndefined(pp->last_error) ? JS_NULL : JS_DupValue(ctx, pp->last_error); break;
     case PUSHPARSER_LOCATION: ret = pp->loc ? js_location_wrap(ctx, pp->loc) : JS_UNDEFINED; break;
   }
 
@@ -869,6 +902,7 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
   pp->callback_fn = JS_UNDEFINED;
   pp->callbacks_obj = JS_UNDEFINED;
+  pp->last_error = JS_UNDEFINED;
 
   for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
     pp->callbacks[i] = JS_UNDEFINED;
@@ -929,6 +963,7 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
     jbuild_free(&pp->builder, JS_GetRuntime(ctx));
     JS_FreeValue(ctx, pp->callback_fn);
     JS_FreeValue(ctx, pp->callbacks_obj);
+    JS_FreeValue(ctx, pp->last_error);
 
     for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
       JS_FreeValue(ctx, pp->callbacks[i]);
@@ -954,6 +989,7 @@ js_jsonpushparser_finalizer(JSRuntime* rt, JSValue val) {
 
     JS_FreeValueRT(rt, pp->callback_fn);
     JS_FreeValueRT(rt, pp->callbacks_obj);
+    JS_FreeValueRT(rt, pp->last_error);
 
     for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
       JS_FreeValueRT(rt, pp->callbacks[i]);
@@ -968,6 +1004,7 @@ static const JSCFunctionListEntry js_jsonpushparser_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("root", js_jsonpushparser_get, 0, PUSHPARSER_ROOT),
     JS_CGETSET_MAGIC_DEF("path", js_jsonpushparser_get, 0, PUSHPARSER_PATH),
     JS_CGETSET_MAGIC_DEF("location", js_jsonpushparser_get, 0, PUSHPARSER_LOCATION),
+    JS_CGETSET_MAGIC_DEF("error", js_jsonpushparser_get, 0, PUSHPARSER_ERROR),
     JS_PROP_INT32_DEF("TYPE_ERROR", jr_type_error, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NULL", jr_type_null, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_TRUE", jr_type_true, JS_PROP_ENUMERABLE),
@@ -994,270 +1031,48 @@ static JSClassDef js_jsonpushparser_class = {
 /* property_recursion_*(), producing only as much text as requested.      */
 /* ---------------------------------------------------------------------- */
 
-typedef struct {
-  uint8_t* dst;
-  size_t cap, pos;
-} CappedBuf;
-
-static ssize_t
-write_capped(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  CappedBuf* c = (CappedBuf*)fd;
-
-  if(c->pos + len > c->cap)
-    return 0;
-
-  memcpy(c->dst + c->pos, buf, len);
-  c->pos += len;
-  return (ssize_t)len;
-}
-
+/* JsonSerializer: walk (JSON.stringify's rules) feeding a JsonWriter that fills `out`;
+ * read() steps the walk until `out` holds what was asked for.
+ * rule: a step never blocks, so toJSON and the replacer run exactly once per property. */
 typedef struct {
   JSContext* ctx;
-  Vector stack;
-  DynBuf out, space;
-  size_t out_pos, skip, delivered;
-  int32_t indent;
-  unsigned finished : 1, started : 1, is_primitive : 1, error : 1, blocked : 1;
+  JwalkIterator walk;
+  JsonWriter wr;
+  DynBuf out;
+  size_t out_pos;
+  JsonSpace space;
+  unsigned finished : 1, started : 1, error : 1, closed : 1;
   JSValue root;
   Location* loc;
-  Writer out_writer, dest_writer, skip_writer;
-  CappedBuf capped;
 } JsonSerializer;
 
-static ssize_t
-write_skip(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  JsonSerializer* js = (JsonSerializer*)fd;
-  ssize_t w;
-
-  if(js->skip >= len) {
-    js->skip -= len;
-    return (ssize_t)len;
-  }
-
-  if(js->skip > 0) {
-    size_t skip = js->skip;
-    size_t remain = len - skip;
-
-    if((w = writer_write(&js->dest_writer, (const uint8_t*)buf + skip, remain)) <= 0)
-      return w;
-
-    js->skip = 0;
-    js->delivered += (size_t)w;
-    return (ssize_t)len;
-  }
-
-  w = writer_write(&js->dest_writer, buf, len);
-
-  if(w > 0)
-    js->delivered += (size_t)w;
-
-  return w;
-}
-
-static BOOL
-sw_putc(JsonSerializer* js, int c) {
-  ssize_t w = writer_putc(&js->skip_writer, c);
-
-  if(w < 0) {
-    js->error = TRUE;
-    return FALSE;
-  }
-
-  if(w == 0) {
-    js->blocked = TRUE;
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-static BOOL
-sw_puts(JsonSerializer* js, const char* s) {
-  ssize_t w = writer_puts(&js->skip_writer, s);
-
-  if(w < 0) {
-    js->error = TRUE;
-    return FALSE;
-  }
-
-  if(w == 0) {
-    js->blocked = TRUE;
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-static BOOL
-sw_indent(JsonSerializer* js, int n) {
-  int r = write_indent(&js->skip_writer, js->indent, n, &js->space);
-
-  if(r < 0) {
-    js->error = TRUE;
-    return FALSE;
-  }
-
-  if(r == 0) {
-    js->blocked = TRUE;
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-static BOOL
-sw_string(JsonSerializer* js, const char* s, size_t len) {
-  int r = write_json_string(&js->skip_writer, s, len);
-
-  if(r < 0) {
-    js->error = TRUE;
-    return FALSE;
-  }
-
-  if(r == 0) {
-    js->blocked = TRUE;
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
-static BOOL
-sw_primitive(JsonSerializer* js, JSContext* ctx, JSValueConst val) {
-  int r = write_json_primitive(ctx, &js->skip_writer, val);
-
-  if(r < 0) {
-    js->error = TRUE;
-    return FALSE;
-  }
-
-  if(r == 0) {
-    js->blocked = TRUE;
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
+/* json_serializer_close: frees the walk and the writer; once. */
 static void
-json_serializer_step_inner(JsonSerializer* js, JSContext* ctx) {
-  const int flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
-  PropertyEnumeration* top;
-  BOOL is_array, is_container;
-  JSValue val;
-
-  if(!js->started) {
-    if(js->is_primitive) {
-      if(!sw_primitive(js, ctx, js->root))
-        return;
-
-      js->started = TRUE;
-      js->finished = TRUE;
-      return;
-    }
-
-    if(!sw_putc(js, JS_IsArray(ctx, js->root) ? '[' : '{'))
-      return;
-
-    if(!sw_indent(js, 1))
-      return;
-
-    if(write_push(&js->stack, ctx, JS_DupValue(ctx, js->root), flags)) {
-      js->error = TRUE;
-      return;
-    }
-
-    js->started = TRUE;
-    return;
-  }
-
-  top = REC_TOP(&js->stack);
-  is_array = JS_IsArray(ctx, top->obj);
-
-  if(top->idx >= top->tab_atom_len) {
-    if(!sw_indent(js, REC_DEPTH(&js->stack) - 1))
-      return;
-
-    if(!sw_putc(js, is_array ? ']' : '}'))
-      return;
-
-    property_enumeration_reset(top, JS_GetRuntime(ctx));
-    REC_POP(&js->stack);
-
-    if(vector_empty(&js->stack))
-      js->finished = TRUE;
-
-    return;
-  }
-
-  if(top->idx > 0) {
-    if(!sw_putc(js, ','))
-      return;
-
-    if(js->indent && !sw_indent(js, REC_DEPTH(&js->stack)))
-      return;
-  }
-
-  if(!is_array) {
-    size_t klen;
-    const char* kstr = js_atom_to_cstringlen(ctx, &klen, top->tab_atom[top->idx]);
-    BOOL ok = kstr ? sw_string(js, kstr, klen) : sw_puts(js, "\"\"");
-
-    if(kstr)
-      JS_FreeCString(ctx, kstr);
-
-    if(!ok)
-      return;
-
-    if(!sw_putc(js, ':'))
-      return;
-
-    if(js->indent && !sw_putc(js, ' '))
-      return;
-  }
-
-  val = property_enumeration_value(top, ctx);
-  is_container = JS_IsObject(val) && !JS_IsFunction(ctx, val);
-
-  if(is_container && !property_recursion_circular(&js->stack, val)) {
-    if(!sw_putc(js, JS_IsArray(ctx, val) ? '[' : '{')) {
-      JS_FreeValue(ctx, val);
-      return;
-    }
-
-    if(!sw_indent(js, REC_DEPTH(&js->stack) + 1)) {
-      JS_FreeValue(ctx, val);
-      return;
-    }
-
-    top->idx++;
-
-    if(write_push(&js->stack, ctx, val, flags)) {
-      js->error = TRUE;
-      return;
-    }
-  } else {
-    if(!sw_primitive(js, ctx, val)) {
-      JS_FreeValue(ctx, val);
-      return;
-    }
-
-    JS_FreeValue(ctx, val);
-    top->idx++;
+json_serializer_close(JsonSerializer* js, JSRuntime* rt) {
+  if(!js->closed) {
+    jwalk_close_rt(&js->walk, rt);
+    jwrite_free(&js->wr);
+    js->closed = TRUE;
   }
 }
 
+/* json_serializer_step: one walk event into `out`; sets `finished` or `error`.
+ *
+ * exception pending after `error`. */
 static void
 json_serializer_step(JsonSerializer* js, JSContext* ctx) {
-  size_t skip_before = js->skip;
+  int r;
 
-  js->delivered = 0;
-  json_serializer_step_inner(js, ctx);
+  json_space_apply(&js->space, &js->wr.opts);
+  js->started = TRUE;
 
-  if(js->blocked)
-    js->skip = skip_before + js->delivered;
-  else if(!js->error)
-    js->skip = 0;
+  if((r = jwalk_next(&js->walk, ctx)) < 0) {
+    js->error = TRUE;
+    js->finished = TRUE;
+    json_serializer_close(js, JS_GetRuntime(ctx));
+  } else if(r == 0) {
+    js->finished = TRUE;
+  }
 }
 
 static JSValue
@@ -1271,30 +1086,32 @@ js_jsonserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     return JS_EXCEPTION;
 
   js->error = FALSE;
-  js->blocked = FALSE;
   is_buf = argc > 0 && (js_is_arraybuffer(ctx, argv[0]) || js_is_sharedarraybuffer(ctx, argv[0]) || js_is_typedarray(ctx, argv[0]));
 
   if(is_buf) {
     InputBuffer buf = js_input_args(ctx, argc, argv);
+    size_t cap = inputbuffer_length(&buf), take;
 
-    js->capped.dst = (uint8_t*)inputbuffer_data(&buf);
-    js->capped.cap = inputbuffer_length(&buf);
-    js->capped.pos = 0;
-    js->dest_writer = (Writer){&write_capped, &js->capped, NULL};
-
-    while(!js->finished && !js->error && !js->blocked && js->capped.pos < js->capped.cap)
+    while(!js->finished && !js->error && js->out.size - js->out_pos < cap)
       json_serializer_step(js, ctx);
 
-    inputbuffer_free(&buf, ctx);
-
     if(js->error) {
-      property_recursion_free(&js->stack, JS_GetRuntime(ctx));
+      inputbuffer_free(&buf, ctx);
       return JS_EXCEPTION;
     }
 
-    location_count(js->loc, js->capped.dst, js->capped.pos);
+    take = MIN_NUM(cap, js->out.size - js->out_pos);
+    memcpy(buf.data, js->out.buf + js->out_pos, take);
+    location_count(js->loc, js->out.buf + js->out_pos, take);
+    js->out_pos += take;
+    inputbuffer_free(&buf, ctx);
 
-    return JS_NewInt64(ctx, (int64_t)js->capped.pos);
+    if(js->out_pos > 0) {
+      dbuf_advance(&js->out, js->out_pos);
+      js->out_pos = 0;
+    }
+
+    return JS_NewInt64(ctx, (int64_t)take);
   }
 
   if(argc > 0 && JS_ToInt64(ctx, &n, argv[0]))
@@ -1305,15 +1122,11 @@ js_jsonserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   else if(n < 0)
     return JS_ThrowRangeError(ctx, "size must not be negative");
 
-  js->dest_writer = js->out_writer;
-
-  while(!js->finished && !js->error && !js->blocked && (int64_t)(js->out.size - js->out_pos) < n)
+  while(!js->finished && !js->error && (int64_t)(js->out.size - js->out_pos) < n)
     json_serializer_step(js, ctx);
 
-  if(js->error) {
-    property_recursion_free(&js->stack, JS_GetRuntime(ctx));
+  if(js->error)
     return JS_EXCEPTION;
-  }
 
   const uint8_t* start = js->out.buf + js->out_pos;
   size_t avail = js->out.size - js->out_pos;
@@ -1358,12 +1171,12 @@ js_jsonserializer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case SERIALIZER_LOCATION: ret = js_location_wrap(ctx, js->loc); break;
     case SERIALIZER_ROOT: ret = JS_DupValue(ctx, js->root); break;
-    case SERIALIZER_INDENT: ret = JS_NewInt32(ctx, js->indent); break;
-    case SERIALIZER_PATH: ret = property_recursion_path(&js->stack, ctx); break;
+    case SERIALIZER_INDENT: ret = JS_NewInt32(ctx, js->space.indent); break;
+    case SERIALIZER_PATH: ret = property_recursion_path(&js->walk.walk.stack, ctx); break;
     case SERIALIZER_FINISHED: ret = JS_NewBool(ctx, js->finished); break;
     case SERIALIZER_STARTED: ret = JS_NewBool(ctx, js->started); break;
     case SERIALIZER_ERROR: ret = JS_NewBool(ctx, js->error); break;
-    case SERIALIZER_BLOCKED: ret = JS_NewBool(ctx, js->blocked); break;
+    case SERIALIZER_BLOCKED: ret = JS_FALSE; break;
   }
 
   return ret;
@@ -1378,7 +1191,7 @@ js_jsonserializer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value,
     return JS_EXCEPTION;
 
   switch(magic) {
-    case SERIALIZER_INDENT: JS_ToInt32(ctx, &js->indent, value); break;
+    case SERIALIZER_INDENT: json_space_parse(ctx, value, &js->space); break;
   }
 
   return ret;
@@ -1388,32 +1201,35 @@ static JSValue
 js_jsonserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
   JsonSerializer* js;
-  JSValueConst root = argc > 0 ? argv[0] : JS_UNDEFINED;
+  JSValueConst root = argc > 0 ? argv[0] : JS_UNDEFINED, replacer = JS_UNDEFINED, space = JS_UNDEFINED;
+
+  json_replacer_space(ctx, argc, argv, &replacer, &space);
 
   if(!(js = js_mallocz(ctx, sizeof(JsonSerializer))))
     return JS_EXCEPTION;
 
   js->ctx = ctx;
-  vector_init(&js->stack, ctx);
-  dbuf_init_ctx(ctx, &js->out);
-  dbuf_init_ctx(ctx, &js->space);
-  if(argc > 1)
-    JS_ToInt32(ctx, &js->indent, argv[1]);
+
+  if(json_space_parse(ctx, space, &js->space)) {
+    js_free(ctx, js);
+    return JS_EXCEPTION;
+  }
 
   if(!(js->loc = location_new(ctx))) {
-    dbuf_free(&js->out);
-    dbuf_free(&js->space);
-    vector_free(&js->stack);
     js_free(ctx, js);
     return JS_EXCEPTION;
   }
 
   location_zero(js->loc);
 
+  dbuf_init_ctx(ctx, &js->out);
+  js->wr.writer = writer_from_dynbuf(&js->out);
+  jwrite_init(&js->wr, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx));
   js->root = JS_DupValue(ctx, root);
-  js->is_primitive = !JS_IsObject(root) || JS_IsFunction(ctx, root);
-  js->out_writer = writer_from_dynbuf(&js->out);
-  js->skip_writer = (Writer){&write_skip, js, NULL};
+  jwalk_init(&js->walk, ctx, root, js_jsonwriter_stringify_walk(&js->wr));
+
+  if(!JS_IsUndefined(replacer) && jwalk_set_replacer(&js->walk, ctx, replacer))
+    goto fail;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -1422,18 +1238,19 @@ js_jsonserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   obj = JS_NewObjectProtoClass(ctx, proto, js_jsonserializer_class_id);
   JS_FreeValue(ctx, proto);
 
-  if(JS_IsException(obj)) {
-    JS_FreeValue(ctx, js->root);
-    location_free(js->loc, JS_GetRuntime(ctx));
-    dbuf_free(&js->out);
-    dbuf_free(&js->space);
-    vector_free(&js->stack);
-    js_free(ctx, js);
-    return JS_EXCEPTION;
-  }
+  if(JS_IsException(obj))
+    goto fail;
 
   JS_SetOpaque(obj, js);
   return obj;
+
+fail:
+  json_serializer_close(js, JS_GetRuntime(ctx));
+  JS_FreeValue(ctx, js->root);
+  location_free(js->loc, JS_GetRuntime(ctx));
+  dbuf_free(&js->out);
+  js_free(ctx, js);
+  return JS_EXCEPTION;
 }
 
 static JSValue
@@ -1456,9 +1273,8 @@ js_jsonserializer_finalizer(JSRuntime* rt, JSValue val) {
   JsonSerializer* js;
 
   if((js = JS_GetOpaque(val, js_jsonserializer_class_id))) {
-    property_recursion_free(&js->stack, rt);
+    json_serializer_close(js, rt);
     dbuf_free(&js->out);
-    dbuf_free(&js->space);
     JS_FreeValueRT(rt, js->root);
 
     if(js->loc)
@@ -1535,7 +1351,14 @@ js_jsonwriter_ret(JSContext* ctx, ssize_t r) {
     return r;
 
   switch(-r) {
-    case JWRITE_E_WRITE: JS_ThrowInternalError(ctx, "JsonWriter: write failed"); break;
+    case JWRITE_E_WRITE: {
+      JSValue err = JS_NewError(ctx);
+
+      JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "JsonWriter: write failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+      JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, "write-failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+      JS_Throw(ctx, err);
+      break;
+    }
     case JWRITE_E_NOMEM: JS_ThrowOutOfMemory(ctx); break;
     default: JS_ThrowTypeError(ctx, "JsonWriter: %s", jwrite_error_message(-r)); break;
   }
@@ -1638,6 +1461,75 @@ js_jsonwriter_walk(void* opaque) {
       js_jsonwriter_object_end,
       js_jsonwriter_array_end,
       js_jsonwriter_value,
+  };
+}
+
+/* the walk of JSON.stringify's rules: jwalk_next() hands over null, a boolean, a finite
+ * number, a string or a rawJSON object only; strings may carry CESU-8 surrogates. */
+static ssize_t
+js_stringify_key(void* opaque, JSContext* ctx, JSValueConst key) {
+  size_t len;
+  const char* str;
+  ssize_t r;
+
+  if(!(str = JS_ToCStringLen2(ctx, &len, key, 1)))
+    return -1;
+
+  r = jwrite_key(opaque, str, len);
+  JS_FreeCString(ctx, str);
+  return js_jsonwriter_ret(ctx, r);
+}
+
+static ssize_t
+js_stringify_value(void* opaque, JSContext* ctx, JSValueConst val) {
+  JsonWriter* wr = opaque;
+  size_t len;
+  const char* str;
+  ssize_t r;
+
+  if(JS_IsNull(val))
+    return js_jsonwriter_ret(ctx, jwrite_null(wr));
+
+  if(JS_IsBool(val))
+    return js_jsonwriter_ret(ctx, JS_ToBool(ctx, val) ? jwrite_true(wr) : jwrite_false(wr));
+
+  if(!(str = JS_ToCStringLen2(ctx, &len, val, 1)))
+    return -1;
+
+  r = JS_IsString(val) ? jwrite_string(wr, str, len) : jwrite_number(wr, str, len);
+  JS_FreeCString(ctx, str);
+  return js_jsonwriter_ret(ctx, r);
+}
+
+static ssize_t
+js_stringify_raw(void* opaque, JSContext* ctx, JSValueConst obj) {
+  JSValue text = JS_GetPropertyStr(ctx, obj, "rawJSON");
+  size_t len;
+  const char* str;
+  ssize_t r;
+
+  if(JS_IsException(text) || !(str = JS_ToCStringLen(ctx, &len, text))) {
+    JS_FreeValue(ctx, text);
+    return -1;
+  }
+
+  r = jwrite_raw(opaque, str, len);
+  JS_FreeCString(ctx, str);
+  JS_FreeValue(ctx, text);
+  return js_jsonwriter_ret(ctx, r);
+}
+
+static WalkInterface
+js_jsonwriter_stringify_walk(void* opaque) {
+  return (WalkInterface){
+      opaque,
+      js_stringify_key,
+      js_jsonwriter_object_start,
+      js_jsonwriter_array_start,
+      js_jsonwriter_object_end,
+      js_jsonwriter_array_end,
+      js_stringify_value,
+      js_stringify_raw,
   };
 }
 
@@ -1813,6 +1705,24 @@ enum {
   PARSER_PARSE,
 };
 
+/* js_jsonparser_throw: throws the parser's last error at the start of its token. */
+static JSValue
+js_jsonparser_throw(JSContext* ctx, JsonParser* p) {
+  Location* at;
+  JSValue ret;
+
+  if(!(at = location_clone(p->loc, ctx)))
+    return JS_EXCEPTION;
+
+  at->line = p->err_at.line;
+  at->column = p->err_at.column;
+  at->char_offset = p->err_at.char_offset;
+  at->byte_offset = p->err_at.byte_offset;
+  ret = js_throw_syntax_error(ctx, at, p->err_len, p->err_code ? p->err_code : "unexpected-token", "%s", p->error ? p->error : "parse error");
+  location_free(at, JS_GetRuntime(ctx));
+  return ret;
+}
+
 static JSValue
 js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JsonParser* p;
@@ -1825,14 +1735,7 @@ js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   int type = json_parse(p);
 
   if(type == JSON_ERROR) {
-    char* loc = location_tostring(p->loc, ctx);
-
-    JS_ThrowSyntaxError(ctx, "%s%s%s", loc && *loc ? loc : "", loc && *loc ? ": " : "", p->error ? p->error : "parse error");
-
-    if(loc)
-      js_free(ctx, loc);
-
-    return JS_EXCEPTION;
+    return js_jsonparser_throw(ctx, p);
   }
 
   /* If skipping is requested and the current token starts a container (Object or Array) */
@@ -1843,14 +1746,7 @@ js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       int next_type = json_parse(p);
 
       if(next_type == JSON_ERROR) {
-        char* loc = location_tostring(p->loc, ctx);
-
-        JS_ThrowSyntaxError(ctx, "%s%s%s", loc && *loc ? loc : "", loc && *loc ? ": " : "", p->error ? p->error : "parse error");
-
-        if(loc)
-          js_free(ctx, loc);
-
-        return JS_EXCEPTION;
+        return js_jsonparser_throw(ctx, p);
       }
 
       if(next_type == JSON_TYPE_OBJECT || next_type == JSON_TYPE_ARRAY)

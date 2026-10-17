@@ -1,10 +1,10 @@
-/* jbuild.c: JsonBuilder, jbuild_*() events.
+/* jbuilder.c: JsonBuilder, jbuild_*() events.
  * depends on: jread.h (event types), char-utils.h (scan_double).
  * rule: a container is attached to its parent when it is pushed, so the
  * partial tree is always reachable from jbuild_root(). */
 
 #include "char-utils.h"
-#include "jbuild.h"
+#include "json/jbuilder.h"
 
 typedef struct JsonBuilderFrame {
   struct JsonBuilderFrame* parent;

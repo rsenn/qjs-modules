@@ -4,7 +4,7 @@
  * jwrite_out(), so `written` counts all output. */
 
 #include "char-utils.h"
-#include "jwrite.h"
+#include "json/jwrite.h"
 
 /* jwrite_put() and jwrite_put_string() return the bytes on full success,
  * 0 if the writer ran out of room (a chunked destination signalling
@@ -74,6 +74,24 @@ jwrite_put_string(Writer* wr, const char* s, size_t len, int quote) {
         } else if(c < 0x20) {
           int n = snprintf(buf, sizeof(buf), "\\u%04x", c);
           w = jwrite_put(wr, buf, n);
+        } else if(c == 0xED && i + 2 < len && ((unsigned char)s[i + 1] & 0xE0) == 0xA0) {
+          /* CESU-8 surrogate half; never valid UTF-8, so no decoded text is affected */
+          unsigned hi = 0xD000 | (((unsigned char)s[i + 1] & 0x3F) << 6) | ((unsigned char)s[i + 2] & 0x3F);
+
+          if(hi <= 0xDBFF && i + 5 < len && (unsigned char)s[i + 3] == 0xED && ((unsigned char)s[i + 4] & 0xF0) == 0xB0) {
+            unsigned lo = 0xD000 | (((unsigned char)s[i + 4] & 0x3F) << 6) | ((unsigned char)s[i + 5] & 0x3F);
+            unsigned cp = 0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00);
+
+            buf[0] = 0xF0 | (cp >> 18);
+            buf[1] = 0x80 | ((cp >> 12) & 0x3F);
+            buf[2] = 0x80 | ((cp >> 6) & 0x3F);
+            buf[3] = 0x80 | (cp & 0x3F);
+            w = jwrite_put(wr, buf, 4);
+            i += 5;
+          } else {
+            w = jwrite_put(wr, buf, snprintf(buf, sizeof(buf), "\\u%04x", hi));
+            i += 2;
+          }
         } else {
           w = writer_putc(wr, c);
         }
@@ -154,7 +172,7 @@ jwrite_outc(JsonWriter* wr, int c) {
 
 static BOOL
 jwrite_pretty(const JsonWriter* wr) {
-  return wr->opts.indent > 0 && !wr->opts.minify;
+  return (wr->opts.indent > 0 || wr->opts.indent_len > 0) && !wr->opts.minify;
 }
 
 /* newline plus one indent per open container; nothing when not pretty. */
@@ -163,13 +181,14 @@ jwrite_indent(JsonWriter* wr) {
   ssize_t r, w = 0;
 
   if(jwrite_pretty(wr)) {
-    size_t n = (size_t)wr->opts.indent * vector_size(&wr->stack, sizeof(JsonWriterFrame));
+    size_t depth = vector_size(&wr->stack, sizeof(JsonWriterFrame));
+    size_t n = wr->opts.indent_len ? depth : (size_t)wr->opts.indent * depth;
 
     if((w = jwrite_outc(wr, '\n')) < 0)
       return w;
 
     for(size_t i = 0; i < n; i++) {
-      if((r = jwrite_outc(wr, ' ')) < 0)
+      if((r = wr->opts.indent_len ? jwrite_out(wr, wr->opts.indent_str, wr->opts.indent_len) : jwrite_outc(wr, ' ')) < 0)
         return r;
 
       w += r;
@@ -369,6 +388,11 @@ jwrite_error(JsonWriter* wr, const char* str, size_t len) {
 }
 
 ssize_t
+jwrite_raw(JsonWriter* wr, const char* str, size_t len) {
+  return jwrite_literal(wr, str, len);
+}
+
+ssize_t
 jwrite_null(JsonWriter* wr) {
   return jwrite_literal(wr, "null", 4);
 }
@@ -406,7 +430,7 @@ jwrite_hex_text(const char* s, size_t len, char buf[32]) {
   if(r + i < len)
     return 0;
 
-  return snprintf(buf, 32, "%s0x%" PRIu64, i ? "-" : "", n);
+  return snprintf(buf, 32, "%s0x%" PRIx64, i ? "-" : "", n);
 }
 
 ssize_t

@@ -13,6 +13,8 @@ typedef struct {
   unsigned single_quotes : 1; /* strings in '...' instead of "..." (JSON5) */
   unsigned hex_numbers : 1;   /* numbers as 0x1f, not 31 (JSON5) */
   unsigned minify : 1;        /* no whitespace at all, whatever indent says */
+  unsigned char indent_len;   /* bytes of indent_str; 0 = indent with spaces */
+  char indent_str[10];        /* text per level instead of spaces: "\t", JSON.stringify's string `space` */
 } JsonWriteOptions;
 
 typedef struct {
@@ -90,6 +92,9 @@ void jwrite_free(JsonWriter*);
  * other than a digit, '+', '-' or '.', or a later byte other than a letter,
  * a digit, '+', '-' or '.'.
  *
+ * jwrite_string() and jwrite_key() take UTF-8 or CESU-8: a surrogate pair (ED A0..AF xx ED B0..BF xx)
+ * is written as the one character it encodes, a lone surrogate as \udXXX, as JSON.stringify does.
+ *
  * jwrite_error() returns -JWRITE_E_SOURCE without writing, so a stream of
  * jr events stops at the error with the writer's state intact. */
 ssize_t jwrite_error(JsonWriter*, const char* str, size_t len);
@@ -98,6 +103,11 @@ ssize_t jwrite_true(JsonWriter*);
 ssize_t jwrite_false(JsonWriter*);
 ssize_t jwrite_number(JsonWriter*, const char* str, size_t len);
 ssize_t jwrite_string(JsonWriter*, const char* str, size_t len);
+
+/* jwrite_raw: `str` is already JSON text for one value (JSON.rawJSON('1e1000')); written
+ * as given, with the comma and indent a value gets. no check of `str`.
+ * returns the bytes written (>= 0), or -JWRITE_E_*. */
+ssize_t jwrite_raw(JsonWriter*, const char* str, size_t len);
 ssize_t jwrite_array_start(JsonWriter*);
 ssize_t jwrite_array_end(JsonWriter*);
 ssize_t jwrite_object_start(JsonWriter*);

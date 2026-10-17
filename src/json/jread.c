@@ -4,7 +4,7 @@
  */
 
 #include "char-utils.h" /* is_utf16_high_surrogate/is_utf16_low_surrogate, unicode_to_utf8, UTF8_CHAR_LEN_MAX */
-#include "jread.h"
+#include "json/jread.h"
 #include <stdlib.h>
 
 /* Pastes __LINE__ into a label name, so each JR_DISPATCH_*() call site gets its own
@@ -70,6 +70,7 @@
     uint8_t jr_c__ = (uint8_t)*cstr++; \
     if(state->accumulating) \
       jr_accum_putc(state, (char)jr_c__); \
+    state->tab = 0; \
     goto* go[jr_c__]; \
   }
 
@@ -84,6 +85,7 @@
     uint8_t jr_c__ = (uint8_t)*cstr++; \
     if(state->accumulating) \
       jr_accum_putc(state, (char)jr_c__); \
+    state->tab = (x); \
     goto*(x)[jr_c__]; \
   }
 
@@ -98,6 +100,7 @@
     uint8_t jr_c__ = (uint8_t)*cstr++; \
     if(state->accumulating) \
       jr_accum_putc(state, (char)jr_c__); \
+    state->tab = go_utf8; \
     goto* go_utf8[jr_c__ & state->utf8_mask]; \
   }
 
@@ -141,6 +144,43 @@ void
 jr_state_init(jr_state_t* state) {
   memset(state, 0, sizeof(*state));
   state->go_stack = (Vector)VECTOR_INIT();
+  srcpos_init(&state->pos, 0);
+  state->tok = state->err_pos = state->pos;
+}
+
+const char*
+jr_error_name(jr_error_t code) {
+  static const char* const names[] = {
+      "", "unexpected-token", "bad-escape", "bad-unicode-escape", "invalid-utf8", "control-character", "invalid-literal", "unexpected-end", "out-of-memory",
+  };
+
+  return (unsigned)code < sizeof(names) / sizeof(names[0]) ? names[code] : "";
+}
+
+/* advances `pos` over the chunk bytes in [mark, p). */
+static void
+jr_sync(jr_state_t* state, const char* p) {
+  srcpos_advance(&state->pos, state->mark, p - state->mark);
+  state->mark = p;
+}
+
+/* a token begins at the byte just read (p[-1]). */
+#define JR_TOKEN_START() \
+  do { \
+    jr_sync(state, cstr - 1); \
+    state->tok = state->pos; \
+  } while(0)
+
+/* records the error at the byte just read: the token start when inside a token. */
+static void
+jr_error_at(jr_state_t* state, const char* p, jr_error_t code, int in_token) {
+  SourcePos at = state->pos;
+
+  srcpos_advance(&at, state->mark, p - state->mark);
+
+  state->err_code = code;
+  state->err_pos = in_token ? state->tok : at;
+  state->err_len = at.byte_offset + 1 - state->err_pos.byte_offset;
 }
 
 void
@@ -150,8 +190,8 @@ jr_state_free(jr_state_t* state) {
   memset(state, 0, sizeof(*state));
 }
 
-void
-jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
+static void
+jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
   static void* go_doc[] = {
       [1 ... 8] = &&l_err,     ['\t'] = &&l_next,      ['\n'] = &&l_next,       [11 ... 12] = &&l_err,     ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,   [' '] = &&l_next,       [0] = &&l_err,           [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,
@@ -446,7 +486,22 @@ l_next:
   JR_DISPATCH_NEXT();
 
 l_err: {
+  uint8_t c = (uint8_t)cstr[-1];
+  jr_error_t code = JR_E_UNEXPECTED_TOKEN;
   jr_str_t data = {cstr - 1, 1};
+
+  if(state->tab == go_esc)
+    code = JR_E_BAD_ESCAPE;
+  else if(state->tab == go_esc_u)
+    code = JR_E_BAD_UNICODE_ESCAPE;
+  else if(state->tab == go_utf8)
+    code = JR_E_INVALID_UTF8;
+  else if(state->literal_active)
+    code = JR_E_INVALID_LITERAL;
+  else if(!state->tab && go == go_str)
+    code = c < 32 ? JR_E_CONTROL_CHARACTER : JR_E_INVALID_UTF8;
+
+  jr_error_at(state, cstr - 1, code, state->accumulating || state->literal_active);
   cb(jr_type_error, &data, user_data);
 }
   /* `error` is sticky (jr_finish()/close() report "this stream had an error at some point");
@@ -507,6 +562,7 @@ l_cmt_star:
   JR_DISPATCH_NEXT_GO(go_cmt_star);
 
 l_num_s:
+  JR_TOKEN_START();
   jr_accum_reset(state);
   jr_accum_putc(state, cstr[-1]);
   state->accumulating = 1;
@@ -528,6 +584,7 @@ l_num_e:
   JR_DISPATCH_THIS();
 
 l_str_s:
+  JR_TOKEN_START();
   jr_accum_reset(state);
   state->accumulating = 1;
   JR_PUSH_GO(go_str);
@@ -652,6 +709,7 @@ l_utf8_valid:
   JR_DISPATCH_THIS();
 
 l_null_n:
+  JR_TOKEN_START();
   JR_PUSH();
   state->literal_active = 1;
   JR_DISPATCH_NEXT_GO(go_null_n);
@@ -669,6 +727,7 @@ l_null_ll:
   JR_DISPATCH_NEXT();
 
 l_true_t:
+  JR_TOKEN_START();
   JR_PUSH();
   state->literal_active = 1;
   JR_DISPATCH_NEXT_GO(go_true_t);
@@ -686,6 +745,7 @@ l_true_e:
   JR_DISPATCH_NEXT();
 
 l_false_f:
+  JR_TOKEN_START();
   JR_PUSH();
   state->literal_active = 1;
   JR_DISPATCH_NEXT_GO(go_false_f);
@@ -728,6 +788,7 @@ l_obj_e:
   JR_DISPATCH_NEXT();
 
 l_kvp:
+  JR_TOKEN_START();
   jr_accum_reset(state);
   state->accumulating = 1;
   JR_PUSH_GO(go_obj_val);
@@ -753,6 +814,7 @@ l_obj_sep_comma:
   JR_DISPATCH_NEXT();
 
 l_oom: {
+  jr_error_at(state, cstr, JR_E_OUT_OF_MEMORY, 0);
   /* Unlike jr_accum_putc()'s truncation, a lost go_stack entry can't be papered over: every
    * later pop would restore the wrong table. So stop for good instead of resyncing. */
   jr_str_t data = {0, 0};
@@ -762,6 +824,14 @@ l_oom: {
   state->accumulating = 0;
   state->done = 1;
 }
+}
+
+void
+jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
+  state->mark = chunk;
+  jr_read_(cb, chunk, len, user_data, state);
+  jr_sync(state, chunk + len);
+  state->mark = 0;
 }
 
 void
@@ -785,6 +855,9 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
   if(!vector_empty(&state->go_stack) || state->accumulating) {
     jr_str_t data = {0, 0};
 
+    state->err_code = JR_E_UNEXPECTED_END;
+    state->err_pos = state->pos;
+    state->err_len = 0;
     cb(jr_type_error, &data, user_data);
     state->error = 1;
     return;

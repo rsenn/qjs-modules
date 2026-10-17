@@ -15,14 +15,14 @@ source (`Reader`, chunks, fd, JS value) pumped into an event/callback sink that 
 | `jr_*` (`jread`) | `src/jread.c` | bytes → events | **push**, chunked, resumable mid-token, resyncs after errors | `jr_read(cb, chunk, len, ud, state)`, `jr_finish` | `jr_callback(jr_type_t, jr_str_t*, ud)` | code yes; `jread.h` includes `vector.h` → `quickjs.h` |
 | `JsonParser` (`json.h`) | `src/json.c` | bytes → events | **pull**, `Reader`, `JSON_NEED_DATA` to resume, comments, `Location` | `Reader` (4 KiB-block buffered) | one `JsonValueType` per `json_parse()` | no: `json_init(…, JSContext*)`, `json_free(…, JSRuntime*)`, `Location` |
 | `jwrite_*` (`JsonWriter`) | `src/jwrite.c` | events → bytes | **push** (caller calls `jwrite_object_start/key/int64/…`), `Writer` sink, backpressure via `Writer` returning 0 | event calls | bytes through `Writer`; `-JWRITE_E_*` | code yes; header includes `stream-utils.h`/`vector.h` → `quickjs.h` |
-| `jbuild_*` (`JsonBuilder`) | `src/jbuild.c` | events → JS value | push (`push/pop/key/value`), consumes `jr_type_t` | events | `JSValue` root | **no** (JSContext, JSValue) |
-| `WalkIterator` / `WalkInterface` | `src/walk.c` | JS value → events | **pull** (`walk_next()` = one event), or iface callbacks | `JSValue` | 6 callbacks (`key/object_start/array_start/object_end/array_end/value`) taking `JSContext*`, `JSValueConst` | **no** |
+| `jbuild_*` (`JsonBuilder`) | `src/jbuilder.c` | events → JS value | push (`push/pop/key/value`), consumes `jr_type_t` | events | `JSValue` root | **no** (JSContext, JSValue) |
+| `JwalkIterator` / `WalkInterface` | `src/jwalk.c` | JS value → events | **pull** (`jwalk_next()` = one event), or iface callbacks | `JSValue` | 6 callbacks (`key/object_start/array_start/object_end/array_end/value`) taking `JSContext*`, `JSValueConst` | **no** |
 | `JSON.read` | `quickjs-json.c` | bytes → JSValue | whole-buffer, `sj` + `parse_val` frame stack | string/buffer | value | no |
 | `JSON.write` | `quickjs-json.c` | JSValue → bytes | whole-value, own `PropertyEnumeration` stack + `Writer` | value | bytes/`Writer` | no |
 | `JSONL.parse/parseChunk` | `quickjs-json.c` | bytes → values | chunk-resumable, own boundary scanner (`jsonl_value_end`) then `sj` | string/Uint8Array | values + `read/done/error` | no |
 | `JsonPushParser` | `quickjs-json.c` | bytes → events/JSValue | push: `write(chunk)`, `close()`; `jr_read` → either `jbuild` (`.root`) or JS callbacks per `jr_type_t` | chunks | callbacks or `root` | no (wrapper of `jr_*` + `jbuild_*`) |
 | `JsonParser` (JS class) | `quickjs-json.c` | bytes → events | pull, `Reader` from fd/buffer/function/`read()` method; `[Symbol.iterator]` | any `reader_from_js` source | `JsonValueType` ints (+`NEED_DATA`) | no (wrapper of `json.c`) |
-| `JsonWriter` (JS class) | `quickjs-json.c` | JSValue/events → bytes | push; implements `WalkInterface` (`js_walk_register`) so a `WalkIterator` can drive it | `Writer` (`writer_from_js`) | bytes | no (wrapper of `jwrite_*` + walk) |
+| `JsonWriter` (JS class) | `quickjs-json.c` | JSValue/events → bytes | push; implements `WalkInterface` (`js_walk_register`) so a `JwalkIterator` can drive it | `Writer` (`writer_from_js`) | bytes | no (wrapper of `jwrite_*` + walk) |
 | `JsonSerializer` | `quickjs-json.c` | JSValue → bytes | **pull** `read(n)`, produces only n bytes, `skip`/`CappedBuf`/`blocked` | JSValue | n-byte chunks | no — own recursion + own `sw_*` writers; does **not** use `walk`/`jwrite` yet; to be migrated, see "JsonSerializer → walk migration" |
 | `jsonStreams.js` | `lib/jsonStreams.js` | JS-level | WHATWG `TransformStream`s (Deno `@std/json` shapes) | strings/values | values/strings | JS only, no native code |
 
@@ -39,8 +39,8 @@ There is no single event type; four exist side by side:
 | --- | --- | --- | --- |
 | `jr_type_t` + `jr_str_t` | `jread.h` | error, null, true, false, number, string, array_start/end, object_start/end, key | decoded text (escapes resolved), number as raw text; no position, no comments |
 | `JsonValueType` | `json.h` | OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT, + NEED_DATA/ERROR/RESYNC | token in `json->token`, position in `Location` |
-| `WalkEvent` / `WalkInterface` | `walk.h` | key, object_start, array_start, object_end, array_end, value | `JSValue` (key and value), engine-bound |
-| `jwrite_*` calls / `jbuild_*` calls | `jwrite.h`, `jbuild.h` | the same six + null/bool/int64/double/string/raw | C scalars (jwrite) / `jr_type_t`+text (jbuild) |
+| `WalkEvent` / `WalkInterface` | `jwalk.h` | key, object_start, array_start, object_end, array_end, value | `JSValue` (key and value), engine-bound |
+| `jwrite_*` calls / `jbuild_*` calls | `jwrite.h`, `jbuilder.h` | the same six + null/bool/int64/double/string/raw | C scalars (jwrite) / `jr_type_t`+text (jbuild) |
 
 Boundaries, where one layer hands over to the next:
 
@@ -48,7 +48,7 @@ Boundaries, where one layer hands over to the next:
  bytes ──Reader (pull)──► JsonParser/json_parse ──JsonValueType──┐
  bytes ──chunks (push)──► jr_read ──────────────jr_callback──────┼─► (sink)
  bytes ──whole buffer───► sj / JSONL / JSON.read ─► JSValue (no event stage)
- JSValue ──walk_next/WalkInterface──────────────────────────────┤
+ JSValue ──jwalk_next/WalkInterface──────────────────────────────┤
                                                                  ▼
  sinks: jbuild (→JSValue) · jwrite (→Writer→bytes) · JS callbacks (JsonPushParser)
 ```
@@ -63,8 +63,8 @@ Already connected: `jr_read → jbuild` (JsonPushParser), `walk → jwrite` (Jso
 | A1 | `jr_callback` → `jwrite_*` ("reformat"/minify/pretty/JSON5-ify while streaming) | no direct pump today; strings are already decoded by jr so `jwrite_string` re-escapes; numbers via `jwrite_number` | **yes** |
 | A2 | `json_parse` (pull) → `jr_callback` (`json_pump(JsonParser*, jr_callback, ud)`) | map `JsonValueType`→`jr_type_t`; lets the `Reader`-based parser feed the same sinks as the chunk parser; comments need a new event | needs `json.c` decoupled from `JSContext` first |
 | A3 | `Reader` → `jr_read` (`jr_pump(Reader*, cb, ud, state)`: read loop + `jr_finish`) | `jr_read` is chunk-only; every caller hand-writes the loop | **yes** |
-| A4 | `WalkIterator` → `jr_callback` (JS value → pure-C events) | one engine-bound adapter in `quickjs-json.c` emitting `jr_*` events; after it, jwrite/jbuild/JS-callbacks all consume value trees through the same sink instead of `WalkInterface` | adapter engine-bound, sink pure |
-| A5 | `JsonSerializer` rebuilt on `WalkIterator` + `JsonWriter` (**decided**, plan below) | removes the second serializer (own recursion, own writers, `skip`/`blocked` retry machinery); `walk_next()` is one event per call and resumable | no (walk is engine-bound) |
+| A4 | `JwalkIterator` → `jr_callback` (JS value → pure-C events) | one engine-bound adapter in `quickjs-json.c` emitting `jr_*` events; after it, jwrite/jbuild/JS-callbacks all consume value trees through the same sink instead of `WalkInterface` | adapter engine-bound, sink pure |
+| A5 | `JsonSerializer` rebuilt on `JwalkIterator` + `JsonWriter` (**decided**, plan below) | removes the second serializer (own recursion, own writers, `skip`/`blocked` retry machinery); `jwalk_next()` is one event per call and resumable | no (walk is engine-bound) |
 | A6 | `JSON.write` rebuilt on `walk` + `jwrite` | third copy of the same traversal; also gives `JSON.write` the JSON5 options | no |
 | A7 | `JSONL.parse/parseChunk` on `jr_read` | own boundary scanner + `sj`; `jr_read` already resumes mid-token and resyncs per value | engine-bound result, pure scan |
 | A8 | `jbuild` taking an allocator-agnostic tree (e.g. an arena of nodes) so `jr → tree → JSValue` | would let the whole read side stay pure C and convert once at the end | design question, not needed yet |
@@ -102,8 +102,8 @@ Already connected: `jr_read → jbuild` (JsonPushParser), `walk → jwrite` (Jso
 
 `JsonSerializer` (`quickjs-json.c`, "JsonSerializer" block, ~l.1060-1500) is the pull
 serializer: `read(n | buffer)` yields only as much text as asked. It re-implements the
-value traversal that `include/walk.h` already provides (`json_serializer_step_inner` ≈
-`walk_next` + `JsonWriter`), plus a retry mechanism (`skip`, `delivered`, `blocked`,
+value traversal that `include/jwalk.h` already provides (`json_serializer_step_inner` ≈
+`jwalk_next` + `JsonWriter`), plus a retry mechanism (`skip`, `delivered`, `blocked`,
 `CappedBuf`, `write_skip`) for a `Writer` that refuses bytes mid-event.
 
 #### Target shape
@@ -111,22 +111,22 @@ value traversal that `include/walk.h` already provides (`json_serializer_step_in
 ```c
 typedef struct {
   JSContext* ctx;
-  WalkIterator it;      /* the traversal; replaces `stack`, `is_primitive`, step_inner */
+  JwalkIterator it;      /* the traversal; replaces `stack`, `is_primitive`, step_inner */
   JsonWriter wr;        /* the formatting; replaces sw_*, write_indent/primitive/string */
   DynBuf out;           /* wr.writer = writer_from_dynbuf(&out); never blocks */
   size_t out_pos;       /* bytes of `out` already handed to read() */
-  JSValue root;         /* getter only; walk_close() clears it->root */
+  JSValue root;         /* getter only; jwalk_close() clears it->root */
   Location* loc;
   unsigned error : 1;
 } JsonSerializer;
 ```
 
-Core loop (both `read(n)` and `read(buffer)`): `while(avail < want && (r = walk_next(&it, ctx)) > 0) {}`
-with `avail = out.size - out_pos`; `r < 0` → `error`, `walk_close()`, return the exception as
+Core loop (both `read(n)` and `read(buffer)`): `while(avail < want && (r = jwalk_next(&it, ctx)) > 0) {}`
+with `avail = out.size - out_pos`; `r < 0` → `error`, `jwalk_close()`, return the exception as
 today; then take `n` characters (existing `utf8_strlen`/`utf8_byteoffset` code) or copy up to
 `cap` bytes into the buffer and keep the remainder in `out`.
 
-Why this works without a blocking writer: `walk_next()` does not retry an event (state is
+Why this works without a blocking writer: `jwalk_next()` does not retry an event (state is
 advanced before the callback runs), and `jwrite` mutates its frame state before writing, so
 a half-written event cannot be replayed. Writing into an unbounded `DynBuf` and slicing
 afterwards is what the string path of `read(n)` already does; the buffer path now does the
@@ -139,13 +139,13 @@ same instead of `CappedBuf`.
 | `stack` (`PropertyEnumeration` vector) | `it.stack` | same element type → `property_recursion_path(&it.stack, ctx)` keeps working for `.path` |
 | `started` | `it.state != WALK_START` | |
 | `finished` | `it.state == WALK_DONE` | still true while text remains buffered, as now |
-| `error` | `error` | set when `walk_next()` or `jwrite_*` fails |
+| `error` | `error` | set when `jwalk_next()` or `jwrite_*` fails |
 | `blocked` | removed / constant `false` | no blocking stage left; check usage before deleting (only `quickjs-json.c` found; tests do not read it) |
 | `indent` get/set | `wr.opts.indent` | the setter may run mid-stream; `jwrite` reads it per event |
-| `is_primitive` | gone | `walk_next()` reports a primitive root as one `value` event |
+| `is_primitive` | gone | `jwalk_next()` reports a primitive root as one `value` event |
 | `write_skip`, `write_capped`, `CappedBuf`, `skip`, `delivered`, `skip_writer`, `dest_writer` | deleted | retry machinery |
 | `sw_putc/sw_indent/sw_string/sw_primitive/sw_puts` | deleted | `jwrite_*` via `js_jsonwriter_walk` |
-| `json_serializer_step[_inner]` | deleted | `walk_next()` |
+| `json_serializer_step[_inner]` | deleted | `jwalk_next()` |
 | `location` | unchanged | `location_count(loc, bytes, n)` on the bytes handed out |
 
 `js_jsonwriter_walk()` is defined after the serializer; add a forward declaration (or move
@@ -155,7 +155,7 @@ the serializer block below the `JsonWriter` block).
 
 | Case | Serializer today | Walk + JsonWriter |
 | --- | --- | --- |
-| circular reference | falls through to the primitive writer: the object's `toString` string | `null` (`walk_next` substitutes `JS_NULL`) — matches the doc comment in `walk.c`; pick `null` |
+| circular reference | falls through to the primitive writer: the object's `toString` string | `null` (`jwalk_next` substitutes `JS_NULL`) — matches the doc comment in `jwalk.c`; pick `null` |
 | empty container with `indent` | writes `[` + newline + indent… (checked in code: `sw_indent` after the opening bracket unconditionally) | `jwrite` decides; compare against `JSON.stringify(v, null, n)` (the commented-out test at `test-json.js:572` was meant to assert this) |
 | `: ` after key | `:` plus a space only when `indent` is set | `jwrite` opts (`minify`, `indent`) |
 | undefined/function/symbol values | `null` | `null` (`js_jsonwriter_value`) — same |
@@ -170,14 +170,14 @@ the serializer block below the `JsonWriter` block).
    from the *old* implementation as expected strings. Also compare with `JSON.stringify`
    where the semantics are meant to agree.
 2. **Restructure the struct** as above (delete the retry members), `vector_init(&js->stack)`
-   → `walk_init(&js->it, ctx, root, js_jsonwriter_walk(&js->wr))`; `jwrite_init(&js->wr, …)`
+   → `jwalk_init(&js->it, ctx, root, js_jsonwriter_walk(&js->wr))`; `jwrite_init(&js->wr, …)`
    with `wr.writer = writer_from_dynbuf(&js->out)`, `wr.opts.indent = indent`.
 3. **Rewrite `js_jsonserializer_read`** around the loop above; unify the `n` and `buffer`
    branches on the shared `out` buffer; keep the return values (`JS_NewInt64(count)` for a
    buffer, string or `undefined` at EOF for a count — see existing tests 543-650).
 4. **Rewrite getters/setter/constructor/finalizer** per the mapping table; the finalizer
-   calls `walk_close(&js->it, ctx)` (needs a context: use `js->ctx`, or free through
-   `property_recursion_free` + `JS_FreeValueRT` with the runtime as `walk_close` does) and
+   calls `jwalk_close(&js->it, ctx)` (needs a context: use `js->ctx`, or free through
+   `property_recursion_free` + `JS_FreeValueRT` with the runtime as `jwalk_close` does) and
    `jwrite_free(&js->wr)`.
 5. **Delete what became unused** in `quickjs-json.c`: `write_capped`, `write_skip`,
    `sw_*`, `json_serializer_step*`, `CappedBuf`. Keep `write_json_primitive`,
@@ -185,7 +185,7 @@ the serializer block below the `JsonWriter` block).
    `grep` shows they are still used by `js_json_write` (l.369-460).
 6. **Verify**: `qjsm tests/unittests/test-json.js`, the new differential cases, and
    `utilities/jsonpp.js` against a few files; ASan run once (frames are freed in
-   `walk_close` on every path: done, error, finalizer mid-walk).
+   `jwalk_close` on every path: done, error, finalizer mid-walk).
 7. **Docs/tracking**: `doc/native/json.md` (JsonSerializer section: `blocked` gone, circular
    → `null`, indent output as chosen), drop the Open question above, mark A5 done.
 
@@ -225,7 +225,7 @@ inside one `jr_read()` call.
   header, nothing exported to JS). Promote to `src/jrewrite.[ch]` only if it holds up, as the
   engine-free `jr → jwrite` pump of Tier 14 (A1/A3).
 - **Not in scope:** any JS-visible class/function (no new public API per project
-  principles), `JsonBuilder`/`WalkIterator` (both engine-bound), schema validation.
+  principles), `JsonBuilder`/`JwalkIterator` (both engine-bound), schema validation.
 
 ### The filter (`JsonRewriter`)
 
