@@ -141,7 +141,7 @@ new JsonPushParser(callback?)   // length 0; optional callback function or optio
 ```
 
 The optional argument may be:
-- A single **callback function** `(type, value)` invoked for every token. `type` is a `jr_type_t` integer, `value` is the decoded JS value. The prototype's `TYPE_*` constants (see below) can be used to match against `type`.
+- A single **callback function** `(type, value)` invoked for every token. `type` is a `JsonEventType` integer, `value` is the decoded JS value. The prototype's `TYPE_*` constants (see below) can be used to match against `type`.
 - An **options object** with per-event callback methods. Recognized properties: `error`, `value` (for null/true/false/number/string), `objectStart`, `objectEnd`, `arrayStart`, `arrayEnd`, `key`. Each is invoked with a single decoded JS value argument. The options object is used as `this` for all callback invocations.
 
 When no callbacks are given (or not all are present), the parser operates in **builder mode**: it builds the parsed value internally, retrievable via `.root`.
@@ -232,8 +232,8 @@ chunk by chunk, with no JS value built in between.
 ```c
 typedef struct { JsonWriter* wr; ssize_t error; } JsonWriteSink;   /* error: first -JWRITE_E_*, or 0 */
 
-void jbuild_callback(jr_type_t, const jr_str_t*, void* user_data);
-void jwrite_callback(jr_type_t, const jr_str_t*, void* user_data);
+void jbuild_callback(JsonEventType, const jr_str_t*, void* user_data);
+void jwrite_callback(JsonEventType, const jr_str_t*, void* user_data);
 ```
 
 `jread.h` itself stays generic and gains nothing: the callbacks sit next to their sinks.

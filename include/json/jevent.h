@@ -3,24 +3,52 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include "json/jread.h"
 #include "srcpos.h"
+
+/* JsonEventType: the kind of a JSON event; the one vocabulary of every json/ header.
+ *
+ *   JSON_EVENT_*   value  carries
+ *   ERROR          0      message
+ *   NULL, TRUE, FALSE     nothing
+ *   NUMBER, STRING        text
+ *   KEY                   text
+ *   ARRAY_START/END,
+ *   OBJECT_START/END      nothing
+ *   COMMENT               text; only the pull parser, with `comments` set
+ *
+ * jread (callbacks), json (json_parse() results), jbuilder, jwrite and the sinks all use it. */
+typedef enum json_event_type {
+  JSON_EVENT_ERROR,
+  JSON_EVENT_NULL,
+  JSON_EVENT_TRUE,
+  JSON_EVENT_FALSE,
+  JSON_EVENT_NUMBER,
+  JSON_EVENT_STRING,
+  JSON_EVENT_ARRAY_START,
+  JSON_EVENT_ARRAY_END,
+  JSON_EVENT_OBJECT_START,
+  JSON_EVENT_OBJECT_END,
+  JSON_EVENT_KEY,
+  JSON_EVENT_COMMENT,
+} JsonEventType;
+
+struct jr_state;
 
 /* JsonEvent: one JSON event, as a plain value; the twin of XmlEvent (xml/xevent.h).
  *
  * ```c
- * JsonEvent ev = {.type = jr_type_number, .str = "7", .len = 1};
+ * JsonEvent ev = {.type = JSON_EVENT_NUMBER, .str = "7", .len = 1};
  * jevent_send(&sink, &ev);   // sink.number(sink.opaque, "7", 1)
  * ```
  *
  *   field    meaning                                          for
- *   type     jr_type_t, the id jread and jbuilder use         all
+ *   type     JsonEventType, the id every json/ header uses        all
  *   str,len  the text, valid until the next event             error, number, string, key
  *   at       where the event starts; only if `has_at`         optional
  *
  * no engine; a sink must not require `at`. */
 typedef struct {
-  jr_type_t type;
+  JsonEventType type;
   const char* str;
   size_t len;
   SourcePos at;
@@ -30,7 +58,7 @@ typedef struct {
 /* JsonEventSink: the JSON events as function pointers, so a producer can drive any
  * sink without knowing what it is; the twin of XmlEventSink.
  *
- * One member per jr_type_t (`true_`/`false_` because `true`/`false` are macros).
+ * One member per JsonEventType (`true_`/`false_` because `true`/`false` are macros).
  * `opaque` is passed as the first argument. A member returns what the sink's own call
  * returns: the bytes written (>= 0), or a negative error code of the sink.
  *
@@ -76,7 +104,7 @@ ssize_t jevent_send(const JsonEventSink* sink, const JsonEvent* ev);
  * json_pump(parser, &sink);              // pull parser: runs until it needs data or ends
  * ```
  *
- * Each parser event becomes one jevent_send(). An error is sent as a `jr_type_error` event
+ * Each parser event becomes one jevent_send(). An error is sent as a `JSON_EVENT_ERROR` event
  * and parsing goes on after the parser's own resync; its position stays in the parser
  * (jr_state_t.err_pos, JsonParser.err_at), since sink members take no position. Comments are
  * dropped. Output is the same whatever the chunk size.
@@ -87,10 +115,10 @@ ssize_t jevent_send(const JsonEventSink* sink, const JsonEvent* ev);
 #define JSON_PUMP_END 0
 #define JSON_PUMP_AGAIN 1
 
-ssize_t jread_pump(jr_state_t*, const JsonEventSink* sink, const char* chunk, size_t len);
-ssize_t jread_pump_finish(jr_state_t*, const JsonEventSink* sink);
-struct JsonParser;
+ssize_t jread_pump(struct jr_state*, const JsonEventSink* sink, const char* chunk, size_t len);
+ssize_t jread_pump_finish(struct jr_state*, const JsonEventSink* sink);
+struct json_parser;
 
-ssize_t json_pump(struct JsonParser*, const JsonEventSink* sink);
+ssize_t json_pump(struct json_parser*, const JsonEventSink* sink);
 
 #endif /* JEVENT_H */

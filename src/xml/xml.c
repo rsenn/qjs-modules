@@ -243,7 +243,7 @@ xml_nextbyte(XMLParser* p) {
 /* Pure functions of p->name's current (already fully scanned) content - called
  * fresh every time they're needed rather than cached in a local, since p->name
  * stays put for the whole tag-open sequence but a local wouldn't survive an
- * xml_parser_run() suspend-and-resume (XML_PARSE_AGAIN, or having just returned an
+ * xml_parse() suspend-and-resume (XML_PARSE_AGAIN, or having just returned an
  * event) in between. */
 static int
 xml_name_is_bang(const XMLParser* p) {
@@ -325,12 +325,12 @@ xml_check_comment_end(XMLParser* p) {
 /* ---- js_xml_parse()'s macros, reimplemented on top of the primitives above.
  * `p` is expected to be in scope at every call site; everything that used to be a
  * plain local in js_xml_parse() (c, done, ...) is a field of *p instead, so that
- * suspending and resuming via computed goto - which re-enters xml_parser_run() in a
+ * suspending and resuming via computed goto - which re-enters xml_parse() in a
  * *fresh* stack frame - doesn't lose it.
  *
  * Every macro/helper that can hit "the Reader has nothing right now", and
  * XML_YIELD (one event ready), plants a XML_RESUME_LABEL (unique per call site, via
- * __LINE__ token-pasting) right at that point and returns; xml_parser_run() resumes
+ * __LINE__ token-pasting) right at that point and returns; xml_parse() resumes
  * by jumping directly back to that label, past whatever one-time setup preceded it
  * at that call site. */
 
@@ -372,7 +372,7 @@ xml_check_comment_end(XMLParser* p) {
 
 /* Runs a xml_check_*(p) tristate call, suspending (like parse_getc()) if it returns
  * XML_FILL_AGAIN, otherwise leaving its 0/1 result in `var`. A plain statement (not
- * a GNU statement-expression) - the top-level `goto *target` in xml_parser_run()
+ * a GNU statement-expression) - the top-level `goto *target` in xml_parse()
  * that resumes a suspended parse cannot legally target a label declared inside a
  * ({ ... }) expression. */
 #define XML_TRY(var, call) \
@@ -386,7 +386,7 @@ xml_check_comment_end(XMLParser* p) {
   } while(0)
 
 /* The pull interface itself: stashes the event's name/value, then returns it -
- * resuming (the next xml_parser_run() call) re-enters right after this macro's own
+ * resuming (the next xml_parse() call) re-enters right after this macro's own
  * call site, same mechanism as parse_getc()'s XML_PARSE_AGAIN. `hasval_`/`valdata_`/
  * `vallen_` may be 0/0/0 for an event with no value.
  *
@@ -431,7 +431,7 @@ xml_check_comment_end(XMLParser* p) {
     p->top = f; \
   } while(0)
 
-/* unused by xml_parser_run() itself (elements are closed via yield_return(), same as
+/* unused by xml_parse() itself (elements are closed via yield_return(), same as
  * js_xml_parse() closes via yield_return()/find_tag() rather than yield_pop()) -
  * kept, like js_xml_parse()'s own yield_pop(), for API/macro-name parity. */
 #define yield_pop() \
@@ -444,29 +444,29 @@ xml_check_comment_end(XMLParser* p) {
     } \
   } while(0)
 
-#define yield_add(ptr_, len_) XML_YIELD(XML_TEXT, 0, 0, 1, (ptr_), (len_))
+#define yield_add(ptr_, len_) XML_YIELD(XE_TEXT, 0, 0, 1, (ptr_), (len_))
 
 /* js_xml_parse()'s yield_next() creates the (still tagName-less) placeholder
  * element object; the tagName - and, for a comment/doctype, the rest of its content
  * too - isn't known until later. There's no tree to build here, so the actual
- * XML_ELEMENT_START is yielded at the point equivalent to js_xml_parse()'s
- * xml_set_attr_bytes(element,"tagName",...) call, inline in xml_parser_run(). This
+ * XE_ELEMENT_START is yielded at the point equivalent to js_xml_parse()'s
+ * xml_set_attr_bytes(element,"tagName",...) call, inline in xml_parse(). This
  * macro is kept, doing nothing, purely for call-site/macro-name parity. */
 #define yield_next() ((void)0)
 
 /* Pops frames from the top of the open-element stack down through (and including)
- * `match`, yielding XML_ELEMENT_END for each - unlike js_xml_parse()'s
+ * `match`, yielding XE_ELEMENT_END for each - unlike js_xml_parse()'s
  * yield_return(index), which can silently vector_shrink() past several unclosed
  * elements at once because the JSValue tree's own nesting already reflects that; an
  * event-based consumer needs an explicit end for each one that tolerant recovery is
- * implicitly closing. Resumable across several xml_parser_run() calls (one
- * XML_ELEMENT_END per call): p->closing_target records which frame to stop at, so a
+ * implicitly closing. Resumable across several xml_parse() calls (one
+ * XE_ELEMENT_END per call): p->closing_target records which frame to stop at, so a
  * later call knows it's mid-yield_return() rather than looking up `match` again. */
 #define yield_return(match) \
   do { \
     p->closing_target = (match); \
     while(p->closing_target && p->top) { \
-      XML_YIELD(XML_ELEMENT_END, p->top->name, p->top->namelen, 0, 0, 0); \
+      XML_YIELD(XE_ELEMENT_END, p->top->name, p->top->namelen, 0, 0, 0); \
       { \
         XMLFrame* f = p->top; \
         p->top = f->parent; \
@@ -479,7 +479,7 @@ xml_check_comment_end(XMLParser* p) {
   } while(0)
 
 void
-xml_parser_init(XMLParser* p, Reader* reader) {
+xml_init(XMLParser* p, Reader* reader) {
   xml_chars_init();
 
   memset(p, 0, sizeof(*p));
@@ -499,7 +499,7 @@ xml_parser_init(XMLParser* p, Reader* reader) {
 }
 
 void
-xml_parser_free(XMLParser* p) {
+xml_free(XMLParser* p) {
   while(p->top) {
     XMLFrame* f = p->top;
 
@@ -517,22 +517,22 @@ xml_parser_free(XMLParser* p) {
 }
 
 void
-xml_parser_set_tolerant(XMLParser* p, int tolerant) {
+xml_set_tolerant(XMLParser* p, int tolerant) {
   p->tolerant = tolerant;
 }
 
 void
-xml_parser_set_flat(XMLParser* p, int flat) {
+xml_set_flat(XMLParser* p, int flat) {
   p->flat = !!flat;
 }
 
 void
-xml_parser_set_implied_end(XMLParser* p, int enable) {
+xml_set_implied_end(XMLParser* p, int enable) {
   p->no_implied_end = !enable;
 }
 
-xml_event_t
-xml_parser_run(XMLParser* p) {
+int
+xml_parse(XMLParser* p) {
   if(p->resume) {
     void* target = p->resume;
 
@@ -584,13 +584,13 @@ xml_parser_run(XMLParser* p) {
 
     p->accum = 0;
 
-    /* Yields p->text[0, size) as one or more XML_TEXT events - splitting on '\n'
+    /* Yields p->text[0, size) as one or more XE_TEXT events - splitting on '\n'
      * and keeping leading indentation when inside a raw-text element (js_xml_parse()
      * does this so multi-line <script>/<style>/<textarea>/<title> bodies come out as
      * one text node per line), otherwise trimming leading/trailing whitespace and
      * yielding the whole run as a single event. Mirrors js_xml_parse()'s own
      * start/ptr-based loop, just over a DynBuf, with p->text_pos tracking progress
-     * so a suspend mid-split (one xml_parser_run() call per line/segment) resumes at
+     * so a suspend mid-split (one xml_parse() call per line/segment) resumes at
      * the next one rather than restarting from the top. */
     while(p->text_pos < p->text.size) {
       const char* buf = (const char*)p->text.buf;
@@ -697,7 +697,7 @@ xml_parser_run(XMLParser* p) {
          * *is* '>', we've already seen a complete, valid closing tag - the
          * parse_getc() that consumes it may itself set p->done (if '>' was the
          * very last byte of input), and that must NOT stop this closing tag's
-         * XML_ELEMENT_END from being yielded. Checking p->done here, before
+         * XE_ELEMENT_END from being yielded. Checking p->done here, before
          * that parse_getc(), used to instead bail out right after consuming a
          * legitimately-terminated final closing tag - silently dropping its
          * event (and only its event; the frame stays open forever, since
@@ -710,14 +710,14 @@ xml_parser_run(XMLParser* p) {
           parse_getc();
 
         /* Resuming mid yield_return() (a previous call yielded one of possibly
-         * several XML_ELEMENT_END events and returned) jumps directly into its
+         * several XE_ELEMENT_END events and returned) jumps directly into its
          * while loop via the label inside XML_YIELD - never back through this
          * find_frame()/tolerant check - so it's only ever reached fresh, with
          * p->closing_target already 0. */
         if(!p->flat && p->name.size == 0) {
           /* `</>` names the document root, which is never open: nothing to close */
         } else if(p->flat) /* no element stack: every closing tag is reported as it is */
-          XML_YIELD(XML_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
+          XML_YIELD(XE_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
         else {
           XMLFrame* match = xml_find_frame(p, (const char*)p->name.buf, p->name.size);
 
@@ -729,7 +729,7 @@ xml_parser_run(XMLParser* p) {
               p->done = 1;
               p->err_code = "mismatched-end-tag";
               p->err_len = p->name.size + 3; /* "</" name ">" */
-              return XML_PARSE_ERROR;
+              return XE_ERROR;
             }
             /* tolerant: ignore the stray closing tag; a '>' right after it stays text */
             continue;
@@ -784,14 +784,14 @@ xml_parser_run(XMLParser* p) {
           break; /* input ends inside a tag; an unterminated comment or declaration still ends here */
 
         if(p->tolerant && !p->no_implied_end && !p->flat && p->top && xml_is_implied_end((const char*)p->name.buf, p->name.size, p->top->name, p->top->namelen)) {
-          XML_YIELD(XML_ELEMENT_END, p->top->name, p->top->namelen, 0, 0, 0);
+          XML_YIELD(XE_ELEMENT_END, p->top->name, p->top->namelen, 0, 0, 0);
           yield_pop();
         }
 
-        XML_YIELD(XML_ELEMENT_START, p->name.buf, p->name.size, 0, 0, 0);
+        XML_YIELD(XE_ELEMENT_START, p->name.buf, p->name.size, 0, 0, 0);
 
         if(xml_name_is_bang(p)) {
-          XML_YIELD(XML_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
+          XML_YIELD(XE_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
 
           if(p->done)
             break;
@@ -825,7 +825,7 @@ xml_parser_run(XMLParser* p) {
             break;
 
           if(parse_is(p->c, WS | CLOSE | SLASH)) {
-            XML_YIELD(XML_ATTRIBUTE, p->attr.buf, p->attr.size, 0, 0, 0);
+            XML_YIELD(XE_ATTRIBUTE, p->attr.buf, p->attr.size, 0, 0, 0);
             continue;
           }
 
@@ -855,7 +855,7 @@ xml_parser_run(XMLParser* p) {
 
             p->text.size = xml_decode_entities((char*)p->text.buf, p->text.size);
 
-            XML_YIELD(XML_ATTRIBUTE, p->attr.buf, p->attr.size, 1, p->text.buf, p->text.size);
+            XML_YIELD(XE_ATTRIBUTE, p->attr.buf, p->attr.size, 1, p->text.buf, p->text.size);
           }
         }
 
@@ -879,7 +879,7 @@ xml_parser_run(XMLParser* p) {
             yield_push();
         }
         else
-          XML_YIELD(XML_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
+          XML_YIELD(XE_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
       }
     }
 

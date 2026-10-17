@@ -643,19 +643,19 @@ typedef struct PushParser {
   jr_state_t jrs;
   JsonBuilder builder;
   JsonEventSink sink; /* jbuild_sink(&builder) */
-  JSValue callback_fn, callbacks_obj, callbacks[jr_type_key + 1 - jr_type_error];
+  JSValue callback_fn, callbacks_obj, callbacks[JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR];
   unsigned use_builder : 1;
   Location* loc;
   JSValue last_error; /* SyntaxError of the latest error, or JS_UNDEFINED */
 } JsonPushParser;
 
 static JSValue
-json_pushparser_tojs(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
+json_pushparser_tojs(JSContext* ctx, JsonEventType type, const jr_str_t* data) {
   switch(type) {
-    case jr_type_null: return JS_NULL;
-    case jr_type_true: return JS_TRUE;
-    case jr_type_false: return JS_FALSE;
-    case jr_type_number: {
+    case JSON_EVENT_NULL: return JS_NULL;
+    case JSON_EVENT_TRUE: return JS_TRUE;
+    case JSON_EVENT_FALSE: return JS_FALSE;
+    case JSON_EVENT_NUMBER: {
       double num = 0;
 
       if(data && data->cstr) {
@@ -671,14 +671,15 @@ json_pushparser_tojs(JSContext* ctx, jr_type_t type, const jr_str_t* data) {
 
       return JS_NewFloat64(ctx, num);
     }
-    case jr_type_string:
-    case jr_type_key:
-    case jr_type_error: return (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, "");
+    case JSON_EVENT_STRING:
+    case JSON_EVENT_KEY:
+    case JSON_EVENT_ERROR: return (data && data->cstr) ? JS_NewStringLen(ctx, data->cstr, data->len) : JS_NewString(ctx, "");
 
-    case jr_type_array_start:
-    case jr_type_array_end:
-    case jr_type_object_start:
-    case jr_type_object_end: break;
+    case JSON_EVENT_ARRAY_START:
+    case JSON_EVENT_ARRAY_END:
+    case JSON_EVENT_OBJECT_START:
+    case JSON_EVENT_OBJECT_END:
+    case JSON_EVENT_COMMENT: break;
   }
 
   return JS_UNDEFINED;
@@ -731,18 +732,18 @@ json_pushparser_error(JsonPushParser* pp) {
 }
 
 static void
-jread_callback_build(jr_type_t type, const jr_str_t* data, void* user_data) {
+jread_callback_build(JsonEventType type, const jr_str_t* data, void* user_data) {
   JsonPushParser* pp = user_data;
   JsonEvent ev = {.type = type, .str = data ? data->cstr : NULL, .len = data ? data->len : 0};
 
-  if(type == jr_type_error)
+  if(type == JSON_EVENT_ERROR)
     json_pushparser_error(pp);
   else
     jevent_send(&pp->sink, &ev);
 }
 
 static void
-jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
+jread_callback(JsonEventType type, const jr_str_t* data, void* user_data) {
   JsonPushParser* pp = user_data;
   JSContext* ctx = pp->ctx;
 
@@ -763,8 +764,8 @@ jread_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
       clear_pending_exception(ctx);
   }
 
-  if(type >= jr_type_error && type <= jr_type_key) {
-    JSValue cb = pp->callbacks[type - jr_type_error];
+  if(type >= JSON_EVENT_ERROR && type <= JSON_EVENT_KEY) {
+    JSValue cb = pp->callbacks[type - JSON_EVENT_ERROR];
 
     if(!JS_IsUndefined(cb) && JS_IsFunction(ctx, cb)) {
       JSValue val = json_pushparser_tojs(ctx, type, data);
@@ -891,7 +892,7 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->callbacks_obj = JS_UNDEFINED;
   pp->last_error = JS_UNDEFINED;
 
-  for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
+  for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
     pp->callbacks[i] = JS_UNDEFINED;
 
   if(argc > 0) {
@@ -900,25 +901,26 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
     } else if(JS_IsObject(argv[0])) {
       pp->callbacks_obj = JS_DupValue(ctx, argv[0]);
 
-      for(int t = jr_type_error; t <= jr_type_key; t++) {
+      for(int t = JSON_EVENT_ERROR; t <= JSON_EVENT_KEY; t++) {
         const char* prop_name = NULL;
 
-        switch((jr_type_t)t) {
-          case jr_type_error: prop_name = "error"; break;
-          case jr_type_null:
-          case jr_type_true:
-          case jr_type_false:
-          case jr_type_number:
-          case jr_type_string: prop_name = "value"; break;
-          case jr_type_object_start: prop_name = "objectStart"; break;
-          case jr_type_object_end: prop_name = "objectEnd"; break;
-          case jr_type_array_start: prop_name = "arrayStart"; break;
-          case jr_type_array_end: prop_name = "arrayEnd"; break;
-          case jr_type_key: prop_name = "key"; break;
+        switch((JsonEventType)t) {
+          case JSON_EVENT_ERROR: prop_name = "error"; break;
+          case JSON_EVENT_NULL:
+          case JSON_EVENT_TRUE:
+          case JSON_EVENT_FALSE:
+          case JSON_EVENT_NUMBER:
+          case JSON_EVENT_STRING: prop_name = "value"; break;
+          case JSON_EVENT_OBJECT_START: prop_name = "objectStart"; break;
+          case JSON_EVENT_OBJECT_END: prop_name = "objectEnd"; break;
+          case JSON_EVENT_ARRAY_START: prop_name = "arrayStart"; break;
+          case JSON_EVENT_ARRAY_END: prop_name = "arrayEnd"; break;
+          case JSON_EVENT_KEY: prop_name = "key"; break;
+          case JSON_EVENT_COMMENT: break;
         }
 
         if(prop_name) {
-          pp->callbacks[t - jr_type_error] = JS_GetPropertyStr(ctx, argv[0], prop_name);
+          pp->callbacks[t - JSON_EVENT_ERROR] = JS_GetPropertyStr(ctx, argv[0], prop_name);
         }
       }
     }
@@ -926,8 +928,8 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
   BOOL all_callbacks_present = TRUE;
 
-  for(int t = jr_type_null; t <= jr_type_key; t++) {
-    if(!JS_IsFunction(ctx, pp->callbacks[t - jr_type_error])) {
+  for(int t = JSON_EVENT_NULL; t <= JSON_EVENT_KEY; t++) {
+    if(!JS_IsFunction(ctx, pp->callbacks[t - JSON_EVENT_ERROR])) {
       all_callbacks_present = FALSE;
       break;
     }
@@ -952,7 +954,7 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
     JS_FreeValue(ctx, pp->callbacks_obj);
     JS_FreeValue(ctx, pp->last_error);
 
-    for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
+    for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
       JS_FreeValue(ctx, pp->callbacks[i]);
 
     js_free(ctx, pp);
@@ -978,7 +980,7 @@ js_jsonpushparser_finalizer(JSRuntime* rt, JSValue val) {
     JS_FreeValueRT(rt, pp->callbacks_obj);
     JS_FreeValueRT(rt, pp->last_error);
 
-    for(int i = 0; i < jr_type_key + 1 - jr_type_error; i++)
+    for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
       JS_FreeValueRT(rt, pp->callbacks[i]);
 
     js_free_rt(rt, pp);
@@ -992,19 +994,19 @@ static const JSCFunctionListEntry js_jsonpushparser_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("path", js_jsonpushparser_get, 0, PUSHPARSER_PATH),
     JS_CGETSET_MAGIC_DEF("location", js_jsonpushparser_get, 0, PUSHPARSER_LOCATION),
     JS_CGETSET_MAGIC_DEF("error", js_jsonpushparser_get, 0, PUSHPARSER_ERROR),
-    JS_PROP_INT32_DEF("TYPE_ERROR", jr_type_error, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NULL", jr_type_null, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_TRUE", jr_type_true, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_FALSE", jr_type_false, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NUMBER", jr_type_number, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_STRING", jr_type_string, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_OBJECT", jr_type_object_start, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_OBJECT_START", jr_type_object_start, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_OBJECT_END", jr_type_object_end, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ARRAY", jr_type_array_start, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ARRAY_START", jr_type_array_start, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ARRAY_END", jr_type_array_end, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_KEY", jr_type_key, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_ERROR", JSON_EVENT_ERROR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_NULL", JSON_EVENT_NULL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_TRUE", JSON_EVENT_TRUE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_FALSE", JSON_EVENT_FALSE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_NUMBER", JSON_EVENT_NUMBER, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_STRING", JSON_EVENT_STRING, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_OBJECT", JSON_EVENT_OBJECT_START, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_OBJECT_START", JSON_EVENT_OBJECT_START, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_OBJECT_END", JSON_EVENT_OBJECT_END, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_ARRAY", JSON_EVENT_ARRAY_START, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_ARRAY_START", JSON_EVENT_ARRAY_START, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_ARRAY_END", JSON_EVENT_ARRAY_END, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_KEY", JSON_EVENT_KEY, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonPushParser", JS_PROP_CONFIGURABLE),
 };
 
@@ -1726,7 +1728,7 @@ js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
 
   /* If skipping is requested and the current token starts a container (Object or Array) */
-  if(skip && (type == JSON_TYPE_OBJECT || type == JSON_TYPE_ARRAY)) {
+  if(skip && (type == JSON_EVENT_OBJECT_START || type == JSON_EVENT_ARRAY_START)) {
     int depth = 1;
 
     while(depth > 0) {
@@ -1736,9 +1738,9 @@ js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         return js_jsonparser_throw(ctx, p);
       }
 
-      if(next_type == JSON_TYPE_OBJECT || next_type == JSON_TYPE_ARRAY)
+      if(next_type == JSON_EVENT_OBJECT_START || next_type == JSON_EVENT_ARRAY_START)
         depth++;
-      else if(next_type == JSON_TYPE_OBJECT_END || next_type == JSON_TYPE_ARRAY_END)
+      else if(next_type == JSON_EVENT_OBJECT_END || next_type == JSON_EVENT_ARRAY_END)
         depth--;
 
       type = next_type;
@@ -1852,19 +1854,19 @@ static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_jsonparser_static_props[] = {
-    JS_PROP_INT32_DEF("NEED_DATA", -2, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NONE", -1, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("OBJECT", 0, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("OBJECT_END", 1, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("ARRAY", 2, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("ARRAY_END", 3, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("KEY", 4, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("STRING", 5, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TRUE", 6, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("FALSE", 7, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NULL", 8, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NUMBER", 9, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("COMMENT", 10, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NEED_DATA", JSON_NEED_DATA, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NONE", JSON_NONE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("OBJECT", JSON_EVENT_OBJECT_START, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("OBJECT_END", JSON_EVENT_OBJECT_END, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ARRAY", JSON_EVENT_ARRAY_START, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ARRAY_END", JSON_EVENT_ARRAY_END, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("KEY", JSON_EVENT_KEY, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("STRING", JSON_EVENT_STRING, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TRUE", JSON_EVENT_TRUE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("FALSE", JSON_EVENT_FALSE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NULL", JSON_EVENT_NULL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NUMBER", JSON_EVENT_NUMBER, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("COMMENT", JSON_EVENT_COMMENT, JS_PROP_ENUMERABLE),
 };
 
 static JSClassDef js_jsonparser_class = {

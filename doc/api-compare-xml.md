@@ -53,7 +53,7 @@ Observations:
 
 | Input | Bun `XML.parse` | ours `read()` |
 | --- | --- | --- |
-| mismatched or missing closing tag | `SyntaxError: XML Parse error: Expected closing tag </a> but found </b>` | tolerant: recovers; strict only for mismatches when `tolerant` is off (`XML_PARSE_ERROR`) |
+| mismatched or missing closing tag | `SyntaxError: XML Parse error: Expected closing tag </a> but found </b>` | tolerant: recovers; strict only for mismatches when `tolerant` is off (`XE_ERROR`) |
 | unquoted or duplicate attribute, `<` in an attribute | `SyntaxError` | accepted |
 | undeclared entity, bare `&` | `SyntaxError` | accepted |
 | more than one root, text after the root | `SyntaxError` | accepted (a list of roots) |

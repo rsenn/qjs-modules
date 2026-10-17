@@ -4,11 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * \addtogroup xml
  * @{
@@ -209,9 +204,4 @@ xml_decode_entities(char* buf, size_t len) {
 /**
  * @}
  */
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif // #ifndef XML_ENTITIES_H

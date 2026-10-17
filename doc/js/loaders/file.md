@@ -27,4 +27,4 @@ that is loaded after `installFileLoader()` ran.
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `installFileLoader()` | function | Registers the load hook; returns the `registerHooks()` result (`deregister()`). **(default export, also named)** |
+| `installFileLoader()` | function | Registers the load hook; returns the `registerHooks()` result (`deregister()`).**(default export)** |

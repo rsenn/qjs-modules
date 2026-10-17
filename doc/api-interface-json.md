@@ -50,19 +50,19 @@ Ordered so a refactor and a behaviour change never share a step; numbering is th
 
 ## 4. Reference: the event protocol
 
-One vocabulary connects reader, builder and writer: `jr_type_t` (`include/json/jread.h`), in this
+One vocabulary connects reader, builder and writer: `JsonEventType` (`include/json/jevent.h`), in this
 order.
 
-| `jr_type_t` | Carries | `jwrite` call | `jbuild` call | Walk event |
+| `JsonEventType` | Carries | `jwrite` call | `jbuild` call | Walk event |
 | --- | --- | --- | --- | --- |
-| `jr_type_error` | message | `jwrite_error(str, len)` | none | none (a walk throws) |
-| `jr_type_null` | | `jwrite_null` | `jbuild_value` | `value()` |
-| `jr_type_true`, `jr_type_false` | | `jwrite_true`, `jwrite_false` | `jbuild_value` | `value()` |
-| `jr_type_number` | text | `jwrite_number(str, len)` | `jbuild_value` (`scan_double`) | `value()` |
-| `jr_type_string` | decoded UTF-8 | `jwrite_string(str, len)` | `jbuild_value` | `value()` |
-| `jr_type_array_start`, `_end` | | `jwrite_array_start`, `_end` | `jbuild_push`, `jbuild_pop` | `array_start`, `array_end` |
-| `jr_type_object_start`, `_end` | | `jwrite_object_start`, `_end` | `jbuild_push`, `jbuild_pop` | `object_start`, `object_end` |
-| `jr_type_key` | decoded UTF-8 | `jwrite_key(str, len)` | `jbuild_key` | `key()` |
+| `JSON_EVENT_ERROR` | message | `jwrite_error(str, len)` | none | none (a walk throws) |
+| `JSON_EVENT_NULL` | | `jwrite_null` | `jbuild_value` | `value()` |
+| `JSON_EVENT_TRUE`, `JSON_EVENT_FALSE` | | `jwrite_true`, `jwrite_false` | `jbuild_value` | `value()` |
+| `JSON_EVENT_NUMBER` | text | `jwrite_number(str, len)` | `jbuild_value` (`scan_double`) | `value()` |
+| `JSON_EVENT_STRING` | decoded UTF-8 | `jwrite_string(str, len)` | `jbuild_value` | `value()` |
+| `JSON_EVENT_ARRAY_START`, `_end` | | `jwrite_array_start`, `_end` | `jbuild_push`, `jbuild_pop` | `array_start`, `array_end` |
+| `JSON_EVENT_OBJECT_START`, `_end` | | `jwrite_object_start`, `_end` | `jbuild_push`, `jbuild_pop` | `object_start`, `object_end` |
+| `JSON_EVENT_KEY` | decoded UTF-8 | `jwrite_key(str, len)` | `jbuild_key` | `key()` |
 
 Strings and keys arrive decoded; `jwrite` re-escapes them. Numbers travel as text so `1e400` and
 `12345678901234567890` survive a parse-write chain untouched.
@@ -72,7 +72,7 @@ Strings and keys arrive decoded; `jwrite` re-escapes them. Numbers travel as tex
 ### `jr_read` / `jr_finish` (push, `jread.h`)
 
 ```c
-typedef void (*jr_callback)(jr_type_t type, const jr_str_t* data, void* user_data);
+typedef void (*jr_callback)(JsonEventType type, const jr_str_t* data, void* user_data);
 void jr_state_init(jr_state_t*);   void jr_state_free(jr_state_t*);
 void jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t*);
 void jr_finish(jr_callback cb, void* user_data, jr_state_t*);
@@ -82,7 +82,7 @@ void jr_finish(jr_callback cb, void* user_data, jr_state_t*);
 | --- | --- |
 | chunking | a chunk may end anywhere (mid-string, mid-escape, mid-number, mid-literal); the state resumes |
 | `data` | valid only inside the callback; copied from an internal accumulator |
-| errors | `jr_type_error` once per bad span, then resync at the next comma or closing bracket; `state->just_erred` says whether this call hit one, `state->error` is sticky |
+| errors | `JSON_EVENT_ERROR` once per bad span, then resync at the next comma or closing bracket; `state->just_erred` says whether this call hit one, `state->error` is sticky |
 | numbers | a bare number has no terminator, so only `jr_finish()` closes a trailing one |
 | engine | none; `Vector` for the nesting stack (allocator set by `jr_state_init`) |
 | planned | strict mode (no comments, no resync, no trailing commas) and JSON5 / JSONC dialect flags |
@@ -91,27 +91,27 @@ void jr_finish(jr_callback cb, void* user_data, jr_state_t*);
 
 ```c
 BOOL json_init(JsonParser*, Reader, const char* filename, JSContext*);
-int  json_parse(JsonParser*);   /* a JsonValueType, JSON_NEED_DATA, or JSON_ERROR */
+int  json_parse(JsonParser*);   /* a JsonEventType, JSON_NEED_DATA, or JSON_ERROR */
 ```
 
 | Contract | |
 | --- | --- |
-| result | `JSON_TYPE_*` (object, object_end, array, array_end, key, string, true, false, null, number, comment), or `JSON_NEED_DATA` (reader dry, call again), or `JSON_ERROR` (`json->error`) |
+| result | `JSON_EVENT_*` (`JsonEventType` of `json/jevent.h`, comment included), or `JSON_NEED_DATA` (reader dry, call again), or `JSON_ERROR` (`json->error`; jpump turns it into `JSON_EVENT_ERROR`) |
 | payload | the current token text in `json->token` (a `DynBuf`), valid until the next call |
 | position | `json->loc` (`Location`), `json->pos` |
-| comments | skipped, or `JSON_TYPE_COMMENT` when `json->comments` is set |
+| comments | skipped, or `JSON_EVENT_COMMENT` when `json->comments` is set |
 | engine | `JSContext` only to allocate the `Location` |
 
-Note the two enums differ (`JSON_TYPE_OBJECT` vs `jr_type_object_start`, a separate `JSON_TYPE_KEY` in both);
+Note the two enums differ (`JSON_EVENT_OBJECT_START` vs `JSON_EVENT_OBJECT_START`, a separate `JSON_EVENT_KEY` in both);
 they are never mixed, and unifying them is not planned.
 
 ## 6. Building: `JsonBuilder` (`jbuilder.h`)
 
 ```c
 void    jbuild_init(JsonBuilder*, JSContext*);
-void    jbuild_push(JsonBuilder*, jr_type_t type);        /* array_start or object_start */
+void    jbuild_push(JsonBuilder*, JsonEventType type);        /* array_start or object_start */
 void    jbuild_key(JsonBuilder*, const char* name, size_t len);
-void    jbuild_value(JsonBuilder*, jr_type_t type, const char* data, size_t len);
+void    jbuild_value(JsonBuilder*, JsonEventType type, const char* data, size_t len);
 void    jbuild_pop(JsonBuilder*);
 JSValue jbuild_path(JsonBuilder*);   JSValue jbuild_root(JsonBuilder*);
 void    jbuild_free(JsonBuilder*, JSRuntime*);

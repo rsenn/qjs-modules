@@ -24,10 +24,10 @@ typedef struct {
 } Result;
 
 static void
-cb(jr_type_t type, const jr_str_t* data, void* user) {
+cb(JsonEventType type, const jr_str_t* data, void* user) {
   Result* r = user;
 
-  if(type == jr_type_error && !r->errors++) {
+  if(type == JSON_EVENT_ERROR && !r->errors++) {
     r->code = r->st.err_code;
     r->line = r->st.err_pos.line;
     r->column = r->st.err_pos.column;

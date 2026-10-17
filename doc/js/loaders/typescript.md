@@ -24,4 +24,4 @@ await import('./a');          // extensionless: tries .ts, .tsx, .mts, /index.ts
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `installTypeScript()` | function | Registers the resolve/load hooks; returns the `registerHooks()` result (`deregister()`). **(default export, also named)** |
+| `installTypeScript()` | function | Registers the resolve/load hooks; returns the `registerHooks()` result (`deregister()`).**(default export)** |

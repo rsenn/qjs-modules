@@ -6,13 +6,13 @@
 #include "char-utils.h"
 #include "json/jbuilder.h"
 
-typedef struct JsonBuilderFrame {
-  struct JsonBuilderFrame* parent;
+struct json_builder_frame {
+  struct json_builder_frame* parent;
   JSValue obj;
   uint32_t index, my_index;
   char *current_key, *my_key;
   unsigned is_object : 1;
-} JsonBuilderFrame;
+};
 
 void
 jbuild_init(JsonBuilder* b, JSContext* ctx) {
@@ -24,9 +24,9 @@ jbuild_init(JsonBuilder* b, JSContext* ctx) {
 }
 
 void
-jbuild_push(JsonBuilder* b, jr_type_t type) {
+jbuild_push(JsonBuilder* b, JsonEventType type) {
   JSContext* ctx = b->ctx;
-  BOOL is_object = (type == jr_type_object_start);
+  BOOL is_object = (type == JSON_EVENT_OBJECT_START);
   JSValue container = is_object ? (b->plain_objects ? JS_NewObject(ctx) : JS_NewObjectProto(ctx, JS_NULL)) : JS_NewArray(ctx);
 
   char* child_key = NULL;
@@ -99,15 +99,15 @@ jbuild_key(JsonBuilder* b, const char* name, size_t len) {
 }
 
 void
-jbuild_value(JsonBuilder* b, jr_type_t type, const char* data, size_t len) {
+jbuild_value(JsonBuilder* b, JsonEventType type, const char* data, size_t len) {
   JSContext* ctx = b->ctx;
   JSValue val = JS_UNDEFINED;
 
   switch(type) {
-    case jr_type_null: val = JS_NULL; break;
-    case jr_type_true: val = JS_TRUE; break;
-    case jr_type_false: val = JS_FALSE; break;
-    case jr_type_number: {
+    case JSON_EVENT_NULL: val = JS_NULL; break;
+    case JSON_EVENT_TRUE: val = JS_TRUE; break;
+    case JSON_EVENT_FALSE: val = JS_FALSE; break;
+    case JSON_EVENT_NUMBER: {
       double num = 0;
 
       if(data) {
@@ -124,7 +124,7 @@ jbuild_value(JsonBuilder* b, jr_type_t type, const char* data, size_t len) {
       val = JS_NewFloat64(ctx, num);
       break;
     }
-    case jr_type_string: {
+    case JSON_EVENT_STRING: {
       val = data ? JS_NewStringLen(ctx, data, len) : JS_NewString(ctx, "");
       break;
     }
@@ -245,32 +245,32 @@ jbuild_if_error(void* b, const char* str, size_t len) {
 }
 static ssize_t
 jbuild_if_null(void* b) {
-  jbuild_value(b, jr_type_null, NULL, 0);
+  jbuild_value(b, JSON_EVENT_NULL, NULL, 0);
   return 0;
 }
 static ssize_t
 jbuild_if_true(void* b) {
-  jbuild_value(b, jr_type_true, NULL, 0);
+  jbuild_value(b, JSON_EVENT_TRUE, NULL, 0);
   return 0;
 }
 static ssize_t
 jbuild_if_false(void* b) {
-  jbuild_value(b, jr_type_false, NULL, 0);
+  jbuild_value(b, JSON_EVENT_FALSE, NULL, 0);
   return 0;
 }
 static ssize_t
 jbuild_if_number(void* b, const char* str, size_t len) {
-  jbuild_value(b, jr_type_number, str, len);
+  jbuild_value(b, JSON_EVENT_NUMBER, str, len);
   return 0;
 }
 static ssize_t
 jbuild_if_string(void* b, const char* str, size_t len) {
-  jbuild_value(b, jr_type_string, str, len);
+  jbuild_value(b, JSON_EVENT_STRING, str, len);
   return 0;
 }
 static ssize_t
 jbuild_if_array_start(void* b) {
-  jbuild_push(b, jr_type_array_start);
+  jbuild_push(b, JSON_EVENT_ARRAY_START);
   return 0;
 }
 static ssize_t
@@ -280,7 +280,7 @@ jbuild_if_array_end(void* b) {
 }
 static ssize_t
 jbuild_if_object_start(void* b) {
-  jbuild_push(b, jr_type_object_start);
+  jbuild_push(b, JSON_EVENT_OBJECT_START);
   return 0;
 }
 static ssize_t

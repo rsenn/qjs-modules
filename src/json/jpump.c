@@ -26,11 +26,11 @@ jpump_send(JsonPump* p, const JsonEvent* ev) {
 }
 
 static void
-jpump_callback(jr_type_t type, const jr_str_t* data, void* user_data) {
+jpump_callback(JsonEventType type, const jr_str_t* data, void* user_data) {
   JsonPump* p = user_data;
   JsonEvent ev = {.type = type, .str = data ? data->cstr : NULL, .len = data ? data->len : 0};
 
-  if(type == jr_type_error) {
+  if(type == JSON_EVENT_ERROR) {
     ev.at = p->state->err_pos;
     ev.has_at = 1;
   }
@@ -54,25 +54,6 @@ jread_pump_finish(jr_state_t* state, const JsonEventSink* sink) {
   return p.failure;
 }
 
-/* the jr_type_t of a JsonValueType, or -1 for one that is not an event */
-static int
-jpump_type(int type) {
-  switch(type) {
-    case JSON_TYPE_OBJECT: return jr_type_object_start;
-    case JSON_TYPE_OBJECT_END: return jr_type_object_end;
-    case JSON_TYPE_ARRAY: return jr_type_array_start;
-    case JSON_TYPE_ARRAY_END: return jr_type_array_end;
-    case JSON_TYPE_KEY: return jr_type_key;
-    case JSON_TYPE_STRING: return jr_type_string;
-    case JSON_TYPE_TRUE: return jr_type_true;
-    case JSON_TYPE_FALSE: return jr_type_false;
-    case JSON_TYPE_NULL: return jr_type_null;
-    case JSON_TYPE_NUMBER: return jr_type_number;
-  }
-
-  return -1;
-}
-
 ssize_t
 json_pump(JsonParser* json, const JsonEventSink* sink) {
   JsonPump p = {sink, NULL, 0};
@@ -81,14 +62,14 @@ json_pump(JsonParser* json, const JsonEventSink* sink) {
     int type = json_parse(json);
     JsonEvent ev = {0};
 
-    if(type == JSON_TYPE_NONE)
+    if(type == JSON_NONE)
       return p.failure ? p.failure : JSON_PUMP_END;
 
     if(type == JSON_NEED_DATA)
       return p.failure ? p.failure : JSON_PUMP_AGAIN;
 
     if(type == JSON_ERROR) {
-      ev.type = jr_type_error;
+      ev.type = JSON_EVENT_ERROR;
       ev.str = json->error;
       ev.len = json->error ? strlen(json->error) : 0;
       ev.at = (SourcePos){.byte_offset = json->err_at.byte_offset,
@@ -96,11 +77,15 @@ json_pump(JsonParser* json, const JsonEventSink* sink) {
                           .line = json->err_at.line + 1,
                           .column = json->err_at.column + 1};
       ev.has_at = 1;
-    } else if((ev.type = jpump_type(type)) < 0) {
-      continue; /* a comment */
-    } else if(type == JSON_TYPE_KEY || type == JSON_TYPE_STRING || type == JSON_TYPE_NUMBER) {
-      ev.str = (const char*)json->token.buf;
-      ev.len = json->token.size;
+    } else if(type == JSON_EVENT_COMMENT) {
+      continue;
+    } else {
+      ev.type = (JsonEventType)type;
+
+      if(type == JSON_EVENT_KEY || type == JSON_EVENT_STRING || type == JSON_EVENT_NUMBER) {
+        ev.str = (const char*)json->token.buf;
+        ev.len = json->token.size;
+      }
     }
 
     jpump_send(&p, &ev);

@@ -12,16 +12,16 @@ source (`Reader`, chunks, fd, JS value) pumped into an event/callback sink that 
 | Entity | File | Direction | Model | Input | Output | Engine-free? |
 | --- | --- | --- | --- | --- | --- | --- |
 | `sj_*` | `include/sj.h` | bytes → tokens | pull, whole buffer | `char*`, len | `sj_Value`, `sj_iter_array/object` | yes (third-party, header-only) |
-| `jr_*` (`jread`) | `src/jread.c` | bytes → events | **push**, chunked, resumable mid-token, resyncs after errors | `jr_read(cb, chunk, len, ud, state)`, `jr_finish` | `jr_callback(jr_type_t, jr_str_t*, ud)` | code yes; `jread.h` includes `vector.h` → `quickjs.h` |
-| `JsonParser` (`json.h`) | `src/json.c` | bytes → events | **pull**, `Reader`, `JSON_NEED_DATA` to resume, comments, `Location` | `Reader` (4 KiB-block buffered) | one `JsonValueType` per `json_parse()` | no: `json_init(…, JSContext*)`, `json_free(…, JSRuntime*)`, `Location` |
+| `jr_*` (`jread`) | `src/jread.c` | bytes → events | **push**, chunked, resumable mid-token, resyncs after errors | `jr_read(cb, chunk, len, ud, state)`, `jr_finish` | `jr_callback(JsonEventType, jr_str_t*, ud)` | code yes; `jread.h` includes `vector.h` → `quickjs.h` |
+| `JsonParser` (`json.h`) | `src/json.c` | bytes → events | **pull**, `Reader`, `JSON_NEED_DATA` to resume, comments, `Location` | `Reader` (4 KiB-block buffered) | one `JsonEventType` per `json_parse()` | no: `json_init(…, JSContext*)`, `json_free(…, JSRuntime*)`, `Location` |
 | `jwrite_*` (`JsonWriter`) | `src/jwrite.c` | events → bytes | **push** (caller calls `jwrite_object_start/key/int64/…`), `Writer` sink, backpressure via `Writer` returning 0 | event calls | bytes through `Writer`; `-JWRITE_E_*` | code yes; header includes `stream-utils.h`/`vector.h` → `quickjs.h` |
-| `jbuild_*` (`JsonBuilder`) | `src/jbuilder.c` | events → JS value | push (`push/pop/key/value`), consumes `jr_type_t` | events | `JSValue` root | **no** (JSContext, JSValue) |
+| `jbuild_*` (`JsonBuilder`) | `src/jbuilder.c` | events → JS value | push (`push/pop/key/value`), consumes `JsonEventType` | events | `JSValue` root | **no** (JSContext, JSValue) |
 | `JwalkIterator` / `WalkInterface` | `src/jwalk.c` | JS value → events | **pull** (`jwalk_next()` = one event), or iface callbacks | `JSValue` | 6 callbacks (`key/object_start/array_start/object_end/array_end/value`) taking `JSContext*`, `JSValueConst` | **no** |
 | `JSON.read` | `quickjs-json.c` | bytes → JSValue | whole-buffer, `sj` + `parse_val` frame stack | string/buffer | value | no |
 | `JSON.write` | `quickjs-json.c` | JSValue → bytes | whole-value, own `PropertyEnumeration` stack + `Writer` | value | bytes/`Writer` | no |
 | `JSONL.parse/parseChunk` | `quickjs-json.c` | bytes → values | chunk-resumable, own boundary scanner (`jsonl_value_end`) then `sj` | string/Uint8Array | values + `read/done/error` | no |
-| `JsonPushParser` | `quickjs-json.c` | bytes → events/JSValue | push: `write(chunk)`, `close()`; `jr_read` → either `jbuild` (`.root`) or JS callbacks per `jr_type_t` | chunks | callbacks or `root` | no (wrapper of `jr_*` + `jbuild_*`) |
-| `JsonParser` (JS class) | `quickjs-json.c` | bytes → events | pull, `Reader` from fd/buffer/function/`read()` method; `[Symbol.iterator]` | any `reader_from_js` source | `JsonValueType` ints (+`NEED_DATA`) | no (wrapper of `json.c`) |
+| `JsonPushParser` | `quickjs-json.c` | bytes → events/JSValue | push: `write(chunk)`, `close()`; `jr_read` → either `jbuild` (`.root`) or JS callbacks per `JsonEventType` | chunks | callbacks or `root` | no (wrapper of `jr_*` + `jbuild_*`) |
+| `JsonParser` (JS class) | `quickjs-json.c` | bytes → events | pull, `Reader` from fd/buffer/function/`read()` method; `[Symbol.iterator]` | any `reader_from_js` source | `JsonEventType` ints (+`NEED_DATA`) | no (wrapper of `json.c`) |
 | `JsonWriter` (JS class) | `quickjs-json.c` | JSValue/events → bytes | push; implements `WalkInterface` (`js_walk_register`) so a `JwalkIterator` can drive it | `Writer` (`writer_from_js`) | bytes | no (wrapper of `jwrite_*` + walk) |
 | `JsonSerializer` | `quickjs-json.c` | JSValue → bytes | **pull** `read(n)`, produces only n bytes, `skip`/`CappedBuf`/`blocked` | JSValue | n-byte chunks | no — own recursion + own `sw_*` writers; does **not** use `walk`/`jwrite` yet; to be migrated, see "JsonSerializer → walk migration" |
 | `jsonStreams.js` | `lib/jsonStreams.js` | JS-level | WHATWG `TransformStream`s (Deno `@std/json` shapes) | strings/values | values/strings | JS only, no native code |
@@ -37,15 +37,15 @@ There is no single event type; four exist side by side:
 
 | Vocabulary | Defined in | Events | Carries |
 | --- | --- | --- | --- |
-| `jr_type_t` + `jr_str_t` | `jread.h` | error, null, true, false, number, string, array_start/end, object_start/end, key | decoded text (escapes resolved), number as raw text; no position, no comments |
-| `JsonValueType` | `json.h` | OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT, + NEED_DATA/ERROR/RESYNC | token in `json->token`, position in `Location` |
+| `JsonEventType` + `jr_str_t` | `jread.h` | error, null, true, false, number, string, array_start/end, object_start/end, key | decoded text (escapes resolved), number as raw text; no position, no comments |
+| `JsonEventType` | `json.h` | OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT, + NEED_DATA/ERROR/RESYNC | token in `json->token`, position in `Location` |
 | `WalkEvent` / `WalkInterface` | `jwalk.h` | key, object_start, array_start, object_end, array_end, value | `JSValue` (key and value), engine-bound |
-| `jwrite_*` calls / `jbuild_*` calls | `jwrite.h`, `jbuilder.h` | the same six + null/bool/int64/double/string/raw | C scalars (jwrite) / `jr_type_t`+text (jbuild) |
+| `jwrite_*` calls / `jbuild_*` calls | `jwrite.h`, `jbuilder.h` | the same six + null/bool/int64/double/string/raw | C scalars (jwrite) / `JsonEventType`+text (jbuild) |
 
 Boundaries, where one layer hands over to the next:
 
 ```
- bytes ──Reader (pull)──► JsonParser/json_parse ──JsonValueType──┐
+ bytes ──Reader (pull)──► JsonParser/json_parse ──JsonEventType──┐
  bytes ──chunks (push)──► jr_read ──────────────jr_callback──────┼─► (sink)
  bytes ──whole buffer───► sj / JSONL / JSON.read ─► JSValue (no event stage)
  JSValue ──jwalk_next/WalkInterface──────────────────────────────┤
@@ -61,7 +61,7 @@ Already connected: `jr_read → jbuild` (JsonPushParser), `walk → jwrite` (Jso
 | # | Adapter (source → sink) | Why / what is missing | Engine-free? |
 | --- | --- | --- | --- |
 | A1 | `jr_callback` → `jwrite_*` ("reformat"/minify/pretty/JSON5-ify while streaming) | no direct pump today; strings are already decoded by jr so `jwrite_string` re-escapes; numbers via `jwrite_number` | **yes** |
-| A2 | `json_parse` (pull) → `jr_callback` (`json_pump(JsonParser*, jr_callback, ud)`) | map `JsonValueType`→`jr_type_t`; lets the `Reader`-based parser feed the same sinks as the chunk parser; comments need a new event | needs `json.c` decoupled from `JSContext` first |
+| A2 | `json_parse` (pull) → `jr_callback` (`json_pump(JsonParser*, jr_callback, ud)`) | map `JsonEventType`→`JsonEventType`; lets the `Reader`-based parser feed the same sinks as the chunk parser; comments need a new event | needs `json.c` decoupled from `JSContext` first |
 | A3 | `Reader` → `jr_read` (`jr_pump(Reader*, cb, ud, state)`: read loop + `jr_finish`) | `jr_read` is chunk-only; every caller hand-writes the loop | **yes** |
 | A4 | `JwalkIterator` → `jr_callback` (JS value → pure-C events) | one engine-bound adapter in `quickjs-json.c` emitting `jr_*` events; after it, jwrite/jbuild/JS-callbacks all consume value trees through the same sink instead of `WalkInterface` | adapter engine-bound, sink pure |
 | A5 | `JsonSerializer` rebuilt on `JwalkIterator` + `JsonWriter` (**decided**, plan below) | removes the second serializer (own recursion, own writers, `skip`/`blocked` retry machinery); `jwalk_next()` is one event per call and resumable | no (walk is engine-bound) |
@@ -72,7 +72,7 @@ Already connected: `jr_read → jbuild` (JsonPushParser), `walk → jwrite` (Jso
 
 ### Proposed direction
 
-1. **Make `jr_callback(jr_type_t, jr_str_t*, void*)` the one pure-C event sink.** It already
+1. **Make `jr_callback(JsonEventType, jr_str_t*, void*)` the one pure-C event sink.** It already
    has the full six-event vocabulary plus scalars, and two consumers. Gaps to close in it:
    a comment event, a byte offset (for errors/`Location`), and a number form that is not
    forced to text. Do not add a second vtable type unless the above cannot be fitted.
@@ -211,7 +211,7 @@ inside one `jr_read()` call.
 
 ```
  chunk ──► jr_read(cb = jrewrite_event, ud = JsonRewriter*, &jr_state)
-              │ per token: (jr_type_t, jr_str_t*)
+              │ per token: (JsonEventType, jr_str_t*)
               ▼
           jrewrite_event ── decides: forward / drop / rewrite / hold one event
               │ jwrite_object_start · array_start · key · string · jwrite_number · …
@@ -256,7 +256,7 @@ PoC); each is a test fixture, not a feature of a library:
 
 ### Event handling (`jrewrite_event`)
 
-| `jr_type_t` | Normal | While `skip > 0` | Error |
+| `JsonEventType` | Normal | While `skip > 0` | Error |
 | --- | --- | --- | --- |
 | `object_start` / `array_start` | `jwrite_*_start`, push frame | `skip++` | |
 | `object_end` / `array_end` | `jwrite_*_end`, pop frame | `skip--`; at 0 the dropped value is complete | |
@@ -347,7 +347,7 @@ default options are the plain pass-through. Name: `jrewrite` pairs with `jread`/
  another JsonWriteInterface ───────┘            (JsonRewriter)                       └─► another JsonRewriter (chain)
 ```
 
-Possible now because `jwrite` mirrors `jr_type_t` one to one (error, null, true, false, number,
+Possible now because `jwrite` mirrors `JsonEventType` one to one (error, null, true, false, number,
 string, array_start/end, object_start/end, key), so input and output speak the same eleven events
 and the dispatcher is a plain `switch`.
 
@@ -361,7 +361,7 @@ typedef enum { JREWRITE_DEEP_EMPTY, JREWRITE_DEEP_NULL, JREWRITE_DEEP_DROP } Jso
 
 /* what a hook sees: one *member* (key + value, or a bare array element / root value). */
 typedef struct {
-  jr_type_t type;               /* null true false number string array_start object_start; never key/end/error */
+  JsonEventType type;               /* null true false number string array_start object_start; never key/end/error */
   const char* str; size_t len;  /* scalar text (decoded UTF-8 for strings, raw text for numbers) */
   const char* key; size_t key_len;  /* NULL outside objects; the held key */
   unsigned depth;               /* open containers around this event; root value = 0 */
@@ -382,8 +382,8 @@ typedef struct {
 void jrewrite_init(JsonRewriter*, JsonWriteInterface sink, const JsonRewriteOptions*);
 void jrewrite_free(JsonRewriter*);
 
-void jrewrite_event(JsonRewriter*, jr_type_t, const char* str, size_t len);   /* the dispatcher */
-void jrewrite_callback(jr_type_t, const jr_str_t*, void* ud);                  /* a jr_callback, ud = rewriter */
+void jrewrite_event(JsonRewriter*, JsonEventType, const char* str, size_t len);   /* the dispatcher */
+void jrewrite_callback(JsonEventType, const jr_str_t*, void* ud);                  /* a jr_callback, ud = rewriter */
 JsonWriteInterface jrewrite_interface(JsonRewriter*);                         /* as a sink: chainable */
 
 /* pull: runs json_parse() of include/json.h until it stops, feeding jrewrite_event().
@@ -503,11 +503,11 @@ JS (`tests/unittests/test-json.js`):
 
 | Fact | Where | Consequence |
 | --- | --- | --- |
-| `json_parse()` returns one `JsonValueType` per call; string/key/number/comment text is in `json->token` | `json.h`, `json.c` | the pull side maps the type and passes `(json->token.buf, .size)` to `jrewrite_event()` |
+| `json_parse()` returns one `JsonEventType` per call; string/key/number/comment text is in `json->token` | `json.h`, `json.c` | the pull side maps the type and passes `(json->token.buf, .size)` to `jrewrite_event()` |
 | strings and keys are **decoded** in the token, numbers are raw text | `json.c` ~l.273/315 | same data as `jr_str_t`; `jwrite_string` re-escapes, `jwrite_number` keeps numbers verbatim |
 | clean EOF and "ran out mid-value" both return `JSON_NEED_DATA` (reader `0` → `NEED_DATA`, `<0` → `JSON_ERROR`) | `json.c` l.222-226 | `jrewrite_pull` classifies it: `json->stack.len == 0 && tok_kind == JSON_TOK_NONE` is a clean end, else truncated |
 | `JSON_ERROR` sets `json->error`; the parser resyncs by itself on the next call | `json.c` | the pump stops at the first error; continuing would feed events the writer's frame stack cannot match |
-| `JSON_TYPE_COMMENT` only appears with `json->comments` set | `json.h` | `jwrite` has no comment event: dropped |
+| `JSON_EVENT_COMMENT` only appears with `json->comments` set | `json.h` | `jwrite` has no comment event: dropped |
 | `jr_callback` returns `void`; `jr_read()` cannot be stopped from a callback | `jread.h` | the rewriter keeps a sticky error and a `stopped` flag; the caller stops feeding |
 | `jwrite_put()` writes **one byte at a time** through the `Writer` | `jwrite.c` | a JS-backed `Writer` (`writer_from_jsfunction`/`jsstream`) would run one JS call per output byte: wrap it with `writer_buffered()` |
 | `js_jsonwriter_constructor` calls `writer_from_js()` and does not wrap the result | `quickjs-json.c` ~l.1696 | verify whether `writer_from_js` buffers; if not, add `writer_buffered` there |
@@ -515,7 +515,7 @@ JS (`tests/unittests/test-json.js`):
 
 Type map (the only table, in `jrewrite_event`; the pull side translates first):
 
-| `jr_type_t` | `JsonValueType` (pull) | `jwrite` call |
+| `JsonEventType` | `JsonEventType` (pull) | `jwrite` call |
 | --- | --- | --- |
 | `object_start` / `object_end` | `OBJECT` / `OBJECT_END` | `object_start` / `object_end` |
 | `array_start` / `array_end` | `ARRAY` / `ARRAY_END` | `array_start` / `array_end` |

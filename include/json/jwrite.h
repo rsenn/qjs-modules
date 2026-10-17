@@ -71,21 +71,21 @@ const char* jwrite_error_message(int code);
 void jwrite_init(JsonWriter*, DynBufReallocFunc* realloc_func, void* opaque);
 void jwrite_free(JsonWriter*);
 
-/* The events, one per jr_type_t of jread.h and in its order. Valueless
+/* The events, one per JsonEventType of jevent.h and in its order. Valueless
  * events take the writer only; the others take `str`/`len`.
  *
- *   jr_type_t               jwrite call
- *   jr_type_error           jwrite_error(wr, str, len)   message; writes nothing
- *   jr_type_null            jwrite_null(wr)
- *   jr_type_true            jwrite_true(wr)
- *   jr_type_false           jwrite_false(wr)
- *   jr_type_number          jwrite_number(wr, str, len)  the number as text
- *   jr_type_string          jwrite_string(wr, str, len)  decoded UTF-8, escaped here
- *   jr_type_array_start     jwrite_array_start(wr)
- *   jr_type_array_end       jwrite_array_end(wr)
- *   jr_type_object_start    jwrite_object_start(wr)
- *   jr_type_object_end      jwrite_object_end(wr)
- *   jr_type_key             jwrite_key(wr, str, len)     decoded UTF-8, escaped here
+ *   JsonEventType               jwrite call
+ *   JSON_EVENT_ERROR           jwrite_error(wr, str, len)   message; writes nothing
+ *   JSON_EVENT_NULL            jwrite_null(wr)
+ *   JSON_EVENT_TRUE            jwrite_true(wr)
+ *   JSON_EVENT_FALSE           jwrite_false(wr)
+ *   JSON_EVENT_NUMBER          jwrite_number(wr, str, len)  the number as text
+ *   JSON_EVENT_STRING          jwrite_string(wr, str, len)  decoded UTF-8, escaped here
+ *   JSON_EVENT_ARRAY_START     jwrite_array_start(wr)
+ *   JSON_EVENT_ARRAY_END       jwrite_array_end(wr)
+ *   JSON_EVENT_OBJECT_START    jwrite_object_start(wr)
+ *   JSON_EVENT_OBJECT_END      jwrite_object_end(wr)
+ *   JSON_EVENT_KEY             jwrite_key(wr, str, len)     decoded UTF-8, escaped here
  *
  * jwrite_number() writes `str` as given: "1e400" and "12345678901234567890"
  * stay as they are. With hex_numbers set, a plain integer (-31, 255) becomes

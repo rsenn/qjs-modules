@@ -27,27 +27,28 @@ put(Run* r, const char* s) {
 }
 
 static void
-cb(jr_type_t type, const jr_str_t* d, void* user) {
+cb(JsonEventType type, const jr_str_t* d, void* user) {
   Run* r = user;
   char buf[256];
 
   switch(type) {
-    case jr_type_null: put(r, "null"); break;
-    case jr_type_true: put(r, "true"); break;
-    case jr_type_false: put(r, "false"); break;
-    case jr_type_array_start: put(r, "["); break;
-    case jr_type_array_end: put(r, "]"); break;
-    case jr_type_object_start: put(r, "{"); break;
-    case jr_type_object_end: put(r, "}"); break;
-    case jr_type_number: snprintf(buf, sizeof(buf), "n:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
-    case jr_type_string: snprintf(buf, sizeof(buf), "s:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
-    case jr_type_key: snprintf(buf, sizeof(buf), "k:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
-    case jr_type_error: snprintf(buf, sizeof(buf), "E:%s@%u:%u", jr_error_name(r->st.err_code), (unsigned)r->st.err_pos.line, (unsigned)r->st.err_pos.column); put(r, buf); break;
+    case JSON_EVENT_NULL: put(r, "null"); break;
+    case JSON_EVENT_TRUE: put(r, "true"); break;
+    case JSON_EVENT_FALSE: put(r, "false"); break;
+    case JSON_EVENT_ARRAY_START: put(r, "["); break;
+    case JSON_EVENT_ARRAY_END: put(r, "]"); break;
+    case JSON_EVENT_OBJECT_START: put(r, "{"); break;
+    case JSON_EVENT_OBJECT_END: put(r, "}"); break;
+    case JSON_EVENT_NUMBER: snprintf(buf, sizeof(buf), "n:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
+    case JSON_EVENT_STRING: snprintf(buf, sizeof(buf), "s:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
+    case JSON_EVENT_KEY: snprintf(buf, sizeof(buf), "k:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
+    case JSON_EVENT_COMMENT: break;
+    case JSON_EVENT_ERROR: snprintf(buf, sizeof(buf), "E:%s@%u:%u", jr_error_name(r->st.err_code), (unsigned)r->st.err_pos.line, (unsigned)r->st.err_pos.column); put(r, buf); break;
   }
 }
 
 static void
-run(Run* r, unsigned flags, const char* s, size_t n, size_t step) {
+run(Run* r, uint8_t flags, const char* s, size_t n, size_t step) {
   size_t i;
 
   memset(r, 0, sizeof(*r));
@@ -65,7 +66,7 @@ run(Run* r, unsigned flags, const char* s, size_t n, size_t step) {
 
 /* the token stream of `s` under `flags`, at every chunk size, equals `expect` */
 static void
-check(unsigned flags, const char* s, const char* expect) {
+check(uint8_t flags, const char* s, const char* expect) {
   static const size_t steps[] = {0, 1, 2, 3, 7};
 
   for(size_t k = 0; k < sizeof(steps) / sizeof(steps[0]); k++) {
@@ -74,7 +75,7 @@ check(unsigned flags, const char* s, const char* expect) {
     run(&r, flags, s, strlen(s), steps[k]);
 
     if(strcmp(r.out, expect)) {
-      printf("FAIL flags=%u step=%zu input=%s\n  got    %s\n  expect %s\n", flags, steps[k], s, r.out, expect);
+      printf("FAIL flags=%u step=%zu input=%s\n  got    %s\n  expect %s\n", (unsigned)flags, steps[k], s, r.out, expect);
       failures++;
       return;
     }

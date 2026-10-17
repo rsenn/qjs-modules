@@ -29,16 +29,16 @@ int
 main(void) {
   DynBuf db;
   JsonEvent je[] = {
-      {.type = jr_type_object_start},
-      {.type = jr_type_key, .str = "id", .len = 2},
-      {.type = jr_type_number, .str = "7", .len = 1},
-      {.type = jr_type_key, .str = "t", .len = 1},
-      {.type = jr_type_array_start},
-      {.type = jr_type_true},
-      {.type = jr_type_null},
-      {.type = jr_type_string, .str = "x", .len = 1},
-      {.type = jr_type_array_end},
-      {.type = jr_type_object_end},
+      {.type = JSON_EVENT_OBJECT_START},
+      {.type = JSON_EVENT_KEY, .str = "id", .len = 2},
+      {.type = JSON_EVENT_NUMBER, .str = "7", .len = 1},
+      {.type = JSON_EVENT_KEY, .str = "t", .len = 1},
+      {.type = JSON_EVENT_ARRAY_START},
+      {.type = JSON_EVENT_TRUE},
+      {.type = JSON_EVENT_NULL},
+      {.type = JSON_EVENT_STRING, .str = "x", .len = 1},
+      {.type = JSON_EVENT_ARRAY_END},
+      {.type = JSON_EVENT_OBJECT_END},
   };
   XmlEvent xe[] = {
       {.type = XE_ELEMENT_START, .name = "a", .nlen = 1},
@@ -65,7 +65,7 @@ main(void) {
 
     /* a NULL member drops the event */
     sink.number = NULL;
-    CHECK(jevent_send(&sink, &(JsonEvent){.type = jr_type_number, .str = "1", .len = 1}) == 0);
+    CHECK(jevent_send(&sink, &(JsonEvent){.type = JSON_EVENT_NUMBER, .str = "1", .len = 1}) == 0);
     jwrite_free(&wr); /* also frees the dynbuf behind the writer */
   }
 

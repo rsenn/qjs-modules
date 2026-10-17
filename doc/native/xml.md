@@ -75,7 +75,7 @@ new XMLParser(input, options?)   // input is a buffer/string or a reader; option
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `parse()` | 0 | method | Advances one event. Returns an `xml_event_t` integer (see table above). |
+| `parse()` | 0 | method | Advances one event. Returns an `XmlEventType` integer (see table above). |
 | `eventName` | — | getter | The current event's tag/attribute name (enumerable). |
 | `eventValue` | — | getter | The current event's value — attribute value or text content (enumerable). |
 | `hasValue` | — | getter | Whether the current event carries a value (enumerable). |
@@ -249,7 +249,7 @@ new XMLWriter(output, options?)   // output is a buffer or writer; options may b
 | `instruction(str)` | 1 | method | Writes `<?str?>`. |
 | `declaration(str)` | 1 | method | Writes `<!str>`. |
 | `error(str)` | 1 | method | Writes nothing (the output has no form for an error); returns 0. |
-| `state` | — | getter | The event type of the last method call (an `xml_event_t` integer). |
+| `state` | — | getter | The event type of the last method call (an `XmlEventType` integer). |
 | `written` | — | getter | Total number of bytes written so far. |
 | `indent` | — | getter/setter | The indentation width (number of spaces per level). |
 

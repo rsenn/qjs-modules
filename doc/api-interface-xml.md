@@ -51,16 +51,16 @@ Numbering is that of `TODO.md` Tier 20 (phases) plus the interface-only addition
 
 ## 4. Reference: the event protocol: what exists and what is missing
 
-JSON has one vocabulary (`jr_type_t`) shared by reader, builder, walker and writer. XML has two
-unrelated ones and no write-side vocabulary:
+JSON and XML each have one vocabulary (`JsonEventType`, `XmlEventType`) shared by reader, builder,
+walker and writer. For XML it is `include/xml/xevent.h`; the parsers differ only in how they hand it out:
 
-| | `xml_event_t` (`xml.h`, pull) | `xr_type_t` (`xread.h`, push) | `xwrite` calls (new) |
+| `XmlEventType` | `xml_parser_run()` result (`xml.h`, pull) | `xr_callback` argument (`xread.h`, push) | `xwrite` calls (new) |
 | --- | --- | --- | --- |
-| start tag | `XML_ELEMENT_START` | `xr_type_element_start` | `xwrite_element_start(name)` |
-| attribute | `XML_ATTRIBUTE` | `xr_type_attribute` | `xwrite_attribute(name, value \| NULL)` |
-| text | `XML_TEXT` | `xr_type_text` | `xwrite_text(str)` |
-| end tag | `XML_ELEMENT_END` | `xr_type_element_end` | `xwrite_element_end(name \| NULL)` |
-| error | return `XML_PARSE_ERROR` (-1) | `xr_type_error` | `-XWRITE_E_*` |
+| start tag | `XE_ELEMENT_START` | `XE_ELEMENT_START` | `xwrite_element_start(name)` |
+| attribute | `XE_ATTRIBUTE` | `XE_ATTRIBUTE` | `xwrite_attribute(name, value \| NULL)` |
+| text | `XE_TEXT` | `XE_TEXT` | `xwrite_text(str)` |
+| end tag | `XE_ELEMENT_END` | `XE_ELEMENT_END` | `xwrite_element_end(name \| NULL)` |
+| error | return `XE_ERROR` (-1) | `XE_ERROR` | `-XWRITE_E_*` |
 | comment, doctype, PI, CDATA | a start event with a magic name (`!-- c --`, `!DOCTYPE html`, `?xml`) followed by an end | same | `xwrite_markup(name)` verbatim, or typed `xwrite_comment/declaration/instruction/cdata` |
 | status | `XML_PARSE_OK` (0), `XML_PARSE_AGAIN` (-2) | none | |
 | position | `tag_line`, `tag_column`, `loc` | none | |
@@ -78,12 +78,12 @@ Until then the two enums stay and each adapter translates.
 void xml_parser_init(XMLParser*, Reader* reader);   void xml_parser_free(XMLParser*);
 void xml_parser_set_tolerant(XMLParser*, int);      void xml_parser_set_implied_end(XMLParser*, int);
 void xml_parser_set_flat(XMLParser*, int);          void xml_parser_set_self_closing_tags(XMLParser*, const char* const*);
-xml_event_t xml_parser_run(XMLParser*);
+int xml_parser_run(XMLParser*);
 ```
 
 | Contract | |
 | --- | --- |
-| result | `XML_ELEMENT_START/ATTRIBUTE/ELEMENT_END/TEXT` with the data in `event_name`, `event_value`, `event_has_value`; or `XML_PARSE_OK` (clean end), `XML_PARSE_AGAIN` (reader dry, call again), `XML_PARSE_ERROR` (terminal: mismatched closing tag with `tolerant` off, `event_name` is the tag) |
+| result | `XE_ELEMENT_START/ATTRIBUTE/ELEMENT_END/TEXT` with the data in `event_name`, `event_value`, `event_has_value`; or `XML_PARSE_OK` (clean end), `XML_PARSE_AGAIN` (reader dry, call again), `XE_ERROR` (terminal: mismatched closing tag with `tolerant` off, `event_name` is the tag) |
 | data lifetime | `event_name` / `event_value` point into dedicated buffers, valid until the next `xml_parser_run()` |
 | value-less attribute | `event_has_value == 0` (`<input disabled>`) |
 | modes | `tolerant` (recover from mismatches), `flat` (no open-element stack: every closing tag is an `ELEMENT_END`), `no_implied_end` (do not close `<li>`, `<p>` ... on a sibling), `self_closing_tags` (void elements) |
@@ -94,13 +94,13 @@ xml_event_t xml_parser_run(XMLParser*);
 ### `xr_read` / `xr_finish` (push, `xread.h`)
 
 ```c
-typedef void (*xr_callback)(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data);
+typedef void (*xr_callback)(XmlEventType type, const xr_str_t* name, const xr_str_t* value, void* user_data);
 void xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t*);
 void xr_finish(xr_callback cb, void* user_data, xr_state_t*);
 ```
 
 Chunks may end anywhere; `name` and `value` are valid inside the callback; a value-less attribute has `value == NULL`; `xr_finish`
-reports `xr_type_error` when elements are still open. No tolerant mode, no implied ends, no flat mode, no locations.
+reports `XE_ERROR` when elements are still open. No tolerant mode, no implied ends, no flat mode, no locations.
 
 ## 6. Writing: `XmlWriter` (`xwrite.h`)
 

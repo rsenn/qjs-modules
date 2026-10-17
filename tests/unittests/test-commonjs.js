@@ -98,6 +98,7 @@ tests({
 
   'teardown'() {
     hooks.deregister();
+    eq('undefined', typeof globalThis.require);
     os.exec(['rm', '-rf', dir]);
   },
 });

@@ -1,7 +1,9 @@
 #ifndef CHAR_UTILS_H
 #define CHAR_UTILS_H
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
+#endif
 
 #include <string.h>
 #include <cutils.h>

@@ -414,7 +414,7 @@ dbuf_freearraybuffer(JSRuntime* rt, void* opaque, void* ptr) {
 
 JSValue
 dbuf_toarraybuffer(DynBuf* s, JSContext* ctx) {
-  assert(s->opaque == NULL || (s->realloc_func == &js_realloc_rt && s->opaque == JS_GetRuntime(ctx)));
+  assert(s->opaque == NULL || (s->realloc_func == (DynBufReallocFunc*)&js_realloc_rt && s->opaque == JS_GetRuntime(ctx)));
   assert(s->buf);
 
   MemoryBlock block = block_from_dynbuf(s);

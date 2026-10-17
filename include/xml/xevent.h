@@ -5,14 +5,14 @@
 #include <sys/types.h>
 #include "srcpos.h"
 
-/* XmlEventType: the kind of an XML event; the twin of jr_type_t (json/jread.h).
+/* XmlEventType: the kind of an XML event; the twin of JsonEventType (json/jevent.h).
  *
- * the first five values equal xml_event_t's (xml/xml.h), so what xml_parser_run()
- * returns can be used as an XmlEventType; checked at build time in xevent.c.
- * XML_PARSE_AGAIN/OK are statuses of the pull parser, not events.
+ * the one vocabulary of every xml/ header: xread (callbacks), xml (xml_parse()
+ * results), xbuilder, xwrite and the sinks. XML_PARSE_AGAIN/OK (xml/xml.h) are
+ * statuses of the pull parser, not events.
  *
  *   id  type              name       value      stands for
- *   -1  XE_ERROR          -          text       a parse error (XML_PARSE_ERROR)
+ *   -1  XE_ERROR          -          text       a parse error (XE_ERROR)
  *    1  XE_ELEMENT_START  tag name   -          <a
  *    2  XE_ATTRIBUTE      attr name  text/none  ` b="c"`; no value is a bare attribute
  *    3  XE_ELEMENT_END    tag name   -          </a> or the end of <a />

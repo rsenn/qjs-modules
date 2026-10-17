@@ -24,11 +24,6 @@
 #define _MMAP_WIN32_H
 
 #ifdef _WIN32
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef void* caddr_t;
 
 unsigned int sleep(unsigned int seconds);
@@ -53,11 +48,6 @@ void* mmap(void* addr, size_t len, int prot, int flags, int fd, long off);
 int munmap(void* addr, size_t len);
 int msync(void* addr, size_t length, int flags);
 int mprotect(void* addr, size_t length, int prot);
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif /* _WIN32 */
 
 #endif /* !_MMAP_H */

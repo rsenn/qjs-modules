@@ -156,7 +156,7 @@ jr_state_init(jr_state_t* state) {
 
 /* jr_state_init_flags: jr_state_init() with the syntax `flags` (JR_JSON, JR_JSON5, ...). */
 void
-jr_state_init_flags(jr_state_t* state, unsigned flags) {
+jr_state_init_flags(jr_state_t* state, uint8_t flags) {
   jr_state_init(state);
   state->flags = flags;
 }
@@ -662,7 +662,7 @@ l_err: {
     code = JR_E_TRAILING_DATA;
 
   jr_error_at(state, cstr - 1, code, state->accumulating || state->literal_active || state->kw_active);
-  cb(jr_type_error, &data, user_data);
+  cb(JSON_EVENT_ERROR, &data, user_data);
 }
   /* `error` is sticky (jr_finish()/close() report "this stream had an error at some point");
    * `just_erred` is reset at the top of every jr_read() call and only reflects THIS call, so
@@ -872,7 +872,7 @@ l_num_e:
   state->in_number = 0;
   {
     jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
-    cb(jr_type_number, &data, user_data);
+    cb(JSON_EVENT_NUMBER, &data, user_data);
   }
   JR_POP_GO_SEP();
   JR_DISPATCH_THIS();
@@ -882,7 +882,7 @@ l_str_s:
   jr_accum_reset(state);
   state->accumulating = 1;
   JR_PUSH_GO(go_str);
-  state->str_type = jr_type_string;
+  state->str_type = JSON_EVENT_STRING;
   JR_DISPATCH_NEXT();
 
 l_str_sq_s:
@@ -892,7 +892,7 @@ l_str_sq_s:
   jr_accum_reset(state);
   state->accumulating = 1;
   JR_PUSH_GO(go_str_sq);
-  state->str_type = jr_type_string;
+  state->str_type = JSON_EVENT_STRING;
   JR_DISPATCH_NEXT();
 
 l_str_ctl:
@@ -1079,7 +1079,7 @@ l_null_l:
   JR_DISPATCH_NEXT_GO(go_null_l);
 
 l_null_ll:
-  cb(jr_type_null, 0, user_data);
+  cb(JSON_EVENT_NULL, 0, user_data);
   state->literal_active = 0;
   JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
@@ -1097,7 +1097,7 @@ l_true_u:
   JR_DISPATCH_NEXT_GO(go_true_u);
 
 l_true_e:
-  cb(jr_type_true, 0, user_data);
+  cb(JSON_EVENT_TRUE, 0, user_data);
   state->literal_active = 0;
   JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
@@ -1118,14 +1118,14 @@ l_false_s:
   JR_DISPATCH_NEXT_GO(go_false_s);
 
 l_false_e:
-  cb(jr_type_false, 0, user_data);
+  cb(JSON_EVENT_FALSE, 0, user_data);
   state->literal_active = 0;
   JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
 l_arr_s:
   state->after_comma = 0;
-  cb(jr_type_array_start, 0, user_data);
+  cb(JSON_EVENT_ARRAY_START, 0, user_data);
   JR_PUSH_GO(go_arr);
   JR_DISPATCH_NEXT();
 
@@ -1135,13 +1135,13 @@ l_arr_e:
     jr_str_t data = {cstr - 1, 1};
 
     jr_error_at(state, cstr - 1, JR_E_UNEXPECTED_TOKEN, 0);
-    cb(jr_type_error, &data, user_data);
+    cb(JSON_EVENT_ERROR, &data, user_data);
     state->error = 1;
     state->just_erred = 1;
   }
 
   state->after_comma = 0;
-  cb(jr_type_array_end, 0, user_data);
+  cb(JSON_EVENT_ARRAY_END, 0, user_data);
   /* Closing this array is itself "a value ending" from the parent's point of view - same
    * comma-required rule applies to whatever comes after it there. */
   JR_POP_GO_SEP();
@@ -1149,7 +1149,7 @@ l_arr_e:
 
 l_obj_s:
   state->after_comma = 0;
-  cb(jr_type_object_start, 0, user_data);
+  cb(JSON_EVENT_OBJECT_START, 0, user_data);
   JR_PUSH_GO(go_obj);
   JR_DISPATCH_NEXT();
 
@@ -1159,13 +1159,13 @@ l_obj_e:
     jr_str_t data = {cstr - 1, 1};
 
     jr_error_at(state, cstr - 1, JR_E_UNEXPECTED_TOKEN, 0);
-    cb(jr_type_error, &data, user_data);
+    cb(JSON_EVENT_ERROR, &data, user_data);
     state->error = 1;
     state->just_erred = 1;
   }
 
   state->after_comma = 0;
-  cb(jr_type_object_end, 0, user_data);
+  cb(JSON_EVENT_OBJECT_END, 0, user_data);
   JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
 
@@ -1176,7 +1176,7 @@ l_kvp:
   JR_PUSH_GO(go_obj_val);
   JR_PUSH_GO(go_col);
   JR_PUSH_GO(go_str);
-  state->str_type = jr_type_key;
+  state->str_type = JSON_EVENT_KEY;
   JR_DISPATCH_NEXT();
 
 l_kvp_sq:
@@ -1188,7 +1188,7 @@ l_kvp_sq:
   JR_PUSH_GO(go_obj_val);
   JR_PUSH_GO(go_col);
   JR_PUSH_GO(go_str_sq);
-  state->str_type = jr_type_key;
+  state->str_type = JSON_EVENT_KEY;
   JR_DISPATCH_NEXT();
 
 l_key_id:
@@ -1208,7 +1208,7 @@ l_key_id_e:
   state->accumulating = 0;
   {
     jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
-    cb(jr_type_key, &data, user_data);
+    cb(JSON_EVENT_KEY, &data, user_data);
   }
   JR_POP_GO();
   JR_DISPATCH_THIS();
@@ -1242,7 +1242,7 @@ l_oom: {
   /* Unlike jr_accum_putc()'s truncation, a lost go_stack entry can't be papered over: every
    * later pop would restore the wrong table. So stop for good instead of resyncing. */
   jr_str_t data = {0, 0};
-  cb(jr_type_error, &data, user_data);
+  cb(JSON_EVENT_ERROR, &data, user_data);
   state->error = 1;
   state->just_erred = 1;
   state->accumulating = 0;
@@ -1274,7 +1274,7 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     state->err_len = state->kw_active ? state->pos.byte_offset - state->tok.byte_offset : 0;
     state->in_number = 0;
     state->accumulating = 0;
-    cb(jr_type_error, &data, user_data);
+    cb(JSON_EVENT_ERROR, &data, user_data);
     state->error = 1;
     return;
   }
@@ -1282,7 +1282,7 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
   if(state->in_number) {
     jr_str_t data = {state->accum, (int32_t)state->accum_len};
 
-    cb(jr_type_number, &data, user_data);
+    cb(JSON_EVENT_NUMBER, &data, user_data);
     state->in_number = 0;
     state->accumulating = 0;
 
@@ -1300,7 +1300,7 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     state->err_code = JR_E_UNEXPECTED_END;
     state->err_pos = state->pos;
     state->err_len = 0;
-    cb(jr_type_error, &data, user_data);
+    cb(JSON_EVENT_ERROR, &data, user_data);
     state->error = 1;
     return;
   }
@@ -1311,7 +1311,7 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     state->err_code = JR_E_UNEXPECTED_END;
     state->err_pos = state->pos;
     state->err_len = 0;
-    cb(jr_type_error, &data, user_data);
+    cb(JSON_EVENT_ERROR, &data, user_data);
     state->error = 1;
     return;
   }
@@ -1322,7 +1322,7 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     state->err_code = JR_E_UNEXPECTED_END;
     state->err_pos = state->pos;
     state->err_len = 0;
-    cb(jr_type_error, &data, user_data);
+    cb(JSON_EVENT_ERROR, &data, user_data);
     state->error = 1;
     return;
   }

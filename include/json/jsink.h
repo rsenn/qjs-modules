@@ -32,7 +32,7 @@ typedef JsonEventSink JsonSinkFromOpaque(void* opaque);
 /* the exception for a failed member result `r` (< 0); returns JS_EXCEPTION */
 typedef JSValue JsonSinkThrow(JSContext*, ssize_t r);
 
-/* called after each successful call with the jr_type_t, e.g. to remember the last event */
+/* called after each successful call with the JsonEventType, e.g. to remember the last event */
 typedef void JsonSinkNote(void* opaque, int type);
 
 /* js_jsonsink_register: lets objects of `class_id` call the JsonEventSink methods.

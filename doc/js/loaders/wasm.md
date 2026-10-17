@@ -23,4 +23,4 @@ const { add } = await import('./add.wasm');
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `installWasmLoader()` | function | Registers the resolve/load hooks; returns the `registerHooks()` result (`deregister()`). **(default export, also named)** |
+| `installWasmLoader()` | function | Registers the resolve/load hooks; returns the `registerHooks()` result (`deregister()`).**(default export)** |

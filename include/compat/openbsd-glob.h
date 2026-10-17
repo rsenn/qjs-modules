@@ -70,10 +70,7 @@ typedef struct {
 /*
  * API functions
  */
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+ /* __cplusplus */
 
 /** Generates pathnames matching a pattern
  *
@@ -97,9 +94,6 @@ int glob(char const* pattern, int flags, int (*errfunc)(char const*, int), glob_
  * @param pglob Pointer to a glob_t structure to receive the search results
  */
 void globfree(glob_t* pglob);
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+ /* __cplusplus */
 
 #endif /* OPENBSD_GLOB_H */

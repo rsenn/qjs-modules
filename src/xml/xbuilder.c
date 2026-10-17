@@ -25,7 +25,7 @@ xbuild_init(XmlBuilder* b, JSContext* ctx, unsigned flags) {
   b->flat = !!(flags & XB_FLAT);
   b->skip_end = 0;
   b->open_flat = 0;
-  jbuild_push(&b->json, jr_type_array_start); /* the root array */
+  jbuild_push(&b->json, JSON_EVENT_ARRAY_START); /* the root array */
 }
 
 /* a child or text is coming: closes `attributes`, opens `children`, once per element */
@@ -36,7 +36,7 @@ xbuild_open_children(XmlBuilder* b) {
 
   if(b->state == XB_ATTRS || b->state == XB_BANG) {
     jbuild_key(&b->json, "children", 8);
-    jbuild_push(&b->json, jr_type_array_start);
+    jbuild_push(&b->json, JSON_EVENT_ARRAY_START);
     b->state = XB_CHILDREN;
   }
 }
@@ -67,15 +67,15 @@ xbuild_start(XmlBuilder* b, const char* name, size_t len) {
   else if(b->depth)
     xbuild_open_children(b);
 
-  jbuild_push(&b->json, jr_type_object_start);
+  jbuild_push(&b->json, JSON_EVENT_OBJECT_START);
   JS_FreeValue(ctx, b->last);
   b->last = jbuild_top(&b->json);
   jbuild_key(&b->json, "tagName", 7);
-  jbuild_value(&b->json, jr_type_string, name, len);
+  jbuild_value(&b->json, JSON_EVENT_STRING, name, len);
 
   if(!bang) {
     jbuild_key(&b->json, "attributes", 10);
-    jbuild_push(&b->json, jr_type_object_start);
+    jbuild_push(&b->json, JSON_EVENT_OBJECT_START);
   }
 
   b->state = bang ? XB_BANG : XB_ATTRS;
@@ -96,9 +96,9 @@ xbuild_attribute(XmlBuilder* b, const char* name, size_t nlen, const char* value
   jbuild_key(&b->json, name, nlen);
 
   if(value)
-    jbuild_value(&b->json, jr_type_string, value, vlen);
+    jbuild_value(&b->json, JSON_EVENT_STRING, value, vlen);
   else
-    jbuild_value(&b->json, jr_type_true, NULL, 0);
+    jbuild_value(&b->json, JSON_EVENT_TRUE, NULL, 0);
 }
 
 void
@@ -108,7 +108,7 @@ xbuild_text(XmlBuilder* b, const char* str, size_t len) {
   else if(b->depth)
     xbuild_open_children(b);
 
-  jbuild_value(&b->json, jr_type_string, str, len);
+  jbuild_value(&b->json, JSON_EVENT_STRING, str, len);
 }
 
 void
@@ -125,7 +125,7 @@ xbuild_end(XmlBuilder* b, const char* name, size_t len, int self_closing) {
       return;
     }
 
-    jbuild_push(&b->json, jr_type_object_start);
+    jbuild_push(&b->json, JSON_EVENT_OBJECT_START);
     JS_FreeValue(ctx, b->last);
     b->last = jbuild_top(&b->json);
     jbuild_key(&b->json, "tagName", 7);
@@ -136,7 +136,7 @@ xbuild_end(XmlBuilder* b, const char* name, size_t len, int self_closing) {
       if(tag) {
         tag[0] = '/';
         memcpy(tag + 1, name, len);
-        jbuild_value(&b->json, jr_type_string, tag, len + 1);
+        jbuild_value(&b->json, JSON_EVENT_STRING, tag, len + 1);
         js_free(ctx, tag);
       }
     }
@@ -153,7 +153,7 @@ xbuild_end(XmlBuilder* b, const char* name, size_t len, int self_closing) {
 
     if(!self_closing) { /* an element left open still gets its (empty) children */
       jbuild_key(&b->json, "children", 8);
-      jbuild_push(&b->json, jr_type_array_start);
+      jbuild_push(&b->json, JSON_EVENT_ARRAY_START);
       jbuild_pop(&b->json);
     }
   } else if(b->state == XB_CHILDREN) {

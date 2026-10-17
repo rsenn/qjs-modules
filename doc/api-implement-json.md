@@ -16,8 +16,8 @@ equals `JSON.stringify` on 420 cases through both `write` and `JsonSerializer`.
 
 | Piece | Files | Lines | Engine | Role |
 | --- | --- | --- | --- | --- |
-| push tokenizer | `jread.[ch]` | 794 + 103 | none | chunks in, `jr_type_t` callbacks out; resumable mid-token; resyncs after an error |
-| pull tokenizer | `json.[ch]` | 653 + 99 | `JSContext` only for a `Location` | `Reader` in, one `JsonValueType` per `json_parse()`; `JSON_NEED_DATA` when the reader is dry; optional comment tokens |
+| push tokenizer | `jread.[ch]` | 794 + 103 | none | chunks in, `JsonEventType` callbacks out; resumable mid-token; resyncs after an error |
+| pull tokenizer | `json.[ch]` | 653 + 99 | `JSContext` only for a `Location` | `Reader` in, one `JsonEventType` per `json_parse()`; `JSON_NEED_DATA` when the reader is dry; optional comment tokens |
 | builder | `jbuilder.[ch]` | 233 + 40 | `JSContext`, `JSValue` | `jr` events (push/pop/key/value) to a JS value; the partial tree is always reachable |
 | generic walker | `walk.[ch]` | 531 + 122 | `JSContext`, `JSValue` | JS value to `WalkInterface` events, one per `walk_next()`; hooks decide what a property is |
 | JSON walker | `jwalk.[ch]` | 368 + 81 | same | the `JSON.stringify` rules as `WalkHooks` on top of `walk` |

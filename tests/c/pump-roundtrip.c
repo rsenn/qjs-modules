@@ -128,11 +128,11 @@ xml_pull(void) {
   dbuf_init(&db);
   xwrite_init(&wr, NULL, NULL);
   sink = xwrite_sink(&wr);
-  xml_parser_init(&xp, &rd);
+  xml_init(&xp, &rd);
 
   CHECK(xml_pump(&xp, &sink) == XML_PUMP_END);
   CHECK(equals(&db, xml_want));
-  xml_parser_free(&xp);
+  xml_free(&xp);
   xwrite_free(&wr);
 }
 
@@ -149,10 +149,10 @@ xml_sink_failure(void) {
   Reader rd = reader_from_bytes("<a><b/><c/></a>", 15);
   XMLParser xp;
 
-  xml_parser_init(&xp, &rd);
+  xml_init(&xp, &rd);
   CHECK(xml_pump(&xp, &sink) == -42);
   CHECK(calls == 2);
-  xml_parser_free(&xp);
+  xml_free(&xp);
 }
 
 int

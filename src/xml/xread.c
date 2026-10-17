@@ -261,7 +261,7 @@ l_error: {
   state->err_len = 1;
   xr_str_t name = {"Error!", 6};
   xr_str_t val = {cstr - 1, 1};
-  cb(xr_type_error, &name, &val, user_data);
+  cb(XE_ERROR, &name, &val, user_data);
 }
   state->error = 1;
   return;
@@ -307,7 +307,7 @@ l_text_end:
      * whitespace needs accumulating from the start rather than being skipped. */
     if(!all_whitespace) {
       text.len = (int32_t)xml_decode_entities(state->text_accum.buf, (size_t)text.len);
-      cb(xr_type_text, 0, &text, user_data);
+      cb(XE_TEXT, 0, &text, user_data);
     }
   }
   goto l_tag;
@@ -332,7 +332,7 @@ l_stag_name:
   state->accumulating = 0;
   {
     xr_str_t tag = {state->tag_accum.buf, (int32_t)(state->tag_accum.len - 1)};
-    cb(xr_type_element_start, &tag, 0, user_data);
+    cb(XE_ELEMENT_START, &tag, 0, user_data);
   }
   go = go_attrib;
   XR_DISPATCH_THIS();
@@ -341,14 +341,14 @@ l_etag_name:
   state->accumulating = 0;
   {
     xr_str_t tag = {state->tag_accum.buf, (int32_t)(state->tag_accum.len - 1)};
-    cb(xr_type_element_end, &tag, 0, user_data);
+    cb(XE_ELEMENT_END, &tag, 0, user_data);
   }
   go = go_tag_close;
   XR_DISPATCH_THIS();
 
 l_empty_element_tag: {
   xr_str_t tag = {state->tag_accum.buf, (int32_t)(state->tag_accum.len - 1)};
-  cb(xr_type_element_end, &tag, 0, user_data);
+  cb(XE_ELEMENT_END, &tag, 0, user_data);
 }
   go = go_tag_close;
   XR_DISPATCH_NEXT();
@@ -391,14 +391,14 @@ l_attrib_val:
     xr_str_t name = {state->name_accum.buf, (int32_t)(state->name_accum.len - 1)};
     xr_str_t val = {state->val_accum.buf, (int32_t)(state->val_accum.len - 1)};
     val.len = (int32_t)xml_decode_entities(state->val_accum.buf, (size_t)val.len);
-    cb(xr_type_attribute, &name, &val, user_data);
+    cb(XE_ATTRIBUTE, &name, &val, user_data);
   }
   go = go_attrib;
   XR_DISPATCH_NEXT();
 
 l_attrib_bool: {
   xr_str_t name = {state->name_accum.buf, (int32_t)(state->name_accum.len - 1)};
-  cb(xr_type_attribute, &name, 0, user_data);
+  cb(XE_ATTRIBUTE, &name, 0, user_data);
 }
   go = go_attrib;
   XR_DISPATCH_THIS();
@@ -424,7 +424,7 @@ xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
     state->err_code = XR_E_UNEXPECTED_END;
     state->err_pos = state->pos;
     state->err_len = 0;
-    cb(xr_type_error, &name, &val, user_data);
+    cb(XE_ERROR, &name, &val, user_data);
     state->error = 1;
     return;
   }

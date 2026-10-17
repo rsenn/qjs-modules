@@ -1,6 +1,6 @@
 #define _XOPEN_SOURCE 600
 #define _POSIX_C_SOURCE 200809L
-#define _GNU_SOURCE 1q
+#define _GNU_SOURCE 1
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

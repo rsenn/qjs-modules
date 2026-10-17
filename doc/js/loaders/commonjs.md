@@ -3,8 +3,8 @@
 Source: `lib/loaders/commonjs.js` (JS wrapper over `registerHooks()` and `lib/require.js`) — default export: `installCommonJS()`; qjsm only
 
 Loads modules whose format is `commonjs`: files ending in `.cjs`, and any `load`
-result with `format: 'commonjs'`. Importing it also sets `globalThis.require` (the
-`require()` of `lib/require.js`).
+result with `format: 'commonjs'`. Installing it also sets `globalThis.require` (the
+`require()` of `lib/require.js`); `deregister()` removes it again.
 
 ```js
 import installCommonJS from 'loaders/commonjs';
@@ -24,4 +24,4 @@ const { sum } = await import('./lib.cjs');   // lib.cjs: exports.sum = require('
 
 | Export | Kind | Description |
 | --- | --- | --- |
-| `installCommonJS()` | function | Registers the resolve/load hooks; returns the `registerHooks()` result (`deregister()`). **(default export, also named)** |
+| `installCommonJS()` | function | Registers the resolve/load hooks; returns the `registerHooks()` result (`deregister()`).**(default export)** |

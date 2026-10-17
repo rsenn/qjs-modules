@@ -11,7 +11,7 @@
 
 enum { M_ERROR, M_NULL, M_TRUE, M_FALSE, M_NUMBER, M_STRING, M_ARRAY_START, M_ARRAY_END, M_OBJECT_START, M_OBJECT_END, M_KEY };
 
-static const jr_type_t method_types[] = {jr_type_error, jr_type_null, jr_type_true, jr_type_false, jr_type_number, jr_type_string, jr_type_array_start, jr_type_array_end, jr_type_object_start, jr_type_object_end, jr_type_key};
+static const JsonEventType method_types[] = {JSON_EVENT_ERROR, JSON_EVENT_NULL, JSON_EVENT_TRUE, JSON_EVENT_FALSE, JSON_EVENT_NUMBER, JSON_EVENT_STRING, JSON_EVENT_ARRAY_START, JSON_EVENT_ARRAY_END, JSON_EVENT_OBJECT_START, JSON_EVENT_OBJECT_END, JSON_EVENT_KEY};
 
 static JSClassID js_jsonsink_class_id = 0;
 

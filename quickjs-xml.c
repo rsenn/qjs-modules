@@ -85,31 +85,31 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   XmlBuilder xb;
   JSValue ret;
   VirtualProperties vprop = {0};
-  xml_event_t ev;
+  int ev;
   BOOL failed = FALSE;
 
-  xml_parser_init(&xp, &reader);
-  xml_parser_set_tolerant(&xp, opts.tolerant);
-  xml_parser_set_flat(&xp, opts.flat);
+  xml_init(&xp, &reader);
+  xml_set_tolerant(&xp, opts.tolerant);
+  xml_set_flat(&xp, opts.flat);
   xp.self_closing_tags = opts.self_closing_tags;
   xbuild_init(&xb, ctx, XB_PLAIN | (opts.flat ? XB_FLAT : 0));
 
   if(opts.location)
     vprop = virtual_properties_map(ctx, js_object_new(ctx, "WeakMap", 0, 0));
 
-  while((ev = xml_parser_run(&xp)) > XML_PARSE_OK || ev == XML_PARSE_AGAIN) {
+  while((ev = xml_parse(&xp)) > XML_PARSE_OK || ev == XML_PARSE_AGAIN) {
     BOOL located = FALSE;
 
     switch(ev) {
-      case XML_ELEMENT_START:
+      case XE_ELEMENT_START:
         xbuild_start(&xb, xp.event_name.data, xp.event_name.len);
         located = TRUE;
         break;
 
-      case XML_ATTRIBUTE: xbuild_attribute(&xb, xp.event_name.data, xp.event_name.len, xp.event_has_value ? (xp.event_value.data ? xp.event_value.data : "") : NULL, xp.event_value.len); break;
-      case XML_TEXT: xbuild_text(&xb, xp.event_value.data, xp.event_value.len); break;
+      case XE_ATTRIBUTE: xbuild_attribute(&xb, xp.event_name.data, xp.event_name.len, xp.event_has_value ? (xp.event_value.data ? xp.event_value.data : "") : NULL, xp.event_value.len); break;
+      case XE_TEXT: xbuild_text(&xb, xp.event_value.data, xp.event_value.len); break;
 
-      case XML_ELEMENT_END:
+      case XE_ELEMENT_END:
         xbuild_end(&xb, xp.event_name.data, xp.event_name.len, xp.self_closing);
         located = opts.flat;
         break;
@@ -128,7 +128,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     }
   }
 
-  if(ev == XML_PARSE_ERROR) {
+  if(ev == XE_ERROR) {
     Location* at = location_new(ctx);
 
     location_set_filename(at, input_name, ctx);
@@ -145,7 +145,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
   ret = xbuild_root(&xb);
   xbuild_free(&xb, JS_GetRuntime(ctx));
-  xml_parser_free(&xp);
+  xml_free(&xp);
   reader_free(&reader);
 
   if(failed) {
@@ -959,26 +959,27 @@ xml_pushparser_report(XMLPushParser* pp, const SourcePos* pos, size_t length, co
 }
 
 static void
-xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
+xread_callback_build(XmlEventType type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
   XMLPushParser* pp = user_data;
   XmlEvent ev = {0};
 
   switch(type) {
     /* value == 0 for a boolean attribute */
-    case xr_type_attribute:
+    case XE_ATTRIBUTE:
       ev = (XmlEvent){.type = XE_ATTRIBUTE, .name = name->cstr, .nlen = name->len, .value = value ? value->cstr : 0, .vlen = value ? value->len : 0};
       break;
-    case xr_type_element_start: ev = (XmlEvent){.type = XE_ELEMENT_START, .name = name->cstr, .nlen = name->len}; break;
-    case xr_type_element_end: ev = (XmlEvent){.type = XE_ELEMENT_END}; break;
-    case xr_type_text: ev = (XmlEvent){.type = XE_TEXT, .name = value->cstr, .nlen = value->len}; break;
-    case xr_type_error: xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input"); return;
+    case XE_ELEMENT_START: ev = (XmlEvent){.type = XE_ELEMENT_START, .name = name->cstr, .nlen = name->len}; break;
+    case XE_ELEMENT_END: ev = (XmlEvent){.type = XE_ELEMENT_END}; break;
+    case XE_TEXT: ev = (XmlEvent){.type = XE_TEXT, .name = value->cstr, .nlen = value->len}; break;
+    case XE_ERROR: xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input"); return;
+    default: return; /* xread produces no markup events */
   }
 
   xevent_send(&pp->sink, &ev);
 }
 
 static void
-xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
+xread_callback(XmlEventType type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
   XMLPushParser* pp = user_data;
   JSValue args[] = {
       name ? JS_NewStringLen(pp->ctx, name->cstr, name->len) : JS_UNDEFINED,
@@ -987,21 +988,22 @@ xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void
   JSValue* cb = 0;
 
   switch(type) {
-    case xr_type_attribute:
+    case XE_ATTRIBUTE:
       cb = &pp->attribute;
       if(value == 0)
         args[1] = JS_TRUE;
       break;
-    case xr_type_element_start: cb = &pp->element_start; break;
-    case xr_type_element_end: cb = &pp->element_end; break;
-    case xr_type_error:
+    case XE_ELEMENT_START: cb = &pp->element_start; break;
+    case XE_ELEMENT_END: cb = &pp->element_end; break;
+    case XE_ERROR:
       cb = &pp->error;
       xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input");
       break;
-    /* text(name, value): name is always undefined (xr_type_text has no name), value
+    /* text(name, value): name is always undefined (XE_TEXT has no name), value
      * is the text content - kept as a (name, value) pair for consistency with every
      * other callback here rather than a single-argument special case. */
-    case xr_type_text: cb = &pp->text; break;
+    case XE_TEXT: cb = &pp->text; break;
+    default: break; /* xread produces no markup events */
   }
 
   /* the options object passed to the constructor need not define every callback -
@@ -1041,7 +1043,7 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
    * notably on any non-whitespace text between tags, which its grammar doesn't
    * accept at all (see BUGS: xread-no-text-content). With custom callbacks, the
    * caller's own error() callback already ran (xread_callback() dispatches
-   * xr_type_error to it) and owns handling this, so only throw here in the
+   * XE_ERROR to it) and owns handling this, so only throw here in the
    * builder fallback, which otherwise has no way to report it at all - .root
    * would just silently stop growing. */
   if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->on_parse_error))
@@ -1196,22 +1198,22 @@ static JSClassDef js_xml_pushparser_class = {
 };
 
 /* ----------------------------------------------------------------------
-   XMLParser: pull (.parse()) parser over include/xml/xml.h's xml_parser_run(),
+   XMLParser: pull (.parse()) parser over include/xml/xml.h's xml_parse(),
    modeled on JsonParser (quickjs-json.c) - a constructor taking a reader-
    like input, .parse() advancing one token at a time, and getters for the
-   current token/position - except .parse() returns the raw xml_event_t
+   current token/position - except .parse() returns the raw XmlEventType
    token id (an int) rather than a string, and, like XMLPushParser above,
    every element/attribute/text event is also fed into an XmlBuilder as it
    happens, so .root optionally gives the tree built so far without the
    caller having to do that bookkeeping itself.
    ---------------------------------------------------------------------- */
 
-/* xml_parser_error_new: the SyntaxError for the XML_PARSE_ERROR `xp` just returned, at the
+/* xml_error_new: the SyntaxError for the XE_ERROR `xp` just returned, at the
  * start of the offending tag; `base` supplies the input name.
  *
  * returns the error object (refcount: a new reference), or JS_EXCEPTION. */
 static JSValue
-xml_parser_error_new(JSContext* ctx, const XMLParser* xp, const Location* base) {
+xml_error_new(JSContext* ctx, const XMLParser* xp, const Location* base) {
   Location* at;
   JSValue ret;
 
@@ -1239,10 +1241,10 @@ typedef struct {
 } XmlParser;
 
 static JSClassID js_xml_parser_class_id;
-static JSValue xml_parser_proto, xml_parser_ctor;
+static JSValue xml_proto, xml_ctor;
 
 static uint32_t
-xml_parser_depth(XmlParser* p) {
+xml_depth(XmlParser* p) {
   uint32_t n = 0;
   XMLFrame* f;
 
@@ -1253,12 +1255,12 @@ xml_parser_depth(XmlParser* p) {
 }
 
 /* p->loc (a ref-counted, js_malloc'd Location, wrapped as-is by .location) tracks
- * xp.loc (a plain embedded value struct xml_parser_run() advances - see
+ * xp.loc (a plain embedded value struct xml_parse() advances - see
  * include/xml/xml.h) by copying the fields js_location_wrap()'s consumers care about
  * after every .parse() call; the two can't just be the same object since xp.loc
  * isn't heap-allocated the way location_free() requires. */
 static void
-xml_parser_sync_location(XmlParser* p) {
+xml_sync_location(XmlParser* p) {
   p->loc->line = p->xp.loc.line;
   p->loc->column = p->xp.loc.column;
   p->loc->char_offset = p->xp.loc.char_offset;
@@ -1266,13 +1268,13 @@ xml_parser_sync_location(XmlParser* p) {
 }
 
 static void
-xml_parser_build(XmlParser* p, xml_event_t ev) {
+xml_build(XmlParser* p, XmlEventType ev) {
   XmlEvent e = {0};
 
   switch(ev) {
-    case XML_ELEMENT_START: e = (XmlEvent){.type = XE_ELEMENT_START, .name = p->xp.event_name.data, .nlen = p->xp.event_name.len}; break;
-    case XML_ELEMENT_END: xbuild_end(&p->builder, p->xp.event_name.data, p->xp.event_name.len, 0); return;
-    case XML_ATTRIBUTE:
+    case XE_ELEMENT_START: e = (XmlEvent){.type = XE_ELEMENT_START, .name = p->xp.event_name.data, .nlen = p->xp.event_name.len}; break;
+    case XE_ELEMENT_END: xbuild_end(&p->builder, p->xp.event_name.data, p->xp.event_name.len, 0); return;
+    case XE_ATTRIBUTE:
       /* a valueless attribute is stored as "" here, `true` in XMLPushParser */
       e = (XmlEvent){.type = XE_ATTRIBUTE,
                      .name = p->xp.event_name.data,
@@ -1280,7 +1282,7 @@ xml_parser_build(XmlParser* p, xml_event_t ev) {
                      .value = p->xp.event_has_value ? p->xp.event_value.data : "",
                      .vlen = p->xp.event_has_value ? p->xp.event_value.len : 0};
       break;
-    case XML_TEXT:
+    case XE_TEXT:
       if(!p->xp.event_has_value)
         return;
       e = (XmlEvent){.type = XE_TEXT, .name = p->xp.event_value.data, .nlen = p->xp.event_value.len};
@@ -1292,17 +1294,17 @@ xml_parser_build(XmlParser* p, xml_event_t ev) {
 }
 
 static void
-xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
+xml_callback(XmlParser* p, XmlEventType ev, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
 
   switch(ev) {
-    case XML_ELEMENT_START: {
+    case XE_ELEMENT_START: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       ret = (JS_Call(ctx, p->element_start, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
-    case XML_ATTRIBUTE: {
+    case XE_ATTRIBUTE: {
       JSValue argv[] = {
           JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len),
           p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED,
@@ -1312,13 +1314,13 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
       JS_FreeValue(ctx, argv[1]);
       break;
     }
-    case XML_ELEMENT_END: {
+    case XE_ELEMENT_END: {
       JSValue name = JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       ret = (JS_Call(ctx, p->element_end, p->this_obj, 1, &name));
       JS_FreeValue(ctx, name);
       break;
     }
-    case XML_TEXT: {
+    case XE_TEXT: {
       JSValue value = p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_UNDEFINED;
       ret = (JS_Call(ctx, p->text, p->this_obj, 1, &value));
       JS_FreeValue(ctx, value);
@@ -1335,7 +1337,7 @@ xml_parser_callback(XmlParser* p, xml_event_t ev, JSContext* ctx) {
 static JSValue
 js_xml_parser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   XmlParser* p;
-  xml_event_t ev;
+  int ev;
 
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_parser_class_id)))
     return JS_EXCEPTION;
@@ -1343,10 +1345,10 @@ js_xml_parser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!p->reader.read)
     return JS_ThrowTypeError(ctx, "XMLParser: no input to parse");
 
-  ev = xml_parser_run(&p->xp);
+  ev = xml_parse(&p->xp);
 
-  if(ev == XML_PARSE_ERROR) {
-    JSValue err = xml_parser_error_new(ctx, &p->xp, p->loc);
+  if(ev == XE_ERROR) {
+    JSValue err = xml_error_new(ctx, &p->xp, p->loc);
 
     if(JS_IsException(err))
       return err;
@@ -1356,11 +1358,11 @@ js_xml_parser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
 
   if(p->use_builder)
-    xml_parser_build(p, ev);
+    xml_build(p, ev);
   else
-    xml_parser_callback(p, ev, ctx);
+    xml_callback(p, ev, ctx);
 
-  xml_parser_sync_location(p);
+  xml_sync_location(p);
 
   return JS_NewInt32(ctx, ev);
 }
@@ -1400,7 +1402,7 @@ js_xml_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case XML_PARSER_DEPTH: {
-      ret = JS_NewUint32(ctx, xml_parser_depth(p));
+      ret = JS_NewUint32(ctx, xml_depth(p));
       break;
     }
     case XML_PARSER_LOCATION: {
@@ -1433,7 +1435,7 @@ js_xml_parser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int
 
   switch(magic) {
     case XML_PARSER_TOLERANT: {
-      xml_parser_set_tolerant(&p->xp, JS_ToBool(ctx, value));
+      xml_set_tolerant(&p->xp, JS_ToBool(ctx, value));
       break;
     }
   }
@@ -1449,22 +1451,22 @@ js_xml_parser_callback(JSContext* ctx, JSValueConst this_val, JSValueConst value
     return JS_EXCEPTION;
 
   switch(magic) {
-    case XML_ELEMENT_START: {
+    case XE_ELEMENT_START: {
       JS_FreeValue(ctx, p->element_start);
       p->element_start = JS_DupValue(ctx, value);
       break;
     }
-    case XML_ELEMENT_END: {
+    case XE_ELEMENT_END: {
       JS_FreeValue(ctx, p->element_end);
       p->element_end = JS_DupValue(ctx, value);
       break;
     }
-    case XML_ATTRIBUTE: {
+    case XE_ATTRIBUTE: {
       JS_FreeValue(ctx, p->attribute);
       p->attribute = JS_DupValue(ctx, value);
       break;
     }
-    case XML_TEXT: {
+    case XE_TEXT: {
       JS_FreeValue(ctx, p->text);
       p->text = JS_DupValue(ctx, value);
       break;
@@ -1533,19 +1535,19 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
    * it's given), valid as long as p->reader is - i.e. for XmlParser's whole
    * lifetime, since both live in this one allocation and are freed together in
    * the finalizer below. */
-  xml_parser_init(&p->xp, &p->reader);
+  xml_init(&p->xp, &p->reader);
   xbuild_init(&p->builder, ctx, 0);
   p->sink = xbuild_sink(&p->builder);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, xml_parser_proto);
+    proto = JS_DupValue(ctx, xml_proto);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_xml_parser_class_id);
   JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj)) {
-    xml_parser_free(&p->xp);
+    xml_free(&p->xp);
     reader_free(&p->reader);
     location_free(p->loc, JS_GetRuntime(ctx));
     xbuild_free(&p->builder, JS_GetRuntime(ctx));
@@ -1562,7 +1564,7 @@ js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
   XmlParser* p;
 
   if((p = JS_GetOpaque(val, js_xml_parser_class_id))) {
-    xml_parser_free(&p->xp);
+    xml_free(&p->xp);
     reader_free(&p->reader);
     xbuild_free(&p->builder, rt);
 
@@ -1585,10 +1587,10 @@ static const JSCFunctionListEntry js_xml_parser_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("tolerant", js_xml_parser_get, js_xml_parser_set, XML_PARSER_TOLERANT),
     JS_CGETSET_MAGIC_FLAGS_DEF("root", js_xml_parser_get, 0, XML_PARSER_ROOT, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("error", js_xml_parser_get, 0, XML_PARSER_ERROR, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("onelementstart", 0, js_xml_parser_callback, XML_ELEMENT_START, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("onelementend", 0, js_xml_parser_callback, XML_ELEMENT_END, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("onattribute", 0, js_xml_parser_callback, XML_ATTRIBUTE, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("ontext", 0, js_xml_parser_callback, XML_TEXT, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("onelementstart", 0, js_xml_parser_callback, XE_ELEMENT_START, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("onelementend", 0, js_xml_parser_callback, XE_ELEMENT_END, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("onattribute", 0, js_xml_parser_callback, XE_ATTRIBUTE, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("ontext", 0, js_xml_parser_callback, XE_TEXT, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLParser", JS_PROP_CONFIGURABLE),
 };
 
@@ -1614,7 +1616,7 @@ typedef struct {
   BOOL has_pending_node;
   JSValue pending_node;
   JSValue pending_attrs;
-  xml_event_t buffered_ev;
+  int buffered_ev;
   BOOL has_buffered_ev;
 
   uint32_t depth;
@@ -1623,7 +1625,7 @@ typedef struct {
 
 static int
 xml_nodeparser_record_error(JSContext* ctx, XMLNodeParser* p) {
-  JSValue err = xml_parser_error_new(ctx, &p->xp, p->loc);
+  JSValue err = xml_error_new(ctx, &p->xp, p->loc);
 
   if(JS_IsException(err))
     return -1;
@@ -1644,7 +1646,7 @@ xml_nodeparser_sync_location(XMLNodeParser* p) {
 static JSValue
 js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   XMLNodeParser* p;
-  xml_event_t ev;
+  int ev;
 
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_nodeparser_class_id)))
     return JS_EXCEPTION;
@@ -1657,17 +1659,17 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       /* event_name/event_value still point into p->xp.ev_name/ev_value,
        * which haven't been touched since the event was buffered. */
     } else {
-      ev = xml_parser_run(&p->xp);
+      ev = xml_parse(&p->xp);
       xml_nodeparser_sync_location(p);
 
-      if(ev == XML_PARSE_ERROR && xml_nodeparser_record_error(ctx, p))
+      if(ev == XE_ERROR && xml_nodeparser_record_error(ctx, p))
         return JS_EXCEPTION;
     }
 
     if(ev <= XML_PARSE_OK)
       return JS_NewInt32(ctx, ev);
 
-    if(ev == XML_ELEMENT_START) {
+    if(ev == XE_ELEMENT_START) {
       JSValue node = JS_NewObjectProto(ctx, JS_NULL);
       JS_SetPropertyStr(ctx, node, "tagName", JS_NewStringLen(ctx, p->xp.event_name.data, p->xp.event_name.len));
       JSValue attrs = JS_NewObjectProto(ctx, JS_NULL);
@@ -1677,7 +1679,7 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       p->pending_attrs = attrs;
       p->has_pending_node = TRUE;
       p->depth++;
-    } else if(ev == XML_ELEMENT_END) {
+    } else if(ev == XE_ELEMENT_END) {
       if(p->depth > 0)
         p->depth--;
 
@@ -1690,7 +1692,7 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       js_free(ctx, closeStr);
       return node;
 
-    } else if(ev == XML_TEXT) {
+    } else if(ev == XE_TEXT) {
       if(p->xp.event_has_value)
         return JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len);
 
@@ -1703,16 +1705,16 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   /* Consume Attributes for the pending start tag */
   while(1) {
-    xml_event_t next_ev;
+    int next_ev;
 
     if(p->has_buffered_ev) {
       next_ev = p->buffered_ev;
       p->has_buffered_ev = FALSE;
     } else {
-      next_ev = xml_parser_run(&p->xp);
+      next_ev = xml_parse(&p->xp);
       xml_nodeparser_sync_location(p);
 
-      if(next_ev == XML_PARSE_ERROR && xml_nodeparser_record_error(ctx, p))
+      if(next_ev == XE_ERROR && xml_nodeparser_record_error(ctx, p))
         return JS_EXCEPTION;
     }
 
@@ -1720,13 +1722,13 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     if(next_ev == XML_PARSE_AGAIN)
       return JS_NewInt32(ctx, XML_PARSE_AGAIN);
 
-    if(next_ev == XML_PARSE_ERROR || next_ev == XML_PARSE_OK) {
+    if(next_ev == XE_ERROR || next_ev == XML_PARSE_OK) {
       JS_FreeValue(ctx, p->pending_node);
       p->has_pending_node = FALSE;
       return JS_NewInt32(ctx, next_ev);
     }
 
-    if(next_ev == XML_ATTRIBUTE) {
+    if(next_ev == XE_ATTRIBUTE) {
       JSValue val = p->xp.event_has_value ? JS_NewStringLen(ctx, p->xp.event_value.data, p->xp.event_value.len) : JS_TRUE;
       JSAtom prop = JS_NewAtomLen(ctx, p->xp.event_name.data, p->xp.event_name.len);
       JS_SetProperty(ctx, p->pending_attrs, prop, val);
@@ -1805,7 +1807,7 @@ js_xml_nodeparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   p->last_error = JS_UNDEFINED;
   p->depth = 0;
 
-  xml_parser_init(&p->xp, &p->reader);
+  xml_init(&p->xp, &p->reader);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -1815,7 +1817,7 @@ js_xml_nodeparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   JS_FreeValue(ctx, proto);
 
   if(JS_IsException(obj)) {
-    xml_parser_free(&p->xp);
+    xml_free(&p->xp);
     reader_free(&p->reader);
     location_free(p->loc, JS_GetRuntime(ctx));
     js_free(ctx, p);
@@ -1831,7 +1833,7 @@ js_xml_nodeparser_finalizer(JSRuntime* rt, JSValue val) {
   XMLNodeParser* p;
 
   if((p = JS_GetOpaque(val, js_xml_nodeparser_class_id))) {
-    xml_parser_free(&p->xp);
+    xml_free(&p->xp);
     reader_free(&p->reader);
 
     if(p->loc)
@@ -2084,24 +2086,24 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_xml_parser_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_xml_parser_class_id, &js_xml_parser_class);
 
-  xml_parser_proto = JS_NewObjectProto(ctx, JS_NULL);
-  JS_SetPropertyFunctionList(ctx, xml_parser_proto, js_xml_parser_proto_funcs, countof(js_xml_parser_proto_funcs));
+  xml_proto = JS_NewObjectProto(ctx, JS_NULL);
+  JS_SetPropertyFunctionList(ctx, xml_proto, js_xml_parser_proto_funcs, countof(js_xml_parser_proto_funcs));
 
-  xml_parser_ctor = JS_NewCFunction2(ctx, js_xml_parser_constructor, "XMLParser", 1, JS_CFUNC_constructor, 0);
-  JS_SetClassProto(ctx, js_xml_parser_class_id, xml_parser_proto);
-  JS_SetConstructor(ctx, xml_parser_ctor, xml_parser_proto);
+  xml_ctor = JS_NewCFunction2(ctx, js_xml_parser_constructor, "XMLParser", 1, JS_CFUNC_constructor, 0);
+  JS_SetClassProto(ctx, js_xml_parser_class_id, xml_proto);
+  JS_SetConstructor(ctx, xml_ctor, xml_proto);
 
-  /* .parse()'s return value: named constants for the raw xml_event_t token ids
+  /* .parse()'s return value: named constants for the raw XmlEventType token ids
    * (include/xml/xml.h), so callers don't have to hardcode -2..4. */
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "PARSE_AGAIN", JS_NewInt32(ctx, XML_PARSE_AGAIN), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "PARSE_ERROR", JS_NewInt32(ctx, XML_PARSE_ERROR), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "PARSE_OK", JS_NewInt32(ctx, XML_PARSE_OK), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "ELEMENT_START", JS_NewInt32(ctx, XML_ELEMENT_START), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "ATTRIBUTE", JS_NewInt32(ctx, XML_ATTRIBUTE), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "ELEMENT_END", JS_NewInt32(ctx, XML_ELEMENT_END), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "TEXT", JS_NewInt32(ctx, XML_TEXT), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "PARSE_AGAIN", JS_NewInt32(ctx, XML_PARSE_AGAIN), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "PARSE_ERROR", JS_NewInt32(ctx, XE_ERROR), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "PARSE_OK", JS_NewInt32(ctx, XML_PARSE_OK), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "ELEMENT_START", JS_NewInt32(ctx, XE_ELEMENT_START), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "ATTRIBUTE", JS_NewInt32(ctx, XE_ATTRIBUTE), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "ELEMENT_END", JS_NewInt32(ctx, XE_ELEMENT_END), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, xml_ctor, "TEXT", JS_NewInt32(ctx, XE_TEXT), JS_PROP_ENUMERABLE);
 
-  JS_SetModuleExport(ctx, m, "XMLParser", xml_parser_ctor);
+  JS_SetModuleExport(ctx, m, "XMLParser", xml_ctor);
 
   JS_NewClassID(&js_xml_nodeparser_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_xml_nodeparser_class_id, &js_xml_nodeparser_class);

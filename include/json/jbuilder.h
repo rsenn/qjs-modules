@@ -6,23 +6,23 @@
 #include "json/jevent.h"
 #include "json/jread.h"
 
-typedef struct JsonBuilderFrame JsonBuilderFrame; /* private to jbuilder.c */
+typedef struct json_builder_frame JsonBuilderFrame; /* private to jbuilder.c */
 
 /* JsonBuilder: builds a JS value from a stream of JSON events.
  *
  * ```c
  * JsonBuilder b;
  * jbuild_init(&b, ctx);
- * jbuild_push(&b, jr_type_object_start);
+ * jbuild_push(&b, JSON_EVENT_OBJECT_START);
  * jbuild_key(&b, "a", 1);
- * jbuild_value(&b, jr_type_number, "1", 1);
+ * jbuild_value(&b, JSON_EVENT_NUMBER, "1", 1);
  * jbuild_pop(&b);
  * JSValue v = jbuild_root(&b);   // {a: 1}
  * jbuild_free(&b, rt);
  * ```
  *
- * Fed from jread callbacks (JsonPushParser); the event types are jr_type_t. */
-typedef struct JsonBuilder {
+ * Fed from jread callbacks (JsonPushParser); the event types are JsonEventType. */
+typedef struct json_builder {
   JSContext* ctx;
   JsonBuilderFrame* top;
   JSValue root;
@@ -31,10 +31,10 @@ typedef struct JsonBuilder {
 } JsonBuilder;
 
 void jbuild_init(JsonBuilder*, JSContext*);
-void jbuild_push(JsonBuilder*, jr_type_t type);
+void jbuild_push(JsonBuilder*, JsonEventType type);
 void jbuild_pop(JsonBuilder*);
 void jbuild_key(JsonBuilder*, const char* name, size_t len);
-void jbuild_value(JsonBuilder*, jr_type_t type, const char* data, size_t len);
+void jbuild_value(JsonBuilder*, JsonEventType type, const char* data, size_t len);
 /* jbuild_top: the innermost open container (refcount: a new reference), or undefined. */
 JSValue jbuild_top(JsonBuilder*);
 JSValue jbuild_path(JsonBuilder*);
