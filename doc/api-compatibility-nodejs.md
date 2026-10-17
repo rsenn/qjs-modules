@@ -637,9 +637,9 @@ normalising implementations. Code written for `node:path` produces wrong results
 
 ### B. Results that differ from Node (POSIX)
 
-**Fixed (2026-10-09):** every row below now matches Node (`src/path.c`: `path_normalize*`,
-`path_absolute3`, `path_dirlen2`, `path_basename3`, `path_extname1`, `path_relative5`;
-`quickjs-path.c`: `join`, `resolve`, `parse`, `format`). The table records the old results.
+**Fixed (2026-10-09):** every row below now matches Node (`src/path-lib.c`: `path_canon`, `path_abs`,
+`path_dirlen`, `path_basename`, `path_extoff`, `path_rel`; `quickjs-path.c`: `join`, `resolve`, `parse`, `format`; the
+older digit-suffixed names are gone, see [api-implement-path.md](api-implement-path.md)). The table records the old results.
 
 | call | here | Node |
 | --- | --- | --- |

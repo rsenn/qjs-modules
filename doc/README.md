@@ -73,11 +73,11 @@ See [api-compatibility.md](api-compatibility.md) for:
 Per-module studies of `json` and `xml` (comparison with Browser/Bun/Node/Deno and packages, how the
 implementation is split into `include/` + `src/` pieces, and the interfaces between them):
 
-| | json | xml |
-| --- | --- | --- |
-| comparison | [api-compare-json.md](api-compare-json.md) | [api-compare-xml.md](api-compare-xml.md) |
-| implementation split | [api-implement-json.md](api-implement-json.md) | [api-implement-xml.md](api-implement-xml.md) |
-| interfaces | [api-interface-json.md](api-interface-json.md) | [api-interface-xml.md](api-interface-xml.md) |
+| | json | xml | path |
+| --- | --- | --- | --- |
+| comparison | [api-compare-json.md](api-compare-json.md) | [api-compare-xml.md](api-compare-xml.md) | [api-compare-path.md](api-compare-path.md) |
+| implementation split | [api-implement-json.md](api-implement-json.md) | [api-implement-xml.md](api-implement-xml.md) | [api-implement-path.md](api-implement-path.md) |
+| interfaces | [api-interface-json.md](api-interface-json.md) | [api-interface-xml.md](api-interface-xml.md) | [api-interface-path.md](api-interface-path.md) |
 
 ### General Documentation
 

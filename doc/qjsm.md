@@ -118,7 +118,7 @@ order for every `import`/`import()`. Normalize tries, in order:
    `jsm_builtin_find(name)` matches a compiled-in module, resolve to it
    directly (no filesystem access at all).
 2. **Relative/`./`/`../` import** — joined against the *importing* module's own
-   resolved path and normalized (`path_normalize2()`), skipped for a `data:`
+   resolved path and normalized (`path_cat()` then `path_canon()`), skipped for a `data:`
    importer (see the comment at `jsm_module_normalize()` for why: naive
    `/`-splitting on a multi-KB `data:` URL body finds a `/` inside the source
    text, not a directory boundary).

@@ -1915,10 +1915,10 @@ Steps (each keeps ctest as it is; J = json, X = xml; both after Phase M):
 
 | # | step | gate |
 | --- | --- | --- |
-| EV1 | `include/json/jevent.h`: `JsonEvent`, `JsonEventSink`; `JsonWriteInterface` kept as `typedef JsonEventSink`; `jwrite_sink()` next to `jwrite_interface()` | build; `JsonWriter` tests unchanged |
-| EV2 | `include/xml/xevent.h`: `XmlEvent`, `XmlEventSink`, `xwrite_sink()` | `xwrite` golden unchanged |
-| EV3 | `jbuild_sink()` / `xbuild_sink()` (Phase 2 `xbuilder`); the push parsers feed the sink instead of calling `jbuild_*` / `xml_builder_*` | `root` shapes unchanged, `read()` differential 0 |
-| EV4 | `jread_pump` / `json_pump`, `xread_pump` / `xml_pump`: each parser can drive any sink; `quickjs-json.c` and `quickjs-xml.c` choose source, sink, `Reader`, `Writer` only | a C test per pairing: parser to writer reproduces the input (minified) at chunk sizes 1, 7, whole |
+| EV1 (done) | `include/json/jevent.h`: `JsonEvent`, `JsonEventSink`; `JsonWriteInterface` kept as `typedef JsonEventSink`; `jwrite_sink()` next to `jwrite_interface()` | done 2026-10-17: `jevent.h` (`JsonEvent`, `JsonEventSink`, `jevent_send` in `src/json/jevent.c`); `jwrite_sink()`, `JsonWriteInterface` and `jwrite_interface()` kept as aliases; `tests/c/events-sinks.c` (ctest `c-events-sinks`) drives both writers through `jevent_send`/`xevent_send` |
+| EV2 (done) | `include/xml/xevent.h`: `XmlEvent`, `XmlEventSink`, `xwrite_sink()` | done 2026-10-17: `xevent.h` (`XmlEventType` whose ids equal `xml_event_t`'s, checked by `_Static_assert` in `src/xml/xevent.c`; `XmlEvent`, `XmlEventSink`, `xevent_send`), `xwrite_sink()` (`error` member writes nothing); `XE_COMMENT/DECLARATION/INSTRUCTION/CDATA` have no parser producing them yet |
+| EV3 (done) | `jbuild_sink()` / `xbuild_sink()` (Phase 2 `xbuilder`); the push parsers feed the sink instead of calling `jbuild_*` / `xml_builder_*` | done 2026-10-17: `jbuild_sink()` in `jbuilder`; `include/xml/xbuilder.h` + `src/xml/xbuilder.c` (`XmlBuilder` on `JsonBuilder`: `xbuild_*`, `xbuild_sink()`, no frame stack of its own); `JsonPushParser`, `XMLPushParser` and `XMLParser` feed their builder through `jevent_send`/`xevent_send`; the old `XMLBuilder` (140 lines, `flat` mode was never set) is gone; `.root` and `.path` shapes unchanged, no test changed. Then (same day) `read()` moved onto it too: `js_xml_parse` is 70 lines of event loop over `xbuild_*` (`XB_PLAIN` objects with `Object.prototype`, `XB_FLAT` lists, `xbuild_last()` for the location WeakMap, `xbuild_finish()` for input that ends inside elements); the element shape is `read()`'s for every user, so `XMLParser.root` and `XMLPushParser.root` now give no `children` on `<a/>` and none or `attributes` on comments/declarations (no test changed); checked against the previous `read()` with a temporary copy: 28070 runs (4010 documents, 7 option sets incl. flat, tolerant, location, selfClosingTags) with 0 differences. Still open from Phase 2: `XMLNodeParser` assembly is not on `xbuilder` yet; typed markup events are dropped by `xbuild_sink` until the parsers emit them |
+| EV4 (done) | `jread_pump` / `json_pump`, `xread_pump` / `xml_pump`: each parser can drive any sink; `quickjs-json.c` and `quickjs-xml.c` choose source, sink, `Reader`, `Writer` only | done 2026-10-17: `jread_pump`, `jread_pump_finish`, `json_pump` (`src/json/jpump.c`, declared in `jevent.h`) and `xread_pump`, `xread_pump_finish`, `xml_pump` (`src/xml/xpump.c`, in `xevent.h`); `tests/c/pump-roundtrip.c` (ctest `c-pump-roundtrip`): all four parsers into the writers at chunk sizes 1, 4, 7, 1000 and whole, a JSON error event, a failing sink stopping `xml_pump`. Limits found: sink members carry no position (`JsonEvent.at` only exists for `jevent_send` callers; the position stays in `jr_state_t.err_*` / `JsonParser.err_at` / `XMLParser.tag_line`), and the pull `JsonParser` cannot tell the end of its input from a pause (`json_pump` returns `JSON_PUMP_AGAIN` at both). Also fixed: `json_clear()` leaked the container stack (`BitSet`); the bindings are not on the pumps yet (next: `JsonPushParser`/`XMLPushParser` call `*_pump` instead of their own callbacks) |
 | EV5 | `xwalk` and `jwalk` drive an `XmlEventSink` / `JsonEventSink` (`WalkInterface` becomes the engine-side adapter of it) | `write()`, `XMLTreeSerializer` byte-identical |
 | EV6 | rename `jwrite_interface` and delete the alias after one release; align the push-parser callback names; `JsonRewriter` / `XmlRewriter` on sinks | per Tier 17 / Phase 8 |
 
@@ -2208,7 +2208,7 @@ Built and green, nothing committed:
 | golden corpus for `write()`, `XMLTreeSerializer`, `XMLWriter` (98 cases) | `tests/fixtures/`, `tests/tools/`, `test-xml-write-golden.js` | done (3a) |
 | `xwrite.[ch]` (277 + 112): compact and pretty layouts, typed markup, `xwrite_put_escaped` | `src/` | done (3b), `tests/tools/xwrite-golden.c`: 51 identical, 10 differ only in the 3c changes, valgrind clean; no caller yet |
 
-Not started: Phase M (layout), Phase 1 (event protocol), Phase 2 (`xbuilder`), 3d, 3e, 4d, 5 to 10. Done since: 3c.
+Not started: Phase M (layout), Phase 1 (event protocol), 3e, 5 to 10. Done since: 3c, 3d, 4d (as `xlayout`, see below).
 
 Honest measure: `quickjs-xml.c` is still 2713 lines. The new code sits in `src/` and nothing has been removed from the
 class file since the `read()` cut; the lines come out in 3c (about 120), 3d (about 230), 4d (about 450) and 5 (about 450).
@@ -2449,7 +2449,7 @@ a `Writer` that refuses bytes is an error (`XWRITE_E_WRITE`), as in `jwrite` for
 | 3a (done) | extend Phase 0's golden corpus (`tests/unittests/test-xml-write-golden.js`, `write()` only) with `XMLTreeSerializer` and `XMLWriter` outputs over escaping, comments, doctype, PI, empty elements, multi-line text, `indent` 0/2/4, depth cap; generated from the current build before touching code; `lib/xml/write.js` (a JS port of `js_xml_write`) is the second oracle | corpus checked in, passes on HEAD |
 | 3b (done) | `include/xml/xwrite.h`, `src/xml/xwrite.c` with `XW_COMPACT` and `XW_PRETTY`, error codes, `xwrite_put_escaped`; no caller yet | `tests/tools/xwrite-golden.c` reproduces the `XMLWriter` and `XMLTreeSerializer` corpus entries: 51 identical, 10 differ only in the 3c changes, valgrind clean |
 | 3c (done) | `XMLWriter` on `xwrite` (210 to 130 lines in `quickjs-xml.c`, which is 2897 lines because of Tier 23). **Visible changes, as planned:** text and attribute values are escaped; `attribute(n, true)` (also `undefined`, `null`, no argument) writes `n`; `indent < 0` is compact at level 0. **Also:** ordering mistakes throw `TypeError` with `code` (`mismatched-end-tag`, `unmatched-end-tag`, `attribute-outside-tag`), a refused write throws `Error` with `code` `write-failed`; `elementEnd()` without a name closes the open element; `written` is `xwrite`'s counter. `src/stream-utils.c` `write_jsfunction`: a callback return value that is not a number now means "all accepted" (`s => (out += s)` was a failed write) | `test-xml.js` 159, golden regenerated: exactly the 10 predicted cases differ |
-| 3d | `XW_TREE` layout; the byte-emitting functions of `write()` (`xml_write_attributes/string/text/element`, `xml_close_element`, `xml_write_indent`, `dbuf_put_escaped_xml`) become calls into `xwrite`, the traversal (`js_xml_write_tree/list`, `xml_enumeration_next`, `xml_num_children`) stays in `quickjs-xml.c` until 4d | golden byte-identical; fuzz `write(read(x))` against `lib/xml/write.js` equal |
+| 3d (done) | `XW_TREE` layout; the byte-emitting functions of `write()` (`xml_write_attributes/string/text/element`, `xml_close_element`, `xml_write_indent`, `dbuf_put_escaped_xml`) become calls into `xwrite`, the traversal (`js_xml_write_tree/list`, `xml_enumeration_next`, `xml_num_children`) stays in `quickjs-xml.c` until 4d | golden byte-identical; fuzz `write(read(x))` against `lib/xml/write.js` equal | **Done as `xlayout.[ch]` (`xlay_*`, explicit depths, trailing whitespace held back) instead of an `XW_TREE` mode of `xwrite`: golden 98 and `test-xml.js` 160 identical.**
 | 3e | `XMLTreeSerializer`'s `xsw_raw_escaped` and tag/attribute emission call `xwrite` where the replay design allows (the full switch is Phase 5) | `XMLTreeSerializer` tests unchanged |
 
 Moved or deleted by the end of 3e, from `quickjs-xml.c`: `dbuf_put_escaped_xml`, `xml_write_attributes`,
@@ -2529,7 +2529,7 @@ Steps, each green before the next:
 | 4a (done) | `git mv` `walk.[ch]` to `jwalk.[ch]`, rename `walk_*`/`Walk*` that are JSON-rule specific to `jwalk_*`/`Jwalk*`; update `quickjs-json.c`, CMake, `doc/native/json.md`, `utilities/quickjs-json.md` | `test-json.js` unchanged and green |
 | 4b (done) | extract `walk.[ch]` (stepper, stack, skip, circular, interface) and make `jwalk.c` call it with the three hooks | `test-json.js` green; differential `JsonWriter.stringify` vs `JSON.stringify` on the fuzz corpus unchanged |
 | 4c (done) | element-tree walking as `xwalk.[ch]` on `walk.h` hooks (not in `walk.c`) | `walk` has no JS surface, so the cases (getters, back-links, undefined, nested array as value, root array) were checked with a C harness; the JS-level `test-walk.js` cases ride on 4d's XML write tests |
-| 4d | `xwalk.c` adapter into `xwrite`; `write(tree|list, maxDepth)` switches over (`XMLTreeSerializer` is Phase 5); delete the traversal half left by 3d: `js_xml_write_tree/list`, `js_xml_write` body, `xml_enumeration_next`, `xml_num_children` | golden test byte-identical, including `lib/dom.js` nodes; fuzz `write(read(x))` vs the old implementation equal |
+| 4d (done) | `xwalk.c` adapter into `xwrite`; `write(tree|list, maxDepth)` switches over (`XMLTreeSerializer` is Phase 5); delete the traversal half left by 3d: `js_xml_write_tree/list`, `js_xml_write` body, `xml_enumeration_next`, `xml_num_children` | golden test byte-identical, including `lib/dom.js` nodes; fuzz `write(read(x))` vs the old implementation equal | **Done: the tree goes through `xwalk` (`XmlTreeWrite` in `quickjs-xml.c`, lazy start tag, `walk_skip` at maxDepth), the flat list through `xml_write_flat_element`; both emit via `xlay_*`.**
 
 Risk: medium for 4b (it moves the `JSON.stringify` path; steps 4a and 4b are pure refactors and need no behaviour
 change), low for 4c and 4d. Saves about 450 lines in `quickjs-xml.c`; `walk.c` plus `jwalk.c` stay about the size of
@@ -2636,7 +2636,7 @@ Phase T — tests and tools first
 - [ ] T5 audit (was Tier 22 task 1): grep `lib/`, `examples/`, `utilities/`, sibling `qjs-*`, `~/Sources/plot-cv`
       for `at components skipSeparator right isSeparator isin equal canonical search getsep skip toArray
       length slice`; write keep/remove per method into section 3.3 of doc/api-implement-path.md.
-- [ ] T6 differential tests before the rename: old `path_fnmatch5` against shish's `path_fnmatch` (patterns,
+- [x] T6 (done by hand, not kept as a test: coreutils `realpath` on a symlink tree matched; the old fnmatch looped forever on `[[:class:]]`, the shish one is in `test-path.js`) differential tests before the rename: old `path_fnmatch5` against shish's `path_fnmatch` (patterns,
       `FNM_PATHNAME` `NOESCAPE` `PERIOD`); old `path_realpath3` against `path_resolve(p, n, db, 0, 0, 0)`
       (existing, missing, relative, symlinked).
 
@@ -2673,14 +2673,16 @@ Phase R — C renames (behaviour-neutral), in this order
       is empty and `utilities/api-surface.sh` on `path` differs only by methods removed in R10; update `doc/native/path.md`.
 
 Phase C — posix interface of `path` made Node-correct (changes behaviour; needs R1-R2, T3, T4)
-- [ ] C1 `quickjs-path.c`: helper `js_path_check_string(ctx, v, name)` throwing `TypeError` with `code`
+- [x] C1 `quickjs-path.c`: helper `js_path_check_string(ctx, v, name)` throwing `TypeError` with `code`
       `ERR_INVALID_ARG_TYPE` and Node's message (`The "path" argument must be of type string. Received type
       number (5)` / `Received null` / `Received an instance of Object`); applied to `isAbsolute` only.
-- [ ] C2 the same for `dirname`, `extname`, `basename` (`path`, and `suffix` when given).
-- [ ] C3 the same for `parse` and `join` (every argument, name `path`).
-- [ ] C4 compare `normalize relative resolve format` error code/message with Node's (`from`/`to`,
-      `paths[0]`, `pathObject` of type object); fix the differences.
-- [ ] C5 `Function.length` as Node: `basename` 2, `join` 0, `relative` 2, `resolve` 0, the rest 1.
+- [x] C2 the same for `dirname`, `extname`, `basename` (`path`, and `suffix` when given).
+- [x] C3 the same for `parse` and `join` (every argument, name `path`).
+- [x] C4 compare `normalize relative resolve format` error code/message with Node's (`from`/`to`,
+      `paths[0]`, `pathObject` of type object); fix the differences. Left: `relative(x)` with one argument is
+      qjsm's own form (x against the cwd; `utilities/resolve-imports.js` uses it), Node throws for the missing
+      `to`; `format({ base: 5 })` returns `"5"`, Node returns the number 5.
+- [x] C5 `Function.length` as Node: `basename` 2, `join` 0, `relative` 2, `resolve` 0, the rest 1.
 - [ ] C6 `toNamespacedPath` (identity after validation) and `_makeLong` as the same function object.
 - [ ] C7 subpath table in `src/qjsm.c` (next to `fs/promises`): `path/posix` to `path`; test
       `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/nodeHooks.js`.
