@@ -10,7 +10,9 @@
 #include "debug.h"
 #include "virtual-properties.h"
 #include "quickjs-location.h"
-#include "include/xml_entities.h"
+#include "xml/xwrite.h"
+#include "xml/xml_entities.h"
+#include "xml/xml.h"
 
 #include <stdint.h>
 
@@ -20,21 +22,6 @@ char* js_inspect_tostring(JSContext* ctx, JSValueConst value);
  * \defgroup quickjs-xml quickjs-xml: XML parser & printer
  * @{
  */
-#define WS 0x01
-#define START 0x02
-#define END 0x04
-#define QUOTE 0x08
-#define CLOSE 0x10
-#define EQUAL 0x20
-#define SPECIAL 0x40
-#define SLASH 0x80
-#define BACKSLASH 0x100
-#define QUESTION 0x200
-#define EXCLAM 0x400
-#define HYPHEN 0x400
-
-static int chars[256] = {0};
-
 static const char* const default_self_closing_tags[] = {
     "area",
     "base",
@@ -53,217 +40,16 @@ static const char* const default_self_closing_tags[] = {
     0,
 };
 
-/* HTML5 "optional end tag" elements: opening one of these implicitly closes
- * whichever of the listed tags is currently open, even with no explicit
- * closing tag in the source. Without this, tolerant-mode input that relies
- * on it (e.g. the Netscape bookmarks export format, which never closes
- * <DT>) nests every subsequent sibling one level deeper than the last
- * instead of appending it as a sibling - turning an O(n) flat list into an
- * O(n)-deep tree, and every O(depth)-per-node consumer (e.g.
- * querySelectorAll's ancestor-path check) into O(n^2) on top of that. */
-typedef struct {
-  const char* tag;
-  const char* const closes[4];
-} ImpliedEndTag;
-
-static const ImpliedEndTag default_implied_end_tags[] = {
-    {"li", {"li", 0}},
-    {"dt", {"dt", "dd", 0}},
-    {"dd", {"dt", "dd", 0}},
-    {"p", {"p", 0}},
-    {"option", {"option", 0}},
-    {"optgroup", {"option", "optgroup", 0}},
-    {"tr", {"tr", 0}},
-    {"td", {"td", "th", 0}},
-    {"th", {"td", "th", 0}},
-    {"tbody", {"thead", "tbody", "tfoot", 0}},
-    {"tfoot", {"thead", "tbody", 0}},
-    {0, {0}},
-};
-
-/* HTML5 also closes an open <p>, <li>, <dt> or <dd> when any "block-level"
- * element starts, not just another matching sibling tag - e.g. real
- * Netscape-bookmarks exports do "<DT><H3>Folder</H3><DL><p>...</DL>" with
- * no closing </DT>, and <DL> isn't one of the sibling tags in
- * default_implied_end_tags's "dt" entry, so each folder's <DL> nested
- * one level *inside* the still-open previous <DT> instead of becoming its
- * sibling - depth grew roughly with document position (confirmed up to
- * 206 on a real 16MB export whose actual <DL> nesting is a handful of
- * levels), instead of staying flat. */
-static const char* const block_closing_tags[] = {
-    "address", "article", "aside", "blockquote", "details", "div", "dl", "fieldset", "figcaption", "figure",  "footer", "form", "h1", "h2", "h3", "h4", "h5",
-    "h6",      "header",  "hr",    "main",       "menu",    "nav", "ol", "p",        "pre",        "section", "table",  "ul",   "dt", "dd", "li", 0,
-};
-
-static const char* const block_closable_open_tags[] = {"p", "li", "dt", "dd", 0};
-
-static BOOL
-is_implied_end_tag(const char* name, size_t namelen, const char* open_name, size_t open_namelen) {
-  const ImpliedEndTag* e;
-  const char* const* o;
-
-  for(o = block_closable_open_tags; *o; o++) {
-    if(strlen(*o) == open_namelen && !strncasecmp(open_name, *o, open_namelen)) {
-      const char* const* v;
-
-      for(v = block_closing_tags; *v; v++)
-        if(strlen(*v) == namelen && !strncasecmp(name, *v, namelen))
-          return TRUE;
-
-      break;
-    }
-  }
-
-  for(e = default_implied_end_tags; e->tag; e++) {
-    if(strlen(e->tag) == namelen && !strncasecmp(name, e->tag, namelen)) {
-      const char* const* closes;
-
-      for(closes = e->closes; *closes; closes++)
-        if(strlen(*closes) == open_namelen && !strncasecmp(open_name, *closes, open_namelen))
-          return TRUE;
-
-      return FALSE;
-    }
-  }
-
-  return FALSE;
-}
-
-typedef struct {
-  uint32_t idx;
-  JSValue obj;
-  const uint8_t* name;
-  size_t namelen;
-} OutputValue;
-
 typedef struct {
   BOOL flat, tolerant, location;
   const char* const* self_closing_tags;
 } ParseOptions;
-
-void
-character_classes_init(int c[256]) {
-  c[' '] = WS;
-  c['\t'] = WS;
-  c['\r'] = WS;
-  c['\n'] = WS;
-  c['!'] = SPECIAL | EXCLAM;
-  c['"'] = QUOTE;
-  c['\''] = QUOTE;
-  c['/'] = END | SLASH;
-  c['<'] = START;
-  c['='] = EQUAL;
-  c['>'] = END | CLOSE;
-  c['?'] = SPECIAL | QUESTION;
-  c['\\'] = BACKSLASH;
-  c['-'] = HYPHEN;
-}
 
 #ifdef DEBUG_OUTPUT
 #define xml_debug(args...) printf(args)
 #else
 #define xml_debug(args...)
 #endif
-
-#define yield_push() \
-  do { \
-    xml_debug("push  [%" PRIu32 "] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
-    out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})); \
-    JS_SetPropertyStr(ctx, element, "children", out->obj); \
-  } while(0)
-
-#define yield_pop() \
-  do { \
-    OutputValue* top = vector_back(&st, sizeof(OutputValue)); \
-    xml_debug("pop    %.*s\n", (int)top->namelen, top->name); \
-    if(vector_size(&st, sizeof(OutputValue)) >= 2) { \
-      vector_pop(&st, sizeof(OutputValue)); \
-      out = vector_back(&st, sizeof(OutputValue)); \
-    } \
-  } while(0)
-
-#define yield_add(val) \
-  do { \
-    xml_debug("add   {%" PRIu32 "}\n", out->idx); \
-    JS_SetPropertyUint32(ctx, out->obj, out->idx++, (val)); \
-  } while(0)
-
-#define yield_next() \
-  do { \
-    xml_debug("next  {%" PRIu32 "}\n", out->idx); \
-    element = JS_NewObject(ctx); \
-    JS_SetPropertyUint32(ctx, out->obj, out->idx++, element); \
-    if(opts.location) \
-      virtual_set(&vprop, ctx, element, locObj); \
-  } while(0)
-
-#define yield_return(index) \
-  do { \
-    if(index >= 1) { \
-      xml_debug("return[%" PRId32 "] %" PRIu32 "\n", index, vector_size(&st, sizeof(OutputValue)) - index); \
-      vector_shrink(&st, sizeof(OutputValue), index); \
-      out = vector_back(&st, sizeof(OutputValue)); \
-    } \
-  } while(0)
-
-#define parse_getc() \
-  do { \
-    parse_loc(); \
-    c = *++ptr; \
-    if(ptr >= end) \
-      done = TRUE; \
-  } while(0)
-
-#define parse_loc() \
-  if(*ptr == '\n') { \
-    lineno++; \
-    column = 1; \
-  } else { \
-    column++; \
-  }
-
-#define parse_skip(cond) \
-  do { \
-    c = *ptr; \
-    if(!(cond)) \
-      break; \
-    parse_loc() if(++ptr >= end) done = TRUE; \
-  } while(!done)
-
-#define parse_until(cond) parse_skip(!(cond))
-#define parse_skipspace() parse_skip(chars[c] & WS)
-#define parse_is(c, classes) (chars[(c)] & (classes))
-#define parse_inside(tag) (strlen((tag)) == out->namelen && !strncmp((const char*)out->name, (const char*)(tag), out->namelen))
-#define parse_close() (ptr[0] == '<' && ptr[1] == '/' && !strncmp((const char*)&ptr[2], (const char*)out->name, out->namelen) && ptr[2 + out->namelen] == '>')
-
-static int32_t
-find_tag(Vector* st, const char* name, size_t namelen) {
-  OutputValue* o;
-  int32_t index = vector_size(st, sizeof(OutputValue));
-
-  for(o = vector_back(st, sizeof(OutputValue)); o >= (OutputValue*)vector_begin(st); o--) {
-    --index;
-
-    if(o->namelen == namelen && !strncmp((const char*)o->name, name, namelen))
-      return index;
-  }
-
-  return -1;
-}
-
-static BOOL
-is_self_closing_tag(const char* name, size_t namelen, const ParseOptions* opts) {
-  const char** v;
-
-  for(v = (const char**)opts->self_closing_tags; *v; v++) {
-    size_t n = strlen(*v);
-
-    if(n == namelen && !strncasecmp(name, *v, namelen))
-      return TRUE;
-  }
-
-  return FALSE;
-}
 
 static int32_t
 xml_num_children(JSContext* ctx, JSValueConst element) {
@@ -275,40 +61,6 @@ xml_num_children(JSContext* ctx, JSValueConst element) {
 
   JS_FreeValue(ctx, children);
   return num_children;
-}
-
-static void
-xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, JSValue value) {
-  JSAtom prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
-
-  JS_SetProperty(ctx, obj, prop, value);
-  JS_FreeAtom(ctx, prop);
-}
-
-static inline void
-xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
-  xml_set_attr_value(ctx, obj, attr, alen, JS_NewStringLen(ctx, (const char*)str, slen));
-}
-
-/* Same as JS_NewStringLen(), but decodes XML character references first (see
- * BUGS: xml-no-entity-decoding). js_xml_parse() reads directly out of its input
- * buffer - str/slen point straight into it - so decoding can't happen in place
- * there the way it does for src/xml.c/src/xread.c's own scratch accumulators;
- * this copies into a scratch buffer first instead, leaving the input untouched. */
-static JSValue
-xml_new_string_decoded(JSContext* ctx, const char* str, size_t slen) {
-  char* copy;
-  JSValue ret;
-
-  if(!(copy = js_malloc(ctx, slen ? slen : 1)))
-    return JS_NewStringLen(ctx, str, slen);
-
-  memcpy(copy, str, slen);
-  slen = xml_decode_entities(copy, slen);
-  ret = JS_NewStringLen(ctx, copy, slen);
-  js_free(ctx, copy);
-
-  return ret;
 }
 
 /* Escapes '&', '<', '>' (always) and '"' (only in an attribute value, which is
@@ -600,336 +352,263 @@ make_tuple(JSContext* ctx, JSValue a, JSValue b) {
   return ret;
 }
 
-static JSValue
-js_xml_parse_location(JSContext* ctx, uint32_t line, uint32_t column) {
-  return make_tuple(ctx, JS_NewUint32(ctx, line), JS_NewUint32(ctx, column));
+/* the element tree or flat list of `buf`, driven by the event parser of src/xml/xml.c.
+ *
+ *   tree  [{tagName, attributes, children}], children only on elements that stay open
+ *   flat  [{tagName, attributes}, 'text', {tagName: '/name'}, ...]
+ *
+ * returns the array (or [array, WeakMap] with location) or throws SyntaxError. */
+typedef struct {
+  JSValue elem, children, attrs;
+  uint32_t idx;
+  BOOL bang;
+} XRFrame;
+
+/* names beginning with `!` or `-` (the parser's EXCLAM and HYPHEN classes share a bit). */
+static BOOL
+xr_is_bang(const char* name, size_t len) {
+  return len && (name[0] == '!' || name[0] == '-');
 }
 
 static JSValue
 js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, ParseOptions opts) {
-  BOOL done = FALSE;
-  const uint8_t *ptr, *end, *start;
-  uint32_t lineno = 1, column = 1;
-  uint8_t c;
-  OutputValue* out;
-  JSValue ret, element = JS_UNDEFINED, locObj;
-  Vector st = VECTOR(ctx);
-  Location loc = LOCATION_FILE(JS_NewAtom(ctx, input_name));
-  VirtualProperties vprop;
+  Reader reader = reader_from_bytes(buf, len);
+  XMLParser xp;
+  XRFrame *frames = 0, *f;
+  size_t nframes = 0, cframes = 0;
+  JSValue ret = JS_NewArray(ctx), elem = JS_UNDEFINED, attrs = JS_UNDEFINED, result = JS_UNDEFINED;
+  uint32_t ridx = 0;
+  VirtualProperties vprop = {0};
+  xml_event_t ev;
+  BOOL failed = FALSE, skip_end = FALSE;
 
-  ptr = buf;
-  end = buf + len;
+  xml_parser_init(&xp, &reader);
+  xml_parser_set_tolerant(&xp, opts.tolerant);
+  xml_parser_set_flat(&xp, opts.flat);
+  xp.self_closing_tags = opts.self_closing_tags;
 
   if(opts.location)
     vprop = virtual_properties_map(ctx, js_object_new(ctx, "WeakMap", 0, 0));
 
-  xml_debug("js_xml_parse input_name: %s flat: %s\n", input_name, opts.flat ? "TRUE" : "FALSE");
+  while((ev = xml_parser_run(&xp)) > XML_PARSE_OK || ev == XML_PARSE_AGAIN) {
+    switch(ev) {
+      case XML_ELEMENT_START: {
+        const char* name = xp.event_name.data;
+        size_t nlen = xp.event_name.len;
+        BOOL bang = xr_is_bang(name, nlen);
+        JSValue container;
+        uint32_t* idx;
 
-  ret = JS_NewArray(ctx);
+        elem = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, elem, "tagName", JS_NewStringLen(ctx, name, nlen));
 
-  out = vector_emplace(&st, sizeof(OutputValue));
-  out->obj = ret;
-  out->idx = 0;
+        skip_end = bang;
 
-  while(!done) {
-    start = ptr;
+        if(!bang) {
+          attrs = JS_NewObject(ctx);
+          JS_SetPropertyStr(ctx, elem, "attributes", JS_DupValue(ctx, attrs));
+        } else
+          attrs = JS_UNDEFINED;
 
-    BOOL inside_script = parse_inside("script");
+        if(opts.location)
+          virtual_set(&vprop, ctx, elem, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
 
-    if(inside_script) {
-      while(!parse_close()) {
-        ++ptr;
+        if(!opts.flat && nframes) {
+          f = &frames[nframes - 1];
 
-        if((ptr += byte_chr(ptr, end - ptr, '<')) == end)
-          break;
-      }
+          if(JS_IsUndefined(f->children)) {
+            f->children = JS_NewArray(ctx);
+            JS_SetPropertyStr(ctx, f->elem, "children", JS_DupValue(ctx, f->children));
+          }
 
-    } else {
-      parse_until(parse_is(c, START));
-    }
-
-    size_t leading_ws = scan_whitenskip((const char*)start, ptr - start);
-
-    while(start < ptr) {
-      size_t n, real_len;
-
-      if(inside_script) {
-        start += scan_whitenskip((const char*)start, leading_ws);
-        real_len = n = ptr - start;
-
-        if((real_len = byte_chr(start, n, '\n')) < n)
-          real_len++;
-
-        n = real_len;
-      } else {
-        /* A run that's nothing but whitespace (e.g. pretty-printed indentation between
-         * sibling tags) carries no content - drop it entirely rather than yielding an
-         * empty/trimmed text node, matching "whitespace-only text between tags is
-         * dropped". A run with any real content is yielded with its boundary
-         * whitespace preserved, since inter-tag whitespace becomes literal text-node
-         * content once real text is present (unconditionally skipping leading and
-         * trimming trailing whitespace here used to corrupt inline mixed content -
-         * same class of bug already fixed in src/xml.c and src/xread.c, this is
-         * quickjs-xml.c's own third, independent parser).
-         *
-         * Round-tripped xml.write() output adds a further wrinkle: its pretty-printer
-         * glues a structural newline (plus, for nested elements, indent spaces)
-         * directly onto the real content with no separator - e.g. "\nHello \n    " is
-         * [newline]["Hello " - real text, including its own meaningful trailing
-         * space][newline][indent]. A plain "trim if not all-whitespace" can't tell
-         * those apart. Since the writer never emits a newline except as the first
-         * character of leading structural whitespace or the last newline of trailing
-         * structural whitespace, only that specific newline (and, on the leading
-         * side, any indent following it) is structural: strip through the first
-         * newline (inclusive) from the start if the run begins with one, and strip
-         * from the last newline (inclusive) to the end if one exists past the leading
-         * strip - everything strictly between is left untouched, including genuine
-         * boundary whitespace like the space in "Hello ". */
-        size_t total = ptr - start;
-
-        if(scan_whitenskip((const char*)start, total) == total) {
-          start = ptr;
-          continue;
-        }
-
-        size_t lead_strip = 0;
-
-        if(total > 0 && start[0] == '\n')
-          lead_strip = scan_whitenskip((const char*)start, total);
-
-        size_t last_nl = byte_rchr(start, total, '\n');
-        size_t trail_strip = (last_nl < total && last_nl >= lead_strip) ? total - last_nl : 0;
-
-        start += lead_strip;
-        real_len = n = total - lead_strip - trail_strip;
-      }
-
-      if(n > 0) {
-        JSValue str = xml_new_string_decoded(ctx, (const char*)start, n);
-
-        yield_add(str);
-      }
-
-      start += real_len;
-    }
-
-    if(done)
-      break;
-
-    start = ptr;
-    c = *ptr;
-
-    if(opts.location)
-      locObj = js_xml_parse_location(ctx, lineno, column);
-
-    if(parse_is(c, START)) {
-      const uint8_t* name;
-      size_t namelen;
-      BOOL closing = FALSE, self_closing = FALSE;
-
-      parse_getc();
-
-      if(parse_is(c, SLASH)) {
-        closing = TRUE;
-        parse_getc();
-      }
-
-      name = ptr;
-
-      if(parse_is(ptr[0], EXCLAM) && parse_is(ptr[1], HYPHEN) && parse_is(ptr[2], HYPHEN)) {
-        parse_getc();
-        parse_getc();
-        parse_getc();
-      } else {
-        parse_until(parse_is(c, WS | END));
-      }
-
-      namelen = ptr - name;
-
-      if(closing) {
-        int32_t index = 0;
-
-        parse_skipspace();
-
-        if(parse_is(c, CLOSE))
-          parse_getc();
-
-        xml_debug("end-of [%" PRIu32 "] tagName: %s%.*s\n", index, closing ? "/" : "", (int)namelen, name);
-
-        if(opts.flat) {
-          yield_next();
-          xml_set_attr_bytes(ctx, element, "tagName", 7, name - 1, namelen + 1);
-
+          container = f->children;
+          idx = &f->idx;
         } else {
-          if((index = find_tag(&st, (const char*)name, namelen)) == -1) {
-            if(!opts.tolerant) {
-              char* file;
+          container = ret;
+          idx = &ridx;
+        }
 
-              JS_FreeValue(ctx, ret);
-              location_count(&loc, buf, start - buf);
-              file = location_file(&loc, ctx);
-              xml_debug(
-                  "mismatch </%.*s> at %s:%u:%u (byte %"PRIu64"/char %"PRIu64")", (int)namelen, name, file, loc.line + 1, loc.column + 1, (uint64_t)loc.byte_offset, (uint64_t)loc.char_offset);
-              ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line + 1, loc.column + 1);
+        JS_SetPropertyUint32(ctx, container, (*idx)++, JS_DupValue(ctx, elem));
 
-              if(file)
-                js_free(ctx, file);
+        if(!opts.flat) {
+          if(nframes == cframes) {
+            size_t n = cframes ? cframes * 2 : 16;
+            XRFrame* nf = js_realloc(ctx, frames, n * sizeof(XRFrame));
 
-              vector_free(&st);
-              return ret;
+            if(!nf) {
+              failed = TRUE;
+              goto done;
             }
 
-            continue;
+            frames = nf;
+            cframes = n;
           }
 
-          yield_return(index);
-        }
-      } else {
-        if(opts.tolerant && !opts.flat && out && out->namelen && is_implied_end_tag((const char*)name, namelen, (const char*)out->name, out->namelen))
-          yield_pop();
-
-        yield_next();
-
-        if(namelen && (parse_is(name[0], (/*QUESTION |*/ EXCLAM))))
-          self_closing = TRUE;
-
-        if(is_self_closing_tag((const char*)name, namelen, &opts))
-          self_closing = TRUE;
-
-        if(namelen >= 3 && parse_is(name[0], EXCLAM) && parse_is(name[1], HYPHEN) && parse_is(name[2], HYPHEN)) {
-          while(!done) {
-            parse_getc();
-
-            if(end - ptr >= 3 && parse_is(ptr[0], HYPHEN) && parse_is(ptr[1], HYPHEN) && parse_is(ptr[2], CLOSE)) {
-              ptr += 2;
-              break;
-            }
-          }
-
-          namelen = ptr - name;
-
-        } else if(namelen && parse_is(name[0], EXCLAM)) {
-          parse_until(parse_is(c, CLOSE));
-          namelen = ptr - name;
+          frames[nframes++] = (XRFrame){JS_DupValue(ctx, elem), JS_UNDEFINED, JS_DupValue(ctx, attrs), 0, bang};
         }
 
-        xml_set_attr_bytes(ctx, element, "tagName", 7, name, namelen);
-
-        if(namelen && parse_is(name[0], EXCLAM)) {
-          parse_getc();
-          continue;
-        }
-
-        /* Parse attributes if not a closing tag */
-        const uint8_t *attr, *value;
-        size_t alen, vlen;
-        JSValue attributes = JS_NewObject(ctx);
-
-        JS_SetPropertyStr(ctx, element, "attributes", attributes);
-
-        while(!done) {
-          parse_skipspace();
-
-          if(parse_is(c, END))
-            break;
-
-          attr = ptr;
-          /* SLASH must terminate the name scan too, not just EQUAL/WS/SPECIAL/CLOSE -
-           * otherwise a boolean attribute immediately followed by a self-closing '/'
-           * (e.g. "<input disabled/>") swallows the '/' into the attribute name
-           * itself ("disabled/") instead of stopping at it. The code right below
-           * already handles c landing on SLASH correctly (the WS|CLOSE|SLASH
-           * check yields the boolean attribute) - this scan just needs to stop
-           * there instead of consuming past it. */
-          parse_until(parse_is(c, EQUAL | WS | SPECIAL | CLOSE | SLASH));
-
-          if((alen = ptr - attr) == 0)
-            break;
-
-          if(parse_is(c, WS | CLOSE | SLASH)) {
-            xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
-            continue;
-          }
-
-          if(parse_is(c, EQUAL)) {
-            char quote = 0;
-
-            parse_getc();
-
-            if(parse_is(c, QUOTE)) {
-              quote = c;
-              parse_getc();
-            }
-
-            value = ptr;
-
-            if(quote)
-              parse_until(c == quote);
-            else
-              parse_until(parse_is(c, (WS | CLOSE)));
-
-            vlen = ptr - value;
-
-            if(quote && parse_is(c, QUOTE))
-              parse_getc();
-
-            xml_set_attr_value(ctx, attributes, (const char*)attr, alen, xml_new_string_decoded(ctx, (const char*)value, vlen));
-          }
-        }
-
-        if(parse_is(c, SLASH)) {
-          self_closing = TRUE;
-          parse_getc();
-        }
-
-        if(parse_is(name[0], QUESTION | EXCLAM))
-          if(chars[c] == chars[name[0]])
-            parse_getc();
-
-        if(!opts.flat && !self_closing)
-          yield_push();
+        JS_FreeValue(ctx, elem);
+        elem = JS_UNDEFINED;
+        break;
       }
 
-      if(self_closing && opts.flat) {
-        char* tagName = js_mallocz(ctx, namelen + 2);
+      case XML_ATTRIBUTE: {
+        JSValue target = opts.flat ? attrs : (nframes ? frames[nframes - 1].attrs : JS_UNDEFINED);
+        JSAtom prop = JS_NewAtomLen(ctx, xp.event_name.data, xp.event_name.len);
 
-        tagName[0] = '/';
-        str_copyn(&tagName[1], (const char*)name, namelen);
+        if(!JS_IsUndefined(target))
+          JS_SetProperty(ctx, target, prop, xp.event_has_value ? JS_NewStringLen(ctx, xp.event_value.data ? xp.event_value.data : "", xp.event_value.len) : JS_TRUE);
 
-        yield_next();
-        xml_set_attr_bytes(ctx, element, "tagName", 7, (const uint8_t*)tagName, namelen + 1);
-        js_free(ctx, tagName);
+        JS_FreeAtom(ctx, prop);
+        break;
       }
 
-      /* No parse_skipspace() here: this ran unconditionally after every tag, but only
-       * has any effect after a *closing* tag - an opening tag's '>' is still
-       * unconsumed at this point (the CLOSE-class check right below consumes it), so
-       * `c` can't be whitespace yet, while a closing tag's own branch already
-       * consumed its '>' earlier, leaving `c` sitting on whatever text follows. That
-       * asymmetry meant leading whitespace of text right after a closing tag got
-       * silently eaten here, before the text-accumulation loop above ever saw it -
-       * same bug already fixed in src/xml.c's xml_parser_run(). Whitespace-only runs
-       * between sibling tags are already dropped by that loop, so this was redundant
-       * for its likely intent and actively harmful for genuine boundary whitespace in
-       * mixed content. */
-      if(parse_is(c, CLOSE))
-        parse_getc();
+      case XML_TEXT: {
+        JSValue container = ret, str = JS_NewStringLen(ctx, xp.event_value.data, xp.event_value.len);
+        uint32_t* idx = &ridx;
+
+        if(!opts.flat && nframes) {
+          f = &frames[nframes - 1];
+
+          if(JS_IsUndefined(f->children)) {
+            f->children = JS_NewArray(ctx);
+            JS_SetPropertyStr(ctx, f->elem, "children", JS_DupValue(ctx, f->children));
+          }
+
+          container = f->children;
+          idx = &f->idx;
+        }
+
+        JS_SetPropertyUint32(ctx, container, (*idx)++, str);
+        break;
+      }
+
+      case XML_ELEMENT_END: {
+        if(opts.flat) {
+          const char* name = xp.event_name.data;
+          size_t nlen = xp.event_name.len;
+
+          if(skip_end) { /* the end that comes with a comment or declaration */
+            skip_end = FALSE;
+          } else {
+            char* tag = js_malloc(ctx, nlen + 1);
+            JSValue e = JS_NewObject(ctx);
+
+            if(!tag) {
+              failed = TRUE;
+              JS_FreeValue(ctx, e);
+              goto done;
+            }
+
+            tag[0] = '/';
+            memcpy(tag + 1, name, nlen);
+            JS_SetPropertyStr(ctx, e, "tagName", JS_NewStringLen(ctx, tag, nlen + 1));
+            js_free(ctx, tag);
+
+            if(opts.location)
+              virtual_set(&vprop, ctx, e, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
+
+            JS_SetPropertyUint32(ctx, ret, ridx++, e);
+          }
+        } else if(nframes) {
+          f = &frames[nframes - 1];
+
+          /* an element left open gets its (possibly empty) children; <a/> and comments get none */
+          if(!f->bang && !xp.self_closing && JS_IsUndefined(f->children)) {
+            f->children = JS_NewArray(ctx);
+            JS_SetPropertyStr(ctx, f->elem, "children", JS_DupValue(ctx, f->children));
+          }
+
+          JS_FreeValue(ctx, f->elem);
+          JS_FreeValue(ctx, f->children);
+          JS_FreeValue(ctx, f->attrs);
+          nframes--;
+        }
+
+        break;
+      }
+
+      default: break;
     }
   }
 
-  JS_FreeAtom(ctx, loc.file);
-  vector_free(&st);
+  if(ev == XML_PARSE_ERROR) {
+    Location* at = location_new(ctx);
 
-  if(opts.location)
-    return make_tuple(ctx, ret, vprop.this_obj);
+    location_set_filename(at, input_name, ctx);
+    at->line = xp.tag_line - 1;
+    at->column = xp.tag_column - 1;
+    js_throw_syntax_error(ctx, at, xp.err_len, xp.err_code, "mismatch </%.*s>", (int)xp.event_name.len, xp.event_name.data);
+    location_free(at, JS_GetRuntime(ctx));
+    failed = TRUE;
+  }
 
+  /* input that ends inside open elements: they keep (empty) children */
+  while(!failed && nframes) {
+    f = &frames[--nframes];
+
+    if(!f->bang && JS_IsUndefined(f->children))
+      JS_SetPropertyStr(ctx, f->elem, "children", JS_NewArray(ctx));
+
+    JS_FreeValue(ctx, f->elem);
+    JS_FreeValue(ctx, f->children);
+    JS_FreeValue(ctx, f->attrs);
+  }
+
+done:
+  while(nframes) {
+    f = &frames[--nframes];
+    JS_FreeValue(ctx, f->elem);
+    JS_FreeValue(ctx, f->children);
+    JS_FreeValue(ctx, f->attrs);
+  }
+
+  JS_FreeValue(ctx, attrs);
+  js_free(ctx, frames);
+  xml_parser_free(&xp);
+  reader_free(&reader);
+
+  if(failed) {
+    JS_FreeValue(ctx, ret);
+
+    if(opts.location)
+      JS_FreeValue(ctx, vprop.this_obj);
+
+    return JS_EXCEPTION;
+  }
+
+  result = opts.location ? make_tuple(ctx, ret, vprop.this_obj) : ret;
+  return result;
+}
+
+
+/* xml_throw_at: throws a SyntaxError for a failure at `pos` of the input called `name`.
+ *
+ *   const char*       name    input name for loc.file ("f.xml", "<xml>")
+ *   const SourcePos*  pos     start of the offending token (1-based)
+ *   size_t            length  characters it spans (0 at end of input)
+ *   const char*       code    stable kebab-case name
+ *
+ * returns JS_EXCEPTION. */
+static JSValue
+xml_throw_at(JSContext* ctx, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+  Location* at;
+  JSValue ret;
+
+  if(!(at = location_new(ctx)))
+    return JS_EXCEPTION;
+
+  location_set_filename(at, name, ctx);
+  location_from_srcpos(at, pos);
+  ret = js_throw_syntax_error(ctx, at, length, code, "%s", msg);
+  location_free(at, JS_GetRuntime(ctx));
   return ret;
 }
 
 static JSValue
 js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  InputBuffer input = js_input_chars(ctx, argv[0]);
+  InputBuffer input;
   const char* input_name = 0;
   ParseOptions opts = {
       .flat = FALSE,
@@ -938,9 +617,17 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       .self_closing_tags = default_self_closing_tags,
   };
 
-  if(input.data == 0 || input.size == 0) {
-    JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
-    return JS_EXCEPTION;
+  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "xml.read(): expecting buffer or string");
+
+  input = js_input_chars(ctx, argv[0]);
+
+  if(input.size == 0) {
+    SourcePos start;
+
+    inputbuffer_free(&input, ctx);
+    srcpos_init(&start, 0);
+    return xml_throw_at(ctx, "<xml>", &start, 0, "unexpected-end", "xml.read(): empty input");
   }
 
   if(argc >= 2)
@@ -1135,11 +822,11 @@ static const JSCFunctionListEntry js_xml_funcs[] = {
 };
 
 /**
- * XMLSerializer: a pull serializer, modeled on JsonSerializer (quickjs-json.c). The
+ * XMLTreeSerializer: a pull serializer, modeled on JsonSerializer (quickjs-json.c). The
  * constructor is given an object tree (root); read(buf, offset, length) writes as much
  * serialized XML text as fits into the caller's buffer, resuming on the next call
  * exactly where the last one left off. Traversal state (the open-element stack) is
- * tracked in the XMLSerializer struct via property_recursion_push()/pop(), and is only
+ * tracked in the XMLTreeSerializer struct via property_recursion_push()/pop(), and is only
  * ever pushed for a node's "children" array (list frames) or, transiently, its
  * "attributes" object (xs->attrs) - never the generic, any-property
  * property_recursion_next().
@@ -1191,11 +878,11 @@ typedef struct {
   Writer dest_writer; /* swappable slot: out_writer for .read(n), the capped writer for .read(buf) */
   Writer skip_writer; /* outermost: discards the first `skip` bytes of a step's replay */
   XMLCappedBuf capped;
-} XMLSerializer;
+} XMLTreeSerializer;
 
 static ssize_t
 xml_write_skip(intptr_t fd, const void* buf, size_t len, Writer* wr) {
-  XMLSerializer* xs = (XMLSerializer*)fd;
+  XMLTreeSerializer* xs = (XMLTreeSerializer*)fd;
   ssize_t w;
 
   if(xs->skip >= len) {
@@ -1227,7 +914,7 @@ xml_write_skip(intptr_t fd, const void* buf, size_t len, Writer* wr) {
  * FALSE so the caller can bail out before mutating any traversal state. */
 
 static BOOL
-xsw_write(XMLSerializer* xs, const void* buf, size_t len) {
+xsw_write(XMLTreeSerializer* xs, const void* buf, size_t len) {
   ssize_t w = writer_write(&xs->skip_writer, buf, len);
 
   if(w < 0) {
@@ -1244,7 +931,7 @@ xsw_write(XMLSerializer* xs, const void* buf, size_t len) {
 }
 
 static BOOL
-xsw_putc(XMLSerializer* xs, int c) {
+xsw_putc(XMLTreeSerializer* xs, int c) {
   ssize_t w = writer_putc(&xs->skip_writer, c);
 
   if(w < 0) {
@@ -1261,7 +948,7 @@ xsw_putc(XMLSerializer* xs, int c) {
 }
 
 static BOOL
-xsw_puts(XMLSerializer* xs, const char* s) {
+xsw_puts(XMLTreeSerializer* xs, const char* s) {
   return xsw_write(xs, s, strlen(s));
 }
 
@@ -1271,7 +958,7 @@ xsw_puts(XMLSerializer* xs, const char* s) {
  * single byte, as with .read(buf, offset, 1)) can still make forward progress, one
  * xsw_putc() at a time, the same granularity write_json_string() uses in quickjs-json.c. */
 static BOOL
-xsw_raw(XMLSerializer* xs, const char* s, size_t len) {
+xsw_raw(XMLTreeSerializer* xs, const char* s, size_t len) {
   size_t i;
 
   for(i = 0; i < len; i++)
@@ -1294,7 +981,7 @@ xsw_raw(XMLSerializer* xs, const char* s, size_t len) {
  * containing one of these characters produced XML that doesn't parse back to the
  * same tree (or doesn't parse at all). */
 static BOOL
-xsw_raw_escaped(XMLSerializer* xs, const char* s, size_t len, BOOL is_attr) {
+xsw_raw_escaped(XMLTreeSerializer* xs, const char* s, size_t len, BOOL is_attr) {
   size_t i;
 
   for(i = 0; i < len; i++) {
@@ -1336,7 +1023,7 @@ xmlserializer_wrap_root(JSContext* ctx, JSValueConst root) {
  * self-closing vs. pushing a "children" frame, then hand control back to whichever
  * list frame is (still) on top of xs->stack. */
 static void
-xmlserializer_finish_open(XMLSerializer* xs, JSContext* ctx) {
+xmlserializer_finish_open(XMLTreeSerializer* xs, JSContext* ctx) {
   JSValue children = JS_GetPropertyStr(ctx, xs->cur_element, "children");
   BOOL has_children = JS_IsArray(ctx, children) && js_array_length(ctx, children) > 0;
 
@@ -1371,7 +1058,7 @@ xmlserializer_finish_open(XMLSerializer* xs, JSContext* ctx) {
 }
 
 static void
-xmlserializer_step_inner(XMLSerializer* xs, JSContext* ctx) {
+xmlserializer_step_inner(XMLTreeSerializer* xs, JSContext* ctx) {
   if(!xs->started) {
     JSValue undef = JS_UNDEFINED;
     JSValue rootArr = xmlserializer_wrap_root(ctx, xs->root);
@@ -1555,7 +1242,7 @@ xmlserializer_step_inner(XMLSerializer* xs, JSContext* ctx) {
  * losing or duplicating it; a clean step clears xs->skip since it now applies to
  * whatever step comes next. */
 static void
-xmlserializer_step(XMLSerializer* xs, JSContext* ctx) {
+xmlserializer_step(XMLTreeSerializer* xs, JSContext* ctx) {
   size_t skip_before = xs->skip;
 
   xs->delivered = 0;
@@ -1569,7 +1256,7 @@ xmlserializer_step(XMLSerializer* xs, JSContext* ctx) {
 
 static JSValue
 js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XMLSerializer* xs;
+  XMLTreeSerializer* xs;
   BOOL is_buf;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
@@ -1646,7 +1333,7 @@ js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_xmlserializer_get_root(JSContext* ctx, JSValueConst this_val) {
-  XMLSerializer* xs;
+  XMLTreeSerializer* xs;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
     return JS_EXCEPTION;
@@ -1656,7 +1343,7 @@ js_xmlserializer_get_root(JSContext* ctx, JSValueConst this_val) {
 
 static JSValue
 js_xmlserializer_get_finished(JSContext* ctx, JSValueConst this_val) {
-  XMLSerializer* xs;
+  XMLTreeSerializer* xs;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
     return JS_EXCEPTION;
@@ -1667,10 +1354,10 @@ js_xmlserializer_get_finished(JSContext* ctx, JSValueConst this_val) {
 static JSValue
 js_xmlserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
-  XMLSerializer* xs;
+  XMLTreeSerializer* xs;
   JSValueConst root = argc > 0 ? argv[0] : JS_UNDEFINED;
 
-  if(!(xs = js_mallocz(ctx, sizeof(XMLSerializer))))
+  if(!(xs = js_mallocz(ctx, sizeof(XMLTreeSerializer))))
     return JS_EXCEPTION;
 
   xs->stack = VECTOR(ctx);
@@ -1706,7 +1393,7 @@ fail:
 
 static void
 js_xmlserializer_finalizer(JSRuntime* rt, JSValue val) {
-  XMLSerializer* xs;
+  XMLTreeSerializer* xs;
 
   if((xs = JS_GetOpaque(val, js_xmlserializer_class_id))) {
     JSValue* ownerp;
@@ -1729,7 +1416,7 @@ js_xmlserializer_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSClassDef js_xmlserializer_class = {
-    .class_name = "XMLSerializer",
+    .class_name = "XMLTreeSerializer",
     .finalizer = js_xmlserializer_finalizer,
 };
 
@@ -1737,11 +1424,10 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
     JS_CFUNC_DEF("read", 1, js_xmlserializer_read),
     JS_CGETSET_DEF("root", js_xmlserializer_get_root, 0),
     JS_CGETSET_DEF("finished", js_xmlserializer_get_finished, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLSerializer", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLTreeSerializer", JS_PROP_CONFIGURABLE),
 };
 
-#include "include/xml.h"
-#include "include/xread.h"
+#include "xml/xread.h"
 
 /*
  * XMLBuilder: builds a {tagName, attributes, children}-shaped JSValue tree from a
@@ -1909,7 +1595,7 @@ xml_builder_attribute(XMLBuilder* b, const char* name, size_t namelen, const cha
 
 /* Appends a text-content string to the currently-open frame's children (a plain
  * JS string, alongside any element objects xml_builder_push() added) - used by
- * both XMLParser (include/xml.h)'s XML_TEXT events and, since xread.h grew
+ * both XMLParser (include/xml/xml.h)'s XML_TEXT events and, since xread.h grew
  * xr_type_text (see BUGS: xread-no-text-content), xread_callback_build() below. */
 static void
 xml_builder_text(XMLBuilder* b, const char* text, size_t len) {
@@ -1926,10 +1612,49 @@ typedef struct PushParser {
   JSValue this_obj;
   struct xr_state xrs;
   JSValue attribute, element_start, element_end, error, text;
+  JSValue on_parse_error; /* onParseError(err): receives the SyntaxError instead of a throw */
+  JSValue last_error;     /* SyntaxError of the latest error, or JS_UNDEFINED */
   XMLBuilder builder;
   BOOL use_builder; /* build {tagName, attributes, children} tree
                        instead of forwarding events */
 } XMLPushParser;
+
+/* xml_pushparser_report: builds the SyntaxError for a failure at `pos`, keeps it as
+ * `last_error` and passes it to `onParseError(err)`; throws nothing.
+ *
+ * returns TRUE when onParseError exists (the error is handled). */
+static BOOL
+xml_pushparser_report(XMLPushParser* pp, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+  JSContext* ctx = pp->ctx;
+  Location* at;
+  JSValue err;
+
+  if(!(at = location_new(ctx)))
+    return FALSE;
+
+  location_set_filename(at, "<xml>", ctx);
+  location_from_srcpos(at, pos);
+  err = js_syntax_error_new(ctx, at, length, code, "%s", msg);
+  location_free(at, JS_GetRuntime(ctx));
+
+  if(JS_IsException(err)) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return FALSE;
+  }
+
+  JS_FreeValue(ctx, pp->last_error);
+  pp->last_error = JS_DupValue(ctx, err);
+
+  if(JS_IsFunction(ctx, pp->on_parse_error)) {
+    JSValue ret = JS_Call(ctx, pp->on_parse_error, pp->this_obj, 1, &err);
+
+    JS_FreeValue(ctx, ret); /* an exception from the callback is dropped */
+    JS_FreeValue(ctx, JS_GetException(ctx));
+  }
+
+  JS_FreeValue(ctx, err);
+  return JS_IsFunction(ctx, pp->on_parse_error);
+}
 
 static void
 xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
@@ -1941,7 +1666,7 @@ xread_callback_build(xr_type_t type, const xr_str_t* name, const xr_str_t* value
     case xr_type_element_start: xml_builder_push(&pp->builder, name->cstr, name->len); break;
     case xr_type_element_end: xml_builder_pop(&pp->builder); break;
     case xr_type_text: xml_builder_text(&pp->builder, value->cstr, value->len); break;
-    case xr_type_error: break;
+    case xr_type_error: xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input"); break;
   }
 }
 
@@ -1962,7 +1687,10 @@ xread_callback(xr_type_t type, const xr_str_t* name, const xr_str_t* value, void
       break;
     case xr_type_element_start: cb = &pp->element_start; break;
     case xr_type_element_end: cb = &pp->element_end; break;
-    case xr_type_error: cb = &pp->error; break;
+    case xr_type_error:
+      cb = &pp->error;
+      xml_pushparser_report(pp, &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input");
+      break;
     /* text(name, value): name is always undefined (xr_type_text has no name), value
      * is the text content - kept as a (name, value) pair for consistency with every
      * other callback here rather than a single-argument special case. */
@@ -1990,12 +1718,13 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
 
+  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "XMLPushParser.write(): expecting buffer or string");
+
   input = js_input_chars(ctx, argv[0]);
 
-  if(input.data == 0) {
-    JS_ThrowReferenceError(ctx, "XMLPushParser.write(): expecting buffer or string");
+  if(input.data == 0)
     return JS_EXCEPTION;
-  }
 
   xr_read(pp->use_builder ? xread_callback_build : xread_callback, inputbuffer_data(&input), inputbuffer_length(&input), pp, &pp->xrs);
   inputbuffer_free(&input, ctx);
@@ -2008,8 +1737,8 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
    * xr_type_error to it) and owns handling this, so only throw here in the
    * builder fallback, which otherwise has no way to report it at all - .root
    * would just silently stop growing. */
-  if(pp->xrs.error && pp->use_builder)
-    return JS_ThrowSyntaxError(ctx, "XMLPushParser: malformed input");
+  if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->on_parse_error))
+    return xml_throw_at(ctx, "<xml>", &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input");
 
   return JS_UNDEFINED;
 }
@@ -2024,17 +1753,24 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   xr_finish(pp->use_builder ? xread_callback_build : xread_callback, pp, &pp->xrs);
 
   /* xr_finish()'s own !at_root check (which sets xrs.error) only catches ending
-   * mid-tag, e.g. "<a><b" with no closing '>' - src/xread.c's l_tag_end sets
+   * mid-tag, e.g. "<a><b" with no closing '>' - src/xml/xread.c's l_tag_end sets
    * at_root=1 after *every* '>', nested or not, so it does NOT mean every opened
    * element was also closed. When building a tree, check the frame stack
    * directly instead, to also catch e.g. "<a><b/>" (well-formed lexically, but
    * <a> itself was never closed). Only in the builder fallback - see write()'s
    * comment above for why custom-callback mode doesn't also throw here. */
-  if(pp->xrs.error && pp->use_builder)
-    return JS_ThrowSyntaxError(ctx, "XMLPushParser: malformed or truncated input");
+  if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->on_parse_error))
+    return xml_throw_at(ctx, "<xml>", &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed or truncated input");
 
-  if(pp->use_builder && pp->builder.top->parent)
-    return JS_ThrowSyntaxError(ctx, "XMLPushParser: unexpected end of input (unclosed element)");
+  if(pp->xrs.error) /* the error callback already ran; nothing left open to report */
+    return JS_UNDEFINED;
+
+  if(pp->use_builder && pp->builder.top->parent) {
+    if(xml_pushparser_report(pp, &pp->xrs.pos, 0, "unexpected-end", "XMLPushParser: unexpected end of input (unclosed element)"))
+      return JS_UNDEFINED;
+
+    return xml_throw_at(ctx, "<xml>", &pp->xrs.pos, 0, "unexpected-end", "XMLPushParser: unexpected end of input (unclosed element)");
+  }
 
   return JS_UNDEFINED;
 }
@@ -2047,6 +1783,16 @@ js_xml_pushparser_get_root(JSContext* ctx, JSValueConst this_val) {
     return JS_EXCEPTION;
 
   return xml_builder_root(&pp->builder);
+}
+
+static JSValue
+js_xml_pushparser_get_error(JSContext* ctx, JSValueConst this_val) {
+  XMLPushParser* pp;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_IsUndefined(pp->last_error) ? JS_NULL : JS_DupValue(ctx, pp->last_error);
 }
 
 /* Array of tagName strings from the document root down to the currently-open
@@ -2097,6 +1843,8 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->element_end = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementEnd") : JS_UNDEFINED;
   pp->error = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "error") : JS_UNDEFINED;
   pp->text = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "text") : JS_UNDEFINED;
+  pp->on_parse_error = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "onParseError") : JS_UNDEFINED;
+  pp->last_error = JS_UNDEFINED;
 
   /* no real callback given at all: build a tree (retrievable via .root) instead of
    * forwarding events that would just be dropped on the floor. */
@@ -2131,6 +1879,8 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
     JS_FreeValueRT(rt, pp->element_end);
     JS_FreeValueRT(rt, pp->error);
     JS_FreeValueRT(rt, pp->text);
+    JS_FreeValueRT(rt, pp->on_parse_error);
+    JS_FreeValueRT(rt, pp->last_error);
     js_free_rt(rt, pp);
   }
 }
@@ -2140,6 +1890,7 @@ static const JSCFunctionListEntry js_xml_pushparser_proto_funcs[] = {
     JS_CFUNC_DEF("close", 0, js_xml_pushparser_close),
     JS_CGETSET_DEF("root", js_xml_pushparser_get_root, 0),
     JS_CGETSET_DEF("path", js_xml_pushparser_get_path, 0),
+    JS_CGETSET_DEF("error", js_xml_pushparser_get_error, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLPushParser", JS_PROP_CONFIGURABLE),
 };
 
@@ -2149,7 +1900,7 @@ static JSClassDef js_xml_pushparser_class = {
 };
 
 /* ----------------------------------------------------------------------
-   XMLParser: pull (.parse()) parser over include/xml.h's xml_parser_run(),
+   XMLParser: pull (.parse()) parser over include/xml/xml.h's xml_parser_run(),
    modeled on JsonParser (quickjs-json.c) - a constructor taking a reader-
    like input, .parse() advancing one token at a time, and getters for the
    current token/position - except .parse() returns the raw xml_event_t
@@ -2159,6 +1910,26 @@ static JSClassDef js_xml_pushparser_class = {
    caller having to do that bookkeeping itself.
    ---------------------------------------------------------------------- */
 
+/* xml_parser_error_new: the SyntaxError for the XML_PARSE_ERROR `xp` just returned, at the
+ * start of the offending tag; `base` supplies the input name.
+ *
+ * returns the error object (refcount: a new reference), or JS_EXCEPTION. */
+static JSValue
+xml_parser_error_new(JSContext* ctx, const XMLParser* xp, const Location* base) {
+  Location* at;
+  JSValue ret;
+
+  if(!(at = location_clone(base, ctx)))
+    return JS_EXCEPTION;
+
+  at->line = xp->tag_line - 1;
+  at->column = xp->tag_column - 1;
+  at->char_offset = at->byte_offset = -1;
+  ret = js_syntax_error_new(ctx, at, xp->err_len, xp->err_code, "mismatch </%.*s>", (int)xp->event_name.len, xp->event_name.data);
+  location_free(at, JS_GetRuntime(ctx));
+  return ret;
+}
+
 typedef struct {
   Reader reader;
   XMLParser xp;
@@ -2167,6 +1938,7 @@ typedef struct {
   BOOL use_builder;
   JSValue element_start, element_end, attribute, text, error;
   JSValue this_obj;
+  JSValue last_error; /* SyntaxError after parse() returned PARSE_ERROR, else undefined */
 } XmlParser;
 
 static JSClassID js_xml_parser_class_id;
@@ -2185,7 +1957,7 @@ xml_parser_depth(XmlParser* p) {
 
 /* p->loc (a ref-counted, js_malloc'd Location, wrapped as-is by .location) tracks
  * xp.loc (a plain embedded value struct xml_parser_run() advances - see
- * include/xml.h) by copying the fields js_location_wrap()'s consumers care about
+ * include/xml/xml.h) by copying the fields js_location_wrap()'s consumers care about
  * after every .parse() call; the two can't just be the same object since xp.loc
  * isn't heap-allocated the way location_free() requires. */
 static void
@@ -2265,7 +2037,20 @@ js_xml_parser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_parser_class_id)))
     return JS_EXCEPTION;
 
+  if(!p->reader.read)
+    return JS_ThrowTypeError(ctx, "XMLParser: no input to parse");
+
   ev = xml_parser_run(&p->xp);
+
+  if(ev == XML_PARSE_ERROR) {
+    JSValue err = xml_parser_error_new(ctx, &p->xp, p->loc);
+
+    if(JS_IsException(err))
+      return err;
+
+    JS_FreeValue(ctx, p->last_error);
+    p->last_error = err;
+  }
 
   if(p->use_builder)
     xml_parser_build(p, ev);
@@ -2285,6 +2070,7 @@ enum {
   XML_PARSER_LOCATION,
   XML_PARSER_TOLERANT,
   XML_PARSER_ROOT,
+  XML_PARSER_ERROR,
 };
 
 static JSValue
@@ -2316,6 +2102,10 @@ js_xml_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case XML_PARSER_LOCATION: {
       ret = js_location_wrap(ctx, p->loc);
+      break;
+    }
+    case XML_PARSER_ERROR: {
+      ret = JS_IsUndefined(p->last_error) ? JS_NULL : JS_DupValue(ctx, p->last_error);
       break;
     }
     case XML_PARSER_TOLERANT: {
@@ -2424,6 +2214,7 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   p->element_end = JS_GetPropertyStr(ctx, options, "elementEnd");
   p->error = JS_GetPropertyStr(ctx, options, "error");
   p->text = JS_GetPropertyStr(ctx, options, "text");
+  p->last_error = JS_UNDEFINED;
 
   p->this_obj = JS_DupValue(ctx, options);
 
@@ -2435,7 +2226,7 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
     p->use_builder = !JS_IsFunction(ctx, p->attribute) && !JS_IsFunction(ctx, p->element_start) && !JS_IsFunction(ctx, p->element_end) &&
                      !JS_IsFunction(ctx, p->error) && !JS_IsFunction(ctx, p->text);
 
-  /* p->xp.reader is a borrowed pointer (include/xml.h doesn't own/copy the Reader
+  /* p->xp.reader is a borrowed pointer (include/xml/xml.h doesn't own/copy the Reader
    * it's given), valid as long as p->reader is - i.e. for XmlParser's whole
    * lifetime, since both live in this one allocation and are freed together in
    * the finalizer below. */
@@ -2475,6 +2266,7 @@ js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
       location_free(p->loc, rt);
 
     JS_FreeValueRT(rt, p->this_obj);
+    JS_FreeValueRT(rt, p->last_error);
     js_free_rt(rt, p);
   }
 }
@@ -2488,6 +2280,7 @@ static const JSCFunctionListEntry js_xml_parser_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("location", js_xml_parser_get, 0, XML_PARSER_LOCATION, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("tolerant", js_xml_parser_get, js_xml_parser_set, XML_PARSER_TOLERANT),
     JS_CGETSET_MAGIC_FLAGS_DEF("root", js_xml_parser_get, 0, XML_PARSER_ROOT, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_xml_parser_get, 0, XML_PARSER_ERROR, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("onelementstart", 0, js_xml_parser_callback, XML_ELEMENT_START, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("onelementend", 0, js_xml_parser_callback, XML_ELEMENT_END, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("onattribute", 0, js_xml_parser_callback, XML_ATTRIBUTE, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
@@ -2521,7 +2314,20 @@ typedef struct {
   BOOL has_buffered_ev;
 
   uint32_t depth;
+  JSValue last_error; /* SyntaxError after parse() returned PARSE_ERROR, else undefined */
 } XMLNodeParser;
+
+static int
+xml_nodeparser_record_error(JSContext* ctx, XMLNodeParser* p) {
+  JSValue err = xml_parser_error_new(ctx, &p->xp, p->loc);
+
+  if(JS_IsException(err))
+    return -1;
+
+  JS_FreeValue(ctx, p->last_error);
+  p->last_error = err;
+  return 0;
+}
 
 static void
 xml_nodeparser_sync_location(XMLNodeParser* p) {
@@ -2549,6 +2355,9 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     } else {
       ev = xml_parser_run(&p->xp);
       xml_nodeparser_sync_location(p);
+
+      if(ev == XML_PARSE_ERROR && xml_nodeparser_record_error(ctx, p))
+        return JS_EXCEPTION;
     }
 
     if(ev <= XML_PARSE_OK)
@@ -2598,6 +2407,9 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     } else {
       next_ev = xml_parser_run(&p->xp);
       xml_nodeparser_sync_location(p);
+
+      if(next_ev == XML_PARSE_ERROR && xml_nodeparser_record_error(ctx, p))
+        return JS_EXCEPTION;
     }
 
     /* Stream paused waiting for data; preserve state and return */
@@ -2631,6 +2443,7 @@ js_xml_nodeparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 enum {
   XML_NODEPARSER_DEPTH,
   XML_NODEPARSER_LOCATION,
+  XML_NODEPARSER_ERROR,
 };
 
 static JSValue
@@ -2644,6 +2457,7 @@ js_xml_nodeparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case XML_NODEPARSER_DEPTH: ret = JS_NewUint32(ctx, p->depth); break;
     case XML_NODEPARSER_LOCATION: ret = js_location_wrap(ctx, p->loc); break;
+    case XML_NODEPARSER_ERROR: ret = JS_IsUndefined(p->last_error) ? JS_NULL : JS_DupValue(ctx, p->last_error); break;
   }
 
   return ret;
@@ -2684,6 +2498,7 @@ js_xml_nodeparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   p->has_buffered_ev = FALSE;
   p->pending_node = JS_UNDEFINED;
   p->pending_attrs = JS_UNDEFINED;
+  p->last_error = JS_UNDEFINED;
   p->depth = 0;
 
   xml_parser_init(&p->xp, &p->reader);
@@ -2721,6 +2536,7 @@ js_xml_nodeparser_finalizer(JSRuntime* rt, JSValue val) {
     if(p->has_pending_node)
       JS_FreeValueRT(rt, p->pending_node);
 
+    JS_FreeValueRT(rt, p->last_error);
     js_free_rt(rt, p);
   }
 }
@@ -2729,6 +2545,7 @@ static const JSCFunctionListEntry js_xml_nodeparser_proto_funcs[] = {
     JS_CFUNC_DEF("parse", 0, js_xml_nodeparser_parse),
     JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_xml_nodeparser_get, 0, XML_NODEPARSER_DEPTH, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("location", js_xml_nodeparser_get, 0, XML_NODEPARSER_LOCATION, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_xml_nodeparser_get, 0, XML_NODEPARSER_ERROR, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLNodeParser", JS_PROP_CONFIGURABLE),
 };
 
@@ -2738,91 +2555,108 @@ static JSClassDef js_xml_nodeparser_class = {
 };
 
 typedef struct {
-  Writer writer;
-  DynBuf buf; /* backs `writer` when no output was given to the constructor */
-  size_t written;
-  xml_event_t event;
-  int32_t indent, level;
+  XmlWriter xw;
+  DynBuf buf;     /* backs `xw.writer` when no output was given to the constructor */
+  int32_t indent; /* as given; negative: compact */
+  int event;      /* XML_* of the last call, 0 before the first */
 } XMLWriter;
 
 static JSClassID js_xmlwriter_class_id;
 static JSValue xmlwriter_proto, xmlwriter_ctor;
 
+/* xmlwriter_layout: spaces per level and layout for the `indent` option; negative is compact. */
+static void
+xmlwriter_set_indent(XMLWriter* wr, int32_t indent) {
+  wr->indent = indent;
+  wr->xw.opts.layout = indent < 0 ? XW_COMPACT : XW_PRETTY;
+  wr->xw.opts.indent = indent < 0 ? 0 : MIN_NUM(indent, 1023);
+}
+
+/* xmlwriter_throw: maps a failed xwrite event (-r) to a JS exception.
+ *
+ *   code                         throws
+ *   XWRITE_E_MISMATCH            TypeError, code mismatched-end-tag
+ *   XWRITE_E_UNMATCHED           TypeError, code unmatched-end-tag
+ *   XWRITE_E_NOT_IN_TAG          TypeError, code attribute-outside-tag
+ *   XWRITE_E_WRITE               Error, code write-failed
+ *   XWRITE_E_NOMEM               out of memory
+ *
+ * returns JS_EXCEPTION. */
+static JSValue
+xmlwriter_throw(JSContext* ctx, ssize_t r) {
+  const char* code = "write-failed";
+  char msg[96];
+  JSValue err;
+
+  switch(-r) {
+    case XWRITE_E_NOMEM: return JS_ThrowOutOfMemory(ctx);
+    case XWRITE_E_MISMATCH: code = "mismatched-end-tag"; break;
+    case XWRITE_E_UNMATCHED: code = "unmatched-end-tag"; break;
+    case XWRITE_E_NOT_IN_TAG: code = "attribute-outside-tag"; break;
+  }
+
+  snprintf(msg, sizeof(msg), "XMLWriter: %s", xwrite_error_message(-r));
+
+  if(-r == XWRITE_E_WRITE) {
+    err = JS_NewError(ctx);
+    JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, msg), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  } else {
+    JS_ThrowTypeError(ctx, "%s", msg);
+    err = JS_GetException(ctx);
+  }
+
+  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, code), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  return JS_Throw(ctx, err);
+}
+
+/* XMLWriter methods (magic is the XML_* event):
+ *
+ *   magic              call                       writes
+ *   XML_ELEMENT_START  elementStart(name)         <name
+ *   XML_ATTRIBUTE      attribute(name[, value])   ` name="value"`; ` name` for undefined, null, true
+ *   XML_TEXT           text(str)                  the escaped text
+ *   XML_ELEMENT_END    elementEnd([name])         ` />` or </name>; no name: the open element
+ *
+ * returns the bytes written; throws as xmlwriter_throw(). */
 static JSValue
 js_xmlwriter_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   XMLWriter* wr;
+  const char *name = 0, *value = 0;
+  size_t nlen = 0, vlen = 0;
   ssize_t w = 0;
-  BOOL self_closing = FALSE;
 
   if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
     return JS_EXCEPTION;
 
-  if(wr->event) {
-    switch((int)wr->event) {
-      case XML_ELEMENT_START:
-      case XML_ATTRIBUTE: {
-        if(magic == XML_ELEMENT_END)
-          self_closing = TRUE;
-
-        if(magic != XML_ATTRIBUTE && !self_closing)
-          w += writer_putc(&wr->writer, '>');
-        break;
-      }
-    }
-
-    switch(magic) {
-      case XML_ELEMENT_END: --wr->level; /* fallthrough */
-      case XML_ELEMENT_START: {
-        /* Indenting is only safe purely between tags - if either side of this
-         * transition is text (this call is XML_TEXT, or the previous one was),
-         * inserting a newline/indent here would land inside what re-parses as
-         * that text node's own content, corrupting it (e.g. "<p>hello</p>"
-         * becoming "<p>\n  hello\n</p>"). */
-        if(!self_closing && wr->event != XML_TEXT)
-          w += writer_putnl_indent(&wr->writer, wr->indent * wr->level);
-        break;
-      }
-    }
+  if(argc > 0 && !(magic == XML_ELEMENT_END && JS_IsUndefined(argv[0]))) {
+    if(!(name = JS_ToCStringLen(ctx, &nlen, argv[0])))
+      return JS_EXCEPTION;
+  } else if(magic != XML_ELEMENT_END) {
+    return JS_ThrowTypeError(ctx, "XMLWriter: a name or text is required");
   }
+
+  if(magic == XML_ATTRIBUTE && argc > 1 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1]) && !(JS_IsBool(argv[1]) && JS_ToBool(ctx, argv[1])))
+    if(!(value = JS_ToCStringLen(ctx, &vlen, argv[1]))) {
+      JS_FreeCString(ctx, name);
+      return JS_EXCEPTION;
+    }
 
   switch(magic) {
-    case XML_ATTRIBUTE: {
-      w += writer_putc(&wr->writer, ' ');
-      w += writer_putjs(&wr->writer, argv[0], ctx);
-
-      if(argc > 1 && !(js_is_null_or_undefined(argv[1]) && JS_IsBool(argv[1]))) {
-        w += writer_puts(&wr->writer, "=\"");
-        w += writer_putjs(&wr->writer, argv[1], ctx);
-        w += writer_putc(&wr->writer, '"');
-      }
-
-      break;
-    }
-    case XML_ELEMENT_START: {
-      ++wr->level;
-      w += writer_putc(&wr->writer, '<');
-      w += writer_putjs(&wr->writer, argv[0], ctx);
-      break;
-    }
-    case XML_ELEMENT_END: {
-      if(self_closing) {
-        w += writer_puts(&wr->writer, " />");
-      } else {
-        w += writer_puts(&wr->writer, "</");
-        w += writer_putjs(&wr->writer, argv[0], ctx);
-        w += writer_putc(&wr->writer, '>');
-      }
-
-      break;
-    }
-    case XML_TEXT: {
-      w += writer_putjs(&wr->writer, argv[0], ctx);
-      break;
-    }
+    case XML_ATTRIBUTE: w = xwrite_attribute(&wr->xw, name, nlen, value, vlen); break;
+    case XML_ELEMENT_START: w = xwrite_element_start(&wr->xw, name, nlen); break;
+    case XML_ELEMENT_END: w = xwrite_element_end(&wr->xw, name, nlen); break;
+    case XML_TEXT: w = xwrite_text(&wr->xw, name, nlen); break;
   }
 
+  if(name)
+    JS_FreeCString(ctx, name);
+  if(value)
+    JS_FreeCString(ctx, value);
+
+  if(w < 0)
+    return xmlwriter_throw(ctx, w);
+
   wr->event = magic;
-  wr->written += w;
   return JS_NewInt64(ctx, w);
 }
 
@@ -2846,7 +2680,7 @@ js_xmlwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case WRITER_WRITTEN: {
-      ret = JS_NewInt64(ctx, wr->written);
+      ret = JS_NewInt64(ctx, wr->xw.written);
       break;
     }
     case WRITER_INDENT: {
@@ -2868,7 +2702,7 @@ js_xmlwriter_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int 
 
   switch(magic) {
     case WRITER_INDENT: {
-      wr->indent = js_toint32(ctx, value);
+      xmlwriter_set_indent(wr, js_toint32(ctx, value));
       break;
     }
   }
@@ -2885,7 +2719,7 @@ js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   if(!(wr = js_mallocz(ctx, sizeof(XMLWriter))))
     return JS_EXCEPTION;
 
-  if(writer_from_js(ctx, argv[i], &wr->writer)) {
+  if(argc > 0 && writer_from_js(ctx, argv[i], &wr->xw.writer)) {
     i++;
   } else {
     /* No output given (or argv[i] isn't a recognized writer target): fall back to an
@@ -2893,18 +2727,19 @@ js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
      * would dispatch every write through a null function pointer and crash on the
      * first elementStart()/attribute()/text() call. */
     dbuf_init_ctx(ctx, &wr->buf);
-    wr->writer = writer_from_dynbuf(&wr->buf);
+    wr->xw.writer = writer_from_dynbuf(&wr->buf);
   }
 
-  JSValue options = i < argc ? argv[i] : argv[0];
+  JSValue options = i < argc ? argv[i] : argc > 0 ? argv[0] : JS_UNDEFINED;
 
-  if(JS_IsNumber(options)) {
-    wr->indent = js_toint32(ctx, options);
-  } else if(js_has_propertystr(ctx, options, "indent")) {
-    wr->indent = js_toint32_free(ctx, JS_GetPropertyStr(ctx, options, "indent"));
-  } else {
-    wr->indent = 2;
-  }
+  if(JS_IsNumber(options))
+    xmlwriter_set_indent(wr, js_toint32(ctx, options));
+  else if(JS_IsObject(options) && js_has_propertystr(ctx, options, "indent"))
+    xmlwriter_set_indent(wr, js_toint32_free(ctx, JS_GetPropertyStr(ctx, options, "indent")));
+  else
+    xmlwriter_set_indent(wr, 2);
+
+  xwrite_init(&wr->xw, NULL, NULL);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -2920,7 +2755,7 @@ js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   return obj;
 
 fail:
-  writer_free(&wr->writer);
+  xwrite_free(&wr->xw);
   js_free(ctx, wr);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
@@ -2931,7 +2766,7 @@ js_xmlwriter_finalizer(JSRuntime* rt, JSValue val) {
   XMLWriter* wr;
 
   if((wr = JS_GetOpaque(val, js_xmlwriter_class_id))) {
-    writer_free(&wr->writer);
+    xwrite_free(&wr->xw); /* also frees the writer */
     js_free_rt(rt, wr);
   }
 }
@@ -2954,8 +2789,6 @@ static const JSCFunctionListEntry js_xmlwriter_funcs[] = {
 
 static int
 js_xml_init(JSContext* ctx, JSModuleDef* m) {
-  character_classes_init(chars);
-
   if(js_location_class_id == 0)
     js_location_init(ctx, 0);
 
@@ -2970,14 +2803,14 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_xmlserializer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_xmlserializer_class_id, &js_xmlserializer_class);
 
-  xmlserializer_ctor = JS_NewCFunction2(ctx, js_xmlserializer_constructor, "XMLSerializer", 1, JS_CFUNC_constructor, 0);
+  xmlserializer_ctor = JS_NewCFunction2(ctx, js_xmlserializer_constructor, "XMLTreeSerializer", 1, JS_CFUNC_constructor, 0);
   xmlserializer_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, xmlserializer_proto, js_xmlserializer_funcs, countof(js_xmlserializer_funcs));
   JS_SetClassProto(ctx, js_xmlserializer_class_id, xmlserializer_proto);
   JS_SetConstructor(ctx, xmlserializer_ctor, xmlserializer_proto);
 
-  JS_SetModuleExport(ctx, m, "XMLSerializer", xmlserializer_ctor);
+  JS_SetModuleExport(ctx, m, "XMLTreeSerializer", xmlserializer_ctor);
 
   JS_NewClassID(&js_xml_pushparser_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_xml_pushparser_class_id, &js_xml_pushparser_class);
@@ -3002,7 +2835,7 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, xml_parser_ctor, xml_parser_proto);
 
   /* .parse()'s return value: named constants for the raw xml_event_t token ids
-   * (include/xml.h), so callers don't have to hardcode -2..4. */
+   * (include/xml/xml.h), so callers don't have to hardcode -2..4. */
   JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "PARSE_AGAIN", JS_NewInt32(ctx, XML_PARSE_AGAIN), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "PARSE_ERROR", JS_NewInt32(ctx, XML_PARSE_ERROR), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, xml_parser_ctor, "PARSE_OK", JS_NewInt32(ctx, XML_PARSE_OK), JS_PROP_ENUMERABLE);
@@ -3053,7 +2886,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_xml_init))) {
     JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
     JS_AddModuleExport(ctx, m, "default");
-    JS_AddModuleExport(ctx, m, "XMLSerializer");
+    JS_AddModuleExport(ctx, m, "XMLTreeSerializer");
     JS_AddModuleExport(ctx, m, "XMLPushParser");
     JS_AddModuleExport(ctx, m, "XMLParser");
     JS_AddModuleExport(ctx, m, "XMLNodeParser");

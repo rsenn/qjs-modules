@@ -4,8 +4,8 @@
  */
 
 #include "char-utils.h"
-#include "xml_entities.h"
-#include "xread.h"
+#include "xml/xml_entities.h"
+#include "xml/xread.h"
 
 #include <stdlib.h>
 
@@ -77,6 +77,15 @@ void
 xr_state_init(xr_state_t* state) {
   memset(state, 0, sizeof(*state));
   state->at_root = 1;
+  srcpos_init(&state->pos, 0);
+  state->err_pos = state->pos;
+}
+
+const char*
+xr_error_name(xr_error_t code) {
+  static const char* const names[] = {"", "unexpected-character", "unexpected-end"};
+
+  return (unsigned)code < sizeof(names) / sizeof(names[0]) ? names[code] : "";
 }
 
 void
@@ -88,8 +97,8 @@ xr_state_free(xr_state_t* state) {
   memset(state, 0, sizeof(*state));
 }
 
-void
-xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t* state) {
+static void
+xr_read_(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t* state) {
   static void* go_root[] = {
       [0] = &&l_error,
       [1 ... 8] = &&l_error,
@@ -246,6 +255,10 @@ l_next:
   XR_DISPATCH_NEXT();
 
 l_error: {
+  state->err_code = XR_E_UNEXPECTED_CHARACTER;
+  state->err_pos = state->pos;
+  srcpos_advance(&state->err_pos, state->mark, cstr - 1 - state->mark);
+  state->err_len = 1;
   xr_str_t name = {"Error!", 6};
   xr_str_t val = {cstr - 1, 1};
   cb(xr_type_error, &name, &val, user_data);
@@ -392,6 +405,14 @@ l_attrib_bool: {
 }
 
 void
+xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t* state) {
+  state->mark = chunk;
+  xr_read_(cb, chunk, len, user_data, state);
+  srcpos_advance(&state->pos, state->mark, chunk + len - state->mark);
+  state->mark = 0;
+}
+
+void
 xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
   if(state->error || state->done)
     return;
@@ -400,6 +421,9 @@ xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
     xr_str_t name = {"Error!", 6};
     xr_str_t val = {"", 0};
 
+    state->err_code = XR_E_UNEXPECTED_END;
+    state->err_pos = state->pos;
+    state->err_len = 0;
     cb(xr_type_error, &name, &val, user_data);
     state->error = 1;
     return;

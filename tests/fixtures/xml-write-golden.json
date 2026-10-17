@@ -1,0 +1,2039 @@
+{
+ "cases": [
+  {
+   "name": "write tree simple",
+   "kind": "write",
+   "input": {
+    "src": "<a>x</a>"
+   },
+   "opts": {},
+   "expect": "<a>x</a>"
+  },
+  {
+   "name": "write flat simple",
+   "kind": "write",
+   "input": {
+    "src": "<a>x</a>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<a>x</a>\n"
+  },
+  {
+   "name": "serializer simple",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {},
+      "children": [
+       "x"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a>x</a>"
+  },
+  {
+   "name": "write tree empty",
+   "kind": "write",
+   "input": {
+    "src": "<a/>"
+   },
+   "opts": {},
+   "expect": "<a />\n"
+  },
+  {
+   "name": "write flat empty",
+   "kind": "write",
+   "input": {
+    "src": "<a/>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<a />\n"
+  },
+  {
+   "name": "serializer empty",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {}
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a />"
+  },
+  {
+   "name": "write tree nested",
+   "kind": "write",
+   "input": {
+    "src": "<root><a x=\"1\"><b>t</b><c/></a><d>u</d></root>"
+   },
+   "opts": {},
+   "expect": "<root>\n<a x=\"1\">\n  <b>t</b>\n  <c />\n</a>\n<d>u</d>\n</root>"
+  },
+  {
+   "name": "write flat nested",
+   "kind": "write",
+   "input": {
+    "src": "<root><a x=\"1\"><b>t</b><c/></a><d>u</d></root>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<root>\n<a x=\"1\">\n<b>t</b>\n<c />\n</a>\n<d>u</d>\n</root>\n"
+  },
+  {
+   "name": "serializer nested",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "root",
+      "attributes": {},
+      "children": [
+       {
+        "tagName": "a",
+        "attributes": {
+         "x": "1"
+        },
+        "children": [
+         {
+          "tagName": "b",
+          "attributes": {},
+          "children": [
+           "t"
+          ]
+         },
+         {
+          "tagName": "c",
+          "attributes": {}
+         }
+        ]
+       },
+       {
+        "tagName": "d",
+        "attributes": {},
+        "children": [
+         "u"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<root><a x=\"1\"><b>t</b><c /></a><d>u</d></root>"
+  },
+  {
+   "name": "write tree attrs",
+   "kind": "write",
+   "input": {
+    "src": "<a href=\"/x?a=1&amp;b=2\" title=\"q&quot;&lt;&gt;\" data-x='s'>t</a>"
+   },
+   "opts": {},
+   "expect": "<a href=\"/x?a=1&amp;b=2\" title=\"q&quot;&lt;&gt;\" data-x=\"s\">t</a>"
+  },
+  {
+   "name": "write flat attrs",
+   "kind": "write",
+   "input": {
+    "src": "<a href=\"/x?a=1&amp;b=2\" title=\"q&quot;&lt;&gt;\" data-x='s'>t</a>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<a href=\"/x?a=1&amp;b=2\" title=\"q&quot;&lt;&gt;\" data-x=\"s\">t</a>\n"
+  },
+  {
+   "name": "serializer attrs",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {
+       "href": "/x?a=1&b=2",
+       "title": "q\"<>",
+       "data-x": "s"
+      },
+      "children": [
+       "t"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a href=\"/x?a=1&amp;b=2\" title=\"q&quot;&lt;&gt;\" data-x=\"s\">t</a>"
+  },
+  {
+   "name": "write tree boolattr",
+   "kind": "write",
+   "input": {
+    "src": "<input disabled checked value=\"v\"/>"
+   },
+   "opts": {},
+   "expect": "<input disabled checked value=\"v\" />\n"
+  },
+  {
+   "name": "write flat boolattr",
+   "kind": "write",
+   "input": {
+    "src": "<input disabled checked value=\"v\"/>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<input disabled checked value=\"v\" />\n"
+  },
+  {
+   "name": "serializer boolattr",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "input",
+      "attributes": {
+       "disabled": true,
+       "checked": true,
+       "value": "v"
+      }
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<input disabled checked value=\"v\" />"
+  },
+  {
+   "name": "write tree text",
+   "kind": "write",
+   "input": {
+    "src": "<p>hello &amp; &lt;world&gt;</p>"
+   },
+   "opts": {},
+   "expect": "<p>hello &amp; &lt;world&gt;</p>"
+  },
+  {
+   "name": "write flat text",
+   "kind": "write",
+   "input": {
+    "src": "<p>hello &amp; &lt;world&gt;</p>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<p>hello &amp; &lt;world&gt;</p>\n"
+  },
+  {
+   "name": "serializer text",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "p",
+      "attributes": {},
+      "children": [
+       "hello & <world>"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<p>hello &amp; &lt;world&gt;</p>"
+  },
+  {
+   "name": "write tree multiline",
+   "kind": "write",
+   "input": {
+    "src": "<pre>line1\nline2\n  line3</pre>"
+   },
+   "opts": {},
+   "expect": "<pre>\nline1line2\nline3\n</pre>"
+  },
+  {
+   "name": "write flat multiline",
+   "kind": "write",
+   "input": {
+    "src": "<pre>line1\nline2\n  line3</pre>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<pre>\nline1line2line3</pre>\n"
+  },
+  {
+   "name": "serializer multiline",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "pre",
+      "attributes": {},
+      "children": [
+       "line1\nline2",
+       "line3"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<pre>line1\nline2line3</pre>"
+  },
+  {
+   "name": "write tree mixed",
+   "kind": "write",
+   "input": {
+    "src": "<p>one <b>two</b> three</p>"
+   },
+   "opts": {},
+   "expect": "<p>\none \n<b>two</b>\n three\n</p>"
+  },
+  {
+   "name": "write flat mixed",
+   "kind": "write",
+   "input": {
+    "src": "<p>one <b>two</b> three</p>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<p>one <b>two</b> three</p>\n"
+  },
+  {
+   "name": "serializer mixed",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "p",
+      "attributes": {},
+      "children": [
+       "one ",
+       {
+        "tagName": "b",
+        "attributes": {},
+        "children": [
+         "two"
+        ]
+       },
+       " three"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<p>one <b>two</b> three</p>"
+  },
+  {
+   "name": "write tree comment",
+   "kind": "write",
+   "input": {
+    "src": "<a><!-- c --><b/></a>"
+   },
+   "opts": {},
+   "expect": "<a>\n<!-- c -->\n<b />\n</a>"
+  },
+  {
+   "name": "write flat comment",
+   "kind": "write",
+   "input": {
+    "src": "<a><!-- c --><b/></a>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<a>\n<!-- c -->\n<b />\n</a>\n"
+  },
+  {
+   "name": "serializer comment",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {},
+      "children": [
+       {
+        "tagName": "!-- c --"
+       },
+       {
+        "tagName": "b",
+        "attributes": {}
+       }
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a><!-- c --><b /></a>"
+  },
+  {
+   "name": "write tree doctype",
+   "kind": "write",
+   "input": {
+    "src": "<!DOCTYPE html><html><body><p>x</p></body></html>"
+   },
+   "opts": {},
+   "expect": "<!DOCTYPE html>\n<html>\n<body>\n  <p>x</p>\n</body>\n</html>"
+  },
+  {
+   "name": "write flat doctype",
+   "kind": "write",
+   "input": {
+    "src": "<!DOCTYPE html><html><body><p>x</p></body></html>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<!DOCTYPE html>\n<html>\n<body>\n<p>x</p>\n</body>\n</html>\n"
+  },
+  {
+   "name": "serializer doctype",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "!DOCTYPE html"
+     },
+     {
+      "tagName": "html",
+      "attributes": {},
+      "children": [
+       {
+        "tagName": "body",
+        "attributes": {},
+        "children": [
+         {
+          "tagName": "p",
+          "attributes": {},
+          "children": [
+           "x"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<!DOCTYPE html><html><body><p>x</p></body></html>"
+  },
+  {
+   "name": "write tree pi",
+   "kind": "write",
+   "input": {
+    "src": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a/>"
+   },
+   "opts": {},
+   "expect": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<a />"
+  },
+  {
+   "name": "write flat pi",
+   "kind": "write",
+   "input": {
+    "src": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a/>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<a />\n"
+  },
+  {
+   "name": "serializer pi",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "?xml",
+      "attributes": {
+       "version": "1.0",
+       "encoding": "UTF-8"
+      },
+      "children": [
+       {
+        "tagName": "a",
+        "attributes": {}
+       }
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<?xml?>"
+  },
+  {
+   "name": "write tree deep",
+   "kind": "write",
+   "input": {
+    "src": "<a><b><c><d><e>x</e></d></c></b></a>"
+   },
+   "opts": {},
+   "expect": "<a>\n<b>\n  <c>\n    <d>\n      <e>x</e>\n    </d>\n  </c>\n</b>\n</a>"
+  },
+  {
+   "name": "write flat deep",
+   "kind": "write",
+   "input": {
+    "src": "<a><b><c><d><e>x</e></d></c></b></a>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<a>\n<b>\n<c>\n<d>\n<e>x</e>\n</d>\n</c>\n</b>\n</a>\n"
+  },
+  {
+   "name": "serializer deep",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {},
+      "children": [
+       {
+        "tagName": "b",
+        "attributes": {},
+        "children": [
+         {
+          "tagName": "c",
+          "attributes": {},
+          "children": [
+           {
+            "tagName": "d",
+            "attributes": {},
+            "children": [
+             {
+              "tagName": "e",
+              "attributes": {},
+              "children": [
+               "x"
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a><b><c><d><e>x</e></d></c></b></a>"
+  },
+  {
+   "name": "write tree siblings",
+   "kind": "write",
+   "input": {
+    "src": "<ul><li>1</li><li>2</li><li>3</li></ul>"
+   },
+   "opts": {},
+   "expect": "<ul>\n<li>1</li>\n<li>2</li>\n<li>3</li>\n</ul>"
+  },
+  {
+   "name": "write flat siblings",
+   "kind": "write",
+   "input": {
+    "src": "<ul><li>1</li><li>2</li><li>3</li></ul>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<ul>\n<li>1</li>\n<li>2</li>\n<li>3</li>\n</ul>\n"
+  },
+  {
+   "name": "serializer siblings",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "ul",
+      "attributes": {},
+      "children": [
+       {
+        "tagName": "li",
+        "attributes": {},
+        "children": [
+         "1"
+        ]
+       },
+       {
+        "tagName": "li",
+        "attributes": {},
+        "children": [
+         "2"
+        ]
+       },
+       {
+        "tagName": "li",
+        "attributes": {},
+        "children": [
+         "3"
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<ul><li>1</li><li>2</li><li>3</li></ul>"
+  },
+  {
+   "name": "write tree void",
+   "kind": "write",
+   "input": {
+    "src": "<p>a<br>b<img src=\"i.png\">c</p>"
+   },
+   "opts": {},
+   "expect": "<p>\na\n<br />\nb\n<img src=\"i.png\" />\nc\n</p>"
+  },
+  {
+   "name": "write flat void",
+   "kind": "write",
+   "input": {
+    "src": "<p>a<br>b<img src=\"i.png\">c</p>",
+    "flat": true
+   },
+   "opts": {},
+   "expect": "<p>a<br />b<img src=\"i.png\" />c</p>\n"
+  },
+  {
+   "name": "serializer void",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "p",
+      "attributes": {},
+      "children": [
+       "a",
+       {
+        "tagName": "br",
+        "attributes": {}
+       },
+       "b",
+       {
+        "tagName": "img",
+        "attributes": {
+         "src": "i.png"
+        }
+       },
+       "c"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<p>a<br />b<img src=\"i.png\" />c</p>"
+  },
+  {
+   "name": "write tree maxDepth 1",
+   "kind": "write",
+   "input": {
+    "src": "<a><b><c><d><e>x</e></d></c></b></a>",
+    "depth": 1
+   },
+   "opts": {},
+   "expect": "<a>"
+  },
+  {
+   "name": "write tree maxDepth 2",
+   "kind": "write",
+   "input": {
+    "src": "<a><b><c><d><e>x</e></d></c></b></a>",
+    "depth": 2
+   },
+   "opts": {},
+   "expect": "<a>\n<b>\n</a>"
+  },
+  {
+   "name": "write attrvalues",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {
+       "n": 1,
+       "t": true,
+       "f": false,
+       "z": null,
+       "s": "x"
+      },
+      "children": [
+       "v"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a n=\"1\" t f=\"false\" z=\"null\" s=\"x\">v</a>"
+  },
+  {
+   "name": "serializer attrvalues",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {
+       "n": 1,
+       "t": true,
+       "f": false,
+       "z": null,
+       "s": "x"
+      },
+      "children": [
+       "v"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a n=\"1\" t f=\"false\" z=\"null\" s=\"x\">v</a>"
+  },
+  {
+   "name": "write emptychildren",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {},
+      "children": []
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a />"
+  },
+  {
+   "name": "serializer emptychildren",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {},
+      "children": []
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a />"
+  },
+  {
+   "name": "write nochildren",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {}
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a />\n"
+  },
+  {
+   "name": "serializer nochildren",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {}
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a />"
+  },
+  {
+   "name": "write noattributes",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "children": [
+       "t"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a>t</a>"
+  },
+  {
+   "name": "serializer noattributes",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "children": [
+       "t"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a>t</a>"
+  },
+  {
+   "name": "write marker",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a"
+     },
+     "t",
+     {
+      "tagName": "/a"
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a>t</a>\n"
+  },
+  {
+   "name": "serializer marker",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a"
+     },
+     "t",
+     {
+      "tagName": "/a"
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a />t</a />"
+  },
+  {
+   "name": "write twoRoots",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "children": [
+       "1"
+      ]
+     },
+     {
+      "tagName": "b",
+      "children": [
+       "2"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a>1</a>\n<b>2</b>"
+  },
+  {
+   "name": "serializer twoRoots",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "children": [
+       "1"
+      ]
+     },
+     {
+      "tagName": "b",
+      "children": [
+       "2"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a>1</a><b>2</b>"
+  },
+  {
+   "name": "write unicode",
+   "kind": "write",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {
+       "k": "ü€😀"
+      },
+      "children": [
+       "ü€😀 & <"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a k=\"ü€😀\">ü€😀 &amp; &lt;</a>"
+  },
+  {
+   "name": "serializer unicode",
+   "kind": "serializer",
+   "input": {
+    "tree": [
+     {
+      "tagName": "a",
+      "attributes": {
+       "k": "ü€😀"
+      },
+      "children": [
+       "ü€😀 & <"
+      ]
+     }
+    ]
+   },
+   "opts": {},
+   "expect": "<a k=\"ü€😀\">ü€😀 &amp; &lt;</a>"
+  },
+  {
+   "name": "writer simple indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "text",
+      "x"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a>x</a>"
+  },
+  {
+   "name": "writer simple indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "text",
+      "x"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a>x</a>"
+  },
+  {
+   "name": "writer simple indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "text",
+      "x"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a>x</a>"
+  },
+  {
+   "name": "writer simple indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "text",
+      "x"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a>x</a>"
+  },
+  {
+   "name": "writer selfclose indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "br"
+     ],
+     [
+      "end",
+      "br"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<br />"
+  },
+  {
+   "name": "writer selfclose indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "br"
+     ],
+     [
+      "end",
+      "br"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<br />"
+  },
+  {
+   "name": "writer selfclose indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "br"
+     ],
+     [
+      "end",
+      "br"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<br />"
+  },
+  {
+   "name": "writer selfclose indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "br"
+     ],
+     [
+      "end",
+      "br"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<br />"
+  },
+  {
+   "name": "writer attrs indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "attr",
+      "y",
+      "two"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a x=\"1\" y=\"two\">t</a>"
+  },
+  {
+   "name": "writer attrs indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "attr",
+      "y",
+      "two"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a x=\"1\" y=\"two\">t</a>"
+  },
+  {
+   "name": "writer attrs indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "attr",
+      "y",
+      "two"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a x=\"1\" y=\"two\">t</a>"
+  },
+  {
+   "name": "writer attrs indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "attr",
+      "y",
+      "two"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a x=\"1\" y=\"two\">t</a>"
+  },
+  {
+   "name": "writer attrselfclose indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a x=\"1\" />"
+  },
+  {
+   "name": "writer attrselfclose indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a x=\"1\" />"
+  },
+  {
+   "name": "writer attrselfclose indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a x=\"1\" />"
+  },
+  {
+   "name": "writer attrselfclose indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "x",
+      "1"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a x=\"1\" />"
+  },
+  {
+   "name": "writer boolattr indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "b",
+      true
+     ],
+     [
+      "attr",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a b c />"
+  },
+  {
+   "name": "writer boolattr indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "b",
+      true
+     ],
+     [
+      "attr",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a b c />"
+  },
+  {
+   "name": "writer boolattr indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "b",
+      true
+     ],
+     [
+      "attr",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a b c />"
+  },
+  {
+   "name": "writer boolattr indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "b",
+      true
+     ],
+     [
+      "attr",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a b c />"
+  },
+  {
+   "name": "writer nested indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "start",
+      "c"
+     ],
+     [
+      "end",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a><b>t</b><c /></a>"
+  },
+  {
+   "name": "writer nested indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "start",
+      "c"
+     ],
+     [
+      "end",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a>\n<b>t</b>\n<c />\n</a>"
+  },
+  {
+   "name": "writer nested indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "start",
+      "c"
+     ],
+     [
+      "end",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a>\n  <b>t</b>\n  <c />\n</a>"
+  },
+  {
+   "name": "writer nested indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "t"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "start",
+      "c"
+     ],
+     [
+      "end",
+      "c"
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a>\n    <b>t</b>\n    <c />\n</a>"
+  },
+  {
+   "name": "writer mixed indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "p"
+     ],
+     [
+      "text",
+      "one "
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "two"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "text",
+      " three"
+     ],
+     [
+      "end",
+      "p"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<p>one <b>two</b> three</p>"
+  },
+  {
+   "name": "writer mixed indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "p"
+     ],
+     [
+      "text",
+      "one "
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "two"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "text",
+      " three"
+     ],
+     [
+      "end",
+      "p"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<p>one <b>two</b> three</p>"
+  },
+  {
+   "name": "writer mixed indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "p"
+     ],
+     [
+      "text",
+      "one "
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "two"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "text",
+      " three"
+     ],
+     [
+      "end",
+      "p"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<p>one <b>two</b> three</p>"
+  },
+  {
+   "name": "writer mixed indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "p"
+     ],
+     [
+      "text",
+      "one "
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "text",
+      "two"
+     ],
+     [
+      "end",
+      "b"
+     ],
+     [
+      "text",
+      " three"
+     ],
+     [
+      "end",
+      "p"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<p>one <b>two</b> three</p>"
+  },
+  {
+   "name": "writer special indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "q",
+      "a\"b<c>&d"
+     ],
+     [
+      "text",
+      "1 < 2 & 3 > \"4\""
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a q=\"a&quot;b&lt;c&gt;&amp;d\">1 &lt; 2 &amp; 3 &gt; \"4\"</a>"
+  },
+  {
+   "name": "writer special indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "q",
+      "a\"b<c>&d"
+     ],
+     [
+      "text",
+      "1 < 2 & 3 > \"4\""
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a q=\"a&quot;b&lt;c&gt;&amp;d\">1 &lt; 2 &amp; 3 &gt; \"4\"</a>"
+  },
+  {
+   "name": "writer special indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "q",
+      "a\"b<c>&d"
+     ],
+     [
+      "text",
+      "1 < 2 & 3 > \"4\""
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a q=\"a&quot;b&lt;c&gt;&amp;d\">1 &lt; 2 &amp; 3 &gt; \"4\"</a>"
+  },
+  {
+   "name": "writer special indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "attr",
+      "q",
+      "a\"b<c>&d"
+     ],
+     [
+      "text",
+      "1 < 2 & 3 > \"4\""
+     ],
+     [
+      "end",
+      "a"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a q=\"a&quot;b&lt;c&gt;&amp;d\">1 &lt; 2 &amp; 3 &gt; \"4\"</a>"
+  },
+  {
+   "name": "writer textonly indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "text",
+      "plain"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "plain"
+  },
+  {
+   "name": "writer textonly indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "text",
+      "plain"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "plain"
+  },
+  {
+   "name": "writer textonly indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "text",
+      "plain"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "plain"
+  },
+  {
+   "name": "writer textonly indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "text",
+      "plain"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "plain"
+  },
+  {
+   "name": "writer twoRoots indent -1",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "end",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "end",
+      "b"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": -1
+   },
+   "expect": "<a /><b />"
+  },
+  {
+   "name": "writer twoRoots indent 0",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "end",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "end",
+      "b"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 0
+   },
+   "expect": "<a />\n<b />"
+  },
+  {
+   "name": "writer twoRoots indent 2",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "end",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "end",
+      "b"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 2
+   },
+   "expect": "<a />\n<b />"
+  },
+  {
+   "name": "writer twoRoots indent 4",
+   "kind": "writer",
+   "input": {
+    "ops": [
+     [
+      "start",
+      "a"
+     ],
+     [
+      "end",
+      "a"
+     ],
+     [
+      "start",
+      "b"
+     ],
+     [
+      "end",
+      "b"
+     ]
+    ]
+   },
+   "opts": {
+    "indent": 4
+   },
+   "expect": "<a />\n<b />"
+  }
+ ]
+}

@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "srcpos.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,6 +21,15 @@ typedef enum xr_type {
   xr_type_error,
   xr_type_text,
 } xr_type_t;
+
+/* xr_error_t: why an xr_type_error was reported; xr_error_name() is `err.code`. */
+typedef enum xr_error {
+  XR_E_NONE,
+  XR_E_UNEXPECTED_CHARACTER,
+  XR_E_UNEXPECTED_END,
+} xr_error_t;
+
+const char* xr_error_name(xr_error_t code);
 
 typedef struct xr_str {
   const char* cstr;
@@ -61,6 +71,14 @@ typedef struct xr_state {
   int at_root; /* go == go_root: nothing open, a clean place for xr_finish() to land */
   int done;
   int error;
+  /* position: `pos` counts every byte fed; err_* describe the error when reported:
+   * err_pos is the offending byte (end of input for xr_finish), err_len its bytes
+   * (0 at end of input). Chunk-size independent. */
+  SourcePos pos;
+  const char* mark; /* chunk byte that `pos` has been advanced up to (xr_read() only) */
+  xr_error_t err_code;
+  SourcePos err_pos;
+  size_t err_len;
 } xr_state_t;
 
 void xr_state_init(xr_state_t* state);

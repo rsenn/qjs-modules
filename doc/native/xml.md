@@ -1,6 +1,6 @@
 # xml
 
-Source: `quickjs-xml.c` — module exports **`XMLParser`**, **`XMLNodeParser`**, **`XMLPushParser`**, **`XMLSerializer`**, **`XMLWriter`** and a function list.
+Source: `quickjs-xml.c` — module exports **`XMLParser`**, **`XMLNodeParser`**, **`XMLPushParser`**, **`XMLTreeSerializer`**, **`XMLWriter`** and a function list.
 
 An XML/HTML reader and writer. Parses markup into a tree (or flat list) of plain JS
 objects and serializes such a tree back to text. Element objects are `{tagName, attributes, children}`-shaped.
@@ -13,6 +13,18 @@ objects and serializes such a tree back to text. Element objects are `{tagName, 
 | `write(value, maxDepth?)` | 1–2 | Serializes a parsed tree (or flat list) back into XML/HTML text. `maxDepth` limits traversal depth (default: unlimited). |
 
 Both are also reachable through the module's `default` export object.
+
+`read()` is built on the event parser of `src/xml.c` (the one behind `XMLParser`), so the three agree:
+
+| Behaviour | Rule |
+| --- | --- |
+| tolerant mode | a stray closing tag is ignored (the `>` after it stays text); an open `<li>`, `<dt>`, `<dd>`, `<p>`, `<option>`, `<tr>`, `<td>`, `<th>`, `<tbody>`... is closed when a sibling starts, and `<p>`, `<li>`, `<dt>`, `<dd>` also when a block element starts |
+| `flat: true` | no element stack and no implied ends: every closing tag, matched or not, is an entry `{tagName: '/name'}` |
+| text | a run of only whitespace is dropped; otherwise just the writer's structural newlines around the content are stripped |
+| `<style>`, `<script>`, `<textarea>`, `<title>` | content is raw text, one string per line |
+| `</>` | closes nothing |
+| input ending inside a tag | the tag is dropped (an unterminated comment or declaration keeps the rest as its `tagName`) |
+
 
 ## XMLParser
 
@@ -148,14 +160,14 @@ console.log(p.root);
 // [{ tagName: "root", attributes: {}, children: [{ tagName: "child", attributes: { attr: "value" }, children: ["text"] }] }]
 ```
 
-## XMLSerializer
+## XMLTreeSerializer
 
 A "pull" serializer: it traverses a parsed tree lazily, producing only as much text as requested
 per `.read()` call, rather than building the whole string up front. Modeled on `JsonSerializer`
 (`quickjs-json.c`).
 
 ```js
-new XMLSerializer(root)   // root is a tree array or a single element object
+new XMLTreeSerializer(root)   // root is a tree array or a single element object
 ```
 
 | Member | Args | Kind | Description |
@@ -166,10 +178,10 @@ new XMLSerializer(root)   // root is a tree array or a single element object
 | `finished` | — | getter | `true` once all output has been produced. |
 
 ```js
-import { XMLSerializer } from 'xml';
+import { XMLTreeSerializer } from 'xml';
 
 let tree = xml.read('<root><child attr="val">text</child></root>');
-let s = new XMLSerializer(tree);
+let s = new XMLTreeSerializer(tree);
 let out = '';
 let chunk;
 
@@ -180,7 +192,7 @@ console.log(out); // <root><child attr="val">text</child></root>
 
 ```js
 // Zero-copy: write straight into a fixed-size buffer.
-let s = new XMLSerializer(bigTree);
+let s = new XMLTreeSerializer(bigTree);
 let buf = new Uint8Array(4096);
 let n;
 

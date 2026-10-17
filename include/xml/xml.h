@@ -16,7 +16,7 @@ extern "C" {
  * \defgroup xml xml: streaming, JSValue-free XML parser
  * @{
  *
- * A port of js_xml_parse() (quickjs-xml.c) that reads from a stream-utils Reader
+ * The parser behind read() (quickjs-xml.c), XMLParser and XMLNodeParser. It reads from a stream-utils Reader
  * (one byte at a time, via peek/consume - never assumes the whole document is in
  * one addressable buffer) instead of a flat in-memory buffer, tracks source
  * location as it goes, and is a *pull* parser: each xml_parser_run() call advances
@@ -78,6 +78,10 @@ typedef struct xml_parser {
   Location loc;
 
   unsigned tolerant : 1;
+  unsigned flat : 1; /* no open-element stack: a start tag is never closed by itself and every closing
+                        tag becomes an XML_ELEMENT_END, matched or not; raw-text elements are not special */
+  unsigned no_implied_end : 1; /* tolerant mode normally closes an open <li>, <p>, ... when a sibling
+                                  starts (HTML5 optional end tags); set this to turn that off */
   const char* const* self_closing_tags;
 
   DynBuf peek;   /* lookahead FIFO: bytes read from `reader` but not yet consumed -
@@ -104,6 +108,15 @@ typedef struct xml_parser {
   xml_str_t event_value;
   unsigned event_has_value : 1;
 
+  /* 1-based line and column of the '<' that began the tag the last element event
+   * belongs to (a closing tag's own '<' for the END events it causes). */
+  uint32_t tag_line, tag_column;
+
+  /* set with XML_PARSE_ERROR: stable name of the error and the characters the offending
+   * token spans, starting at tag_line/tag_column */
+  const char* err_code;
+  size_t err_len;
+
   /* xml_parser_run()'s own locals, promoted to fields: suspending (XML_PARSE_AGAIN,
    * or having just returned an event) can happen from deep inside a loop, and a
    * later call resumes by jumping (via computed goto) straight back into that exact
@@ -125,6 +138,8 @@ typedef struct xml_parser {
 void xml_parser_init(XMLParser*, Reader* reader);
 void xml_parser_free(XMLParser*);
 void xml_parser_set_tolerant(XMLParser*, int tolerant);
+void xml_parser_set_implied_end(XMLParser*, int enable);
+void xml_parser_set_flat(XMLParser*, int flat);
 void xml_parser_set_self_closing_tags(XMLParser*, const char* const* tags);
 
 /* Advances the parse just far enough to produce one xml_event_t (read it back from

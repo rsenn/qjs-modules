@@ -1,5 +1,5 @@
-#include "xml.h"
-#include "xml_entities.h"
+#include "xml/xml.h"
+#include "xml/xml_entities.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -62,6 +62,74 @@ static const char* const xml_raw_text_tags[] = {
     "title",
     0,
 };
+
+/* HTML5 "optional end tag" elements: opening one of these implicitly closes whichever
+ * of the listed tags is currently open, even with no explicit closing tag in the source.
+ * Without it, tolerant input that relies on it (e.g. the Netscape bookmarks format, which
+ * never closes <DT>) nests every sibling one level deeper than the last: an O(n)-deep tree
+ * and O(n^2) for every consumer that walks the ancestors of a node. */
+typedef struct {
+  const char* tag;
+  const char* const closes[4];
+} xml_implied_end_t;
+
+static const xml_implied_end_t xml_implied_end_tags[] = {
+    {"li", {"li", 0}},
+    {"dt", {"dt", "dd", 0}},
+    {"dd", {"dt", "dd", 0}},
+    {"p", {"p", 0}},
+    {"option", {"option", 0}},
+    {"optgroup", {"option", "optgroup", 0}},
+    {"tr", {"tr", 0}},
+    {"td", {"td", "th", 0}},
+    {"th", {"td", "th", 0}},
+    {"tbody", {"thead", "tbody", "tfoot", 0}},
+    {"tfoot", {"thead", "tbody", 0}},
+    {0, {0}},
+};
+
+/* An open <p>, <li>, <dt> or <dd> is also closed by any block-level element, not only by
+ * a matching sibling: "<DT><H3>Folder</H3><DL><p>..</DL>" (no </DT>) puts the <DL> next to
+ * the <DT>, not inside it. */
+static const char* const xml_block_closing_tags[] = {
+    "address", "article", "aside", "blockquote", "details", "div", "dl", "fieldset", "figcaption", "figure",  "footer", "form", "h1", "h2", "h3", "h4", "h5",
+    "h6",      "header",  "hr",    "main",       "menu",    "nav", "ol", "p",        "pre",        "section", "table",  "ul",   "dt", "dd", "li", 0,
+};
+
+static const char* const xml_block_closable_open_tags[] = {"p", "li", "dt", "dd", 0};
+
+/* whether a start tag `name` closes the open element `open_name` first. */
+static int
+xml_is_implied_end(const char* name, size_t namelen, const char* open_name, size_t open_namelen) {
+  const xml_implied_end_t* e;
+  const char* const* o;
+
+  for(o = xml_block_closable_open_tags; *o; o++) {
+    if(strlen(*o) == open_namelen && !strncasecmp(open_name, *o, open_namelen)) {
+      const char* const* v;
+
+      for(v = xml_block_closing_tags; *v; v++)
+        if(strlen(*v) == namelen && !strncasecmp(name, *v, namelen))
+          return 1;
+
+      break;
+    }
+  }
+
+  for(e = xml_implied_end_tags; e->tag; e++) {
+    if(strlen(e->tag) == namelen && !strncasecmp(name, e->tag, namelen)) {
+      const char* const* closes;
+
+      for(closes = e->closes; *closes; closes++)
+        if(strlen(*closes) == open_namelen && !strncasecmp(open_name, *closes, open_namelen))
+          return 1;
+
+      return 0;
+    }
+  }
+
+  return 0;
+}
 
 static void
 xml_chars_init(void) {
@@ -164,15 +232,9 @@ xml_nextbyte(XMLParser* p) {
   }
 
   if(c >= 0) {
-    if(c == '\n') {
-      p->loc.line++;
-      p->loc.column = 0;
-    } else {
-      p->loc.column++;
-    }
+    uint8_t b = (uint8_t)c;
 
-    p->loc.byte_offset++;
-    p->loc.char_offset++;
+    location_count(&p->loc, &b, 1); /* \n, \r\n and a lone \r are one line break; columns count characters */
   }
 
   return c;
@@ -278,7 +340,7 @@ xml_check_comment_end(XMLParser* p) {
 
 #define parse_getc() \
   do { \
-    if(p->accum) \
+    if(p->accum && p->c >= 0) \
       dbuf_putc(p->accum, (uint8_t)p->c); \
   XML_RESUME_LABEL: \
     p->c = xml_nextbyte(p); \
@@ -459,6 +521,16 @@ xml_parser_set_tolerant(XMLParser* p, int tolerant) {
   p->tolerant = tolerant;
 }
 
+void
+xml_parser_set_flat(XMLParser* p, int flat) {
+  p->flat = !!flat;
+}
+
+void
+xml_parser_set_implied_end(XMLParser* p, int enable) {
+  p->no_implied_end = !enable;
+}
+
 xml_event_t
 xml_parser_run(XMLParser* p) {
   if(p->resume) {
@@ -541,20 +613,27 @@ xml_parser_run(XMLParser* p) {
 
         real_len = n = nl;
       } else {
-        /* A run that's nothing but whitespace (e.g. pretty-printed indentation between
-         * sibling tags) carries no content - drop it entirely rather than yielding an
-         * empty/trimmed text event, matching "whitespace-only text between tags is
-         * dropped" (tests/test_xml.js). A run with any real content is yielded verbatim,
-         * boundary whitespace included: unconditionally skipping leading and trimming
-         * trailing whitespace here used to corrupt inline mixed content - e.g.
-         * "before <b>x</b> after" came out as text events "before"/"after", silently
-         * eating both boundary spaces. */
-        if(scan_whitenskip(pos, remain) == remain) {
-          p->text_pos += remain;
+        /* A run that is only whitespace (indentation between sibling tags) is dropped.
+         * Otherwise only the structural newlines around real content go: the writer puts
+         * a newline (plus indent) first and a newline last, so the run is stripped
+         * through its first newline when it starts with one, and from its last newline
+         * to the end; whitespace strictly between, like the space in "Hello ", stays. */
+        size_t total = remain, lead_strip = 0, trail_strip = 0, last_nl;
+
+        if(scan_whitenskip(pos, total) == total) {
+          p->text_pos += total;
           continue;
         }
 
-        real_len = n = remain;
+        if(total > 0 && pos[0] == '\n')
+          lead_strip = scan_whitenskip(pos, total);
+
+        last_nl = byte_rchr(pos, total, '\n');
+        trail_strip = (last_nl < total && last_nl >= lead_strip) ? total - last_nl : 0;
+
+        pos += lead_strip;
+        p->text_pos += lead_strip;
+        real_len = n = total - lead_strip - trail_strip;
       }
 
       p->text_pos += real_len;
@@ -571,6 +650,9 @@ xml_parser_run(XMLParser* p) {
 
     /* p->c == '<', not yet consumed */
     {
+      p->tag_line = p->loc.line + 1; /* p->loc already counts p->c */
+      p->tag_column = p->loc.column;
+
       parse_getc(); /* consume '<' */
 
       p->closing = 0;
@@ -632,7 +714,11 @@ xml_parser_run(XMLParser* p) {
          * while loop via the label inside XML_YIELD - never back through this
          * find_frame()/tolerant check - so it's only ever reached fresh, with
          * p->closing_target already 0. */
-        {
+        if(!p->flat && p->name.size == 0) {
+          /* `</>` names the document root, which is never open: nothing to close */
+        } else if(p->flat) /* no element stack: every closing tag is reported as it is */
+          XML_YIELD(XML_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
+        else {
           XMLFrame* match = xml_find_frame(p, (const char*)p->name.buf, p->name.size);
 
           if(!match) {
@@ -641,9 +727,12 @@ xml_parser_run(XMLParser* p) {
               p->event_name.len = p->name.size;
               p->event_has_value = 0;
               p->done = 1;
+              p->err_code = "mismatched-end-tag";
+              p->err_len = p->name.size + 3; /* "</" name ">" */
               return XML_PARSE_ERROR;
             }
-            /* tolerant: silently ignore the stray closing tag */
+            /* tolerant: ignore the stray closing tag; a '>' right after it stays text */
+            continue;
           } else {
             yield_return(match);
           }
@@ -691,13 +780,22 @@ xml_parser_run(XMLParser* p) {
           p->accum = 0;
         }
 
-        if(p->done)
-          break;
+        if(p->done && !xml_name_is_bang(p))
+          break; /* input ends inside a tag; an unterminated comment or declaration still ends here */
+
+        if(p->tolerant && !p->no_implied_end && !p->flat && p->top && xml_is_implied_end((const char*)p->name.buf, p->name.size, p->top->name, p->top->namelen)) {
+          XML_YIELD(XML_ELEMENT_END, p->top->name, p->top->namelen, 0, 0, 0);
+          yield_pop();
+        }
 
         XML_YIELD(XML_ELEMENT_START, p->name.buf, p->name.size, 0, 0, 0);
 
         if(xml_name_is_bang(p)) {
           XML_YIELD(XML_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
+
+          if(p->done)
+            break;
+
           parse_getc();
           continue;
         }
@@ -776,8 +874,10 @@ xml_parser_run(XMLParser* p) {
         if(p->done)
           break;
 
-        if(!p->self_closing)
-          yield_push();
+        if(!p->self_closing) {
+          if(!p->flat)
+            yield_push();
+        }
         else
           XML_YIELD(XML_ELEMENT_END, p->name.buf, p->name.size, 0, 0, 0);
       }

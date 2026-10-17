@@ -1,5 +1,6 @@
-import xml, { XMLParser, XMLNodeParser, XMLWriter, XMLPushParser, XMLSerializer } from 'xml';
+import xml, { XMLParser, XMLNodeParser, XMLWriter, XMLPushParser, XMLTreeSerializer } from 'xml';
 import { toString } from 'util';
+import { ArrayBufferSink } from 'arraybuffer_sink';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* tinytest's eq() uses !=, which does reference comparison for arrays/objects -
@@ -68,7 +69,7 @@ tests({
     assert(typeof xml.write === 'function');
     assert(typeof XMLParser === 'function');
     assert(typeof XMLPushParser === 'function');
-    assert(typeof XMLSerializer === 'function');
+    assert(typeof XMLTreeSerializer === 'function');
   },
 
   /* ---------- xml.read() (legacy tree parser) ---------- */
@@ -133,6 +134,10 @@ tests({
 
     eqArr(r, [{ tagName: 'a', attributes: {}, children: [{ tagName: 'b', attributes: {}, children: [] }] }]);
   },
+  'XMLParser: parse() without a source throws TypeError'() {
+    assertThrows(() => new XMLParser(null, { tolerant: true, builder: false }).parse());
+  },
+
   'xml.read: closing tag with no matching ancestor throws unless tolerant'() {
     assertThrows(() => xml.read('<a></c>'));
 
@@ -145,8 +150,12 @@ tests({
     assert(Array.isArray(result) && result.length === 2);
     eqArr(result[0], [{ tagName: 'a', attributes: {}, children: ['x'] }]);
   },
-  'xml.read: throws a ReferenceError on empty/non-buffer input'() {
-    assertThrows(() => xml.read(''));
+  'xml.read: throws a SyntaxError on empty input and a TypeError on a non-buffer'() {
+    eq(assertThrows(() => xml.read('')).constructor, SyntaxError);
+    for(const v of [undefined, null, 5, {}, []]) eq(assertThrows(() => xml.read(v)).constructor, TypeError);
+  },
+  'XMLPushParser.write: a non-string chunk is a TypeError'() {
+    for(const v of [undefined, null, 5, {}]) eq(assertThrows(() => new XMLPushParser().write(v)).constructor, TypeError);
   },
 
   /* ---------- xml.write() (legacy tree serializer) ---------- */
@@ -172,8 +181,8 @@ tests({
     assert(/<br\s*\/>/.test(out), out);
   },
 
-  /* ---------- XMLSerializer (pull, .read()) ---------- */
-  'XMLSerializer: read(n) round-trips a tree, any chunk size'() {
+  /* ---------- XMLTreeSerializer (pull, .read()) ---------- */
+  'XMLTreeSerializer: read(n) round-trips a tree, any chunk size'() {
     let tree = [
       {
         tagName: 'root',
@@ -186,7 +195,7 @@ tests({
     ];
 
     for(let bufSize of [1, 2, 3, 7, 1000]) {
-      let s = new XMLSerializer(tree);
+      let s = new XMLTreeSerializer(tree);
       let out = '',
         chunk;
 
@@ -195,12 +204,12 @@ tests({
       eqArr(xml.read(out), tree);
     }
   },
-  'XMLSerializer: read(n) escapes special characters, resumable across tiny buffers'() {
+  'XMLTreeSerializer: read(n) escapes special characters, resumable across tiny buffers'() {
     let tree = [{ tagName: 'a', attributes: { x: '1 & "2" <3>' }, children: ['text with <tag> & amp'] }];
     let outs = [];
 
     for(let bufSize of [1, 2, 3, 1000]) {
-      let s = new XMLSerializer(tree);
+      let s = new XMLTreeSerializer(tree);
       let out = '',
         chunk;
 
@@ -216,14 +225,14 @@ tests({
 
     assert(outs[0].includes('&amp;') && outs[0].includes('&quot;') && outs[0].includes('&lt;') && outs[0].includes('&gt;'), outs[0]);
   },
-  'XMLSerializer: read(buffer) writes directly into an ArrayBuffer/TypedArray'() {
+  'XMLTreeSerializer: read(buffer) writes directly into an ArrayBuffer/TypedArray'() {
     let tree = [{ tagName: 'a', attributes: { x: '1' }, children: ['hello'] }];
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let buf = new Uint8Array(1000);
     let n = s.read(buf);
     let str = String.fromCharCode(...buf.slice(0, n));
 
-    let s2 = new XMLSerializer(tree);
+    let s2 = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -231,18 +240,18 @@ tests({
 
     eq(str, out);
   },
-  'XMLSerializer: read(buffer) returns byte count, then 0 at EOF'() {
+  'XMLTreeSerializer: read(buffer) returns byte count, then 0 at EOF'() {
     let tree = [{ tagName: 'a', attributes: {}, children: ['x'] }];
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let buf = new Uint8Array(1000);
     let n = s.read(buf);
 
     assert(n > 0);
     eq(s.read(buf), 0);
   },
-  'XMLSerializer: .finished reflects completion'() {
+  'XMLTreeSerializer: .finished reflects completion'() {
     let tree = [{ tagName: 'a', attributes: {}, children: ['x'] }];
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
 
     eq(s.finished, false);
 
@@ -250,14 +259,14 @@ tests({
 
     eq(s.finished, true);
   },
-  'XMLSerializer: .root returns the constructor argument'() {
+  'XMLTreeSerializer: .root returns the constructor argument'() {
     let tree = [{ tagName: 'a', attributes: {}, children: [] }];
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
 
     eqArr(s.root, tree);
   },
-  'XMLSerializer: a single (non-array) element root is wrapped'() {
-    let s = new XMLSerializer({ tagName: 'a', attributes: {}, children: ['x'] });
+  'XMLTreeSerializer: a single (non-array) element root is wrapped'() {
+    let s = new XMLTreeSerializer({ tagName: 'a', attributes: {}, children: ['x'] });
     let out = '',
       chunk;
 
@@ -606,7 +615,7 @@ tests({
   },
 
   /* ---------- write -> read round-trip across the whole module ---------- */
-  'round-trip: XMLSerializer output re-parses via XMLParser to the same shape (no entities involved)'() {
+  'round-trip: XMLTreeSerializer output re-parses via XMLParser to the same shape (no entities involved)'() {
     let tree = [
       {
         tagName: 'root',
@@ -618,7 +627,7 @@ tests({
       },
     ];
 
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -628,10 +637,10 @@ tests({
 
     eqArr(parser.root, tree);
   },
-  'round-trip: XMLSerializer output re-parses via XMLParser to the same shape (entities involved)'() {
+  'round-trip: XMLTreeSerializer output re-parses via XMLParser to the same shape (entities involved)'() {
     let tree = [{ tagName: 'root', attributes: { x: '<>&"' }, children: ['<>&'] }];
 
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -808,6 +817,57 @@ tests({
     eq(out, '<a>x</a>');
   },
 
+  'XMLWriter: writes into an ArrayBufferSink without calling its write()'() {
+    const sink = new ArrayBufferSink();
+    let calls = 0;
+    sink.write = () => ++calls;
+
+    const w = new XMLWriter(sink);
+    w.elementStart('a');
+    w.text('x');
+    w.elementEnd('a');
+
+    eq(calls, 0);
+    eq(toString(sink.end()), '<a>x</a>');
+  },
+
+  'XMLWriter: escapes text and attribute values'() {
+    let out = '';
+    const w = new XMLWriter(s => (out += toString(s)), -1);
+
+    w.elementStart('a');
+    w.attribute('t', 'say "x" & <y>');
+    w.text('1 < 2 & 3 > 2');
+    w.elementEnd('a');
+
+    eq(out, '<a t="say &quot;x&quot; &amp; &lt;y&gt;">1 &lt; 2 &amp; 3 &gt; 2</a>');
+  },
+  'XMLWriter: attribute(name, true) is written bare, a negative indent is compact'() {
+    let out = '';
+    const w = new XMLWriter(s => (out += toString(s)), -1);
+
+    w.elementStart('a');
+    w.attribute('b', true);
+    w.elementStart('c');
+    w.elementEnd('c');
+    w.elementEnd('a');
+    w.elementStart('d');
+    w.elementEnd('d');
+
+    eq(out, '<a b><c /></a><d />');
+  },
+  'XMLWriter: misuse throws TypeError with a code'() {
+    const w = new XMLWriter(() => {});
+    let e = assertThrows(() => w.elementEnd('a'));
+
+    eq(e.code, 'unmatched-end-tag');
+    assert(e instanceof TypeError);
+    e = assertThrows(() => w.attribute('x', 'y'));
+    eq(e.code, 'attribute-outside-tag');
+    w.elementStart('a');
+    eq(assertThrows(() => w.elementEnd('b')).code, 'mismatched-end-tag');
+    eq(typeof w.elementEnd(), 'number'); // no name: closes the open element
+  },
   'XMLWriter: writes self-closing element when elementEnd() is called immediately'() {
     let out = '';
     let w = new XMLWriter(s => (out += toString(s)));
@@ -1256,9 +1316,9 @@ tests({
     eq(pp.root[0].children.length, count);
   },
 
-  /* ========== XMLSerializer edge cases ========== */
-  'XMLSerializer: empty root array produces no output'() {
-    let s = new XMLSerializer([]);
+  /* ========== XMLTreeSerializer edge cases ========== */
+  'XMLTreeSerializer: empty root array produces no output'() {
+    let s = new XMLTreeSerializer([]);
     let out = '',
       chunk;
 
@@ -1267,7 +1327,7 @@ tests({
     eq(out, '');
   },
 
-  'XMLSerializer: deeply nested structure round-trips'() {
+  'XMLTreeSerializer: deeply nested structure round-trips'() {
     let depth = 10;
     let tree = [{ tagName: 'a', attributes: {}, children: [] }];
     let current = tree[0];
@@ -1280,7 +1340,7 @@ tests({
 
     current.children.push('leaf');
 
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -1291,12 +1351,12 @@ tests({
     eqArr(parser.root, tree);
   },
 
-  'XMLSerializer: large number of attributes'() {
+  'XMLTreeSerializer: large number of attributes'() {
     let attrs = {};
     for(let i = 0; i < 50; i++) attrs[`attr${i}`] = `value${i}`;
 
     let tree = [{ tagName: 'a', attributes: attrs, children: [] }];
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -1307,9 +1367,9 @@ tests({
     }
   },
 
-  'XMLSerializer: boolean attributes render correctly'() {
+  'XMLTreeSerializer: boolean attributes render correctly'() {
     let tree = [{ tagName: 'input', attributes: { disabled: true, type: 'text' }, children: [] }];
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -1320,29 +1380,29 @@ tests({
     assert(out.includes('type="text"'), out);
   },
 
-  'XMLSerializer: read(n) with n=0 returns empty string'() {
-    let s = new XMLSerializer([{ tagName: 'a', attributes: {}, children: ['x'] }]);
+  'XMLTreeSerializer: read(n) with n=0 returns empty string'() {
+    let s = new XMLTreeSerializer([{ tagName: 'a', attributes: {}, children: ['x'] }]);
     let chunk = s.read(0);
 
     eq(chunk, '');
   },
 
-  'XMLSerializer: read(buffer) with empty buffer returns 0'() {
-    let s = new XMLSerializer([{ tagName: 'a', attributes: {}, children: ['x'] }]);
+  'XMLTreeSerializer: read(buffer) with empty buffer returns 0'() {
+    let s = new XMLTreeSerializer([{ tagName: 'a', attributes: {}, children: ['x'] }]);
     let buf = new Uint8Array(0);
     let n = s.read(buf);
 
     eq(n, 0);
   },
 
-  'XMLSerializer: multiple elements at root level'() {
+  'XMLTreeSerializer: multiple elements at root level'() {
     let tree = [
       { tagName: 'a', attributes: {}, children: [] },
       { tagName: 'b', attributes: {}, children: [] },
       { tagName: 'c', attributes: {}, children: [] },
     ];
 
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -1520,12 +1580,12 @@ tests({
     eq(parser.root[0].children[0].children[0], 'hello');
   },
 
-  'integration: XMLPushParser tree serializes via XMLSerializer'() {
+  'integration: XMLPushParser tree serializes via XMLTreeSerializer'() {
     let pp = new XMLPushParser();
     pp.write('<root x="1"><child>text</child></root>');
     pp.close();
 
-    let s = new XMLSerializer(pp.root);
+    let s = new XMLTreeSerializer(pp.root);
     let out = '',
       chunk;
 
@@ -1554,10 +1614,10 @@ tests({
     eq(nodes[4].tagName, '/a');
   },
 
-  'integration: xml.read() tree serializes via XMLSerializer'() {
+  'integration: xml.read() tree serializes via XMLTreeSerializer'() {
     let tree = xml.read('<root><child attr="val">text</child></root>');
 
-    let s = new XMLSerializer(tree);
+    let s = new XMLTreeSerializer(tree);
     let out = '',
       chunk;
 
@@ -1601,8 +1661,8 @@ tests({
     assertThrows(() => pp.write('<1invalid/>'));
   },
 
-  'error: XMLSerializer read(-1) throws RangeError'() {
-    let s = new XMLSerializer([{ tagName: 'a', attributes: {}, children: [] }]);
+  'error: XMLTreeSerializer read(-1) throws RangeError'() {
+    let s = new XMLTreeSerializer([{ tagName: 'a', attributes: {}, children: [] }]);
 
     assertThrows(() => s.read(-1));
   },
@@ -1618,9 +1678,9 @@ tests({
     eq(pp[Symbol.toStringTag], 'XMLPushParser');
   },
 
-  'XMLSerializer[Symbol.toStringTag] is "XMLSerializer"'() {
-    let s = new XMLSerializer([]);
-    eq(s[Symbol.toStringTag], 'XMLSerializer');
+  'XMLTreeSerializer[Symbol.toStringTag] is "XMLTreeSerializer"'() {
+    let s = new XMLTreeSerializer([]);
+    eq(s[Symbol.toStringTag], 'XMLTreeSerializer');
   },
 
   'XMLWriter[Symbol.toStringTag] is "XMLWriter"'() {
@@ -1631,5 +1691,106 @@ tests({
   'XMLNodeParser[Symbol.toStringTag] is "XMLNodeParser"'() {
     let p = new XMLNodeParser('<a/>');
     eq(p[Symbol.toStringTag], 'XMLNodeParser');
+  },
+
+  /* read() is a thin layer over the event parser of src/xml.c */
+  'xml.read: tolerant mode closes optional end tags (<li>, <p>, <td>, ...) when a sibling starts'() {
+    eq(JSON.stringify(xml.read('<ul><li>a<li>b</ul>', 'f.html', { tolerant: true })), '[{"tagName":"ul","attributes":{},"children":[{"tagName":"li","attributes":{},"children":["a"]},{"tagName":"li","attributes":{},"children":["b"]}]}]');
+    eq(JSON.stringify(xml.read('<ul><li>a<li>b</ul>')), '[{"tagName":"ul","attributes":{},"children":[{"tagName":"li","attributes":{},"children":["a",{"tagName":"li","attributes":{},"children":["b"]}]}]}]');
+  },
+
+  'xml.read: valueless attributes are true, empty values are empty strings'() {
+    eq(JSON.stringify(xml.read('<a b c="">', 'f.xml')), '[{"tagName":"a","attributes":{"b":true,"c":""},"children":[]}]');
+  },
+
+  'xml.read: flat mode reports every closing tag, matched or not'() {
+    eq(JSON.stringify(xml.read('<a></b></a>', 'f.xml', { flat: true })), '[{"tagName":"a","attributes":{}},{"tagName":"/b"},{"tagName":"/a"}]');
+    eq(JSON.stringify(xml.read('</a>', 'f.xml', { flat: true })), '[{"tagName":"/a"}]');
+  },
+
+  'xml.read: a stray closing tag throws unless tolerant; </> closes nothing'() {
+    assert(assertThrows(() => xml.read('<a></b></a>', 'f.xml')) instanceof SyntaxError);
+    eq(assertThrows(() => xml.read('<a></b></a>', 'f.xml')).message, 'mismatch </b> at f.xml:1:4');
+    eq(JSON.stringify(xml.read('<a></b></a>', 'f.xml', { tolerant: true })), '[{"tagName":"a","attributes":{},"children":[]}]');
+    eq(JSON.stringify(xml.read('<a></></a>', 'f.xml')), '[{"tagName":"a","attributes":{},"children":[]}]');
+  },
+  'XMLPushParser: errors carry loc, length and code whatever the chunk size'() {
+    const cases = [
+      ['<a>\n <b', 'unexpected-end', 0, 4],
+      ['<a><b/>', 'unexpected-end', 0, 8],
+      ['<a>\n  <1/></a>', 'unexpected-character', 1, 4],
+    ];
+
+    for(const [s, code, length, column] of cases)
+      for(const step of [1, 100]) {
+        const p = new XMLPushParser();
+        let e;
+
+        try {
+          for(let i = 0; i < s.length; i += step) p.write(s.slice(i, i + step));
+          p.close();
+        } catch(err) {
+          e = err;
+        }
+
+        assert(e instanceof SyntaxError, s);
+        eq(e.code, code);
+        eq(e.length, length);
+        eq(e.loc.column, column);
+      }
+  },
+  'XMLPushParser: onParseError receives the error and write()/close() do not throw'() {
+    for(const [s, code, column] of [['<a>\n  <1/></a>', 'unexpected-character', 4], ['<a><b/>', 'unexpected-end', 8], ['<a>\n <b', 'unexpected-end', 4]]) {
+      const errs = [];
+      const p = new XMLPushParser({ onParseError: e => errs.push(e) });
+
+      eq(p.error, null);
+      p.write(s);
+      p.close();
+
+      eq(errs.length, 1);
+      eq(errs[0].code, code);
+      eq(errs[0].loc.column, column);
+      assert(p.error === errs[0]);
+    }
+  },
+  'XMLParser, XMLNodeParser: .error holds the SyntaxError after PARSE_ERROR'() {
+    for(const C of [XMLParser, XMLNodeParser]) {
+      const p = new C('<a>\n <b></c>', { filename: 'x.xml' });
+      let ev;
+
+      eq(p.error, null);
+
+      for(let i = 0; i < 20; i++) if((ev = p.parse()) === XMLParser.PARSE_ERROR) break;
+
+      eq(ev, XMLParser.PARSE_ERROR);
+      eq(p.error.code, 'mismatched-end-tag');
+      eq(String(p.error.loc), 'x.xml:2:5');
+      eq(p.error.length, 4);
+    }
+  },
+  'xml.read: empty input has code unexpected-end at 1:1'() {
+    const e = assertThrows(() => xml.read(''));
+
+    eq(e.code, 'unexpected-end');
+    eq(String(e.loc), '<xml>:1:1');
+  },
+  'xml.read: a mismatch is a SyntaxError with loc, length and code'() {
+    const e = assertThrows(() => xml.read('<a>\n  <b></c></a>', 'f.xml'));
+
+    eq(e.name, 'SyntaxError');
+    eq(e.code, 'mismatched-end-tag');
+    eq(e.length, 4);
+    eq(e.loc.line, 2);
+    eq(e.loc.column, 6);
+    eq(String(e.loc), 'f.xml:2:6');
+    eq(Object.keys(e).length, 0);
+  },
+
+
+  'xml.read: location counts the characters of comments'() {
+    const [tree, locs] = xml.read('<!-- c --><a/>', 'f.xml', { location: true });
+
+    eqArr(locs.get(tree[1]), [1, 11]);
   },
 });
