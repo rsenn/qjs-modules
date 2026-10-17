@@ -1944,6 +1944,69 @@ Pending after the 2026-10-17 session (event model, none of it started unless a s
 - Unrelated ctest failures seen 2026-10-17: `test-globals` (Blob stream through TextDecoderStream), `test-misc` (valuePointer),
   `test-mmap` (filename), `test-lexer-cpp` (escaped newline in a directive), `test-sql` (live database).
 
+## Remaining work: json and xml (state 2026-10-17, after `7da74be0`)
+
+Done and committed: the layout (`include/{json,xml}/`, `src/{json,xml}/`), the event model (`JsonEventSink`, `XmlEventSink`, pumps, builders,
+`jwrite_sink`/`xwrite_sink`), `read()` on `xbuilder`, `write()` on `xwalk` + `xlayout` (tree and flat list), `XMLWriter` on `xwrite` decorated by
+`js_xmlsink_*`, the error contract (Tier 23 E0 to E2), `walk` with an O(1) circularity check. The rest, by file; "decision" marks what the author
+has to settle first.
+
+### `quickjs-xml.c` (2156 lines; target about 1200)
+
+| # | work | size | depends on | gate |
+| --- | --- | --- | --- | --- |
+| X1 | decision: `write()` on `XW_PRETTY` (drop `xlayout.[ch]`, `xtreewrite.[ch]`; `write()` = `xwalk` adapter into an `XmlWriter`), or keep the legacy layout. Changes the output; the golden fixture is regenerated | -700 | none | `test-xml-write-golden.js` regenerated and reviewed |
+| X2 | `XMLTreeSerializer` on `xwalk` + `xwrite` as a pull source (Phase 5, 3e): the replay machinery (`skip`/`delivered`/`capped`) goes; `read(n)` cuts on character boundaries (own ChangeLog line) | -450 | X1 | equality with `write()` at read sizes 1, 7, 4096 |
+| X3 | `XMLNodeParser` assembles its flat list on the `XmlBuilder` flat sink (Phase 7); one location-sync helper for `XMLParser`/`XMLNodeParser`; one `reader_from_js_input()` (7 call sites, 3 helpers) and one `xml_options_from_js()` (4 copies) | -250 | none | differential 0, `test-xml.js` |
+| X4 | `XMLPushParser`: `text` callback is `(name, value)` but `XMLWriter.text(str)` takes one argument; `close()` does not flush; plug into any sink through the handshake (EV8) | small | EV8 | push parser feeds an `XMLWriter` byte-identically at chunk sizes 1, 2, 7 |
+| X5 | the bindings drive the pumps (`xread_pump`, `xml_pump`) instead of their own loops (EV4 gate) | -150 | none | differential at chunk sizes 1, 2, 7 |
+| X6 | lenient `xml.read` repairs report through `onParseError` and never throw (Tier 23 E2 rest); spec code names where one exists | small | none | `test-xml-errors.js` (not written yet) |
+| X7 | `XMLSerializer` / `DOMParser` exports from `lib/dom.js` (Browser priority); `DOMParser` returns a `<parsererror>` document (Tier 23 E4) | JS | none | browser-shaped tests |
+| X8 | Phase 8 `XmlRewriter` (waits for Tier 17), Phase 9 `XML.parse` / object tree (Bun), Phase 10 clean-up: `property-enumeration.h` and `char-utils.h` drop out of the binding | per phase | X1, X2, Tier 17 | per phase |
+
+### `quickjs-json.c` (1962 lines; target about 1620)
+
+| # | work | depends on | gate |
+| --- | --- | --- | --- |
+| J1 | Tier 18 steps 1 to 5: `jwrite_options_indent*`, `walk_path()` (so `JsonSerializer.path` stops reaching into the stack), UTF-16/UTF-8 offset helpers; `jread` strict mode and JSON5/JSONC flags; `JSON5.parse`, `JSONC.parse`; deprecate `read()`/`write()`, migrate `plot-cv/yt-playlist.js` and `clang-ast.js`; `JSON5.stringify` | none | per step in Tier 18 |
+| J2 | `read()` decodes string escapes and rejects what `JSON.parse` rejects (trailing commas, `01`, `1.`, raw tab); remove the vendored `sj` | J1 step 2 | `JSON.parse` differential |
+| J3 | `JsonRewriter` (`jrewrite`, Tier 17) on `JsonEventSink` | none | Tier 17 gates |
+| J4 | `JsonPushParser`: `onValue`, `paths`, `end()`; plug into any sink (EV8) | EV8 | chunk-size invariance |
+| J5 | `JsonWriter` on `js_jsonsink_*` (its methods take JS values, so decide first whether it keeps its own set); the JSON sink wrapper has no user and no test yet | EV8 | `test-json.js` |
+| J6 | the bindings drive the pumps (`jread_pump`, `json_pump`) | none | differential |
+| J7 | errors: `Blob.prototype.json()` and the `JSONL` paths carry `loc`; Tier 23 E3 (`AggregateError`, strict `JSON5`/`JSONC` codes), E5 (column unit) | J1 | Tier 23 gates |
+
+### Backing code, `src/{json,xml}/` and `include/{json,xml}/`
+
+| # | work | where | note |
+| --- | --- | --- | --- |
+| B1 | EV5: `jwalk`/`xwalk` drive a `JsonEventSink` / `XmlEventSink` (the `WalkInterface` becomes the engine-side adapter of it) | `jwalk.c`, `xwalk.c`, `xtreewrite.c` | `write()` and `JsonSerializer` byte-identical |
+| B2 | EV6: delete `JsonWriteInterface` and `jwrite_interface`; align the push-parser callback names (`onError` for both, `onParseError` an alias on XML) | `jwrite.h`, bindings | after one release |
+| B3 | EV8: `Symbol.for('qjs.jsonsink')` / `Symbol.for('qjs.xmlsink')` handshake and a tee sink, on top of `js_{json,xml}sink_*` | `jsink.c`, `xsink.c` | engine-side only |
+| B4 | the parsers produce the typed markup events (`XE_COMMENT`, `XE_DECLARATION`, `XE_INSTRUCTION`, `XE_CDATA`); today they arrive as elements with magic names | `xml.c`, `xread.c`, `xpump.c` | then `xbuilder` and `xwrite` stop special-casing `!--`, `!`, `?` |
+| B5 | `xml.c` / `xread.c`: DOCTYPE internal subset (needed by strict mode and entities); Phase 6: measure, then merge the two tokenizers | `xml.c`, `xread.c` | `BUGS` `xml-doctype-internal-subset-mangled` |
+| B6 | `xbuilder`: flat sink for `XMLNodeParser` (X3), `jbuild_value_js()` and the prototype option shared with `jbuilder` | `xbuilder.c`, `jbuilder.c` | |
+| B7 | `xtreewrite.c` edge cases the golden does not cover: an `undefined` attribute value is omitted (the old writer printed `undefined`), an `attributes` array is a plain value (the old writer enumerated it) | `xtreewrite.c` | pin or fix with golden cases |
+| B8 | engine-free C tests for `xlayout` (trailing-whitespace hold-back, depth rules) and a JS-level `test-walk` for `xwalk` | `tests/c/`, `tests/unittests/` | the golden covers them only through `write()` |
+| B9 | `walk.c`: the circularity check is a hash set now; add a test for a 100000-deep array, a shared object and a cycle at depth | `tests/unittests/test-json.js` | |
+
+### Tests and tools
+
+- save the `read()` differential harness as `tests/tools/xml-diff.js` (oracle: a build of `ecdf0ca7`); an equivalent for `write()` against `lib/xml/write.js`;
+- `tests/unittests/test-xml-errors.js` and `test-json-errors.js` as described in `doc/api-implement-{xml,json}.md` section 5.4;
+- a JS test for `js_jsonsink_wrap`/`js_xmlsink_wrap` objects handed to the C side (needs EV8).
+
+### Documentation
+
+- `doc/api-implement-{json,xml}.md`: sizes and "what the binding still holds" refreshed (done in the section "State 2026-10-17" at their end); the
+  per-header lift tables keep their numbering;
+- `doc/native/json.md`, `doc/native/xml.md`: the sink wrappers, the typed markup events (B4) and the `XW_PRETTY` decision (X1) when they land;
+- `api-surface/` (generated) still lists the old `XMLSerializer`; regenerate after X7;
+- `BUGS`: `json-read-does-not-decode-escapes`, `xmlserializer-read-n-splits-utf8`, `xml-doctype-internal-subset-mangled` stay until J2, X2, B5.
+
+Suggested order: X1 (decision) and J1 step 1 first (smallest, unblock the rest), then B3/EV8 with X4 and J4/J5, then X3 and X5/J6, then X2, then
+B4/B5, then the rewriters and the DOM exports.
+
 ## Tier 18 — `json` module: lift to standard shapes (spec 2026-10-17)
 
 Survey (probed node 22 / bun 1.4 / deno 2.9, plus npm `json5`, `jsonc-parser`, `stream-json`,
@@ -2215,7 +2278,7 @@ document), [`doc/api-implement-xml.md`](doc/api-implement-xml.md) (the split, li
 header), [`doc/api-interface-xml.md`](doc/api-interface-xml.md) (event protocol, `xml_parser_run`, `xread`, `xwrite`, `xwalk`,
 planned `xbuilder`, JS contracts).
 
-Built and green, nothing committed:
+Built and green (committed; the current state is in "Remaining work: json and xml" above Tier 18):
 
 | piece | where | state |
 | --- | --- | --- |
@@ -2226,12 +2289,10 @@ Built and green, nothing committed:
 | golden corpus for `write()`, `XMLTreeSerializer`, `XMLWriter` (98 cases) | `tests/fixtures/`, `tests/tools/`, `test-xml-write-golden.js` | done (3a) |
 | `xwrite.[ch]` (277 + 112): compact and pretty layouts, typed markup, `xwrite_put_escaped` | `src/` | done (3b), `tests/tools/xwrite-golden.c`: 51 identical, 10 differ only in the 3c changes, valgrind clean; no caller yet |
 
-Not started: Phase M (layout), Phase 1 (event protocol), 3e, 5 to 10. Done since: 3c, 3d, 4d (as `xlayout`, see below).
+Done since this table was written: Phase M, Phase 1, Phase 2, 3c, 3d, 4d (as `xlayout` and `xtreewrite`). Not started: 3e, 5 to 10.
 
-Honest measure: `quickjs-xml.c` is still 2713 lines. The new code sits in `src/` and nothing has been removed from the
-class file since the `read()` cut; the lines come out in 3c (about 120), 3d (about 230), 4d (about 450) and 5 (about 450).
-ctest (non-deno): 7 failures, all pre-existing (`directory`, `extract-c`, `globals`, `lexer-cpp`, `misc`, `mmap`, `sql`);
-the wasm/wasi tests fail only under `ulimit -v 4000000` (wasm reserves address space), pass without it.
+Measure (2026-10-17): `quickjs-xml.c` is 2156 lines (was 3064), `quickjs-json.c` 1962; the engine-free and adapter code in `src/xml/` is 2.9k
+lines, in `src/json/` 3.2k. ctest has five failures unrelated to json and xml: `test-globals`, `test-misc`, `test-mmap`, `test-lexer-cpp`, `test-sql`.
 
 Corrections to the plan found on the way:
 
@@ -2651,7 +2712,7 @@ Phase T — tests and tools first
 - [x] T4 `tests/unittests/test-path-interface.js` (qjsm only): `Function.length`, error name/code/message
       (Node's text), exported name list; starts with the cases that pass today, a failing case is
       added in the commit of its fix.
-- [ ] T5 audit (was Tier 22 task 1): grep `lib/`, `examples/`, `utilities/`, sibling `qjs-*`, `~/Sources/plot-cv`
+- [x] T5 (done 2026-10-17, table in doc/api-implement-path.md 3.3.1) audit (was Tier 22 task 1): grep `lib/`, `examples/`, `utilities/`, sibling `qjs-*`, `~/Sources/plot-cv`
       for `at components skipSeparator right isSeparator isin equal canonical search getsep skip toArray
       length slice`; write keep/remove per method into section 3.3 of doc/api-implement-path.md.
 - [x] T6 (done by hand, not kept as a test: coreutils `realpath` on a symlink tree matched; the old fnmatch looped forever on `[[:class:]]`, the shish one is in `test-path.js`) differential tests before the rename: old `path_fnmatch5` against shish's `path_fnmatch` (patterns,
@@ -2704,7 +2765,7 @@ Phase C — posix interface of `path` made Node-correct (changes behaviour; need
 - [x] C6 `toNamespacedPath` (identity after validation) and `_makeLong` as the same function object.
 - [x] C7 subpath table in `src/qjsm.c` (next to `fs/promises`): `path/posix` to `path`; test
       `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/nodeHooks.js`.
-- [ ] C8 `BUGS`: strike `path-functions-coerce-non-string-arguments` and the posix part of `path-missing-node-names`
+- [x] C8 `BUGS`: strike `path-functions-coerce-non-string-arguments` and the posix part of `path-missing-node-names`
       (leave `win32` and `matchesGlob` in the entry until W11/G2). Verify with `rg -n 'path-functions-coerce' BUGS`.
 - [ ] C9 DECISION (user): `path.exists` follows symlinks (`stat`) like `fs.existsSync`, or keeps `lstat`?
       If it follows: change `quickjs-path.c` only (`PATH_EXISTS` calls `stat`); `path_exists` (lstat) stays for the
@@ -2759,7 +2820,7 @@ Phase G — `matchesGlob` (independent, last)
 Phase X — the qjsm-only extras (needs T5; removals are breaking and need the user's go per method)
 The 38 names no runtime has (api-compare-path.md section 2). Rule of CLAUDE.md "Choosing the Next Task": no user
 in `examples/ utilities/ lib/ ~/Sources/plot-cv` and no sibling `qjs-*` plus no standard target means remove.
-- [ ] X1 apply the T5 table: list per method keep / remove with the usage found (file:line) in section 3.3 of
+- [ ] X1 (table written 2026-10-17, doc/api-implement-path.md 3.3.1; waiting for the user's answer) apply the T5 table: list per method keep / remove with the usage found (file:line) in section 3.3 of
       `doc/api-implement-path.md`; show it to the user, nothing is deleted before the answer.
 - [ ] X2 per approved family, one commit each: delete the JS method(s) and their `static js_path_*` helper in
       `quickjs-path.c`, the cases in `test-path.js`, the rows in `doc/native/path.md` and

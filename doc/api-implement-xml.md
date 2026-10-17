@@ -149,3 +149,9 @@ unquoted value, undefined entity, two roots, text outside the root, control char
 `<parsererror>` document for `DOMParser`; lenient repairs reach `onParseError` and never throw. Message texts of Bun's `XML.parse` are the
 oracle for which inputs are errors (`api-compare-xml.md` 3), not for the wording.
 
+
+## 6. State 2026-10-17
+
+Done: `read()` on `xbuilder`; `write()` on `xwalk` + `xlayout` (`src/xml/xtreewrite.c`, tree and flat list; `quickjs-xml.c` is 2156 lines); `XMLWriter` on
+`xwrite`, decorated with the `XmlEventSink` methods by `js_xmlsink_*` (`src/xml/xsink.c`); `XmlEventSink`, pumps, `XmlBuilder`; error contract E0 to E2.
+Sections 2 and 3 above predate this; the open items are in `TODO.md`, "Remaining work: json and xml" (X1 to X8, B1 to B9).

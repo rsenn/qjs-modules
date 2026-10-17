@@ -163,3 +163,9 @@ Two properties on top: **chunk invariance** (the push parser fed 1 byte at a tim
 
 Size: `srcpos.h` about 60 lines, `js_syntax_error_new` about 50, per-parser changes about 15 lines each; the throw sites shrink.
 
+
+## 6. State 2026-10-17
+
+Done: layout move; `jwalk` over a generic `walk` (circularity check O(1)); `JsonEventSink`, `jwrite_sink`/`jbuild_sink`, pumps; `js_jsonsink_*`
+(`src/json/jsink.c`, no user yet); `JsonPushParser` on the sink; error contract E0 to E2; `quickjs-json.c` is 1962 lines. Sections 2 to 4 above
+predate this; the open items are in `TODO.md`, "Remaining work: json and xml" (J1 to J7, B1 to B9).
