@@ -819,6 +819,11 @@ target_include_directories(jread-positions PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(jread-positions PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-jread-positions COMMAND jread-positions)
 
+add_executable(jread-dialects tests/c/jread-dialects.c src/json/jread.c)
+target_include_directories(jread-dialects PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(jread-dialects PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-jread-dialects COMMAND jread-dialects)
+
 # events-sinks drives the writers through JsonEventSink and XmlEventSink
 add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c src/xml/xwrite.c)
 target_include_directories(events-sinks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")

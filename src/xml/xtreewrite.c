@@ -20,8 +20,8 @@ typedef struct {
   char* tag;       /* ELEMENT: its tagName, owned; NULL until the key is seen */
   size_t len;
   int depth;       /* ELEMENT: layout depth of its tags */
-  int open;        /* ELEMENT: start tag not ended yet */
-  int closes;      /* ELEMENT: children were written, so a close tag follows */
+  unsigned open : 1;    /* ELEMENT: start tag not ended yet */
+  unsigned closes : 1;  /* ELEMENT: children were written, so a close tag follows */
   int key;         /* ELEMENT: which key is current, 1 tagName 2 attributes 3 children */
 } XmlTreeFrame;
 
@@ -32,12 +32,12 @@ typedef struct {
   Vector frames; /* XmlTreeFrame, one per open container */
   char* attr;    /* ATTRS: the attribute name just reported, owned */
   int32_t max_depth;
-  int flat;      /* flat list: no `children`, end markers are entries */
+  unsigned flat : 1;        /* flat list: no `children`, end markers are entries */
   int depth;     /* flat: the depth of the next tag; moves on `dt` and `/x` */
-  int single_line; /* flat: the last entry was a text without newline */
+  unsigned single_line : 1; /* flat: the last entry was a text without newline */
   char* pend;    /* flat: the element whose start tag waits for the next entry, owned */
   size_t pend_len;
-  int pend_dt;   /* flat: pend is a `dt`, the next entries nest */
+  unsigned pend_dt : 1;     /* flat: pend is a `dt`, the next entries nest */
 } XmlTreeWriter;
 
 static XmlTreeFrame*

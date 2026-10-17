@@ -39,6 +39,11 @@
       go = go_arr_sep; \
     else if(go == go_obj) \
       go = go_obj_sep; \
+    else if(go == go_doc) { \
+      state->roots++; \
+      if(!(state->flags & (JR_MULTI | JR_LEGACY))) \
+        go = go_end; \
+    } \
   } while(0)
 
 /*
@@ -146,12 +151,20 @@ jr_state_init(jr_state_t* state) {
   state->go_stack = (Vector)VECTOR_INIT();
   srcpos_init(&state->pos, 0);
   state->tok = state->err_pos = state->pos;
+  state->flags = JR_LEGACY;
+}
+
+/* jr_state_init_flags: jr_state_init() with the syntax `flags` (JR_JSON, JR_JSON5, ...). */
+void
+jr_state_init_flags(jr_state_t* state, unsigned flags) {
+  jr_state_init(state);
+  state->flags = flags;
 }
 
 const char*
 jr_error_name(jr_error_t code) {
   static const char* const names[] = {
-      "", "unexpected-token", "bad-escape", "bad-unicode-escape", "invalid-utf8", "control-character", "invalid-literal", "unexpected-end", "out-of-memory",
+      "", "unexpected-token", "bad-escape", "bad-unicode-escape", "invalid-utf8", "control-character", "invalid-literal", "unexpected-end", "out-of-memory", "trailing-data",
   };
 
   return (unsigned)code < sizeof(names) / sizeof(names[0]) ? names[code] : "";
@@ -169,6 +182,7 @@ jr_sync(jr_state_t* state, const char* p) {
   do { \
     jr_sync(state, cstr - 1); \
     state->tok = state->pos; \
+    state->after_comma = 0; \
   } while(0)
 
 /* records the error at the byte just read: the token start when inside a token. */
@@ -193,20 +207,22 @@ jr_state_free(jr_state_t* state) {
 static void
 jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
   static void* go_doc[] = {
-      [1 ... 8] = &&l_err,     ['\t'] = &&l_next,      ['\n'] = &&l_next,       [11 ... 12] = &&l_err,     ['\r'] = &&l_next,
+      [1 ... 8] = &&l_err,     ['\t'] = &&l_next,      ['\n'] = &&l_next,       [11 ... 12] = &&l_ws5,     ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,   [' '] = &&l_next,       [0] = &&l_err,           [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,
       [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,      [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,
       ['['] = &&l_arr_s,       [92 ... 101] = &&l_err, ['f'] = &&l_false_f,     [103 ... 109] = &&l_err,   ['n'] = &&l_null_n,
       [111 ... 115] = &&l_err, ['t'] = &&l_true_t,     [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err,
       ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      ['\''] = &&l_str_sq_s, ['+'] = &&l_num_s5, ['.'] = &&l_num_s5, ['I'] = &&l_kw5_s, ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
   };
 
   static void* go_val[] = {
-      [0 ... 8] = &&l_err,       ['\t'] = &&l_next,       ['\n'] = &&l_next,  [11 ... 12] = &&l_err,   ['\r'] = &&l_next,   [14 ... 31] = &&l_err,
+      [0 ... 8] = &&l_err,       ['\t'] = &&l_next,       ['\n'] = &&l_next,  [11 ... 12] = &&l_ws5,   ['\r'] = &&l_next,   [14 ... 31] = &&l_err,
       [' '] = &&l_next,          [33 ... 33] = &&l_err,   ['"'] = &&l_str_s,  [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,   [46 ... 47] = &&l_err,
       ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,  [92 ... 101] = &&l_err,  ['f'] = &&l_false_f, [103 ... 109] = &&l_err,
       ['n'] = &&l_null_n,        [111 ... 115] = &&l_err, ['t'] = &&l_true_t, [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,   [124 ... 255] = &&l_err,
       ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      ['\''] = &&l_str_sq_s, ['+'] = &&l_num_s5, ['.'] = &&l_num_s5, ['I'] = &&l_kw5_s, ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
   };
 
   static void* go_num[] = {
@@ -234,7 +250,7 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
   };
 
   static void* go_str[] = {
-      [0 ... 31] = &&l_err,
+      [0 ... 31] = &&l_str_ctl,
       [32 ... 33] = &&l_next,
       ['"'] = &&l_str_e,
       [35 ... 91] = &&l_next,
@@ -349,29 +365,32 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
   };
 
   static void* go_arr[] = {
-      [0 ... 8] = &&l_err,     ['\t'] = &&l_next,         ['\n'] = &&l_next,       [11 ... 12] = &&l_err, ['\r'] = &&l_next,       [14 ... 31] = &&l_err,
-      [' '] = &&l_next,        [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,       [35 ... 43] = &&l_err, [','] = &&l_next,        ['-'] = &&l_num_s,
+      [0 ... 8] = &&l_err,     ['\t'] = &&l_next,         ['\n'] = &&l_next,       [11 ... 12] = &&l_ws5, ['\r'] = &&l_next,       [14 ... 31] = &&l_err,
+      [' '] = &&l_next,        [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,       [35 ... 43] = &&l_err, [','] = &&l_comma_stray,        ['-'] = &&l_num_s,
       [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,     [92 ... 92] = &&l_err,   [']'] = &&l_arr_e,
       [94 ... 101] = &&l_err,  ['f'] = &&l_false_f,       [103 ... 109] = &&l_err, ['n'] = &&l_null_n,    [111 ... 115] = &&l_err, ['t'] = &&l_true_t,
       [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err, ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      ['\''] = &&l_str_sq_s, ['+'] = &&l_num_s5, ['.'] = &&l_num_s5, ['I'] = &&l_kw5_s, ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
   };
 
   static void* go_obj[] = {
       [0 ... 8] = &&l_err,
       ['\t'] = &&l_next,
       ['\n'] = &&l_next,
-      [11 ... 12] = &&l_err,
+      [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
       [33 ... 33] = &&l_err,
       ['"'] = &&l_kvp,
       [35 ... 43] = &&l_err,
-      [','] = &&l_next,
+      [','] = &&l_comma_stray,
       [45 ... 124] = &&l_err,
       ['}'] = &&l_obj_e,
       [126 ... 255] = &&l_err,
       ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      ['\''] = &&l_kvp_sq,
+      ['A' ... 'Z'] = &&l_key_id, ['a' ... 'z'] = &&l_key_id, ['$'] = &&l_key_id, ['_'] = &&l_key_id, [192 ... 247] = &&l_key_id, /* JSON5 keys, gated by flags */
   };
 
   /* Used only right after a value fully ends (see JR_POP_GO_SEP()) - unlike go_arr, which
@@ -383,7 +402,7 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
       [0 ... 8] = &&l_err,
       ['\t'] = &&l_next,
       ['\n'] = &&l_next,
-      [11 ... 12] = &&l_err,
+      [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
@@ -399,7 +418,7 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
       [0 ... 8] = &&l_err,
       ['\t'] = &&l_next,
       ['\n'] = &&l_next,
-      [11 ... 12] = &&l_err,
+      [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
@@ -413,7 +432,7 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
       [0 ... 8] = &&l_err,
       ['\t'] = &&l_next,
       ['\n'] = &&l_next,
-      [11 ... 12] = &&l_err,
+      [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
@@ -427,7 +446,7 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
       [0 ... 8] = &&l_err,
       ['\t'] = &&l_next,
       ['\n'] = &&l_next,
-      [11 ... 12] = &&l_err,
+      [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
@@ -456,7 +475,7 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
 
   static void* go_cmt_line[] = {
       [0 ... 255] = &&l_cmt_line,
-      ['\n'] = &&l_next,
+      ['\n'] = &&l_cmt_end,
   };
 
   static void* go_cmt_block[] = {
@@ -467,12 +486,149 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
   static void* go_cmt_star[] = {
       [0 ... 255] = &&l_cmt_block,
       ['*'] = &&l_cmt_star,
-      ['/'] = &&l_next,
+      ['/'] = &&l_cmt_end,
+  };
+
+  /* the single-quoted twin of go_str */
+  static void* go_str_sq[] = {
+      [0 ... 31] = &&l_str_ctl,
+      [32 ... 38] = &&l_next,
+      ['\''] = &&l_str_e,
+      [40 ... 91] = &&l_next,
+      ['\\'] = &&l_esc,
+      [93 ... 126] = &&l_next,
+      [127 ... 191] = &&l_err,
+      [192 ... 223] = &&l_utf8_2,
+      [224 ... 239] = &&l_utf8_3,
+      [240 ... 247] = &&l_utf8_4,
+      [248 ... 255] = &&l_err,
+  };
+
+  /* JSON5 escapes: \' \v \0 \xHH, a line terminator continues the string, and any other
+   * character stands for itself; \1 to \9 stay errors */
+  static void* go_esc5[] = {
+      [0 ... 255] = &&l_esc_id,
+      ['\n'] = &&l_esc_cont,
+      ['\r'] = &&l_esc_cont_cr,
+      ['0'] = &&l_esc_nul,
+      ['1' ... '9'] = &&l_err,
+      ['"'] = &&l_esc_quote,
+      ['/'] = &&l_esc_slash,
+      ['\\'] = &&l_esc_bslash,
+      ['b'] = &&l_esc_b,
+      ['f'] = &&l_esc_f,
+      ['n'] = &&l_esc_n,
+      ['r'] = &&l_esc_r,
+      ['t'] = &&l_esc_t,
+      ['v'] = &&l_esc_v,
+      ['u'] = &&l_esc_u,
+      ['x'] = &&l_esc_x,
+      [128 ... 191] = &&l_err,
+      [192 ... 247] = &&l_esc_hi,
+      [248 ... 255] = &&l_err,
+  };
+
+  /* after a backslash and a CR: an LF belongs to the line terminator */
+  static void* go_esc_cr[] = {
+      [0 ... 255] = &&l_esc_cr_other,
+      ['\n'] = &&l_esc_cr_lf,
+  };
+
+  /* an unquoted key: identifier characters up to a colon, whitespace or comment */
+  static void* go_ident[] = {
+      [0 ... 255] = &&l_err,
+      ['A' ... 'Z'] = &&l_next, ['a' ... 'z'] = &&l_next, ['0' ... '9'] = &&l_next, ['$'] = &&l_next, ['_'] = &&l_next,
+      [192 ... 223] = &&l_utf8_2, [224 ... 239] = &&l_utf8_3, [240 ... 247] = &&l_utf8_4,
+      [':'] = &&l_key_id_e, ['\t'] = &&l_key_id_e, ['\n'] = &&l_key_id_e, [11 ... 12] = &&l_key_id_e, ['\r'] = &&l_key_id_e, [' '] = &&l_key_id_e, ['/'] = &&l_key_id_e,
+  };
+
+  /* after the last token: whitespace and comments only */
+  static void* go_end[] = {
+      [0 ... 255] = &&l_err,
+      ['\t'] = &&l_next, ['\n'] = &&l_next, [11 ... 12] = &&l_ws5, ['\r'] = &&l_next, [' '] = &&l_next,
+      ['/'] = &&l_cmt,
+  };
+
+  /* numbers outside JR_LEGACY: one table per state of the grammar; a table that ends
+   * the number sends every other byte to l_num_e, the others report it */
+  static void* go_nn_idle[] = {
+      [0 ... 255] = &&l_err,
+  };
+
+  static void* go_nn_first[] = {
+      [0 ... 255] = &&l_err,
+      ['-'] = &&l_nn_sign, ['+'] = &&l_nn_sign, ['0'] = &&l_nn_zero, ['1' ... '9'] = &&l_nn_int, ['.'] = &&l_nn_lead_dot,
+  };
+
+  static void* go_nn_sign[] = {
+      [0 ... 255] = &&l_err,
+      ['0'] = &&l_nn_zero, ['1' ... '9'] = &&l_nn_int, ['.'] = &&l_nn_lead_dot5, ['I'] = &&l_kw5_sign, ['N'] = &&l_kw5_sign,
+  };
+
+  static void* go_nn_zero[] = {
+      [0 ... 255] = &&l_num_e,
+      ['0' ... '9'] = &&l_err, ['.'] = &&l_nn_dot, ['e'] = &&l_nn_exp, ['E'] = &&l_nn_exp, ['x'] = &&l_nn_hex_start5, ['X'] = &&l_nn_hex_start5,
+  };
+
+  static void* go_nn_int[] = {
+      [0 ... 255] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_int, ['.'] = &&l_nn_dot, ['e'] = &&l_nn_exp, ['E'] = &&l_nn_exp,
+  };
+
+  /* "1.": fine in JSON5 only without a digit after it */
+  static void* go_nn_dot[] = {
+      [0 ... 255] = &&l_nn_dot_end,
+      ['0' ... '9'] = &&l_nn_frac, ['e'] = &&l_nn_dot_exp, ['E'] = &&l_nn_dot_exp,
+  };
+
+  static void* go_nn_lead_dot[] = {
+      [0 ... 255] = &&l_err,
+      ['0' ... '9'] = &&l_nn_frac,
+  };
+
+  static void* go_nn_frac[] = {
+      [0 ... 255] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_frac, ['e'] = &&l_nn_exp, ['E'] = &&l_nn_exp,
+  };
+
+  static void* go_nn_exp[] = {
+      [0 ... 255] = &&l_err,
+      ['+'] = &&l_nn_exp_sign, ['-'] = &&l_nn_exp_sign, ['0' ... '9'] = &&l_nn_exp_digits,
+  };
+
+  static void* go_nn_exp_sign[] = {
+      [0 ... 255] = &&l_err,
+      ['0' ... '9'] = &&l_nn_exp_digits,
+  };
+
+  static void* go_nn_exp_digits[] = {
+      [0 ... 255] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_exp_digits,
+  };
+
+  static void* go_nn_hex_start[] = {
+      [0 ... 255] = &&l_err,
+      ['0' ... '9'] = &&l_nn_hex, ['a' ... 'f'] = &&l_nn_hex, ['A' ... 'F'] = &&l_nn_hex,
+  };
+
+  static void* go_nn_hex[] = {
+      [0 ... 255] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_hex, ['a' ... 'f'] = &&l_nn_hex, ['A' ... 'F'] = &&l_nn_hex,
+  };
+
+  /* Infinity and NaN are matched byte by byte against state->kw */
+  static void* go_kw[] = {
+      [0 ... 255] = &&l_kw_step,
+  };
+
+  static void* go_nn_end[] = {
+      [0 ... 255] = &&l_num_e,
   };
 
   const char* cstr = chunk;
   const char* end = chunk + len;
   void** go = state->go ? state->go : go_doc;
+  unsigned was_number; /* l_err: the error hit inside a number or Infinity / NaN */
 
   if(state->done)
     return;
@@ -487,21 +643,25 @@ l_next:
 
 l_err: {
   uint8_t c = (uint8_t)cstr[-1];
+
+  was_number = state->in_number || state->kw_active;
   jr_error_t code = JR_E_UNEXPECTED_TOKEN;
   jr_str_t data = {cstr - 1, 1};
 
-  if(state->tab == go_esc)
+  if(state->tab == go_esc || state->tab == go_esc5)
     code = JR_E_BAD_ESCAPE;
   else if(state->tab == go_esc_u)
     code = JR_E_BAD_UNICODE_ESCAPE;
   else if(state->tab == go_utf8)
     code = JR_E_INVALID_UTF8;
-  else if(state->literal_active)
+  else if(state->literal_active || state->kw_active)
     code = JR_E_INVALID_LITERAL;
-  else if(!state->tab && go == go_str)
+  else if(!state->tab && (go == go_str || go == go_str_sq))
     code = c < 32 ? JR_E_CONTROL_CHARACTER : JR_E_INVALID_UTF8;
+  else if(go == go_end)
+    code = JR_E_TRAILING_DATA;
 
-  jr_error_at(state, cstr - 1, code, state->accumulating || state->literal_active);
+  jr_error_at(state, cstr - 1, code, state->accumulating || state->literal_active || state->kw_active);
   cb(jr_type_error, &data, user_data);
 }
   /* `error` is sticky (jr_finish()/close() report "this stream had an error at some point");
@@ -511,6 +671,10 @@ l_err: {
   state->error = 1;
   state->just_erred = 1;
   state->accumulating = 0; /* abandon whatever partial token was mid-scan */
+  state->in_number = 0;
+  state->kw_active = 0;
+  state->cmt = 0;
+  state->after_comma = 0;
 
   /* Recover the dispatch table for the container we were actually inside (go_arr/go_obj/
    * go_arr_sep/go_obj_sep, or go_doc/go_val at the top level) so the resync boundary below
@@ -525,7 +689,7 @@ l_err: {
    * at all - an error reached directly from them (e.g. a missing comma) already has `go`
    * sitting at container level, just in the "expect separator" phase instead of "expect
    * value" - popping here would incorrectly discard it. */
-  while(go != go_doc && go != go_val && go != go_arr && go != go_obj && go != go_arr_sep && go != go_obj_sep && !vector_empty(&state->go_stack))
+  while(go != go_doc && go != go_val && go != go_arr && go != go_obj && go != go_arr_sep && go != go_obj_sep && go != go_end && !vector_empty(&state->go_stack))
     JR_POP_GO();
 
   if(state->literal_active) {
@@ -535,6 +699,20 @@ l_err: {
      * this stale entry corrupts the level a future real container-close pops into. */
     JR_POP_GO();
     state->literal_active = 0;
+  }
+
+  if(!(state->flags & JR_LEGACY)) {
+    /* a bad item still was an item: what follows it is a separator or a closer */
+    if(was_number || cstr[-1] != ',') {
+      if(go == go_arr)
+        go = go_arr_sep;
+      else if(go == go_obj)
+        go = go_obj_sep;
+    }
+
+    /* "[1.]": the byte that ended a bad number is one of those, so it is read again, not skipped */
+    if(was_number && (cstr[-1] == ',' || cstr[-1] == ']' || cstr[-1] == '}'))
+      JR_DISPATCH_THIS();
   }
 
   JR_DISPATCH_NEXT_GO(go_err_resync);
@@ -550,13 +728,22 @@ l_err_resync_boundary:
   JR_DISPATCH_THIS();
 
 l_cmt:
+  if(!(state->flags & (JR_COMMENTS | JR_LEGACY)))
+    goto l_err;
+  state->cmt = 1;
   JR_DISPATCH_NEXT_GO(go_cmt_start);
 
 l_cmt_line:
+  state->cmt = 2;
   JR_DISPATCH_NEXT_GO(go_cmt_line);
 
 l_cmt_block:
+  state->cmt = 3;
   JR_DISPATCH_NEXT_GO(go_cmt_block);
+
+l_cmt_end:
+  state->cmt = 0;
+  JR_DISPATCH_NEXT();
 
 l_cmt_star:
   JR_DISPATCH_NEXT_GO(go_cmt_star);
@@ -567,8 +754,115 @@ l_num_s:
   jr_accum_putc(state, cstr[-1]);
   state->accumulating = 1;
   state->in_number = 1;
+
+  if(!(state->flags & JR_LEGACY)) {
+    state->num_ok = 0;
+    JR_PUSH_GO(go_nn_idle);
+    JR_DISPATCH_THIS_GO(go_nn_first);
+  }
+
   JR_PUSH_GO(go_num);
   JR_DISPATCH_NEXT();
+
+l_num_s5:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+  goto l_num_s;
+
+l_nn_sign:
+  state->num_ok = 0;
+  JR_DISPATCH_NEXT_GO(go_nn_sign);
+
+l_nn_zero:
+  state->num_ok = 1;
+  JR_DISPATCH_NEXT_GO(go_nn_zero);
+
+l_nn_int:
+  state->num_ok = 1;
+  JR_DISPATCH_NEXT_GO(go_nn_int);
+
+l_nn_lead_dot5:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+
+l_nn_lead_dot:
+  state->num_ok = 0;
+  JR_DISPATCH_NEXT_GO(go_nn_lead_dot);
+
+l_nn_dot:
+  state->num_ok = (state->flags & JR_JSON5_NUMBERS) ? 1 : 0;
+  JR_DISPATCH_NEXT_GO(go_nn_dot);
+
+l_nn_dot_end:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+  goto l_num_e;
+
+l_nn_dot_exp:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+
+l_nn_exp:
+  state->num_ok = 0;
+  JR_DISPATCH_NEXT_GO(go_nn_exp);
+
+l_nn_frac:
+  state->num_ok = 1;
+  JR_DISPATCH_NEXT_GO(go_nn_frac);
+
+l_nn_exp_sign:
+  state->num_ok = 0;
+  JR_DISPATCH_NEXT_GO(go_nn_exp_sign);
+
+l_nn_exp_digits:
+  state->num_ok = 1;
+  JR_DISPATCH_NEXT_GO(go_nn_exp_digits);
+
+l_nn_hex_start5:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+  state->num_ok = 0;
+  JR_DISPATCH_NEXT_GO(go_nn_hex_start);
+
+l_nn_hex:
+  state->num_ok = 1;
+  JR_DISPATCH_NEXT_GO(go_nn_hex);
+
+l_kw5_s:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+  JR_TOKEN_START();
+  jr_accum_reset(state);
+  jr_accum_putc(state, cstr[-1]);
+  state->accumulating = 1;
+  state->in_number = 1;
+  state->num_ok = 0;
+  state->kw = cstr[-1] == 'I' ? "Infinity" : "NaN";
+  state->kw_pos = 1;
+  state->kw_active = 1;
+  JR_PUSH_GO(go_nn_idle);
+  JR_DISPATCH_NEXT_GO(go_kw);
+
+l_kw5_sign:
+  if(!(state->flags & JR_JSON5_NUMBERS))
+    goto l_err;
+  state->kw = cstr[-1] == 'I' ? "Infinity" : "NaN";
+  state->kw_pos = 1;
+  state->kw_active = 1;
+  JR_DISPATCH_NEXT_GO(go_kw);
+
+l_kw_step:
+  if((uint8_t)state->kw[state->kw_pos] != (uint8_t)cstr[-1])
+    goto l_err;
+  state->kw_pos++;
+
+  if(state->kw[state->kw_pos]) {
+    JR_DISPATCH_NEXT_GO(go_kw);
+  }
+
+  state->kw_active = 0;
+  state->num_ok = 1;
+  JR_DISPATCH_NEXT_GO(go_nn_end);
 
 l_num_exp:
   JR_DISPATCH_NEXT_GO(go_num_exp_sign);
@@ -591,6 +885,27 @@ l_str_s:
   state->str_type = jr_type_string;
   JR_DISPATCH_NEXT();
 
+l_str_sq_s:
+  if(!(state->flags & JR_SINGLE_QUOTES))
+    goto l_err;
+  JR_TOKEN_START();
+  jr_accum_reset(state);
+  state->accumulating = 1;
+  JR_PUSH_GO(go_str_sq);
+  state->str_type = jr_type_string;
+  JR_DISPATCH_NEXT();
+
+l_str_ctl:
+  /* JSON5 lets control characters stand in a string, line terminators excepted */
+  if(!(state->flags & JR_JSON5_STRINGS) || cstr[-1] == '\n' || cstr[-1] == '\r')
+    goto l_err;
+  JR_DISPATCH_NEXT();
+
+l_ws5:
+  if(!(state->flags & JR_JSON5_STRINGS))
+    goto l_err;
+  JR_DISPATCH_NEXT();
+
 l_str_e:
   state->accumulating = 0;
   {
@@ -604,7 +919,7 @@ l_str_e:
   JR_DISPATCH_NEXT();
 
 l_esc:
-  JR_DISPATCH_NEXT_GO(go_esc);
+  JR_DISPATCH_NEXT_GO((state->flags & JR_JSON5_STRINGS) ? go_esc5 : go_esc);
 
 /* accum currently holds [..., '\\', <this escape char>] - both auto-accumulated by the
  * dispatches that got here (go_str's on '\\', go_esc's on this char) - back out those 2
@@ -649,9 +964,52 @@ l_esc_t:
   jr_accum_putc(state, '\t');
   JR_DISPATCH_NEXT();
 
+l_esc_v:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\v');
+  JR_DISPATCH_NEXT();
+
+l_esc_id:
+  state->accum_len -= 2;
+  jr_accum_putc(state, cstr[-1]);
+  JR_DISPATCH_NEXT();
+
+l_esc_nul:
+  state->accum_len -= 2;
+  jr_accum_putc(state, '\0');
+  JR_DISPATCH_NEXT();
+
+l_esc_cont:
+  state->accum_len -= 2;
+  JR_DISPATCH_NEXT();
+
+l_esc_cont_cr:
+  state->accum_len -= 2;
+  JR_DISPATCH_NEXT_GO(go_esc_cr);
+
+l_esc_cr_lf:
+  state->accum_len -= 1;
+  JR_DISPATCH_NEXT();
+
+l_esc_cr_other:
+  JR_DISPATCH_THIS();
+
+l_esc_hi:
+  /* a backslash before a multi-byte character: drop the backslash, then validate as usual */
+  state->accum[state->accum_len - 2] = state->accum[state->accum_len - 1];
+  state->accum_len -= 1;
+  JR_DISPATCH_THIS();
+
+l_esc_x:
+  state->unicode_val = 0;
+  state->unicode_count = 0;
+  state->unicode_need = 2;
+  JR_DISPATCH_NEXT_GO(go_esc_u);
+
 l_esc_u:
   state->unicode_val = 0;
   state->unicode_count = 0;
+  state->unicode_need = 4;
   JR_DISPATCH_NEXT_GO(go_esc_u);
 
 l_esc_u_digit: {
@@ -660,14 +1018,14 @@ l_esc_u_digit: {
 
   state->unicode_val = (state->unicode_val << 4) | (uint32_t)v;
 
-  if(++state->unicode_count < 4) {
+  if(++state->unicode_count < state->unicode_need) {
     JR_DISPATCH_NEXT_GO(go_esc_u);
   }
 }
   /* 4th digit just read: accum holds [..., '\\', 'u', h1, h2, h3, h4] (6 raw bytes) - drop
    * them and append the decoded code point's UTF-8 bytes instead, exactly mirroring
    * src/json.c's json_scan_string() JSON_STR_UNICODE handling (same surrogate-pair rule). */
-  state->accum_len -= 6;
+  state->accum_len -= 2 + state->unicode_need;
   {
     uint32_t cp = state->unicode_val;
 
@@ -766,11 +1124,23 @@ l_false_e:
   JR_DISPATCH_NEXT();
 
 l_arr_s:
+  state->after_comma = 0;
   cb(jr_type_array_start, 0, user_data);
   JR_PUSH_GO(go_arr);
   JR_DISPATCH_NEXT();
 
 l_arr_e:
+  if(state->after_comma && !(state->flags & (JR_TRAILING_COMMAS | JR_LEGACY))) {
+    /* "[1,]": reported, but the closer still closes so the structure stays balanced */
+    jr_str_t data = {cstr - 1, 1};
+
+    jr_error_at(state, cstr - 1, JR_E_UNEXPECTED_TOKEN, 0);
+    cb(jr_type_error, &data, user_data);
+    state->error = 1;
+    state->just_erred = 1;
+  }
+
+  state->after_comma = 0;
   cb(jr_type_array_end, 0, user_data);
   /* Closing this array is itself "a value ending" from the parent's point of view - same
    * comma-required rule applies to whatever comes after it there. */
@@ -778,11 +1148,23 @@ l_arr_e:
   JR_DISPATCH_NEXT();
 
 l_obj_s:
+  state->after_comma = 0;
   cb(jr_type_object_start, 0, user_data);
   JR_PUSH_GO(go_obj);
   JR_DISPATCH_NEXT();
 
 l_obj_e:
+  if(state->after_comma && !(state->flags & (JR_TRAILING_COMMAS | JR_LEGACY))) {
+    /* "{\"a\":1,}": reported, but the closer still closes so the structure stays balanced */
+    jr_str_t data = {cstr - 1, 1};
+
+    jr_error_at(state, cstr - 1, JR_E_UNEXPECTED_TOKEN, 0);
+    cb(jr_type_error, &data, user_data);
+    state->error = 1;
+    state->just_erred = 1;
+  }
+
+  state->after_comma = 0;
   cb(jr_type_object_end, 0, user_data);
   JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
@@ -797,6 +1179,46 @@ l_kvp:
   state->str_type = jr_type_key;
   JR_DISPATCH_NEXT();
 
+l_kvp_sq:
+  if(!(state->flags & JR_SINGLE_QUOTES))
+    goto l_err;
+  JR_TOKEN_START();
+  jr_accum_reset(state);
+  state->accumulating = 1;
+  JR_PUSH_GO(go_obj_val);
+  JR_PUSH_GO(go_col);
+  JR_PUSH_GO(go_str_sq);
+  state->str_type = jr_type_key;
+  JR_DISPATCH_NEXT();
+
+l_key_id:
+  if(!(state->flags & JR_UNQUOTED_KEYS))
+    goto l_err;
+  JR_TOKEN_START();
+  jr_accum_reset(state);
+  jr_accum_putc(state, cstr[-1]);
+  state->accumulating = 1;
+  JR_PUSH_GO(go_obj_val);
+  JR_PUSH_GO(go_col);
+  JR_PUSH_GO(go_ident);
+  JR_DISPATCH_THIS();
+
+l_key_id_e:
+  /* the byte that ended the name is the last of accum; redispatch it through go_col */
+  state->accumulating = 0;
+  {
+    jr_str_t data = {state->accum, (int32_t)(state->accum_len - 1)};
+    cb(jr_type_key, &data, user_data);
+  }
+  JR_POP_GO();
+  JR_DISPATCH_THIS();
+
+l_comma_stray:
+  /* a comma where an item or a closer belongs: [,] [1,,2] {,} */
+  if(!(state->flags & JR_LEGACY))
+    goto l_err;
+  JR_DISPATCH_NEXT();
+
 l_val:
   JR_POP_GO();
   JR_DISPATCH_THIS_GO(go_val);
@@ -806,10 +1228,12 @@ l_col:
   JR_DISPATCH_NEXT();
 
 l_arr_sep_comma:
+  state->after_comma = 1;
   go = go_arr; /* comma consumed - back to expecting a value for the next element */
   JR_DISPATCH_NEXT();
 
 l_obj_sep_comma:
+  state->after_comma = 1;
   go = go_obj; /* comma consumed - back to expecting a key for the next member */
   JR_DISPATCH_NEXT();
 
@@ -841,6 +1265,20 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
   if(state->done)
     return;
 
+  if(state->in_number && !(state->flags & JR_LEGACY) && !state->num_ok) {
+    /* "-", "1e", "0x", "Infini": the input ends inside a number */
+    jr_str_t data = {0, 0};
+
+    state->err_code = state->kw_active ? JR_E_INVALID_LITERAL : JR_E_UNEXPECTED_END;
+    state->err_pos = state->kw_active ? state->tok : state->pos;
+    state->err_len = state->kw_active ? state->pos.byte_offset - state->tok.byte_offset : 0;
+    state->in_number = 0;
+    state->accumulating = 0;
+    cb(jr_type_error, &data, user_data);
+    state->error = 1;
+    return;
+  }
+
   if(state->in_number) {
     jr_str_t data = {state->accum, (int32_t)state->accum_len};
 
@@ -848,8 +1286,34 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     state->in_number = 0;
     state->accumulating = 0;
 
-    if(!vector_empty(&state->go_stack))
+    if(!vector_empty(&state->go_stack)) {
       state->go = jr_pop(state);
+
+      if(vector_empty(&state->go_stack))
+        state->roots++; /* the number was the whole document */
+    }
+  }
+
+  if(state->cmt == 3 || state->cmt == 1) {
+    jr_str_t data = {0, 0};
+
+    state->err_code = JR_E_UNEXPECTED_END;
+    state->err_pos = state->pos;
+    state->err_len = 0;
+    cb(jr_type_error, &data, user_data);
+    state->error = 1;
+    return;
+  }
+
+  if(!(state->flags & (JR_MULTI | JR_LEGACY)) && state->roots == 0 && vector_empty(&state->go_stack) && !state->accumulating && !state->error) {
+    jr_str_t data = {0, 0};
+
+    state->err_code = JR_E_UNEXPECTED_END;
+    state->err_pos = state->pos;
+    state->err_len = 0;
+    cb(jr_type_error, &data, user_data);
+    state->error = 1;
+    return;
   }
 
   if(!vector_empty(&state->go_stack) || state->accumulating) {

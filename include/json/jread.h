@@ -41,9 +41,52 @@ typedef enum jr_error {
   JR_E_INVALID_LITERAL,
   JR_E_UNEXPECTED_END,
   JR_E_OUT_OF_MEMORY,
+  JR_E_TRAILING_DATA,
 } jr_error_t;
 
 const char* jr_error_name(jr_error_t code);
+
+/* jr_flags: which syntax jr_read() accepts; set with jr_state_init_flags().
+ *
+ * ```c
+ * jr_state_init_flags(&st, JR_JSON5);
+ * ```
+ *
+ *   flag                 accepts
+ *   JR_COMMENTS          `// line` and `/* block *` `/` comments wherever whitespace is
+ *   JR_TRAILING_COMMAS   `[1,]` and `{"a":1,}`
+ *   JR_SINGLE_QUOTES     'strings' and 'keys'
+ *   JR_UNQUOTED_KEYS     {key: 1}, ASCII identifiers (`$`, `_`) and UTF-8 letters
+ *   JR_JSON5_NUMBERS     +1  .5  1.  0x1F  Infinity  -Infinity  NaN
+ *   JR_JSON5_STRINGS     \' \v \0 \xHH \<any char>, `\` + newline, raw control characters,
+ *                        \v and \f as whitespace
+ *   JR_MULTI             several documents, one after another (NDJSON, JSON Lines)
+ *   JR_LEGACY            the historic lax reader: comments and stray or trailing commas,
+ *                        `01`, `1.`, `1.2.3`, several documents; the default of jr_state_init()
+ *
+ * Without JR_LEGACY the reader is strict: one document, commas exactly between items,
+ * numbers as in RFC 8259, trailing data is JR_E_TRAILING_DATA, empty input JR_E_UNEXPECTED_END.
+ *
+ *   preset        flags
+ *   JR_JSON       none: RFC 8259 / JSON.parse
+ *   JR_JSONC      JR_COMMENTS | JR_TRAILING_COMMAS (Bun's JSONC, VS Code)
+ *   JR_JSON5      everything above except JR_MULTI and JR_LEGACY
+ *   JR_JSONL      JR_MULTI: strict values, one or more documents */
+enum {
+  JR_COMMENTS = 1,
+  JR_TRAILING_COMMAS = 2,
+  JR_SINGLE_QUOTES = 4,
+  JR_UNQUOTED_KEYS = 8,
+  JR_JSON5_NUMBERS = 16,
+  JR_JSON5_STRINGS = 32,
+  JR_MULTI = 64,
+  JR_LEGACY = 128,
+};
+
+#define JR_JSON 0
+#define JR_JSONC (JR_COMMENTS | JR_TRAILING_COMMAS)
+#define JR_JSON5 (JR_COMMENTS | JR_TRAILING_COMMAS | JR_SINGLE_QUOTES | JR_UNQUOTED_KEYS | JR_JSON5_NUMBERS | JR_JSON5_STRINGS)
+#define JR_JSONL JR_MULTI
 
 typedef struct jr_str {
   const char* cstr;
@@ -72,18 +115,27 @@ typedef struct jr_state {
   char* accum;
   size_t accum_len;
   size_t accum_cap;
-  int accumulating;
-  int in_number;         /* mid-number at the last pause: unlike other tokens, a number has no
+  unsigned accumulating : 1;
+  unsigned in_number : 1; /* mid-number at the last pause: unlike other tokens, a number has no
                             unambiguous terminator character, so only end-of-input (jr_finish())
                             can close it out */
-  int literal_active;    /* mid null/true/false at the last pause - see jr_read()'s l_err */
+  unsigned literal_active : 1; /* mid null/true/false at the last pause - see jr_read()'s l_err */
   uint32_t unicode_val;  /* \uXXXX hex digits decoded so far, mid-escape */
   int unicode_count;     /* how many of the 4 hex digits have been read */
   uint32_t surrogate_hi; /* a buffered UTF-16 high surrogate, waiting for its low half */
-  int done;
-  int error;      /* sticky: "this stream had a parse error at some point" (jr_finish()/
+  unsigned flags;        /* JR_* syntax flags */
+  int unicode_need;      /* hex digits the current escape takes: 4 for \u, 2 for \x */
+  unsigned after_comma : 1; /* a comma was read and no item has started since */
+  int roots;             /* documents completed so far */
+  unsigned num_ok : 1;   /* the number read so far is a complete one */
+  unsigned kw_active : 1; /* mid Infinity / NaN */
+  const char* kw;        /* the keyword being matched, and how far */
+  int kw_pos;
+  int cmt;               /* inside a comment: 1 after `/`, 2 `//` line, 3 block */
+  unsigned done : 1;
+  unsigned error : 1; /* sticky: "this stream had a parse error at some point" (jr_finish()/
                      close() reporting only) - no longer blocks jr_read() from resyncing */
-  int just_erred; /* reset at the top of every jr_read() call; set if *this* call hit an
+  unsigned just_erred : 1; /* reset at the top of every jr_read() call; set if *this* call hit an
                      error - lets a caller throw once per bad span instead of on every
                      future call to an already-resynced parser */
   /* position: `pos` counts every byte fed so far; `tok` is where the token being
@@ -99,6 +151,7 @@ typedef struct jr_state {
 } jr_state_t;
 
 void jr_state_init(jr_state_t* state);
+void jr_state_init_flags(jr_state_t* state, unsigned flags);
 void jr_state_free(jr_state_t* state);
 
 /*
