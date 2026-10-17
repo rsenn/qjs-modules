@@ -2127,6 +2127,130 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
+static JSValue
+js_misc_noop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_UNDEFINED;
+}
+
+/* js_std_await() on `promise`, with a rejection counted as handled.
+ *
+ * refcount: takes the caller's reference to `promise`.
+ * returns the fulfilled value, or JS_EXCEPTION with the reason pending. */
+static JSValue
+js_promise_await_sync(JSContext* ctx, JSValue promise) {
+  if(JS_PromiseState(ctx, promise) >= 0) {
+    JSAtom atom = JS_NewAtom(ctx, "catch");
+    JSValue noop = JS_NewCFunction(ctx, js_misc_noop, "", 0);
+
+    JS_FreeValue(ctx, JS_Invoke(ctx, promise, atom, 1, (JSValueConst*)&noop));
+    JS_FreeValue(ctx, noop);
+    JS_FreeAtom(ctx, atom);
+  }
+
+  return js_std_await(ctx, promise);
+}
+
+/* races `promise` against a setTimeout() of `ms` that rejects it.
+ *
+ * refcount: takes the caller's reference to `promise`.
+ * returns the racing promise, or JS_EXCEPTION with an exception pending. */
+static JSValue
+js_promise_timeout(JSContext* ctx, JSValue promise, double ms) {
+  static const char src[] = "(p, ms) => { let t; return Promise.race([p, new Promise((_, j) => t = "
+                            "setTimeout(() => j(new Error('awaitSync: timed out')), ms))])"
+                            ".finally(() => clearTimeout(t)); }";
+  JSValue fn = JS_Eval(ctx, src, sizeof(src) - 1, "<awaitSync>", JS_EVAL_TYPE_GLOBAL), args[2], ret;
+
+  if(JS_IsException(fn)) {
+    JS_FreeValue(ctx, promise);
+    return fn;
+  }
+
+  args[0] = promise;
+  args[1] = JS_NewFloat64(ctx, ms);
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 2, args);
+  JS_FreeValue(ctx, fn);
+  JS_FreeValue(ctx, promise);
+  return ret;
+}
+
+/* awaitSync: waits synchronously for a promise, running jobs and the event loop.
+ *
+ * ```js
+ * const value = awaitSync(fetchSomething());   // value, or throws the reason
+ * const value = awaitSync(promise, 1000);      // throws after 1000 ms
+ * ```
+ *
+ *   any     promise  a Promise; any other value is returned unchanged
+ *   number  timeout  milliseconds to wait, default none
+ *
+ *   returns  the fulfilled value
+ *   throws   the rejection reason; Error("awaitSync: timed out") on timeout
+ *
+ * without `timeout` it does not return while the promise stays pending and
+ * the loop is idle; nests the event loop when called from a job or callback.
+ * wired in with JS_CFUNC_DEF("awaitSync", ...). */
+static JSValue
+js_misc_await_sync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue promise = JS_DupValue(ctx, argc > 0 ? argv[0] : JS_UNDEFINED);
+
+  if(argc > 1 && !JS_IsUndefined(argv[1]) && JS_PromiseState(ctx, promise) == JS_PROMISE_PENDING) {
+    double ms;
+
+    if(JS_ToFloat64(ctx, &ms, argv[1])) {
+      JS_FreeValue(ctx, promise);
+      return JS_EXCEPTION;
+    }
+
+    if(JS_IsException((promise = js_promise_timeout(ctx, promise, ms))))
+      return promise;
+  }
+
+  return js_promise_await_sync(ctx, promise);
+}
+
+/* importSync: loads an ES module and returns its namespace synchronously.
+ *
+ * ```js
+ * const { a } = importSync('./m.mjs');
+ * const ns = importSync('./m.mjs', import.meta.url);  // relative to base
+ * ```
+ *
+ *   string  specifier  module name, as in `import()`
+ *   string  base       name the specifier is resolved against, default "."
+ *
+ *   returns  the module namespace object
+ *   throws   the load, link or evaluation error; see awaitSync for hangs
+ *
+ * wired in with JS_CFUNC_DEF("importSync", ...). */
+static JSValue
+js_misc_import_sync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char *spec, *base = ".";
+  JSValue promise;
+
+  if(argc < 1)
+    return JS_ThrowTypeError(ctx, "importSync: module specifier expected");
+
+  if(!(spec = JS_ToCString(ctx, argv[0])))
+    return JS_EXCEPTION;
+
+  if(argc > 1 && !JS_IsUndefined(argv[1]) && !(base = JS_ToCString(ctx, argv[1]))) {
+    JS_FreeCString(ctx, spec);
+    return JS_EXCEPTION;
+  }
+
+  promise = JS_LoadModule(ctx, base, spec);
+
+  JS_FreeCString(ctx, spec);
+  if(argc > 1 && !JS_IsUndefined(argv[1]))
+    JS_FreeCString(ctx, base);
+
+  if(JS_IsException(promise))
+    return promise;
+
+  return js_promise_await_sync(ctx, promise);
+}
+
 enum {
   PROMISE_STATE = 0,
   PROMISE_RESULT,
@@ -3847,6 +3971,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
+    JS_CFUNC_DEF("awaitSync", 1, js_misc_await_sync),
+    JS_CFUNC_DEF("importSync", 1, js_misc_import_sync),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slicearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),

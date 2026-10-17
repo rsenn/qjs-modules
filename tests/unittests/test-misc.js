@@ -1,5 +1,7 @@
 import * as misc from 'misc';
 import * as os from 'os';
+import * as fs from 'fs';
+import process from 'process';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const TMP = '.tmp/test-misc';
@@ -459,5 +461,54 @@ tests({
     assert(typeof misc.O_RDONLY === 'number');
     assert(typeof misc.F_OK === 'number');
     assert(typeof misc.GLOB_NOSORT === 'number');
+  },
+
+  /* ---- awaitSync / importSync ---- */
+
+  'awaitSync returns a value, a fulfilled promise result and a timer result'() {
+    eq(misc.awaitSync(5), 5);
+    eq(misc.awaitSync(Promise.resolve(7)), 7);
+    eq(misc.awaitSync(new Promise(r => setTimeout(() => r('t'), 10))), 't');
+  },
+
+  'awaitSync throws on timeout and returns early when settled in time'() {
+    let err;
+    try {
+      misc.awaitSync(new Promise(() => {}), 20);
+    } catch(e) {
+      err = e;
+    }
+    eq(err && err.message, 'awaitSync: timed out');
+    eq(misc.awaitSync(new Promise(r => setTimeout(() => r('ok'), 10)), 1000), 'ok');
+  },
+
+  'awaitSync throws the rejection reason'() {
+    let err;
+    try {
+      misc.awaitSync(Promise.reject(new Error('rej')));
+    } catch(e) {
+      err = e;
+    }
+    eq(err && err.message, 'rej');
+  },
+
+  'importSync returns the namespace, also for top-level await'() {
+    ensureDir();
+    const path = `${process.cwd()}/${TMP}/importsync.mjs`;
+    fs.writeFileSync(path, 'await 0; export const a = 1; export default 2;');
+    const ns = misc.importSync(path);
+    eq(ns.a, 1);
+    eq(ns.default, 2);
+    removeQuiet(path);
+  },
+
+  'importSync throws for a missing module'() {
+    let err;
+    try {
+      misc.importSync('/nonexistent/x.mjs');
+    } catch(e) {
+      err = e;
+    }
+    assert(err instanceof Error);
   },
 });

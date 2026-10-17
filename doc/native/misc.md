@@ -73,6 +73,8 @@ below by theme.
 | --- | --- | --- |
 | `toString(buf)` | 1 | Bytes → string. |
 | `toArrayBuffer(value)` | 1 | Coerce to an `ArrayBuffer`. |
+| `awaitSync(promise, timeout?)` | 1 | Wait synchronously for a promise, running jobs and the event loop; returns the value or throws the reason. Non-promises pass through. With `timeout` (ms) throws `Error('awaitSync: timed out')`; without it never returns for a promise that cannot settle. |
+| `importSync(specifier, base?)` | 1 | Load an ES module synchronously and return its namespace; works with top-level await. |
 | `dupArrayBuffer` / `sliceArrayBuffer` / `concatArrayBuffer` | 1 | Copy / slice / concatenate buffers. |
 | `searchArrayBuffer(haystack, needle)` | 2 | Find a byte pattern. |
 | `copyArrayBuffer` / `compareArrayBuffer` | 2 | Copy into / compare buffers. |
