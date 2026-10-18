@@ -13,8 +13,8 @@ Module._readPackage: get/set
 Module._resolveFilename()
 Module._resolveLookupPaths()
 Module._stat: get/set
-Module.buildInfo: object = {"qjsm":{"version":"0.9","commit":"ecdf0ca7e473","dirty":...
-Module.builtinModules: object = ["abort","arraybuffer_sink","assert","assertStrict","bcry...
+Module.buildInfo: object = {"qjsm":{"version":"0.9","commit":"66adbcea53f3","dirty":...
+Module.builtinModules: object = ["abort","assert","assertStrict","bcrypt","bjson","blob",...
 Module.builtins()
 Module.bytecode()
 Module.constants: object = {"compileCacheStatus":{"FAILED":0,"ENABLED":1,"ALREADY_EN...
@@ -53,39 +53,39 @@ SourceMap.prototype.payload: get
 _extensions.'.js'()
 _extensions.'.json'()
 _extensions.'.node'()
-buildInfo.buildType: string = "Debug"
-buildInfo.builtin: object = {"native":["arraybuffer_sink","bcrypt","bjson","blob","ch...
+buildInfo.buildType: string = ""
+buildInfo.builtin: object = {"native":["bcrypt","bjson","blob","child_process","deep"...
 buildInfo.bytecode: number = 5
 buildInfo.compiler: string = "GNU 16.0.1"
 buildInfo.layout: object = {"prefix":"/usr/local","native":"lib/x86_64-linux-gnu/qui...
 buildInfo.qjsc: object = {"version":"2026-06-04","path":"/usr/local/bin/qjsc"}
-buildInfo.qjsm: object = {"version":"0.9","commit":"ecdf0ca7e473","dirty":true,"da...
+buildInfo.qjsm: object = {"version":"0.9","commit":"66adbcea53f3","dirty":true,"da...
 buildInfo.quickjs: object = {"version":"2026-06-04"}
 buildInfo.target: string = "x86_64-linux-gnu"
 builtinModules.'0': string = "abort"
-builtinModules.'1': string = "arraybuffer_sink"
-builtinModules.'10': string = "console"
-builtinModules.'11': string = "deep"
-builtinModules.'12': string = "directory"
-builtinModules.'13': string = "events"
-builtinModules.'14': string = "fs"
-builtinModules.'15': string = "fs/promises"
-builtinModules.'16': string = "globals"
-builtinModules.'17': string = "inspect"
-builtinModules.'18': string = "io"
-builtinModules.'19': string = "iterator"
-builtinModules.'2': string = "assert"
-builtinModules.'20': string = "json"
-builtinModules.'21': string = "lexer"
-builtinModules.'22': string = "location"
-builtinModules.'23': string = "misc"
-builtinModules.'24': string = "mmap"
-builtinModules.'25': string = "module"
-builtinModules.'26': string = "nodeHooks"
+builtinModules.'1': string = "assert"
+builtinModules.'10': string = "directory"
+builtinModules.'11': string = "events"
+builtinModules.'12': string = "fs"
+builtinModules.'13': string = "fs/promises"
+builtinModules.'14': string = "globals"
+builtinModules.'15': string = "inspect"
+builtinModules.'16': string = "io"
+builtinModules.'17': string = "iterator"
+builtinModules.'18': string = "json"
+builtinModules.'19': string = "loaders_commonjs"
+builtinModules.'2': string = "assertStrict"
+builtinModules.'20': string = "loaders_node"
+builtinModules.'21': string = "loaders_package-aliases"
+builtinModules.'22': string = "loaders_typescript"
+builtinModules.'23': string = "location"
+builtinModules.'24': string = "misc"
+builtinModules.'25': string = "mmap"
+builtinModules.'26': string = "module"
 builtinModules.'27': string = "node_buffer"
 builtinModules.'28': string = "node_child_process"
 builtinModules.'29': string = "node_events"
-builtinModules.'3': string = "assertStrict"
+builtinModules.'3': string = "bcrypt"
 builtinModules.'30': string = "node_util"
 builtinModules.'31': string = "os"
 builtinModules.'32': string = "password"
@@ -96,7 +96,7 @@ builtinModules.'36': string = "predicate"
 builtinModules.'37': string = "process"
 builtinModules.'38': string = "readline"
 builtinModules.'39': string = "readline/promises"
-builtinModules.'4': string = "bcrypt"
+builtinModules.'4': string = "bjson"
 builtinModules.'40': string = "repl"
 builtinModules.'41': string = "require"
 builtinModules.'42': string = "simple-queue"
@@ -107,23 +107,22 @@ builtinModules.'46': string = "stream"
 builtinModules.'47': string = "streams"
 builtinModules.'48': string = "syscallerror"
 builtinModules.'49': string = "terminal"
-builtinModules.'5': string = "bjson"
+builtinModules.'5': string = "blob"
 builtinModules.'50': string = "textcode"
 builtinModules.'51': string = "timers"
 builtinModules.'52': string = "timers/promises"
 builtinModules.'53': string = "tty"
-builtinModules.'54': string = "typescript"
-builtinModules.'55': string = "url"
-builtinModules.'56': string = "util"
-builtinModules.'57': string = "vfs"
-builtinModules.'58': string = "wasm"
-builtinModules.'59': string = "webassembly"
-builtinModules.'6': string = "blob"
-builtinModules.'60': string = "xml"
-builtinModules.'7': string = "bun"
-builtinModules.'8': string = "child_process"
-builtinModules.'9': string = "commonjs"
-builtinModules.length: number = 61
+builtinModules.'54': string = "url"
+builtinModules.'55': string = "util"
+builtinModules.'56': string = "vfs"
+builtinModules.'57': string = "wasm"
+builtinModules.'58': string = "webassembly"
+builtinModules.'59': string = "xml"
+builtinModules.'6': string = "bun"
+builtinModules.'7': string = "child_process"
+builtinModules.'8': string = "console"
+builtinModules.'9': string = "deep"
+builtinModules.length: number = 60
 class Module
 class SourceMap
 class default
@@ -143,8 +142,8 @@ default._readPackage: get/set
 default._resolveFilename()
 default._resolveLookupPaths()
 default._stat: get/set
-default.buildInfo: object = {"qjsm":{"version":"0.9","commit":"ecdf0ca7e473","dirty":...
-default.builtinModules: object = ["abort","arraybuffer_sink","assert","assertStrict","bcry...
+default.buildInfo: object = {"qjsm":{"version":"0.9","commit":"66adbcea53f3","dirty":...
+default.builtinModules: object = ["abort","assert","assertStrict","bcrypt","bjson","blob",...
 default.builtins()
 default.bytecode()
 default.constants: object = {"compileCacheStatus":{"FAILED":0,"ENABLED":1,"ALREADY_EN...
@@ -205,7 +204,7 @@ function syncBuiltinESMExports()
 function verify()
 globalPaths.'0': string = "/home/roman/.node_libraries"
 globalPaths.'1': string = "/home/roman/.node_modules"
-globalPaths.'2': string = "/usr/local/lib/node"
+globalPaths.'2': string = "/home/roman/Sources/quickjs/qjs-modules/build/lib/node"
 globalPaths.length: number = 3
 object _cache
 object _extensions

@@ -1,4 +1,4 @@
-argv.'0': string = "/usr/local/bin/qjsm"
+argv.'0': string = "/home/roman/Sources/quickjs/qjs-modules/build/x86_64-lin...
 argv.'1': string = "/home/roman/Sources/quickjs/qjs-modules/lib/describe.js"
 argv.'2': string = "--flat"
 argv.'3': string = "process"
@@ -10,8 +10,8 @@ default.abort()
 default.addUncaughtExceptionCaptureCallback()
 default.allowedNodeEnvironmentFlags: object = {}
 default.arch: string = "x64"
-default.argv0: string = "/usr/local/bin/qjsm"
-default.argv: object = ["/usr/local/bin/qjsm","/home/roman/Sources/quickjs/qjs-m...
+default.argv0: string = "/home/roman/Sources/quickjs/qjs-modules/build/x86_64-lin...
+default.argv: object = ["/home/roman/Sources/quickjs/qjs-modules/build/x86_64-li...
 default.assert()
 default.availableMemory()
 default.binding()
@@ -28,7 +28,7 @@ default.emitWarning()
 default.env: object = {"PYENV_VIRTUALENV_INIT":"1","GJS_DEBUG_TOPICS":"JS ERROR...
 default.euid: get/set
 default.execArgv: object = []
-default.execPath: string = "/usr/local/bin/qjsm"
+default.execPath: string = "/home/roman/Sources/quickjs/qjs-modules/build/x86_64-lin...
 default.execve()
 default.exit()
 default.exitCode: get/set
@@ -140,23 +140,21 @@ env.PYENV_VIRTUALENV_INIT: string = "1"
 env.QT_ACCESSIBILITY: string = "1"
 env.QT_AUTO_SCREEN_SCALE_FACTOR: string = "0"
 env.QT_IM_MODULE: string = "ibus"
-env.QUICKJS_MODULE_PATH: string = ""
+env.QUICKJS_MODULE_PATH: string = "/home/roman/Sources/quickjs/qjs-modules/build/x86_64-lin...
 env.SERP_API_KEY: string = "9112109912bccedbbe88e8102e03295703442747d759b353638d87af...
 env.SESSION_MANAGER: string = "local/gniltag:@/tmp/.ICE-unix/2206,unix/gniltag:/tmp/.IC...
 env.SHELL: string = "/bin/bash"
 env.SHLVL: string = "2"
-env.SSH_AUTH_SOCK: string = "/run/user/1000/keyring/ssh"
+env.SSH_CONNECTION: string = "194.230.147.78 23493 192.168.178.52 22"
 env.TERM: string = "xterm-256color"
 env.TERM_PROGRAM: string = "tmux"
 env.TERM_PROGRAM_VERSION: string = "3.4"
 env.TMUX: string = "/tmp/tmux-1000/default,1579753,0"
-env.TMUX_PANE: string = "%3"
+env.TMUX_PANE: string = "%10"
 env.USER: string = "roman"
 env.VISUAL: string = "vim"
 env.VTE_VERSION: string = "7600"
-env.WINDOWID: string = "77594627"
 env.WINEDEBUG: string = "-winediag,-ntlm,-msvcrt"
-env.XAUTHORITY: string = "/home/roman/.Xauthority"
 env.XDG_ACTIVATION_TOKEN: string = "cinnamon/Xfce Terminal/2636-0-gniltag_TIME20960"
 env.XDG_CONFIG_DIRS: string = "/etc/xdg/xdg-cinnamon:/etc/xdg"
 env.XDG_CURRENT_DESKTOP: string = "X-Cinnamon"
@@ -172,7 +170,7 @@ env.XDG_SESSION_PATH: string = "/org/freedesktop/DisplayManager/Session0"
 env.XDG_SESSION_TYPE: string = "x11"
 env.XDG_VTNR: string = "7"
 env.XMODIFIERS: string = "@im=ibus"
-env._: string = "./utilities/api-surface.sh"
+env._: string = "utilities/api-surface.sh"
 execArgv.length: number = 0
 features.cached_builtins: boolean = true
 features.debug: boolean = false
@@ -230,28 +228,29 @@ function threadCpuUsage()
 function umask()
 function unref()
 function uptime()
-moduleLoadList.'0': string = "NativeModule nodeHooks"
-moduleLoadList.'1': string = "NativeModule os"
-moduleLoadList.'10': string = "NativeModule node_events"
-moduleLoadList.'11': string = "NativeModule mmap"
-moduleLoadList.'12': string = "NativeModule syscallerror"
-moduleLoadList.'13': string = "NativeModule textcode"
-moduleLoadList.'14': string = "NativeModule directory"
-moduleLoadList.'15': string = "NativeModule fs"
-moduleLoadList.'16': string = "NativeModule stream"
-moduleLoadList.'17': string = "NativeModule util"
-moduleLoadList.'18': string = "NativeModule url"
-moduleLoadList.'19': string = "NativeModule bun"
-moduleLoadList.'2': string = "NativeModule path"
-moduleLoadList.'20': string = "NativeModule node_events"
-moduleLoadList.'3': string = "NativeModule misc"
-moduleLoadList.'4': string = "NativeModule std"
-moduleLoadList.'5': string = "NativeModule timers"
-moduleLoadList.'6': string = "NativeModule inspect"
-moduleLoadList.'7': string = "NativeModule util"
-moduleLoadList.'8': string = "NativeModule process"
-moduleLoadList.'9': string = "NativeModule blob"
-moduleLoadList.length: number = 21
+moduleLoadList.'0': string = "NativeModule loaders_node"
+moduleLoadList.'1': string = "NativeModule std"
+moduleLoadList.'10': string = "NativeModule blob"
+moduleLoadList.'11': string = "NativeModule node_events"
+moduleLoadList.'12': string = "NativeModule mmap"
+moduleLoadList.'13': string = "NativeModule syscallerror"
+moduleLoadList.'14': string = "NativeModule textcode"
+moduleLoadList.'15': string = "NativeModule directory"
+moduleLoadList.'16': string = "NativeModule fs"
+moduleLoadList.'17': string = "NativeModule stream"
+moduleLoadList.'18': string = "NativeModule util"
+moduleLoadList.'19': string = "NativeModule url"
+moduleLoadList.'2': string = "NativeModule loaders_package-aliases"
+moduleLoadList.'20': string = "NativeModule bun"
+moduleLoadList.'21': string = "NativeModule node_events"
+moduleLoadList.'3': string = "NativeModule os"
+moduleLoadList.'4': string = "NativeModule path"
+moduleLoadList.'5': string = "NativeModule misc"
+moduleLoadList.'6': string = "NativeModule timers"
+moduleLoadList.'7': string = "NativeModule inspect"
+moduleLoadList.'8': string = "NativeModule util"
+moduleLoadList.'9': string = "NativeModule process"
+moduleLoadList.length: number = 22
 object allowedNodeEnvironmentFlags
 object argv
 object config
@@ -298,15 +297,15 @@ stdout.hasColors()
 stdout.isTTY: get
 stdout.rows: get
 value arch: string = "x64"
-value argv0: string = "/usr/local/bin/qjsm"
+value argv0: string = "/home/roman/Sources/quickjs/qjs-modules/build/x86_64-lin...
 value debugPort: number = 9229
 value domain: null = null
-value execPath: string = "/usr/local/bin/qjsm"
+value execPath: string = "/home/roman/Sources/quickjs/qjs-modules/build/x86_64-lin...
 value exitCode: undefined = undefined
 value mainModule: undefined = undefined
-value pid: number = 609804
+value pid: number = 2098277
 value platform: string = "linux"
-value ppid: number = 609803
+value ppid: number = 2098276
 value sourceMapsEnabled: boolean = false
 value title: string = "qjsm"
 value version: string = "v2026-06-04"

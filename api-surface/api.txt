@@ -19,6 +19,153 @@ abort: default.constructor()
 abort: default.prototype.abort()
 abort: default.prototype.signal: object = null
 abort: default.prototype[Symbol.toStringTag]: string = "AbortController"
+archive: Archive.EOF: number = 1
+archive: Archive.EXTRACT_ACL: number = 32
+archive: Archive.EXTRACT_CLEAR_NOCHANGE_FFLAGS: number = 131072
+archive: Archive.EXTRACT_FFLAGS: number = 64
+archive: Archive.EXTRACT_HFS_COMPRESSION_FORCED: number = 32768
+archive: Archive.EXTRACT_MAC_METADATA: number = 8192
+archive: Archive.EXTRACT_NO_AUTODIR: number = 1024
+archive: Archive.EXTRACT_NO_HFS_COMPRESSION: number = 16384
+archive: Archive.EXTRACT_NO_OVERWRITE: number = 8
+archive: Archive.EXTRACT_NO_OVERWRITE_NEWER: number = 2048
+archive: Archive.EXTRACT_OWNER: number = 1
+archive: Archive.EXTRACT_PERM: number = 2
+archive: Archive.EXTRACT_SECURE_NOABSOLUTEPATHS: number = 65536
+archive: Archive.EXTRACT_SECURE_NODOTDOT: number = 512
+archive: Archive.EXTRACT_SECURE_SYMLINKS: number = 256
+archive: Archive.EXTRACT_SPARSE: number = 4096
+archive: Archive.EXTRACT_TIME: number = 4
+archive: Archive.EXTRACT_UNLINK: number = 16
+archive: Archive.EXTRACT_XATTR: number = 128
+archive: Archive.FAILED: number = -25
+archive: Archive.FATAL: number = -30
+archive: Archive.FILTER_BZIP2: number = 2
+archive: Archive.FILTER_COMPRESS: number = 3
+archive: Archive.FILTER_GRZIP: number = 12
+archive: Archive.FILTER_GZIP: number = 1
+archive: Archive.FILTER_LRZIP: number = 10
+archive: Archive.FILTER_LZ4: number = 13
+archive: Archive.FILTER_LZIP: number = 9
+archive: Archive.FILTER_LZMA: number = 5
+archive: Archive.FILTER_LZOP: number = 11
+archive: Archive.FILTER_NONE: number = 0
+archive: Archive.FILTER_PROGRAM: number = 4
+archive: Archive.FILTER_RPM: number = 8
+archive: Archive.FILTER_UU: number = 7
+archive: Archive.FILTER_XZ: number = 6
+archive: Archive.FILTER_ZSTD: number = 14
+archive: Archive.FORMAT_7ZIP: number = 917504
+archive: Archive.FORMAT_AR: number = 458752
+archive: Archive.FORMAT_AR_BSD: number = 458754
+archive: Archive.FORMAT_AR_GNU: number = 458753
+archive: Archive.FORMAT_BASE_MASK: number = 16711680
+archive: Archive.FORMAT_CAB: number = 786432
+archive: Archive.FORMAT_CPIO: number = 65536
+archive: Archive.FORMAT_CPIO_AFIO_LARGE: number = 65542
+archive: Archive.FORMAT_CPIO_BIN_BE: number = 65539
+archive: Archive.FORMAT_CPIO_BIN_LE: number = 65538
+archive: Archive.FORMAT_CPIO_POSIX: number = 65537
+archive: Archive.FORMAT_CPIO_SVR4_CRC: number = 65541
+archive: Archive.FORMAT_CPIO_SVR4_NOCRC: number = 65540
+archive: Archive.FORMAT_EMPTY: number = 393216
+archive: Archive.FORMAT_ISO9660: number = 262144
+archive: Archive.FORMAT_ISO9660_ROCKRIDGE: number = 262145
+archive: Archive.FORMAT_LHA: number = 720896
+archive: Archive.FORMAT_MTREE: number = 524288
+archive: Archive.FORMAT_RAR: number = 851968
+archive: Archive.FORMAT_RAR_V5: number = 1048576
+archive: Archive.FORMAT_RAW: number = 589824
+archive: Archive.FORMAT_SHAR: number = 131072
+archive: Archive.FORMAT_SHAR_BASE: number = 131073
+archive: Archive.FORMAT_SHAR_DUMP: number = 131074
+archive: Archive.FORMAT_TAR: number = 196608
+archive: Archive.FORMAT_TAR_GNUTAR: number = 196612
+archive: Archive.FORMAT_TAR_PAX_INTERCHANGE: number = 196610
+archive: Archive.FORMAT_TAR_PAX_RESTRICTED: number = 196611
+archive: Archive.FORMAT_TAR_USTAR: number = 196609
+archive: Archive.FORMAT_WARC: number = 983040
+archive: Archive.FORMAT_XAR: number = 655360
+archive: Archive.FORMAT_ZIP: number = 327680
+archive: Archive.OK: number = 0
+archive: Archive.READ: number = 0
+archive: Archive.READ_FORMAT_CAPS_ENCRYPT_DATA: number = 1
+archive: Archive.READ_FORMAT_CAPS_ENCRYPT_METADATA: number = 2
+archive: Archive.READ_FORMAT_CAPS_NONE: number = 0
+archive: Archive.READ_FORMAT_ENCRYPTION_DONT_KNOW: number = -1
+archive: Archive.READ_FORMAT_ENCRYPTION_UNSUPPORTED: number = -2
+archive: Archive.RETRY: number = -10
+archive: Archive.SEEK_CUR: number = 1
+archive: Archive.SEEK_END: number = 2
+archive: Archive.SEEK_SET: number = 0
+archive: Archive.WARN: number = -20
+archive: Archive.WRITE: number = 1
+archive: Archive.constructor()
+archive: Archive.prototype.READ: number = 0
+archive: Archive.prototype.WRITE: number = 1
+archive: Archive.prototype.blockSize: get/set
+archive: Archive.prototype.close()
+archive: Archive.prototype.compression: get
+archive: Archive.prototype.errno: get
+archive: Archive.prototype.error: get
+archive: Archive.prototype.extract()
+archive: Archive.prototype.fileCount: get
+archive: Archive.prototype.filterBytes()
+archive: Archive.prototype.filters: get
+archive: Archive.prototype.format: get/set
+archive: Archive.prototype.hasEncryptedEntries: get
+archive: Archive.prototype.next()
+archive: Archive.prototype.open()
+archive: Archive.prototype.position: get
+archive: Archive.prototype.read()
+archive: Archive.prototype.readHeaderPosition: get
+archive: Archive.prototype.seek()
+archive: Archive.prototype.skip()
+archive: Archive.prototype.write()
+archive: Archive.prototype[Symbol.iterator]()
+archive: Archive.prototype[Symbol.toStringTag]: string = "Archive"
+archive: Archive.read()
+archive: Archive.version: get
+archive: Archive.write()
+archive: ArchiveEntry.constructor()
+archive: ArchiveEntry.prototype.atime: get/set
+archive: ArchiveEntry.prototype.birthtime: get/set
+archive: ArchiveEntry.prototype.clone()
+archive: ArchiveEntry.prototype.ctime: get/set
+archive: ArchiveEntry.prototype.dev: get/set
+archive: ArchiveEntry.prototype.devmajor: get/set
+archive: ArchiveEntry.prototype.devminor: get/set
+archive: ArchiveEntry.prototype.fflags: get/set
+archive: ArchiveEntry.prototype.filetype: get/set
+archive: ArchiveEntry.prototype.gid: get/set
+archive: ArchiveEntry.prototype.gname: get/set
+archive: ArchiveEntry.prototype.hardlink: get/set
+archive: ArchiveEntry.prototype.ino: get/set
+archive: ArchiveEntry.prototype.isDataEncrypted: get/set
+archive: ArchiveEntry.prototype.isEncrypted: get/set
+archive: ArchiveEntry.prototype.isMetadataEncrypted: get/set
+archive: ArchiveEntry.prototype.link: get/set
+archive: ArchiveEntry.prototype.mode: get/set
+archive: ArchiveEntry.prototype.mtime: get/set
+archive: ArchiveEntry.prototype.nlink: get/set
+archive: ArchiveEntry.prototype.pathname: get/set
+archive: ArchiveEntry.prototype.perm: get/set
+archive: ArchiveEntry.prototype.rdev: get/set
+archive: ArchiveEntry.prototype.rdevmajor: get/set
+archive: ArchiveEntry.prototype.rdevminor: get/set
+archive: ArchiveEntry.prototype.size: get/set
+archive: ArchiveEntry.prototype.symlink: get/set
+archive: ArchiveEntry.prototype.type: get/set
+archive: ArchiveEntry.prototype.uid: get/set
+archive: ArchiveEntry.prototype.uname: get/set
+archive: ArchiveEntry.prototype[Symbol.toStringTag]: string = "ArchiveEntry"
+archive: ArchiveMatch.constructor()
+archive: ArchiveMatch.prototype.exclude()
+archive: ArchiveMatch.prototype.include()
+archive: ArchiveMatch.prototype[Symbol.toStringTag]: string = "ArchiveMatch"
+archive: class Archive
+archive: class ArchiveEntry
+archive: class ArchiveMatch
 arraybuffer_sink: ArrayBufferSink.constructor()
 arraybuffer_sink: ArrayBufferSink.prototype.end()
 arraybuffer_sink: ArrayBufferSink.prototype.flush()
@@ -280,8 +427,6 @@ child_process: value SIGXFSZ: number = 25
 child_process: value WNOHANG: number = 1
 child_process: value WNOWAIT: number = 16777216
 child_process: value WUNTRACED: number = 2
-commonjs: function default()
-commonjs: function installCommonJS()
 console: Console.constructor()
 console: Console.prototype.config()
 console: Console.prototype.time()
@@ -1057,41 +1202,59 @@ iterator: default.prototype.toArray()
 iterator: default.prototype[Symbol.iterator]()
 iterator: default.prototype[Symbol.toStringTag]: string = "Iterator"
 iterator: object IteratorPrototype
-json: JSONL.parse()
-json: JSONL.parseChunk()
-json: JsonParser.ARRAY: number = 2
-json: JsonParser.ARRAY_END: number = 3
-json: JsonParser.COMMENT: number = 10
-json: JsonParser.FALSE: number = 7
-json: JsonParser.KEY: number = 4
+json: JsonBuilder.constructor()
+json: JsonBuilder.prototype.arrayEnd()
+json: JsonBuilder.prototype.arrayStart()
+json: JsonBuilder.prototype.comment()
+json: JsonBuilder.prototype.error()
+json: JsonBuilder.prototype.false()
+json: JsonBuilder.prototype.key()
+json: JsonBuilder.prototype.null()
+json: JsonBuilder.prototype.number()
+json: JsonBuilder.prototype.objectEnd()
+json: JsonBuilder.prototype.objectStart()
+json: JsonBuilder.prototype.path: get
+json: JsonBuilder.prototype.raw()
+json: JsonBuilder.prototype.root: get
+json: JsonBuilder.prototype.string()
+json: JsonBuilder.prototype.take()
+json: JsonBuilder.prototype.true()
+json: JsonBuilder.prototype[Symbol.for('qjs.jsonsink')]()
+json: JsonBuilder.prototype[Symbol.toStringTag]: string = "JsonBuilder"
+json: JsonParser.ARRAY: number = 6
+json: JsonParser.ARRAY_END: number = 7
+json: JsonParser.COMMENT: number = 11
+json: JsonParser.FALSE: number = 3
+json: JsonParser.KEY: number = 10
 json: JsonParser.NEED_DATA: number = -2
 json: JsonParser.NONE: number = -1
-json: JsonParser.NULL: number = 8
-json: JsonParser.NUMBER: number = 9
-json: JsonParser.OBJECT: number = 0
-json: JsonParser.OBJECT_END: number = 1
+json: JsonParser.NULL: number = 1
+json: JsonParser.NUMBER: number = 4
+json: JsonParser.OBJECT: number = 8
+json: JsonParser.OBJECT_END: number = 9
 json: JsonParser.STRING: number = 5
-json: JsonParser.TRUE: number = 6
+json: JsonParser.TRUE: number = 2
 json: JsonParser.constructor()
-json: JsonParser.prototype.ARRAY: number = 2
-json: JsonParser.prototype.ARRAY_END: number = 3
-json: JsonParser.prototype.COMMENT: number = 10
-json: JsonParser.prototype.FALSE: number = 7
-json: JsonParser.prototype.KEY: number = 4
+json: JsonParser.prototype.ARRAY: number = 6
+json: JsonParser.prototype.ARRAY_END: number = 7
+json: JsonParser.prototype.COMMENT: number = 11
+json: JsonParser.prototype.FALSE: number = 3
+json: JsonParser.prototype.KEY: number = 10
 json: JsonParser.prototype.NEED_DATA: number = -2
 json: JsonParser.prototype.NONE: number = -1
-json: JsonParser.prototype.NULL: number = 8
-json: JsonParser.prototype.NUMBER: number = 9
-json: JsonParser.prototype.OBJECT: number = 0
-json: JsonParser.prototype.OBJECT_END: number = 1
+json: JsonParser.prototype.NULL: number = 1
+json: JsonParser.prototype.NUMBER: number = 4
+json: JsonParser.prototype.OBJECT: number = 8
+json: JsonParser.prototype.OBJECT_END: number = 9
 json: JsonParser.prototype.STRING: number = 5
-json: JsonParser.prototype.TRUE: number = 6
+json: JsonParser.prototype.TRUE: number = 2
 json: JsonParser.prototype.comments: get/set
 json: JsonParser.prototype.depth: get
 json: JsonParser.prototype.location: get
 json: JsonParser.prototype.next()
 json: JsonParser.prototype.parse()
 json: JsonParser.prototype.pos: get
+json: JsonParser.prototype.pump()
 json: JsonParser.prototype.state: get
 json: JsonParser.prototype.token: get
 json: JsonParser.prototype[Symbol.iterator]()
@@ -1111,9 +1274,12 @@ json: JsonPushParser.prototype.TYPE_OBJECT_START: number = 8
 json: JsonPushParser.prototype.TYPE_STRING: number = 5
 json: JsonPushParser.prototype.TYPE_TRUE: number = 2
 json: JsonPushParser.prototype.close()
+json: JsonPushParser.prototype.connect()
+json: JsonPushParser.prototype.error: get
 json: JsonPushParser.prototype.location: get
 json: JsonPushParser.prototype.path: get
 json: JsonPushParser.prototype.root: get
+json: JsonPushParser.prototype.sink: get
 json: JsonPushParser.prototype.write()
 json: JsonPushParser.prototype[Symbol.toStringTag]: string = "JsonPushParser"
 json: JsonSerializer.constructor()
@@ -1132,21 +1298,31 @@ json: JsonSerializer.prototype[Symbol.toStringTag]: string = "JsonSerializer"
 json: JsonWriter.constructor()
 json: JsonWriter.prototype.arrayEnd()
 json: JsonWriter.prototype.arrayStart()
+json: JsonWriter.prototype.comment()
 json: JsonWriter.prototype.depth: get
+json: JsonWriter.prototype.error()
+json: JsonWriter.prototype.false()
 json: JsonWriter.prototype.key()
+json: JsonWriter.prototype.null()
+json: JsonWriter.prototype.number()
 json: JsonWriter.prototype.objectEnd()
 json: JsonWriter.prototype.objectStart()
+json: JsonWriter.prototype.raw()
 json: JsonWriter.prototype.stack: get
+json: JsonWriter.prototype.string()
+json: JsonWriter.prototype.true()
 json: JsonWriter.prototype.value()
 json: JsonWriter.prototype.written: get
+json: JsonWriter.prototype[Symbol.for('qjs.jsonsink')]()
 json: JsonWriter.prototype[Symbol.toStringTag]: string = "JsonWriter"
+json: class JsonBuilder
 json: class JsonParser
 json: class JsonPushParser
 json: class JsonSerializer
 json: class JsonWriter
 json: function read()
+json: function tee()
 json: function write()
-json: object JSONL
 lexer: Lexer.FIRST: number = 0
 lexer: Lexer.LAST: number = 1
 lexer: Lexer.LONGEST: number = 2
@@ -1234,6 +1410,72 @@ lexer: Token.prototype[Symbol.toStringTag]: string = "Token"
 lexer: class Lexer
 lexer: class Location
 lexer: class Token
+list: List.NORMAL: number = 0
+list: List.REVERSE: number = 1
+list: List.constructor()
+list: List.from()
+list: List.isList()
+list: List.of()
+list: List.prototype.address: get
+list: List.prototype.begin()
+list: List.prototype.clear()
+list: List.prototype.concat()
+list: List.prototype.copyWithin()
+list: List.prototype.end()
+list: List.prototype.entries()
+list: List.prototype.erase()
+list: List.prototype.fill()
+list: List.prototype.flat()
+list: List.prototype.flatMap()
+list: List.prototype.insert()
+list: List.prototype.insertBefore()
+list: List.prototype.join()
+list: List.prototype.keys()
+list: List.prototype.length: get
+list: List.prototype.merge()
+list: List.prototype.pop()
+list: List.prototype.push()
+list: List.prototype.rbegin()
+list: List.prototype.rend()
+list: List.prototype.reverse()
+list: List.prototype.rotate()
+list: List.prototype.shift()
+list: List.prototype.slice()
+list: List.prototype.sort()
+list: List.prototype.splice()
+list: List.prototype.toLocaleString()
+list: List.prototype.toString()
+list: List.prototype.unique()
+list: List.prototype.unshift()
+list: List.prototype.values()
+list: List.prototype[Symbol.iterator]()
+list: List.prototype[Symbol.toStringTag]: string = "List"
+list: ListIterator.constructor()
+list: ListIterator.prototype.container: get
+list: ListIterator.prototype.copy()
+list: ListIterator.prototype.equals()
+list: ListIterator.prototype.isAccessible()
+list: ListIterator.prototype.next()
+list: ListIterator.prototype.type: get
+list: ListIterator.prototype[Symbol.iterator]()
+list: ListIterator.prototype[Symbol.toStringTag]: string = "ListIterator"
+list: ListNode.constructor()
+list: ListNode.prototype.address: get
+list: ListNode.prototype.equals()
+list: ListNode.prototype.linked: get
+list: ListNode.prototype.next: get
+list: ListNode.prototype.prev: get
+list: ListNode.prototype.sentinel: get
+list: ListNode.prototype.value: get/set
+list: ListNode.prototype.valueOf()
+list: ListNode.prototype[Symbol.toStringTag]: string = "Node"
+list: class List
+list: class ListIterator
+list: class ListNode
+loaders_commonjs: function default()
+loaders_node: 
+loaders_package-aliases: 
+loaders_typescript: function default()
 location: Location.constructor()
 location: Location.count()
 location: Location.prototype.byteOffset: get
@@ -1249,6 +1491,64 @@ location: Location.prototype.toString()
 location: Location.prototype[Symbol.toPrimitive]()
 location: Location.prototype[Symbol.toStringTag]: string = "Location"
 location: class Location
+magic: Magic.APPLE: number = 2048
+magic: Magic.CHECK: number = 64
+magic: Magic.COMPRESS: number = 4
+magic: Magic.COMPRESS_TRANSP: number = 33554432
+magic: Magic.CONTINUE: number = 32
+magic: Magic.DEBUG: number = 1
+magic: Magic.DEFAULT_DB: string = "/usr/share/file/magic"
+magic: Magic.DEVICES: number = 8
+magic: Magic.ERROR: number = 512
+magic: Magic.EXTENSION: number = 16777216
+magic: Magic.MIME: number = 1040
+magic: Magic.MIME_ENCODING: number = 1024
+magic: Magic.MIME_TYPE: number = 16
+magic: Magic.NODESC: number = 16780304
+magic: Magic.NONE: number = 0
+magic: Magic.NO_CHECK_APPTYPE: number = 32768
+magic: Magic.NO_CHECK_ASCII: number = 131072
+magic: Magic.NO_CHECK_BUILTIN: number = 16756736
+magic: Magic.NO_CHECK_CDF: number = 262144
+magic: Magic.NO_CHECK_COMPRESS: number = 4096
+magic: Magic.NO_CHECK_CSV: number = 524288
+magic: Magic.NO_CHECK_ELF: number = 65536
+magic: Magic.NO_CHECK_ENCODING: number = 2097152
+magic: Magic.NO_CHECK_FORTRAN: number = 0
+magic: Magic.NO_CHECK_JSON: number = 4194304
+magic: Magic.NO_CHECK_SOFT: number = 16384
+magic: Magic.NO_CHECK_TAR: number = 8192
+magic: Magic.NO_CHECK_TEXT: number = 131072
+magic: Magic.NO_CHECK_TOKENS: number = 1048576
+magic: Magic.NO_CHECK_TROFF: number = 0
+magic: Magic.PARAM_BYTES_MAX: number = 6
+magic: Magic.PARAM_ELF_NOTES_MAX: number = 4
+magic: Magic.PARAM_ELF_PHNUM_MAX: number = 2
+magic: Magic.PARAM_ELF_SHNUM_MAX: number = 3
+magic: Magic.PARAM_INDIR_MAX: number = 0
+magic: Magic.PARAM_NAME_MAX: number = 1
+magic: Magic.PARAM_REGEX_MAX: number = 5
+magic: Magic.PRESERVE_ATIME: number = 128
+magic: Magic.RAW: number = 256
+magic: Magic.SYMLINK: number = 2
+magic: Magic.VERSION: number = 545
+magic: Magic.constructor()
+magic: Magic.prototype.buffer()
+magic: Magic.prototype.check()
+magic: Magic.prototype.compile()
+magic: Magic.prototype.descriptor()
+magic: Magic.prototype.errno: get
+magic: Magic.prototype.error: get
+magic: Magic.prototype.file()
+magic: Magic.prototype.getflags()
+magic: Magic.prototype.getparam()
+magic: Magic.prototype.list()
+magic: Magic.prototype.load()
+magic: Magic.prototype.setflags()
+magic: Magic.prototype.setparam()
+magic: Magic.prototype.version: get
+magic: Magic.prototype[Symbol.toStringTag]: string = "Magic"
+magic: class Magic
 misc: function _get_osfhandle()
 misc: function _open_osfhandle()
 misc: function access()
@@ -1259,6 +1559,7 @@ misc: function atob()
 misc: function atomToString()
 misc: function atomToValue()
 misc: function atos()
+misc: function awaitSync()
 misc: function bitfieldSet()
 misc: function bitfieldToArray()
 misc: function bits()
@@ -1318,11 +1619,11 @@ misc: function getgid()
 misc: function getpid()
 misc: function getppid()
 misc: function getsid()
-misc: function gettid()
 misc: function getuid()
 misc: function glob()
 misc: function hrtime()
 misc: function immutableClass()
+misc: function importSync()
 misc: function initgroups()
 misc: function isArray()
 misc: function isArrayBuffer()
@@ -1703,7 +2004,7 @@ module: Module._resolveFilename()
 module: Module._resolveLookupPaths()
 module: Module._stat: get/set
 module: Module.buildInfo: object
-module: Module.builtinModules: object = ["abort","arraybuffer_sink","assert","assertStrict","bcry...
+module: Module.builtinModules: object = ["abort","assert","assertStrict","bcrypt","bjson","blob",...
 module: Module.builtins()
 module: Module.bytecode()
 module: Module.constants: object = {"compileCacheStatus":{"FAILED":0,"ENABLED":1,"ALREADY_EN...
@@ -1752,29 +2053,29 @@ module: buildInfo.qjsm: object
 module: buildInfo.quickjs: object
 module: buildInfo.target: string
 module: builtinModules.'0': string = "abort"
-module: builtinModules.'1': string = "arraybuffer_sink"
-module: builtinModules.'10': string = "console"
-module: builtinModules.'11': string = "deep"
-module: builtinModules.'12': string = "directory"
-module: builtinModules.'13': string = "events"
-module: builtinModules.'14': string = "fs"
-module: builtinModules.'15': string = "fs/promises"
-module: builtinModules.'16': string = "globals"
-module: builtinModules.'17': string = "inspect"
-module: builtinModules.'18': string = "io"
-module: builtinModules.'19': string = "iterator"
-module: builtinModules.'2': string = "assert"
-module: builtinModules.'20': string = "json"
-module: builtinModules.'21': string = "lexer"
-module: builtinModules.'22': string = "location"
-module: builtinModules.'23': string = "misc"
-module: builtinModules.'24': string = "mmap"
-module: builtinModules.'25': string = "module"
-module: builtinModules.'26': string = "nodeHooks"
+module: builtinModules.'1': string = "assert"
+module: builtinModules.'10': string = "directory"
+module: builtinModules.'11': string = "events"
+module: builtinModules.'12': string = "fs"
+module: builtinModules.'13': string = "fs/promises"
+module: builtinModules.'14': string = "globals"
+module: builtinModules.'15': string = "inspect"
+module: builtinModules.'16': string = "io"
+module: builtinModules.'17': string = "iterator"
+module: builtinModules.'18': string = "json"
+module: builtinModules.'19': string = "loaders_commonjs"
+module: builtinModules.'2': string = "assertStrict"
+module: builtinModules.'20': string = "loaders_node"
+module: builtinModules.'21': string = "loaders_package-aliases"
+module: builtinModules.'22': string = "loaders_typescript"
+module: builtinModules.'23': string = "location"
+module: builtinModules.'24': string = "misc"
+module: builtinModules.'25': string = "mmap"
+module: builtinModules.'26': string = "module"
 module: builtinModules.'27': string = "node_buffer"
 module: builtinModules.'28': string = "node_child_process"
 module: builtinModules.'29': string = "node_events"
-module: builtinModules.'3': string = "assertStrict"
+module: builtinModules.'3': string = "bcrypt"
 module: builtinModules.'30': string = "node_util"
 module: builtinModules.'31': string = "os"
 module: builtinModules.'32': string = "password"
@@ -1785,7 +2086,7 @@ module: builtinModules.'36': string = "predicate"
 module: builtinModules.'37': string = "process"
 module: builtinModules.'38': string = "readline"
 module: builtinModules.'39': string = "readline/promises"
-module: builtinModules.'4': string = "bcrypt"
+module: builtinModules.'4': string = "bjson"
 module: builtinModules.'40': string = "repl"
 module: builtinModules.'41': string = "require"
 module: builtinModules.'42': string = "simple-queue"
@@ -1796,23 +2097,22 @@ module: builtinModules.'46': string = "stream"
 module: builtinModules.'47': string = "streams"
 module: builtinModules.'48': string = "syscallerror"
 module: builtinModules.'49': string = "terminal"
-module: builtinModules.'5': string = "bjson"
+module: builtinModules.'5': string = "blob"
 module: builtinModules.'50': string = "textcode"
 module: builtinModules.'51': string = "timers"
 module: builtinModules.'52': string = "timers/promises"
 module: builtinModules.'53': string = "tty"
-module: builtinModules.'54': string = "typescript"
-module: builtinModules.'55': string = "url"
-module: builtinModules.'56': string = "util"
-module: builtinModules.'57': string = "vfs"
-module: builtinModules.'58': string = "wasm"
-module: builtinModules.'59': string = "webassembly"
-module: builtinModules.'6': string = "blob"
-module: builtinModules.'60': string = "xml"
-module: builtinModules.'7': string = "bun"
-module: builtinModules.'8': string = "child_process"
-module: builtinModules.'9': string = "commonjs"
-module: builtinModules.length: number = 61
+module: builtinModules.'54': string = "url"
+module: builtinModules.'55': string = "util"
+module: builtinModules.'56': string = "vfs"
+module: builtinModules.'57': string = "wasm"
+module: builtinModules.'58': string = "webassembly"
+module: builtinModules.'59': string = "xml"
+module: builtinModules.'6': string = "bun"
+module: builtinModules.'7': string = "child_process"
+module: builtinModules.'8': string = "console"
+module: builtinModules.'9': string = "deep"
+module: builtinModules.length: number = 60
 module: class Module
 module: class SourceMap
 module: class default
@@ -1833,7 +2133,7 @@ module: default._resolveFilename()
 module: default._resolveLookupPaths()
 module: default._stat: get/set
 module: default.buildInfo: object
-module: default.builtinModules: object = ["abort","arraybuffer_sink","assert","assertStrict","bcry...
+module: default.builtinModules: object = ["abort","assert","assertStrict","bcrypt","bjson","blob",...
 module: default.builtins()
 module: default.bytecode()
 module: default.constants: object = {"compileCacheStatus":{"FAILED":0,"ENABLED":1,"ALREADY_EN...
@@ -1894,7 +2194,7 @@ module: function syncBuiltinESMExports()
 module: function verify()
 module: globalPaths.'0': string = "/home/roman/.node_libraries"
 module: globalPaths.'1': string = "/home/roman/.node_modules"
-module: globalPaths.'2': string = "/usr/local/lib/node"
+module: globalPaths.'2': string = "/home/roman/Sources/quickjs/qjs-modules/build/lib/node"
 module: globalPaths.length: number = 3
 module: object _cache
 module: object _extensions
@@ -1903,6 +2203,9 @@ module: object buildInfo
 module: object builtinModules
 module: object constants
 module: object globalPaths
+mysql: function MySQL()
+mysql: function MySQLError()
+mysql: function MySQLResult()
 node_buffer: Blob.constructor()
 node_buffer: Blob.prototype.arrayBuffer()
 node_buffer: Blob.prototype.bytes()
@@ -2103,7 +2406,6 @@ node_events: function on()
 node_events: function once()
 node_events: function setMaxListeners()
 node_events: value defaultMaxListeners: number = 10
-nodeHooks: 
 node_util: MIMEParams._parse()
 node_util: MIMEParams.constructor()
 node_util: MIMEParams.prototype.delete()
@@ -2378,6 +2680,7 @@ path: default.FNM_NOESCAPE: number = 2
 path: default.FNM_NOMATCH: number = 1
 path: default.FNM_PATHNAME: number = 1
 path: default.FNM_PERIOD: number = 4
+path: default._makeLong()
 path: default.absolute()
 path: default.at()
 path: default.baselen()
@@ -2425,6 +2728,8 @@ path: default.skip()
 path: default.skipSeparator()
 path: default.slice()
 path: default.toArray()
+path: default.toNamespacedPath()
+path: function _makeLong()
 path: function absolute()
 path: function at()
 path: function baselen()
@@ -2469,12 +2774,14 @@ path: function skip()
 path: function skipSeparator()
 path: function slice()
 path: function toArray()
+path: function toNamespacedPath()
 path: object default
 path: object posix
 path: posix.FNM_NOESCAPE: number = 2
 path: posix.FNM_NOMATCH: number = 1
 path: posix.FNM_PATHNAME: number = 1
 path: posix.FNM_PERIOD: number = 4
+path: posix._makeLong()
 path: posix.absolute()
 path: posix.at()
 path: posix.baselen()
@@ -2522,6 +2829,7 @@ path: posix.skip()
 path: posix.skipSeparator()
 path: posix.slice()
 path: posix.toArray()
+path: posix.toNamespacedPath()
 path: value FNM_NOESCAPE: number = 2
 path: value FNM_NOMATCH: number = 1
 path: value FNM_PATHNAME: number = 1
@@ -2568,6 +2876,62 @@ perf_hooks: function PerformanceMeasure()
 perf_hooks: function now()
 perf_hooks: object default
 perf_hooks: object performance
+pgsql: PGconn.RESULT_OBJECT: number = 1
+pgsql: PGconn.RESULT_STRING: number = 2
+pgsql: PGconn.RESULT_TBLNAM: number = 4
+pgsql: PGconn.constructor()
+pgsql: PGconn.escapeBytea()
+pgsql: PGconn.escapeString()
+pgsql: PGconn.prototype.RESULT_OBJECT: number = 1
+pgsql: PGconn.prototype.RESULT_STRING: number = 2
+pgsql: PGconn.prototype.RESULT_TBLNAM: number = 4
+pgsql: PGconn.prototype.affectedRows: get
+pgsql: PGconn.prototype.charset: get/set
+pgsql: PGconn.prototype.close()
+pgsql: PGconn.prototype.cmdTuples: get
+pgsql: PGconn.prototype.connect()
+pgsql: PGconn.prototype.conninfo: get
+pgsql: PGconn.prototype.db: get
+pgsql: PGconn.prototype.errorMessage: get
+pgsql: PGconn.prototype.escapeBytea()
+pgsql: PGconn.prototype.escapeIdentifier()
+pgsql: PGconn.prototype.escapeLiteral()
+pgsql: PGconn.prototype.escapeString()
+pgsql: PGconn.prototype.execute()
+pgsql: PGconn.prototype.fd: get
+pgsql: PGconn.prototype.host: get
+pgsql: PGconn.prototype.insertId: get
+pgsql: PGconn.prototype.insertQuery()
+pgsql: PGconn.prototype.nonblocking: get/set
+pgsql: PGconn.prototype.options: get
+pgsql: PGconn.prototype.password: get
+pgsql: PGconn.prototype.port: get
+pgsql: PGconn.prototype.protocolVersion: get
+pgsql: PGconn.prototype.query()
+pgsql: PGconn.prototype.serverVersion: get
+pgsql: PGconn.prototype.unescapeBytea()
+pgsql: PGconn.prototype.user: get
+pgsql: PGconn.prototype.valueString()
+pgsql: PGconn.prototype.valuesString()
+pgsql: PGconn.prototype[Symbol.toStringTag]: string = "PGconn"
+pgsql: PGconn.unescapeBytea()
+pgsql: PGerror.constructor()
+pgsql: PGerror.prototype.name: string = "PGerror"
+pgsql: PGerror.prototype.type: number = 0
+pgsql: PGerror.prototype[Symbol.toStringTag]: string = "PGerror"
+pgsql: PGresult.constructor()
+pgsql: PGresult.prototype.eof: get
+pgsql: PGresult.prototype.fetchAssoc()
+pgsql: PGresult.prototype.fetchField()
+pgsql: PGresult.prototype.fetchFields()
+pgsql: PGresult.prototype.fetchRow()
+pgsql: PGresult.prototype.numFields: get
+pgsql: PGresult.prototype.numRows: get
+pgsql: PGresult.prototype[Symbol.iterator]()
+pgsql: PGresult.prototype[Symbol.toStringTag]: string = "PGresult"
+pgsql: class PGconn
+pgsql: class PGerror extends Error
+pgsql: class PGresult
 pointer: DereferenceError.constructor()
 pointer: DereferenceError.prototype.message: get
 pointer: DereferenceError.prototype.name: string = "DereferenceError"
@@ -2904,7 +3268,7 @@ process: env.SERP_API_KEY: string
 process: env.SESSION_MANAGER: string
 process: env.SHELL: string
 process: env.SHLVL: string
-process: env.SSH_AUTH_SOCK: string
+process: env.SSH_CONNECTION: string
 process: env.TERM: string
 process: env.TERM_PROGRAM: string
 process: env.TERM_PROGRAM_VERSION: string
@@ -2913,9 +3277,7 @@ process: env.TMUX_PANE: string
 process: env.USER: string
 process: env.VISUAL: string
 process: env.VTE_VERSION: string
-process: env.WINDOWID: string
 process: env.WINEDEBUG: string
-process: env.XAUTHORITY: string
 process: env.XDG_ACTIVATION_TOKEN: string
 process: env.XDG_CONFIG_DIRS: string
 process: env.XDG_CURRENT_DESKTOP: string
@@ -2989,28 +3351,29 @@ process: function threadCpuUsage()
 process: function umask()
 process: function unref()
 process: function uptime()
-process: moduleLoadList.'0': string = "NativeModule nodeHooks"
-process: moduleLoadList.'1': string = "NativeModule os"
-process: moduleLoadList.'10': string = "NativeModule node_events"
-process: moduleLoadList.'11': string = "NativeModule mmap"
-process: moduleLoadList.'12': string = "NativeModule syscallerror"
-process: moduleLoadList.'13': string = "NativeModule textcode"
-process: moduleLoadList.'14': string = "NativeModule directory"
-process: moduleLoadList.'15': string = "NativeModule fs"
-process: moduleLoadList.'16': string = "NativeModule stream"
-process: moduleLoadList.'17': string = "NativeModule util"
-process: moduleLoadList.'18': string = "NativeModule url"
-process: moduleLoadList.'19': string = "NativeModule bun"
-process: moduleLoadList.'2': string = "NativeModule path"
-process: moduleLoadList.'20': string = "NativeModule node_events"
-process: moduleLoadList.'3': string = "NativeModule misc"
-process: moduleLoadList.'4': string = "NativeModule std"
-process: moduleLoadList.'5': string = "NativeModule timers"
-process: moduleLoadList.'6': string = "NativeModule inspect"
-process: moduleLoadList.'7': string = "NativeModule util"
-process: moduleLoadList.'8': string = "NativeModule process"
-process: moduleLoadList.'9': string = "NativeModule blob"
-process: moduleLoadList.length: number = 21
+process: moduleLoadList.'0': string = "NativeModule loaders_node"
+process: moduleLoadList.'1': string = "NativeModule std"
+process: moduleLoadList.'10': string = "NativeModule blob"
+process: moduleLoadList.'11': string = "NativeModule node_events"
+process: moduleLoadList.'12': string = "NativeModule mmap"
+process: moduleLoadList.'13': string = "NativeModule syscallerror"
+process: moduleLoadList.'14': string = "NativeModule textcode"
+process: moduleLoadList.'15': string = "NativeModule directory"
+process: moduleLoadList.'16': string = "NativeModule fs"
+process: moduleLoadList.'17': string = "NativeModule stream"
+process: moduleLoadList.'18': string = "NativeModule util"
+process: moduleLoadList.'19': string = "NativeModule url"
+process: moduleLoadList.'2': string = "NativeModule loaders_package-aliases"
+process: moduleLoadList.'20': string = "NativeModule bun"
+process: moduleLoadList.'21': string = "NativeModule node_events"
+process: moduleLoadList.'3': string = "NativeModule os"
+process: moduleLoadList.'4': string = "NativeModule path"
+process: moduleLoadList.'5': string = "NativeModule misc"
+process: moduleLoadList.'6': string = "NativeModule timers"
+process: moduleLoadList.'7': string = "NativeModule inspect"
+process: moduleLoadList.'8': string = "NativeModule util"
+process: moduleLoadList.'9': string = "NativeModule process"
+process: moduleLoadList.length: number = 22
 process: object allowedNodeEnvironmentFlags
 process: object argv
 process: object config
@@ -3071,6 +3434,23 @@ process: value title: string
 process: value version: string
 process: versions.qjsm: string
 process: versions.quickjs: string
+queue: Queue.constructor()
+queue: Queue.prototype.at()
+queue: Queue.prototype.chunk()
+queue: Queue.prototype.chunks: get
+queue: Queue.prototype.clear()
+queue: Queue.prototype.empty: get
+queue: Queue.prototype.head: get
+queue: Queue.prototype.next()
+queue: Queue.prototype.peek()
+queue: Queue.prototype.read()
+queue: Queue.prototype.size: get
+queue: Queue.prototype.skip()
+queue: Queue.prototype.tail: get
+queue: Queue.prototype.write()
+queue: Queue.prototype[Symbol.iterator]()
+queue: Queue.prototype[Symbol.toStringTag]: string = "Queue"
+queue: class Queue
 readline: Interface.constructor()
 readline: Interface.prototype.clearLine()
 readline: Interface.prototype.close()
@@ -3101,6 +3481,21 @@ readlinePromises: Interface.constructor()
 readlinePromises: Interface.prototype.question()
 readlinePromises: class Interface extends Interface
 readlinePromises: function createInterface()
+repeater: Repeater.DONE: number = 3
+repeater: Repeater.INITIAL: number = 0
+repeater: Repeater.REJECTED: number = 4
+repeater: Repeater.STARTED: number = 1
+repeater: Repeater.STOPPED: number = 2
+repeater: Repeater.constructor()
+repeater: Repeater.latest(contenders)
+repeater: Repeater.merge(contenders)
+repeater: Repeater.prototype.next()
+repeater: Repeater.prototype.state: get
+repeater: Repeater.prototype[Symbol.asyncIterator]()
+repeater: Repeater.prototype[Symbol.toStringTag]: string = "Repeater"
+repeater: Repeater.race(contenders)
+repeater: Repeater.zip(contenders)
+repeater: class Repeater
 repl: REPL.constructor()
 repl: REPL.prototype.abort()
 repl: REPL.prototype.acceptLine()
@@ -3210,6 +3605,46 @@ repl: class REPLServer
 repl: function loadModule()
 require: function default()
 require: function require()
+serial: Serial.getPorts()
+serial: Serial.requestPort()
+serial: SerialError.constructor()
+serial: SerialError.prototype.name: string = "SerialError"
+serial: SerialError.prototype.type: number = 0
+serial: SerialError.prototype[Symbol.toStringTag]: string = "SerialError"
+serial: SerialPort.BUF_BOTH: number = 3
+serial: SerialPort.BUF_INPUT: number = 1
+serial: SerialPort.BUF_OUTPUT: number = 2
+serial: SerialPort.ERR_ARG: number = -1
+serial: SerialPort.ERR_FAIL: number = -2
+serial: SerialPort.ERR_MEM: number = -3
+serial: SerialPort.ERR_SUPP: number = -4
+serial: SerialPort.MODE_READ: number = 1
+serial: SerialPort.MODE_READ_WRITE: number = 3
+serial: SerialPort.MODE_WRITE: number = 2
+serial: SerialPort.constructor()
+serial: SerialPort.list()
+serial: SerialPort.prototype.close()
+serial: SerialPort.prototype.description: get
+serial: SerialPort.prototype.drain()
+serial: SerialPort.prototype.fd: get
+serial: SerialPort.prototype.flush()
+serial: SerialPort.prototype.getInfo()
+serial: SerialPort.prototype.getSignals()
+serial: SerialPort.prototype.inputWaiting: get
+serial: SerialPort.prototype.name: get
+serial: SerialPort.prototype.open()
+serial: SerialPort.prototype.outputWaiting: get
+serial: SerialPort.prototype.read()
+serial: SerialPort.prototype.setSignals()
+serial: SerialPort.prototype.transport: get
+serial: SerialPort.prototype.write()
+serial: SerialPort.prototype[Symbol.toStringTag]: string = "SerialPort"
+serial: class SerialError extends Error
+serial: class SerialPort
+serial: default.getPorts()
+serial: default.requestPort()
+serial: object Serial
+serial: object default
 simple-queue: SimpleQueue.constructor()
 simple-queue: SimpleQueue.prototype.forEach()
 simple-queue: SimpleQueue.prototype.length: get
@@ -4369,6 +4804,79 @@ sockets: value SO_TIMESTAMPING: number = 37
 sockets: value SO_TIMESTAMPNS: number = 35
 sockets: value SO_TYPE: number = 3
 sockets: value SO_WIFI_STATUS: number = 41
+sqlite: SQLite3.BLOB: number = 4
+sqlite: SQLite3.FLOAT: number = 2
+sqlite: SQLite3.INTEGER: number = 1
+sqlite: SQLite3.NULL: number = 5
+sqlite: SQLite3.OPEN_CREATE: number = 4
+sqlite: SQLite3.OPEN_FULLMUTEX: number = 65536
+sqlite: SQLite3.OPEN_MEMORY: number = 128
+sqlite: SQLite3.OPEN_NOMUTEX: number = 32768
+sqlite: SQLite3.OPEN_PRIVATECACHE: number = 262144
+sqlite: SQLite3.OPEN_READONLY: number = 1
+sqlite: SQLite3.OPEN_READWRITE: number = 2
+sqlite: SQLite3.OPEN_SHAREDCACHE: number = 131072
+sqlite: SQLite3.OPEN_URI: number = 64
+sqlite: SQLite3.RESULT_OBJECT: number = 1
+sqlite: SQLite3.RESULT_STRING: number = 2
+sqlite: SQLite3.TEXT: number = 3
+sqlite: SQLite3.constructor()
+sqlite: SQLite3.escapeString()
+sqlite: SQLite3.prototype.BLOB: number = 4
+sqlite: SQLite3.prototype.FLOAT: number = 2
+sqlite: SQLite3.prototype.INTEGER: number = 1
+sqlite: SQLite3.prototype.NULL: number = 5
+sqlite: SQLite3.prototype.OPEN_CREATE: number = 4
+sqlite: SQLite3.prototype.OPEN_FULLMUTEX: number = 65536
+sqlite: SQLite3.prototype.OPEN_MEMORY: number = 128
+sqlite: SQLite3.prototype.OPEN_NOMUTEX: number = 32768
+sqlite: SQLite3.prototype.OPEN_PRIVATECACHE: number = 262144
+sqlite: SQLite3.prototype.OPEN_READONLY: number = 1
+sqlite: SQLite3.prototype.OPEN_READWRITE: number = 2
+sqlite: SQLite3.prototype.OPEN_SHAREDCACHE: number = 131072
+sqlite: SQLite3.prototype.OPEN_URI: number = 64
+sqlite: SQLite3.prototype.RESULT_OBJECT: number = 1
+sqlite: SQLite3.prototype.RESULT_STRING: number = 2
+sqlite: SQLite3.prototype.TEXT: number = 3
+sqlite: SQLite3.prototype.affectedRows: get
+sqlite: SQLite3.prototype.changes: get
+sqlite: SQLite3.prototype.close()
+sqlite: SQLite3.prototype.errorCode: get
+sqlite: SQLite3.prototype.errorMessage: get
+sqlite: SQLite3.prototype.escapeString()
+sqlite: SQLite3.prototype.exec()
+sqlite: SQLite3.prototype.execute()
+sqlite: SQLite3.prototype.filename: get
+sqlite: SQLite3.prototype.insertId: get
+sqlite: SQLite3.prototype.insertQuery()
+sqlite: SQLite3.prototype.lastInsertRowid: get
+sqlite: SQLite3.prototype.open()
+sqlite: SQLite3.prototype.query()
+sqlite: SQLite3.prototype.quoteString()
+sqlite: SQLite3.prototype.totalChanges: get
+sqlite: SQLite3.prototype.valueString()
+sqlite: SQLite3.prototype.valuesString()
+sqlite: SQLite3.prototype[Symbol.toStringTag]: string = "SQLite3"
+sqlite: SQLite3.quoteString()
+sqlite: SQLite3.valueString()
+sqlite: SQLite3Error.constructor()
+sqlite: SQLite3Error.prototype.name: string = "SQLite3Error"
+sqlite: SQLite3Error.prototype.type: number = 0
+sqlite: SQLite3Error.prototype[Symbol.toStringTag]: string = "SQLite3Error"
+sqlite: SQLite3Result.constructor()
+sqlite: SQLite3Result.prototype.eof: get
+sqlite: SQLite3Result.prototype.fetchAssoc()
+sqlite: SQLite3Result.prototype.fetchField()
+sqlite: SQLite3Result.prototype.fetchFields()
+sqlite: SQLite3Result.prototype.fetchRow()
+sqlite: SQLite3Result.prototype.numFields: get
+sqlite: SQLite3Result.prototype.numRows: get
+sqlite: SQLite3Result.prototype.reset()
+sqlite: SQLite3Result.prototype[Symbol.iterator]()
+sqlite: SQLite3Result.prototype[Symbol.toStringTag]: string = "SQLite3Result"
+sqlite: class SQLite3
+sqlite: class SQLite3Error extends Error
+sqlite: class SQLite3Result
 std: Error.EACCES: number = 13
 std: Error.EBADF: number = 9
 std: Error.EBUSY: number = 16
@@ -4785,6 +5293,64 @@ timersPromises: object default
 timersPromises: object scheduler
 timersPromises: scheduler.wait()
 timersPromises: scheduler.yield()
+tree_walker: TreeIterator.FILTER_ACCEPT: number = 1
+tree_walker: TreeIterator.FILTER_REJECT: number = 2
+tree_walker: TreeIterator.FILTER_SKIP: number = 3
+tree_walker: TreeIterator.RETURN_PATH: number = 16777216
+tree_walker: TreeIterator.RETURN_VALUE: number = 0
+tree_walker: TreeIterator.RETURN_VALUE_PATH: number = 33554432
+tree_walker: TreeIterator.TYPE_ALL: number = 4095
+tree_walker: TreeIterator.TYPE_BIG_INT: number = 128
+tree_walker: TreeIterator.TYPE_BOOL: number = 4
+tree_walker: TreeIterator.TYPE_INT: number = 8
+tree_walker: TreeIterator.TYPE_NULL: number = 2
+tree_walker: TreeIterator.TYPE_OBJECT: number = 16
+tree_walker: TreeIterator.TYPE_PRIMITIVE: number = 1007
+tree_walker: TreeIterator.TYPE_STRING: number = 32
+tree_walker: TreeIterator.TYPE_SYMBOL: number = 64
+tree_walker: TreeIterator.TYPE_UNDEFINED: number = 1
+tree_walker: TreeIterator.constructor()
+tree_walker: TreeIterator.prototype.next()
+tree_walker: TreeIterator.prototype[Symbol.iterator]()
+tree_walker: TreeIterator.prototype[Symbol.toStringTag]: string = "TreeIterator"
+tree_walker: TreeWalker.FILTER_ACCEPT: number = 1
+tree_walker: TreeWalker.FILTER_REJECT: number = 2
+tree_walker: TreeWalker.FILTER_SKIP: number = 3
+tree_walker: TreeWalker.RETURN_PATH: number = 16777216
+tree_walker: TreeWalker.RETURN_VALUE: number = 0
+tree_walker: TreeWalker.RETURN_VALUE_PATH: number = 33554432
+tree_walker: TreeWalker.TYPE_ALL: number = 4095
+tree_walker: TreeWalker.TYPE_BIG_INT: number = 128
+tree_walker: TreeWalker.TYPE_BOOL: number = 4
+tree_walker: TreeWalker.TYPE_INT: number = 8
+tree_walker: TreeWalker.TYPE_NULL: number = 2
+tree_walker: TreeWalker.TYPE_OBJECT: number = 16
+tree_walker: TreeWalker.TYPE_PRIMITIVE: number = 1007
+tree_walker: TreeWalker.TYPE_STRING: number = 32
+tree_walker: TreeWalker.TYPE_SYMBOL: number = 64
+tree_walker: TreeWalker.TYPE_UNDEFINED: number = 1
+tree_walker: TreeWalker.constructor()
+tree_walker: TreeWalker.prototype.currentKey: get
+tree_walker: TreeWalker.prototype.currentNode: get
+tree_walker: TreeWalker.prototype.currentPath: get
+tree_walker: TreeWalker.prototype.depth: get
+tree_walker: TreeWalker.prototype.filter: get
+tree_walker: TreeWalker.prototype.firstChild()
+tree_walker: TreeWalker.prototype.flags: get/set
+tree_walker: TreeWalker.prototype.index: get/set
+tree_walker: TreeWalker.prototype.lastChild()
+tree_walker: TreeWalker.prototype.length: get
+tree_walker: TreeWalker.prototype.nextNode()
+tree_walker: TreeWalker.prototype.nextSibling()
+tree_walker: TreeWalker.prototype.parentNode()
+tree_walker: TreeWalker.prototype.previousNode()
+tree_walker: TreeWalker.prototype.previousSibling()
+tree_walker: TreeWalker.prototype.root: get
+tree_walker: TreeWalker.prototype.tagMask: get/set
+tree_walker: TreeWalker.prototype.toString()
+tree_walker: TreeWalker.prototype[Symbol.toStringTag]: string = "TreeWalker"
+tree_walker: class TreeIterator
+tree_walker: class TreeWalker
 tty: ReadStream.constructor()
 tty: ReadStream.prototype.addListener()
 tty: ReadStream.prototype.emit()
@@ -4822,8 +5388,6 @@ tty: default.WriteStream()
 tty: default.isatty()
 tty: function isatty()
 tty: object default
-typescript: function default()
-typescript: function installTypeScript()
 url: URL.canParse()
 url: URL.constructor()
 url: URL.parse()
@@ -5168,6 +5732,7 @@ util: function atob()
 util: function atomToString()
 util: function atomToValue()
 util: function atos()
+util: function awaitSync()
 util: function bindMethods()
 util: function bindProperties()
 util: function bitfieldSet()
@@ -5291,7 +5856,6 @@ util: function getset()
 util: function getsid()
 util: function getter()
 util: function gettersetter()
-util: function gettid()
 util: function getuid()
 util: function glob()
 util: function hasBuiltIn()
@@ -5305,6 +5869,7 @@ util: function hash()
 util: function histogram()
 util: function hrtime()
 util: function immutableClass()
+util: function importSync()
 util: function inRange()
 util: function indexOf()
 util: function inherits()
@@ -5960,6 +6525,18 @@ vfs: default.VirtualProvider()
 vfs: default.create()
 vfs: function create()
 vfs: object default
+virtual: VirtualProperties.array()
+virtual: VirtualProperties.constructor()
+virtual: VirtualProperties.from()
+virtual: VirtualProperties.map()
+virtual: VirtualProperties.object()
+virtual: VirtualProperties.prototype.delete()
+virtual: VirtualProperties.prototype.get()
+virtual: VirtualProperties.prototype.has()
+virtual: VirtualProperties.prototype.keys()
+virtual: VirtualProperties.prototype.set()
+virtual: VirtualProperties.prototype[Symbol.toStringTag]: string = "VirtualProperties"
+virtual: class VirtualProperties
 wasm: CompileError.constructor(m)
 wasm: Global.constructor()
 wasm: Global.prototype.value: get/set
@@ -6049,6 +6626,7 @@ webassembly: object WebAssembly
 webassembly: object default
 xml: XMLNodeParser.constructor()
 xml: XMLNodeParser.prototype.depth: get
+xml: XMLNodeParser.prototype.error: get
 xml: XMLNodeParser.prototype.location: get
 xml: XMLNodeParser.prototype.parse()
 xml: XMLNodeParser.prototype[Symbol.toStringTag]: string = "XMLNodeParser"
@@ -6061,45 +6639,76 @@ xml: XMLParser.PARSE_OK: number = 0
 xml: XMLParser.TEXT: number = 4
 xml: XMLParser.constructor()
 xml: XMLParser.prototype.depth: get
+xml: XMLParser.prototype.error: get
 xml: XMLParser.prototype.eventName: get
 xml: XMLParser.prototype.eventValue: get
 xml: XMLParser.prototype.hasValue: get
 xml: XMLParser.prototype.location: get
+xml: XMLParser.prototype.next()
 xml: XMLParser.prototype.onattribute: set
 xml: XMLParser.prototype.onelementend: set
 xml: XMLParser.prototype.onelementstart: set
 xml: XMLParser.prototype.ontext: set
 xml: XMLParser.prototype.parse()
+xml: XMLParser.prototype.pump()
 xml: XMLParser.prototype.root: get
 xml: XMLParser.prototype.tolerant: get/set
+xml: XMLParser.prototype[Symbol.iterator]()
 xml: XMLParser.prototype[Symbol.toStringTag]: string = "XMLParser"
 xml: XMLPushParser.constructor()
 xml: XMLPushParser.prototype.close()
+xml: XMLPushParser.prototype.connect()
+xml: XMLPushParser.prototype.error: get
 xml: XMLPushParser.prototype.path: get
 xml: XMLPushParser.prototype.root: get
+xml: XMLPushParser.prototype.sink: get
 xml: XMLPushParser.prototype.write()
 xml: XMLPushParser.prototype[Symbol.toStringTag]: string = "XMLPushParser"
-xml: XMLSerializer.constructor()
-xml: XMLSerializer.prototype.finished: get
-xml: XMLSerializer.prototype.read()
-xml: XMLSerializer.prototype.root: get
-xml: XMLSerializer.prototype[Symbol.toStringTag]: string = "XMLSerializer"
+xml: XMLTreeSerializer.constructor()
+xml: XMLTreeSerializer.prototype.finished: get
+xml: XMLTreeSerializer.prototype.read()
+xml: XMLTreeSerializer.prototype.root: get
+xml: XMLTreeSerializer.prototype[Symbol.toStringTag]: string = "XMLTreeSerializer"
 xml: XMLWriter.constructor()
 xml: XMLWriter.prototype.attribute()
+xml: XMLWriter.prototype.cdata()
+xml: XMLWriter.prototype.comment()
+xml: XMLWriter.prototype.declaration()
 xml: XMLWriter.prototype.elementEnd()
 xml: XMLWriter.prototype.elementStart()
+xml: XMLWriter.prototype.error()
 xml: XMLWriter.prototype.indent: get/set
+xml: XMLWriter.prototype.instruction()
 xml: XMLWriter.prototype.state: get
 xml: XMLWriter.prototype.text()
 xml: XMLWriter.prototype.written: get
+xml: XMLWriter.prototype[Symbol.for('qjs.xmlsink')]()
 xml: XMLWriter.prototype[Symbol.toStringTag]: string = "XMLWriter"
+xml: XmlBuilder.constructor()
+xml: XmlBuilder.prototype.attribute()
+xml: XmlBuilder.prototype.cdata()
+xml: XmlBuilder.prototype.comment()
+xml: XmlBuilder.prototype.declaration()
+xml: XmlBuilder.prototype.elementEnd()
+xml: XmlBuilder.prototype.elementStart()
+xml: XmlBuilder.prototype.error()
+xml: XmlBuilder.prototype.finish()
+xml: XmlBuilder.prototype.instruction()
+xml: XmlBuilder.prototype.path: get
+xml: XmlBuilder.prototype.root: get
+xml: XmlBuilder.prototype.text()
+xml: XmlBuilder.prototype[Symbol.for('qjs.xmlsink')]()
+xml: XmlBuilder.prototype[Symbol.toStringTag]: string = "XmlBuilder"
 xml: class XMLNodeParser
 xml: class XMLParser
 xml: class XMLPushParser
-xml: class XMLSerializer
+xml: class XMLTreeSerializer
 xml: class XMLWriter
+xml: class XmlBuilder
 xml: default.read()
 xml: default.write()
 xml: function read()
+xml: function tee()
 xml: function write()
 xml: object default
+yaml: function write()

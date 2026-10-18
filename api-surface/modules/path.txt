@@ -2,6 +2,7 @@ default.FNM_NOESCAPE: number = 2
 default.FNM_NOMATCH: number = 1
 default.FNM_PATHNAME: number = 1
 default.FNM_PERIOD: number = 4
+default._makeLong()
 default.absolute()
 default.at()
 default.baselen()
@@ -49,6 +50,8 @@ default.skip()
 default.skipSeparator()
 default.slice()
 default.toArray()
+default.toNamespacedPath()
+function _makeLong()
 function absolute()
 function at()
 function baselen()
@@ -93,12 +96,14 @@ function skip()
 function skipSeparator()
 function slice()
 function toArray()
+function toNamespacedPath()
 object default
 object posix
 posix.FNM_NOESCAPE: number = 2
 posix.FNM_NOMATCH: number = 1
 posix.FNM_PATHNAME: number = 1
 posix.FNM_PERIOD: number = 4
+posix._makeLong()
 posix.absolute()
 posix.at()
 posix.baselen()
@@ -146,6 +151,7 @@ posix.skip()
 posix.skipSeparator()
 posix.slice()
 posix.toArray()
+posix.toNamespacedPath()
 value FNM_NOESCAPE: number = 2
 value FNM_NOMATCH: number = 1
 value FNM_PATHNAME: number = 1

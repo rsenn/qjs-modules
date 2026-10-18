@@ -1,38 +1,56 @@
-JSONL.parse()
-JSONL.parseChunk()
-JsonParser.ARRAY: number = 2
-JsonParser.ARRAY_END: number = 3
-JsonParser.COMMENT: number = 10
-JsonParser.FALSE: number = 7
-JsonParser.KEY: number = 4
+JsonBuilder.constructor()
+JsonBuilder.prototype.arrayEnd()
+JsonBuilder.prototype.arrayStart()
+JsonBuilder.prototype.comment()
+JsonBuilder.prototype.error()
+JsonBuilder.prototype.false()
+JsonBuilder.prototype.key()
+JsonBuilder.prototype.null()
+JsonBuilder.prototype.number()
+JsonBuilder.prototype.objectEnd()
+JsonBuilder.prototype.objectStart()
+JsonBuilder.prototype.path: get
+JsonBuilder.prototype.raw()
+JsonBuilder.prototype.root: get
+JsonBuilder.prototype.string()
+JsonBuilder.prototype.take()
+JsonBuilder.prototype.true()
+JsonBuilder.prototype[Symbol.for('qjs.jsonsink')]()
+JsonBuilder.prototype[Symbol.toStringTag]: string = "JsonBuilder"
+JsonParser.ARRAY: number = 6
+JsonParser.ARRAY_END: number = 7
+JsonParser.COMMENT: number = 11
+JsonParser.FALSE: number = 3
+JsonParser.KEY: number = 10
 JsonParser.NEED_DATA: number = -2
 JsonParser.NONE: number = -1
-JsonParser.NULL: number = 8
-JsonParser.NUMBER: number = 9
-JsonParser.OBJECT: number = 0
-JsonParser.OBJECT_END: number = 1
+JsonParser.NULL: number = 1
+JsonParser.NUMBER: number = 4
+JsonParser.OBJECT: number = 8
+JsonParser.OBJECT_END: number = 9
 JsonParser.STRING: number = 5
-JsonParser.TRUE: number = 6
+JsonParser.TRUE: number = 2
 JsonParser.constructor()
-JsonParser.prototype.ARRAY: number = 2
-JsonParser.prototype.ARRAY_END: number = 3
-JsonParser.prototype.COMMENT: number = 10
-JsonParser.prototype.FALSE: number = 7
-JsonParser.prototype.KEY: number = 4
+JsonParser.prototype.ARRAY: number = 6
+JsonParser.prototype.ARRAY_END: number = 7
+JsonParser.prototype.COMMENT: number = 11
+JsonParser.prototype.FALSE: number = 3
+JsonParser.prototype.KEY: number = 10
 JsonParser.prototype.NEED_DATA: number = -2
 JsonParser.prototype.NONE: number = -1
-JsonParser.prototype.NULL: number = 8
-JsonParser.prototype.NUMBER: number = 9
-JsonParser.prototype.OBJECT: number = 0
-JsonParser.prototype.OBJECT_END: number = 1
+JsonParser.prototype.NULL: number = 1
+JsonParser.prototype.NUMBER: number = 4
+JsonParser.prototype.OBJECT: number = 8
+JsonParser.prototype.OBJECT_END: number = 9
 JsonParser.prototype.STRING: number = 5
-JsonParser.prototype.TRUE: number = 6
+JsonParser.prototype.TRUE: number = 2
 JsonParser.prototype.comments: get/set
 JsonParser.prototype.depth: get
 JsonParser.prototype.location: get
 JsonParser.prototype.next()
 JsonParser.prototype.parse()
 JsonParser.prototype.pos: get
+JsonParser.prototype.pump()
 JsonParser.prototype.state: get
 JsonParser.prototype.token: get
 JsonParser.prototype[Symbol.iterator]()
@@ -52,9 +70,12 @@ JsonPushParser.prototype.TYPE_OBJECT_START: number = 8
 JsonPushParser.prototype.TYPE_STRING: number = 5
 JsonPushParser.prototype.TYPE_TRUE: number = 2
 JsonPushParser.prototype.close()
+JsonPushParser.prototype.connect()
+JsonPushParser.prototype.error: get
 JsonPushParser.prototype.location: get
 JsonPushParser.prototype.path: get
 JsonPushParser.prototype.root: get
+JsonPushParser.prototype.sink: get
 JsonPushParser.prototype.write()
 JsonPushParser.prototype[Symbol.toStringTag]: string = "JsonPushParser"
 JsonSerializer.constructor()
@@ -73,18 +94,28 @@ JsonSerializer.prototype[Symbol.toStringTag]: string = "JsonSerializer"
 JsonWriter.constructor()
 JsonWriter.prototype.arrayEnd()
 JsonWriter.prototype.arrayStart()
+JsonWriter.prototype.comment()
 JsonWriter.prototype.depth: get
+JsonWriter.prototype.error()
+JsonWriter.prototype.false()
 JsonWriter.prototype.key()
+JsonWriter.prototype.null()
+JsonWriter.prototype.number()
 JsonWriter.prototype.objectEnd()
 JsonWriter.prototype.objectStart()
+JsonWriter.prototype.raw()
 JsonWriter.prototype.stack: get
+JsonWriter.prototype.string()
+JsonWriter.prototype.true()
 JsonWriter.prototype.value()
 JsonWriter.prototype.written: get
+JsonWriter.prototype[Symbol.for('qjs.jsonsink')]()
 JsonWriter.prototype[Symbol.toStringTag]: string = "JsonWriter"
+class JsonBuilder
 class JsonParser
 class JsonPushParser
 class JsonSerializer
 class JsonWriter
 function read()
+function tee()
 function write()
-object JSONL

@@ -1,5 +1,6 @@
 XMLNodeParser.constructor()
 XMLNodeParser.prototype.depth: get
+XMLNodeParser.prototype.error: get
 XMLNodeParser.prototype.location: get
 XMLNodeParser.prototype.parse()
 XMLNodeParser.prototype[Symbol.toStringTag]: string = "XMLNodeParser"
@@ -12,45 +13,75 @@ XMLParser.PARSE_OK: number = 0
 XMLParser.TEXT: number = 4
 XMLParser.constructor()
 XMLParser.prototype.depth: get
+XMLParser.prototype.error: get
 XMLParser.prototype.eventName: get
 XMLParser.prototype.eventValue: get
 XMLParser.prototype.hasValue: get
 XMLParser.prototype.location: get
+XMLParser.prototype.next()
 XMLParser.prototype.onattribute: set
 XMLParser.prototype.onelementend: set
 XMLParser.prototype.onelementstart: set
 XMLParser.prototype.ontext: set
 XMLParser.prototype.parse()
+XMLParser.prototype.pump()
 XMLParser.prototype.root: get
 XMLParser.prototype.tolerant: get/set
+XMLParser.prototype[Symbol.iterator]()
 XMLParser.prototype[Symbol.toStringTag]: string = "XMLParser"
 XMLPushParser.constructor()
 XMLPushParser.prototype.close()
+XMLPushParser.prototype.connect()
+XMLPushParser.prototype.error: get
 XMLPushParser.prototype.path: get
 XMLPushParser.prototype.root: get
+XMLPushParser.prototype.sink: get
 XMLPushParser.prototype.write()
 XMLPushParser.prototype[Symbol.toStringTag]: string = "XMLPushParser"
-XMLSerializer.constructor()
-XMLSerializer.prototype.finished: get
-XMLSerializer.prototype.read()
-XMLSerializer.prototype.root: get
-XMLSerializer.prototype[Symbol.toStringTag]: string = "XMLSerializer"
+XMLTreeSerializer.constructor()
+XMLTreeSerializer.prototype.finished: get
+XMLTreeSerializer.prototype.read()
+XMLTreeSerializer.prototype.root: get
+XMLTreeSerializer.prototype[Symbol.toStringTag]: string = "XMLTreeSerializer"
 XMLWriter.constructor()
 XMLWriter.prototype.attribute()
+XMLWriter.prototype.cdata()
+XMLWriter.prototype.comment()
+XMLWriter.prototype.declaration()
 XMLWriter.prototype.elementEnd()
 XMLWriter.prototype.elementStart()
+XMLWriter.prototype.error()
 XMLWriter.prototype.indent: get/set
+XMLWriter.prototype.instruction()
 XMLWriter.prototype.state: get
 XMLWriter.prototype.text()
 XMLWriter.prototype.written: get
+XMLWriter.prototype[Symbol.for('qjs.xmlsink')]()
 XMLWriter.prototype[Symbol.toStringTag]: string = "XMLWriter"
+XmlBuilder.constructor()
+XmlBuilder.prototype.attribute()
+XmlBuilder.prototype.cdata()
+XmlBuilder.prototype.comment()
+XmlBuilder.prototype.declaration()
+XmlBuilder.prototype.elementEnd()
+XmlBuilder.prototype.elementStart()
+XmlBuilder.prototype.error()
+XmlBuilder.prototype.finish()
+XmlBuilder.prototype.instruction()
+XmlBuilder.prototype.path: get
+XmlBuilder.prototype.root: get
+XmlBuilder.prototype.text()
+XmlBuilder.prototype[Symbol.for('qjs.xmlsink')]()
+XmlBuilder.prototype[Symbol.toStringTag]: string = "XmlBuilder"
 class XMLNodeParser
 class XMLParser
 class XMLPushParser
-class XMLSerializer
+class XMLTreeSerializer
 class XMLWriter
+class XmlBuilder
 default.read()
 default.write()
 function read()
+function tee()
 function write()
 object default
