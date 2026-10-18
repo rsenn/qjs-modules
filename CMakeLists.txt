@@ -829,10 +829,10 @@ target_include_directories(json-pull-dump PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(json-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-json-pull-dump COMMAND json-pull-dump "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/json-pull-dump.txt")
 
-add_executable(xread-compat tests/c/xread-compat.c)
-target_include_directories(xread-compat PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(xread-compat PRIVATE modules ${QUICKJS_LIBRARY} m)
-add_test(NAME c-xread-compat COMMAND xread-compat)
+add_executable(xml-pull-dump tests/c/xml-pull-dump.c)
+target_include_directories(xml-pull-dump PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(xml-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-xml-pull-dump COMMAND xml-pull-dump "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/xml-pull-dump.txt")
 
 # events-sinks drives the writers through JsonEventSink and XmlEventSink
 add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c src/xml/xwrite.c)

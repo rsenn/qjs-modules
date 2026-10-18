@@ -39,7 +39,7 @@ JSValue js_xmlwrite_throw(JSContext*, ssize_t r);
  * offending tag, base supplies the input name.
  *
  * returns the error object (refcount: a new reference), or JS_EXCEPTION. */
-JSValue js_xmlevent_error(JSContext*, const XMLParser* xp, const Location* base);
+JSValue js_xmlevent_error(JSContext*, const XmlEvent* ev, const Location* base);
 
 /* xml_read_value: the element tree or flat list of buf, built by an XmlBuilder.
  *

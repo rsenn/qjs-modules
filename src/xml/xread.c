@@ -874,9 +874,15 @@ xr_close_tag(xr_state_t* s, XrOut* o) {
 
   if((m = xr_find(s, name, len)) < 0) {
     if(!(s->flags & XR_TOLERANT)) {
-      XmlEvent ev = {.type = XE_ERROR, .str = "mismatched-end-tag", .code = "mismatched-end-tag", .span = len + 3, .at = s->tag_pos, .has_at = 1};
+      XmlEvent ev = {.type = XE_ERROR, .code = "mismatched-end-tag", .span = len + 3, .at = s->tag_pos, .has_at = 1};
 
-      ev.len = strlen(ev.str);
+      /* the message is mismatch </name>, kept NUL-terminated in pi_accum, free at this point */
+      s->pi_accum.len = 0;
+      xr_accum_put(&s->pi_accum, "mismatch </", 11);
+      xr_accum_put(&s->pi_accum, name, len);
+      xr_accum_put(&s->pi_accum, ">", 2);
+      ev.str = s->pi_accum.buf;
+      ev.len = s->pi_accum.len - 1;
       s->done = 1;
       xo_send(o, &ev);
       return 0;

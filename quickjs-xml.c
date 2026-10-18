@@ -440,17 +440,6 @@ typedef struct {
 
 static JSClassID js_xml_parser_class_id;
 
-static uint32_t
-xml_depth(XmlParser* p) {
-  uint32_t n = 0;
-  XMLFrame* f;
-
-  for(f = p->xp.top; f; f = f->parent)
-    n++;
-
-  return n;
-}
-
 /* p->loc (a ref-counted, js_malloc'd Location, wrapped as-is by .location) tracks
  * xp.loc (a plain embedded value struct xml_parse() advances - see
  * include/xml/xml.h) by copying the fields js_location_wrap()'s consumers care about
@@ -501,7 +490,7 @@ js_xml_parser_pump(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   while((st = xml_next(&p->xp, &ev)) == XML_PULL_EVENT) {
     if(ev.type == XE_ERROR) {
-      JSValue err = js_xmlevent_error(ctx, &p->xp, p->loc);
+      JSValue err = js_xmlevent_error(ctx, &ev, p->loc);
 
       if(!JS_IsException(err))
         JS_Throw(ctx, err);
@@ -554,7 +543,7 @@ js_xml_parser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSV
     return JS_UNDEFINED;
 
   if(ev.type == XE_ERROR) {
-    JSValue err = js_xmlevent_error(ctx, &p->xp, p->loc);
+    JSValue err = js_xmlevent_error(ctx, &ev, p->loc);
 
     return JS_IsException(err) ? err : JS_Throw(ctx, err);
   }
@@ -584,7 +573,7 @@ js_xml_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case XML_PARSER_DEPTH: ret = JS_NewUint32(ctx, xml_depth(p)); break;
+    case XML_PARSER_DEPTH: ret = JS_NewUint32(ctx, p->xp.depth); break;
     case XML_PARSER_LOCATION: ret = js_location_wrap(ctx, p->loc); break;
     case XML_PARSER_TOLERANT: ret = JS_NewBool(ctx, p->xp.tolerant); break;
   }

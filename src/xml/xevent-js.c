@@ -84,22 +84,22 @@ js_xmlwrite_throw(JSContext* ctx, ssize_t r) {
   return JS_Throw(ctx, err);
 }
 
-/* js_xmlevent_error: the SyntaxError for the XE_ERROR `xp` just returned, at the
+/* js_xmlevent_error: the SyntaxError for an XE_ERROR event, at the
  * start of the offending tag; `base` supplies the input name.
  *
  * returns the error object (refcount: a new reference), or JS_EXCEPTION. */
 JSValue
-js_xmlevent_error(JSContext* ctx, const XMLParser* xp, const Location* base) {
+js_xmlevent_error(JSContext* ctx, const XmlEvent* ev, const Location* base) {
   Location* at;
   JSValue ret;
 
   if(!(at = location_clone(base, ctx)))
     return JS_EXCEPTION;
 
-  at->line = xp->tag_line - 1;
-  at->column = xp->tag_column - 1;
+  at->line = ev->at.line - 1;
+  at->column = ev->at.column - 1;
   at->char_offset = at->byte_offset = -1;
-  ret = js_syntax_error_new(ctx, at, xp->err_len, xp->err_code, "mismatch </%.*s>", (int)xp->event_name.len, xp->event_name.data);
+  ret = js_syntax_error_new(ctx, at, ev->span, ev->code, "%s", ev->str);
   location_free(at, JS_GetRuntime(ctx));
   return ret;
 }
@@ -148,10 +148,7 @@ xml_read_value(JSContext* ctx, const uint8_t* buf, size_t len, const char* input
       continue;
 
     if(ev.type == XE_ERROR) {
-      char msg[128];
-
-      snprintf(msg, sizeof(msg), "mismatch </%.*s>", (int)xp.event_name.len, xp.event_name.data);
-      js_throw_syntax_error_at(ctx, input_name, &ev.at, ev.span, ev.code, msg);
+      js_throw_syntax_error_at(ctx, input_name, &ev.at, ev.span, ev.code, ev.str);
       failed = TRUE;
       break;
     }
@@ -165,7 +162,7 @@ xml_read_value(JSContext* ctx, const uint8_t* buf, size_t len, const char* input
       JSValue last = xbuild_last(&xb);
 
       if(!JS_IsUndefined(last))
-        virtual_set(&vprop, ctx, last, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
+        virtual_set(&vprop, ctx, last, make_tuple(ctx, JS_NewUint32(ctx, ev.at.line), JS_NewUint32(ctx, ev.at.column)));
 
       JS_FreeValue(ctx, last);
     }

@@ -1988,28 +1988,20 @@ C side (the order is free, none blocks the others):
   is gone (it compared `json.c` with `jread`, `c-jread-dialects` stays). Differences from the old pull parser, all deliberate: columns count characters,
   not bytes; a comment event is at its start, not its end; error messages come from the error code (`jnext_message`); an unclosed container in
   `legacy` is `unexpected-end` (it was silent); `legacy` rejects a raw newline in a string.
-  **XML: `xml.c` is NOT removed yet** (decided 2026-10-18): it stays as the reference pull parser until the replacement has run long enough. Measured on 8 MB, MB/s at chunk
-  1 / 64 / 4096: `xread` strict ~140, `xread` `XR_COMPAT` 22 / 46 / 48, `xml.c` ~13-17.
-  - XML: `xr_state_init_flags(st, XR_COMPAT | XR_TOLERANT | XR_FLAT | XR_NO_IMPLIED_END)` makes `xr_feed` do everything `xml.c` does (markup events,
-    element stack, void tags, raw text, implied ends, flat, positions); `tests/c/xread-compat.c` (`c-xread-compat`) compares it with `xml_next` event
-    for event on a corpus and 20000 random inputs, five flag sets, five chunk sizes. Known, deliberate differences: an instruction not ended by `?>` is
-    not left open as an element, an instruction's `at` is its own `<` (xml.c reports the next tag's), flat mode does not swallow the end after an
-    instruction, `self_closing` is only set for `<a/>` and void tags.
-    Next (planned 2026-10-18, not started, `xml.c` stays until then):
-    1. `xml_next` becomes a queue adapter over `xr_feed` in `XR_COMPAT` mode, the way `json_next` is now (`src/json/jnext.c` is the model): it owns an `xr_state_t`, an event
-       queue and the Reader, a dry Reader gives `XML_PULL_AGAIN`, end of input calls `xr_end` and then `XML_PULL_END`. `xml_init`, `xml_next`,
-       `xml_set_tolerant/flat/implied_end` keep their signatures, `quickjs-xml.c` does not change, `XMLParser` loses the computed-goto resume fields.
-    2. Freeze the `c-xread-compat` corpus and fuzz inputs as golden event files (the oracle goes with `xml.c`), keep `test-xml.js`, the write golden and
-       `tests/c/event-model.c` green.
-    3. Delete `xml.c` (about 900 lines), keep the entity and tag helpers. Users of `XMLParser`/`xml_next` today: `quickjs-xml.c`, `xnext.c`,
-       `xevent-js.c`, `xopts.c`, `xbuilder.c`, `tests/c/{event-model,pump-roundtrip}.c`.
+  **XML done 2026-10-18**: `xml.c` is deleted, `XMLParser` / `xml_next` is the same queue over `xr_feed` in `XR_COMPAT` mode (`src/xml/xnext.c`, the Reader
+  answering 0 ends the input, less than 0 is `XML_PULL_AGAIN`). `xr_state_init_flags(st, XR_COMPAT | XR_TOLERANT | XR_FLAT | XR_NO_IMPLIED_END)` does everything
+  `xml.c` did (markup events, element stack, void tags, raw text, implied ends, flat, positions); measured on 8 MB, MB/s at chunk 1 / 64 / 4096: `xread` strict ~140,
+  `XR_COMPAT` 22 / 46 / 48, `xml.c` was ~13-17. The oracle is frozen as `tests/fixtures/xml-pull-dump.txt` (`tests/c/xml-pull-dump.c`, `c-xml-pull-dump`: a corpus
+  and 400 random inputs, five flag sets, read sizes 1, 3, 16384); `c-xread-compat` went with `xml.c`. Differences from the old pull parser, all deliberate: an instruction
+  not ended by `?>` is not left open as an element, an instruction's `at` is its own `<` (it was the next tag's), flat mode does not swallow the end after an
+  instruction, `self_closing` is only set for `<a/>` and void tags, the mismatched-end-tag event carries the message `mismatch </name>` in `str`, `XMLParser.depth` is
+  kept as it was (an element counts as open after its attributes).
 - `quickjs-json.c` size (2026-10-18): 1412 to 933 lines. Done: `js_class_define` / `js_object_from_target` (`utils.h`) replace the per-class registration and
   prototype boilerplate, `jpush.[ch]` (push parser modes, errors, connect), `jserializer.[ch]`, `js_jsonpull_pump` (`jconnect.c`), `json_new_from_js`
   (`jevent-js.c`), `jwrite_js_stack` (`jopts.c`). About 190 of the remaining lines are the required header comments, 550 are function bodies. Going below
   ~700 needs API decisions, not more lifting: merge `JsonParser` and `JsonPushParser` into one class, move `JsonWriter` / `JsonBuilder` / `tee` to the `lib/` glue
   (P9), drop `JsonSerializer.read(n)` in favour of the iterator. Decided 2026-10-18: `JsonPushParser` stays a separate class (no merge with `JsonParser`), the C core is shared instead.
-  `quickjs-xml.c` got the same treatment: 1340 to 1105 lines (`js_class_define`, `js_object_from_target`, the push parser in `xpush.[ch]`). Left in it: the `XmlParser` wrapper
-  (reader, location, selfClosingTags), which moves when `xml_next` becomes the queue adapter over `xr_feed` (P14).
+  `quickjs-xml.c` got the same treatment: 1340 to 1094 lines (`js_class_define`, `js_object_from_target`, the push parser in `xpush.[ch]`). Left in it: the `XmlParser` wrapper (reader, location, selfClosingTags).
 - P15: `WalkInterface` and the capture layer of `jwalkev.c` / `xwalkev.c`.
 - B5: DOCTYPE internal subset in `xml.c` / `xread.c` (needed by strict mode and entities), `BUGS` `xml-doctype-internal-subset-mangled`.
 - B9: `walk.c` test for a 100000-deep array, a shared object and a cycle at depth.
