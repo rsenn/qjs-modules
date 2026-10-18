@@ -4,7 +4,9 @@ import { JSONL } from '../../lib/jsonl.js';
 import { read, write, tee, JsonParser, JsonPushParser, JsonSerializer, JsonWriter, JsonBuilder } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
-const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER } = JsonParser;
+const NEED_DATA = -2;
+const NONE = -1;
+const { OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER } = JsonParser;
 
 /* tinytest's eq() uses !=, which does reference comparison for arrays/objects -
  * deep-compare via JSON.stringify instead (same convention as test_stream.js). */
@@ -19,13 +21,33 @@ function assertThrows(fn, msg) {
   throw new Error('assertThrows(): did not throw' + (msg ? ' - ' + msg : ''));
 }
 
+/* A JsonParser that also answers the old step-at-a-time questions on top of next():
+ * parse() returns the type of the next event or NEED_DATA when the iteration ends,
+ * token is the text of the event (the source text of a number). */
+class Pull extends JsonParser {
+  #ev;
+
+  parse() {
+    const { done, value } = this.next();
+
+    this.#ev = done ? undefined : value;
+    return done ? NEED_DATA : value.type;
+  }
+
+  get token() {
+    const ev = this.#ev;
+
+    return ev?.raw ?? (typeof ev?.value == 'string' ? ev.value : '');
+  }
+}
+
 function tokens(p) {
   const out = [];
   let t;
 
-  while((t = p.parse()) !== NEED_DATA) out.push([t, p.token, p.depth, p.pos]);
+  while((t = p.parse()) !== NEED_DATA) out.push([t, p.token, p.depth]);
 
-  out.push([t, p.token, p.depth, p.pos]);
+  out.push([t, p.token, p.depth]);
   return out;
 }
 
@@ -34,7 +56,7 @@ function pullTokens(text, max) {
   const bytes = Uint8Array.from(text, c => c.charCodeAt(0));
   const lens = [];
   let off = 0;
-  const p = new JsonParser(
+  const p = new Pull(
     {
       read(buf, len) {
         const n = Math.min(len, max, bytes.length - off);
@@ -52,7 +74,7 @@ function pullTokens(text, max) {
 }
 
 function drainParser(input, filename) {
-  let p = filename !== undefined ? new JsonParser(input, filename) : new JsonParser(input);
+  let p = filename !== undefined ? new Pull(input, filename) : new Pull(input);
   let toks = [];
 
   for(;;) {
@@ -430,7 +452,7 @@ tests({
     eqArr(toks, [OBJECT, KEY, NUMBER, KEY, ARRAY, NUMBER, STRING, ARRAY_END, KEY, NULL, OBJECT_END, NEED_DATA]);
   },
   'JsonParser: decodes string escapes and surrogate pairs'() {
-    let p = new JsonParser('"a\\nb\\tc\\"d\\\\e caf\\u00e9 \\ud83d\\ude00"');
+    let p = new Pull('"a\\nb\\tc\\"d\\\\e caf\\u00e9 \\ud83d\\ude00"');
 
     p.parse();
 
@@ -565,8 +587,8 @@ tests({
     eq(e.code, 'unexpected-end');
     eq(e.loc.line, 1);
   },
-  'JsonParser: .pos and .depth track position'() {
-    let p = new JsonParser('{"a":[1,2]}');
+  'JsonParser: .depth tracks the open containers'() {
+    let p = new Pull('{"a":[1,2]}');
 
     p.parse(); // OBJECT
     eq(p.depth, 1);
@@ -574,8 +596,6 @@ tests({
     p.parse(); // KEY
     p.parse(); // ARRAY
     eq(p.depth, 2);
-
-    assert(p.pos > 0);
   },
   'JsonParser: .location tracks line/column, .location.file reflects filename'() {
     let { parser } = drainParser('{\n  "a": 1\n}', 'my-input.json');
@@ -592,7 +612,7 @@ tests({
     const doc =
       '{"s":"caf\\u00e9 \\ud83d\\ude00 \\u2028 \\"q\\" \\\\ \\n","n":[-1.5e-2,12345678901234,0],' +
       '"lit":[true,false,null],"deep":{"a":{"b":["' + 'x'.repeat(40) + '",{}]}}}';
-    const expected = tokens(new JsonParser(doc));
+    const expected = tokens(new Pull(doc));
 
     assert(expected.length > 20);
 
@@ -604,7 +624,7 @@ tests({
         /* an escape and a surrogate pair straddle the block boundary for some of these pads */
         const doc = '["' + 'a'.repeat(pad) + '\\u00e9\\ud83d\\ude00",12345,"tail"]';
 
-        eqArr(pullTokens(doc, Infinity).toks, tokens(new JsonParser(doc)));
+        eqArr(pullTokens(doc, Infinity).toks, tokens(new Pull(doc)));
       }
     }
 
@@ -613,11 +633,11 @@ tests({
       const doc = '[' + '1,'.repeat(n) + '1' + ' '.repeat(size - 3 - 2 * n) + ']';
 
       eq(doc.length, size);
-      eqArr(pullTokens(doc, Infinity).toks, tokens(new JsonParser(doc)));
+      eqArr(pullTokens(doc, Infinity).toks, tokens(new Pull(doc)));
     }
   },
   'JsonParser: pull callback with empty input'() {
-    eqArr(pullTokens('', Infinity).toks, [[NEED_DATA, null, 0, 0]]);
+    eqArr(pullTokens('', Infinity).toks, [[NEED_DATA, '', 0]]);
   },
   'JsonParser: accepts an fd number'() {
     const doc = '{"a":[1,"b",null],"c":{"d":true}}';
@@ -627,7 +647,7 @@ tests({
     f.flush();
     f.seek(0, std.SEEK_SET);
 
-    eqArr(tokens(new JsonParser(f.fileno())), tokens(new JsonParser(doc)));
+    eqArr(tokens(new Pull(f.fileno())), tokens(new Pull(doc)));
     f.close();
   },
 
@@ -858,7 +878,7 @@ tests({
     eqArr(p.root, [1, true, null]);
   },
   'JsonParser: comments are skipped'() {
-    eqArr(tokens(new JsonParser('/* c */ {"a" /* k */ : // v\n [1, 2]}')).map(([t, v]) => [t, v]), tokens(new JsonParser('{"a":[1,2]}')).map(([t, v]) => [t, v]));
+    eqArr(tokens(new Pull('/* c */ {"a" /* k */ : // v\n [1, 2]}')).map(([t, v]) => [t, v]), tokens(new Pull('{"a":[1,2]}')).map(([t, v]) => [t, v]));
   },
   'JsonParser: comment markers inside strings are kept'() {
     let p = new JsonPushParser();
@@ -867,7 +887,7 @@ tests({
     eqArr(p.root, ['// not', '/* a */']);
   },
   'JsonParser: comments = true reports COMMENT tokens'() {
-    let p = new JsonParser('// a\n[1, /* b */ 2] // c');
+    let p = new Pull('// a\n[1, /* b */ 2] // c');
     let got = [];
     let t;
 
@@ -1022,12 +1042,12 @@ tests({
   'JsonParser.pump: into a JsonBuilder'() {
     const b = new JsonBuilder();
 
-    eq(new JsonParser('{"a":[1,"x",null],"b":true}').pump(b, true), 0);
+    eq(new Pull('{"a":[1,"x",null],"b":true}').pump(b, true), 0);
     eq(JSON.stringify(b.root), '{"a":[1,"x",null],"b":true}');
     eq(Object.getPrototypeOf(b.root), null);
     const plain = new JsonBuilder({ plain: true });
 
-    new JsonParser('{"a":1}').pump(plain, true);
+    new Pull('{"a":1}').pump(plain, true);
     eq(Object.getPrototypeOf(plain.root), Object.prototype);
   },
   'JsonParser.pump: into a JsonWriter, a tee and a JS object'() {
@@ -1035,7 +1055,7 @@ tests({
     const b = new JsonBuilder(), seen = [];
     const o = { key: k => seen.push('k:' + k), number: n => seen.push('n:' + n), objectStart: () => seen.push('{'), objectEnd: () => seen.push('}') };
 
-    new JsonParser('{"a":1}').pump(tee(w, b, o), true);
+    new Pull('{"a":1}').pump(tee(w, b, o), true);
     eq(String.fromCharCode(...buf.subarray(0, w.written)), '{"a":1}');
     eq(b.root.a, 1);
     eq(seen.join(' '), '{ k:a n:1 }');
@@ -1043,13 +1063,13 @@ tests({
   'JsonParser.pump: AGAIN without end, the error as SyntaxError, a throwing sink'() {
     const b = new JsonBuilder();
 
-    eq(new JsonParser('[1,2]').pump(b), 1);
-    const e = assertThrows(() => new JsonParser('[1,x]', 'f.json').pump(new JsonBuilder(), true));
+    eq(new Pull('[1,2]').pump(b), 1);
+    const e = assertThrows(() => new Pull('[1,x]', 'f.json').pump(new JsonBuilder(), true));
 
     assert(e instanceof SyntaxError);
     eq(String(e.loc), 'f.json:1:4');
-    eq(assertThrows(() => new JsonParser('[1]').pump({ number() { throw new RangeError('stop'); } }, true)).message, 'stop');
-    assertThrows(() => new JsonParser('[1]').pump(5));
+    eq(assertThrows(() => new Pull('[1]').pump({ number() { throw new RangeError('stop'); } }, true)).message, 'stop');
+    assertThrows(() => new Pull('[1]').pump(5));
   },
   'JsonPushParser.connect: events go to the sink'() {
     const b = new JsonBuilder(), p = new JsonPushParser();
@@ -1071,7 +1091,7 @@ tests({
   },
   'JsonWriter as a sink: a native refusal is an Error with a code'() {
     const w = new JsonWriter(new Uint8Array(2), { minify: true });
-    const e = assertThrows(() => new JsonParser('["toolong"]').pump(w, true));
+    const e = assertThrows(() => new Pull('["toolong"]').pump(w, true));
 
     assert(e instanceof Error);
     assert(e.code !== undefined);
@@ -1082,7 +1102,7 @@ tests({
     const run = (text, options) => {
       const b = new JsonBuilder({ plain: true });
 
-      new JsonParser(text, options).pump(b, true);
+      new Pull(text, options).pump(b, true);
       return JSON.stringify(b.root);
     };
 
@@ -1096,9 +1116,9 @@ tests({
 
     const nums = new JsonBuilder();
 
-    new JsonParser('[+.5, Infinity, -0x1F, 5., 1e3]', { dialect: 'json5' }).pump(nums, true);
+    new Pull('[+.5, Infinity, -0x1F, 5., 1e3]', { dialect: 'json5' }).pump(nums, true);
     eq(nums.root.join(), '0.5,Infinity,-31,5,1000');
-    assertThrows(() => new JsonParser('1', { dialect: 'yaml' }));
+    assertThrows(() => new Pull('1', { dialect: 'yaml' }));
     eq(String(assertThrows(() => run('[1,x]', { dialect: 'json', filename: 'f.json' })).loc), 'f.json:1:4');
   },
   'JsonPushParser: dialect and strict options'() {
@@ -1111,17 +1131,17 @@ tests({
     assertThrows(() => new JsonPushParser({ dialect: 'yaml' }));
   },
   'JsonParser: the comments option delivers comment events'() {
-    const p = new JsonParser('/* c */ [1]', { dialect: 'jsonc', comments: true });
+    const p = new Pull('/* c */ [1]', { dialect: 'jsonc', comments: true });
     const types = [];
     let t;
 
-    while((t = p.parse()) !== JsonParser.NEED_DATA) types.push(t);
+    while((t = p.parse()) !== NEED_DATA) types.push(t);
 
     eq(types[0], JsonParser.COMMENT);
   },
 
   'JsonParser: next() and for..of give { type, value, loc }'() {
-    const ev = [...new JsonParser('{"a":[1,"x",null,true]}')];
+    const ev = [...new Pull('{"a":[1,"x",null,true]}')];
 
     eqArr(ev.map(e => e.type), [JsonParser.OBJECT, JsonParser.KEY, JsonParser.ARRAY, JsonParser.NUMBER, JsonParser.STRING, JsonParser.NULL, JsonParser.TRUE, JsonParser.ARRAY_END, JsonParser.OBJECT_END]);
     eq(ev[1].value, 'a');
@@ -1131,6 +1151,6 @@ tests({
     eq(ev[6].value, true);
     assert(!('value' in ev[0]));
     eq(JSON.stringify(ev[1].loc), '{"line":1,"column":2,"offset":1}');
-    assertThrows(() => [...new JsonParser('[1,x]')]);
+    assertThrows(() => [...new Pull('[1,x]')]);
   },
 });

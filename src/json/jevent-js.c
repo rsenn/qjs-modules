@@ -43,6 +43,12 @@ JSValue
 js_jsonevent_new(JSContext* ctx, const JsonEvent* ev) {
   JSValue obj = JS_NewObject(ctx), value = js_jsonevent_value(ctx, ev), loc = JS_NewObject(ctx);
 
+  /* a comment is its text, a number also keeps its source text */
+  if(ev->type == JSON_EVENT_COMMENT)
+    value = JS_NewStringLen(ctx, ev->str ? ev->str : "", ev->len);
+  else if(ev->type == JSON_EVENT_NUMBER && ev->str)
+    JS_SetPropertyStr(ctx, obj, "raw", JS_NewStringLen(ctx, ev->str, ev->len));
+
   JS_SetPropertyStr(ctx, obj, "type", JS_NewInt32(ctx, ev->type));
 
   if(!JS_IsUndefined(value))

@@ -92,18 +92,14 @@ negative result; a JS-object sink throws its own exception.
 ## JsonParser
 
 `next()` returns the next event as `{ type, value?, loc: { line, column, offset } }` and the parser is iterable
-(`for(const { type, value } of new JsonParser(text))`); an error event throws the `SyntaxError`. `parse()` with its raw ids stays for
-existing callers and is deprecated.
+(`for(const { type, value } of new JsonParser(text))`); an error event throws the `SyntaxError`.
+The iteration ends when the document is complete or the reader has no data now. A COMMENT event has its text as `value`, a NUMBER event
+has its source text as `raw` (`1.50`, `12345678901234567890`) next to the number in `value`.
 
 Constructor options (second argument, a string is the file name): `new JsonParser(input, { dialect, strict, comments, filename })`.
 `dialect` is `'json'`, `'jsonc'`, `'json5'`, `'jsonl'` or `'legacy'` (the default: lenient, skips bad input and goes on), `strict: true`
 means `'json'`, `comments: true` delivers comments as `COMMENT` events. `JsonPushParser({ dialect, strict, ... })` takes the same two
 keys next to its callbacks. NUMBER text of every dialect (`0x1F`, `+.5`, `Infinity`) becomes the right number in a builder.
-
-An incremental JSON tokenizer, built on `Reader`/`Location` from `stream-utils.h`. Each call
-to `.parse()` either advances one token (a state change), signals that the reader ran dry
-before a token was complete (`"NEED_DATA"`), or throws a `SyntaxError` (with the offending
-line:column) on malformed input.
 
 ```js
 new JsonParser(input, filename?)   // length 1; filename is optional, reflected in .location.file
@@ -115,30 +111,22 @@ new JsonParser(input, filename?)   // length 1; filename is optional, reflected 
 - an object exposing such a function as its `read` method — called with the object as `this`, e.g. a file wrapper: `{ read(buf, len) { return f.read(buf, 0, len); } }`, or
 - a file descriptor number (e.g. `f.fileno()`), read with `read(2)`; the parser does not close it.
 
-The function/method/fd forms let the parser pull raw bytes on demand instead of requiring the whole document up front. Input is pulled in blocks of up to 16384 bytes (`len` is 16384; a read may return fewer bytes, and returning 0 yields `"NEED_DATA"`), so the parser can read past the end of the JSON document — don't share the source with another consumer.
+The function/method/fd forms let the parser pull raw bytes on demand instead of requiring the whole document up front. Input is pulled in blocks of up to 16384 bytes (`len` is 16384; a read may return fewer bytes, and returning 0 ends the iteration for now), so the parser can read past the end of the JSON document — don't share the source with another consumer.
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `parse()` | 0 | method | Advances one token. Returns one of `"NEED_DATA"`, `"NONE"`, `"OBJECT"`, `"OBJECT_END"`, `"ARRAY"`, `"ARRAY_END"`, `"KEY"`, `"STRING"`, `"TRUE"`, `"FALSE"`, `"NULL"`, `"NUMBER"`, plus `JsonParser.COMMENT` when `comments` is set. Throws on malformed input. |
-| `pos` | — | getter | Current parse position, in characters consumed (enumerable). |
-| `token` | — | getter | The current token's decoded text — e.g. string/key content has escapes and `\uXXXX` (including surrogate pairs) already resolved (enumerable). |
-| `state` | — | getter | Internal parser state bitmask (enumerable). |
+| `next()` | 0 | method | The next event as an iterator result. Throws the `SyntaxError` of an error event. |
+| `pump(sink, end?)` | 1 | method | Runs the parser into a sink, returns 0 when the input ended, 1 when the reader has no data now. |
 | `depth` | — | getter | Current nesting depth (enumerable). |
 | `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename); live, like `JsonPushParser`'s (enumerable). |
-| `comments` | — | getter/setter | Boolean, default `false`. When `true`, `parse()` returns `JsonParser.COMMENT` for each `//` or `/* */` comment (text in `token`) instead of skipping it. |
+| `comments` | — | getter/setter | Boolean, default `false`. When `true`, each `//` or `/* */` comment is a `JsonParser.COMMENT` event instead of being skipped. |
 
 ```js
 import { JsonParser } from 'json';
 
-let p = new JsonParser('{"a":1,"b":[2,3]}');
-let t;
-
-while((t = p.parse()) !== 'NEED_DATA') console.log(t, JSON.stringify(p.token));
-// OBJECT "{"  KEY "a"  NUMBER "1"  KEY "b"  ARRAY "["  NUMBER "2"  NUMBER "3"  ARRAY_END "]"  OBJECT_END "}"
+for(const { type, value } of new JsonParser('{"a":1,"b":[2,3]}')) console.log(type, value);
+// OBJECT  KEY a  NUMBER 1  KEY b  ARRAY  NUMBER 2  NUMBER 3  ARRAY_END  OBJECT_END
 ```
-
-`"NEED_DATA"` at the top level (after the root value is fully closed) simply means there's
-nothing left to parse — this class has no `.write()` to feed it more, unlike `JsonPushParser`.
 
 ## JsonPushParser
 

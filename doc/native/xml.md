@@ -1,6 +1,6 @@
 # xml
 
-Source: `quickjs-xml.c` — module exports **`XMLParser`**, **`XMLNodeParser`**, **`XMLPushParser`**, **`XMLTreeSerializer`**, **`XMLWriter`** and a function list.
+Source: `quickjs-xml.c` — module exports **`XMLParser`**, **`XMLPushParser`**, **`XMLTreeSerializer`**, **`XMLWriter`** and a function list.
 
 An XML/HTML reader and writer. Parses markup into a tree (or flat list) of plain JS
 objects and serializes such a tree back to text. Element objects are `{tagName, attributes, children}`-shaped.
@@ -47,8 +47,7 @@ Text and attribute values are escaped (`& < >`, and `"` in attributes); an attri
 
 `next()` returns the next event as `{ type, name?, value?, loc: { line, column } }` and the parser is iterable. Markup arrives typed:
 `COMMENT` (5), `DECLARATION` (6), `INSTRUCTION` (7) and `CDATA` (8) carry their text in `value`. A mismatched closing tag throws the
-`SyntaxError`. `parse()` with its raw ids, `eventName` and `eventValue` stays for existing callers (`lib/html.js`, `examples/html2md.js`) and is
-deprecated: it delivers markup as elements with magic names.
+`SyntaxError`.
 
 ## Parser options
 
@@ -84,13 +83,10 @@ The sink interface has no self-closing flag, so a tree built through a sink give
 
 ## XMLParser
 
-An incremental pull parser built on `Reader`/`Location` from `stream-utils.h` and `include/xml.h`'s
-`xml_parser_run()`. Each call to `.parse()` advances just far enough to produce one event (or a
-status code) and also feeds every element/attribute/text event into an internal `XMLBuilder`, so
-`.root` gives the tree built so far without the caller having to do that bookkeeping.
+An incremental pull parser. `next()` and the iterator give the events above, `pump(sink)` runs it into a sink in C.
 
 ```js
-new XMLParser(input, options?)   // input is a buffer/string or a reader; options may carry callbacks and filename
+new XMLParser(input, options?)   // input is a buffer/string or a reader; options: see Parser options
 ```
 
 `input` may be:
@@ -98,88 +94,33 @@ new XMLParser(input, options?)   // input is a buffer/string or a reader; option
 - a pull function `(buf, len) => bytesRead`, called as needed to fill `buf`, or
 - an object exposing such a function as its `read` method.
 
-`options` is an object. If it defines any of the callback properties (`elementStart`, `elementEnd`, `attribute`, `text`, `error`), events are forwarded to those callbacks instead of being fed into the builder. It may also carry a `filename` string for `.location`.
+The iteration ends when the document is complete or the reader has no data now (call `next()` again once it might). The `type` of an
+event is one of these constants, static properties of the constructor:
 
-`.parse()` returns one of the following integer constants (exposed as static properties on the constructor):
-
-| Constant | Value | Meaning |
-| --- | --- | --- |
-| `XMLParser.PARSE_AGAIN` | −2 | Reader has no data right now; call `.parse()` again once it might. |
-| `XMLParser.PARSE_ERROR` | −1 | Non-tolerant mismatched closing tag (terminal). |
-| `XMLParser.PARSE_OK` | 0 | Clean end of stream (terminal). |
-| `XMLParser.ELEMENT_START` | 1 | Opening tag — `eventName` is the tag name. |
-| `XMLParser.ATTRIBUTE` | 2 | Attribute — `eventName` is the name, `eventValue` the value (`hasValue` is false for boolean attributes). |
-| `XMLParser.ELEMENT_END` | 3 | Closing tag — `eventName` is the tag name. |
-| `XMLParser.TEXT` | 4 | Text content — `eventValue` is the text run. |
+| Constant | Value | `name` | `value` |
+| --- | --- | --- | --- |
+| `XMLParser.ELEMENT_START` | 1 | tag name | |
+| `XMLParser.ATTRIBUTE` | 2 | attribute name | the value, undefined for a boolean attribute |
+| `XMLParser.ELEMENT_END` | 3 | tag name | |
+| `XMLParser.TEXT` | 4 | | the text run |
+| `XMLParser.COMMENT` | 5 | | the text |
+| `XMLParser.DECLARATION` | 6 | | the text |
+| `XMLParser.INSTRUCTION` | 7 | | the text |
+| `XMLParser.CDATA` | 8 | | the text |
 
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `parse()` | 0 | method | Advances one event. Returns an `XmlEventType` integer (see table above). |
-| `eventName` | — | getter | The current event's tag/attribute name (enumerable). |
-| `eventValue` | — | getter | The current event's value — attribute value or text content (enumerable). |
-| `hasValue` | — | getter | Whether the current event carries a value (enumerable). |
+| `next()` | 0 | method | The next event `{ type, name?, value?, loc }`, as an iterator result. |
+| `pump(sink)` | 1 | method | Runs the parser into a sink, returns 0 when the input ended, 1 when the reader has no data now. |
 | `depth` | — | getter | Current element nesting depth (enumerable). |
-| `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename); live (enumerable). |
-| `tolerant` | — | getter/setter | When true, mismatched closing tags are silently skipped instead of producing `PARSE_ERROR`. |
-| `root` | — | getter | The `{tagName, attributes, children}` tree built so far (enumerable). |
-| `onelementstart` | — | setter | Callback invoked on element start events (configurable, writable). |
-| `onelementend` | — | setter | Callback invoked on element end events (configurable, writable). |
-| `onattribute` | — | setter | Callback invoked on attribute events (configurable, writable). |
-| `ontext` | — | setter | Callback invoked on text events (configurable, writable). |
+| `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename), live (enumerable). |
+| `tolerant` | — | getter/setter | When true, mismatched closing tags are silently skipped instead of throwing. |
 
 ```js
 import { XMLParser } from 'xml';
 
-let p = new XMLParser('<root attr="val"><child>text</child></root>');
-let ev;
-
-while((ev = p.parse()) > 0) {
-  if(ev === XMLParser.ELEMENT_START) console.log('start', p.eventName);
-  if(ev === XMLParser.ATTRIBUTE)     console.log('attr', p.eventName, '=', p.eventValue);
-  if(ev === XMLParser.TEXT)          console.log('text', p.eventValue);
-  if(ev === XMLParser.ELEMENT_END)   console.log('end', p.eventName);
-}
-// start root  attr attr = val  start child  text text  end child  end root
-```
-
-## XMLNodeParser
-
-A pull parser that yields one "flat list" node per `.parse()` call. Returns JS strings for text
-content, and JS objects `{tagName, attributes}` for start tags (end tags have a `tagName` prefixed
-with `/`). Unlike `XMLParser`, each call returns a complete node rather than individual events —
-attributes are collected internally and attached to the start-tag object before it is returned.
-
-```js
-new XMLNodeParser(input, options?)   // input is a buffer/string or a reader; options may carry filename
-```
-
-`input` and the reader conventions are the same as `XMLParser`. `options` is an object that may
-carry a `filename` string for `.location`.
-
-`.parse()` returns:
-- A JS **string** for text content.
-- A JS **object** `{tagName, attributes}` for a start tag (attributes are collected before returning).
-- A JS **object** `{tagName}` with `tagName` prefixed by `/` for an end tag.
-- An **integer** status code (`PARSE_AGAIN`, `PARSE_ERROR`, `PARSE_OK`) — same constants as `XMLParser`.
-
-| Member | Args | Kind | Description |
-| --- | --- | --- | --- |
-| `parse()` | 0 | method | Advances to the next node. Returns a string, object, or integer status (see above). |
-| `depth` | — | getter | Current element nesting depth (enumerable). |
-| `location` | — | getter | A `Location` reflecting the current input position (line/column/byte offset/filename); live (enumerable). |
-
-```js
-import { XMLNodeParser } from 'xml';
-
-let p = new XMLNodeParser('<ul><li>hello</li></ul>');
-let node;
-
-while((node = p.parse()) > 0) {
-  if(typeof node === 'string')       console.log('text:', node);
-  else if(node.tagName[0] === '/')   console.log('close:', node.tagName);
-  else                               console.log('open:', node.tagName, node.attributes);
-}
-// open: ul {}  open: li {}  text: hello  close: /li  close: /ul
+for(const { type, name, value } of new XMLParser('<root attr="val"><child>text</child></root>')) console.log(type, name, value);
+// 1 root  2 attr val  1 child  4 undefined text  3 child  3 root
 ```
 
 ## XMLPushParser

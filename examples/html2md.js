@@ -4,7 +4,7 @@ import { isMainModule } from 'util';
 import { XMLParser } from 'xml';
 
 /**
- * Convert HTML/XML markup to Markdown, driven by XMLParser's pull events.
+ * Convert HTML/XML markup to Markdown, driven by XMLParser's typed events (for..of).
  *
  * Handles: h1–h6, p, b/strong, i/em, ul, ol, li, pre, a, img.
  * Only ELEMENT_START, ATTRIBUTE (src/href), TEXT and ELEMENT_END events are used.
@@ -39,12 +39,10 @@ export function html2md(input) {
     return stack.length >= 2 ? stack[stack.length - 2] : null;
   }
 
-  let ev;
-
-  while((ev = p.parse()) > 0) {
-    switch (ev) {
+  for(const ev of p) {
+    switch (ev.type) {
       case XMLParser.ELEMENT_START: {
-        const tag = p.eventName;
+        const tag = ev.name;
         const frame = { tag, attrs: {} };
         stack.push(frame);
 
@@ -78,18 +76,18 @@ export function html2md(input) {
       }
 
       case XMLParser.ATTRIBUTE: {
-        const name = p.eventName;
+        const name = ev.name;
 
         if(name === 'src' || name === 'href') {
           const frame = top();
-          if(frame) frame.attrs[name] = p.eventValue;
+          if(frame) frame.attrs[name] = ev.value;
         }
         break;
       }
 
       case XMLParser.TEXT: {
         const frame = top();
-        const text = p.eventValue;
+        const text = ev.value;
 
         if(frame && frame.tag === 'pre') {
           md += text; /* preserve whitespace inside <pre> */

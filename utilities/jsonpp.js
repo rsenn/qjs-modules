@@ -7,7 +7,7 @@ import { toString, toArrayBuffer } from 'util';
 import { ArrayBufferSink } from 'arraybuffer_sink';
 import { mkstempSync, nameSync } from 'fs';
 
-const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT } = JsonParser;
+const { OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER, COMMENT } = JsonParser;
 
 /* Wraps a file (or stdin, fd 0) as a JsonParser reader method: JsonParser calls
  * read(buf, len) to pull raw bytes on demand, straight off the fd via os.read()
@@ -77,15 +77,13 @@ function prettyPrint(reader, filename, opts, write) {
 
   const parser = new JsonParser(reader, filename);
   const writer = new JsonWriter((buf, len) => {
-    let r = 0;
     const str = toString(buf, 0, len);
 
     if(comma) {
       if(!/^\s/.test(str)) {
         for(let comment of pending) {
           const b = toArrayBuffer(comment.replaceAll('\n', ws) + ws);
-          const tmp = write(b, b.byteLength);
-          if(tmp > 0) r += tmp;
+          write(b, b.byteLength);
         }
 
         pending.splice(0, pending.length);
@@ -98,10 +96,8 @@ function prettyPrint(reader, filename, opts, write) {
       ws = '';
     }
 
-    const tmp = write(buf, len);
-    if(tmp > 0) r += tmp;
-
-    return r;
+    /* the count is that of buf only, the comments written above are extra */
+    return write(buf, len);
   }, opts);
 
   parser.comments = true;
@@ -109,18 +105,10 @@ function prettyPrint(reader, filename, opts, write) {
   /* Comments arrive between tokens but the comma before the next element is only written
    * once that element is seen, so they wait here and are written right before it (after
    * the comma) or before the closing bracket, never between a value and its comma. */
-  for(;;) {
-    const event = parser.parse();
-    const { token } = parser;
-
+  for(const { type: event, value, raw: token } of parser) {
     switch (event) {
-      case NEED_DATA:
-      case NONE:
-        if(writer.depth) throw new Error('unexpected end of input');
-        return;
-
       case COMMENT:
-        pending.push(token);
+        pending.push(value);
         break;
 
       case OBJECT:
@@ -140,11 +128,11 @@ function prettyPrint(reader, filename, opts, write) {
         break;
 
       case KEY:
-        writer.key(token);
+        writer.key(value);
         break;
 
       case STRING:
-        writer.value(token);
+        writer.value(value);
         break;
 
       case NUMBER: {
@@ -165,6 +153,8 @@ function prettyPrint(reader, filename, opts, write) {
         break;
     }
   }
+
+  if(writer.depth) throw new Error('unexpected end of input');
 }
 
 function main(...args) {

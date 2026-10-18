@@ -1,4 +1,4 @@
-import xml, { XMLParser, XMLNodeParser, XMLWriter, XMLPushParser, XMLTreeSerializer, XmlBuilder, tee } from 'xml';
+import xml, { XMLParser, XMLWriter, XMLPushParser, XMLTreeSerializer, XmlBuilder, tee } from 'xml';
 import { toString } from 'util';
 import { ArrayBufferSink } from 'arraybuffer_sink';
 import { assert, eq, tests } from '../../lib/tinytest.js';
@@ -16,11 +16,63 @@ function assertThrows(fn, msg) {
   throw new Error('assertThrows(): did not throw' + (msg ? ' - ' + msg : ''));
 }
 
+const PARSE_OK = 0;
+
+/* Hands an event of next() to the sink method of its type. */
+function feed(sink, ev) {
+  const { type, name, value } = ev;
+
+  if(type == XMLParser.ELEMENT_START) sink.elementStart(name);
+  else if(type == XMLParser.ATTRIBUTE) sink.attribute(name, value);
+  else if(type == XMLParser.ELEMENT_END) sink.elementEnd(name);
+  else if(type == XMLParser.TEXT) sink.text(value);
+}
+
+const PARSE_ERROR = -1;
+
+/* An XMLParser that also answers the old step-at-a-time questions on top of next():
+ * parse() returns the type of the next event, PARSE_OK at the end or PARSE_ERROR
+ * (the SyntaxError in .error), and eventName / eventValue / hasValue describe it. */
+class Pull extends XMLParser {
+  #ev;
+  #b = new XmlBuilder();
+  error = null;
+
+  parse() {
+    try {
+      const { done, value } = this.next();
+
+      this.#ev = value;
+
+      if(!done) feed(this.#b, value);
+
+      return done ? PARSE_OK : value.type;
+    } catch(e) {
+      this.error = e;
+      this.#ev = undefined;
+      return PARSE_ERROR;
+    }
+  }
+
+  get root() {
+    return this.#b.root;
+  }
+  get eventName() {
+    return this.#ev?.name;
+  }
+  get eventValue() {
+    return this.#ev?.value;
+  }
+  get hasValue() {
+    return this.#ev?.value !== undefined;
+  }
+}
+
 /* Drives an XMLParser to completion, collecting [tokenId, eventName, eventValue-or-null]
  * triples (eventValue only recorded when .hasValue is set, matching the C-level
  * event_has_value/event_value contract for e.g. boolean attributes). */
 function drain(input, filename) {
-  let p = filename !== undefined ? new XMLParser(input, filename) : new XMLParser(input);
+  let p = filename !== undefined ? new Pull(input, filename) : new Pull(input);
   let out = [];
 
   for(let i = 0; i < 10000; i++) {
@@ -28,7 +80,7 @@ function drain(input, filename) {
 
     out.push([tok, p.eventName, p.hasValue ? p.eventValue : null]);
 
-    if(tok === XMLParser.PARSE_OK || tok === XMLParser.PARSE_ERROR) break;
+    if(tok === PARSE_OK || tok === PARSE_ERROR) break;
   }
 
   return { out, parser: p };
@@ -134,8 +186,8 @@ tests({
 
     eqArr(r, [{ tagName: 'a', attributes: {}, children: [{ tagName: 'b', attributes: {}, children: [] }] }]);
   },
-  'XMLParser: parse() without a source throws TypeError'() {
-    assertThrows(() => new XMLParser(null, { tolerant: true, builder: false }).parse());
+  'XMLParser: next() without a source throws TypeError'() {
+    assertThrows(() => new XMLParser(null, { tolerant: true }).next());
   },
 
   'xml.read: closing tag with no matching ancestor throws unless tolerant'() {
@@ -426,22 +478,23 @@ tests({
     eq(seenThis, options);
   },
 
-  /* ---------- XMLParser (pull, .parse()) ---------- */
+  /* ---------- XMLParser (pull, next()) ---------- */
   'XMLParser: is a constructor with named token-id constants'() {
     assert(typeof XMLParser === 'function');
-    eq(XMLParser.PARSE_AGAIN, -2);
-    eq(XMLParser.PARSE_ERROR, -1);
-    eq(XMLParser.PARSE_OK, 0);
     eq(XMLParser.ELEMENT_START, 1);
     eq(XMLParser.ATTRIBUTE, 2);
     eq(XMLParser.ELEMENT_END, 3);
     eq(XMLParser.TEXT, 4);
+    eq(XMLParser.COMMENT, 5);
+    eq(XMLParser.DECLARATION, 6);
+    eq(XMLParser.INSTRUCTION, 7);
+    eq(XMLParser.CDATA, 8);
   },
   'XMLParser: basic token sequence for a well-formed document'() {
     let { out } = drain('<a><b>hi</b></a>');
     let toks = out.map(e => e[0]);
 
-    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.ELEMENT_START, XMLParser.TEXT, XMLParser.ELEMENT_END, XMLParser.ELEMENT_END, XMLParser.PARSE_OK]);
+    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.ELEMENT_START, XMLParser.TEXT, XMLParser.ELEMENT_END, XMLParser.ELEMENT_END, PARSE_OK]);
   },
   'XMLParser: regression - final closing tag at end of input (no trailing whitespace) is not dropped'() {
     /* Was a real bug: src/xml.c's closing-tag handling checked p->done right
@@ -453,7 +506,7 @@ tests({
     let { out } = drain('<a><b></b></a>');
     let toks = out.map(e => e[0]);
 
-    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.ELEMENT_START, XMLParser.ELEMENT_END, XMLParser.ELEMENT_END, XMLParser.PARSE_OK]);
+    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.ELEMENT_START, XMLParser.ELEMENT_END, XMLParser.ELEMENT_END, PARSE_OK]);
 
     let withTrailingWs = drain('<a><b></b></a>\n').out.map(e => e[0]);
     eqArr(withTrailingWs, toks);
@@ -479,25 +532,24 @@ tests({
       XMLParser.TEXT,
       XMLParser.ELEMENT_END, // p
       XMLParser.ELEMENT_END, // div
-      XMLParser.PARSE_OK,
+      PARSE_OK,
     ]);
   },
-  'XMLParser: comments come through as a single start+end pair'() {
+  'XMLParser: a comment is one COMMENT event'() {
     let { out } = drain('<a><!-- hi --><b/></a>');
     let toks = out.map(e => e[0]);
 
     eqArr(toks, [
       XMLParser.ELEMENT_START, // a
-      XMLParser.ELEMENT_START, // comment
-      XMLParser.ELEMENT_END, // comment
+      XMLParser.COMMENT,
       XMLParser.ELEMENT_START, // b
       XMLParser.ELEMENT_END, // b
       XMLParser.ELEMENT_END, // a
-      XMLParser.PARSE_OK,
+      PARSE_OK,
     ]);
   },
   'XMLParser: .depth tracks the open-element stack'() {
-    let p = new XMLParser('<a><b><c/></b></a>');
+    let p = new Pull('<a><b><c/></b></a>');
 
     eq(p.parse(), XMLParser.ELEMENT_START); // a
     eq(p.depth, 0);
@@ -520,7 +572,7 @@ tests({
     ]);
   },
   'XMLParser: .location tracks line/column/byteOffset and advances'() {
-    let p = new XMLParser('<a>\n<b/>\n</a>');
+    let p = new Pull('<a>\n<b/>\n</a>');
     let locs = [];
 
     for(let i = 0; i < 10; i++) {
@@ -528,7 +580,7 @@ tests({
 
       locs.push({ tok, line: p.location.line, column: p.location.column });
 
-      if(tok === XMLParser.PARSE_OK) break;
+      if(tok === PARSE_OK) break;
     }
 
     assert(locs[0].line === 1, JSON.stringify(locs));
@@ -543,69 +595,72 @@ tests({
     eq(parser.location.file, 'my-input.xml');
   },
   'XMLParser: mismatched closing tag is an error unless .tolerant'() {
-    let { out } = drain('<a></c>');
-    let last = out[out.length - 1];
+    let { out, parser } = drain('<a></c>');
 
-    eq(last[0], XMLParser.PARSE_ERROR);
-    eq(last[1], 'c');
+    eq(out[out.length - 1][0], PARSE_ERROR);
+    assert(parser.error instanceof SyntaxError);
+    assert(parser.error.message.includes('</c>'), parser.error.message);
   },
   'XMLParser: .tolerant suppresses the mismatched-closing-tag error'() {
-    let p = new XMLParser('<a></c>');
+    let p = new Pull('<a></c>');
     p.tolerant = true;
 
     let toks = [];
     for(let i = 0; i < 10; i++) {
       let tok = p.parse();
       toks.push(tok);
-      if(tok === XMLParser.PARSE_OK || tok === XMLParser.PARSE_ERROR) break;
+      if(tok === PARSE_OK || tok === PARSE_ERROR) break;
     }
 
-    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.PARSE_OK]);
+    eqArr(toks, [XMLParser.ELEMENT_START, PARSE_OK]);
   },
   'XMLParser: .tolerant getter reflects what was set'() {
-    let p = new XMLParser('<a/>');
+    let p = new Pull('<a/>');
 
     eq(p.tolerant, false);
     p.tolerant = true;
     eq(p.tolerant, true);
   },
   'XMLParser: constructor accepts a pull function(fn(buffer, len) -> bytesRead)'() {
-    let p = new XMLParser(makeReader('<a>x</a>'));
+    let p = new Pull(makeReader('<a>x</a>'));
     let toks = [];
 
     for(let i = 0; i < 10; i++) {
       let tok = p.parse();
       toks.push(tok);
-      if(tok === XMLParser.PARSE_OK) break;
+      if(tok === PARSE_OK) break;
     }
 
-    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.TEXT, XMLParser.ELEMENT_END, XMLParser.PARSE_OK]);
+    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.TEXT, XMLParser.ELEMENT_END, PARSE_OK]);
     eqArr(p.root, [{ tagName: 'a', attributes: {}, children: ['x'] }]);
   },
   'XMLParser: constructor accepts an object exposing a read(buffer, len) method'() {
-    let p = new XMLParser({ read: makeReader('<a>y</a>') });
+    let p = new Pull({ read: makeReader('<a>y</a>') });
     let toks = [];
 
     for(let i = 0; i < 10; i++) {
       let tok = p.parse();
       toks.push(tok);
-      if(tok === XMLParser.PARSE_OK) break;
+      if(tok === PARSE_OK) break;
     }
 
     eqArr(p.root, [{ tagName: 'a', attributes: {}, children: ['y'] }]);
   },
   'XMLParser: PARSE_AGAIN suspends and later resumes correctly'() {
-    let p = new XMLParser(makeReader('<a>x</a>', 3));
+    let p = new Pull(makeReader('<a>x</a>', 3));
     let toks = [];
+    let stalled = 0;
 
+    /* the reader stalls once, that ends the iteration for now and next() resumes */
     for(let i = 0; i < 10; i++) {
-      let tok = p.parse();
-      toks.push(tok);
-      if(tok === XMLParser.PARSE_OK) break;
+      const { done, value } = p.next();
+
+      if(done) stalled++;
+      else toks.push(value.type);
     }
 
-    assert(toks.includes(XMLParser.PARSE_AGAIN), JSON.stringify(toks));
-    eqArr(p.root, [{ tagName: 'a', attributes: {}, children: ['x'] }]);
+    assert(stalled > 0);
+    eqArr(toks, [XMLParser.ELEMENT_START, XMLParser.TEXT, XMLParser.ELEMENT_END]);
   },
   'XMLParser: entities are decoded on read (see BUGS: fixed - xml-no-entity-decoding)'() {
     let { parser } = drain('<a x="1 &amp; 2">&lt;text&gt; &#65; &#x42;</a>');
@@ -653,7 +708,7 @@ tests({
   'XMLParser plugs into XMLWriter'() {
     let s = '';
     let xw = new XMLWriter(data => (s += toString(data)), -1);
-    let p = new XMLParser('<html><body><div><p><img src="blah.jpg" />test blah</p>goes a loong way</div></body></html>', xw);
+    let p = new Pull('<html><body><div><p><img src="blah.jpg" />test blah</p>goes a loong way</div></body></html>', xw);
     let tok;
 
     while((tok = p.parse())) {
@@ -662,140 +717,17 @@ tests({
     }
   },
 
-  /* ========== XMLNodeParser ========== */
-  'XMLNodeParser: is a constructor'() {
-    assert(typeof XMLNodeParser === 'function');
-  },
 
-  'XMLNodeParser: parse() returns start tag objects with tagName and attributes'() {
-    let p = new XMLNodeParser('<a x="1"/>');
-    let node = p.parse();
 
-    assert(typeof node === 'object' && node !== null, 'expected object, got ' + typeof node);
-    eq(node.tagName, 'a');
-    assert(node.attributes !== undefined, 'expected attributes property');
-    eq(node.attributes.x, '1');
-  },
 
-  'XMLNodeParser: parse() returns end tag objects with tagName prefixed by /'() {
-    let p = new XMLNodeParser('<a></a>');
-    let start = p.parse();
-    let end = p.parse();
 
-    eq(start.tagName, 'a');
-    eq(end.tagName, '/a');
-  },
 
-  'XMLNodeParser: parse() returns strings for text content'() {
-    let p = new XMLNodeParser('<a>hello</a>');
-    p.parse(); // skip start tag
-    let text = p.parse();
 
-    eq(typeof text, 'string');
-    eq(text, 'hello');
-  },
 
-  'XMLNodeParser: parse() returns PARSE_OK at end of input'() {
-    let p = new XMLNodeParser('<a/>');
-    p.parse(); // start a
-    p.parse(); // end /a (self-closing tags yield a separate start + end pair)
-    let status = p.parse(); // should be PARSE_OK
 
-    eq(status, 0); // XML_PARSE_OK
-  },
 
-  'XMLNodeParser: .depth tracks nesting level'() {
-    let p = new XMLNodeParser('<a><b><c/></b></a>');
-    eq(p.depth, 0);
 
-    p.parse(); // <a>
-    eq(p.depth, 1);
 
-    p.parse(); // <b>
-    eq(p.depth, 2);
-
-    p.parse(); // <c> (self-closing tags yield a separate start + end pair)
-    eq(p.depth, 3);
-
-    p.parse(); // </c>
-    eq(p.depth, 2);
-
-    p.parse(); // </b>
-    eq(p.depth, 1);
-
-    p.parse(); // </a>
-    eq(p.depth, 0);
-  },
-
-  'XMLNodeParser: .location tracks line/column'() {
-    let p = new XMLNodeParser('<a>\n<b/>\n</a>');
-    let node = p.parse(); // <a>
-
-    assert(p.location !== undefined, 'expected location property');
-    assert(p.location.line !== undefined, 'expected line property');
-    assert(p.location.column !== undefined, 'expected column property');
-  },
-
-  'XMLNodeParser: handles boolean (valueless) attributes'() {
-    let p = new XMLNodeParser('<input disabled type="text"/>');
-    let node = p.parse();
-
-    eq(node.tagName, 'input');
-    eq(node.attributes.disabled, true);
-    eq(node.attributes.type, 'text');
-  },
-
-  'XMLNodeParser: handles multiple attributes'() {
-    let p = new XMLNodeParser('<a x="1" y="2" z="3"/>');
-    let node = p.parse();
-
-    eq(node.attributes.x, '1');
-    eq(node.attributes.y, '2');
-    eq(node.attributes.z, '3');
-  },
-
-  'XMLNodeParser: handles nested elements'() {
-    let p = new XMLNodeParser('<root><child>text</child></root>');
-    let nodes = [];
-
-    for(let i = 0; i < 10; i++) {
-      let node = p.parse();
-      if(typeof node === 'number') break; // status code
-      nodes.push(node);
-    }
-
-    eq(nodes.length, 5); // start root, start child, text, end child, end root
-    eq(nodes[0].tagName, 'root');
-    eq(nodes[1].tagName, 'child');
-    eq(nodes[2], 'text');
-    eq(nodes[3].tagName, '/child');
-    eq(nodes[4].tagName, '/root');
-  },
-
-  'XMLNodeParser: handles self-closing tags'() {
-    let p = new XMLNodeParser('<a><b/><c/></a>');
-    let nodes = [];
-
-    for(let i = 0; i < 10; i++) {
-      let node = p.parse();
-      if(typeof node === 'number') break;
-      nodes.push(node);
-    }
-
-    eq(nodes[0].tagName, 'a');
-    eq(nodes[1].tagName, 'b');
-    eq(nodes[2].tagName, '/b');
-    eq(nodes[3].tagName, 'c');
-    eq(nodes[4].tagName, '/c');
-    eq(nodes[5].tagName, '/a');
-  },
-
-  'XMLNodeParser: constructor accepts options with filename'() {
-    let p = new XMLNodeParser('<a/>', { filename: 'test.xml' });
-    p.parse();
-
-    assert(p.location !== undefined, 'expected location');
-  },
 
   /* ========== XMLWriter (expanded) ========== */
   'XMLWriter: is a constructor'() {
@@ -1062,93 +994,24 @@ tests({
     assert(out.includes('</html>'), out);
   },
 
-  /* ========== XMLParser callbacks ========== */
-  'XMLParser: onelementstart callback fires'() {
-    let starts = [];
-    let p = new XMLParser('<a><b/></a>');
 
-    p.onelementstart = name => starts.push(name);
 
-    for(let i = 0; i < 10; i++) {
-      let tok = p.parse();
-      if(tok === XMLParser.PARSE_OK) break;
-    }
 
-    eqArr(starts, ['a', 'b']);
-  },
 
-  'XMLParser: onelementend callback fires'() {
-    let ends = [];
-    let p = new XMLParser('<a><b/></a>');
-
-    p.onelementend = name => ends.push(name);
-
-    for(let i = 0; i < 10; i++) {
-      let tok = p.parse();
-      if(tok === XMLParser.PARSE_OK) break;
-    }
-
-    eqArr(ends, ['b', 'a']);
-  },
-
-  'XMLParser: onattribute callback fires'() {
-    let attrs = [];
-    let p = new XMLParser('<a x="1" y="2"/>');
-
-    p.onattribute = (name, value) => attrs.push([name, value]);
-
-    for(let i = 0; i < 10; i++) {
-      let tok = p.parse();
-      if(tok === XMLParser.PARSE_OK) break;
-    }
-
-    eqArr(attrs, [['x', '1'], ['y', '2']]);
-  },
-
-  'XMLParser: ontext callback fires'() {
-    let texts = [];
-    let p = new XMLParser('<a>hello <b>world</b>!</a>');
-
-    p.ontext = value => texts.push(value);
-
-    for(let i = 0; i < 10; i++) {
-      let tok = p.parse();
-      if(tok === XMLParser.PARSE_OK) break;
-    }
-
-    eqArr(texts, ['hello ', 'world', '!']);
-  },
-
-  'XMLParser: all callbacks fire in document order'() {
-    let events = [];
-    let p = new XMLParser('<root x="1">text<child/></root>');
-
-    p.onelementstart = name => events.push(['start', name]);
-    p.onelementend = name => events.push(['end', name]);
-    p.onattribute = (name, value) => events.push(['attr', name, value]);
-    p.ontext = value => events.push(['text', value]);
-
-    for(let i = 0; i < 20; i++) {
-      let tok = p.parse();
-      if(tok === XMLParser.PARSE_OK) break;
-    }
-
-    eqArr(events, [['start', 'root'], ['attr', 'x', '1'], ['text', 'text'], ['start', 'child'], ['end', 'child'], ['end', 'root']]);
-  },
 
   /* ========== XMLParser edge cases ========== */
   'XMLParser: empty document returns PARSE_OK immediately'() {
-    let p = new XMLParser('');
+    let p = new Pull('');
     let tok = p.parse();
 
-    eq(tok, XMLParser.PARSE_OK);
+    eq(tok, PARSE_OK);
   },
 
   'XMLParser: whitespace-only document returns PARSE_OK'() {
-    let p = new XMLParser('   \n\t  ');
+    let p = new Pull('   \n\t  ');
     let tok = p.parse();
 
-    eq(tok, XMLParser.PARSE_OK);
+    eq(tok, PARSE_OK);
   },
 
   'XMLParser: processing instruction comes through as start+end'() {
@@ -1170,13 +1033,13 @@ tests({
   'XMLParser: deeply nested structure'() {
     let depth = 10;
     let input = '<a>'.repeat(depth) + 'x' + '</a>'.repeat(depth);
-    let p = new XMLParser(input);
+    let p = new Pull(input);
     let maxDepth = 0;
 
     for(let i = 0; i < 1000; i++) {
       let tok = p.parse();
       if(p.depth > maxDepth) maxDepth = p.depth;
-      if(tok === XMLParser.PARSE_OK) break;
+      if(tok === PARSE_OK) break;
     }
 
     eq(maxDepth, depth);
@@ -1202,7 +1065,7 @@ tests({
   },
 
   'XMLParser: eventName is undefined for TEXT events'() {
-    let p = new XMLParser('<a>text</a>');
+    let p = new Pull('<a>text</a>');
     p.parse(); // ELEMENT_START
     p.parse(); // TEXT
 
@@ -1211,7 +1074,7 @@ tests({
   },
 
   'XMLParser: eventValue is undefined for ELEMENT_START events'() {
-    let p = new XMLParser('<a/>');
+    let p = new Pull('<a/>');
     p.parse(); // ELEMENT_START
 
     eq(p.eventName, 'a');
@@ -1219,7 +1082,7 @@ tests({
   },
 
   'XMLParser: hasValue is true for ATTRIBUTE events with values'() {
-    let p = new XMLParser('<a x="1"/>');
+    let p = new Pull('<a x="1"/>');
     p.parse(); // ELEMENT_START
     p.parse(); // ATTRIBUTE
 
@@ -1228,7 +1091,7 @@ tests({
   },
 
   'XMLParser: hasValue is false for boolean ATTRIBUTE events'() {
-    let p = new XMLParser('<input disabled/>');
+    let p = new Pull('<input disabled/>');
     p.parse(); // ELEMENT_START
     p.parse(); // ATTRIBUTE
 
@@ -1614,23 +1477,6 @@ tests({
     assert(out.includes('text'), out);
   },
 
-  'integration: XMLNodeParser nodes reconstruct via manual assembly'() {
-    let p = new XMLNodeParser('<a x="1">text<b/></a>');
-    let nodes = [];
-
-    for(let i = 0; i < 20; i++) {
-      let node = p.parse();
-      if(typeof node === 'number') break;
-      nodes.push(node);
-    }
-
-    eq(nodes[0].tagName, 'a');
-    eq(nodes[0].attributes.x, '1');
-    eq(nodes[1], 'text');
-    eq(nodes[2].tagName, 'b');
-    eq(nodes[3].tagName, '/b');
-    eq(nodes[4].tagName, '/a');
-  },
 
   'integration: xml.read() tree serializes via XMLTreeSerializer'() {
     let tree = xml.read('<root><child attr="val">text</child></root>');
@@ -1667,7 +1513,7 @@ tests({
     /* Not per the XML Name production, but no tokenizer in this codebase validates
      * tag names (xml.c, quickjs-xml.c's js_xml_parse, xread.c all agree), so this is
      * accepted as an ordinary element start rather than raising PARSE_ERROR. */
-    let p = new XMLParser('<1invalid/>');
+    let p = new Pull('<1invalid/>');
     let tok = p.parse();
 
     eq(tok, XMLParser.ELEMENT_START);
@@ -1687,7 +1533,7 @@ tests({
 
   /* ========== Symbol.toStringTag ========== */
   'XMLParser[Symbol.toStringTag] is "XMLParser"'() {
-    let p = new XMLParser('<a/>');
+    let p = new Pull('<a/>');
     eq(p[Symbol.toStringTag], 'XMLParser');
   },
 
@@ -1706,10 +1552,6 @@ tests({
     eq(w[Symbol.toStringTag], 'XMLWriter');
   },
 
-  'XMLNodeParser[Symbol.toStringTag] is "XMLNodeParser"'() {
-    let p = new XMLNodeParser('<a/>');
-    eq(p[Symbol.toStringTag], 'XMLNodeParser');
-  },
 
   /* read() is a thin layer over the event parser of src/xml.c */
   'xml.read: tolerant mode closes optional end tags (<li>, <p>, <td>, ...) when a sibling starts'() {
@@ -1784,21 +1626,6 @@ tests({
       assert(p.error === errs[0]);
     }
   },
-  'XMLParser, XMLNodeParser: .error holds the SyntaxError after PARSE_ERROR'() {
-    for(const C of [XMLParser, XMLNodeParser]) {
-      const p = new C('<a>\n <b></c>', { filename: 'x.xml' });
-      let ev;
-
-      eq(p.error, null);
-
-      for(let i = 0; i < 20; i++) if((ev = p.parse()) === XMLParser.PARSE_ERROR) break;
-
-      eq(ev, XMLParser.PARSE_ERROR);
-      eq(p.error.code, 'mismatched-end-tag');
-      eq(String(p.error.loc), 'x.xml:2:5');
-      eq(p.error.length, 4);
-    }
-  },
   'xml.read: empty input has code unexpected-end at 1:1'() {
     const e = assertThrows(() => xml.read(''));
 
@@ -1853,7 +1680,7 @@ tests({
     const viaPump = flat => {
       const b = new XmlBuilder({ flat, plain: true });
 
-      eq(new XMLParser(doc).pump(b), 0);
+      eq(new Pull(doc).pump(b), 0);
       return b.finish().root;
     };
 
@@ -1866,17 +1693,17 @@ tests({
     const b = new XmlBuilder(), seen = [];
     const o = { elementStart: n => seen.push('<' + n), text: t => seen.push(t), elementEnd: n => seen.push('/' + n) };
 
-    new XMLParser('<a>x<b/></a>').pump(tee(w, b, o));
+    new Pull('<a>x<b/></a>').pump(tee(w, b, o));
     eq(String.fromCharCode(...buf.subarray(0, w.written)), '<a>x<b /></a>');
     eq(b.root[0].tagName, 'a');
     eq(seen.join(' '), '<a x <b /b /a');
   },
   'XMLParser.pump: a mismatched tag is a SyntaxError, a throwing sink propagates'() {
-    const e = assertThrows(() => new XMLParser('<a></b>', 'f.xml').pump(new XmlBuilder()));
+    const e = assertThrows(() => new Pull('<a></b>', 'f.xml').pump(new XmlBuilder()));
 
     assert(e instanceof SyntaxError);
-    eq(assertThrows(() => new XMLParser('<a/>').pump({ elementStart() { throw new RangeError('stop'); } })).message, 'stop');
-    assertThrows(() => new XMLParser('<a/>').pump(5));
+    eq(assertThrows(() => new Pull('<a/>').pump({ elementStart() { throw new RangeError('stop'); } })).message, 'stop');
+    assertThrows(() => new Pull('<a/>').pump(5));
   },
   'XMLPushParser.connect: events go to the sink'() {
     const b = new XmlBuilder(), p = new XMLPushParser();
@@ -1894,7 +1721,7 @@ tests({
     const build = (doc, options, builder = {}) => {
       const b = new XmlBuilder({ plain: true, ...builder });
 
-      new XMLParser(doc, options).pump(b);
+      new Pull(doc, options).pump(b);
       return b.finish().root;
     };
     const names = list => list.map(n => n.tagName ?? n);
@@ -1903,11 +1730,11 @@ tests({
     eqArr(names(build('<p>a<br>b</p>', { selfClosingTags: ['br'], flat: true }, { flat: true })), ['p', 'a', 'br', '/br', 'b', '/p']);
     eqArr(names(build('<p>a</x>b</p>', { tolerant: true })[0].children), ['a', 'b']);
     assertThrows(() => build('<p>a</x>b</p>', {}));
-    assertThrows(() => new XMLParser('<a/>', { selfClosingTags: [], tolerant: 1 }).pump({ elementEnd() { throw new Error('x'); } }));
+    assertThrows(() => new Pull('<a/>', { selfClosingTags: [], tolerant: 1 }).pump({ elementEnd() { throw new Error('x'); } }));
   },
 
   'XMLParser: next() and for..of give typed events'() {
-    const ev = [...new XMLParser('<?xml v="1"?><!DOCTYPE html><a x="1" y>t<!--c--><![CDATA[d]]><b/></a>')];
+    const ev = [...new Pull('<?xml v="1"?><!DOCTYPE html><a x="1" y>t<!--c--><![CDATA[d]]><b/></a>')];
     const sum = ev.map(e => `${e.type}:${e.name ?? ''}:${e.value ?? ''}`);
 
     assert(sum.includes(`${XMLParser.ELEMENT_START}:a:`));
@@ -1919,6 +1746,6 @@ tests({
     assert(ev.some(e => e.type == 6 && e.value == 'DOCTYPE html'));
     assert(ev.find(e => e.type == XMLParser.ATTRIBUTE && e.name == 'y').value === undefined);
     eq(ev.find(e => e.name == 'a').loc.column, 29);
-    assertThrows(() => [...new XMLParser('<a></b>')]);
+    assertThrows(() => [...new Pull('<a></b>')]);
   },
 });

@@ -1455,10 +1455,6 @@ js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   return obj;
 }
 
-enum {
-  PARSER_PARSE,
-};
-
 /* js_jsonparser_throw: throws the SyntaxError of an error event of p, the file is that of p->loc. */
 static void
 js_jsonparser_throw(JSContext* ctx, JsonParser* p, const JsonEvent* ev) {
@@ -1469,32 +1465,6 @@ js_jsonparser_throw(JSContext* ctx, JsonParser* p, const JsonEvent* ev) {
     js_throw_syntax_error(ctx, at, ev->span, ev->code ? ev->code : "unexpected-token", "%s", ev->str ? ev->str : "parse error");
     location_free(at, JS_GetRuntime(ctx));
   }
-}
-
-/* js_jsonparser_next: the next token type of p as parse() returns it.
- *
- *   json_next() answers   parse() returns
- *   an event              its JsonEventType
- *   AGAIN                 JSON_NEED_DATA
- *   END                   JSON_NONE
- *   an error event        throws the SyntaxError (loc: p->loc file, the event position)
- *
- * returns the type, or JSON_ERROR with an exception pending. */
-static int
-js_jsonparser_next(JSContext* ctx, JsonParser* p) {
-  JsonEvent ev;
-
-  switch(json_next(p, &ev)) {
-    case JSON_PULL_END: return JSON_NONE;
-    case JSON_PULL_AGAIN: return JSON_NEED_DATA;
-    default: break;
-  }
-
-  if(ev.type != JSON_EVENT_ERROR)
-    return ev.type;
-
-  js_jsonparser_throw(ctx, p, &ev);
-  return JSON_ERROR;
 }
 
 /* JsonParser.pump: runs the parser into a sink, in C.
@@ -1559,40 +1529,7 @@ done:
   return ret;
 }
 
-static JSValue
-js_jsonparser_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JsonParser* p;
-  BOOL skip = argc > 0 && JS_ToBool(ctx, argv[0]);
-  int type;
-
-  if(!(p = JS_GetOpaque2(ctx, this_val, js_jsonparser_class_id)))
-    return JS_EXCEPTION;
-
-  if((type = js_jsonparser_next(ctx, p)) == JSON_ERROR)
-    return JS_EXCEPTION;
-
-  /* skipping: a token that starts a container is consumed up to its end */
-  if(skip && (type == JSON_EVENT_OBJECT_START || type == JSON_EVENT_ARRAY_START)) {
-    int depth = 1;
-
-    while(depth > 0) {
-      if((type = js_jsonparser_next(ctx, p)) == JSON_ERROR)
-        return JS_EXCEPTION;
-
-      if(type == JSON_EVENT_OBJECT_START || type == JSON_EVENT_ARRAY_START)
-        depth++;
-      else if(type == JSON_EVENT_OBJECT_END || type == JSON_EVENT_ARRAY_END)
-        depth--;
-    }
-  }
-
-  return JS_NewInt32(ctx, type);
-}
-
 enum {
-  PARSER_POS,
-  PARSER_TOKEN,
-  PARSER_STATE,
   PARSER_DEPTH,
   PARSER_LOCATION,
   PARSER_COMMENTS,
@@ -1607,20 +1544,8 @@ js_jsonparser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PARSER_POS: {
-      ret = JS_NewUint32(ctx, p->pos);
-      break;
-    }
     case PARSER_COMMENTS: {
       ret = JS_NewBool(ctx, p->comments);
-      break;
-    }
-    case PARSER_TOKEN: {
-      ret = dbuf_tostring(&p->token, ctx);
-      break;
-    }
-    case PARSER_STATE: {
-      ret = JS_NewInt32(ctx, p->state);
       break;
     }
     case PARSER_DEPTH: {
@@ -1693,11 +1618,7 @@ js_jsonparser_finalizer(JSRuntime* rt, JSValue obj) {
 }
 
 static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
-    JS_CFUNC_DEF("parse", 0, js_jsonparser_parse),
     JS_CFUNC_DEF("pump", 1, js_jsonparser_pump),
-    JS_CGETSET_MAGIC_FLAGS_DEF("pos", js_jsonparser_get, 0, PARSER_POS, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("token", js_jsonparser_get, 0, PARSER_TOKEN, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("state", js_jsonparser_get, 0, PARSER_STATE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_jsonparser_get, 0, PARSER_DEPTH, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("location", js_jsonparser_get, 0, PARSER_LOCATION, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("comments", js_jsonparser_get, js_jsonparser_set, PARSER_COMMENTS),
@@ -1707,8 +1628,6 @@ static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_jsonparser_static_props[] = {
-    JS_PROP_INT32_DEF("NEED_DATA", JSON_NEED_DATA, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NONE", JSON_NONE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("OBJECT", JSON_EVENT_OBJECT_START, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("OBJECT_END", JSON_EVENT_OBJECT_END, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("ARRAY", JSON_EVENT_ARRAY_START, JS_PROP_ENUMERABLE),

@@ -232,3 +232,12 @@ Full list with gates: `TODO.md` "Event model v2" and `api-event-model.md` 12.5.
 `xtreewrite.[ch]` and `xlayout.[ch]` are deleted. Layout change: nested children are indented by 2 per level (tree and flat),
 no trailing newline, inline text keeps mixed content on one line, a `maxDepth` cut element is written `<b />`.
 `tests/fixtures/xml-write-golden.json` is regenerated.
+
+## Slimming (after P16)
+
+`XMLParser.parse()`, `eventName`/`eventValue`/`hasValue`, `root`, the `on*` callbacks, the `builder` option, `PARSE_*` and `XMLNodeParser`
+are gone, as are `JsonParser.parse()`, `pos`, `token`, `state`, `NEED_DATA` and `NONE`. `next()`, the iterator, `pump()`, `depth`,
+`location` and `tolerant`/`comments` remain. `quickjs-xml.c` 2211 to 1708 lines, `quickjs-json.c` 1837 to 1756. The consumers
+(`lib/html.js`, `examples/html2md.js`, qjs-lws `examples/crawler/lib/html2md.js`, `utilities/jsonpp.js`) use `next()`. A JSON event has
+`raw` for a number and the text as `value` for a comment. The old pull tests run on a `Pull` subclass in `test-xml.js` / `test-json.js`.
+Open: `json_parse` / `xml_parse` stay as engine functions under `json_next` / `xml_next` (P13 rest), tokenizer merge (P14), P15.
