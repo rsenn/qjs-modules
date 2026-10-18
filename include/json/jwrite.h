@@ -7,6 +7,11 @@
 #include "stream-utils.h"
 #include "vector.h"
 
+/**
+ * \defgroup jwrite jwrite: incremental JSON writer
+ * @{
+ */
+
 /* JsonWriteOptions: how a JsonWriter formats its output. */
 typedef struct {
   unsigned indent : 10;       /* spaces per level, 0 = none */
@@ -115,11 +120,8 @@ ssize_t jwrite_object_start(JsonWriter*);
 ssize_t jwrite_object_end(JsonWriter*);
 ssize_t jwrite_key(JsonWriter*, const char* str, size_t len);
 
-/* JsonWriteInterface: the former name of JsonEventSink (json/jevent.h); kept for one release. */
-typedef JsonEventSink JsonWriteInterface;
-
-/* jwrite_sink: the sink of a JsonWriter; `opaque` is `wr`.
- * never throws; `wr` must outlive the returned struct. */
+/* jwrite_sink: the sink of a JsonWriter, opaque is wr.
+ * never throws, and wr must outlive the returned struct. */
 JsonEventSink jwrite_sink(JsonWriter* wr);
 
 /* jwrite_interface: the former name of jwrite_sink(). */
@@ -133,5 +135,9 @@ jwrite_interface(JsonWriter* wr) {
  * jwrite_put() returns 1. */
 ssize_t jwrite_put(Writer*, const void* buf, size_t len);
 ssize_t jwrite_put_string(Writer*, const char* str, size_t len, int quote);
+
+/**
+ * @}
+ */
 
 #endif

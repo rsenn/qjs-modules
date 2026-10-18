@@ -5,6 +5,11 @@
 #include <sys/types.h>
 #include "srcpos.h"
 
+/**
+ * \defgroup xevent xevent: XML events and event sinks
+ * @{
+ */
+
 /* XmlEventType: the kind of an XML event; the twin of JsonEventType (json/jevent.h).
  *
  * the one vocabulary of every xml/ header: xread (callbacks), xml (xml_parse()
@@ -52,19 +57,17 @@ typedef struct {
 } XmlEvent;
 
 /* XmlEventSink: the XML events as function pointers, so a producer can drive any sink
- * without knowing what it is; the twin of JsonEventSink.
+ * without knowing what it is, the twin of JsonEventSink.
  *
- * One member per XmlEventType; `opaque` is passed as the first argument. A member
+ * One member per XmlEventType, opaque is passed as the first argument. A member
  * returns what the sink's own call returns: the bytes written (>= 0), or a negative
  * error code of the sink.
  *
- * ```c
- * XmlEventSink w = xwrite_sink(&wr);
- * w.element_start(w.opaque, "a", 1);
- * w.attribute(w.opaque, "id", 2, "7", 1);
- * w.text(w.opaque, "x", 1);
- * w.element_end(w.opaque, "a", 1);
- * ```
+ *   XmlEventSink w = xwrite_sink(&wr);
+ *   w.element_start(w.opaque, "a", 1);
+ *   w.attribute(w.opaque, "id", 2, "7", 1);
+ *   w.text(w.opaque, "x", 1);
+ *   w.element_end(w.opaque, "a", 1);
  *
  * a member may be NULL only for xevent_send(), which then drops the event. */
 typedef struct {
@@ -80,13 +83,13 @@ typedef struct {
   ssize_t (*cdata)(void*, const char* str, size_t len);
 } XmlEventSink;
 
-/* xevent_send: calls the sink member that matches `ev->type`.
+/* xevent_send: calls the sink member that matches ev->type.
  *
  *   const XmlEventSink*  sink  where the event goes
  *   const XmlEvent*      ev    the event; for error, text, comment, declaration, instruction
- *                              and cdata the text is `name`/`nlen`
+ *                              and cdata the text is name and nlen
  *
- *   returns ssize_t  what the member returns; 0 when the member is NULL or the type unknown */
+ *   returns ssize_t  what the member returns, 0 when the member is NULL or the type unknown */
 ssize_t xevent_send(const XmlEventSink* sink, const XmlEvent* ev);
 
 /* the pumps: an XML parser drives a sink.
@@ -117,5 +120,9 @@ struct xml_parser;
 ssize_t xread_pump(struct xr_state*, const XmlEventSink* sink, const char* chunk, size_t len);
 ssize_t xread_pump_finish(struct xr_state*, const XmlEventSink* sink);
 ssize_t xml_pump(struct xml_parser*, const XmlEventSink* sink);
+
+/**
+ * @}
+ */
 
 #endif /* XEVENT_H */

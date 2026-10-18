@@ -6,6 +6,11 @@
 #include "json/jbuilder.h"
 #include "xml/xevent.h"
 
+/**
+ * \defgroup xbuilder xbuilder: element tree builder from XML events
+ * @{
+ */
+
 /* XmlBuilder: builds the {tagName, attributes, children} tree from XML events; the twin
  * of JsonBuilder, layered on it (it owns no frame stack of its own).
  *
@@ -73,15 +78,19 @@ JSValue xbuild_root(XmlBuilder*);
 /* xbuild_path: the tag names from the root down to the innermost open element, a new array. */
 JSValue xbuild_path(XmlBuilder*);
 
-/* xbuild_free: releases everything, also an unfinished tree; `rt` because finalizers have no context.
+/* xbuild_free: releases everything, also an unfinished tree, rt because finalizers have no context.
  * dup what you need out of xbuild_root() first. */
 void xbuild_free(XmlBuilder*, JSRuntime*);
 
-/* xbuild_sink: the sink of an XmlBuilder; `opaque` is `b`.
+/* xbuild_sink: the sink of an XmlBuilder, opaque is b.
  *
  * element_start, attribute, text and element_end are the xbuild_*() calls (the end is never
- * self-closing); `error` and the markup events (comment, declaration, instruction, cdata) are
- * dropped for now; every member returns 0. `b` must outlive the returned struct. */
+ * self-closing), error and the markup events (comment, declaration, instruction, cdata) are
+ * dropped for now, every member returns 0. b must outlive the returned struct. */
 XmlEventSink xbuild_sink(XmlBuilder* b);
+
+/**
+ * @}
+ */
 
 #endif /* XBUILDER_H */

@@ -7,6 +7,11 @@
 #include "xml/xevent.h"
 #include "vector.h"
 
+/**
+ * \defgroup xwrite xwrite: incremental XML writer
+ * @{
+ */
+
 /* XmlWriteOptions: how an XmlWriter lays out its output. */
 typedef struct {
   unsigned indent : 10; /* spaces per level, with XW_PRETTY */
@@ -116,11 +121,11 @@ ssize_t xwrite_declaration(XmlWriter*, const char* str, size_t len);
 ssize_t xwrite_instruction(XmlWriter*, const char* str, size_t len);
 ssize_t xwrite_cdata(XmlWriter*, const char* str, size_t len);
 
-/* xwrite_sink: the sink of an XmlWriter; `opaque` is `wr`.
+/* xwrite_sink: the sink of an XmlWriter, opaque is wr.
  *
- * the members are the xwrite_*() events; `error` writes nothing and returns 0 (the
- * output has no form for it), `element_end` with a NULL name closes the open element.
- * never throws; `wr` must outlive the returned struct. */
+ * the members are the xwrite_*() events; error writes nothing and returns 0 (the
+ * output has no form for it), element_end with a NULL name closes the open element.
+ * never throws, and wr must outlive the returned struct. */
 XmlEventSink xwrite_sink(XmlWriter* wr);
 
 /* xwrite_finish: checks the document is complete.
@@ -135,5 +140,9 @@ ssize_t xwrite_finish(XmlWriter*);
  *
  * returns the bytes written, or -1 when the Writer refused them. */
 ssize_t xwrite_put_escaped(Writer*, const char* str, size_t len, int is_attr);
+
+/**
+ * @}
+ */
 
 #endif
