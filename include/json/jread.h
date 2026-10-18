@@ -107,6 +107,7 @@ typedef struct jr_state {
   unsigned after_comma : 1; /* a comma was read and no item has started since */
   unsigned num_ok : 1;   /* the number read so far is a complete one */
   unsigned kw_active : 1; /* mid Infinity / NaN */
+  unsigned esc_hi : 1;    /* a backslash came before a 0xE2 byte, U+2028 and U+2029 then continue the line */
   unsigned done : 1;
   /* sticky: the stream had an error at some point, reported by jr_end().
    * it does not stop jr_feed() from resyncing */

@@ -225,3 +225,10 @@ Full list with gates: `TODO.md` "Event model v2" and `api-event-model.md` 12.5.
 | how the code is split, per piece | `doc/api-implement-json.md`, `doc/api-implement-xml.md` (section 7 each) |
 | backlog with gates | `TODO.md`, "Event model v2" (P1 to P16) |
 | this status | `doc/event-model-state.md` |
+
+## P16 done
+
+`xml.write()` is `xwalk_source` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2) in `quickjs-xml.c` (`xml_write_tree`).
+`xtreewrite.[ch]` and `xlayout.[ch]` are deleted. Layout change: nested children are indented by 2 per level (tree and flat),
+no trailing newline, inline text keeps mixed content on one line, a `maxDepth` cut element is written `<b />`.
+`tests/fixtures/xml-write-golden.json` is regenerated.

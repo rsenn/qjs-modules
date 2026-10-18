@@ -368,7 +368,7 @@ xml_walker(void) {
   xml_walk_to_string("[{tagName: 'p'}, 'hi', {tagName: 'br'}, 'x', {tagName: '/p'}, {tagName: 'i'}, {tagName: '/i'}]",
                      XWALK_FLAT | XWALK_BALANCED,
                      "<p>hi<br>x</br></p><i />");
-  /* max_depth cuts the children and leaves the element without an end */
+  /* max_depth cuts the children, the element at the cut still gets its end */
   {
     JSValue v = eval("[{tagName: 'a', children: [{tagName: 'b', children: ['t']}]}]");
     XwalkSource src;
@@ -381,7 +381,7 @@ xml_walker(void) {
     while(xwalk_event(&src, &ev) == XML_PULL_EVENT)
       ends += ev.type == XE_ELEMENT_END;
 
-    CHECK(ends == 1);
+    CHECK(ends == 2);
     xwalk_source_close(&src, ctx);
     JS_FreeValue(ctx, v);
   }

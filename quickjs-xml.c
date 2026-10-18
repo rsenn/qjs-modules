@@ -12,7 +12,6 @@
 #include "quickjs-location.h"
 #include "xml/xwrite.h"
 #include "xml/xsink.h"
-#include "xml/xtreewrite.h"
 #include "xml/xread.h"
 #include "xml/xbuilder.h"
 #include "xml/xml_entities.h"
@@ -196,6 +195,45 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   return ret;
 }
 
+/* xml_write_tree: the XML text of a tree or flat list, a walk pumped into an XMLWriter layout.
+ *
+ * returns 0 with the text in *out, or -1 with an exception pending. */
+static JSValue xmlwriter_throw(JSContext* ctx, ssize_t r);
+
+static int
+xml_write_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, BOOL flat, DynBuf* out) {
+  XwalkSource src;
+  XmlWriter wr = {.writer = writer_from_dynbuf(out)};
+  XmlEventSink sink;
+  XmlEvent ev;
+  XmlPull st;
+  ssize_t r;
+  int ret = -1;
+
+  if(xwalk_source_init(&src, ctx, tree, flat ? XWALK_FLAT | XWALK_BALANCED : 0, NULL))
+    return -1;
+
+  src.max_depth = max_depth;
+  xwrite_init(&wr, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx));
+  xwrite_set_indent(&wr, 2);
+  sink = xwrite_sink(&wr);
+
+  while((st = xwalk_event(&src, &ev)) == XML_PULL_EVENT)
+    if((r = xevent_send(&sink, &ev)) < 0) {
+      xmlwriter_throw(ctx, r);
+      st = XML_PULL_FAIL;
+      break;
+    }
+
+  if(st != XML_PULL_FAIL)
+    ret = 0;
+
+  wr.writer.finalizer = NULL; /* out is the caller's, xwrite_free() must not close it */
+  xwrite_free(&wr);
+  xwalk_source_close(&src, ctx);
+  return ret;
+}
+
 static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf output = {0};
@@ -228,7 +266,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   xml_debug("js_xml_write len=%"PRIu64", children=%s, flat=%d\n", (uint64_t)len, JS_ToCString(ctx, children), flat);
 
-  if(xwrite_tree(ctx, obj, max_depth, flat, writer_from_dynbuf(&output)) < 0)
+  if(xml_write_tree(ctx, obj, max_depth, flat, &output) < 0)
     ret = JS_EXCEPTION;
   else
     ret = JS_NewStringLen(ctx, (const char*)output.buf, output.size);

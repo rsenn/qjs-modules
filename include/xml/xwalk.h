@@ -25,7 +25,7 @@
  * property is never read, so a back-link such as `parentNode` is never followed.
  * A root array is a list of elements (and texts): a tree's top level, or a whole flat list,
  * whose elements have no `children` and whose `{tagName: '/x'}` end markers are plain
- * elements here; what they mean is the consumer's (xtreewrite.c). */
+ * elements here; what they mean is the consumer's (quickjs-xml.c, xml_write_tree). */
 typedef struct {
   const char *tag, *attributes, *children;
 } XwalkShape;
@@ -92,8 +92,8 @@ enum {
  *   "![CDATA[c]]"                      XE_COMMENT, XE_DECLARATION, XE_CDATA; attributes and children ignored
  *   tagName "?xml", attributes         XE_INSTRUCTION with the attributes folded into its text
  *
- * `max_depth` cuts the children below that many levels: the element gets no XE_ELEMENT_END, as
- * xml.write() leaves it open. In a flat list an element stays open until a marker for it. With
+ * `max_depth` cuts the children below that many levels: the element at the cut is reported
+ * without them, so it is written <b />. In a flat list an element stays open until a marker for it. With
  * XWALK_BALANCED a marker for an outer element first ends the elements inside it, a marker for no
  * open element is dropped and the end of the list ends what is still open.
  *

@@ -25,7 +25,6 @@ typedef struct {
   int key;               /* ELEMENT: which key is current, 1 tag 2 attributes 3 children */
   unsigned markup : 2;   /* ELEMENT: 0 normal, 1 comment or declaration or CDATA, 2 instruction, 3 instruction already queued */
   unsigned started : 1;  /* ELEMENT: XE_ELEMENT_START was queued */
-  unsigned cut : 1;      /* ELEMENT: children were cut off by max_depth, no end event */
   unsigned marker : 1;   /* ELEMENT: tagName was /x, an end event was queued instead of a start */
 } XwalkFrame;
 
@@ -194,10 +193,8 @@ xwe_array_start(void* o, JSContext* ctx) {
   if(f && f->kind == XF_ELEMENT && WALK_TOP(&s->it.walk)->tab_atom_len > 0) {
     int level = walk_depth(&s->it.walk) / 2;
 
-    if(s->max_depth != INT32_MAX && level >= s->max_depth) {
-      f->cut = 1;
+    if(s->max_depth != INT32_MAX && level >= s->max_depth)
       walk_skip(&s->it.walk, ctx);
-    }
   }
 
   return xwe_push(s, XF_LIST);
@@ -328,7 +325,7 @@ xwe_object_end(void* o, JSContext* ctx) {
   if(f->kind == XF_ELEMENT) {
     if(f->markup == 2)
       r = xwe_queue(s, XE_INSTRUCTION, (const char*)s->pi.buf, s->pi.size, 0, 0);
-    else if(f->started && !(s->flags & XWALK_FLAT) && !f->cut)
+    else if(f->started && !(s->flags & XWALK_FLAT))
       r = xwe_queue(s, XE_ELEMENT_END, f->tag, f->len, 0, 0);
 
     js_free(ctx, f->tag);

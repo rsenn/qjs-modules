@@ -28,8 +28,8 @@ Both are also reachable through the module's `default` export object.
 
 ### Layout of `write()`
 
-`write()` walks the value with the element-tree walker (`include/xml/xwalk.h`) and lays it out in `src/xml/xtreewrite.c`
-(`xwrite_tree`) through `src/xml/xlayout.c`. Both shapes of `read()` are accepted; a list whose last entry has no `children`
+`write()` pumps the element-tree walker (`include/xml/xwalk.h`) into an `XmlWriter` with `XW_PRETTY` (indent 2, no trailing newline,
+text-only and mixed content stay on one line). An element cut by `maxDepth` is written empty (`<b />`). Both shapes of `read()` are accepted; a list whose last entry has no `children`
 array is a flat list.
 
 | rule | tree | flat list |
