@@ -1,6 +1,6 @@
 # json
 
-Source: `quickjs-json.c` — module exports **`JsonParser`**, **`JsonPushParser`**, **`JsonSerializer`**, **`JsonWriter`** and a function list.
+Source: `quickjs-json.c` — module exports **`JsonBuilder`**, **`tee`**, **`JsonParser`**, **`JsonPushParser`**, **`JsonSerializer`**, **`JsonWriter`** and a function list.
 
 A streaming/extended JSON reader plus simple read/write helpers.
 
@@ -60,6 +60,34 @@ write(1n);                                                 // TypeError
 ## JSONL
 
 Moved to `lib/jsonl.js`, see `doc/js/jsonl.md`: `import { JSONL } from './jsonl.js'` (not an export of this module any more).
+
+## Connecting engines: pump(), connect(), tee, JsonBuilder
+
+Every source runs into every sink in C. A sink is a `JsonWriter`, a `JsonBuilder`, a `tee(...)` or any object with the sink
+methods (`key`, `string`, `number`, `null`, `true`, `false`, `objectStart`, `objectEnd`, `arrayStart`, `arrayEnd`, `comment`,
+`raw`; a missing method drops the event, a method that throws stops the run and the exception propagates).
+
+```js
+import { JsonParser, JsonPushParser, JsonBuilder, JsonWriter, tee } from 'json';
+
+const b = new JsonBuilder();                          // { plain: true }: objects get Object.prototype
+new JsonParser('{"a":[1]}').pump(b, true);            // 0 = ended, 1 = the reader has no data now
+b.root;                                               // {a: [1]}
+
+const p = new JsonPushParser().connect(tee(b, new JsonWriter(sink)));
+p.write('[1,'); p.write('2]'); p.close();             // events go to the sink, not to the constructor's callbacks
+```
+
+| Member | Does |
+| --- | --- |
+| `parser.pump(sink, end?)` | runs the pull parser into the sink; with `end` a dry reader ends the document. Throws the SyntaxError of the first error event |
+| `pushParser.connect(sink)` / `.sink` | `write()` and `close()` drive the sink; returns the parser |
+| `tee(a, b, ...)` | a sink that sends every event to each, in order |
+| `new JsonBuilder(options?)` | `root`, `path`, `take()` (completed top-level values), the sink methods |
+| `[Symbol.for('qjs.jsonsink')]()` | handshake of the native sinks: the address of their `JsonEventSink`, so another module needs no class id |
+
+A native sink that refuses an event (a full buffer, a structural mistake) makes `pump()`/`write()` throw an `Error` with `code` = the
+negative result; a JS-object sink throws its own exception.
 
 ## JsonParser
 

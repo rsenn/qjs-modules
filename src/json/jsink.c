@@ -358,6 +358,14 @@ js_jsonsink_from_js_free(JSContext* ctx, JsonJsSink* s) {
   }
 }
 
+void
+js_jsonsink_from_js_free_rt(JSRuntime* rt, JsonJsSink* s) {
+  if(s) {
+    JS_FreeValueRT(rt, s->obj);
+    js_free_rt(rt, s);
+  }
+}
+
 /**
  * @}
  */

@@ -1,7 +1,7 @@
 import * as std from 'std';
 import { ArrayBufferSink } from 'arraybuffer_sink';
 import { JSONL } from '../../lib/jsonl.js';
-import { read, write, JsonParser, JsonPushParser, JsonSerializer, JsonWriter } from 'json';
+import { read, write, tee, JsonParser, JsonPushParser, JsonSerializer, JsonWriter, JsonBuilder } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER } = JsonParser;
@@ -1017,4 +1017,63 @@ tests({
   fails(() => (w = writer(), w.arrayStart(), w.key('a')), 'JsonWriter: key cannot be used inside an array');
   fails(() => (w = new JsonWriter(new Uint8Array(4)), w.objectStart(), w.key('toolong')), 'JsonWriter: write failed');
 },
+
+  /* ---------- handshake: pump(), connect(), tee ---------- */
+  'JsonParser.pump: into a JsonBuilder'() {
+    const b = new JsonBuilder();
+
+    eq(new JsonParser('{"a":[1,"x",null],"b":true}').pump(b, true), 0);
+    eq(JSON.stringify(b.root), '{"a":[1,"x",null],"b":true}');
+    eq(Object.getPrototypeOf(b.root), null);
+    const plain = new JsonBuilder({ plain: true });
+
+    new JsonParser('{"a":1}').pump(plain, true);
+    eq(Object.getPrototypeOf(plain.root), Object.prototype);
+  },
+  'JsonParser.pump: into a JsonWriter, a tee and a JS object'() {
+    const buf = new Uint8Array(64), w = new JsonWriter(buf, { minify: true });
+    const b = new JsonBuilder(), seen = [];
+    const o = { key: k => seen.push('k:' + k), number: n => seen.push('n:' + n), objectStart: () => seen.push('{'), objectEnd: () => seen.push('}') };
+
+    new JsonParser('{"a":1}').pump(tee(w, b, o), true);
+    eq(String.fromCharCode(...buf.subarray(0, w.written)), '{"a":1}');
+    eq(b.root.a, 1);
+    eq(seen.join(' '), '{ k:a n:1 }');
+  },
+  'JsonParser.pump: AGAIN without end, the error as SyntaxError, a throwing sink'() {
+    const b = new JsonBuilder();
+
+    eq(new JsonParser('[1,2]').pump(b), 1);
+    const e = assertThrows(() => new JsonParser('[1,x]', 'f.json').pump(new JsonBuilder(), true));
+
+    assert(e instanceof SyntaxError);
+    eq(String(e.loc), 'f.json:1:4');
+    eq(assertThrows(() => new JsonParser('[1]').pump({ number() { throw new RangeError('stop'); } }, true)).message, 'stop');
+    assertThrows(() => new JsonParser('[1]').pump(5));
+  },
+  'JsonPushParser.connect: events go to the sink'() {
+    const b = new JsonBuilder(), p = new JsonPushParser();
+
+    eq(p.connect(b), p);
+    eq(p.sink, b);
+    p.write('{"a":[1,');
+    p.write('2]}');
+    p.close();
+    eq(JSON.stringify(b.root), '{"a":[1,2]}');
+    eq(p.root, undefined);
+
+    const buf = new Uint8Array(32), w = new JsonWriter(buf, { minify: true }), q = new JsonPushParser();
+
+    q.connect(tee(w, { string() {} }));
+    q.write('["x"]');
+    q.close();
+    eq(String.fromCharCode(...buf.subarray(0, w.written)), '["x"]');
+  },
+  'JsonWriter as a sink: a native refusal is an Error with a code'() {
+    const w = new JsonWriter(new Uint8Array(2), { minify: true });
+    const e = assertThrows(() => new JsonParser('["toolong"]').pump(w, true));
+
+    assert(e instanceof Error);
+    assert(e.code !== undefined);
+  },
 });

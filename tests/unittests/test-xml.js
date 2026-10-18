@@ -1,4 +1,4 @@
-import xml, { XMLParser, XMLNodeParser, XMLWriter, XMLPushParser, XMLTreeSerializer } from 'xml';
+import xml, { XMLParser, XMLNodeParser, XMLWriter, XMLPushParser, XMLTreeSerializer, XmlBuilder, tee } from 'xml';
 import { toString } from 'util';
 import { ArrayBufferSink } from 'arraybuffer_sink';
 import { assert, eq, tests } from '../../lib/tinytest.js';
@@ -1845,5 +1845,47 @@ tests({
       flat.map(c => c.tagName ?? c),
       ['?xml', '!DOCTYPE html', '!-- hi --', 'a', '![CDATA[d]]', 't', 'b', '/b', '/a'],
     );
+  },
+
+  /* ---------- handshake: pump(), connect(), tee ---------- */
+  'XMLParser.pump: into an XmlBuilder, tree and flat'() {
+    const doc = '<?xml version="1.0"?><r><!-- c --><a x="1">t<b/></a></r>';
+    const viaPump = flat => {
+      const b = new XmlBuilder({ flat, plain: true });
+
+      eq(new XMLParser(doc).pump(b), 0);
+      return b.finish().root;
+    };
+
+    /* the sink has no self-closing flag, so <b/> gets an empty children like <b></b> */
+    eq(JSON.stringify(viaPump(false)), JSON.stringify(xml.read(doc)).replace('{"tagName":"b","attributes":{}}', '{"tagName":"b","attributes":{},"children":[]}'));
+    eq(JSON.stringify(viaPump(true)), JSON.stringify(xml.read(doc, 'x', { flat: true })));
+  },
+  'XMLParser.pump: into an XMLWriter, a tee and a JS object'() {
+    const buf = new Uint8Array(128), w = new XMLWriter(buf, { indent: -1 });
+    const b = new XmlBuilder(), seen = [];
+    const o = { elementStart: n => seen.push('<' + n), text: t => seen.push(t), elementEnd: n => seen.push('/' + n) };
+
+    new XMLParser('<a>x<b/></a>').pump(tee(w, b, o));
+    eq(String.fromCharCode(...buf.subarray(0, w.written)), '<a>x<b /></a>');
+    eq(b.root[0].tagName, 'a');
+    eq(seen.join(' '), '<a x <b /b /a');
+  },
+  'XMLParser.pump: a mismatched tag is a SyntaxError, a throwing sink propagates'() {
+    const e = assertThrows(() => new XMLParser('<a></b>', 'f.xml').pump(new XmlBuilder()));
+
+    assert(e instanceof SyntaxError);
+    eq(assertThrows(() => new XMLParser('<a/>').pump({ elementStart() { throw new RangeError('stop'); } })).message, 'stop');
+    assertThrows(() => new XMLParser('<a/>').pump(5));
+  },
+  'XMLPushParser.connect: events go to the sink'() {
+    const b = new XmlBuilder(), p = new XMLPushParser();
+
+    eq(p.connect(b), p);
+    eq(p.sink, b);
+    p.write('<a><b');
+    p.write('/></a>');
+    p.close();
+    eq(JSON.stringify(b.root), '[{"tagName":"a","attributes":{},"children":[{"tagName":"b","attributes":{},"children":[]}]}]');
   },
 });

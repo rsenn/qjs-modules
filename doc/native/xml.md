@@ -43,6 +43,32 @@ array is a flat list.
 
 Text and attribute values are escaped (`& < >`, and `"` in attributes); an attribute value `true` is written bare.
 
+## Connecting engines: pump(), connect(), tee, XmlBuilder
+
+Every source runs into every sink in C. A sink is an `XMLWriter`, an `XmlBuilder`, a `tee(...)` or any object with the sink methods
+(`elementStart`, `attribute`, `elementEnd`, `text`, `comment`, `declaration`, `instruction`, `cdata`, `error`).
+
+```js
+import { XMLParser, XMLPushParser, XmlBuilder, XMLWriter, tee } from 'xml';
+
+const b = new XmlBuilder({ flat: false, plain: true });
+new XMLParser('<a><b/></a>').pump(b);                 // 0 = ended, 1 = the reader has no data now
+b.finish().root;                                      // [{tagName: 'a', attributes: {}, children: [...]}]
+
+new XMLPushParser().connect(tee(b, new XMLWriter(sink))).write('<a/>');
+```
+
+| Member | Does |
+| --- | --- |
+| `parser.pump(sink)` | runs the pull parser into the sink; markup arrives typed. Throws the SyntaxError of a mismatched tag |
+| `pushParser.connect(sink)` / `.sink` | `write()` and `close()` drive the sink; returns the parser |
+| `tee(a, b, ...)` | a sink that sends every event to each, in order |
+| `new XmlBuilder({flat, plain})` | `root`, `path`, `finish()`, the sink methods |
+| `[Symbol.for('qjs.xmlsink')]()` | handshake of the native sinks, as in `json` |
+
+The sink interface has no self-closing flag, so a tree built through a sink gives `<b/>` an empty `children` like `<b></b>`;
+`read()` keeps the difference.
+
 ## XMLParser
 
 An incremental pull parser built on `Reader`/`Location` from `stream-utils.h` and `include/xml.h`'s

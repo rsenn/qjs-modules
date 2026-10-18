@@ -14,6 +14,7 @@
 #include "json/jevent-js.h"
 #include "json/jserial.h"
 #include "json/jsink.h"
+#include "json/jconnect.h"
 #include "json/jbuilder.h"
 #include "quickjs-location.h"
 
@@ -168,7 +169,10 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return ret;
 }
 
+static JSValue js_json_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]);
+
 static const JSCFunctionListEntry js_json_funcs[] = {
+    JS_CFUNC_DEF("tee", 0, js_json_tee),
     JS_CFUNC_DEF("read", 1, js_json_read),
     JS_CFUNC_DEF("write", 2, js_json_write),
 };
@@ -177,15 +181,36 @@ static const JSCFunctionListEntry js_json_funcs[] = {
 /* JsonPushParser                                                        */
 /* ---------------------------------------------------------------------- */
 
+/* json_sink_failed: the exception for a sink member that returned r < 0.
+ *
+ * a JS-object sink (adapter) leaves its own exception pending, a native sink gives a code.
+ *
+ * returns JS_EXCEPTION. */
+static JSValue
+json_sink_failed(JSContext* ctx, BOOL adapter, ssize_t r) {
+  JSValue err;
+
+  if(adapter)
+    return JS_EXCEPTION;
+
+  err = JS_NewError(ctx);
+  JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "JsonEventSink: event failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewInt64(ctx, (int64_t)r), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  return JS_Throw(ctx, err);
+}
+
 typedef struct PushParser {
   JSContext* ctx;
   jr_state_t jrs;
   JsonBuilder builder;
   JsonEventSink sink; /* jbuild_sink(&builder) */
   JSValue callback_fn, callbacks_obj, callbacks[JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR];
-  unsigned use_builder : 1;
+  unsigned use_builder : 1, connected : 1;
   Location* loc;
   JSValue last_error; /* SyntaxError of the latest error, or JS_UNDEFINED */
+  JsonEventSink ext;  /* connect(): the sink that gets every event */
+  JsonJsSink* ext_adapter;
+  JSValue ext_obj;    /* the object behind ext, kept alive */
 } JsonPushParser;
 
 /* json_pushparser_onerror: the callback `onError` of the options object, or undefined;
@@ -251,6 +276,17 @@ json_pushparser_event_build(void* user, const JsonEvent* ev) {
   return jevent_send(&pp->sink, ev);
 }
 
+/* json_pushparser_event_ext: the handler after connect(), every event goes to the sink. */
+static ssize_t
+json_pushparser_event_ext(void* user, const JsonEvent* ev) {
+  JsonPushParser* pp = user;
+
+  if(ev->type == JSON_EVENT_ERROR)
+    json_pushparser_error(pp, ev);
+
+  return jevent_send(&pp->ext, ev);
+}
+
 /* json_pushparser_event: the handler of the callback mode, the builder sees every event too. */
 static ssize_t
 json_pushparser_event(void* user, const JsonEvent* ev) {
@@ -278,6 +314,12 @@ json_pushparser_event(void* user, const JsonEvent* ev) {
   }
 
   return r;
+}
+
+/* json_pushparser_handler: the handler for the mode the parser is in. */
+static JsonEventHandler*
+json_pushparser_handler(const JsonPushParser* pp) {
+  return pp->connected ? json_pushparser_event_ext : pp->use_builder ? json_pushparser_event_build : json_pushparser_event;
 }
 
 /* js_jsonpushparser_throw: throws the latest error (position and code from jread), unless
@@ -314,12 +356,15 @@ js_jsonpushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(input.data == 0)
     return JS_EXCEPTION;
 
-  jr_feed(&pp->jrs, (const char*)inputbuffer_data(&input), inputbuffer_length(&input), pp->use_builder ? json_pushparser_event_build : json_pushparser_event, pp);
+  ssize_t r = jr_feed(&pp->jrs, (const char*)inputbuffer_data(&input), inputbuffer_length(&input), json_pushparser_handler(pp), pp);
 
   if(pp->loc)
     location_count(pp->loc, inputbuffer_data(&input), inputbuffer_length(&input));
 
   inputbuffer_free(&input, ctx);
+
+  if(r < 0)
+    return json_sink_failed(ctx, pp->ext_adapter != NULL, r);
 
   /* just_erred (not the sticky error) - a resynced parser must not keep throwing on every
    * future write() call just because some earlier call hit a (already-reported) error. */
@@ -333,12 +378,62 @@ js_jsonpushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
     return JS_EXCEPTION;
 
-  jr_end(&pp->jrs, pp->use_builder ? json_pushparser_event_build : json_pushparser_event, pp);
+  ssize_t r = jr_end(&pp->jrs, json_pushparser_handler(pp), pp);
+
+  if(r < 0)
+    return json_sink_failed(ctx, pp->ext_adapter != NULL, r);
 
   if(!pp->jrs.done || pp->jrs.error)
     return js_jsonpushparser_throw(ctx, pp, pp->jrs.done ? "parse error" : "unexpected end of input");
 
   return JS_UNDEFINED;
+}
+
+/* JsonPushParser.connect: sends every event of write() and close() to a sink.
+ *
+ * ```js
+ * const p = new JsonPushParser();
+ * p.connect(new JsonWriter(sink));   // or a JsonBuilder, tee(a, b), { key(k) {}, ... }
+ * p.write('{"a":1}');
+ * ```
+ *
+ *   object  sink  a JsonEventSink object (handshake) or any object with the sink methods
+ *
+ *   returns  the parser
+ *   throws   TypeError for a non-object, what the sink methods throw, Error with a code when a
+ *            native sink refuses an event
+ *
+ * the callbacks and the builder of the constructor are not called while connected.
+ * wired in: JS_CFUNC_DEF("connect") and the `sink` getter. */
+static JSValue
+js_jsonpushparser_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonPushParser* pp;
+  JsonEventSink sink;
+  JsonJsSink* adapter;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
+    return JS_EXCEPTION;
+
+  if(js_jsonsink_resolve(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, &sink, &adapter))
+    return JS_EXCEPTION;
+
+  JS_FreeValue(ctx, pp->ext_obj);
+  js_jsonsink_from_js_free(ctx, pp->ext_adapter);
+  pp->ext = sink;
+  pp->ext_adapter = adapter;
+  pp->ext_obj = JS_DupValue(ctx, argv[0]);
+  pp->connected = TRUE;
+  return JS_DupValue(ctx, this_val);
+}
+
+static JSValue
+js_jsonpushparser_get_sink(JSContext* ctx, JSValueConst this_val) {
+  JsonPushParser* pp;
+
+  if(!(pp = JS_GetOpaque2(ctx, this_val, js_jsonpushparser_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_DupValue(ctx, pp->ext_obj);
 }
 
 enum {
@@ -391,6 +486,7 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->callback_fn = JS_UNDEFINED;
   pp->callbacks_obj = JS_UNDEFINED;
   pp->last_error = JS_UNDEFINED;
+  pp->ext_obj = JS_UNDEFINED;
 
   for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
     pp->callbacks[i] = JS_UNDEFINED;
@@ -480,6 +576,8 @@ js_jsonpushparser_finalizer(JSRuntime* rt, JSValue val) {
     JS_FreeValueRT(rt, pp->callback_fn);
     JS_FreeValueRT(rt, pp->callbacks_obj);
     JS_FreeValueRT(rt, pp->last_error);
+    JS_FreeValueRT(rt, pp->ext_obj);
+    js_jsonsink_from_js_free_rt(rt, pp->ext_adapter);
 
     for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
       JS_FreeValueRT(rt, pp->callbacks[i]);
@@ -491,6 +589,8 @@ js_jsonpushparser_finalizer(JSRuntime* rt, JSValue val) {
 static const JSCFunctionListEntry js_jsonpushparser_proto_funcs[] = {
     JS_CFUNC_DEF("write", 1, js_jsonpushparser_write),
     JS_CFUNC_DEF("close", 0, js_jsonpushparser_close),
+    JS_CFUNC_DEF("connect", 1, js_jsonpushparser_connect),
+    JS_CGETSET_DEF("sink", js_jsonpushparser_get_sink, 0),
     JS_CGETSET_MAGIC_DEF("root", js_jsonpushparser_get, 0, PUSHPARSER_ROOT),
     JS_CGETSET_MAGIC_DEF("path", js_jsonpushparser_get, 0, PUSHPARSER_PATH),
     JS_CGETSET_MAGIC_DEF("location", js_jsonpushparser_get, 0, PUSHPARSER_LOCATION),
@@ -772,6 +872,12 @@ static JSClassDef js_jsonserializer_class = {
 /* JsonWriter: push-based incremental JSON writer                         */
 /* ---------------------------------------------------------------------- */
 
+/* the JsonWriter of the JS object, and its sink for the handshake */
+typedef struct {
+  JsonWriter wr; /* first: the opaque pointer is also a JsonWriter* */
+  JsonEventSink sink;
+} JsonWriterObj;
+
 static JSClassID js_jsonwriter_class_id = 0;
 static JSValue jsonwriter_proto, jsonwriter_ctor;
 
@@ -917,13 +1023,14 @@ js_jsonwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   JsonWriter* wr;
   int i = 0;
 
-  if(!(wr = js_mallocz(ctx, sizeof(JsonWriter))))
+  if(!(wr = js_mallocz(ctx, sizeof(JsonWriterObj))))
     return JS_EXCEPTION;
 
   if(i < argc && writer_from_js(ctx, argv[i], &wr->writer))
     i++;
 
   jwrite_init(wr, (DynBufReallocFunc*)&vector_js_realloc, ctx);
+  ((JsonWriterObj*)wr)->sink = jwrite_sink(wr);
 
   JSValue options = i < argc ? argv[i] : (argc > 0 ? argv[0] : JS_UNDEFINED);
 
@@ -959,6 +1066,16 @@ js_jsonwriter_finalizer(JSRuntime* rt, JSValue val) {
   }
 }
 
+static JSValue
+js_jsonwriter_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonWriterObj* o;
+
+  if(!(o = JS_GetOpaque2(ctx, this_val, js_jsonwriter_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_NewInt64(ctx, (int64_t)(intptr_t)&o->sink);
+}
+
 static JSClassDef js_jsonwriter_class = {
     .class_name = "JsonWriter",
     .finalizer = js_jsonwriter_finalizer,
@@ -970,6 +1087,217 @@ static const JSCFunctionListEntry js_jsonwriter_funcs[] = {
     JS_CGETSET_MAGIC_DEF("depth", js_jsonwriter_get, 0, WRITER_DEPTH),
     JS_CGETSET_MAGIC_DEF("stack", js_jsonwriter_get, 0, WRITER_STACK),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonWriter", JS_PROP_CONFIGURABLE),
+};
+
+/* JsonBuilder: a JsonEventSink that builds JS values.
+ *
+ * ```js
+ * const b = new JsonBuilder();
+ * parser.pump(b);
+ * b.root;                         // {a: [1, "x"]}
+ * new JsonBuilder({ plain: true }) // objects get Object.prototype, else none
+ * ```
+ *
+ *   root   the value built so far (the last top-level value)
+ *   path   the keys and indexes from the root to the open container
+ *   take() the top-level values completed since the last call, as an array (JSONL)
+ *
+ * the sink methods are those of JsonWriter without value(), see jsink.h.
+ * wired in: JS_CGETSET_DEF("root") and friends, js_jsonsink_register for the methods. */
+typedef struct {
+  JsonBuilder b; /* first: the opaque pointer is also a JsonBuilder* */
+  JsonEventSink sink;
+} JsonBuilderObj;
+
+static JSClassID js_jsonbuilder_class_id = 0;
+static JSValue jsonbuilder_proto, jsonbuilder_ctor;
+
+static JsonEventSink
+js_jsonbuilder_sink(void* opaque) {
+  return jbuild_sink(opaque);
+}
+
+static JSValue
+js_jsonbuilder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj;
+  JsonBuilderObj* o;
+
+  if(!(o = js_mallocz(ctx, sizeof(JsonBuilderObj))))
+    return JS_EXCEPTION;
+
+  jbuild_init(&o->b, ctx);
+  o->b.plain_objects = argc > 0 && JS_IsObject(argv[0]) && js_get_propertystr_bool(ctx, argv[0], "plain");
+  o->sink = jbuild_sink(&o->b);
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  obj = JS_IsException(proto) ? JS_EXCEPTION : JS_NewObjectProtoClass(ctx, proto, js_jsonbuilder_class_id);
+  JS_FreeValue(ctx, proto);
+
+  if(JS_IsException(obj)) {
+    jbuild_free(&o->b, JS_GetRuntime(ctx));
+    js_free(ctx, o);
+    return JS_EXCEPTION;
+  }
+
+  JS_SetOpaque(obj, o);
+  return obj;
+}
+
+static void
+js_jsonbuilder_finalizer(JSRuntime* rt, JSValue val) {
+  JsonBuilderObj* o;
+
+  if((o = JS_GetOpaque(val, js_jsonbuilder_class_id))) {
+    jbuild_free(&o->b, rt);
+    js_free_rt(rt, o);
+  }
+}
+
+static JSValue
+js_jsonbuilder_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JsonBuilderObj* o;
+
+  if(!(o = JS_GetOpaque2(ctx, this_val, js_jsonbuilder_class_id)))
+    return JS_EXCEPTION;
+
+  return magic ? jbuild_path(&o->b) : jbuild_root(&o->b);
+}
+
+static JSValue
+js_jsonbuilder_take(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonBuilderObj* o;
+
+  if(!(o = JS_GetOpaque2(ctx, this_val, js_jsonbuilder_class_id)))
+    return JS_EXCEPTION;
+
+  return jbuild_take(&o->b);
+}
+
+static JSValue
+js_jsonbuilder_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonBuilderObj* o;
+
+  if(!(o = JS_GetOpaque2(ctx, this_val, js_jsonbuilder_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_NewInt64(ctx, (int64_t)(intptr_t)&o->sink);
+}
+
+static JSClassDef js_jsonbuilder_class = {
+    .class_name = "JsonBuilder",
+    .finalizer = js_jsonbuilder_finalizer,
+};
+
+static const JSCFunctionListEntry js_jsonbuilder_funcs[] = {
+    JS_CGETSET_MAGIC_DEF("root", js_jsonbuilder_get, 0, 0),
+    JS_CGETSET_MAGIC_DEF("path", js_jsonbuilder_get, 0, 1),
+    JS_CFUNC_DEF("take", 0, js_jsonbuilder_take),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonBuilder", JS_PROP_CONFIGURABLE),
+};
+
+/* tee: a sink that sends every event to several sinks.
+ *
+ * ```js
+ * const t = tee(new JsonBuilder(), new JsonWriter(out));
+ * parser.pump(t);                 // one parse, a value and a copy of the text
+ * ```
+ *
+ *   object...  sinks  JsonEventSink objects or objects with the sink methods
+ *
+ *   returns  a JsonTee sink object
+ *
+ * the sinks are called in order, the first failure stops the event.
+ * wired in: JS_CFUNC_DEF("tee") in the module exports. */
+typedef struct {
+  JsonEventSink* sinks;
+  JsonJsSink** adapters;
+  JSValue* objs;
+  size_t len;
+  JsonTee tee; /* first of what the handshake gives away: tee points at sinks */
+  JsonEventSink sink;
+} JsonTeeObj;
+
+static JSClassID js_jsontee_class_id = 0;
+
+static JsonEventSink
+js_jsontee_sink(void* opaque) {
+  JsonTeeObj* t = opaque;
+
+  return t->sink;
+}
+
+static void
+js_jsontee_free(JSRuntime* rt, JsonTeeObj* t) {
+  for(size_t i = 0; i < t->len; i++) {
+    JS_FreeValueRT(rt, t->objs[i]);
+    js_jsonsink_from_js_free_rt(rt, t->adapters[i]);
+  }
+
+  js_free_rt(rt, t->sinks);
+  js_free_rt(rt, t->adapters);
+  js_free_rt(rt, t->objs);
+  js_free_rt(rt, t);
+}
+
+static JSValue
+js_json_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonTeeObj* t;
+  JSValue obj;
+
+  if(!(t = js_mallocz(ctx, sizeof(JsonTeeObj))))
+    return JS_EXCEPTION;
+
+  t->sinks = js_mallocz(ctx, sizeof(JsonEventSink) * (argc ? argc : 1));
+  t->adapters = js_mallocz(ctx, sizeof(JsonJsSink*) * (argc ? argc : 1));
+  t->objs = js_mallocz(ctx, sizeof(JSValue) * (argc ? argc : 1));
+
+  if(!t->sinks || !t->adapters || !t->objs)
+    goto fail;
+
+  for(int i = 0; i < argc; i++) {
+    if(js_jsonsink_resolve(ctx, argv[i], &t->sinks[i], &t->adapters[i]))
+      goto fail;
+
+    t->objs[i] = JS_DupValue(ctx, argv[i]);
+    t->len++;
+  }
+
+  t->tee = (JsonTee){t->sinks, t->len};
+  t->sink = jtee_sink(&t->tee);
+  obj = JS_NewObjectClass(ctx, js_jsontee_class_id);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, t);
+  return obj;
+
+fail:
+  js_jsontee_free(JS_GetRuntime(ctx), t);
+  return JS_EXCEPTION;
+}
+
+static void
+js_jsontee_finalizer(JSRuntime* rt, JSValue val) {
+  JsonTeeObj* t;
+
+  if((t = JS_GetOpaque(val, js_jsontee_class_id)))
+    js_jsontee_free(rt, t);
+}
+
+static JSValue
+js_jsontee_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonTeeObj* t;
+
+  if(!(t = JS_GetOpaque2(ctx, this_val, js_jsontee_class_id)))
+    return JS_EXCEPTION;
+
+  return JS_NewInt64(ctx, (int64_t)(intptr_t)&t->sink);
+}
+
+static JSClassDef js_jsontee_class = {
+    .class_name = "JsonTee",
+    .finalizer = js_jsontee_finalizer,
 };
 
 static JSValue
@@ -1034,6 +1362,18 @@ enum {
   PARSER_PARSE,
 };
 
+/* js_jsonparser_throw: throws the SyntaxError of an error event of p, the file is that of p->loc. */
+static void
+js_jsonparser_throw(JSContext* ctx, JsonParser* p, const JsonEvent* ev) {
+  Location* at;
+
+  if((at = location_clone(p->loc, ctx))) {
+    location_from_srcpos(at, &ev->at);
+    js_throw_syntax_error(ctx, at, ev->span, ev->code ? ev->code : "unexpected-token", "%s", ev->str ? ev->str : "parse error");
+    location_free(at, JS_GetRuntime(ctx));
+  }
+}
+
 /* js_jsonparser_next: the next token type of p as parse() returns it.
  *
  *   json_next() answers   parse() returns
@@ -1046,7 +1386,6 @@ enum {
 static int
 js_jsonparser_next(JSContext* ctx, JsonParser* p) {
   JsonEvent ev;
-  Location* at;
 
   switch(json_next(p, &ev)) {
     case JSON_PULL_END: return JSON_NONE;
@@ -1057,13 +1396,70 @@ js_jsonparser_next(JSContext* ctx, JsonParser* p) {
   if(ev.type != JSON_EVENT_ERROR)
     return ev.type;
 
-  if((at = location_clone(p->loc, ctx))) {
-    location_from_srcpos(at, &ev.at);
-    js_throw_syntax_error(ctx, at, ev.span, ev.code ? ev.code : "unexpected-token", "%s", ev.str ? ev.str : "parse error");
-    location_free(at, JS_GetRuntime(ctx));
+  js_jsonparser_throw(ctx, p, &ev);
+  return JSON_ERROR;
+}
+
+/* JsonParser.pump: runs the parser into a sink, in C.
+ *
+ * ```js
+ * const b = new JsonBuilder();
+ * new JsonParser('{"a":[1]}').pump(b, true);   // 0
+ * b.root;                                      // {a: [1]}
+ * ```
+ *
+ *   object   sink  a JsonEventSink object (handshake) or any object with the sink methods
+ *   boolean  end   optional: the input is complete, so a dry reader ends the document
+ *
+ *   returns  0 when the input ended, 1 when the reader has no data now (call again once it has,
+ *            or with end set when it will not)
+ *   throws   the SyntaxError of the first error event, what the sink throws, Error with a code
+ *            when a native sink refuses an event
+ *
+ * wired in: JS_CFUNC_DEF("pump"). */
+static JSValue
+js_jsonparser_pump(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JsonParser* p;
+  JsonEventSink sink;
+  JsonJsSink* adapter;
+  JsonEvent ev;
+  JsonPull st;
+  BOOL end = argc > 1 && JS_ToBool(ctx, argv[1]);
+  JSValue ret = JS_EXCEPTION;
+  ssize_t r = 0;
+
+  if(!(p = JS_GetOpaque2(ctx, this_val, js_jsonparser_class_id)))
+    return JS_EXCEPTION;
+
+  if(js_jsonsink_resolve(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, &sink, &adapter))
+    return JS_EXCEPTION;
+
+  for(BOOL finishing = FALSE;;) {
+    st = finishing ? json_next_end(p, &ev) : json_next(p, &ev);
+
+    if(st == JSON_PULL_AGAIN && end && !finishing) {
+      finishing = TRUE;
+      continue;
+    }
+
+    if(st != JSON_PULL_EVENT)
+      break;
+
+    if(ev.type == JSON_EVENT_ERROR) {
+      js_jsonparser_throw(ctx, p, &ev);
+      goto done;
+    }
+
+    if((r = jevent_send(&sink, &ev)) < 0) {
+      json_sink_failed(ctx, adapter != NULL, r);
+      goto done;
+    }
   }
 
-  return JSON_ERROR;
+  ret = JS_NewInt32(ctx, st);
+done:
+  js_jsonsink_from_js_free(ctx, adapter);
+  return ret;
 }
 
 static JSValue
@@ -1188,6 +1584,7 @@ js_jsonparser_finalizer(JSRuntime* rt, JSValue obj) {
 
 static const JSCFunctionListEntry js_jsonparser_proto_funcs[] = {
     JS_CFUNC_DEF("parse", 0, js_jsonparser_parse),
+    JS_CFUNC_DEF("pump", 1, js_jsonparser_pump),
     JS_CGETSET_MAGIC_FLAGS_DEF("pos", js_jsonparser_get, 0, PARSER_POS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("token", js_jsonparser_get, 0, PARSER_TOKEN, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("state", js_jsonparser_get, 0, PARSER_STATE, JS_PROP_ENUMERABLE),
@@ -1268,6 +1665,29 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
 
   js_jsonsink_register(js_jsonwriter_class_id, js_jsonwriter_sink, js_jsonwriter_throw, NULL);
   js_jsonsink_define(ctx, jsonwriter_proto);
+  js_jsonsink_define_handshake(ctx, jsonwriter_proto, js_jsonwriter_handshake);
+
+  JS_NewClassID(&js_jsonbuilder_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_jsonbuilder_class_id, &js_jsonbuilder_class);
+  jsonbuilder_ctor = JS_NewCFunction2(ctx, js_jsonbuilder_constructor, "JsonBuilder", 0, JS_CFUNC_constructor, 0);
+  jsonbuilder_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, jsonbuilder_proto, js_jsonbuilder_funcs, countof(js_jsonbuilder_funcs));
+  js_jsonsink_register(js_jsonbuilder_class_id, js_jsonbuilder_sink, NULL, NULL);
+  js_jsonsink_define(ctx, jsonbuilder_proto);
+  js_jsonsink_define_handshake(ctx, jsonbuilder_proto, js_jsonbuilder_handshake);
+  JS_SetClassProto(ctx, js_jsonbuilder_class_id, jsonbuilder_proto);
+  JS_SetConstructor(ctx, jsonbuilder_ctor, jsonbuilder_proto);
+
+  JS_NewClassID(&js_jsontee_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_jsontee_class_id, &js_jsontee_class);
+  {
+    JSValue tee_proto = JS_NewObject(ctx);
+
+    js_jsonsink_register(js_jsontee_class_id, js_jsontee_sink, NULL, NULL);
+    js_jsonsink_define(ctx, tee_proto);
+    js_jsonsink_define_handshake(ctx, tee_proto, js_jsontee_handshake);
+    JS_SetClassProto(ctx, js_jsontee_class_id, tee_proto);
+  }
 
   JS_SetClassProto(ctx, js_jsonwriter_class_id, jsonwriter_proto);
   JS_SetConstructor(ctx, jsonwriter_ctor, jsonwriter_proto);
@@ -1277,6 +1697,7 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "JsonPushParser", json_pushparser_ctor);
     JS_SetModuleExport(ctx, m, "JsonSerializer", json_serializer_ctor);
     JS_SetModuleExport(ctx, m, "JsonWriter", jsonwriter_ctor);
+    JS_SetModuleExport(ctx, m, "JsonBuilder", jsonbuilder_ctor);
   }
 
   JS_SetModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
@@ -1298,6 +1719,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "JsonPushParser");
     JS_AddModuleExport(ctx, m, "JsonSerializer");
     JS_AddModuleExport(ctx, m, "JsonWriter");
+    JS_AddModuleExport(ctx, m, "JsonBuilder");
     JS_AddModuleExportList(ctx, m, js_json_funcs, countof(js_json_funcs));
   }
 

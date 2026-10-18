@@ -304,6 +304,14 @@ js_xmlsink_from_js_free(JSContext* ctx, XmlJsSink* s) {
   }
 }
 
+void
+js_xmlsink_from_js_free_rt(JSRuntime* rt, XmlJsSink* s) {
+  if(s) {
+    JS_FreeValueRT(rt, s->obj);
+    js_free_rt(rt, s);
+  }
+}
+
 /**
  * @}
  */

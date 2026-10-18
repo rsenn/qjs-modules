@@ -137,7 +137,18 @@ Done (2026-10-18):
      The C tests jread-positions, jread-dialects, json-dialects and pump-roundtrip run on the handler API.
 - Full ctest after the second round: the same 8 failures.
 
-Open, in order: the handshake (P6: jconnect.c, xconnect.c, `pump()`/`connect()`), P16 (`write()` through `xwalk_source` +
+- P6 handshake (2026-10-18): `include/{json,xml}/{j,x}connect.h` + `src/{json,xml}/{j,x}connect.c`
+  (`js_jsonsink_resolve`: the sink behind `obj[Symbol.for('qjs.jsonsink')]()` by address, else the JS-object adapter;
+  `js_jsonsink_define_handshake`; XML twin), `js_{json,xml}sink_from_js_free_rt`. Bindings: `JsonWriter`/`XMLWriter`
+  and the new `JsonBuilder`/`XmlBuilder` and `tee` answer the handshake; `JsonParser.pump(sink, end)`, `XMLParser.pump(sink)`,
+  `JsonPushParser.connect(sink)`, `XMLPushParser.connect(sink)` plus the `sink` getter. Tests in test-json.js and test-xml.js
+  ('handshake: pump(), connect(), tee'). `quickjs-json.c` 1727 lines, `quickjs-xml.c` 2126. Full ctest: the same 8 failures.
+  Known limit: no self-closing flag through a sink, so a built tree gives `<b/>` an empty `children`.
+
+Open, in order: P8 (parser options: dialect names, strict), the `XMLParser`/`XMLNodeParser` redesign (typed `next()`),
+P16 (user decides: changes `xml.write()` layout), JSON side of P13 (`json_parse`, `JsonParser` fields).
+
+Older open list (superseded by the line above where they overlap): the handshake (P6: jconnect.c, xconnect.c, `pump()`/`connect()`), P16 (`write()` through `xwalk_source` +
 XmlWriter, deletes `xtreewrite.[ch]` and `xlayout.[ch]`, about 640 lines, changes the layout of `xml.write()`: the user decides),
 the `XMLParser`/`XMLNodeParser` redesign, JSON side of P13 (`json_parse`, `JsonParser` fields), then the older list below.
 

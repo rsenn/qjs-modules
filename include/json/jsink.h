@@ -81,6 +81,9 @@ JsonJsSink* js_jsonsink_from_js(JSContext*, JSValueConst obj, JsonEventSink* sin
 /* js_jsonsink_from_js_free: releases the adapter and the object reference. never throws. */
 void js_jsonsink_from_js_free(JSContext*, JsonJsSink*);
 
+/* js_jsonsink_from_js_free_rt: the same for a finalizer, which has a runtime and no context. */
+void js_jsonsink_from_js_free_rt(JSRuntime*, JsonJsSink*);
+
 /**
  * @}
  */
