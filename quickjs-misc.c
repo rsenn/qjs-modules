@@ -2,6 +2,10 @@
 #define _POSIX_C_SOURCE 200809L
 #define _GNU_SOURCE 1
 
+#ifdef HAVE_QUICKJS_CONFIG_H
+#include <quickjs-config.h>
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -18,7 +22,6 @@
 #include <quickjs.h>
 #include <cutils.h>
 #include <quickjs-libc.h>
-#include <quickjs-config.h>
 #include "quickjs-location.h"
 #include "quickjs-textcode.h"
 #include "quickjs-syscallerror.h"

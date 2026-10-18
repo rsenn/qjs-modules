@@ -1,3 +1,7 @@
+#ifdef HAVE_QUICKJS_CONFIG_H
+#include <quickjs-config.h>
+#endif
+
 #include "defines.h"
 #include <cutils.h>
 #include "iteration.h"
@@ -5,7 +9,6 @@
 #include "property-enumeration.h"
 #include "quickjs-predicate.h"
 #include <quickjs.h>
-#include <quickjs-config.h>
 #include "utils.h"
 #include "vector.h"
 #include "buffer-utils.h"
