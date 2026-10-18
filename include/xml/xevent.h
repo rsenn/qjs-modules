@@ -46,7 +46,7 @@ typedef enum {
  * ```
  *
  * `name`/`value` are valid until the next event; `value` NULL means none (a bare
- * attribute). `at` is where the event starts, only if `has_at`; a sink must not
+ * attribute). An XE_ERROR event also has `code` and `span`. `at` is where the event starts, only if `has_at`; a sink must not
  * require it. no engine. */
 typedef struct {
   XmlEventType type;
@@ -60,8 +60,11 @@ typedef struct {
     size_t len;
   };
   size_t vlen;
+  const char* code; /* error only: the stable kebab-case name, e.g. mismatched-end-tag; a static string */
+  size_t span;      /* error only: bytes from `at` through the offending byte, 0 at the end of input */
   SourcePos at;
   unsigned has_at : 1;
+  unsigned self_closing : 1; /* element_end only: from <a/> or a void tag, xml_next() sets it */
 } XmlEvent;
 
 /* XmlEventSink: the XML events as function pointers, so a producer can drive any sink

@@ -4,7 +4,7 @@ Living status of the work specified in [api-event-model.md](api-event-model.md) 
 backlog and gates are in `TODO.md`, "Event model v2". This file records what is **done and how it was checked**, file by file, so a later
 session can continue without re-deriving it. Update it in the same change as the code.
 
-Last update: 2026-10-18. Nothing of it is committed by the assistant; the working tree holds it.
+Last update: 2026-10-18. P1 to P8 (include/ and src/) are committed as `21a5513f`; P11 is in the working tree.
 
 ## 1. Where things stand
 
@@ -14,7 +14,8 @@ Last update: 2026-10-18. Nothing of it is committed by the assistant; the workin
 | bindings `quickjs-json.c`, `quickjs-xml.c` | **not lifted**: they still call `json_parse`, `xml_parse`, `jr_read`, `xr_read`; one edit made (`case JSON_EVENT_RAW` in two switches) |
 | handshake symbols, `pump()`, `connect()`, JS surface | not started (P6 binding part) |
 | `lib/` glue (`jsonl.js`, `json5.js`, `jsonc.js`, `bun.js`, `dom.js`, ...) | not started (P9) |
-| end-state clean-up (`api-event-model.md` 12): P11 to P16 | not started; P11 and P12 come before the lift |
+| P11: `code` and `span` on error events | **done** 2026-10-18 (uncommitted), see 3.3 |
+| end-state clean-up (`api-event-model.md` 12): P12 to P16 | not started; P12 comes with the lift |
 
 ## 2. How to check it
 
@@ -71,7 +72,63 @@ on 2026-10-18 (the figure that has to reach 0 for a symbol to become private, `a
 | `quickjs-json.c` | two lines: `case JSON_EVENT_RAW` next to `JSON_EVENT_COMMENT` | |
 | `CMakeLists.txt` | target and test `event-model` | |
 
-### 3.3 Not touched on purpose
+### 3.3 P11: error code and span
+
+| File | Change |
+| --- | --- |
+| `include/json/jevent.h`, `include/xml/xevent.h` | `JsonEvent` and `XmlEvent` get `code` (static string, the stable kebab-case name) and `span` (bytes from `at` through the offending byte, 0 at the end of input), set on error events only |
+| `src/json/jnext.c` | `json_next()` fills them from `err_code` / `err_len`; new `json_next_end()`, the event form of `json_end()`: the pull parser cannot tell the end of its input from a pause, so a caller that knows no more data comes calls it (until `JSON_PULL_END`) to get a trailing number or the `unexpected-end` error. Only strict flags report an unfinished document (`JR_LEGACY` never does) |
+| `src/json/jpump.c` | `jr_feed()` / `jr_end()` fill them from `jr_error_name(err_code)` / `err_len` |
+| `src/xml/xnext.c`, `src/xml/xpump.c` | `xml_next()` (`mismatched-end-tag`, span of `</b>` is 4) and `xr_feed()` / `xr_end()` (`xr_error_name`; `unexpected-end` span 0) |
+| `tests/c/event-model.c` | `json_error_info`, `xml_error_info`: pull and push give the same code, span and position at chunk sizes 1, 2, 3 and whole; truncated JSON through `json_next_end` |
+
+With these a binding no longer reads `err_code`, `err_len`, `tag_line` of the parsers for an error; the remaining reads are the non-error ones (`tag_line` of events).
+
+### 3.3a P12 progress (lift of quickjs-json.c / quickjs-xml.c)
+
+Done (2026-10-18):
+
+- `include/json/jopts.h` + `src/json/jopts.c`: `jsonspace_parse/apply/args` (was `json_space_*`, `json_replacer_space`) and
+  `jwrite_options_from_js` (was `js_jsonwriter_options`). `quickjs-json.c` 1961 -> 1850 lines.
+  `ctest -R "json|event"`: only the known `c-json-dialects` failure.
+
+- `js_syntax_error_at` / `js_throw_syntax_error_at` in `quickjs-location.c/.h` (SourcePos -> SyntaxError, shared by json and xml
+  bindings; replaces `json_error_new`/`json_throw` and the inline copy in `xml_pushparser_report`).
+- `include/json/jevent-js.h` + `src/json/jevent-js.c`: `js_jsonevent_value`. `JsonPushParser` now runs on `jr_feed`/`jr_end`
+  with one `JsonEvent` handler (no `jr_str_t`, no `jread_callback*`). `quickjs-json.c` is 1780 lines.
+
+- `JsonParser.parse()` runs on `json_next` (`js_jsonparser_next`: END -> JSON_NONE, AGAIN -> JSON_NEED_DATA, error event ->
+  SyntaxError with the file of `p->loc`). The `pos`/`token`/`state`/`depth` getters still read `JsonParser` fields (P13).
+- `JsonSerializer` runs on `JwalkSource` + `JsonSerial` (`jserial_read` got `chars == 2`: n counts characters). `write()` runs on
+  `JwalkSource` + `jwrite_sink`; the stringify `WalkInterface` (`js_stringify_*`) is gone.
+- `read()` runs on `JsonParser` (flags `JR_JSON`) + `JsonBuilder`; the vendored sj reader is gone. Documented change: `read()`
+  now decodes string escapes like JSON.parse (test 'read: decodes string escapes like JSON.parse' replaces the old
+  'known limitation' test).
+- `quickjs-json.c`: 1961 -> 1557 lines. Full ctest: the same 8 failures as before the lift.
+
+- `quickjs-xml.c`: `xml_throw_at` replaced by `js_throw_syntax_error_at` (2158 -> 2126 lines).
+- XML builder markup (2026-10-18): `xbuild_handler` (`XmlEventHandler` form) and the `xbuild_sink` members now build the
+  typed markup: comment / declaration / cdata as a leaf node (`!--text--`, `!text`, `![CDATA[text]]`, flat mode leaves it open
+  until the next call), instruction as an open element `?name` with attributes re-split from its text, as xml_parse delivers it
+  (dom.js `Parser` relies on `?xml` holding the document). `XmlEvent` got `self_closing` (xml_next sets it) and an empty
+  attribute value is `""`, not NULL. `js_xml_parse` (read) runs on `xml_next` + `xbuild_handler`. Known difference: a `</a>`
+  that directly follows an instruction is swallowed by xml_next (the PI ends on it), so the tree of `<a><?p?></a><b/>` differs.
+  Test 'xml.read: markup nodes in tree and flat mode'. Full ctest: the same 8 failures.
+
+- `XMLPushParser` runs on `xr_feed`/`xr_end` with `xml_pushparser_event(_build)` handlers (no `xr_str_t`, no `xread_callback*`).
+- `XMLTreeSerializer` runs on `XwalkSource` + `XmlSerial` (flat balanced when the last node has no children array, as
+  `xml.write()`); 600 lines of replay code gone. Two golden cases changed on purpose: serializer pi (was `<?xml?>`, now the
+  instruction with its attributes, then its children) and serializer marker (was `<a />t</a />`, now `<a>t</a>`).
+  `xwalkev.c` now queues an instruction before its children, not at the end of the element.
+- `quickjs-xml.c`: 2158 -> 1706 lines. Full ctest: the same 8 failures.
+- XMLParser and XMLNodeParser stay on `xml_parse` on purpose: `parse()` returns raw xml_parse ids and the tests pin that
+  markup arrives as start+end. They change with their redesign (typed `next()`), not in the lift.
+
+Open, in order: JSONL (Bun glue in `lib/`, needs `parseChunk` position from the builder's `on_root`), `JsonWriter` class on
+the sink members, the handshake (`jconnect.c`, `pump()`/`connect()`), P13 for the JSON side (`json_parse`, `jr_read`,
+`jr_finish`, `jr_str_t` users left: none in `quickjs-json.c` except via `json_next`); then the XML twins; then P13.
+
+### 3.4 Not touched on purpose
 
 `src/json/json.c`, `src/json/jread.c`, `src/xml/xread.c`, `src/walk.c`, `src/xml/xtreewrite.c`, `src/xml/xlayout.c`, `src/xml/xbuilder.c`
 (its `xbuild_sink` already existed). `xtreewrite.c` still writes through `xlayout`; `write()` is byte-identical, which is why `test-xml-write-golden.js` is unchanged.
@@ -97,6 +154,7 @@ on 2026-10-18 (the figure that has to reach 0 for a symbol to become private, `a
 | JSON `at` for `jr_feed` | taken from `jr_state_t.tok`; checked only for the error case, not for every event type |
 | `xml_next` `at` | line and column of the last tag; none for text; no offsets (`SourcePos.byte_offset` / `char_offset` unset) |
 | `xread` has no markup events | `xr_feed` never produces comment, declaration, CDATA or instruction events (the parser has none) |
+| pull JSON end of input | `json_next` answers `AGAIN` at the end; a binding that knows the input is whole must call `json_next_end()`, or the unfinished-document error is never seen |
 | a builder swallows `comment` and unknown raw strings | by design (I8) |
 | `xtee_sink` untested | the code mirrors `jtee_sink`, which is tested |
 | `js_*sink_from_js` and exceptions | a throwing JS method returns -1 and leaves the exception pending; the pump driver of P6 must check `JS_HasException` after a negative result |
@@ -107,7 +165,7 @@ on 2026-10-18 (the figure that has to reach 0 for a symbol to become private, `a
 
 Full list with gates: `TODO.md` "Event model v2" and `api-event-model.md` 12.5.
 
-1. **P11** `code` and `span` on `JsonEvent` / `XmlEvent` (header change plus the four fillers), test at chunk sizes 1 and whole.
+1. ~~P11~~ done (3.3).
 2. **P12** the engine-bound helpers of 12.1, each introduced together with the binding code it replaces so the line count of `quickjs-*.c` falls in the same change.
 3. **Lift** `quickjs-json.c`, then `quickjs-xml.c`: classes on `json_next` / `xml_next` / `jr_feed` / `xr_feed`; serializers on `JsonSerial` / `XmlSerial`; `JsonBuilder` / `XmlBuilder` options; handshake, `pump()`, `connect()`; constructor options; `JsonParser.next()` results as `{type, value, loc}`.
 4. **P13** privatize and delete (12.2). **P14** make `c-json-dialects` green, then measure and merge tokenizers. **P15**, **P16** as in 12.5.

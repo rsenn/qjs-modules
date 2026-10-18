@@ -457,7 +457,7 @@
     ]
    },
    "opts": {},
-   "expect": "<?xml?>"
+   "expect": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><a />"
   },
   {
    "name": "write tree deep",
@@ -811,7 +811,7 @@
     ]
    },
    "opts": {},
-   "expect": "<a />t</a />"
+   "expect": "<a>t</a>"
   },
   {
    "name": "write twoRoots",

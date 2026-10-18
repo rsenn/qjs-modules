@@ -1823,4 +1823,27 @@ tests({
 
     eqArr(locs.get(tree[1]), [1, 11]);
   },
+
+  'xml.read: markup nodes in tree and flat mode'() {
+    const doc = '<?xml version="1.0" encoding=\'u\'?><!DOCTYPE html><!-- hi --><a x="1"><![CDATA[d]]>t<b/></a>';
+    const tree = xml.read(doc);
+
+    eq(tree[0].tagName, '?xml');
+    eq(JSON.stringify(tree[0].attributes), '{"version":"1.0","encoding":"u"}');
+    eqArr(
+      tree[0].children.map(c => c.tagName),
+      ['!DOCTYPE html', '!-- hi --', 'a'],
+    );
+    eqArr(
+      tree[0].children[2].children.map(c => c.tagName ?? c),
+      ['![CDATA[d]]', 't', 'b'],
+    );
+
+    const flat = xml.read(doc, 'f.xml', { flat: true });
+
+    eqArr(
+      flat.map(c => c.tagName ?? c),
+      ['?xml', '!DOCTYPE html', '!-- hi --', 'a', '![CDATA[d]]', 't', 'b', '/b', '/a'],
+    );
+  },
 });

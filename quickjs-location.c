@@ -100,6 +100,28 @@ js_throw_syntax_error(JSContext* ctx, const Location* at, size_t length, const c
   return JS_Throw(ctx, err);
 }
 
+JSValue
+js_syntax_error_at(JSContext* ctx, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+  Location* at;
+  JSValue ret;
+
+  if(!(at = location_new(ctx)))
+    return JS_EXCEPTION;
+
+  location_set_filename(at, name ? name : "<input>", ctx);
+  location_from_srcpos(at, pos);
+  ret = js_syntax_error_new(ctx, at, length, code, "%s", msg);
+  location_free(at, JS_GetRuntime(ctx));
+  return ret;
+}
+
+JSValue
+js_throw_syntax_error_at(JSContext* ctx, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+  JSValue err = js_syntax_error_at(ctx, name, pos, length, code, msg);
+
+  return JS_IsException(err) ? err : JS_Throw(ctx, err);
+}
+
 static JSValue
 js_location_tostring(JSContext* ctx, const Location* loc) {
   JSValue ret = JS_EXCEPTION;

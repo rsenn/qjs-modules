@@ -26,6 +26,18 @@ VISIBLE JSValue js_syntax_error_new(JSContext*, const Location* at, size_t lengt
 /* js_throw_syntax_error: as above, and throws it; returns JS_EXCEPTION. */
 VISIBLE JSValue js_throw_syntax_error(JSContext*, const Location* at, size_t length, const char* code, const char* fmt, ...);
 
+/* js_syntax_error_at: as js_syntax_error_new(), for an engine-free SourcePos of the
+ * input called name (NULL: <input>).
+ *
+ *   const char*       name  input name for the message and loc.file ("f.json")
+ *   const SourcePos*  pos   start of the offending token (1-based)
+ *
+ * returns the error (refcount: a new reference), or JS_EXCEPTION. */
+VISIBLE JSValue js_syntax_error_at(JSContext*, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg);
+
+/* js_throw_syntax_error_at: as above, and throws it; returns JS_EXCEPTION. */
+VISIBLE JSValue js_throw_syntax_error_at(JSContext*, const char* name, const SourcePos* pos, size_t length, const char* code, const char* msg);
+
 VISIBLE int js_location_init(JSContext*, JSModuleDef*);
 
 static inline Location*

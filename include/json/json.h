@@ -143,8 +143,17 @@ int json_end(JsonParser*);
  *   - str / len is the text of an error, number, string, key or comment; valid until the next call
  *   - at is the start of the token (1-based line and column), has_at is always set
  *
- * never throws; the error code and length stay in json->err_code and json->err_len. */
+ * an error event also has code (the stable name, "unexpected-token") and span (bytes from at
+ * through the offending byte, 0 at the end of input). never throws. */
 JsonPull json_next(JsonParser*, JsonEvent* ev);
+
+/* json_next_end: signals the end of the input; the event form of json_end().
+ *
+ * Call it when json_next() answers JSON_PULL_AGAIN and no more data will come. It delivers what the
+ * end completes or breaks, one event per call: a number that nothing terminated, then
+ * JSON_EVENT_ERROR with code "unexpected-end" for an unfinished document, then JSON_PULL_END.
+ * Call it until it answers JSON_PULL_END. never throws. */
+JsonPull json_next_end(JsonParser*, JsonEvent* ev);
 
 /* json_source: the pull parser as a JsonEventSource, for jevent_pump(). */
 JsonEventSource json_source(JsonParser*);

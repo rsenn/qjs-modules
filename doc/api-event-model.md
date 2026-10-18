@@ -384,7 +384,7 @@ is read as the list of classes the module exports.
 
 | # | Step | Gate |
 | --- | --- | --- |
-| P11 | `JsonEvent` / `XmlEvent` get `code` and `span`; `json_next`, `xml_next`, `jr_feed`, `xr_feed` fill them | `tests/c/event-model.c` checks code and span of an error at chunk sizes 1 and whole |
+| P11 (done) | `JsonEvent` / `XmlEvent` get `code` and `span`; `json_next`, `xml_next`, `jr_feed`, `xr_feed` fill them; `json_next_end()` gives a pull parse its end-of-input events | `tests/c/event-model.c` checks code and span of an error at chunk sizes 1 and whole |
 | P12 | the files of 12.1, each with a test in `tests/c/event-model.c` or `tests/unittests/test-json-errors.js` / `test-xml-errors.js`; `location_from_srcpos`, `reader_from_js_input` | the bindings call them in the same change, line counts of `quickjs-*.c` drop as in 12.4 |
 | (lift) | P2 to P6 and P8 on the binding side: classes read events, serializers on `JsonSerial` / `XmlSerial`, handshake, `pump()` / `connect()`, constructor options | `test-json.js`, `test-xml.js`, `test-xml-write-golden.js` unchanged |
 | P13 | privatize and delete the entries of 12.2 (not the walk ones) | `grep` of each symbol outside its file is empty |

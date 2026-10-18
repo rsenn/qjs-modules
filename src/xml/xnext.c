@@ -48,6 +48,8 @@ xml_next(XMLParser* p, XmlEvent* ev) {
         ev->type = XE_ERROR;
         ev->str = p->err_code;
         ev->len = p->err_code ? strlen(p->err_code) : 0;
+        ev->code = p->err_code;
+        ev->span = p->err_len;
         break;
       case XE_ELEMENT_START:
         if(p->event_name.len && p->event_name.data[0] == '!') {
@@ -81,7 +83,7 @@ xml_next(XMLParser* p, XmlEvent* ev) {
         ev->type = XE_ATTRIBUTE;
         ev->name = p->event_name.data;
         ev->nlen = p->event_name.len;
-        ev->value = p->event_has_value ? p->event_value.data : NULL;
+        ev->value = p->event_has_value ? (p->event_value.data ? p->event_value.data : "") : NULL;
         ev->vlen = p->event_has_value ? p->event_value.len : 0;
         break;
       case XE_ELEMENT_END:
@@ -105,6 +107,7 @@ xml_next(XMLParser* p, XmlEvent* ev) {
         ev->type = XE_ELEMENT_END;
         ev->name = p->event_name.data;
         ev->nlen = p->event_name.len;
+        ev->self_closing = p->self_closing;
         break;
       case XE_TEXT:
         if(!p->event_has_value)

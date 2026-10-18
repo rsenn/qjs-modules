@@ -413,6 +413,127 @@ xml_js_sink(void) {
   JS_FreeValue(ctx, obj);
 }
 
+/* ---- error events carry code and span, whichever way the source delivers them ---- */
+
+typedef struct {
+  int errors;
+  char code[32];
+  size_t span;
+  uint32_t line, column;
+} ErrorInfo;
+
+static ssize_t
+json_take_error(void* user, const JsonEvent* ev) {
+  ErrorInfo* e = user;
+
+  if(ev->type == JSON_EVENT_ERROR) {
+    e->errors++;
+    snprintf(e->code, sizeof(e->code), "%s", ev->code ? ev->code : "(null)");
+    e->span = ev->span;
+    e->line = ev->at.line;
+    e->column = ev->at.column;
+  }
+
+  return 0;
+}
+
+static ssize_t
+xml_take_error(void* user, const XmlEvent* ev) {
+  ErrorInfo* e = user;
+
+  if(ev->type == XE_ERROR) {
+    e->errors++;
+    snprintf(e->code, sizeof(e->code), "%s", ev->code ? ev->code : "(null)");
+    e->span = ev->span;
+    e->line = ev->at.line;
+    e->column = ev->at.column;
+  }
+
+  return 0;
+}
+
+static void
+json_error_info(void) {
+  const char* texts[] = {"[1, x, 2]", "[1, 2"};
+  const char* codes[] = {"unexpected-token", "unexpected-end"};
+  size_t spans[] = {1, 0};
+
+  for(int t = 0; t < 2; t++) {
+    const char* text = texts[t];
+    size_t n = strlen(text);
+    ErrorInfo pull = {0};
+    Reader rd = reader_from_bytes(text, n);
+    JsonParser json;
+    JsonEvent ev;
+
+    /* pull */
+    CHECK(json_init(&json, rd, "t.json", ctx));
+    json.flags = JR_JSON; /* strict: only then does the end of the input break a document */
+
+    while(json_next(&json, &ev) == JSON_PULL_EVENT)
+      json_take_error(&pull, &ev);
+
+    while(json_next_end(&json, &ev) == JSON_PULL_EVENT) /* the end of the input */
+      json_take_error(&pull, &ev);
+
+    CHECK(pull.errors == 1 && !strcmp(pull.code, codes[t]) && pull.span == spans[t]);
+    json_clear(&json, JS_GetRuntime(ctx));
+
+    /* push, at several chunk sizes: the same code, span and position as the pull parser */
+    for(size_t step = 1; step <= n; step += (step < 3 ? 1 : n)) {
+      ErrorInfo push = {0};
+      jr_state_t st;
+
+      jr_state_init_flags(&st, JR_JSON);
+
+      for(size_t i = 0; i < n; i += step)
+        jr_feed(&st, text + i, n - i < step ? n - i : step, json_take_error, &push);
+
+      jr_end(&st, json_take_error, &push);
+      CHECK(push.errors >= 1 && !strcmp(push.code, codes[t]));
+      CHECK(push.span == spans[t] && push.line == pull.line && push.column == pull.column);
+      jr_state_free(&st);
+    }
+  }
+}
+
+static void
+xml_error_info(void) {
+  /* pull: a mismatched end tag, "</b>" is 4 bytes */
+  {
+    const char* text = "<a></b>";
+    Reader rd = reader_from_bytes(text, strlen(text));
+    XMLParser xp;
+    XmlEvent ev;
+    ErrorInfo e = {0};
+
+    xml_init(&xp, &rd);
+
+    while(xml_next(&xp, &ev) == XML_PULL_EVENT)
+      xml_take_error(&e, &ev);
+
+    CHECK(e.errors == 1 && !strcmp(e.code, "mismatched-end-tag") && e.span == 4);
+    xml_free(&xp);
+  }
+
+  /* push: input that ends inside a tag, at chunk sizes 1 and whole */
+  for(size_t step = 1; step <= 2; step++) {
+    const char* text = "<a><b";
+    size_t n = strlen(text);
+    ErrorInfo e = {0};
+    xr_state_t st;
+
+    xr_state_init(&st);
+
+    for(size_t i = 0; i < n; i += (step == 1 ? 1 : n))
+      xr_feed(&st, text + i, step == 1 ? 1 : n - i, xml_take_error, &e);
+
+    xr_end(&st, xml_take_error, &e);
+    CHECK(e.errors == 1 && !strcmp(e.code, "unexpected-end") && e.span == 0);
+    xr_state_free(&st);
+  }
+}
+
 static void
 dialects(void) {
   int f;
@@ -440,6 +561,8 @@ main(void) {
   xml_walker();
   xml_js_sink();
   dialects();
+  json_error_info();
+  xml_error_info();
 
   JS_FreeContext(ctx);
   JS_FreeRuntime(rt);

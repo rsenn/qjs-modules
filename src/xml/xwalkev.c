@@ -23,7 +23,7 @@ typedef struct {
   char* tag; /* ELEMENT: its tagName, owned, NULL until the key is seen */
   size_t len;
   int key;               /* ELEMENT: which key is current, 1 tag 2 attributes 3 children */
-  unsigned markup : 2;   /* ELEMENT: 0 normal, 1 comment or declaration or CDATA, 2 instruction */
+  unsigned markup : 2;   /* ELEMENT: 0 normal, 1 comment or declaration or CDATA, 2 instruction, 3 instruction already queued */
   unsigned started : 1;  /* ELEMENT: XE_ELEMENT_START was queued */
   unsigned cut : 1;      /* ELEMENT: children were cut off by max_depth, no end event */
   unsigned marker : 1;   /* ELEMENT: tagName was /x, an end event was queued instead of a start */
@@ -182,6 +182,14 @@ static ssize_t
 xwe_array_start(void* o, JSContext* ctx) {
   XwalkSource* s = o;
   XwalkFrame* f = xwe_top(s);
+
+  /* the instruction comes before its children, its attributes are all in by now */
+  if(f && f->kind == XF_ELEMENT && f->markup == 2) {
+    f->markup = 3;
+
+    if(xwe_queue(s, XE_INSTRUCTION, (const char*)s->pi.buf, s->pi.size, 0, 0) < 0)
+      return xwe_fail(s);
+  }
 
   if(f && f->kind == XF_ELEMENT && WALK_TOP(&s->it.walk)->tab_atom_len > 0) {
     int level = walk_depth(&s->it.walk) / 2;

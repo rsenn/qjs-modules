@@ -32,6 +32,11 @@ jfeed_callback(JsonEventType type, const jr_str_t* data, void* user_data) {
       .has_at = 1,
   };
 
+  if(type == JSON_EVENT_ERROR) {
+    ev.code = jr_error_name(f->state->err_code);
+    ev.span = f->state->err_len;
+  }
+
   if((r = f->handler(f->user, &ev)) < 0)
     f->failure = r;
 }

@@ -402,14 +402,11 @@ tests({
       eqArr(r, v);
     }
   },
-  'known limitation: reader keeps \\n, \\", \\\\ literal (does not decode string escapes)'() {
-    /* The underlying sj.h library returns the raw byte range between the
-     * surrounding quotes, so \n in the JSON source stays as literal backslash-n
-     * in the JS string. The writer DOES escape correctly (see write: string
-     * escapes above) - this pins down read()'s current, asymmetric behavior. */
-    eq(read('"a\\nb"'), 'a\\nb');
-    eq(read('"a\\"b"'), 'a\\"b');
-    eq(read('"a\\\\b"'), 'a\\\\b');
+  'read: decodes string escapes like JSON.parse'() {
+    eq(read('"a\\nb"'), 'a\nb');
+    eq(read('"a\\"b"'), 'a"b');
+    eq(read('"a\\\\b"'), 'a\\b');
+    eq(read('"\\u00e9\\ud83d\\ude00"'), '\u00e9\u{1f600}');
   },
 
   /* ---------- JsonParser (pull) ---------- */

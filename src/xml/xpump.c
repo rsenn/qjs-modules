@@ -67,6 +67,8 @@ xfeed_callback(XmlEventType type, const xr_str_t* name, const xr_str_t* value, v
           .type = XE_ERROR,
           .str = value ? value->cstr : NULL,
           .len = value ? value->len : 0,
+          .code = xr_error_name(f->state->err_code),
+          .span = f->state->err_len,
           .at = f->state->err_pos,
           .has_at = 1,
       };

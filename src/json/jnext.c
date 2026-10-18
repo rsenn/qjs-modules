@@ -20,10 +20,9 @@ jnext_pos(const JsonPos* p) {
   };
 }
 
-JsonPull
-json_next(JsonParser* json, JsonEvent* ev) {
-  int type = json_parse(json);
-
+/* jnext_event: names what json_parse() or json_end() returned in `type`. */
+static JsonPull
+jnext_event(JsonParser* json, int type, JsonEvent* ev) {
   *ev = (JsonEvent){0};
 
   switch(type) {
@@ -33,6 +32,8 @@ json_next(JsonParser* json, JsonEvent* ev) {
       ev->type = JSON_EVENT_ERROR;
       ev->str = json->error;
       ev->len = json->error ? strlen(json->error) : 0;
+      ev->code = json->err_code;
+      ev->span = json->err_len;
       ev->at = jnext_pos(&json->err_at);
       ev->has_at = 1;
       return JSON_PULL_EVENT;
@@ -50,6 +51,16 @@ json_next(JsonParser* json, JsonEvent* ev) {
   ev->at = jnext_pos(type == JSON_EVENT_COMMENT ? &json->last_start : &json->tok_start);
   ev->has_at = 1;
   return JSON_PULL_EVENT;
+}
+
+JsonPull
+json_next(JsonParser* json, JsonEvent* ev) {
+  return jnext_event(json, json_parse(json), ev);
+}
+
+JsonPull
+json_next_end(JsonParser* json, JsonEvent* ev) {
+  return jnext_event(json, json_end(json), ev);
 }
 
 static JsonPull

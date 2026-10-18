@@ -82,11 +82,27 @@ JSValue xbuild_path(XmlBuilder*);
  * dup what you need out of xbuild_root() first. */
 void xbuild_free(XmlBuilder*, JSRuntime*);
 
+/* xbuild_handler: an XmlEvent into the builder, the XmlEventHandler form of xbuild_sink().
+ *
+ *   event            builder gets
+ *   element_start    xbuild_start
+ *   attribute        xbuild_attribute
+ *   text             xbuild_text
+ *   element_end      xbuild_end, with ev->self_closing
+ *   comment          a node {tagName: "!--text--"}, no attributes and no children
+ *   declaration      a node {tagName: "!text"}
+ *   cdata            a node {tagName: "![CDATA[text]]"}
+ *   instruction      an element {tagName: "?name", attributes} that stays open, so what follows
+ *                    is its children, as xml_parse() delivers it (text: name k="v" k2 ...)
+ *   error            nothing
+ *
+ * returns 0. user is the XmlBuilder. */
+ssize_t xbuild_handler(void* user, const XmlEvent* ev);
+
 /* xbuild_sink: the sink of an XmlBuilder, opaque is b.
  *
- * element_start, attribute, text and element_end are the xbuild_*() calls (the end is never
- * self-closing), error and the markup events (comment, declaration, instruction, cdata) are
- * dropped for now, every member returns 0. b must outlive the returned struct. */
+ * the members do what xbuild_handler() does (an end is never self-closing, the sink has no
+ * flag for it), every member returns 0. b must outlive the returned struct. */
 XmlEventSink xbuild_sink(XmlBuilder* b);
 
 /**

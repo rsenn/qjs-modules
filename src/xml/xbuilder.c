@@ -4,6 +4,8 @@
  * until the first child or the end, then `children` is. */
 
 #include "xml/xbuilder.h"
+#include <ctype.h>
+#include <string.h>
 
 /**
  * \addtogroup xbuilder
@@ -216,7 +218,101 @@ xbuild_free(XmlBuilder* b, JSRuntime* rt) {
   b->depth = 0;
 }
 
-/* the XmlEventSink members: each casts `opaque` back to the builder */
+/* xbuild_markup: a comment, declaration or CDATA node, tagName is pre + text + post.
+ *
+ * the node is complete at once, so tree mode ends it here, flat mode leaves it open as the end
+ * that xml_parse() sends is not one (the next call closes it). */
+static void
+xbuild_markup(XmlBuilder* b, const char* pre, const char* text, size_t len, const char* post) {
+  JSContext* ctx = b->json.ctx;
+  size_t pl = strlen(pre), ql = strlen(post);
+  char* name = js_malloc(ctx, pl + len + ql + 1);
+
+  if(!name)
+    return;
+
+  memcpy(name, pre, pl);
+  memcpy(name + pl, text, len);
+  memcpy(name + pl + len, post, ql);
+  xbuild_start(b, name, pl + len + ql);
+
+  if(b->flat)
+    b->skip_end = 0;
+  else
+    xbuild_end(b, name, pl + len + ql, 1);
+
+  js_free(ctx, name);
+}
+
+/* xbuild_instruction: <?name k="v" bare?> as an element ?name with those attributes, left open.
+ *
+ * text is name, then blanks and k="v", k='v', k=v or a bare k. */
+static void
+xbuild_instruction(XmlBuilder* b, const char* text, size_t len) {
+  JSContext* ctx = b->json.ctx;
+  size_t i = 0;
+  char* name;
+
+  while(i < len && !isspace((unsigned char)text[i]))
+    i++;
+
+  if(!(name = js_malloc(ctx, i + 2)))
+    return;
+
+  name[0] = '?';
+  memcpy(name + 1, text, i);
+  xbuild_start(b, name, i + 1);
+  js_free(ctx, name);
+
+  while(i < len) {
+    const char *k, *v = NULL;
+    size_t kl, vl = 0;
+
+    while(i < len && isspace((unsigned char)text[i]))
+      i++;
+
+    for(k = text + i, kl = 0; i < len && !isspace((unsigned char)text[i]) && text[i] != '='; i++)
+      kl++;
+
+    if(i < len && text[i] == '=') {
+      char q = ++i < len ? text[i] : 0;
+
+      if(q == '"' || q == '\'')
+        i++;
+      else
+        q = 0;
+
+      for(v = text + i; i < len && (q ? text[i] != q : !isspace((unsigned char)text[i])); i++)
+        vl++;
+
+      if(q && i < len)
+        i++;
+    }
+
+    if(kl)
+      xbuild_attribute(b, k, kl, v, vl);
+  }
+}
+
+ssize_t
+xbuild_handler(void* user, const XmlEvent* ev) {
+  XmlBuilder* b = user;
+
+  switch(ev->type) {
+    case XE_ELEMENT_START: xbuild_start(b, ev->name, ev->nlen); break;
+    case XE_ATTRIBUTE: xbuild_attribute(b, ev->name, ev->nlen, ev->value, ev->vlen); break;
+    case XE_TEXT: xbuild_text(b, ev->str, ev->len); break;
+    case XE_ELEMENT_END: xbuild_end(b, ev->name, ev->nlen, ev->self_closing); break;
+    case XE_COMMENT: xbuild_markup(b, "!--", ev->str, ev->len, "--"); break;
+    case XE_DECLARATION: xbuild_markup(b, "!", ev->str, ev->len, ""); break;
+    case XE_CDATA: xbuild_markup(b, "![CDATA[", ev->str, ev->len, "]]"); break;
+    case XE_INSTRUCTION: xbuild_instruction(b, ev->str, ev->len); break;
+    case XE_ERROR: break;
+  }
+
+  return 0;
+}
+
 static ssize_t
 xbuild_if_ignore(void* b, const char* str, size_t len) {
   return 0;
@@ -241,6 +337,26 @@ xbuild_if_text(void* b, const char* str, size_t len) {
   xbuild_text(b, str, len);
   return 0;
 }
+static ssize_t
+xbuild_if_comment(void* b, const char* str, size_t len) {
+  xbuild_markup(b, "!--", str, len, "--");
+  return 0;
+}
+static ssize_t
+xbuild_if_declaration(void* b, const char* str, size_t len) {
+  xbuild_markup(b, "!", str, len, "");
+  return 0;
+}
+static ssize_t
+xbuild_if_instruction(void* b, const char* str, size_t len) {
+  xbuild_instruction(b, str, len);
+  return 0;
+}
+static ssize_t
+xbuild_if_cdata(void* b, const char* str, size_t len) {
+  xbuild_markup(b, "![CDATA[", str, len, "]]");
+  return 0;
+}
 
 XmlEventSink
 xbuild_sink(XmlBuilder* b) {
@@ -251,10 +367,10 @@ xbuild_sink(XmlBuilder* b) {
       xbuild_if_attribute,
       xbuild_if_element_end,
       xbuild_if_text,
-      xbuild_if_ignore,
-      xbuild_if_ignore,
-      xbuild_if_ignore,
-      xbuild_if_ignore,
+      xbuild_if_comment,
+      xbuild_if_declaration,
+      xbuild_if_instruction,
+      xbuild_if_cdata,
   };
 }
 

@@ -6,6 +6,7 @@
 
 #include "json/jserial.h"
 #include "stream-utils.h"
+#include "char-utils.h"
 #include <string.h>
 
 /**
@@ -71,6 +72,10 @@ jserial_read(JsonSerial* s, void* buf, size_t n, int chars) {
     return -1;
 
   avail = s->out.size - s->pos;
+
+  if(chars == 2)
+    n = utf8_byteoffset(s->out.buf + s->pos, avail, MIN_NUM(n, utf8_strlen(s->out.buf + s->pos, avail)));
+
   m = MIN_NUM(n, avail);
 
   if(chars)

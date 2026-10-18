@@ -52,12 +52,17 @@ struct jr_state;
  *   type     JsonEventType, the id every json/ header uses        all
  *   str,len  the text, valid until the next event             error, number, string, key
  *   at       where the event starts; only if `has_at`         optional
+ *   code     stable kebab-case name of the error              error
+ *   span     bytes from `at` through the offending byte,      error
+ *            0 at the end of input
  *
  * no engine; a sink must not require `at`. */
 typedef struct {
   JsonEventType type;
   const char* str;
   size_t len;
+  const char* code; /* error only: jr_error_name() of the error, a static string */
+  size_t span;      /* error only */
   SourcePos at;
   unsigned has_at : 1;
 } JsonEvent;

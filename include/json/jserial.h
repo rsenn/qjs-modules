@@ -48,6 +48,7 @@ void jserial_init(JsonSerial*, JsonEventSource src, JsonWriteOptions opts, JSRun
  *   void*        buf    destination
  *   size_t       n      bytes wanted
  *   int          chars  1: end the copy on a character boundary (a UTF-8 sequence is not cut)
+ *                       2: as 1, and n counts characters, not bytes (buf holds up to 4n)
  *
  *   returns ssize_t  the bytes copied (> 0); 0 at the end of the output; JSERIAL_AGAIN when there
  *                    is none yet and the source needs data; -1 on failure, with s->error the
