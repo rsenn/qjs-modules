@@ -1888,4 +1888,21 @@ tests({
     p.close();
     eq(JSON.stringify(b.root), '[{"tagName":"a","attributes":{},"children":[{"tagName":"b","attributes":{},"children":[]}]}]');
   },
+
+  /* ---------- parser options ---------- */
+  'XMLParser: selfClosingTags, tolerant and flat options'() {
+    const build = (doc, options, builder = {}) => {
+      const b = new XmlBuilder({ plain: true, ...builder });
+
+      new XMLParser(doc, options).pump(b);
+      return b.finish().root;
+    };
+    const names = list => list.map(n => n.tagName ?? n);
+
+    eqArr(names(build('<p>a<br>b</p>', { selfClosingTags: ['br'] })[0].children), ['a', 'br', 'b']);
+    eqArr(names(build('<p>a<br>b</p>', { selfClosingTags: ['br'], flat: true }, { flat: true })), ['p', 'a', 'br', '/br', 'b', '/p']);
+    eqArr(names(build('<p>a</x>b</p>', { tolerant: true })[0].children), ['a', 'b']);
+    assertThrows(() => build('<p>a</x>b</p>', {}));
+    assertThrows(() => new XMLParser('<a/>', { selfClosingTags: [], tolerant: 1 }).pump({ elementEnd() { throw new Error('x'); } }));
+  },
 });

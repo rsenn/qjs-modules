@@ -20,6 +20,7 @@
 #include "xml/xwalk.h"
 #include "xml/xserial.h"
 #include "xml/xconnect.h"
+#include "xml/xopts.h"
 
 #include <stdint.h>
 
@@ -46,11 +47,6 @@ static const char* const default_self_closing_tags[] = {
     "wbr",
     0,
 };
-
-typedef struct {
-  BOOL flat, tolerant, location;
-  const char* const* self_closing_tags;
-} ParseOptions;
 
 #ifdef DEBUG_OUTPUT
 #define xml_debug(args...) printf(args)
@@ -82,7 +78,7 @@ make_tuple(JSContext* ctx, JSValue a, JSValue b) {
  *
  * returns the array (or [array, WeakMap] with location) or throws SyntaxError. */
 static JSValue
-js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, ParseOptions opts) {
+js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, XmlOptions opts) {
   Reader reader = reader_from_bytes(buf, len);
   XMLParser xp;
   XmlBuilder xb;
@@ -157,12 +153,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   JSValue ret;
   InputBuffer input;
   const char* input_name = 0;
-  ParseOptions opts = {
-      .flat = FALSE,
-      .tolerant = FALSE,
-      .location = FALSE,
-      .self_closing_tags = default_self_closing_tags,
-  };
+  XmlOptions opts = {.self_closing_tags = default_self_closing_tags};
 
   if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
     return JS_ThrowTypeError(ctx, "xml.read(): expecting buffer or string");
@@ -182,27 +173,10 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 
   if(argc >= 3) {
     if(JS_IsObject(argv[2])) {
-      JSValue tags = JS_UNDEFINED;
-
-      if(js_has_propertystr(ctx, argv[2], "flat"))
-        opts.flat = js_get_propertystr_bool(ctx, argv[2], "flat");
-
-      if(js_has_propertystr(ctx, argv[2], "tolerant"))
-        opts.tolerant = js_get_propertystr_bool(ctx, argv[2], "tolerant");
-
-      if(js_has_propertystr(ctx, argv[2], "location"))
-        opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
-
-      if(js_has_propertystr(ctx, argv[2], "selfClosingTags"))
-        tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
-
-      if(JS_IsArray(ctx, tags)) {
-        size_t ac;
-        opts.self_closing_tags = (const char* const*)js_array_to_argv(ctx, &ac, tags);
+      if(xml_options_from_js(ctx, argv[2], &opts)) {
+        inputbuffer_free(&input, ctx);
+        return JS_EXCEPTION;
       }
-
-      JS_FreeValue(ctx, tags);
-
     } else {
       opts.flat = JS_ToBool(ctx, argv[2]);
 
@@ -216,6 +190,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   if(input_name)
     JS_FreeCString(ctx, input_name);
 
+  xml_options_free(ctx, &opts);
   inputbuffer_free(&input, ctx);
   return ret;
 }
@@ -888,6 +863,7 @@ typedef struct {
   JSValue element_start, element_end, attribute, text, error;
   JSValue this_obj;
   JSValue last_error; /* SyntaxError after parse() returned PARSE_ERROR, else undefined */
+  char** self_closing_owned; /* the selfClosingTags option */
 } XmlParser;
 
 static JSClassID js_xml_parser_class_id;
@@ -1244,6 +1220,25 @@ js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
    * lifetime, since both live in this one allocation and are freed together in
    * the finalizer below. */
   xml_init(&p->xp, &p->reader);
+
+  if(JS_IsObject(options)) {
+    XmlOptions xo = {0};
+
+    if(xml_options_from_js(ctx, options, &xo)) {
+      xml_free(&p->xp);
+      reader_free(&p->reader);
+      location_free(p->loc, JS_GetRuntime(ctx));
+      js_free(ctx, p);
+      return JS_EXCEPTION;
+    }
+
+    xml_set_tolerant(&p->xp, xo.tolerant);
+    xml_set_flat(&p->xp, xo.flat);
+    p->xp.self_closing_tags = xo.self_closing_tags;
+    p->self_closing_owned = xo.owned;
+    js_free(ctx, xo.filename);
+  }
+
   xbuild_init(&p->builder, ctx, 0);
   p->sink = xbuild_sink(&p->builder);
 
@@ -1275,6 +1270,7 @@ js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
     xml_free(&p->xp);
     reader_free(&p->reader);
     xbuild_free(&p->builder, rt);
+    js_strv_free_rt(rt, p->self_closing_owned);
 
     if(p->loc)
       location_free(p->loc, rt);

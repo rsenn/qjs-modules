@@ -43,6 +43,12 @@ array is a flat list.
 
 Text and attribute values are escaped (`& < >`, and `"` in attributes); an attribute value `true` is written bare.
 
+## Parser options
+
+`xml.read(text, name, options)` and `new XMLParser(input, options)` share one option reader: `{ flat, tolerant, selfClosingTags, filename }`,
+and `location` for `read()`. `XMLParser` has no default self-closing tags (`read()` uses the HTML ones). `strict` and `entities` are not
+implemented, they wait for the engine.
+
 ## Connecting engines: pump(), connect(), tee, XmlBuilder
 
 Every source runs into every sink in C. A sink is an `XMLWriter`, an `XmlBuilder`, a `tee(...)` or any object with the sink methods

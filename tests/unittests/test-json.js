@@ -1076,4 +1076,47 @@ tests({
     assert(e instanceof Error);
     assert(e.code !== undefined);
   },
+
+  /* ---------- parser options: dialects ---------- */
+  'JsonParser: dialect and strict'() {
+    const run = (text, options) => {
+      const b = new JsonBuilder({ plain: true });
+
+      new JsonParser(text, options).pump(b, true);
+      return JSON.stringify(b.root);
+    };
+
+    eq(run('{"a":1}', { dialect: 'json' }), '{"a":1}');
+    assertThrows(() => run('{"a":1,}', { dialect: 'json' }));
+    assertThrows(() => run('{"a":1,}', { strict: true }));
+    assertThrows(() => run('// c\n{"a":1}', { strict: true }));
+    eq(run('// c\n{"a":1,}', { dialect: 'jsonc' }), '{"a":1}');
+    eq(run("{a: 'x', b: 0x10,}", { dialect: 'json5' }), '{"a":"x","b":16}');
+    assertThrows(() => run('{a: 1}', { dialect: 'jsonc' }));
+
+    const nums = new JsonBuilder();
+
+    new JsonParser('[+.5, Infinity, -0x1F, 5., 1e3]', { dialect: 'json5' }).pump(nums, true);
+    eq(nums.root.join(), '0.5,Infinity,-31,5,1000');
+    assertThrows(() => new JsonParser('1', { dialect: 'yaml' }));
+    eq(String(assertThrows(() => run('[1,x]', { dialect: 'json', filename: 'f.json' })).loc), 'f.json:1:4');
+  },
+  'JsonPushParser: dialect and strict options'() {
+    const b = new JsonBuilder({ plain: true }), p = new JsonPushParser({ dialect: 'json5' }).connect(b);
+
+    p.write("{a: 'x', /* c */ b: [1,],}");
+    p.close();
+    eq(JSON.stringify(b.root), '{"a":"x","b":[1]}');
+    assertThrows(() => new JsonPushParser({ strict: true }).write('[1,]'));
+    assertThrows(() => new JsonPushParser({ dialect: 'yaml' }));
+  },
+  'JsonParser: the comments option delivers comment events'() {
+    const p = new JsonParser('/* c */ [1]', { dialect: 'jsonc', comments: true });
+    const types = [];
+    let t;
+
+    while((t = p.parse()) !== JsonParser.NEED_DATA) types.push(t);
+
+    eq(types[0], JsonParser.COMMENT);
+  },
 });

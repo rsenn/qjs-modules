@@ -497,6 +497,37 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
     } else if(JS_IsObject(argv[0])) {
       pp->callbacks_obj = JS_DupValue(ctx, argv[0]);
 
+      {
+        JSValue name = JS_GetPropertyStr(ctx, argv[0], "dialect");
+        int flags = -1;
+
+        if(!JS_IsUndefined(name)) {
+          size_t len;
+          const char* str = JS_ToCStringLen(ctx, &len, name);
+
+          if(!str || jr_flags_from_name(str, len, &flags)) {
+            JS_ThrowTypeError(ctx, "JsonPushParser: unknown dialect %s", str ? str : "");
+
+            if(str)
+              JS_FreeCString(ctx, str);
+
+            JS_FreeValue(ctx, name);
+            goto fail_options;
+          }
+
+          JS_FreeCString(ctx, str);
+        } else if(js_get_propertystr_bool(ctx, argv[0], "strict")) {
+          flags = JR_JSON;
+        }
+
+        JS_FreeValue(ctx, name);
+
+        if(flags >= 0) {
+          jr_state_free(&pp->jrs);
+          jr_state_init_flags(&pp->jrs, flags);
+        }
+      }
+
       for(int t = JSON_EVENT_ERROR; t <= JSON_EVENT_KEY; t++) {
         const char* prop_name = NULL;
 
@@ -560,6 +591,21 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
   JS_SetOpaque(obj, pp);
   return obj;
+
+fail_options:
+  jr_state_free(&pp->jrs);
+  jbuild_free(&pp->builder, JS_GetRuntime(ctx));
+  location_free(pp->loc, JS_GetRuntime(ctx));
+  JS_FreeValue(ctx, pp->callback_fn);
+  JS_FreeValue(ctx, pp->callbacks_obj);
+  JS_FreeValue(ctx, pp->ext_obj);
+  JS_FreeValue(ctx, pp->last_error);
+
+  for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
+    JS_FreeValue(ctx, pp->callbacks[i]);
+
+  js_free(ctx, pp);
+  return JS_EXCEPTION;
 }
 
 static void
@@ -1300,6 +1346,21 @@ static JSClassDef js_jsontee_class = {
     .finalizer = js_jsontee_finalizer,
 };
 
+/* JsonParser: a pull parser over a string, a buffer, a read function, an object with read() or a fd.
+ *
+ * ```js
+ * new JsonParser(text, 'a.json')                       // the file name for errors
+ * new JsonParser(text, { dialect: 'json5', filename: 'a.json5', comments: true })
+ * new JsonParser(text, { strict: true })               // RFC 8259 only, same as dialect 'json'
+ * ```
+ *
+ *   dialect   'json', 'jsonc' (comments, trailing commas), 'json5', 'jsonl' (many documents), 'legacy'
+ *   strict    true: dialect 'json' when no dialect is given
+ *   comments  true: comments arrive as events (COMMENT) instead of being skipped
+ *   filename  the name that errors report
+ *
+ * without a dialect the parser is lenient ('legacy'): it skips bad input and goes on.
+ * throws TypeError for an unknown dialect. wired in: the JsonParser export. */
 static JSValue
 js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
@@ -1307,6 +1368,8 @@ js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   JSValueConst input = argc > 0 ? argv[0] : JS_UNDEFINED;
   Reader reader;
   const char* filename = 0;
+  int flags = -1;
+  BOOL comments = FALSE;
 
   if(JS_IsFunction(ctx, input)) {
     reader = reader_from_jsfunction(ctx, input);
@@ -1328,8 +1391,37 @@ js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
     reader = reader_from_jsbuf(ctx, input);
   }
 
-  if(argc > 1)
+  if(argc > 1 && JS_IsObject(argv[1])) {
+    JSValue name = JS_GetPropertyStr(ctx, argv[1], "dialect");
+
+    if(!JS_IsUndefined(name)) {
+      size_t len;
+      const char* str = JS_ToCStringLen(ctx, &len, name);
+
+      if(!str || jr_flags_from_name(str, len, &flags)) {
+        JS_ThrowTypeError(ctx, "JsonParser: unknown dialect %s", str ? str : "");
+
+        if(str)
+          JS_FreeCString(ctx, str);
+
+        JS_FreeValue(ctx, name);
+        reader_free(&reader);
+        return JS_EXCEPTION;
+      }
+
+      JS_FreeCString(ctx, str);
+    } else if(js_get_propertystr_bool(ctx, argv[1], "strict")) {
+      flags = JR_JSON;
+    }
+
+    JS_FreeValue(ctx, name);
+    comments = js_get_propertystr_bool(ctx, argv[1], "comments");
+    name = JS_GetPropertyStr(ctx, argv[1], "filename");
+    filename = JS_IsUndefined(name) ? 0 : JS_ToCString(ctx, name);
+    JS_FreeValue(ctx, name);
+  } else if(argc > 1) {
     filename = JS_ToCString(ctx, argv[1]);
+  }
 
   p = json_new(reader, filename, ctx);
 
@@ -1340,6 +1432,11 @@ js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
     reader_free(&reader);
     return JS_EXCEPTION;
   }
+
+  if(flags >= 0)
+    p->flags = flags;
+
+  p->comments = comments;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))

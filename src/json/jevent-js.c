@@ -20,18 +20,7 @@ js_jsonevent_value(JSContext* ctx, const JsonEvent* ev) {
     case JSON_EVENT_TRUE: return JS_TRUE;
     case JSON_EVENT_FALSE: return JS_FALSE;
     case JSON_EVENT_NUMBER: {
-      double num = 0;
-
-      if(ev->str) {
-        char* buf = js_malloc(ctx, ev->len + 1);
-
-        if(buf) {
-          memcpy(buf, ev->str, ev->len);
-          buf[ev->len] = '\0';
-          scan_double(buf, &num);
-          js_free(ctx, buf);
-        }
-      }
+      double num = ev->str ? jevent_number(ev->str, ev->len) : 0;
 
       return JS_NewFloat64(ctx, num);
     }

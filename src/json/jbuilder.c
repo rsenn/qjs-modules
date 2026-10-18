@@ -135,18 +135,7 @@ jbuild_value(JsonBuilder* b, JsonEventType type, const char* data, size_t len) {
     case JSON_EVENT_TRUE: val = JS_TRUE; break;
     case JSON_EVENT_FALSE: val = JS_FALSE; break;
     case JSON_EVENT_NUMBER: {
-      double num = 0;
-
-      if(data) {
-        char* buf;
-
-        if((buf = js_malloc(ctx, len + 1))) {
-          memcpy(buf, data, len);
-          buf[len] = '\0';
-          scan_double(buf, &num);
-          js_free(ctx, buf);
-        }
-      }
+      double num = data ? jevent_number(data, len) : 0;
 
       val = JS_NewFloat64(ctx, num);
       break;

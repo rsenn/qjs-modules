@@ -109,6 +109,16 @@ typedef struct {
  *   returns ssize_t  what the member returns; 0 when the member is NULL or the type unknown */
 ssize_t jevent_send(const JsonEventSink* sink, const JsonEvent* ev);
 
+/* jevent_number: the value of the text of a NUMBER event, in every dialect.
+ *
+ *   "1.5e3" 1500   "-0x1F" -31   "+.5" 0.5   "Infinity" inf   "-NaN" nan
+ *
+ *   const char*  str  the text, str[0..len)
+ *   size_t       len  its length
+ *
+ * returns the value, 0 for text no number has. never throws. */
+double jevent_number(const char* str, size_t len);
+
 /* JsonPull: what a pull source (json_next(), jwalk_event()) answers.
  *
  *   JSON_PULL_FAIL   -1  an exception is pending; only sources that run JS (the walkers)

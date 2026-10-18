@@ -1,13 +1,51 @@
-/* jevent.c: jevent_send().
+/* jevent.c: jevent_send(), jevent_number().
  * depends on: jevent.h.
  * rule: no state; one call per event, the sink decides what it means. */
 
+#define _GNU_SOURCE 1
+
 #include "json/jevent.h"
+#include "char-utils.h"
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 /**
  * \addtogroup jevent
  * @{
  */
+
+double
+jevent_number(const char* str, size_t len) {
+  char stack[64], *buf = len < sizeof(stack) ? stack : malloc(len + 1);
+  const char* p = buf;
+  double sign = 1, num = 0;
+
+  if(!buf)
+    return 0;
+
+  memcpy(buf, str, len);
+  buf[len] = '\0';
+
+  if(*p == '+' || *p == '-')
+    sign = *p++ == '-' ? -1 : 1;
+
+  if(!strcmp(p, "Infinity")) {
+    num = INFINITY;
+  } else if(!strcmp(p, "NaN")) {
+    num = NAN;
+  } else if(p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+    for(p += 2; *p; p++)
+      num = num * 16 + (*p <= '9' ? *p - '0' : (*p | 0x20) - 'a' + 10);
+  } else {
+    scan_double(p, &num);
+  }
+
+  if(buf != stack)
+    free(buf);
+
+  return sign * num;
+}
 
 ssize_t
 jevent_send(const JsonEventSink* sink, const JsonEvent* ev) {
