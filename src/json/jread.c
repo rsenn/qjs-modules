@@ -7,6 +7,11 @@
 #include "json/jread.h"
 #include <stdlib.h>
 
+/**
+ * \addtogroup jread
+ * @{
+ */
+
 /* Pastes __LINE__ into a label name, so each JR_DISPATCH_*() call site gets its own
  * unique "resume here" label - see the comment above JR_DISPATCH_NEXT() below. */
 #define JR_PASTE_(a, b) a##b
@@ -207,32 +212,85 @@ jr_state_free(jr_state_t* state) {
 static void
 jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
   static void* go_doc[] = {
-      [1 ... 8] = &&l_err,     ['\t'] = &&l_next,      ['\n'] = &&l_next,       [11 ... 12] = &&l_ws5,     ['\r'] = &&l_next,
-      [14 ... 31] = &&l_err,   [' '] = &&l_next,       [0] = &&l_err,           [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,
-      [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,      [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,
-      ['['] = &&l_arr_s,       [92 ... 101] = &&l_err, ['f'] = &&l_false_f,     [103 ... 109] = &&l_err,   ['n'] = &&l_null_n,
-      [111 ... 115] = &&l_err, ['t'] = &&l_true_t,     [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
-      ['\''] = &&l_str_sq_s, ['+'] = &&l_num_s5, ['.'] = &&l_num_s5, ['I'] = &&l_kw5_s, ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
+      [0 ... 8] = &&l_err,
+      [9 ... 10] = &&l_next,
+      [11 ... 12] = &&l_ws5,
+      ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_next,
+      ['!'] = &&l_err,
+      ['"'] = &&l_str_s,
+      [35 ... 38] = &&l_err,
+      ['\''] = &&l_str_sq_s,
+      [40 ... 42] = &&l_err,
+      ['+'] = &&l_num_s5,
+      [','] = &&l_err,
+      ['-'] = &&l_num_s,
+      ['.'] = &&l_num_s5,
+      ['/'] = &&l_cmt,
+      ['0' ... '9'] = &&l_num_s,
+      [58 ... 72] = &&l_err,
+      ['I'] = &&l_kw5_s,
+      ['J' ... 'M'] = &&l_err,
+      ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
+      ['O' ... 'Z'] = &&l_err,
+      ['['] = &&l_arr_s,
+      [92 ... 101] = &&l_err,
+      ['f'] = &&l_false_f,
+      ['g' ... 'm'] = &&l_err,
+      ['n'] = &&l_null_n,
+      ['o' ... 's'] = &&l_err,
+      ['t'] = &&l_true_t,
+      ['u' ... 'z'] = &&l_err,
+      ['{'] = &&l_obj_s,
+      [124 ... 255] = &&l_err,
   };
 
   static void* go_val[] = {
-      [0 ... 8] = &&l_err,       ['\t'] = &&l_next,       ['\n'] = &&l_next,  [11 ... 12] = &&l_ws5,   ['\r'] = &&l_next,   [14 ... 31] = &&l_err,
-      [' '] = &&l_next,          [33 ... 33] = &&l_err,   ['"'] = &&l_str_s,  [35 ... 44] = &&l_err,   ['-'] = &&l_num_s,   [46 ... 47] = &&l_err,
-      ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,  [92 ... 101] = &&l_err,  ['f'] = &&l_false_f, [103 ... 109] = &&l_err,
-      ['n'] = &&l_null_n,        [111 ... 115] = &&l_err, ['t'] = &&l_true_t, [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,   [124 ... 255] = &&l_err,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
-      ['\''] = &&l_str_sq_s, ['+'] = &&l_num_s5, ['.'] = &&l_num_s5, ['I'] = &&l_kw5_s, ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
+      [0 ... 8] = &&l_err,
+      [9 ... 10] = &&l_next,
+      [11 ... 12] = &&l_ws5,
+      ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_next,
+      ['!'] = &&l_err,
+      ['"'] = &&l_str_s,
+      [35 ... 38] = &&l_err,
+      ['\''] = &&l_str_sq_s,
+      [40 ... 42] = &&l_err,
+      ['+'] = &&l_num_s5,
+      [','] = &&l_err,
+      ['-'] = &&l_num_s,
+      ['.'] = &&l_num_s5,
+      ['/'] = &&l_cmt,
+      ['0' ... '9'] = &&l_num_s,
+      [58 ... 72] = &&l_err,
+      ['I'] = &&l_kw5_s,
+      ['J' ... 'M'] = &&l_err,
+      ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
+      ['O' ... 'Z'] = &&l_err,
+      ['['] = &&l_arr_s,
+      [92 ... 101] = &&l_err,
+      ['f'] = &&l_false_f,
+      ['g' ... 'm'] = &&l_err,
+      ['n'] = &&l_null_n,
+      ['o' ... 's'] = &&l_err,
+      ['t'] = &&l_true_t,
+      ['u' ... 'z'] = &&l_err,
+      ['{'] = &&l_obj_s,
+      [124 ... 255] = &&l_err,
   };
 
   static void* go_num[] = {
       [0 ... 45] = &&l_num_e,
       ['.'] = &&l_next,
-      [47 ... 47] = &&l_num_e,
+      ['/'] = &&l_num_e,
       ['0' ... '9'] = &&l_next,
-      [58 ... 255] = &&l_num_e,
-      ['E'] = &&l_num_exp, /* placed after the ranges above so these two override them */
+      [58 ... 68] = &&l_num_e,
+      ['E'] = &&l_num_exp,
+      ['F' ... 'd'] = &&l_num_e,
       ['e'] = &&l_num_exp,
+      [102 ... 255] = &&l_num_e,
   };
 
   /* One-shot: the single byte right after 'e'/'E' may be a sign or must be a digit -
@@ -243,10 +301,13 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
    * one-shot table) from the next byte on, so further exponent digits are accepted the same
    * way integer/fraction digits already are. */
   static void* go_num_exp_sign[] = {
-      [0 ... 255] = &&l_num_e,
+      [0 ... 42] = &&l_num_e,
       ['+'] = &&l_next,
+      [','] = &&l_num_e,
       ['-'] = &&l_next,
+      [46 ... 47] = &&l_num_e,
       ['0' ... '9'] = &&l_next,
+      [58 ... 255] = &&l_num_e,
   };
 
   static void* go_str[] = {
@@ -276,25 +337,28 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
       ['\\'] = &&l_esc_bslash,
       [93 ... 97] = &&l_err,
       ['b'] = &&l_esc_b,
-      [99 ... 101] = &&l_err,
+      ['c' ... 'e'] = &&l_err,
       ['f'] = &&l_esc_f,
-      [103 ... 109] = &&l_err,
+      ['g' ... 'm'] = &&l_err,
       ['n'] = &&l_esc_n,
-      [111 ... 113] = &&l_err,
+      ['o' ... 'q'] = &&l_err,
       ['r'] = &&l_esc_r,
-      [115 ... 115] = &&l_err,
+      ['s'] = &&l_err,
       ['t'] = &&l_esc_t,
-      [117 ... 255] = &&l_err,
-      ['u'] = &&l_esc_u, /* placed after the range above so this one entry overrides it */
+      ['u'] = &&l_esc_u,
+      [118 ... 255] = &&l_err,
   };
 
   /* \uXXXX: reused for all 4 hex-digit positions via state->unicode_count, since they're
    * all validated the same way - only the 4th one (checked in l_esc_u_digit) finishes. */
   static void* go_esc_u[] = {
-      [0 ... 255] = &&l_err,
+      [0 ... 47] = &&l_err,
       ['0' ... '9'] = &&l_esc_u_digit,
+      [58 ... 64] = &&l_err,
       ['A' ... 'F'] = &&l_esc_u_digit,
+      [71 ... 96] = &&l_err,
       ['a' ... 'f'] = &&l_esc_u_digit,
+      [103 ... 255] = &&l_err,
   };
 
   static void* go_utf8[] = {
@@ -365,32 +429,70 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
   };
 
   static void* go_arr[] = {
-      [0 ... 8] = &&l_err,     ['\t'] = &&l_next,         ['\n'] = &&l_next,       [11 ... 12] = &&l_ws5, ['\r'] = &&l_next,       [14 ... 31] = &&l_err,
-      [' '] = &&l_next,        [33 ... 33] = &&l_err,     ['"'] = &&l_str_s,       [35 ... 43] = &&l_err, [','] = &&l_comma_stray,        ['-'] = &&l_num_s,
-      [46 ... 47] = &&l_err,   ['0' ... '9'] = &&l_num_s, [58 ... 90] = &&l_err,   ['['] = &&l_arr_s,     [92 ... 92] = &&l_err,   [']'] = &&l_arr_e,
-      [94 ... 101] = &&l_err,  ['f'] = &&l_false_f,       [103 ... 109] = &&l_err, ['n'] = &&l_null_n,    [111 ... 115] = &&l_err, ['t'] = &&l_true_t,
-      [117 ... 122] = &&l_err, ['{'] = &&l_obj_s,         [124 ... 255] = &&l_err, ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
-      ['\''] = &&l_str_sq_s, ['+'] = &&l_num_s5, ['.'] = &&l_num_s5, ['I'] = &&l_kw5_s, ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
-  };
-
-  static void* go_obj[] = {
       [0 ... 8] = &&l_err,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
+      [9 ... 10] = &&l_next,
       [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
-      [33 ... 33] = &&l_err,
-      ['"'] = &&l_kvp,
-      [35 ... 43] = &&l_err,
+      ['!'] = &&l_err,
+      ['"'] = &&l_str_s,
+      [35 ... 38] = &&l_err,
+      ['\''] = &&l_str_sq_s,
+      [40 ... 42] = &&l_err,
+      ['+'] = &&l_num_s5,
       [','] = &&l_comma_stray,
-      [45 ... 124] = &&l_err,
-      ['}'] = &&l_obj_e,
-      [126 ... 255] = &&l_err,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      ['-'] = &&l_num_s,
+      ['.'] = &&l_num_s5,
+      ['/'] = &&l_cmt,
+      ['0' ... '9'] = &&l_num_s,
+      [58 ... 72] = &&l_err,
+      ['I'] = &&l_kw5_s,
+      ['J' ... 'M'] = &&l_err,
+      ['N'] = &&l_kw5_s, /* JSON5, gated by flags */
+      ['O' ... 'Z'] = &&l_err,
+      ['['] = &&l_arr_s,
+      ['\\'] = &&l_err,
+      [']'] = &&l_arr_e,
+      [94 ... 101] = &&l_err,
+      ['f'] = &&l_false_f,
+      ['g' ... 'm'] = &&l_err,
+      ['n'] = &&l_null_n,
+      ['o' ... 's'] = &&l_err,
+      ['t'] = &&l_true_t,
+      ['u' ... 'z'] = &&l_err,
+      ['{'] = &&l_obj_s,
+      [124 ... 255] = &&l_err,
+  };
+
+  static void* go_obj[] = {
+      [0 ... 8] = &&l_err,
+      [9 ... 10] = &&l_next,
+      [11 ... 12] = &&l_ws5,
+      ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_next,
+      ['!'] = &&l_err,
+      ['"'] = &&l_kvp,
+      ['#'] = &&l_err,
+      ['$'] = &&l_key_id,
+      [37 ... 38] = &&l_err,
       ['\''] = &&l_kvp_sq,
-      ['A' ... 'Z'] = &&l_key_id, ['a' ... 'z'] = &&l_key_id, ['$'] = &&l_key_id, ['_'] = &&l_key_id, [192 ... 247] = &&l_key_id, /* JSON5 keys, gated by flags */
+      [40 ... 43] = &&l_err,
+      [','] = &&l_comma_stray,
+      [45 ... 46] = &&l_err,
+      ['/'] = &&l_cmt,
+      [48 ... 64] = &&l_err,
+      ['A' ... 'Z'] = &&l_key_id,
+      [91 ... 94] = &&l_err,
+      ['_'] = &&l_key_id,
+      ['`'] = &&l_err,
+      ['a' ... 'z'] = &&l_key_id,
+      [123 ... 124] = &&l_err,
+      ['}'] = &&l_obj_e,
+      [126 ... 191] = &&l_err,
+      [192 ... 247] = &&l_key_id, /* JSON5 keys, gated by flags */
+      [248 ... 255] = &&l_err,
   };
 
   /* Used only right after a value fully ends (see JR_POP_GO_SEP()) - unlike go_arr, which
@@ -400,58 +502,62 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
    * (back to expecting a value - see l_arr_sep_comma) or the closing ']' are legal here. */
   static void* go_arr_sep[] = {
       [0 ... 8] = &&l_err,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
+      [9 ... 10] = &&l_next,
       [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
-      [33 ... 255] = &&l_err,
+      [33 ... 43] = &&l_err,
       [','] = &&l_arr_sep_comma,
+      [45 ... 46] = &&l_err,
+      ['/'] = &&l_cmt,
+      [48 ... 92] = &&l_err,
       [']'] = &&l_arr_e,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      [94 ... 255] = &&l_err,
   };
 
   /* Same idea as go_arr_sep, for objects: right after a member's value ends, only a comma
    * (back to expecting the next key - l_obj_sep_comma) or the closing '}' are legal. */
   static void* go_obj_sep[] = {
       [0 ... 8] = &&l_err,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
+      [9 ... 10] = &&l_next,
       [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
-      [33 ... 255] = &&l_err,
+      [33 ... 43] = &&l_err,
       [','] = &&l_obj_sep_comma,
+      [45 ... 46] = &&l_err,
+      ['/'] = &&l_cmt,
+      [48 ... 124] = &&l_err,
       ['}'] = &&l_obj_e,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      [126 ... 255] = &&l_err,
   };
 
   static void* go_col[] = {
       [0 ... 8] = &&l_err,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
+      [9 ... 10] = &&l_next,
       [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
-      [33 ... 57] = &&l_err,
+      [33 ... 46] = &&l_err,
+      ['/'] = &&l_cmt,
+      ['0' ... '9'] = &&l_err,
       [':'] = &&l_col,
       [59 ... 255] = &&l_err,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
   };
 
   static void* go_obj_val[] = {
       [0 ... 8] = &&l_err,
-      ['\t'] = &&l_next,
-      ['\n'] = &&l_next,
+      [9 ... 10] = &&l_next,
       [11 ... 12] = &&l_ws5,
       ['\r'] = &&l_next,
       [14 ... 31] = &&l_err,
       [' '] = &&l_next,
-      [33 ... 255] = &&l_val,
-      ['/'] = &&l_cmt, /* comment: placed last so it overrides the ranges above */
+      [33 ... 46] = &&l_val,
+      ['/'] = &&l_cmt,
+      [48 ... 255] = &&l_val,
   };
 
   /* Post-error recovery: every byte is discarded (stays here) except a comma or a closing
@@ -459,34 +565,43 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
    * l_err below for why redispatching that byte through the recovered container-level `go`
    * (not this table) is what actually resumes parsing. */
   static void* go_err_resync[] = {
-      [0 ... 255] = &&l_err_resync_skip,
+      [0 ... 43] = &&l_err_resync_skip,
       [','] = &&l_err_resync_boundary,
+      [45 ... 92] = &&l_err_resync_skip,
       [']'] = &&l_err_resync_boundary,
+      [94 ... 124] = &&l_err_resync_skip,
       ['}'] = &&l_err_resync_boundary,
+      [126 ... 255] = &&l_err_resync_skip,
   };
 
   /* comments (C++ line and C block style) are skipped wherever whitespace is:
    * `go` stays untouched, these tables just eat bytes until the comment ends. */
   static void* go_cmt_start[] = {
-      [0 ... 255] = &&l_err,
-      ['/'] = &&l_cmt_line,
+      [0 ... 41] = &&l_err,
       ['*'] = &&l_cmt_block,
+      [43 ... 46] = &&l_err,
+      ['/'] = &&l_cmt_line,
+      [48 ... 255] = &&l_err,
   };
 
   static void* go_cmt_line[] = {
-      [0 ... 255] = &&l_cmt_line,
+      [0 ... 9] = &&l_cmt_line,
       ['\n'] = &&l_cmt_end,
+      [11 ... 255] = &&l_cmt_line,
   };
 
   static void* go_cmt_block[] = {
-      [0 ... 255] = &&l_cmt_block,
+      [0 ... 41] = &&l_cmt_block,
       ['*'] = &&l_cmt_star,
+      [43 ... 255] = &&l_cmt_block,
   };
 
   static void* go_cmt_star[] = {
-      [0 ... 255] = &&l_cmt_block,
+      [0 ... 41] = &&l_cmt_block,
       ['*'] = &&l_cmt_star,
+      [43 ... 46] = &&l_cmt_block,
       ['/'] = &&l_cmt_end,
+      [48 ... 255] = &&l_cmt_block,
   };
 
   /* the single-quoted twin of go_str */
@@ -507,22 +622,33 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
   /* JSON5 escapes: \' \v \0 \xHH, a line terminator continues the string, and any other
    * character stands for itself; \1 to \9 stay errors */
   static void* go_esc5[] = {
-      [0 ... 255] = &&l_esc_id,
+      [0 ... 9] = &&l_esc_id,
       ['\n'] = &&l_esc_cont,
+      [11 ... 12] = &&l_esc_id,
       ['\r'] = &&l_esc_cont_cr,
+      [14 ... 33] = &&l_esc_id,
+      ['"'] = &&l_esc_quote,
+      [35 ... 46] = &&l_esc_id,
+      ['/'] = &&l_esc_slash,
       ['0'] = &&l_esc_nul,
       ['1' ... '9'] = &&l_err,
-      ['"'] = &&l_esc_quote,
-      ['/'] = &&l_esc_slash,
+      [58 ... 91] = &&l_esc_id,
       ['\\'] = &&l_esc_bslash,
+      [93 ... 97] = &&l_esc_id,
       ['b'] = &&l_esc_b,
+      ['c' ... 'e'] = &&l_esc_id,
       ['f'] = &&l_esc_f,
+      ['g' ... 'm'] = &&l_esc_id,
       ['n'] = &&l_esc_n,
+      ['o' ... 'q'] = &&l_esc_id,
       ['r'] = &&l_esc_r,
+      ['s'] = &&l_esc_id,
       ['t'] = &&l_esc_t,
-      ['v'] = &&l_esc_v,
       ['u'] = &&l_esc_u,
+      ['v'] = &&l_esc_v,
+      ['w'] = &&l_esc_id,
       ['x'] = &&l_esc_x,
+      [121 ... 127] = &&l_esc_id,
       [128 ... 191] = &&l_err,
       [192 ... 247] = &&l_esc_hi,
       [248 ... 255] = &&l_err,
@@ -530,23 +656,47 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
 
   /* after a backslash and a CR: an LF belongs to the line terminator */
   static void* go_esc_cr[] = {
-      [0 ... 255] = &&l_esc_cr_other,
+      [0 ... 9] = &&l_esc_cr_other,
       ['\n'] = &&l_esc_cr_lf,
+      [11 ... 255] = &&l_esc_cr_other,
   };
 
   /* an unquoted key: identifier characters up to a colon, whitespace or comment */
   static void* go_ident[] = {
-      [0 ... 255] = &&l_err,
-      ['A' ... 'Z'] = &&l_next, ['a' ... 'z'] = &&l_next, ['0' ... '9'] = &&l_next, ['$'] = &&l_next, ['_'] = &&l_next,
-      [192 ... 223] = &&l_utf8_2, [224 ... 239] = &&l_utf8_3, [240 ... 247] = &&l_utf8_4,
-      [':'] = &&l_key_id_e, ['\t'] = &&l_key_id_e, ['\n'] = &&l_key_id_e, [11 ... 12] = &&l_key_id_e, ['\r'] = &&l_key_id_e, [' '] = &&l_key_id_e, ['/'] = &&l_key_id_e,
+      [0 ... 8] = &&l_err,
+      [9 ... 13] = &&l_key_id_e,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_key_id_e,
+      [33 ... 35] = &&l_err,
+      ['$'] = &&l_next,
+      [37 ... 46] = &&l_err,
+      ['/'] = &&l_key_id_e,
+      ['0' ... '9'] = &&l_next,
+      [':'] = &&l_key_id_e,
+      [59 ... 64] = &&l_err,
+      ['A' ... 'Z'] = &&l_next,
+      [91 ... 94] = &&l_err,
+      ['_'] = &&l_next,
+      ['`'] = &&l_err,
+      ['a' ... 'z'] = &&l_next,
+      [123 ... 191] = &&l_err,
+      [192 ... 223] = &&l_utf8_2,
+      [224 ... 239] = &&l_utf8_3,
+      [240 ... 247] = &&l_utf8_4,
+      [248 ... 255] = &&l_err,
   };
 
   /* after the last token: whitespace and comments only */
   static void* go_end[] = {
-      [0 ... 255] = &&l_err,
-      ['\t'] = &&l_next, ['\n'] = &&l_next, [11 ... 12] = &&l_ws5, ['\r'] = &&l_next, [' '] = &&l_next,
+      [0 ... 8] = &&l_err,
+      [9 ... 10] = &&l_next,
+      [11 ... 12] = &&l_ws5,
+      ['\r'] = &&l_next,
+      [14 ... 31] = &&l_err,
+      [' '] = &&l_next,
+      [33 ... 46] = &&l_err,
       ['/'] = &&l_cmt,
+      [48 ... 255] = &&l_err,
   };
 
   /* numbers outside JR_LEGACY: one table per state of the grammar; a table that ends
@@ -556,64 +706,125 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
   };
 
   static void* go_nn_first[] = {
-      [0 ... 255] = &&l_err,
-      ['-'] = &&l_nn_sign, ['+'] = &&l_nn_sign, ['0'] = &&l_nn_zero, ['1' ... '9'] = &&l_nn_int, ['.'] = &&l_nn_lead_dot,
+      [0 ... 42] = &&l_err,
+      ['+'] = &&l_nn_sign,
+      [','] = &&l_err,
+      ['-'] = &&l_nn_sign,
+      ['.'] = &&l_nn_lead_dot,
+      ['/'] = &&l_err,
+      ['0'] = &&l_nn_zero,
+      ['1' ... '9'] = &&l_nn_int,
+      [58 ... 255] = &&l_err,
   };
 
   static void* go_nn_sign[] = {
-      [0 ... 255] = &&l_err,
-      ['0'] = &&l_nn_zero, ['1' ... '9'] = &&l_nn_int, ['.'] = &&l_nn_lead_dot5, ['I'] = &&l_kw5_sign, ['N'] = &&l_kw5_sign,
+      [0 ... 45] = &&l_err,
+      ['.'] = &&l_nn_lead_dot5,
+      ['/'] = &&l_err,
+      ['0'] = &&l_nn_zero,
+      ['1' ... '9'] = &&l_nn_int,
+      [58 ... 72] = &&l_err,
+      ['I'] = &&l_kw5_sign,
+      ['J' ... 'M'] = &&l_err,
+      ['N'] = &&l_kw5_sign,
+      [79 ... 255] = &&l_err,
   };
 
   static void* go_nn_zero[] = {
-      [0 ... 255] = &&l_num_e,
-      ['0' ... '9'] = &&l_err, ['.'] = &&l_nn_dot, ['e'] = &&l_nn_exp, ['E'] = &&l_nn_exp, ['x'] = &&l_nn_hex_start5, ['X'] = &&l_nn_hex_start5,
+      [0 ... 45] = &&l_num_e,
+      ['.'] = &&l_nn_dot,
+      ['/'] = &&l_num_e,
+      ['0' ... '9'] = &&l_err,
+      [58 ... 68] = &&l_num_e,
+      ['E'] = &&l_nn_exp,
+      ['F' ... 'W'] = &&l_num_e,
+      ['X'] = &&l_nn_hex_start5,
+      ['Y' ... 'd'] = &&l_num_e,
+      ['e'] = &&l_nn_exp,
+      ['f' ... 'w'] = &&l_num_e,
+      ['x'] = &&l_nn_hex_start5,
+      [121 ... 255] = &&l_num_e,
   };
 
   static void* go_nn_int[] = {
-      [0 ... 255] = &&l_num_e,
-      ['0' ... '9'] = &&l_nn_int, ['.'] = &&l_nn_dot, ['e'] = &&l_nn_exp, ['E'] = &&l_nn_exp,
+      [0 ... 45] = &&l_num_e,
+      ['.'] = &&l_nn_dot,
+      ['/'] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_int,
+      [58 ... 68] = &&l_num_e,
+      ['E'] = &&l_nn_exp,
+      ['F' ... 'd'] = &&l_num_e,
+      ['e'] = &&l_nn_exp,
+      [102 ... 255] = &&l_num_e,
   };
 
   /* "1.": fine in JSON5 only without a digit after it */
   static void* go_nn_dot[] = {
-      [0 ... 255] = &&l_nn_dot_end,
-      ['0' ... '9'] = &&l_nn_frac, ['e'] = &&l_nn_dot_exp, ['E'] = &&l_nn_dot_exp,
+      [0 ... 47] = &&l_nn_dot_end,
+      ['0' ... '9'] = &&l_nn_frac,
+      [58 ... 68] = &&l_nn_dot_end,
+      ['E'] = &&l_nn_dot_exp,
+      ['F' ... 'd'] = &&l_nn_dot_end,
+      ['e'] = &&l_nn_dot_exp,
+      [102 ... 255] = &&l_nn_dot_end,
   };
 
   static void* go_nn_lead_dot[] = {
-      [0 ... 255] = &&l_err,
+      [0 ... 47] = &&l_err,
       ['0' ... '9'] = &&l_nn_frac,
+      [58 ... 255] = &&l_err,
   };
 
   static void* go_nn_frac[] = {
-      [0 ... 255] = &&l_num_e,
-      ['0' ... '9'] = &&l_nn_frac, ['e'] = &&l_nn_exp, ['E'] = &&l_nn_exp,
+      [0 ... 47] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_frac,
+      [58 ... 68] = &&l_num_e,
+      ['E'] = &&l_nn_exp,
+      ['F' ... 'd'] = &&l_num_e,
+      ['e'] = &&l_nn_exp,
+      [102 ... 255] = &&l_num_e,
   };
 
   static void* go_nn_exp[] = {
-      [0 ... 255] = &&l_err,
-      ['+'] = &&l_nn_exp_sign, ['-'] = &&l_nn_exp_sign, ['0' ... '9'] = &&l_nn_exp_digits,
+      [0 ... 42] = &&l_err,
+      ['+'] = &&l_nn_exp_sign,
+      [','] = &&l_err,
+      ['-'] = &&l_nn_exp_sign,
+      [46 ... 47] = &&l_err,
+      ['0' ... '9'] = &&l_nn_exp_digits,
+      [58 ... 255] = &&l_err,
   };
 
   static void* go_nn_exp_sign[] = {
-      [0 ... 255] = &&l_err,
+      [0 ... 47] = &&l_err,
       ['0' ... '9'] = &&l_nn_exp_digits,
+      [58 ... 255] = &&l_err,
   };
 
   static void* go_nn_exp_digits[] = {
-      [0 ... 255] = &&l_num_e,
+      [0 ... 47] = &&l_num_e,
       ['0' ... '9'] = &&l_nn_exp_digits,
+      [58 ... 255] = &&l_num_e,
   };
 
   static void* go_nn_hex_start[] = {
-      [0 ... 255] = &&l_err,
-      ['0' ... '9'] = &&l_nn_hex, ['a' ... 'f'] = &&l_nn_hex, ['A' ... 'F'] = &&l_nn_hex,
+      [0 ... 47] = &&l_err,
+      ['0' ... '9'] = &&l_nn_hex,
+      [58 ... 64] = &&l_err,
+      ['A' ... 'F'] = &&l_nn_hex,
+      [71 ... 96] = &&l_err,
+      ['a' ... 'f'] = &&l_nn_hex,
+      [103 ... 255] = &&l_err,
   };
 
   static void* go_nn_hex[] = {
-      [0 ... 255] = &&l_num_e,
-      ['0' ... '9'] = &&l_nn_hex, ['a' ... 'f'] = &&l_nn_hex, ['A' ... 'F'] = &&l_nn_hex,
+      [0 ... 47] = &&l_num_e,
+      ['0' ... '9'] = &&l_nn_hex,
+      [58 ... 64] = &&l_num_e,
+      ['A' ... 'F'] = &&l_nn_hex,
+      [71 ... 96] = &&l_num_e,
+      ['a' ... 'f'] = &&l_nn_hex,
+      [103 ... 255] = &&l_num_e,
   };
 
   /* Infinity and NaN are matched byte by byte against state->kw */
@@ -1329,3 +1540,7 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
 
   state->done = 1;
 }
+
+/**
+ * @}
+ */
