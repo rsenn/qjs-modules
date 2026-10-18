@@ -538,7 +538,8 @@ static const char js_stream_src[] =
     "    const pullInto = this._pendingPullIntos[0];\n"
     "    const remainingBytes = pullInto.byteLength - pullInto.bytesFilled;\n"
     "    if(view.byteLength > remainingBytes) {\n"
-    "      throw new RangeError('The view\\'s byte length (' + view.byteLength + ') exceeds the remaining bytes (' + remainingBytes + ') in the pending BYOB request');\n"
+    "      throw new RangeError('The view\\'s byte length (' + view.byteLength + ') exceeds the remaining bytes (' + remainingBytes + ') in the pending BYOB "
+    "request');\n"
     "    }\n"
     "    this._pendingPullIntos.shift();\n"
     "    this._byobRequest = null;\n"
@@ -1092,11 +1093,11 @@ reader_source_pull(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 /**
  * @brief      Wraps a stream-utils.h Reader as a ReadableStream, pulling
  *             chunk_size bytes at a time into a fresh ArrayBuffer per pull(),
- *             closing the stream on EOF. Takes ownership of `reader` (freed
- *             once the source is exhausted, cancelled, or errors). For use by
- *             other C modules that already hold a Reader (e.g. from
- *             reader_from_fd()); JS code gets the same capability through
- *             ReadableStream.fromReader() below.
+ *             closing the stream on EOF. Takes ownership of \param reader
+ *             (freed once the source is exhausted, cancelled, or errors).
+ *             For use by other C modules that already hold a Reader (e.g.
+ *             from reader_from_fd()); JS code gets the same capability
+ *             through ReadableStream.fromReader() below.
  *
  * @param      ctx         The JSContext
  * @param[in]  reader      The reader (ownership transferred)
