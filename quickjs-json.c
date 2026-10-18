@@ -15,7 +15,6 @@
 #include "json/jbuilder.h"
 #include "quickjs-location.h"
 
-
 typedef struct {
   JSValue obj;
   sj_Value sj;
@@ -396,7 +395,8 @@ js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(!JS_IsUndefined(replacer) && jwalk_set_replacer(&it, ctx, replacer)) {
     r = -1;
   } else {
-    while((r = jwalk_next(&it, ctx)) > 0) {}
+    while((r = jwalk_next(&it, ctx)) > 0) {
+    }
   }
 
   if(r < 0)
@@ -1521,11 +1521,6 @@ js_jsonwriter_stringify_walk(void* opaque) {
       js_stringify_raw,
   };
 }
-
-/*static JsonWriteInterface
-js_jsonwriter_interface(void* opaque) {
-  return jwrite_interface(opaque);
-}*/
 
 enum {
   WRITER_WRITTEN,
