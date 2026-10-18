@@ -3,6 +3,7 @@
 
 #include <quickjs.h>
 #include "json/jevent.h"
+#include "location.h"
 
 /**
  * \addtogroup jevent
@@ -27,6 +28,21 @@ JSValue js_jsonevent_value(JSContext*, const JsonEvent* ev);
  * value is left out for the events that carry none, loc is the 1-based position of the token
  * start (offset in characters). returns the object (refcount: a new reference), or JS_EXCEPTION. */
 JSValue js_jsonevent_new(JSContext*, const JsonEvent* ev);
+
+/* json_read_value: JSON.parse() of UTF-8 bytes, a strict parser feeding a JsonBuilder.
+ *
+ *   const uint8_t*  data  the JSON text
+ *   size_t          size  its length in bytes
+ *   const char*     name  optional: the input name for error messages
+ *
+ * returns the value (objects have no prototype), undefined for empty input, or JS_EXCEPTION
+ * with a SyntaxError pending (loc, length and code set). */
+JSValue json_read_value(JSContext*, const uint8_t* data, size_t size, const char* name);
+
+/* js_jsonevent_throw: throws the SyntaxError of an error event, the file name is that of base.
+ *
+ * returns nothing, an exception is pending (unless out of memory cloned the location). */
+void js_jsonevent_throw(JSContext*, const Location* base, const JsonEvent* ev);
 
 /** @} */
 #endif /* JEVENT_JS_H */

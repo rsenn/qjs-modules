@@ -1930,7 +1930,7 @@ Tier 18 and Tier 20 refer here for everything about events; their own "event pro
 ## Event model v2: pull and push events, engines in C, APIs in `lib/` (plan 2026-10-18)
 
 Design and reasons: [doc/api-event-model.md](doc/api-event-model.md); interfaces: `doc/api-interface-{json,xml}.md` (D9 to D11 / D10 to D13).
-State 2026-10-18: the `include/` and `src/` part of P1 to P5, P6 (C part), P7 and P8 (`jr_flags_from_name`) is done and tested (`tests/c/event-model.c`, ctest `c-event-model`); `doc/api-event-model.md` 11 lists the names. The bindings (`quickjs-json.c`, `quickjs-xml.c`), the handshake and the `lib/` glue are not started. The old entry points stay until the bindings are off them.
+State 2026-10-18 (end of day): P1 to P8, P11, P12, the lift, P16 and the JS side of P13 are done and pushed; `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines (was 1962 and 2156), what is left in them is classes, constructors, getters, finalizers and the push parsers' error rules. Running state: `doc/event-model-state.md`. Open: P9 (`lib/` glue except `lib/jsonl.js`), P10 (`api-surface/` regeneration), the C side of P13, P14, P15, and the list under "Open" below.
 
 Rules (the whole plan in six lines):
 
@@ -1943,15 +1943,15 @@ Rules (the whole plan in six lines):
 
 | # | step | size | depends on | gate |
 | --- | --- | --- | --- | --- |
-| P1 | events: `JsonEventSink.comment` and `.raw`; `XmlEvent` `str` / `len` aliases of `name` / `nlen`; `JsonPull` / `XmlPull` enums; `JsonEventHandler` / `XmlEventHandler`; sink wrappers (`jsink.c`, `xsink.c`) and writers get the new members | small | none | `tests/c/events-sinks.c` |
-| P2 | `json_next(p, &ev)`, `xml_next(p, &ev)` with `at` always set; errors are events; typed markup events from the XML parsers (B4); `jevent_pump` / `xml_pump` are the loop; `JsonParser`, `XMLParser`, `XMLNodeParser` classes read events, private token ids go; `Q4` measured against `jr_read` throughput | medium | P1 | `pump-roundtrip.c`, `test-json.js`, `test-xml.js` unchanged |
-| P3 | push parsers call a handler with the event (`jr_read`, `xr_read`); `jr_callback`, `jr_str_t`, `xr_callback`, `xr_str_t`, `jread_pump`, `xread_pump` removed; decide Q5 (`xread` kept or deleted) | medium | P1 | chunk sizes 1, 2, 7, 1000 byte-identical |
-| P4 | `jwalk_event`, `xwalk_event`: walkers as pull sources; the tag / attributes / children interpretation of `xtreewrite.c` moves into `xwalk`; `xtreewrite` becomes a pump into `xwrite`; replaces EV5 / B1 | medium | P1 | `write()` golden and `JsonSerializer` byte-identical |
-| P5 | demand-driven `JsonSerializer` / `XMLTreeSerializer` over any pull source (a value or a parser); replay (`skip`, `delivered`, `capped`) deleted; `readText(n)` on character boundaries; replaces X2 | medium | P4 | equality with `write()` at read sizes 1, 7, 4096; a `JsonParser` source reformats |
-| P6 | handshake symbols, `source.pump(sink)`, `pushParser.connect(sink)`, JS object to C sink adapter, `tee`; replaces EV8, B3, X4, J4, J5 | medium | P1 | a push parser plugged into a writer, a builder and a tee; a JS-object sink gets the same events |
-| P7 | builders: `proto` option, queue of completed roots with end positions (`take()`), `jbuild_value_js()`, flat `XmlBuilder` for `XMLNodeParser` (X3, B6) | medium | P1 | differential 0, `test-xml.js` |
-| P8 | parser options: dialect names in the `JsonParser` constructor (`'json'`, `'jsonc'`, `'json5'`, `'jsonl'` over the `JR_*` flags), strict mode (J1 step 2), one `xml_options_from_js()`, `strict`, `entities` | medium | P2 | `test-json-dialects`, `tests/unittests/test-xml-errors.js` |
-| P9 | the glue: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js` on the engines, `lib/xml.js` (`read`, `write`), `lib/dom.js` (`DOMParser`, `XMLSerializer`), `Blob.json()`; then C `JSONL`, `read`, `write` deprecated and deleted (J1, J2, J7, X7, X8 phase 9) | large | P2 to P8 | Bun / Browser / Deno differential batteries, `portable-check.sh` |
+| P1 (done) | events: `JsonEventSink.comment` and `.raw`; `XmlEvent` `str` / `len` aliases of `name` / `nlen`; `JsonPull` / `XmlPull` enums; `JsonEventHandler` / `XmlEventHandler`; sink wrappers (`jsink.c`, `xsink.c`) and writers get the new members | small | none | `tests/c/events-sinks.c` |
+| P2 (done) | `json_next(p, &ev)`, `xml_next(p, &ev)` with `at` always set; errors are events; typed markup events from the XML parsers (B4); `jevent_pump` / `xml_pump` are the loop; `JsonParser`, `XMLParser`, `XMLNodeParser` classes read events, private token ids go; `Q4` measured against `jr_read` throughput | medium | P1 | `pump-roundtrip.c`, `test-json.js`, `test-xml.js` unchanged |
+| P3 (done) | push parsers call a handler with the event (`jr_read`, `xr_read`); `jr_callback`, `jr_str_t`, `xr_callback`, `xr_str_t`, `jread_pump`, `xread_pump` removed; decide Q5 (`xread` kept or deleted) | medium | P1 | chunk sizes 1, 2, 7, 1000 byte-identical |
+| P4 (done) | `jwalk_event`, `xwalk_event`: walkers as pull sources; the tag / attributes / children interpretation of `xtreewrite.c` moves into `xwalk`; `xtreewrite` becomes a pump into `xwrite`; replaces EV5 / B1 | medium | P1 | `write()` golden and `JsonSerializer` byte-identical |
+| P5 (done) | demand-driven `JsonSerializer` / `XMLTreeSerializer` over any pull source (a value or a parser); replay (`skip`, `delivered`, `capped`) deleted; `readText(n)` on character boundaries; replaces X2 | medium | P4 | equality with `write()` at read sizes 1, 7, 4096; a `JsonParser` source reformats |
+| P6 (done) | handshake symbols, `source.pump(sink)`, `pushParser.connect(sink)`, JS object to C sink adapter, `tee`; replaces EV8, B3, X4, J4, J5 | medium | P1 | a push parser plugged into a writer, a builder and a tee; a JS-object sink gets the same events |
+| P7 (done) | builders: `proto` option, queue of completed roots with end positions (`take()`), `jbuild_value_js()`, flat `XmlBuilder` for `XMLNodeParser` (X3, B6) | medium | P1 | differential 0, `test-xml.js` |
+| P8 (done) | parser options: dialect names in the `JsonParser` constructor (`'json'`, `'jsonc'`, `'json5'`, `'jsonl'` over the `JR_*` flags), strict mode (J1 step 2), one `xml_options_from_js()`, `strict`, `entities` | medium | P2 | `test-json-dialects`, `tests/unittests/test-xml-errors.js` |
+| P9 (partly: `lib/jsonl.js`) | the glue: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js` on the engines, `lib/xml.js` (`read`, `write`), `lib/dom.js` (`DOMParser`, `XMLSerializer`), `Blob.json()`; then C `JSONL`, `read`, `write` deprecated and deleted (J1, J2, J7, X7, X8 phase 9) | large | P2 to P8 | Bun / Browser / Deno differential batteries, `portable-check.sh` |
 | P10 | clean-up: duplicated token ids, `property-enumeration.h` and `char-utils.h` out of the bindings, `api-surface/` regenerated, `doc/native/{json,xml}.md` rewritten to the engine classes | small | P9 | line counts in `doc/api-implement-{json,xml}.md` |
 
 Steps after the bindings are lifted (what moves into `include/` and `src/`, what becomes private, what merges: `doc/api-event-model.md` 12;
@@ -1960,8 +1960,8 @@ the file-by-file state of P1 to P8 is `doc/event-model-state.md`). P11 and P12 c
 | # | step | size | depends on | gate |
 | --- | --- | --- | --- | --- |
 | P11 (done 2026-10-18) | `JsonEvent` / `XmlEvent` get `code` (stable error name) and `span` (bytes of the offending token); `json_next`, `xml_next`, `jr_feed`, `xr_feed` fill them, so a binding stops reading `err_code`, `err_len`, `tag_line` from parser internals | small | P1 to P3 | `tests/c/event-model.c`: code and span of an error at chunk sizes 1 and whole; done, plus `json_next_end()` for the end of a pull parse |
-| P12 | engine-bound helpers out of the bindings, into `src/`: `js_syntax_error_from_event` (`errinfo.h`, `src/js-syntax-error.c`), `json_options_from_js` / `jwrite_options_from_js` / `xml_options_from_js` / `xwrite_options_from_js` (`jopts.c`, `xopts.c`; absorbs J1 step 1 `jwrite_options_indent*`), `js_jsonevent_new` / `js_jsonevent_callback` and the XML twins (`jevent-js.c`, `xevent-js.c`), the handshake and `js_json_pump` / `js_json_connect` (`jconnect.c`, `xconnect.c`; the C half of P6), `js_jserial_read` / `js_xserial_read`, `location_from_srcpos`, `reader_from_js_input` (absorbs X3 part) | medium | P11 | `tests/c/event-model.c`, `test-json-errors.js`, `test-xml-errors.js`; `quickjs-json.c` about 900 and `quickjs-xml.c` about 1000 lines after the lift |
-| (lift) | P2 to P6 and P8 on the binding side (classes read events, serializers on `JsonSerial` / `XmlSerial`, handshake, `pump()` / `connect()`, constructor options, `next()` results `{type, value, loc}`); folds X2 to X5, J4 to J6 | large | P11, P12 | `test-json.js`, `test-xml.js`, `test-xml-write-golden.js` unchanged |
+| P12 (done) | engine-bound helpers out of the bindings, into `src/`: `js_syntax_error_from_event` (`errinfo.h`, `src/js-syntax-error.c`), `json_options_from_js` / `jwrite_options_from_js` / `xml_options_from_js` / `xwrite_options_from_js` (`jopts.c`, `xopts.c`; absorbs J1 step 1 `jwrite_options_indent*`), `js_jsonevent_new` / `js_jsonevent_callback` and the XML twins (`jevent-js.c`, `xevent-js.c`), the handshake and `js_json_pump` / `js_json_connect` (`jconnect.c`, `xconnect.c`; the C half of P6), `js_jserial_read` / `js_xserial_read`, `location_from_srcpos`, `reader_from_js_input` (absorbs X3 part) | medium | P11 | `tests/c/event-model.c`, `test-json-errors.js`, `test-xml-errors.js`; `quickjs-json.c` about 900 and `quickjs-xml.c` about 1000 lines after the lift |
+| (lift) (done) | P2 to P6 and P8 on the binding side (classes read events, serializers on `JsonSerial` / `XmlSerial`, handshake, `pump()` / `connect()`, constructor options, `next()` results `{type, value, loc}`); folds X2 to X5, J4 to J6 | large | P11, P12 | `test-json.js`, `test-xml.js`, `test-xml-write-golden.js` unchanged |
 | P13 (JS side done, C entry points open) | privatize and delete the old entry points: `json_parse` + `JSON_NEED_DATA` / `JSON_NONE` / `JSON_ERROR` / `JSON_RESYNC`, `json_end`, `json_getc` / `json_ungetc`, `jr_read` / `jr_finish` / `jr_callback` / `jr_str_t`, `xml_parse` + `XML_PARSE_*` + `event_name` / `event_value` / `event_has_value`, `xr_read` / `xr_finish` / `xr_callback` / `xr_str_t`, the pump wrappers (`jread_pump*`, `xread_pump*`, `json_pump`, `xml_pump`), `jbuild_push` / `jbuild_pop` / `jbuild_key` / `jbuild_value`, `xbuild_start` / `xbuild_attribute` / `xbuild_text` / `xbuild_end`; `JsonParser` and `XMLParser` private (`json_new` / `xml_new`) | medium | lift | `grep` of each symbol outside its own file is empty; ctest unchanged |
 | P14 | tokenizers: make `c-json-dialects` green (`JR_LEGACY` `[1,,2,]`), then measure `jread` against `json.c` and `xread` against `xml.c` (MB/s at chunk sizes 1, 64, 4096) and merge: the loser becomes a thin adapter or is deleted (about 1200 lines JSON, 570 XML) | medium | lift | `c-json-dialects` green, `test-json.js`, `test-xml.js`, chunk sizes 1, 2, 7 identical |
 | P15 | `walk_next()` leaves the event in the iterator (`it->event`); `WalkInterface`, the capture layer of `jwalkev.c` / `xwalkev.c` and `jwalk_init(..., iface)` lose their argument; `js_walk_register` / `js_walk_define` / `js_walk_wrap` deleted (B1, EV5, B2 alias) | medium | lift | `write()`, `JsonSerial`, `XwalkSource` byte-identical |
@@ -1975,84 +1975,35 @@ Order: P11, P12, (lift), P13; P14, P15, P16 are independent of each other after 
 Effect on the lists below: J1 step 1 (`jwrite_options_indent*`, `walk_path()`, offset helpers) and X1 (the `write()` layout decision) stay as the first
 independent steps; J2, J3, J7 and X6 to X8 wait for P8 / P9; EV5, EV8, B1, B3, X2, X4, X5, J4 to J6 are folded into P4 to P6.
 
-Pending after the 2026-10-17 session (event model, none of it started unless a step above says so):
+## Open: json and xml (state 2026-10-18)
 
-- `write()` on `XmlWriter` with `XW_PRETTY` instead of the legacy layout (`xlayout`, `xtreewrite`; about 700 lines go): changes
-  the output of `xml.write()`, so the golden fixture is regenerated. Decision open; the flat list already walks through `xwalk`.
-- `XMLPushParser`: the `text` callback is `(name, value)` but `XMLWriter.text(str)` takes one argument, and `close()` does not
-  flush; fix together with EV8 so a push parser plugs into an `XMLWriter`.
-- `XMLNodeParser` still assembles its flat list itself; move it onto the `XmlBuilder` flat sink (Phase 7).
-- The parsers do not produce the typed markup events (`XE_COMMENT`, `XE_DECLARATION`, `XE_INSTRUCTION`, `XE_CDATA`) yet; comments,
-  declarations and instructions arrive as elements with magic names, and `XmlEventSink` consumers see them that way.
-- Lenient `xml.read` repairs report through `onParseError` (now only the strict path does).
-- `Blob.prototype.json()` errors do not carry `loc` yet (Tier 23).
-- The pumps are not what the bindings use yet: `quickjs-json.c` / `quickjs-xml.c` still call the parser loops directly (EV4 gate).
-- `api-surface/` generated files still list the old `XMLSerializer` (regenerate after the rename to `XMLTreeSerializer`).
-- Unrelated ctest failures seen 2026-10-17: `test-globals` (Blob stream through TextDecoderStream), `test-misc` (valuePointer),
-  `test-mmap` (filename), `test-lexer-cpp` (escaped newline in a directive), `test-sql` (live database).
+C side (the order is free, none blocks the others):
 
-## Remaining work: json and xml (state 2026-10-17, after `7da74be0`)
+- P13 rest: `json_parse` / `json_end` / `json_getc` / `json_ungetc` and `xml_parse` / `event_name` / `event_value` / `event_has_value` are still public
+  engine entry points under `json_next` / `xml_next`; the JS surface no longer uses them. `tests/c/json-dialects.c` calls `json_parse` directly.
+- P14: merge the tokenizers. `c-json-dialects` is green now (`jread` and `json.c` agree on every case, 2026-10-18), so measure `jread` against `json.c`
+  and `xread` against `xml.c` (MB/s at chunk sizes 1, 64, 4096) and keep one of each; `json_next` over `jread` needs a small event queue per input block.
+- P15: `WalkInterface` and the capture layer of `jwalkev.c` / `xwalkev.c`.
+- B5: DOCTYPE internal subset in `xml.c` / `xread.c` (needed by strict mode and entities), `BUGS` `xml-doctype-internal-subset-mangled`.
+- B9: `walk.c` test for a 100000-deep array, a shared object and a cycle at depth.
 
-Done and committed: the layout (`include/{json,xml}/`, `src/{json,xml}/`), the event model (`JsonEventSink`, `XmlEventSink`, pumps, builders,
-`jwrite_sink`/`xwrite_sink`), `read()` on `xbuilder`, `write()` on `xwalk` + `xlayout` (tree and flat list), `XMLWriter` on `xwrite` decorated by
-`js_xmlsink_*`, the error contract (Tier 23 E0 to E2), `walk` with an O(1) circularity check. The rest, by file; "decision" marks what the author
-has to settle first.
+JS side:
 
-### `quickjs-xml.c` (2156 lines; target about 1200)
+- P9: `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js`, `lib/xml.js` (`read`, `write`), `lib/dom.js`
+  (`DOMParser`, `XMLSerializer`, `<parsererror>`, X7); `read` / `write` stay native until the module naming is decided.
+- J1 steps 1 to 5 and J2 (`read()` equal to `JSON.parse`, remove the vendored `sj`), J3 / X8 (`JsonRewriter`, `XmlRewriter`, Tier 17), J7 and X6 (errors: `Blob.prototype.json()`
+  and `JSONL` carry `loc`, lenient `xml.read` repairs report through `onParseError`).
+- P10: `api-surface/` regenerate (it still lists the old `XMLSerializer` and removed members).
 
-| # | work | size | depends on | gate |
-| --- | --- | --- | --- | --- |
-| X1 | decision: `write()` on `XW_PRETTY` (drop `xlayout.[ch]`, `xtreewrite.[ch]`; `write()` = `xwalk` adapter into an `XmlWriter`), or keep the legacy layout. Changes the output; the golden fixture is regenerated | -700 | none | `test-xml-write-golden.js` regenerated and reviewed |
-| X2 | `XMLTreeSerializer` on `xwalk` + `xwrite` as a pull source (Phase 5, 3e): the replay machinery (`skip`/`delivered`/`capped`) goes; `read(n)` cuts on character boundaries (own ChangeLog line) | -450 | X1 | equality with `write()` at read sizes 1, 7, 4096 |
-| X3 | `XMLNodeParser` assembles its flat list on the `XmlBuilder` flat sink (Phase 7); one location-sync helper for `XMLParser`/`XMLNodeParser`; one `reader_from_js_input()` (7 call sites, 3 helpers) and one `xml_options_from_js()` (4 copies) | -250 | none | differential 0, `test-xml.js` |
-| X4 | `XMLPushParser`: `text` callback is `(name, value)` but `XMLWriter.text(str)` takes one argument; `close()` does not flush; plug into any sink through the handshake (EV8) | small | EV8 | push parser feeds an `XMLWriter` byte-identically at chunk sizes 1, 2, 7 |
-| X5 | the bindings drive the pumps (`xread_pump`, `xml_pump`) instead of their own loops (EV4 gate) | -150 | none | differential at chunk sizes 1, 2, 7 |
-| X6 | lenient `xml.read` repairs report through `onParseError` and never throw (Tier 23 E2 rest); spec code names where one exists | small | none | `test-xml-errors.js` (not written yet) |
-| X7 | `XMLSerializer` / `DOMParser` exports from `lib/dom.js` (Browser priority); `DOMParser` returns a `<parsererror>` document (Tier 23 E4) | JS | none | browser-shaped tests |
-| X8 | Phase 8 `XmlRewriter` (waits for Tier 17), Phase 9 `XML.parse` / object tree (Bun), Phase 10 clean-up: `property-enumeration.h` and `char-utils.h` drop out of the binding | per phase | X1, X2, Tier 17 | per phase |
+Tests and tools:
 
-### `quickjs-json.c` (1962 lines; target about 1620)
+- `tests/tools/xml-diff.js` (the `read()` differential, oracle a build of `ecdf0ca7`), `test-xml-errors.js`, `test-json-errors.js`;
+- engine-free C tests for `xwrite` `XW_PRETTY` (the golden covers it only through `write()`).
 
-| # | work | depends on | gate |
-| --- | --- | --- | --- |
-| J1 | Tier 18 steps 1 to 5: `jwrite_options_indent*`, `walk_path()` (so `JsonSerializer.path` stops reaching into the stack), UTF-16/UTF-8 offset helpers; `jread` strict mode and JSON5/JSONC flags; `JSON5.parse`, `JSONC.parse`; deprecate `read()`/`write()`, migrate `plot-cv/yt-playlist.js` and `clang-ast.js`; `JSON5.stringify` | none | per step in Tier 18 |
-| J2 | `read()` decodes string escapes and rejects what `JSON.parse` rejects (trailing commas, `01`, `1.`, raw tab); remove the vendored `sj` | J1 step 2 | `JSON.parse` differential |
-| J3 | `JsonRewriter` (`jrewrite`, Tier 17) on `JsonEventSink` | none | Tier 17 gates |
-| J4 | `JsonPushParser`: `onValue`, `paths`, `end()`; plug into any sink (EV8) | EV8 | chunk-size invariance |
-| J5 | `JsonWriter` on `js_jsonsink_*` (its methods take JS values, so decide first whether it keeps its own set); the JSON sink wrapper has no user and no test yet | EV8 | `test-json.js` |
-| J6 | the bindings drive the pumps (`jread_pump`, `json_pump`) | none | differential |
-| J7 | errors: `Blob.prototype.json()` and the `JSONL` paths carry `loc`; Tier 23 E3 (`AggregateError`, strict `JSON5`/`JSONC` codes), E5 (column unit) | J1 | Tier 23 gates |
-
-### Backing code, `src/{json,xml}/` and `include/{json,xml}/`
-
-| # | work | where | note |
-| --- | --- | --- | --- |
-| B1 | EV5: `jwalk`/`xwalk` drive a `JsonEventSink` / `XmlEventSink` (the `WalkInterface` becomes the engine-side adapter of it) | `jwalk.c`, `xwalk.c`, `xtreewrite.c` | `write()` and `JsonSerializer` byte-identical |
-| B2 | EV6: delete `JsonWriteInterface` and `jwrite_interface`; align the push-parser callback names (`onError` for both, `onParseError` an alias on XML) | `jwrite.h`, bindings | after one release |
-| B3 | EV8: `Symbol.for('qjs.jsonsink')` / `Symbol.for('qjs.xmlsink')` handshake and a tee sink, on top of `js_{json,xml}sink_*` | `jsink.c`, `xsink.c` | engine-side only |
-| B4 | the parsers produce the typed markup events (`XE_COMMENT`, `XE_DECLARATION`, `XE_INSTRUCTION`, `XE_CDATA`); today they arrive as elements with magic names | `xml.c`, `xread.c`, `xpump.c` | then `xbuilder` and `xwrite` stop special-casing `!--`, `!`, `?` |
-| B5 | `xml.c` / `xread.c`: DOCTYPE internal subset (needed by strict mode and entities); Phase 6: measure, then merge the two tokenizers | `xml.c`, `xread.c` | `BUGS` `xml-doctype-internal-subset-mangled` |
-| B6 | `xbuilder`: flat sink for `XMLNodeParser` (X3), `jbuild_value_js()` and the prototype option shared with `jbuilder` | `xbuilder.c`, `jbuilder.c` | |
-| B7 | `xtreewrite.c` edge cases the golden does not cover: an `undefined` attribute value is omitted (the old writer printed `undefined`), an `attributes` array is a plain value (the old writer enumerated it) | `xtreewrite.c` | pin or fix with golden cases |
-| B8 | engine-free C tests for `xlayout` (trailing-whitespace hold-back, depth rules) and a JS-level `test-walk` for `xwalk` | `tests/c/`, `tests/unittests/` | the golden covers them only through `write()` |
-| B9 | `walk.c`: the circularity check is a hash set now; add a test for a 100000-deep array, a shared object and a cycle at depth | `tests/unittests/test-json.js` | |
-
-### Tests and tools
-
-- save the `read()` differential harness as `tests/tools/xml-diff.js` (oracle: a build of `ecdf0ca7`); an equivalent for `write()` against `lib/xml/write.js`;
-- `tests/unittests/test-xml-errors.js` and `test-json-errors.js` as described in `doc/api-implement-{xml,json}.md` section 5.4;
-- a JS test for `js_jsonsink_wrap`/`js_xmlsink_wrap` objects handed to the C side (needs EV8).
-
-### Documentation
-
-- `doc/api-implement-{json,xml}.md`: sizes and "what the binding still holds" refreshed (done in the section "State 2026-10-17" at their end); the
-  per-header lift tables keep their numbering;
-- `doc/native/json.md`, `doc/native/xml.md`: the sink wrappers, the typed markup events (B4) and the `XW_PRETTY` decision (X1) when they land;
-- `api-surface/` (generated) still lists the old `XMLSerializer`; regenerate after X7;
-- `BUGS`: `json-read-does-not-decode-escapes`, `xmlserializer-read-n-splits-utf8`, `xml-doctype-internal-subset-mangled` stay until J2, X2, B5.
-
-Suggested order: X1 (decision) and J1 step 1 first (smallest, unblock the rest), then B3/EV8 with X4 and J4/J5, then X3 and X5/J6, then X2, then
-B4/B5, then the rewriters and the DOM exports.
+Done since 2026-10-17 (details in `doc/event-model-state.md`): typed markup events, `next()` / iterator / `pump()` / `connect()` / `tee` / `JsonBuilder` / `XmlBuilder`,
+handshake symbols, `JsonWriter` as a sink, `xml.write()` on `XW_PRETTY` (golden regenerated, layout changed), `parse()` and `XMLNodeParser` removed, push-parser callback mode,
+tee owner and the `read` / `write` cores moved into `src/`.
+Unrelated ctest failures (2026-10-18): `test-directory`, `test-extract-c`, `test-globals`, `test-lexer-cpp`, `test-misc`, `test-mmap`, and `test-sql` when no database is up.
 
 ## Tier 18 — `json` module: lift to standard shapes (spec 2026-10-17)
 

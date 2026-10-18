@@ -366,6 +366,24 @@ js_jsonsink_from_js_free_rt(JSRuntime* rt, JsonJsSink* s) {
   }
 }
 
+/* js_jsonsink_failed: the exception for a sink member that returned r < 0.
+ *
+ * a JS-object sink (adapter) leaves its own exception pending, a native sink gives a code.
+ *
+ * returns JS_EXCEPTION. */
+JSValue
+js_jsonsink_failed(JSContext* ctx, int adapter, ssize_t r) {
+  JSValue err;
+
+  if(adapter)
+    return JS_EXCEPTION;
+
+  err = JS_NewError(ctx);
+  JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "JsonEventSink: event failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewInt64(ctx, (int64_t)r), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+  return JS_Throw(ctx, err);
+}
+
 /**
  * @}
  */

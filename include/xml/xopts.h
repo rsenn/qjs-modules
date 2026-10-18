@@ -27,6 +27,9 @@ typedef struct {
   char* filename;
 } XmlOptions;
 
+/* xml_html_self_closing_tags: the HTML void elements, the default of xml.read(). null terminated. */
+extern const char* const xml_html_self_closing_tags[];
+
 /* xml_options_from_js: reads an options object into *o, a missing key keeps the value *o had.
  *
  * borrowed: the strings are owned, release them with xml_options_free().

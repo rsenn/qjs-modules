@@ -135,7 +135,7 @@ How each runtime and package reports a parse error and where the position goes. 
 | API | Exception | Message | Position |
 | --- | --- | --- | --- |
 | `read(text, file?)` | **`InternalError`** | `error: 2:7: unknown token` | in the message only; not `SyntaxError`, and the file name is dropped |
-| `JsonParser.parse()` | `SyntaxError` | `f.json:2:8: expected a value` | in the message; column 8 where `JSON.parse` and `json5` say 7: it is the position **after** the offending token; `.location` is live but nothing on the error |
+| `JsonParser.next()` | `SyntaxError` | `f.json:2:7: expected a value` | `loc`, `length` and `code` on the error, at the start of the offending token (`parse()` is removed) |
 | `JsonPushParser.write()` / `close()` | `SyntaxError` | `parse error`, `unexpected end of input` | none, although the parser has `.location` |
 | `JSONL.parse` | `TypeError` for a bad input; `SyntaxError` | `JSONL: expected newline after value` | none |
 | `JSONL.parseChunk` | `error` field: a `SyntaxError` | | none (`read` marks the end of the good values) |

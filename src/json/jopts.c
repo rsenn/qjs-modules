@@ -5,6 +5,8 @@
 #define _GNU_SOURCE 1
 #include "json/jopts.h"
 #include "utils.h"
+#include "json/jread.h"
+#include <math.h>
 #include <string.h>
 
 /**
@@ -89,6 +91,98 @@ jwrite_options_from_js(JSContext* ctx, JSValueConst obj, JsonWriteOptions* opts)
 
   if(!(opts->minify = js_get_propertystr_bool(ctx, obj, "minify")))
     opts->indent = js_get_propertystr_uint32(ctx, obj, "indent");
+}
+
+/* js_jsonwriter_ret: turns a jwrite_*() result into a JS outcome.
+ *
+ * returns the bytes written, or -1 with a TypeError pending (an Error for
+ * a failed write, out of memory for a full stack). */
+ssize_t
+js_jsonwriter_ret(JSContext* ctx, ssize_t r) {
+  if(r >= 0)
+    return r;
+
+  switch(-r) {
+    case JWRITE_E_WRITE: {
+      JSValue err = JS_NewError(ctx);
+
+      JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "JsonWriter: write failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+      JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, "write-failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+      JS_Throw(ctx, err);
+      break;
+    }
+    case JWRITE_E_NOMEM: JS_ThrowOutOfMemory(ctx); break;
+    default: JS_ThrowTypeError(ctx, "JsonWriter: %s", jwrite_error_message(-r)); break;
+  }
+
+  return -1;
+}
+
+/* jwrite_js_text: the JS string conversion of val, written as a string or a raw number. */
+static ssize_t
+jwrite_js_text(JSContext* ctx, JsonWriter* wr, JSValueConst val, int quoted) {
+  size_t len;
+  const char* str = JS_ToCStringLen(ctx, &len, val);
+  ssize_t r;
+
+  if(!str) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return js_jsonwriter_ret(ctx, jwrite_null(wr));
+  }
+
+  r = quoted ? jwrite_string(wr, str, len) : jwrite_number(wr, str, len);
+  JS_FreeCString(ctx, str);
+  return js_jsonwriter_ret(ctx, r);
+}
+
+ssize_t
+jwrite_js_value(JSContext* ctx, JsonWriter* wr, JSValueConst val) {
+  if(JS_IsNull(val) || JS_IsUndefined(val) || JS_IsSymbol(val) || JS_IsFunction(ctx, val))
+    return js_jsonwriter_ret(ctx, jwrite_null(wr));
+
+  if(JS_IsBool(val))
+    return js_jsonwriter_ret(ctx, JS_ToBool(ctx, val) ? jwrite_true(wr) : jwrite_false(wr));
+
+  double d = 0;
+
+  if(JS_IsNumber(val))
+    JS_ToFloat64(ctx, &d, val);
+
+  return isnan(d) || isinf(d) ? js_jsonwriter_ret(ctx, jwrite_null(wr)) : jwrite_js_text(ctx, wr, val, !js_is_numeric(ctx, val));
+}
+
+/* jread_options_from_js: the syntax flags of the options object, -1 if it asks for none.
+ *
+ * reads dialect (a name of jr_flags_from_name()) and strict (true means json).
+ *
+ * returns 0, or -1 with a TypeError pending for an unknown dialect. */
+int
+jread_options_from_js(JSContext* ctx, JSValueConst obj, const char* who, int* flags) {
+  JSValue name = JS_GetPropertyStr(ctx, obj, "dialect");
+
+  *flags = -1;
+
+  if(!JS_IsUndefined(name)) {
+    size_t len;
+    const char* str = JS_ToCStringLen(ctx, &len, name);
+
+    if(!str || jr_flags_from_name(str, len, flags)) {
+      JS_ThrowTypeError(ctx, "%s: unknown dialect %s", who, str ? str : "");
+
+      if(str)
+        JS_FreeCString(ctx, str);
+
+      JS_FreeValue(ctx, name);
+      return -1;
+    }
+
+    JS_FreeCString(ctx, str);
+  } else if(js_get_propertystr_bool(ctx, obj, "strict")) {
+    *flags = JR_JSON;
+  }
+
+  JS_FreeValue(ctx, name);
+  return 0;
 }
 
 /** @} */

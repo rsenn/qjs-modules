@@ -35,5 +35,53 @@ int js_jsonsink_resolve(JSContext*, JSValueConst obj, JsonEventSink* sink, JsonJ
  * returns 0, or -1 with an exception pending. */
 int js_jsonsink_define_handshake(JSContext*, JSValueConst proto, JSCFunction* fn);
 
+/* JsonJsCallbacks: the callbacks of a JsonPushParser argument, as the handler of an event source.
+ *
+ *   argument          calls
+ *   a function        fn(type, value) for every event
+ *   an object         by event: error(err), value(v) for null, true, false, number and string,
+ *                     arrayStart(), arrayEnd(), objectStart(), objectEnd(), key(k)
+ *
+ * the object is this inside its callbacks, a callback it does not define is skipped. */
+enum { JSON_CALLBACKS = 11 }; /* JSON_EVENT_ERROR to JSON_EVENT_KEY */
+
+typedef struct {
+  JSContext* ctx;
+  JSValue fn, obj, by_type[JSON_CALLBACKS];
+} JsonJsCallbacks;
+
+/* js_jsoncallbacks_init: reads the callbacks from arg (any value, others have none).
+ *
+ * refcount: takes references, release them with js_jsoncallbacks_free_rt(). never throws. */
+void js_jsoncallbacks_init(JSContext*, JsonJsCallbacks*, JSValueConst arg);
+void js_jsoncallbacks_free_rt(JSRuntime*, JsonJsCallbacks*);
+
+/* js_jsoncallbacks_complete: whether fn is set or every value event has its callback, so a
+ * builder would only repeat what the callbacks get. */
+int js_jsoncallbacks_complete(const JsonJsCallbacks*);
+
+/* js_jsoncallbacks_event: the JsonEventHandler of the callbacks, user is a JsonJsCallbacks*.
+ *
+ * an exception thrown by a callback is dropped. returns 0. */
+ssize_t js_jsoncallbacks_event(void* user, const JsonEvent* ev);
+
+/* JsonJsTee: a tee of sinks that keeps the JS objects behind them alive.
+ *
+ * sink fans every event out to the sinks in order, handshake gives away &sink. */
+typedef struct {
+  JsonEventSink* sinks;
+  JsonJsSink** adapters;
+  JSValue* objs;
+  size_t len;
+  JsonTee tee; /* tee points at sinks */
+  JsonEventSink sink;
+} JsonJsTee;
+
+/* js_jsontee_new: resolves each argument with js_jsonsink_resolve() and tees them.
+ *
+ * returns the tee (free it with js_jsontee_free_rt()), or NULL with an exception pending. */
+JsonJsTee* js_jsontee_new(JSContext*, int argc, JSValueConst argv[]);
+void js_jsontee_free_rt(JSRuntime*, JsonJsTee*);
+
 /** @} */
 #endif

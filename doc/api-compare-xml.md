@@ -130,8 +130,7 @@ Input: `<a>` newline ` <b></c></a>` (the mismatched `</c>` starts at line 2, col
 | API | Exception | Message | Position |
 | --- | --- | --- | --- |
 | `xml.read()` | `SyntaxError` | `mismatch </c> at f.xml:2:5` | in the message only (correct start of the closing tag); truncated input (`<a><b`) is accepted silently by design |
-| `XMLParser.parse()` | none: returns `PARSE_ERROR` (-1) | | live `.location` (`f.xml:2:10`, the end of the tag); nothing says *what* was wrong beyond `eventName` |
-| `XMLNodeParser.parse()` | none: returns the status | | live `.location` |
+| `XMLParser.next()` | `SyntaxError` | `mismatch </c>` | `loc`, `length` and `code` on the error, at the start of the closing tag (`parse()` and `XMLNodeParser` are removed) |
 | `XMLPushParser.write()` | **silent** on a mismatch | | `.path` only |
 | `XMLPushParser.close()` | `SyntaxError` | `malformed or truncated input`, `unexpected end of input (unclosed element)` | none |
 | bad argument (`read(5)`) | **`ReferenceError`** | `xml.read(): expecting buffer or string` | should be `TypeError` |

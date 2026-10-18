@@ -1,8 +1,12 @@
 # Event model: sources, sinks, pull and push; the C modules are engines, the APIs are glue (plan 2026-10-18)
 
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines.
+> Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
+> `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
+
 Shared design of `json` and `xml`. [api-interface-json.md](api-interface-json.md) and [api-interface-xml.md](api-interface-xml.md)
 refer here for everything about how parsers, builders, walkers, writers and serializers connect; the step list is `TODO.md`,
-"Event model v2". Nothing in this document is implemented yet unless it says so.
+"Event model v2". The implemented parts are listed in the status note above.
 
 ## 1. The decision
 

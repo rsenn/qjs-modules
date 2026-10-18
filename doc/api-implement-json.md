@@ -1,5 +1,9 @@
 # JSON: how the implementation is split
 
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines. The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
+> Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
+> `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
+
 `quickjs-json.c` should be a binding layer: classes, argument parsing, error mapping. The
 parsing, walking, building and writing live in `include/` + `src/` pieces that know nothing of
 JS classes, and most of them nothing of the engine. This document records where the code is

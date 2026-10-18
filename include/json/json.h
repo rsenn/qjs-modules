@@ -158,6 +158,7 @@ JsonPull json_next_end(JsonParser*, JsonEvent* ev);
 /* json_source: the pull parser as a JsonEventSource, for jevent_pump(). */
 JsonEventSource json_source(JsonParser*);
 
+
 /**
  * @}
  */

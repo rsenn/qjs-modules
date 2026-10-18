@@ -44,70 +44,21 @@ js_json_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input;
-  JsonParser* p;
-  JsonBuilder b;
-  JsonEventSink sink;
-  JsonEvent ev;
-  JsonPull st;
   JSValue ret = JS_EXCEPTION;
   const char* name = argc >= 2 ? JS_ToCString(ctx, argv[1]) : 0;
 
-  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0]))) {
+  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
     JS_ThrowTypeError(ctx, "json.read(): expecting buffer or string");
-    goto done;
-  }
-
-  if(!(input = js_input_chars(ctx, argv[0])).data)
-    goto done;
-
-  if(!(p = json_new(reader_from_bytes(input.data, input.size), 0, ctx))) {
+  else if((input = js_input_chars(ctx, argv[0])).data) {
+    ret = json_read_value(ctx, input.data, input.size, name);
     inputbuffer_free(&input, ctx);
-    goto done;
   }
 
-  p->flags = JR_JSON;
-  jbuild_init(&b, ctx);
-  sink = jbuild_sink(&b);
-
-  /* the input ends when the reader is dry, then the end events follow */
-  do {
-    st = json_next(p, &ev);
-
-    if(st == JSON_PULL_AGAIN)
-      st = json_next_end(p, &ev);
-
-    if(st != JSON_PULL_EVENT)
-      break;
-
-    if(ev.type == JSON_EVENT_ERROR) {
-      js_throw_syntax_error_at(ctx, name ? name : "<json>", &ev.at, ev.span, ev.code, ev.str ? ev.str : "parse error");
-      goto free;
-    }
-
-    jevent_send(&sink, &ev);
-  } while(1);
-
-  ret = b.has_root ? jbuild_root(&b) : JS_UNDEFINED;
-free:
-  jbuild_free(&b, JS_GetRuntime(ctx));
-  json_free(p, JS_GetRuntime(ctx));
-  inputbuffer_free(&input, ctx);
-done:
   if(name)
     JS_FreeCString(ctx, name);
 
   return ret;
 }
-
-static void
-clear_pending_exception(JSContext* ctx) {
-  JSValue exc = JS_GetException(ctx);
-
-  if(!JS_IsNull(exc) && !JS_IsUndefined(exc))
-    JS_FreeValue(ctx, exc);
-}
-
-static ssize_t js_jsonwriter_ret(JSContext* ctx, ssize_t r);
 
 /* write: JSON.stringify(), through walk (the rules) and jwrite (the text).
  *
@@ -127,46 +78,10 @@ static ssize_t js_jsonwriter_ret(JSContext* ctx, ssize_t r);
  * exported as `write` by the json module. */
 static JSValue
 js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValueConst value = argc > 0 ? argv[0] : JS_UNDEFINED, replacer = JS_UNDEFINED, space = JS_UNDEFINED;
-  JsonSpace sp;
-  JsonWriter wr = {0};
-  JwalkSource src;
-  JsonEventSink sink;
-  JsonEvent ev;
-  JsonPull st;
-  DynBuf out;
-  JSValue ret;
+  JSValueConst replacer = JS_UNDEFINED, space = JS_UNDEFINED;
 
   jsonspace_args(ctx, argc, argv, &replacer, &space);
-
-  if(jsonspace_parse(ctx, space, &sp))
-    return JS_EXCEPTION;
-
-  if(jwalk_source_init(&src, ctx, value))
-    return JS_EXCEPTION;
-
-  dbuf_init_ctx(ctx, &out);
-  wr.writer = writer_from_dynbuf(&out);
-  jsonspace_apply(&sp, &wr.opts);
-  jwrite_init(&wr, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx));
-  sink = jwrite_sink(&wr);
-  st = JS_IsUndefined(replacer) || !jwalk_set_replacer(&src.it, ctx, replacer) ? JSON_PULL_EVENT : JSON_PULL_FAIL;
-
-  while(st == JSON_PULL_EVENT && (st = jwalk_event(&src, &ev)) == JSON_PULL_EVENT)
-    if(js_jsonwriter_ret(ctx, jevent_send(&sink, &ev)) < 0)
-      st = JSON_PULL_FAIL;
-
-  if(st == JSON_PULL_FAIL)
-    ret = JS_EXCEPTION;
-  else if(jwalk_root_omitted(&src.it))
-    ret = JS_UNDEFINED;
-  else
-    ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
-
-  jwalk_source_close(&src, ctx);
-  jwrite_free(&wr);
-  dbuf_free(&out);
-  return ret;
+  return jwalk_stringify(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, replacer, space);
 }
 
 static JSValue js_json_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]);
@@ -181,30 +96,12 @@ static const JSCFunctionListEntry js_json_funcs[] = {
 /* JsonPushParser                                                        */
 /* ---------------------------------------------------------------------- */
 
-/* json_sink_failed: the exception for a sink member that returned r < 0.
- *
- * a JS-object sink (adapter) leaves its own exception pending, a native sink gives a code.
- *
- * returns JS_EXCEPTION. */
-static JSValue
-json_sink_failed(JSContext* ctx, BOOL adapter, ssize_t r) {
-  JSValue err;
-
-  if(adapter)
-    return JS_EXCEPTION;
-
-  err = JS_NewError(ctx);
-  JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "JsonEventSink: event failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewInt64(ctx, (int64_t)r), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-  return JS_Throw(ctx, err);
-}
-
 typedef struct PushParser {
   JSContext* ctx;
   jr_state_t jrs;
   JsonBuilder builder;
   JsonEventSink sink; /* jbuild_sink(&builder) */
-  JSValue callback_fn, callbacks_obj, callbacks[JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR];
+  JsonJsCallbacks cb;
   unsigned use_builder : 1, connected : 1;
   Location* loc;
   JSValue last_error; /* SyntaxError of the latest error, or JS_UNDEFINED */
@@ -217,10 +114,10 @@ typedef struct PushParser {
  * refcount: a new reference. */
 static JSValue
 json_pushparser_onerror(JsonPushParser* pp) {
-  if(JS_IsUndefined(pp->callbacks_obj))
+  if(JS_IsUndefined(pp->cb.obj))
     return JS_UNDEFINED;
 
-  JSValue fn = JS_GetPropertyStr(pp->ctx, pp->callbacks_obj, "onError");
+  JSValue fn = JS_GetPropertyStr(pp->ctx, pp->cb.obj, "onError");
 
   if(JS_IsFunction(pp->ctx, fn))
     return fn;
@@ -235,7 +132,7 @@ json_pushparser_call(JSContext* ctx, JSValueConst fn, JSValueConst this_obj, int
   JSValue ret = JS_Call(ctx, fn, this_obj, argc, argv);
 
   if(JS_IsException(ret))
-    clear_pending_exception(ctx);
+    JS_FreeValue(ctx, JS_GetException(ctx));
   else
     JS_FreeValue(ctx, ret);
 }
@@ -249,7 +146,7 @@ json_pushparser_error(JsonPushParser* pp, const JsonEvent* ev) {
   JSValue fn, err = js_syntax_error_at(ctx, "<json>", &ev->at, ev->span, ev->code, msg);
 
   if(JS_IsException(err)) {
-    clear_pending_exception(ctx);
+    JS_FreeValue(ctx, JS_GetException(ctx));
     return;
   }
 
@@ -257,7 +154,7 @@ json_pushparser_error(JsonPushParser* pp, const JsonEvent* ev) {
   pp->last_error = JS_DupValue(ctx, err);
 
   if(JS_IsFunction(ctx, (fn = json_pushparser_onerror(pp))))
-    json_pushparser_call(ctx, fn, pp->callbacks_obj, 1, &err);
+    json_pushparser_call(ctx, fn, pp->cb.obj, 1, &err);
 
   JS_FreeValue(ctx, fn);
   JS_FreeValue(ctx, err);
@@ -291,28 +188,9 @@ json_pushparser_event_ext(void* user, const JsonEvent* ev) {
 static ssize_t
 json_pushparser_event(void* user, const JsonEvent* ev) {
   JsonPushParser* pp = user;
-  JSContext* ctx = pp->ctx;
   ssize_t r = json_pushparser_event_build(user, ev);
 
-  if(!JS_IsUndefined(pp->callback_fn)) {
-    JSValue args[2] = {JS_NewInt32(ctx, ev->type), js_jsonevent_value(ctx, ev)};
-
-    json_pushparser_call(ctx, pp->callback_fn, JS_UNDEFINED, 2, args);
-    JS_FreeValue(ctx, args[0]);
-    JS_FreeValue(ctx, args[1]);
-  }
-
-  if(ev->type >= JSON_EVENT_ERROR && ev->type <= JSON_EVENT_KEY) {
-    JSValue cb = pp->callbacks[ev->type - JSON_EVENT_ERROR];
-
-    if(JS_IsFunction(ctx, cb)) {
-      JSValue val = js_jsonevent_value(ctx, ev);
-
-      json_pushparser_call(ctx, cb, pp->callbacks_obj, 1, &val);
-      JS_FreeValue(ctx, val);
-    }
-  }
-
+  js_jsoncallbacks_event(&pp->cb, ev);
   return r;
 }
 
@@ -364,7 +242,7 @@ js_jsonpushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   inputbuffer_free(&input, ctx);
 
   if(r < 0)
-    return json_sink_failed(ctx, pp->ext_adapter != NULL, r);
+    return js_jsonsink_failed(ctx, pp->ext_adapter != NULL, r);
 
   /* just_erred (not the sticky error) - a resynced parser must not keep throwing on every
    * future write() call just because some earlier call hit a (already-reported) error. */
@@ -381,7 +259,7 @@ js_jsonpushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   ssize_t r = jr_end(&pp->jrs, json_pushparser_handler(pp), pp);
 
   if(r < 0)
-    return json_sink_failed(ctx, pp->ext_adapter != NULL, r);
+    return js_jsonsink_failed(ctx, pp->ext_adapter != NULL, r);
 
   if(!pp->jrs.done || pp->jrs.error)
     return js_jsonpushparser_throw(ctx, pp, pp->jrs.done ? "parse error" : "unexpected end of input");
@@ -483,90 +361,23 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
   location_zero(pp->loc);
 
-  pp->callback_fn = JS_UNDEFINED;
-  pp->callbacks_obj = JS_UNDEFINED;
   pp->last_error = JS_UNDEFINED;
   pp->ext_obj = JS_UNDEFINED;
+  js_jsoncallbacks_init(ctx, &pp->cb, argc > 0 ? argv[0] : JS_UNDEFINED);
 
-  for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
-    pp->callbacks[i] = JS_UNDEFINED;
+  if(JS_IsObject(pp->cb.obj)) {
+    int flags;
 
-  if(argc > 0) {
-    if(JS_IsFunction(ctx, argv[0])) {
-      pp->callback_fn = JS_DupValue(ctx, argv[0]);
-    } else if(JS_IsObject(argv[0])) {
-      pp->callbacks_obj = JS_DupValue(ctx, argv[0]);
+    if(jread_options_from_js(ctx, argv[0], "JsonPushParser", &flags))
+      goto fail_options;
 
-      {
-        JSValue name = JS_GetPropertyStr(ctx, argv[0], "dialect");
-        int flags = -1;
-
-        if(!JS_IsUndefined(name)) {
-          size_t len;
-          const char* str = JS_ToCStringLen(ctx, &len, name);
-
-          if(!str || jr_flags_from_name(str, len, &flags)) {
-            JS_ThrowTypeError(ctx, "JsonPushParser: unknown dialect %s", str ? str : "");
-
-            if(str)
-              JS_FreeCString(ctx, str);
-
-            JS_FreeValue(ctx, name);
-            goto fail_options;
-          }
-
-          JS_FreeCString(ctx, str);
-        } else if(js_get_propertystr_bool(ctx, argv[0], "strict")) {
-          flags = JR_JSON;
-        }
-
-        JS_FreeValue(ctx, name);
-
-        if(flags >= 0) {
-          jr_state_free(&pp->jrs);
-          jr_state_init_flags(&pp->jrs, flags);
-        }
-      }
-
-      for(int t = JSON_EVENT_ERROR; t <= JSON_EVENT_KEY; t++) {
-        const char* prop_name = NULL;
-
-        switch((JsonEventType)t) {
-          case JSON_EVENT_ERROR: prop_name = "error"; break;
-          case JSON_EVENT_NULL:
-          case JSON_EVENT_TRUE:
-          case JSON_EVENT_FALSE:
-          case JSON_EVENT_NUMBER:
-          case JSON_EVENT_STRING: prop_name = "value"; break;
-          case JSON_EVENT_OBJECT_START: prop_name = "objectStart"; break;
-          case JSON_EVENT_OBJECT_END: prop_name = "objectEnd"; break;
-          case JSON_EVENT_ARRAY_START: prop_name = "arrayStart"; break;
-          case JSON_EVENT_ARRAY_END: prop_name = "arrayEnd"; break;
-          case JSON_EVENT_KEY: prop_name = "key"; break;
-          case JSON_EVENT_COMMENT:
-          case JSON_EVENT_RAW: break;
-        }
-
-        if(prop_name) {
-          pp->callbacks[t - JSON_EVENT_ERROR] = JS_GetPropertyStr(ctx, argv[0], prop_name);
-        }
-      }
+    if(flags >= 0) {
+      jr_state_free(&pp->jrs);
+      jr_state_init_flags(&pp->jrs, flags);
     }
   }
 
-  BOOL all_callbacks_present = TRUE;
-
-  for(int t = JSON_EVENT_NULL; t <= JSON_EVENT_KEY; t++) {
-    if(!JS_IsFunction(ctx, pp->callbacks[t - JSON_EVENT_ERROR])) {
-      all_callbacks_present = FALSE;
-      break;
-    }
-  }
-
-  if(!JS_IsUndefined(pp->callback_fn) || all_callbacks_present)
-    pp->use_builder = FALSE;
-  else
-    pp->use_builder = TRUE;
+  pp->use_builder = !js_jsoncallbacks_complete(&pp->cb);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -578,13 +389,8 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   if(JS_IsException(obj)) {
     jr_state_free(&pp->jrs);
     jbuild_free(&pp->builder, JS_GetRuntime(ctx));
-    JS_FreeValue(ctx, pp->callback_fn);
-    JS_FreeValue(ctx, pp->callbacks_obj);
+    js_jsoncallbacks_free_rt(JS_GetRuntime(ctx), &pp->cb);
     JS_FreeValue(ctx, pp->last_error);
-
-    for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
-      JS_FreeValue(ctx, pp->callbacks[i]);
-
     js_free(ctx, pp);
     return JS_EXCEPTION;
   }
@@ -596,14 +402,9 @@ fail_options:
   jr_state_free(&pp->jrs);
   jbuild_free(&pp->builder, JS_GetRuntime(ctx));
   location_free(pp->loc, JS_GetRuntime(ctx));
-  JS_FreeValue(ctx, pp->callback_fn);
-  JS_FreeValue(ctx, pp->callbacks_obj);
+  js_jsoncallbacks_free_rt(JS_GetRuntime(ctx), &pp->cb);
   JS_FreeValue(ctx, pp->ext_obj);
   JS_FreeValue(ctx, pp->last_error);
-
-  for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
-    JS_FreeValue(ctx, pp->callbacks[i]);
-
   js_free(ctx, pp);
   return JS_EXCEPTION;
 }
@@ -619,14 +420,10 @@ js_jsonpushparser_finalizer(JSRuntime* rt, JSValue val) {
     if(pp->loc)
       location_free(pp->loc, rt);
 
-    JS_FreeValueRT(rt, pp->callback_fn);
-    JS_FreeValueRT(rt, pp->callbacks_obj);
+    js_jsoncallbacks_free_rt(rt, &pp->cb);
     JS_FreeValueRT(rt, pp->last_error);
     JS_FreeValueRT(rt, pp->ext_obj);
     js_jsonsink_from_js_free_rt(rt, pp->ext_adapter);
-
-    for(int i = 0; i < JSON_EVENT_KEY + 1 - JSON_EVENT_ERROR; i++)
-      JS_FreeValueRT(rt, pp->callbacks[i]);
 
     js_free_rt(rt, pp);
   }
@@ -927,31 +724,6 @@ typedef struct {
 static JSClassID js_jsonwriter_class_id = 0;
 static JSValue jsonwriter_proto, jsonwriter_ctor;
 
-/* js_jsonwriter_ret: turns a jwrite_*() result into a JS outcome.
- *
- * returns the bytes written, or -1 with a TypeError pending (an Error for
- * a failed write, out of memory for a full stack). */
-static ssize_t
-js_jsonwriter_ret(JSContext* ctx, ssize_t r) {
-  if(r >= 0)
-    return r;
-
-  switch(-r) {
-    case JWRITE_E_WRITE: {
-      JSValue err = JS_NewError(ctx);
-
-      JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "JsonWriter: write failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-      JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, "write-failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-      JS_Throw(ctx, err);
-      break;
-    }
-    case JWRITE_E_NOMEM: JS_ThrowOutOfMemory(ctx); break;
-    default: JS_ThrowTypeError(ctx, "JsonWriter: %s", jwrite_error_message(-r)); break;
-  }
-
-  return -1;
-}
-
 /* js_jsonwriter_throw: the exception of a failed sink member, see js_jsonwriter_ret(). */
 static JSValue
 js_jsonwriter_throw(JSContext* ctx, ssize_t r) {
@@ -962,24 +734,6 @@ js_jsonwriter_throw(JSContext* ctx, ssize_t r) {
 static JsonEventSink
 js_jsonwriter_sink(void* opaque) {
   return jwrite_sink(opaque);
-}
-
-/* js_jsonwriter_text: the JS string conversion of val, written as a string or a raw number;
- * null when the conversion throws (the exception is discarded). */
-static ssize_t
-js_jsonwriter_text(JSContext* ctx, JsonWriter* wr, JSValueConst val, BOOL quoted) {
-  size_t len;
-  const char* str = JS_ToCStringLen(ctx, &len, val);
-  ssize_t r;
-
-  if(!str) {
-    clear_pending_exception(ctx);
-    return js_jsonwriter_ret(ctx, jwrite_null(wr));
-  }
-
-  r = quoted ? jwrite_string(wr, str, len) : jwrite_number(wr, str, len);
-  JS_FreeCString(ctx, str);
-  return js_jsonwriter_ret(ctx, r);
 }
 
 /* JsonWriter.value: writes a JS primitive, the one method besides the JsonEventSink ones.
@@ -1002,18 +756,7 @@ js_jsonwriter_value(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!(wr = JS_GetOpaque2(ctx, this_val, js_jsonwriter_class_id)))
     return JS_EXCEPTION;
 
-  if(JS_IsNull(val) || JS_IsUndefined(val) || JS_IsSymbol(val) || JS_IsFunction(ctx, val)) {
-    r = js_jsonwriter_ret(ctx, jwrite_null(wr));
-  } else if(JS_IsBool(val)) {
-    r = js_jsonwriter_ret(ctx, JS_ToBool(ctx, val) ? jwrite_true(wr) : jwrite_false(wr));
-  } else {
-    double d = 0;
-
-    if(JS_IsNumber(val))
-      JS_ToFloat64(ctx, &d, val);
-
-    r = isnan(d) || isinf(d) ? js_jsonwriter_ret(ctx, jwrite_null(wr)) : js_jsonwriter_text(ctx, wr, val, !js_is_numeric(ctx, val));
-  }
+  r = jwrite_js_value(ctx, wr, val);
 
   return r < 0 ? JS_EXCEPTION : JS_UNDEFINED;
 }
@@ -1254,86 +997,44 @@ static const JSCFunctionListEntry js_jsonbuilder_funcs[] = {
  *
  * the sinks are called in order, the first failure stops the event.
  * wired in: JS_CFUNC_DEF("tee") in the module exports. */
-typedef struct {
-  JsonEventSink* sinks;
-  JsonJsSink** adapters;
-  JSValue* objs;
-  size_t len;
-  JsonTee tee; /* first of what the handshake gives away: tee points at sinks */
-  JsonEventSink sink;
-} JsonTeeObj;
 
 static JSClassID js_jsontee_class_id = 0;
 
 static JsonEventSink
 js_jsontee_sink(void* opaque) {
-  JsonTeeObj* t = opaque;
+  JsonJsTee* t = opaque;
 
   return t->sink;
 }
 
-static void
-js_jsontee_free(JSRuntime* rt, JsonTeeObj* t) {
-  for(size_t i = 0; i < t->len; i++) {
-    JS_FreeValueRT(rt, t->objs[i]);
-    js_jsonsink_from_js_free_rt(rt, t->adapters[i]);
-  }
-
-  js_free_rt(rt, t->sinks);
-  js_free_rt(rt, t->adapters);
-  js_free_rt(rt, t->objs);
-  js_free_rt(rt, t);
-}
-
 static JSValue
 js_json_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JsonTeeObj* t;
+  JsonJsTee* t = js_jsontee_new(ctx, argc, argv);
   JSValue obj;
 
-  if(!(t = js_mallocz(ctx, sizeof(JsonTeeObj))))
+  if(!t)
     return JS_EXCEPTION;
 
-  t->sinks = js_mallocz(ctx, sizeof(JsonEventSink) * (argc ? argc : 1));
-  t->adapters = js_mallocz(ctx, sizeof(JsonJsSink*) * (argc ? argc : 1));
-  t->objs = js_mallocz(ctx, sizeof(JSValue) * (argc ? argc : 1));
-
-  if(!t->sinks || !t->adapters || !t->objs)
-    goto fail;
-
-  for(int i = 0; i < argc; i++) {
-    if(js_jsonsink_resolve(ctx, argv[i], &t->sinks[i], &t->adapters[i]))
-      goto fail;
-
-    t->objs[i] = JS_DupValue(ctx, argv[i]);
-    t->len++;
+  if(JS_IsException(obj = JS_NewObjectClass(ctx, js_jsontee_class_id))) {
+    js_jsontee_free_rt(JS_GetRuntime(ctx), t);
+    return JS_EXCEPTION;
   }
-
-  t->tee = (JsonTee){t->sinks, t->len};
-  t->sink = jtee_sink(&t->tee);
-  obj = JS_NewObjectClass(ctx, js_jsontee_class_id);
-
-  if(JS_IsException(obj))
-    goto fail;
 
   JS_SetOpaque(obj, t);
   return obj;
-
-fail:
-  js_jsontee_free(JS_GetRuntime(ctx), t);
-  return JS_EXCEPTION;
 }
 
 static void
 js_jsontee_finalizer(JSRuntime* rt, JSValue val) {
-  JsonTeeObj* t;
+  JsonJsTee* t;
 
   if((t = JS_GetOpaque(val, js_jsontee_class_id)))
-    js_jsontee_free(rt, t);
+    js_jsontee_free_rt(rt, t);
 }
 
 static JSValue
 js_jsontee_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JsonTeeObj* t;
+  JsonJsTee* t;
 
   if(!(t = JS_GetOpaque2(ctx, this_val, js_jsontee_class_id)))
     return JS_EXCEPTION;
@@ -1371,50 +1072,17 @@ js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   int flags = -1;
   BOOL comments = FALSE;
 
-  if(JS_IsFunction(ctx, input)) {
-    reader = reader_from_jsfunction(ctx, input);
-  } else if(JS_IsObject(input)) {
-    JSValue read_fn = JS_GetPropertyStr(ctx, input, "read");
-
-    if(JS_IsException(read_fn))
-      return JS_EXCEPTION;
-
-    if(JS_IsFunction(ctx, read_fn))
-      reader = reader_from_jsmethod(ctx, read_fn, input);
-    else
-      reader = reader_from_jsbuf(ctx, input);
-
-    JS_FreeValue(ctx, read_fn);
-  } else if(JS_IsNumber(input)) {
-    reader = reader_from_fd(js_toint64(ctx, input), FALSE);
-  } else {
+  if(!reader_from_js(ctx, input, &reader))
     reader = reader_from_jsbuf(ctx, input);
-  }
 
   if(argc > 1 && JS_IsObject(argv[1])) {
-    JSValue name = JS_GetPropertyStr(ctx, argv[1], "dialect");
+    JSValue name;
 
-    if(!JS_IsUndefined(name)) {
-      size_t len;
-      const char* str = JS_ToCStringLen(ctx, &len, name);
-
-      if(!str || jr_flags_from_name(str, len, &flags)) {
-        JS_ThrowTypeError(ctx, "JsonParser: unknown dialect %s", str ? str : "");
-
-        if(str)
-          JS_FreeCString(ctx, str);
-
-        JS_FreeValue(ctx, name);
-        reader_free(&reader);
-        return JS_EXCEPTION;
-      }
-
-      JS_FreeCString(ctx, str);
-    } else if(js_get_propertystr_bool(ctx, argv[1], "strict")) {
-      flags = JR_JSON;
+    if(jread_options_from_js(ctx, argv[1], "JsonParser", &flags)) {
+      reader_free(&reader);
+      return JS_EXCEPTION;
     }
 
-    JS_FreeValue(ctx, name);
     comments = js_get_propertystr_bool(ctx, argv[1], "comments");
     name = JS_GetPropertyStr(ctx, argv[1], "filename");
     filename = JS_IsUndefined(name) ? 0 : JS_ToCString(ctx, name);
@@ -1453,18 +1121,6 @@ js_jsonparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   JS_SetOpaque(obj, p);
 
   return obj;
-}
-
-/* js_jsonparser_throw: throws the SyntaxError of an error event of p, the file is that of p->loc. */
-static void
-js_jsonparser_throw(JSContext* ctx, JsonParser* p, const JsonEvent* ev) {
-  Location* at;
-
-  if((at = location_clone(p->loc, ctx))) {
-    location_from_srcpos(at, &ev->at);
-    js_throw_syntax_error(ctx, at, ev->span, ev->code ? ev->code : "unexpected-token", "%s", ev->str ? ev->str : "parse error");
-    location_free(at, JS_GetRuntime(ctx));
-  }
 }
 
 /* JsonParser.pump: runs the parser into a sink, in C.
@@ -1513,12 +1169,12 @@ js_jsonparser_pump(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
 
     if(ev.type == JSON_EVENT_ERROR) {
-      js_jsonparser_throw(ctx, p, &ev);
+      js_jsonevent_throw(ctx, p->loc, &ev);
       goto done;
     }
 
     if((r = jevent_send(&sink, &ev)) < 0) {
-      json_sink_failed(ctx, adapter != NULL, r);
+      js_jsonsink_failed(ctx, adapter != NULL, r);
       goto done;
     }
   }
@@ -1601,7 +1257,7 @@ js_jsonparser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSV
     return JS_UNDEFINED;
 
   if(ev.type == JSON_EVENT_ERROR) {
-    js_jsonparser_throw(ctx, p, &ev);
+    js_jsonevent_throw(ctx, p->loc, &ev);
     return JS_EXCEPTION;
   }
 

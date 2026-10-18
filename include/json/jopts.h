@@ -51,4 +51,27 @@ void jsonspace_args(JSContext*, int argc, JSValueConst argv[], JSValueConst* rep
 void jwrite_options_from_js(JSContext*, JSValueConst obj, JsonWriteOptions* opts);
 
 /** @} */
+/* js_jsonwriter_ret: turns a jwrite_*() result into a JS outcome.
+ *
+ * returns the bytes written, or -1 with an exception pending (an Error with code write-failed,
+ * out of memory, or a TypeError naming the writer error). */
+ssize_t js_jsonwriter_ret(JSContext*, ssize_t r);
+
+/* jwrite_js_value: writes a JS primitive.
+ *
+ *   JS value                        written as
+ *   null, undefined, symbol, fn     null
+ *   boolean                         true / false
+ *   string                          string
+ *   NaN, Infinity                   null
+ *   number, bigint                  the JS text (1.5, 1e21, 123n -> 123)
+ *   other object                    its toString, as a string
+ *
+ * returns the bytes written, or -1 with an exception pending, see js_jsonwriter_ret(). */
+ssize_t jwrite_js_value(JSContext*, JsonWriter*, JSValueConst val);
+
+/* jread_options_from_js: the syntax flags (JR_*) of the options object dialect and strict, -1 if
+ * it names none. returns 0, or -1 with a TypeError pending for an unknown dialect. */
+int jread_options_from_js(JSContext*, JSValueConst obj, const char* who, int* flags);
+
 #endif /* JOPTS_H */

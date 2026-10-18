@@ -30,24 +30,6 @@ char* js_inspect_tostring(JSContext* ctx, JSValueConst value);
  * \defgroup quickjs-xml quickjs-xml: XML parser & printer
  * @{
  */
-static const char* const default_self_closing_tags[] = {
-    "area",
-    "base",
-    "br",
-    "col",
-    "embed",
-    "hr",
-    "img",
-    "input",
-    "link",
-    "meta",
-    "param",
-    "source",
-    "track",
-    "wbr",
-    0,
-};
-
 #ifdef DEBUG_OUTPUT
 #define xml_debug(args...) printf(args)
 #else
@@ -55,105 +37,11 @@ static const char* const default_self_closing_tags[] = {
 #endif
 
 static JSValue
-make_tuple(JSContext* ctx, JSValue a, JSValue b) {
-  JSValue ret = JS_NewArray(ctx);
-
-  JS_SetPropertyUint32(ctx, ret, 0, a);
-  JS_SetPropertyUint32(ctx, ret, 1, b);
-
-  return ret;
-}
-
-/* the element tree or flat list of `buf`, driven by the event parser of src/xml/xml.c.
- *
- *   tree  [{tagName, attributes, children}], children only on elements that stay open
- *   flat  [{tagName, attributes}, 'text', {tagName: '/name'}, ...]
- *
- * returns the array (or [array, WeakMap] with location) or throws SyntaxError. */
-/* js_xml_parse: the element tree or flat list of `buf`, driven by the event parser of
- * src/xml/xml.c and built by XmlBuilder (src/xml/xbuilder.c).
- *
- *   tree  [{tagName, attributes, children}], children only on elements that stay open
- *   flat  [{tagName, attributes}, 'text', {tagName: '/name'}, ...]
- *
- * returns the array (or [array, WeakMap] with location) or throws SyntaxError. */
-static JSValue
-js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, XmlOptions opts) {
-  Reader reader = reader_from_bytes(buf, len);
-  XMLParser xp;
-  XmlBuilder xb;
-  JSValue ret;
-  VirtualProperties vprop = {0};
-  XmlEvent ev;
-  XmlPull st;
-  BOOL failed = FALSE;
-
-  xml_init(&xp, &reader);
-  xml_set_tolerant(&xp, opts.tolerant);
-  xml_set_flat(&xp, opts.flat);
-  xp.self_closing_tags = opts.self_closing_tags;
-  xbuild_init(&xb, ctx, XB_PLAIN | (opts.flat ? XB_FLAT : 0));
-
-  if(opts.location)
-    vprop = virtual_properties_map(ctx, js_object_new(ctx, "WeakMap", 0, 0));
-
-  while((st = xml_next(&xp, &ev)) != XML_PULL_END && st != XML_PULL_FAIL) {
-    BOOL located;
-
-    if(st == XML_PULL_AGAIN)
-      continue;
-
-    if(ev.type == XE_ERROR) {
-      char msg[128];
-
-      snprintf(msg, sizeof(msg), "mismatch </%.*s>", (int)xp.event_name.len, xp.event_name.data);
-      js_throw_syntax_error_at(ctx, input_name, &ev.at, ev.span, ev.code, msg);
-      failed = TRUE;
-      break;
-    }
-
-    xbuild_handler(&xb, &ev);
-
-    /* an element or markup start has a position, so has the end of a flat list's element */
-    located = ev.type == XE_ELEMENT_START || ev.type == XE_COMMENT || ev.type == XE_DECLARATION || ev.type == XE_INSTRUCTION || ev.type == XE_CDATA || (ev.type == XE_ELEMENT_END && opts.flat);
-
-    if(located && opts.location) {
-      JSValue last = xbuild_last(&xb);
-
-      if(!JS_IsUndefined(last))
-        virtual_set(&vprop, ctx, last, make_tuple(ctx, JS_NewUint32(ctx, xp.tag_line), JS_NewUint32(ctx, xp.tag_column)));
-
-      JS_FreeValue(ctx, last);
-    }
-  }
-
-  /* input that ends inside open elements: they keep (empty) children */
-  if(!failed)
-    xbuild_finish(&xb);
-
-  ret = xbuild_root(&xb);
-  xbuild_free(&xb, JS_GetRuntime(ctx));
-  xml_free(&xp);
-  reader_free(&reader);
-
-  if(failed) {
-    JS_FreeValue(ctx, ret);
-
-    if(opts.location)
-      JS_FreeValue(ctx, vprop.this_obj);
-
-    return JS_EXCEPTION;
-  }
-
-  return opts.location ? make_tuple(ctx, ret, vprop.this_obj) : ret;
-}
-
-static JSValue
 js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
   InputBuffer input;
   const char* input_name = 0;
-  XmlOptions opts = {.self_closing_tags = default_self_closing_tags};
+  XmlOptions opts = {.self_closing_tags = xml_html_self_closing_tags};
 
   if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
     return JS_ThrowTypeError(ctx, "xml.read(): expecting buffer or string");
@@ -185,7 +73,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     }
   }
 
-  ret = js_xml_parse(ctx, input.data, input.size, input_name ? input_name : "<xml>", opts);
+  ret = xml_read_value(ctx, input.data, input.size, input_name ? input_name : "<xml>", opts);
 
   if(input_name)
     JS_FreeCString(ctx, input_name);
@@ -195,88 +83,14 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   return ret;
 }
 
-/* xml_write_tree: the XML text of a tree or flat list, a walk pumped into an XMLWriter layout.
- *
- * returns 0 with the text in *out, or -1 with an exception pending. */
-static JSValue xmlwriter_throw(JSContext* ctx, ssize_t r);
-
-static int
-xml_write_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, BOOL flat, DynBuf* out) {
-  XwalkSource src;
-  XmlWriter wr = {.writer = writer_from_dynbuf(out)};
-  XmlEventSink sink;
-  XmlEvent ev;
-  XmlPull st;
-  ssize_t r;
-  int ret = -1;
-
-  if(xwalk_source_init(&src, ctx, tree, flat ? XWALK_FLAT | XWALK_BALANCED : 0, NULL))
-    return -1;
-
-  src.max_depth = max_depth;
-  xwrite_init(&wr, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx));
-  xwrite_set_indent(&wr, 2);
-  sink = xwrite_sink(&wr);
-
-  while((st = xwalk_event(&src, &ev)) == XML_PULL_EVENT)
-    if((r = xevent_send(&sink, &ev)) < 0) {
-      xmlwriter_throw(ctx, r);
-      st = XML_PULL_FAIL;
-      break;
-    }
-
-  if(st != XML_PULL_FAIL)
-    ret = 0;
-
-  wr.writer.finalizer = NULL; /* out is the caller's, xwrite_free() must not close it */
-  xwrite_free(&wr);
-  xwalk_source_close(&src, ctx);
-  return ret;
-}
-
 static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  DynBuf output = {0};
-  JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
-  JSValue ret, last, children = JS_UNDEFINED, arr = JS_UNDEFINED;
   int32_t max_depth = INT32_MAX;
-  size_t len;
-  BOOL flat = TRUE;
-
-  dbuf_init_ctx(ctx, &output);
 
   if(argc >= 2)
     JS_ToInt32(ctx, &max_depth, argv[1]);
 
-  if(!JS_IsArray(ctx, obj)) {
-    arr = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, arr, 0, JS_DupValue(ctx, obj));
-    obj = arr;
-  }
-
-  len = js_array_length(ctx, obj);
-  last = JS_GetPropertyUint32(ctx, obj, len - 1);
-
-  if(JS_IsObject(last)) {
-    children = JS_GetPropertyStr(ctx, last, "children");
-
-    if(JS_IsArray(ctx, children))
-      flat = FALSE;
-  }
-
-  xml_debug("js_xml_write len=%"PRIu64", children=%s, flat=%d\n", (uint64_t)len, JS_ToCString(ctx, children), flat);
-
-  if(xml_write_tree(ctx, obj, max_depth, flat, &output) < 0)
-    ret = JS_EXCEPTION;
-  else
-    ret = JS_NewStringLen(ctx, (const char*)output.buf, output.size);
-
-  dbuf_free(&output);
-
-  if(!JS_IsUndefined(arr))
-    JS_FreeValue(ctx, arr);
-
-  return ret;
+  return xml_write_value(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, max_depth);
 }
 
 static JSValue js_xml_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]);
@@ -308,8 +122,6 @@ static const JSCFunctionListEntry js_xml_funcs[] = {
 static JSClassID js_xmlserializer_class_id;
 static JSValue xmlserializer_proto, xmlserializer_ctor;
 
-static JSValue xmlwriter_throw(JSContext* ctx, ssize_t r);
-
 typedef struct {
   XwalkSource src;
   XmlSerial ser;
@@ -336,7 +148,7 @@ xmlserializer_read(JSContext* ctx, XMLTreeSerializer* xs, void* buf, size_t n) {
   xwalk_source_close(&xs->src, ctx);
 
   if(xs->ser.error)
-    xmlwriter_throw(ctx, xs->ser.error);
+    js_xmlwrite_throw(ctx, xs->ser.error);
 
   return -1;
 }
@@ -403,29 +215,17 @@ js_xmlserializer_get_finished(JSContext* ctx, JSValueConst this_val) {
 
 static JSValue
 js_xmlserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj, root = JS_UNDEFINED;
+  JSValue proto, obj, root;
   JSValueConst tree = argc > 0 ? argv[0] : JS_UNDEFINED;
   XMLTreeSerializer* xs;
+  BOOL flat;
+  int flags;
 
   if(!(xs = js_mallocz(ctx, sizeof(XMLTreeSerializer))))
     return JS_EXCEPTION;
 
-  /* a single node is a list of one */
-  if(JS_IsArray(ctx, tree)) {
-    root = JS_DupValue(ctx, tree);
-  } else {
-    root = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, root, 0, JS_DupValue(ctx, tree));
-  }
-
-  /* as xml.write(): a list whose last node has no children array is a flat list */
-  size_t len = js_array_length(ctx, root);
-  JSValue last = len ? JS_GetPropertyUint32(ctx, root, len - 1) : JS_UNDEFINED;
-  JSValue kids = JS_IsObject(last) ? JS_GetPropertyStr(ctx, last, "children") : JS_UNDEFINED;
-  int flags = JS_IsArray(ctx, kids) ? 0 : XWALK_FLAT | XWALK_BALANCED;
-
-  JS_FreeValue(ctx, kids);
-  JS_FreeValue(ctx, last);
+  root = xml_tree_list(ctx, tree, &flat);
+  flags = flat ? XWALK_FLAT | XWALK_BALANCED : 0;
 
   if(xwalk_source_init(&xs->src, ctx, root, flags, NULL)) {
     JS_FreeValue(ctx, root);
@@ -479,10 +279,8 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
 
 typedef struct PushParser {
   JSContext* ctx;
-  JSValue this_obj;
   struct xr_state xrs;
-  JSValue attribute, element_start, element_end, error, text;
-  JSValue on_parse_error; /* onParseError(err): receives the SyntaxError instead of a throw */
+  XmlJsCallbacks cb;
   JSValue last_error;     /* SyntaxError of the latest error, or JS_UNDEFINED */
   XmlBuilder builder;
   XmlEventSink sink; /* xbuild_sink(&builder) */
@@ -493,24 +291,6 @@ typedef struct PushParser {
   XmlJsSink* ext_adapter;
   JSValue ext_obj;  /* the object behind ext, kept alive */
 } XMLPushParser;
-
-/* xml_sink_failed: the exception for a sink member that returned r < 0.
- *
- * a JS-object sink (adapter) leaves its own exception pending, a native sink gives a code.
- *
- * returns JS_EXCEPTION. */
-static JSValue
-xml_sink_failed(JSContext* ctx, BOOL adapter, ssize_t r) {
-  JSValue err;
-
-  if(adapter)
-    return JS_EXCEPTION;
-
-  err = JS_NewError(ctx);
-  JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, "XmlEventSink: event failed"), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewInt64(ctx, (int64_t)r), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-  return JS_Throw(ctx, err);
-}
 
 /* xml_pushparser_report: builds the SyntaxError for a failure at `pos`, keeps it as
  * `last_error` and passes it to `onParseError(err)`; throws nothing.
@@ -529,15 +309,15 @@ xml_pushparser_report(XMLPushParser* pp, const SourcePos* pos, size_t length, co
   JS_FreeValue(ctx, pp->last_error);
   pp->last_error = JS_DupValue(ctx, err);
 
-  if(JS_IsFunction(ctx, pp->on_parse_error)) {
-    JSValue ret = JS_Call(ctx, pp->on_parse_error, pp->this_obj, 1, &err);
+  if(JS_IsFunction(ctx, pp->cb.on_parse_error)) {
+    JSValue ret = JS_Call(ctx, pp->cb.on_parse_error, pp->cb.this_obj, 1, &err);
 
     JS_FreeValue(ctx, ret); /* an exception from the callback is dropped */
     JS_FreeValue(ctx, JS_GetException(ctx));
   }
 
   JS_FreeValue(ctx, err);
-  return JS_IsFunction(ctx, pp->on_parse_error);
+  return JS_IsFunction(ctx, pp->cb.on_parse_error);
 }
 
 /* xml_pushparser_event_build: the handler of the builder mode, an error goes to onParseError. */
@@ -553,55 +333,16 @@ xml_pushparser_event_build(void* user, const XmlEvent* ev) {
   return xevent_send(&pp->sink, ev);
 }
 
-/* xml_pushparser_event: the handler of the callback mode, calls the matching option function.
- *
- *   event          callback
- *   element_start  elementStart(name)
- *   element_end    elementEnd(name)
- *   attribute      attribute(name, value), true for a bare attribute
- *   text           text(undefined, value)
- *   error          error("Error!", offending text), and onParseError(err)
- */
+/* xml_pushparser_event: the handler of the callback mode, an error goes to onParseError and
+ * to the error callback. */
 static ssize_t
 xml_pushparser_event(void* user, const XmlEvent* ev) {
   XMLPushParser* pp = user;
-  JSContext* ctx = pp->ctx;
-  JSValue args[2] = {JS_UNDEFINED, JS_UNDEFINED};
-  JSValue* cb = 0;
 
   if(ev->type == XE_ERROR)
     xml_pushparser_report(pp, &ev->at, ev->span, ev->code, "XMLPushParser: malformed input");
 
-  switch(ev->type) {
-    case XE_ELEMENT_START:
-    case XE_ELEMENT_END:
-      cb = ev->type == XE_ELEMENT_START ? &pp->element_start : &pp->element_end;
-      args[0] = ev->name ? JS_NewStringLen(ctx, ev->name, ev->nlen) : JS_UNDEFINED;
-      break;
-    case XE_ATTRIBUTE:
-      cb = &pp->attribute;
-      args[0] = JS_NewStringLen(ctx, ev->name, ev->nlen);
-      args[1] = ev->value ? JS_NewStringLen(ctx, ev->value, ev->vlen) : JS_TRUE;
-      break;
-    case XE_TEXT:
-      cb = &pp->text;
-      args[1] = JS_NewStringLen(ctx, ev->str, ev->len);
-      break;
-    case XE_ERROR:
-      cb = &pp->error;
-      args[0] = JS_NewString(ctx, "Error!");
-      args[1] = ev->str ? JS_NewStringLen(ctx, ev->str, ev->len) : JS_UNDEFINED;
-      break;
-    default: break;
-  }
-
-  /* the options object need not define every callback, a missing one is skipped */
-  if(cb && JS_IsFunction(ctx, *cb))
-    JS_FreeValue(ctx, JS_Call(ctx, *cb, pp->this_obj, countof(args), args));
-
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
-  return 0;
+  return js_xmlcallbacks_event(&pp->cb, ev);
 }
 
 /* xml_pushparser_event_ext: the handler after connect(), every event goes to the sink. */
@@ -645,7 +386,7 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   inputbuffer_free(&input, ctx);
 
   if(r < 0)
-    return xml_sink_failed(ctx, pp->ext_adapter != NULL, r);
+    return js_xmlsink_failed(ctx, pp->ext_adapter != NULL, r);
 
   /* xr_feed() sets xrs.error and goes silently inert (every further xr_feed()/
    * xr_end() call becomes a no-op) rather than reporting anything itself - most
@@ -655,7 +396,7 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
    * XE_ERROR to it) and owns handling this, so only throw here in the
    * builder fallback, which otherwise has no way to report it at all - .root
    * would just silently stop growing. */
-  if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->on_parse_error))
+  if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->cb.on_parse_error))
     return js_throw_syntax_error_at(ctx, "<xml>", &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed input");
 
   return JS_UNDEFINED;
@@ -671,7 +412,7 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   ssize_t r = xr_end(&pp->xrs, xml_pushparser_handler(pp), pp);
 
   if(r < 0)
-    return xml_sink_failed(ctx, pp->ext_adapter != NULL, r);
+    return js_xmlsink_failed(ctx, pp->ext_adapter != NULL, r);
 
   /* xr_end()'s own !at_root check (which sets xrs.error) only catches ending
    * mid-tag, e.g. "<a><b" with no closing '>' - src/xml/xread.c's l_tag_end sets
@@ -680,7 +421,7 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
    * directly instead, to also catch e.g. "<a><b/>" (well-formed lexically, but
    * <a> itself was never closed). Only in the builder fallback - see write()'s
    * comment above for why custom-callback mode doesn't also throw here. */
-  if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->on_parse_error))
+  if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->cb.on_parse_error))
     return js_throw_syntax_error_at(ctx, "<xml>", &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed or truncated input");
 
   if(pp->xrs.error) /* the error callback already ran; nothing left open to report */
@@ -743,23 +484,14 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
   pp->ctx = ctx;
 
   /* options is also this_obj: the object callbacks are invoked with, so an
-   * elementStart() etc. method can be defined directly on the options object passed
-   * to the constructor and use `this` to reach the others (or the parser itself, via
-   * a self-reference the caller stashes on it) without a separate thisArg. */
-  pp->this_obj = JS_DupValue(ctx, options);
-  pp->attribute = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "attribute") : JS_UNDEFINED;
-  pp->element_start = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementStart") : JS_UNDEFINED;
-  pp->element_end = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "elementEnd") : JS_UNDEFINED;
-  pp->error = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "error") : JS_UNDEFINED;
-  pp->text = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "text") : JS_UNDEFINED;
-  pp->on_parse_error = JS_IsObject(options) ? JS_GetPropertyStr(ctx, options, "onParseError") : JS_UNDEFINED;
+   * elementStart() etc. method can be defined directly on the options object. */
+  js_xmlcallbacks_init(ctx, &pp->cb, options);
   pp->last_error = JS_UNDEFINED;
   pp->ext_obj = JS_UNDEFINED;
 
   /* no real callback given at all: build a tree (retrievable via .root) instead of
    * forwarding events that would just be dropped on the floor. */
-  pp->use_builder = !JS_IsFunction(ctx, pp->attribute) && !JS_IsFunction(ctx, pp->element_start) && !JS_IsFunction(ctx, pp->element_end) &&
-                    !JS_IsFunction(ctx, pp->error) && !JS_IsFunction(ctx, pp->text);
+  pp->use_builder = !js_xmlcallbacks_any(&pp->cb);
 
   xr_state_init(&pp->xrs);
 
@@ -784,13 +516,7 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
   if((pp = JS_GetOpaque(val, js_xml_pushparser_class_id))) {
     xr_state_free(&pp->xrs);
     xbuild_free(&pp->builder, rt);
-    JS_FreeValueRT(rt, pp->this_obj);
-    JS_FreeValueRT(rt, pp->attribute);
-    JS_FreeValueRT(rt, pp->element_start);
-    JS_FreeValueRT(rt, pp->element_end);
-    JS_FreeValueRT(rt, pp->error);
-    JS_FreeValueRT(rt, pp->text);
-    JS_FreeValueRT(rt, pp->on_parse_error);
+    js_xmlcallbacks_free_rt(rt, &pp->cb);
     JS_FreeValueRT(rt, pp->last_error);
     JS_FreeValueRT(rt, pp->ext_obj);
     js_xmlsink_from_js_free_rt(rt, pp->ext_adapter);
@@ -866,26 +592,6 @@ static JSClassDef js_xml_pushparser_class = {
    give typed events, pump() runs it into a sink in C.
    ---------------------------------------------------------------------- */
 
-/* xml_error_new: the SyntaxError for the XE_ERROR `xp` just returned, at the
- * start of the offending tag; `base` supplies the input name.
- *
- * returns the error object (refcount: a new reference), or JS_EXCEPTION. */
-static JSValue
-xml_error_new(JSContext* ctx, const XMLParser* xp, const Location* base) {
-  Location* at;
-  JSValue ret;
-
-  if(!(at = location_clone(base, ctx)))
-    return JS_EXCEPTION;
-
-  at->line = xp->tag_line - 1;
-  at->column = xp->tag_column - 1;
-  at->char_offset = at->byte_offset = -1;
-  ret = js_syntax_error_new(ctx, at, xp->err_len, xp->err_code, "mismatch </%.*s>", (int)xp->event_name.len, xp->event_name.data);
-  location_free(at, JS_GetRuntime(ctx));
-  return ret;
-}
-
 typedef struct {
   Reader reader;
   XMLParser xp;
@@ -957,7 +663,7 @@ js_xml_parser_pump(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   while((st = xml_next(&p->xp, &ev)) == XML_PULL_EVENT) {
     if(ev.type == XE_ERROR) {
-      JSValue err = xml_error_new(ctx, &p->xp, p->loc);
+      JSValue err = js_xmlevent_error(ctx, &p->xp, p->loc);
 
       if(!JS_IsException(err))
         JS_Throw(ctx, err);
@@ -966,7 +672,7 @@ js_xml_parser_pump(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
 
     if((r = xevent_send(&sink, &ev)) < 0) {
-      xml_sink_failed(ctx, adapter != NULL, r);
+      js_xmlsink_failed(ctx, adapter != NULL, r);
       goto done;
     }
   }
@@ -1010,7 +716,7 @@ js_xml_parser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSV
     return JS_UNDEFINED;
 
   if(ev.type == XE_ERROR) {
-    JSValue err = xml_error_new(ctx, &p->xp, p->loc);
+    JSValue err = js_xmlevent_error(ctx, &p->xp, p->loc);
 
     return JS_IsException(err) ? err : JS_Throw(ctx, err);
   }
@@ -1294,86 +1000,44 @@ static const JSCFunctionListEntry js_xmlbuilder_funcs[] = {
  *
  * the sinks are called in order, the first failure stops the event.
  * wired in: JS_CFUNC_DEF("tee") in the module exports. */
-typedef struct {
-  XmlEventSink* sinks;
-  XmlJsSink** adapters;
-  JSValue* objs;
-  size_t len;
-  XmlTee tee; /* first of what the handshake gives away: tee points at sinks */
-  XmlEventSink sink;
-} XmlTeeObj;
 
 static JSClassID js_xmltee_class_id = 0;
 
 static XmlEventSink
 js_xmltee_sink(void* opaque) {
-  XmlTeeObj* t = opaque;
+  XmlJsTee* t = opaque;
 
   return t->sink;
 }
 
-static void
-js_xmltee_free(JSRuntime* rt, XmlTeeObj* t) {
-  for(size_t i = 0; i < t->len; i++) {
-    JS_FreeValueRT(rt, t->objs[i]);
-    js_xmlsink_from_js_free_rt(rt, t->adapters[i]);
-  }
-
-  js_free_rt(rt, t->sinks);
-  js_free_rt(rt, t->adapters);
-  js_free_rt(rt, t->objs);
-  js_free_rt(rt, t);
-}
-
 static JSValue
 js_xml_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XmlTeeObj* t;
+  XmlJsTee* t = js_xmltee_new(ctx, argc, argv);
   JSValue obj;
 
-  if(!(t = js_mallocz(ctx, sizeof(XmlTeeObj))))
+  if(!t)
     return JS_EXCEPTION;
 
-  t->sinks = js_mallocz(ctx, sizeof(XmlEventSink) * (argc ? argc : 1));
-  t->adapters = js_mallocz(ctx, sizeof(XmlJsSink*) * (argc ? argc : 1));
-  t->objs = js_mallocz(ctx, sizeof(JSValue) * (argc ? argc : 1));
-
-  if(!t->sinks || !t->adapters || !t->objs)
-    goto fail;
-
-  for(int i = 0; i < argc; i++) {
-    if(js_xmlsink_resolve(ctx, argv[i], &t->sinks[i], &t->adapters[i]))
-      goto fail;
-
-    t->objs[i] = JS_DupValue(ctx, argv[i]);
-    t->len++;
+  if(JS_IsException(obj = JS_NewObjectClass(ctx, js_xmltee_class_id))) {
+    js_xmltee_free_rt(JS_GetRuntime(ctx), t);
+    return JS_EXCEPTION;
   }
-
-  t->tee = (XmlTee){t->sinks, t->len};
-  t->sink = xtee_sink(&t->tee);
-  obj = JS_NewObjectClass(ctx, js_xmltee_class_id);
-
-  if(JS_IsException(obj))
-    goto fail;
 
   JS_SetOpaque(obj, t);
   return obj;
-
-fail:
-  js_xmltee_free(JS_GetRuntime(ctx), t);
-  return JS_EXCEPTION;
 }
 
 static void
 js_xmltee_finalizer(JSRuntime* rt, JSValue val) {
-  XmlTeeObj* t;
+  XmlJsTee* t;
 
   if((t = JS_GetOpaque(val, js_xmltee_class_id)))
-    js_xmltee_free(rt, t);
+    js_xmltee_free_rt(rt, t);
 }
 
 static JSValue
 js_xmltee_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XmlTeeObj* t;
+  XmlJsTee* t;
 
   if(!(t = JS_GetOpaque2(ctx, this_val, js_xmltee_class_id)))
     return JS_EXCEPTION;
@@ -1404,42 +1068,9 @@ xmlwriter_set_indent(XMLWriter* wr, int32_t indent) {
   xwrite_set_indent(&wr->xw, indent);
 }
 
-/* xmlwriter_throw: maps a failed xwrite event (-r) to a JS exception.
- *
- *   code                         throws
- *   XWRITE_E_MISMATCH            TypeError, code mismatched-end-tag
- *   XWRITE_E_UNMATCHED           TypeError, code unmatched-end-tag
- *   XWRITE_E_NOT_IN_TAG          TypeError, code attribute-outside-tag
- *   XWRITE_E_WRITE               Error, code write-failed
- *   XWRITE_E_NOMEM               out of memory
- *
- * returns JS_EXCEPTION. */
-static JSValue
-xmlwriter_throw(JSContext* ctx, ssize_t r) {
-  const char* text = xwrite_error_message(-r);
-  char msg[96];
-  JSValue err;
-
-  if(-r == XWRITE_E_NOMEM)
-    return JS_ThrowOutOfMemory(ctx);
-
-  snprintf(msg, sizeof(msg), "XMLWriter: %s", text ? text : "write failed");
-
-  if(-r == XWRITE_E_WRITE) {
-    err = JS_NewError(ctx);
-    JS_DefinePropertyValueStr(ctx, err, "message", JS_NewString(ctx, msg), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-  } else {
-    JS_ThrowTypeError(ctx, "%s", msg);
-    err = JS_GetException(ctx);
-  }
-
-  JS_DefinePropertyValueStr(ctx, err, "code", JS_NewString(ctx, xwrite_error_code(-r)), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
-  return JS_Throw(ctx, err);
-}
-
 /* XMLWriter is an XmlEventSink object: elementStart, attribute, elementEnd, text, comment,
  * declaration, instruction, cdata and error come from js_xmlsink_define() (xml/xsink.h) and
- * write through xwrite.h; failures are thrown by xmlwriter_throw(). */
+ * write through xwrite.h; failures are thrown by js_xmlwrite_throw(). */
 static XmlEventSink
 js_xmlwriter_sink(void* opaque) {
   return xwrite_sink(&((XMLWriter*)opaque)->xw);
@@ -1650,7 +1281,7 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   xmlwriter_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, xmlwriter_proto, js_xmlwriter_funcs, countof(js_xmlwriter_funcs));
-  js_xmlsink_register(js_xmlwriter_class_id, js_xmlwriter_sink, xmlwriter_throw, js_xmlwriter_note);
+  js_xmlsink_register(js_xmlwriter_class_id, js_xmlwriter_sink, js_xmlwrite_throw, js_xmlwriter_note);
   js_xmlsink_define(ctx, xmlwriter_proto);
   js_xmlsink_define_handshake(ctx, xmlwriter_proto, js_xmlwriter_handshake);
 

@@ -391,8 +391,7 @@ directly for Bun-compatible code.
 **Spec:** https://developer.mozilla.org/en-US/docs/Web/API/DOMParser (closest precedent; no exact WHATWG spec for this API shape)  
 **Exports:**
 - `read(input, inputName?, options?)` / `write(value, maxDepth?)` module functions
-- `XMLParser` - incremental pull parser (event-based, builds `.root` tree)
-- `XMLNodeParser` - pull parser yielding flat node-per-call
+- `XMLParser` - incremental pull parser: `next()` / `for..of` give typed events, `pump(sink)` runs it into a sink (a flat list is `XmlBuilder({flat: true})`)
 - `XMLPushParser` - push-style parser fed via `.write()`
 - `XMLTreeSerializer` - lazy pull serializer of a `{tagName, attributes, children}` tree (`.read(n)`); named apart from the WHATWG `XMLSerializer` (`.serializeToString(node)`), which `lib/dom.js` is to provide
 - `XMLWriter` - event-driven writer with manual `elementStart`/`attribute`/`text`/`elementEnd` calls

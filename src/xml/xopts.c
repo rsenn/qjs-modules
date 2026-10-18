@@ -12,6 +12,24 @@
  * @{
  */
 
+const char* const xml_html_self_closing_tags[] = {
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+    0,
+};
+
 int
 xml_options_from_js(JSContext* ctx, JSValueConst options, XmlOptions* o) {
   JSValue v;

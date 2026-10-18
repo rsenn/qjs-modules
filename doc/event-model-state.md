@@ -241,3 +241,16 @@ are gone, as are `JsonParser.parse()`, `pos`, `token`, `state`, `NEED_DATA` and 
 (`lib/html.js`, `examples/html2md.js`, qjs-lws `examples/crawler/lib/html2md.js`, `utilities/jsonpp.js`) use `next()`. A JSON event has
 `raw` for a number and the text as `value` for a comment. The old pull tests run on a `Pull` subclass in `test-xml.js` / `test-json.js`.
 Open: `json_parse` / `xml_parse` stay as engine functions under `json_next` / `xml_next` (P13 rest), tokenizer merge (P14), P15.
+
+## Lifted out of quickjs-{json,xml}.c (no new files)
+
+`quickjs-json.c` 1756 to 1412 lines, `quickjs-xml.c` 1708 to 1339. Moved into existing files:
+- `jevent-js.c` / `xevent-js.c`: `json_read_value`, `xml_read_value`, `xml_write_value`, `xml_tree_list`, `js_xmlwrite_throw`,
+  `js_jsonevent_throw`, `js_xmlevent_error`.
+- `jwalk.c`: `jwalk_stringify` (the core of `json.write()`).
+- `jopts.c` / `xopts.c`: `js_jsonwriter_ret`, `jwrite_js_value`, `jread_options_from_js` (dialect and strict, shared by both
+  JSON parsers), `xml_html_self_closing_tags`.
+- `jsink.c` / `xsink.c`: `js_jsonsink_failed`, `js_xmlsink_failed`.
+- `jconnect.c` / `xconnect.c`: `JsonJsCallbacks` / `XmlJsCallbacks` (the callback mode of the push parsers) and
+  `JsonJsTee` / `XmlJsTee` (the JS-owning tee).
+What stays is binding: classes, constructors, getters, finalizers, the push parsers' write/close error rules, module init.

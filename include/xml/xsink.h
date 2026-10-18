@@ -84,6 +84,12 @@ void js_xmlsink_from_js_free(JSContext*, XmlJsSink*);
 /* js_xmlsink_from_js_free_rt: the same for a finalizer, which has a runtime and no context. */
 void js_xmlsink_from_js_free_rt(JSRuntime*, XmlJsSink*);
 
+/* js_xmlsink_failed: the exception for a sink member that returned r < 0.
+ *
+ * a JS-object sink (adapter) leaves its own exception pending, a native sink gives an Error with
+ * code r. returns JS_EXCEPTION. */
+JSValue js_xmlsink_failed(JSContext*, int adapter, ssize_t r);
+
 /**
  * @}
  */
