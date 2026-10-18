@@ -358,6 +358,9 @@ qjsm tests/unittests/test-stream.js
 
 ### Code Style
 - Match existing style in files you edit
+- **No braces around a one-statement body** of `if`/`else`/`for`/`while`: `if(remainder)` newline `remainder++;` and `while(cond && (0x03 & j))` newline `out[j++] = c;`. Braces only for two or more statements (or to disambiguate a dangling `else`).
+- Initialize a variable in its declaration when the value is known there; do not declare it and assign it on a later line. When declaration and first assignment cannot be adjacent and the variable is only tested, fold the assignment into the test, as long as readability holds and the line stays reasonably short (a short right-hand side and a simple comparison). A blank line separates the declarations from the statements that follow.
+- Group declarations of the same base type at one scope into one declaration; pointers to that type join it with their own asterisks. Order within the line: names without an initializer first, then initialized ones from the simplest initializer to the most complex; a variable another initializer depends on comes before its dependant. Keep an initialized variable on its own line when the initializer is a call or expression that does not fit comfortably, when it has side effects whose order matters, when the line would pass about 80 columns, or when the group would hold more than about four names. Never merge types that differ in indirection depth or qualifiers (const, volatile) just to save a line.
 - No speculative features or abstractions
 - Surgical changes only - don't "improve" adjacent code
 - Remove only what YOUR changes made unused
@@ -484,12 +487,25 @@ a table or a diagram is, not something they have to read start to end.
   the current behavior and, if not obvious, the one reason it must be so.
 - A comment starts lowercase, unless its first word is an identifier that
   starts with an uppercase letter (`CFunction: ...`). Later sentences are
-  fragments or follow after `;`, not new capitalised ones.
+  fragments joined by a comma or a dash, not new capitalised ones.
 - Comment text is 75 columns at most, measured after the leading ` * ` (or
   `/* `); with the prefix that is 78, so a closing ` */` still fits.
-- Multi-line code in a comment is fenced (```` ```c ```` / ```` ```js ````),
-  each fence on its own comment line. A one-line snippet uses single
-  backticks.
+- Plain text, no markdown idioms in comments: no ``` fences, and no
+  backticks, neither around code nor for quoting. Code in a comment is plain
+  lines indented by 2 spaces more than the comment text; an identifier is
+  written bare (ptr, JS_FreeCString).
+- Go light on punctuation and quotation marks: plain words, short sentences,
+  no decorative quotes or parentheses. Quote only a literal the reader must
+  see exactly, such as an error message.
+- Comment text has no semicolon, so a grep for names ending in a semicolon finds only code; split into two fragments or use a comma or a dash. A semicolon appears only inside real C or JS code. Names in a comment are bare, no backquotes or quotes around them: write that opaque is b. In a doxygen comment use \param, \return and the like instead.
+- A comment on a function prototype starts with a brief of one or two lines, then the rest in separate paragraphs, never one crammed block. When a comment grows past about 4 lines or its text refers to argument names, make it a doxygen comment. A doxygen comment lists the parameters in aligned columns (type, name and description each start at the same column, padded to fit) and then the return type and its meaning. A non-doxygen comment describes a parameter or the return value only where the caller needs it. In both forms the detailed description follows the brief, or follows the parameters when it refers to them.
+- In C code never use // comments, not even trailing ones; always /* ... */.
+- A comment contains */ only where it ends. Check the text for a glob or path
+  such as lib/*/x.c, or a nested comment opener; reword it (lib/<module>/x.c)
+  instead of escaping it.
+- A table in a comment may use unicode line-drawing characters
+  (┌ ─ ┬ ┐ │ ├ ┼ ┤ └ ┴ ┘); aligned columns stay fine too. Keep every row the
+  same width, and count columns, not bytes.
 - A function's comment says what it does in its first line; after two lines
   a reader who has not seen the code can say what goes in and what comes
   out. Show one concrete input and its result rather than describing a shape.
@@ -517,7 +533,7 @@ whether a failed return leaves an exception pending or sets errno:
 ```c
 /* ... returns 0, or -1 with an exception pending. */
 /* ... returns NULL with errno set. */
-/* ... never throws: returns 0 on success, non-zero if `v` is bad. */
+/* ... never throws: returns 0 on success, non-zero if v is bad. */
 ```
 
 ### A JS-facing function, class or object gets a header block
@@ -526,7 +542,7 @@ Whatever C exposes to JS is explained once, at its declaration (in the `.h`
 for what other files call, above the definition for a `static`), in JS
 terms. The 4-line prose cap does not count the example and the table.
 Order: `Name: what it is` (and the Web/Node/Bun API it mirrors); the JS
-usage in a ```` ```js ```` fence; arguments and result as aligned columns;
+usage as indented code; arguments and result as aligned columns;
 `throws`; one line on how it is wired in (`JS_CFUNC_DEF(...)` entry).
 A class: constructor usage, one line per method/getter, then `throws`.
 
@@ -562,9 +578,41 @@ A fixed prefix makes a warning one `grep` away:
 ### A QuickJS API quirk: show the call, not a paragraph
 
 ```c
-JS_DefinePropertyValue(ctx, obj, atom, v, flags);  // takes `v`, not `atom`
-JS_GetPropertyStr(ctx, obj, "k");                  // returns a new ref: free it
+JS_DefinePropertyValue(ctx, obj, atom, v, flags);  /* takes v, not atom */
+JS_GetPropertyStr(ctx, obj, "k");                  /* returns a new ref: free it */
 ```
+
+## Doxygen groups for libraries in include/ and src/
+
+Each library (one header family in `include/<lib>/`, its sources in `src/<lib>/`)
+is one doxygen group:
+
+- the header declares it once with `\defgroup`, wrapping the declarations in
+  `@{` ... `@}`
+- every `.c` file implementing it opens the same group with `\addtogroup`, so
+  the definitions land next to the declarations; never a second `\defgroup`
+
+```c
+/* include/json/json.h */
+/**
+ * \defgroup json json: JSON pull parser
+ * @{
+ */
+int json_parse(JsonParser*);
+/** @} */
+
+/* src/json/json.c */
+/**
+ * \addtogroup json
+ * @{
+ */
+int json_parse(JsonParser* json) { ... }
+/** @} */
+```
+
+The group id is the library's short name (`json`, `xml`); the title after it
+says what the library is. A header that belongs to a library declared elsewhere
+uses `\addtogroup` as well.
 
 ## GitHub Pages site
 
