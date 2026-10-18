@@ -20,9 +20,8 @@ b64_get_decoded_buffer_size(const size_t encoded_size) {
   size_t rv = (encoded_size / 4) * 3;
 
   /* Check that the input is valid. */
-  if(b64_get_encoded_buffer_size(rv) != encoded_size) {
+  if(b64_get_encoded_buffer_size(rv) != encoded_size)
     rv = 0;
-  }
 
   return rv;
 }
@@ -31,28 +30,24 @@ size_t
 b64url_get_encoded_buffer_size(const size_t decoded_size) {
   size_t remainder = decoded_size % 3;
 
-  if(remainder) {
+  if(remainder)
     remainder++;
-  }
 
   return (decoded_size / 3) * 4 + remainder;
 }
 
 size_t
 b64url_get_decoded_buffer_size(const size_t encoded_size) {
-  size_t remainder = 0x03 & encoded_size;
-  size_t rv = 0;
+  size_t rv = 0, remainder = 0x03 & encoded_size;
 
-  if(remainder) {
+  if(remainder)
     remainder--;
-  }
 
   rv = (encoded_size / 4) * 3 + remainder;
 
   /* Check that the input is valid. */
-  if(b64url_get_encoded_buffer_size(rv) != encoded_size) {
+  if(b64url_get_encoded_buffer_size(rv) != encoded_size)
     rv = 0;
-  }
 
   return rv;
 }
@@ -95,9 +90,8 @@ b64_decode(const uint8_t* enc, const size_t len, uint8_t* out) {
   };
   size_t max = b64_get_decoded_buffer_size(len);
 
-  if((0 == max) || !enc || !out) {
+  if((0 == max) || !enc || !out)
     return 0;
-  }
 
   return decode(map, enc, len, out);
 }
@@ -126,9 +120,8 @@ b64url_decode(const uint8_t* enc, const size_t len, uint8_t* out) {
   };
   size_t max = b64url_get_decoded_buffer_size(len);
 
-  if((0 == max) || !enc || !out) {
+  if((0 == max) || !enc || !out)
     return 0;
-  }
 
   return decode(map, enc, len, out);
 }
@@ -161,41 +154,35 @@ encode(const char* map, const uint8_t* in, size_t len, uint8_t* out) {
   }
 
   /* Pad */
-  while(('\0' != map[64]) && (0x03 & j)) {
+  while(('\0' != map[64]) && (0x03 & j))
     out[j++] = (uint8_t)map[64];
-  }
 }
 
 static size_t
 decode(const int8_t* map, const uint8_t* in, size_t len, uint8_t* out) {
-
   uint32_t bits = 0;
   int bit_count = 0;
-  size_t padding = 0;
-  size_t j = 0;
+  size_t padding = 0, j = 0;
 
   if('=' == in[len - 1]) {
     padding++;
-    if('=' == in[len - 2]) {
+    if('=' == in[len - 2])
       padding++;
-    }
 
     /* If there is padding then it should only pad to ensure the string
      * has a multiple of 4.  Anything else is an error. */
-    if(0 != (0x03 & len)) {
+    if(0 != (0x03 & len))
       return 0;
-    }
   }
 
   len -= padding;
 
   for(size_t i = 0; i < len; i++) {
-    int8_t val;
+    int8_t val = map[in[i]];
 
-    val = map[in[i]];
-    if(val < 0) {
+    if(val < 0)
       return 0;
-    }
+
     bits = (bits << 6) | val;
     bit_count += 6;
 
