@@ -31,14 +31,44 @@ xpump_callback(XmlEventType type, const xr_str_t* name, const xr_str_t* value, v
   XmlEvent ev = {0};
 
   switch(type) {
-    case XE_ELEMENT_START: ev = (XmlEvent){.type = XE_ELEMENT_START, .name = name->cstr, .nlen = name->len}; break;
-    case XE_ELEMENT_END: ev = (XmlEvent){.type = XE_ELEMENT_END, .name = name ? name->cstr : NULL, .nlen = name ? name->len : 0}; break;
-    case XE_ATTRIBUTE:
-      ev = (XmlEvent){.type = XE_ATTRIBUTE, .name = name->cstr, .nlen = name->len, .value = value ? value->cstr : NULL, .vlen = value ? value->len : 0};
+    case XE_ELEMENT_START:
+      ev = (XmlEvent){
+          .type = XE_ELEMENT_START,
+          .name = name->cstr,
+          .nlen = name->len,
+      };
       break;
-    case XE_TEXT: ev = (XmlEvent){.type = XE_TEXT, .name = value->cstr, .nlen = value->len}; break;
+    case XE_ELEMENT_END:
+      ev = (XmlEvent){
+          .type = XE_ELEMENT_END,
+          .name = name ? name->cstr : NULL,
+          .nlen = name ? name->len : 0,
+      };
+      break;
+    case XE_ATTRIBUTE:
+      ev = (XmlEvent){
+          .type = XE_ATTRIBUTE,
+          .name = name->cstr,
+          .nlen = name->len,
+          .value = value ? value->cstr : NULL,
+          .vlen = value ? value->len : 0,
+      };
+      break;
+    case XE_TEXT:
+      ev = (XmlEvent){
+          .type = XE_TEXT,
+          .name = value->cstr,
+          .nlen = value->len,
+      };
+      break;
     case XE_ERROR:
-      ev = (XmlEvent){.type = XE_ERROR, .name = value ? value->cstr : NULL, .nlen = value ? value->len : 0, .at = p->state->err_pos, .has_at = 1};
+      ev = (XmlEvent){
+          .type = XE_ERROR,
+          .name = value ? value->cstr : NULL,
+          .nlen = value ? value->len : 0,
+          .at = p->state->err_pos,
+          .has_at = 1,
+      };
       break;
     default: return; /* xread produces no markup events */
   }
@@ -74,21 +104,31 @@ xml_pump(XMLParser* xp, const XmlEventSink* sink) {
       case XML_PARSE_OK: return p.failure ? p.failure : XML_PUMP_END;
       case XML_PARSE_AGAIN: return p.failure ? p.failure : XML_PUMP_AGAIN;
       case XE_ERROR:
-        ev = (XmlEvent){.type = XE_ERROR, .name = xp->event_name.data, .nlen = xp->event_name.len};
+        ev = (XmlEvent){
+            .type = XE_ERROR,
+            .name = xp->event_name.data,
+            .nlen = xp->event_name.len,
+        };
         break;
       case XE_ELEMENT_START:
       case XE_ELEMENT_END: ev = (XmlEvent){.type = (XmlEventType)type, .name = xp->event_name.data, .nlen = xp->event_name.len}; break;
       case XE_ATTRIBUTE:
-        ev = (XmlEvent){.type = XE_ATTRIBUTE,
-                        .name = xp->event_name.data,
-                        .nlen = xp->event_name.len,
-                        .value = xp->event_has_value ? xp->event_value.data : NULL,
-                        .vlen = xp->event_has_value ? xp->event_value.len : 0};
+        ev = (XmlEvent){
+            .type = XE_ATTRIBUTE,
+            .name = xp->event_name.data,
+            .nlen = xp->event_name.len,
+            .value = xp->event_has_value ? xp->event_value.data : NULL,
+            .vlen = xp->event_has_value ? xp->event_value.len : 0,
+        };
         break;
       case XE_TEXT:
         if(!xp->event_has_value)
           continue;
-        ev = (XmlEvent){.type = XE_TEXT, .name = xp->event_value.data, .nlen = xp->event_value.len};
+        ev = (XmlEvent){
+            .type = XE_TEXT,
+            .name = xp->event_value.data,
+            .nlen = xp->event_value.len,
+        };
         break;
       default: continue;
     }

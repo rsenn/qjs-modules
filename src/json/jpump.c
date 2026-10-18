@@ -28,7 +28,11 @@ jpump_send(JsonPump* p, const JsonEvent* ev) {
 static void
 jpump_callback(JsonEventType type, const jr_str_t* data, void* user_data) {
   JsonPump* p = user_data;
-  JsonEvent ev = {.type = type, .str = data ? data->cstr : NULL, .len = data ? data->len : 0};
+  JsonEvent ev = {
+      .type = type,
+      .str = data ? data->cstr : NULL,
+      .len = data ? data->len : 0,
+  };
 
   if(type == JSON_EVENT_ERROR) {
     ev.at = p->state->err_pos;
@@ -72,10 +76,12 @@ json_pump(JsonParser* json, const JsonEventSink* sink) {
       ev.type = JSON_EVENT_ERROR;
       ev.str = json->error;
       ev.len = json->error ? strlen(json->error) : 0;
-      ev.at = (SourcePos){.byte_offset = json->err_at.byte_offset,
-                          .char_offset = json->err_at.char_offset,
-                          .line = json->err_at.line + 1,
-                          .column = json->err_at.column + 1};
+      ev.at = (SourcePos){
+          .byte_offset = json->err_at.byte_offset,
+          .char_offset = json->err_at.char_offset,
+          .line = json->err_at.line + 1,
+          .column = json->err_at.column + 1,
+      };
       ev.has_at = 1;
     } else if(type == JSON_EVENT_COMMENT) {
       continue;
