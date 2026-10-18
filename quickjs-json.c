@@ -1654,21 +1654,34 @@ js_jsonparser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int
   return ret;
 }
 
+/* JsonParser.next: the next event as { type, value?, loc }, also the iterator protocol.
+ *
+ * ```js
+ * for(const { type, value, loc } of new JsonParser('{"a":1}')) {}   // OBJECT, KEY a, NUMBER 1, OBJECT_END
+ * ```
+ *
+ * the iteration ends when the document is complete or the reader has no data now.
+ * throws the SyntaxError of an error event. wired in: JS_ITERATOR_NEXT_DEF("next"). */
 static JSValue
 js_jsonparser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  JSValue ret = js_jsonparser_parse(ctx, this_val, argc, argv);
+  JsonParser* p;
+  JsonEvent ev;
 
-  *pdone = FALSE;
+  *pdone = TRUE;
 
-  if(JS_IsException(ret)) {
-    *pdone = TRUE;
-    ret = JS_GetException(ctx);
-  } else if(js_toint32(ctx, ret) == JSON_NEED_DATA) {
-    *pdone = TRUE;
-    ret = JS_UNDEFINED;
+  if(!(p = JS_GetOpaque2(ctx, this_val, js_jsonparser_class_id)))
+    return JS_EXCEPTION;
+
+  if(json_next(p, &ev) != JSON_PULL_EVENT)
+    return JS_UNDEFINED;
+
+  if(ev.type == JSON_EVENT_ERROR) {
+    js_jsonparser_throw(ctx, p, &ev);
+    return JS_EXCEPTION;
   }
 
-  return ret;
+  *pdone = FALSE;
+  return js_jsonevent_new(ctx, &ev);
 }
 
 static void

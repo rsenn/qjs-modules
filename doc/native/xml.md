@@ -43,6 +43,13 @@ array is a flat list.
 
 Text and attribute values are escaped (`& < >`, and `"` in attributes); an attribute value `true` is written bare.
 
+## XMLParser.next() and for..of
+
+`next()` returns the next event as `{ type, name?, value?, loc: { line, column } }` and the parser is iterable. Markup arrives typed:
+`COMMENT` (5), `DECLARATION` (6), `INSTRUCTION` (7) and `CDATA` (8) carry their text in `value`. A mismatched closing tag throws the
+`SyntaxError`. `parse()` with its raw ids, `eventName` and `eventValue` stays for existing callers (`lib/html.js`, `examples/html2md.js`) and is
+deprecated: it delivers markup as elements with magic names.
+
 ## Parser options
 
 `xml.read(text, name, options)` and `new XMLParser(input, options)` share one option reader: `{ flat, tolerant, selfClosingTags, filename }`,

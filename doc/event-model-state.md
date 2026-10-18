@@ -150,7 +150,16 @@ Done (2026-10-18):
   `include/xml/xopts.h` + `src/xml/xopts.c` (`xml_options_from_js`) is the one XML option reader for `read()` and `XMLParser`
   (fixes a leak of the selfClosingTags array in `read()`). `strict` and `entities` for XML wait for the engine.
 
-Open, in order: the `XMLParser`/`XMLNodeParser` redesign (typed `next()`, then P13 for XML),
+- Typed pull (2026-10-18): `JsonParser.next()` and `XMLParser.next()` return `{type, value?/name?, loc}` events (`js_jsonevent_new`,
+  `js_xmlevent_new`), both parsers are iterable. `parse()` and the raw getters stay, deprecated: `lib/html.js`,
+  `examples/html2md.js`, `tools/site/markdown.js` and the sibling `qjs-lws/examples/crawler/lib/html2md.js` still use them, so
+  `xml_parse` / `json_parse` cannot become private before those move to `next()`.
+
+Open, in order: migrate those four consumers to `next()` then delete `parse()` + make `json_parse`/`xml_parse` private (rest of P13),
+`XMLNodeParser` as a one-line alias in the glue,
+P16 (user decides: changes `xml.write()` layout).
+
+Earlier list: the `XMLParser`/`XMLNodeParser` redesign (typed `next()`, then P13 for XML),
 P16 (user decides: changes `xml.write()` layout), JSON side of P13 (`json_parse`, `JsonParser` fields).
 
 Earlier list: P8 (parser options: dialect names, strict), the `XMLParser`/`XMLNodeParser` redesign (typed `next()`),

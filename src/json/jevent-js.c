@@ -39,4 +39,20 @@ js_jsonevent_value(JSContext* ctx, const JsonEvent* ev) {
   return JS_UNDEFINED;
 }
 
+JSValue
+js_jsonevent_new(JSContext* ctx, const JsonEvent* ev) {
+  JSValue obj = JS_NewObject(ctx), value = js_jsonevent_value(ctx, ev), loc = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, obj, "type", JS_NewInt32(ctx, ev->type));
+
+  if(!JS_IsUndefined(value))
+    JS_SetPropertyStr(ctx, obj, "value", value);
+
+  JS_SetPropertyStr(ctx, loc, "line", JS_NewUint32(ctx, ev->at.line));
+  JS_SetPropertyStr(ctx, loc, "column", JS_NewUint32(ctx, ev->at.column));
+  JS_SetPropertyStr(ctx, loc, "offset", JS_NewInt64(ctx, ev->at.char_offset));
+  JS_SetPropertyStr(ctx, obj, "loc", loc);
+  return obj;
+}
+
 /** @} */

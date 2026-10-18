@@ -1119,4 +1119,18 @@ tests({
 
     eq(types[0], JsonParser.COMMENT);
   },
+
+  'JsonParser: next() and for..of give { type, value, loc }'() {
+    const ev = [...new JsonParser('{"a":[1,"x",null,true]}')];
+
+    eqArr(ev.map(e => e.type), [JsonParser.OBJECT, JsonParser.KEY, JsonParser.ARRAY, JsonParser.NUMBER, JsonParser.STRING, JsonParser.NULL, JsonParser.TRUE, JsonParser.ARRAY_END, JsonParser.OBJECT_END]);
+    eq(ev[1].value, 'a');
+    eq(ev[3].value, 1);
+    eq(ev[4].value, 'x');
+    eq(ev[5].value, null);
+    eq(ev[6].value, true);
+    assert(!('value' in ev[0]));
+    eq(JSON.stringify(ev[1].loc), '{"line":1,"column":2,"offset":1}');
+    assertThrows(() => [...new JsonParser('[1,x]')]);
+  },
 });

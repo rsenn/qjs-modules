@@ -21,6 +21,7 @@
 #include "xml/xserial.h"
 #include "xml/xconnect.h"
 #include "xml/xopts.h"
+#include "xml/xevent-js.h"
 
 #include <stdint.h>
 
@@ -1051,6 +1052,54 @@ done:
   return ret;
 }
 
+/* XMLParser.next: the next event as { type, name?, value?, loc }, also the iterator protocol.
+ *
+ * ```js
+ * for(const { type, name, value, loc } of new XMLParser('<a x="1">t</a>')) {}
+ * // ELEMENT_START a, ATTRIBUTE x 1, TEXT t, ELEMENT_END a
+ * ```
+ *
+ * markup arrives typed (COMMENT, DECLARATION, INSTRUCTION, CDATA with the text in value), unlike
+ * parse() which delivers it as elements with magic names. The iteration ends when the document is
+ * complete or the reader has no data now. throws the SyntaxError of a mismatched closing tag.
+ * wired in: JS_ITERATOR_NEXT_DEF("next"). */
+static JSValue
+js_xml_parser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  XmlParser* p;
+  XmlEvent ev;
+  XmlPull st;
+  JSValue ret;
+
+  *pdone = TRUE;
+
+  if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_parser_class_id)))
+    return JS_EXCEPTION;
+
+  if(!p->reader.read)
+    return JS_ThrowTypeError(ctx, "XMLParser: no input to parse");
+
+  st = xml_next(&p->xp, &ev);
+  xml_sync_location(p);
+
+  if(st != XML_PULL_EVENT)
+    return JS_UNDEFINED;
+
+  if(ev.type == XE_ERROR) {
+    JSValue err = xml_error_new(ctx, &p->xp, p->loc);
+
+    return JS_IsException(err) ? err : JS_Throw(ctx, err);
+  }
+
+  *pdone = FALSE;
+  ret = js_xmlevent_new(ctx, &ev);
+  return ret;
+}
+
+static JSValue
+js_xml_parser_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_DupValue(ctx, this_val);
+}
+
 enum {
   XML_PARSER_EVENT_NAME,
   XML_PARSER_EVENT_VALUE,
@@ -1284,6 +1333,8 @@ js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
 static const JSCFunctionListEntry js_xml_parser_proto_funcs[] = {
     JS_CFUNC_DEF("parse", 0, js_xml_parser_parse),
     JS_CFUNC_DEF("pump", 1, js_xml_parser_pump),
+    JS_ITERATOR_NEXT_DEF("next", 0, js_xml_parser_iterator_next, 0),
+    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_xml_parser_iterator),
     JS_CGETSET_MAGIC_FLAGS_DEF("eventName", js_xml_parser_get, 0, XML_PARSER_EVENT_NAME, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("eventValue", js_xml_parser_get, 0, XML_PARSER_EVENT_VALUE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("hasValue", js_xml_parser_get, 0, XML_PARSER_HAS_VALUE, JS_PROP_ENUMERABLE),

@@ -1905,4 +1905,20 @@ tests({
     assertThrows(() => build('<p>a</x>b</p>', {}));
     assertThrows(() => new XMLParser('<a/>', { selfClosingTags: [], tolerant: 1 }).pump({ elementEnd() { throw new Error('x'); } }));
   },
+
+  'XMLParser: next() and for..of give typed events'() {
+    const ev = [...new XMLParser('<?xml v="1"?><!DOCTYPE html><a x="1" y>t<!--c--><![CDATA[d]]><b/></a>')];
+    const sum = ev.map(e => `${e.type}:${e.name ?? ''}:${e.value ?? ''}`);
+
+    assert(sum.includes(`${XMLParser.ELEMENT_START}:a:`));
+    assert(sum.includes(`${XMLParser.ATTRIBUTE}:x:1`));
+    eq(ev[0].value, 'xml v="1"');
+    eq(ev.filter(e => e.type == 7).length, 1);
+    assert(ev.some(e => e.type == 5 && e.value == 'c'));
+    assert(ev.some(e => e.type == 8 && e.value == 'd'));
+    assert(ev.some(e => e.type == 6 && e.value == 'DOCTYPE html'));
+    assert(ev.find(e => e.type == XMLParser.ATTRIBUTE && e.name == 'y').value === undefined);
+    eq(ev.find(e => e.name == 'a').loc.column, 29);
+    assertThrows(() => [...new XMLParser('<a></b>')]);
+  },
 });

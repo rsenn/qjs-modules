@@ -91,6 +91,10 @@ negative result; a JS-object sink throws its own exception.
 
 ## JsonParser
 
+`next()` returns the next event as `{ type, value?, loc: { line, column, offset } }` and the parser is iterable
+(`for(const { type, value } of new JsonParser(text))`); an error event throws the `SyntaxError`. `parse()` with its raw ids stays for
+existing callers and is deprecated.
+
 Constructor options (second argument, a string is the file name): `new JsonParser(input, { dialect, strict, comments, filename })`.
 `dialect` is `'json'`, `'jsonc'`, `'json5'`, `'jsonl'` or `'legacy'` (the default: lenient, skips bad input and goes on), `strict: true`
 means `'json'`, `comments: true` delivers comments as `COMMENT` events. `JsonPushParser({ dialect, strict, ... })` takes the same two
