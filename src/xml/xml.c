@@ -496,6 +496,7 @@ xml_init(XMLParser* p, Reader* reader) {
   dbuf_init(&p->text);
   dbuf_init(&p->ev_name);
   dbuf_init(&p->ev_value);
+  dbuf_init(&p->mk);
 }
 
 void
@@ -514,6 +515,7 @@ xml_free(XMLParser* p) {
   dbuf_free(&p->text);
   dbuf_free(&p->ev_name);
   dbuf_free(&p->ev_value);
+  dbuf_free(&p->mk);
 }
 
 void

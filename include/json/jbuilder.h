@@ -31,6 +31,12 @@ typedef struct json_builder {
   JSValue root;
   unsigned has_root : 1;
   unsigned plain_objects : 1; /* objects get Object.prototype instead of no prototype */
+  JSValue done;               /* array of the completed top-level values not yet taken, or undefined */
+  uint32_t done_len;
+  /* called each time a top-level value is complete, after it is appended to `done`; a pump
+     driver reads the parser position here (JSONL.parseChunk's `read`). */
+  void (*on_root)(void* user, struct json_builder* b);
+  void* on_root_user;
 } JsonBuilder;
 
 void jbuild_init(JsonBuilder*, JSContext*);
@@ -38,6 +44,18 @@ void jbuild_push(JsonBuilder*, JsonEventType type);
 void jbuild_pop(JsonBuilder*);
 void jbuild_key(JsonBuilder*, const char* name, size_t len);
 void jbuild_value(JsonBuilder*, JsonEventType type, const char* data, size_t len);
+
+/* jbuild_value_js: adds a finished JS value where the next scalar would go.
+ *
+ * refcount: takes ownership of val. never throws. */
+void jbuild_value_js(JsonBuilder*, JSValue val);
+
+/* jbuild_take: the top-level values completed since the last call, as a new array; clears the queue.
+ *
+ *   {"a":1} 2 [3]  fed as three documents gives [{a: 1}, 2, [3]]
+ *
+ * for multi-document input (JSONL), where root holds only the last one. refcount: a new reference. */
+JSValue jbuild_take(JsonBuilder*);
 /* jbuild_top: the innermost open container (refcount: a new reference), or undefined. */
 JSValue jbuild_top(JsonBuilder*);
 JSValue jbuild_path(JsonBuilder*);

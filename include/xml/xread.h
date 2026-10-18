@@ -98,6 +98,28 @@ void xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_
 void xr_finish(xr_callback cb, void* user_data, xr_state_t* state);
 
 /**
+ * xr_feed: xr_read() delivering XmlEvent to a handler instead of an xr_callback.
+ *
+ *   xr_state_t*         state    parser state, set up with xr_state_init()
+ *   const char*         chunk    next bytes of the stream, chunk[0..len)
+ *   size_t              len      number of bytes in chunk
+ *   XmlEventHandler*    handler  receives each event; the first negative result stops delivery
+ *   void*               user     passed to handler unchanged
+ *
+ *   returns ssize_t  0, or the first negative handler result
+ *
+ * text arrives in str / len; an XE_ERROR event has the message in str and the offending byte in at.
+ * To feed a sink:
+ *
+ *   xr_feed(&st, chunk, n, xevent_handler, &sink);
+ *
+ * never throws. */
+ssize_t xr_feed(xr_state_t* state, const char* chunk, size_t len, XmlEventHandler* handler, void* user);
+
+/* xr_end: xr_finish() delivering XmlEvent to a handler, the end-of-input twin of xr_feed(). */
+ssize_t xr_end(xr_state_t* state, XmlEventHandler* handler, void* user);
+
+/**
  * @}
  */
 

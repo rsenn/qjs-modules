@@ -26,6 +26,8 @@
  *   string(str)             string        text
  *   key(str)                key           text
  *   arrayStart() arrayEnd() objectStart() objectEnd()
+ *   comment(str)            comment       text
+ *   raw(str)                raw           text that is already JSON
  *
  * returns the bytes written, as the member reports.
  * throws TypeError for a missing argument or a NULL member; a negative member result
@@ -57,6 +59,27 @@ int js_jsonsink_define(JSContext*, JSValueConst obj);
  * borrowed: sink.opaque is not owned; it must outlive the JS object.
  * returns the object (refcount: new reference), or JS_EXCEPTION. */
 JSValue js_jsonsink_wrap(JSContext*, JsonEventSink sink);
+
+/* JsonJsSink: a JS object used as a JsonEventSink, so a C source can drive it.
+ *
+ * ```js
+ * { number(text) {}, string(text) {}, key(text) {}, objectStart() {}, objectEnd() {} }
+ * ```
+ *
+ * each event calls the method of the same name (as the table above) with the text as a string,
+ * numbers as their text. A method the object lacks drops that event. A method that returns a
+ * negative number fails the event with it; one that throws fails it with -1 and leaves the
+ * exception pending, so the pump stops and the caller rethrows. */
+typedef struct json_js_sink JsonJsSink;
+
+/* js_jsonsink_from_js: makes *sink call the methods of `obj`.
+ *
+ * borrowed: obj is dup'ed; free the result with js_jsonsink_from_js_free().
+ * returns the adapter (sink->opaque), or NULL with an exception pending. */
+JsonJsSink* js_jsonsink_from_js(JSContext*, JSValueConst obj, JsonEventSink* sink);
+
+/* js_jsonsink_from_js_free: releases the adapter and the object reference. never throws. */
+void js_jsonsink_from_js_free(JSContext*, JsonJsSink*);
 
 /**
  * @}

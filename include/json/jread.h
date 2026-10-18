@@ -191,6 +191,40 @@ void jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_
 void jr_finish(jr_callback cb, void* user_data, jr_state_t* state);
 
 /**
+ * jr_feed: jr_read() delivering JsonEvent to a handler instead of a jr_callback.
+ *
+ *   jr_state_t*         state    parser state, set up with jr_state_init()
+ *   const char*         chunk    next bytes of the stream, chunk[0..len)
+ *   size_t              len      number of bytes in chunk
+ *   JsonEventHandler*   handler  receives each event; the first negative result stops delivery
+ *   void*               user     passed to handler unchanged
+ *
+ *   returns ssize_t  0, or the first negative handler result
+ *
+ * an error event carries the offending token in at, has_at set; other events carry the
+ * position of the token start the parser had when it completed (state->tok). To feed a sink:
+ *
+ *   jr_feed(&st, chunk, n, jevent_handler, &sink);
+ *
+ * never throws. */
+ssize_t jr_feed(jr_state_t* state, const char* chunk, size_t len, JsonEventHandler* handler, void* user);
+
+/* jr_end: jr_finish() delivering JsonEvent to a handler, the end-of-input twin of jr_feed(). */
+ssize_t jr_end(jr_state_t* state, JsonEventHandler* handler, void* user);
+
+/**
+ * jr_flags_from_name: the JR_* flags of a dialect name.
+ *
+ *   "json" JR_JSON, "jsonc" JR_JSONC, "json5" JR_JSON5, "jsonl" JR_JSONL, "legacy" JR_LEGACY
+ *
+ *   const char*  name  dialect name, name[0..len)
+ *   size_t       len   length of name
+ *   int*         flags receives the flags
+ *
+ *   returns int  0, or -1 for an unknown name; never throws */
+int jr_flags_from_name(const char* name, size_t len, int* flags);
+
+/**
  * @}
  */
 

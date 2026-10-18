@@ -26,6 +26,24 @@ jbuild_init(JsonBuilder* b, JSContext* ctx) {
   b->root = JS_UNDEFINED;
   b->has_root = FALSE;
   b->plain_objects = FALSE;
+  b->done = JS_UNDEFINED;
+  b->done_len = 0;
+  b->on_root = NULL;
+  b->on_root_user = NULL;
+}
+
+/* jbuild_complete: v is a finished top-level value; queue it and tell the driver. */
+static void
+jbuild_complete(JsonBuilder* b, JSValueConst v) {
+  JSContext* ctx = b->ctx;
+
+  if(JS_IsUndefined(b->done))
+    b->done = JS_NewArray(ctx);
+
+  JS_SetPropertyUint32(ctx, b->done, b->done_len++, JS_DupValue(ctx, v));
+
+  if(b->on_root)
+    b->on_root(b->on_root_user, b);
 }
 
 void
@@ -38,6 +56,7 @@ jbuild_push(JsonBuilder* b, JsonEventType type) {
   uint32_t child_index = 0;
 
   if(!b->top) {
+    JS_FreeValue(ctx, b->root);
     b->root = JS_DupValue(ctx, container);
     b->has_root = TRUE;
   } else {
@@ -77,6 +96,9 @@ jbuild_pop(JsonBuilder* b) {
     return;
 
   b->top = frame->parent;
+
+  if(!b->top)
+    jbuild_complete(b, frame->obj);
 
   if(frame->current_key)
     js_free(b->ctx, frame->current_key);
@@ -137,9 +159,18 @@ jbuild_value(JsonBuilder* b, JsonEventType type, const char* data, size_t len) {
     default: return;
   }
 
+  jbuild_value_js(b, val);
+}
+
+void
+jbuild_value_js(JsonBuilder* b, JSValue val) {
+  JSContext* ctx = b->ctx;
+
   if(!b->top) {
+    JS_FreeValue(ctx, b->root);
     b->root = val;
     b->has_root = TRUE;
+    jbuild_complete(b, val);
   } else {
     JsonBuilderFrame* parent = b->top;
 
@@ -157,6 +188,15 @@ jbuild_value(JsonBuilder* b, JsonEventType type, const char* data, size_t len) {
       JS_SetPropertyUint32(ctx, parent->obj, parent->index++, val);
     }
   }
+}
+
+JSValue
+jbuild_take(JsonBuilder* b) {
+  JSValue ret = JS_IsUndefined(b->done) ? JS_NewArray(b->ctx) : b->done;
+
+  b->done = JS_UNDEFINED;
+  b->done_len = 0;
+  return ret;
 }
 
 JSValue
@@ -241,6 +281,9 @@ jbuild_free(JsonBuilder* b, JSRuntime* rt) {
   JS_FreeValueRT(rt, b->root);
   b->root = JS_UNDEFINED;
   b->has_root = FALSE;
+  JS_FreeValueRT(rt, b->done);
+  b->done = JS_UNDEFINED;
+  b->done_len = 0;
 }
 
 /* the JsonEventSink members: each casts `opaque` back to the builder */
@@ -299,6 +342,28 @@ jbuild_if_key(void* b, const char* str, size_t len) {
   return 0;
 }
 
+/* raw: JSON text of one primitive (JSON.rawJSON accepts nothing else); a string with an escape is dropped */
+static ssize_t
+jbuild_if_raw(void* b, const char* str, size_t len) {
+  if(!len)
+    return 0;
+
+  if(str[0] == '"') {
+    if(len >= 2 && str[len - 1] == '"' && !memchr(str, '\\', len))
+      jbuild_value(b, JSON_EVENT_STRING, str + 1, len - 2);
+  } else if(len == 4 && !memcmp(str, "null", 4)) {
+    jbuild_value(b, JSON_EVENT_NULL, NULL, 0);
+  } else if(len == 4 && !memcmp(str, "true", 4)) {
+    jbuild_value(b, JSON_EVENT_TRUE, NULL, 0);
+  } else if(len == 5 && !memcmp(str, "false", 5)) {
+    jbuild_value(b, JSON_EVENT_FALSE, NULL, 0);
+  } else {
+    jbuild_value(b, JSON_EVENT_NUMBER, str, len);
+  }
+
+  return 0;
+}
+
 JsonEventSink
 jbuild_sink(JsonBuilder* b) {
   return (JsonEventSink){
@@ -314,6 +379,8 @@ jbuild_sink(JsonBuilder* b) {
       jbuild_if_object_start,
       jbuild_if_object_end,
       jbuild_if_key,
+      NULL, /* comment: dropped */
+      jbuild_if_raw,
   };
 }
 

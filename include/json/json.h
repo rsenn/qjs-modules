@@ -129,6 +129,26 @@ int json_ungetc(JsonParser*, char);
 int json_parse(JsonParser*);
 int json_end(JsonParser*);
 
+/* json_next: the next event of a pull parser, written to *ev (the Event model v2 form of json_parse()).
+ *
+ *   JsonParser*  json  the parser, set up by json_init()
+ *   JsonEvent*   ev    filled when the result is JSON_PULL_EVENT
+ *
+ *   returns JsonPull  JSON_PULL_EVENT, JSON_PULL_AGAIN (reader ran dry, or input ended: the parser
+ *                     cannot tell them apart) or JSON_PULL_END
+ *
+ * in the event
+ *   - type is a JsonEventType; a malformed span is JSON_EVENT_ERROR with the message in str / len
+ *     and the offending token in at, and the next call resyncs as json_parse() does
+ *   - str / len is the text of an error, number, string, key or comment; valid until the next call
+ *   - at is the start of the token (1-based line and column), has_at is always set
+ *
+ * never throws; the error code and length stay in json->err_code and json->err_len. */
+JsonPull json_next(JsonParser*, JsonEvent* ev);
+
+/* json_source: the pull parser as a JsonEventSource, for jevent_pump(). */
+JsonEventSource json_source(JsonParser*);
+
 /**
  * @}
  */

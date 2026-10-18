@@ -23,10 +23,29 @@ jevent_send(const JsonEventSink* sink, const JsonEvent* ev) {
     case JSON_EVENT_OBJECT_START: return sink->object_start ? sink->object_start(sink->opaque) : 0;
     case JSON_EVENT_OBJECT_END: return sink->object_end ? sink->object_end(sink->opaque) : 0;
     case JSON_EVENT_KEY: return sink->key ? sink->key(sink->opaque, ev->str, ev->len) : 0;
-    case JSON_EVENT_COMMENT: break; /* the pull parser's comment: sinks have no member for it */
+    case JSON_EVENT_COMMENT: return sink->comment ? sink->comment(sink->opaque, ev->str, ev->len) : 0;
+    case JSON_EVENT_RAW: return sink->raw ? sink->raw(sink->opaque, ev->str, ev->len) : 0;
   }
 
   return 0;
+}
+
+ssize_t
+jevent_handler(void* sink, const JsonEvent* ev) {
+  return jevent_send(sink, ev);
+}
+
+ssize_t
+jevent_pump(JsonEventSource src, const JsonEventSink* sink) {
+  JsonEvent ev;
+  JsonPull st;
+  ssize_t r;
+
+  while((st = src.next(src.opaque, &ev)) == JSON_PULL_EVENT)
+    if((r = jevent_send(sink, &ev)) < 0)
+      return r;
+
+  return st;
 }
 
 /**

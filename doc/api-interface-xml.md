@@ -6,18 +6,27 @@ public API. Findings are in [api-compare-xml.md](api-compare-xml.md), the code s
 [api-implement-xml.md](api-implement-xml.md); the step list that orders all three is `TODO.md` Tier 20. Sections 4 to 10 below
 are the reference: the C contracts between the pieces and the JS contract of each class.
 
+**Layering (plan 2026-10-18, [api-event-model.md](api-event-model.md)).** The `xml` native module exports **engines only**: pull and
+push parsers, builder (tree and flat), walker, writer, serializer, sink adapters, all sources or sinks of `XmlEvent`. `read`, `write`,
+`DOMParser`, `XMLSerializer`, `XML.parse`, `XML.stringify` and the `XMLNodeParser` shape are thin compositions of those engines in JS
+(`lib/xml.js`, `lib/dom.js`, `lib/bun.js`): "Lives in" below. A flat parse is `XMLParser({flat: true})` pumped into a flat `XmlBuilder`
+(a list of element objects, an end is a `{tagName: '/x'}` entry), entirely in C. Sections 4 to 8 describe the contracts as they are; the
+event model marks what changes (pull parser writes an `XmlEvent`, push parser calls an `XmlEvent` handler, walker is a pull source that
+speaks `XmlEvent`, serializer is demand-driven).
+
 ## 1. Target interface
 
-| Export | Target | Standard it follows | Action |
-| --- | --- | --- | --- |
-| `read(input, name?, options?)`, `write(tree, maxDepth?)` | as now; same tree as `txml` | none (Browser has the DOM, not a plain tree) | keep |
-| `XMLParser`, `XMLNodeParser`, `XMLPushParser` | as now | event parsers of the `sax` family | keep as engines |
-| `XMLWriter` | escapes; `attribute(n, true)` writes `n`; compact mode really compact | every package escapes | fix (Tier 20 step 3c) |
-| `XMLTreeSerializer` (ours, was `XMLSerializer`) | one meaning only | Browser: `new XMLSerializer().serializeToString(node)` | renamed (D3 decided) |
-| `DOMParser`, `XMLSerializer` (DOM) | `parseFromString(str, type)` returning a `Document`; `serializeToString(node)` | Browser | add by exporting `lib/dom.js` `Parser` / `Serializer` |
-| `XML.parse`, `XML.stringify` | Bun's object form (`'@name'`, `'#text'`, repeated names as arrays) and node form | `Bun.XML` | add as a mode of the same parser and walker |
-| strict option on the parser | Bun's `XML Parse error` rules; DOCTYPE entities | `Bun.XML.parse` | add (Tier 20 phase 9) |
-| XSLT, `XMLHttpRequest`, namespaces-aware DOM | none | Browser | out of scope |
+| Export | Target | Standard it follows | Action | Lives in |
+| --- | --- | --- | --- | --- |
+| `read(input, name?, options?)`, `write(tree, maxDepth?)` | as now; same tree as `txml` | none (Browser has the DOM, not a plain tree) | keep the API, move the code | `lib/xml.js`: `read` = `XMLParser` pumped into an `XmlBuilder`; `write` = `xwalk` pumped into an `XMLWriter` |
+| `XMLParser`, `XMLPushParser` | as now; `XMLParser` gains `flat`, `strict`, `connect`/`pump` | event parsers of the `sax` family | keep as engines | C |
+| `XMLNodeParser` | `new XMLParser(input, {flat: true})` into a flat `XmlBuilder`, same list as now | | keep the name as an alias | glue |
+| `XMLWriter` | escapes; `attribute(n, true)` writes `n`; compact mode really compact | every package escapes | fix (Tier 20 step 3c) | C |
+| `XMLTreeSerializer` (ours, was `XMLSerializer`) | one meaning only; over a tree **or** a pull source | Browser: `new XMLSerializer().serializeToString(node)` | renamed (D3 decided) | C |
+| `DOMParser`, `XMLSerializer` (DOM) | `parseFromString(str, type)` returning a `Document`; `serializeToString(node)` | Browser | add by exporting `lib/dom.js` `Parser` / `Serializer` | `lib/dom.js` on `XMLParser` + `XmlBuilder`, `xwalk` + `XMLWriter` |
+| `XML.parse`, `XML.stringify` | Bun's object form (`'@name'`, `'#text'`, repeated names as arrays) and node form | `Bun.XML` | add | `lib/bun.js`: a JS sink on `XMLParser(strict)` (M8, `api-event-model.md`); a C builder mode only if measured slow |
+| strict option on the parser | Bun's `XML Parse error` rules; DOCTYPE entities | `Bun.XML.parse` | add (Tier 20 phase 9) | C (`xml.c`) |
+| XSLT, `XMLHttpRequest`, namespaces-aware DOM | none | Browser | out of scope | |
 
 ## 2. Decisions
 
@@ -32,6 +41,10 @@ are the reference: the C contracts between the pieces and the JS contract of eac
 | D7 | every strict failure is a `SyntaxError` with an own `loc` (a `Location`), `length` and `code`; section 11 | no runtime or library offers one correct structured position (`api-compare-xml.md` 7); one property name, `loc`, on the standard class |
 | D8 | `TypeError` for bad argument types (not `ReferenceError`); the lenient mode reports repairs through `onParseError`, it does not throw | `xml.read(5)` throws `ReferenceError` today; HTML parsing never fails |
 | D9 | the DOM `DOMParser` follows the browser: no exception for malformed XML, a `<parsererror>` document instead | Browser priority |
+| D10 | decided 2026-10-18: no runtime API is C. `read`, `write`, `DOMParser`, `XMLSerializer`, `XML.parse`, `XML.stringify`, `XMLNodeParser` are compositions of engine classes in `lib/` | one set of engines serves every runtime shape; `D2` is the same rule for `XML.*` |
+| D11 | decided 2026-10-18: every engine class is a source or a sink, pull or push, over `XmlEvent`; a source reaches a sink in C through `pump(sink)` / `connect(sink)` | `api-event-model.md` 1 and 2 |
+| D12 | the typed markup events (`XE_COMMENT`, `XE_DECLARATION`, `XE_INSTRUCTION`, `XE_CDATA`) are produced by the parsers; elements with magic names (`!--`, `!`, `?`) exist only as the builder's `read()` output | sinks (`XMLWriter`, DOM builder) must not parse names to find out what an element is |
+| D13 | `XmlEvent` text of error, text, comment, declaration, instruction, cdata is `str` / `len` (aliases of `name` / `nlen`); `value` is attribute-only | same shape as `JsonEvent`, one rule for glue code |
 
 ## 3. Steps
 
@@ -47,7 +60,11 @@ Numbering is that of `TODO.md` Tier 20 (phases) plus the interface-only addition
 | 5 | `XMLTreeSerializer` on `xwalk` + `xwrite`; may cut `read(n)` on character boundaries | steps 3d, 4d |
 | new | `DOMParser`, `XMLTreeSerializer` (DOM) exported from `lib/dom.js` | D3 |
 | 2, 1 | none visible: `XMLParser.root` / `XMLPushParser.root` take the `read()` shape | `xbuilder` |
-| 9 | `XML.parse`, `XML.stringify`, strict option, DOCTYPE subset fixed | `xbuilder` object mode, `xwalk` object mode |
+| 9 | `XML.parse`, `XML.stringify`, strict option, DOCTYPE subset fixed | strict mode in `xml.c`; the object shape in the glue (D10), `xbuilder` / `xwalk` object mode only if measured |
+
+The event-model steps P1 to P10 (`api-event-model.md` 10, `TODO.md` "Event model v2") run alongside; the XML ones are P2 (`xml_next(p, &ev)`,
+typed markup events), P3 (push handler), P4 (`xwalk_event`: the element interpretation of `xtreewrite.c` moves into the walker), P5 (demand-driven
+`XMLTreeSerializer`), P7 (flat `XmlBuilder` for `XMLNodeParser`), P8 (one `xml_options_from_js()`, strict), P9 (`read`, `write` into `lib/xml.js`).
 
 ## 4. Reference: the event protocol: what exists and what is missing
 
@@ -69,6 +86,12 @@ Planned (Tier 20 phase 1): one `xe_type_t` order shared by both parsers, `xwrite
 (`xe_callback(type, name, value, user_data)`); an `XMLWriteInterface` of function pointers like `JsonWriteInterface`, returned by
 `xwrite_interface(wr)`; the typed markup events, so `xbuilder` can map them back to the magic names for `read()` compatibility.
 Until then the two enums stay and each adapter translates.
+
+Done since: `XmlEventType`, `XmlEvent`, `XmlEventSink` (`xevent.h`), `xwrite_sink`, `xbuild_sink`, the pumps. Plan 2026-10-18
+(`api-event-model.md` 3.2, 4): the pull parser returns `XmlPull` (`XML_PULL_END | AGAIN | EVENT | FAIL`) and fills an `XmlEvent`
+(`xml_next(p, &ev)`), which replaces the `event_name` / `event_value` / `event_has_value` fields and the `XML_PARSE_*` statuses (an
+`XE_ERROR` is an event, then `XML_PULL_END`); the push parser calls an `XmlEventHandler` with the same `XmlEvent`, which replaces
+`xr_callback` / `xr_str_t`; `xread_pump` / `xml_pump` are then the 3-line loop.
 
 ## 5. Reading
 
@@ -148,6 +171,10 @@ while((r = xwalk_next(&it, ctx)) > 0) {}   xwalk_close(&it, ctx);
 Planned (step 4d): an adapter that turns these walk events into `xwrite` calls (the table is in `TODO.md` Tier 20 phase 4), reading the
 children count at `array_start` and using one event of lookahead for the flat-list rule (self-closing iff the next entry is the element's own `/x` marker).
 
+Plan 2026-10-18 (`api-event-model.md` 5): that adapter is `xwalk_event(&src, &ev)`, a **pull source of `XmlEvent`**, the same translation
+(`xtreewrite.c` today) living in the walker. `xtreewrite` shrinks to a pump into `xwrite`, `XMLTreeSerializer` is the walker behind the
+demand-driven serializer, and `js_walk_*` for XML is replaced by the sink methods of `js_xmlsink_define`.
+
 ## 8. Building: planned `xbuilder` on `jbuilder`
 
 | XML event | `jbuild_*` calls |
@@ -161,6 +188,9 @@ children count at `array_start` and using one event of lookahead for the flat-li
 
 Needs from `jbuilder`: a `proto` option (plain objects: `lib/dom.js` calls `hasOwnProperty`) and `jbuild_value_js()`.
 
+Done: `xbuilder` exists (`XmlBuilder` on `JsonBuilder`, `XB_PLAIN`, `XB_FLAT`). Plan 2026-10-18: `XB_FLAT` is what `XMLNodeParser` uses (P7), and the
+typed markup events replace the `push(object)` + magic `tagName` encoding of comments and declarations inside the builder only.
+
 ## 9. The JS-facing contract
 
 | Class / function | Constructor | Methods and properties | Errors |
@@ -170,7 +200,9 @@ Needs from `jbuilder`: a `proto` option (plain objects: `lib/dom.js` calls `hasO
 | `XMLParser(input, options?)` | buffer, string or reader; options carry callbacks and filename | `parse()` returns an event id; `eventName`, `eventValue`, `hasValue`, `depth`, `location`, `tolerant`, `root`; `onelementstart`, `onelementend`, `onattribute`, `ontext`; static `PARSE_AGAIN`, `PARSE_ERROR`, `PARSE_OK`, `ELEMENT_START`, `ATTRIBUTE`, `ELEMENT_END`, `TEXT` | |
 | `XMLNodeParser(input, options?)` | buffer, string or reader; options may carry `filename` | `parse()` returns a string (text), `{tagName, attributes}` (start tag), `{tagName: '/x'}` (end tag) or a status integer; `depth`, `location` | |
 | `XMLPushParser(options?)` | options may define callbacks | `write(chunk)`, `close()`; `root`, `path` | `SyntaxError` on `close()` of a truncated stream |
-| `XMLTreeSerializer(root)` | a tree array or one element | `read(n)`, `read(buffer, offset, length)`; `root`, `finished` | |
+| `XMLTreeSerializer(root)` | a tree array or one element; plan 2026-10-18: or any pull source (`XMLParser`) | `read(n)`, `read(buffer, offset, length)`; `root`, `finished` | |
+| `XmlBuilder(options?)` (plan) | `{flat, plain}` | sink methods (`elementStart`, `attribute`, `text`, `elementEnd`, ...), `root`, `path`, `[Symbol.for('qjs.xmlsink')]` | |
+| `source.pump(sink)`, `pushParser.connect(sink)`, `tee(...sinks)` (plan) | sink: a handshake object or any object with the sink methods | | the first error event as `SyntaxError`, or `onParseError` |
 | `XMLWriter(output?, options?)` | buffer, writer or function; options a number (indent) or `{indent}` | `elementStart`, `attribute`, `text`, `elementEnd`; `state`, `written`, `indent` | planned: `TypeError` for a mismatched `elementEnd` |
 
 Name clash: the DOM's `XMLSerializer` has `serializeToString(node)`; ours is a different contract under the same name until the rename to `XMLTreeSerializer`

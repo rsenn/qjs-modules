@@ -841,6 +841,12 @@ target_include_directories(pump-roundtrip PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(pump-roundtrip PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-pump-roundtrip COMMAND pump-roundtrip)
 
+# event-model: sources and sinks of the Event model v2 (parsers, walkers, builders, serials, JS sinks)
+add_executable(event-model tests/c/event-model.c)
+target_include_directories(event-model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(event-model PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-event-model COMMAND event-model)
+
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
 
 # tests of modules that are off by default

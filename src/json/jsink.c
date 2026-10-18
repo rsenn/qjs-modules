@@ -1,6 +1,6 @@
 /* jsink.c: js_jsonsink_register(), js_jsonsink_define(), js_jsonsink_wrap().
  * depends on: jevent.h (the sink), quickjs.h.
- * rule: one JSCFunction for all eleven methods, dispatched by magic; the class decides how a
+ * rule: one JSCFunction for all thirteen methods, dispatched by magic; the class decides how a
  * failure is thrown. */
 
 #define _GNU_SOURCE 1
@@ -14,7 +14,7 @@
  * @{
  */
 
-enum { M_ERROR, M_NULL, M_TRUE, M_FALSE, M_NUMBER, M_STRING, M_ARRAY_START, M_ARRAY_END, M_OBJECT_START, M_OBJECT_END, M_KEY };
+enum { M_ERROR, M_NULL, M_TRUE, M_FALSE, M_NUMBER, M_STRING, M_ARRAY_START, M_ARRAY_END, M_OBJECT_START, M_OBJECT_END, M_KEY, M_COMMENT, M_RAW };
 
 static const JsonEventType method_types[] = {JSON_EVENT_ERROR,
                                              JSON_EVENT_NULL,
@@ -26,7 +26,9 @@ static const JsonEventType method_types[] = {JSON_EVENT_ERROR,
                                              JSON_EVENT_ARRAY_END,
                                              JSON_EVENT_OBJECT_START,
                                              JSON_EVENT_OBJECT_END,
-                                             JSON_EVENT_KEY};
+                                             JSON_EVENT_KEY,
+                                             JSON_EVENT_COMMENT,
+                                             JSON_EVENT_RAW};
 
 static JSClassID js_jsonsink_class_id = 0;
 
@@ -85,7 +87,7 @@ js_jsonsink_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(!opaque)
     return JS_ThrowTypeError(ctx, "JsonEventSink: not a sink object");
 
-  if(magic == M_ERROR || magic == M_NUMBER || magic == M_STRING || magic == M_KEY) {
+  if(magic == M_ERROR || magic == M_NUMBER || magic == M_STRING || magic == M_KEY || magic == M_COMMENT || magic == M_RAW) {
     if(argc < 1)
       return JS_ThrowTypeError(ctx, "JsonEventSink: a text is required");
 
@@ -138,6 +140,14 @@ js_jsonsink_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       has_cb = !!sink.key;
       w = has_cb ? sink.key(sink.opaque, str, len) : 0;
       break;
+    case M_COMMENT:
+      has_cb = !!sink.comment;
+      w = has_cb ? sink.comment(sink.opaque, str, len) : 0;
+      break;
+    case M_RAW:
+      has_cb = !!sink.raw;
+      w = has_cb ? sink.raw(sink.opaque, str, len) : 0;
+      break;
   }
 
   if(str)
@@ -177,6 +187,8 @@ js_jsonsink_define(JSContext* ctx, JSValueConst obj) {
       JS_CFUNC_MAGIC_DEF("objectStart", 0, js_jsonsink_method, M_OBJECT_START),
       JS_CFUNC_MAGIC_DEF("objectEnd", 0, js_jsonsink_method, M_OBJECT_END),
       JS_CFUNC_MAGIC_DEF("key", 1, js_jsonsink_method, M_KEY),
+      JS_CFUNC_MAGIC_DEF("comment", 1, js_jsonsink_method, M_COMMENT),
+      JS_CFUNC_MAGIC_DEF("raw", 1, js_jsonsink_method, M_RAW),
   };
 
   return JS_SetPropertyFunctionList(ctx, obj, funcs, countof(funcs));
@@ -238,6 +250,112 @@ js_jsonsink_wrap(JSContext* ctx, JsonEventSink sink) {
 
   JS_SetOpaque(obj, copy);
   return obj;
+}
+
+
+/* the JS object as a sink: each member calls the method of the same name on `obj` */
+struct json_js_sink {
+  JSContext* ctx;
+  JSValue obj;
+};
+
+static const char* const js_sink_names[] = {"error", "null", "true", "false", "number", "string", "arrayStart", "arrayEnd", "objectStart", "objectEnd", "key", "comment", "raw"};
+
+/* js_jsonsink_call: obj[name](text?) or obj[name](); a missing method drops the event.
+ *
+ * returns the method's number when negative, else 0; -1 with the exception pending when it throws. */
+static ssize_t
+js_jsonsink_call(void* opaque, int magic, const char* str, size_t len) {
+  JsonJsSink* s = opaque;
+  JSContext* ctx = s->ctx;
+  JSValue fn = JS_GetPropertyStr(ctx, s->obj, js_sink_names[magic]), arg, ret;
+  int32_t r = 0;
+
+  if(JS_IsException(fn))
+    return -1;
+
+  if(!JS_IsFunction(ctx, fn)) {
+    JS_FreeValue(ctx, fn);
+    return 0;
+  }
+
+  arg = str ? JS_NewStringLen(ctx, str, len) : JS_UNDEFINED;
+  ret = JS_Call(ctx, fn, s->obj, str ? 1 : 0, str ? &arg : NULL);
+  JS_FreeValue(ctx, arg);
+  JS_FreeValue(ctx, fn);
+
+  if(JS_IsException(ret))
+    return -1;
+
+  if(JS_IsNumber(ret))
+    JS_ToInt32(ctx, &r, ret);
+
+  JS_FreeValue(ctx, ret);
+  return r < 0 ? r : 0;
+}
+
+#define JS_SINK_PLAIN(name, magic) \
+  static ssize_t name(void* o) { \
+    return js_jsonsink_call(o, magic, 0, 0); \
+  }
+#define JS_SINK_TEXT(name, magic) \
+  static ssize_t name(void* o, const char* str, size_t len) { \
+    return js_jsonsink_call(o, magic, str ? str : "", len); \
+  }
+
+JS_SINK_TEXT(js_sink_error, M_ERROR)
+JS_SINK_PLAIN(js_sink_null, M_NULL)
+JS_SINK_PLAIN(js_sink_true, M_TRUE)
+JS_SINK_PLAIN(js_sink_false, M_FALSE)
+JS_SINK_TEXT(js_sink_number, M_NUMBER)
+JS_SINK_TEXT(js_sink_string, M_STRING)
+JS_SINK_PLAIN(js_sink_array_start, M_ARRAY_START)
+JS_SINK_PLAIN(js_sink_array_end, M_ARRAY_END)
+JS_SINK_PLAIN(js_sink_object_start, M_OBJECT_START)
+JS_SINK_PLAIN(js_sink_object_end, M_OBJECT_END)
+JS_SINK_TEXT(js_sink_key, M_KEY)
+JS_SINK_TEXT(js_sink_comment, M_COMMENT)
+JS_SINK_TEXT(js_sink_raw, M_RAW)
+
+JsonJsSink*
+js_jsonsink_from_js(JSContext* ctx, JSValueConst obj, JsonEventSink* sink) {
+  JsonJsSink* s;
+
+  if(!JS_IsObject(obj)) {
+    JS_ThrowTypeError(ctx, "JsonEventSink: an object is required");
+    return NULL;
+  }
+
+  if(!(s = js_malloc(ctx, sizeof(*s))))
+    return NULL;
+
+  s->ctx = ctx;
+  s->obj = JS_DupValue(ctx, obj);
+  *sink = (JsonEventSink){
+      s,
+      js_sink_error,
+      js_sink_null,
+      js_sink_true,
+      js_sink_false,
+      js_sink_number,
+      js_sink_string,
+      js_sink_array_start,
+      js_sink_array_end,
+      js_sink_object_start,
+      js_sink_object_end,
+      js_sink_key,
+      js_sink_comment,
+      js_sink_raw,
+  };
+  return s;
+}
+
+void
+js_jsonsink_from_js_free(JSContext* ctx, JsonJsSink* s) {
+  if(s) {
+    JS_FreeValue(ctx, s->obj);
+    js_free(ctx, s);
+  }
 }
 
 /**

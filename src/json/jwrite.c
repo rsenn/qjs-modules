@@ -512,6 +512,10 @@ static ssize_t
 jwrite_if_key(void* wr, const char* str, size_t len) {
   return jwrite_key(wr, str, len);
 }
+static ssize_t
+jwrite_if_raw(void* wr, const char* str, size_t len) {
+  return jwrite_raw(wr, str, len);
+}
 
 JsonEventSink
 jwrite_sink(JsonWriter* wr) {
@@ -528,6 +532,8 @@ jwrite_sink(JsonWriter* wr) {
       jwrite_if_object_start,
       jwrite_if_object_end,
       jwrite_if_key,
+      NULL, /* comment: JSON has none, the writer drops it */
+      jwrite_if_raw,
   };
 }
 

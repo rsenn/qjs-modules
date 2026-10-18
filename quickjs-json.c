@@ -679,7 +679,8 @@ json_pushparser_tojs(JSContext* ctx, JsonEventType type, const jr_str_t* data) {
     case JSON_EVENT_ARRAY_END:
     case JSON_EVENT_OBJECT_START:
     case JSON_EVENT_OBJECT_END:
-    case JSON_EVENT_COMMENT: break;
+    case JSON_EVENT_COMMENT:
+    case JSON_EVENT_RAW: break;
   }
 
   return JS_UNDEFINED;
@@ -916,7 +917,8 @@ js_jsonpushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
           case JSON_EVENT_ARRAY_START: prop_name = "arrayStart"; break;
           case JSON_EVENT_ARRAY_END: prop_name = "arrayEnd"; break;
           case JSON_EVENT_KEY: prop_name = "key"; break;
-          case JSON_EVENT_COMMENT: break;
+          case JSON_EVENT_COMMENT:
+          case JSON_EVENT_RAW: break;
         }
 
         if(prop_name) {

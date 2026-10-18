@@ -200,6 +200,110 @@ js_xmlsink_wrap(JSContext* ctx, XmlEventSink sink) {
   return obj;
 }
 
+
+/* the JS object as a sink: each member calls the method of the same name on `obj` */
+struct xml_js_sink {
+  JSContext* ctx;
+  JSValue obj;
+};
+
+static const char* const js_sink_names[] = {"error", "elementStart", "attribute", "elementEnd", "text", "comment", "declaration", "instruction", "cdata"};
+
+/* js_xmlsink_call: obj[name](a, b?) with a, b strings, or undefined for NULL; a missing method drops the event.
+ *
+ * returns the method's number when negative, else 0; -1 with the exception pending when it throws. */
+static ssize_t
+js_xmlsink_call(void* opaque, int magic, const char* a, size_t alen, const char* b, size_t blen, int argc) {
+  XmlJsSink* s = opaque;
+  JSContext* ctx = s->ctx;
+  JSValue fn = JS_GetPropertyStr(ctx, s->obj, js_sink_names[magic]), args[2], ret;
+  int32_t r = 0;
+
+  if(JS_IsException(fn))
+    return -1;
+
+  if(!JS_IsFunction(ctx, fn)) {
+    JS_FreeValue(ctx, fn);
+    return 0;
+  }
+
+  args[0] = a ? JS_NewStringLen(ctx, a, alen) : JS_UNDEFINED;
+  args[1] = b ? JS_NewStringLen(ctx, b, blen) : JS_UNDEFINED;
+  ret = JS_Call(ctx, fn, s->obj, argc, args);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
+  JS_FreeValue(ctx, fn);
+
+  if(JS_IsException(ret))
+    return -1;
+
+  if(JS_IsNumber(ret))
+    JS_ToInt32(ctx, &r, ret);
+
+  JS_FreeValue(ctx, ret);
+  return r < 0 ? r : 0;
+}
+
+#define JS_SINK_TEXT(name, magic) \
+  static ssize_t name(void* o, const char* str, size_t len) { \
+    return js_xmlsink_call(o, magic, str, len, 0, 0, 1); \
+  }
+
+JS_SINK_TEXT(js_sink_error, M_ERROR)
+JS_SINK_TEXT(js_sink_element_start, M_ELEMENT_START)
+JS_SINK_TEXT(js_sink_text, M_TEXT)
+JS_SINK_TEXT(js_sink_comment, M_COMMENT)
+JS_SINK_TEXT(js_sink_declaration, M_DECLARATION)
+JS_SINK_TEXT(js_sink_instruction, M_INSTRUCTION)
+JS_SINK_TEXT(js_sink_cdata, M_CDATA)
+
+static ssize_t
+js_sink_element_end(void* o, const char* str, size_t len) {
+  return js_xmlsink_call(o, M_ELEMENT_END, str, len, 0, 0, str ? 1 : 0);
+}
+
+static ssize_t
+js_sink_attribute(void* o, const char* name, size_t nlen, const char* value, size_t vlen) {
+  return js_xmlsink_call(o, M_ATTRIBUTE, name, nlen, value, vlen, value ? 2 : 1);
+}
+
+XmlJsSink*
+js_xmlsink_from_js(JSContext* ctx, JSValueConst obj, XmlEventSink* sink) {
+  XmlJsSink* s;
+
+  if(!JS_IsObject(obj)) {
+    JS_ThrowTypeError(ctx, "XmlEventSink: an object is required");
+    return NULL;
+  }
+
+  if(!(s = js_malloc(ctx, sizeof(*s))))
+    return NULL;
+
+  s->ctx = ctx;
+  s->obj = JS_DupValue(ctx, obj);
+  *sink = (XmlEventSink){
+      s,
+      js_sink_error,
+      js_sink_element_start,
+      js_sink_attribute,
+      js_sink_element_end,
+      js_sink_text,
+      js_sink_comment,
+      js_sink_declaration,
+      js_sink_instruction,
+      js_sink_cdata,
+  };
+  return s;
+}
+
+void
+js_xmlsink_from_js_free(JSContext* ctx, XmlJsSink* s) {
+  if(s) {
+    JS_FreeValue(ctx, s->obj);
+    js_free(ctx, s);
+  }
+}
+
 /**
  * @}
  */

@@ -117,6 +117,16 @@ typedef struct xml_parser {
    * later call resumes by jumping (via computed goto) straight back into that exact
    * spot in a *fresh* call frame, so nothing that needs to survive that can be a
    * plain C local. */
+  /* xml_next() only: typed markup. a comment, declaration or CDATA arrives from xml_parse() as a
+     start event with a magic name followed by an end event (the end is swallowed); a processing
+     instruction as a start event and its attributes, never an end (the first event that is not an
+     attribute ends it: collected into `mk`, that event is kept in mk_type and delivered next). */
+  DynBuf mk;
+  int mk_type;
+  unsigned mk_skip_end : 1;
+  unsigned mk_pi : 1;
+  unsigned mk_replay : 1;
+
   void* resume;
   unsigned primed : 1;
   unsigned done : 1;
@@ -145,6 +155,28 @@ void xml_set_self_closing_tags(XMLParser*, const char* const* tags);
  * still open is not an error, it just stops (no synthetic XE_ELEMENT_END events
  * are made up for them). */
 int xml_parse(XMLParser*);
+
+/* xml_next: the next event of a pull parser, written to *ev (the Event model v2 form of xml_parse()).
+ *
+ *   XMLParser*  p   the parser, set up by xml_init()
+ *   XmlEvent*   ev  filled when the result is XML_PULL_EVENT
+ *
+ *   returns XmlPull  XML_PULL_EVENT, XML_PULL_AGAIN (the Reader has no data right now) or
+ *                    XML_PULL_END (clean end of input, and after a terminal XE_ERROR event)
+ *
+ * in the event
+ *   - type is an XmlEventType; markup arrives typed, XE_COMMENT, XE_DECLARATION, XE_INSTRUCTION
+ *     and XE_CDATA with their text in str / len, not as elements with the names !-- ! ? ![CDATA[
+ *   - name / nlen of element_start, attribute and element_end, value / vlen of an attribute
+ *     (value NULL: a bare attribute); text in str / len; all valid until the next call
+ *   - at is the line and column of the tag the event belongs to, has_at set for all but text
+ *   - an XE_ERROR event has the stable error code in str (mismatched-end-tag)
+ *
+ * never throws. */
+XmlPull xml_next(XMLParser*, XmlEvent* ev);
+
+/* xml_source: the pull parser as an XmlEventSource, for xevent_pump(). */
+XmlEventSource xml_source(XMLParser*);
 
 /**
  * @}

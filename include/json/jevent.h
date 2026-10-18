@@ -19,7 +19,8 @@
  *   KEY                   text
  *   ARRAY_START/END,
  *   OBJECT_START/END      nothing
- *   COMMENT               text; only the pull parser, with `comments` set
+ *   COMMENT               text; only a parser with `comments` set, delivered to sink.comment
+ *   RAW                   text that is already JSON for one value (JSON.rawJSON), sink.raw
  *
  * jread (callbacks), json (json_parse() results), jbuilder, jwrite and the sinks all use it. */
 typedef enum json_event_type {
@@ -35,6 +36,7 @@ typedef enum json_event_type {
   JSON_EVENT_OBJECT_END,
   JSON_EVENT_KEY,
   JSON_EVENT_COMMENT,
+  JSON_EVENT_RAW,
 } JsonEventType;
 
 struct jr_state;
@@ -75,7 +77,8 @@ typedef struct {
  * w.object_end(w.opaque);
  * ```
  *
- * a member may be NULL only for jevent_send(), which then drops the event. */
+ * a member may be NULL only for jevent_send(), which then drops the event. `comment` and `raw`
+ * come last, so a positional initializer of the first eleven members stays valid. */
 typedef struct {
   void* opaque;
   ssize_t (*error)(void*, const char* str, size_t len);
@@ -89,6 +92,8 @@ typedef struct {
   ssize_t (*object_start)(void*);
   ssize_t (*object_end)(void*);
   ssize_t (*key)(void*, const char* str, size_t len);
+  ssize_t (*comment)(void*, const char* str, size_t len); /* optional: a sink that cannot keep comments leaves it NULL */
+  ssize_t (*raw)(void*, const char* str, size_t len);     /* optional: text that is already JSON for one value */
 } JsonEventSink;
 
 /* jevent_send: calls the sink member that matches `ev->type`.
@@ -98,6 +103,75 @@ typedef struct {
  *
  *   returns ssize_t  what the member returns; 0 when the member is NULL or the type unknown */
 ssize_t jevent_send(const JsonEventSink* sink, const JsonEvent* ev);
+
+/* JsonPull: what a pull source (json_next(), jwalk_event()) answers.
+ *
+ *   JSON_PULL_FAIL   -1  an exception is pending; only sources that run JS (the walkers)
+ *   JSON_PULL_END     0  no more events
+ *   JSON_PULL_AGAIN   1  the Reader has no data now (the pull parser cannot tell the end of
+ *                        its input from a pause); call again once it may
+ *   JSON_PULL_EVENT   2  *ev is filled
+ *
+ * END and AGAIN equal JSON_PUMP_END and JSON_PUMP_AGAIN, so a pump returns the status that
+ * stopped it. An error in the input is an event (JSON_EVENT_ERROR), not a status. */
+typedef enum {
+  JSON_PULL_FAIL = -1,
+  JSON_PULL_END = 0,
+  JSON_PULL_AGAIN = 1,
+  JSON_PULL_EVENT = 2,
+} JsonPull;
+
+/* JsonEventHandler: where a push source delivers each event; the first negative result stops it.
+ *
+ * jevent_handler() has this shape with `user` a const JsonEventSink*:
+ *
+ *   jr_feed(&st, chunk, n, jevent_handler, &sink);
+ *
+ * returns what a sink member returns (>= 0, or a negative error code). */
+typedef ssize_t JsonEventHandler(void* user, const JsonEvent* ev);
+
+ssize_t jevent_handler(void* sink, const JsonEvent* ev);
+
+/* JsonTee: a sink that sends every event to several sinks.
+ *
+ * ```c
+ * JsonEventSink both[2] = {jbuild_sink(&b), jwrite_sink(&w)};
+ * JsonTee tee = {both, 2};
+ * JsonEventSink sink = jtee_sink(&tee);   // one parse, a tree and a copy of the text
+ * ```
+ *
+ * the sinks are called in order; the first negative result stops that event and is returned,
+ * otherwise the result is the first sink's. A member a sink lacks is skipped for that sink.
+ * tee and sinks must outlive the returned struct. */
+typedef struct {
+  const JsonEventSink* sinks;
+  size_t len;
+} JsonTee;
+
+JsonEventSink jtee_sink(JsonTee* tee);
+
+/* JsonEventSource: any pull source behind one function pointer.
+ *
+ * ```c
+ * JsonEventSource src = json_source(&parser);
+ * JsonEvent ev;
+ * while(src.next(src.opaque, &ev) == JSON_PULL_EVENT) {}
+ * ```
+ *
+ * `next` fills *ev with text valid until the next call. */
+typedef struct {
+  void* opaque;
+  JsonPull (*next)(void* opaque, JsonEvent* ev);
+} JsonEventSource;
+
+/* jevent_pump: sends the events of `src` to `sink` until the source stops or the sink fails.
+ *
+ *   JsonEventSource  src   a pull source
+ *   JsonEventSink*   sink  where the events go
+ *
+ *   returns ssize_t  the JsonPull that stopped it (END, AGAIN or FAIL), or the first negative
+ *                    result of the sink */
+ssize_t jevent_pump(JsonEventSource src, const JsonEventSink* sink);
 
 /* the pumps: a JSON parser drives a sink.
  *

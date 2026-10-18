@@ -155,3 +155,36 @@ oracle for which inputs are errors (`api-compare-xml.md` 3), not for the wording
 Done: `read()` on `xbuilder`; `write()` on `xwalk` + `xlayout` (`src/xml/xtreewrite.c`, tree and flat list; `quickjs-xml.c` is 2156 lines); `XMLWriter` on
 `xwrite`, decorated with the `XmlEventSink` methods by `js_xmlsink_*` (`src/xml/xsink.c`); `XmlEventSink`, pumps, `XmlBuilder`; error contract E0 to E2.
 Sections 2 and 3 above predate this; the open items are in `TODO.md`, "Remaining work: json and xml" (X1 to X8, B1 to B9).
+
+## 7. Plan 2026-10-18: engines in C, APIs in `lib/`
+
+Decision (`api-event-model.md`): `quickjs-xml.c` holds **engines**, each a source or a sink, pull or push, over `XmlEvent`; `read`, `write`,
+`DOMParser`, `XMLSerializer`, `XML.parse` / `XML.stringify` and `XMLNodeParser` are compositions in `lib/`. What that does to the pieces:
+
+| Piece | Now | After |
+| --- | --- | --- |
+| `xml.c` (pull) | `xml_parse(p)` returns an event id or `XML_PARSE_*`, data in `event_name` / `event_value` / `event_has_value`, markup as magic-named elements | `XmlPull xml_next(p, &ev)`: fills an `XmlEvent`; typed `XE_COMMENT` / `DECLARATION` / `INSTRUCTION` / `CDATA`; `XE_ERROR` is an event, then end |
+| `xread.c` (push) | `xr_callback(type, xr_str_t* name, xr_str_t* value, user)` | `XmlEventHandler(user, const XmlEvent*)`; kept as a tokenizer or deleted if `xml.c` over a push `Reader` measures as fast (Q5) |
+| `xpump.c` | `xread_pump`, `xread_pump_finish`, `xml_pump` | `xevent_pump(xml_source(parser), sink)`; push pumps are one `xr_read` call with `xevent_send` as handler |
+| `xwalk.c` | element-tree walk through `WalkInterface` | also `xwalk_event(&src, &ev)`: the tag / attributes / children interpretation of `xtreewrite.c` lives here |
+| `xtreewrite.c`, `xlayout.c` | event interpretation + legacy layout | a pump into `xwrite` once X1 is decided (`XW_PRETTY`), otherwise only the layout stays |
+| `xbuilder.c` | `XmlBuilder` (`XB_PLAIN`, `XB_FLAT`) | `XMLNodeParser` runs on `XB_FLAT`; builds from typed markup events |
+| `xwrite.c` | `XmlWriter`, `xwrite_sink` | unchanged |
+| `xsink.c` | C sink to JS object | adds JS object to C sink and the handshake `Symbol.for('qjs.xmlsink')` |
+| serializer (in `quickjs-xml.c`) | `XMLTreeSerializer` with replay (`skip`, `delivered`, `capped`) | one struct: pull source + `XmlWriter` + `DynBuf` + demand; the replay code is deleted |
+
+Lines expected to leave `quickjs-xml.c` (2156 now, target about 1200 in `TODO.md` section 6, about 1000 with this plan): `read` / `write` (P9), the
+`XMLNodeParser` assembly and the four option-parsing copies (P7, P8), the replay serializer (P5), the callback glue of `XMLPushParser` (P3).
+Rules for every step: `test-xml.js` and `test-xml-write-golden.js` stay green apart from the changes listed in `TODO.md`; the `read()` differential
+against the pre-refactor parser stays at 0 on well-formed input; push output is the same at every chunk size.
+
+### 7.1 End state (plan 2026-10-18)
+
+After the binding is lifted `quickjs-xml.c` is the list of classes (about 1000 lines): `XMLParser`, `XMLPushParser`, `XmlBuilder`, `XmlWalker`,
+`XMLWriter`, `XMLTreeSerializer`, `tee`. The rest goes to `src/xml/`: error shaping (`xml_error_new`, `xml_throw_at`,
+`xml_pushparser_report`, `xml_nodeparser_record_error`), the four copies of option parsing (`xopts.c`), event to JS value and JS-function
+handlers (`xevent-js.c`), handshake and `js_xml_pump` (`xconnect.c`), the serializer's `read()` (`xserial-js.c`), `location_from_srcpos`,
+`reader_from_js_input`. Deleted: `js_xml_parse` and `XRFrame` (`read()` becomes `lib/xml.js`), `XMLNodeParser` assembly, the replay
+serializer (`XMLCappedBuf`, `xml_write_capped`, `xml_write_skip`), the old entry points of `xml.h` / `xread.h` (private),
+`xread.c` (442 lines, if `xml.c` over a push `Reader` is as fast), and with X1 `xtreewrite.[ch]` and `xlayout.[ch]` (about 560 lines).
+Details, counts and gates: `api-event-model.md` 12; state: [event-model-state.md](event-model-state.md).

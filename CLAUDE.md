@@ -125,6 +125,12 @@ timeout 60 systemd-run --user --scope -q -p MemoryMax=4G -p MemorySwapMax=0 qjsm
      `extendObject.js`), but it's being kept anyway - the author's call, not a scoring
      decision. Don't flag it again in a future cleanup pass without being asked.
 
+4. **Engines in C, APIs in `lib/`** (decided 2026-10-18 for `json` and `xml`, see `doc/api-event-model.md`)
+   - A native module that wraps a format exports engines: parsers, builders, walkers, writers, serializers, each a
+     source or a sink, pull or push, over one event type. They connect in C (`source.pump(sink)`).
+   - A dialect or runtime API (`JSONL`, `JSON5`, `JSONC`, `Bun.XML`, `DOMParser`, `read`/`write`) is a thin
+     composition of engine classes in `lib/`, never new C code and never a subclass of an engine.
+
 ### Choosing the Next Task (leverage)
 
 Rank candidate work by these metrics, in order:

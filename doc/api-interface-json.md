@@ -6,19 +6,27 @@ Findings are in [api-compare-json.md](api-compare-json.md), the code split in
 [api-implement-json.md](api-implement-json.md); the step list that orders all three is `TODO.md` Tier 18. Sections 4 to 10
 below are the reference: the C contracts between the pieces and the JS contract of each class.
 
+**Layering (plan 2026-10-18, [api-event-model.md](api-event-model.md)).** The `json` native module exports **engines only**: pull
+and push parsers, builder, walker, writer, serializer, sink adapters. Every API of the table below that is a dialect or a runtime
+shape (`JSONL`, `JSON5`, `JSONC`, `read`, `write`, `Blob.prototype.json()`, the `@std/json` streams) is a thin composition of those
+engines in JS under `lib/` (`lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js`, `lib/jsonStreams.js`); the "Action" column
+says what the API does, the new column "Lives in" says where. Sections 5 to 8 describe the C contracts as they are; where the event
+model changes them (the pull parser writes a `JsonEvent`, the push parser calls a `JsonEvent` handler, the walker is a pull
+source, the serializer is demand-driven) the change is marked "plan 2026-10-18" and specified in `api-event-model.md` 3 to 5.
+
 ## 1. Target interface
 
-| Export | Target | Standard it follows | Action |
-| --- | --- | --- | --- |
-| `JSONL.parse`, `JSONL.parseChunk` | as now | `Bun.JSONL` | keep |
-| `Blob.prototype.json()` (module `blob`) | as now, plus 100000-level nesting | Bun / Body mixin | keep; close the depth gap with the strict reader |
-| `JSON5.parse(text)`, `JSON5.stringify(v, replacer, space)` | new | `Bun.JSON5` (npm `json5` behind it) | add |
-| `JSONC.parse(text)` | new | `Bun.JSONC` | add |
-| `JsonPushParser` | gains `onValue`, `paths`, `end()` | `@streamparser/json` `JSONParser` | extend |
-| `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` | as now | `jsr:@std/json` | keep |
-| `read(text)` | none: use `JSON.parse` | `JSON.parse` | fix escapes now, deprecate, remove |
-| `write(v, replacer, space)` | none: use `JSON.stringify` | `JSON.stringify` | deprecate, remove |
-| `JsonParser`, `JsonSerializer`, `JsonWriter`, `TYPE_*` constants | unchanged | none exists | keep as engines; not part of the portable surface |
+| Export | Target | Standard it follows | Action | Lives in |
+| --- | --- | --- | --- | --- |
+| `JSONL.parse`, `JSONL.parseChunk` | as now | `Bun.JSONL` | keep the API, move the code | `lib/jsonl.js`: `JsonParser` dialect `jsonl` pumped into a `JsonBuilder`, roots taken from its queue |
+| `Blob.prototype.json()` (module `blob`) | as now, plus 100000-level nesting | Bun / Body mixin | keep; close the depth gap with the strict reader | the blob glue: strict `JsonParser` into a `JsonBuilder` |
+| `JSON5.parse(text)`, `JSON5.stringify(v, replacer, space)` | new | `Bun.JSON5` (npm `json5` behind it) | add | `lib/json5.js`: parse = dialect `json5` + builder; stringify = walker pumped into a `JsonWriter` with `bareKeys`, `singleQuotes` |
+| `JSONC.parse(text)` | new | `Bun.JSONC` | add | `lib/jsonc.js`: dialect `jsonc` + builder |
+| `JsonPushParser` | gains `onValue`, `paths`, `end()`, `connect(sink)` | `@streamparser/json` `JSONParser` | extend | engine (C) |
+| `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` | as now | `jsr:@std/json` | keep | `lib/jsonStreams.js` on `JsonPushParser` + `JsonSerializer` |
+| `read(text)` | none: use `JSON.parse` | `JSON.parse` | fix escapes now, deprecate, remove | wrapper in the glue until removed |
+| `write(v, replacer, space)` | none: use `JSON.stringify` | `JSON.stringify` | deprecate, remove | wrapper in the glue until removed |
+| `JsonParser`, `JsonSerializer`, `JsonWriter`, `TYPE_*` constants | unchanged; plus `JsonBuilder`, `JsonWalker`, `tee`, `source.pump(sink)` | none exists | keep as engines; not part of the portable surface | C (`quickjs-json.c`) |
 
 ## 2. Decisions
 
@@ -32,6 +40,9 @@ below are the reference: the C contracts between the pieces and the JS contract 
 | D6 | `read`'s string-escape defect is fixed before it is deprecated | it is wrong today and callers exist (`plot-cv/yt-playlist.js`, `plot-cv/clang-ast.js`) |
 | D7 | every parser throws `SyntaxError` with an own `loc` (a `Location`), `length` and `code`; section 11 | no runtime offers a correct structured position (`api-compare-json.md` 7); one property name, `loc`, on the standard class |
 | D8 | `TypeError` for bad argument types (not `ReferenceError`); `InternalError` never for input | `read(5)` throws `ReferenceError`, `read('{')` an `InternalError` today |
+| D9 | decided 2026-10-18: no dialect or runtime API is C. `JSONL`, `JSON5`, `JSONC`, `read`, `write` are compositions of engine classes in `lib/` | one set of engines serves Browser, Bun, Node and Deno shapes; the engines stay replaceable by a pure-JS port |
+| D10 | decided 2026-10-18: every engine class is a source or a sink, pull or push; a source reaches a sink in C through `pump(sink)` / `connect(sink)` | `api-event-model.md` 1 and 2 |
+| D11 | the dialect is a name (`'json'`, `'jsonc'`, `'json5'`, `'jsonl'`) given to the parser; the `JR_*` flags behind it are an implementation detail | one entry point per role, no `parseJson5` family |
 
 ## 3. Steps
 
@@ -47,6 +58,11 @@ Ordered so a refactor and a behaviour change never share a step; numbering is th
 | 3 | `JSON5.parse`, `JSONC.parse` appear; `Blob.json()` handles deep nesting | step 2 |
 | 4 | `read()`, `write()` deprecated, then removed | callers migrated |
 | 5 | `JSON5.stringify`; `JsonPushParser.onValue`, `paths`, `end()` | step 2 |
+
+The event-model steps P1 to P10 (`api-event-model.md` 10, `TODO.md` "Event model v2") run alongside: P1 to P8 change the engines
+(`json_next(p, &ev)`, push handler, walker as source, demand-driven serializer, handshake, builder queue, parser options), P9
+moves `JSONL`, `JSON5`, `JSONC`, `read`, `write` into `lib/`. Steps 3 and 5 above are then done in the glue; step 2 (`jread` strict
+and dialects) is P8's input.
 
 ## 4. Reference: the event protocol
 
@@ -102,8 +118,11 @@ int  json_parse(JsonParser*);   /* a JsonEventType, JSON_NEED_DATA, or JSON_ERRO
 | comments | skipped, or `JSON_EVENT_COMMENT` when `json->comments` is set |
 | engine | `JSContext` only to allocate the `Location` |
 
-Note the two enums differ (`JSON_EVENT_OBJECT_START` vs `JSON_EVENT_OBJECT_START`, a separate `JSON_EVENT_KEY` in both);
-they are never mixed, and unifying them is not planned.
+Plan 2026-10-18 (`api-event-model.md` 3.1, 4): `json_next()` is added next to `json_parse()` (which stays the low-level step until the binding is off it): `JsonPull json_next(JsonParser*, JsonEvent* ev)`, with `JsonPull` =
+`JSON_PULL_END | AGAIN | EVENT | FAIL`; the event carries type, token text and the start `SourcePos`, and an error is an event
+(`JSON_EVENT_ERROR`), so `JSON_NEED_DATA`, `JSON_NONE` and `JSON_ERROR` disappear as return values. The push side becomes
+`jr_feed(state, chunk, len, JsonEventHandler*, user)` with the same `JsonEvent`, and `jr_callback` / `jr_str_t` go. After that the pull and push
+parsers use one event type, one text rule and one position rule, and `jread_pump` / `json_pump` are the 3-line loop.
 
 ## 6. Building: `JsonBuilder` (`jbuilder.h`)
 
@@ -151,6 +170,11 @@ Each callback returns bytes written (>= 0) or -1 with an exception pending. `wal
 `js_walk_register` / `js_walk_define` / `js_walk_wrap` expose a `WalkInterface` to JS (`key`, `objectStart`, `arrayStart`,
 `objectEnd`, `arrayEnd`, `value`), which is how a producer drives a `JsonWriter` without knowing its class.
 
+Plan 2026-10-18 (`api-event-model.md` 5): `jwalk` becomes a **pull source** of `JsonEvent` (`jwalk_event(&src, &ev)`; strings as CESU-8, numbers
+as their `JSON.stringify` text, `NaN` / `Infinity` as null, `JSON.rawJSON` through `JsonEventSink.raw`). `WalkInterface` stays as the engine-side
+capture inside the iterator, not something a writer implements; `js_walk_*` is replaced by the sink methods of `js_jsonsink_define`.
+A walker pumped into a `JsonWriter` is `write()` / `JSON5.stringify`; a walker behind a `JsonSerializer` is the demand-driven stringifier.
+
 ## 8. Writing: `JsonWriter` and `JsonWriteInterface` (`jwrite.h`)
 
 Every call returns the bytes written (>= 0) or `-JWRITE_E_*`; `jwrite_error_message(code)` gives the text.
@@ -176,6 +200,9 @@ Every call returns the bytes written (>= 0) or `-JWRITE_E_*`; `jwrite_error_mess
 | `JsonParser(input, filename?)` | buffer, string or reader | `next()`, iterable, `parse()` | `error` string, `NEED_DATA` state |
 | `JsonPushParser(callback?)` | optional callback function, options object, or a `JsonWriter` (events go straight to it) | `write(chunk)`, `close()`; `root`, `path`, `location` | `SyntaxError` on `close()` of a truncated stream |
 | `JsonSerializer(value, replacer?, space?)` | | `read(n)`, `read(buffer, offset, length)`, `next()`; `finished`, `root`, `path` | `TypeError` as `JSON.stringify` |
+| `JsonSerializer(source, options?)` (plan 2026-10-18) | a value, or any pull source (`JsonParser`) | the same; steps the source only as far as `read(n)` needs, never replays | the source's errors, as `pump()` |
+| `JsonBuilder(options?)` (plan) | `{proto, flat?}` | sink methods (`objectStart`, `key`, `number`, ...), `root`, `path`, `take()` (completed roots with their end position), `[Symbol.for('qjs.jsonsink')]` | none |
+| `source.pump(sink)`, `pushParser.connect(sink)`, `tee(...sinks)` (plan) | sink: a handshake object or any object with the sink methods | | the first error event as `SyntaxError`, or `onError` |
 | `JsonWriter(output?, options?)` | buffer or writer; options a number (indent) or `{indent, bareKeys, singleQuotes, hexNumbers, minify}` | `objectStart`, `arrayStart`, `objectEnd`, `arrayEnd`, `key`, `value`; `written`, `depth` | `TypeError` for `JWRITE_E_*` ordering mistakes |
 
 C helpers that cross into JS state their error contract in one of three fixed forms (`CLAUDE.md`):

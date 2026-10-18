@@ -60,6 +60,27 @@ int js_xmlsink_define(JSContext*, JSValueConst obj);
  * returns the object (refcount: new reference), or JS_EXCEPTION. */
 JSValue js_xmlsink_wrap(JSContext*, XmlEventSink sink);
 
+/* XmlJsSink: a JS object used as an XmlEventSink, so a C source can drive it; the twin of JsonJsSink.
+ *
+ * ```js
+ * { elementStart(name) {}, attribute(name, value) {}, text(str) {}, elementEnd(name) {} }
+ * ```
+ *
+ * each event calls the method of the same name (as the table above); a bare attribute passes
+ * value undefined, elementEnd passes no argument for a NULL name. A missing method drops the
+ * event. A method that returns a negative number fails the event with it; one that throws fails it
+ * with -1 and leaves the exception pending. */
+typedef struct xml_js_sink XmlJsSink;
+
+/* js_xmlsink_from_js: makes *sink call the methods of `obj`.
+ *
+ * borrowed: obj is dup'ed; free the result with js_xmlsink_from_js_free().
+ * returns the adapter (sink->opaque), or NULL with an exception pending. */
+XmlJsSink* js_xmlsink_from_js(JSContext*, JSValueConst obj, XmlEventSink* sink);
+
+/* js_xmlsink_from_js_free: releases the adapter and the object reference. never throws. */
+void js_xmlsink_from_js_free(JSContext*, XmlJsSink*);
+
 /**
  * @}
  */

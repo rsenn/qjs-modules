@@ -169,3 +169,35 @@ Size: `srcpos.h` about 60 lines, `js_syntax_error_new` about 50, per-parser chan
 Done: layout move; `jwalk` over a generic `walk` (circularity check O(1)); `JsonEventSink`, `jwrite_sink`/`jbuild_sink`, pumps; `js_jsonsink_*`
 (`src/json/jsink.c`, no user yet); `JsonPushParser` on the sink; error contract E0 to E2; `quickjs-json.c` is 1962 lines. Sections 2 to 4 above
 predate this; the open items are in `TODO.md`, "Remaining work: json and xml" (J1 to J7, B1 to B9).
+
+## 7. Plan 2026-10-18: engines in C, APIs in `lib/`
+
+Decision (`api-event-model.md`): `quickjs-json.c` stops carrying dialect and runtime APIs. It holds **engines**, each a source or a sink, pull or
+push, over `JsonEvent`; `JSONL`, `JSON5`, `JSONC`, `read`, `write` and the `@std/json` streams are compositions in `lib/`. What that does to the
+pieces:
+
+| Piece | Now | After |
+| --- | --- | --- |
+| `json.c` (pull) | `json_parse(p)` returns an event type or `JSON_NEED_DATA` / `JSON_NONE` / `JSON_ERROR`, text in `json->token` | `JsonPull json_next(p, &ev)`: fills a `JsonEvent` (type, text, start `SourcePos`); an error is an event |
+| `jread.c` (push) | `jr_callback(type, jr_str_t*, user)` | `JsonEventHandler(user, const JsonEvent*)`; `jr_read` returns the first negative handler result |
+| `jpump.c` | `jread_pump`, `jread_pump_finish`, `json_pump` with a private callback | `jevent_pump(json_source(parser), sink)`, the 3-line loop; the push pumps are one call of `jr_read` with `jevent_send` as handler |
+| `jwalk.c` | drives a `WalkInterface` | also `jwalk_event(&src, &ev)`, a pull source (capturing `WalkInterface` inside the iterator) |
+| `jbuilder.c` | `jbuild_*`, `jbuild_sink` | adds the `proto` option, the completed-roots queue with end positions, `jbuild_value_js()` |
+| `jwrite.c` | `JsonWriter`, `jwrite_sink` | unchanged; gets `comment` and `raw` sink members |
+| `jsink.c` | C sink to JS object | adds the other direction (JS object to C sink) and the handshake `Symbol.for('qjs.jsonsink')` |
+| serializer (in `quickjs-json.c`) | `JsonSerializer` over a value | one struct: pull source + `JsonWriter` + `DynBuf` + demand; the source may be a walker or a `JsonParser` |
+
+Lines expected to leave `quickjs-json.c` (the target of section 6 of `TODO.md`, about 1620, drops to about 1300): the `JSONL` functions, `read`,
+`write` and their option parsing (P9), the private token numbering of `JsonParser` (P2), the callback glue of `JsonPushParser` (P3). Rules for
+every step: `test-json.js` stays green apart from the changes listed in `TODO.md`; output is the same at every chunk size; the `JSON.parse` /
+`JSON.stringify` differential stays at 0.
+
+### 7.1 End state (plan 2026-10-18)
+
+After the binding is lifted `quickjs-json.c` is the list of classes (about 900 lines): `JsonParser`, `JsonPushParser`, `JsonBuilder`, `JsonWalker`,
+`JsonWriter`, `JsonSerializer`, `tee`. The rest goes to `src/json/`: error shaping (`js_syntax_error_from_event`, about 220 lines of the binding),
+option parsing and the `space` rules (`jopts.c`), event to JS value and JS-function handlers (`jevent-js.c`), handshake and `js_json_pump`
+(`jconnect.c`), the serializer's `read()` (`jserial-js.c`). Deleted: the vendored reader (lines 29 to 290), `JSONL.*` and `write()` (to
+`lib/`), the walk glue of `JsonWriter` (lines 1446 to 1535), the old entry points of `json.h` / `jread.h` (private), and one of the two
+tokenizers (`jread.c` 1546 lines, `json.c` 1148 lines) after the measurement of `api-event-model.md` 12.3. Details, counts and gates:
+`api-event-model.md` 12; state: [event-model-state.md](event-model-state.md).
