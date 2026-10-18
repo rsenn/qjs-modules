@@ -371,10 +371,10 @@ json_scan_string(JsonParser* json) {
     }
 
     if(json->str_state == JSON_STR_NUL) {
-      json->str_state = JSON_STR_NORMAL;
-
       if((c = json_getc(json)) < 0)
         return c;
+
+      json->str_state = JSON_STR_NORMAL;
 
       if(c >= '0' && c <= '9') {
         json->token.size -= 1;
@@ -388,10 +388,10 @@ json_scan_string(JsonParser* json) {
     }
 
     if(json->str_state == JSON_STR_CR) {
-      json->str_state = JSON_STR_NORMAL;
-
       if((c = json_getc(json)) < 0)
         return c;
+
+      json->str_state = JSON_STR_NORMAL;
 
       if(c == '\n')
         json->token.size -= 1;
@@ -496,7 +496,8 @@ json_scan_string(JsonParser* json) {
       return json->is_key ? JSON_EVENT_KEY : JSON_EVENT_STRING;
     }
 
-    if(c < 0x20 && !(json->flags & (JR_LEGACY | JR_JSON5_STRINGS))) {
+    /* JSON5 lets other control characters stand in a string, not a line terminator */
+    if(c < 0x20 && !(json->flags & JR_LEGACY) && (!(json->flags & JR_JSON5_STRINGS) || c == '\n' || c == '\r')) {
       json->token.size -= 1;
       json->error = "control character in string";
       json_error_skip_enter(json, c, "control-character");
@@ -989,6 +990,10 @@ json_parse(JsonParser* json) {
       json->tok_kind = JSON_TOK_IDENT;
       continue;
     }
+
+    /* the lax reader skips a comma with no value before it: [1,,2] is [1,2] */
+    if(c == ',' && (json->flags & JR_LEGACY) && json->stack.len > 0)
+      continue;
 
     switch(c) {
       /* The bit pushed on '{'/'[' is the *enclosing* context to restore once this

@@ -130,6 +130,7 @@ typedef void (*jr_callback)(JsonEventType type, const jr_str_t* data, void* user
 static void
 jr_accum_reset(jr_state_t* state) {
   state->accum_len = 0;
+  state->esc_hi = 0;
 }
 
 static void
@@ -662,6 +663,13 @@ jr_read_(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_stat
       [248 ... 255] = &&l_err,
   };
 
+  /* after backslash 0: a digit must not follow */
+  static void* go_esc_nul[] = {
+      [0 ... 47] = &&l_esc_cr_other,
+      ['0' ... '9'] = &&l_err,
+      [58 ... 255] = &&l_esc_cr_other,
+  };
+
   /* after a backslash and a CR: an LF belongs to the line terminator */
   static void* go_esc_cr[] = {
       [0 ... 9] = &&l_esc_cr_other,
@@ -867,7 +875,7 @@ l_err: {
   jr_error_t code = JR_E_UNEXPECTED_TOKEN;
   jr_str_t data = {cstr - 1, 1};
 
-  if(state->tab == go_esc || state->tab == go_esc5)
+  if(state->tab == go_esc || state->tab == go_esc5 || state->tab == go_esc_nul)
     code = JR_E_BAD_ESCAPE;
   else if(state->tab == go_esc_u)
     code = JR_E_BAD_UNICODE_ESCAPE;
@@ -1196,7 +1204,7 @@ l_esc_id:
 l_esc_nul:
   state->accum_len -= 2;
   jr_accum_putc(state, '\0');
-  JR_DISPATCH_NEXT();
+  JR_DISPATCH_NEXT_GO(go_esc_nul);
 
 l_esc_cont:
   state->accum_len -= 2;
@@ -1215,6 +1223,7 @@ l_esc_cr_other:
 
 l_esc_hi:
   /* a backslash before a multi-byte character: drop the backslash, then validate as usual */
+  state->esc_hi = (uint8_t)cstr[-1] == 0xe2;
   state->accum[state->accum_len - 2] = state->accum[state->accum_len - 1];
   state->accum_len -= 1;
   JR_DISPATCH_THIS();
@@ -1283,6 +1292,18 @@ l_utf8_4:
   JR_DISPATCH_NEXT_GO(go_utf8);
 
 l_utf8_valid:
+  /* backslash, U+2028 or U+2029: a line continuation, drop its three
+   * bytes, they end just before the byte that reached this label */
+  if(state->esc_hi) {
+    uint8_t* t = (uint8_t*)state->accum + state->accum_len - 4;
+
+    state->esc_hi = 0;
+
+    if(state->accum_len >= 4 && t[0] == 0xe2 && t[1] == 0x80 && (t[2] == 0xa8 || t[2] == 0xa9)) {
+      t[0] = t[3];
+      state->accum_len -= 3;
+    }
+  }
   JR_DISPATCH_THIS();
 
 l_null_n:

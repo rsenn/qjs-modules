@@ -95,7 +95,6 @@ run_pull(Run* r, JSContext* ctx, uint8_t flags, const char* s, size_t step) {
   Feed feed = {s, strlen(s), 0, step};
   Reader rd = {&feed_read, &feed, NULL, NULL};
   JsonParser json;
-  int ended = 0;
 
   memset(r, 0, sizeof(*r));
   json_init(&json, rd, "t", ctx);
@@ -106,11 +105,8 @@ run_pull(Run* r, JSContext* ctx, uint8_t flags, const char* s, size_t step) {
     char buf[512];
 
     if(t == JSON_NEED_DATA) {
-      if(ended)
-        break;
-
+      /* json_end() answers once per pending event, until JSON_NONE */
       t = json_end(&json);
-      ended = 1;
 
       if(t == JSON_NONE)
         break;
