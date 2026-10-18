@@ -715,7 +715,7 @@ endmacro(qjsm_init_builtins)
 # qjsm_resolve_builtins()
 #
 # splits BUILTIN_MODULES into BUILTINS_NATIVE/BUILTINS_COMPILED against what the tree has,
-# prints the module tables and installs the lib/*.js that are not baked in.
+# prints the module tables and installs the lib/*.js, baked in or not.
 macro(qjsm_resolve_builtins)
 list(LENGTH BUILTIN_MODULES _bm_count)
 message(STATUS "qjsm: resolving ${_bm_count} BUILTIN_MODULES entries against lib/*.js and quickjs-*.c")
@@ -765,7 +765,7 @@ endif()
 
 print_columns("=> Installed C native modules" INSTALLED_NATIVE ${COLUMNS})
 
-set_extra(INSTALLED_JS COMPILED_MODULE_NAMES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+set(INSTALLED_JS ${COMPILED_MODULE_NAMES})
 print_columns("=> Builtin JS modules" BUILTINS_COMPILED ${COLUMNS})
 
 # qjsc writes the bytecode while building, so the total is only known from an earlier build
@@ -823,10 +823,11 @@ endif()
 list(LENGTH INSTALLED_JS _installed_js_count)
 message("=> Installed JS modules (${_installed_js_count})\n")
 
-make_filter_re(EXCLUDE_REGEX ${NATIVE_MODULES} ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
+make_filter_re(EXCLUDE_REGEX ${NATIVE_MODULES})
 
 #
-# Install all scripts in lib/ directory
+# Install all scripts in lib/ directory, builtins included: the debugger needs the
+# sources on disk
 #
 install(
   DIRECTORY lib/
