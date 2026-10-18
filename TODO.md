@@ -1981,8 +1981,35 @@ C side (the order is free, none blocks the others):
 
 - P13 rest: `json_parse` / `json_end` / `json_getc` / `json_ungetc` and `xml_parse` / `event_name` / `event_value` / `event_has_value` are still public
   engine entry points under `json_next` / `xml_next`; the JS surface no longer uses them. `tests/c/json-dialects.c` calls `json_parse` directly.
-- P14: merge the tokenizers. `c-json-dialects` is green now (`jread` and `json.c` agree on every case, 2026-10-18), so measure `jread` against `json.c`
-  and `xread` against `xml.c` (MB/s at chunk sizes 1, 64, 4096) and keep one of each; `json_next` over `jread` needs a small event queue per input block.
+- P14: merge the tokenizers. **JSON done 2026-10-18**: `json.c` is deleted, `JsonParser` / `json_next` reads a block, feeds it to `jr_feed()` and
+  queues the events (`src/json/jnext.c`, strings copied into the queue, `jr_flush()` delivers a line comment at the end of the data,
+  `jr_state_t.comment_events` makes `jread` deliver comments, structural events now carry their own `at`). `tests/c/json-pull-dump.c`
+  (`c-json-pull-dump`, golden `tests/fixtures/json-pull-dump.txt`) is the regression for events, positions and errors of the pull parser; `c-json-dialects`
+  is gone (it compared `json.c` with `jread`, `c-jread-dialects` stays). Differences from the old pull parser, all deliberate: columns count characters,
+  not bytes; a comment event is at its start, not its end; error messages come from the error code (`jnext_message`); an unclosed container in
+  `legacy` is `unexpected-end` (it was silent); `legacy` rejects a raw newline in a string.
+  **XML: `xml.c` is NOT removed yet** (decided 2026-10-18): it stays as the reference pull parser until the replacement has run long enough. Measured on 8 MB, MB/s at chunk
+  1 / 64 / 4096: `xread` strict ~140, `xread` `XR_COMPAT` 22 / 46 / 48, `xml.c` ~13-17.
+  - XML: `xr_state_init_flags(st, XR_COMPAT | XR_TOLERANT | XR_FLAT | XR_NO_IMPLIED_END)` makes `xr_feed` do everything `xml.c` does (markup events,
+    element stack, void tags, raw text, implied ends, flat, positions); `tests/c/xread-compat.c` (`c-xread-compat`) compares it with `xml_next` event
+    for event on a corpus and 20000 random inputs, five flag sets, five chunk sizes. Known, deliberate differences: an instruction not ended by `?>` is
+    not left open as an element, an instruction's `at` is its own `<` (xml.c reports the next tag's), flat mode does not swallow the end after an
+    instruction, `self_closing` is only set for `<a/>` and void tags.
+    Next (planned 2026-10-18, not started, `xml.c` stays until then):
+    1. `xml_next` becomes a queue adapter over `xr_feed` in `XR_COMPAT` mode, the way `json_next` is now (`src/json/jnext.c` is the model): it owns an `xr_state_t`, an event
+       queue and the Reader, a dry Reader gives `XML_PULL_AGAIN`, end of input calls `xr_end` and then `XML_PULL_END`. `xml_init`, `xml_next`,
+       `xml_set_tolerant/flat/implied_end` keep their signatures, `quickjs-xml.c` does not change, `XMLParser` loses the computed-goto resume fields.
+    2. Freeze the `c-xread-compat` corpus and fuzz inputs as golden event files (the oracle goes with `xml.c`), keep `test-xml.js`, the write golden and
+       `tests/c/event-model.c` green.
+    3. Delete `xml.c` (about 900 lines), keep the entity and tag helpers. Users of `XMLParser`/`xml_next` today: `quickjs-xml.c`, `xnext.c`,
+       `xevent-js.c`, `xopts.c`, `xbuilder.c`, `tests/c/{event-model,pump-roundtrip}.c`.
+- `quickjs-json.c` size (2026-10-18): 1412 to 933 lines. Done: `js_class_define` / `js_object_from_target` (`utils.h`) replace the per-class registration and
+  prototype boilerplate, `jpush.[ch]` (push parser modes, errors, connect), `jserializer.[ch]`, `js_jsonpull_pump` (`jconnect.c`), `json_new_from_js`
+  (`jevent-js.c`), `jwrite_js_stack` (`jopts.c`). About 190 of the remaining lines are the required header comments, 550 are function bodies. Going below
+  ~700 needs API decisions, not more lifting: merge `JsonParser` and `JsonPushParser` into one class, move `JsonWriter` / `JsonBuilder` / `tee` to the `lib/` glue
+  (P9), drop `JsonSerializer.read(n)` in favour of the iterator. Decided 2026-10-18: `JsonPushParser` stays a separate class (no merge with `JsonParser`), the C core is shared instead.
+  `quickjs-xml.c` got the same treatment: 1340 to 1105 lines (`js_class_define`, `js_object_from_target`, the push parser in `xpush.[ch]`). Left in it: the `XmlParser` wrapper
+  (reader, location, selfClosingTags), which moves when `xml_next` becomes the queue adapter over `xr_feed` (P14).
 - P15: `WalkInterface` and the capture layer of `jwalkev.c` / `xwalkev.c`.
 - B5: DOCTYPE internal subset in `xml.c` / `xread.c` (needed by strict mode and entities), `BUGS` `xml-doctype-internal-subset-mangled`.
 - B9: `walk.c` test for a 100000-deep array, a shared object and a cycle at depth.
@@ -2887,3 +2914,22 @@ Defects found on the way (in `BUGS` or fixed by step E0): `read()` throws `Inter
 Open decisions: the column unit (E5); whether lenient XML repairs use the HTML spec's code names or their own (recommended: spec names where one
 exists); whether `loc` also gets an `end` `Location` (recommended no: `length` suffices, `jsonc-parser` shape).
 
+
+## Tier 24 — `lib/loaders/` for Bun / Node / Deno compatibility (listed 2026-10-18)
+
+Existing: `commonjs`, `file`, `node` (`node:` prefix), `package-aliases` (`_moduleAliases`, a qjs-modules-ism), `trace`, `typescript`, `wasm`.
+Each new loader is a `registerHooks()` resolve/load pair like `file.js`, runs on qjsm only, and needs a test plus `doc/js/` page.
+Survey Bun, Node and Deno (`node -e`, `bun -e`, `deno eval`) before writing any of them, as the project rules say.
+
+| Step | Loader | Standard / runtime target | Notes |
+| --- | --- | --- | --- |
+| L1 | `loaders/text`: `with { type: 'text' }` and `{ type: 'bytes' }` | Bun, Deno, TC39 import-text / import-bytes proposals | copy of `file.js`, reads the file; also `type: 'json'` if the engine does not handle it natively (check first) |
+| L2 | `loaders/import-map`: WHATWG import map (`imports`, `scopes`) | browsers, Deno `--import-map`, partly Bun and Node | would replace `package-aliases.js`; `tests/deno-import-map.json` already uses the format |
+| L3 | `loaders/package-imports`: `package.json` `"imports"` (`#internal/x`, conditions) and `"exports"` for `node_modules` packages | Node, Bun, Deno | the other way to retire `_moduleAliases`; resolve hook only |
+| L4 | `loaders/data-url`: `import('data:text/javascript,...')` | Node, Deno, browsers | small resolve + load hook; handy for inline tests |
+| L5 | `loaders/config`: `with { type: 'toml' \| 'yaml' \| 'json5' \| 'jsonc' }` | Bun (toml, yaml) | thin composition over the json / xml engines in `lib/`, no new C code; `lib/jsonl.js` fits here; depends on Tier 12/13 for yaml |
+| L6 | `loaders/tsconfig-paths`: `compilerOptions.paths` and `baseUrl` | Bun, Deno | pairs with `typescript.js` |
+| L7 | `loaders/cjs-typescript`: `.cts`, format `commonjs-typescript` | Node (type stripping), Bun, Deno | `typescript.js` says it does not handle it |
+
+Not a compatibility item, kept for later: `loaders/mock` (`mock.module(specifier, factory)` like `node:test`) for tinytest.
+Out of scope here: `http(s):` imports need fetch, which lives in `../qjs-lws`.

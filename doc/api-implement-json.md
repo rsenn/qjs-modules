@@ -1,6 +1,6 @@
 # JSON: how the implementation is split
 
-> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines. The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 933 and `quickjs-xml.c` 1105 lines (2026-10-18: `json.c` is gone, `JsonParser` is a queue over `jread`; the push parser, the serializer and the pump moved into `src/json/`). The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
 > Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
 > `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
 
@@ -66,7 +66,7 @@ call in `quickjs-json.c` today.
 | `iteration.h` | no | it consumes JS iterables; `JsonParser` and `JsonSerializer` only produce iterators | not applicable |
 | `jbuilder.h` | `JsonPushParser.root` | prototype option (ordinary objects, not null-prototype) and `jbuild_value_js()` for already-made values | **extend**, needed by `JSON5.parse`, `JSONC.parse`, `Blob.json()` (and by `xbuilder`) |
 | `jread.h` | `JsonPushParser` | a strict mode (no comments, no resync, no trailing commas), non-recursive already; a JSON5 and a JSONC dialect flag | **extend**, replaces `sj.h` and gives Bun parity on depth |
-| `json.h` | `JsonParser` | a second tokenizer next to `jread` (string escapes, numbers, literals written twice) | keep both; merging means a pull front over `jread`'s tokens, only worth it after the strict mode lands |
+| `json.h` | `JsonParser` | a second tokenizer next to `jread` (string escapes, numbers, literals written twice) | done 2026-10-18: `json.c` deleted, `JsonParser` / `json_next` is a block reader feeding `jr_feed` into an event queue (`src/json/jnext.c`), `jread` ~85 against `json.c` ~28 MB/s before; differences from `json.c` in `TODO.md` P14 |
 | `jwalk.h` / `walk.h` | `write`, `JsonSerializer` | an accessor for the container path: `JsonSerializer.path` reads `js->walk.walk.stack` directly | **lift**: `walk_path(const WalkIterator*, ctx)`, removes the reach into the stack |
 | `jwrite.h` | `write`, `JsonWriter`, `JsonSerializer` | the pure half of `json_space_parse/apply` (number clamps to 0..10; string cut at 10 bytes on a character boundary; `minify` when empty), about 35 lines | **lift**: `jwrite_options_indent(opts, double)` and `jwrite_options_indent_string(opts, s, n)`; the JS argument shuffle (`json_replacer_space`) stays |
 | `location.h` | `JsonParser`, `JsonPushParser` | nothing | done |

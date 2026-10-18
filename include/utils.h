@@ -724,6 +724,23 @@ JSValue js_class_value(JSContext*, JSClassID id);
 JSClassID js_class_id(JSContext*, JSClassID id);
 JSClassID js_class_find(JSContext*, JSAtom);
 
+/* js_object_from_target: a new object of class id for a constructor, its prototype is new_target.prototype
+ * so that subclasses work, else the registered class prototype.
+ * returns the object, or JS_EXCEPTION with an exception pending: the caller frees what it owns. */
+JSValue js_object_from_target(JSContext*, JSValueConst new_target, JSClassID id);
+
+/* js_class_define: registers a class, makes its prototype from funcs and its constructor.
+ *
+ *   JSClassID*                  id      receives a new class id
+ *   JSClassDef*                 def     the class, def->class_name is also the constructor name
+ *   JSCFunction*                ctor    the constructor, NULL for a class that JS cannot construct
+ *   int                         length  the constructor's length
+ *   const JSCFunctionListEntry* funcs   the prototype's members, may be NULL
+ *   JSValue*                    proto   receives the prototype (borrowed: the class holds it), may be NULL
+ *
+ *   returns JSValue  the constructor, a new reference, or undefined without ctor */
+JSValue js_class_define(JSContext*, JSClassID* id, JSClassDef* def, JSCFunction* ctor, int length, const JSCFunctionListEntry* funcs, size_t nfuncs, JSValue* proto);
+
 static inline BOOL
 js_is_object(JSContext* ctx, JSValueConst val) {
   return JS_IsObject(val) && !JS_IsNull(val);

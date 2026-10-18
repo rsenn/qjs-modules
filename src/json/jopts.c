@@ -135,6 +135,24 @@ jwrite_js_text(JSContext* ctx, JsonWriter* wr, JSValueConst val, int quoted) {
   return js_jsonwriter_ret(ctx, r);
 }
 
+JSValue
+jwrite_js_stack(JSContext* ctx, const JsonWriter* wr) {
+  const JsonWriterFrame* frame;
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+
+  vector_foreach_t(&wr->stack, frame) {
+    JSValue item = JS_NewObjectProto(ctx, JS_NULL);
+
+    JS_SetPropertyStr(ctx, item, "isObject", JS_NewBool(ctx, frame->is_object));
+    JS_SetPropertyStr(ctx, item, "expectingValue", JS_NewBool(ctx, frame->expecting_value));
+    JS_SetPropertyStr(ctx, item, "count", JS_NewUint32(ctx, frame->count));
+    JS_SetPropertyUint32(ctx, ret, i++, item);
+  }
+
+  return ret;
+}
+
 ssize_t
 jwrite_js_value(JSContext* ctx, JsonWriter* wr, JSValueConst val) {
   if(JS_IsNull(val) || JS_IsUndefined(val) || JS_IsSymbol(val) || JS_IsFunction(ctx, val))

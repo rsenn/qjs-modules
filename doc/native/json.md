@@ -97,7 +97,7 @@ The iteration ends when the document is complete or the reader has no data now. 
 has its source text as `raw` (`1.50`, `12345678901234567890`) next to the number in `value`.
 
 Constructor options (second argument, a string is the file name): `new JsonParser(input, { dialect, strict, comments, filename })`.
-`dialect` is `'json'`, `'jsonc'`, `'json5'`, `'jsonl'` or `'legacy'` (the default: lenient, skips bad input and goes on), `strict: true`
+`dialect` is `'json'`, `'jsonc'`, `'json5'`, `'jsonl'` or `'legacy'` (the default: lenient, skips bad input and goes on, but an unclosed array or object at the end of the input is still an `unexpected-end` error), `strict: true`
 means `'json'`, `comments: true` delivers comments as `COMMENT` events. `JsonPushParser({ dialect, strict, ... })` takes the same two
 keys next to its callbacks. NUMBER text of every dialect (`0x1F`, `+.5`, `Infinity`) becomes the right number in a builder.
 

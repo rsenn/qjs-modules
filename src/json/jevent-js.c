@@ -7,6 +7,8 @@
 #include "json/jevent-js.h"
 #include "json/json.h"
 #include "json/jbuilder.h"
+#include "json/jopts.h"
+#include "utils.h"
 #include "char-utils.h"
 #include "quickjs-location.h"
 #include <string.h>
@@ -73,6 +75,50 @@ js_jsonevent_throw(JSContext* ctx, const Location* base, const JsonEvent* ev) {
     js_throw_syntax_error(ctx, at, ev->span, ev->code ? ev->code : "unexpected-token", "%s", ev->str ? ev->str : "parse error");
     location_free(at, JS_GetRuntime(ctx));
   }
+}
+
+JsonParser*
+json_new_from_js(JSContext* ctx, JSValueConst input, JSValueConst options) {
+  JsonParser* p;
+  Reader reader;
+  const char* filename = 0;
+  int flags = -1;
+  BOOL comments = FALSE;
+
+  if(!reader_from_js(ctx, input, &reader))
+    reader = reader_from_jsbuf(ctx, input);
+
+  if(JS_IsObject(options)) {
+    JSValue name;
+
+    if(jread_options_from_js(ctx, options, "JsonParser", &flags)) {
+      reader_free(&reader);
+      return NULL;
+    }
+
+    comments = js_get_propertystr_bool(ctx, options, "comments");
+    name = JS_GetPropertyStr(ctx, options, "filename");
+    filename = JS_IsUndefined(name) ? 0 : JS_ToCString(ctx, name);
+    JS_FreeValue(ctx, name);
+  } else if(!JS_IsUndefined(options)) {
+    filename = JS_ToCString(ctx, options);
+  }
+
+  p = json_new(reader, filename, ctx);
+
+  if(filename)
+    JS_FreeCString(ctx, filename);
+
+  if(!p) {
+    reader_free(&reader);
+    return NULL;
+  }
+
+  if(flags >= 0)
+    p->flags = flags;
+
+  p->comments = comments;
+  return p;
 }
 
 JSValue

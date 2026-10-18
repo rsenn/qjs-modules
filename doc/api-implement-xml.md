@@ -1,6 +1,6 @@
 # XML: how the implementation is split
 
-> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines. The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 933 and `quickjs-xml.c` 1105 lines. The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
 > Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
 > `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
 
@@ -19,7 +19,7 @@ exist but have few callers yet.
 | Piece | Files | Lines | Engine | State |
 | --- | --- | --- | --- | --- |
 | pull parser | `xml.[ch]` | 910 + 157 | `Location` only | in use: `read()`, `XMLParser`, `XMLNodeParser`; resumable (`XML_PARSE_AGAIN`), tolerant, flat and implied-end modes, tag line/column |
-| push tokenizer | `xread.[ch]` | 409 + 92 | none | in use: `XMLPushParser`; lacks tolerant mode, implied ends, flat, raw text, locations |
+| push tokenizer | `xread.[ch]` | 409 + 92 | none | in use: `XMLPushParser`; strict by default, `XR_COMPAT` (`xr_state_init_flags`) does all of `xml.c`: tolerant, implied ends, flat, raw text, markup, locations; `xml.c` is kept for now, planned: `xml_next` as a queue adapter over `xr_feed` `XR_COMPAT`, then `xml.c` is deleted and the pull API (`quickjs-xml.c`, `xnext.c`) is unchanged |
 | event writer | `xwrite.[ch]` | 279 + 112 | none | **new**, no caller yet; compact and pretty layouts, typed markup, `xwrite_put_escaped` |
 | generic walker | `walk.[ch]` | 531 + 122 | engine | in use through `jwalk` (JSON) |
 | element-tree walker | `xwalk.[ch]` | 149 + 61 | engine | **new**, no caller yet; `tagName`/`attributes`/`children` through two `WalkHooks` |

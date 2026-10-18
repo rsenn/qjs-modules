@@ -824,10 +824,15 @@ target_include_directories(jread-dialects PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(jread-dialects PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-jread-dialects COMMAND jread-dialects)
 
-add_executable(json-dialects tests/c/json-dialects.c src/json/jread.c)
-target_include_directories(json-dialects PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(json-dialects PRIVATE modules ${QUICKJS_LIBRARY} m)
-add_test(NAME c-json-dialects COMMAND json-dialects)
+add_executable(json-pull-dump tests/c/json-pull-dump.c)
+target_include_directories(json-pull-dump PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(json-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-json-pull-dump COMMAND json-pull-dump "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/json-pull-dump.txt")
+
+add_executable(xread-compat tests/c/xread-compat.c)
+target_include_directories(xread-compat PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(xread-compat PRIVATE modules ${QUICKJS_LIBRARY} m)
+add_test(NAME c-xread-compat COMMAND xread-compat)
 
 # events-sinks drives the writers through JsonEventSink and XmlEventSink
 add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c src/xml/xwrite.c)
@@ -1051,7 +1056,6 @@ endif(TARGET qjs-predicate)
 # block above) are picked up automatically by make_module()'s generic per-variant
 # ${VNAME}_LIBRARIES_shared/_static handling.
 
-set(json_SOURCES ${json_SOURCES} src/json/json.c)
 set(mysql_SOURCES ${mysql_SOURCES} src/async-closure.c)
 set(mysql_LIBS ${mysql_LIBS} modules)
 

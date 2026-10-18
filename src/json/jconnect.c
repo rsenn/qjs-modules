@@ -5,6 +5,7 @@
 #define _GNU_SOURCE 1
 
 #include "json/jconnect.h"
+#include "json/json.h"
 #include "json/jevent-js.h"
 #include "utils.h"
 
@@ -187,6 +188,47 @@ js_jsontee_new(JSContext* ctx, int argc, JSValueConst argv[]) {
 fail:
   js_jsontee_free_rt(JS_GetRuntime(ctx), t);
   return NULL;
+}
+
+JSValue
+js_jsonpull_pump(JSContext* ctx, JsonParser* p, JSValueConst sink_arg, int end) {
+  JsonEventSink sink;
+  JsonJsSink* adapter;
+  JsonEvent ev;
+  JsonPull st;
+  JSValue ret = JS_EXCEPTION;
+  ssize_t r;
+  int finishing = 0;
+
+  if(js_jsonsink_resolve(ctx, sink_arg, &sink, &adapter))
+    return ret;
+
+  for(;;) {
+    st = finishing ? json_next_end(p, &ev) : json_next(p, &ev);
+
+    if(st == JSON_PULL_AGAIN && end && !finishing) {
+      finishing = 1;
+      continue;
+    }
+
+    if(st != JSON_PULL_EVENT)
+      break;
+
+    if(ev.type == JSON_EVENT_ERROR) {
+      js_jsonevent_throw(ctx, p->loc, &ev);
+      goto done;
+    }
+
+    if((r = jevent_send(&sink, &ev)) < 0) {
+      js_jsonsink_failed(ctx, adapter != NULL, r);
+      goto done;
+    }
+  }
+
+  ret = JS_NewInt32(ctx, st);
+done:
+  js_jsonsink_from_js_free(ctx, adapter);
+  return ret;
 }
 
 /** @} */

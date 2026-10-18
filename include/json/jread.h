@@ -109,6 +109,8 @@ typedef struct jr_state {
   unsigned kw_active : 1; /* mid Infinity / NaN */
   unsigned esc_hi : 1;    /* a backslash came before a 0xE2 byte, U+2028 and U+2029 then continue the line */
   unsigned done : 1;
+  /* set by the caller after jr_state_init_flags(): comments arrive as JSON_EVENT_COMMENT, the text with its // or slash-star */
+  unsigned comment_events : 1;
   /* sticky: the stream had an error at some point, reported by jr_end().
    * it does not stop jr_feed() from resyncing */
   unsigned error : 1;
@@ -176,6 +178,10 @@ ssize_t jr_feed(jr_state_t* state, const char* chunk, size_t len, JsonEventHandl
  * reports an error event and sets state->error, state->done is set on a clean end. A no-op once
  * state->done is set. */
 ssize_t jr_end(jr_state_t* state, JsonEventHandler* handler, void* user);
+
+/* jr_flush: delivers a line comment that the data ended in, as jr_end() does, but leaves the
+ * parser open for more data. Only with comment_events, else a no-op. */
+ssize_t jr_flush(jr_state_t* state, JsonEventHandler* handler, void* user);
 
 /**
  * jr_flags_from_name: the JR_* flags of a dialect name.

@@ -199,6 +199,13 @@ jr_sync(jr_state_t* state, const char* p) {
     state->after_comma = 0; \
   } while(0)
 
+/* the byte just read (p[-1]) is a token by itself: [ ] { } */
+#define JR_TOKEN_MARK() \
+  do { \
+    jr_sync(state, cstr - 1); \
+    state->tok = state->pos; \
+  } while(0)
+
 /* records the error at the byte just read: the token start when inside a token. */
 static void
 jr_error_at(jr_state_t* state, const char* p, jr_error_t code, int in_token) {
@@ -958,6 +965,15 @@ l_cmt:
   if(!(state->flags & (JR_COMMENTS | JR_LEGACY)))
     goto l_err;
   state->cmt = 1;
+
+  if(state->comment_events) {
+    jr_sync(state, cstr - 1);
+    state->tok = state->pos;
+    jr_accum_reset(state);
+    jr_accum_putc(state, '/');
+    state->accumulating = 1;
+  }
+
   JR_DISPATCH_NEXT_GO(go_cmt_start);
 
 l_cmt_line:
@@ -969,6 +985,14 @@ l_cmt_block:
   JR_DISPATCH_NEXT_GO(go_cmt_block);
 
 l_cmt_end:
+  if(state->comment_events) {
+    /* a line comment got its newline appended, it is not part of the text */
+    jr_str_t data = {state->accum, (int32_t)(state->accum_len - (state->cmt == 2))};
+
+    state->accumulating = 0;
+    cb(JSON_EVENT_COMMENT, &data, user_data);
+  }
+
   state->cmt = 0;
   JR_DISPATCH_NEXT();
 
@@ -1365,6 +1389,7 @@ l_false_e:
 
 l_arr_s:
   state->after_comma = 0;
+  JR_TOKEN_MARK();
   cb(JSON_EVENT_ARRAY_START, 0, user_data);
   JR_PUSH_GO(go_arr);
   JR_DISPATCH_NEXT();
@@ -1381,6 +1406,7 @@ l_arr_e:
   }
 
   state->after_comma = 0;
+  JR_TOKEN_MARK();
   cb(JSON_EVENT_ARRAY_END, 0, user_data);
   /* Closing this array is itself "a value ending" from the parent's point of view - same
    * comma-required rule applies to whatever comes after it there. */
@@ -1389,6 +1415,7 @@ l_arr_e:
 
 l_obj_s:
   state->after_comma = 0;
+  JR_TOKEN_MARK();
   cb(JSON_EVENT_OBJECT_START, 0, user_data);
   JR_PUSH_GO(go_obj);
   JR_DISPATCH_NEXT();
@@ -1405,6 +1432,7 @@ l_obj_e:
   }
 
   state->after_comma = 0;
+  JR_TOKEN_MARK();
   cb(JSON_EVENT_OBJECT_END, 0, user_data);
   JR_POP_GO_SEP();
   JR_DISPATCH_NEXT();
@@ -1534,6 +1562,15 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
     }
   }
 
+  if(state->cmt == 2 && state->comment_events) {
+    /* a line comment at the end of the input has no newline */
+    jr_str_t data = {state->accum, (int32_t)state->accum_len};
+
+    state->cmt = 0;
+    state->accumulating = 0;
+    cb(JSON_EVENT_COMMENT, &data, user_data);
+  }
+
   if(state->cmt == 3 || state->cmt == 1) {
     jr_str_t data = {0, 0};
 
@@ -1616,6 +1653,21 @@ jr_end(jr_state_t* state, JsonEventHandler* handler, void* user) {
   JsonFeed f = {handler, user, state, 0};
 
   jr_finish(jfeed_callback, &f, state);
+  return f.failure;
+}
+
+ssize_t
+jr_flush(jr_state_t* state, JsonEventHandler* handler, void* user) {
+  JsonFeed f = {handler, user, state, 0};
+
+  if(state->cmt == 2 && state->comment_events && !state->done) {
+    jr_str_t data = {state->accum, (int32_t)state->accum_len};
+
+    state->cmt = 0;
+    state->accumulating = 0;
+    jfeed_callback(JSON_EVENT_COMMENT, &data, &f);
+  }
+
   return f.failure;
 }
 

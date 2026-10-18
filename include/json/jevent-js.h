@@ -39,6 +39,14 @@ JSValue js_jsonevent_new(JSContext*, const JsonEvent* ev);
  * with a SyntaxError pending (loc, length and code set). */
 JSValue json_read_value(JSContext*, const uint8_t* data, size_t size, const char* name);
 
+/* json_new_from_js: the pull parser of the JsonParser constructor.
+ *
+ *   JSValueConst  input    a string, buffer, read function, object with read() or fd
+ *   JSValueConst  options  a file name, or { dialect, strict, comments, filename }, or undefined
+ *
+ * returns the parser (json_free() it), or NULL with an exception pending. */
+struct json_parser* json_new_from_js(JSContext*, JSValueConst input, JSValueConst options);
+
 /* js_jsonevent_throw: throws the SyntaxError of an error event, the file name is that of base.
  *
  * returns nothing, an exception is pending (unless out of memory cloned the location). */

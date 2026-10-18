@@ -70,6 +70,9 @@ ssize_t js_jsonwriter_ret(JSContext*, ssize_t r);
  * returns the bytes written, or -1 with an exception pending, see js_jsonwriter_ret(). */
 ssize_t jwrite_js_value(JSContext*, JsonWriter*, JSValueConst val);
 
+/* jwrite_js_stack: the open containers of wr as an array of { isObject, expectingValue, count }, outermost first. */
+JSValue jwrite_js_stack(JSContext*, const JsonWriter* wr);
+
 /* jread_options_from_js: the syntax flags (JR_*) of the options object dialect and strict, -1 if
  * it names none. returns 0, or -1 with a TypeError pending for an unknown dialect. */
 int jread_options_from_js(JSContext*, JSValueConst obj, const char* who, int* flags);

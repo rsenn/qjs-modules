@@ -35,6 +35,19 @@ int js_jsonsink_resolve(JSContext*, JSValueConst obj, JsonEventSink* sink, JsonJ
  * returns 0, or -1 with an exception pending. */
 int js_jsonsink_define_handshake(JSContext*, JSValueConst proto, JSCFunction* fn);
 
+struct json_parser;
+
+/* js_jsonpull_pump: runs a pull parser into a sink, in C. JsonParser.pump() is this.
+ *
+ *   struct json_parser*  p     the parser
+ *   JSValueConst         sink  a JsonEventSink object (handshake) or any object with the sink methods
+ *   int                  end   the input is complete, so a dry reader ends the document
+ *
+ * returns the JSON_PULL_* status as a number (0 when the input ended, 1 when the reader has no
+ * data now), or JS_EXCEPTION: the SyntaxError of the first error event, what the sink throws,
+ * Error with a code when a native sink refuses an event. */
+JSValue js_jsonpull_pump(JSContext*, struct json_parser* p, JSValueConst sink, int end);
+
 /* JsonJsCallbacks: the callbacks of a JsonPushParser argument, as the handler of an event source.
  *
  *   argument          calls

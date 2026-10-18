@@ -274,7 +274,7 @@ Taken as decided in this plan; reverse by editing this table and the steps that 
 | Q2 | status enums or reuse of the negative numbers | enums of 3.1 / 3.2; no negative number means two things any more |
 | Q3 | a `raw` member for `JSON.rawJSON` values and `JsonWriter.raw` | `JsonEventSink.raw(str, len)`: text already JSON; `jwrite_raw` exists |
 | Q4 | `at` always filled by parsers | yes; the cost is a struct copy per event, measured in P2 against `jr_read` throughput |
-| Q5 | `xread` kept as a second tokenizer | decide at P3 by measuring; if `xml.c` over a push `Reader` is as fast, `xread` is deleted |
+| Q5 | `xread` kept as a second tokenizer | measured 2026-10-18: `xread` is 3.5x `xml.c` in `XR_COMPAT` mode (48 against 13 MB/s) with identical events (`c-xread-compat`), so `xread` is the one to keep; `xml.c` and `json.c` are NOT deleted yet, only after the adapter exists: `xml_next` stays as the pull API, implemented as a queue over `xr_feed` (events copied into the queue, a dry Reader gives `XML_PULL_AGAIN`) |
 | Q6 | `Bun.XML` object shape in C or in the glue | glue first (M8) |
 | Q7 | JSON `JsonParser.next()` iterator result shape | `{type, value, loc}` with `type` a `JsonEventType` name string or constant; decided at P2 with the tests |
 
@@ -368,8 +368,8 @@ Two duplicate engines exist per format; both directions of the merge are possibl
 
 | Pair | Why they exist | Merge | Gate |
 | --- | --- | --- | --- |
-| `jread.c` (push, 1546 lines) and `json.c` (pull, 1148 lines) | `json.c` resumes on `JSON_NEED_DATA`, so it is a push parser over a chunk `Reader` that answers "dry"; `jread` over a pulled chunk plus a queue is a pull parser. Both carry the `JR_*` dialects and drift: `c-json-dialects` fails today on `[1,,2,]` with `JR_LEGACY` | keep the one that wins on throughput and the dialect matrix, express the other as a thin adapter, delete about 1200 lines | `c-json-dialects` green first (it is the equivalence test), then MB/s at chunk sizes 1, 64, 4096 |
-| `xread.c` (push, 442 lines) and `xml.c` (pull, 908 lines) | `xml.c` is resumable (`XML_PARSE_AGAIN`), tolerant, flat, with implied ends and locations; `xread` has none of these (Q5) | delete `xread`; the push parser is `xml.c` over a chunk `Reader` | `test-xml.js`, chunk sizes 1, 2, 7, MB/s |
+| `jread.c` (push, 1546 lines) and `json.c` (pull, 1148 lines, deleted 2026-10-18, `json_next` is now a queue over `jread`) | `json.c` resumes on `JSON_NEED_DATA`, so it is a push parser over a chunk `Reader` that answers "dry"; `jread` over a pulled chunk plus a queue is a pull parser. Both carry the `JR_*` dialects and drift: `c-json-dialects` fails today on `[1,,2,]` with `JR_LEGACY` | keep the one that wins on throughput and the dialect matrix, express the other as a thin adapter, delete about 1200 lines | `c-json-dialects` green first (it is the equivalence test), then MB/s at chunk sizes 1, 64, 4096 |
+| `xread.c` (push, 442 lines) and `xml.c` (pull, 908 lines) | `xml.c` is resumable (`XML_PARSE_AGAIN`), tolerant, flat, with implied ends and locations; `xread` has none of these (Q5) | `xread` got `XR_COMPAT` (everything `xml.c` does, equal events, 48 against 13 MB/s); keep `xml.c` for now, later it becomes an adapter over `xr_feed` | `c-xread-compat`, `test-xml.js`, chunk sizes 1, 2, 7, MB/s |
 
 ### 12.4 End state
 

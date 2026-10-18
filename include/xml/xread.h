@@ -25,6 +25,24 @@ typedef enum xr_error {
 
 const char* xr_error_name(xr_error_t code);
 
+/* xr_flags: how a parser behaves, the argument of xr_state_init_flags().
+ *
+ *   XR_COMPAT           the parser of xml.c: markup events (comment, declaration, instruction, cdata), an
+ *                       open-element stack, void elements, raw text elements (script, style, textarea, title),
+ *                       lenient names and attributes, no error at the end of the input. Without it the
+ *                       strict lexer of xread: elements, attributes and text only, errors on stray bytes
+ *   XR_TOLERANT         (XR_COMPAT) a stray closing tag is ignored, optional end tags close open elements;
+ *                       else a closing tag without an open element is a mismatched-end-tag error
+ *   XR_FLAT             (XR_COMPAT) no stack: a start tag is never closed by itself, every closing tag is an
+ *                       element end, raw text elements are not special
+ *   XR_NO_IMPLIED_END   (XR_COMPAT) tolerant mode does not close <li>, <p>, ... when a sibling starts */
+enum {
+  XR_COMPAT = 1,
+  XR_TOLERANT = 2,
+  XR_FLAT = 4,
+  XR_NO_IMPLIED_END = 8,
+};
+
 /* A single growable buffer used to accumulate one token's bytes as they're read,
  * since a token isn't necessarily contiguous in any single chunk the caller passes
  * to xr_feed(). */
@@ -66,9 +84,24 @@ typedef struct xr_state {
   xr_error_t err_code;
   SourcePos err_pos;
   size_t err_len;
+
+  /* XR_COMPAT only */
+  unsigned flags;                         /* XR_* */
+  const char* const* self_closing_tags;   /* void elements, null terminated: set after xr_state_init_flags() to change */
+  unsigned cs;                            /* lexer state */
+  unsigned closing : 1, self_closing : 1, is_pi : 1, raw : 1;
+  int quote;                              /* closing quote of the attribute value being read */
+  size_t raw_m;                           /* raw text element: bytes of </name> matched so far */
+  SourcePos tag_pos, cand_pos;            /* where the current tag starts, and the '<' that may start </name> */
+  xr_accum_t pi_accum;                    /* the text of a processing instruction, name and attributes */
+  char* fnames;                           /* names of the open elements, one after the other */
+  size_t fnames_len, fnames_cap;
+  size_t* foffs;                          /* start of each name in fnames */
+  size_t nframes, foffs_cap;
 } xr_state_t;
 
 void xr_state_init(xr_state_t* state);
+void xr_state_init_flags(xr_state_t* state, unsigned flags);
 void xr_state_free(xr_state_t* state);
 
 /**

@@ -198,7 +198,7 @@ the sink members, the handshake (`jconnect.c`, `pump()`/`connect()`), P13 for th
 | --- | --- |
 | JSON `at` for `jr_feed` | taken from `jr_state_t.tok`; checked only for the error case, not for every event type |
 | `xml_next` `at` | line and column of the last tag; none for text; no offsets (`SourcePos.byte_offset` / `char_offset` unset) |
-| `xread` has no markup events | `xr_feed` never produces comment, declaration, CDATA or instruction events (the parser has none) |
+| `xread` markup events | the strict lexer produces none; `XR_COMPAT` (`xr_state_init_flags`) produces them all and matches `xml_next` (`c-xread-compat`). `xml.c` and `json.c` stay in the tree, deleting them is a later step |
 | pull JSON end of input | `json_next` answers `AGAIN` at the end; a binding that knows the input is whole must call `json_next_end()`, or the unfinished-document error is never seen |
 | a builder swallows `comment` and unknown raw strings | by design (I8) |
 | `xtee_sink` untested | the code mirrors `jtee_sink`, which is tested |
@@ -213,7 +213,7 @@ Full list with gates: `TODO.md` "Event model v2" and `api-event-model.md` 12.5.
 1. ~~P11~~ done (3.3).
 2. **P12** the engine-bound helpers of 12.1, each introduced together with the binding code it replaces so the line count of `quickjs-*.c` falls in the same change.
 3. **Lift** `quickjs-json.c`, then `quickjs-xml.c`: classes on `json_next` / `xml_next` / `jr_feed` / `xr_feed`; serializers on `JsonSerial` / `XmlSerial`; `JsonBuilder` / `XmlBuilder` options; handshake, `pump()`, `connect()`; constructor options; `JsonParser.next()` results as `{type, value, loc}`.
-4. **P13** privatize and delete (12.2). **P14** make `c-json-dialects` green, then measure and merge tokenizers. **P15**, **P16** as in 12.5.
+4. **P13** privatize and delete (12.2). **P14** make `c-json-dialects` green (done), measure (done: `jread` 85 / `json.c` 28, `xread` compat 48 / `xml.c` 13 MB/s), `xread` `XR_COMPAT` (done), merge tokenizers (JSON done: `json.c` deleted, `json_next` is a queue over `jread`; XML open and `xml.c` is NOT removed yet: `xml_next` as a queue adapter over `xr_feed` `XR_COMPAT`, golden event files replace the `xml.c` oracle, then delete `xml.c`; the pull API stays, only the tokenizer goes). **P15**, **P16** as in 12.5.
 5. **P9** the `lib/` glue, then delete the C `JSONL`, `read`, `write`.
 
 ## 7. Where this is recorded

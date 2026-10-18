@@ -1352,6 +1352,44 @@ js_class_value(JSContext* ctx, JSClassID id) {
   return JS_UNDEFINED;
 }
 
+JSValue
+js_object_from_target(JSContext* ctx, JSValueConst new_target, JSClassID id) {
+  JSValue obj, proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+
+  if(JS_IsException(proto))
+    return proto;
+
+  if(!JS_IsObject(proto)) {
+    JS_FreeValue(ctx, proto);
+    proto = JS_GetClassProto(ctx, id);
+  }
+
+  obj = JS_NewObjectProtoClass(ctx, proto, id);
+  JS_FreeValue(ctx, proto);
+  return obj;
+}
+
+JSValue
+js_class_define(JSContext* ctx, JSClassID* id, JSClassDef* def, JSCFunction* ctor, int length, const JSCFunctionListEntry* funcs, size_t nfuncs, JSValue* proto_out) {
+  JSValue proto = JS_NewObject(ctx), func = ctor ? JS_NewCFunction2(ctx, ctor, def->class_name, length, JS_CFUNC_constructor, 0) : JS_UNDEFINED;
+
+  JS_NewClassID(id);
+  JS_NewClass(JS_GetRuntime(ctx), *id, def);
+
+  if(funcs)
+    JS_SetPropertyFunctionList(ctx, proto, funcs, nfuncs);
+
+  if(ctor)
+    JS_SetConstructor(ctx, func, proto);
+
+  JS_SetClassProto(ctx, *id, proto);
+
+  if(proto_out)
+    *proto_out = proto;
+
+  return func;
+}
+
 JSClassID
 js_class_find(JSContext* ctx, JSAtom name) {
   JSRuntime* rt = JS_GetRuntime(ctx);
