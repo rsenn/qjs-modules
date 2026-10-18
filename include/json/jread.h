@@ -11,8 +11,15 @@
 #include "vector.h"
 #include "srcpos.h"
 #include "json/jevent.h"
-/* jr_error_t: why a JSON_EVENT_ERROR was reported; jr_error_name() gives the stable
- * kebab-case name the bindings expose as `err.code`. */
+
+/**
+ * \defgroup jread jread: JSON push parser
+ * @{
+ */
+
+/* jr_error_t: why a JSON_EVENT_ERROR was reported.
+ * jr_error_name() gives the stable kebab-case name the bindings expose as
+ * err.code. */
 typedef enum jr_error {
   JR_E_NONE,
   JR_E_UNEXPECTED_TOKEN,
@@ -26,28 +33,31 @@ typedef enum jr_error {
   JR_E_TRAILING_DATA,
 } jr_error_t;
 
+/* jr_error_name: the kebab-case name of an error code.
+ * never throws: returns a static string. */
 const char* jr_error_name(jr_error_t code);
 
 /* jr_flags: which syntax jr_read() accepts; set with jr_state_init_flags().
  *
- * ```c
- * jr_state_init_flags(&st, JR_JSON5);
- * ```
+ *   jr_state_init_flags(&st, JR_JSON5);
  *
  *   flag                 accepts
  *   JR_COMMENTS          line and block comments wherever whitespace is
- *   JR_TRAILING_COMMAS   `[1,]` and `{"a":1,}`
+ *   JR_TRAILING_COMMAS   [1,] and {"a":1,}
  *   JR_SINGLE_QUOTES     'strings' and 'keys'
- *   JR_UNQUOTED_KEYS     {key: 1}, ASCII identifiers (`$`, `_`) and UTF-8 letters
+ *   JR_UNQUOTED_KEYS     {key: 1}, ASCII identifiers ($ _) and UTF-8 letters
  *   JR_JSON5_NUMBERS     +1  .5  1.  0x1F  Infinity  -Infinity  NaN
- *   JR_JSON5_STRINGS     \' \v \0 \xHH \<any char>, `\` + newline, raw control characters,
- *                        \v and \f as whitespace
- *   JR_MULTI             several documents, one after another (NDJSON, JSON Lines)
- *   JR_LEGACY            the historic lax reader: comments and stray or trailing commas,
- *                        `01`, `1.`, `1.2.3`, several documents; the default of jr_state_init()
+ *   JR_JSON5_STRINGS     \' \v \0 \xHH \<any char>, backslash plus newline,
+ *                        raw control characters, \v and \f as whitespace
+ *   JR_MULTI             several documents in a row (NDJSON, JSON Lines)
+ *   JR_LEGACY            the historic lax reader, default of jr_state_init():
+ *                        comments, stray or trailing commas, 01, 1., 1.2.3,
+ *                        several documents
  *
- * Without JR_LEGACY the reader is strict: one document, commas exactly between items,
- * numbers as in RFC 8259, trailing data is JR_E_TRAILING_DATA, empty input JR_E_UNEXPECTED_END.
+ * Without JR_LEGACY the reader is strict.
+ *   - one document, commas exactly between items, numbers as in RFC 8259
+ *   - trailing data is JR_E_TRAILING_DATA
+ *   - empty input is JR_E_UNEXPECTED_END
  *
  *   preset        flags
  *   JR_JSON       none: RFC 8259 / JSON.parse
@@ -77,42 +87,42 @@ typedef struct jr_str {
 
 typedef void (*jr_callback)(JsonEventType type, const jr_str_t* data, void* user_data);
 
-/*
- * Everything jr_read() needs to resume parsing exactly where a previous call left off,
- * including in the middle of a string/number/keyword: which lexer state to re-enter
- * (go/resume), the array/object/keyword nesting stack (go_stack), and an accumulator
- * for the token currently being scanned - a token's bytes aren't necessarily contiguous
- * in any single buffer the caller passes in, so they're copied out incrementally as
- * they're read rather than sliced from the input.
+/* jr_state_t: everything jr_read() needs to resume exactly where the previous
+ * call stopped, even in the middle of a string, number or keyword.
  *
- * Call jr_state_init() before the first jr_read() call (zero-initializing alone is not
- * enough: go_stack needs its allocator set) and jr_state_free() when done.
- */
+ *   go, resume   the lexer state to re-enter
+ *   go_stack     the array, object and keyword nesting
+ *   accum        the token being scanned, copied out as it is read since its
+ *                bytes are not contiguous across chunks
+ *
+ * call jr_state_init() before the first jr_read(), jr_state_free() when done.
+ * zeroing is not enough, go_stack needs its allocator set. */
 typedef struct jr_state {
   void** go;
   void* resume;
-  Vector go_stack; /* of void**; grows with the nesting depth of the input */
+  Vector go_stack; /* of void**, grows with the nesting depth */
   int32_t utf8_mask;
   char* accum;
   size_t accum_len;
   size_t accum_cap;
   /* bit-fields, bunched and sized to their value range so they share machine words */
   unsigned accumulating : 1;
-  unsigned in_number : 1; /* mid-number at the last pause: unlike other tokens, a number has no
-                            unambiguous terminator character, so only end-of-input (jr_finish())
-                            can close it out */
-  unsigned literal_active : 1; /* mid null/true/false at the last pause - see jr_read()'s l_err */
+  /* mid-number at the last pause, a number has no terminator character so only
+   * end of input (jr_finish()) can close it */
+  unsigned in_number : 1;
+  unsigned literal_active : 1; /* mid null/true/false at the last pause */
   unsigned after_comma : 1; /* a comma was read and no item has started since */
   unsigned num_ok : 1;   /* the number read so far is a complete one */
   unsigned kw_active : 1; /* mid Infinity / NaN */
   unsigned done : 1;
-  unsigned error : 1; /* sticky: "this stream had a parse error at some point" (jr_finish()/
-                     close() reporting only) - no longer blocks jr_read() from resyncing */
-  unsigned just_erred : 1; /* reset at the top of every jr_read() call; set if *this* call hit an
-                     error - lets a caller throw once per bad span instead of on every
-                     future call to an already-resynced parser */
+  /* sticky: the stream had an error at some point, reported by jr_finish().
+   * it does not stop jr_read() from resyncing */
+  unsigned error : 1;
+  /* reset at the top of every jr_read(), set if this call hit an error, so a
+   * caller can throw once per bad span */
+  unsigned just_erred : 1;
   unsigned str_type : 4;   /* JsonEventType of the string being scanned: string or key */
-  unsigned cmt : 2;        /* inside a comment: 1 after `/`, 2 `//` line, 3 block */
+  unsigned cmt : 2;        /* inside a comment: 1 after a slash, 2 line, 3 block */
   unsigned err_code : 4;   /* jr_error_t of the last error */
   unsigned kw_pos : 4;     /* how far the keyword is matched, 0..8 */
   unsigned unicode_count : 3; /* how many of the 4 hex digits have been read */
@@ -123,40 +133,65 @@ typedef struct jr_state {
   uint8_t flags;         /* JR_* syntax flags */
   int roots;             /* documents completed so far */
   const char* kw;        /* the keyword being matched, and how far */
-  /* position: `pos` counts every byte fed so far; `tok` is where the token being
-   * scanned began; the err_* fields describe the last error, valid when it is reported:
-   * err_pos is the token start (the offending byte outside a token), err_len the bytes
-   * from there through the offending byte (0 at end of input). Chunk-size independent. */
-  SourcePos pos, tok;
-  const char* mark; /* chunk byte that `pos` has been advanced up to (jr_read() only) */
+  SourcePos pos, tok; /* pos: bytes fed so far, tok: start of the current token */
+  const char* mark; /* chunk byte that pos has been advanced up to (jr_read() only) */
   const void* tab;  /* one-shot dispatch table that read the last byte, or NULL */
-  SourcePos err_pos;
-  size_t err_len;
+  SourcePos err_pos; /* token start of the last error, or its offending byte outside a token */
+  size_t err_len; /* bytes from err_pos through the offending byte, 0 at end of input */
 } jr_state_t;
 
+/* jr_state_init: sets up state with the JR_LEGACY syntax. never throws. */
 void jr_state_init(jr_state_t* state);
+
+/* jr_state_init_flags: sets up state with the given JR_* flags. never throws. */
 void jr_state_init_flags(jr_state_t* state, uint8_t flags);
+
+/* jr_state_free: releases accum and go_stack of state. never throws. */
 void jr_state_free(jr_state_t* state);
 
-/*
- * Feeds one chunk (chunk[0..len)) to the parser, invoking cb for every token that
- * completes - possibly none, if the chunk ends mid-token. May be called any number of
- * times with successive chunks of a stream; a chunk boundary may fall anywhere,
- * including mid-string, mid-number, mid-keyword, or mid-escape-sequence, or mid-resync.
- * No-op once state->done is set. On malformed input, reports JSON_EVENT_ERROR once (check
- * state->just_erred right after this call to see whether *this* call hit one) and resyncs
- * at the next comma or closing bracket/brace instead of stopping for good - state->error
- * stays set from then on purely as "this stream had an error at some point" bookkeeping
- * for jr_finish() and callers like JsonPushParser.close().
+/**
+ * jr_read: feeds one chunk to the parser, calling cb per completed token.
+ *
+ *   jr_callback  cb         receives each event, none if chunk ends mid-token
+ *   const char*  chunk      next bytes of the stream, chunk[0..len)
+ *   size_t       len        number of bytes in chunk
+ *   void*        user_data  passed to cb unchanged
+ *   jr_state_t*  state      parser state, set up with jr_state_init()
+ *
+ *   returns void, never throws
+ *
+ * call it any number of times with successive chunks of one stream.
+ *   - a chunk boundary may fall anywhere, also mid-string, mid-number,
+ *     mid-keyword, mid-escape-sequence or mid-resync
+ *   - no-op once state->done is set
+ *   - malformed input reports JSON_EVENT_ERROR once, then resyncs at the next
+ *     comma or closing bracket or brace instead of stopping for good
+ *   - state->just_erred tells whether this call hit an error
+ *   - state->error stays set afterwards as a record for jr_finish() and
+ *     JsonPushParser.close()
  */
 void jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state);
 
-/*
- * Signals end of input. Flushes a trailing bare number left pending by the last
- * jr_read() call (see jr_state::in_number), or - if parsing was left mid-string,
- * mid-container, or mid-keyword - reports JSON_EVENT_ERROR and sets state->error. Sets
- * state->done on a clean finish. No-op once state->done is already set (state->error
- * alone no longer blocks this - a resynced stream can still finish cleanly).
+/**
+ * jr_finish: signals end of input, flushing a pending bare number or
+ * reporting an unfinished token.
+ *
+ *   jr_callback  cb         receives the flushed number or the error event
+ *   void*        user_data  passed to cb unchanged
+ *   jr_state_t*  state      parser state, set up with jr_state_init()
+ *
+ *   returns void, never throws
+ *
+ *   - a bare number left pending by the last jr_read() is flushed (in_number)
+ *   - parsing left mid-string, mid-container or mid-keyword reports
+ *     JSON_EVENT_ERROR and sets state->error
+ *   - state->done is set on a clean finish
+ *   - no-op once state->done is set, state->error alone does not block it
  */
 void jr_finish(jr_callback cb, void* user_data, jr_state_t* state);
+
+/**
+ * @}
+ */
+
 #endif // #ifndef JREAD_H
