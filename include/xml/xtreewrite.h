@@ -4,6 +4,11 @@
 #include <quickjs.h>
 #include "stream-utils.h"
 
+/**
+ * \defgroup xtreewrite xtreewrite: write an element tree as XML
+ * @{
+ */
+
 /* xwrite_tree: xml.write() of an element tree or a flat list; xwalk events in, XmlLayout bytes out.
  *
  * ```c
@@ -19,5 +24,9 @@
  *
  * returns 0, or -1 with an exception pending. */
 int xwrite_tree(JSContext*, JSValueConst tree, int32_t max_depth, int flat, Writer writer);
+
+/**
+ * @}
+ */
 
 #endif

@@ -11,6 +11,11 @@
 #include "srcpos.h"
 #include "xml/xevent.h"
 
+/**
+ * \defgroup xread xread: XML push parser
+ * @{
+ */
+
 /* xr_error_t: why an XE_ERROR was reported; xr_error_name() is `err.code`. */
 typedef enum xr_error {
   XR_E_NONE,
@@ -91,5 +96,9 @@ void xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_
  * state->done is already set.
  */
 void xr_finish(xr_callback cb, void* user_data, xr_state_t* state);
+
+/**
+ * @}
+ */
 
 #endif // #ifndef XREAD_H

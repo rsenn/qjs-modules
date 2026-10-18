@@ -3,6 +3,11 @@
 
 #include "walk.h"
 
+/**
+ * \defgroup xwalk xwalk: walk an element tree as XML events
+ * @{
+ */
+
 /* XwalkShape: names the three keys of a tree of elements; NULL fields = the default.
  *
  * ```js
@@ -59,5 +64,9 @@ static inline uint32_t
 xwalk_depth(const XwalkIterator* it) {
   return walk_depth(&it->walk);
 }
+
+/**
+ * @}
+ */
 
 #endif

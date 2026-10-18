@@ -7,6 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * \addtogroup wasm-sections
+ * @{
+ */
+
 typedef struct {
   const uint8_t* p;
   const uint8_t* end;
@@ -647,3 +652,7 @@ wb_put_u32(uint8_t* dst, uint32_t v) {
 
   return n;
 }
+
+/**
+ * @}
+ */

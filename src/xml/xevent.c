@@ -6,6 +6,11 @@
 
 #include "xml/xevent.h"
 
+/**
+ * \addtogroup xevent
+ * @{
+ */
+
 ssize_t
 xevent_send(const XmlEventSink* sink, const XmlEvent* ev) {
   switch(ev->type) {
@@ -22,3 +27,7 @@ xevent_send(const XmlEventSink* sink, const XmlEvent* ev) {
 
   return 0;
 }
+
+/**
+ * @}
+ */

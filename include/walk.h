@@ -6,6 +6,11 @@
 #include "vector.h"
 #include "property-enumeration.h"
 
+/**
+ * \defgroup walk walk: generic value tree walk
+ * @{
+ */
+
 /* WalkInterface: the events a walk of a value tree reports, one callback each.
  *
  * Every callback returns the bytes written (>= 0), or -1 with an
@@ -120,5 +125,9 @@ typedef WalkInterface WalkFromOpaque(void* opaque);
 int js_walk_register(JSClassID, WalkFromOpaque*);
 int js_walk_define(JSContext*, JSValueConst obj);
 JSValue js_walk_wrap(JSContext*, WalkInterface iface);
+
+/**
+ * @}
+ */
 
 #endif

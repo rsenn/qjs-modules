@@ -12,6 +12,11 @@
 #include <string.h>
 #include <strings.h>
 
+/**
+ * \addtogroup xtreewrite
+ * @{
+ */
+
 /* what an XmlTreeFrame is: a list of items, an element, or an element's attributes */
 enum { XTW_LIST, XTW_ELEMENT, XTW_ATTRS };
 
@@ -336,3 +341,7 @@ xwrite_tree(JSContext* ctx, JSValueConst tree, int32_t max_depth, int flat, Writ
   xlay_free(&tw.lay);
   return r;
 }
+
+/**
+ * @}
+ */

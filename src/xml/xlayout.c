@@ -8,6 +8,11 @@
 #include "char-utils.h"
 #include <string.h>
 
+/**
+ * \addtogroup xlayout
+ * @{
+ */
+
 void
 xlay_init(XmlLayout* l, Writer writer, DynBufReallocFunc* realloc_func, void* opaque) {
   l->writer = writer;
@@ -204,3 +209,7 @@ xlay_finish(XmlLayout* l, int trim) {
   l->pending.size = 0;
   return 0;
 }
+
+/**
+ * @}
+ */

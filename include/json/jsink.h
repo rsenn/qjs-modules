@@ -4,6 +4,11 @@
 #include <quickjs.h>
 #include "json/jevent.h"
 
+/**
+ * \defgroup jsink jsink: JSON event sink as a JS object
+ * @{
+ */
+
 /* JsonEventSink as a JS object: the twin of js_xmlsink_wrap() (xml/xsink.h) and js_walk_wrap().
  *
  * ```js
@@ -52,5 +57,9 @@ int js_jsonsink_define(JSContext*, JSValueConst obj);
  * borrowed: sink.opaque is not owned; it must outlive the JS object.
  * returns the object (refcount: new reference), or JS_EXCEPTION. */
 JSValue js_jsonsink_wrap(JSContext*, JsonEventSink sink);
+
+/**
+ * @}
+ */
 
 #endif

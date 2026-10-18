@@ -1,6 +1,11 @@
 #include "char-utils.h"
 #include "json/json.h"
 
+/**
+ * \addtogroup json
+ * @{
+ */
+
 enum {
   ERROR = -1,
   PARSING = 0,
@@ -320,11 +325,22 @@ json_scan_string(JsonParser* json) {
             json->str_unicode_count = 0;
             continue;
           case 'v': dbuf_putc(&json->token, '\v'); continue;
-          case '0': dbuf_putc(&json->token, 0); json->str_state = JSON_STR_NUL; continue;
+          case '0':
+            dbuf_putc(&json->token, 0);
+            json->str_state = JSON_STR_NUL;
+            continue;
           case '\r': json->str_state = JSON_STR_CR; continue;
           case '\n': continue;
           case 0xe2: json->str_state = JSON_STR_E2; continue;
-          case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+          case '5':
+          case '6':
+          case '7':
+          case '8':
+          case '9':
             json->error = "invalid escape sequence in string";
             json_error_skip_enter(json, c, "bad-escape");
             return JSON_ERROR;
@@ -1111,9 +1127,8 @@ json_end(JsonParser* json) {
     return JSON_NONE;
   }
 
-  if(!(json->flags & JR_LEGACY) &&
-     (json->tok_kind != JSON_TOK_NONE || json->cmt_state == 1 || json->cmt_state == 3 || json->cmt_state == 4 || json->stack.len > 0 ||
-      (json->roots == 0 && !(json->flags & JR_MULTI)))) {
+  if(!(json->flags & JR_LEGACY) && (json->tok_kind != JSON_TOK_NONE || json->cmt_state == 1 || json->cmt_state == 3 || json->cmt_state == 4 ||
+                                    json->stack.len > 0 || (json->roots == 0 && !(json->flags & JR_MULTI)))) {
     json->tok_kind = JSON_TOK_NONE;
     json->cmt_state = 0;
     json->stack.len = 0;
@@ -1127,3 +1142,7 @@ json_end(JsonParser* json) {
 
   return JSON_NONE;
 }
+
+/**
+ * @}
+ */

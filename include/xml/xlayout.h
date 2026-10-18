@@ -5,6 +5,11 @@
 #include <sys/types.h>
 #include "stream-utils.h"
 
+/**
+ * \defgroup xlayout xlayout: indented XML layout
+ * @{
+ */
+
 /* XmlLayout: the indented layout of xml.write(), driven with explicit depths.
  *
  * ```c
@@ -66,5 +71,9 @@ int xlay_text(XmlLayout*, int depth, int multiline, const char* str, size_t len)
 
 /* xlay_finish: `trim` drops the held whitespace (and NULs); otherwise it is written. */
 int xlay_finish(XmlLayout*, int trim);
+
+/**
+ * @}
+ */
 
 #endif

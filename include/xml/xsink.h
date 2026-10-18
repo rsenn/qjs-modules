@@ -4,6 +4,11 @@
 #include <quickjs.h>
 #include "xml/xevent.h"
 
+/**
+ * \defgroup xsink xsink: XML event sink as a JS object
+ * @{
+ */
+
 /* XmlEventSink as a JS object: the twin of js_walk_wrap()/js_walk_define() (walk.h).
  *
  * ```js
@@ -54,5 +59,9 @@ int js_xmlsink_define(JSContext*, JSValueConst obj);
  * borrowed: sink.opaque is not owned; it must outlive the JS object.
  * returns the object (refcount: new reference), or JS_EXCEPTION. */
 JSValue js_xmlsink_wrap(JSContext*, XmlEventSink sink);
+
+/**
+ * @}
+ */
 
 #endif

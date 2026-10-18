@@ -9,9 +9,24 @@
 #include <cutils.h>
 #include <string.h>
 
+/**
+ * \addtogroup jsink
+ * @{
+ */
+
 enum { M_ERROR, M_NULL, M_TRUE, M_FALSE, M_NUMBER, M_STRING, M_ARRAY_START, M_ARRAY_END, M_OBJECT_START, M_OBJECT_END, M_KEY };
 
-static const JsonEventType method_types[] = {JSON_EVENT_ERROR, JSON_EVENT_NULL, JSON_EVENT_TRUE, JSON_EVENT_FALSE, JSON_EVENT_NUMBER, JSON_EVENT_STRING, JSON_EVENT_ARRAY_START, JSON_EVENT_ARRAY_END, JSON_EVENT_OBJECT_START, JSON_EVENT_OBJECT_END, JSON_EVENT_KEY};
+static const JsonEventType method_types[] = {JSON_EVENT_ERROR,
+                                             JSON_EVENT_NULL,
+                                             JSON_EVENT_TRUE,
+                                             JSON_EVENT_FALSE,
+                                             JSON_EVENT_NUMBER,
+                                             JSON_EVENT_STRING,
+                                             JSON_EVENT_ARRAY_START,
+                                             JSON_EVENT_ARRAY_END,
+                                             JSON_EVENT_OBJECT_START,
+                                             JSON_EVENT_OBJECT_END,
+                                             JSON_EVENT_KEY};
 
 static JSClassID js_jsonsink_class_id = 0;
 
@@ -79,17 +94,50 @@ js_jsonsink_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   }
 
   switch(magic) {
-    case M_ERROR: has_cb = !!sink.error; w = has_cb ? sink.error(sink.opaque, str, len) : 0; break;
-    case M_NULL: has_cb = !!sink.null; w = has_cb ? sink.null(sink.opaque) : 0; break;
-    case M_TRUE: has_cb = !!sink.true_; w = has_cb ? sink.true_(sink.opaque) : 0; break;
-    case M_FALSE: has_cb = !!sink.false_; w = has_cb ? sink.false_(sink.opaque) : 0; break;
-    case M_NUMBER: has_cb = !!sink.number; w = has_cb ? sink.number(sink.opaque, str, len) : 0; break;
-    case M_STRING: has_cb = !!sink.string; w = has_cb ? sink.string(sink.opaque, str, len) : 0; break;
-    case M_ARRAY_START: has_cb = !!sink.array_start; w = has_cb ? sink.array_start(sink.opaque) : 0; break;
-    case M_ARRAY_END: has_cb = !!sink.array_end; w = has_cb ? sink.array_end(sink.opaque) : 0; break;
-    case M_OBJECT_START: has_cb = !!sink.object_start; w = has_cb ? sink.object_start(sink.opaque) : 0; break;
-    case M_OBJECT_END: has_cb = !!sink.object_end; w = has_cb ? sink.object_end(sink.opaque) : 0; break;
-    case M_KEY: has_cb = !!sink.key; w = has_cb ? sink.key(sink.opaque, str, len) : 0; break;
+    case M_ERROR:
+      has_cb = !!sink.error;
+      w = has_cb ? sink.error(sink.opaque, str, len) : 0;
+      break;
+    case M_NULL:
+      has_cb = !!sink.null;
+      w = has_cb ? sink.null(sink.opaque) : 0;
+      break;
+    case M_TRUE:
+      has_cb = !!sink.true_;
+      w = has_cb ? sink.true_(sink.opaque) : 0;
+      break;
+    case M_FALSE:
+      has_cb = !!sink.false_;
+      w = has_cb ? sink.false_(sink.opaque) : 0;
+      break;
+    case M_NUMBER:
+      has_cb = !!sink.number;
+      w = has_cb ? sink.number(sink.opaque, str, len) : 0;
+      break;
+    case M_STRING:
+      has_cb = !!sink.string;
+      w = has_cb ? sink.string(sink.opaque, str, len) : 0;
+      break;
+    case M_ARRAY_START:
+      has_cb = !!sink.array_start;
+      w = has_cb ? sink.array_start(sink.opaque) : 0;
+      break;
+    case M_ARRAY_END:
+      has_cb = !!sink.array_end;
+      w = has_cb ? sink.array_end(sink.opaque) : 0;
+      break;
+    case M_OBJECT_START:
+      has_cb = !!sink.object_start;
+      w = has_cb ? sink.object_start(sink.opaque) : 0;
+      break;
+    case M_OBJECT_END:
+      has_cb = !!sink.object_end;
+      w = has_cb ? sink.object_end(sink.opaque) : 0;
+      break;
+    case M_KEY:
+      has_cb = !!sink.key;
+      w = has_cb ? sink.key(sink.opaque, str, len) : 0;
+      break;
   }
 
   if(str)
@@ -191,3 +239,7 @@ js_jsonsink_wrap(JSContext* ctx, JsonEventSink sink) {
   JS_SetOpaque(obj, copy);
   return obj;
 }
+
+/**
+ * @}
+ */

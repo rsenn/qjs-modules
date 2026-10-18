@@ -9,6 +9,11 @@
 #include <cutils.h>
 #include <string.h>
 
+/**
+ * \addtogroup xsink
+ * @{
+ */
+
 enum { M_ERROR, M_ELEMENT_START, M_ATTRIBUTE, M_ELEMENT_END, M_TEXT, M_COMMENT, M_DECLARATION, M_INSTRUCTION, M_CDATA };
 
 static const XmlEventType method_types[] = {XE_ERROR, XE_ELEMENT_START, XE_ATTRIBUTE, XE_ELEMENT_END, XE_TEXT, XE_COMMENT, XE_DECLARATION, XE_INSTRUCTION, XE_CDATA};
@@ -194,3 +199,7 @@ js_xmlsink_wrap(JSContext* ctx, XmlEventSink sink) {
   JS_SetOpaque(obj, copy);
   return obj;
 }
+
+/**
+ * @}
+ */

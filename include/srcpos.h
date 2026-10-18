@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * \defgroup srcpos srcpos: source position tracking
+ * @{
+ */
+
 /* SourcePos: where a parser is in its input, counted as bytes go through it.
  *
  * ```c
@@ -74,5 +79,9 @@ srcpos_advance(SourcePos* pos, const void* buf, size_t len) {
     }
   }
 }
+
+/**
+ * @}
+ */
 
 #endif /* SRCPOS_H */

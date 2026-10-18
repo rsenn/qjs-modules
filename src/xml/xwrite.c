@@ -8,6 +8,11 @@
 #include "xml/xwrite.h"
 #include <string.h>
 
+/**
+ * \addtogroup xwrite
+ * @{
+ */
+
 /* what the previous event left behind */
 enum { XW_PREV_NONE, XW_PREV_START, XW_PREV_ATTRIBUTE, XW_PREV_TEXT, XW_PREV_END, XW_PREV_MARKUP };
 
@@ -351,3 +356,7 @@ xwrite_sink(XmlWriter* wr) {
       xwrite_if_cdata,
   };
 }
+
+/**
+ * @}
+ */

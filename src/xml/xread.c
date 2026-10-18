@@ -9,6 +9,11 @@
 
 #include <stdlib.h>
 
+/**
+ * \addtogroup xread
+ * @{
+ */
+
 /* Pastes __LINE__ into a label name, so each XR_DISPATCH_*() call site gets its own
  * unique "resume here" label - see the comment above XR_DISPATCH_NEXT() below. */
 #define XR_PASTE_(a, b) a##b
@@ -431,3 +436,7 @@ xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
 
   state->done = 1;
 }
+
+/**
+ * @}
+ */

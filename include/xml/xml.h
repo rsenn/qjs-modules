@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <cutils.h>
 #include "xml/xevent.h"
+
 /**
  * \defgroup xml xml: streaming, JSValue-free XML parser
  * @{

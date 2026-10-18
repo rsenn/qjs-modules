@@ -6,6 +6,11 @@
 #include "char-utils.h"
 #include "json/jbuilder.h"
 
+/**
+ * \addtogroup jbuilder
+ * @{
+ */
+
 struct json_builder_frame {
   struct json_builder_frame* parent;
   JSValue obj;
@@ -311,3 +316,7 @@ jbuild_sink(JsonBuilder* b) {
       jbuild_if_key,
   };
 }
+
+/**
+ * @}
+ */

@@ -3,6 +3,11 @@
 
 #include "wasm-backend.h"
 
+/**
+ * \defgroup wasm-sections wasm-sections: wasm import and export section reader
+ * @{
+ */
+
 /* wasm-sections.h: reads a .wasm binary's type, import and export sections.
  * depends on: wasm-backend.h (the descriptor structs it fills in).
  * rule: runtime-independent; both backends list imports and exports
@@ -53,5 +58,9 @@ void wb_sections_free(WBSections* s);
 /* writes `v` as an unsigned LEB128 at `dst`. never throws: returns the
  * number of bytes written (1 to 5). */
 size_t wb_put_u32(uint8_t* dst, uint32_t v);
+
+/**
+ * @}
+ */
 
 #endif /* WASM_SECTIONS_H */

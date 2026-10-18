@@ -4,6 +4,11 @@
 
 #include "json/jevent.h"
 
+/**
+ * \addtogroup jevent
+ * @{
+ */
+
 ssize_t
 jevent_send(const JsonEventSink* sink, const JsonEvent* ev) {
   switch(ev->type) {
@@ -23,3 +28,7 @@ jevent_send(const JsonEventSink* sink, const JsonEvent* ev) {
 
   return 0;
 }
+
+/**
+ * @}
+ */

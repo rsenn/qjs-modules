@@ -7,6 +7,11 @@
 #include "walk.h"
 #include "property-enumeration.h"
 
+/**
+ * \addtogroup walk
+ * @{
+ */
+
 enum { WALK_START, WALK_RUNNING, WALK_DONE };
 
 /* per open container: the next array index to report, and the array length */
@@ -118,7 +123,6 @@ static int
 walk_prepare_plain(void* opaque, JSContext* ctx, JSValueConst holder, JSValueConst key, JSValue* val) {
   return JS_IsObject(*val) ? WALK_KIND_CONTAINER : WALK_KIND_VALUE;
 }
-
 
 /* walk_init: starts walking `root`, reporting to `iface`; emits nothing yet.
  *
@@ -635,3 +639,7 @@ js_walk_wrap(JSContext* ctx, WalkInterface iface) {
   JS_SetOpaque(obj, copy);
   return obj;
 }
+
+/**
+ * @}
+ */

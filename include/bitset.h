@@ -5,6 +5,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/**
+ * \defgroup bitset bitset: bit set
+ * @{
+ */
+
 typedef struct {
   uint8_t* ptr;
   size_t len;
@@ -19,5 +24,9 @@ bool bitset_isset(BitSet*, int);
 bool bitset_assign(BitSet*, int, bool);
 bool bitset_push(BitSet*, int, size_t);
 int bitset_pop(BitSet*, size_t);
+
+/**
+ * @}
+ */
 
 #endif /* defined(BITSET) */

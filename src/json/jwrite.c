@@ -6,6 +6,11 @@
 #include "char-utils.h"
 #include "json/jwrite.h"
 
+/**
+ * \addtogroup jwrite
+ * @{
+ */
+
 /* jwrite_put() and jwrite_put_string() return the bytes on full success,
  * 0 if the writer ran out of room (a chunked destination signalling
  * retry later"), or -1 on a real error.
@@ -525,3 +530,7 @@ jwrite_sink(JsonWriter* wr) {
       jwrite_if_key,
   };
 }
+
+/**
+ * @}
+ */

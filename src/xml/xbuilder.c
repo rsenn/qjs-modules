@@ -5,6 +5,11 @@
 
 #include "xml/xbuilder.h"
 
+/**
+ * \addtogroup xbuilder
+ * @{
+ */
+
 /* what the innermost element has open */
 enum { XB_NONE, XB_ATTRS, XB_CHILDREN, XB_BANG };
 
@@ -252,3 +257,7 @@ xbuild_sink(XmlBuilder* b) {
       xbuild_if_ignore,
   };
 }
+
+/**
+ * @}
+ */

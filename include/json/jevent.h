@@ -5,6 +5,11 @@
 #include <sys/types.h>
 #include "srcpos.h"
 
+/**
+ * \defgroup jevent jevent: JSON events and event sinks
+ * @{
+ */
+
 /* JsonEventType: the kind of a JSON event; the one vocabulary of every json/ header.
  *
  *   JSON_EVENT_*   value  carries
@@ -120,5 +125,9 @@ ssize_t jread_pump_finish(struct jr_state*, const JsonEventSink* sink);
 struct json_parser;
 
 ssize_t json_pump(struct json_parser*, const JsonEventSink* sink);
+
+/**
+ * @}
+ */
 
 #endif /* JEVENT_H */

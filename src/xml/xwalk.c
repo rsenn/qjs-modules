@@ -4,6 +4,11 @@
 
 #include "xml/xwalk.h"
 
+/**
+ * \addtogroup xwalk
+ * @{
+ */
+
 enum { ROLE_ELEMENT, ROLE_ATTRIBUTES, ROLE_CHILDREN };
 
 /* xwalk_role: what the container `back` levels below the top is; the root is an
@@ -147,3 +152,7 @@ void
 xwalk_close(XwalkIterator* it, JSContext* ctx) {
   xwalk_close_rt(it, JS_GetRuntime(ctx));
 }
+
+/**
+ * @}
+ */

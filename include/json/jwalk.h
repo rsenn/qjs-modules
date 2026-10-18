@@ -3,8 +3,14 @@
 
 #include "walk.h"
 
+/**
+ * \defgroup jwalk jwalk: walk a JS value as JSON events
+ * @{
+ */
+
 /* JwalkIterator: walks a JS value and reports it to a WalkInterface, one
- * event per jwalk_next() call (a walk.h WalkIterator with the JSON hooks), with JSON.stringify's rules for what a value is.
+ * event per jwalk_next() call (a walk.h WalkIterator with the JSON hooks),
+ * with JSON.stringify's rules for what a value is.
  *
  * ```js
  * { a: new Date(0), b: undefined, c: [1, , 2n] }   // JSON.stringify
@@ -77,5 +83,9 @@ static inline int
 jwalk_root_omitted(const JwalkIterator* it) {
   return walk_root_omitted(&it->walk);
 }
+
+/**
+ * @}
+ */
 
 #endif

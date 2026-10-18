@@ -2,6 +2,11 @@
 #include <assert.h>
 #include <stdlib.h>
 
+/**
+ * \addtogroup bitset
+ * @{
+ */
+
 #define bitset_BYTE(bs, bit) ((bs)->ptr[(bit) >> 3])
 #define bitset_INDEX(bs, idx) WRAP_NUM((idx), (signed)(bs)->len)
 
@@ -82,3 +87,7 @@ bitset_pop(BitSet* bs, size_t num_bits) {
 
   return ret;
 }
+
+/**
+ * @}
+ */

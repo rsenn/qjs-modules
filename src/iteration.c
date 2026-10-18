@@ -1,5 +1,10 @@
 #include "iteration.h"
 
+/**
+ * \addtogroup iteration
+ * @{
+ */
+
 BOOL
 iteration_init(Iteration* it, JSContext* ctx, JSValue iterator) {
   JSValue next = JS_GetPropertyStr(ctx, iterator, "next");
@@ -87,3 +92,7 @@ iteration_array(JSContext* ctx, JSValueConst iterable) {
   iteration_reset(&iter, ctx);
   return ret;
 }
+
+/**
+ * @}
+ */

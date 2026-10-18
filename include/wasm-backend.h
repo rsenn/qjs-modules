@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * \defgroup wasm-backend wasm-backend: one C interface over wasm3 and WAMR
+ * @{
+ */
+
 /* wasm-backend.h: one C interface over wasm3 and WAMR, shaped like quickjs.h.
  * depends on: <stddef.h>, <stdint.h>; implemented by one backend file
  * (wasm3 or WAMR, chosen at configure time) plus the shared section parser
@@ -372,5 +377,9 @@ int WB_SetGlobal(WBContext* ctx, WBGlobal* global, const WBValue* v);
 /* the global's type and mutability. never throws. */
 WBValType WB_GetGlobalType(WBGlobal* global, int* is_mutable);
 
+
+/**
+ * @}
+ */
 
 #endif /* WASM_BACKEND_H */

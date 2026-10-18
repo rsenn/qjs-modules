@@ -5,6 +5,11 @@
 #include "json/jwalk.h"
 #include <math.h>
 
+/**
+ * \addtogroup jwalk
+ * @{
+ */
+
 /* class ids of Number, String, Boolean and BigInt objects; found once, they are engine-wide */
 static JSClassID jwalk_number_id, jwalk_string_id, jwalk_boolean_id, jwalk_bigint_id;
 
@@ -366,3 +371,7 @@ void
 jwalk_close(JwalkIterator* it, JSContext* ctx) {
   jwalk_close_rt(it, JS_GetRuntime(ctx));
 }
+
+/**
+ * @}
+ */
