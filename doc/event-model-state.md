@@ -124,7 +124,24 @@ Done (2026-10-18):
 - XMLParser and XMLNodeParser stay on `xml_parse` on purpose: `parse()` returns raw xml_parse ids and the tests pin that
   markup arrives as start+end. They change with their redesign (typed `next()`), not in the lift.
 
-Open, in order: JSONL (Bun glue in `lib/`, needs `parseChunk` position from the builder's `on_root`), `JsonWriter` class on
+- Second round (2026-10-18), three steps:
+  1. `JsonWriter` is a JsonEventSink object (`js_jsonsink_register` + `js_jsonsink_define`, plus one `value(v)` method);
+     `js_walk_register`, `js_walk_define`, `js_walk_wrap`, `WalkFromOpaque` and the WalkInterface JS class are deleted
+     from `walk.c`/`walk.h` (-190 lines). The `WalkInterface` struct itself stays until P15.
+  2. JSONL moved to `lib/jsonl.js` (plain JS, runs on node too, tests import it from there, `doc/js/jsonl.md`);
+     it is no longer an export of the `json` module. `quickjs-json.c`: 1305 lines.
+  3. P13 for the push parsers and pumps: `jr_read`/`jr_finish`/`jr_callback`/`jr_str_t` and `xr_read`/`xr_finish`/`xr_callback`/
+     `xr_str_t` are private to `jread.c`/`xread.c`; `jr_feed`/`jr_end`/`xr_feed`/`xr_end` and `jr_flags_from_name` live there
+     too. `jpump.c` and `xpump.c` are deleted together with `jread_pump(_finish)`, `json_pump`, `xread_pump(_finish)`,
+     `xml_pump`, `JSON_PUMP_*`, `XML_PUMP_*` (use `jr_feed(..., jevent_handler, &sink)` and `jevent_pump(json_source(p), &sink)`).
+     The C tests jread-positions, jread-dialects, json-dialects and pump-roundtrip run on the handler API.
+- Full ctest after the second round: the same 8 failures.
+
+Open, in order: the handshake (P6: jconnect.c, xconnect.c, `pump()`/`connect()`), P16 (`write()` through `xwalk_source` +
+XmlWriter, deletes `xtreewrite.[ch]` and `xlayout.[ch]`, about 640 lines, changes the layout of `xml.write()`: the user decides),
+the `XMLParser`/`XMLNodeParser` redesign, JSON side of P13 (`json_parse`, `JsonParser` fields), then the older list below.
+
+Older open list: JSONL (Bun glue in `lib/`, needs `parseChunk` position from the builder's `on_root`), `JsonWriter` class on
 the sink members, the handshake (`jconnect.c`, `pump()`/`connect()`), P13 for the JSON side (`json_parse`, `jr_read`,
 `jr_finish`, `jr_str_t` users left: none in `quickjs-json.c` except via `json_next`); then the XML twins; then P13.
 

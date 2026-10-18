@@ -9,6 +9,13 @@
 
 #include <stdlib.h>
 
+typedef struct xr_str {
+  const char* cstr;
+  int32_t len;
+} xr_str_t;
+
+typedef void (*xr_callback)(XmlEventType type, const xr_str_t* name, const xr_str_t* value, void* user_data);
+
 /**
  * \addtogroup xread
  * @{
@@ -30,7 +37,7 @@
  *    XR_RESUME_LABEL is unique per call site (via __LINE__), and is planted *inside*
  *    the macro expansion, after any one-time setup code the enclosing l_xxx: label
  *    may have (e.g. l_name_begin resetting the accumulator) - so resuming via `goto
- *    *state->resume` at the top of xr_read() re-enters past that setup, without
+ *    *state->resume` at the top of xr_feed() re-enters past that setup, without
  *    re-running it.
  *  - accumulates: if state->accumulating, the byte just read is appended to
  *    *state->cur_accum, since a token's bytes aren't necessarily contiguous in any
@@ -409,7 +416,7 @@ l_attrib_bool: {
   XR_DISPATCH_THIS();
 }
 
-void
+static void
 xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t* state) {
   state->mark = chunk;
   xr_read_(cb, chunk, len, user_data, state);
@@ -417,7 +424,7 @@ xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state
   state->mark = 0;
 }
 
-void
+static void
 xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
   if(state->error || state->done)
     return;
@@ -435,6 +442,93 @@ xr_finish(xr_callback cb, void* user_data, xr_state_t* state) {
   }
 
   state->done = 1;
+}
+
+typedef struct {
+  XmlEventHandler* handler;
+  void* user;
+  const xr_state_t* state;
+  ssize_t failure; /* first negative result of the handler, 0 if none */
+} XmlFeed;
+
+static void
+xfeed_send(XmlFeed* f, const XmlEvent* ev) {
+  ssize_t r;
+
+  if(f->failure)
+    return;
+
+  if((r = f->handler(f->user, ev)) < 0)
+    f->failure = r;
+}
+
+static void
+xfeed_callback(XmlEventType type, const xr_str_t* name, const xr_str_t* value, void* user_data) {
+  XmlFeed* f = user_data;
+  XmlEvent ev = {0};
+
+  switch(type) {
+    case XE_ELEMENT_START:
+      ev = (XmlEvent){
+          .type = XE_ELEMENT_START,
+          .name = name->cstr,
+          .nlen = name->len,
+      };
+      break;
+    case XE_ELEMENT_END:
+      ev = (XmlEvent){
+          .type = XE_ELEMENT_END,
+          .name = name ? name->cstr : NULL,
+          .nlen = name ? name->len : 0,
+      };
+      break;
+    case XE_ATTRIBUTE:
+      ev = (XmlEvent){
+          .type = XE_ATTRIBUTE,
+          .name = name->cstr,
+          .nlen = name->len,
+          .value = value ? value->cstr : NULL,
+          .vlen = value ? value->len : 0,
+      };
+      break;
+    case XE_TEXT:
+      ev = (XmlEvent){
+          .type = XE_TEXT,
+          .str = value->cstr,
+          .len = value->len,
+      };
+      break;
+    case XE_ERROR:
+      ev = (XmlEvent){
+          .type = XE_ERROR,
+          .str = value ? value->cstr : NULL,
+          .len = value ? value->len : 0,
+          .code = xr_error_name(f->state->err_code),
+          .span = f->state->err_len,
+          .at = f->state->err_pos,
+          .has_at = 1,
+      };
+      break;
+    default: return; /* xread produces no markup events */
+  }
+
+  xfeed_send(f, &ev);
+}
+
+ssize_t
+xr_feed(xr_state_t* state, const char* chunk, size_t len, XmlEventHandler* handler, void* user) {
+  XmlFeed f = {handler, user, state, 0};
+
+  xr_read(xfeed_callback, chunk, len, &f, state);
+  return f.failure;
+}
+
+ssize_t
+xr_end(xr_state_t* state, XmlEventHandler* handler, void* user) {
+  XmlFeed f = {handler, user, state, 0};
+
+  xr_finish(xfeed_callback, &f, state);
+  return f.failure;
 }
 
 /**

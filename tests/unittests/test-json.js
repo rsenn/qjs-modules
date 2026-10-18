@@ -1,6 +1,7 @@
 import * as std from 'std';
 import { ArrayBufferSink } from 'arraybuffer_sink';
-import { read, write, JSONL, JsonParser, JsonPushParser, JsonSerializer, JsonWriter } from 'json';
+import { JSONL } from '../../lib/jsonl.js';
+import { read, write, JsonParser, JsonPushParser, JsonSerializer, JsonWriter } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const { NEED_DATA, NONE, OBJECT, OBJECT_END, ARRAY, ARRAY_END, KEY, STRING, TRUE, FALSE, NULL, NUMBER } = JsonParser;

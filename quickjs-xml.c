@@ -586,8 +586,8 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   xr_feed(&pp->xrs, (const char*)inputbuffer_data(&input), inputbuffer_length(&input), pp->use_builder ? xml_pushparser_event_build : xml_pushparser_event, pp);
   inputbuffer_free(&input, ctx);
 
-  /* xr_read() sets xrs.error and goes silently inert (every further xr_read()/
-   * xr_finish() call becomes a no-op) rather than reporting anything itself - most
+  /* xr_feed() sets xrs.error and goes silently inert (every further xr_feed()/
+   * xr_end() call becomes a no-op) rather than reporting anything itself - most
    * notably on any non-whitespace text between tags, which its grammar doesn't
    * accept at all (see BUGS: xread-no-text-content). With custom callbacks, the
    * caller's own error() callback already ran (xread_callback() dispatches
@@ -609,7 +609,7 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   xr_end(&pp->xrs, pp->use_builder ? xml_pushparser_event_build : xml_pushparser_event, pp);
 
-  /* xr_finish()'s own !at_root check (which sets xrs.error) only catches ending
+  /* xr_end()'s own !at_root check (which sets xrs.error) only catches ending
    * mid-tag, e.g. "<a><b" with no closing '>' - src/xml/xread.c's l_tag_end sets
    * at_root=1 after *every* '>', nested or not, so it does NOT mean every opened
    * element was also closed. When building a tree, check the frame stack

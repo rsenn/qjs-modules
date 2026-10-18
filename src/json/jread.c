@@ -6,6 +6,14 @@
 #include "char-utils.h" /* is_utf16_high_surrogate/is_utf16_low_surrogate, unicode_to_utf8, UTF8_CHAR_LEN_MAX */
 #include "json/jread.h"
 #include <stdlib.h>
+#include <string.h>
+
+typedef struct jr_str {
+  const char* cstr;
+  int32_t len;
+} jr_str_t;
+
+typedef void (*jr_callback)(JsonEventType type, const jr_str_t* data, void* user_data);
 
 /**
  * \addtogroup jread
@@ -61,7 +69,7 @@
  *    JR_RESUME_LABEL is unique per call site (via __LINE__), and is planted *inside*
  *    the macro expansion, after any one-time setup code the enclosing l_xxx: label may
  *    have (e.g. l_num_s resetting the accumulator) - so resuming via `goto
- *    *state->resume` at the top of jr_read() re-enters past that setup, without
+ *    *state->resume` at the top of jr_feed() re-enters past that setup, without
  *    re-running it.
  *  - accumulates: if state->accumulating, the byte just read is appended to
  *    state->accum, since a token's bytes aren't necessarily contiguous in any one
@@ -875,8 +883,8 @@ l_err: {
   jr_error_at(state, cstr - 1, code, state->accumulating || state->literal_active || state->kw_active);
   cb(JSON_EVENT_ERROR, &data, user_data);
 }
-  /* `error` is sticky (jr_finish()/close() report "this stream had an error at some point");
-   * `just_erred` is reset at the top of every jr_read() call and only reflects THIS call, so
+  /* `error` is sticky (jr_end()/close() report "this stream had an error at some point");
+   * `just_erred` is reset at the top of every jr_feed() call and only reflects THIS call, so
    * js_json_pushparser_write() can throw once per bad span instead of on every future write()
    * to an already-resynced parser. */
   state->error = 1;
@@ -1461,7 +1469,7 @@ l_oom: {
 }
 }
 
-void
+static void
 jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state_t* state) {
   state->mark = chunk;
   jr_read_(cb, chunk, len, user_data, state);
@@ -1469,9 +1477,9 @@ jr_read(jr_callback cb, const char* chunk, size_t len, void* user_data, jr_state
   state->mark = 0;
 }
 
-void
+static void
 jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
-  /* `error` is sticky and no longer means "dead" (see jr_read()'s l_err) - a resynced
+  /* `error` is sticky and no longer means "dead" (see jr_feed()'s l_err) - a resynced
    * stream must still be able to reach `done` normally here if it's actually complete. */
   if(state->done)
     return;
@@ -1539,6 +1547,78 @@ jr_finish(jr_callback cb, void* user_data, jr_state_t* state) {
   }
 
   state->done = 1;
+}
+
+typedef struct {
+  JsonEventHandler* handler;
+  void* user;
+  const jr_state_t* state;
+  ssize_t failure; /* first negative result of the handler, 0 if none */
+} JsonFeed;
+
+static void
+jfeed_callback(JsonEventType type, const jr_str_t* data, void* user_data) {
+  JsonFeed* f = user_data;
+  JsonEvent ev;
+  ssize_t r;
+
+  if(f->failure)
+    return;
+
+  ev = (JsonEvent){
+      .type = type,
+      .str = data ? data->cstr : NULL,
+      .len = data ? data->len : 0,
+      .at = type == JSON_EVENT_ERROR ? f->state->err_pos : f->state->tok,
+      .has_at = 1,
+  };
+
+  if(type == JSON_EVENT_ERROR) {
+    ev.code = jr_error_name(f->state->err_code);
+    ev.span = f->state->err_len;
+  }
+
+  if((r = f->handler(f->user, &ev)) < 0)
+    f->failure = r;
+}
+
+ssize_t
+jr_feed(jr_state_t* state, const char* chunk, size_t len, JsonEventHandler* handler, void* user) {
+  JsonFeed f = {handler, user, state, 0};
+
+  jr_read(jfeed_callback, chunk, len, &f, state);
+  return f.failure;
+}
+
+ssize_t
+jr_end(jr_state_t* state, JsonEventHandler* handler, void* user) {
+  JsonFeed f = {handler, user, state, 0};
+
+  jr_finish(jfeed_callback, &f, state);
+  return f.failure;
+}
+
+int
+jr_flags_from_name(const char* name, size_t len, int* flags) {
+  static const struct {
+    const char* name;
+    int flags;
+  } dialects[] = {
+      {"json", JR_JSON},
+      {"jsonc", JR_JSONC},
+      {"json5", JR_JSON5},
+      {"jsonl", JR_JSONL},
+      {"legacy", JR_LEGACY},
+  };
+
+  for(size_t i = 0; i < sizeof(dialects) / sizeof(dialects[0]); i++) {
+    if(strlen(dialects[i].name) == len && !memcmp(dialects[i].name, name, len)) {
+      *flags = dialects[i].flags;
+      return 0;
+    }
+  }
+
+  return -1;
 }
 
 /**

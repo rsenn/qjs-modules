@@ -117,8 +117,7 @@ ssize_t jevent_send(const JsonEventSink* sink, const JsonEvent* ev);
  *                        its input from a pause); call again once it may
  *   JSON_PULL_EVENT   2  *ev is filled
  *
- * END and AGAIN equal JSON_PUMP_END and JSON_PUMP_AGAIN, so a pump returns the status that
- * stopped it. An error in the input is an event (JSON_EVENT_ERROR), not a status. */
+ * END and AGAIN are what jevent_pump() returns when the source stops. An error in the input is an event (JSON_EVENT_ERROR), not a status. */
 typedef enum {
   JSON_PULL_FAIL = -1,
   JSON_PULL_END = 0,
@@ -177,33 +176,6 @@ typedef struct {
  *   returns ssize_t  the JsonPull that stopped it (END, AGAIN or FAIL), or the first negative
  *                    result of the sink */
 ssize_t jevent_pump(JsonEventSource src, const JsonEventSink* sink);
-
-/* the pumps: a JSON parser drives a sink.
- *
- * ```c
- * jr_state_t st; jr_state_init(&st);
- * JsonEventSink sink = jwrite_sink(&wr);
- * jread_pump(&st, &sink, chunk, n);      // push parser: once per chunk
- * jread_pump_finish(&st, &sink);         // then once at the end
- * json_pump(parser, &sink);              // pull parser: runs until it needs data or ends
- * ```
- *
- * Each parser event becomes one jevent_send(). An error is sent as a `JSON_EVENT_ERROR` event
- * and parsing goes on after the parser's own resync; its position stays in the parser
- * (jr_state_t.err_pos, JsonParser.err_at), since sink members take no position. Comments are
- * dropped. Output is the same whatever the chunk size.
- *
- *   returns ssize_t  JSON_PUMP_END (0) all input consumed; JSON_PUMP_AGAIN (1) the pull parser
- *                    is out of data (it cannot tell the end of its input from a pause); < 0 the first sink failure,
- *                    after which nothing more is sent */
-#define JSON_PUMP_END 0
-#define JSON_PUMP_AGAIN 1
-
-ssize_t jread_pump(struct jr_state*, const JsonEventSink* sink, const char* chunk, size_t len);
-ssize_t jread_pump_finish(struct jr_state*, const JsonEventSink* sink);
-struct json_parser;
-
-ssize_t json_pump(struct json_parser*, const JsonEventSink* sink);
 
 /**
  * @}

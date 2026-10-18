@@ -36,8 +36,9 @@ emit(Run* r, const char* kind, const char* p, size_t n) {
   put(r, buf);
 }
 
-static void
-cb(JsonEventType type, const jr_str_t* d, void* user) {
+static ssize_t
+cb(void* user, const JsonEvent* ev) {
+  JsonEventType type = ev->type;
   Run* r = user;
 
   switch(type) {
@@ -48,20 +49,22 @@ cb(JsonEventType type, const jr_str_t* d, void* user) {
     case JSON_EVENT_ARRAY_END: put(r, "]"); break;
     case JSON_EVENT_OBJECT_START: put(r, "{"); break;
     case JSON_EVENT_OBJECT_END: put(r, "}"); break;
-    case JSON_EVENT_NUMBER: emit(r, "n", d ? d->cstr : 0, d ? d->len : 0); break;
-    case JSON_EVENT_STRING: emit(r, "s", d ? d->cstr : 0, d ? d->len : 0); break;
-    case JSON_EVENT_KEY: emit(r, "k", d ? d->cstr : 0, d ? d->len : 0); break;
+    case JSON_EVENT_NUMBER: emit(r, "n", ev->str, ev->len); break;
+    case JSON_EVENT_STRING: emit(r, "s", ev->str, ev->len); break;
+    case JSON_EVENT_KEY: emit(r, "k", ev->str, ev->len); break;
     case JSON_EVENT_COMMENT: break;
     case JSON_EVENT_ERROR: emit(r, "E", jr_error_name(r->st.err_code), strlen(jr_error_name(r->st.err_code))); break;
   }
+
+  return 0;
 }
 
 static void
 run_push(Run* r, uint8_t flags, const char* s) {
   memset(r, 0, sizeof(*r));
   jr_state_init_flags(&r->st, flags);
-  jr_read(cb, s, strlen(s), r, &r->st);
-  jr_finish(cb, r, &r->st);
+  jr_feed(&r->st, s, strlen(s), cb, r);
+  jr_end(&r->st, cb, r);
   jr_state_free(&r->st);
 }
 

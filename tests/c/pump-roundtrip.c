@@ -46,9 +46,9 @@ json_push(size_t step) {
   jr_state_init(&st);
 
   for(size_t i = 0; i < n; i += step)
-    CHECK(jread_pump(&st, &sink, json_text + i, n - i < step ? n - i : step) == 0);
+    CHECK(jr_feed(&st, json_text + i, n - i < step ? n - i : step, jevent_handler, &sink) == 0);
 
-  CHECK(jread_pump_finish(&st, &sink) == 0);
+  CHECK(jr_end(&st, jevent_handler, &sink) == 0);
   CHECK(equals(&db, json_text));
   jr_state_free(&st);
   jwrite_free(&wr);
@@ -67,8 +67,8 @@ json_pull(JSContext* ctx) {
   sink = jwrite_sink(&wr);
 
   CHECK(json_init(&json, reader_from_bytes(json_text, strlen(json_text)), "t.json", ctx));
-  r = json_pump(&json, &sink);
-  CHECK(r == JSON_PUMP_AGAIN); /* the parser cannot tell the end of the input from a pause */
+  r = jevent_pump(json_source(&json), &sink);
+  CHECK(r == JSON_PULL_AGAIN); /* the parser cannot tell the end of the input from a pause */
   CHECK(equals(&db, json_text));
   json_clear(&json, JS_GetRuntime(ctx)); /* json_free() would free the struct itself */
   jwrite_free(&wr);
@@ -89,7 +89,7 @@ json_error(void) {
   const char* text = "[1, x, 2]";
 
   jr_state_init(&st);
-  CHECK(jread_pump(&st, &sink, text, strlen(text)) == 0);
+  CHECK(jr_feed(&st, text, strlen(text), jevent_handler, &sink) == 0);
   CHECK(errors == 1);
   CHECK(st.err_pos.column == 5 && st.err_code == JR_E_UNEXPECTED_TOKEN);
   jr_state_free(&st);
@@ -109,9 +109,9 @@ xml_push(size_t step) {
   xr_state_init(&st);
 
   for(size_t i = 0; i < n; i += step)
-    CHECK(xread_pump(&st, &sink, xml_text + i, n - i < step ? n - i : step) == 0);
+    CHECK(xr_feed(&st, xml_text + i, n - i < step ? n - i : step, xevent_handler, &sink) == 0);
 
-  CHECK(xread_pump_finish(&st, &sink) == 0);
+  CHECK(xr_end(&st, xevent_handler, &sink) == 0);
   CHECK(equals(&db, xml_want));
   xr_state_free(&st);
   xwrite_free(&wr);
@@ -130,7 +130,7 @@ xml_pull(void) {
   sink = xwrite_sink(&wr);
   xml_init(&xp, &rd);
 
-  CHECK(xml_pump(&xp, &sink) == XML_PUMP_END);
+  CHECK(xevent_pump(xml_source(&xp), &sink) == XML_PULL_END);
   CHECK(equals(&db, xml_want));
   xml_free(&xp);
   xwrite_free(&wr);
@@ -150,7 +150,7 @@ xml_sink_failure(void) {
   XMLParser xp;
 
   xml_init(&xp, &rd);
-  CHECK(xml_pump(&xp, &sink) == -42);
+  CHECK(xevent_pump(xml_source(&xp), &sink) == -42);
   CHECK(calls == 2);
   xml_free(&xp);
 }

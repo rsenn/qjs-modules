@@ -110,7 +110,7 @@ ssize_t xevent_send(const XmlEventSink* sink, const XmlEvent* ev);
  *   XML_PULL_AGAIN   1  the Reader has no data now; call again once it may
  *   XML_PULL_EVENT   2  *ev is filled
  *
- * END and AGAIN equal XML_PUMP_END and XML_PUMP_AGAIN. */
+ * END and AGAIN are what xevent_pump() returns when the source stops. */
 typedef enum {
   XML_PULL_FAIL = -1,
   XML_PULL_END = 0,
@@ -158,36 +158,6 @@ typedef struct {
  * returns ssize_t  the XmlPull that stopped it (END, AGAIN or FAIL), or the first negative
  *                  result of the sink. An XE_ERROR event is sent like any other. */
 ssize_t xevent_pump(XmlEventSource src, const XmlEventSink* sink);
-
-/* the pumps: an XML parser drives a sink.
- *
- * ```c
- * xr_state_t st; xr_state_init(&st);
- * XmlEventSink sink = xwrite_sink(&wr);
- * xread_pump(&st, &sink, chunk, n);      // push parser: once per chunk
- * xread_pump_finish(&st, &sink);         // then once at the end
- * xml_pump(parser, &sink);               // pull parser: runs until it needs data or ends
- * ```
- *
- * Each parser event becomes one xevent_send(); text is sent as `str`/`len`. A parse error
- * is sent as an XE_ERROR event; its position stays in the parser (xr_state_t.err_pos,
- * XMLParser.tag_line/tag_column), since sink members take no position. xml_pump() types the markup (xml_next()); the push
- * parser xread produces no comment, declaration, instruction or CDATA events yet.
- *
- *   returns ssize_t  XML_PUMP_END (0) all input consumed; XML_PUMP_AGAIN (1) the pull parser
- *                    needs more data; < 0 the first sink failure, after which nothing more is sent.
- *                    An unrecoverable parse error is an XE_ERROR event, then XML_PUMP_END;
- *                    XML_PUMP_ERROR is no longer returned. */
-#define XML_PUMP_END 0
-#define XML_PUMP_AGAIN 1
-#define XML_PUMP_ERROR 2
-
-struct xr_state;
-struct xml_parser;
-
-ssize_t xread_pump(struct xr_state*, const XmlEventSink* sink, const char* chunk, size_t len);
-ssize_t xread_pump_finish(struct xr_state*, const XmlEventSink* sink);
-ssize_t xml_pump(struct xml_parser*, const XmlEventSink* sink);
 
 /**
  * @}

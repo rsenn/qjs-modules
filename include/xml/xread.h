@@ -25,16 +25,9 @@ typedef enum xr_error {
 
 const char* xr_error_name(xr_error_t code);
 
-typedef struct xr_str {
-  const char* cstr;
-  int32_t len;
-} xr_str_t;
-
-typedef void (*xr_callback)(XmlEventType type, const xr_str_t* name, const xr_str_t* value, void* user_data);
-
 /* A single growable buffer used to accumulate one token's bytes as they're read,
  * since a token isn't necessarily contiguous in any single chunk the caller passes
- * to xr_read(). */
+ * to xr_feed(). */
 typedef struct xr_accum {
   char* buf;
   size_t len;
@@ -42,7 +35,7 @@ typedef struct xr_accum {
 } xr_accum_t;
 
 /*
- * Everything xr_read() needs to resume parsing exactly where a previous call left
+ * Everything xr_feed() needs to resume parsing exactly where a previous call left
  * off, including in the middle of a tag/attribute name, an attribute value, or a
  * run of text content: which lexer state to re-enter (go/resume/name_handle), and
  * four independent accumulators - tag_accum, name_accum, val_accum, text_accum -
@@ -53,7 +46,7 @@ typedef struct xr_accum {
  * own since it can't reuse tag_accum/name_accum/val_accum without clobbering
  * whichever of those the surrounding tag is still using.
  *
- * Zero-initialize (or use xr_state_init()) before the first xr_read() call.
+ * Zero-initialize (or use xr_state_init()) before the first xr_feed() call.
  */
 typedef struct xr_state {
   void** go;
@@ -62,14 +55,14 @@ typedef struct xr_state {
   xr_accum_t tag_accum, name_accum, val_accum, text_accum;
   xr_accum_t* cur_accum;
   int accumulating;
-  int at_root; /* go == go_root: nothing open, a clean place for xr_finish() to land */
+  int at_root; /* go == go_root: nothing open, a clean place for xr_end() to land */
   int done;
   int error;
   /* position: `pos` counts every byte fed; err_* describe the error when reported:
    * err_pos is the offending byte (end of input for xr_finish), err_len its bytes
    * (0 at end of input). Chunk-size independent. */
   SourcePos pos;
-  const char* mark; /* chunk byte that `pos` has been advanced up to (xr_read() only) */
+  const char* mark; /* chunk byte that `pos` has been advanced up to (xr_feed() only) */
   xr_error_t err_code;
   SourcePos err_pos;
   size_t err_len;
@@ -78,27 +71,8 @@ typedef struct xr_state {
 void xr_state_init(xr_state_t* state);
 void xr_state_free(xr_state_t* state);
 
-/*
- * Feeds one chunk (chunk[0..len)) to the parser, invoking cb for every
- * attribute/element-start/element-end event that completes - possibly none, if the
- * chunk ends mid-token. May be called any number of times with successive chunks of
- * a stream; a chunk boundary may fall anywhere, including mid-tag-name,
- * mid-attribute-name, or mid-attribute-value. No-op once state->error or
- * state->done is set.
- */
-void xr_read(xr_callback cb, const char* chunk, size_t len, void* user_data, xr_state_t* state);
-
-/*
- * Signals end of input. Unlike JSON numbers, every XML token here has an
- * unambiguous terminator character, so there's nothing to flush - this only checks
- * state->at_root (nothing left open) to decide between reporting XE_ERROR
- * (truncated input) and setting state->done. No-op once state->error or
- * state->done is already set.
- */
-void xr_finish(xr_callback cb, void* user_data, xr_state_t* state);
-
 /**
- * xr_feed: xr_read() delivering XmlEvent to a handler instead of an xr_callback.
+ * xr_feed: feeds one chunk (chunk[0..len)) to the parser, calling the handler per event that completes.
  *
  *   xr_state_t*         state    parser state, set up with xr_state_init()
  *   const char*         chunk    next bytes of the stream, chunk[0..len)
@@ -108,6 +82,9 @@ void xr_finish(xr_callback cb, void* user_data, xr_state_t* state);
  *
  *   returns ssize_t  0, or the first negative handler result
  *
+ * a chunk boundary may fall anywhere, also mid-tag-name or mid-attribute-value, and an event is
+ * sent only when it completes. No-op once state->error or state->done is set.
+ *
  * text arrives in str / len; an XE_ERROR event has the message in str and the offending byte in at.
  * To feed a sink:
  *
@@ -116,7 +93,10 @@ void xr_finish(xr_callback cb, void* user_data, xr_state_t* state);
  * never throws. */
 ssize_t xr_feed(xr_state_t* state, const char* chunk, size_t len, XmlEventHandler* handler, void* user);
 
-/* xr_end: xr_finish() delivering XmlEvent to a handler, the end-of-input twin of xr_feed(). */
+/* xr_end: signals the end of the input, the twin of xr_feed().
+ *
+ * every XML token here has a terminator, so nothing is flushed: it checks state->at_root and
+ * either sends an XE_ERROR event (truncated input) or sets state->done. */
 ssize_t xr_end(xr_state_t* state, XmlEventHandler* handler, void* user);
 
 /**

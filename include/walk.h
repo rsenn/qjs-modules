@@ -120,12 +120,6 @@ walk_depth(const WalkIterator* it) {
 #define WALK_FRAME(it, back) ((PropertyEnumeration*)vector_at(&(it)->stack, sizeof(PropertyEnumeration), (int32_t)walk_depth(it) - 1 - (back)))
 #define WALK_TOP(it) WALK_FRAME(it, 0)
 
-typedef WalkInterface WalkFromOpaque(void* opaque);
-
-int js_walk_register(JSClassID, WalkFromOpaque*);
-int js_walk_define(JSContext*, JSValueConst obj);
-JSValue js_walk_wrap(JSContext*, WalkInterface iface);
-
 /**
  * @}
  */

@@ -23,8 +23,9 @@ typedef struct {
   size_t len, offset;
 } Result;
 
-static void
-cb(JsonEventType type, const jr_str_t* data, void* user) {
+static ssize_t
+cb(void* user, const JsonEvent* ev) {
+  JsonEventType type = ev->type;
   Result* r = user;
 
   if(type == JSON_EVENT_ERROR && !r->errors++) {
@@ -34,6 +35,8 @@ cb(JsonEventType type, const jr_str_t* data, void* user) {
     r->offset = r->st.err_pos.byte_offset;
     r->len = r->st.err_len;
   }
+
+  return 0;
 }
 
 /* feeds `s` in pieces of `step` bytes (0: whole), then finishes. */
@@ -49,9 +52,9 @@ run(const char* s, size_t step) {
     step = n ? n : 1;
 
   for(i = 0; i < n; i += step)
-    jr_read(cb, s + i, n - i < step ? n - i : step, &r, &r.st);
+    jr_feed(&r.st, s + i, n - i < step ? n - i : step, cb, &r);
 
-  jr_finish(cb, &r, &r.st);
+  jr_end(&r.st, cb, &r);
   jr_state_free(&r.st);
   return r;
 }

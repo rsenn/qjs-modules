@@ -26,8 +26,9 @@ put(Run* r, const char* s) {
   }
 }
 
-static void
-cb(JsonEventType type, const jr_str_t* d, void* user) {
+static ssize_t
+cb(void* user, const JsonEvent* ev) {
+  JsonEventType type = ev->type;
   Run* r = user;
   char buf[256];
 
@@ -39,12 +40,14 @@ cb(JsonEventType type, const jr_str_t* d, void* user) {
     case JSON_EVENT_ARRAY_END: put(r, "]"); break;
     case JSON_EVENT_OBJECT_START: put(r, "{"); break;
     case JSON_EVENT_OBJECT_END: put(r, "}"); break;
-    case JSON_EVENT_NUMBER: snprintf(buf, sizeof(buf), "n:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
-    case JSON_EVENT_STRING: snprintf(buf, sizeof(buf), "s:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
-    case JSON_EVENT_KEY: snprintf(buf, sizeof(buf), "k:%.*s", d ? d->len : 0, d && d->cstr ? d->cstr : ""); put(r, buf); break;
+    case JSON_EVENT_NUMBER: snprintf(buf, sizeof(buf), "n:%.*s", (int)ev->len, ev->str ? ev->str : ""); put(r, buf); break;
+    case JSON_EVENT_STRING: snprintf(buf, sizeof(buf), "s:%.*s", (int)ev->len, ev->str ? ev->str : ""); put(r, buf); break;
+    case JSON_EVENT_KEY: snprintf(buf, sizeof(buf), "k:%.*s", (int)ev->len, ev->str ? ev->str : ""); put(r, buf); break;
     case JSON_EVENT_COMMENT: break;
     case JSON_EVENT_ERROR: snprintf(buf, sizeof(buf), "E:%s@%u:%u", jr_error_name(r->st.err_code), (unsigned)r->st.err_pos.line, (unsigned)r->st.err_pos.column); put(r, buf); break;
   }
+
+  return 0;
 }
 
 static void
@@ -58,9 +61,9 @@ run(Run* r, uint8_t flags, const char* s, size_t n, size_t step) {
     step = n ? n : 1;
 
   for(i = 0; i < n; i += step)
-    jr_read(cb, s + i, n - i < step ? n - i : step, r, &r->st);
+    jr_feed(&r->st, s + i, n - i < step ? n - i : step, cb, r);
 
-  jr_finish(cb, r, &r->st);
+  jr_end(&r->st, cb, r);
   jr_state_free(&r->st);
 }
 
