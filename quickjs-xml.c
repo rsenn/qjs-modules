@@ -22,6 +22,7 @@
 #include "xml/xopts.h"
 #include "xml/xtags.h"
 #include "xml/xpush.h"
+#include "xml/xparser.h"
 #include "xml/xevent-js.h"
 
 #include <stdint.h>
@@ -431,27 +432,7 @@ static JSClassDef js_xml_pushparser_class = {
    give typed events, pump() runs it into a sink in C.
    ---------------------------------------------------------------------- */
 
-typedef struct {
-  Reader reader;
-  XMLParser xp;
-  Location* loc;
-  char** self_closing_owned; /* the selfClosingTags option */
-} XmlParser;
-
 static JSClassID js_xml_parser_class_id;
-
-/* p->loc (a ref-counted, js_malloc'd Location, wrapped as-is by .location) tracks
- * xp.loc (a plain embedded value struct xml_parse() advances - see
- * include/xml/xml.h) by copying the fields js_location_wrap()'s consumers care about
- * after every next() or pump() call, the two can't just be the same object since xp.loc
- * isn't heap-allocated the way location_free() requires. */
-static void
-xml_sync_location(XmlParser* p) {
-  p->loc->line = p->xp.loc.line;
-  p->loc->column = p->xp.loc.column;
-  p->loc->char_offset = p->xp.loc.char_offset;
-  p->loc->byte_offset = p->xp.loc.byte_offset;
-}
 
 /* XMLParser.pump: runs the parser into a sink, in C.
  *
@@ -472,43 +453,11 @@ xml_sync_location(XmlParser* p) {
 static JSValue
 js_xml_parser_pump(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   XmlParser* p;
-  XmlEventSink sink;
-  XmlJsSink* adapter;
-  XmlEvent ev;
-  XmlPull st;
-  JSValue ret = JS_EXCEPTION;
-  ssize_t r;
 
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_parser_class_id)))
     return JS_EXCEPTION;
 
-  if(!p->reader.read)
-    return JS_ThrowTypeError(ctx, "XMLParser: no input to parse");
-
-  if(js_xmlsink_resolve(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, &sink, &adapter))
-    return JS_EXCEPTION;
-
-  while((st = xml_next(&p->xp, &ev)) == XML_PULL_EVENT) {
-    if(ev.type == XE_ERROR) {
-      JSValue err = js_xmlevent_error(ctx, &ev, p->loc);
-
-      if(!JS_IsException(err))
-        JS_Throw(ctx, err);
-
-      goto done;
-    }
-
-    if((r = xevent_send(&sink, &ev)) < 0) {
-      js_xmlsink_failed(ctx, adapter != NULL, r);
-      goto done;
-    }
-  }
-
-  ret = JS_NewInt32(ctx, st);
-done:
-  xml_sync_location(p);
-  js_xmlsink_from_js_free(ctx, adapter);
-  return ret;
+  return xparser_pump(ctx, p, argc > 0 ? argv[0] : JS_UNDEFINED);
 }
 
 /* XMLParser.next: the next event as { type, name?, value?, loc }, also the iterator protocol.
@@ -524,33 +473,13 @@ done:
 static JSValue
 js_xml_parser_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   XmlParser* p;
-  XmlEvent ev;
-  XmlPull st;
-  JSValue ret;
 
   *pdone = TRUE;
 
   if(!(p = JS_GetOpaque2(ctx, this_val, js_xml_parser_class_id)))
     return JS_EXCEPTION;
 
-  if(!p->reader.read)
-    return JS_ThrowTypeError(ctx, "XMLParser: no input to parse");
-
-  st = xml_next(&p->xp, &ev);
-  xml_sync_location(p);
-
-  if(st != XML_PULL_EVENT)
-    return JS_UNDEFINED;
-
-  if(ev.type == XE_ERROR) {
-    JSValue err = js_xmlevent_error(ctx, &ev, p->loc);
-
-    return JS_IsException(err) ? err : JS_Throw(ctx, err);
-  }
-
-  *pdone = FALSE;
-  ret = js_xmlevent_new(ctx, &ev);
-  return ret;
+  return xparser_next(ctx, p, pdone);
 }
 
 static JSValue
@@ -596,62 +525,14 @@ js_xml_parser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int
 
 static JSValue
 js_xml_parser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj;
   XmlParser* p;
-  int i = 0;
+  JSValue obj;
 
-  if(!(p = js_mallocz(ctx, sizeof(XmlParser))))
+  if(!(p = xparser_new(ctx, argc, argv)))
     return JS_EXCEPTION;
-
-  if(reader_from_js(ctx, argv[i], &p->reader)) {
-    i++;
-  }
-
-  JSValue options = i == argc ? argv[0] : argv[1];
-
-  if(!(p->loc = location_new(ctx))) {
-    reader_free(&p->reader);
-    js_free(ctx, p);
-    return JS_EXCEPTION;
-  }
-
-  JSValue filename = argc > 1 && JS_IsString(argv[1]) ? JS_DupValue(ctx, argv[1]) : JS_GetPropertyStr(ctx, options, "filename");
-
-  char* file = js_tostring_free(ctx, filename);
-  if(file) {
-    location_set_filename(p->loc, file, ctx);
-    js_free(ctx, file);
-  }
-
-  /* p->xp.reader is a borrowed pointer (include/xml/xml.h doesn't own/copy the Reader
-   * it's given), valid as long as p->reader is - i.e. for XmlParser's whole
-   * lifetime, since both live in this one allocation and are freed together in
-   * the finalizer below. */
-  xml_init(&p->xp, &p->reader);
-
-  if(JS_IsObject(options)) {
-    XmlOptions xo = {0};
-
-    if(xml_options_from_js(ctx, options, &xo)) {
-      xml_free(&p->xp);
-      reader_free(&p->reader);
-      location_free(p->loc, JS_GetRuntime(ctx));
-      js_free(ctx, p);
-      return JS_EXCEPTION;
-    }
-
-    xml_set_tolerant(&p->xp, xo.tolerant);
-    xml_set_flat(&p->xp, xo.flat);
-    p->xp.self_closing_tags = xo.self_closing_tags;
-    p->self_closing_owned = xo.owned;
-    js_free(ctx, xo.filename);
-  }
 
   if(JS_IsException(obj = js_object_from_target(ctx, new_target, js_xml_parser_class_id))) {
-    xml_free(&p->xp);
-    reader_free(&p->reader);
-    location_free(p->loc, JS_GetRuntime(ctx));
-    js_free(ctx, p);
+    xparser_free(p, JS_GetRuntime(ctx));
     return obj;
   }
 
@@ -663,16 +544,8 @@ static void
 js_xml_parser_finalizer(JSRuntime* rt, JSValue val) {
   XmlParser* p;
 
-  if((p = JS_GetOpaque(val, js_xml_parser_class_id))) {
-    xml_free(&p->xp);
-    reader_free(&p->reader);
-    js_strv_free_rt(rt, p->self_closing_owned);
-
-    if(p->loc)
-      location_free(p->loc, rt);
-
-    js_free_rt(rt, p);
-  }
+  if((p = JS_GetOpaque(val, js_xml_parser_class_id)))
+    xparser_free(p, rt);
 }
 
 static const JSCFunctionListEntry js_xml_parser_proto_funcs[] = {

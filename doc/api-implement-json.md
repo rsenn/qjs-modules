@@ -1,6 +1,6 @@
 # JSON: how the implementation is split
 
-> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 933 and `quickjs-xml.c` 1094 lines (2026-10-18: `json.c` is gone, `JsonParser` is a queue over `jread`; the push parser, the serializer and the pump moved into `src/json/`). The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 933 and `quickjs-xml.c` 967 lines (2026-10-18: `json.c` is gone, `JsonParser` is a queue over `jread`; the push parser, the serializer and the pump moved into `src/json/`). The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
 > Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
 > `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
 

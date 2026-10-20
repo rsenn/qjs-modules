@@ -22,7 +22,7 @@
 
 typedef struct xml_parser {
   Reader* reader;
-  Location loc; /* where the last event came from, 0-based */
+  Location* loc; /* borrowed, NULL for none: set to where the last event came from, 0-based */
   xr_state_t st;
   unsigned tolerant : 1;
   unsigned flat : 1;           /* no open-element stack: a start tag is never closed by itself and every closing

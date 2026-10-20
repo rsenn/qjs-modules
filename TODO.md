@@ -2001,7 +2001,8 @@ C side (the order is free, none blocks the others):
   (`jevent-js.c`), `jwrite_js_stack` (`jopts.c`). About 190 of the remaining lines are the required header comments, 550 are function bodies. Going below
   ~700 needs API decisions, not more lifting: merge `JsonParser` and `JsonPushParser` into one class, move `JsonWriter` / `JsonBuilder` / `tee` to the `lib/` glue
   (P9), drop `JsonSerializer.read(n)` in favour of the iterator. Decided 2026-10-18: `JsonPushParser` stays a separate class (no merge with `JsonParser`), the C core is shared instead.
-  `quickjs-xml.c` got the same treatment: 1340 to 1094 lines (`js_class_define`, `js_object_from_target`, the push parser in `xpush.[ch]`). Left in it: the `XmlParser` wrapper (reader, location, selfClosingTags).
+  `quickjs-xml.c` got the same treatment: 1340 to 967 lines (`js_class_define`, `js_object_from_target`, the push parser in `xpush.[ch]`). The `XmlParser` wrapper (reader, location, selfClosingTags, pump, next) is `xparser.[ch]`; `XMLParser.loc` is a borrowed `Location*` the parser updates, no copy.
+  Unrelated ctest failure seen 2026-10-19: `test-typescript.js` (the type stripper rejects parameter properties in strip-only mode).
 - P15: `WalkInterface` and the capture layer of `jwalkev.c` / `xwalkev.c`.
 - B5: DOCTYPE internal subset in `xml.c` / `xread.c` (needed by strict mode and entities), `BUGS` `xml-doctype-internal-subset-mangled`.
 - B9: `walk.c` test for a 100000-deep array, a shared object and a cycle at depth.

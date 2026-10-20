@@ -135,8 +135,8 @@ xnext_pop(XMLParser* p, XmlEvent* ev) {
   else if(ev->type == XE_ELEMENT_END && p->depth)
     p->depth--;
 
-  if(ev->has_at)
-    location_from_srcpos(&p->loc, &ev->at);
+  if(p->loc && ev->has_at)
+    location_from_srcpos(p->loc, &ev->at);
 
   return XML_PULL_EVENT;
 }
