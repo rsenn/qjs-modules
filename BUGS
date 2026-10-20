@@ -1016,3 +1016,12 @@
     cd tests/unittests && qjsm test-lexer-cpp.js
     # 'pp_hash:#,pp_directive:define,pp_identifier:A,pp_number:1,...'
     # expected '...,pp_identifier:A,pp_continuation:\,pp_number:1,...'
+
+- qjsm-console-error-to-stdout: the global console of qjsm writes
+  console.error (and console.warn) to stdout, node, bun and deno write them
+  to stderr. A script that prints JSON on stdout and timings on stderr
+  gets both in its output file. Found 2026-10-20.
+
+    echo 'console.error("to-err"); console.log("to-out")' > ce.mjs
+    qjsm ce.mjs 2>/dev/null   # to-err to-out
+    node ce.mjs 2>/dev/null   # to-out

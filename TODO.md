@@ -3207,6 +3207,19 @@ Like merve, no scope analysis: a local variable named `require` still counts.
 
 1. **Core, ES module part** (`lib/module-lexer.js`): whole file, dynamic import, `import.meta`, declarations,
    ranges, `facade`. Verify: `test-module-lexer.js` with the cases above plus the late import.
+   **Done 2026-10-20** (`test-module-lexer.js`, 22 cases). On the 211 files of `lib/`, `utilities/` and
+   `tests/unittests/` that Bun can scan, the `(kind, path)` pairs equal Bun's `scanImports` (743 imports). Bun's
+   `scanImports` rejects a `#!` line (`Unexpected #!/usr/bin/env qjsm`), so the adapter will accept more input than
+   Bun. Decided while writing it:
+   - `range` ends before a terminating `;`, like es-module-lexer's `importEnd`
+   - the import record of an `export … from` has empty `bindings`, its names are in the export records
+   - error codes are merve's plus `UNEXPECTED_CHARACTER` (a character no token starts with). The first error is
+     kept and scanning goes on, unless the lexer itself stops
+   - `facade` is true for import, `export … from`, `export *` and `export { … }` statements only, until the
+     es-module-lexer fixtures pin it
+   - `lib/lexer/ecmascript.js` was fixed on the way: a regex after an operand, `{ }` inside `${ }`, `$` in
+     template text, any escape in a string, and exponential backtracking in string, template and comment patterns
+     (`lib/node/util.js` hung on its 4 KB template)
 2. **Core, CommonJS part**: `require(<literal>)` (not `.require(`), `require.resolve`, merve's export rules.
    Verify: `test-module-lexer.js` CommonJS cases.
 3. **Fixtures and the generator** (`gen-module-lexer-expected.mjs`). It records, per fixture:

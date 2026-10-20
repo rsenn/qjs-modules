@@ -73,6 +73,22 @@ tests({
     assert(!tokens.some(t => t.startsWith('regexpLiteral')), tokens.join('|'));
   },
 
+  'a $ without { in template text'() {
+    eq('templateLiteral:`cost $5`', scan('`cost $5`')[0]);
+  },
+
+  'any escape in a string literal'() {
+    eq("stringLiteral:'\\d\\q'", scan("'\\d\\q'")[0]);
+  },
+
+  'many escapes and an unterminated string lex in linear time'() {
+    const t0 = Date.now();
+
+    eq('templateLiteral', scan('`' + 'ab\\n'.repeat(2000) + '`')[0].split(':')[0]);
+    assert(/No matching token/.test(lexError('"' + 'x'.repeat(2000) + '\n')), 'unterminated');
+    assert(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
+  },
+
   'a regex literal inside a template substitution'() {
     const tokens = scan('`${a.replace(/\\/+$/, "")}`');
 
