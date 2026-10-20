@@ -3043,7 +3043,19 @@ scanner** in JS that reports ES module syntax and CommonJS `require`/`exports` i
 detection follows the rules of **merve**, the lexer Node 26 uses for it (the rules, not the code: merve is C++, this
 project is C only). **Thin adapters** give the core the API surfaces existing code calls: merve's, es-module-lexer's,
 cjs-module-lexer's and Bun's `Transpiler.scan`/`scanImports`. The same records feed listing, checking, merging,
-pruning and CommonJS → ES module conversion. Plan only, nothing written yet.
+pruning and CommonJS → ES module conversion.
+
+### Status (2026-10-20)
+
+| Step | State | Where |
+| --- | --- | --- |
+| 1. core, ES module part | done | `lib/module-lexer.js` `parse()`, `tests/unittests/test-module-lexer.js` (22 cases); commits `4a635e35`, `efa530c2` |
+| lexer fixes found on the way | done | `lib/lexer/ecmascript.js`: regex vs division, `{ }` in `${ }`, `$` in template text, any string escape, no exponential backtracking; `test-lexer-ecmascript.js` (15 cases) |
+| 2. core, CommonJS part | next | `require` calls from the tokens, merve's export rules |
+| 3.-8. | open | |
+
+Checked on `lib/`, `utilities/`, `tests/unittests/` (229 files): no lexing errors, and the `(kind, path)` pairs of
+the 211 files Bun accepts equal Bun's `scanImports` (743 imports). `parse()` costs about 35% on top of lexing.
 
 ### What the current parser gets wrong (run 2026-10-20, `qtool resolve-imports --list-imports -q`)
 
@@ -3101,7 +3113,7 @@ Conclusions:
 
 | File | Holds | Size goal |
 | --- | --- | --- |
-| `lib/module-lexer.js` | the core: `parse()`, `print()`; ES module syntax, `require` calls and merve's CommonJS export rules | the only file that touches tokens |
+| `lib/module-lexer.js` | the core: `parse()`, `print()`; ES module syntax (done), `require` calls and merve's CommonJS export rules | the only file that touches tokens |
 | `lib/merve.js` | adapter: `parseCommonJS`, `version` in merve's shape | ~30 lines, no tokens |
 | `lib/es-module-lexer.js` | adapter: `init`, `parse` with es-module-lexer 3's tuple and field names | ~60 lines, no tokens |
 | `lib/cjs-module-lexer.js` | adapter: `init`, `initSync`, `parse` with cjs-module-lexer 2's `{ exports, reexports }` | ~30 lines, no tokens |
