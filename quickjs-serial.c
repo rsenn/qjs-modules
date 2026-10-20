@@ -3,7 +3,6 @@
 #include "utils.h"
 #include "defines.h"
 
-#include <errno.h>
 #include "libserialport/libserialport.h"
 
 /**

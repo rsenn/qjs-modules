@@ -3,8 +3,9 @@
 #include "quickjs-pointer.h"
 #include "buffer-utils.h"
 #include "utils.h"
-#include <string.h>
 #include "debug.h"
+
+#include <string.h>
 
 /**
  * \addtogroup quickjs-pointer

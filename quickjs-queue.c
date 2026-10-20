@@ -1,6 +1,5 @@
 #include "defines.h"
 #include "queue.h"
-#include "utils.h"
 #include "buffer-utils.h"
 
 /**

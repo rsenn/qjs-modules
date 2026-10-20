@@ -1,7 +1,7 @@
 #include "defines.h"
 #include "buffer-utils.h"
 #include "utils.h"
-#include <errno.h>
+
 #include <string.h>
 #include <magic.h>
 

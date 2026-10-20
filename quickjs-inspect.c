@@ -3,19 +3,18 @@
 #endif
 
 #include "defines.h"
-#include <cutils.h>
 #include "iteration.h"
-#include <list.h>
 #include "property-enumeration.h"
-#include "quickjs-predicate.h"
-#include <quickjs.h>
 #include "utils.h"
 #include "vector.h"
 #include "buffer-utils.h"
 #include "stream-utils.h"
 #include "debug.h"
 
-#include <ctype.h>
+#include <quickjs.h>
+#include <cutils.h>
+#include <list.h>
+
 #include <math.h>
 #include <string.h>
 #include <fcntl.h>

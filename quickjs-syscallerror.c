@@ -2,9 +2,10 @@
 #include "buffer-utils.h"
 #include "utils.h"
 #include "defines.h"
-#include <errno.h>
 #include "debug.h"
 #include "quickjs-syscallerror.h"
+
+#include <errno.h>
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #include <windows.h>

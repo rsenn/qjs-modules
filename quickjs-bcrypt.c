@@ -1,6 +1,7 @@
-#include <quickjs.h>
 #include "libbcrypt/bcrypt.h"
 #include "buffer-utils.h"
+
+#include <quickjs.h>
 
 static const unsigned int BCRYPT_SALTSIZE = 29;
 

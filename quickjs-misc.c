@@ -22,8 +22,6 @@
 #include <quickjs.h>
 #include <cutils.h>
 #include <quickjs-libc.h>
-#include "quickjs-location.h"
-#include "quickjs-textcode.h"
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"

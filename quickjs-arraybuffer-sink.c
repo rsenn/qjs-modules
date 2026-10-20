@@ -1,12 +1,12 @@
 #include "defines.h"
-#include <cutils.h>
-#include <libregexp.h>
-#include "property-enumeration.h"
-#include <quickjs.h>
-#include <string.h>
 #include "debug.h"
 #include "buffer-utils.h"
 #include "utils.h"
+
+#include <quickjs.h>
+#include <cutils.h>
+#include <libregexp.h>
+#include <string.h>
 
 /**
  * \defgroup quickjs-tree-walker quickjs-arraybuffer_sink: Object tree walker

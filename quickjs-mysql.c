@@ -3,7 +3,6 @@
 #include "utils.h"
 #include "buffer-utils.h"
 #include "char-utils.h"
-#include "js-utils.h"
 #include "async-closure.h"
 #include <cutils.h>
 

@@ -10,7 +10,6 @@
 #include <cutils.h>
 #include <libregexp.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdint.h>
 
 /**

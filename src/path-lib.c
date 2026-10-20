@@ -3,8 +3,8 @@
  * depends on: include/path.h (PATHSEP_C, path_islistsep), libc string.h.
  * rule: nothing is written unless the capacity allows the whole result. */
 #include "path.h"
-#include <ctype.h>
 #include <string.h>
+#include <ctype.h>
 
 /* private helpers: every macro takes a view (p, n), never reads past n and
  * evaluates its arguments more than once, so pass plain lvalues.
@@ -16,9 +16,6 @@
  *   SEPLEN / COMLEN         run of separators / of non-separators at p
  *   RSEPLEN / RCOMLEN       the same, ending at p + n
  */
-#define byte_copy(o, n, i) memmove((o), (i), (n))
-#define byte_diff(a, n, b) memcmp((a), (b), (n))
-
 #if defined(_WIN32) || defined(__MSYS__) || defined(__CYGWIN__)
 #define WINDOWS 1
 #define SEPCHARS "\\/"

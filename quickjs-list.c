@@ -1,12 +1,11 @@
 #include "defines.h"
 #include "quickjs-list.h"
-#include "quickjs-predicate.h"
-#include "buffer-utils.h"
 #include "char-utils.h"
 #include "utils.h"
 #include "iteration.h"
-#include <list.h>
 #include "debug.h"
+
+#include <list.h>
 
 /**
  * \addtogroup quickjs-list

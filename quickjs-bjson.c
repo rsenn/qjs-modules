@@ -21,11 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <quickjs-libc.h>
 #include "utils.h"
 #include "defines.h"
 #include "buffer-utils.h"
 #include "debug.h"
+
+#include <quickjs-libc.h>
 
 /**
  * \defgroup quickjs-bjson quickjs-bjson: Binary JSON

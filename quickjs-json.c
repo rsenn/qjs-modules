@@ -1,11 +1,8 @@
 #include "char-utils.h"
 #include "stream-utils.h"
 #include "utils.h"
-/*#include "virtual-properties.h"*/
 #include "vector.h"
 #include "property-enumeration.h"
-#include <ctype.h>
-#include <math.h>
 #include "json/json.h"
 #include "json/jread.h"
 #include "json/jwrite.h"

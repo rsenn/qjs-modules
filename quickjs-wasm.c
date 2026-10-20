@@ -5,13 +5,14 @@
  * rule: every JS object holds a strong ref to the Env that owns the engine
  * context, so the context is freed after the last object using it. */
 
+#include "defines.h"
+#include "wasm-backend.h"
+
 #include <quickjs.h>
 #include <cutils.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "defines.h"
-#include "wasm-backend.h"
 
 #ifndef countof
 #define countof(x) (sizeof(x) / sizeof((x)[0]))

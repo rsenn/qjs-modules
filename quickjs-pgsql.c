@@ -1,7 +1,6 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
-#include "js-utils.h"
 #include "defines.h"
 #include "iteration.h"
 #include "property-enumeration.h"

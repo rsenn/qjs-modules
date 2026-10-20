@@ -1,7 +1,5 @@
 #include "defines.h"
-#include <cutils.h>
 #include "property-enumeration.h"
-#include <quickjs.h>
 #include "utils.h"
 #include "pointer.h"
 #include "virtual-properties.h"
@@ -9,6 +7,8 @@
 #include "quickjs-pointer.h"
 #include "debug.h"
 
+#include <quickjs.h>
+#include <cutils.h>
 #include <stdint.h>
 
 /**

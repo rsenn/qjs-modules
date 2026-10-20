@@ -4,9 +4,11 @@
 #include "buffer-utils.h"
 #include "stream-utils.h"
 #include "debug.h"
+
+#include "tutf8e/include/tutf8e.h"
+
 #include <sys/types.h>
 #include <libutf.h>
-#include "tutf8e/include/tutf8e.h"
 
 /**
  * \addtogroup quickjs-textdecoder

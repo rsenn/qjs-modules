@@ -1,17 +1,18 @@
-#include "defines.h"
-#include <cutils.h>
-#include <quickjs.h>
-#include "buffer-utils.h"
 #include "char-utils.h"
+#include "buffer-utils.h"
+#include "defines.h"
 #include "debug.h"
+#include "path.h"
+#include "utils.h"
+
+#include <quickjs.h>
+#include <cutils.h>
 
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
 
-#include "path.h"
-#include "utils.h"
 #ifdef _WIN32
 #include <windows.h>
 #endif

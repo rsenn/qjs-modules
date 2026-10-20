@@ -1,20 +1,12 @@
 #include "defines.h"
-#include <cutils.h>
-#include "property-enumeration.h"
-#include <quickjs.h>
 #include "utils.h"
-#include "vector.h"
 #include "buffer-utils.h"
 #include "stream-utils.h"
-#include "location.h"
 #include "debug.h"
-#include "virtual-properties.h"
 #include "quickjs-location.h"
 #include "xml/xwrite.h"
 #include "xml/xsink.h"
-#include "xml/xread.h"
 #include "xml/xbuilder.h"
-#include "xml/xml_entities.h"
 #include "xml/xml.h"
 #include "xml/xwalk.h"
 #include "xml/xserial.h"
@@ -25,6 +17,8 @@
 #include "xml/xparser.h"
 #include "xml/xevent-js.h"
 
+#include <quickjs.h>
+#include <cutils.h>
 #include <stdint.h>
 
 char* js_inspect_tostring(JSContext* ctx, JSValueConst value);

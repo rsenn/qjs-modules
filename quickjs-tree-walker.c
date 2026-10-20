@@ -1,11 +1,11 @@
 #include "defines.h"
-#include <cutils.h>
-#include <libregexp.h>
 #include "property-enumeration.h"
-#include <quickjs.h>
-#include <string.h>
 #include "debug.h"
 #include "buffer-utils.h"
+
+#include <quickjs.h>
+#include <cutils.h>
+#include <libregexp.h>
 
 /**
  * \defgroup quickjs-tree-walker quickjs-tree_walker: Object tree walker

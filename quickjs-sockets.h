@@ -1,6 +1,7 @@
-#include "defines.h"
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
+
+#include "defines.h"
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #include <winsock2.h>

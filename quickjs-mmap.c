@@ -1,9 +1,11 @@
 #include "defines.h"
-#include <cutils.h>
-#include <quickjs.h>
 #include "utils.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
+
+#include <quickjs.h>
+#include <cutils.h>
+
 #if WINDOWS_NATIVE
 #include <windows.h>
 #include <wchar.h>
