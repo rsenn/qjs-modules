@@ -5,6 +5,22 @@ Source: `lib/repl.js` (pure JS)
 An interactive read-eval-print loop with line editing, history, completion and
 syntax highlighting.
 
+## Piped mode
+
+When stdout is not a tty the REPL runs in line mode, so a script or an LLM can
+drive it over a pipe (`REPL.piped` is true):
+
+- one command per input line, read until EOF, then the REPL finishes
+- no escape sequences, no raw tty mode, no syntax highlighting, and
+  `inspect()` output has `colors: false`
+- the prompt is printed once per ready state (`> `), so a controller reads
+  the result up to the next prompt
+- an `await` command holds back the queued lines until it settles
+
+```sh
+printf '1+1\nawait fetch(url)\n' | qjsm repl-script.js
+```
+
 ## Exports
 
 | Export | Args | Kind | Description |
