@@ -24,6 +24,30 @@ tests({
     eq('log\ninfo\nwarn\nerror\ndebug\n', out.join(''));
   },
 
+  'with a second stream, error and warn write to it (Node)'() {
+    const out = [],
+      err = [];
+    const stream = list => ({ write() {}, puts: s => list.push(s) });
+    const console = new Console(stream(out), stream(err), { inspectOptions: { colors: false } });
+
+    for(const method of ['log', 'info', 'warn', 'error', 'debug']) console[method](method);
+
+    eq('log\ninfo\ndebug\n', out.join(''));
+    eq('warn\nerror\n', err.join(''));
+  },
+
+  'new Console({ stdout, stderr }) as in Node'() {
+    const out = [],
+      err = [];
+    const stream = list => ({ write() {}, puts: s => list.push(s) });
+    const console = new Console({ stdout: stream(out), stderr: stream(err), inspectOptions: { colors: false } });
+
+    console.log('a');
+    console.error('b');
+    eq('a\n', out.join(''));
+    eq('b\n', err.join(''));
+  },
+
   'objects are inspected'() {
     const { out, console } = capture({ compact: Infinity, breakLength: Infinity });
 

@@ -3824,8 +3824,8 @@ main(int argc, char** argv) {
 
     js_eval_str(jsm_ctx,
                 "import { Console } from 'console';\n"
-                "import { out } from 'std';\n"
-                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
+                "import { out, err } from 'std';\n"
+                "globalThis.console = new Console(out, err, { inspectOptions: { customInspect: true } });\n",
                 0,
                 JS_EVAL_TYPE_MODULE);
 
