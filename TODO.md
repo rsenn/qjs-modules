@@ -3433,7 +3433,8 @@ Measured on qjsm 2026-10-20, the reason the zero-copy path runs on bytes:
 | 28.2 | `buffer.isAscii()` / `buffer.isUtf8()` in C | Node API, faster | 2nd |
 | 28.3 | `lineStarts(input)` | internal helper | 3rd |
 | 28.4 | `fs.writevSync()` / `fs.writev()` | Node API, missing | 4th |
-| 28.5 | Blob as an immutable segment list: zero-copy `slice()` and Blob parts, `fs.openAsBlob()` | WHATWG semantics + Node API | 5th, largest |
+| 28.5 | Blob as an immutable segment list: zero-copy `slice()` and Blob parts, `fs.openAsBlob()` | WHATWG semantics + Node API | 6th, largest |
+| 28.6 | lift byte loops in `lib/` into C: fix `TextDecoder`, `byteSwap`, reverse `searchArrayBuffer`, TC39 base64/hex | WHATWG/TC39 + internal helpers | 5th |
 
 ### 28.1 UTF-16 ↔ UTF-8 offsets
 
@@ -3497,6 +3498,48 @@ Measured on qjsm 2026-10-20, the reason the zero-copy path runs on bytes:
   - new cases: a slice of a slice, Blob parts inside Blobs, a source `ArrayBuffer` changed after construction does
     not change the Blob, `openAsBlob` of a file, `stream()` chunk boundaries
   - memory: 200 slices of a 4 MiB Blob add no RSS, measured as in the slice test above
+
+### 28.6 Lift byte loops in `lib/` into C
+
+Survey 2026-10-20 of JS loops in `lib/` that search, copy, convert or check bytes one at a time. A native helper
+exists or a standard API covers most of them, so few new C functions are needed.
+
+| Where | Loop | Lift to | New C |
+| --- | --- | --- | --- |
+| `lib/node/buffer.js:162` `decodeUtf8`, `lib/node/util.js:2019` `decodeUtf8` (its `TextDecoder`) | WHATWG UTF-8 decode, one U+FFFD per maximal invalid subpart, `fatal`, `stream` | the native `TextDecoder` in `textcode`, once fixed (below) | fix |
+| `lib/node/buffer.js:205` | decodes twice: `misc.toString`, then the JS decoder again when the result has U+FFFD | one native `TextDecoder` call | – |
+| `lib/node/buffer.js:238`, `:245` | utf16le and latin1/ascii decode | `TextDecoder('utf-16le')`/`('latin1')` once `textcode` supports them | fix |
+| `lib/node/buffer.js:100`, `:113` | utf16le and latin1/ascii encode | internal `textcode.encode(str, 'utf-16le' / 'latin1')` → `ArrayBuffer` (no standard API encodes these) | yes |
+| `lib/node/buffer.js:117`, `:132`, `:207`, `:214` | hex and base64/base64url encode and parse | `Uint8Array.prototype.toHex`/`toBase64`, `Uint8Array.fromHex`/`fromBase64` (TC39, already in the engine, node 26 and bun have them too). Keep Node's leniency: cut the hex input at the first bad pair, strip non-alphabet characters before `fromBase64(s, { alphabet, lastChunkHandling: 'loose' })` | – |
+| `lib/node/buffer.js:381`, `:394` | `b[i] = value[i] & 255` from a typed array or array-like | `b.set(value)`: ToUint8 equals `& 255` for every Number, and both throw on BigInt | – |
+| `lib/node/buffer.js:757` `swap` | byte swap for `swap16`/`swap32`/`swap64` | `misc.byteSwap(view, size)`, `bswap` per word in place | yes |
+| `lib/node/buffer.js:690` `lastIndexOf` | calls `find` forward again and again, O(n) calls | a reverse mode for `misc.searchArrayBuffer` (`memrchr` for a one-byte needle) | yes |
+| `lib/node/buffer.js:515` `find` | copies a needle that is a view (`new Uint8Array(needle).buffer`) | `searchArrayBuffer` accepting a view, or offset and length for the needle | yes |
+| `lib/node/buffer.js:928` `isAscii`/`isUtf8` | per-byte checks | 28.2 | 28.2 |
+| `lib/readline.js:479` | scans back for the last `\n`/`\r` | `searchArrayBuffer` in reverse mode (above) | – |
+| `lib/readline.js:201` `completeUtf8`, `lib/node/child_process.js:177` | hold back an incomplete trailing UTF-8 sequence | `TextDecoder` with `{ stream: true }` (WHATWG), once fixed | – |
+| `lib/textLineStream.js:31` | splits a string into lines one character at a time | `String.prototype.indexOf` or a sticky `/\r\n?\|\n/g` regex, already native | – |
+| `lib/jsonl.js:37` `valueEnd`, `lib/jsonStreams.js:71` | finds where a JSON value ends, one unit at a time | the `json` engine (`quickjs-json.c`) reporting the end offset of each value it parses. Engines stay in C, `JSONL` stays a `lib/` composition (CLAUDE.md, API design principle 4) | maybe |
+
+Left as they are: `lib/node/buffer.js:746` (backs up at most 3 bytes), `lib/jsonl.js:30` (portable fallback for
+runtimes without `TextDecoder`), `lib/wasi.js`/`lib/globals.js` (chunked syscalls, no per-byte work).
+
+Native `TextDecoder` bugs to fix first, probed on qjsm 2026-10-20 (`BUGS`: `textdecoder-not-whatwg`):
+- `decode` of invalid UTF-8 drops bytes or returns `''`: `[0xf0,0x9f,0x41,0xed,0xa0,0x80]` gives `''`, node
+  gives `'\ufffdA\ufffd\ufffd\ufffd'`. `[0x41,0,0xe9,0x80]` gives `'A\0'`
+- `{ fatal: true }` does not throw
+- `'utf-16le'` decodes to `null`, and `.encoding` is `'UTF-16'` (WHATWG: lowercase `'utf-16le'`)
+- `'latin1'`/`'windows-1252'` throw at construction
+
+New C functions: `misc.byteSwap`, `searchArrayBuffer` reverse mode and needle views, internal `textcode.encode`, and
+maybe a value-end report in `json`. Each one replaces a loop above, so no helper ships without a user.
+
+Verify:
+- `test-node-buffer.js` and the textcode tests pass, with new cases for every row and results equal to node's on
+  the same input (invalid UTF-8 table, base64 with junk and missing padding, hex with a bad pair, `lastIndexOf`
+  with an offset)
+- `test-readline.js`, `test-jsonl.js`, the `child_process` and `textLineStream` tests pass
+- timing on 1 MiB for decode, base64, `lastIndexOf` and `swap32`, before and after, in the commit message
 
 ### How the pieces combine (Tier 27 option B, `resolve-imports.js`)
 

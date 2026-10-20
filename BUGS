@@ -1032,3 +1032,14 @@
 
     qjsm -e "import('fs').then(fs => console.log(fs.readFileSync('/proc/self/status', 'utf8').length))"
     # 0, node: about 1500
+
+- textdecoder-not-whatwg: the native TextDecoder (textcode) drops or
+  loses invalid UTF-8 instead of one U+FFFD per maximal subpart, ignores
+  fatal, decodes utf-16le to null, reports encoding 'UTF-16', and rejects
+  latin1/windows-1252. lib/node/buffer.js and lib/node/util.js carry JS
+  decoders because of it. Found 2026-10-20.
+
+    qjsm -e "import('textcode').then(({TextDecoder}) => console.log(
+      JSON.stringify(new TextDecoder().decode(
+        new Uint8Array([0xf0,0x9f,0x41,0xed,0xa0,0x80])))))"
+    # "", node: "�A���"
