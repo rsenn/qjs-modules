@@ -3506,9 +3506,10 @@ exists or a standard API covers most of them, so few new C functions are needed.
 
 | Where | Loop | Lift to | New C |
 | --- | --- | --- | --- |
-| `lib/node/buffer.js:162` `decodeUtf8`, `lib/node/util.js:2019` `decodeUtf8` (its `TextDecoder`) | WHATWG UTF-8 decode, one U+FFFD per maximal invalid subpart, `fatal`, `stream` | the native `TextDecoder` in `textcode`, once fixed (below) | fix |
-| `lib/node/buffer.js:205` | decodes twice: `misc.toString`, then the JS decoder again when the result has U+FFFD | one native `TextDecoder` call | – |
-| `lib/node/buffer.js:238`, `:245` | utf16le and latin1/ascii decode | `TextDecoder('utf-16le')`/`('latin1')` once `textcode` supports them | fix |
+| ~~`lib/node/buffer.js:162` `decodeUtf8`, `lib/node/util.js:2019` `decodeUtf8` (its `TextDecoder`)~~ | WHATWG UTF-8 decode | **done 2026-10-20**: the native `TextDecoder`, `node:util` re-exports it | fix |
+| ~~`lib/node/buffer.js:205`~~ | decoded twice when the result had U+FFFD | **done 2026-10-20**: one `TextDecoder` call, `ignoreBOM: true` as `Buffer.toString()` keeps a BOM | – |
+| `lib/node/buffer.js:238` | utf16le decode | **done 2026-10-20**: `TextDecoder('utf-16le')`, the JS loop only when U+FFFD comes out (Node keeps lone surrogates, WHATWG replaces them) | fix |
+| `lib/node/buffer.js:245` | latin1/ascii decode | Node's latin1 is ISO-8859-1 (byte = code point), WHATWG's `latin1` label is windows-1252, so no `TextDecoder`. An internal `textcode` helper, with the encode one below | yes |
 | `lib/node/buffer.js:100`, `:113` | utf16le and latin1/ascii encode | internal `textcode.encode(str, 'utf-16le' / 'latin1')` → `ArrayBuffer` (no standard API encodes these) | yes |
 | `lib/node/buffer.js:117`, `:132`, `:207`, `:214` | hex and base64/base64url encode and parse | `Uint8Array.prototype.toHex`/`toBase64`, `Uint8Array.fromHex`/`fromBase64` (TC39, already in the engine, node 26 and bun have them too). Keep Node's leniency: cut the hex input at the first bad pair, strip non-alphabet characters before `fromBase64(s, { alphabet, lastChunkHandling: 'loose' })` | – |
 | `lib/node/buffer.js:381`, `:394` | `b[i] = value[i] & 255` from a typed array or array-like | `b.set(value)`: ToUint8 equals `& 255` for every Number, and both throw on BigInt | – |
@@ -3517,19 +3518,20 @@ exists or a standard API covers most of them, so few new C functions are needed.
 | `lib/node/buffer.js:515` `find` | copies a needle that is a view (`new Uint8Array(needle).buffer`) | `searchArrayBuffer` accepting a view, or offset and length for the needle | yes |
 | `lib/node/buffer.js:928` `isAscii`/`isUtf8` | per-byte checks | 28.2 | 28.2 |
 | `lib/readline.js:479` | scans back for the last `\n`/`\r` | `searchArrayBuffer` in reverse mode (above) | – |
-| `lib/readline.js:201` `completeUtf8`, `lib/node/child_process.js:177` | hold back an incomplete trailing UTF-8 sequence | `TextDecoder` with `{ stream: true }` (WHATWG), once fixed | – |
+| `lib/node/child_process.js:177` | holds back an incomplete trailing UTF-8 sequence | **done 2026-10-20**: `TextDecoder` with `{ stream: true }`, flushed at end | – |
+| `lib/readline.js:201` `completeUtf8` | the same | `TextDecoder` with `{ stream: true }` | – |
 | `lib/textLineStream.js:31` | splits a string into lines one character at a time | `String.prototype.indexOf` or a sticky `/\r\n?\|\n/g` regex, already native | – |
 | `lib/jsonl.js:37` `valueEnd`, `lib/jsonStreams.js:71` | finds where a JSON value ends, one unit at a time | the `json` engine (`quickjs-json.c`) reporting the end offset of each value it parses. Engines stay in C, `JSONL` stays a `lib/` composition (CLAUDE.md, API design principle 4) | maybe |
 
 Left as they are: `lib/node/buffer.js:746` (backs up at most 3 bytes), `lib/jsonl.js:30` (portable fallback for
 runtimes without `TextDecoder`), `lib/wasi.js`/`lib/globals.js` (chunked syscalls, no per-byte work).
 
-Native `TextDecoder` bugs to fix first, probed on qjsm 2026-10-20 (`BUGS`: `textdecoder-not-whatwg`):
-- `decode` of invalid UTF-8 drops bytes or returns `''`: `[0xf0,0x9f,0x41,0xed,0xa0,0x80]` gives `''`, node
-  gives `'\ufffdA\ufffd\ufffd\ufffd'`. `[0x41,0,0xe9,0x80]` gives `'A\0'`
-- `{ fatal: true }` does not throw
-- `'utf-16le'` decodes to `null`, and `.encoding` is `'UTF-16'` (WHATWG: lowercase `'utf-16le'`)
-- `'latin1'`/`'windows-1252'` throw at construction
+Native `TextDecoder`, done 2026-10-20: WHATWG labels and names, U+FFFD per maximal invalid subpart, `fatal`,
+`ignoreBOM`, `stream`, utf-16le/be and the single-byte encodings tutf8e has tables for (plus windows-874 and
+iso-8859-8-i), errors with Node's `code`. Same output as node 26 on all 256 bytes of each encoding and on every split
+of a stream. Invalid UTF-8 in `Buffer.toString()`: 1012 → 36 ms for 5.75 MB, utf16le 1196 → 70 ms for 8.5 MB.
+Valid non-ASCII UTF-8 got slower, 22 → 36 ms for 5.75 MB: the input is validated once before `JS_NewStringLen`,
+which validates it again (ASCII runs are skipped 8 bytes at a time). Remaining difference: a label with a NUL in it is cut at the NUL in the error message.
 
 New C functions: `misc.byteSwap`, `searchArrayBuffer` reverse mode and needle views, internal `textcode.encode`, and
 maybe a value-end report in `json`. Each one replaces a loop above, so no helper ships without a user.

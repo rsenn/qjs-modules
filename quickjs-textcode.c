@@ -26,10 +26,194 @@ const TUTF8encoder* tutf8e_coders[] = {
 };
 
 const char* const textcode_encodings[] = {
-    "unknown",      "UTF-8",        "UTF-16",       "UTF-32",       "unknown",      "UTF-8",        "UTF-16BE",     "UTF-32BE",
-    "ISO-8859-1",   "ISO-8859-2",   "ISO-8859-3",   "ISO-8859-4",   "ISO-8859-5",   "ISO-8859-6",   "ISO-8859-7",   "ISO-8859-8",
-    "ISO-8859-9",   "ISO-8859-10",  "ISO-8859-11",  "ISO-8859-13",  "ISO-8859-14",  "ISO-8859-15",  "ISO-8859-16",  "WINDOWS-1250",
-    "WINDOWS-1251", "WINDOWS-1252", "WINDOWS-1253", "WINDOWS-1254", "WINDOWS-1255", "WINDOWS-1256", "WINDOWS-1257", "WINDOWS-1258",
+    "unknown",      "utf-8",        "utf-16le",     "utf-32le",     "unknown",      "utf-8",        "utf-16be",     "utf-32be",
+    "iso-8859-1",   "iso-8859-2",   "iso-8859-3",   "iso-8859-4",   "iso-8859-5",   "iso-8859-6",   "iso-8859-7",   "iso-8859-8",
+    "iso-8859-9",   "iso-8859-10",  "iso-8859-11",  "iso-8859-13",  "iso-8859-14",  "iso-8859-15",  "iso-8859-16",  "windows-1250",
+    "windows-1251", "windows-1252", "windows-1253", "windows-1254", "windows-1255", "windows-1256", "windows-1257", "windows-1258",
+    "windows-874",  "iso-8859-8-i",
+};
+
+/* WHATWG encoding labels, sorted for bsearch(), plus utf-32 as an extension.
+ * generated from https://encoding.spec.whatwg.org/encodings.json */
+static const struct textcode_label {
+  const char* label;
+  uint8_t code;
+} textcode_labels[] = {
+    {"ansi_x3.4-1968",      WINDOWS_1252},
+    {"arabic",              ISO_8859_6},
+    {"ascii",               WINDOWS_1252},
+    {"asmo-708",            ISO_8859_6},
+    {"cp1250",              WINDOWS_1250},
+    {"cp1251",              WINDOWS_1251},
+    {"cp1252",              WINDOWS_1252},
+    {"cp1253",              WINDOWS_1253},
+    {"cp1254",              WINDOWS_1254},
+    {"cp1255",              WINDOWS_1255},
+    {"cp1256",              WINDOWS_1256},
+    {"cp1257",              WINDOWS_1257},
+    {"cp1258",              WINDOWS_1258},
+    {"cp819",               WINDOWS_1252},
+    {"csiso88596e",         ISO_8859_6},
+    {"csiso88596i",         ISO_8859_6},
+    {"csiso88598e",         ISO_8859_8},
+    {"csiso88598i",         ISO_8859_8_I},
+    {"csisolatin1",         WINDOWS_1252},
+    {"csisolatin2",         ISO_8859_2},
+    {"csisolatin3",         ISO_8859_3},
+    {"csisolatin4",         ISO_8859_4},
+    {"csisolatin5",         WINDOWS_1254},
+    {"csisolatin6",         ISO_8859_10},
+    {"csisolatin9",         ISO_8859_15},
+    {"csisolatinarabic",    ISO_8859_6},
+    {"csisolatincyrillic",  ISO_8859_5},
+    {"csisolatingreek",     ISO_8859_7},
+    {"csisolatinhebrew",    ISO_8859_8},
+    {"csunicode",           UTF16LE},
+    {"cyrillic",            ISO_8859_5},
+    {"dos-874",             WINDOWS_874},
+    {"ecma-114",            ISO_8859_6},
+    {"ecma-118",            ISO_8859_7},
+    {"elot_928",            ISO_8859_7},
+    {"greek",               ISO_8859_7},
+    {"greek8",              ISO_8859_7},
+    {"hebrew",              ISO_8859_8},
+    {"ibm819",              WINDOWS_1252},
+    {"iso-10646-ucs-2",     UTF16LE},
+    {"iso-8859-1",          WINDOWS_1252},
+    {"iso-8859-10",         ISO_8859_10},
+    {"iso-8859-11",         WINDOWS_874},
+    {"iso-8859-13",         ISO_8859_13},
+    {"iso-8859-14",         ISO_8859_14},
+    {"iso-8859-15",         ISO_8859_15},
+    {"iso-8859-16",         ISO_8859_16},
+    {"iso-8859-2",          ISO_8859_2},
+    {"iso-8859-3",          ISO_8859_3},
+    {"iso-8859-4",          ISO_8859_4},
+    {"iso-8859-5",          ISO_8859_5},
+    {"iso-8859-6",          ISO_8859_6},
+    {"iso-8859-6-e",        ISO_8859_6},
+    {"iso-8859-6-i",        ISO_8859_6},
+    {"iso-8859-7",          ISO_8859_7},
+    {"iso-8859-8",          ISO_8859_8},
+    {"iso-8859-8-e",        ISO_8859_8},
+    {"iso-8859-8-i",        ISO_8859_8_I},
+    {"iso-8859-9",          WINDOWS_1254},
+    {"iso-ir-100",          WINDOWS_1252},
+    {"iso-ir-101",          ISO_8859_2},
+    {"iso-ir-109",          ISO_8859_3},
+    {"iso-ir-110",          ISO_8859_4},
+    {"iso-ir-126",          ISO_8859_7},
+    {"iso-ir-127",          ISO_8859_6},
+    {"iso-ir-138",          ISO_8859_8},
+    {"iso-ir-144",          ISO_8859_5},
+    {"iso-ir-148",          WINDOWS_1254},
+    {"iso-ir-157",          ISO_8859_10},
+    {"iso8859-1",           WINDOWS_1252},
+    {"iso8859-10",          ISO_8859_10},
+    {"iso8859-11",          WINDOWS_874},
+    {"iso8859-13",          ISO_8859_13},
+    {"iso8859-14",          ISO_8859_14},
+    {"iso8859-15",          ISO_8859_15},
+    {"iso8859-2",           ISO_8859_2},
+    {"iso8859-3",           ISO_8859_3},
+    {"iso8859-4",           ISO_8859_4},
+    {"iso8859-5",           ISO_8859_5},
+    {"iso8859-6",           ISO_8859_6},
+    {"iso8859-7",           ISO_8859_7},
+    {"iso8859-8",           ISO_8859_8},
+    {"iso8859-9",           WINDOWS_1254},
+    {"iso88591",            WINDOWS_1252},
+    {"iso885910",           ISO_8859_10},
+    {"iso885911",           WINDOWS_874},
+    {"iso885913",           ISO_8859_13},
+    {"iso885914",           ISO_8859_14},
+    {"iso885915",           ISO_8859_15},
+    {"iso88592",            ISO_8859_2},
+    {"iso88593",            ISO_8859_3},
+    {"iso88594",            ISO_8859_4},
+    {"iso88595",            ISO_8859_5},
+    {"iso88596",            ISO_8859_6},
+    {"iso88597",            ISO_8859_7},
+    {"iso88598",            ISO_8859_8},
+    {"iso88599",            WINDOWS_1254},
+    {"iso_8859-1",          WINDOWS_1252},
+    {"iso_8859-15",         ISO_8859_15},
+    {"iso_8859-1:1987",     WINDOWS_1252},
+    {"iso_8859-2",          ISO_8859_2},
+    {"iso_8859-2:1987",     ISO_8859_2},
+    {"iso_8859-3",          ISO_8859_3},
+    {"iso_8859-3:1988",     ISO_8859_3},
+    {"iso_8859-4",          ISO_8859_4},
+    {"iso_8859-4:1988",     ISO_8859_4},
+    {"iso_8859-5",          ISO_8859_5},
+    {"iso_8859-5:1988",     ISO_8859_5},
+    {"iso_8859-6",          ISO_8859_6},
+    {"iso_8859-6:1987",     ISO_8859_6},
+    {"iso_8859-7",          ISO_8859_7},
+    {"iso_8859-7:1987",     ISO_8859_7},
+    {"iso_8859-8",          ISO_8859_8},
+    {"iso_8859-8:1988",     ISO_8859_8},
+    {"iso_8859-9",          WINDOWS_1254},
+    {"iso_8859-9:1989",     WINDOWS_1254},
+    {"l1",                  WINDOWS_1252},
+    {"l2",                  ISO_8859_2},
+    {"l3",                  ISO_8859_3},
+    {"l4",                  ISO_8859_4},
+    {"l5",                  WINDOWS_1254},
+    {"l6",                  ISO_8859_10},
+    {"l9",                  ISO_8859_15},
+    {"latin1",              WINDOWS_1252},
+    {"latin2",              ISO_8859_2},
+    {"latin3",              ISO_8859_3},
+    {"latin4",              ISO_8859_4},
+    {"latin5",              WINDOWS_1254},
+    {"latin6",              ISO_8859_10},
+    {"logical",             ISO_8859_8_I},
+    {"sun_eu_greek",        ISO_8859_7},
+    {"tis-620",             WINDOWS_874},
+    {"ucs-2",               UTF16LE},
+    {"unicode",             UTF16LE},
+    {"unicode-1-1-utf-8",   UTF8},
+    {"unicode11utf8",       UTF8},
+    {"unicode20utf8",       UTF8},
+    {"unicodefeff",         UTF16LE},
+    {"unicodefffe",         UTF16BE},
+    {"us-ascii",            WINDOWS_1252},
+    {"utf-16",              UTF16LE},
+    {"utf-16be",            UTF16BE},
+    {"utf-16le",            UTF16LE},
+    {"utf-32",              UTF32LE},
+    {"utf-32be",            UTF32BE},
+    {"utf-32le",            UTF32LE},
+    {"utf-8",               UTF8},
+    {"utf8",                UTF8},
+    {"visual",              ISO_8859_8},
+    {"windows-1250",        WINDOWS_1250},
+    {"windows-1251",        WINDOWS_1251},
+    {"windows-1252",        WINDOWS_1252},
+    {"windows-1253",        WINDOWS_1253},
+    {"windows-1254",        WINDOWS_1254},
+    {"windows-1255",        WINDOWS_1255},
+    {"windows-1256",        WINDOWS_1256},
+    {"windows-1257",        WINDOWS_1257},
+    {"windows-1258",        WINDOWS_1258},
+    {"windows-874",         WINDOWS_874},
+    {"x-cp1250",            WINDOWS_1250},
+    {"x-cp1251",            WINDOWS_1251},
+    {"x-cp1252",            WINDOWS_1252},
+    {"x-cp1253",            WINDOWS_1253},
+    {"x-cp1254",            WINDOWS_1254},
+    {"x-cp1255",            WINDOWS_1255},
+    {"x-cp1256",            WINDOWS_1256},
+    {"x-cp1257",            WINDOWS_1257},
+    {"x-cp1258",            WINDOWS_1258},
+    {"x-unicode20utf8",     UTF8},
+};
+
+/* windows-874 bytes 0x80..0x97, the rest is the iso-8859-11 table */
+static const uint16_t textdecoder_windows_874[] = {
+    0x20ac, 0x0081, 0x0082, 0x0083, 0x0084, 0x2026, 0x0086, 0x0087, 0x0088, 0x0089, 0x008a, 0x008b,
+    0x008c, 0x008d, 0x008e, 0x008f, 0x0090, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
 };
 
 enum {
@@ -40,114 +224,396 @@ enum {
   DECODER_ENCODING,
   DECODER_ENDIANNESS,
   DECODER_BUFFERED,
+  DECODER_FATAL,
+  DECODER_IGNOREBOM,
 };
 
-JSValue
-textdecoder_decode(TextDecoder* dec, InputBuffer in, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  uint32_t cp;
-  uint8_t* tmp;
-  size_t i = 0;
-  int len = 0;
-  DynBuf dbuf = DBUF_INIT_CTX(ctx);
-  const uint8_t *ptr = inputbuffer_begin(&in), *end = inputbuffer_end(&in), *next;
+/* throws a TypeError, or a RangeError if range, with Node's code property.
+ * returns JS_EXCEPTION with an exception pending. */
+static JSValue
+textcode_throw(JSContext* ctx, BOOL range, const char* code, const char* msg) {
+  JSValue err;
 
-  switch(dec->char_set) {
-    case UTF8: {
-      while(!inputbuffer_eof(&in)) {
-        if(inputbuffer_decode(&in, &unicode_decode_utf8, &cp) == 0)
-          break;
-      }
+  if(range)
+    JS_ThrowRangeError(ctx, "%s", msg);
+  else
+    JS_ThrowTypeError(ctx, "%s", msg);
 
-      ret = JS_NewStringLen(ctx, inputbuffer_data(&in), in.pos);
-      break;
-    }
-    case UTF16: {
-      Decoding* decode = dec->endian ? &uint16_decode_be : &uint16_decode_le;
+  err = JS_GetException(ctx);
+  JS_SetPropertyStr(ctx, err, "code", JS_NewString(ctx, code));
+  return JS_Throw(ctx, err);
+}
 
-      while(!inputbuffer_eof(&in)) {
-        uint16_t u16[2];
+static int
+textcode_label_cmp(const void* key, const void* entry) {
+  return strcmp(key, ((const struct textcode_label*)entry)->label);
+}
 
-        if(inputbuffer_decode(&in, decode, &u16[0]) == 0)
-          break;
+static inline BOOL
+textcode_is_space(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r';
+}
 
-        if(libutf_c16_type(u16[0]) > 0) {
-          if(inputbuffer_decode(&in, decode, &u16[1]) == 0)
+/* the encoding a WHATWG label names, case and surrounding space ignored.
+ *
+ *   " Latin1 "  gives WINDOWS_1252
+ *
+ * never throws: returns the TextEncoding, or -1 for an unknown label. */
+static int
+textcode_lookup(const char* s, size_t len) {
+  const struct textcode_label* found;
+  char name[32];
+
+  while(len && textcode_is_space(*s))
+    s++, len--;
+
+  while(len && textcode_is_space(s[len - 1]))
+    len--;
+
+  if(len >= sizeof(name) || memchr(s, '\0', len))
+    return -1;
+
+  for(size_t i = 0; i < len; i++)
+    name[i] = s[i] >= 'A' && s[i] <= 'Z' ? s[i] + 32 : s[i];
+
+  name[len] = '\0';
+  found = bsearch(name, textcode_labels, countof(textcode_labels), sizeof(textcode_labels[0]), textcode_label_cmp);
+
+  return found ? found->code : -1;
+}
+
+/* the decoder state of a fresh stream */
+static void
+textdecoder_reset(TextDecoder* dec) {
+  dec->buflen = dec->needed = dec->seen = 0;
+  dec->cp = 0;
+  dec->lower = 0x80;
+  dec->upper = 0xbf;
+  dec->bom_seen = 0;
+}
+
+static inline void
+textdecoder_put(DynBuf* db, uint32_t cp) {
+  uint8_t* p;
+
+  if(cp < 0x80)
+    dbuf_putc(db, cp);
+  else if((p = dbuf_reserve(db, UTF8_CHAR_LEN_MAX)))
+    db->size += unicode_to_utf8(p, cp);
+}
+
+/* one decode error: U+FFFD, or a TypeError when the decoder is fatal.
+ * returns 0, or -1 with an exception pending. */
+static int
+textdecoder_error(TextDecoder* dec, DynBuf* db, JSContext* ctx) {
+  char msg[64];
+
+  if(!dec->fatal) {
+    dbuf_put(db, (const uint8_t*)"\xef\xbf\xbd", 3);
+    return 0;
+  }
+
+  snprintf(msg, sizeof(msg), "The encoded data was not valid for encoding %s", textcode_encodings[dec->type_code]);
+  textcode_throw(ctx, FALSE, "ERR_ENCODING_INVALID_ENCODED_DATA", msg);
+  return -1;
+}
+
+/**
+ * WHATWG utf-8 decode: one U+FFFD per maximal invalid subpart.
+ *
+ * valid input is not copied: the run of valid bytes after the last error
+ * stays in p for the caller, as [*pstart, *pend).
+ *
+ *   TextDecoder*    dec     decoder state, kept across calls
+ *   const uint8_t*  p       input bytes
+ *   size_t          n       input length
+ *   BOOL            flush   end of stream, an open sequence is an error
+ *   DynBuf*         db      output before the valid run
+ *   size_t*         pstart  start of the valid run
+ *   size_t*         pend    end of the valid run
+ *
+ *   returns 0, or -1 with an exception pending (fatal).
+ */
+static int
+textdecoder_utf8(TextDecoder* dec, const uint8_t* p, size_t n, BOOL flush, DynBuf* db, size_t* pstart, size_t* pend, JSContext* ctx) {
+  size_t i = 0, start = 0;
+  ssize_t seq = -1; /* where the open sequence starts, -1 if before p */
+
+  while(i < n) {
+    uint8_t b = p[i];
+
+    if(!dec->needed) {
+      if(b < 0x80) {
+        uint64_t word;
+
+        /* skip ASCII 8 bytes at a time */
+        for(i++; i + 8 <= n; i += 8) {
+          memcpy(&word, p + i, 8);
+
+          if(word & 0x8080808080808080ULL)
             break;
         }
 
-        if(!libutf_c16_to_c32(u16, &cp)) {
-          ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: not a valid utf-16 code at (%" PRIu64 ": 0x%04x, 0x%04x): %i", (uint64_t)i, ptr[0], ptr[1], cp);
-          break;
-        }
-
-        dbuf_encode(&dbuf, &unicode_encode_utf8, cp);
+        continue;
       }
 
-      break;
-    }
-    case UTF32: {
-      Decoding* decode = dec->endian ? &uint32_decode_be : &uint32_decode_le;
-
-      while(!inputbuffer_eof(&in)) {
-        if(inputbuffer_decode(&in, decode, &cp) == 0)
-          break;
-
-        if(!(tmp = dbuf_reserve(&dbuf, UTF8_CHAR_LEN_MAX)))
-          return JS_EXCEPTION;
-
-        cp = uint32_get_endian(ptr, dec->endian);
-
-        if(!libutf_c32_to_c8(cp, &len, (char*)tmp)) {
-          ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: not a valid utf-32 code at (%" PRIu64 ": 0x%04x, 0x%04x): %i", (uint64_t)i, ptr[0], ptr[1], cp);
-          break;
-        }
-
-        dbuf.size += len;
-      }
-
-      break;
-    }
-
-    default: {
-      TUTF8encoder encoder;
-
-      if((encoder = *tutf8e_coders[dec->type_code - 8])) {
-        size_t length = 0;
-
-        if(TUTF8E_OK == tutf8e_encoder_buffer_length(encoder, (const char*)ptr, 0, end - ptr, &length)) {
-          uint8_t* dst = dbuf_reserve(&dbuf, length);
-
-          if(TUTF8E_OK == tutf8e_encoder_buffer_encode(encoder, (const char*)ptr, end - ptr, 0, (char*)dst, &length)) {
-            dbuf.size += length;
-          }
-        }
-
+      if(b >= 0xc2 && b <= 0xdf) {
+        dec->needed = 1;
+        dec->cp = b & 0x1f;
+      } else if(b >= 0xe0 && b <= 0xef) {
+        dec->lower = b == 0xe0 ? 0xa0 : 0x80;
+        dec->upper = b == 0xed ? 0x9f : 0xbf;
+        dec->needed = 2;
+        dec->cp = b & 0xf;
+      } else if(b >= 0xf0 && b <= 0xf4) {
+        dec->lower = b == 0xf0 ? 0x90 : 0x80;
+        dec->upper = b == 0xf4 ? 0x8f : 0xbf;
+        dec->needed = 3;
+        dec->cp = b & 0x7;
       } else {
-        ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: unknown encoding: %s", textcode_encodings[dec->type_code & 0x3]);
+        dbuf_put(db, p + start, i - start);
+
+        if(textdecoder_error(dec, db, ctx))
+          return -1;
+
+        start = ++i;
+        continue;
       }
 
-      break;
+      seq = i++;
+      continue;
+    }
+
+    if(b < dec->lower || b > dec->upper) {
+      /* the open sequence is one error, b is read again */
+      if(seq >= 0)
+        dbuf_put(db, p + start, seq - start);
+
+      dec->needed = dec->seen = 0;
+      dec->lower = 0x80;
+      dec->upper = 0xbf;
+
+      if(textdecoder_error(dec, db, ctx))
+        return -1;
+
+      start = i;
+      seq = -1;
+      continue;
+    }
+
+    dec->lower = 0x80;
+    dec->upper = 0xbf;
+    dec->cp = (dec->cp << 6) | (b & 0x3f);
+    i++;
+
+    if(++dec->seen == dec->needed) {
+      if(seq < 0) {
+        textdecoder_put(db, dec->cp);
+        start = i;
+      }
+
+      dec->needed = dec->seen = 0;
+      seq = -1;
     }
   }
 
-  size_t remain = inputbuffer_remain(&in);
-  dec->buflen = 0;
+  *pstart = start;
+  *pend = n;
+  dec->buflen = dec->needed ? dec->seen + 1 : 0;
 
-  if(remain > UTF8_CHAR_LEN_MAX) {
-    ret = JS_ThrowInternalError(ctx, "TextDecoder.decode: %" PRIu64 " bytes remaining", (uint64_t)remain);
+  if(dec->needed) {
+    *pend = seq >= 0 ? (size_t)seq : start;
 
-  } else {
-    memcpy(dec->buf, inputbuffer_pointer(&in), remain);
-    dec->buflen = remain;
+    if(flush) {
+      dbuf_put(db, p + start, *pend - start);
+      *pstart = *pend = n;
+      textdecoder_reset(dec);
+      return textdecoder_error(dec, db, ctx);
+    }
   }
 
-  if(JS_IsUndefined(ret))
-    ret = dbuf_tostring_free(&dbuf, ctx);
-  else
-    dbuf_free(&dbuf);
+  return 0;
+}
 
-  return ret;
+/* WHATWG utf-16le/be decode, a lone surrogate or odd byte is U+FFFD.
+ * returns 0, or -1 with an exception pending (fatal). */
+static int
+textdecoder_utf16(TextDecoder* dec, const uint8_t* p, size_t n, BOOL flush, DynBuf* db, JSContext* ctx) {
+  for(size_t i = 0; i < n; i++) {
+    uint32_t u;
+
+    if(!dec->buflen) {
+      dec->buf[0] = p[i];
+      dec->buflen = 1;
+      continue;
+    }
+
+    u = dec->endian == BIG ? (dec->buf[0] << 8) | p[i] : (p[i] << 8) | dec->buf[0];
+    dec->buflen = 0;
+
+    if(dec->cp) {
+      uint32_t lead = dec->cp;
+
+      dec->cp = 0;
+
+      if(u >= 0xdc00 && u <= 0xdfff) {
+        textdecoder_put(db, 0x10000 + ((lead - 0xd800) << 10) + (u - 0xdc00));
+        continue;
+      }
+
+      if(textdecoder_error(dec, db, ctx))
+        return -1;
+    }
+
+    if(u >= 0xd800 && u <= 0xdbff)
+      dec->cp = u;
+    else if(u >= 0xdc00 && u <= 0xdfff) {
+      if(textdecoder_error(dec, db, ctx))
+        return -1;
+    } else
+      textdecoder_put(db, u);
+  }
+
+  if(flush && (dec->cp || dec->buflen)) {
+    dec->cp = dec->buflen = 0;
+    return textdecoder_error(dec, db, ctx);
+  }
+
+  return 0;
+}
+
+/* utf-32le/be decode, an extension: a surrogate or a value above
+ * U+10FFFF is U+FFFD. returns 0, or -1 with an exception pending. */
+static int
+textdecoder_utf32(TextDecoder* dec, const uint8_t* p, size_t n, BOOL flush, DynBuf* db, JSContext* ctx) {
+  for(size_t i = 0; i < n; i++) {
+    uint32_t cp;
+
+    dec->buf[dec->buflen++] = p[i];
+
+    if(dec->buflen < 4)
+      continue;
+
+    cp = uint32_get_endian(dec->buf, dec->endian);
+    dec->buflen = 0;
+
+    if(cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) {
+      if(textdecoder_error(dec, db, ctx))
+        return -1;
+    } else
+      textdecoder_put(db, cp);
+  }
+
+  if(flush && dec->buflen) {
+    dec->buflen = 0;
+    return textdecoder_error(dec, db, ctx);
+  }
+
+  return 0;
+}
+
+/* WHATWG single-byte decode over a tutf8e table: an unmapped byte is
+ * U+FFFD, in windows-125x an unmapped 0x80..0x9f is the C1 control.
+ * returns 0, or -1 with an exception pending (fatal). */
+static int
+textdecoder_single(TextDecoder* dec, const uint8_t* p, size_t n, DynBuf* db, JSContext* ctx) {
+  TextEncoding code = dec->type_code == WINDOWS_874 ? ISO_8859_11 : dec->type_code == ISO_8859_8_I ? ISO_8859_8 : dec->type_code;
+  const uint16_t* table = (const uint16_t*)*tutf8e_coders[code - ISO_8859_1];
+  BOOL windows = dec->type_code >= WINDOWS_1250 && dec->type_code <= WINDOWS_1258;
+
+  for(size_t i = 0; i < n; i++) {
+    uint32_t c = p[i];
+
+    if(c >= 0x80) {
+      c = dec->type_code == WINDOWS_874 && c < 0x98 ? textdecoder_windows_874[c - 0x80] : table[c];
+
+      if(c == 0xffff && dec->type_code == WINDOWS_1255 && p[i] == 0xca)
+        c = 0x05ba; /* WHATWG maps it, the unicode.org table does not */
+
+      if(c == 0xffff) {
+        if(!(windows && p[i] <= 0x9f)) {
+          if(textdecoder_error(dec, db, ctx))
+            return -1;
+
+          continue;
+        }
+
+        c = p[i];
+      }
+    }
+
+    textdecoder_put(db, c);
+  }
+
+  return 0;
+}
+
+/* the bytes of an ArrayBuffer, SharedArrayBuffer, typed array or DataView,
+ * none for undefined. returns the buffer to free, JS_UNDEFINED for none,
+ * or JS_EXCEPTION with an exception pending. */
+static JSValue
+textdecoder_input(JSContext* ctx, JSValueConst value, const uint8_t** pptr, size_t* plen) {
+  size_t offset = 0, length = 0, size = 0;
+  JSValue buf;
+  uint8_t* data;
+
+  *pptr = 0;
+  *plen = 0;
+
+  if(JS_IsUndefined(value))
+    return JS_UNDEFINED;
+
+  if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value)) {
+    buf = JS_DupValue(ctx, value);
+    length = SIZE_MAX;
+  } else if(js_is_typedarray(ctx, value)) {
+    buf = JS_GetTypedArrayBuffer(ctx, value, &offset, &length, 0);
+  } else if(js_is_dataview(ctx, value)) {
+    buf = JS_GetPropertyStr(ctx, value, "buffer");
+    offset = js_get_propertystr_uint64(ctx, value, "byteOffset");
+    length = js_get_propertystr_uint64(ctx, value, "byteLength");
+  } else
+    return textcode_throw(ctx, FALSE, "ERR_INVALID_ARG_TYPE", "The \"input\" argument must be an instance of ArrayBuffer or ArrayBufferView");
+
+  if(JS_IsException(buf))
+    return buf;
+
+  if(!(data = JS_GetArrayBuffer(ctx, &size, buf)) && JS_HasException(ctx)) {
+    JS_FreeValue(ctx, buf);
+    return JS_EXCEPTION;
+  }
+
+  if(offset > size)
+    offset = size;
+
+  *pptr = data + offset;
+  *plen = MIN_NUM(length, size - offset);
+  return buf;
+}
+
+/* the decoded string: db, then the n bytes at tail, BOM removed at the
+ * start of a stream. returns the string, or JS_EXCEPTION. */
+static JSValue
+textdecoder_string(TextDecoder* dec, DynBuf* db, const uint8_t* tail, size_t n, JSContext* ctx) {
+  const uint8_t* s = tail;
+
+  if(db->size) {
+    dbuf_put(db, tail, n);
+    s = db->buf;
+    n = db->size;
+  }
+
+  if(db->error)
+    return JS_ThrowOutOfMemory(ctx);
+
+  if(n && !dec->bom_seen) {
+    dec->bom_seen = 1;
+
+    if(!dec->ignore_bom && n >= 3 && !memcmp(s, "\xef\xbb\xbf", 3))
+      s += 3, n -= 3;
+  }
+
+  return JS_NewStringLen(ctx, (const char*)s, n);
 }
 
 static JSValue
@@ -171,18 +637,66 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, dec->buflen);
       break;
     }
+    case DECODER_FATAL: {
+      ret = JS_NewBool(ctx, dec->fatal);
+      break;
+    }
+    case DECODER_IGNOREBOM: {
+      ret = JS_NewBool(ctx, dec->ignore_bom);
+      break;
+    }
   }
 
   return ret;
 }
 
+/* TextDecoder: WHATWG TextDecoder, plus utf-32 and the endian and
+ * buffered getters.
+ *
+ *   new TextDecoder(label = 'utf-8', { fatal, ignoreBOM })
+ *
+ *   throws RangeError ERR_ENCODING_NOT_SUPPORTED for an unknown label,
+ *   TypeError ERR_INVALID_ARG_TYPE when options is not an object */
 static JSValue
 js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   TextDecoder* dec;
+  int code = UTF8;
 
   if(!(dec = js_mallocz(ctx, sizeof(TextDecoder))))
     return JS_EXCEPTION;
+
+  if(argc > 0 && !JS_IsUndefined(argv[0])) {
+    const char* s;
+    size_t len;
+
+    if(!(s = JS_ToCStringLen(ctx, &len, argv[0])))
+      goto fail;
+
+    if((code = textcode_lookup(s, len)) < 0) {
+      char msg[96];
+
+      snprintf(msg, sizeof(msg), "The \"%.64s\" encoding is not supported", s);
+      JS_FreeCString(ctx, s);
+      textcode_throw(ctx, TRUE, "ERR_ENCODING_NOT_SUPPORTED", msg);
+      goto fail;
+    }
+
+    JS_FreeCString(ctx, s);
+  }
+
+  if(argc > 1 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
+    if(!JS_IsObject(argv[1])) {
+      textcode_throw(ctx, FALSE, "ERR_INVALID_ARG_TYPE", "The \"options\" argument must be of type object");
+      goto fail;
+    }
+
+    dec->fatal = js_get_propertystr_bool(ctx, argv[1], "fatal");
+    dec->ignore_bom = js_get_propertystr_bool(ctx, argv[1], "ignoreBOM");
+  }
+
+  dec->type_code = code;
+  textdecoder_reset(dec);
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -190,39 +704,12 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     goto fail;
 
   if(!JS_IsObject(proto))
-    proto = textdecoder_proto;
+    proto = JS_DupValue(ctx, textdecoder_proto);
 
-  /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_decoder_class_id);
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
-
-  uint32_t defaultSize = 1024;
-
-  if(argc > 1)
-    JS_ToUint32(ctx, &defaultSize, argv[1]);
-
-  if(argc >= 1) {
-    const char* s = JS_ToCString(ctx, argv[0]);
-
-    if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      dec->char_set = UTF32;
-    else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      dec->char_set = UTF16;
-    else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      dec->char_set = UTF8;
-    else {
-      return JS_ThrowInternalError(ctx, "TextDecoder.constructor: '%s' is invalid s", s);
-    }
-
-    if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
-      dec->endian = BIG;
-
-    JS_FreeCString(ctx, s);
-  } else {
-    dec->type_code = (TextEncoding)UTF8;
-  }
 
   JS_SetOpaque(obj, dec);
   return obj;
@@ -233,6 +720,13 @@ fail:
   return JS_EXCEPTION;
 }
 
+/* decode(input, { stream }): the string for input, as in WHATWG.
+ *
+ * without stream: true the next call starts a new stream, and an open
+ * sequence at the end is an error.
+ *
+ *   throws TypeError ERR_INVALID_ARG_TYPE for input other than bytes,
+ *   TypeError ERR_ENCODING_INVALID_ENCODED_DATA when fatal */
 static JSValue
 js_decoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   TextDecoder* dec;
@@ -243,10 +737,46 @@ js_decoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   switch(magic) {
     case DECODER_DECODE: {
-      InputBuffer in = js_input_chars(ctx, argv[0]);
-      BOOL stream = argc > 1 && js_get_propertystr_bool(ctx, argv[1], "stream");
+      const uint8_t* ptr;
+      size_t len, start = 0, end = 0;
+      BOOL stream = FALSE;
+      DynBuf db = DBUF_INIT_CTX(ctx);
+      JSValue buf;
+      int r;
 
-      ret = textdecoder_decode(dec, in, ctx);
+      if(argc > 1 && !JS_IsUndefined(argv[1]) && !JS_IsNull(argv[1])) {
+        if(!JS_IsObject(argv[1]))
+          return textcode_throw(ctx, FALSE, "ERR_INVALID_ARG_TYPE", "The \"options\" argument must be of type object");
+
+        stream = js_get_propertystr_bool(ctx, argv[1], "stream");
+      }
+
+      buf = textdecoder_input(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, &ptr, &len);
+      if(JS_IsException(buf))
+        return buf;
+
+      if(!dec->do_not_flush)
+        textdecoder_reset(dec);
+
+      dec->do_not_flush = stream;
+
+      switch((int)dec->type_code) {
+        case UTF8: r = textdecoder_utf8(dec, ptr, len, !stream, &db, &start, &end, ctx); break;
+        case UTF16LE:
+        case UTF16BE: r = textdecoder_utf16(dec, ptr, len, !stream, &db, ctx); break;
+        case UTF32LE:
+        case UTF32BE: r = textdecoder_utf32(dec, ptr, len, !stream, &db, ctx); break;
+        default: r = textdecoder_single(dec, ptr, len, &db, ctx); break;
+      }
+
+      if(r < 0) {
+        dec->do_not_flush = 0;
+        ret = JS_EXCEPTION;
+      } else
+        ret = textdecoder_string(dec, &db, ptr + start, end - start, ctx);
+
+      dbuf_free(&db);
+      JS_FreeValue(ctx, buf);
       break;
     }
   }
@@ -271,6 +801,8 @@ static JSClassDef js_decoder_class = {
 static const JSCFunctionListEntry js_decoder_methods[] = {
     JS_CFUNC_MAGIC_DEF("decode", 1, js_decoder_method, DECODER_DECODE),
     JS_CGETSET_ENUMERABLE_DEF("encoding", js_decoder_get, 0, DECODER_ENCODING),
+    JS_CGETSET_ENUMERABLE_DEF("fatal", js_decoder_get, 0, DECODER_FATAL),
+    JS_CGETSET_ENUMERABLE_DEF("ignoreBOM", js_decoder_get, 0, DECODER_IGNOREBOM),
     JS_CGETSET_MAGIC_DEF("endian", js_decoder_get, 0, DECODER_ENDIANNESS),
     JS_CGETSET_MAGIC_DEF("buffered", js_decoder_get, 0, DECODER_BUFFERED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TextDecoder", JS_PROP_CONFIGURABLE),
