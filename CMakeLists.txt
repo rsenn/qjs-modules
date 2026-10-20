@@ -396,8 +396,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate
-                    queue repeater textcode sockets stream syscallerror inspect tree-walker virtual xml yaml)
+set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list 
+                    location misc path pointer predicate
+                    queue repeater textcode sockets syscallerror inspect
+                    tree-walker virtual xml yaml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -1042,7 +1044,6 @@ module_depends(deep predicate pointer location)
 module_depends(inspect pointer)
 module_depends(json location)
 module_depends(lexer location)
-module_depends(blob stream)
 module_depends(tree-walker pointer)
 module_depends(xml pointer location inspect)
 module_depends(child-process pointer) # XXX: why?

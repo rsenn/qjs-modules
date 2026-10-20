@@ -44,7 +44,6 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 ### Streams & Async
 - [queue](queue.md) — FIFO queue
 - [repeater](repeater.md) — Async iteration utilities
-- [stream](stream.md) — WHATWG Streams API (ReadableStream, WritableStream, TransformStream)
 
 ### Virtual & Proxy
 - [virtual](virtual.md) — Virtual property system

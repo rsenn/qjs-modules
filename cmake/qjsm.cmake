@@ -726,8 +726,6 @@ message(STATUS "qjsm: resolving ${_bm_count} BUILTIN_MODULES entries against lib
 get_compiled_modules(COMPILED_MODULE_NAMES)
 get_native_modules(NATIVE_MODULES)
 
-list(FILTER NATIVE_MODULES EXCLUDE REGEX "^(stream)$")
-
 set_remove(COMPILED_MODULE_NAMES ${NATIVE_MODULES})
 
 set_intersection(BUILTINS_NATIVE NATIVE_MODULES BUILTIN_MODULES)
@@ -1344,7 +1342,7 @@ macro(qjsm_report_compat)
     message_table("compatibility: Web platform"
       "builtins" "globals"
       "provides" "globals (imported for its side effect)"
-      "rewrites" "Blob.prototype.stream() wrapped to return a full ReadableStream"
+      "rewrites" "none"
       "globals" "${_web_lines}")
   endif()
 endmacro(qjsm_report_compat)

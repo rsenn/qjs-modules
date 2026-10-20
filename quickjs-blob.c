@@ -1,9 +1,9 @@
 #include "defines.h"
 #include "quickjs-blob.h"
-#include "quickjs-stream.h"
 #include "utils.h"
 #include "js-utils.h"
 #include "buffer-utils.h"
+#include "stream-utils.h"
 #include "iteration.h"
 #include "debug.h"
 
@@ -57,6 +57,112 @@ blob_stream_finalizer(JSRuntime* rt, void* opaque) {
 
     js_free_rt(rt, input);
   }
+}
+
+typedef struct {
+  Reader reader;
+  size_t chunk_size;
+} ReaderSource;
+
+static void
+reader_source_finalizer(JSRuntime* rt, void* opaque) {
+  ReaderSource* rs = opaque;
+
+  reader_free(&rs->reader);
+  js_free_rt(rt, rs);
+}
+
+static void
+reader_source_buffer_free(JSRuntime* rt, void* opaque, void* ptr) {
+  js_free_rt(rt, ptr);
+}
+
+/* pull(controller): reads up to chunk_size bytes into a new Uint8Array and
+ * enqueues it, closes the stream at the end of the reader.
+ * returns what enqueue() or close() returns, or JS_EXCEPTION. */
+static JSValue
+reader_source_pull(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
+  ReaderSource* rs = opaque;
+  JSValueConst controller = argc > 0 ? argv[0] : JS_UNDEFINED;
+  JSValue fn, ret, chunk, buffer;
+  uint8_t* buf;
+  ssize_t n;
+
+  if(!(buf = js_malloc(ctx, rs->chunk_size)))
+    return JS_EXCEPTION;
+
+  if((n = reader_read(&rs->reader, buf, rs->chunk_size)) <= 0) {
+    js_free(ctx, buf);
+
+    if(n < 0)
+      return JS_ThrowInternalError(ctx, "Blob.stream(): read error");
+
+    fn = JS_GetPropertyStr(ctx, controller, "close");
+    ret = JS_Call(ctx, fn, controller, 0, 0);
+    JS_FreeValue(ctx, fn);
+    return ret;
+  }
+
+  buffer = JS_NewArrayBuffer(ctx, buf, n, reader_source_buffer_free, NULL, FALSE);
+  chunk = js_typedarray_new(ctx, 8, FALSE, FALSE, buffer);
+  JS_FreeValue(ctx, buffer);
+
+  fn = JS_GetPropertyStr(ctx, controller, "enqueue");
+  ret = JS_Call(ctx, fn, controller, 1, &chunk);
+  JS_FreeValue(ctx, fn);
+  JS_FreeValue(ctx, chunk);
+  return ret;
+}
+
+/**
+ * a ReadableStream over a Reader, chunk_size bytes per pull().
+ *
+ * ReadableStream comes from the stream module, the compiled lib/stream.js
+ * in qjsm, so the stream has pipeTo(), pipeThrough() and the rest.
+ *
+ *   JSContext*  ctx         the context
+ *   Reader      reader      the source, owned by the stream from here on
+ *   size_t      chunk_size  bytes per pull(), 0 for 64 KiB
+ *
+ *   returns JSValue         the stream, or JS_EXCEPTION with an exception
+ *                           pending (reader is freed then)
+ */
+static JSValue
+js_readable_stream_from_reader(JSContext* ctx, Reader reader, size_t chunk_size) {
+  JSValue ns, ctor, source, stream;
+  ReaderSource* rs;
+
+  if(!JS_IsObject(ns = js_module_namespace_sync(ctx, "stream"))) {
+    reader_free(&reader);
+    JS_FreeValue(ctx, ns);
+    return JS_ThrowReferenceError(ctx, "Blob.stream(): 'stream' module required");
+  }
+
+  ctor = JS_GetPropertyStr(ctx, ns, "ReadableStream");
+  JS_FreeValue(ctx, ns);
+
+  if(!JS_IsConstructor(ctx, ctor)) {
+    reader_free(&reader);
+    JS_FreeValue(ctx, ctor);
+    return JS_ThrowReferenceError(ctx, "Blob.stream(): no ReadableStream in the 'stream' module");
+  }
+
+  if(!(rs = js_mallocz(ctx, sizeof(ReaderSource)))) {
+    reader_free(&reader);
+    JS_FreeValue(ctx, ctor);
+    return JS_EXCEPTION;
+  }
+
+  rs->reader = reader;
+  rs->chunk_size = chunk_size ? chunk_size : 65536;
+
+  source = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, source, "pull", js_function_cclosure(ctx, reader_source_pull, 1, 0, rs, reader_source_finalizer));
+
+  stream = JS_CallConstructor(ctx, ctor, 1, (JSValueConst*)&source);
+  JS_FreeValue(ctx, source);
+  JS_FreeValue(ctx, ctor);
+  return stream;
 }
 
 JSValue

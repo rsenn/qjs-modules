@@ -202,7 +202,7 @@ All modules classified into four categories:
    - Examples: extendArray.js, extendMap.js, extendSet.js
 
 ### Overlap Resolution (Completed)
-**Decision:** Modules with both C and JS implementations (deep, pointer, predicate, stream, xml, misc, path):
+**Decision:** Modules with both C and JS implementations (deep, pointer, predicate, xml, misc, path):
 - Documented **ONLY in `doc/native/`** (C is primary/authoritative)
 - JS polyfills are alternative implementations for other runtimes
 - Avoids duplication and confusion
@@ -294,12 +294,12 @@ doc/
 │   ├── location.md, magic.md, misc.md, mmap.md
 │   ├── mysql.md, path.md, pgsql.md, pointer.md, predicate.md
 │   ├── queue.md, repeater.md, serial.md, sockets.md, sqlite.md
-│   ├── stream.md, syscallerror.md, textcode.md
+│   ├── syscallerror.md, textcode.md
 │   ├── tree-walker.md, virtual.md, xml.md
 │
 └── js/                           # JavaScript modules (46)
     ├── README.md
-    ├── Polyfills: abort.md, asyncIterator.md, events.md
+    ├── Polyfills: abort.md, asyncIterator.md, events.md, stream.md
     │              iterator.md
     │              parsel.md, describe.md
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md

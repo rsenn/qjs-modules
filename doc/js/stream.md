@@ -1,6 +1,6 @@
 # stream
 
-Source: `quickjs-stream.c` — WHATWG Streams implementation.
+Source: `lib/stream.js` — WHATWG Streams implementation, compiled into qjsm as the `stream` module.
 
 Module exports: **`ReadableStream`**, **`ReadableStreamDefaultReader`**,
 **`ReadableStreamBYOBReader`**, **`ReadableStreamDefaultController`**,

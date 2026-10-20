@@ -48,6 +48,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [fs](fs.md) — Node.js fs module (wraps native modules)
 - [fsPromises](fsPromises.md) — Promise-based fs API
 - [io](io.md) — I/O utilities
+- [stream](stream.md) — WHATWG Streams API (ReadableStream, WritableStream, TransformStream)
 - [streams](streams.md) — Stream utilities
 - [vfs](vfs.md) — Virtual filesystem
 - [inotify](inotify.md) — inotify wrapper

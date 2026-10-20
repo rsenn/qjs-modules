@@ -94,7 +94,7 @@ contains pure-JavaScript modules (`console`, `fs`, `process`, `repl`,
 | [serial](doc/native/serial.md) | `Serial`, `SerialPort`, `SerialError` | Serial ports via libserialport |
 | [sockets](doc/native/sockets.md) | `Socket`, `AsyncSocket`, `SockAddr`, … | BSD sockets, sync and async |
 | [sqlite](doc/native/sqlite.md) | `SQLite3`, `SQLite3Result`, `SQLite3Error` | SQLite3 client |
-| [stream](doc/native/stream.md) | `ReadableStream`, `WritableStream`, … | WHATWG-style streams |
+| [stream](doc/js/stream.md) | `ReadableStream`, `WritableStream`, … | WHATWG-style streams |
 | [syscallerror](doc/native/syscallerror.md) | `SyscallError` | Error class carrying syscall name + errno |
 | [textcode](doc/native/textcode.md) | `TextDecoder`, `TextEncoder` | UTF-8/UTF-16/UTF-32 transcoding |
 | [tree_walker](doc/native/tree-walker.md) | `TreeWalker`, `TreeIterator` | DOM-TreeWalker-style object traversal |

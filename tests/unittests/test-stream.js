@@ -5,12 +5,8 @@ import {
   ByteLengthQueuingStrategy,
   CountQueuingStrategy,
 } from '../../lib/stream.js';
-import { ReadableStream as NativeReadableStream } from 'stream';
 import { setTimeout, clearTimeout } from 'timers';
 import { assert, eq, tests } from '../../lib/tinytest.js';
-
-// Add QuickJS-specific fromReader extension to lib/stream.js's ReadableStream
-ReadableStream.fromReader = NativeReadableStream.fromReader;
 
 /* ---------- helpers ---------- */
 
@@ -57,12 +53,6 @@ async function collect(rs) {
   }
   reader.releaseLock();
   return out;
-}
-
-function decodeChunks(chunks) {
-  let s = '';
-  for(const chunk of chunks) for(const byte of chunk) s += String.fromCharCode(byte);
-  return s;
 }
 
 await tests({
@@ -619,49 +609,5 @@ await tests({
     await withTimeout(reader.cancel('nope'), 1000, 'byob cancel');
     const { done } = await withTimeout(pending, 1000, 'pending byob read after cancel');
     eq(done, true);
-  },
-
-  /* ==================== ReadableStream.fromReader() (native-source integration) ==================== */
-
-  async 'fromReader(): a string/buffer source is delivered as chunks that concatenate back to the original'() {
-    const rs = ReadableStream.fromReader('hello world', 4);
-    const chunks = await collect(rs);
-    assert(chunks.length > 1, 'a small chunkSize should split the input into multiple chunks');
-    eq(decodeChunks(chunks), 'hello world');
-  },
-
-  async 'fromReader(): a pull function fn(buf, len) -> bytesRead drives the stream'() {
-    const data = 'streamed-via-function';
-    let pos = 0;
-    const fn = (buf, len) => {
-      const view = new Uint8Array(buf);
-      let n = 0;
-      while(n < len && pos < data.length) view[n++] = data.charCodeAt(pos++);
-      return n;
-    };
-    const chunks = await collect(ReadableStream.fromReader(fn, 5));
-    eq(decodeChunks(chunks), data);
-  },
-
-  async 'fromReader(): an object exposing read(buf, len) as a method drives the stream'() {
-    const data = 'via-method-object';
-    let pos = 0;
-    const source = {
-      read(buf, len) {
-        const view = new Uint8Array(buf);
-        let n = 0;
-        while(n < len && pos < data.length) view[n++] = data.charCodeAt(pos++);
-        return n;
-      },
-    };
-    const chunks = await collect(ReadableStream.fromReader(source, 6));
-    eq(decodeChunks(chunks), data);
-  },
-
-  async 'fromReader(): delivered chunks are Uint8Array instances, not raw ArrayBuffers'() {
-    const rs = ReadableStream.fromReader('x', 16);
-    const reader = rs.getReader();
-    const { value } = await withTimeout(reader.read(), 1000, 'fromReader chunk type');
-    assert(value instanceof Uint8Array, 'chunk should be a Uint8Array');
   },
 });

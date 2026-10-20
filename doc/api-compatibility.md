@@ -319,20 +319,6 @@ directly for Bun-compatible code.
 
 **Notes:** Custom binding around libsqlite3; API shape (`query`/`exec`/`close`) is closer to Bun's `bun:sqlite` and Node's newer `node:sqlite` than to any WHATWG spec — cite those as the closest runtime precedent. See also `lib/sql.js` (doc/js/sql.md), which layers Bun's newer unified `bun:sql` tagged-template shape on top of this driver alongside `mysql`/`pgsql`.
 
-### quickjs-stream.c
-**Module:** `stream`  
-**Classification:** Standard (WHATWG)  
-**Spec:** https://streams.spec.whatwg.org/  
-**Exports:**
-- `ReadableStream` class - Asynchronous data source
-- `WritableStream` class - Asynchronous data sink
-- `TransformStream` class - Readable + Writable pair
-- `ByteLengthQueuingStrategy` - Queue based on byte length
-- `CountQueuingStrategy` - Queue based on chunk count
-
-**Browser Compatibility:** Chrome 52+, Firefox 65+, Safari 10.1+, Edge 16+  
-**Notes:** Implements core WHATWG Streams spec. Missing: `respondWithNewView()` safety checks for BYOB (Bring Your Own Buffer) readers - this is a known spec compliance gap tracked in TODO Tier 3.
-
 ### quickjs-syscallerror.c
 **Module:** `syscallerror`  
 **Classification:** Compatible (Node.js SystemError-style)  
@@ -990,9 +976,15 @@ silently hashing with an unavailable algorithm.
 **Module:** `stream`  
 **Classification:** Standard (WHATWG)  
 **Spec:** https://streams.spec.whatwg.org/  
-**Exports:** JS-side polyfill with the same surface as the native `stream` module - `ReadableStream`, `WritableStream`, `TransformStream`, queuing strategies
+**Exports:**
+- `ReadableStream` class - Asynchronous data source
+- `WritableStream` class - Asynchronous data sink
+- `TransformStream` class - Readable + Writable pair
+- `ByteLengthQueuingStrategy` - Queue based on byte length
+- `CountQueuingStrategy` - Queue based on chunk count
 
-**Notes:** Per project CLAUDE.md, this is "the qjs-lws version" — a ported streams polyfill for use on runtimes without the native module. Per the overlap-resolution policy, `quickjs-stream.c` (documented above) is authoritative.
+**Browser Compatibility:** Chrome 52+, Firefox 65+, Safari 10.1+, Edge 16+  
+**Notes:** Implements core WHATWG Streams spec. Missing: `respondWithNewView()` safety checks for BYOB (Bring Your Own Buffer) readers - this is a known spec compliance gap tracked in TODO Tier 3.
 
 ### lib/streams.js
 **Module:** `streams`  
