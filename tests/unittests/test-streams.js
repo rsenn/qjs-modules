@@ -65,4 +65,58 @@ tests({
   async 'TextDecoderStream is exported'() {
     eq('function', typeof TextDecoderStream);
   },
+
+  async 'TextDecoderStream joins a character split across chunks, skips empty ones'() {
+    const stream = new TextDecoderStream();
+    const writer = stream.writable.getWriter();
+    const reader = stream.readable.getReader();
+    const chunks = [];
+    const read = (async () => {
+      for(let r; !(r = await reader.read()).done; ) chunks.push(r.value);
+    })();
+
+    for(const bytes of [[0x61, 0xe2], [], [0x82], [0xac, 0x62]]) await writer.write(new Uint8Array(bytes));
+
+    await writer.close();
+    await read;
+    eq('a,\u20acb', chunks.join());
+  },
+
+  async 'TextDecoderStream ends an incomplete sequence with U+FFFD'() {
+    const stream = new TextDecoderStream();
+    const writer = stream.writable.getWriter();
+    const reader = stream.readable.getReader();
+
+    writer.write(new Uint8Array([0x61, 0xe2, 0x82]));
+    writer.close();
+    eq('a', (await reader.read()).value);
+    eq('\ufffd', (await reader.read()).value);
+    assert((await reader.read()).done);
+  },
+
+  async 'TextDecoderStream options and getters, fatal errors the stream'() {
+    const stream = new TextDecoderStream('latin1', { ignoreBOM: true });
+
+    eq('windows-1252,false,true', [stream.encoding, stream.fatal, stream.ignoreBOM].join());
+
+    const fatal = new TextDecoderStream('utf-8', { fatal: true });
+    const writer = fatal.writable.getWriter();
+    const reader = fatal.readable.getReader();
+
+    writer.write(new Uint8Array([0xff])).catch(() => {});
+
+    try {
+      await reader.read();
+      assert(false, 'no error');
+    } catch(e) {
+      assert(e instanceof TypeError, e);
+    }
+
+    try {
+      new TextDecoderStream('nope');
+      assert(false, 'no RangeError');
+    } catch(e) {
+      assert(e instanceof RangeError, e);
+    }
+  },
 });

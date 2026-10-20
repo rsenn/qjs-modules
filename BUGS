@@ -1033,14 +1033,6 @@
     qjsm -e "import('fs').then(fs => console.log(fs.readFileSync('/proc/self/status', 'utf8').length))"
     # 0, node: about 1500
 
-- textdecoderstream-errors-on-empty-chunk: lib/streams.js TextDecoderStream
-  decodes each chunk without stream: true, so a character split across
-  chunks turns into U+FFFD, it calls ctl.error() when a chunk decodes to an
-  empty string, and it logs every chunk with console.log. Found 2026-10-20.
-
-    chunks [0xe2] then [0x82, 0xac] give '\ufffd\ufffd\ufffd', node '\u20ac'
-    an empty Uint8Array chunk errors the stream, node skips it
-
 - io-getline-destructures-string: lib/io.js IOReadDecorator.getline()
   destructures the decoded string as [code, len] and passes the first
   character to String.fromCodePoint, which throws RangeError for a letter
