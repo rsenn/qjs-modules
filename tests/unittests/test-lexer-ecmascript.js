@@ -48,6 +48,31 @@ tests({
     eq('keyword:let,whitespace: ,identifier:y,whitespace: ,punctuator:=,whitespace: ,numericLiteral:2,punctuator:;', scan('let y = 2;').join());
   },
 
+  'a slash after an operand is division'() {
+    const lexemes = src => scan(src).filter(t => !t.startsWith('whitespace:'));
+
+    eq('identifier:b,punctuator:/,identifier:c,punctuator:/,identifier:d', lexemes('b / c / d').join());
+    eq('punctuator:),punctuator:/,numericLiteral:2', lexemes('(1) / 2').slice(-3).join());
+    eq('punctuator:],punctuator:/', lexemes('a[0] / 2').slice(-3, -1).join());
+    eq('keyword:this,punctuator:/', lexemes('this / 2').slice(0, 2).join());
+    eq('punctuator:++,punctuator:/', lexemes('i++ / 2').slice(1, 3).join());
+  },
+
+  'a slash where an operand starts is a regex'() {
+    for(const src of ['x = /re/g', 'return /re/', 'f(/re/)', '{} /re/', 'if(x) /re/', 'while(f(a)) /re/'])
+      assert(scan(src).some(t => t.startsWith('regexpLiteral:/re/')), src);
+  },
+
+  'a brace inside a template substitution does not end it'() {
+    eq('templateLiteralHead:`a${,punctuator:{,identifier:b,punctuator::,numericLiteral:1,punctuator:},punctuator:.,identifier:b,nestedEnd:},templateLiteralTail:c`', scan('`a${{b:1}.b}c`').join());
+  },
+
+  'division inside a template substitution and after a template'() {
+    const tokens = scan('`a${x / 2}b` / 3');
+
+    assert(!tokens.some(t => t.startsWith('regexpLiteral')), tokens.join('|'));
+  },
+
   'a regex literal inside a template substitution'() {
     const tokens = scan('`${a.replace(/\\/+$/, "")}`');
 

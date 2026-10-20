@@ -975,3 +975,44 @@
     // expected: SyntaxError at 2:5
     // actual: no error, p.root holds a repaired tree
 
+
+- resolve-imports-use-strict-ends-import-scan: utilities/resolve-imports.js
+  stops collecting imports at the first `;` that is not part of an
+  import (line 2161 sets doneImports), so a file that starts with a
+  "use strict"; directive has none of its imports followed by
+  --recursive. Every file of commonmark.js starts that way. The same pass
+  also does not follow `export { default as X } from './x.js'`, and
+  --remove-exports keeps the export keywords of the inlined files.
+
+    printf '"use strict";\nimport { a } from "./b.js";\n' > /tmp/a.js
+    printf 'export const a = 1;\n' > /tmp/b.js
+    resolve-imports.js --recursive --print-files -o /dev/null /tmp/a.js
+    # prints only /tmp/a.js, without the directive also /tmp/b.js
+
+- lexer-eof-false-after-last-token: for a string input, Lexer.next()
+  returns null once the input is consumed, but lexer.eof stays false,
+  so a loop on !lexer.eof never ends (doc/native/lexer.md says eof is
+  true once everything was consumed).
+
+    import { Lexer } from 'lexer';
+    const l = new Lexer('ab', Lexer.LONGEST);
+    l.addRule('t', /[a-z]+/);
+    l.next(); console.log(l.next(), l.eof);   // null false
+
+- qjsm-no-atob-btoa: qjsm has no WHATWG atob/btoa globals (and no
+  Buffer), so npm packages that decode base64 tables at import time fail,
+  e.g. entities 7: ReferenceError: 'Buffer' is not defined in
+  decodeBase64. lib/node/buffer.js is the only base64 code in lib/.
+
+    qjsm -e 'console.log(typeof atob, typeof btoa)'   # undefined undefined
+
+- lexer-cpp-no-continuation-token: test-lexer-cpp.js 'an escaped newline
+  continues the directive' fails: lib/lexer/c.js lexes the backslash of a
+  continued #define line as no token at all, the test expects a
+  pp_continuation token between pp_identifier:A and pp_number:1. Found
+  2026-10-20 while running the lexer tests for lib/lexer/ecmascript.js,
+  fails the same with that change undone.
+
+    cd tests/unittests && qjsm test-lexer-cpp.js
+    # 'pp_hash:#,pp_directive:define,pp_identifier:A,pp_number:1,...'
+    # expected '...,pp_identifier:A,pp_continuation:\,pp_number:1,...'

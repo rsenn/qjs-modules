@@ -1874,7 +1874,7 @@ onExit }` → `Subprocess` (`pid`, `exited`, `exitCode`, `signalCode`, `kill()`,
 | --- | --- |
 | `Bun.serve`, `Bun.fetch`, `Bun.connect`, `Bun.listen`, `Bun.udpSocket`, `Bun.WebSocket` | `../qjs-lws/` (`lib/serve.js`, `lib/tcpsocket.js`, `lib/udpsocket.js` already target these names; wire `Bun.*` there, not here) |
 | `Bun.FFI` / `bun:ffi` | `../qjs-ffi/` |
-| `Bun.Transpiler`, `Bun.build`, `Bun.markdown`, `Bun.Image` | needs a transpiler/bundler/renderer the engine does not have |
+| `Bun.Transpiler`, `Bun.build`, `Bun.Image` | needs a transpiler/bundler/renderer the engine does not have (`Bun.markdown`: Tier 25) |
 | `Bun.S3Client`, `Bun.s3`, `Bun.redis`, `Bun.RedisClient`, `Bun.secrets`, `Bun.Cookie/CookieMap`, `Bun.CSRF`, `Bun.cron`, `Bun.WebView`, `Bun.Terminal`, `Bun.FileSystemRouter`, `Bun.embeddedFiles`, `Bun.openInEditor`, `Bun.generateHeapSnapshot`, `Bun.shrink`, `Bun.unsafe` | no user, no standard target; decide only when a script asks |
 
 ## Event model: `json` and `xml` alike (plan 2026-10-17)
@@ -2239,7 +2239,7 @@ to the file, `FileSink.start()`, `BunFile.watch`, `Bun.write` of a sliced BunFil
 | `dns.lookup`, `dns.prefetch`, `dns.getCacheStats` | no `getaddrinfo` binding in `sockets` | add to `sockets` |
 | `serve`, `fetch`, `connect`, `listen`, `udpSocket` | HTTP/TCP/UDP stack | `../qjs-lws/` (`lib/serve.js`, `tcpsocket.js`, `udpsocket.js`); wire `Bun.*` there, not here |
 | `FFI` | FFI | `../qjs-ffi/` |
-| `Transpiler`, `build`, `markdown`, `Image`, `registerMacro` | no transpiler, bundler, markdown or image engine | out of scope; `plugin()` already throws `TypeError` for loaders that need one |
+| `Transpiler`, `build`, `Image`, `registerMacro` | no transpiler, bundler or image engine (`markdown`: Tier 25) | out of scope; `plugin()` already throws `TypeError` for loaders that need one |
 | `S3Client`, `s3`, `RedisClient`, `redis`, `secrets` | S3/Redis clients, OS keychain | out of scope (network/credential stores) |
 | `Cookie`, `CookieMap`, `CSRF` | cookie model, HMAC (needs digests) | pure JS possible later (WHATWG-style cookie parsing); `CSRF` needs the digest module |
 | `cron`, `WebView`, `Terminal`, `FileSystemRouter`, `embeddedFiles`, `openInEditor`, `generateHeapSnapshot`, `shrink`, `unsafe`, `jest`, `isStandaloneExecutable` | runtime-specific (scheduler, browser, pty, bundle, heap) | no standard target; skip, `isStandaloneExecutable` could be `false` |
@@ -2926,3 +2926,405 @@ Survey Bun, Node and Deno (`node -e`, `bun -e`, `deno eval`) before writing any 
 
 Not a compatibility item, kept for later: `loaders/mock` (`mock.module(specifier, factory)` like `node:test`) for tinytest.
 Out of scope here: `http(s):` imports need fetch, which lives in `../qjs-lws`.
+
+## Tier 25 — CommonMark parser: `lib/lexer/markdown.js` + `lib/parser/markdown.js`, `Bun.markdown` (planned 2026-10-20)
+
+Target: `Bun.markdown.html(src)` and `Bun.markdown.render(src, callbacks)` (Bun 1.4.2, probed); Node and Deno have none.
+Pure CommonMark 0.31.2 first; the GFM extensions Bun enables (tables, `~~strike~~`, task lists, extended autolinks) are
+a follow-up against the GFM spec. `ansi` and `react` are out of scope.
+
+| File | Holds |
+| --- | --- |
+| `lib/lexer/markdown.js` | `MarkdownLexer extends Lexer` (inline tokens), `MarkdownBlockRules` (line-start regexes), entity decoding; no structure |
+| `lib/parser/markdown.js` | `MarkdownParser`: block phase, inline phase, AST (commonmark.js node types), `{ entering, node }` walker |
+| `lib/markdown.js` | `Markdown.html(src)`, `Markdown.render(src, callbacks)`; `lib/bun.js` wires it as `Bun.markdown` |
+
+Split rule, verified against the native `lexer`:
+
+- container prefixes (`>  - `) and tab stops at partial columns (spec 2.2) need column arithmetic: parser, not lexer
+- the lexer's regex has no `\p{...}`: `/[\p{P}\p{S}]/u` matched `a.b` as one word, so left/right-flanking checks of
+  delimiter runs use JS regexes in the parser
+- inline tokens: `escape`, `hardbreak`, `softbreak`, `backticks`, `delim` (`*`/`_` runs), `linkOpen`, `imageOpen`,
+  `bracketClose`, `parenOpen/Close`, `autolink`, `htmlInline`, `entity`, `text` (fallback for a lone `<` or `&`)
+- block rules: ATX heading, setext underline, thematic break, fence open/close, bullet and ordered list markers, `>`,
+  blank, link reference definition start, the 7 HTML block start/end conditions
+
+`render()` callbacks and meta, as Bun passes them (bottom-up, `(children, meta)`):
+`heading {level}`, `code {language}`, `list {ordered, start, depth}`, `listItem {index, depth, ordered, start, checked}`,
+`link {href, title}`, `image {src, title}`, `paragraph`, `blockquote`, `hr`, `emphasis`, `strong`, `codespan`, `text`.
+
+| Step | Work | Verify |
+| --- | --- | --- |
+| M1 | lexer + entity table | token dumps; spec section "Entity and numeric character references" passes |
+| M2 | block phase (containers, lazy continuation, setext, link ref defs, tight/loose lists) | block sections of the spec pass |
+| M3 | inline phase (code spans, delimiter + bracket stack, rule of 3, destinations/titles, label normalization) | whole spec passes |
+| M4 | `lib/markdown.js`, `Bun.markdown` in `lib/bun.js` | `render()` callback tests; diff with `bun` HTML on the spec inputs (bun is md4c: a diff is a finding) |
+| M5 | `doc/js/markdown.md`, `doc/js/bun.md` section, `cmake/qjsm.cmake` compatibility line | — |
+
+Test: `tests/unittests/test-markdown.js` (tinytest, not `@portable`: needs the native `lexer`), pass counts per spec
+section.
+
+### Findings 2026-10-20: reuse commonmark.js instead of writing the parser
+
+commonmark.js (`github.com/commonmark/commonmark.js`, BSD-2, 0.31.2-18-g8988869, the spec's reference implementation) was
+cloned and tried on qjsm, node and bun. Everything below was run, not read.
+
+| Question | Result |
+| --- | --- |
+| size | `lib/` 3233 lines, 9 ES modules (`blocks.js` 1045, `inlines.js` 1084, `node.js`, `common.js`, `render/{renderer,html,xml}.js`) |
+| dependencies | `entities` ~7 (only `decodeHTMLStrict`: `decode.js` + generated trie, about 60 KB) and `mdurl` ~1 (only `encode.js`, 2 KB, CommonJS) |
+| spec and entities | the repo ships `test/spec.txt` (652 examples), `regression.txt`, `smart_punct.txt`; `entities` has the full HTML5 table. Both questions above are answered by the submodule, nothing to download separately |
+| conformance on qjsm | 652/652 spec examples pass (bun-bundled ESM plus an `atob` shim) |
+| speed, parse + render | 1108 KB x3: qjsm 2149 + 463 ms (about 1.5 MB/s parse), node 173 + 50 ms, bun about 0.7x node. Roughly half of qjsm's parse time is the block phase, half the inline phase |
+| qjsm gap | `entities` unpacks its trie with `atob` or `Buffer`: qjsm has neither global, `ReferenceError: 'Buffer' is not defined` at import. WHATWG `atob`/`btoa` are missing globals in qjsm, worth adding on their own |
+
+**Amalgamating with `resolve-imports.js --recursive --remove-exports`: not usable yet.** Run from the clone with
+`-M entities=... -M mdurl/encode.js=...` and an entry file of plain `import`s:
+
+- `"use strict";` as the first statement ends the import scan (`utilities/resolve-imports.js:2161`, the first `;` outside an
+  import sets `doneImports`). Every commonmark.js file starts with it, so only the entry's direct imports were inlined. With
+  the line stripped all 21 files are found (186 KB output)
+- `export { default as X } from './x.js'` re-exports in the entry file are not followed
+- `--remove-exports` leaves the `export` keywords of the inlined files (`export default Node;`, `export function`,
+  `export { ... } from`): 44 remain, qjsm: `SyntaxError: duplicate exported name 'decodeCodePoint'`
+- no scope isolation or renaming: with every `export` stripped, 17 top-level names still collide across files (`tag`,
+  `out`, `cr`, `text`, `render` in the two renderers, `fromCodePoint`, `encode`, `C_NEWLINE`, `reHtmlTag`,
+  `unescapeString`, ...)
+- CommonJS input is copied as is (`module.exports = encode;` from mdurl 1.x)
+
+`bun build lib/index.js --format=esm` does it correctly (114 KB, 75 KB minified). Options, cheapest first:
+
+1. no amalgamation: submodule `third_party/commonmark.js`, install `lib/*.js` as `lib/commonmark/` unchanged, resolve
+   `entities` to its `decode.js` and `mdurl/encode.js` to a 10-line ESM copy. qjsm loads 9 files instead of 1
+2. a checked-in bundle made by `bun build`, regenerated when the submodule moves
+3. teach resolve-imports a bundle mode: directive prologue before imports, follow re-exports, strip `export` in inlined
+   files, wrap each module in a function scope (or rename collisions), CJS `module.exports` to a default. Fixes the tool
+   for every other vendored lib too, but is the most work
+
+**Using the native `lexer` for speed: no gain.** commonmark.js already scans with regexes on the subject string:
+
+| 1999 KB, commonmark.js's inline split (text run, newline, special char) | 732260 tokens |
+| --- | --- |
+| `Lexer.next()`, ids only | 226 ms |
+| one JS sticky regex `/...|...|.../gy` | 198 ms |
+| `for(const tok of lexer)` reading `tok.lexeme` | 674 ms |
+
+Both run libregexp, and the JS-to-C call per token costs as much as the match. Replacing commonmark's `match()`
+(`re.exec(subject.slice(pos))`) with a cached sticky/global regex at `lastIndex` also changed nothing on qjsm (2149 vs
+2358 ms, noise): the time goes to the per-character JS logic (container matching, delimiter stack, node allocation), which a
+tokenizer does not replace. So `lib/lexer/markdown.js` as a speed-up is dropped: it would only pay if the block or inline
+phase itself ran in C.
+
+**The fast path is a native engine, and Bun already chose it.** Bun's option names (`tables`, `strikethrough`, `tasklists`,
+`wikiLinks`, `latexMath`, `underline`, `permissiveAtxHeaders`, `noIndentedCodeBlocks`, `noHtmlBlocks`, `noHtmlSpans`,
+`collapseWhitespace`, `hardSoftBreaks`) are md4c's `MD_FLAG_*` set, and md4c's SAX-style callbacks (`enter_block`,
+`leave_block`, `enter_span`, `leave_span`, `text`) are exactly a push source in `doc/api-event-model.md` terms and
+exactly what `Bun.markdown.render()` feeds its callbacks from. md4c is MIT, one C file of about 6k lines, CommonMark 0.31
+from 0.5.x (Debian here has `libmd4c0` 0.4.8, no headers). Fits "engines in C, APIs in `lib/`": `quickjs-markdown.c`
+exports the push source, `lib/markdown.js` builds `html`/`render` on it, and the output matches Bun's byte for byte.
+
+**Revised recommendation** (replaces steps M1-M3 above if accepted):
+
+| Path | Speed on qjsm | Work | Matches Bun |
+| --- | --- | --- | --- |
+| A: commonmark.js as `lib/commonmark/` (option 1) + `lib/markdown.js` glue | about 1.5 MB/s | small: submodule, two shims, glue, spec test from `test/spec.txt` | CommonMark yes, GFM no (no tables, strikethrough, task lists) |
+| B: md4c as a native engine + `lib/markdown.js` glue | C speed | binding + event adapter | yes, including the GFM flags |
+| own parser (the plan above) | at best A's speed | largest | CommonMark only, until GFM is written too |
+
+Start with A (it works today, 652/652). Take B when speed or the GFM flags matter. Either way the own lexer/parser pair
+is not needed. The `lib/lexer/markdown.js` / `lib/parser/markdown.js` split stays an option only as a goal-3 exercise
+(lexer/parser toolkit), not for speed or conformance.
+
+## Tier 26 — `lib/module-lexer.js`: one scanner for ES module and CommonJS imports/exports (plan 2026-10-20)
+
+`utilities/resolve-imports.js` (2437 lines) is a bundler, an import lister/checker and an import merger in one file,
+with its own import/export parser inlined. That parser is the reusable part. Factor it out into `lib/` as **one core
+scanner** in JS that reports ES module syntax and CommonJS `require`/`exports` in one record shape. CommonJS export
+detection follows the rules of **merve**, the lexer Node 26 uses for it (the rules, not the code: merve is C++, this
+project is C only). **Thin adapters** give the core the API surfaces existing code calls: merve's, es-module-lexer's,
+cjs-module-lexer's and Bun's `Transpiler.scan`/`scanImports`. The same records feed listing, checking, merging,
+pruning and CommonJS → ES module conversion. Plan only, nothing written yet.
+
+### What the current parser gets wrong (run 2026-10-20, `qtool resolve-imports --list-imports -q`)
+
+- **It stops at the first statement that is not an import/export** (`doneImports` in `ProcessFile`,
+  `resolve-imports.js:2161`): `import a from './x.js'; const z = 1; import b from './y.js';` lists only `x.js`.
+- **No CommonJS at all**: `require('./cjs.js')`, `require.resolve(...)` are not seen.
+- **No dynamic import**: `import('./dyn.js')` is skipped on purpose (`imp[1].lexeme != '('`, line 2185).
+- **Declarations are not exports**: only `export { ... }`, `export * ...` and `export name` are collected
+  (line 2149), so `export const g`, `export function`, `export class` are missing.
+- **Duplicated**: `utilities/list-exports.js:124-160` carries its own copies of `ImportFile`, `ExportName`,
+  `ImportType`. `~/Sources/plot-cv/resolve-imports.js` is an older copy of the whole tool.
+
+### Survey (probed 2026-10-20)
+
+| Runtime / library | API | Returns | Lacks |
+| --- | --- | --- | --- |
+| Bun 1.4.2 | `new Bun.Transpiler({ loader: 'js' }).scanImports(src)` | `[{ kind, path }]`, kind is `import-statement`, `require-call`, `require-resolve`, `dynamic-import` | bindings, ranges, exports; `export … from` counts as `import-statement` |
+| Bun 1.4.2 | `.scan(src)` | `{ exports: ['default', 'f', 'g', 'w'], imports }` | in a file with module syntax the `require-call` entries are dropped; `export *` adds no name |
+| merve 1.2.2 (github.com/nodejs/merve, C++20; vendored in Node 26 as `deps/merve`, `process.versions.merve`) | C++ `lexer::parse_commonjs(std::string_view)`; C `merve_parse_commonjs(input, length, &err_loc)` with `merve_get_export_name/_line`, `merve_get_reexport_name/_line`, `merve_get_last_error`, `merve_get_version`; Rust crate `merve::parse_commonjs(&str) -> Result<Analysis, LocatedLexerError>` | `{ exports: [{ name, line }], re_exports: [{ name, line }] }`, lines 1-based; on failure a `lexer_error` (`UNEXPECTED_ESM_IMPORT`, `UNTERMINATED_STRING_LITERAL`, ...) and an `error_location { line, column }` (column in bytes) | imports, offsets; ES module syntax is an error by design |
+| cjs-module-lexer 2.3.0 (npm; Node 23's internal CJS lexer; 1.2.3 in Debian's `/usr/share/nodejs`) | `init(): Promise<void>`, `initSync()`, `parse(source, name?)` (1.2.3 has no `initSync`) | `{ exports: ['k', 'm', 'n'], reexports: ['./re.js'] }` | imports |
+| es-module-lexer 3.0.4 (npm, Vite) | `init` (a Promise, not a function), `parse(source, name?)` | `[imports, exports, facade, hasModuleSyntax]`; import `{ type, specifier, start, end, importStart, importEnd, dynamicStart?, attributes, attributesStart, phase, glob?, typeOnly }`; export `{ type, name, localName?, start, end, localStart?, localEnd?, importName?, importNameStart?, importNameEnd?, from?, importIndex?, exportStart, typeOnly }` | import bindings, CommonJS |
+| Node 26.11 | no public scanner. Internally `internalBinding('cjs_lexer').parse(src)` (merve, reachable with `--expose-internals`) returns `[Set(names), reexports[]]`, and `[Set(), []]` for a syntax error or an ES module instead of throwing | — | public API |
+| Deno 2 | `deno info --json` (CLI only) | module graph: `specifier`, resolved `code.specifier`, `span`, `isDynamic` | bindings, exports |
+
+Probed facts:
+
+- Neither `es-module-lexer` nor `cjs-module-lexer` is a Node builtin (23.11 and 26.11): `import()` of either fails
+  with `ERR_MODULE_NOT_FOUND` without a `node_modules`, and the `node:` forms fail with `ERR_UNKNOWN_BUILTIN_MODULE`.
+  Bun resolves them by auto-installing them into `~/.bun/install/cache`, which is where 3.0.4 and 2.3.0 come from.
+- On Node 26, `import * as m from './c.cjs'` gives `['default', 'k', 'm', 'module.exports', 'n', 'x']`: merve's
+  names, a `'module.exports'` key, and the names of the re-exported `./re.js`, resolved recursively
+  (`lib/internal/modules/esm/translators.js`).
+- merve unescapes names (`exports['ab']` is `ab`) and finds `__esModule` from `Object.defineProperty`. It skips
+  non-identifier keys of `module.exports = { 'w-x': 1 }`.
+- es-module-lexer 3.0.4 offsets:
+  - a static specifier's `start`/`end` exclude the quotes, a dynamic one's include them (the whole argument)
+  - `dynamicStart` is the `(`, and an `import.meta` record spans `import.meta`
+  - `export default function h` has `start`/`end` on `default` and `localStart`/`localEnd` on `h`
+  - a template literal with substitutions gives `specifier: './a*.js', glob: true`
+
+Conclusions:
+
+- **CommonJS exports: merve's rules** (the patterns Node 26 detects, and its names for errors). The core implements
+  them in JS, with Node 26's internal binding as the test oracle.
+- **Imports: Bun's `kind` vocabulary**, the only standard one.
+- **No runtime reports bindings** (which imported name is bound to which local). Merging, pruning unused names and
+  CJS ↔ ESM conversion need them: that is the one custom part.
+- **Compatible API surfaces, one core**: merve's shape for whoever ports code from Node internals or the Rust crate,
+  es-module-lexer 3 and cjs-module-lexer 2 under their npm names so node scripts that install them run on qjsm
+  without them, and `Bun.Transpiler`. Each adapter is a field mapping and a filter.
+- `lib/lexer/ecmascript.js` sits on the native `lexer` module, so the core and its adapters are qjsm-only. They are
+  checked against Node 26, the two npm packages and Bun with recorded expected output (below).
+
+### Files
+
+| File | Holds | Size goal |
+| --- | --- | --- |
+| `lib/module-lexer.js` | the core: `parse()`, `print()`; ES module syntax, `require` calls and merve's CommonJS export rules | the only file that touches tokens |
+| `lib/merve.js` | adapter: `parseCommonJS`, `version` in merve's shape | ~30 lines, no tokens |
+| `lib/es-module-lexer.js` | adapter: `init`, `parse` with es-module-lexer 3's tuple and field names | ~60 lines, no tokens |
+| `lib/cjs-module-lexer.js` | adapter: `init`, `initSync`, `parse` with cjs-module-lexer 2's `{ exports, reexports }` | ~30 lines, no tokens |
+| `lib/bun.js` | adapter: `Bun.Transpiler` with `scan`, `scanImports`, in the existing Bun layer | ~40 lines added |
+| `lib/cjs-to-esm.js` | `toModule(source)`: CommonJS → ES module, built on `parse` and `print` | step 6 |
+| `utilities/resolve-imports.js`, `utilities/list-exports.js` | the tools, ported onto `parse`/`print`, without their own parsers | |
+| `tests/unittests/test-module-lexer.js` | the core, by record | |
+| `tests/unittests/test-merve.js`, `test-es-module-lexer.js`, `test-cjs-module-lexer.js`, `test-bun.js` | adapters vs recorded output | |
+| `tests/fixtures/module-lexer/*.js`, `*.expected.json` | inputs, and what each reference returns for them | |
+| `utilities/gen-module-lexer-expected.mjs` | records the references (see step 3), like `gen-path-golden.mjs` | |
+| `doc/js/module-lexer.md` | the core API, the record tables below, one section per adapter | |
+| `doc/js/bun.md` | the `Bun.Transpiler` entry | |
+
+The bare names `es-module-lexer` and `cjs-module-lexer` are the npm package names, so `import { parse } from
+'cjs-module-lexer'` in a script written for node (with the package installed there) runs unchanged on qjsm without
+one. `merve` has no JS package anywhere; the name only marks the API shape. Register the four the way the other
+`lib/*.js` modules are installed and found (check how `lib/jsonl.js` is wired before adding them).
+
+### The core (`lib/module-lexer.js`)
+
+Rule: **the core reports everything any adapter needs**, so an adapter never scans again. The core always runs both
+detections, ES module and CommonJS (cjs-module-lexer and merve report CommonJS exports of any source, Bun's
+`scanImports` reports `require` in a module). It keeps ranges for names and specifiers, and lines for merve.
+
+```js
+import { parse, print } from 'module-lexer';
+
+const { format, facade, imports, exports, error } = parse(source);
+print(imports[0], 'module');     // "import { a, b as c } from './x.js';"
+print(imports[0], 'commonjs');   // "const { a, b: c } = require('./x.js');"
+```
+
+Result:
+
+| key | holds |
+| --- | --- |
+| `format` | `'module'` when the source has import/export statements or `import.meta`, else `'commonjs'` |
+| `facade` | `true` when the source is nothing but import/export statements (es-module-lexer's facade flag) |
+| `imports` | import records, in source order |
+| `exports` | export records, in source order, ES and CommonJS alike |
+| `error?` | the first lexing error: `{ code, line, column }`, code named as merve's `lexer_error` (`UNTERMINATED_STRING_LITERAL`, ...) |
+
+Import record:
+
+| key | holds |
+| --- | --- |
+| `kind` | Bun's `import-statement`, `dynamic-import`, `require-call`, `require-resolve`, plus `import-meta` |
+| `path` | specifier value, escapes decoded (`'./x.js'`), `null` when not a literal (`import(p + '.js')`) |
+| `glob?` | for a template literal with substitutions, the pattern with `*` per substitution: `./a*.js` |
+| `bindings` | `[{ imported, local }]`, imported is a name, `'default'` or `'*'`; empty for `import './side.js'` and dynamic ones |
+| `reexport?` | `true` for `export … from`, which also yields export records |
+| `range` | `[start, end]` of the statement, call or `import.meta` |
+| `pathRange` | `[start, end]` of the specifier without quotes, or of the argument expression when it is not a literal |
+| `callStart?` | the `(` of a dynamic import |
+| `attributes?` | `[start, end]` of `with { … }`, or of the second `import()` argument |
+| `line` | 1-based line of `range[0]` |
+
+```js
+import a, { b as c } from './x.js'    // bindings: [{ imported: 'default', local: 'a' }, { imported: 'b', local: 'c' }]
+const { p, q: r } = require('path')   // kind: 'require-call', bindings: [{ imported: 'p', local: 'p' }, { imported: 'q', local: 'r' }]
+const m = require('./m.js')           // bindings: [{ imported: 'default', local: 'm' }]  (module.exports is the default under Node's interop)
+```
+
+Export record:
+
+| key | holds |
+| --- | --- |
+| `kind` | `declaration`, `list`, `default`, `reexport`, `commonjs` |
+| `name` | exported name, `'default'`, or `'*'` for `export * from` and a CommonJS re-export |
+| `local` | local binding, `null` for `export default <expr>` and re-exports |
+| `imported?` | for a re-export, the name in the other module (`e` in `export { e as f } from`), `null` for `export * as w` |
+| `path?` | specifier of a re-export |
+| `importIndex?` | for a re-export, the index of its record in `imports` |
+| `range`, `nameRange`, `localRange?`, `importedRange?` | `[start, end]` of the statement, the exported name (the `default` keyword for a default export), the local name, the imported name |
+| `line` | 1-based line of `nameRange[0]` |
+
+Offsets are UTF-16 indices into the source string, as `source.slice(s, e)` uses them on node and bun. An ArrayBuffer
+source is decoded first. The lexer's `Location.charOffset` counts characters: check it on a non-BMP character
+before relying on it, and convert if it counts code points. merve's error `column` counts bytes: the core reports
+it in UTF-16 units like everything else, and the `merve` adapter converts back.
+
+CommonJS exports follow merve 1.2.2's rules (`include/merve/parser.h`, `src/parser.cpp`):
+
+- `exports.x =`, `exports['x'] =`, `module.exports.x =`, `Object.defineProperty(exports, 'x', …)`
+- the identifier keys of `module.exports = { a, b: c }`
+- re-exports: `module.exports = require('y')`, `{ ...require('y') }`, `__export(require('y'))`,
+  `__exportStar(require('y'), exports)`, `Object.keys(require('y')).forEach(…)`
+- names unescaped (`\u{XXXX}`, surrogate pairs), `__esModule` found like any other name
+
+Like merve, no scope analysis: a local variable named `require` still counts.
+
+### Adapters
+
+| Adapter | Imports | Exports | Other |
+| --- | --- | --- | --- |
+| `merve` `parseCommonJS(source)` | — | `commonjs` records → `exports: [{ name, line }]`, `'*'` ones → `reexports: [{ name: path, line }]` | `format == 'module'` or `error` throws SyntaxError with `code` (`UNEXPECTED_ESM_IMPORT`, ...), `line`, `column` (bytes); `version` is the merve version whose rules are followed, `'1.2.2'` |
+| cjs-module-lexer `parse` | — | `commonjs` records: unique names → `exports`, `path` of `'*'` → `reexports` | `init` resolves at once, `initSync` does nothing; error behaviour pinned from the recorded output |
+| es-module-lexer `parse` | not `require-*`; `type` = `static`, `dynamic`, `import-meta`, or `reexport-star` for `export * from`; `specifier` = `glob ?? path`, `glob` = `!!glob`; `start`/`end` = `pathRange`; `importStart`/`importEnd` = `range`; `dynamicStart` = `callStart`; `attributesStart` = `attributes?.[0] ?? -1` | not `commonjs`; `type` = `direct`, `reexport` or `reexport-all`; `name`, `localName` = `local`, `importName` = `imported`, `from` = `path`, `importIndex`, `exportStart` = `range[0]`, the ranges | `facade`, `hasModuleSyntax` = `format == 'module'`; `init` is a resolved Promise; `typeOnly` is false (no TypeScript); `phase` null until the lexer knows `import source`/`import defer` |
+| `Bun.Transpiler.scanImports` | all but `import-meta`: `{ kind, path }` | — | |
+| `Bun.Transpiler.scan` | as `scanImports`, minus `require-*` when `format == 'module'` | names of non-`commonjs` records except `'*'` | `transform`/`transformSync` throw TypeError (no transpiler, as for the Bun loaders) |
+
+### Steps
+
+1. **Core, ES module part** (`lib/module-lexer.js`): whole file, dynamic import, `import.meta`, declarations,
+   ranges, `facade`. Verify: `test-module-lexer.js` with the cases above plus the late import.
+2. **Core, CommonJS part**: `require(<literal>)` (not `.require(`), `require.resolve`, merve's export rules.
+   Verify: `test-module-lexer.js` CommonJS cases.
+3. **Fixtures and the generator** (`gen-module-lexer-expected.mjs`). It records, per fixture:
+   - Node 26: `internalBinding('cjs_lexer').parse` (`--expose-internals`), and the namespace keys of
+     `import * as m from` the fixture
+   - es-module-lexer 3.0.4 and cjs-module-lexer 2.3.0, run under bun, which auto-installs them
+   - Bun's `scan` and `scanImports`
+
+   Corpus: hand-written cases, plus the CommonJS files in `/usr/share/nodejs` (239 `.js` files).
+4. **Adapters**: `lib/merve.js`, `lib/cjs-module-lexer.js`, `lib/es-module-lexer.js`, `Bun.Transpiler` in
+   `lib/bun.js` (the Bun compatibility tier). Verify: their tests equal the recorded output on every fixture. A
+   mismatch is fixed in the core, not patched in the adapter (the adapters stay mappings). Where merve and
+   cjs-module-lexer disagree, merve (Node 26) decides the core, and the cjs-module-lexer adapter carries the
+   documented difference.
+5. **`print(record, format)`** and merging (one record per `path`, replaces `Import.merge`/`MergeImports`). Port both
+   tools: `resolve-imports.js` and `list-exports.js` use `parse`/`print`; delete `Import`, `Export`, `ImportIdMap`,
+   `ImportIds`, `ImportFile`, `ImportType`, `ExportName`, `ExportPairs`, `ImpExpType`, `IsImportExportFrom`,
+   `PrintES6Import`, `PrintCJSImport`, `OutputImports` and the copies in `list-exports.js`. Verify:
+   `test-resolve-imports.js` (19 cases) passes; `--list-imports` now also lists late, dynamic and `require` imports
+   (an intended change: update that test case).
+6. **CommonJS → ES module** (`lib/cjs-to-esm.js`): `toModule(source)`, with Node 26's namespace rule from
+   `translators.js`: the default export is `module.exports`, plus one named export per CommonJS export name, plus
+   the `'module.exports'` key, plus the names of re-exported modules, resolved recursively. Apply the same rule to
+   `lib/loaders/commonjs.js`'s `shim()`, which today exports only the runtime keys, without `'module.exports'`.
+   Top-level `require` declarations become imports at their range. A `require` inside a function or condition keeps
+   working through `const require = createRequire(import.meta.url)` (Node's `module.createRequire`). Verify:
+   converted fixtures run as ESM under node and print what the CJS original prints, and their namespace keys equal
+   node 26's for the original.
+7. **Resolution**: replace `ModuleLoader`, `PackageEntry`, `PathAdjust`, `ResolveAlias`, `RemapModule` with
+   `lib/module.js`'s resolver (check first what it covers: `exports` conditions, ESM vs CJS rules); `-M NAME=PATH`
+   becomes a shorthand for an entry of a WHATWG import map, and `--import-map FILE` (Deno's flag) reads a whole one.
+   Verify: the `-M` cases of `test-resolve-imports.js` unchanged.
+8. **Tool cleanup**: `--help` gets a description per option (it prints names only); `-l` shows twice (print-files and
+   the positional `@` row); `-s`, `-c`, `-f`, `-e` appear to have no effect (destructured or assigned, never read):
+   verify, then remove. Update the `resolve-imports` entry in `tool-registry/tools.yaml`.
+
+### What stays in `utilities/resolve-imports.js`
+
+`-G` global exports, `-U` userscript wrapping, the dependency tree print. Bundling, in-place rewriting and the writers
+move to magic-string (Tier 27).
+
+### Modes by program name (`scriptArgs[0]`, symlinked in `CMakeLists.txt:1099`)
+
+| Name | Equals | Does | State |
+| --- | --- | --- | --- |
+| `list-imports.js` | `--list-imports` | `file:module names` per import, builtins included | exists |
+| `check-imports.js` | `--check-imports` | resolves every import, exit 1 on the first unresolved, no output | exists |
+| `merge-imports.js` | `-m` | one import statement per module, file rewritten in place | proposed |
+| `prune-imports.js` | `-m -u` | drops imported names the file never uses, in place | proposed |
+| `import-tree.js` | `-d` | dependency tree | proposed |
+| `cjs-to-esm.js` | new `--to-module` (step 6) | CommonJS file → ES module | proposed |
+| `bundle-imports.js` | no mode option | inlines file imports recursively into one script (today's default) | proposed |
+
+`list-exports.js` stays a separate tool (it loads modules to read their exports) and only shares `parse()`.
+
+### Open questions
+
+- Name of the core: `module-lexer`, or something else?
+- `merve` as the module name of a JS adapter: merve has no JS package, so the name could also be
+  `module-lexer/merve`.
+- ES module → CommonJS (`print(…, 'commonjs')` makes it cheap): wanted as a mode (`esm-to-cjs.js`), or not?
+- Which of the proposed program names to install.
+
+## Tier 27 — replace `FileMap` with magic-string (plan 2026-10-20)
+
+`FileMap` (`utilities/resolve-imports.js:1090-1500`, plus `NumericRange`, `Range`, `InRange`, `IsRange`,
+`CompareRange`, `BufferFile`, `FdWriter`/`FileWriter`/`FileReplacer`/`StringWriter`/`ArrayWriter`/`DummyWriter`,
+`FileBannerComment`: about 700 lines) rewrites byte ranges of a file. It addresses every edit in the original file's
+coordinates and splices other files' `FileMap`s in, so the tool can bundle recursively. Only `resolve-imports.js` uses
+it (and its old copy in `~/Sources/plot-cv`).
+
+### Survey (probed 2026-10-20)
+
+| API | Model | Fits FileMap's job |
+| --- | --- | --- |
+| **magic-string 1.4.3** (npm, Rich Harris; MIT; what Rollup, Vite and Svelte edit code with) | `new MagicString(src)`, edits in original coordinates: `overwrite`/`update(start, end, s)`, `remove`, `appendLeft`/`appendRight`/`prependLeft`/`prependRight(index, s)`, `move`, `slice`, `snip`, `toString()`, `generateMap({ hires })`; `new Bundle({ separator, intro })` with `addSource({ filename, content })` concatenates several | all of it, plus source maps |
+| WHATWG `Blob` | immutable composition of byte slices: `new Blob([b.slice(0, 10), 'x', b.slice(20)])`, lazy for file-backed blobs (`fs.openAsBlob`, `Bun.file`) | byte-level only, no edits in original coordinates, no nesting bookkeeping |
+| piece table (VS Code's text buffer) | the data structure FileMap is | no shared JS API |
+
+**magic-string runs unmodified on qjsm.** The npm `dist/index.mjs` (58.5 KB) and `@jridgewell/sourcemap-codec` 1.6.0
+gave output identical to bun's, the source map `mappings` included, on overwrite + remove + appendLeft + a two-file
+`Bundle`. Two details:
+- the one bare import `'@jridgewell/sourcemap-codec'` needs to resolve
+- it reads the global `TextDecoder` at load time, which qjsm only has after `import 'globals'` (globals are opt-in,
+  `lib/globals.js`)
+
+Recommendation: **use magic-string itself, do not lift FileMap into a lib of its own.** It is the de-facto API for
+this job. A second, own range-editing API would be exactly the qjs-modules-ism the project avoids. FileMap's byte
+offsets become magic-string's UTF-16 indices, the same unit Tier 26 picks for `module-lexer`.
+
+### Files
+
+| File | Holds |
+| --- | --- |
+| `lib/magic-string.js` | npm `magic-string@1.4.3` `dist/index.mjs`, unchanged apart from a version banner, the codec import pointed at the file below, and `import { TextDecoder } from 'textcode';` so it does not need the global |
+| `lib/sourcemap-codec.js` | npm `@jridgewell/sourcemap-codec@1.6.0` `dist/sourcemap-codec.mjs`, unchanged apart from a version banner |
+| `utilities/vendor-magic-string.sh` | fetches both tarballs at the pinned versions and applies the two edits, so an update is one run plus a diff |
+| `tests/unittests/test-magic-string.js` | `@portable`: the edits resolve-imports needs, the same expected output on qjsm, node and bun |
+
+Keep it as a vendored copy, not a submodule: the git repository holds the sources, the npm tarball holds the built
+ESM file that runs here. Bare `import MagicString from 'magic-string'` then works the same on qjsm (lib/) as on node
+and bun (`node_modules`).
+
+### Steps
+
+1. **Vendor**: the two files, the script, the test. Verify: the test passes on qjsm, node and bun (ctest `.node`,
+   `.bun`).
+2. **Port the bundler**: each file becomes a `MagicString`, import ranges from `module-lexer` (Tier 26) are
+   `overwrite`/`remove` edits, an inlined file goes in as a `Bundle` source, with the `FileBannerComment` start/end
+   lines as `intro`/appended text. `-C` (remove comments) becomes `remove` per comment token, `--merge` becomes
+   `overwrite` of the first import plus `remove` of the rest, and in-place output becomes `toString()` + one
+   `writeFileSync` to `file.new` + `renameSync` (keeping `FileReplacer`'s mode handling). Delete `FileMap`,
+   `NumericRange`, `Range`, `InRange`, `IsRange`, `CompareRange`, `BufferFile`, the six writers and
+   `FileBannerComment`. Verify: `test-resolve-imports.js` passes, and bundles of `utilities/*.js` are byte-identical
+   to the ones the old code writes (record them before the port).
+3. Source maps come for free (`Bundle.generateMap`). Add a `--sourcemap` option only if asked.
+
+### Open questions
+
+- Vendor the npm dist (recommended), or depend on an installed `magic-string` and keep `lib/` free of third-party
+  code?
