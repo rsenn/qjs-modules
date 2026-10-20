@@ -3415,3 +3415,96 @@ Trade-off:
 
 - A (vendor the npm dist, recommended) or B (own implementation, and which cut)?
 - With A: vendor into `lib/`, or depend on an installed `magic-string` and keep `lib/` free of third-party code?
+
+## Tier 28 — native building blocks for zero-copy text editing (plan 2026-10-20)
+
+Small native pieces that make a magic-string implementation (Tier 27 option B) and `resolve-imports.js` output
+mostly zero-copy. Three of them are standard APIs qjs-modules lacks or implements slowly, so they pay off on their
+own. Plan only.
+
+Measured on qjsm 2026-10-20, the reason the zero-copy path runs on bytes:
+- concatenation is cheap: the engine has rope strings (`JS_TAG_STRING_ROPE`), 100k pieces join in 19 ms (node 14 ms)
+- `String.prototype.slice` copies: 200 kept 4 MiB slices of one string cost 820 MB RSS (node shares them)
+- so unedited chunks stay views into the source's UTF-8 bytes, and only inserted text is encoded
+
+| # | Building block | Kind | Order |
+| --- | --- | --- | --- |
+| 28.1 | `TextEncoder.encodeInto()` `read` in UTF-16 code units, plus a UTF-16 index → UTF-8 offset helper | WHATWG bug fix + internal helper | 1st |
+| 28.2 | `buffer.isAscii()` / `buffer.isUtf8()` in C | Node API, faster | 2nd |
+| 28.3 | `lineStarts(input)` | internal helper | 3rd |
+| 28.4 | `fs.writevSync()` / `fs.writev()` | Node API, missing | 4th |
+| 28.5 | Blob as an immutable segment list: zero-copy `slice()` and Blob parts, `fs.openAsBlob()` | WHATWG semantics + Node API | 5th, largest |
+
+### 28.1 UTF-16 ↔ UTF-8 offsets
+
+- **Bug**: `textencoder-encodeinto-read-counts-code-points` (`BUGS`). `encodeInto('aé😀', u8)` gives
+  `{ read: 3, written: 7 }`, WHATWG and node give `read: 4`. Fix in `quickjs-textcode.c` (`ENCODER_ENCODE_INTO`):
+  count a code point above U+FFFF as 2.
+- **Helper** `utf8Offsets(bytes, indices)` in `textcode` (internal, not a public standard): `indices` is a sorted
+  `Uint32Array` of UTF-16 indices into the text that `bytes` (UTF-8) encodes, converted in place to byte offsets in
+  one pass. One call maps all chunk boundaries of an edit list.
+- Verify: an `encodeInto` test against node's output for ASCII, Latin-1, BMP and astral text; `utf8Offsets` equal
+  to `new TextEncoder().encode(text.slice(0, i)).length` for every `i` of a mixed fixture.
+
+### 28.2 `buffer.isAscii()` / `buffer.isUtf8()` natively
+
+- Today `lib/node/buffer.js:928` loops in JS (`bytesOf(input).every(b => b < 128)`, a byte-by-byte UTF-8 state
+  machine).
+- Add `isAscii(view)` / `isUtf8(view)` C functions to `textcode` (word-at-a-time ASCII check, a plain UTF-8
+  validator, no new dependency). `lib/node/buffer.js` calls them, keeping its argument checks
+  (`ERR_INVALID_ARG_TYPE` for a string, as in node).
+- An ASCII source needs no offset mapping at all: a UTF-16 index is its byte offset.
+- Verify: `test-node-buffer` cases equal node's results on valid, overlong, surrogate and truncated sequences.
+  Speed: 1 MiB in well under 1 ms.
+
+### 28.3 `lineStarts(input)`
+
+- `misc.lineStarts(stringOrView)` → `Uint32Array` of the offsets where lines start, first entry 0. Offsets are UTF-16
+  indices for a string and byte offsets for a buffer. Lines end at `\n` only, as source maps and magic-string's
+  `getLocator` count them. A `memchr` loop for buffers.
+- Users: line/column lookup by binary search (source maps, `lastLine()`), `lib/module-lexer.js` error positions.
+- Verify: equal to a JS reference on fixtures with `\n`, `\r\n`, a trailing newline and none.
+
+### 28.4 `fs.writevSync()` / `fs.writev()`
+
+- Node: `writevSync(fd, buffers[, position])` returns the bytes written, `writev(fd, buffers[, position], cb)`
+  calls back `(err, bytesWritten, buffers)`. `buffers` must be ArrayBufferViews, a string throws
+  `ERR_INVALID_ARG_TYPE` (probed on node 23). Bun has both. Also `filehandle.writev()` in `fsPromises`.
+- Native: `misc.writev(fd, views[, position])` → `writev(2)`, or `pwritev(2)` with a position, in batches of
+  `IOV_MAX`; returns bytes written or a negative errno like the other `misc` syscalls.
+- `lib/fs.js`: `writevSync`/`writev` next to `writeSync` (`lib/fs.js:1218`), errors through `syscallerr`.
+- Verify: written file equal to node's for mixed `Buffer`/`Uint8Array`/`DataView` lists, with and without
+  position, and more than `IOV_MAX` views. `@portable` where the API is shared.
+
+### 28.5 Blob as an immutable segment list
+
+- Today a Blob is one contiguous buffer (`quickjs-blob.h` `union blob`): the constructor copies every part
+  (`blob_write`), `slice()` copies (`quickjs-blob.c:286`).
+- WHATWG requires an `ArrayBuffer` part to be copied at construction, since the caller may change it later. Only
+  immutable sources may be shared: other Blobs, their slices, and file-backed Blobs.
+- New layout: a Blob is a list of segments `{ store, offset, length }` over refcounted immutable stores:
+  - an `ArrayBuffer`/view part is copied once into a store, a string part encoded once
+  - a Blob part (or slice) adds its segments, no copy
+  - `slice()` builds a new segment list, no copy
+- Reading: `arrayBuffer()`/`bytes()` flatten once, `text()` decodes once, `stream()` enqueues one chunk per segment
+  without flattening.
+- `fs.openAsBlob(path[, { type }])` (Node, returns a `Promise<Blob>`): one store over an `mmap` of the file (`mmap`
+  module). `Bun.file()` can share it later.
+- Writing a Blob without flattening: an internal `Symbol.for('qjs.blob.segments')` method returns the segments as
+  views, which `fs.writevSync` (28.4) writes in one call, and `Bun.write(path, blob)` uses it.
+- Verify:
+  - existing `test-blob.js` passes
+  - new cases: a slice of a slice, Blob parts inside Blobs, a source `ArrayBuffer` changed after construction does
+    not change the Blob, `openAsBlob` of a file, `stream()` chunk boundaries
+  - memory: 200 slices of a 4 MiB Blob add no RSS, measured as in the slice test above
+
+### How the pieces combine (Tier 27 option B, `resolve-imports.js`)
+
+```js
+const bytes = new Uint8Array(readFileSync(path));            // or (await openAsBlob(path)).bytes()
+const ascii = isAscii(bytes);                                 // 28.2, offsets are byte offsets then
+const at = ascii ? i => i : offsetsOf(bytes, chunkBounds);    // 28.1 utf8Offsets for the rest
+writevSync(fd, chunks.map(c => c.edited ? encode(c.content) : bytes.subarray(at(c.start), at(c.end))));  // 28.4
+```
+
+`toString()` still returns a string, so it pays one copy; the zero-copy path is the file or Blob output.
