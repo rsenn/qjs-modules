@@ -3054,6 +3054,15 @@ pruning and CommonJS → ES module conversion.
 | 2. core, CommonJS part | next | `require` calls from the tokens, merve's export rules |
 | 3.-8. | open | |
 
+Porting `utilities/resolve-imports.js` onto `parse()` (assessed 2026-10-20):
+- the read-only modes (`--list-imports`, `--check-imports`, `-d`) could use `parse()` today and would then report
+  late, dynamic and `export const` imports/exports correctly
+- the rewriting modes (bundling, `-m`, `-u`, `-C`, `-E`, `-G`) wait for: UTF-16 offsets where `FileMap` uses bytes
+  (Tier 27), `print()` and merging (step 5), and two inputs `parse()` does not report, identifiers in use (`-u`)
+  and comment ranges (`-C`), which the tool keeps taking from the lexer itself
+- recommended order: step 2, step 5, Tier 27, then the whole tool in one go, so the file never holds two import
+  parsers. Porting the read-only modes first is the alternative, still to decide
+
 Checked on `lib/`, `utilities/`, `tests/unittests/` (229 files): no lexing errors, and the `(kind, path)` pairs of
 the 211 files Bun accepts equal Bun's `scanImports` (743 imports). `parse()` costs about 35% on top of lexing.
 
@@ -3349,7 +3358,60 @@ and bun (`node_modules`).
    to the ones the old code writes (record them before the port).
 3. Source maps come for free (`Bundle.generateMap`). Add a `--sourcemap` option only if asked.
 
+### Option B: an own tiny implementation, `lib/magic-string.js` (size estimate 2026-10-20)
+
+The API, dumped with `utilities/describe.sh -r bun --class --dts magic-string` (1.4.3; option types from its
+`dist/index.d.mts`):
+
+| Export | Public members |
+| --- | --- |
+| `MagicString` (default export) | `constructor(string, { filename, indentExclusionRanges, ignoreList })`, `original`, `intro`, `outro`; edit: `append`, `prepend`, `appendLeft`, `appendRight`, `prependLeft`, `prependRight`, `insertLeft`/`insertRight` (deprecated), `overwrite`, `update`, `remove`, `reset`, `move`, `replace`, `replaceAll`, `indent`, `trim`, `trimStart`, `trimEnd`, `trimLines`; read: `toString`, `slice`, `snip`, `clone`, `length`, `isEmpty`, `hasChanged`, `lastChar`, `lastLine`, `getIndentString`; maps: `generateMap`, `generateDecodedMap`, `addSourcemapLocation` |
+| `Bundle` | `constructor({ intro, separator })`, `addSource({ filename, content, ignoreList })`, `append`, `prepend`, `clone`, `indent`, `getIndentString`, `trim`, `trimStart`, `trimEnd`, `trimLines`, `toString`, `toMagicString`, `isEmpty`, `length`, `generateMap`, `generateDecodedMap` |
+| `SourceMap` | `version`, `file`, `sources`, `sourcesContent`, `names`, `mappings`, `x_google_ignoreList`, `debugId`, `toString()`, `toUrl()` |
+| `MagicStringError` | `Error` subclass |
+
+Upstream size, code lines without comments and blank lines (`dist/index.mjs` is 1769 lines in all):
+
+| Area | Upstream | Tiny estimate | What makes it smaller |
+| --- | --- | --- | --- |
+| `Chunk` linked list (split, edit, each*) | ≈ 150 | 60 | one chunk shape, no deprecation paths |
+| `MagicString` edits and reads | ≈ 800 | 300 | no option validation messages; `replace`/`replaceAll` expand `$1 $& $<name>` by letting `String.prototype.replace` do it on a sticky one-match regex (≈ 10 lines instead of `expandReplacement`'s 48) |
+| `Bundle` | ≈ 300 | 120 | `toMagicString` and maps over one shared helper |
+| source maps: `Mappings`, VLQ writer, `SourceMap`, base64 | ≈ 290 + `@jridgewell/sourcemap-codec` 467 | 120 | `hires: false` and `true` only (no `'boundary'`, `'experimental-range'`); VLQ encode next to the decoder in `lib/module.js:734` (`decodeMappings`) as one shared helper; base64 from `misc.btoa` |
+| helpers: `getLocator`, `getRelativePath`, `guessIndent` | ≈ 45 | 30 | `path.relative` from `path` |
+| **total** | **≈ 1600 + 467** | **≈ 600** | |
+
+Two smaller cuts:
+
+| Cut | Lines | Covers |
+| --- | --- | --- |
+| what `resolve-imports.js` needs | ≈ 170 | constructor, `append`/`prepend`, the four `*Left`/`*Right`, `overwrite`/`update`, `remove`, `toString`, `length`, `isEmpty`, `hasChanged`, `clone`, `Bundle` with `addSource`/`append`/`prepend`/`toString`, `separator` and `intro` |
+| the edits without source maps | ≈ 450 | the above plus `move`, `reset`, `slice`, `snip`, `trim*`, `lastChar`/`lastLine`, `replace`/`replaceAll`, `indent` |
+
+What qjs-modules contributes is small: `misc.btoa`, the VLQ decoder in `lib/module.js`, `path.relative`. The rest is
+string bookkeeping no native module helps with. The saving comes from dropping validation, deprecated aliases and
+the two exotic `hires` modes, not from reuse.
+
+Tests for option B:
+- a randomized differential test: a seeded generator applies the same edit sequence to the real magic-string (bun
+  auto-installs it) and to `lib/magic-string.js`, then compares `toString()`, `slice()` and `generateMap()` output.
+  The expected output is recorded once under bun (`utilities/gen-magic-string-expected.mjs`) and checked into
+  `tests/fixtures/magic-string/`, so the qjsm test needs no bun.
+- `tests/unittests/test-magic-string.js` `@portable` for the hand-written cases: under node and bun the same file
+  imports the real package (`magic-string` resolves to `node_modules` there, to `lib/` on qjsm).
+- upstream's own suite (vitest, `tests/**/*.test.ts`, 30 files, 162 KB) is the further conformance check, but it
+  needs TypeScript stripping and a `describe`/`it`/`expect` shim: run it only if the differential test leaves gaps.
+
+Trade-off:
+
+| | A: vendor the npm dist | B: own implementation |
+| --- | --- | --- |
+| own lines to maintain | 0 (+ a 30-line vendoring script) | ≈ 170 / 450 / 600 by cut |
+| behaviour | exactly upstream | upstream where tested |
+| third-party code in `lib/` | 2236 lines | none |
+| updates | rerun the script | follow upstream changes by hand |
+
 ### Open questions
 
-- Vendor the npm dist (recommended), or depend on an installed `magic-string` and keep `lib/` free of third-party
-  code?
+- A (vendor the npm dist, recommended) or B (own implementation, and which cut)?
+- With A: vendor into `lib/`, or depend on an installed `magic-string` and keep `lib/` free of third-party code?
