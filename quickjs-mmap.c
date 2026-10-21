@@ -33,7 +33,7 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   int32_t prot, flags, fd;
   void* ptr;
 
-  if(js_is_null_or_undefined(argv[0]))
+  if(js_is_nullish(argv[0]))
     addr = 0;
   else if(JS_ToIndex(ctx, &addr, argv[0]))
     return JS_EXCEPTION;

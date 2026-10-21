@@ -1143,7 +1143,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
       if(len > 0 && (len % sizeof(struct pollfd)) == 0) {
         memcpy(pfds, data, MIN_NUM(len, sizeof(struct pollfd) * nfds));
       } else {
-        ret = JS_ThrowInternalError(ctx, "pfds[] length = %"PRIu64"", (uint64_t)len);
+        ret = JS_ThrowInternalError(ctx, "pfds[] length = %" PRIu64 "", (uint64_t)len);
         goto end;
       }
     }
@@ -1177,7 +1177,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
       if(len > 0 && (len % sizeof(struct pollfd)) == 0) {
         memcpy(data, pfds, MIN_NUM(len, sizeof(struct pollfd) * nfds));
       } else {
-        ret = JS_ThrowInternalError(ctx, "pfds[] length = %"PRIu64, (uint64_t)len);
+        ret = JS_ThrowInternalError(ctx, "pfds[] length = %" PRIu64, (uint64_t)len);
         goto end;
       }
     }
@@ -1570,7 +1570,7 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
   if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
     js_sockets_init(ctx, 0);
 
-  if(js_is_nullish(ctx, proto))
+  if(js_is_nullish(proto))
     proto = async ? asyncsocket_proto : socket_proto;
 
   if(async && js_object_same(proto, socket_proto))

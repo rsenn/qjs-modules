@@ -12,10 +12,6 @@
  * \defgroup buffer-utils buffer-utils: Buffer Utilities
  * @{
  */
-int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
-#define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
-int64_t array_search(void*, size_t, size_t elsz, void* needle);
-
 #define DBUF_INIT_0() (DynBuf){0, 0, 0, 0, 0, 0}
 #define DBUF_INIT_CTX(ctx) \
   (DynBuf) { \
@@ -108,7 +104,6 @@ typedef struct {
 int block_realloc(MemoryBlock*, size_t, JSContext*);
 void block_free(MemoryBlock*, JSRuntime*);
 MemoryBlock block_mmap(const char*, BOOL);
-int block_from_file(MemoryBlock*, const char*, JSContext*);
 MemoryBlock block_from_dynbuf(DynBuf* s);
 
 /* clang-format off */

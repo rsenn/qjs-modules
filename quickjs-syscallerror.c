@@ -44,7 +44,7 @@ syscallerror_free(SyscallError* err, JSRuntime* rt) {
     err->syscall = 0;
   }
 
-  if(!js_is_null_or_undefined(err->stack)) {
+  if(!js_is_nullish(err->stack)) {
     JS_FreeValueRT(rt, err->stack);
     err->stack = JS_UNDEFINED;
   }
@@ -90,7 +90,7 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf, JSContext* ctx) {
 #endif
   }
 
-  if(!js_is_null_or_undefined(err->stack)) {
+  if(!js_is_nullish(err->stack)) {
     const char* str;
 
     if((str = JS_ToCString(ctx, err->stack))) {
@@ -255,7 +255,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case PROP_STACK: {
-      ret = js_is_null_or_undefined(err->stack) ? JS_NULL : JS_DupValue(ctx, err->stack);
+      ret = js_is_nullish(err->stack) ? JS_NULL : JS_DupValue(ctx, err->stack);
       break;
     }
     case PROP_MESSAGE: {

@@ -575,8 +575,7 @@ path_fnmatch_has_close(const char* pattern, size_t plen, int flags) {
   for(j++; j < plen; j++) {
     if(pattern[j] == '\\' && !(flags & PATH_FNM_NOESCAPE))
       j++;
-    else if(pattern[j] == '[' && j + 1 < plen &&
-            (pattern[j + 1] == ':' || pattern[j + 1] == '.' || pattern[j + 1] == '=') &&
+    else if(pattern[j] == '[' && j + 1 < plen && (pattern[j + 1] == ':' || pattern[j + 1] == '.' || pattern[j + 1] == '=') &&
             (n = path_fnmatch_subexpr_len(pattern + j, plen - j, pattern[j + 1])))
       j += n - 1;
     else if(pattern[j] == ']')
@@ -632,8 +631,7 @@ start:
    * to be leading if it is the first character in string, or if both
    * PATH_FNM_PATHNAME  is set and the period immediately follows a slash.
    */
-  if(*string == '.' && *pattern != '.' && (flags & PATH_FNM_PERIOD) &&
-     !(*pattern == '\\' && !(flags & PATH_FNM_NOESCAPE) && plen > 1 && pattern[1] == '.')) {
+  if(*string == '.' && *pattern != '.' && (flags & PATH_FNM_PERIOD) && !(*pattern == '\\' && !(flags & PATH_FNM_NOESCAPE) && plen > 1 && pattern[1] == '.')) {
     /* don't match if PATH_FNM_PERIOD and this is the first char */
     if(!(flags & PATH_NOTFIRST))
       goto fail;

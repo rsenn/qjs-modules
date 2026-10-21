@@ -235,13 +235,13 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
 
   JS_SetOpaque(obj, it);
 
-  if(!js_is_null_or_undefined(root))
+  if(!js_is_nullish(root))
     it->root = JS_DupValue(ctx, root);
 
-  if(!js_is_null_or_undefined(pred))
+  if(!js_is_nullish(pred))
     it->pred = JS_DupValue(ctx, pred);
 
-  if(!js_is_null_or_undefined(props))
+  if(!js_is_nullish(props))
     atoms_from_iterable(ctx, props, &it->atoms);
 
   it->flags = flags;
@@ -362,7 +362,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     if((1 << js_value_type2flag(type)) & iter->mask) {
-      if(js_is_null_or_undefined(iter->pred))
+      if(js_is_nullish(iter->pred))
         iter->status = YIELD;
       else
         iter->status = js_deep_predicate(ctx, iter->pred, value, &iter->frames, iter->pointer_value);
@@ -971,7 +971,7 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if(flags & PATH_AS_POINTER)
       property_recursion_pointer(&frames, js_pointer_data(pointer), ctx);
 
-    int r = (type & mask) ? (js_is_null_or_undefined(pred) ? 1 : js_deep_predicate(ctx, pred, value, &frames, pointer)) : 0;
+    int r = (type & mask) ? (js_is_nullish(pred) ? 1 : js_deep_predicate(ctx, pred, value, &frames, pointer)) : 0;
 
     JS_FreeValue(ctx, value);
 

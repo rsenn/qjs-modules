@@ -230,48 +230,48 @@ predicate_prototype(JSValue proto) {
 static inline Predicate
 predicate_add(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_ADD);
-  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
-  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
+  ret.binary.left = js_is_nullish(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_nullish(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_sub(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_SUB);
-  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
-  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
+  ret.binary.left = js_is_nullish(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_nullish(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_mul(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MUL);
-  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
-  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
+  ret.binary.left = js_is_nullish(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_nullish(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_div(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_DIV);
-  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
-  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
+  ret.binary.left = js_is_nullish(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_nullish(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_mod(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MOD);
-  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
-  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
+  ret.binary.left = js_is_nullish(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_nullish(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 #define PREDICATE_BINARY(op, id) \
   static inline Predicate predicate_##op(JSValue left, JSValue right) { \
     Predicate ret = PREDICATE_INIT(PREDICATE_##id); \
-    ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left; \
-    ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right; \
+    ret.binary.left = js_is_nullish(left) ? JS_UNDEFINED : left; \
+    ret.binary.right = js_is_nullish(right) ? JS_UNDEFINED : right; \
     return ret; \
   }
 #define PREDICATE_UNARY(op, id) \

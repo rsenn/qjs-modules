@@ -364,6 +364,19 @@ module_has_suffix(const char* module_name) {
   return 0;
 }
 
+static int
+jsm_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
+  int32_t ret = 0;
+  JSValue val = js_eval_buf(ctx, str, strlen(str), file, flags);
+
+  if(JS_IsException(val))
+    ret = -1;
+  else if(JS_IsNumber(val))
+    JS_ToInt32(ctx, &ret, val);
+
+  return ret;
+}
+
 /* Calls process.__qjsm_hooks__[name](...argv) from lib/process.js; JS_UNDEFINED if absent.
  *
  * the hooks drive the process events (exit, beforeExit, uncaughtException, ...);
@@ -489,7 +502,8 @@ static void
 jsm_run_jobs(JSContext* ctx) {
   JSContext* job_ctx;
 
-  while(JS_ExecutePendingJob(JS_GetRuntime(ctx), &job_ctx) > 0) {}
+  while(JS_ExecutePendingJob(JS_GetRuntime(ctx), &job_ctx) > 0) {
+  }
 }
 
 /* Prints the context's current pending exception to stderr. */
@@ -1351,13 +1365,13 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   jsm_module_script(&dbuf, path, name, FALSE);
 
-  if(*path != '*' && !js_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+  if(*path != '*' && !jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
   } else {
     JS_GetException(ctx);
 
     jsm_module_script(&dbuf, path, name, TRUE);
 
-    if(js_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+    if(jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
       return 0;
     }
@@ -1886,7 +1900,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     if(!m) {
       JSValue exception = JS_GetException(ctx);
 
-      if(!js_is_null_or_undefined(exception)) {
+      if(!js_is_nullish(exception)) {
         const char* msg = JS_ToCString(ctx, exception);
         char* chain = jsm_stack_string();
         BOOL renamed = !str_equal(s, module_name);
@@ -3342,7 +3356,13 @@ jsm_check_bytecode(JSContext* ctx) {
 
   vector_foreach_t(&jsm_builtins, rec) {
     if(rec->byte_code && rec->byte_code_len && engine >= 0 && rec->byte_code[0] != engine) {
-      fprintf(stderr, "%s: builtin '%s' has bytecode version %d, the engine (QuickJS %s) reads %d: rebuild qjsm with the qjsc of that engine\n", exename, rec->module_name, rec->byte_code[0], CONFIG_VERSION, engine);
+      fprintf(stderr,
+              "%s: builtin '%s' has bytecode version %d, the engine (QuickJS %s) reads %d: rebuild qjsm with the qjsc of that engine\n",
+              exename,
+              rec->module_name,
+              rec->byte_code[0],
+              CONFIG_VERSION,
+              engine);
       exit(2);
     }
   }
@@ -3618,7 +3638,6 @@ main(int argc, char** argv) {
 #endif
 
   init_list_head(&loaded_modules);
-
 
   {
     size_t bl;
@@ -3955,7 +3974,7 @@ main(int argc, char** argv) {
 
 #if HAVE_QJSCALC
     if(load_jscalc) {
-      js_eval_binary(jsm_ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
+      JS_FreeValue(ctx, js_eval_binary(jsm_ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0));
     }
 #endif
 
@@ -3974,7 +3993,7 @@ main(int argc, char** argv) {
        import('node:events') resolves through them */
     if(db.size) {
       dbuf_0(&db);
-      js_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
+      jsm_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
       jsm_run_jobs(jsm_ctx);
       db.size = 0;
     }
@@ -4003,7 +4022,7 @@ main(int argc, char** argv) {
 
     if(db.size) {
       dbuf_0(&db);
-      js_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
+      jsm_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
       jsm_run_jobs(jsm_ctx);
     }
 
@@ -4044,12 +4063,12 @@ main(int argc, char** argv) {
     if(had_error && !interactive)
       goto fail;
 
-    js_eval_str(jsm_ctx,
-                "import { Console } from 'console';\n"
-                "import { out, err } from 'std';\n"
-                "globalThis.console = new Console(out, err, { inspectOptions: { customInspect: true } });\n",
-                0,
-                JS_EVAL_TYPE_MODULE);
+    jsm_eval_str(jsm_ctx,
+                 "import { Console } from 'console';\n"
+                 "import { out, err } from 'std';\n"
+                 "globalThis.console = new Console(out, err, { inspectOptions: { customInspect: true } });\n",
+                 0,
+                 JS_EVAL_TYPE_MODULE);
 
     if(!interactive) {
 #ifndef _WIN32
@@ -4061,7 +4080,7 @@ main(int argc, char** argv) {
 
     if(!had_error) {
       if(expr) {
-        if(js_eval_str(jsm_ctx, expr, "<cmdline>", 0) == -1) {
+        if(jsm_eval_str(jsm_ctx, expr, "<cmdline>", 0) == -1) {
           JSValue exc = JS_GetException(jsm_ctx);
 
           if(!jsm_hook_bool(jsm_ctx, "uncaught", 1, &exc)) {

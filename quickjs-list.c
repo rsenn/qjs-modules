@@ -688,7 +688,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case LIST_INSERT_AFTER: {
       Node *node, *tmp;
 
-      if(js_is_null_or_undefined(argv[0]))
+      if(js_is_nullish(argv[0]))
         node = &list->node;
       else if(!(node = node_get(ctx, argv[0])))
         return JS_EXCEPTION;

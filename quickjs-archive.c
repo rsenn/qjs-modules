@@ -1264,7 +1264,7 @@ js_archiveentry_wrap(JSContext* ctx, JSValueConst proto, struct archive_entry* e
   if(js_archive_class_id == 0)
     js_archive_init(ctx, 0);
 
-  if(js_is_nullish(ctx, proto))
+  if(js_is_nullish(proto))
     proto = entry_proto;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -1518,7 +1518,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
   switch(magic) {
     case ENTRY_ATIME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_unset_atime(ent);
       } else {
         struct timespec ts = js_date_timespec(ctx, value);
@@ -1529,7 +1529,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_CTIME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_unset_ctime(ent);
       } else {
         struct timespec ts = js_date_timespec(ctx, value);
@@ -1540,7 +1540,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_MTIME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_unset_mtime(ent);
       } else {
         struct timespec ts = js_date_timespec(ctx, value);
@@ -1551,7 +1551,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_BIRTHTIME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_unset_birthtime(ent);
       } else {
         struct timespec ts = js_date_timespec(ctx, value);
@@ -1644,7 +1644,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_GNAME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_set_gname_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
@@ -1656,7 +1656,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_HARDLINK: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_set_hardlink_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
@@ -1676,7 +1676,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_LINK: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_set_link_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
@@ -1704,7 +1704,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_PATHNAME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_set_pathname_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
@@ -1748,7 +1748,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_SIZE: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_unset_size(ent);
       } else {
         int64_t n;
@@ -1760,7 +1760,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_SYMLINK: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_set_symlink_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
@@ -1780,7 +1780,7 @@ js_archiveentry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
       break;
     }
     case ENTRY_UNAME: {
-      if(js_is_nullish(ctx, value)) {
+      if(js_is_nullish(value)) {
         archive_entry_set_uname_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);

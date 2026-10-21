@@ -37,7 +37,7 @@ predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
  * predicate-omitted-arg-not-undefined). */
 static JSValue
 predicate_duparg(JSContext* ctx, JSValueConst value) {
-  if(js_is_null_or_undefined(value) || JS_IsException(value))
+  if(js_is_nullish(value) || JS_IsException(value))
     return JS_UNDEFINED;
 
   return JS_DupValue(ctx, value);
@@ -236,7 +236,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         JSAtom prop = 0;
         JSValue arg, pred = JS_UNDEFINED;
 
-        if(!js_is_null_or_undefined((arg = js_arguments_shift(&args))))
+        if(!js_is_nullish((arg = js_arguments_shift(&args))))
           prop = JS_ValueToAtom(ctx, arg);
 
         if(predicate_callable(ctx, (arg = js_arguments_shift(&args))))
@@ -250,7 +250,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         JSAtom prop = 0;
         JSValue arg;
 
-        if(!js_is_null_or_undefined((arg = js_arguments_shift(&args))))
+        if(!js_is_nullish((arg = js_arguments_shift(&args))))
           prop = JS_ValueToAtom(ctx, arg);
 
         *pr = predicate_has(prop);
@@ -790,7 +790,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case PREDICATE_HAS: {
       JS_DefinePropertyValueStr(ctx, obj, "atom", JS_AtomToValue(ctx, pr->property.atom), JS_PROP_ENUMERABLE);
 
-      if(!js_is_null_or_undefined(pr->property.predicate))
+      if(!js_is_nullish(pr->property.predicate))
         if(predicate_callable(ctx, pr->property.predicate))
           JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->property.predicate), JS_PROP_ENUMERABLE);
 

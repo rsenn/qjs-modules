@@ -508,6 +508,7 @@ JSAtom js_symbol_static_atom(JSContext*, const char* name);
 
 BOOL js_is_primitive(JSValueConst obj);
 BOOL js_is_iterable(JSContext*, JSValueConst obj);
+BOOL js_is_asynciterable(JSContext*, JSValueConst obj);
 
 JSValue js_iterator_method(JSContext*, JSValueConst obj);
 JSValue js_iterator_new(JSContext*, JSValueConst obj);
@@ -613,34 +614,16 @@ enum {
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
-  void *aobj, *bobj;
-
   if(!JS_IsObject(a) || !JS_IsObject(b))
     return FALSE;
 
-  aobj = JS_VALUE_GET_PTR(a);
-  bobj = JS_VALUE_GET_PTR(b);
-  return aobj == bobj;
+  return JS_VALUE_GET_PTR(a) == JS_VALUE_GET_PTR(b);
 }
 
-static inline BOOL
-js_has_prototype(JSContext* ctx, JSValueConst obj, JSValueConst proto) {
-  while(JS_IsObject(obj) && !JS_IsNull(obj) && JS_VALUE_GET_PTR(obj)) {
-    if(((uintptr_t*)JS_VALUE_GET_PTR(obj))[3] == 0)
-      break;
-
-    JSValue val = JS_GetPrototype(ctx, obj);
-
-    if(js_object_same(val, proto))
-      return TRUE;
-
-    obj = val;
-  }
-
-  return FALSE;
-}
-
+BOOL js_has_prototype(JSContext* ctx, JSValueConst arg, JSValueConst proto);
+BOOL js_has_property_symbol_static(JSContext*, JSValueConst, const char* str);
 BOOL js_has_propertystr(JSContext*, JSValueConst obj, const char* str);
+JSValue js_get_property_symbol_static(JSContext*, JSValueConst, const char* str);
 BOOL js_get_propertystr_bool(JSContext*, JSValueConst obj, const char* str);
 
 static inline BOOL
@@ -739,12 +722,8 @@ JSValue js_object_from_target(JSContext*, JSValueConst new_target, JSClassID id)
  *   JSValue*                    proto   receives the prototype (borrowed: the class holds it), may be NULL
  *
  *   returns JSValue  the constructor, a new reference, or undefined without ctor */
-JSValue js_class_define(JSContext*, JSClassID* id, JSClassDef* def, JSCFunction* ctor, int length, const JSCFunctionListEntry* funcs, size_t nfuncs, JSValue* proto);
-
-static inline BOOL
-js_is_object(JSContext* ctx, JSValueConst val) {
-  return JS_IsObject(val) && !JS_IsNull(val);
-}
+JSValue
+js_class_define(JSContext*, JSClassID* id, JSClassDef* def, JSCFunction* ctor, int length, const JSCFunctionListEntry* funcs, size_t nfuncs, JSValue* proto);
 
 BOOL js_is_arraybuffer(JSContext*, JSValueConst);
 BOOL js_is_sharedarraybuffer(JSContext*, JSValueConst);
@@ -760,12 +739,7 @@ BOOL js_is_error(JSContext*, JSValueConst);
 BOOL js_is_nan(JSValueConst obj);
 
 static inline BOOL
-js_is_null_or_undefined(JSValueConst value) {
-  return JS_IsUndefined(value) || JS_IsNull(value);
-}
-
-static inline BOOL
-js_is_nullish(JSContext* ctx, JSValueConst value) {
+js_is_nullish(JSValueConst value) {
   return JS_IsUndefined(value) || JS_IsNull(value);
 }
 
@@ -792,7 +766,8 @@ js_is_array(JSContext* ctx, JSValueConst value) {
  * never throws. */
 static inline BOOL
 js_is_bytes_or_string(JSContext* ctx, JSValueConst value) {
-  return JS_IsString(value) || js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value) || js_is_dataview(ctx, value);
+  return JS_IsString(value) || js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value) ||
+         js_is_dataview(ctx, value);
 }
 
 static inline BOOL
@@ -873,7 +848,7 @@ JSValue js_eval_buf(JSContext*, const void*, size_t, const char* filename, int e
 JSValue js_eval_this_buf(JSContext*, JSValueConst, const void*, size_t, const char* filename, int eval_flags);
 JSValue js_eval_file(JSContext*, const char*, int);
 JSValue js_eval_this_file(JSContext*, JSValueConst, const char*, int);
-int js_eval_str(JSContext*, const char*, const char*, int flags);
+JSValue js_eval_str(JSContext*, const char*, const char*, int flags);
 JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) FORMAT_STRING(3, 4);
 
 void js_error_dump(JSContext*, JSValueConst, DynBuf* db);
@@ -911,6 +886,8 @@ union IndexRange;
 
 int js_offset_length(JSContext*, int64_t, int, JSValueConst[], int, struct OffsetLength*);
 int js_index_range(JSContext*, int64_t, int, JSValueConst[], int, union IndexRange*);
+JSValue js_stream_construct(JSContext* ctx, const char* class_name, JSValueConst underlying_source_or_sink);
+JSValue js_stream_construct_free(JSContext* ctx, const char* class_name, JSValue underlying_source_or_sink);
 
 /**
  * @}

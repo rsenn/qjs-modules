@@ -319,7 +319,7 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(JS_IsFunction(ctx, rpt->onstop))
     JS_Call(ctx, rpt->onstop, this_val, 0, 0);
 
-  if(js_is_null_or_undefined(rpt->err))
+  if(js_is_nullish(rpt->err))
     rpt->err = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, TRUE);
 
   if(list_empty(&rpt->nexts)) {

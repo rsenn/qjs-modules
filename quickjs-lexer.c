@@ -675,7 +675,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(!(lex = JS_GetOpaque(ret, js_lexer_class_id)))
     return JS_EXCEPTION;
 
-  if(argc > 0 && !js_is_null_or_undefined(argv[0])) {
+  if(argc > 0 && !js_is_nullish(argv[0])) {
     if(js_lexer_reader(ctx, lex, argv[0])) {
       /* windowed input, set */
     } else {
@@ -743,7 +743,7 @@ js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     location_copy(&lex->loc, &other->loc, ctx);
   } else if(argc > 0 && js_lexer_reader(ctx, lex, argv[0])) {
     lex->loc.byte_offset = 0;
-  } else if(argc > 1 && js_is_null_or_undefined(argv[0])) {
+  } else if(argc > 1 && js_is_nullish(argv[0])) {
     const char* file = JS_ToCString(ctx, argv[1]);
     lex->input = inputbuffer_file(file, ctx);
     JS_FreeCString(ctx, file);
@@ -751,7 +751,7 @@ js_lexer_set_input(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     lex->input = js_input_chars(ctx, argv[0]);
   }
 
-  if(argc > 1 && !js_is_null_or_undefined(argv[1]))
+  if(argc > 1 && !js_is_nullish(argv[1]))
     location_set_file(&lex->loc, JS_ValueToAtom(ctx, argv[1]), ctx);
 
   return JS_UNDEFINED;
@@ -1462,7 +1462,7 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JSValue item = JS_NewObject(ctx);
 
     JS_SetPropertyStr(ctx, item, "value", ret);
-    JS_SetPropertyStr(ctx, item, "done", JS_NewBool(ctx, js_is_null_or_undefined(ret)));
+    JS_SetPropertyStr(ctx, item, "done", JS_NewBool(ctx, js_is_nullish(ret)));
     return item;
   }
 

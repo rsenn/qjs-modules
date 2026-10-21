@@ -432,7 +432,7 @@ virtual_properties(JSContext* ctx, JSValueConst value) {
   if(js_is_map(ctx, value) || js_is_weakmap(ctx, value))
     return virtual_properties_map(ctx, value);
 
-  if(js_is_object(ctx, value))
+  if(JS_IsObject(value))
     return virtual_properties_object(ctx, value);
 
   JS_ThrowTypeError(ctx, "argument must be Array, Map-like or plain Object");

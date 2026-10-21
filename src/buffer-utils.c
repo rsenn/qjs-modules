@@ -96,21 +96,6 @@ fd_filesize(int fd) {
  * @{
  */
 
-int64_t
-array_search(void* a, size_t m, size_t elsz, void* needle) {
-  char* ptr = a;
-  size_t n = m / elsz;
-
-  for(size_t ret = 0; ret < n; ret++) {
-    if(!memcmp(ptr, needle, elsz))
-      return ret;
-
-    ptr += elsz;
-  }
-
-  return -1;
-}
-
 #undef js_realloc_rt
 
 void
@@ -495,10 +480,14 @@ InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
 
-  if(js_is_typedarray(ctx, value))
+  if(js_is_typedarray(ctx, value)) {
     ret.value = offsetlength_typedarray(&ret.range, value, ctx);
-  else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
+  } else if(js_is_dataview(ctx, value)) {
+    ret.value = JS_GetPropertyStr(ctx, value, "buffer");
+    ret.range = OFFSET_LENGTH(js_get_propertystr_uint64(ctx, value, "byteOffset"), js_get_propertystr_uint64(ctx, value, "byteLength"));
+  } else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value)) {
     ret.value = JS_DupValue(ctx, value);
+  }
 
   if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
     block_from_arraybuffer(&ret.block, ret.value, ctx);
@@ -511,30 +500,12 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-OutputBuffer
-js_output_typedarray(JSContext* ctx, JSValueConst value) {
-  OutputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
-
-  if(js_is_typedarray(ctx, value))
-    ret.value = offsetlength_typedarray(&ret.range, value, ctx);
-
-  if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
-    block_from_arraybuffer(&ret.block, ret.value, ctx);
-  } else {
-    JS_ThrowTypeError(ctx, "Invalid type (%s) for output buffer", js_value_typestr(ctx, ret.value));
-    JS_FreeValue(ctx, ret.value);
-    ret.value = JS_EXCEPTION;
-  }
-
-  return ret;
-}
-
 #undef free
 
 InputBuffer
 js_input_chars(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
-  BOOL is_buffer = js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value);
+  BOOL is_buffer = js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value) || js_is_typedarray(ctx, value) || js_is_dataview(ctx, value);
 
   if(!is_buffer) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
@@ -560,6 +531,28 @@ js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   }
 
   return input;
+}
+
+OutputBuffer
+js_output_typedarray(JSContext* ctx, JSValueConst value) {
+  OutputBuffer ret = INPUTBUFFER_FREE(&inputbuffer_free_default);
+
+  if(js_is_typedarray(ctx, value)) {
+    ret.value = offsetlength_typedarray(&ret.range, value, ctx);
+  } else if(js_is_dataview(ctx, value)) {
+    ret.value = JS_GetPropertyStr(ctx, value, "buffer");
+    ret.range = OFFSET_LENGTH(js_get_propertystr_uint64(ctx, value, "byteOffset"), js_get_propertystr_uint64(ctx, value, "byteLength"));
+  }
+
+  if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
+    block_from_arraybuffer(&ret.block, ret.value, ctx);
+  } else {
+    JS_ThrowTypeError(ctx, "Invalid type (%s) for output buffer", js_value_typestr(ctx, ret.value));
+    JS_FreeValue(ctx, ret.value);
+    ret.value = JS_EXCEPTION;
+  }
+
+  return ret;
 }
 
 OutputBuffer
@@ -609,74 +602,6 @@ block_mmap(const char* filename, BOOL shared) {
   return mb;
 }
 
-int
-block_from_file(MemoryBlock* mb, const char* filename, JSContext* ctx) {
-#if defined(HAVE_FSTAT) && !defined(_WIN32)
-  int fd;
-  void* ptr;
-  struct stat st;
-
-  if((fd = open(filename, O_RDONLY)) == -1)
-    return -1;
-
-  if(fstat(fd, &st) == -1) {
-    close(fd);
-    return -1;
-  }
-
-  if((ptr = js_malloc(ctx, st.st_size))) {
-    if(read(fd, ptr, st.st_size) != st.st_size) {
-      free(ptr);
-      close(fd);
-      return -1;
-    }
-
-    close(fd);
-
-    mb->base = ptr;
-    mb->size = st.st_size;
-    return 0;
-  }
-#else
-  int fd;
-  char* ptr = NULL;
-  size_t n = 0, p = 0;
-  ssize_t r;
-
-  if((fd = open(filename, O_RDONLY)) == -1)
-    return -1;
-
-  for(;;) {
-    if(!(ptr = js_realloc(ctx, ptr, (n += 1024)))) {
-      close(fd);
-      return -1;
-    }
-
-    if((r = read(fd, &ptr[p], n - p)) < 0) {
-      free(ptr);
-      close(fd);
-      return -1;
-    }
-
-    if(r == 0)
-      break;
-
-    p += r;
-    n = p;
-  }
-
-  close(fd);
-
-  mb->base = js_realloc(ctx, ptr, p);
-  mb->size = p;
-
-  if(mb->base)
-    return 0;
-#endif
-
-  return -1;
-}
-
 MemoryBlock
 block_from_dynbuf(DynBuf* s) {
   MemoryBlock ret = {s->buf, s->size};
@@ -700,7 +625,7 @@ offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst ar
   ol->length = size;
 
   if(i < argc) {
-    if(!js_is_null_or_undefined(argv[i])) {
+    if(!js_is_nullish(argv[i])) {
       tmp = 0;
 
       if(JS_ToInt64Ext(ctx, &tmp, argv[i]))
@@ -724,7 +649,7 @@ offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst ar
     if(i < argc) {
       tmp = ol->length;
 
-      if(!js_is_null_or_undefined(argv[i])) {
+      if(!js_is_nullish(argv[i])) {
         if(JS_ToInt64Ext(ctx, &tmp, argv[i]))
           return -2;
 

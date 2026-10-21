@@ -2,6 +2,7 @@
 #include "buffer-utils.h"
 #include "utils.h"
 #include "defines.h"
+#include "quickjs.h"
 #include "vector.h"
 #include "debug.h"
 #include "path.h"
@@ -693,34 +694,9 @@ js_global_instanceof(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 JSValue
-js_iterator_method(JSContext* ctx, JSValueConst obj) {
-  JSValue ret = JS_UNDEFINED;
-  JSAtom atom = js_symbol_static_atom(ctx, "asyncIterator");
-
-  if(JS_HasProperty(ctx, obj, atom))
-    ret = JS_GetProperty(ctx, obj, atom);
-
-  JS_FreeAtom(ctx, atom);
-
-  if(!JS_IsFunction(ctx, ret)) {
-    atom = js_symbol_static_atom(ctx, "iterator");
-
-    if(JS_HasProperty(ctx, obj, atom))
-      ret = JS_GetProperty(ctx, obj, atom);
-
-    JS_FreeAtom(ctx, atom);
-  }
-
-  return ret;
-}
-
-JSValue
 js_iterator_new(JSContext* ctx, JSValueConst obj) {
-  JSValue ret = JS_UNDEFINED, fn = js_iterator_method(ctx, obj);
-
-  if(JS_IsFunction(ctx, fn))
-    ret = JS_Call(ctx, fn, obj, 0, 0);
-
+  JSValue fn = js_get_property_symbol_static(ctx, obj, "iterator");
+  JSValue ret = JS_Call(ctx, fn, obj, 0, 0);
   JS_FreeValue(ctx, fn);
   return ret;
 }
@@ -1029,9 +1005,45 @@ js_object_keyof(JSContext* ctx, JSValueConst obj, JSValueConst value) {
 }
 
 BOOL
+js_has_prototype(JSContext* ctx, JSValueConst arg, JSValueConst proto) {
+  JSValue obj = JS_DupValue(ctx, arg);
+  BOOL ret = FALSE;
+
+  while(JS_IsObject(obj)) {
+    JSValue tmp = JS_GetPrototype(ctx, obj);
+    JS_FreeValue(ctx, obj);
+    obj = tmp;
+
+    if(js_object_same(obj, proto)) {
+      ret = TRUE;
+      break;
+    }
+  }
+
+  JS_FreeValue(ctx, obj);
+  return ret;
+}
+
+BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom = JS_NewAtom(ctx, str);
   BOOL ret = JS_HasProperty(ctx, obj, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
+BOOL
+js_has_property_symbol_static(JSContext* ctx, JSValueConst obj, const char* str) {
+  JSAtom atom = js_symbol_static_atom(ctx, str);
+  BOOL ret = JS_HasProperty(ctx, obj, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
+JSValue
+js_get_property_symbol_static(JSContext* ctx, JSValueConst obj, const char* str) {
+  JSAtom atom = js_symbol_static_atom(ctx, str);
+  JSValue ret = JS_GetProperty(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
   return ret;
 }
@@ -1370,7 +1382,8 @@ js_object_from_target(JSContext* ctx, JSValueConst new_target, JSClassID id) {
 }
 
 JSValue
-js_class_define(JSContext* ctx, JSClassID* id, JSClassDef* def, JSCFunction* ctor, int length, const JSCFunctionListEntry* funcs, size_t nfuncs, JSValue* proto_out) {
+js_class_define(
+    JSContext* ctx, JSClassID* id, JSClassDef* def, JSCFunction* ctor, int length, const JSCFunctionListEntry* funcs, size_t nfuncs, JSValue* proto_out) {
   JSValue proto = JS_NewObject(ctx), func = ctor ? JS_NewCFunction2(ctx, ctor, def->class_name, length, JS_CFUNC_constructor, 0) : JS_UNDEFINED;
 
   JS_NewClassID(id);
@@ -2007,8 +2020,7 @@ js_is_primitive(JSValueConst obj) {
  * for the lifetime of the process once assigned - one probe per type, cached
  * by the caller, replaces an instanceof-plus-prototype-walk on every call. */
 static JSClassID
-js_probe_class_id(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
-  JSValue ctor = js_global_get_str(ctx, class_name);
+js_probe_class_id(JSContext* ctx, JSValue ctor, int argc, JSValueConst argv[]) {
   JSClassID id = JS_INVALID_CLASS_ID;
 
   if(JS_IsFunction(ctx, ctor)) {
@@ -2035,7 +2047,7 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
 
   if(!probed) {
     JSValueConst argv[] = {JS_NewInt32(ctx, 0)};
-    id = js_probe_class_id(ctx, "ArrayBuffer", 1, argv);
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "ArrayBuffer"), 1, argv);
     probed = TRUE;
   }
 
@@ -2054,7 +2066,7 @@ js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
 
   if(!probed) {
     JSValueConst argv[] = {JS_NewInt32(ctx, 0)};
-    id = js_probe_class_id(ctx, "SharedArrayBuffer", 1, argv);
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "SharedArrayBuffer"), 1, argv);
     probed = TRUE;
   }
 
@@ -2072,7 +2084,7 @@ js_is_date(JSContext* ctx, JSValueConst value) {
   static BOOL probed;
 
   if(!probed) {
-    id = js_probe_class_id(ctx, "Date", 0, 0);
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "Date"), 0, 0);
     probed = TRUE;
   }
 
@@ -2090,7 +2102,7 @@ js_is_map(JSContext* ctx, JSValueConst value) {
   static BOOL probed;
 
   if(!probed) {
-    id = js_probe_class_id(ctx, "Map", 0, 0);
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "Map"), 0, 0);
     probed = TRUE;
   }
 
@@ -2108,7 +2120,7 @@ js_is_weakmap(JSContext* ctx, JSValueConst value) {
   static BOOL probed;
 
   if(!probed) {
-    id = js_probe_class_id(ctx, "WeakMap", 0, 0);
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "WeakMap"), 0, 0);
     probed = TRUE;
   }
 
@@ -2126,7 +2138,7 @@ js_is_set(JSContext* ctx, JSValueConst value) {
   static BOOL probed;
 
   if(!probed) {
-    id = js_probe_class_id(ctx, "Set", 0, 0);
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "Set"), 0, 0);
     probed = TRUE;
   }
 
@@ -2139,6 +2151,21 @@ js_is_set(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    JSValue value = js_eval_str(ctx, "(function* gen() {})()", NULL, 0);
+    id = JS_GetClassID(value);
+    JS_FreeValue(ctx, value);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   JSValue ctor = js_generator_constructor(ctx);
   BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
   JS_FreeValue(ctx, ctor);
@@ -2153,7 +2180,52 @@ js_is_generator(JSContext* ctx, JSValueConst value) {
 }
 
 BOOL
+js_is_asyncgenerator(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    JSValue value = js_eval_str(ctx, "(async function* gen() {})()", NULL, 0);
+    id = JS_GetClassID(value);
+    JS_FreeValue(ctx, value);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
+  JSValue ctor = js_asyncgenerator_constructor(ctx);
+  BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
+  JS_FreeValue(ctx, ctor);
+
+  if(!ret) {
+    JSValue proto = js_asyncgenerator_prototype(ctx);
+    ret = js_has_prototype(ctx, value, proto);
+    JS_FreeValue(ctx, proto);
+  }
+
+  return ret;
+}
+
+BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    JSValue value = js_eval_str(ctx, "(/^.*$/)", NULL, 0);
+    id = JS_GetClassID(value);
+    JS_FreeValue(ctx, value);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && js_global_instanceof(ctx, value, "RegExp");
 }
 
@@ -2169,23 +2241,53 @@ js_is_promise(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "DataView"), 0, 0);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && js_global_instanceof(ctx, value, "DataView");
 }
 
 BOOL
 js_is_error(JSContext* ctx, JSValueConst value) {
+#if HAVE_JS_GETCLASSID
+  static JSClassID id;
+  static BOOL probed;
+
+  if(!probed) {
+    id = js_probe_class_id(ctx, js_global_get_str(ctx, "Error"), 0, 0);
+    probed = TRUE;
+  }
+
+  if(id != JS_INVALID_CLASS_ID)
+    return JS_GetClassID(value) == id;
+#endif
+
   return JS_IsObject(value) && js_global_instanceof(ctx, value, "Error");
 }
 
 BOOL
 js_is_iterable(JSContext* ctx, JSValueConst obj) {
-  BOOL ret = FALSE;
-  JSAtom atom = js_symbol_static_atom(ctx, "iterator");
+  JSValue prop = js_get_property_symbol_static(ctx, obj, "iterator");
+  BOOL ret = JS_IsFunction(ctx, prop);
+  JS_FreeValue(ctx, prop);
+  return ret;
+}
 
-  if(JS_HasProperty(ctx, obj, atom))
-    ret = TRUE;
-
-  JS_FreeAtom(ctx, atom);
+BOOL
+js_is_asynciterable(JSContext* ctx, JSValueConst obj) {
+  JSValue prop = js_get_property_symbol_static(ctx, obj, "asyncIterator");
+  BOOL ret = JS_IsFunction(ctx, prop);
+  JS_FreeValue(ctx, prop);
   return ret;
 }
 
@@ -2197,12 +2299,11 @@ js_is_nan(JSValueConst obj) {
 JSValue
 js_typedarray_prototype(JSContext* ctx) {
   if(JS_VALUE_GET_TAG(typedarray_prototype) != JS_TAG_OBJECT) {
-    JSValue u8_proto = js_global_prototype(ctx, "Uint8Array");
-    JSValue ta_proto = JS_GetPrototype(ctx, u8_proto);
-
-    JS_FreeValue(ctx, u8_proto);
-    typedarray_prototype = ta_proto;
-    return ta_proto;
+    JSValue proto = js_global_prototype(ctx, "Uint8Array");
+    JSValue ret = JS_GetPrototype(ctx, proto);
+    JS_FreeValue(ctx, proto);
+    typedarray_prototype = ret;
+    return ret;
   }
 
   return JS_DupValue(ctx, typedarray_prototype);
@@ -2230,7 +2331,6 @@ JSValue
 js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]) {
   JSAtom atom = JS_NewAtom(ctx, method);
   JSValue ret = JS_Invoke(ctx, this_obj, atom, argc, argv);
-
   JS_FreeAtom(ctx, atom);
   return ret;
 }
@@ -2337,7 +2437,7 @@ js_date_time(JSContext* ctx, JSValue arg) {
 
   if(JS_IsObject(arg))
     r = js_date_gettime(ctx, arg);
-  else if(!js_is_nullish(ctx, arg))
+  else if(!js_is_nullish(arg))
     JS_ToInt64(ctx, &r, arg);
 
   return r;
@@ -2461,6 +2561,11 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 }
 
 JSValue
+js_eval_str(JSContext* ctx, const char* str, const char* filename, int eval_flags) {
+  return JS_Eval(ctx, str, strlen(str), filename ? filename : "<internal>", eval_flags);
+}
+
+JSValue
 js_eval_buf(JSContext* ctx, const void* buf, size_t buf_len, const char* filename, int eval_flags) {
   JSValue ret;
   BOOL as_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
@@ -2535,19 +2640,6 @@ js_eval_this_file(JSContext* ctx, JSValueConst this_obj, const char* filename, i
     return JS_ThrowInternalError(ctx, "Error loading '%s': %s", filename, strerror(errno));
 
   return js_eval_this_buf(ctx, this_obj, buf, buf_len, filename, eval_flags);
-}
-
-int
-js_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
-  int32_t ret = 0;
-  JSValue val = js_eval_buf(ctx, str, strlen(str), file, flags);
-
-  if(JS_IsException(val))
-    ret = -1;
-  else if(JS_IsNumber(val))
-    JS_ToInt32(ctx, &ret, val);
-
-  return ret;
 }
 
 FORMAT_STRING(3, 4) JSValue js_eval_fmt(JSContext* ctx, int flags, const char* fmt, ...) {
@@ -2626,6 +2718,28 @@ js_error_tostring(JSContext* ctx, JSValueConst error) {
   return (char*)db.buf;
 }
 
+/* prints "    at file:line:column" from the fileName, lineNumber and
+ * columnNumber properties of an error that carries no stack. */
+static void
+js_error_position_print(JSContext* ctx, JSValueConst error) {
+  JSValue file = JS_GetPropertyStr(ctx, error, "fileName");
+  JSValue line = JS_GetPropertyStr(ctx, error, "lineNumber");
+  JSValue column = JS_GetPropertyStr(ctx, error, "columnNumber");
+  const char* name = JS_IsString(file) ? JS_ToCString(ctx, file) : 0;
+  int32_t l = 0, c = 0;
+
+  if(name) {
+    JS_ToInt32(ctx, &l, line);
+    JS_ToInt32(ctx, &c, column);
+    fprintf(stderr, "    at %s:%" PRId32 ":%" PRId32 "\n", name, l, c);
+    JS_FreeCString(ctx, name);
+  }
+
+  JS_FreeValue(ctx, file);
+  JS_FreeValue(ctx, line);
+  JS_FreeValue(ctx, column);
+}
+
 void
 js_error_print(JSContext* ctx, JSValueConst error) {
   const char *str = 0, *stack = 0;
@@ -2652,6 +2766,8 @@ js_error_print(JSContext* ctx, JSValueConst error) {
 
   if(stack && *stack)
     fprintf(stderr, "Stack:\n%s\n", stack);
+  else if(JS_IsObject(error))
+    js_error_position_print(ctx, error);
 
   fflush(stderr);
 
@@ -2707,7 +2823,7 @@ js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   set_handler = JS_GetPropertyStr(ctx, ns, handlers[!!write]);
   JS_FreeValue(ctx, ns);
 
-  if(js_is_null_or_undefined(set_handler))
+  if(js_is_nullish(set_handler))
     return JS_ThrowReferenceError(ctx, "no %s.%s function", module_name, handlers[!!write]);
 
   return set_handler;
@@ -2885,7 +3001,7 @@ js_toint64clamp(JSContext* ctx, int64_t* pres, JSValueConst val, int64_t min, in
 
 void*
 js_topointer(JSContext* ctx, JSValueConst value) {
-  if(js_is_null_or_undefined(value))
+  if(js_is_nullish(value))
     return 0;
 
   if(JS_IsObject(value)) {
@@ -3090,11 +3206,9 @@ js_generator_prototype(JSContext* ctx) {
   JSValue ret;
 
   if(JS_VALUE_GET_TAG(generator_prototype) != JS_TAG_OBJECT) {
-    const char* code = "(function *gen() {})()";
-    JSValue gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
-
-    ret = JS_GetPrototype(ctx, gen);
-    JS_FreeValue(ctx, gen);
+    JSValue value = js_eval_str(ctx, "(function *value() {})()", "<internal>", 0);
+    ret = JS_GetPrototype(ctx, value);
+    JS_FreeValue(ctx, value);
     generator_prototype = JS_DupValue(ctx, ret);
   } else {
     ret = JS_DupValue(ctx, generator_prototype);
@@ -3108,11 +3222,10 @@ js_asyncgenerator_prototype(JSContext* ctx) {
   JSValue ret;
 
   if(JS_VALUE_GET_TAG(asyncgenerator_prototype) != JS_TAG_OBJECT) {
-    const char* code = "(async function *agen() {})()";
-    JSValue agen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+    JSValue value = js_eval_str(ctx, "(async function *value() {})()", "<internal>", 0);
+    ret = JS_GetPrototype(ctx, value);
+    JS_FreeValue(ctx, value);
 
-    ret = JS_GetPrototype(ctx, agen);
-    JS_FreeValue(ctx, agen);
     asyncgenerator_prototype = JS_DupValue(ctx, ret);
   } else {
     ret = JS_DupValue(ctx, asyncgenerator_prototype);
@@ -3164,13 +3277,46 @@ js_std_file(JSContext* ctx) {
   if(JS_IsException(fileObj))
     return JS_EXCEPTION;
 
-  if(js_is_null_or_undefined(fileObj))
+  if(js_is_nullish(fileObj))
     return JS_ThrowReferenceError(ctx, "no 'out' object in module '%s'", module_name);
 
   JSValue ret = JS_GetPrototype(ctx, fileObj);
   JS_FreeValue(ctx, fileObj);
   return ret;
 }
+
+JSValue
+js_stream_construct(JSContext* ctx, const char* class_name, JSValueConst underlying_source_or_sink) {
+  JSValue ns;
+
+  if(JS_IsException(underlying_source_or_sink))
+    return JS_EXCEPTION;
+
+  if(!JS_IsObject(ns = js_module_namespace_sync(ctx, "stream"))) {
+    JS_FreeValue(ctx, ns);
+    return JS_ThrowReferenceError(ctx, "Blob.stream(): 'stream' module required");
+  }
+
+  JSValue ctor = JS_GetPropertyStr(ctx, ns, class_name);
+  JS_FreeValue(ctx, ns);
+
+  if(!JS_IsConstructor(ctx, ctor)) {
+    JS_FreeValue(ctx, ctor);
+    return JS_ThrowReferenceError(ctx, "Blob.stream(): no %s in the 'stream' module", class_name);
+  }
+
+  JSValue stream = JS_CallConstructor(ctx, ctor, 1, &underlying_source_or_sink);
+  JS_FreeValue(ctx, ctor);
+  return stream;
+}
+
+JSValue
+js_stream_construct_free(JSContext* ctx, const char* class_name, JSValue underlying_source_or_sink) {
+  JSValue ret = js_stream_construct(ctx, class_name, underlying_source_or_sink);
+  JS_FreeValue(ctx, underlying_source_or_sink);
+  return ret;
+}
+
 /**
  * @}
  */

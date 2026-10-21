@@ -37,7 +37,7 @@ static void
 predicate_inspect(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args, BOOL parens) {
   Predicate* pr;
 
-  if(js_is_null_or_undefined(value)) {
+  if(js_is_nullish(value)) {
     const char* arg = arguments_shift(args);
 
     dbuf_putstr(dbuf, arg ? arg : "(null)");
@@ -133,7 +133,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_POW:
     case PREDICATE_ATAN2: {
       JSValue values[2] = {pr->binary.left, pr->binary.right};
-      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
+      BOOL nullish[2] = {js_is_nullish(pr->binary.left), js_is_nullish(pr->binary.right)};
       double left, right, r = 0;
 
       for(size_t i = 0; i < 2; i++) {
@@ -629,7 +629,7 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
       dbuf_printf(dbuf, "'%s'", arg);
 
-      if(!js_is_null_or_undefined(pr->property.predicate)) {
+      if(!js_is_nullish(pr->property.predicate)) {
         char* src = js_tostring(ctx, pr->property.predicate);
         dbuf_printf(dbuf, ", %s", src);
         js_free(ctx, src);
@@ -820,7 +820,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       dbuf_printf(dbuf, "%s.%s", arg, prop);
 
-      if((s = js_is_null_or_undefined(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate))) {
+      if((s = js_is_nullish(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate))) {
         int i, arglen, slen = strlen(s);
         char* x = s;
 
@@ -1189,7 +1189,7 @@ predicate_recursive_num_args(const Predicate* pr) {
     case PREDICATE_NOT:
     case PREDICATE_BNOT:
     case PREDICATE_SQRT: {
-      if(js_is_null_or_undefined(pr->unary.predicate))
+      if(js_is_nullish(pr->unary.predicate))
         n++;
       else if((other = js_predicate_data(pr->unary.predicate)))
         n += predicate_recursive_num_args(other);
@@ -1205,12 +1205,12 @@ predicate_recursive_num_args(const Predicate* pr) {
     case PREDICATE_BAND:
     case PREDICATE_POW:
     case PREDICATE_ATAN2: {
-      if(js_is_null_or_undefined(pr->binary.left))
+      if(js_is_nullish(pr->binary.left))
         n++;
       else if((other = js_predicate_data(pr->binary.left)))
         n += predicate_recursive_num_args(other);
 
-      if(js_is_null_or_undefined(pr->binary.right))
+      if(js_is_nullish(pr->binary.right))
         n++;
       else if((other = js_predicate_data(pr->binary.right)))
         n += predicate_recursive_num_args(other);
@@ -1237,7 +1237,7 @@ predicate_recursive_num_args(const Predicate* pr) {
       if(pr->property.atom == 0)
         n++;
 
-      if(js_is_null_or_undefined(pr->property.predicate))
+      if(js_is_nullish(pr->property.predicate))
         n++;
       else if((other = js_predicate_data(pr->property.predicate)))
         n += predicate_recursive_num_args(other);
@@ -1300,10 +1300,10 @@ predicate_direct_num_args(const Predicate* pr) {
     case PREDICATE_ATAN2: {
       int n = 0;
 
-      if(js_is_null_or_undefined(pr->binary.left))
+      if(js_is_nullish(pr->binary.left))
         n++;
 
-      if(js_is_null_or_undefined(pr->binary.right))
+      if(js_is_nullish(pr->binary.right))
         n++;
 
       return n;
@@ -1323,7 +1323,7 @@ predicate_direct_num_args(const Predicate* pr) {
       if(pr->property.atom == 0)
         n++;
 
-      if(!js_is_null_or_undefined(pr->property.predicate))
+      if(!js_is_nullish(pr->property.predicate))
         n++;
 
       return n;
