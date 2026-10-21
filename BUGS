@@ -1146,18 +1146,6 @@
     # node: at Object.<anonymous> (/dir/x.cjs:2:7)
     # qjsm: at anonymous (<input>:4:7)
 
-- node-os-missing: node:os stays unresolved and require('os') gives
-  QuickJS's own os, so os.platform() is not a function (glob-parent,
-  typescript), os.homedir and os.tmpdir are missing (env-paths) and there
-  is no default export. Fix: lib/node/os.js, builtin node_os, with
-  platform, arch, type, release, homedir, tmpdir, hostname, EOL, cpus,
-  totalmem, freemem, endianness, userInfo and constants, from process, std
-  and /proc, then let lib/loaders/node.js map node:os to it. Found
-  2026-10-21.
-
-    import os from 'node:os';
-    # qjsm: ERR_UNKNOWN_BUILTIN_MODULE or could not load module 'node:os'
-
 - quickjs-regexp-v-flag-hyphen: the QuickJS that qjsm links rejects a
   plain - anywhere in a pattern with the v flag, also outside a class:
   /a-b/v, /^(?:-?\d+n)/v throw invalid character in class (5 packages:
@@ -1180,3 +1168,71 @@
     const u = new Uint8Array([0xfb, 0xff, 1, 2]);
     btoa(u.subarray(0, 2));        // '+/8BAg==', expected '+/8='
     btoa(u.subarray(0, 2), true);  // '-_8BAg==', expected '-_8'
+
+- process-arch-x32-for-ia32: process.arch (lib/process.js) maps an i386
+  to i686 machine to 'x32', Node says 'ia32' there (x32 is the 64-bit ABI
+  with 32-bit pointers), and armv7l stays 'armv7l' where Node says 'arm'.
+  os.arch() of node:os returns process.arch, so it inherits both. Found
+  2026-10-21.
+
+    // on an i686 kernel
+    process.arch;    // node: 'ia32'   qjsm: 'x32'
+
+- builtin-modules-cache-pins-default: a new name in qjsm.cmake's default
+  BUILTINS_COMPILED list does not reach an existing build dir. The first
+  configure caches the expanded default as BUILTIN_MODULES, and every
+  later configure keeps it, so the new builtin is missing until
+  -UBUILTIN_MODULES. qjsm_init_builtins() drops a cached BUILTINS_COMPILED
+  default by its help string, but not the BUILTIN_MODULES it built. Found
+  2026-10-21.
+
+    # add node/os to BUILTINS_COMPILED in cmake/qjsm.cmake, then
+    cmake -B build/x86_64-linux-gnu -S .    # node/os not listed
+
+- fs-readfilesync-proc-empty: fs.readFileSync() of a /proc or /sys file
+  returns '' (or an empty buffer), Node returns the contents. These files
+  report size 0, so a read sized by stat() or fseek/ftell gets nothing,
+  std.loadFile() does the same. Read until EOF instead. Found 2026-10-21.
+
+    import { readFileSync } from 'fs';
+    readFileSync('/proc/loadavg', 'utf8');  // node: '1.84 ...'  qjsm: ''
+
+- node-os-networkinterfaces-unimplemented: os.networkInterfaces() of
+  node:os throws InternalError, qjs-modules has no getifaddrs(3) binding.
+  Needs misc.getifaddrs() (name, family, address, netmask, MAC from
+  AF_PACKET, scope id), then lib/node/os.js builds Node's { address,
+  netmask, family, mac, internal, cidr, scopeid }. TODO.md 29.1. Found
+  2026-10-21.
+
+    import os from 'node:os';
+    os.networkInterfaces();   // node: { lo: [...], ... }  qjsm: InternalError
+
+- node-os-setpriority-unimplemented: os.setPriority() of node:os checks
+  pid and priority as Node does, then throws InternalError, there is no
+  setpriority(2) binding. Needs misc.setpriority(which, who, prio), its
+  errno mapped to Node's SystemError (EACCES, ESRCH). TODO.md 29.2. Found
+  2026-10-21.
+
+    import os from 'node:os';
+    os.setPriority(10);       // node: undefined  qjsm: InternalError
+
+- node-os-userinfo-passwd-only: os.userInfo() of node:os, and homedir()
+  without $HOME, read /etc/passwd only. A user that NSS provides (LDAP,
+  sssd, systemd-homed) has no line there, so userInfo() throws SystemError
+  ENOENT where Node returns the entry. Needs misc.getpwuid(uid) on
+  getpwuid_r(3). TODO.md 29.3. Found 2026-10-21.
+
+    import os from 'node:os';
+    os.userInfo();            // ldap user, node: { username, ... }
+                              // qjsm: SystemError ERR_SYSTEM_ERROR ENOENT
+
+- node-os-linux-proc-only: cpus(), freemem(), totalmem(), loadavg(),
+  uptime() and getPriority() of node:os read /proc, so they throw
+  InternalError on macOS, BSD and Windows, and availableParallelism()
+  falls back to cpus() there and throws too. Needs sysctl(3),
+  GetSystemTimes and the like behind one misc.sysinfo(). TODO.md 29.4.
+  Found 2026-10-21.
+
+    import os from 'node:os';
+    os.totalmem();            // macOS, node: 17179869184
+                              // qjsm: InternalError, no /proc/meminfo

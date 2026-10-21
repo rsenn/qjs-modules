@@ -17,7 +17,7 @@ Tier 12/13 yaml/cyaml. Line numbers elsewhere may still have drifted.
 
 ## ctest state (2026-10-21)
 
-168 of 170 pass. Fixed since the 2026-10-18 list below: `test-extract-c` (`lex()` folds the `pp_*` run of a directive into one `preprocessor` token), `test-directory` (`new Directory()` is an empty
+184 of 186 pass. Fixed since the 2026-10-18 list below: `test-extract-c` (`lex()` folds the `pp_*` run of a directive into one `preprocessor` token), `test-directory` (`new Directory()` is an empty
 iteration), `test-mmap` (`filename()` reads `/proc/self/maps` until EOF), `test-lexer-cpp` (a backslash-newline
 is skipped, no token), `test-typescript` (strip-only syntax), `test-globals`. Still failing:
 
@@ -3590,3 +3590,19 @@ writevSync(fd, chunks.map(c => c.edited ? encode(c.content) : bytes.subarray(at(
 ```
 
 `toString()` still returns a string, so it pays one copy; the zero-copy path is the file or Blob output.
+
+## Tier 29 — `node:os` gaps that need native backing (lib/node/os.js, 2026-10-21)
+
+`lib/node/os.js` implements the whole `node:os` surface; these parts throw `InternalError` (marked
+`/* XXX: TODO */` in the source) or approximate, because qjs-modules has no C function behind them. The native
+pieces belong in `misc`, each a thin syscall wrapper; `lib/node/os.js` then drops the stub.
+
+| # | Node API | Today | Native backing needed |
+| --- | --- | --- | --- |
+| 29.1 | `os.networkInterfaces()` | `InternalError` | `misc.getifaddrs()`: `getifaddrs(3)`, per entry name, family, address, netmask, MAC (`AF_PACKET`), scope id; JS builds Node's `{ address, netmask, family, mac, internal, cidr, scopeid }` |
+| 29.2 | `os.setPriority([pid,] priority)` | `InternalError` after argument checks | `misc.setpriority(which, who, prio)` and `getpriority`: `setpriority(2)`, errno to Node's `SystemError` (`EACCES`, `ESRCH`) |
+| 29.3 | `os.userInfo()`, `os.homedir()` without `$HOME` | `/etc/passwd` only, NSS users (LDAP, sssd) give `ENOENT` | `misc.getpwuid(uid)`: `getpwuid_r(3)` |
+| 29.4 | `cpus()`, `freemem()`, `totalmem()`, `loadavg()`, `uptime()`, `getPriority()` on macOS, BSD, Windows | `InternalError`: no `/proc` | `sysctl(3)` / `sysinfo(2)` / `GetSystemTimes` per platform, or one `misc.sysinfo()` |
+
+Verify: `tests/unittests/test-node-os.js` (`@portable`) gains a case per row and keeps passing on node, bun, deno;
+for 29.1 compare against `node -p 'os.networkInterfaces()'` on the same machine.

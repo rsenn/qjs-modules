@@ -687,7 +687,7 @@ if(NOT DEFINED BUILTIN_MODULES)
   endif()
 
   if(NOT DEFINED BUILTINS_COMPILED)
-       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module node lazyGlobal loaders/node loaders/package-aliases loaders/packages password perf_hooks process readline readlinePromises repl require stream string_decoder terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
+       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/os node/util fs fsPromises globals io iterator module node lazyGlobal loaders/node loaders/package-aliases loaders/packages password perf_hooks process readline readlinePromises repl require stream string_decoder terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
   endif(NOT DEFINED BUILTINS_COMPILED)
 
   if(DEFINED CACHE{BUILTINS_NATIVE})
@@ -890,6 +890,7 @@ set(vfs_MODULES fs syscallerror textcode directory)
 set(webassembly_MODULES wasm)
 set(node_buffer_MODULES misc blob)
 set(node_child_process_MODULES child_process node/events node/buffer misc sockets process)
+set(node_os_MODULES misc node/buffer process)
 set(node_util_MODULES assert misc)
 set(inspect_MODULES pointer)
 endmacro(qjsm_declare_imports)
@@ -1266,7 +1267,7 @@ macro(qjsm_report_compat)
 
   # Node.js
   set(_node_builtins "")
-  foreach(_m loaders/node loaders/packages node/buffer node/child_process node/events node/util module process fsPromises
+  foreach(_m loaders/node loaders/packages node/buffer node/child_process node/events node/os node/util module process fsPromises
              timersPromises assertStrict readlinePromises string_decoder)
     if(_m IN_LIST _cb)
       list(APPEND _node_builtins "${_m}")

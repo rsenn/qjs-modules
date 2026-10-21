@@ -137,7 +137,7 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
 2. **`node:` prefix** — not handled by the engine. `lib/loaders/node.js`, a
    `registerHooks()` resolver that `lib/node.js` installs (off with `-N`), maps `node:<name>` to the
    `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
-   `node:os` stays unresolved (this engine's `os` is *not* Node's `os`). Only Node's
+   `node:os` is the layer `lib/node/os.js`, bare `os` stays this engine's `os`. Only Node's
    own module names are mapped: `node:deep` or `node:sqlite` resolves to itself and loading
    it throws `Error` `ERR_UNKNOWN_BUILTIN_MODULE` ("No such built-in module: node:deep"),
    as on Node and Bun.
