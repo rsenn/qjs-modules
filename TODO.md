@@ -17,13 +17,12 @@ Tier 12/13 yaml/cyaml. Line numbers elsewhere may still have drifted.
 
 ## ctest state (2026-10-21)
 
-153 of 156 pass. Fixed since the 2026-10-18 list below: `test-directory` (`new Directory()` is an empty
+168 of 170 pass. Fixed since the 2026-10-18 list below: `test-extract-c` (`lex()` folds the `pp_*` run of a directive into one `preprocessor` token), `test-directory` (`new Directory()` is an empty
 iteration), `test-mmap` (`filename()` reads `/proc/self/maps` until EOF), `test-lexer-cpp` (a backslash-newline
 is skipped, no token), `test-typescript` (strip-only syntax), `test-globals`. Still failing:
 
 | Test | Cause | Fix |
 | --- | --- | --- |
-| `test-extract-c` | `findDefines()` wants one `preprocessor` token, `CLexer` yields `pp_*` runs (`BUGS` extract-c-finddefines-expects-preprocessor-token) | rebuild the directive from the `pp_*` run in `utilities/extract-c.js` |
 | `test-misc` | `valuePointer`, `gettid` | not investigated |
 | `test-sql` | needs a reachable MySQL/PostgreSQL | environment |
 

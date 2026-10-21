@@ -66,6 +66,7 @@ import { isatty, readdir } from 'os';
 import { getOpt, isMainModule } from 'util';
 import { dirname, join, normalize, exists } from 'path';
 import CLexer from 'lexer/c.js';
+import { foldDirectives } from 'lexer/cpp.js';
 
 const SKIP_TYPES = new Set(['whitespace', 'singleLineComment', 'multiLineComment']);
 const INCLUDE_RE = /^#\s*include\s*(["<])([^">]+)[">]/;
@@ -78,7 +79,7 @@ function tokenize(source, filename) {
   let tok;
   while((tok = lexer.nextToken())) if(!SKIP_TYPES.has(tok.type)) toks.push(tok);
 
-  return toks;
+  return foldDirectives(toks, source, filename);
 }
 
 /**

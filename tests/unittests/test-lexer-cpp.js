@@ -1,7 +1,7 @@
 /* lib/lexer/cpp.js and the CPP mode of lib/lexer/c.js: pp_* tokens inside a
  * directive, C tokens outside, back to C at the first unescaped newline. */
 import CLexer from '../../lib/lexer/c.js';
-import CPPLexer from '../../lib/lexer/cpp.js';
+import CPPLexer, { foldDirectives } from '../../lib/lexer/cpp.js';
 import { eq, tests } from '../../lib/tinytest.js';
 
 const SKIP = new Set(['whitespace', 'pp_whitespace']);
@@ -64,5 +64,17 @@ tests({
 
   'CPPLexer on its own lexes directives with the same rules'() {
     eq('pp_hash:#,pp_directive:define,pp_identifier:X,pp_number:2,pp_newline:', scan(CPPLexer, '#define X 2\n').join());
+  },
+
+  'foldDirectives makes each directive one preprocessor token'() {
+    const src = 'int a;\n#define M(x) \\\n  (x)\n# if A\nint b;\n';
+    const toks = foldDirectives([...new CLexer(src, CLexer.LONGEST, 'test.c')].filter(t => t.type != 'whitespace'), src, 'test.c');
+    const [m, cond] = toks.filter(t => t.type == 'preprocessor');
+
+    eq('int,identifier,semi,preprocessor,preprocessor,int,identifier,semi', toks.map(t => t.type).join());
+    eq('#define M(x) \\\n  (x)', m.lexeme);
+    eq('2:1@7', `${m.loc.line}:${m.loc.column}@${m.charPos}`);
+    eq('# if A', cond.lexeme);
+    eq('4:1', `${cond.loc.line}:${cond.loc.column}`);
   },
 });

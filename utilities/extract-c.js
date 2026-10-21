@@ -7,6 +7,7 @@ import * as os from 'os';
 import { isatty, read, readdir, SIGINT, signal, setTimeout, ttyGetWinSize } from 'os';
 import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
+import { foldDirectives } from 'lexer/cpp.js';
 import { Screen, setScrollRegion, resetScrollRegion } from 'terminal';
 import process from 'process';
 
@@ -55,7 +56,7 @@ function lex(source, filename) {
   const toks = [];
   let tok;
   while((tok = lexer.nextToken())) if(tok.type != 'whitespace') toks.push(tok);
-  return toks;
+  return foldDirectives(toks, source, filename);
 }
 
 /**

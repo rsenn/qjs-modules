@@ -1064,18 +1064,6 @@
   directory. The same was fixed for BUILTINS_COMPILED only. Workaround:
   cmake -U BUILTIN_MODULES <builddir>. Found 2026-10-20.
 
-- extract-c-finddefines-expects-preprocessor-token: utilities/extract-c.js
-  looks for one token of type preprocessor per directive (findDefines,
-  findFunctions boundaries, parseDirective), but CLexer (lib/lexer/c.js)
-  merges the CPP rules of lib/lexer/cpp.js since b74466b5 (2026-10-14) and
-  yields pp_hash, pp_directive, pp_identifier ... instead. findDefines()
-  returns nothing, so 6 cases of test-extract-c.js fail. Either extract-c
-  rebuilds a directive from the pp_* run, or it lexes with a lexer that
-  keeps CPPLine (lib/lexer/cpp.js) as one token. Found 2026-10-21.
-
-    import { findDefines } from './utilities/extract-c.js';
-    findDefines('#define A 1\n', 'a.h');   // [], expected one define
-
 - directory-options-object-zeroes-defaults: new Directory(path, { recursive })
   and new Directory({ path }) set flags and mask from the options object
   with js_get_propertystr_int32, which gives 0 for a missing property, so
