@@ -1091,3 +1091,41 @@
     qjsm utilities/extract-structs.js quickjs-path.c
     # cFuncListObjects {}
     # []
+
+- package-json-type-ignored-cjs-js-runs-as-esm: a .js file in a package
+  without "type": "module" is CommonJS on node, but lib/loaders/commonjs.js
+  only marks .cjs, so qjsm evaluates it as an ES module. module.exports
+  then throws 'exports' is not defined, or the import silently gives no
+  exports, and a require() in it is the global one, which resolves
+  relative paths from the main script instead of the file. Most of the
+  ~200 sweep failures (tests/node-modules-sweep.sh) start here. Found
+  2026-10-21.
+
+    // node_modules/p/package.json  {"main": "index.js"}
+    // node_modules/p/index.js      module.exports = require('./lib/x');
+    (await import('loaders/commonjs')).default();
+    await import('p');
+    # node: the exports of lib/x.js
+    # qjsm: Error: Module <main script dir>/lib/x not found!
+
+- require-bare-name-looks-up-from-specifier: lib/require.js:374 searches
+  node_modules with getPackagePaths(dirname(m)), the dirname of the
+  specifier, not of the requiring file, so require('pkg') of a package in
+  node_modules next to the .cjs file is never found. Found 2026-10-21.
+
+    // x.cjs                        module.exports = require('p');
+    // node_modules/p/package.json  {"main": "index.cjs"}
+    (await import('loaders/commonjs')).default();
+    await import('./x.cjs');
+    # node: the exports of p
+    # qjsm: Error: Module p not found!
+
+- node-builtins-lack-default-export: events, fs/promises, readline,
+  readline/promises, url and util have no default export on qjsm, while
+  every node builtin has one, so import x from 'readline' is a
+  SyntaxError (27 packages in tests/node-modules-sweep.sh). Found
+  2026-10-21.
+
+    import readline from 'readline';
+    # node: the module object
+    # qjsm: SyntaxError: Could not find export 'default' in module

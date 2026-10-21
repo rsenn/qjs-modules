@@ -1,5 +1,4 @@
-import '../../lib/webassembly.js';
-import WA, { WebAssembly as NS } from '../../lib/webassembly.js';
+import WA, { WebAssembly as NS } from 'webassembly';
 import * as wasm from 'wasm';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 

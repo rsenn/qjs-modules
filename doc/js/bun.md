@@ -1,6 +1,6 @@
 # bun
 
-Source: `lib/bun.js` (pure JS) — named exports: `plugin`, `file`, `write`, `stdin`, `stdout`, `stderr`; the default export is installed as `globalThis.Bun` by qjsm, with `Intl`, and `Bun.serve`/`Bun.fetch` and the network globals when qjs-lws is installed ([below](#globals-from-other-modules))
+Source: `lib/bun.js` (pure JS) — named exports: `plugin`, `file`, `write`, `stdin`, `stdout`, `stderr`; the default export is installed as `globalThis.Bun` by qjsm, on top of [node](node.md)'s globals, with `Bun.serve`/`Bun.fetch` when qjs-lws is installed ([below](#globals-from-other-modules))
 
 Bun's runtime plugin API (https://bun.com/docs/runtime/plugins), built on
 `registerHooks()` (`doc/qjsm.md`). Only the runtime half exists here: there is no bundler,
@@ -71,23 +71,15 @@ BunFiles over fd 0/1/2 (`stdin.size` is `Infinity`).
 
 ## Globals from other modules
 
-`lib/bun.js` provides the globals Bun has built in: `Intl` from `lib/intl.js`, and the network globals when
-qjs-lws (the sibling project `../qjs-lws/`) is installed in the module path:
+Bun is Node-compatible, so `lib/bun.js` imports [node](node.md) and has every global listed there
+(`fetch`, `URL`, `Buffer`, `Intl`, ...). It adds only the `Bun` object, with two members loaded on first
+read from qjs-lws (the sibling project `../qjs-lws/`) when it is in the module path:
 
-| Global | From | Enumerable |
-| --- | --- | --- |
-| `fetch`, `Bun.fetch` | `fetch` | yes |
-| `Request`, `Response` | `serve` | yes |
-| `Bun.serve` | `serve` | yes |
-| `Headers` | `lws/headers` | yes |
-| `FormData` | `lws/formdata` | yes |
-| `URL`, `URLSearchParams` | `lws/url` | no, as in Bun |
-| `AbortController`, `AbortSignal` | `lws/abort` | yes |
-| `Intl` | `intl` (built in, [English only](intl.md)) | no |
+| Member | From |
+| --- | --- |
+| `Bun.serve` | `serve` |
+| `Bun.fetch` | `fetch`, the same function as the global `fetch` |
 
-- Nothing is loaded at startup: qjsm only checks that the module is a builtin or found by
-  `locateModule()`, and the first read of the global loads it with `requireModule()` (qjs-lws costs ~50 ms).
-- A global that already exists is left alone. Assigning one (`globalThis.URL = X`) replaces it.
-- Without qjs-lws, or when the module fails to load, the global is absent: `typeof fetch` is
-  `'undefined'`.
+- Without qjs-lws both are absent: `Bun.serve` is `undefined`.
+- `-B` (`--no-bun`) makes qjsm load `node` alone, `-N` (`--no-node`) neither.
 - `Bun.serve` and `Bun.fetch` are on the `Bun` object only, not named exports of `bun`.

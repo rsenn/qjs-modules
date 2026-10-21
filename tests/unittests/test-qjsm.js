@@ -7,6 +7,20 @@ import { assert, eq, tests } from '../../lib/tinytest.js';
 /* the getters follow the running script, so read them while it is the top frame */
 const [file, dir] = [__filename, __dirname];
 
+/* stdout of qjsm args -e code */
+function qjsm(args, code) {
+  const file = `${std.getenv('TMPDIR') ?? '/tmp'}/test-qjsm-${os.getpid()}.txt`;
+  const fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
+
+  os.exec([process.execPath, ...args, '-e', code], { stdout: fd, block: true });
+  os.close(fd);
+
+  const out = std.loadFile(file);
+
+  os.remove(file);
+  return out.trim();
+}
+
 tests({
   'every module global is a function'() {
     for(const name of ['findModule', 'loadModule', 'requireModule', 'resolveModule', 'normalizeModule', 'locateModule', 'getModule', 'getModuleName', 'getModuleMetaObject', 'getModuleNS', 'registerHooks', 'disableBuiltin', 'evalBuf', 'evalFile'])
@@ -142,6 +156,21 @@ tests({
     delete globalThis.misc;
     requireModule('misc');
     eq(false, 'misc' in globalThis);
+  },
+
+  'requireModule returns the namespace of the module asked for'() {
+    eq('function', typeof requireModule('fs').readFileSync);
+    eq('function', typeof requireModule('streams').ReadableStream);
+    eq(undefined, requireModule('streams').readFileSync);
+  },
+
+  'Bun compatibility, a superset of Node compatibility, loads by default, -B keeps Node only, -N neither'() {
+    const probe = "console.log(['Buffer', 'global', 'URL', 'structuredClone', 'Bun'].map(n => typeof globalThis[n]).join())";
+
+    eq('function,object,function,function,object', qjsm([], probe));
+    eq('undefined,undefined,undefined,undefined,undefined', qjsm(['-N'], probe));
+    eq('function,object,function,function,undefined', qjsm(['-B'], probe));
+    eq('undefined,undefined,undefined,undefined,undefined', qjsm(['-N', '-B'], probe));
   },
 
   'loadModule binds the module onto globalThis'() {

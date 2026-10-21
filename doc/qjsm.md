@@ -43,7 +43,7 @@ interactively, not a dependency of it.
 | --- | --- | --- |
 | Module loader | Filesystem paths only | Builtin registry, `node:` prefix, `data:` URLs, `.json`, `package.json` `_moduleAliases`, `QUICKJS_MODULE_PATH` search, Node-style `registerHooks()` resolve/load hooks |
 | Builtin modules | None | Every native/JS module the build was configured with, statically registered |
-| Bootstrap globals | `std`, `os` (only with `--std`) | `process` (always), plus `std`/`os` with `--std`; `console` from the REPL |
+| Bootstrap globals | `std`, `os` (only with `--std`) | `process`, Node's globals (`Buffer`, `URL`, `fetch`, ...) and `Bun`, see [Node and Bun compatibility](#node-and-bun-compatibility); `std`/`os` with `--std`; `console` from the REPL |
 | Module introspection | None | `findModule`, `loadModule`, `requireModule`, `normalizeModule`, `resolveModule`, `locateModule`, `registerHooks`, `moduleList`, `moduleEntries` on `globalThis` |
 | REPL | Line evaluator only | Line evaluator + `\`-directives, including `\i <module>` to import interactively |
 | `-m` flag | N/A | Loads named modules onto `globalThis` before the main script/REPL runs |
@@ -133,7 +133,7 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    source (URL-decoded, or base64-decoded if `;base64` is present); `/json`
    MIME wraps it as `export default JSON.parse(...)` instead.
 2. **`node:` prefix** — not handled by the engine. `lib/loaders/node.js`, a
-   `registerHooks()` resolver preloaded by qjsm, maps `node:<name>` to the
+   `registerHooks()` resolver that `lib/node.js` installs (off with `-N`), maps `node:<name>` to the
    `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
    `node:os` stays unresolved (this engine's `os` is *not* Node's `os`). Only Node's
    own module names are mapped: `node:deep` or `node:sqlite` resolves to itself and loading
@@ -154,7 +154,7 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    builtin only see the builtin table ([layout 4.1](qjsm-layout.md)).
    Bare names in `node_modules` and `#name` imports are resolved by the builtin
    `loaders_packages` ([loaders/packages](js/loaders/packages.md)), a resolve hook
-   preloaded like `loaders_node` (off with `-N`): Node's algorithm with `exports`,
+   installed like `loaders_node` (off with `-N`): Node's algorithm with `exports`,
    `imports` and the conditions `node`, `import`, `default` plus `-C`. A bare name no
    `node_modules` holds goes on to `QUICKJS_MODULE_PATH`.
 5. **`.json` suffix** — `jsm_module_json()` wraps the file's contents as
@@ -419,7 +419,9 @@ qjsm [options] [file [args]]
     --disable-builtin a,b   builtins not to find by name (env QJSM_DISABLE_BUILTINS)
     --hooks-on-builtins     let registerHooks() hooks see bare builtin names
                             (env QJSM_HOOKS_ON_BUILTINS=1)
--N  --no-node-hooks     no node: and node_modules resolution (loaders/node, loaders/packages)
+-N  --no-node           no Node or Bun compatibility: no node:, node_modules and CommonJS
+                        loaders, no Node globals, no Bun; --no-node-hooks works too
+-B  --no-bun            Node compatibility only (lib/node.js), no Bun global
 -C  --conditions name   add an export condition for package.json "exports"/"imports",
                         repeatable; node, import and default are always on
 
@@ -431,6 +433,21 @@ qjsm [options] [file [args]]
 imports) has run, before `-I` includes, before `-e`, before the REPL. See
 [Module resolution pipeline](#module-resolution-pipeline) for what a bare
 module name in `-m`/`loadModule()` resolves against.
+
+## Node and Bun compatibility
+
+Bun is Node-compatible, so [bun](js/bun.md) is a superset of [node](js/node.md): it imports `node` and
+adds the `Bun` global. qjsm loads them before the script runs, each only when it is compiled in:
+
+| Flags | Loaded | Globals |
+| --- | --- | --- |
+| none | `node`, then `bun` | Node's (below) and `Bun` |
+| `-B`, `--no-bun` | `node` | Node's: the `node:`, `node_modules` and CommonJS loaders, `Buffer`, `global`, `fetch`, `URL`, `AbortController`, `Event`, `TextEncoder`, `Blob`, the streams, `atob`, `structuredClone`, `crypto`, `performance`, `Intl`, `WebAssembly`, ... |
+| `-N`, `--no-node` | nothing | QuickJS's own and `process` |
+
+`node` is imported before `process`, whose `import('node:events')` needs its loaders. Without the `node`
+builtin, qjsm still preloads `loaders_node` and `loaders_packages` when they are compiled in. `-P` turns
+`process` off.
 
 ## Out-of-tree modules as builtins
 

@@ -340,17 +340,12 @@ Docs: `doc/native/wasm.md`, `doc/js/wasi.md`.
 node:-prefix audit):
 - `package.json` `"type"` is never consulted (`"exports"`, `"imports"` and `"main"` are, by
   `lib/loaders/packages.js`), so it plays no part in whether a `.js` file loads as CJS or ESM.
-- `.mjs` forces module-eval mode (`src/qjsm.c:jsm_hook_load()`) but `.cjs` has no special handling
-  (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
-  `"type"`).
-- No global `require()` by default (only via explicit `import` of `lib/require.js`) —
-  Node/Bun provide it ambiently in CJS contexts.
-- No `Buffer` global and no Node-style `crypto`/`zlib`/`dns`/`net`/`worker_threads`
-  builtins at all (checked `quickjs-builtins.h`'s full native+compiled list) — common
-  Node imports fail outright, not even reachable via a `node:` alias.
-- `TextEncoder`/`TextDecoder`/`queueMicrotask` exist only as named exports of
-  `textcode`/`util` (imported by `lib/streams.js` and `lib/dom.js`), not ambient globals like every
-  other runtime provides.
+- `.cjs` loads as CommonJS through `lib/loaders/commonjs.js`, which `lib/node.js` installs at startup
+  since 2026-10-21, but a CommonJS `.js` file does not (`BUGS` package-json-type-ignored-cjs-js-runs-as-esm).
+- No Node-style `crypto`/`zlib`/`dns`/`net`/`worker_threads`/`vm`/`string_decoder` builtins
+  — common Node imports fail outright (`tests/node-modules-sweep.sh` counts them).
+- Node globals still missing under `lib/node.js` (2026-10-21, `doc/js/node.md`): `MessageChannel`, `BroadcastChannel`, the compression streams,
+  `navigator`, `localStorage`, `crypto.subtle`, `URLPattern`.
 
 `node:<name>` export-surface diff vs Bun (found 2026-09-19, via
 `utilities/runtime-diff.js -r qjsm -r bun` against assert/child_process/console/events/

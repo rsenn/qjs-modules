@@ -9,7 +9,7 @@ Node-style `EventEmitter` plus a WHATWG-style `EventTarget`.
 | Export | Kind | Description |
 | --- | --- | --- |
 | `EventEmitter` | class | Node's event emitter, see below. **(default export)** |
-| `EventTarget` | class | DOM-style `addEventListener`/`removeEventListener`/`dispatchEvent`. |
+| `EventTarget` | class | DOM-style `addEventListener(type, fn, { once, signal })`/`removeEventListener`/`dispatchEvent` (returns `false` when the default was prevented; sets `target` and `currentTarget` of a `lib/dom.js` `Event`). The same class is in `qjs-lws` `lib/lws/events.js`. |
 
 ## Node conformance
 

@@ -30,12 +30,13 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [timers](timers.md) — HTML5 Timers API (setTimeout, setInterval, etc.)
 - [perf_hooks](perf_hooks.md) — Performance hooks
 - [module](module.md) — Module utilities, `registerHooks()`
-- [bun](bun.md) — `Bun.plugin()` runtime plugins
+- [bun](bun.md) — the `Bun` global: `Bun.plugin()` runtime plugins, `Bun.file()`, `Bun.write()`
+- [node](node.md) — Node compatibility qjsm loads at startup: the `node:`/`node_modules`/CommonJS loaders and Node's globals
 - [loaders/commonjs](loaders/commonjs.md) — `commonjs` module format loader (`registerHooks()`)
 - [loaders/file](loaders/file.md) — `with { type: 'file' }` imports, as in Bun (`registerHooks()`)
 - [loaders/typescript](loaders/typescript.md) — `.ts` loader, types stripped by node's `module.stripTypeScriptTypes` (`registerHooks()`)
 - [loaders/packages](loaders/packages.md) — `node_modules` and `package.json` `exports`/`imports`/`main`, Node's ESM resolution (`registerHooks()`, preloaded)
-- [globals](globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, `Intl`, ...)
+- [globals](globals.md) — web/Node globals (`URL`, `structuredClone`, `crypto`, `Intl`, ...), installed by [node](node.md)
 - [intl](intl.md) — `Intl` (ECMA-402) with English data: `NumberFormat`, `DateTimeFormat`, `PluralRules`, `Collator`, `ListFormat`, `RelativeTimeFormat`, `Locale`
 - [jsonStreams](jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [textLineStream](textLineStream.md) — Deno's `TextLineStream`

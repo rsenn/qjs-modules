@@ -687,7 +687,7 @@ if(NOT DEFINED BUILTIN_MODULES)
   endif()
 
   if(NOT DEFINED BUILTINS_COMPILED)
-       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module loaders/node loaders/package-aliases loaders/packages password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
+       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module node lazyGlobal loaders/node loaders/package-aliases loaders/packages password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
   endif(NOT DEFINED BUILTINS_COMPILED)
 
   if(DEFINED CACHE{BUILTINS_NATIVE})
@@ -847,7 +847,8 @@ set(COMMON_MODULES "")
 set(abort_MODULES events)
 set(assert_MODULES inspect)
 set(assertStrict_MODULES assert)
-set(bun_MODULES blob fs path stream textcode url)
+set(bun_MODULES node blob fs path stream textcode url lazyGlobal)
+set(node_MODULES loaders/node loaders/packages loaders/commonjs lazyGlobal)
 set(loaders_commonjs_MODULES require path)
 set(console_MODULES util inspect)
 set(db_MODULES util list)
@@ -1286,12 +1287,12 @@ macro(qjsm_report_compat)
 
     if("loaders/node" IN_LIST _node_builtins)
       list(APPEND _rewrites "node:<name>  ->  node_<name> if that builtin exists, else <name> (node:os is left alone)"
-                            "run by the loaders/node resolve hook, off with -N / --no-node-hooks")
+                            "run by the loaders/node resolve hook, off with -N / --no-node")
     endif()
 
     if("loaders/packages" IN_LIST _node_builtins)
       list(APPEND _rewrites "pkg, @scope/pkg/sub, #name  ->  node_modules and package.json exports/imports/main"
-                            "run by the loaders/packages resolve hook, off with -N / --no-node-hooks")
+                            "run by the loaders/packages resolve hook, off with -N / --no-node")
     endif()
 
     foreach(_alias "fsPromises:fs/promises" "timersPromises:timers/promises" "assertStrict:assert/strict"

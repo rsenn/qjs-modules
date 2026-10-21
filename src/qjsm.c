@@ -1349,16 +1349,12 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 }
 
 /*
- * Implements the `loadModule` and `requireModule` globals: synthesizes and
- * evaluates an import script for `path`. With bind, the script also binds
- * the module as `name` on globalThis (see jsm_module_script), without it
- * the module is only loaded:
- *
- *   bind   import tmp from 'path'; globalThis['name'] = tmp;
- *   !bind  import 'path';
+ * Implements the `loadModule` global: synthesizes and evaluates an
+ * import/assignment script for `path`, binding it as `name` (see
+ * jsm_module_script).
  */
 static JSModuleDef*
-jsm_module_load(JSContext* ctx, const char* path, const char* name, BOOL bind) {
+jsm_module_load(JSContext* ctx, const char* path, const char* name) {
   DynBuf dbuf;
 
   DEBUG_MODULE(2, "(path: \"%s\", name: \"%s\")", path, name);
@@ -1367,29 +1363,17 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name, BOOL bind) {
 
   dbuf_init_ctx(ctx, &dbuf);
 
-  if(!bind) {
-    dbuf_putstr(&dbuf, "import '");
-    dbuf_putstr(&dbuf, path);
-    dbuf_putstr(&dbuf, "';");
-    dbuf_0(&dbuf);
+  jsm_module_script(&dbuf, path, name, FALSE);
+
+  if(*path != '*' && !jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+  } else {
+    JS_GetException(ctx);
+
+    jsm_module_script(&dbuf, path, name, TRUE);
 
     if(jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
       return 0;
-    }
-  } else {
-    jsm_module_script(&dbuf, path, name, FALSE);
-
-    /* no default export: bind the namespace instead */
-    if(*path == '*' || jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
-      JS_GetException(ctx);
-
-      jsm_module_script(&dbuf, path, name, TRUE);
-
-      if(jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
-        dbuf_free(&dbuf);
-        return 0;
-      }
     }
   }
 
@@ -1406,6 +1390,40 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name, BOOL bind) {
     return list_entry(loaded_modules.prev, LoadedModule, link)->module;
 
   return jsm_module_find(ctx, path, 0);
+}
+
+/* imports path and returns its namespace, the requireModule global
+ *
+ *   import * as ns from 'path';  globalThis[key] = ns;
+ *
+ * the namespace comes from the import itself, not from loaded_modules,
+ * whose order depends on when the dependencies were loaded.
+ * returns the namespace, or JS_EXCEPTION with an exception pending.
+ */
+static JSValue
+jsm_module_require(JSContext* ctx, const char* path) {
+  static const char key[] = "\x01qjsm.require";
+  JSValue global = JS_GetGlobalObject(ctx), ret = JS_EXCEPTION;
+  DynBuf dbuf;
+
+  dbuf_init_ctx(ctx, &dbuf);
+  dbuf_printf(&dbuf, "import * as ns from '%s';\nglobalThis['\\x01qjsm.require'] = ns;\n", path);
+  dbuf_0(&dbuf);
+
+  if(!jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+    JSAtom atom = JS_NewAtom(ctx, key);
+
+    ret = JS_GetProperty(ctx, global, atom);
+    JS_DeleteProperty(ctx, global, atom, 0);
+    JS_FreeAtom(ctx, atom);
+  }
+
+  if(JS_IsUndefined(ret) || JS_IsException(ret))
+    ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", path);
+
+  dbuf_free(&dbuf);
+  JS_FreeValue(ctx, global);
+  return ret;
 }
 
 /* Loads a .json file as a synthetic module exporting its parsed content as default. */
@@ -3172,7 +3190,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 1)
         key = JS_ToCString(ctx, argv[1]);
 
-      if((m = jsm_module_load(ctx, name, key, TRUE)))
+      if((m = jsm_module_load(ctx, name, key)))
         ret = JS_NewInt32(ctx, jsm_module_indexof(m));
       else
         ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
@@ -3183,10 +3201,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case REQUIRE_MODULE: {
-      if((m = jsm_module_load(ctx, name, 0, FALSE)))
-        ret = JS_GetModuleNamespace(ctx, m);
-      else
-        ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
+      ret = jsm_module_require(ctx, name);
 
       break;
     }
@@ -3583,7 +3598,10 @@ jsm_help(void) {
 #endif
          "-l  --list         list modules\n"
          "\n"
-         "-N  --no-node-hooks  disable the node:* and node_modules loader hooks\n"
+         "-N  --no-node      no Node or Bun compatibility: neither the node:,\n"
+         "                   node_modules and CommonJS loaders nor Node's globals\n"
+         "                   (lib/node.js) nor Bun (lib/bun.js, a superset of it)\n"
+         "-B  --no-bun       Node compatibility only, no Bun global\n"
          "-C  --conditions name  add an export condition for package.json\n"
          "                     \"exports\" and \"imports\" (node, import, default\n"
          "                     are always on)\n"
@@ -3606,7 +3624,7 @@ main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
   char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 0, list_modules = 0;
-  char no_node_hooks = 0, no_process_global = 0;
+  char no_node = 0, no_bun = 0, no_process_global = 0;
   const char* include_list[32];
   size_t memory_limit = 0, include_count = 0, stack_size = 0;
 #if HAVE_QJSCALC
@@ -3828,8 +3846,14 @@ main(int argc, char** argv) {
         break;
       }
 
-      if(opt == 'N' || str_equal(longopt, "no-node-hooks")) {
-        no_node_hooks++;
+      if(opt == 'N' || str_equal(longopt, "no-node") || str_equal(longopt, "no-node-hooks")) {
+        no_node++;
+        optind -= took;
+        break;
+      }
+
+      if(opt == 'B' || str_equal(longopt, "no-bun")) {
+        no_bun++;
         optind -= took;
         break;
       }
@@ -3956,11 +3980,16 @@ main(int argc, char** argv) {
 
     js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
-    /* the hooks are optional builtins: without them there is nothing to preload */
-    if(!no_node_hooks && jsm_builtin_find("loaders_node"))
-      dbuf_putstr(&db, "import 'loaders_node';\n");
-    if(!no_node_hooks && jsm_builtin_find("loaders_packages"))
-      dbuf_putstr(&db, "import 'loaders_packages';\n");
+    /* node installs the loader hooks and Node's globals, without it the
+       hooks alone are preloaded when they are builtins */
+    if(!no_node && jsm_builtin_find("node"))
+      dbuf_putstr(&db, "import 'node';\n");
+    else if(!no_node) {
+      if(jsm_builtin_find("loaders_node"))
+        dbuf_putstr(&db, "import 'loaders_node';\n");
+      if(jsm_builtin_find("loaders_packages"))
+        dbuf_putstr(&db, "import 'loaders_packages';\n");
+    }
     if(jsm_builtin_find("loaders_package-aliases"))
       dbuf_putstr(&db, "import 'loaders_package-aliases';\n");
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
@@ -3977,7 +4006,8 @@ main(int argc, char** argv) {
     if(!no_process_global && jsm_builtin_find("process"))
       dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
 
-    if(jsm_builtin_find("bun"))
+    /* bun imports node too, which ran above */
+    if(!no_bun && !no_node && jsm_builtin_find("bun"))
       dbuf_putstr(&db, "import Bun from 'bun';\nglobalThis.Bun = Bun;\n");
 
     if(load_std) {
@@ -4013,7 +4043,7 @@ main(int argc, char** argv) {
       vector_foreach_t(&module_list, ptr) {
         JSModuleDef* m;
 
-        if(!(m = jsm_module_load(jsm_ctx, *ptr, 0, TRUE))) {
+        if(!(m = jsm_module_load(jsm_ctx, *ptr, 0))) {
           jsm_error_print(jsm_ctx);
           return 1;
         }

@@ -26,6 +26,7 @@ tests({
     write('shebang.cjs', '#!/usr/bin/env qjsm\nexports.ok = true;\n');
     write('throws.cjs', 'throw new RangeError("from cjs");\n');
     write('bad-id.cjs', 'exports["not valid"] = 1; exports.valid = 2;\n');
+    write('builtin.cjs', "exports.readFileSync = typeof require('fs').readFileSync;\nexports.join = typeof require('path').join;\n");
 
     hooks = installCommonJS();
   },
@@ -94,6 +95,13 @@ tests({
     }
 
     assert(error && /from cjs/.test(error.message), String(error));
+  },
+
+  async 'require of a builtin returns its namespace'() {
+    const m = await import(`${dir}/builtin.cjs`);
+
+    eq('function', m.readFileSync);
+    eq('function', m.join);
   },
 
   'teardown'() {

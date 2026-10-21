@@ -1,9 +1,10 @@
-/* lib/bun.js: Bun's network globals from qjs-lws, only when it is installed, qjsm only */
+/* lib/bun.js and lib/node.js: the network globals from qjs-lws, only when it is installed, qjsm only */
 import * as os from 'os';
 import * as std from 'std';
 import { eq, tests } from '../../lib/tinytest.js';
 
-const NAMES = ['fetch', 'Request', 'Response', 'Headers', 'FormData', 'URL', 'URLSearchParams', 'AbortController', 'AbortSignal'];
+/* only qjs-lws has these, URL and AbortController come from lib/node.js too */
+const NAMES = ['fetch', 'Request', 'Response', 'Headers', 'FormData'];
 
 /* stdout of qjsm -e code, run with the default module path */
 function child(code) {

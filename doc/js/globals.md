@@ -1,6 +1,6 @@
 # globals
 
-Source: `lib/globals.js` — qjsm only; opt-in
+Source: `lib/globals.js` — qjsm only; imported by [node](node.md), which qjsm loads at startup (off with `-N`)
 
 Installs the web and Node globals QuickJS lacks. A global that already exists is never
 replaced. Importing the module is the whole API.
@@ -19,7 +19,7 @@ structuredClone({ d: new Date(0) });
 | `AbortController`, `AbortSignal` | `abort` |
 | `EventTarget` | `events` |
 | `Blob` | `blob` |
-| `ReadableStream`, `WritableStream`, `TransformStream`, `*QueuingStrategy`, `TextEncoderStream`, `TextDecoderStream` | `streams` (the full WHATWG classes of `lib/stream.js`, with `pipeTo()`/`pipeThrough()`); `Blob.prototype.stream()` returns the same class |
+| `ReadableStream`, `WritableStream`, `TransformStream`, their readers, writers and controllers, `*QueuingStrategy`, `TextEncoderStream`, `TextDecoderStream` | `streams` (the full WHATWG classes of `lib/stream.js`, with `pipeTo()`/`pipeThrough()`); `Blob.prototype.stream()` returns the same class |
 | `setTimeout`, `setInterval`, `setImmediate` and their `clear*` | `timers` |
 | `performance`, `Performance`, `PerformanceEntry`, `PerformanceMark`, `PerformanceMeasure`, `PerformanceObserver`, `PerformanceObserverEntryList` | `perf_hooks` |
 | `atob`, `btoa` | here (Latin-1 strings, padding optional, `InvalidCharacterError`) |
