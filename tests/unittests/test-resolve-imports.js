@@ -122,7 +122,7 @@ tests({
   },
 
   'list-imports lists the imports of the given file, builtins included'() {
-    write('li.js', "import { greet } from './helper.js';\nimport * as os from 'os';\nimport def, { a as b } from 'somepkg';\n");
+    write('li.js', "import { greet } from './helper.js';\nimport * as os from 'os';\nimport def, { a as b } from 'somepkg';\nconst x = 1;\nimport late from './libdir/helper.js';\nconst d = await import('./sub.js');\nconst r = require('./main.js');\n");
     fs.symlinkSync(script, path.join(dir, 'list-imports.js'));
 
     const log = path.join(dir, 'li.log');
@@ -137,6 +137,9 @@ tests({
     assert(/^li\.js:helper\.js greet$/m.test(text), text);
     assert(/^li\.js:os /m.test(text), text);
     assert(/^li\.js:somepkg .*b/m.test(text), text);
+    assert(/^li\.js:libdir\/helper\.js late$/m.test(text), text);
+    assert(/^li\.js:sub\.js $/m.test(text), text);
+    assert(/^li\.js:main\.js r$/m.test(text), text);
   },
 
   '-q still reports argument errors'() {
@@ -206,6 +209,37 @@ tests({
     eq(read('mg.js'), "import { a, b } from 'os';\nconsole.log(a, b);\n");
     eq(fs.statSync(path.join(dir, 'mg.js')).mode & 0o777, 0o640);
     assert(!fs.existsSync(path.join(dir, 'mg.js.new')), 'temporary file left behind');
+  },
+
+  'an import after other statements is bundled too'() {
+    write('late.js', "console.log(1);\nimport { greet } from 'mylib';\nconsole.log(greet('z'));\n");
+
+    eq(run('-M', 'mylib=./helper.js', '-o', 'out.js', 'late.js').status, 0);
+    assert(/start of 'helper\.js'/.test(read('out.js')) && !/from 'mylib'/.test(read('out.js')), read('out.js'));
+  },
+
+  'text outside ASCII before an import keeps the byte ranges right'() {
+    write('utf.js', "/* \u00e4\u00f6\u00fc \ud83d\ude00 */\nimport { greet } from 'mylib';\nconsole.log(greet('\u00e4'));\n");
+
+    eq(run('-M', 'mylib=./helper.js', '-o', 'out.js', 'utf.js').status, 0);
+
+    const text = read('out.js');
+
+    assert(/\u00e4\u00f6\u00fc \ud83d\ude00 \*\/\n+\/\* -+ start of 'helper\.js'/.test(text) && /\nconsole\.log\(greet\('\u00e4'\)\);/.test(text), text);
+  },
+
+  'a shebang line stays a line of its own'() {
+    write('sb.js', "#!/usr/bin/env qjsm\nimport * as os from 'os';\nconsole.log(os);\n");
+
+    eq(run('-o', 'out.js', 'sb.js').status, 0);
+    assert(/^#!\/usr\/bin\/env qjsm\nimport \* as os from 'os';\n/.test(read('out.js')), read('out.js'));
+  },
+
+  '--merge keeps side-effect imports and a namespace next to named ones'() {
+    write('mg2.js', "import * as os from 'os';\nimport 'globals';\nimport { exec } from 'os';\nconsole.log(os, exec);\n");
+
+    eq(run('-m', 'mg2.js').status, 0);
+    eq(read('mg2.js'), "import * as os from 'os';\nimport { exec } from 'os';\nimport 'globals';\nconsole.log(os, exec);\n");
   },
 
   'cleanup'() {

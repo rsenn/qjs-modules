@@ -3052,17 +3052,14 @@ pruning and CommonJS → ES module conversion.
 | 1. core, ES module part | done | `lib/module-lexer.js` `parse()`, `tests/unittests/test-module-lexer.js` (22 cases); commits `4a635e35`, `efa530c2` |
 | lexer fixes found on the way | done | `lib/lexer/ecmascript.js`: regex vs division, `{ }` in `${ }`, `$` in template text, any string escape, no exponential backtracking; `test-lexer-ecmascript.js` (15 cases) |
 | 2. core, CommonJS part | done | `lib/module-lexer.js` `commonjs()`, `test-module-lexer.js` (40 cases) |
-| 3. fixtures and the generator | next | |
-| 4.-8. | open | |
+| 3. fixtures and the generator | open | |
+| 4. adapters | open | |
+| 5. `print()`, `merge()`, port of the tools | `resolve-imports.js` done, `list-exports.js` next | `lib/module-lexer.js`, `doc/js/module-lexer.md`, `test-module-lexer.js` (45 cases), `test-resolve-imports.js` (23 cases) |
+| 6.-8. | open | |
 
-Porting `utilities/resolve-imports.js` onto `parse()` (assessed 2026-10-20):
-- the read-only modes (`--list-imports`, `--check-imports`, `-d`) could use `parse()` today and would then report
-  late, dynamic and `export const` imports/exports correctly
-- the rewriting modes (bundling, `-m`, `-u`, `-C`, `-E`, `-G`) wait for: UTF-16 offsets where `FileMap` uses bytes
-  (Tier 27), `print()` and merging (step 5), and two inputs `parse()` does not report, identifiers in use (`-u`)
-  and comment ranges (`-C`), which the tool keeps taking from the lexer itself
-- recommended order: step 2, step 5, Tier 27, then the whole tool in one go, so the file never holds two import
-  parsers. Porting the read-only modes first is the alternative, still to decide
+`utilities/resolve-imports.js` runs on `parse()`, `print()` and `merge()` since 2026-10-20, ahead of Tier 27:
+`FileMap` stays and gets byte ranges, converted from the UTF-16 offsets per file (`ByteOffsets`). The tool still
+lexes a file itself, only for `-u` (identifiers outside import statements) and `-C` (comment ranges).
 
 Checked on `lib/`, `utilities/`, `tests/unittests/` (229 files): no lexing errors, and the `(kind, path)` pairs of
 the 211 files Bun accepts equal Bun's `scanImports` (743 imports). `parse()` costs about 35% on top of lexing.
@@ -3280,6 +3277,17 @@ Like merve, no scope analysis: a local variable named `require` still counts.
    `PrintES6Import`, `PrintCJSImport`, `OutputImports` and the copies in `list-exports.js`. Verify:
    `test-resolve-imports.js` (19 cases) passes; `--list-imports` now also lists late, dynamic and `require` imports
    (an intended change: update that test case).
+   **`resolve-imports.js` done 2026-10-20**: `print()` and `merge()` in `lib/module-lexer.js`; the tool's own parser
+   is gone (`Import`, `Export`, `MergeImports`, `OutputImports` and the token helpers). Bundles, `-C`, `-G` and
+   `--list-imports` of `utilities/*.js` are byte-identical to the old tool's. Changes, each with a test case:
+   - imports after other statements are bundled, merged and listed (the old parser stopped at the first statement)
+   - `--list-imports` also lists dynamic imports and `require` calls with a literal specifier
+   - `-m` and the hoisted header keep side-effect imports (`import 'globals'`), which the old code dropped, and a
+     namespace import next to named ones from the same module (`-m` kept only `* as os`)
+   - a shebang is followed by a newline in a bundle (it ran into the first import)
+   - `-m -u` no longer rewrites the file in `ProcessFile()` first, `main()` rewrote it from the original anyway
+
+   Left: `list-exports.js` (its copies of `ImportFile`, `ExportName`, `ImportType`, `TokIs`).
 6. **CommonJS → ES module** (`lib/cjs-to-esm.js`): `toModule(source)`, with Node 26's namespace rule from
    `translators.js`: the default export is `module.exports`, plus one named export per CommonJS export name, plus
    the `'module.exports'` key, plus the names of re-exported modules, resolved recursively. Apply the same rule to
@@ -3294,7 +3302,9 @@ Like merve, no scope analysis: a local variable named `require` still counts.
    Verify: the `-M` cases of `test-resolve-imports.js` unchanged.
 8. **Tool cleanup**: `--help` gets a description per option (it prints names only); `-l` shows twice (print-files and
    the positional `@` row); `-s`, `-c`, `-f`, `-e` appear to have no effect (destructured or assigned, never read):
-   verify, then remove. Update the `resolve-imports` entry in `tool-registry/tools.yaml`.
+   verify, then remove. `-i` (`onlyImports`) has none since step 5: the old parser stopped lexing after the imports
+   with it. Dead code the port left alone: `UntilEOL`, `Until`, `WholeLine`, `Unquote`, `LiteralSequence`,
+   `LeadingWS`, `TokIs`, `IsOneOf`, the `Lexer`/`Token` import, `ModuleExports`. Update the `resolve-imports` entry in `tool-registry/tools.yaml`.
 
 ### What stays in `utilities/resolve-imports.js`
 

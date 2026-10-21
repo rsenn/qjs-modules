@@ -1,7 +1,8 @@
-/* lib/module-lexer.js: parse(), the ES module and the CommonJS part.
+/* lib/module-lexer.js: parse(), the ES module and the CommonJS part, and
+ * print() and merge().
  * Records are compared as JSON, ranges through the text they cover. The
  * expected CommonJS exports are what Node 26's merve 1.2.2 returns. */
-import { parse } from '../../lib/module-lexer.js';
+import { merge, parse, print } from '../../lib/module-lexer.js';
 import { toArrayBuffer } from 'misc';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
@@ -300,5 +301,58 @@ tests({
   'CommonJS exports leave the format alone'() {
     eq('commonjs', parse('exports.a = 1;').format);
     eq('module', parse("import a from './a.js'; exports.b = a;").format);
+  },
+
+  'print() gives the import statement back'() {
+    for(const src of [
+      "import a from './x.js';",
+      "import * as ns from './x.js';",
+      "import a, { b as c, d } from './x.js';",
+      "import a, * as ns from './x.js';",
+      "import h, { 'e-f' as g, default as i } from './x.js';",
+      "import './side.js';",
+      "import { a } from 'it\\'s';",
+    ])
+      eq(src, print(parse(src).imports[0]));
+  },
+
+  'print() splits what one import statement cannot hold'() {
+    const r = { path: 'x', bindings: [{ imported: '*', local: 'a' }, { imported: 'b', local: 'b' }, { imported: '*', local: 'c' }] };
+
+    eq("import * as a from 'x';\nimport * as c from 'x';\nimport { b } from 'x';", print(r));
+  },
+
+  'print() as CommonJS'() {
+    const p = src => print(parse(src).imports[0], 'commonjs');
+
+    eq("const a = require('./x.js');", p("import a from './x.js'"));
+    eq("const ns = require('./x.js');", p("import * as ns from './x.js'"));
+    eq("const { b: c, d } = require('./x.js');", p("import { b as c, d } from './x.js'"));
+    eq("require('./side.js');", p("import './side.js'"));
+    eq("const { a, b: c } = require('path');", p("const { a, b: c } = require('path')"));
+  },
+
+  'print() throws for a record it cannot print'() {
+    for(const src of ["import(p + '.js')", "import a from './a.json' with { type: 'json' }"]) {
+      let error;
+
+      try {
+        print(parse(src).imports[0]);
+      } catch(e) {
+        error = e;
+      }
+
+      assert(error instanceof TypeError, src);
+    }
+  },
+
+  'merge() makes one import-statement record per path'() {
+    const src = "import { a } from 'os';\nimport b from './b.js';\nimport { a, c as d } from 'os';\nimport('os');\nexport { e } from 'os';\nimport 'os';";
+    const merged = merge(parse(src).imports);
+
+    eq(json(["import { a, c as d } from 'os';", "import b from './b.js';"]), json(merged.filter(r => r.kind == 'import-statement' && !r.reexport).map(r => print(r))));
+    eq(json(['import-statement', 'import-statement', 'dynamic-import', 'import-statement']), json(merged.map(r => r.kind)));
+    eq("import { a } from 'os'", text(src, merged[0].range));
+    eq(1, parse(src).imports[0].bindings.length);
   },
 });
