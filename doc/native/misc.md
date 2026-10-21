@@ -64,8 +64,8 @@ below by theme.
 | --- | --- | --- |
 | `ioctl(fd, request, arg)` | 3 | Device control. |
 | `getScreenSize()` | 0 | Terminal size. |
-| `clearScreen` / `clearLine` | 1 | ANSI erase. |
-| `setCursorPosition` / `moveCursor` | 1 | Cursor control. |
+| `clearScreen(out, mode)` / `clearLine(out, mode)` | 1 | ANSI erase: mode 0 to the end, 1 to the start, 2 all. `out` is a std FILE object (written through its buffer, then flushed) or an fd, default 1. On Windows the FILE is flushed and its `fileno()` handle gets the console calls. |
+| `setCursorPosition(out, x, y)` / `moveCursor(out, dx, dy)` | 1 | Cursor control, 0-based; `out` as for `clearScreen`. |
 | `setTextAttribute` / `setTextColor` | 2 | ANSI text styling. |
 | `setConsoleMode` / `getConsoleMode` | 1–2 | Console mode (Windows). |
 | `ttySetRaw(fd)` | 1 | Put a TTY into raw mode. |

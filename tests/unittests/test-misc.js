@@ -610,4 +610,28 @@ tests({
     eq(misc.searchArrayBufferLast(hay, new Uint8Array([9])), null);
     eq(misc.searchArrayBuffer(hay, new Uint8Array([0, 2, 3, 0]).subarray(1, 3), 2), 4);
   },
+
+  'clearScreen/setCursorPosition/moveCursor write through a std FILE'() {
+    const f = std.tmpfile();
+
+    f.puts('a');
+    assert(misc.clearScreen(f, 2));
+    assert(misc.clearLine(f, 0));
+    assert(misc.setCursorPosition(f, 4, 2));
+    assert(misc.moveCursor(f, -2, 1));
+    f.seek(0, std.SEEK_SET);
+    eq('a\x1b[2J\x1b[0K\x1b[3;5H\x1b[B\x1b[2D', f.readAsString());
+    f.close();
+  },
+
+  'clearScreen flushes an object it writes to'() {
+    const out = { data: '', flushed: 0 };
+
+    out.write = (buf, len) => ((out.data += String.fromCharCode(...new Uint8Array(buf, 0, len))), len);
+    out.flush = () => out.flushed++;
+
+    assert(misc.clearScreen(out, 2));
+    eq('\x1b[2J', out.data);
+    eq(1, out.flushed);
+  },
 });

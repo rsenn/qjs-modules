@@ -17,6 +17,7 @@
 #include "vector.h"
 #include "iteration.h"
 #include "base64.h"
+#include "stream-utils.h"
 #include "quickjs-syscallerror.h"
 
 #ifdef _WIN32
@@ -330,13 +331,47 @@ typedef enum {
 } ClearMode;
 
 #ifdef _WIN32
+/* the console handle behind out, a std FILE object or an fd number.
+ *
+ * a FILE object is flushed first, so the console calls come after what
+ * was written to it. returns INVALID_HANDLE_VALUE, never throws.
+ */
+static HANDLE
+term_handle(JSContext* ctx, JSValueConst out) {
+  int32_t fd = -1;
+
+  if(JS_IsObject(out)) {
+    JSValue ret = js_invoke(ctx, out, "flush", 0, 0);
+
+    if(JS_IsException(ret)) {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+      return INVALID_HANDLE_VALUE;
+    }
+
+    JS_FreeValue(ctx, ret);
+
+    if(JS_IsException(ret = js_invoke(ctx, out, "fileno", 0, 0)) || JS_ToInt32(ctx, &fd, ret)) {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+      fd = -1;
+    }
+
+    JS_FreeValue(ctx, ret);
+  } else if(JS_ToInt32(ctx, &fd, out)) {
+    JS_FreeValue(ctx, JS_GetException(ctx));
+    return INVALID_HANDLE_VALUE;
+  }
+
+  return fd < 0 ? INVALID_HANDLE_VALUE : (HANDLE)_get_osfhandle(fd);
+}
+
 static BOOL
-clear_screen(intptr_t h, ClearMode mode, BOOL line) {
+clear_screen(JSContext* ctx, JSValueConst out, ClearMode mode, BOOL line) {
   COORD coords = {0, 0};
   DWORD w, n = 0;
   CONSOLE_SCREEN_BUFFER_INFO sbi;
+  HANDLE h = term_handle(ctx, out);
 
-  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
+  if(h == INVALID_HANDLE_VALUE || !GetConsoleScreenBufferInfo(h, &sbi))
     return FALSE;
 
 #define CHAR_POS(c) (((c).Y * sbi.dwSize.X) + (c).X)
@@ -361,44 +396,75 @@ clear_screen(intptr_t h, ClearMode mode, BOOL line) {
     }
   }
 
-  if(!FillConsoleOutputCharacter((HANDLE)h, (TCHAR)' ', n, coords, &w))
+  if(!FillConsoleOutputCharacter(h, (TCHAR)' ', n, coords, &w))
     return FALSE;
 
-  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
+  if(!GetConsoleScreenBufferInfo(h, &sbi))
     return FALSE;
 
-  if(!FillConsoleOutputAttribute((HANDLE)h, sbi.wAttributes, n, coords, &w))
+  if(!FillConsoleOutputAttribute(h, sbi.wAttributes, n, coords, &w))
     return FALSE;
 
   return TRUE;
 }
 
 #else
+/* writes buf to out, a std FILE object or an fd number, through a Writer.
+ *
+ * a FILE object is flushed after, so the sequence is not left in its
+ * buffer. returns TRUE when all of buf was written, never throws.
+ */
 static BOOL
-clear_screen(int fd, ClearMode mode, BOOL line) {
+term_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
+  Writer wr;
+  ssize_t r;
+
+  if(!writer_from_js(ctx, out, &wr))
+    return FALSE;
+
+  r = writer_write(&wr, buf, len);
+  writer_free(&wr);
+
+  if(JS_IsObject(out)) {
+    JSValue ret = js_invoke(ctx, out, "flush", 0, 0);
+
+    if(JS_IsException(ret)) {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+      return FALSE;
+    }
+
+    JS_FreeValue(ctx, ret);
+  }
+
+  return r == (ssize_t)len;
+}
+
+static BOOL
+clear_screen(JSContext* ctx, JSValueConst out, ClearMode mode, BOOL line) {
   char buf[] = {27, '[', mode + '0', line ? 'K' : 'J'};
 
-  return write(fd, buf, sizeof(buf)) > 0;
+  return term_write(ctx, out, buf, sizeof(buf));
 }
 #endif
 
 #ifdef _WIN32
 static BOOL
-set_cursor_position(intptr_t h, int x, int y) {
+set_cursor_position(JSContext* ctx, JSValueConst out, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
+  HANDLE h = term_handle(ctx, out);
 
-  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
+  if(h == INVALID_HANDLE_VALUE || !GetConsoleScreenBufferInfo(h, &sbi))
     return FALSE;
 
   coords.X = x == -1 ? sbi.dwCursorPosition.X : x;
   coords.Y = y == -1 ? sbi.dwCursorPosition.Y : y;
 
-  return !!SetConsoleCursorPosition((HANDLE)h, coords);
+  return !!SetConsoleCursorPosition(h, coords);
 }
 #else
 static BOOL
-set_cursor_position(int fd, int x, int y) {
+set_cursor_position(JSContext* ctx, JSValueConst out, int x, int y) {
   char buf[2 + (FMT_ULONG + 1) * 2] = {27, '['};
   size_t pos = 2;
 
@@ -415,27 +481,28 @@ set_cursor_position(int fd, int x, int y) {
     buf[pos++] = 'H';
   }
 
-  return write(fd, buf, pos) > 0;
+  return term_write(ctx, out, buf, pos);
 }
 #endif
 
 #ifdef _WIN32
 static BOOL
-move_cursor(intptr_t h, int x, int y) {
+move_cursor(JSContext* ctx, JSValueConst out, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
+  HANDLE h = term_handle(ctx, out);
 
-  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
+  if(h == INVALID_HANDLE_VALUE || !GetConsoleScreenBufferInfo(h, &sbi))
     return FALSE;
 
   coords.X = sbi.dwCursorPosition.X + x;
   coords.Y = sbi.dwCursorPosition.Y + y;
 
-  return !!SetConsoleCursorPosition((HANDLE)h, coords);
+  return !!SetConsoleCursorPosition(h, coords);
 }
 #else
 static BOOL
-move_cursor(int fd, int x, int y) {
+move_cursor(JSContext* ctx, JSValueConst out, int x, int y) {
   char buf[(2 + (FMT_ULONG) + 1) * 2];
   size_t pos = 0;
 
@@ -459,7 +526,7 @@ move_cursor(int fd, int x, int y) {
     buf[pos++] = x < 0 ? 'D' : 'C';
   }
 
-  return write(fd, buf, pos) > 0;
+  return term_write(ctx, out, buf, pos);
 }
 #endif
 
@@ -1628,25 +1695,28 @@ enum {
   ERASE_IN_LINE,
 };
 
+/* clearScreen, clearLine: erase the display or the cursor line.
+ *
+ *   clearScreen(std.out, 2)    // whole display
+ *   clearLine(std.err, 0)      // cursor to end of line
+ *
+ *   FILE|number  out   std FILE object or fd, default 1
+ *   number       mode  0 to the end, 1 to the start, 2 all
+ *
+ *   returns boolean    true when the sequence was written
+ *
+ * a FILE object gets the sequence through its buffer and is flushed.
+ * wired in: JS_CFUNC_MAGIC_DEF("clearScreen"), ("clearLine").
+ */
 static JSValue
 js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t fd = 1, mode = 0;
-  intptr_t h;
+  int32_t mode = 0;
+  JSValueConst out = argc >= 1 ? argv[0] : JS_NewInt32(ctx, 1);
 
-  if(argc >= 1)
-    JS_ToInt32(ctx, &fd, argv[0]);
+  if(argc >= 2 && JS_ToInt32(ctx, &mode, argv[1]))
+    return JS_EXCEPTION;
 
-  if(argc >= 2)
-    JS_ToInt32(ctx, &mode, argv[1]);
-
-#ifdef _WIN32
-  if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
-    return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
-#else
-  h = fd;
-#endif
-
-  return JS_NewBool(ctx, clear_screen(h, mode, magic == ERASE_IN_LINE));
+  return JS_NewBool(ctx, clear_screen(ctx, out, mode, magic == ERASE_IN_LINE));
 }
 
 enum {
@@ -1654,13 +1724,24 @@ enum {
   MOVE_CURSOR,
 };
 
+/* setCursorPosition, moveCursor: place the cursor absolutely or relatively.
+ *
+ *   setCursorPosition(std.out, 0, 0)   // top left, 0-based
+ *   moveCursor(std.out, -2, 1)         // 2 left, 1 down
+ *
+ *   FILE|number  out  std FILE object or fd, default 1
+ *   number       x    column, or columns to move, a missing x keeps it
+ *   number       y    row, or rows to move, a missing y keeps it
+ *
+ *   returns boolean   true when the sequence was written
+ *
+ * a FILE object gets the sequence through its buffer and is flushed.
+ * wired in: JS_CFUNC_MAGIC_DEF("setCursorPosition"), ("moveCursor").
+ */
 static JSValue
 js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t fd = 1, x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
-  intptr_t h;
-
-  if(argc >= 1)
-    JS_ToInt32(ctx, &fd, argv[0]);
+  int32_t x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
+  JSValueConst out = argc >= 1 ? argv[0] : JS_NewInt32(ctx, 1);
 
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToInt32(ctx, &x, argv[1]);
@@ -1668,14 +1749,7 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(argc >= 3 && JS_IsNumber(argv[2]))
     JS_ToInt32(ctx, &y, argv[2]);
 
-#ifdef _WIN32
-  if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
-    return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
-#else
-  h = fd;
-#endif
-
-  return JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
+  return JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(ctx, out, x, y) : set_cursor_position(ctx, out, x, y));
 }
 
 enum {
