@@ -1,6 +1,6 @@
 # bun
 
-Source: `lib/bun.js` (pure JS, no imports) — named exports: `plugin`, `file`, `write`, `stdin`, `stdout`, `stderr`; the default export is installed as `globalThis.Bun` by qjsm
+Source: `lib/bun.js` (pure JS) — named exports: `plugin`, `file`, `write`, `stdin`, `stdout`, `stderr`; the default export is installed as `globalThis.Bun` by qjsm, with `Intl`, and `Bun.serve`/`Bun.fetch` and the network globals when qjs-lws is installed ([below](#globals-from-other-modules))
 
 Bun's runtime plugin API (https://bun.com/docs/runtime/plugins), built on
 `registerHooks()` (`doc/qjsm.md`). Only the runtime half exists here: there is no bundler,
@@ -68,3 +68,26 @@ BunFiles over fd 0/1/2 (`stdin.size` is `Infinity`).
 | `Bun.file(...)` is a plain `Blob` (`constructor.name`) | a `BunFile` subclass of `Blob`; `instanceof Blob` holds |
 | `slice(0, 100000).size` is `100000` | clamped to the file size |
 | `FileSink.flush()` may return a Promise | returns the number synchronously (also fine to `await`) |
+
+## Globals from other modules
+
+`lib/bun.js` provides the globals Bun has built in: `Intl` from `lib/intl.js`, and the network globals when
+qjs-lws (the sibling project `../qjs-lws/`) is installed in the module path:
+
+| Global | From | Enumerable |
+| --- | --- | --- |
+| `fetch`, `Bun.fetch` | `fetch` | yes |
+| `Request`, `Response` | `serve` | yes |
+| `Bun.serve` | `serve` | yes |
+| `Headers` | `lws/headers` | yes |
+| `FormData` | `lws/formdata` | yes |
+| `URL`, `URLSearchParams` | `lws/url` | no, as in Bun |
+| `AbortController`, `AbortSignal` | `lws/abort` | yes |
+| `Intl` | `intl` (built in, [English only](intl.md)) | no |
+
+- Nothing is loaded at startup: qjsm only checks that the module is a builtin or found by
+  `locateModule()`, and the first read of the global loads it with `requireModule()` (qjs-lws costs ~50 ms).
+- A global that already exists is left alone. Assigning one (`globalThis.URL = X`) replaces it.
+- Without qjs-lws, or when the module fails to load, the global is absent: `typeof fetch` is
+  `'undefined'`.
+- `Bun.serve` and `Bun.fetch` are on the `Bun` object only, not named exports of `bun`.

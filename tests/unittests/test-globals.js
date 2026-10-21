@@ -2,8 +2,8 @@
 /* lib/globals.js: the web/Node globals; the same assertions must hold on node, bun and deno */
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
-/* qjsm has none of these until lib/globals.js is imported */
-if(typeof URL == 'undefined') await import('../../lib/globals.js');
+/* qjsm has none of these until lib/globals.js is imported (URL may come from qjs-lws, see lib/bun.js) */
+if(typeof structuredClone == 'undefined') await import('../../lib/globals.js');
 
 tests({
   'the globals exist'() {
