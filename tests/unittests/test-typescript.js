@@ -1,4 +1,5 @@
-/* lib/loaders/typescript.js: .ts loader through the external swc CLI, qjsm only */
+/* lib/loaders/typescript.js: .ts loader, swc strip-only type removal, qjsm only.
+ * only erasable syntax: no enum, parameter property or .tsx here. */
 import installTypeScript from '../../lib/loaders/typescript.js';
 import * as os from 'os';
 import * as std from 'std';
@@ -19,14 +20,12 @@ let hooks;
 const suite = {
   'setup'() {
     os.mkdir(dir);
-    write('a.ts', 'export class A<T> { constructor(public v: T) {} get(): T { return this.v; } }\nexport const n: number = 5;\nexport default function f(p: { x: number }): number { return p.x; }\n');
+    write('a.ts', 'export class A<T> { v: T; constructor(v: T) { this.v = v; } get(): T { return this.v; } }\nexport const n: number = 5;\nexport default function f(p: { x: number }): number { return p.x; }\n');
     write('uses.ts', "import f, { A, n } from './a.ts';\nimport type { Nope } from './nope';\nexport const r: string = [new A('s').get(), n, f({ x: 3 })].join();\n");
     write('m.mts', 'export const m: string = "mts";\n');
-    write('c.tsx', 'export const c = <T,>(x: T): T => x;\n');
     os.mkdir(`${dir}/sub`);
     write('sub/index.ts', 'export const idx: number = 7;\n');
     write('bad.ts', 'let x: = 1\n');
-    write('enum.ts', 'export enum Color { Red, Green }\nexport const g: Color = Color.Green;\n');
 
     hooks = installTypeScript();
   },
@@ -47,20 +46,12 @@ const suite = {
     eq('mts', (await import(`${dir}/m.mts`)).m);
   },
 
-  async '.tsx is loaded'() {
-    eq(3, (await import(`${dir}/c.tsx`)).c(3));
-  },
-
   async 'an extensionless specifier finds the .ts file'() {
     eq(5, (await import(`${dir}/a`)).n);
   },
 
   async 'a directory specifier finds index.ts'() {
     eq(7, (await import(`${dir}/sub`)).idx);
-  },
-
-  async 'enums are compiled'() {
-    eq(1, (await import(`${dir}/enum.ts`)).g);
   },
 
   async 'a syntax error rejects the import'() {
@@ -72,7 +63,7 @@ const suite = {
       error = e;
     }
 
-    assert(error && /swc failed/.test(error.message), String(error));
+    assert(error && /cannot strip types/.test(error.message), String(error));
   },
 
   'teardown'() {

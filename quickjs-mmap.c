@@ -13,6 +13,9 @@
 #else
 #include <sys/mman.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
 #endif
 
 /**
@@ -184,39 +187,53 @@ js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* data;
+  char chunk[4096];
+  const char *x, *end, *eol;
+  ssize_t r;
+  int fd;
+  DynBuf db = DBUF_INIT_CTX(ctx);
   JSValue ret = JS_UNDEFINED;
-  MemoryBlock b;
 
   if(!(data = js_topointer(ctx, argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer | Number");
 
-  if(block_from_file(&b, "/proc/self/maps", ctx))
+  if((fd = open("/proc/self/maps", O_RDONLY)) == -1)
     return JS_ThrowInternalError(ctx, "Unable to open /proc/self/maps");
 
-  size_t n = block_length(b);
-  const char* x = block_data(b);
+  /* procfs reports size 0, so read until EOF */
+  while((r = read(fd, chunk, sizeof(chunk))) > 0)
+    dbuf_put(&db, (const uint8_t*)chunk, r);
 
-  while(n > 0) {
-    uint64_t start, end;
-    size_t pos = scan_xlonglong(x, &start);
+  close(fd);
 
-    if(x[pos] == '-')
-      ++pos;
-
-    pos += scan_xlonglong(&x[pos], &end);
-
-    size_t len = scan_lineskip(x, n);
-
-    if((size_t)data >= start && (size_t)data < end) {
-      ret = JS_NewStringLen(ctx, &x[73], len - 1 - 73);
-      break;
-    }
-
-    x += len;
-    n -= len;
+  /* NUL-terminated for sscanf */
+  if(r < 0 || dbuf_putc(&db, 0)) {
+    dbuf_free(&db);
+    return JS_ThrowInternalError(ctx, "Unable to read /proc/self/maps");
   }
 
-  block_free(&b, JS_GetRuntime(ctx));
+  /* a line: start-end perms offset dev inode [path], path may hold spaces
+   *   7f3c2a1b4000-7f3c2a1b5000 r--p 00000000 08:02 1835013  /etc/hostname */
+  for(x = (const char*)db.buf, end = x + db.size - 1; x < end; x = eol + 1) {
+    unsigned long long start, stop;
+    int path = 0;
+
+    if(!(eol = memchr(x, '\n', end - x)))
+      eol = end;
+
+    if(sscanf(x, "%llx-%llx %*s %*s %*s %*s %n", &start, &stop, &path) < 2 || !path)
+      continue;
+
+    if((uintptr_t)data >= start && (uintptr_t)data < stop) {
+      /* an anonymous mapping has no path, %n then points past eol */
+      if(x + path < eol)
+        ret = JS_NewStringLen(ctx, x + path, eol - x - path);
+
+      break;
+    }
+  }
+
+  dbuf_free(&db);
   return ret;
 }
 #endif

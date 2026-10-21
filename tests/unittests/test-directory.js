@@ -80,6 +80,11 @@ tests({
     assert(types.length >= 2);
     assert(types.every(t => t === Directory.TYPE_REG));
   },
+  'new Directory() without arguments is an empty iteration'() {
+    eq(collect(new Directory()).length, 0);
+    eq(new Directory().next().done, true);
+    eq(collect(new Directory(null)).length, 0);
+  },
   'open() (re)opens a path on an existing instance'() {
     const dir = new Directory();
     dir.open(TMP);

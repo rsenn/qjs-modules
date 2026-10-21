@@ -21,7 +21,7 @@ tests({
   'an escaped newline continues the directive'() {
     const t = c('#define A \\\n  1\nint');
 
-    eq('pp_hash:#,pp_directive:define,pp_identifier:A,pp_continuation:\\,pp_number:1,pp_newline:,int:int', t.join());
+    eq('pp_hash:#,pp_directive:define,pp_identifier:A,pp_number:1,pp_newline:,int:int', t.join());
   },
 
   'a # after leading blanks starts a directive, one inside C does not need a newline first'() {

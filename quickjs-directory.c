@@ -305,6 +305,7 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   if(JS_IsException(obj))
     goto fail;
 
+  /* no path or fd: an empty iteration until open() or adopt() */
   if(i < argc) {
     if(JS_IsNumber(argv[i])) {
       int32_t fd = -1;
@@ -312,14 +313,17 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       JS_ToInt32(ctx, &fd, argv[i]);
       getdents_adopt(directory, fd);
       i++;
-    } else {
+    } else if(JS_IsUndefined(argv[i]) || JS_IsNull(argv[i])) {
+      i++;
+    } else if(!JS_IsObject(argv[i])) {
       const char* dir;
 
-      if((dir = JS_ToCString(ctx, argv[0]))) {
-        getdents_open(directory, dir);
-        JS_FreeCString(ctx, dir);
-        i++;
-      }
+      if(!(dir = JS_ToCString(ctx, argv[i])))
+        goto fail;
+
+      getdents_open(directory, dir);
+      JS_FreeCString(ctx, dir);
+      i++;
     }
   }
 
@@ -345,12 +349,6 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
     }
 
   } else {
-
-    if(i == 0) {
-      JS_ThrowInternalError(ctx, "argument 1 must be Number | String");
-      goto fail;
-    }
-
     if(i < argc && JS_IsNumber(argv[i]))
       if(!JS_ToInt32(ctx, &opts->flags, argv[i]))
         if(++i < argc && JS_IsNumber(argv[i]))
@@ -413,6 +411,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       int32_t flags = opts[0], mask = opts[1];
       JSValue value = JS_UNDEFINED;
       BOOL done = FALSE, init = getdents_initialized(directory), empty = TRUE;
+      BOOL opened = getdents_handle(directory) != -1;
 
       if(argc > 0)
         JS_ToInt32(ctx, &flags, argv[0]);
@@ -437,7 +436,8 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         done = TRUE;
       }
 
-      if(init && empty) {
+      /* never opened: done at once, no error */
+      if(init && empty && opened) {
         ret = JS_ThrowInternalError(ctx, "empty directory");
         break;
       }
