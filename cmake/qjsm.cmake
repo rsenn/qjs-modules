@@ -325,13 +325,13 @@ function(compile_module SOURCE)
   string(REGEX REPLACE "/" "_" OUTPUT_FILE "${OUTPUT_FILE}")
   set(OUTPUT_FILE "modules/${OUTPUT_FILE}")
 
-  dump(OUTPUT_FILE)
+  #dump(OUTPUT_FILE)
+
+  list(APPEND COMPILED_TARGETS "${TARGET_NAME}")
+  set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
 
   list(APPEND COMPILED_MODULES "${OUTPUT_FILE}")
-  list(APPEND COMPILED_TARGETS "${TARGET_NAME}")
-
   set(COMPILED_MODULES "${COMPILED_MODULES}" PARENT_SCOPE)
-  set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
 
   unset(ADD_MODULES)
 
@@ -350,8 +350,6 @@ function(compile_module SOURCE)
   foreach(MOD IN ITEMS ${ARGLIST})
     list(APPEND ADD_MODULES -M "${MOD}")
   endforeach(MOD IN ITEMS ${ARGLIST})
-
-dump(QJSC_DEPS)
 
   add_custom_target(
     "${TARGET_NAME}" ALL
@@ -942,6 +940,7 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
   string(REPLACE "_" "-" BUILTIN_NATIVE_NAME "${BUILTIN_MODULE}")
   string(REPLACE "-" "_" BUILTIN_NATIVE_KEY "${BUILTIN_MODULE}")
 
+
   # a path entry may be relative to the source dir
   get_filename_component(_bm_path "${BUILTIN_MODULE}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -1020,12 +1019,12 @@ foreach(BUILTIN_MODULE ${BUILTIN_MODULES})
       list(APPEND BUILTINS_NATIVE "${BUILTIN_NATIVE_NAME}")
     endif()
   elseif(BUILTIN_MODULE IN_LIST COMPILED_MODULE_NAMES)
-    if(BUILTIN_MODULE MATCHES "[^A-Za-z0-9_/]")
-      message(
-        WARNING
-          "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is not a C identifier (a '-' or '/' in lib/${BUILTIN_MODULE}.js) -- the builtin table needs one, skipping"
-      )
-    elseif(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
+    #message("BUILTIN_MODULE: ${BUILTIN_MODULE}")
+
+    #[[if(BUILTIN_MODULE MATCHES "[^A-Za-z0-9_/]")
+      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' is not a C identifier (a '-' or '/' in lib/${BUILTIN_MODULE}.js) -- the builtin table needs one, skipping")
+    else]]
+    if(NOT BUILTIN_MODULE IN_LIST BUILTINS_COMPILED)
       list(APPEND BUILTINS_COMPILED "${BUILTIN_MODULE}")
       set(MODLIST ${COMMON_MODULES} ${${BUILTIN_MODULE}_MODULES})
       module_path("${BUILTIN_MODULE}.c" BUILTIN_MODULE_OUT)
