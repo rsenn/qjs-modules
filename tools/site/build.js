@@ -159,8 +159,6 @@ const NAV = [
       ['doc/js/dom.md', 'docs/js/dom.html', 'dom'],
       ['doc/js/xpath.md', 'docs/js/xpath.html', 'xpath'],
       ['doc/js/parser.md', 'docs/js/parser.html', 'parser'],
-      ['doc/js/parsel.md', 'docs/js/parsel.html', 'parsel'],
-      ['doc/js/css-selectors.md', 'docs/js/css-selectors.html', 'css-selectors'],
       ['doc/js/css3-selectors.md', 'docs/js/css3-selectors.html', 'css3-selectors'],
       ['doc/js/url.md', 'docs/js/url.html', 'url'],
     ],

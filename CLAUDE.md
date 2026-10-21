@@ -301,7 +301,7 @@ doc/
     ├── README.md
     ├── Polyfills: abort.md, asyncIterator.md, events.md, stream.md
     │              iterator.md
-    │              parsel.md, describe.md
+    │              describe.md
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md
     │             streams.md, io.md, tty.md, repl.md, require.md
     │             module.md, stack.md, inotify.md, terminal.md
@@ -310,7 +310,7 @@ doc/
     │               extendMap.md, extendSet.md,
     │               extendFunction.md, extendAsyncFunction.md,
     │               extendGenerator.md, extendAsyncGenerator.md
-    └── Other: css-selectors.md, css3-selectors.md, parser.md
+    └── Other: css3-selectors.md, parser.md
                db.md, dbi.md, database.md, dom.md, file.md
                socklen_t.md, timers.md, util.md, html.md
 ```

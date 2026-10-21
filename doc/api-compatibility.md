@@ -464,16 +464,6 @@ directly for Bun-compatible code.
 
 **Gaps (2026-10 audit; doc/api-compatibility-nodejs.md, console):** the classification above overstates it: only `log info error warn debug time timeLog timeEnd` exist. `assert`, `clear`, `count`, `countReset`, `dir`, `dirxml`, `group*`, `table`, `trace`, `profile*`, `timeStamp` and the static `console.Console` are missing (also on the global `console` of `qjsm`); format specifiers (`%s %d %i %f %j %o %O %c`) are not substituted; `new Console({ stdout, stderr, … })` options form is ignored; object formatting differs from Node's `util.inspect` (always expanded, no class names, `[loop]` for cycles).  
 
-### lib/css-selectors.js
-**Module:** `css-selectors`  
-**Classification:** Standard (W3C)  
-**Spec:** https://www.w3.org/TR/selectors-3/  
-**Exports:**
-- `parseSelectors(selector)` - parse a CSS selector string (via lib/parsel.js)
-- `emitPredicates(node)` - compile parsed selector AST into predicate functions for matching DOM-like nodes
-
-**Notes:** Selector-matching engine backing `querySelector`/`querySelectorAll` in lib/dom.js; works against wrapped dom.js elements or plain object trees.
-
 ### lib/css3-selectors.js
 **Module:** `css3-selectors`  
 **Classification:** Standard (W3C)  
@@ -483,7 +473,7 @@ directly for Bun-compatible code.
 - `LogicPredicate(pred, ...args)` - combine selectors with Predicate and/or
 - `parseSelectors(s)` - generator yielding parsed selector groups
 
-**Notes:** A second, apparently newer/alternate CSS Selectors implementation (Level 4, pseudo-classes) alongside css-selectors.js — the two appear to overlap; worth flagging for possible consolidation.
+**Notes:** Selector-matching engine backing `querySelector`/`querySelectorAll` in lib/dom.js.
 
 ### lib/database.js
 **Module:** `database`  
@@ -807,15 +797,6 @@ directly for Bun-compatible code.
 - `createRequire(filename)` - `require()` from the compiled-in `require` builtin bound to `filename` (full `node_modules`/`package.json` lookup)
 
 **Notes:** Backed by this engine's own builtin-module registry rather than a hand-maintained list, matching how Bun/Deno alias `node:module` to their own module systems. `registerHooks()` (synchronous customization hooks) is implemented; Node's `Module` class, async `register()` hooks, `syncBuiltinESMExports()` and `SourceMap` are not (see `TODO.md`).
-
-### lib/parsel.js
-**Module:** `parsel`  
-**Classification:** Compatible (port of the `parsel-js` npm package)  
-**Spec:** https://github.com/LeaVerou/parsel  
-**Exports:**
-- `tokenize(selector)`, `parse(selector, options)`, `nestTokens(tokens)`, `flatten(node)`, `walk(node, visit)`, `stringify(listOrNode)`
-
-**Notes:** Line-for-line port of Lea Verou's `parsel-js` CSS selector tokenizer/AST parser; not a full CSS Selectors Level 4 grammar implementation but covers the common selector syntax.
 
 ### lib/parser.js
 **Module:** `parser`  

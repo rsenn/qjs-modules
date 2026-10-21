@@ -409,16 +409,9 @@ Deno also errors `No such built-in module: node:yaml`, matching Bun):
 
 ## Tier 8 — architecture cleanup (goal 3 dogfooding, code duplication)
 
-- **Three independent CSS-selector implementations**: `lib/parsel.js` (ported `parsel-js`),
-  `lib/css-selectors.js` (compiler built on `parsel.js`), and `lib/css3-selectors.js` (a
-  *second*, independent compiler with its own hand-rolled tokenizer, duplicating helper
-  functions nearly verbatim from `css-selectors.js`, e.g. `escapeRegExp`/`getAttribute`/
-  `hasAttribute`/`isElement`/`childElements`). `lib/css-selectors.js` appears dead: nothing
-  in `lib/`, `tests/`, `utilities/`, `examples/`, the sibling `qjs-*` projects or `plot-cv`
-  imports it (`lib/dom.js` and `tests/unittests/test-css3-selectors.js` import
-  `css3-selectors.js` instead; `tools/site/build.js` only lists its doc page). Worth either deleting `css-selectors.js` or
-  consolidating `css3-selectors.js` to build on the shared `lib/lexer`/`lib/parser/grammar.js`
-  toolkit (goal 3) instead of duplicating a tokenizer.
+- **`lib/css3-selectors.js` hand-rolls its own tokenizer**; rebuild it on the shared
+  `lib/lexer`/`lib/parser/grammar.js` toolkit (goal 3). (`lib/css-selectors.js` and
+  `lib/parsel.js` were removed 2026-10-21, no users.)
 - **Lexer/parser toolkit (goal 3) isn't dogfooded by the project's own hardest parsing
   problems.** `lib/parser/grammar.js` + the native `lexer` module are genuinely reused across 9
   independent grammars (`lib/lexer/{bnf,c,cmake,csv,ecmascript,ini,make,shell,xml}.js` — `lib/xml/read.js` was

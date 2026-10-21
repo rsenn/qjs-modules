@@ -86,7 +86,6 @@ Based on the inventory in /tmp/js-inventory.md:
 - **abort** - Abort controller (could be standard)
 - **arrayLike** - Array-like utilities
 - **asyncIterator** - Async iterator helpers
-- **css-selectors** - CSS selector parser
 - **css3-selectors** - CSS3 selector parser
 - **database** - Database abstraction
 - **db** - Database utilities
@@ -109,7 +108,6 @@ Based on the inventory in /tmp/js-inventory.md:
 - **iterator** - Iterator helpers
 - **misc** - Miscellaneous utilities
 - **module** - Module utilities
-- **parsel** - CSS selector parser
 - **perf_hooks** - Performance hooks (could be standard)
 - **reflect** - Reflect utilities
 - **repl** - REPL implementation
