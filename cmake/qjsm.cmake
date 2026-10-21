@@ -667,7 +667,7 @@ macro(qjsm_init_builtins)
 #   - a name with a lib/<name>.js or quickjs-<name>.c file -> BUILTINS_COMPILED or
 #     BUILTINS_NATIVE respectively (native wins if both exist, matching the
 #     C-is-authoritative precedent for dual-implementation modules elsewhere in this
-#     project, e.g. deep/pointer/predicate/xml/stream/misc/path).
+#     project, e.g. deep/pointer/predicate/xml/misc/path).
 #   - a directory path (an externally-built sibling project's build directory, e.g.
 #     ../qjs-glfw/build/x86_64-linux-gnu) -> EXTERNAL_MODULES. The module name is taken
 #     from a "qjs-<name>" ancestor directory of the path, and <name>_MODULE is set to
