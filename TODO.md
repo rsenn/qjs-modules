@@ -338,10 +338,11 @@ Docs: `doc/native/wasm.md`, `doc/js/wasi.md`.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
 node:-prefix audit):
-- `package.json` `"type"` is never consulted (`"exports"`, `"imports"` and `"main"` are, by
-  `lib/loaders/packages.js`), so it plays no part in whether a `.js` file loads as CJS or ESM.
-- `.cjs` loads as CommonJS through `lib/loaders/commonjs.js`, which `lib/node.js` installs at startup
-  since 2026-10-21, but a CommonJS `.js` file does not (`BUGS` package-json-type-ignored-cjs-js-runs-as-esm).
+- Done 2026-10-21: `package.json` `"type"` and syntax detection pick CJS or ESM for a `.js` file
+  (`lib/loaders/commonjs.js`), `require()` searches `node_modules` and gives Node's module objects
+  for core names, and a package below `node_modules` gets Node's `util`/`events`/`buffer` by bare name.
+- Open from the sweep (`BUGS`): `require()` ignores `"exports"`, no `.json` extension, no
+  `require.resolve`, one shared `require()`, no file and line in CommonJS stack frames.
 - No Node-style `crypto`/`zlib`/`dns`/`net`/`worker_threads`/`vm`/`string_decoder` builtins
   — common Node imports fail outright (`tests/node-modules-sweep.sh` counts them).
 - Node globals still missing under `lib/node.js` (2026-10-21, `doc/js/node.md`): `MessageChannel`, `BroadcastChannel`, the compression streams,

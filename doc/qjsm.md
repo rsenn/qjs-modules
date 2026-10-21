@@ -116,7 +116,9 @@ order for every `import`/`import()`. Normalize tries, in order:
 
 1. **Builtin registry** — if `name` has no `.`/`/` (a bare specifier) and
    `jsm_builtin_find(name)` matches a compiled-in module, resolve to it
-   directly (no filesystem access at all).
+   directly (no filesystem access at all), except for an importer below
+   `node_modules`: there a Node name (`util`, `events`, `buffer`, ...) means Node's
+   module, and `lib/loaders/node.js` maps it to `node:<name>`.
 2. **Relative/`./`/`../` import** — joined against the *importing* module's own
    resolved path and normalized (`path_cat()` then `path_canon()`), skipped for a `data:`
    importer (see the comment at `jsm_module_normalize()` for why: naive

@@ -29,6 +29,14 @@ tests({
     eq('node:deep', import.meta.resolve('node:deep'));
   },
 
+  async 'a bare Node name in a package below node_modules is the Node module'() {
+    eq('function,function,function,EventEmitter', (await import('../fixtures/node-modules/node_modules/bare-node/index.js')).default);
+  },
+
+  async 'a bare Node name qjs-modules has no module for is the Node module'() {
+    eq('function', typeof (await import('buffer')).Buffer.from);
+  },
+
   /* deno says ERR_MODULE_NOT_FOUND, node and bun ERR_UNKNOWN_BUILTIN_MODULE */
   async 'qjsm: the error has Node code, and node:sqlite is not qjsm sqlite'() {
     if(!qjsm) return;

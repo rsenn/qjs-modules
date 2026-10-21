@@ -2658,8 +2658,10 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     return jsm_module_normalize_builtin(ctx, path, name);
 
   if(module_hooks_len) {
-    /* a builtin by its name is resolved before the hooks run */
-    if(!jsm_hooks_builtin && !has_dot_or_slash(name) && jsm_builtin_find(name))
+    /* a builtin by its name is resolved before the hooks run, except for
+       an importer below node_modules: Node code means node:util by util,
+       which lib/loaders/node.js maps */
+    if(!jsm_hooks_builtin && !has_dot_or_slash(name) && jsm_builtin_find(name) && !(path && strstr(path, "/node_modules/")))
       return jsm_module_normalize_core(ctx, path, name);
 
     return jsm_hook_normalize(ctx, path, name);

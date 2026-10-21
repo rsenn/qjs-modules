@@ -9,7 +9,8 @@ Makes qjsm resolve modules and see the globals the way Node does:
 | --- | --- | --- |
 | loaders | `node:fs` and the other `node:` names | `lib/loaders/node.js`, see [qjsm](../qjsm.md#module-resolution-pipeline) |
 | | bare names in `node_modules`, `package.json` `exports`/`imports`/`main` | [loaders/packages](loaders/packages.md) |
-| | `.cjs` as CommonJS (sets `globalThis.require`) | [loaders/commonjs](loaders/commonjs.md) |
+| | `.cjs`, and `.js` by `package.json` `"type"` or syntax, as CommonJS (sets `globalThis.require`) | [loaders/commonjs](loaders/commonjs.md) |
+| | a bare Node name (`util`, `events`, `buffer`, ...) imported below `node_modules` is Node's module | `lib/loaders/node.js` |
 | globals, at startup | `URL`, `URLSearchParams`, `AbortController`, `AbortSignal`, `EventTarget`, `TextEncoder`, `TextDecoder`, `Blob`, the WHATWG streams, `atob`, `btoa`, `queueMicrotask`, `structuredClone`, `crypto`, `performance`, `Performance*`, `setImmediate`, `Intl` | [globals](globals.md) |
 | | `global` (enumerable, as in Node) | here |
 | globals, on first read | `fetch` (enumerable), `Request`, `Response`, `Headers`, `FormData`, `WebSocket` | qjs-lws, when it is in the module path |
