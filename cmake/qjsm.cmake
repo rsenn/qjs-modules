@@ -319,12 +319,13 @@ function(compile_module SOURCE)
     set(OUTPUT_FILE "${MODULES_DIR}/${BASE}.c")
   endif(OUT AND NOT "${OUT}" STREQUAL "")
 
-    string(REGEX REPLACE "_" "-" TARGET_NAME "qjs-${BASE}-js")
+  string(REGEX REPLACE "_" "-" TARGET_NAME "qjs-${BASE}-js")
     
-  relative_paths(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/modules" "${OUTPUT_FILE}")
+  relative_paths(OUTPUT_FILE "${CMAKE_BINARY_DIR}/modules" "${OUTPUT_FILE}")
   string(REGEX REPLACE "/" "_" OUTPUT_FILE "${OUTPUT_FILE}")
   set(OUTPUT_FILE "modules/${OUTPUT_FILE}")
 
+  dump(OUTPUT_FILE)
 
   list(APPEND COMPILED_MODULES "${OUTPUT_FILE}")
   list(APPEND COMPILED_TARGETS "${TARGET_NAME}")
@@ -350,12 +351,14 @@ function(compile_module SOURCE)
     list(APPEND ADD_MODULES -M "${MOD}")
   endforeach(MOD IN ITEMS ${ARGLIST})
 
+dump(QJSC_DEPS)
+
   add_custom_target(
     "${TARGET_NAME}" ALL
     BYPRODUCTS "${OUTPUT_FILE}"
     COMMAND "${QJSC}" ${ADD_MODULES} -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}"
     DEPENDS ${QJSC_DEPS}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler"
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" #DEPENDS qjs-inspect qjs-misc
   )
@@ -395,7 +398,7 @@ function(generate_module_header SOURCE)
     endif()
   endforeach()
 
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/modules/${BASE}.h" "${S}")
+  file(WRITE "${CMAKE_BINARY_DIR}/modules/${BASE}.h" "${S}")
   #string(REGEX REPLACE "[\\n;]" "\\\\n" SYMBOLS "${SYMBOLS}")
   #message("Symbols: ${SYMBOLS}")
 endfunction()
@@ -510,9 +513,9 @@ function(remake_module SOURCE)
 
   extract_definition("${SOURCE}" DEF "${NAME}")
 
-  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/modules")
 
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/modules/${BASE}.c" "#include \"${BASE}.h\"\n\n${DEF}")
+  file(WRITE "${CMAKE_BINARY_DIR}/modules/${BASE}.c" "#include \"${BASE}.h\"\n\n${DEF}")
   generate_module_header(${SOURCE} ${DEFLIST})
 
 endfunction()
@@ -770,7 +773,7 @@ print_columns("=> Builtin JS modules" BUILTINS_COMPILED ${COLUMNS})
 set(_bytecode_files "")
 foreach(_bc ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
   string(REPLACE "/" "_" _bc "${_bc}")
-  list(APPEND _bytecode_files "${CMAKE_CURRENT_BINARY_DIR}/modules/${_bc}.c")
+  list(APPEND _bytecode_files "${CMAKE_BINARY_DIR}/modules/${_bc}.c")
 endforeach()
 list(LENGTH _bytecode_files _bytecode_expected)
 qjsm_bytecode_size(_bytecode_total _bytecode_found ${_bytecode_files})
@@ -905,7 +908,7 @@ set(COMPILED_BUILTIN_HEADER "")
 set(COMPILED_BUILTIN_HEADER "${COMPILED_BUILTIN_HEADER}\n/* Compiled .js builtins */\n")
 
 list(LENGTH BUILTINS_COMPILED _qjsc_count)
-message(STATUS "qjsc: compiling ${_qjsc_count} lib/*.js builtins to bytecode in ${CMAKE_CURRENT_BINARY_DIR}/modules (${QJSC})")
+message(STATUS "qjsc: compiling ${_qjsc_count} lib/*.js builtins to bytecode in ${CMAKE_BINARY_DIR}/modules (${QJSC})")
 
 foreach(LIB_MODULE ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
@@ -1242,7 +1245,7 @@ install(TARGETS qjsm DESTINATION bin)
 set(_bytecode_files "")
 foreach(_bc ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
   string(REPLACE "/" "_" _bc "${_bc}")
-  list(APPEND _bytecode_files "${CMAKE_CURRENT_BINARY_DIR}/modules/${_bc}.c")
+  list(APPEND _bytecode_files "${CMAKE_BINARY_DIR}/modules/${_bc}.c")
 endforeach()
 string(REPLACE ";" "|" _bytecode_files "${_bytecode_files}")
 add_custom_command(TARGET qjsm POST_BUILD
@@ -1407,7 +1410,7 @@ macro(qjsm_report)
     if(_rep_bytecode GREATER 0)
       message_table("qjsc: generated files"
         "compiler" "${QJSC}"
-        "bytecode sources" "${_rep_bytecode} in ${CMAKE_CURRENT_BINARY_DIR}/modules"
+        "bytecode sources" "${_rep_bytecode} in ${CMAKE_BINARY_DIR}/modules"
         "bytecode library" "${CMAKE_CURRENT_BINARY_DIR}/libcompiled.a"
         "builtin table" "${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h")
     endif()

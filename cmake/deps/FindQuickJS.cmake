@@ -250,6 +250,13 @@ macro(_find_quickjs)
   check_include_file(quickjs.h HAVE_QUICKJS_H)
   check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
 
+  if(NOT HAVE_QUICKJS_CONFIG_H)
+    if(EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs-config.h" OR EXISTS "${QUICKJS_H}")
+      set(HAVE_QUICKJS_CONFIG_H TRUE)
+      set(HAVE_QUICKJS_CONFIG_H TRUE CACHE BOOL "Set if you have quickjs-config.h" FORCE)
+    endif()
+  endif(NOT HAVE_QUICKJS_CONFIG_H)
+
   if(HAVE_QUICKJS_CONFIG_H)
     add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
   endif(HAVE_QUICKJS_CONFIG_H)
