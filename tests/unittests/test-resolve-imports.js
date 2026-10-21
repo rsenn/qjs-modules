@@ -242,6 +242,20 @@ tests({
     eq(read('mg2.js'), "import * as os from 'os';\nimport { exec } from 'os';\nimport 'globals';\nconsole.log(os, exec);\n");
   },
 
+  'a package in node_modules is bundled through its package.json'() {
+    fs.mkdirSync(path.join(dir, 'node_modules/@sc/codec/dist'), { recursive: true });
+    write('node_modules/@sc/codec/package.json', JSON.stringify({ name: '@sc/codec', main: 'dist/codec.umd.js', exports: { '.': { import: './dist/codec.mjs', default: './dist/codec.umd.js' } } }));
+    write('node_modules/@sc/codec/dist/codec.mjs', 'export const encode = s => s;\n');
+    write('nm.js', "import { encode } from '@sc/codec';\nimport * as os from 'os';\nconsole.log(encode('x'), os);\n");
+
+    eq(run('-o', 'out.js', 'nm.js').status, 0);
+    assert(/start of 'node_modules\/@sc\/codec\/dist\/codec\.mjs'/.test(read('out.js')) && !/from '@sc\/codec'/.test(read('out.js')), read('out.js'));
+
+    const r = run('--list-imports', 'nm.js');
+
+    assert(/^nm\.js:node_modules\/@sc\/codec\/dist\/codec\.mjs encode$/m.test(r.stdout), r.stdout);
+  },
+
   'cleanup'() {
     fs.rmSync(dir, { recursive: true, force: true });
   },

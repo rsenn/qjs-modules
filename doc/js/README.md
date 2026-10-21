@@ -34,6 +34,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [loaders/commonjs](loaders/commonjs.md) — `commonjs` module format loader (`registerHooks()`)
 - [loaders/file](loaders/file.md) — `with { type: 'file' }` imports, as in Bun (`registerHooks()`)
 - [loaders/typescript](loaders/typescript.md) — `.ts` loader via `swc` (`registerHooks()`)
+- [loaders/packages](loaders/packages.md) — `node_modules` and `package.json` `exports`/`imports`/`main`, Node's ESM resolution (`registerHooks()`, preloaded)
 - [globals](globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
 - [jsonStreams](jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [textLineStream](textLineStream.md) — Deno's `TextLineStream`

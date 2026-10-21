@@ -208,7 +208,9 @@ static thread_local char* jsm_importer; /* importer seen by the last normalize, 
 /* > 0 while the static imports of a compiled builtin are being resolved: nothing but builtins is
    resolved or loaded then, and no hook sees it unless jsm_hooks_builtin is set */
 static thread_local int jsm_builtin_depth;
-static BOOL jsm_hooks_builtin; /* --hooks-on-builtins / QJSM_HOOKS_ON_BUILTINS=1 */
+static BOOL jsm_hooks_builtin;         /* --hooks-on-builtins / QJSM_HOOKS_ON_BUILTINS=1 */
+static const char* jsm_conditions[32]; /* -C / --conditions: export conditions after node, import */
+static size_t jsm_conditions_len;
 
 /* builtins switched off before the runtime starts */
 static const char* jsm_disabled_names[64];
@@ -1490,6 +1492,199 @@ jsm_module_source(JSContext* ctx, const char* name, DynBuf* code) {
   return 0;
 }
 
+static char* jsm_module_normalize(JSContext*, const char*, const char*, void*);
+static char* jsm_url_frompath(JSContext*, const char*);
+static char* jsm_url_tokey(JSContext*, const char*);
+static JSValue jsm_throw_code(JSContext*, const char*, const char*);
+
+/* the Node core modules, what import.meta.resolve() gives a node: prefix */
+static const char* const jsm_node_modules[] = {
+    "assert",
+    "assert/strict",
+    "async_hooks",
+    "buffer",
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "crypto",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "events",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "readline/promises",
+    "repl",
+    "stream",
+    "stream/consumers",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "url",
+    "util",
+    "util/types",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+};
+
+/* key, the builtin that spec resolved to, as import.meta.resolve() shows
+ * it: node:<spec> when spec is a Node core module and node:<spec> loads
+ * the same builtin, else key. node:os is no answer, qjsm's os is not Node's.
+ * never throws: returns a JS string. */
+static JSValue
+jsm_builtin_url(JSContext* ctx, const char* parent, const char* spec, const char* key) {
+  JSValue ret = JS_UNDEFINED;
+  char *prefixed, *other;
+  size_t i;
+
+  if(str_start(spec, "node:"))
+    return JS_NewString(ctx, spec);
+
+  for(i = 0; i < countof(jsm_node_modules); i++)
+    if(str_equal(spec, jsm_node_modules[i]))
+      break;
+
+  if(i < countof(jsm_node_modules) && (prefixed = js_malloc(ctx, strlen(spec) + 6))) {
+    strcpy(prefixed, "node:");
+    strcat(prefixed, spec);
+
+    if((other = jsm_module_normalize(ctx, parent, prefixed, 0))) {
+      if(str_equal(other, key))
+        ret = JS_NewString(ctx, prefixed);
+
+      js_free(ctx, other);
+    } else {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+    }
+
+    js_free(ctx, prefixed);
+  }
+
+  return JS_IsUndefined(ret) ? JS_NewString(ctx, key) : ret;
+}
+
+/* import.meta.resolve: the URL import(specifier) loads from this module,
+ * WHATWG's import.meta.resolve with the second argument of Bun.
+ *
+ *   import.meta.resolve('./x.js')          'file:///dir/x.js'
+ *   import.meta.resolve('fs')              'node:fs'
+ *   import.meta.resolve('std')             'std', a qjsm builtin
+ *   import.meta.resolve('pkg', '/a/b.js')  as imported from /a/b.js
+ *
+ *   string      specifier  what import() would get
+ *   string|URL  parent     path or file: URL, default this module
+ *
+ *   returns  a file: URL, node:<name> for a Node builtin, the name of a
+ *            qjsm builtin. A missing file is not checked, as on Node.
+ *   throws   Error ERR_MODULE_NOT_FOUND for a bare name nothing provides,
+ *            and what the resolve hooks throw
+ *
+ * a JS_NewCFunctionData, data[0] is the module name, see
+ * jsm_import_meta_init.
+ */
+static JSValue
+jsm_import_meta_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
+  const char *spec, *str;
+  char *parent = 0, *key = 0, *file = 0, *url;
+  JSValue ret = JS_EXCEPTION;
+
+  if(!(spec = JS_ToCString(ctx, argc > 0 ? argv[0] : JS_UNDEFINED)))
+    return JS_EXCEPTION;
+
+  if(!(str = JS_ToCString(ctx, argc > 1 && !JS_IsUndefined(argv[1]) ? argv[1] : data[0])))
+    goto end;
+
+  parent = jsm_url_tokey(ctx, str);
+  JS_FreeCString(ctx, str);
+
+  if(!(key = jsm_module_normalize(ctx, parent, spec, 0)))
+    goto end;
+
+  if(path_isname_s(key) && jsm_builtin_find(key)) {
+    ret = jsm_builtin_url(ctx, parent, spec, key);
+    goto end;
+  }
+
+  if(str_start(key, "data:") || str_start(key, "http:") || str_start(key, "https:")) {
+    ret = JS_NewString(ctx, key);
+    goto end;
+  }
+
+  /* a bare name the hooks left alone: the module search path, or nothing */
+  if(!path_isexplicit(spec) && !path_isabs_s(key) && !(file = jsm_module_locate(ctx, key, 0))) {
+    char msg[1024], *abs = path_isabs_s(parent) || parent[0] == '<' ? 0 : jsm_abspath(ctx, parent);
+
+    snprintf(msg, sizeof(msg), "Cannot find package '%s' imported from %s", spec, abs ? abs : parent);
+    js_free(ctx, abs);
+    jsm_throw_code(ctx, "ERR_MODULE_NOT_FOUND", msg);
+    goto end;
+  }
+
+  if(!file)
+    file = js_strdup(ctx, key);
+
+  if(file && !path_isabs_s(file)) {
+    char* abs = jsm_abspath(ctx, file);
+
+    js_free(ctx, file);
+    file = abs;
+  }
+
+  if(file && (url = jsm_url_frompath(ctx, file))) {
+    ret = JS_NewString(ctx, url);
+    js_free(ctx, url);
+  }
+
+end:
+  js_free(ctx, file);
+  js_free(ctx, key);
+  js_free(ctx, parent);
+  JS_FreeCString(ctx, spec);
+  return ret;
+}
+
+/* adds import.meta.resolve to the import.meta of module, bound to the
+ * module name: js_import_meta_init of utils.c and jsm_module_compile */
+static void
+jsm_import_meta_init(JSContext* ctx, JSValueConst module) {
+  JSModuleDef* m = JS_VALUE_GET_PTR(module);
+  JSValue meta = JS_GetImportMeta(ctx, m);
+  JSAtom atom = JS_GetModuleName(ctx, m);
+  JSValue name = JS_AtomToString(ctx, atom);
+
+  JS_FreeAtom(ctx, atom);
+  JS_SetPropertyStr(ctx, meta, "resolve", JS_NewCFunctionData(ctx, jsm_import_meta_resolve, 1, 0, 1, &name)); /* dups name */
+  JS_FreeValue(ctx, name);
+  JS_FreeValue(ctx, meta);
+}
+
 /*
  * Compiles module source `code` (not run) under the name `name`, installing its
  * import.meta.
@@ -1501,6 +1696,7 @@ jsm_module_compile(JSContext* ctx, const char* name, const char* code, size_t le
 
   if(!JS_IsException(module)) {
     js_module_set_import_meta(ctx, module, is_file, FALSE);
+    jsm_import_meta_init(ctx, module);
     m = JS_VALUE_GET_PTR(module);
   }
 
@@ -2148,6 +2344,10 @@ jsm_hook_context(JSContext* ctx, const char* key, const char* val) {
 
   JS_SetPropertyUint32(ctx, conds, 0, JS_NewString(ctx, "node"));
   JS_SetPropertyUint32(ctx, conds, 1, JS_NewString(ctx, "import"));
+
+  for(size_t i = 0; i < jsm_conditions_len; i++)
+    JS_SetPropertyUint32(ctx, conds, 2 + i, JS_NewString(ctx, jsm_conditions[i]));
+
   JS_SetPropertyStr(ctx, c, "conditions", conds);
   JS_SetPropertyStr(ctx, c, "importAttributes", JS_NewObject(ctx));
   JS_SetPropertyStr(ctx, c, key, val ? JS_NewString(ctx, val) : JS_UNDEFINED);
@@ -3387,7 +3587,10 @@ jsm_help(void) {
 #endif
          "-l  --list         list modules\n"
          "\n"
-         "-N  --no-node-hooks  disable node:* module loader hooks\n"
+         "-N  --no-node-hooks  disable the node:* and node_modules loader hooks\n"
+         "-C  --conditions name  add an export condition for package.json\n"
+         "                     \"exports\" and \"imports\" (node, import, default\n"
+         "                     are always on)\n"
          "-P  --no-process     disable 'process' global\n"
          "    --disable-builtin names  switch off builtins (comma separated, or\n"
          "                     QJSM_DISABLE_BUILTINS); an import of one fails\n"
@@ -3610,6 +3813,21 @@ main(int argc, char** argv) {
         exit(0);
       }
 
+      /* -C name, -Cname, --conditions=name, --conditions name, as in Node */
+      if(opt == 'C' || (str_start(longopt, "conditions") && (longopt[10] == '\0' || longopt[10] == '='))) {
+        const char* name = opt ? optarg : longopt[10] == '=' ? longopt + 11 : optind + 1 < argc ? argv[++optind] : 0;
+
+        if(!name || !*name) {
+          fprintf(stderr, "%s: -C needs an export condition name\n", exename);
+          exit(2);
+        }
+
+        if(jsm_conditions_len < countof(jsm_conditions))
+          jsm_conditions[jsm_conditions_len++] = name;
+
+        break;
+      }
+
       if(str_equal(longopt, "hooks-on-builtins")) {
         jsm_hooks_builtin = TRUE;
         break;
@@ -3689,6 +3907,8 @@ main(int argc, char** argv) {
     exit(2);
   }
 
+  js_import_meta_init = jsm_import_meta_init;
+
   if(memory_limit != 0)
     JS_SetMemoryLimit(jsm_rt, memory_limit);
 
@@ -3744,6 +3964,8 @@ main(int argc, char** argv) {
     /* the hooks are optional builtins: without them there is nothing to preload */
     if(!no_node_hooks && jsm_builtin_find("loaders_node"))
       dbuf_putstr(&db, "import 'loaders_node';\n");
+    if(!no_node_hooks && jsm_builtin_find("loaders_packages"))
+      dbuf_putstr(&db, "import 'loaders_packages';\n");
     if(jsm_builtin_find("loaders_package-aliases"))
       dbuf_putstr(&db, "import 'loaders_package-aliases';\n");
     JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));

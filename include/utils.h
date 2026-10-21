@@ -863,6 +863,10 @@ JSValue module_value(JSContext*, JSModuleDef*);
 
 JSModuleDef* js_module_def(JSContext*, JSValueConst value);
 
+/* runs after import.meta is set up for a module evaluated by the js_eval_*
+ * functions, when not NULL: qjsm adds import.meta.resolve there */
+extern void (*js_import_meta_init)(JSContext*, JSValueConst module);
+
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const void*, size_t, const char* filename, int eval_flags);

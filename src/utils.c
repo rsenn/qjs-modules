@@ -2408,6 +2408,21 @@ js_arraybuffer_mmap(JSContext* ctx, const char* filename, BOOL shared) {
   return JS_NewArrayBuffer(ctx, mb.base, mb.size, &js_arraybuffer_mmap_free, (void*)mb.size, shared);
 }
 
+void (*js_import_meta_init)(JSContext*, JSValueConst module);
+
+/* js_module_set_import_meta, then js_import_meta_init when it is set.
+ * returns 0, or -1 with an exception pending. */
+static int
+js_set_import_meta(JSContext* ctx, JSValueConst module, BOOL use_realpath, BOOL is_main) {
+  if(js_module_set_import_meta(ctx, module, use_realpath, is_main) < 0)
+    return -1;
+
+  if(js_import_meta_init)
+    js_import_meta_init(ctx, module);
+
+  return 0;
+}
+
 JSValue
 js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
   int tag = JS_VALUE_GET_TAG(obj);
@@ -2418,7 +2433,7 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
       return JS_ThrowInternalError(ctx, "Failed resolving module");
     }
 
-    js_module_set_import_meta(ctx, obj, FALSE, !load_only);
+    js_set_import_meta(ctx, obj, FALSE, !load_only);
 
     return load_only ? JS_DupValue(ctx, obj) : JS_EvalFunction(ctx, obj);
   }
@@ -2459,7 +2474,7 @@ js_eval_buf(JSContext* ctx, const void* buf, size_t buf_len, const char* filenam
   if(as_module) {
     /* for the modules, we compile then run to be able to set import.meta */
     if(!JS_IsException(ret)) {
-      js_module_set_import_meta(ctx, ret, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
+      js_set_import_meta(ctx, ret, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
 
       ret = JS_EvalFunction(ctx, ret);
     }
@@ -2482,7 +2497,7 @@ js_eval_this_buf(JSContext* ctx, JSValueConst this_obj, const void* buf, size_t 
   if(as_module) {
     /* for the modules, we compile then run to be able to set import.meta */
     if(!JS_IsException(ret)) {
-      js_module_set_import_meta(ctx, ret, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
+      js_set_import_meta(ctx, ret, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
 
       JSValue tmp = JS_EvalFunction(ctx, ret);
       JS_FreeValue(ctx, ret);

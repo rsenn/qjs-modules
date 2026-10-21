@@ -687,7 +687,7 @@ if(NOT DEFINED BUILTIN_MODULES)
   endif()
 
   if(NOT DEFINED BUILTINS_COMPILED)
-       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module loaders/node loaders/package-aliases password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
+       set(BUILTINS_COMPILED assert assertStrict bun loaders/commonjs console events node/buffer node/child_process node/events node/util fs fsPromises globals io iterator module loaders/node loaders/package-aliases loaders/packages password perf_hooks process readline readlinePromises repl require stream terminal timers timersPromises tty loaders/typescript url util vfs webassembly)
   endif(NOT DEFINED BUILTINS_COMPILED)
 
   if(DEFINED CACHE{BUILTINS_NATIVE})
@@ -1262,7 +1262,7 @@ macro(qjsm_report_compat)
 
   # Node.js
   set(_node_builtins "")
-  foreach(_m loaders/node node/buffer node/child_process node/events node/util module process fsPromises
+  foreach(_m loaders/node loaders/packages node/buffer node/child_process node/events node/util module process fsPromises
              timersPromises assertStrict readlinePromises)
     if(_m IN_LIST _cb)
       list(APPEND _node_builtins "${_m}")
@@ -1287,6 +1287,11 @@ macro(qjsm_report_compat)
     if("loaders/node" IN_LIST _node_builtins)
       list(APPEND _rewrites "node:<name>  ->  node_<name> if that builtin exists, else <name> (node:os is left alone)"
                             "run by the loaders/node resolve hook, off with -N / --no-node-hooks")
+    endif()
+
+    if("loaders/packages" IN_LIST _node_builtins)
+      list(APPEND _rewrites "pkg, @scope/pkg/sub, #name  ->  node_modules and package.json exports/imports/main"
+                            "run by the loaders/packages resolve hook, off with -N / --no-node-hooks")
     endif()
 
     foreach(_alias "fsPromises:fs/promises" "timersPromises:timers/promises" "assertStrict:assert/strict"

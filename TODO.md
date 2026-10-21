@@ -3055,7 +3055,9 @@ pruning and CommonJS → ES module conversion.
 | 3. fixtures and the generator | open | |
 | 4. adapters | open | |
 | 5. `print()`, `merge()`, port of the tools | `resolve-imports.js` done, `list-exports.js` next | `lib/module-lexer.js`, `doc/js/module-lexer.md`, `test-module-lexer.js` (45 cases), `test-resolve-imports.js` (23 cases) |
-| 6.-8. | open | |
+| 6. CommonJS → ES module | open | |
+| 7. resolution | package resolution done, import maps open | `lib/loaders/packages.js`, `import.meta.resolve` in `src/qjsm.c`, `test-loaders-packages.js` |
+| 8. tool cleanup | open | |
 
 `utilities/resolve-imports.js` runs on `parse()`, `print()` and `merge()` since 2026-10-20, ahead of Tier 27:
 `FileMap` stays and gets byte ranges, converted from the UTF-16 offsets per file (`ByteOffsets`). The tool still
@@ -3300,6 +3302,14 @@ Like merve, no scope analysis: a local variable named `require` still counts.
    `lib/module.js`'s resolver (check first what it covers: `exports` conditions, ESM vs CJS rules); `-M NAME=PATH`
    becomes a shorthand for an entry of a WHATWG import map, and `--import-map FILE` (Deno's flag) reads a whole one.
    Verify: the `-M` cases of `test-resolve-imports.js` unchanged.
+   **Package resolution done 2026-10-21**, on qjsm itself rather than `lib/module.js` (its resolver is CommonJS,
+   `main` only): `lib/loaders/packages.js` (Node's ESM algorithm: `node_modules`, `exports`, `imports`,
+   conditions, patterns, self-reference, legacy `main`) is preloaded as a resolve hook, `-C`/`--conditions` adds
+   conditions, and qjsm has `import.meta.resolve(spec, parent?)` (WHATWG, plus Bun's second argument). The 32
+   fixture cases equal Node 23.11 (`test-loaders-packages.js`, 12 cases). `resolve-imports.js` resolves through
+   `import.meta.resolve`; `ModuleLoader`, `PackageEntry` and `PathAdjust` are gone, a bare name from
+   `node_modules` is bundled, one on qjsm's search path stays an import (it was an error).
+   Left: `-M` as an import-map entry and `--import-map FILE`; `ResolveAlias` (`-p`) and `RemapModule` stay.
 8. **Tool cleanup**: `--help` gets a description per option (it prints names only); `-l` shows twice (print-files and
    the positional `@` row); `-s`, `-c`, `-f`, `-e` appear to have no effect (destructured or assigned, never read):
    verify, then remove. `-i` (`onlyImports`) has none since step 5: the old parser stopped lexing after the imports

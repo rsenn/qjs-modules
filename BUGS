@@ -1058,3 +1058,17 @@
 
     import * as fs from 'fs';
     fs.readFileSync('/tmp');   // RangeError: invalid array index
+
+- resolve-imports-bundle-name-clash: the bundler concatenates files without
+  renaming top-level names, so two files that declare the same name give a
+  bundle that does not load. Found 2026-10-20 bundling magic-string, whose
+  index.mjs and @jridgewell/sourcemap-codec both declare intToChar.
+
+    resolve-imports.js -o b.mjs ../../magic-string/dist/index.mjs
+    qjsm b.mjs   # SyntaxError: invalid redefinition of global identifier
+
+- builtin-modules-cache-pins-defaults: cmake/qjsm.cmake caches
+  BUILTIN_MODULES on the first configure, so a builtin added to the
+  defaults later (loaders/packages) never reaches an existing build
+  directory. The same was fixed for BUILTINS_COMPILED only. Workaround:
+  cmake -U BUILTIN_MODULES <builddir>. Found 2026-10-20.

@@ -10,6 +10,7 @@ import inspect from 'inspect';
 import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import { merge, parse, print } from 'module-lexer';
+import { legacyMainResolve, packageExportsResolve, readPackageJson } from 'loaders/packages';
 import * as std from 'std';
 
 /* äöü */
@@ -130,11 +131,6 @@ function ResolveAlias(filename) {
 function IsWhitespace(str) {
   if(types.isArrayBuffer(str)) str = toString(str);
   return str.trim() == '';
-}
-
-function IsFileImport(filename) {
-  if(readPackage) filename = ResolveAlias(filename);
-  if(/(\.|\/)/.test(filename)) return filename;
 }
 
 function NormalizePath(p) {
@@ -409,68 +405,15 @@ function RemapModule(name) {
   return name;
 }
 
-/* the entry file named by a package.json `exports` value: a path, a list of
-   alternatives, or an object with "." and/or condition keys (import, default, ...) */
-function PackageEntry(exp) {
-  if(typeof exp == 'string') return exp;
+/* the file a directory names through its package.json: "exports" '.'
+   with the import condition, else "main", else index.js; undefined when none */
+function PackageDirectory(dir) {
+  const abs = path.resolve(dir),
+    pjson = readPackageJson(abs);
 
-  if(Array.isArray(exp)) {
-    for(const e of exp) {
-      const r = PackageEntry(e);
-      if(r) return r;
-    }
-  } else if(exp && typeof exp == 'object') {
-    for(const key of ['.', 'import', 'module', 'default', 'require']) {
-      const r = key in exp ? PackageEntry(exp[key]) : undefined;
-      if(r) return r;
-    }
-  }
-}
-
-class ModuleLoader {
-  static paths = [];
-
-  static {
-    if(path.isFile('package.json')) this.paths.add('node_modules');
-  }
-
-  static resolve(module) {
-    let file;
-
-    if(!path.isFile(module) && !path.isAbsolute(module)) {
-      for(let p of this.paths) {
-        if(module.startsWith(p)) continue;
-
-        if((file = ModuleLoader.resolve(path.join(p, module)))) return file;
-      }
-
-      if(!/\.js$/.test(module) && path.isFile(module + '.js')) file = module + '.js';
-    }
-
-    if(!file && path.isDirectory(module)) {
-      if(path.isFile(module + '/package.json')) {
-        const { exports, main } = JSON.parse(readFileSync(module + '/package.json', 'utf-8'));
-
-        /* exports, then main, then index.js */
-        for(const entry of [PackageEntry(exports), main]) {
-          if(typeof entry != 'string') continue;
-
-          const candidate = path.join(module, entry);
-
-          if(path.isFile(candidate)) return candidate;
-          if(path.isFile(candidate + '.js')) return candidate + '.js';
-        }
-      }
-
-      if(path.isFile(module + '/index.js')) return path.join(module, 'index.js');
-    }
-
-    if(!file && path.exists(module)) file = module;
-
-    if(debug > 3) console.log('ModuleLoader.resolve', compact(true), { module, file });
-
-    if(file && path.isFile(file)) return file;
-  }
+  try {
+    return pjson?.exports != null ? packageExportsResolve(abs, '.', pjson.exports) : legacyMainResolve(abs, pjson);
+  } catch(e) {}
 }
 
 function ModuleExports(file) {
@@ -1193,7 +1136,6 @@ function main(...args) {
     FileWriter,
     ResolveAlias,
     Range,
-    ModuleLoader,
   });
 
   globalThis.console = new Console(std.err, {
@@ -1413,7 +1355,7 @@ function main(...args) {
 
   /* the builtin imports of every file, hoisted into one header */
   const hoisted = allImports()
-    .filter(imp => !IsFileImport(imp.file))
+    .filter(imp => imp.external)
     .map(imp => ({ ...imp, path: ResolveAlias(imp.file) }));
 
   if(doOutput) {
@@ -1553,21 +1495,42 @@ function ProcessFile(source, recursive, depth = 0) {
   const map = FileMap.for(source);
   const result = (modules[source] = { imports: statements, exports, map });
 
-  const PathAdjust = s => {
-    let j = s;
+  /* where an import of spec goes, as qjsm resolves it (import.meta.resolve):
+   *
+   *   { file }  a file to follow and bundle, relative to the cwd
+   *   {}        a builtin, or a module qjsm finds on its search path: stays an import
+   *   undefined nothing resolves it
+   *
+   * a path gets .js and a directory its package.json entry, as bundlers do,
+   * a bare name is a file only from node_modules, -p applies _moduleAliases first */
+  const Locate = spec => {
+    if(readPackage) spec = ResolveAlias(spec);
 
-    j = path.isRelative(j) ? path.join(dir, j) : s;
-    j = path.normalize(j);
+    let j = spec;
 
-    if(!path.exists(j) && !path.isDirectory(j) && path.extname(j) === '') {
-      if(path.isFile(j + '.js')) j = j + '.js';
+    if(!/^\.{0,2}\//.test(spec)) {
+      let url;
+
+      try {
+        url = import.meta.resolve(spec, path.resolve(source));
+      } catch(e) {
+        return IsBuiltin(spec) ? {} : undefined;
+      }
+
+      if(!url.startsWith('file://') || !url.includes('/node_modules/')) return {};
+
+      j = decodeURIComponent(url.slice(7));
+    } else if(path.isRelative(j)) {
+      j = path.normalize(path.join(dir, j));
     }
 
-    const resolved = ModuleLoader.resolve(j);
+    if(!path.exists(j) && path.extname(j) === '' && path.isFile(j + '.js')) j += '.js';
+    if(path.isDirectory(j)) j = PackageDirectory(j);
+    if(!j || !path.isFile(j)) return undefined;
 
     /* one spelling per file (relative to the cwd): FileMaps are keyed by the path string, so
        an absolute path (e.g. from --module-map) would get a second map for the same file */
-    return resolved && path.isAbsolute(resolved) ? path.relative(resolved) : resolved;
+    return { file: path.isAbsolute(j) ? path.relative(j) : j };
   };
 
   const used = identifiersUsed ? identifiersUsed(source) : null;
@@ -1620,21 +1583,19 @@ function ProcessFile(source, recursive, depth = 0) {
         continue;
       }
 
+      const where = Locate(file);
+
+      if(!where) throw new ResolveError(st, source);
+
       /* builtin modules ('os', 'std', ...) stay imports: they are collected into the header
          main() prints, so the statement itself is dropped from the body unless the header is */
-      if(IsBuiltin(file)) {
+      if(!where.file) {
+        st.external = true;
         if(!st.reexport && !removeImports) map.replaceRange(range, null);
         continue;
       }
 
-      const p = PathAdjust(file);
-
-      if(!p) throw new ResolveError(st, source);
-
-      if(!IsFileImport(p) || !path.isFile(p)) {
-        log(`\x1b[1;31mInexistent\x1b[0m file '${p}'`);
-        throw new Error(`\x1b[1;31mInexistent\x1b[0m file '${p}'`);
-      }
+      const p = where.file;
 
       (st.reexport ? footer : header).push(st);
 
@@ -1673,10 +1634,9 @@ function ProcessFile(source, recursive, depth = 0) {
       const file = RemapModule(imp.path);
       let name = file;
 
-      if(!IsBuiltin(file)) {
-        const adjusted = PathAdjust(file);
-        if(adjusted) name = path.relative(adjusted);
-      }
+      const where = Locate(file);
+
+      if(where?.file) name = where.file;
 
       std.puts(source + ':' + name + ' ' + imp.bindings.map(b => b.local).join(' ') + `\n`);
     }
@@ -1686,16 +1646,16 @@ function ProcessFile(source, recursive, depth = 0) {
     for(let imp of statements) {
       let { file } = imp;
 
-      if(typeof file == 'string' && IsBuiltin(file)) {
+      const where = Locate(file);
+
+      if(!where) throw new ResolveError(imp, source);
+
+      if(!where.file) {
         log(`Builtin module '${file}'`);
         continue;
       }
 
-      const adjusted = PathAdjust(file);
-
-      if(!adjusted) throw new ResolveError(imp, source);
-
-      file = path.relative(adjusted);
+      file = where.file;
 
       if(readPackage) {
         let alias = ResolveAlias(file);
@@ -1714,13 +1674,6 @@ function ProcessFile(source, recursive, depth = 0) {
         continue;
 
       if(debug >= 1) log(`Import(recursive)`, compact(true), { recursive, file });
-
-      file = ModuleLoader.resolve(file);
-
-      if(!path.isFile(file)) {
-        throw new Error(`Imported file not found: '${file}'`);
-        continue;
-      }
 
       if(debug >= 1) log(`Processed`, compact(true), { file });
 

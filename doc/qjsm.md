@@ -149,6 +149,11 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
    `package.json` `_moduleAliases` is applied by the builtin `loaders_package-aliases`
    as a resolve hook, so it never overrides a builtin; imports made *by* a
    builtin only see the builtin table ([layout 4.1](qjsm-layout.md)).
+   Bare names in `node_modules` and `#name` imports are resolved by the builtin
+   `loaders_packages` ([loaders/packages](js/loaders/packages.md)), a resolve hook
+   preloaded like `loaders_node` (off with `-N`): Node's algorithm with `exports`,
+   `imports` and the conditions `node`, `import`, `default` plus `-C`. A bare name no
+   `node_modules` holds goes on to `QUICKJS_MODULE_PATH`.
 5. **`.json` suffix** — `jsm_module_json()` wraps the file's contents as
    `export default <parsed JSON>` and compiles that.
 6. **Everything else** — the engine's own default loader
@@ -253,6 +258,28 @@ the argument the other `*Module` functions take.
 | `hooked` | `true` when produced by a `registerHooks()` hook; absent otherwise |
 | `status`, `async` | `'unlinked'` … `'evaluated'`, and whether it uses top-level await (needs the engine's `JS_GetModuleStatus()`) |
 
+## import.meta.resolve()
+
+WHATWG's `import.meta.resolve(specifier)`, with Bun's optional second argument (Node has it behind
+`--experimental-import-meta-resolve`, Deno rejects it). It runs the same resolution as an `import` from
+the module, hooks and `QUICKJS_MODULE_PATH` included.
+
+```js
+import.meta.resolve('./x.js');            // 'file:///dir/x.js', not checked for existence (as on Node)
+import.meta.resolve('fs');                // 'node:fs', a Node core module that node:fs loads too
+import.meta.resolve('std');               // 'std', a qjsm builtin has no URL
+import.meta.resolve('@sc/pkg/sub');       // 'file:///dir/node_modules/@sc/pkg/s.js'
+import.meta.resolve('pkg', '/a/b.js');    // as imported from /a/b.js (a path or a file: URL)
+```
+
+| Throws | When |
+| --- | --- |
+| `Error` `ERR_MODULE_NOT_FOUND` | a bare name nothing provides |
+| `Error` `ERR_PACKAGE_PATH_NOT_EXPORTED`, `TypeError` `ERR_PACKAGE_IMPORT_NOT_DEFINED`, ... | what `loaders/packages` throws, with Node's codes and messages |
+
+`os` resolves to `os`, not `node:os`: qjsm's `os` is not Node's. Set in C (`jsm_import_meta_init`) on every
+module qjsm compiles and on the main script.
+
 ## Module customization hooks
 
 `registerHooks()` follows Node's synchronous
@@ -284,6 +311,7 @@ hooks.deregister();   // also [Symbol.dispose], for `using`
 | `load` returns | `{ format, source, shortCircuit? }`; `source` is a string, `ArrayBuffer` or typed array. |
 | Formats | `module`, `json`, `builtin`, `addon` (the last two with `source: null`); `commonjs`, `wasm` and the `*-typescript` formats throw `TypeError`. |
 | URLs | Hooks see `file:///abs/path`, `node:fs` (`os` and `std` stay bare), `data:` and any custom scheme; the module key (`loaded_modules`, `import.meta`, relative resolution) stays the plain path/bare name. |
+| `conditions` | `['node', 'import']` plus the names given with `-C`; `default` always matches. |
 | Errors | An exception thrown by a hook propagates to the `import` (it no longer ends the process). |
 | `importAttributes` | `load` gets the real attributes (`{ type: 'file' }`); `resolve` always gets `{}` because the engine's normalize callback receives none (Node passes them to both, Bun to neither). |
 | Sync only | A hook returning a Promise throws `TypeError`; the async `module.register()`/`initialize` thread API is not provided. |
@@ -377,6 +405,9 @@ qjsm [options] [file [args]]
     --disable-builtin a,b   builtins not to find by name (env QJSM_DISABLE_BUILTINS)
     --hooks-on-builtins     let registerHooks() hooks see bare builtin names
                             (env QJSM_HOOKS_ON_BUILTINS=1)
+-N  --no-node-hooks     no node: and node_modules resolution (loaders/node, loaders/packages)
+-C  --conditions name   add an export condition for package.json "exports"/"imports",
+                        repeatable; node, import and default are always on
 
   USR1 signal starts interactive mode
 ```
