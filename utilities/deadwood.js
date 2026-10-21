@@ -15,7 +15,6 @@ import { puts, exit } from 'std';
 import * as os from 'os';
 import { getOpt, isMainModule } from 'util';
 import {
-  terminal,
   readKey,
   windowSize,
   enableRawMode,
@@ -74,20 +73,20 @@ function printHelp() {
 export function pickFunctions(items) {
   const fd = std.in.fileno();
 
-  if(!os.isatty(fd) || !os.isatty(terminal.fileno())) throw new Error('deadwood needs an interactive terminal (stdin/stdout) to redact the candidate list');
+  if(!os.isatty(fd) || !os.isatty(std.out.fileno())) throw new Error('deadwood needs an interactive terminal (stdin/stdout) to redact the candidate list');
 
   const selected = new Set(items.map((it, i) => (it.caution ? -1 : i)).filter(i => i >= 0));
   let cursor = 0,
     scroll = 0,
     status = '';
 
-  setAlternateScreen();
-  cursorHide();
+  setAlternateScreen(std.out);
+  cursorHide(std.out);
   enableRawMode(fd);
 
   try {
     for(;;) {
-      const [cols, rows] = windowSize(terminal.fileno());
+      const [cols, rows] = windowSize(std.out);
       const visibleRows = Math.max(1, rows - 4);
 
       if(cursor < scroll) scroll = cursor;
@@ -132,17 +131,17 @@ export function pickFunctions(items) {
     }
   } finally {
     disableRawMode(fd);
-    cursorShow();
-    setNormalScreen();
+    cursorShow(std.out);
+    setNormalScreen(std.out);
   }
 }
 
 function regexToggle(fd, items, selected, cols) {
   const prompt = () => {
-    cursorPosition(1, 1);
-    terminal.puts('/' + pattern);
-    eraseInLine(0);
-    terminal.flush();
+    cursorPosition(std.out, 1, 1);
+    std.out.puts('/' + pattern);
+    eraseInLine(std.out, 0);
+    std.out.flush();
   };
 
   let pattern = '';
@@ -183,15 +182,15 @@ function regexToggle(fd, items, selected, cols) {
 }
 
 function render(items, selected, cursor, scroll, visibleRows, cols, status) {
-  cursorPosition(1, 1);
+  cursorPosition(std.out, 1, 1);
 
-  terminal.puts(`deadwood - ${selected.size}/${items.length} selected  (space:toggle /:regex a:all n:none enter:confirm q:quit)`);
-  eraseInLine(0);
-  terminal.puts('\r\n');
+  std.out.puts(`deadwood - ${selected.size}/${items.length} selected  (space:toggle /:regex a:all n:none enter:confirm q:quit)`);
+  eraseInLine(std.out, 0);
+  std.out.puts('\r\n');
 
-  terminal.puts('-'.repeat(Math.min(cols, 100)));
-  eraseInLine(0);
-  terminal.puts('\r\n');
+  std.out.puts('-'.repeat(Math.min(cols, 100)));
+  eraseInLine(std.out, 0);
+  std.out.puts('\r\n');
 
   const end = Math.min(items.length, scroll + visibleRows);
 
@@ -203,16 +202,16 @@ function render(items, selected, cursor, scroll, visibleRows, cols, status) {
 
     if(line.length > cols - 2) line = line.slice(0, cols - 5) + '...';
 
-    if(i == cursor) reverseVideoOn();
-    terminal.puts(line);
-    if(i == cursor) reverseVideoOff();
-    eraseInLine(0);
-    terminal.puts('\r\n');
+    if(i == cursor) reverseVideoOn(std.out);
+    std.out.puts(line);
+    if(i == cursor) reverseVideoOff(std.out);
+    eraseInLine(std.out, 0);
+    std.out.puts('\r\n');
   }
 
-  terminal.puts(status || '');
-  eraseInDisplay(0);
-  terminal.flush();
+  std.out.puts(status || '');
+  eraseInDisplay(std.out, 0);
+  std.out.flush();
 }
 
 // --- confirmation --------------------------------------------------------------

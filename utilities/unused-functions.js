@@ -38,7 +38,6 @@ import { puts, exit } from 'std';
 import * as os from 'os';
 import { getOpt, isMainModule } from 'util';
 import {
-  terminal,
   readKey,
   windowSize,
   enableRawMode,
@@ -141,26 +140,26 @@ class FunctionTable {
 // --- rendering -------------------------------------------------------------------
 
 function render(table, view, selected, cursor, scroll, visibleRows, cols, unusedOnly, status) {
-  cursorPosition(1, 1);
+  cursorPosition(std.out, 1, 1);
 
-  terminal.puts(
+  std.out.puts(
     `unused-functions - ${table.items.length} read, ${view.length} shown, ${selected.size} selected` +
       `  (space:toggle a/n:all/none u:unused-only[${unusedOnly ? 'on' : 'off'}] enter:print q:quit)`,
   );
-  eraseInLine(0);
-  terminal.puts('\r\n');
+  eraseInLine(std.out, 0);
+  std.out.puts('\r\n');
 
   const nameW = 32,
     usagesW = 7;
   const fileW = Math.max(10, cols - nameW - usagesW - 6);
 
-  terminal.puts(`   ${pad('NAME', nameW)} ${'USAGES'.padStart(usagesW)} ${pad('FILE:RANGE', fileW)}`);
-  eraseInLine(0);
-  terminal.puts('\r\n');
+  std.out.puts(`   ${pad('NAME', nameW)} ${'USAGES'.padStart(usagesW)} ${pad('FILE:RANGE', fileW)}`);
+  eraseInLine(std.out, 0);
+  std.out.puts('\r\n');
 
-  terminal.puts('-'.repeat(Math.min(cols, 100)));
-  eraseInLine(0);
-  terminal.puts('\r\n');
+  std.out.puts('-'.repeat(Math.min(cols, 100)));
+  eraseInLine(std.out, 0);
+  std.out.puts('\r\n');
 
   const end = Math.min(view.length, scroll + visibleRows);
 
@@ -172,25 +171,25 @@ function render(table, view, selected, cursor, scroll, visibleRows, cols, unused
     const usagesCell = String(n).padStart(usagesW);
     const active = i === cursor;
 
-    if(active) reverseVideoOn();
+    if(active) reverseVideoOn(std.out);
 
-    terminal.puts(`${mark} `);
+    std.out.puts(`${mark} `);
 
     const color = !active && colorForUsages(n);
-    if(color) rgbForeground(terminal, ...color);
-    terminal.puts(pad(it.name, nameW));
-    if(color) sgr(terminal, 0);
+    if(color) rgbForeground(std.out, ...color);
+    std.out.puts(pad(it.name, nameW));
+    if(color) sgr(std.out, 0);
 
-    terminal.puts(` ${usagesCell} ${fileCell}`);
+    std.out.puts(` ${usagesCell} ${fileCell}`);
 
-    if(active) reverseVideoOff();
-    eraseInLine(0);
-    terminal.puts('\r\n');
+    if(active) reverseVideoOff(std.out);
+    eraseInLine(std.out, 0);
+    std.out.puts('\r\n');
   }
 
-  terminal.puts(status || '');
-  eraseInDisplay(0);
-  terminal.flush();
+  std.out.puts(status || '');
+  eraseInDisplay(std.out, 0);
+  std.out.flush();
 }
 
 // --- ingest phase (passive, no key reads - see file header) ----------------------
@@ -222,7 +221,7 @@ function pick(table, fd, cols0) {
     status = '';
 
   for(;;) {
-    const [cols, rows] = windowSize(terminal.fileno());
+    const [cols, rows] = windowSize(std.out);
     const visibleRows = Math.max(1, rows - 4);
 
     const view = unusedOnly ? table.items.filter(it => table.usagesOf(it) === 0) : table.items;
@@ -315,20 +314,20 @@ function main(...args) {
     fd = ttyFile.fileno();
   }
 
-  if(!os.isatty(terminal.fileno())) {
+  if(!os.isatty(std.out.fileno())) {
     puts('unused-functions.js needs an interactive terminal for its own output\n');
     exit(1);
   }
 
   const table = new FunctionTable();
 
-  setAlternateScreen();
-  cursorHide();
+  setAlternateScreen(std.out);
+  cursorHide(std.out);
 
   let picked = null;
 
   try {
-    const [cols0, rows0] = windowSize(terminal.fileno());
+    const [cols0, rows0] = windowSize(std.out);
     ingestAndShow(input, table, cols0, Math.max(1, rows0 - 4));
 
     if(inputPath) input.close();
@@ -340,8 +339,8 @@ function main(...args) {
       disableRawMode(fd);
     }
   } finally {
-    cursorShow();
-    setNormalScreen();
+    cursorShow(std.out);
+    setNormalScreen(std.out);
     if(ttyFile) ttyFile.close();
   }
 

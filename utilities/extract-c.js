@@ -2411,7 +2411,7 @@ function installMouse(repl, roots) {
     if(!state.pane) {
       const scroll = Math.max(0, PANE_H - (R - 1 - cursorRow));
       out(`\x1b[${R - 1};1H${'\n'.repeat(scroll)}`);
-      setScrollRegion(1, R - 1 - PANE_H, std.out);
+      setScrollRegion(std.out, 1, R - 1 - PANE_H);
       row -= scroll;
     }
     state.pane = { name, info: recordInfo(roots().ids, name), x1: width, y0: R - PANE_H, y1: R - 1 };
@@ -2429,7 +2429,7 @@ function installMouse(repl, roots) {
       const sc = new Screen(std.out).write('\x1b7');
       for(let y = state.pane.y0; y <= state.pane.y1; y++) sc.moveTo(y, 1).clearLine(2);
       sc.flush();
-      setScrollRegion(1, sz[1] - 1, std.out);
+      setScrollRegion(std.out, 1, sz[1] - 1);
       out('\x1b8');
     }
     state.pane = null;
