@@ -138,6 +138,12 @@ tests({
     eq('function', typeof requireModule('path').join);
   },
 
+  'requireModule does not bind the module on globalThis'() {
+    delete globalThis.misc;
+    requireModule('misc');
+    eq(false, 'misc' in globalThis);
+  },
+
   'loadModule binds the module onto globalThis'() {
     loadModule('path', 'qjsmTestPath');
 

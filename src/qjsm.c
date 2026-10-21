@@ -1349,12 +1349,16 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 }
 
 /*
- * Implements the `loadModule` global: synthesizes and evaluates an
- * import/assignment script for `path`, binding it as `name` (see
- * jsm_module_script).
+ * Implements the `loadModule` and `requireModule` globals: synthesizes and
+ * evaluates an import script for `path`. With bind, the script also binds
+ * the module as `name` on globalThis (see jsm_module_script), without it
+ * the module is only loaded:
+ *
+ *   bind   import tmp from 'path'; globalThis['name'] = tmp;
+ *   !bind  import 'path';
  */
 static JSModuleDef*
-jsm_module_load(JSContext* ctx, const char* path, const char* name) {
+jsm_module_load(JSContext* ctx, const char* path, const char* name, BOOL bind) {
   DynBuf dbuf;
 
   DEBUG_MODULE(2, "(path: \"%s\", name: \"%s\")", path, name);
@@ -1363,17 +1367,29 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   dbuf_init_ctx(ctx, &dbuf);
 
-  jsm_module_script(&dbuf, path, name, FALSE);
-
-  if(*path != '*' && !jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
-  } else {
-    JS_GetException(ctx);
-
-    jsm_module_script(&dbuf, path, name, TRUE);
+  if(!bind) {
+    dbuf_putstr(&dbuf, "import '");
+    dbuf_putstr(&dbuf, path);
+    dbuf_putstr(&dbuf, "';");
+    dbuf_0(&dbuf);
 
     if(jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
       return 0;
+    }
+  } else {
+    jsm_module_script(&dbuf, path, name, FALSE);
+
+    /* no default export: bind the namespace instead */
+    if(*path == '*' || jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+      JS_GetException(ctx);
+
+      jsm_module_script(&dbuf, path, name, TRUE);
+
+      if(jsm_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+        dbuf_free(&dbuf);
+        return 0;
+      }
     }
   }
 
@@ -3156,7 +3172,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 1)
         key = JS_ToCString(ctx, argv[1]);
 
-      if((m = jsm_module_load(ctx, name, key)))
+      if((m = jsm_module_load(ctx, name, key, TRUE)))
         ret = JS_NewInt32(ctx, jsm_module_indexof(m));
       else
         ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
@@ -3167,7 +3183,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case REQUIRE_MODULE: {
-      if((m = jsm_module_load(ctx, name, 0)))
+      if((m = jsm_module_load(ctx, name, 0, FALSE)))
         ret = JS_GetModuleNamespace(ctx, m);
       else
         ret = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
@@ -3997,7 +4013,7 @@ main(int argc, char** argv) {
       vector_foreach_t(&module_list, ptr) {
         JSModuleDef* m;
 
-        if(!(m = jsm_module_load(jsm_ctx, *ptr, 0))) {
+        if(!(m = jsm_module_load(jsm_ctx, *ptr, 0, TRUE))) {
           jsm_error_print(jsm_ctx);
           return 1;
         }
