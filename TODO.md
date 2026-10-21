@@ -3051,8 +3051,9 @@ pruning and CommonJS → ES module conversion.
 | --- | --- | --- |
 | 1. core, ES module part | done | `lib/module-lexer.js` `parse()`, `tests/unittests/test-module-lexer.js` (22 cases); commits `4a635e35`, `efa530c2` |
 | lexer fixes found on the way | done | `lib/lexer/ecmascript.js`: regex vs division, `{ }` in `${ }`, `$` in template text, any string escape, no exponential backtracking; `test-lexer-ecmascript.js` (15 cases) |
-| 2. core, CommonJS part | next | `require` calls from the tokens, merve's export rules |
-| 3.-8. | open | |
+| 2. core, CommonJS part | done | `lib/module-lexer.js` `commonjs()`, `test-module-lexer.js` (40 cases) |
+| 3. fixtures and the generator | next | |
+| 4.-8. | open | |
 
 Porting `utilities/resolve-imports.js` onto `parse()` (assessed 2026-10-20):
 - the read-only modes (`--list-imports`, `--check-imports`, `-d`) could use `parse()` today and would then report
@@ -3081,7 +3082,7 @@ the 211 files Bun accepts equal Bun's `scanImports` (743 imports). `parse()` cos
 
 | Runtime / library | API | Returns | Lacks |
 | --- | --- | --- | --- |
-| Bun 1.4.2 | `new Bun.Transpiler({ loader: 'js' }).scanImports(src)` | `[{ kind, path }]`, kind is `import-statement`, `require-call`, `require-resolve`, `dynamic-import` | bindings, ranges, exports; `export … from` counts as `import-statement` |
+| Bun 1.4.2 | `new Bun.Transpiler({ loader: 'js' }).scanImports(src)` | `[{ kind, path }]`, kind is `import-statement`, `require-call`, `dynamic-import`; `require.resolve` only in `scan` (probed 2026-10-20) | bindings, ranges, exports; `export … from` counts as `import-statement` |
 | Bun 1.4.2 | `.scan(src)` | `{ exports: ['default', 'f', 'g', 'w'], imports }` | in a file with module syntax the `require-call` entries are dropped; `export *` adds no name |
 | merve 1.2.2 (github.com/nodejs/merve, C++20; vendored in Node 26 as `deps/merve`, `process.versions.merve`) | C++ `lexer::parse_commonjs(std::string_view)`; C `merve_parse_commonjs(input, length, &err_loc)` with `merve_get_export_name/_line`, `merve_get_reexport_name/_line`, `merve_get_last_error`, `merve_get_version`; Rust crate `merve::parse_commonjs(&str) -> Result<Analysis, LocatedLexerError>` | `{ exports: [{ name, line }], re_exports: [{ name, line }] }`, lines 1-based; on failure a `lexer_error` (`UNEXPECTED_ESM_IMPORT`, `UNTERMINATED_STRING_LITERAL`, ...) and an `error_location { line, column }` (column in bytes) | imports, offsets; ES module syntax is an error by design |
 | cjs-module-lexer 2.3.0 (npm; Node 23's internal CJS lexer; 1.2.3 in Debian's `/usr/share/nodejs`) | `init(): Promise<void>`, `initSync()`, `parse(source, name?)` (1.2.3 has no `initSync`) | `{ exports: ['k', 'm', 'n'], reexports: ['./re.js'] }` | imports |
@@ -3097,8 +3098,9 @@ Probed facts:
 - On Node 26, `import * as m from './c.cjs'` gives `['default', 'k', 'm', 'module.exports', 'n', 'x']`: merve's
   names, a `'module.exports'` key, and the names of the re-exported `./re.js`, resolved recursively
   (`lib/internal/modules/esm/translators.js`).
-- merve unescapes names (`exports['ab']` is `ab`) and finds `__esModule` from `Object.defineProperty`. It skips
-  non-identifier keys of `module.exports = { 'w-x': 1 }`.
+- merve unescapes names (`exports['ab']` is `ab`) and finds `__esModule` from `Object.defineProperty`. In
+  `module.exports = { … }` a value must be a name or `require('y')`: `{ 'w-x': 1 }` ends the list at `1`, `{ 'w-x': a }`
+  exports `w-x`.
 - es-module-lexer 3.0.4 offsets:
   - a static specifier's `start`/`end` exclude the quotes, a dynamic one's include them (the whole argument)
   - `dynamicStart` is the `(`, and an `import.meta` record spans `import.meta`
@@ -3243,6 +3245,23 @@ Like merve, no scope analysis: a local variable named `require` still counts.
      (`lib/node/util.js` hung on its 4 KB template)
 2. **Core, CommonJS part**: `require(<literal>)` (not `.require(`), `require.resolve`, merve's export rules.
    Verify: `test-module-lexer.js` CommonJS cases.
+   **Done 2026-10-20** (`test-module-lexer.js`, 40 cases). merve 1.2.2's `src/parser.cpp` was read for the rules; the
+   CommonJS exports of 29 hand cases and of the 234 `.js` files in `/usr/share/nodejs` (65 with exports) equal Node
+   26's `internalBinding('cjs_lexer').parse`, and the `(kind, path)` imports of 444 files equal Bun's `scanImports`
+   (`require-resolve` aside, see the survey). The CommonJS pass costs under 2%. Decided while writing it:
+   - a `require`/`require.resolve` record needs exactly one argument (Bun skips `require('e', 1)`), a non-literal
+     one gets `path: null` like `import(p)`
+   - `bindings` only for a top-level `var`/`let`/`const` whose initializer is nothing but the call: `m = require()`
+     gives `default`, `{ a, b: c, d = 1 }` gives `a`, `b as c`, `d`; a nested pattern, computed key or rest gives none
+   - CommonJS export records: `local` is the value name in `{ a, b: c }`, else `null`; a re-export has `name: '*'`,
+     `path`, `importIndex`, and `nameRange` on the `require(…)` call or the name in `Object.keys(name)`; `range` is
+     the tokens the pattern matched (`exports.x =`, the whole `module.exports = { … }`, the `defineProperty` call)
+   - merve's quirks are kept: `exports.a == 1` exports `a`; `module.exports =` (also `==`) drops earlier
+     re-exports; names are not deduplicated in the core (the adapters do)
+   - fixed on the way: a `require()` or `import()` inside an `export` statement (`export default function f() {
+     require('x') }`, `export const m = await import('./x.js')`) was not seen
+   - escaped identifiers (`exports.\u0063d`) are a lexer error, logged as `ecmascript-lexer-escaped-identifier`
+     in `BUGS`; merve skips them without an error
 3. **Fixtures and the generator** (`gen-module-lexer-expected.mjs`). It records, per fixture:
    - Node 26: `internalBinding('cjs_lexer').parse` (`--expose-internals`), and the namespace keys of
      `import * as m from` the fixture

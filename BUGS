@@ -1038,3 +1038,23 @@
   character to String.fromCodePoint, which throws RangeError for a letter
   and gives a control character for a digit.
   It also decodes partial sequences without stream: true. Found 2026-10-20.
+
+- ecmascript-lexer-escaped-identifier: lib/lexer/ecmascript.js does not lex
+  an identifier with a unicode escape, valid JS since ES2015: a and
+  \u{62} give UNEXPECTED_CHARACTER at the backslash. IdentifierStart has
+  "\\"[u]{HexDigit}{4}, which the native lexer apparently reads as the
+  literal text, and the \u{...} form is missing. module-lexer reports the
+  error and goes on. Found 2026-10-20.
+
+    import { parse } from 'lib/module-lexer.js';
+    parse('var \\u0061 = 1').error
+    // { code: 'UNEXPECTED_CHARACTER', line: 1, column: 5 }, expected none
+
+- fs-readfilesync-directory-rangeerror: lib/fs.js readFileSync() on a
+  directory throws RangeError: invalid array index from new ArrayBuffer
+  (fs.js:706), because tell() after seeking to the end of a directory is
+  not a usable size. node throws an Error with code EISDIR. Found
+  2026-10-20.
+
+    import * as fs from 'fs';
+    fs.readFileSync('/tmp');   // RangeError: invalid array index
