@@ -3606,3 +3606,34 @@ pieces belong in `misc`, each a thin syscall wrapper; `lib/node/os.js` then drop
 
 Verify: `tests/unittests/test-node-os.js` (`@portable`) gains a case per row and keeps passing on node, bun, deno;
 for 29.1 compare against `node -p 'os.networkInterfaces()'` on the same machine.
+
+## Tier 30 — `lib/repl.js` editing and UX (survey 2026-10-21)
+
+Features seen in other REPLs (Node, Deno/rustyline, Bun, Python 3.13, IPython, fish, PSReadLine, Chrome
+DevTools, Emacs) that `lib/repl.js` lacks. 30.0 is the requested bracket aid; 30.1 is a prerequisite for its
+cross-line part.
+
+**Status 2026-10-21:** 30.0 to 30.3 are done (`lib/repl.js`, `doc/js/repl.md`, `tests/unittests/test-repl.js`,
+checked in a 40-column tmux pane). Left open from them:
+
+- typing a closer at the start of an indented line does not dedent it (IPython does)
+- a buffer taller than the terminal cannot be redrawn: `render()` moves up past the top row
+- accepting a ^R match prints the output over the second row of a wrapped search line
+- the `qjs-debugger` override of `repl.controlC` has no effect: the key table holds the prototype's method
+
+| # | Item | Seen in | Notes |
+| --- | --- | --- | --- |
+| 30.0 done | Bracket aid: from the first mismatched closer to the end of the buffer in an error style (red background), underline the innermost unclosed opener around the cursor, highlight the opener that matches a closer before the cursor; Alt-Backspace with a mismatch kills from it to the end (into the kill buffer, `^Y` restores), else `backwardKillWord` | Emacs `show-paren-mode`, rustyline `MatchingBracketHighlighter` | `colorizeJs()` returns `mismatch`, opener positions and the stack at the cursor; `printColorText()` needs an attribute layer (SGR 4) on top of the color. Enter on a buffer with a mismatch evaluates it instead of asking for another line, since `foo(]` keeps `(` open forever |
+| 30.1 done | Multi-line buffer editing: Up/Down move between lines, every line is redrawn, history recalls a whole entry | Deno, Python 3.13, IPython, PSReadLine | today only the current line is redrawn, earlier lines sit in `mexpr` |
+| 30.2 done | Node REPL semantics: errors print as `Uncaught Error: ...`, `_` and `_error` on `globalThis` (assigning `_` disables the update), first `^C` clears the line and the buffered lines (`.break`), second `^C` on an empty line exits, an `.editor` mode for pasting | Node | `printEvalResult` sets `this._` today |
+| 30.3 done | Bracketed paste (`\e[200~` ... `\e[201~`): pasted text is inserted as is, not run line by line | Node, IPython, fish | |
+| 30.4 | Grey inline suggestion from history, Right or `^E` accepts it | fish, IPython, PSReadLine | |
+| 30.5 | Grey preview of the one remaining completion; the completion list shows the kind (function, value) and a function's arity | Node | |
+| 30.6 | Live result preview while typing | Node, Chrome DevTools | QuickJS has no side-effect-free eval: only literals and plain property chains (`a.b.c`), getters skipped |
+| 30.7 | Prompt turns red while the input cannot parse | PSReadLine; Bun exports `isValidSyntax()` | |
+| 30.8 | Introspection: `obj?` prints type, prototype chain and function source; a `.type expr` command | IPython, GHCi | |
+| 30.9 | Helpers: `copy(x)` over OSC 52, `keys()`, `values()`, `table()`, a `.time expr` command | Chrome DevTools, IPython `%timeit` | `\t` only toggles the timing display |
+| 30.10 | Optional auto-closing brackets that can be typed over, Alt-Enter inserts a newline, numbered results `$1`, `$2`, a vi mode, column width of wide characters via `Intl.Segmenter` | IPython, DevTools, readline | `ucsLength()` only handles surrogates |
+
+Verify: a piped test in `tests/unittests/test-repl.js` per item where the behavior is visible without a tty;
+the rest by hand in a terminal.
