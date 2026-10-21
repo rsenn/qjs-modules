@@ -1,5 +1,12 @@
+/* quickjs-blob.c: Blob, arrayBuffer(), bytes(), text(), json(), slice(),
+ * stream().
+ * depends on: buffer-utils.c (InputBuffer segments), vector.c,
+ * stream-utils.c (Reader), iteration.c, js-utils.c (promises).
+ * rule: segment bytes never change, a buffer or string part is copied
+ * once, a Blob part or a slice shares the segments of its source. */
 #include "defines.h"
 #include "quickjs-blob.h"
+#include "quickjs.h"
 #include "utils.h"
 #include "js-utils.h"
 #include "buffer-utils.h"
@@ -15,6 +22,18 @@
 JSClassID js_blob_class_id = 0;
 static JSValue blob_proto, blob_ctor;
 
+/* InputBuffer free callback of an owning segment: frees the copy */
+static void
+segment_free_owned(JSContext* ctx, JSValue value, InputBuffer* seg) {
+  js_free(ctx, seg->data);
+}
+
+/* InputBuffer free callback of a non-owning segment: drops the ref */
+static void
+segment_free_ref(JSContext* ctx, JSValue value, InputBuffer* seg) {
+  JS_FreeValue(ctx, value);
+}
+
 static Blob*
 blob_new(JSContext* ctx, const char* type) {
   Blob* blob;
@@ -23,40 +42,167 @@ blob_new(JSContext* ctx, const char* type) {
     return 0;
 
   blob->type = type ? js_strdup(ctx, type) : 0;
-  vector_init(&blob->vec, ctx);
+  vector_init_rt(&blob->segments, JS_GetRuntime(ctx));
   return blob;
+}
+
+/* releases the segments and the type, not blob itself. never throws. */
+static void
+blob_clear(JSRuntime* rt, Blob* blob) {
+  InputBuffer* seg;
+
+  vector_foreach_t(&blob->segments, seg) {
+    if(JS_IsUndefined(seg->value))
+      js_free_rt(rt, seg->data);
+    else
+      JS_FreeValueRT(rt, seg->value);
+  }
+
+  vector_free(&blob->segments);
+
+  if(blob->type)
+    js_free_rt(rt, blob->type);
 }
 
 static void
 blob_free(JSRuntime* rt, Blob* blob) {
-  vector_free(&blob->vec);
-
+  blob_clear(rt, blob);
   js_free_rt(rt, blob);
 }
 
-static inline ssize_t
-blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
-  if(dbuf_put(&blob->vec, x, len))
+/**
+ * appends a segment to the list and adds its length to the size.
+ *
+ *   Blob*         blob  the Blob to append to
+ *   InputBuffer*  seg   taken over, freed on failure too
+ *
+ *   returns int         0, or -1 with an exception pending
+ */
+static int
+blob_add(JSContext* ctx, Blob* blob, InputBuffer* seg) {
+  if(!vector_push(&blob->segments, *seg)) {
+    inputbuffer_free(seg, ctx);
+    JS_ThrowOutOfMemory(ctx);
+    return -1;
+  }
+
+  blob->size += inputbuffer_length(seg);
+  return 0;
+}
+
+/**
+ * appends a copy of the bytes as an owning segment.
+ *
+ *   Blob*        blob  the Blob to append to
+ *   const void*  x     the bytes
+ *   size_t       len   their number, 0 appends nothing
+ *
+ *   returns int        0, or -1 with an exception pending
+ */
+static int
+blob_copy(JSContext* ctx, Blob* blob, const void* x, size_t len) {
+  InputBuffer seg;
+  uint8_t* data;
+
+  if(!len)
+    return 0;
+
+  if(!(data = js_malloc(ctx, len)))
     return -1;
 
-  return len;
+  memcpy(data, x, len);
+  seg = INPUTBUFFER_DATA_FREE(data, len, &segment_free_owned);
+  return blob_add(ctx, blob, &seg);
 }
 
-static inline InputBuffer
-blob_input(JSContext* ctx, Blob* blob) {
-  return INPUTBUFFER_DATA(blob->data, blob->size);
-}
+/**
+ * appends the bytes offset to offset + length of src, without copying.
+ *
+ * each new segment is non-owning: it refers to owner (the JS object of
+ * src) for an owning segment of src, else to what that segment refers to,
+ * so a slice of a slice still refers to the Blob that owns the bytes.
+ *
+ *   Blob*         blob    the Blob to append to
+ *   JSValueConst  owner   the JS object whose opaque is src
+ *   Blob*         src     the Blob to share segments of
+ *   size_t        offset  first byte of src
+ *   size_t        length  number of bytes
+ *
+ *   returns int           0, or -1 with an exception pending
+ */
+static int
+blob_share(JSContext* ctx, Blob* blob, JSValueConst owner, Blob* src, size_t offset, size_t length) {
+  InputBuffer* seg;
 
-static void
-blob_stream_finalizer(JSRuntime* rt, void* opaque) {
-  InputBuffer* input = opaque;
+  vector_foreach_t(&src->segments, seg) {
+    size_t len = inputbuffer_length(seg);
+    InputBuffer part;
 
-  if(input) {
-    if(input->data)
-      js_free_rt(rt, input->data);
+    if(!length)
+      break;
 
-    js_free_rt(rt, input);
+    if(offset >= len) {
+      offset -= len;
+      continue;
+    }
+
+    part = INPUTBUFFER_DATA_FREE(seg->data, seg->size, &segment_free_ref);
+    part.range = OFFSET_LENGTH(seg->range.offset + offset, MIN_NUM(len - offset, length));
+    part.value = JS_DupValue(ctx, JS_IsUndefined(seg->value) ? owner : seg->value);
+    offset = 0;
+    length -= part.range.length;
+
+    if(blob_add(ctx, blob, &part))
+      return -1;
   }
+
+  return 0;
+}
+
+/* a new ArrayBuffer with a copy of all bytes, its own memory.
+ * returns JS_EXCEPTION with an exception pending on failure. */
+static JSValue
+blob_arraybuffer(JSContext* ctx, Blob* blob) {
+  DynBuf db = DBUF_INIT_RT(JS_GetRuntime(ctx));
+  InputBuffer* seg;
+
+  if(!blob->size)
+    return JS_NewArrayBufferCopy(ctx, (const uint8_t*)"", 0);
+
+  if(dbuf_claim(&db, blob->size))
+    return JS_ThrowOutOfMemory(ctx);
+
+  vector_foreach_t(&blob->segments, seg) dbuf_put(&db, inputbuffer_data(seg), inputbuffer_length(seg));
+
+  return dbuf_toarraybuffer(&db, ctx);
+}
+
+/**
+ * all bytes in one piece, without a copy for a single segment.
+ *
+ *   Blob*    blob  the Blob to read
+ *   DynBuf*  db    holds the copy of several segments, the caller
+ *                  frees it with dbuf_free
+ *
+ *   returns const uint8_t*  the bytes, or NULL with an exception pending
+ */
+static const uint8_t*
+blob_bytes(JSContext* ctx, Blob* blob, DynBuf* db) {
+  InputBuffer* seg;
+
+  switch(vector_size(&blob->segments, sizeof(InputBuffer))) {
+    case 0: return (const uint8_t*)"";
+    case 1: return inputbuffer_data(vector_begin(&blob->segments));
+  }
+
+  if(dbuf_claim(db, blob->size)) {
+    JS_ThrowOutOfMemory(ctx);
+    return 0;
+  }
+
+  vector_foreach_t(&blob->segments, seg) dbuf_put(db, inputbuffer_data(seg), inputbuffer_length(seg));
+
+  return db->buf;
 }
 
 typedef struct {
@@ -84,8 +230,7 @@ static JSValue
 reader_source_pull(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
   ReaderSource* rs = opaque;
   JSValueConst controller = argc > 0 ? argv[0] : JS_UNDEFINED;
-  JSValue fn, ret, chunk, buffer;
-  uint8_t* buf;
+  uint8_t *buf, *tmp;
   ssize_t n;
 
   if(!(buf = js_malloc(ctx, rs->chunk_size)))
@@ -97,80 +242,86 @@ reader_source_pull(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     if(n < 0)
       return JS_ThrowInternalError(ctx, "Blob.stream(): read error");
 
-    fn = JS_GetPropertyStr(ctx, controller, "close");
-    ret = JS_Call(ctx, fn, controller, 0, 0);
-    JS_FreeValue(ctx, fn);
-    return ret;
+    return js_invoke(ctx, controller, "close", 0, 0);
   }
 
-  buffer = JS_NewArrayBuffer(ctx, buf, n, reader_source_buffer_free, NULL, FALSE);
-  chunk = js_typedarray_new(ctx, 8, FALSE, FALSE, buffer);
+  /* a short read leaves the rest of buf unused */
+  if((size_t)n < rs->chunk_size && (tmp = js_realloc(ctx, buf, n)))
+    buf = tmp;
+
+  JSValue buffer = JS_NewArrayBuffer(ctx, buf, n, reader_source_buffer_free, NULL, FALSE);
+  JSValue chunk = js_typedarray_new(ctx, 8, FALSE, FALSE, buffer);
   JS_FreeValue(ctx, buffer);
 
-  fn = JS_GetPropertyStr(ctx, controller, "enqueue");
-  ret = JS_Call(ctx, fn, controller, 1, &chunk);
-  JS_FreeValue(ctx, fn);
+  JSValue ret = js_invoke(ctx, controller, "enqueue", 1, &chunk);
   JS_FreeValue(ctx, chunk);
   return ret;
 }
 
 /**
- * a ReadableStream over a Reader, chunk_size bytes per pull().
- *
- * ReadableStream comes from the stream module, the compiled lib/stream.js
- * in qjsm, so the stream has pipeTo(), pipeThrough() and the rest.
+ * an underlying source object { pull } over a Reader, chunk_size bytes
+ * per pull().
  *
  *   JSContext*  ctx         the context
- *   Reader      reader      the source, owned by the stream from here on
+ *   Reader      reader      the source, owned by the object from here on
  *   size_t      chunk_size  bytes per pull(), 0 for 64 KiB
  *
- *   returns JSValue         the stream, or JS_EXCEPTION with an exception
- *                           pending (reader is freed then)
+ *   returns JSValue         the source object, or JS_EXCEPTION with an
+ *                           exception pending (reader is freed then)
  */
 static JSValue
-js_readable_stream_from_reader(JSContext* ctx, Reader reader, size_t chunk_size) {
-  JSValue ns, ctor, source, stream;
+reader_source_new(JSContext* ctx, Reader reader, size_t chunk_size) {
   ReaderSource* rs;
-
-  if(!JS_IsObject(ns = js_module_namespace_sync(ctx, "stream"))) {
-    reader_free(&reader);
-    JS_FreeValue(ctx, ns);
-    return JS_ThrowReferenceError(ctx, "Blob.stream(): 'stream' module required");
-  }
-
-  ctor = JS_GetPropertyStr(ctx, ns, "ReadableStream");
-  JS_FreeValue(ctx, ns);
-
-  if(!JS_IsConstructor(ctx, ctor)) {
-    reader_free(&reader);
-    JS_FreeValue(ctx, ctor);
-    return JS_ThrowReferenceError(ctx, "Blob.stream(): no ReadableStream in the 'stream' module");
-  }
 
   if(!(rs = js_mallocz(ctx, sizeof(ReaderSource)))) {
     reader_free(&reader);
-    JS_FreeValue(ctx, ctor);
     return JS_EXCEPTION;
   }
 
   rs->reader = reader;
   rs->chunk_size = chunk_size ? chunk_size : 65536;
 
-  source = JS_NewObject(ctx);
+  JSValue source = JS_NewObject(ctx);
   JS_SetPropertyStr(ctx, source, "pull", js_function_cclosure(ctx, reader_source_pull, 1, 0, rs, reader_source_finalizer));
+  return source;
+}
 
-  stream = JS_CallConstructor(ctx, ctor, 1, (JSValueConst*)&source);
-  JS_FreeValue(ctx, source);
-  JS_FreeValue(ctx, ctor);
-  return stream;
+/* the Reader of stream(): its own segment list, the index of the
+ * segment being read, reader_free() passes the runtime as opaque2. */
+typedef struct {
+  Blob blob;
+  uint32_t index;
+} BlobReader;
+
+/* reads from the current segment, never past its end, so every pull()
+ * of the stream gives one segment. returns 0 at the end. */
+static ssize_t
+blob_reader_read(intptr_t opaque, void* buf, size_t len, Reader* rd) {
+  BlobReader* br = (BlobReader*)opaque;
+  uint32_t n = vector_size(&br->blob.segments, sizeof(InputBuffer));
+
+  for(; br->index < n; br->index++) {
+    InputBuffer* seg = vector_at(&br->blob.segments, sizeof(InputBuffer), br->index);
+
+    if(!inputbuffer_eof(seg))
+      return inputbuffer_read(seg, buf, len);
+  }
+
+  return 0;
+}
+
+static void
+blob_reader_finalizer(void* opaque, void* rt) {
+  BlobReader* br = opaque;
+
+  blob_clear(rt, &br->blob);
+  js_free_rt(rt, br);
 }
 
 JSValue
 js_blob_wrap(JSContext* ctx, Blob* blob) {
   JSValue obj = JS_NewObjectProtoClass(ctx, blob_proto, js_blob_class_id);
-
   JS_SetOpaque(obj, blob);
-
   return obj;
 }
 
@@ -181,11 +332,9 @@ js_blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   if(!(blob = blob_new(ctx, type)))
     return JS_EXCEPTION;
 
-  if(x && len) {
-    if(dbuf_put(&blob->vec, x, len)) {
-      blob_free(JS_GetRuntime(ctx), blob);
-      return JS_EXCEPTION;
-    }
+  if(x && blob_copy(ctx, blob, x, len)) {
+    blob_free(JS_GetRuntime(ctx), blob);
+    return JS_EXCEPTION;
   }
 
   return js_blob_wrap(ctx, blob);
@@ -255,29 +404,36 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
     while(!iteration_next(&iter, ctx)) {
       Blob* other;
       JSValue value = iteration_value(&iter, ctx);
-      InputBuffer input = (other = js_blob_data(ctx, value)) ? blob_input(ctx, other) : js_input_chars(ctx, value);
-      JS_FreeValue(ctx, value);
+      int r;
 
       ++i;
 
-      if(input.data == 0) {
-        JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>", i);
-        goto fail;
+      /* a Blob shares its segments, anything else is copied */
+      if((other = JS_GetOpaque(value, js_blob_class_id)))
+        r = blob_share(ctx, blob, value, other, 0, other->size);
+      else {
+        InputBuffer input = js_input_chars(ctx, value);
+
+        if(input.data == 0) {
+          JS_FreeValue(ctx, value);
+          JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>", i);
+          goto fail;
+        }
+
+        r = blob_copy(ctx, blob, inputbuffer_data(&input), inputbuffer_length(&input));
+        inputbuffer_free(&input, ctx);
       }
 
-      if(blob_write(ctx, blob, inputbuffer_data(&input), inputbuffer_length(&input)) == -1) {
-        JS_ThrowInternalError(ctx, "blob_write returned -1");
-        goto fail;
-      }
+      JS_FreeValue(ctx, value);
 
-      inputbuffer_free(&input, ctx);
+      if(r)
+        goto fail;
     }
 
     iteration_reset(&iter, ctx);
   }
 
-  if(argc > 1 && !js_is_null_or_undefined(argv[1])) {
-
+  if(argc > 1 && !js_is_nullish(argv[1])) {
     if(!JS_IsObject(argv[1])) {
       JS_ThrowTypeError(ctx, "argument 2 must be an object");
       goto fail;
@@ -287,9 +443,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
       char* type;
 
       if((type = js_get_propertystr_string(ctx, argv[1], "type"))) {
-        size_t i = 0;
-
-        for(i = 0; type[i]; i++) {
+        for(size_t i = 0; type[i]; i++) {
           if(type[i] < 0x20 || type[i] >= 0x7f) {
             js_free(ctx, type);
             type = 0;
@@ -330,11 +484,20 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   switch(magic) {
     case BLOB_ARRAYBUFFER: {
-      ret = promise_immediate(ctx, FALSE, js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val));
+      JSValue buf = blob_arraybuffer(ctx, blob);
+
+      if(JS_IsException(buf))
+        return buf;
+
+      ret = promise_immediate(ctx, FALSE, buf);
+      JS_FreeValue(ctx, buf);
       break;
     }
     case BLOB_BYTES: {
-      JSValue buf = js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val);
+      JSValue buf = blob_arraybuffer(ctx, blob);
+
+      if(JS_IsException(buf))
+        return buf;
 
       ret = promise_immediate(ctx, FALSE, js_typedarray_new(ctx, 8, FALSE, FALSE, buf));
 
@@ -342,24 +505,38 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case BLOB_TEXT: {
-      ret = promise_immediate(ctx, FALSE, JS_NewStringLen(ctx, (const char*)blob->data, blob->size));
+      DynBuf db = DBUF_INIT_RT(JS_GetRuntime(ctx));
+      const uint8_t* data;
+
+      if(!(data = blob_bytes(ctx, blob, &db)))
+        return JS_EXCEPTION;
+
+      ret = promise_immediate(ctx, FALSE, JS_NewStringLen(ctx, (const char*)data, blob->size));
+      dbuf_free(&db);
       break;
     }
     case BLOB_JSON: {
       /* json(): text() then JSON.parse; a bad document rejects, never throws.
        * the BOM is dropped; invalid UTF-8 decodes to U+FFFD like text(). */
-      const uint8_t* data = blob->data;
+      DynBuf db = DBUF_INIT_RT(JS_GetRuntime(ctx));
+      const uint8_t* data;
       size_t size = blob->size;
       JSValue str, parsed = JS_EXCEPTION;
       const char* cstr;
       size_t len;
+
+      if(!(data = blob_bytes(ctx, blob, &db)))
+        return JS_EXCEPTION;
 
       if(size >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf) {
         data += 3;
         size -= 3;
       }
 
-      if(JS_IsException(str = JS_NewStringLen(ctx, (const char*)data, size)))
+      str = JS_NewStringLen(ctx, (const char*)data, size);
+      dbuf_free(&db);
+
+      if(JS_IsException(str))
         return JS_EXCEPTION;
 
       /* JS_ParseJSON wants NUL-terminated input; JS_ToCStringLen provides it */
@@ -372,7 +549,6 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       if(JS_IsException(parsed)) {
         JSValue error = JS_GetException(ctx);
-
         ret = promise_immediate(ctx, TRUE, error);
         JS_FreeValue(ctx, error);
       } else {
@@ -384,48 +560,54 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case BLOB_SLICE: {
       IndexRange rng = INDEX_RANGE_INIT();
       char* type = 0;
-      int index = js_index_range(ctx, blob->size, argc, argv, 0, &rng);
+      int index;
+      Blob* slice;
+
+      if((index = js_index_range(ctx, blob->size, argc, argv, 0, &rng)) < 0)
+        return JS_EXCEPTION;
 
       if(argc > index)
         type = js_tostring(ctx, argv[index]);
 
-      ret = js_blob_new(ctx, indexrange_begin(rng, blob->data, blob->size), indexrange_size(rng, blob->size), type ? type : blob->type);
+      slice = blob_new(ctx, type ? type : blob->type);
 
       if(type)
         js_free(ctx, type);
 
+      if(!slice)
+        return JS_EXCEPTION;
+
+      if(blob_share(ctx, slice, this_val, blob, indexrange_head(rng, blob->size), indexrange_size(rng, blob->size))) {
+        blob_free(JS_GetRuntime(ctx), slice);
+        return JS_EXCEPTION;
+      }
+
+      ret = js_blob_wrap(ctx, slice);
       break;
     }
     case BLOB_STREAM: {
-      InputBuffer* input;
-      uint8_t* data_copy;
+      /* the stream reads its own copy of the segment list, which keeps
+       * the bytes alive after the Blob is collected */
+      JSRuntime* rt = JS_GetRuntime(ctx);
+      size_t chunk_size = 0;
+      BlobReader* br;
+      InputBuffer* seg;
 
-      /* Create a ReadableStream over the blob's data.
-       * We need to copy the blob data because the blob object may be
-       * garbage collected before the stream finishes reading. We also
-       * allocate the InputBuffer on the heap so the Reader can own it. */
-      if(!(data_copy = js_malloc(ctx, blob->size))) {
-        ret = JS_EXCEPTION;
-        break;
+      if(!(br = js_mallocz(ctx, sizeof(BlobReader))))
+        return JS_EXCEPTION;
+
+      vector_init_rt(&br->blob.segments, rt);
+
+      if(blob_share(ctx, &br->blob, this_val, blob, 0, blob->size)) {
+        blob_reader_finalizer(br, rt);
+        return JS_EXCEPTION;
       }
-      memcpy(data_copy, blob->data, blob->size);
 
-      if(!(input = js_mallocz(ctx, sizeof(InputBuffer)))) {
-        js_free(ctx, data_copy);
-        ret = JS_EXCEPTION;
-        break;
+      vector_foreach_t(&br->blob.segments, seg) {
+        chunk_size = MAX_NUM(chunk_size, inputbuffer_length(seg));
       }
-      *input = INPUTBUFFER_DATA(data_copy, blob->size);
 
-      /* Create a Reader that will free both the InputBuffer and the data copy */
-      Reader reader = (Reader){
-          (ReadFunction*)&inputbuffer_read,
-          input,
-          NULL,
-          (ReaderFinalizer*)blob_stream_finalizer,
-      };
-
-      ret = js_readable_stream_from_reader(ctx, reader, 0);
+      ret = js_stream_construct_free(ctx, "ReadableStream", reader_source_new(ctx, (Reader){&blob_reader_read, br, rt, &blob_reader_finalizer}, chunk_size));
       break;
     }
   }
@@ -441,9 +623,23 @@ js_blob_finalizer(JSRuntime* rt, JSValue val) {
     blob_free(rt, blob);
 }
 
+/* marks the values non-owning segments refer to */
+static void
+js_blob_gc_mark(JSRuntime* rt, JSValueConst val, JS_MarkFunc* mark_func) {
+  Blob* blob;
+  InputBuffer* seg;
+
+  if((blob = JS_GetOpaque(val, js_blob_class_id))) {
+    vector_foreach_t(&blob->segments, seg) {
+      JS_MarkValue(rt, seg->value, mark_func);
+    }
+  }
+}
+
 static JSClassDef js_blob_class = {
     .class_name = "Blob",
     .finalizer = js_blob_finalizer,
+    .gc_mark = js_blob_gc_mark,
 };
 
 static const JSCFunctionListEntry js_blob_funcs[] = {
