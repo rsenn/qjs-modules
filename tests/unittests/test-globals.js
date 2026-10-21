@@ -7,8 +7,12 @@ if(typeof URL == 'undefined') await import('../../lib/globals.js');
 
 tests({
   'the globals exist'() {
-    for(const name of ['URL', 'URLSearchParams', 'TextEncoder', 'TextDecoder', 'AbortController', 'AbortSignal', 'EventTarget', 'Blob', 'ReadableStream', 'WritableStream', 'TransformStream', 'atob', 'btoa', 'queueMicrotask', 'structuredClone', 'setImmediate', 'clearImmediate', 'crypto', 'performance', 'PerformanceObserver'])
+    for(const name of ['URL', 'URLSearchParams', 'TextEncoder', 'TextDecoder', 'AbortController', 'AbortSignal', 'EventTarget', 'Blob', 'ReadableStream', 'WritableStream', 'TransformStream', 'atob', 'btoa', 'queueMicrotask', 'structuredClone', 'setImmediate', 'clearImmediate', 'crypto', 'performance', 'PerformanceObserver', 'Intl'])
       assert(typeof globalThis[name] != 'undefined', name);
+  },
+  'Intl formats en-US'() {
+    eq(new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(-1234.5), '-$1,234.50');
+    eq(new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(0), 'January 1, 1970');
   },
   'URL parses'() {
     const u = new URL('https://u:p@example.com:8080/a/b?x=1&y=2#h');

@@ -35,7 +35,8 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [loaders/file](loaders/file.md) — `with { type: 'file' }` imports, as in Bun (`registerHooks()`)
 - [loaders/typescript](loaders/typescript.md) — `.ts` loader, types stripped by node's `module.stripTypeScriptTypes` (`registerHooks()`)
 - [loaders/packages](loaders/packages.md) — `node_modules` and `package.json` `exports`/`imports`/`main`, Node's ESM resolution (`registerHooks()`, preloaded)
-- [globals](globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, ...)
+- [globals](globals.md) — opt-in web/Node globals (`URL`, `structuredClone`, `crypto`, `Intl`, ...)
+- [intl](intl.md) — `Intl` (ECMA-402) with English data: `NumberFormat`, `DateTimeFormat`, `PluralRules`, `Collator`, `ListFormat`, `RelativeTimeFormat`, `Locale`
 - [jsonStreams](jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [textLineStream](textLineStream.md) — Deno's `TextLineStream`
 - [timersPromises](timersPromises.md) — `timers/promises`
@@ -87,6 +88,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 ### Polyfills (Standalone JS)
 Pure JavaScript implementations of standard APIs with no native dependencies:
 - **WHATWG/W3C/HTML5:** events, url, timers, abort, console
+- **ECMA-402:** intl (English only)
 - **Node.js:** assert, fs (partial), process (partial)
 - **Utilities:** iterator, asyncIterator
 
@@ -108,7 +110,7 @@ Extend built-in JavaScript prototypes (Array, Object, Map, etc.):
 ## Statistics
 
 - **Total JS modules:** 60+
-- **Polyfills:** 25 (standalone JS implementations)
+- **Polyfills:** 26 (standalone JS implementations)
 - **Wrappers:** 32 (wrap native modules)
 - **Extensions:** 10 (prototype extensions)
 

@@ -192,6 +192,7 @@ silent wrong-mode bug bites hardest (dropped/malformed packets, not just a slow 
 WHATWG/Deno/Bun API gaps in `lib/`:
 - `fetch` — missing (out of scope here, see `../qjs-lws/`).
 - `structuredClone` — done in `lib/globals.js` (opt-in global, `transfer` included); checked against node on 28 cases, differences: errors are plain `Error` not `DOMException`, a SharedArrayBuffer is returned as the same object.
+- `Intl` — English-only `lib/intl.js` (2026-10-21), the global from `lib/globals.js` and `lib/bun.js`; matches node's en-US output (`test-intl.js`). Missing: `Segmenter`, `DisplayNames`, `DurationFormat`, NumberFormat `style: 'unit'`, `formatRange`, IANA zones other than UTC and the local one, and `Number`/`Date.prototype.toLocaleString` and `String.prototype.localeCompare` going through it.
 - `Worker` — no global; only QuickJS's own `os.Worker` exists (also see Tier 9.9).
 - `lib/readline.js` and `lib/buffer.js` were removed in commit `958cffc9` as stubs; both are
   back as real implementations (`Buffer` and `readline`, 2026-10-07). `lib/perf_hooks.js` now has User

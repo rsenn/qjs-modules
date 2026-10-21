@@ -26,6 +26,7 @@ structuredClone({ d: new Date(0) });
 | `queueMicrotask` | here (a promise job) |
 | `structuredClone` | here: Date, RegExp, boxed primitives, ArrayBuffer, typed arrays, Map, Set, Error, cycles; `transfer` option (ArrayBuffers); SharedArrayBuffer returned as is; `DataCloneError` for functions, symbols, Promise, WeakMap, WeakSet, WeakRef; `TypeError` without arguments; the error is a plain `Error`, not a `DOMException` |
 | `crypto` | here: `getRandomValues()` and `randomUUID()` from `/dev/urandom`; no `subtle` |
+| `Intl` | `intl` ([English only](intl.md)) |
 
 Not installed: `Buffer`, `Worker`, `fetch` (see `qjs-lws`).
 

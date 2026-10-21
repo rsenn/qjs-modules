@@ -301,7 +301,7 @@ doc/
     ├── README.md
     ├── Polyfills: abort.md, asyncIterator.md, events.md, stream.md
     │              iterator.md
-    │              describe.md
+    │              describe.md, intl.md
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md
     │             streams.md, io.md, tty.md, repl.md, require.md
     │             module.md, stack.md, inotify.md, terminal.md
