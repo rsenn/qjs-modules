@@ -337,13 +337,8 @@ Docs: `doc/native/wasm.md`, `doc/js/wasi.md`.
 
 `src/qjsm.c` runtime-compat gaps vs Node/Bun/Deno (found during 2026-09-19
 node:-prefix audit):
-- `import.meta.resolve()` is missing, and `is_main`/main-module detection is always
-  `FALSE` for normal loads (`src/qjsm.c:jsm_module_loader()`,
-  `js_module_set_import_meta(ctx, module, FALSE, FALSE)`; `import.meta` has only `url` and
-  `main`, no `filename`/`dirname`) — Node/Deno/Bun all support these.
-- The default filesystem module loader never consults `package.json`'s `"type"`,
-  `"exports"`, or `"main"` fields (only the `"_moduleAliases"` map is handled, by the builtin `lib/loaders/package-aliases.js`
-  resolve hook, since 2026-10-14; `jsm_module_package()` is gone from `src/qjsm.c`) — real Node package layouts resolve wrong (the old `nodeModulesLoader.js` demo loader was removed).
+- `package.json` `"type"` is never consulted (`"exports"`, `"imports"` and `"main"` are, by
+  `lib/loaders/packages.js`), so it plays no part in whether a `.js` file loads as CJS or ESM.
 - `.mjs` forces module-eval mode (`src/qjsm.c:jsm_hook_load()`) but `.cjs` has no special handling
   (no forced CJS `module`/`exports`/`require` wrapper regardless of `package.json`
   `"type"`).

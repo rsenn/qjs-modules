@@ -258,6 +258,16 @@ the argument the other `*Module` functions take.
 | `hooked` | `true` when produced by a `registerHooks()` hook; absent otherwise |
 | `status`, `async` | `'unlinked'` … `'evaluated'`, and whether it uses top-level await (needs the engine's `JS_GetModuleStatus()`) |
 
+## import.meta
+
+| Property | Value | Same on |
+| --- | --- | --- |
+| `url` | `'file:///dir/x.js'`, or the module name when it is not a file (`data:`, a builtin) | all |
+| `filename` | `'/dir/x.js'`, the path of a `file:` `url`; absent otherwise | Node 20.11+, Bun, Deno |
+| `dirname` | `'/dir'` | Node 20.11+, Bun, Deno |
+| `main` | `true` in the script qjsm was started with, `false` in what it imports | Node 24.2+, Bun, Deno |
+| `resolve()` | see below | all |
+
 ## import.meta.resolve()
 
 WHATWG's `import.meta.resolve(specifier)`, with Bun's optional second argument (Node has it behind

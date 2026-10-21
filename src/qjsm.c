@@ -676,7 +676,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   jsm_stack_push(ctx, file);
 
   errno = 0;
-  val = js_eval_file(ctx, file, module ? JS_EVAL_TYPE_MODULE : 0);
+  val = js_eval_file(ctx, file, (module ? JS_EVAL_TYPE_MODULE : 0) | (is_main ? JS_EVAL_IS_MAIN : 0));
 
   jsm_stack_pop(ctx);
 
@@ -1684,18 +1684,38 @@ end:
   return ret;
 }
 
-/* adds import.meta.resolve to the import.meta of module, bound to the
- * module name: js_import_meta_init of utils.c and jsm_module_compile */
+/* adds resolve, and for a file: url filename and dirname, to the
+ * import.meta of module: js_import_meta_init of utils.c and
+ * jsm_module_compile
+ *
+ *   url       'file:///dir/x.js'
+ *   filename  '/dir/x.js'   as on Node, Bun and Deno
+ *   dirname   '/dir'
+ */
 static void
 jsm_import_meta_init(JSContext* ctx, JSValueConst module) {
   JSModuleDef* m = JS_VALUE_GET_PTR(module);
   JSValue meta = JS_GetImportMeta(ctx, m);
   JSAtom atom = JS_GetModuleName(ctx, m);
   JSValue name = JS_AtomToString(ctx, atom);
+  const char* url;
 
   JS_FreeAtom(ctx, atom);
   JS_SetPropertyStr(ctx, meta, "resolve", JS_NewCFunctionData(ctx, jsm_import_meta_resolve, 1, 0, 1, &name)); /* dups name */
   JS_FreeValue(ctx, name);
+
+  if((url = js_get_propertystr_cstring(ctx, meta, "url"))) {
+    char* file;
+
+    if(str_start(url, "file://") && (file = jsm_url_tokey(ctx, url))) {
+      JS_SetPropertyStr(ctx, meta, "filename", JS_NewString(ctx, file));
+      JS_SetPropertyStr(ctx, meta, "dirname", JS_NewStringLen(ctx, file, path_dirlen(file, strlen(file))));
+      js_free(ctx, file);
+    }
+
+    JS_FreeCString(ctx, url);
+  }
+
   JS_FreeValue(ctx, meta);
 }
 
