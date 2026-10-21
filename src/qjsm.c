@@ -1511,81 +1511,20 @@ static char* jsm_url_frompath(JSContext*, const char*);
 static char* jsm_url_tokey(JSContext*, const char*);
 static JSValue jsm_throw_code(JSContext*, const char*, const char*);
 
-/* the Node core modules, what import.meta.resolve() gives a node: prefix */
-static const char* const jsm_node_modules[] = {
-    "assert",
-    "assert/strict",
-    "async_hooks",
-    "buffer",
-    "child_process",
-    "cluster",
-    "console",
-    "constants",
-    "crypto",
-    "dgram",
-    "diagnostics_channel",
-    "dns",
-    "dns/promises",
-    "domain",
-    "events",
-    "fs",
-    "fs/promises",
-    "http",
-    "http2",
-    "https",
-    "inspector",
-    "module",
-    "net",
-    "os",
-    "path",
-    "path/posix",
-    "path/win32",
-    "perf_hooks",
-    "process",
-    "punycode",
-    "querystring",
-    "readline",
-    "readline/promises",
-    "repl",
-    "stream",
-    "stream/consumers",
-    "stream/promises",
-    "stream/web",
-    "string_decoder",
-    "sys",
-    "timers",
-    "timers/promises",
-    "tls",
-    "trace_events",
-    "tty",
-    "url",
-    "util",
-    "util/types",
-    "v8",
-    "vm",
-    "wasi",
-    "worker_threads",
-    "zlib",
-};
-
 /* key, the builtin that spec resolved to, as import.meta.resolve() shows
- * it: node:<spec> when spec is a Node core module and node:<spec> loads
- * the same builtin, else key. node:os is no answer, qjsm's os is not Node's.
+ * it: node:<spec> when node:<spec> loads the same builtin, else key.
+ * which names are Node's is up to the loaders/node hook, node:os is no
+ * answer there, qjsm's os is not Node's.
  * never throws: returns a JS string. */
 static JSValue
 jsm_builtin_url(JSContext* ctx, const char* parent, const char* spec, const char* key) {
   JSValue ret = JS_UNDEFINED;
   char *prefixed, *other;
-  size_t i;
 
   if(str_start(spec, "node:"))
     return JS_NewString(ctx, spec);
 
-  for(i = 0; i < countof(jsm_node_modules); i++)
-    if(str_equal(spec, jsm_node_modules[i]))
-      break;
-
-  if(i < countof(jsm_node_modules) && (prefixed = js_malloc(ctx, strlen(spec) + 6))) {
+  if((prefixed = js_malloc(ctx, strlen(spec) + 6))) {
     strcpy(prefixed, "node:");
     strcat(prefixed, spec);
 
@@ -1646,7 +1585,8 @@ jsm_import_meta_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     goto end;
   }
 
-  if(str_start(key, "data:") || str_start(key, "http:") || str_start(key, "https:")) {
+  /* node:deep stays itself, the loaders/node hook throws when it loads */
+  if(str_start(key, "data:") || str_start(key, "http:") || str_start(key, "https:") || str_start(key, "node:")) {
     ret = JS_NewString(ctx, key);
     goto end;
   }

@@ -135,7 +135,10 @@ Then, in `jsm_module_loader(name)` once a candidate name is in hand:
 2. **`node:` prefix** — not handled by the engine. `lib/loaders/node.js`, a
    `registerHooks()` resolver preloaded by qjsm, maps `node:<name>` to the
    `lib/node/<name>.js` layer (builtin `node_<name>`), else to bare `<name>`;
-   `node:os` stays unresolved (this engine's `os` is *not* Node's `os`).
+   `node:os` stays unresolved (this engine's `os` is *not* Node's `os`). Only Node's
+   own module names are mapped: `node:deep` or `node:sqlite` resolves to itself and loading
+   it throws `Error` `ERR_UNKNOWN_BUILTIN_MODULE` ("No such built-in module: node:deep"),
+   as on Node and Bun.
    The subdirectories of `lib/` that are baked in are also reachable by their path:
    `import 'node/events'` is the builtin `node_events` and `import 'loaders/typescript'`
    the builtin `loaders_typescript` (slash written `_`, `jsm_builtin_lookup()`); when
@@ -277,6 +280,7 @@ the module, hooks and `QUICKJS_MODULE_PATH` included.
 ```js
 import.meta.resolve('./x.js');            // 'file:///dir/x.js', not checked for existence (as on Node)
 import.meta.resolve('fs');                // 'node:fs', a Node core module that node:fs loads too
+import.meta.resolve('node:deep');         // 'node:deep', not checked: loading it throws
 import.meta.resolve('std');               // 'std', a qjsm builtin has no URL
 import.meta.resolve('@sc/pkg/sub');       // 'file:///dir/node_modules/@sc/pkg/s.js'
 import.meta.resolve('pkg', '/a/b.js');    // as imported from /a/b.js (a path or a file: URL)

@@ -389,15 +389,9 @@ Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
 **WARN - qjsm exports under `node:x` that Bun's real `node:x` doesn't have**: `assert`,
 `console`, `fs`, `path`, `perf_hooks`, and especially `util` (100+ names - `util` is this
 project's internal POSIX/reflection grab-bag, not just the Node `util` surface) all carry
-qjs-modules-specific extras on the *same* module name Node scripts expect. Since
-the `node:` prefix is mapped to `lib/node/<name>.js`, else to the bare name, for *any*
-registered builtin by `lib/loaders/node.js` (the C side no longer knows `node:`, 2026-10-14) - not just ones that are actually part of Node's API - `node:yaml`
-and any other qjsm-only module name also resolves under the `node:` prefix even though
-Node/Bun have no such module (confirmed: Bun errors `No such built-in module: node:yaml`,
-qjsm resolves it fine). A Node/Bun script that imports a typo'd or wrong `node:`-prefixed
-name would fail loudly there but silently succeed here if the name happens to collide
-with one of qjsm's own module names - worth deciding whether `node:` stripping should be
-restricted to an actual Node-builtins allowlist rather than every registered module.
+qjs-modules-specific extras on the *same* module name Node scripts expect. (A `node:` name
+Node does not have, such as `node:yaml` or `node:sqlite`, throws `ERR_UNKNOWN_BUILTIN_MODULE`
+since 2026-10-21, as on Node and Bun.)
 
 Extended 2026-09-22 to `node:os`/`node:readline` (not in the original list) and
 cross-checked against Deno too (`-r qjsm -r bun -r deno`, all three loaded every module
