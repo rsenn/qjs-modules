@@ -1080,3 +1080,14 @@
 
     PATH=/usr/bin qjsm tests/unittests/test-typescript.js
     # SKIP: swc not found in PATH, although node would do
+
+- extract-structs-finds-no-function-lists: utilities/extract-structs.js
+  prints cFuncListObjects {} and [] for every input, even quickjs-path.c,
+  whose JSCFunctionListEntry tables and JS_SetPropertyFunctionList calls
+  it is meant to collect. Not the pp_* lexer change alone: a file without
+  any directive gives the same empty result. Its rules['preprocessor']
+  test (line 213) is dead since CLexer has no such rule. Found 2026-10-21.
+
+    qjsm utilities/extract-structs.js quickjs-path.c
+    # cFuncListObjects {}
+    # []
