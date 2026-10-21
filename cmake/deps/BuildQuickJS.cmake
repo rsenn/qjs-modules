@@ -22,12 +22,14 @@
 # -DQUICKJS_BUILD_ROOT=.. -DQUICKJS_SOURCES_ROOT=.. -DQUICKJS_PREFIX=..
 
 if(NOT DEFINED BUILD_QUICKJS)
-  set(BUILD_QUICKJS AUTO CACHE STRING "Build quickjs from source: ON always, AUTO when no installation is found, OFF never")
+  set(BUILD_QUICKJS AUTO CACHE STRING
+                               "Build quickjs from source: ON always, AUTO when no installation is found, OFF never")
   set_property(CACHE BUILD_QUICKJS PROPERTY STRINGS ON OFF AUTO)
 endif()
 
 set(QUICKJS_GIT_URL "git@github.com:rsenn/quickjs.git" CACHE STRING "quickjs repository cloned by BUILD_QUICKJS")
-set(QUICKJS_GIT_URL_FALLBACK "https://github.com/rsenn/quickjs.git" CACHE STRING "quickjs repository tried when QUICKJS_GIT_URL fails")
+set(QUICKJS_GIT_URL_FALLBACK "https://github.com/rsenn/quickjs.git"
+    CACHE STRING "quickjs repository tried when QUICKJS_GIT_URL fails")
 set(QUICKJS_BUILD_OPTIONS "" CACHE STRING "extra -D options for the quickjs configure, ';' separated")
 option(BUILD_QUICKJS_INSTALL "Install the quickjs built by BUILD_QUICKJS along with this project" ON)
 
@@ -64,8 +66,8 @@ function(quickjs_source_dir OUTVAR)
     foreach(_url "${QUICKJS_GIT_URL}" "${QUICKJS_GIT_URL_FALLBACK}")
       if(_url)
         message(STATUS "Cloning quickjs from ${_url} into ${_dir}")
-        execute_process(COMMAND "${GIT_EXECUTABLE}" clone --depth 1 "${_url}" "${_dir}"
-                        RESULT_VARIABLE _result OUTPUT_QUIET ERROR_QUIET)
+        execute_process(COMMAND "${GIT_EXECUTABLE}" clone --depth 1 "${_url}" "${_dir}" RESULT_VARIABLE _result
+                        OUTPUT_QUIET ERROR_QUIET)
         if(_result EQUAL 0)
           break()
         endif()
@@ -127,9 +129,10 @@ function(quickjs_configure_args OUTVAR SRC)
     set(_shared ON)
   endif()
 
-  set(_args "-DCMAKE_BUILD_TYPE=${_type}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
-            "-DQUICKJS_PREFIX=${CMAKE_INSTALL_PREFIX}" "-DBUILD_SHARED_LIBS=${_shared}" -DBUILD_STATIC_LIBS=ON
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON)
+  set(_args
+      "-DCMAKE_BUILD_TYPE=${_type}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
+      "-DQUICKJS_PREFIX=${CMAKE_INSTALL_PREFIX}" "-DBUILD_SHARED_LIBS=${_shared}" -DBUILD_STATIC_LIBS=ON
+      -DCMAKE_POSITION_INDEPENDENT_CODE=ON)
 
   foreach(_var CMAKE_TOOLCHAIN_FILE CMAKE_C_COMPILER CMAKE_SYSROOT CMAKE_SYSTEM_NAME)
     if(${_var})
@@ -171,8 +174,8 @@ function(build_quickjs)
   if(NOT EXISTS "${_bdir}/CMakeCache.txt" OR NOT "${_old}" STREQUAL "${_hash}")
     message(STATUS "Configuring quickjs: ${_src} -> ${_bdir}")
     file(MAKE_DIRECTORY "${_bdir}")
-    execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" ${_args} "${_src}"
-                    WORKING_DIRECTORY "${_bdir}" RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+    execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" ${_args} "${_src}" WORKING_DIRECTORY "${_bdir}"
+                    RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-configure.log" "${_out}")
     if(NOT _result EQUAL 0)
       message(FATAL_ERROR "Configuring quickjs failed, see ${CMAKE_CURRENT_BINARY_DIR}/quickjs-configure.log\n${_out}")
@@ -182,8 +185,8 @@ function(build_quickjs)
 
   cmake_host_system_information(RESULT _cores QUERY NUMBER_OF_LOGICAL_CORES)
   message(STATUS "Building quickjs in ${_bdir}")
-  execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_bdir}" --parallel ${_cores}
-                  RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+  execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_bdir}" --parallel ${_cores} RESULT_VARIABLE _result
+                  OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-build.log" "${_out}")
   if(NOT _result EQUAL 0)
     message(FATAL_ERROR "Building quickjs failed, see ${CMAKE_CURRENT_BINARY_DIR}/quickjs-build.log\n${_out}")
@@ -211,7 +214,8 @@ function(build_quickjs)
   set(QUICKJS_INSTALL_LIBRARY_DIR "${_libdir}" PARENT_SCOPE)
 
   if(BUILD_QUICKJS_INSTALL)
-    install(CODE "
+    install(
+      CODE "
       message(STATUS \"Installing quickjs from ${_bdir}\")
       execute_process(COMMAND \"${CMAKE_COMMAND}\" --install \"${_bdir}\" --prefix \"\${CMAKE_INSTALL_PREFIX}\"
                       RESULT_VARIABLE _quickjs_install_result)

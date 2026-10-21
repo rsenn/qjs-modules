@@ -1,6 +1,22 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
+#ifndef _FORTIFY_SOURCE
+#define _FORTIFY_SOURCE 1
+#endif
+
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+
+#ifndef __GNU_VISIBLE
+#define __GNU_VISIBLE 1
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif

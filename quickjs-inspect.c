@@ -2,13 +2,13 @@
 #include <quickjs-config.h>
 #endif
 
-#include "defines.h"
+#include "char-utils.h"
+#include "buffer-utils.h"
+#include "stream-utils.h"
 #include "iteration.h"
 #include "property-enumeration.h"
 #include "utils.h"
 #include "vector.h"
-#include "buffer-utils.h"
-#include "stream-utils.h"
 #include "debug.h"
 
 #include <quickjs.h>
@@ -16,7 +16,6 @@
 #include <list.h>
 
 #include <math.h>
-#include <string.h>
 #include <fcntl.h>
 
 #ifdef _WIN32

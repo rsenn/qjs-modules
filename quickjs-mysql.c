@@ -1,8 +1,7 @@
-#include "defines.h"
+#include "char-utils.h"
+#include "buffer-utils.h"
 #include "quickjs-mysql.h"
 #include "utils.h"
-#include "buffer-utils.h"
-#include "char-utils.h"
 #include "async-closure.h"
 #include <cutils.h>
 

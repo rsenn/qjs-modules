@@ -44,8 +44,7 @@ typedef struct {
  * The start tag stays open for attributes until the next event; an element
  * ended with nothing in between is written `<a />`. Text and attribute
  * values are escaped here, names are written as given. Every event returns
- * the bytes written (>= 0), or -XWRITE_E_* on failure; none of them touches
- * a JSContext. */
+ * the bytes written (>= 0), or -XWRITE_E_* on failure; */
 typedef struct {
   Writer writer;
   size_t written; /* bytes put through the writer so far */

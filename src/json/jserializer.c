@@ -1,13 +1,11 @@
-#define _GNU_SOURCE 1
-
 /* jserializer.c: JsonSerializer, the pull serializer of the JS class without the JS glue.
  * depends on: jserial.h (events to text), jwalk.h (the JSON.stringify rules), jopts.h (space).
  * rule: an event is taken once, so toJSON and the replacer run exactly once per property. */
 
-#include "json/jserializer.h"
-#include "json/jsink.h"
-#include "utils.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
+#include "json/jserializer.h"
+#include "utils.h"
 
 /**
  * \addtogroup json

@@ -2,12 +2,9 @@
  * depends on: jevent.h (source, sink), jwrite.h (the writer), stream-utils.h (a Writer into a DynBuf).
  * rule: an event is taken from the source once and written once; nothing is replayed. */
 
-#define _GNU_SOURCE 1
-
+#include "char-utils.h"
 #include "json/jserial.h"
 #include "stream-utils.h"
-#include "char-utils.h"
-#include <string.h>
 
 /**
  * \addtogroup jserial

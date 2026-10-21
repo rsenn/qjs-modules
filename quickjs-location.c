@@ -1,7 +1,8 @@
+#include "char-utils.h"
+#include "buffer-utils.h"
 #include "defines.h"
 #include "quickjs-location.h"
 #include "utils.h"
-#include "buffer-utils.h"
 #include "debug.h"
 
 /**

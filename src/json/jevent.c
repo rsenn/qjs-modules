@@ -2,13 +2,10 @@
  * depends on: jevent.h.
  * rule: no state; one call per event, the sink decides what it means. */
 
-#define _GNU_SOURCE 1
-
-#include "json/jevent.h"
 #include "char-utils.h"
+#include "json/jevent.h"
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
 /**
  * \addtogroup jevent

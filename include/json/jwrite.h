@@ -43,8 +43,7 @@ typedef struct {
  * ```
  *
  * Commas, indentation and key/value ordering are handled here. Every
- * event returns the bytes written (>= 0), or -JWRITE_E_* on failure; none
- * of them touches a JSContext. */
+ * event returns the bytes written (>= 0), or -JWRITE_E_* on failure; */
 typedef struct {
   Writer writer;
   size_t written; /* bytes put through the writer so far */

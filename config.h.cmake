@@ -215,6 +215,9 @@
 /* Define this if you have the setuid() function */
 #cmakedefine HAVE_SETUID 1
 
+/* Define this if you have the strverscmp() function */
+#cmakedefine HAVE_STRVERSCMP 1
+
 /* Define this if you have the symlink() function */
 #cmakedefine HAVE_SYMLINK 1
 

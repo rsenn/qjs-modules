@@ -97,7 +97,7 @@ endmacro()
 # check_inline [OUTPUT-VAR]
 #
 function(check_inline)
-   if(${ARGC} GREATER_EQUAL 1)
+  if(${ARGC} GREATER_EQUAL 1)
     set(OUTPUT_VAR "${ARGV0}")
   else()
     set(OUTPUT_VAR INLINE_KEYWORD)
@@ -109,7 +109,9 @@ function(check_inline)
   foreach(KEYWORD "__inline__" "__inline" "inline")
     if(NOT RESULT)
       set(CMAKE_REQUIRED_DEFINITIONS "-DTESTKEYWORD=${KEYWORD}")
-      check_c_source_compiles("typedef int foo_t;\nstatic TESTKEYWORD foo_t static_foo(){return 0;}\nfoo_t foo(){return 0;}\nint main(int argc, char *argv[]){return 0;}\n" HAVE_${KEYWORD})
+      check_c_source_compiles(
+        "typedef int foo_t;\nstatic TESTKEYWORD foo_t static_foo(){return 0;}\nfoo_t foo(){return 0;}\nint main(int argc, char *argv[]){return 0;}\n"
+        HAVE_${KEYWORD})
 
       if(HAVE_${KEYWORD})
         set(RESULT "${KEYWORD}")
@@ -149,12 +151,9 @@ function(check_compile RESULT_VAR SOURCE)
 
   message(CHECK_START "Checking ${DESC}")
 
-  try_compile(COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" OUTPUT_VARIABLE "OUTPUT" 
-    CMAKE_FLAGS "${CMAKE_FLAGS}"
-    COMPILE_DEFINITIONS "${COMPILE_DEFINITIONS}"
-    LINK_OPTIONS "${LINK_OPTIONS}"
-    LINK_LIBRARIES "${LINK_LIBRARIES}"
-  )
+  try_compile(
+    COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" OUTPUT_VARIABLE "OUTPUT" CMAKE_FLAGS "${CMAKE_FLAGS}"
+    COMPILE_DEFINITIONS "${COMPILE_DEFINITIONS}" LINK_OPTIONS "${LINK_OPTIONS}" LINK_LIBRARIES "${LINK_LIBRARIES}")
 
   file(REMOVE "${C_SOURCE}")
 
@@ -190,7 +189,8 @@ macro(check_run RESULT_VAR SOURCE)
   string(REGEX REPLACE "^(have|support)-" "" DESC "${C_NAME}")
   string(REPLACE - " " DESC "${DESC}")
   message(CHECK_START "Checking ${DESC} (run)")
-  try_run(RUN_RESULT COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}" COMPILE_OUTPUT_VARIABLE "OUTPUT" LINK_LIBRARIES "${ARGN}")
+  try_run(RUN_RESULT COMPILE_RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${C_SOURCE}"
+          COMPILE_OUTPUT_VARIABLE "OUTPUT" LINK_LIBRARIES "${ARGN}")
   file(REMOVE "${C_SOURCE}")
 
   if(COMPILE_RESULT AND RUN_RESULT)
@@ -243,7 +243,7 @@ endmacro()
 #
 macro(check_includes_def)
   foreach(INC ${ARGN})
-    check_include_def("${INC}" )
+    check_include_def("${INC}")
   endforeach()
 endmacro()
 
@@ -340,7 +340,7 @@ macro(check_source_definitions)
     set(SOURCE_TYPES ${ARGN})
   else()
     set(SOURCE_TYPES "ATFILE;GNU;LARGEFILE;LARGE_FILE;LARGEFILE64;POSIX;POSIX_C;XOPEN;XOPEN_EXTENDED")
-  endif() 
+  endif()
 
   foreach(TYPE ${SOURCE_TYPES})
     set_add(SOURCE_DEFINITIONS "-D${TYPE}_SOURCE")
@@ -404,7 +404,8 @@ endmacro()
 #   -fno-jump-tables     switch tables become compare chains -f*-sections only pays off together with --gc-sections
 #
 macro(check_fno_optim_flags FLAG_VAR)
-  set(FLAGS "-fno-asynchronous-unwind-tables" "-fno-unwind-tables" "-fno-stack-protector" "-fno-jump-tables" "-fno-plt" "-fno-ident" "-fmerge-all-constants" "-ffunction-sections" "-fdata-sections")
+  set(FLAGS "-fno-asynchronous-unwind-tables" "-fno-unwind-tables" "-fno-stack-protector" "-fno-jump-tables" "-fno-plt"
+            "-fno-ident" "-fmerge-all-constants" "-ffunction-sections" "-fdata-sections")
 
   foreach(FLAG ${FLAGS})
     string(MAKE_C_IDENTIFIER "F${FLAG}" FLAG_VAR)
@@ -414,7 +415,8 @@ macro(check_fno_optim_flags FLAG_VAR)
     endif()
   endforeach()
 
-  foreach(FLAG "-Wl,--gc-sections" "-Wl,--as-needed" "-Wl,--build-id=none" "-Wl,-z,norelro" "-Wl,-z,noseparate-code" "-Wl,--hash-style=gnu")
+  foreach(FLAG "-Wl,--gc-sections" "-Wl,--as-needed" "-Wl,--build-id=none" "-Wl,-z,norelro" "-Wl,-z,noseparate-code"
+               "-Wl,--hash-style=gnu")
     string(MAKE_C_IDENTIFIER "LD${FLAG}" FLAG_VAR)
     check_ldflag("${FLAG}" ${FLAG_VAR})
   endforeach()
@@ -430,7 +432,8 @@ function(check_windows_native)
     set(OUTPUT_VAR WINDOWS_NATIVE)
   endif()
 
-  if((WIN32 OR WIN64 OR MSVC OR MINGW OR WINDOWS) AND NOT CYGWIN AND NOT CMAKE_SYSTEM_NAME MATCHES "MSYS" AND NOT CMAKE_C_COMPILER MATCHES "msys")
+  if((WIN32 OR WIN64 OR MSVC OR MINGW OR WINDOWS) AND NOT CYGWIN AND NOT CMAKE_SYSTEM_NAME MATCHES "MSYS"
+     AND NOT CMAKE_C_COMPILER MATCHES "msys")
     set(RESULT TRUE)
   else()
     set(RESULT FALSE)
@@ -483,7 +486,7 @@ function(check_winsock2)
 endfunction()
 
 #
-# check_socket_library [RESULT-VAR] 
+# check_socket_library [RESULT-VAR]
 #
 function(check_socket_library)
   if(${ARGC} GREATER_EQUAL 1)
@@ -568,7 +571,8 @@ function(check_pointer_size)
 
   if(NOT SIZEOF_POINTER)
     foreach(n 4 8 2)
-      check_c_source_compiles("typedef char t[sizeof(void*) == ${n} ? 1 : -1]; int main(void) { return 0; }" POINTER_SIZE_IS_${n})
+      check_c_source_compiles("typedef char t[sizeof(void*) == ${n} ? 1 : -1]; int main(void) { return 0; }"
+                              POINTER_SIZE_IS_${n})
 
       if(POINTER_SIZE_IS_${n})
         set(SIZEOF_POINTER ${n})
@@ -594,11 +598,12 @@ endfunction()
 # check_type_exists <TYPE> [RESULT-VAR] [INCLUDES]
 #
 function(check_type_exists TYPE RESULT_VAR)
-  if(NOT RESULT_VAR AND "${RESULT_VAR}" STREQUAL "" )
+  if(NOT RESULT_VAR AND "${RESULT_VAR}" STREQUAL "")
     clean_name("HAVE_${TYPE}" RESULT_VAR)
   endif()
 
-  assign_properties("ADD_HEADERS;COMPILE_DEFINITIONS;COMPILE_FLAGS;LINK_DIRECTORIES;LINK_FLAGS;LINK_LIBRARIES;LINK_OPTIONS" ${ARGN})
+  assign_properties(
+    "ADD_HEADERS;COMPILE_DEFINITIONS;COMPILE_FLAGS;LINK_DIRECTORIES;LINK_FLAGS;LINK_LIBRARIES;LINK_OPTIONS" ${ARGN})
 
   set(SRC "typedef ${TYPE} type_t;\nint main() {\n  type_t var;\n  return 0;\n}\n")
 
@@ -653,7 +658,7 @@ endmacro()
 # check_alloca [OUTPUT-VAR]
 #
 function(check_alloca)
-   if(${ARGC} GREATER_EQUAL 1)
+  if(${ARGC} GREATER_EQUAL 1)
     set(OUTPUT_VAR "${ARGV0}")
   else()
     set(OUTPUT_VAR HAVE_ALLOCA)
@@ -671,11 +676,15 @@ function(check_alloca)
     check_symbol_exists(alloca alloca.h HAVE_ALLOCA_SYMBOL)
   endif()
 
-  check_compile(HAVE_ALLOCA_ALLOCA_H "#include <stdlib.h>\n#include <alloca.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}"
+  check_compile(
+    HAVE_ALLOCA_ALLOCA_H
+    "#include <stdlib.h>\n#include <alloca.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}"
     "alloca() in <alloca.h>")
 
   if(NOT HAVE_ALLOCA_ALLOCA_H)
-    check_compile(HAVE_ALLOCA_MALLOC_H "#include <stdlib.h>\n#include <malloc.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}"
+    check_compile(
+      HAVE_ALLOCA_MALLOC_H
+      "#include <stdlib.h>\n#include <malloc.h>\n\n\nint main() {\n  char* c=alloca(23);\n  (void)c;\n  return 0;\n}"
       "alloca() in <malloc.h>")
   endif()
 
@@ -739,7 +748,8 @@ macro(check_emscripten)
 
     add_compile_options(-mllvm -wasm-enable-sjlj -mexception-handling)
     add_link_options(-mllvm -wasm-enable-sjlj -lsetjmp)
-    add_compile_definitions(_WASI_EMULATED_SIGNAL _WASI_EMULATED_GETPID _WASI_EMULATED_PROCESS_CLOCKS _WASI_EMULATED_MMAN)
+    add_compile_definitions(_WASI_EMULATED_SIGNAL _WASI_EMULATED_GETPID _WASI_EMULATED_PROCESS_CLOCKS
+                            _WASI_EMULATED_MMAN)
     add_link_options(-lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman)
   endif()
 endmacro()
@@ -835,7 +845,9 @@ macro(check_termios_winsize)
   check_includes(termios.h sys/ioctl.h)
 
   if(HAVE_TERMIOS_H AND HAVE_SYS_IOCTL_H)
-    set(GET_COLUMNS "#include <unistd.h>\n#include <fcntl.h>\n#include <termios.h>\n#include <sys/ioctl.h>\n#include <stdio.h>\n\nint\nmain() {\n\tstruct winsize sz;\n\tint fd = isatty(0) ? dup(0) : open(\"/dev/tty\", O_RDWR);\n\n\tif(!isatty(fd)) {\n\t\tfputs(\"not a tty\\n\", stderr);\n\t\tfflush(stderr);\n\t\treturn 1;\n\t}\n\n\tif(ioctl(fd, TIOCGWINSZ, &sz) == -1) {\n\t\tperror(\"ioctl\");\n\t\treturn 1;\n\t}\n\n\tclose(fd);\n\n\tprintf(\"%u\\n\", sz.ws_col);\n\treturn 0;\n}\n" )
+    set(GET_COLUMNS
+        "#include <unistd.h>\n#include <fcntl.h>\n#include <termios.h>\n#include <sys/ioctl.h>\n#include <stdio.h>\n\nint\nmain() {\n\tstruct winsize sz;\n\tint fd = isatty(0) ? dup(0) : open(\"/dev/tty\", O_RDWR);\n\n\tif(!isatty(fd)) {\n\t\tfputs(\"not a tty\\n\", stderr);\n\t\tfflush(stderr);\n\t\treturn 1;\n\t}\n\n\tif(ioctl(fd, TIOCGWINSZ, &sz) == -1) {\n\t\tperror(\"ioctl\");\n\t\treturn 1;\n\t}\n\n\tclose(fd);\n\n\tprintf(\"%u\\n\", sz.ws_col);\n\treturn 0;\n}\n"
+    )
     check_compile(HAVE_WINSIZE "${GET_COLUMNS}" "TIOCGWINSZ")
   endif()
 endmacro()
@@ -855,7 +867,7 @@ macro(check_sig_functions)
   check_function_exists(sigprocmask HAVE_SIGPROCMASK)
 
   if(NOT HAVE_SIGPROCMASK)
-    check_functions(sigblock sigsetmask  sigpause)
+    check_functions(sigblock sigsetmask sigpause)
   endif()
 
   check_functions(sigaction setpgid)
@@ -946,4 +958,3 @@ function(check_debug_symbols_flags)
     set("${OUTPUT_VAR}" "${FLAGS}" PARENT_SCOPE)
   endif()
 endfunction()
-

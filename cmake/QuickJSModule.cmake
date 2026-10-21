@@ -64,9 +64,8 @@ function(compile_code RESULT_VAR CODE)
       "${CMAKE_CURRENT_BINARY_DIR}/${FILE}"
       LINK_OPTIONS "-L${QUICKJS_LIBRARY_DIR}"
       COMPILE_DEFINITIONS "${_compile_code_iflags}"
-      CMAKE_FLAGS
-        "-DINCLUDE_DIRECTORIES=${_compile_code_includes}" "-DLINK_DIRECTORIES=${QUICKJS_LIBRARY_DIR}" LINK_DIRECTORIES
-        "${QUICKJS_LIBRARY_DIR}"
+      CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${_compile_code_includes}" "-DLINK_DIRECTORIES=${QUICKJS_LIBRARY_DIR}"
+                  LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}"
       LINK_LIBRARIES "${QUICKJS_LIBRARY}"
       OUTPUT_VARIABLE OUTPUT)
 
@@ -226,7 +225,7 @@ function(make_module FNAME)
     # js_init_module_${VNAME} instead of the dlopen-convention js_init_module
     # (which would collide across every statically-linked module).
     set_target_properties(${STATIC_TARGET_NAME} PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "quickjs-"
-                                                            COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+                                                           COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(
       ${STATIC_TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"

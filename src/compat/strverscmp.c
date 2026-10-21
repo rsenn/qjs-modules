@@ -1,3 +1,8 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifndef HAVE_STRVERSCMP
 #include <ctype.h>
 #include <stddef.h>
 
@@ -35,3 +40,4 @@ strverscmp(const char* s1, const char* s2) {
 
   return a < b ? -1 : 1;
 }
+#endif

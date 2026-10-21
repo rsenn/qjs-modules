@@ -1,8 +1,9 @@
+#include "char-utils.h"
+#include "buffer-utils.h"
+#include "stream-utils.h"
 #include "defines.h"
 #include "quickjs-textcode.h"
 #include "utils.h"
-#include "buffer-utils.h"
-#include "stream-utils.h"
 #include "debug.h"
 
 #include "tutf8e/include/tutf8e.h"

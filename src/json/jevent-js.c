@@ -2,16 +2,13 @@
  * depends on: jevent.h (the event), char-utils.h (scan_double).
  * rule: the event text is only read, the value owns its copy. */
 
-#define _GNU_SOURCE 1
-
+#include "char-utils.h"
 #include "json/jevent-js.h"
 #include "json/json.h"
 #include "json/jbuilder.h"
 #include "json/jopts.h"
 #include "utils.h"
-#include "char-utils.h"
 #include "quickjs-location.h"
-#include <string.h>
 
 /**
  * \addtogroup jevent

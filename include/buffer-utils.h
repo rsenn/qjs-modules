@@ -6,7 +6,6 @@
 #include <stdarg.h>
 
 #include "defines.h"
-// #include "char-utils.h"
 
 /**
  * \defgroup buffer-utils buffer-utils: Buffer Utilities

@@ -10,7 +10,7 @@
 #include <stddef.h>
 
 /**
- * \defgroup xml xml: streaming, JSValue-free XML parser
+ * \defgroup xml xml: streaming XML parser
  * @{
  *
  * The pull parser behind XMLParser and read(): a Reader in and one XmlEvent per xml_next().

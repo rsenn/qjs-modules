@@ -10,13 +10,13 @@ function(add_cflags ADD)
   else()
     set(OUTPUT_VAR "${ARGV1}")
   endif()
-  
+
   #message_func("add_cflags" ${ADD} ${OUTPUT_VAR})
 
   set(RESULT "${${OUTPUT_VAR}}")
   string(REGEX REPLACE " +" ";" FLAGS "${RESULT}")
   string(REGEX REPLACE "^;+" "" FLAGS "${FLAGS}")
-  list(REMOVE_DUPLICATES FLAGS) 
+  list(REMOVE_DUPLICATES FLAGS)
   if(NOT ADD IN_LIST FLAGS)
     list(APPEND RESULT ${ADD})
   endif()
@@ -71,7 +71,7 @@ function(set_symmetric_difference NOT_IN_A NOT_IN_B SET_A SET_B)
   endforeach()
 
   set(A "")
-    foreach(ITEM ${${SET_B}})
+  foreach(ITEM ${${SET_B}})
     if(NOT ITEM IN_LIST "${SET_A}")
       list(APPEND A "${ITEM}")
     endif()
@@ -243,9 +243,9 @@ function(unescape_string OUTPUT_VAR STR)
   string(REPLACE "\\t" "\t" RESULT "${RESULT}")
   string(REPLACE "\\x1b" "${ANSI_ESCAPE}" RESULT "${RESULT}")
   string(REPLACE "\\033" "${ANSI_ESCAPE}" RESULT "${RESULT}")
-  string(REPLACE "\\e" "${ANSI_ESCAPE}"  RESULT "${RESULT}")
-  string(REPLACE "\\v" ""  RESULT "${RESULT}")
-  string(REPLACE "\\f" ""   RESULT "${RESULT}")
+  string(REPLACE "\\e" "${ANSI_ESCAPE}" RESULT "${RESULT}")
+  string(REPLACE "\\v" "" RESULT "${RESULT}")
+  string(REPLACE "\\f" "" RESULT "${RESULT}")
 
   string(REPLACE "\\\\" "\\" RESULT "${RESULT}")
 
@@ -267,7 +267,7 @@ macro(assign_items ITEMS)
   foreach(__A ${ARGN})
     list(GET __L "${__I}" "${__A}")
     math(EXPR __I "${__I} + 1")
- endforeach()
+  endforeach()
 endmacro()
 
 # LIST is the name of a list
@@ -295,7 +295,7 @@ function(eat_line BUFFER_VAR RESULT_VAR)
     math(EXPR NEXT_POS "${NL_POS} + 1")
   endif()
   string(SUBSTRING "${BUF}" "0" "${NL_POS}" RESULT)
-  string(SUBSTRING "${BUF}"  "${NEXT_POS}"  -1 REST)
+  string(SUBSTRING "${BUF}" "${NEXT_POS}" -1 REST)
   set("${RESULT_VAR}" "${RESULT}" PARENT_SCOPE)
   set("${BUFFER_VAR}" "${REST}" PARENT_SCOPE)
 endfunction()
@@ -335,7 +335,7 @@ macro(assign_named_prefix PREFIX)
   while(NOT "${ARGUMENTS}" STREQUAL "")
     eat_line(ARGUMENTS NAME)
     eat_line(ARGUMENTS VALUE)
-   set("${PREFIX}${NAME}" "${VALUE}" CACHE STRING "Color value")
+    set("${PREFIX}${NAME}" "${VALUE}" CACHE STRING "Color value")
   endwhile()
 endmacro()
 
@@ -346,18 +346,18 @@ endmacro()
 # VALUE in the caller's scope.
 #
 macro(assign_named_items)
- unset(__N)
+  unset(__N)
   foreach(__A ${ARGN})
-     if(NOT DEFINED __N)
+    if(NOT DEFINED __N)
       set(__N "${__A}")
-     else()
+    else()
       set(__V "${__A}")
-      endif()
-     if(DEFINED __V)
-         set("${__N}" "${__V}")
-       unset(__N)
-       unset(__V)
-     endif()
+    endif()
+    if(DEFINED __V)
+      set("${__N}" "${__V}")
+      unset(__N)
+      unset(__V)
+    endif()
   endforeach()
 endmacro()
 
@@ -407,8 +407,8 @@ endfunction()
 function(absolute_paths OUTPUT_VAR)
   set(RESULT "")
   foreach(ARG ${ARGN})
-      cmake_path(ABSOLUTE_PATH ARG OUTPUT_VARIABLE VALUE)
-      list(APPEND RESULT "${VALUE}")
+    cmake_path(ABSOLUTE_PATH ARG OUTPUT_VARIABLE VALUE)
+    list(APPEND RESULT "${VALUE}")
   endforeach()
 
   if(OUTPUT_VAR)
@@ -424,8 +424,8 @@ endfunction()
 function(absolute_paths_in OUTPUT_VAR BASE_DIRECTORY)
   set(RESULT "")
   foreach(ARG ${ARGN})
-      cmake_path(ABSOLUTE_PATH ARG BASE_DIRECTORY "${BASE_DIRECTORY}" OUTPUT_VARIABLE VALUE)
-      list(APPEND RESULT "${VALUE}")
+    cmake_path(ABSOLUTE_PATH ARG BASE_DIRECTORY "${BASE_DIRECTORY}" OUTPUT_VARIABLE VALUE)
+    list(APPEND RESULT "${VALUE}")
   endforeach()
 
   if(OUTPUT_VAR)
@@ -441,8 +441,8 @@ endfunction()
 function(relative_paths OUTPUT_VAR BASE_DIRECTORY)
   set(RESULT "")
   foreach(ARG ${ARGN})
-      cmake_path(RELATIVE_PATH ARG BASE_DIRECTORY "${BASE_DIRECTORY}" OUTPUT_VARIABLE VALUE)
-      list(APPEND RESULT "${VALUE}")
+    cmake_path(RELATIVE_PATH ARG BASE_DIRECTORY "${BASE_DIRECTORY}" OUTPUT_VARIABLE VALUE)
+    list(APPEND RESULT "${VALUE}")
   endforeach()
 
   if(OUTPUT_VAR)
@@ -568,15 +568,18 @@ function(get_columns RESULT_VAR)
   set(RESULT "$ENV{COLUMNS}")
   if(RESULT LESS 1)
     execute_process(COMMAND tput cols OUTPUT_VARIABLE TPUT_COLS ERROR_QUIET ERROR_VARIABLE TPUT_ERROR)
-   
+
     if(NOT TPUT_ERROR AND TPUT_COLS)
       set(RESULT ${TPUT_COLS})
     else()
       set(SOURCE_NAME ttysize.c)
-      set(SOURCE_CODE "#include <unistd.h>\n#include <fcntl.h>\n#include <termios.h>\n#include <sys/ioctl.h>\n#include <stdio.h>\n\nint\nmain() {\n\tstruct winsize sz;\n\tint fd = isatty(0) ? dup(0) : open(\"/dev/tty\", O_RDWR);\n\n\tif(!isatty(fd)) {\n\t\tfputs(\"not a tty\\n\", stderr);\n\t\tfflush(stderr);\n\t\treturn 1;\n\t}\n\n\tif(ioctl(fd, TIOCGWINSZ, &sz) == -1) {\n\t\tperror(\"ioctl\");\n\t\treturn 1;\n\t}\n\n\tclose(fd);\n\n\tprintf(\"%u\\n\", sz.ws_col);\n\treturn 0;\n}\n")
+      set(SOURCE_CODE
+          "#include <unistd.h>\n#include <fcntl.h>\n#include <termios.h>\n#include <sys/ioctl.h>\n#include <stdio.h>\n\nint\nmain() {\n\tstruct winsize sz;\n\tint fd = isatty(0) ? dup(0) : open(\"/dev/tty\", O_RDWR);\n\n\tif(!isatty(fd)) {\n\t\tfputs(\"not a tty\\n\", stderr);\n\t\tfflush(stderr);\n\t\treturn 1;\n\t}\n\n\tif(ioctl(fd, TIOCGWINSZ, &sz) == -1) {\n\t\tperror(\"ioctl\");\n\t\treturn 1;\n\t}\n\n\tclose(fd);\n\n\tprintf(\"%u\\n\", sz.ws_col);\n\treturn 0;\n}\n"
+      )
       message(CHECK_START "Trying to compile ${SOURCE_NAME}")
-      try_run(RUN_RESULT COMPILE_RESULT SOURCE_FROM_CONTENT "${SOURCE_NAME}" "${SOURCE_CODE}" RUN_OUTPUT_STDOUT_VARIABLE RUN_OUTPUT COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT NO_CACHE)
-   
+      try_run(RUN_RESULT COMPILE_RESULT SOURCE_FROM_CONTENT "${SOURCE_NAME}" "${SOURCE_CODE}" RUN_OUTPUT_STDOUT_VARIABLE
+              RUN_OUTPUT COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT NO_CACHE)
+
       if(NOT COMPILE_RESULT)
         message(CHECK_FAIL "failed to compile:\n${COMPILE_OUTPUT}")
       else()
@@ -610,7 +613,7 @@ function(named_dump MSG)
   set(INDEX 0)
   math(EXPR LAST "${ARGC} - 2")
   set(RESULT "${MSG}${START}")
-  
+
   foreach(VAR_NAME ${ARGN})
     set(VALUE "${${VAR_NAME}}")
     set(LINE "${INDENT}${VAR_NAME}${PROP}${QUOTE}${VALUE}${QUOTE}")
@@ -623,7 +626,7 @@ function(named_dump MSG)
   if(NOT END STREQUAL "")
     set(RESULT "${RESULT}${NEWLINE}${END}")
   endif()
-  
+
   message("${RESULT}")
 endfunction()
 
@@ -660,9 +663,9 @@ endfunction()
 #
 function(make_list OUTPUT_VAR MAX_LINE_LEN)
   assign_named_var(LIST_FORMAT)
-# Store the words in the arguments in OUTPUT-VAR as lines no longer than
-# MAX_LINE_LEN, laid out as set by LIST_FORMAT.
-#
+  # Store the words in the arguments in OUTPUT-VAR as lines no longer than
+  # MAX_LINE_LEN, laid out as set by LIST_FORMAT.
+  #
   set(RESULT "")
   set(LINE "")
   string(REPLACE " " ";" ARGS "${ARGN}")
@@ -686,7 +689,7 @@ function(make_list OUTPUT_VAR MAX_LINE_LEN)
   endif()
 endfunction()
 
-set(LIST_FORMAT INDENT "    " SEP  " ")
+set(LIST_FORMAT INDENT "    " SEP " ")
 
 #
 # make_columns <OUTPUT-VAR> <MAX_LINE_LEN> [ITEMS...]
@@ -782,7 +785,7 @@ function(make_columns OUTPUT_VAR MAX_LINE_LEN)
 endfunction()
 
 set(COLUMN_FORMAT INDENT "  " GAP "  ")
-  
+
 #
 # print_list <DESC> <VAR-NAME> [COLUMNS]
 #
@@ -861,7 +864,7 @@ endfunction()
 #
 function(message_func FUNC)
   set(S "${COLOR_LIGHTRED}${FUNC}${COLOR_NONE}")
-  
+
   foreach(ARG ${ARGN})
     set(S "${S} ${ARG}")
   endforeach()
@@ -876,24 +879,40 @@ macro(init_colors)
   set(ANSI_ESCAPE "")
   set(SEMI "╎")
   set(COLORS
-    NONE "${ANSI_ESCAPE}[0m"
-    BLACK "${ANSI_ESCAPE}[0${SEMI}30m"
-    RED "${ANSI_ESCAPE}[0${SEMI}31m"
-    GREEN "${ANSI_ESCAPE}[0${SEMI}32m"
-    BROWN "${ANSI_ESCAPE}[0${SEMI}33m"
-    BLUE "${ANSI_ESCAPE}[0${SEMI}34m"
-    MAGENTA "${ANSI_ESCAPE}[0${SEMI}35m"
-    CYAN "${ANSI_ESCAPE}[0${SEMI}36m"
-    LIGHTGRAY "${ANSI_ESCAPE}[0${SEMI}37m"
-    DARKGRAY "${ANSI_ESCAPE}[1${SEMI}30m"
-    LIGHTRED "${ANSI_ESCAPE}[1${SEMI}31m"
-    LIGHTGREEN "${ANSI_ESCAPE}[1${SEMI}32m"
-    YELLOW "${ANSI_ESCAPE}[1${SEMI}33m"
-    LIGHTBLUE "${ANSI_ESCAPE}[1${SEMI}34m"
-    LIGHTMAGENTA "${ANSI_ESCAPE}[1${SEMI}35m"
-    LIGHTCYAN "${ANSI_ESCAPE}[1${SEMI}36m"
-    WHITE "${ANSI_ESCAPE}[1${SEMI}37m" 
-  )
+      NONE
+      "${ANSI_ESCAPE}[0m"
+      BLACK
+      "${ANSI_ESCAPE}[0${SEMI}30m"
+      RED
+      "${ANSI_ESCAPE}[0${SEMI}31m"
+      GREEN
+      "${ANSI_ESCAPE}[0${SEMI}32m"
+      BROWN
+      "${ANSI_ESCAPE}[0${SEMI}33m"
+      BLUE
+      "${ANSI_ESCAPE}[0${SEMI}34m"
+      MAGENTA
+      "${ANSI_ESCAPE}[0${SEMI}35m"
+      CYAN
+      "${ANSI_ESCAPE}[0${SEMI}36m"
+      LIGHTGRAY
+      "${ANSI_ESCAPE}[0${SEMI}37m"
+      DARKGRAY
+      "${ANSI_ESCAPE}[1${SEMI}30m"
+      LIGHTRED
+      "${ANSI_ESCAPE}[1${SEMI}31m"
+      LIGHTGREEN
+      "${ANSI_ESCAPE}[1${SEMI}32m"
+      YELLOW
+      "${ANSI_ESCAPE}[1${SEMI}33m"
+      LIGHTBLUE
+      "${ANSI_ESCAPE}[1${SEMI}34m"
+      LIGHTMAGENTA
+      "${ANSI_ESCAPE}[1${SEMI}35m"
+      LIGHTCYAN
+      "${ANSI_ESCAPE}[1${SEMI}36m"
+      WHITE
+      "${ANSI_ESCAPE}[1${SEMI}37m")
   string(REPLACE ";" "\n" CMAP "${COLORS}")
   string(REPLACE "${SEMI}" ";" CMAP "${CMAP}")
 

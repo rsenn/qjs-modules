@@ -35,9 +35,8 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
 
   add_library(Serial::Port::${SUFFIX} STATIC IMPORTED GLOBAL)
   add_dependencies(Serial::Port::${SUFFIX} libserialport_${SUFFIX})
-  set_target_properties(
-    Serial::Port::${SUFFIX} PROPERTIES IMPORTED_LOCATION "${LIBSERIALPORT_LIBRARY_FILE_${SUFFIX}}"
-                                        IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE_${SUFFIX}}")
+  set_target_properties(Serial::Port::${SUFFIX} PROPERTIES IMPORTED_LOCATION "${LIBSERIALPORT_LIBRARY_FILE_${SUFFIX}}"
+                                                           IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE_${SUFFIX}}")
 
   set(LIBSERIALPORT_LIBRARY_${SUFFIX} Serial::Port::${SUFFIX})
 endmacro()

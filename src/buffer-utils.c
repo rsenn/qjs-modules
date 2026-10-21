@@ -1,6 +1,6 @@
-#include "defines.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
+#include "defines.h"
 #include "utils.h"
 #if WINDOWS_NATIVE
 #include <windows.h>

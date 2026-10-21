@@ -30,7 +30,6 @@ macro(option_link_time_optimization)
   endif()
 endmacro()
 
-
 #
 # option_debug_mode
 #

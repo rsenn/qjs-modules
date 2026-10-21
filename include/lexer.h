@@ -1,10 +1,11 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "location.h"
-#include "vector.h"
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "stream-utils.h"
+#include "location.h"
+#include "vector.h"
 
 /**
  * \defgroup lexer lexer: Lexical scanner, regex based

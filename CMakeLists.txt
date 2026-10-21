@@ -125,6 +125,8 @@ check_functions(getegid geteuid getgid getpid getppid getsid getuid setegid sete
 
 check_functions(uname)
 
+
+
 # posix_spawn() is only trusted when a test program using it runs
 if(NOT CMAKE_CROSSCOMPILING)
   run_code(
@@ -397,10 +399,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list 
-                    location misc path pointer predicate
-                    queue repeater textcode sockets syscallerror inspect
-                    tree-walker virtual xml yaml)
+set(QUICKJS_MODULES arraybuffer-sink bjson blob deep directory json lexer list location misc path pointer predicate
+                    queue repeater textcode sockets syscallerror inspect tree-walker virtual xml yaml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -697,16 +697,10 @@ endif(NOT HAVE_INET_NTOP)
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
-file(GLOB tutf8e_SOURCES
-  third_party/tutf8e/include/*.h
-  third_party/tutf8e/include/tutf8e/*.h
-  third_party/tutf8e/src/*.c
-)
+file(GLOB tutf8e_SOURCES third_party/tutf8e/include/*.h third_party/tutf8e/include/tutf8e/*.h
+     third_party/tutf8e/src/*.c)
 
-file(GLOB libutf_SOURCES
-  third_party/libutf/src/*.c
-  third_party/libutf/include/*.h
-)
+file(GLOB libutf_SOURCES third_party/libutf/src/*.c third_party/libutf/include/*.h)
 
 # CMAKE_SYSTEM_PROCESSOR alone isn't enough: it's left empty by the mingw
 # cross toolchain files here (they never set it), so it always evaluated
@@ -803,8 +797,8 @@ check_function_def(js_debugger_build_backtrace)
 
 # cmake-level checks: cmake -P scripts under tests/cmake/
 add_test(NAME cmake-scan-computed-imports
-         COMMAND ${CMAKE_COMMAND} -DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
-                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/scan-computed-imports.cmake)
+         COMMAND ${CMAKE_COMMAND} -DCMAKE_CURRENT_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR} -P
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake/scan-computed-imports.cmake)
 
 # C unit tests of engine-free headers: tests/c/test-*.c, each a program that exits non-zero on failure
 file(GLOB C_TESTS tests/c/test-*.c)
@@ -838,7 +832,8 @@ target_link_libraries(xml-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-xml-pull-dump COMMAND xml-pull-dump "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/xml-pull-dump.txt")
 
 # events-sinks drives the writers through JsonEventSink and XmlEventSink
-add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c src/xml/xwrite.c)
+add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c
+                            src/xml/xwrite.c)
 target_include_directories(events-sinks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(events-sinks PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-events-sinks COMMAND events-sinks)
@@ -930,7 +925,8 @@ if(NOT WASI)
   endif(EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 endif(NOT WASI)
 
-file(GLOB LIBRARY_SOURCES include/*.h include/json/*.h include/xml/*.h include/compat/*.h src/*.c src/json/*.c src/xml/*.c src/compat/*.c)
+file(GLOB LIBRARY_SOURCES include/*.h include/json/*.h include/xml/*.h include/compat/*.h src/*.c src/json/*.c
+     src/xml/*.c src/compat/*.c)
 list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
 foreach(F wasm-sections.c wasm3-backend.c wamr-backend.c)
   list(REMOVE_ITEM LIBRARY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/${F}")
@@ -1029,7 +1025,8 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
 
   # a native module that is built into qjsm is not installed as a .so as well (doc/qjsm-layout.md 4)
-  if(NOT QJSM_INSTALL_BUILTIN_NATIVE AND ("${QJSM_MODULE}" IN_LIST BUILTINS_NATIVE OR "${QJSM_MODULE}" IN_LIST BUILTINS_NEEDED_NATIVE))
+  if(NOT QJSM_INSTALL_BUILTIN_NATIVE AND ("${QJSM_MODULE}" IN_LIST BUILTINS_NATIVE OR "${QJSM_MODULE}" IN_LIST
+                                                                                      BUILTINS_NEEDED_NATIVE))
     set(${QJSM_MODULE}_NO_INSTALL ON)
   endif()
 
@@ -1145,19 +1142,32 @@ wrap_list(MODULE_LINES 60 ${QUICKJS_MODULES})
 wrap_list(NOT_BUILT_LINES 60 ${DISABLED_MODULES})
 
 message("")
-message_table("qjs-modules ${PROJECT_VERSION}"
-  "system" "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}"
-  "compiler" "${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})"
-  "build type" "${CMAKE_BUILD_TYPE}"
-  "install prefix" "${CMAKE_INSTALL_PREFIX}"
-  "module kinds" "${MODULE_KINDS}"
-  "native modules (${MODULE_COUNT})" "${MODULE_LINES}"
-  "not built" "${NOT_BUILT_LINES}"
-  "wasm backend" "${WASM_BACKEND}"
-  "glob()" "${GLOB_IMPLEMENTATION}"
-  "tests" "${TEST_SUMMARY}"
-  "generated" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+message_table(
+  "qjs-modules ${PROJECT_VERSION}"
+  "system"
+  "${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}"
+  "compiler"
+  "${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})"
+  "build type"
+  "${CMAKE_BUILD_TYPE}"
+  "install prefix"
+  "${CMAKE_INSTALL_PREFIX}"
+  "module kinds"
+  "${MODULE_KINDS}"
+  "native modules (${MODULE_COUNT})"
+  "${MODULE_LINES}"
+  "not built"
+  "${NOT_BUILT_LINES}"
+  "wasm backend"
+  "${WASM_BACKEND}"
+  "glob()"
+  "${GLOB_IMPLEMENTATION}"
+  "tests"
+  "${TEST_SUMMARY}"
+  "generated"
+  "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 
 qjsm_report()
 
-message(STATUS "Next: build with 'cmake --build ${CMAKE_BINARY_DIR}', install with 'cmake --install ${CMAKE_BINARY_DIR}'")
+message(
+  STATUS "Next: build with 'cmake --build ${CMAKE_BINARY_DIR}', install with 'cmake --install ${CMAKE_BINARY_DIR}'")

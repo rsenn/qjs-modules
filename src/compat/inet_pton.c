@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef HAVE_INET_PTON
 #if WINDOWS_NATIVE
 #include <winsock2.h>

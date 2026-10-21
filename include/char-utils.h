@@ -1,15 +1,11 @@
 #ifndef CHAR_UTILS_H
 #define CHAR_UTILS_H
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "defines.h"
+#include "debug.h"
 
 #include <string.h>
 #include <cutils.h>
-
-#include "defines.h"
-#include "debug.h"
 
 /**
  * \defgroup char-utils char-utils: Character Utilities

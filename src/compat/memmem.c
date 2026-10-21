@@ -1,3 +1,8 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifndef HAVE_MEMMEM
 #include <sys/types.h>
 #include <string.h>
 
@@ -16,3 +21,4 @@ memmem(const void* haystack, size_t hl, const void* needle, size_t nl) {
 
   return 0;
 }
+#endif

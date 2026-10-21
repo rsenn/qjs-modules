@@ -1,7 +1,6 @@
 #ifndef LOCATION_H
 #define LOCATION_H
 
-#include "char-utils.h"
 #include "utils.h"
 #include "srcpos.h"
 

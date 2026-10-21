@@ -547,7 +547,6 @@ xfeed_callback(XmlEventType type, const xr_str_t* name, const xr_str_t* value, v
  */
 
 #include "xml/xtags.h"
-#include <string.h>
 
 enum {
   CS_TEXT,

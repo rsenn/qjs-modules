@@ -6,7 +6,6 @@
 #include "char-utils.h" /* is_utf16_high_surrogate/is_utf16_low_surrogate, unicode_to_utf8, UTF8_CHAR_LEN_MAX */
 #include "json/jread.h"
 #include <stdlib.h>
-#include <string.h>
 
 typedef struct jr_str {
   const char* cstr;

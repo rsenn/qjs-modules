@@ -10,7 +10,7 @@
 
 #if defined(__EMSCRIPTEN__) && defined(__GNUC__)
 #define atomic_add_int __sync_add_and_fetch
-#else
+#elif !(defined(__MSYS__) || defined(__CYGWIN__))
 #include <stdatomic.h>
 
 static inline int

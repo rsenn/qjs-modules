@@ -10,25 +10,28 @@
 #include "config.h"
 #endif
 
+#include "char-utils.h"
+#include "buffer-utils.h"
+#include "utils.h"
+#include "path.h"
+#include "vector.h"
+#include "iteration.h"
+#include "base64.h"
+#include "quickjs-syscallerror.h"
+
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <signal.h>
+#include <grp.h>
 #endif
 
 #include <time.h>
-#include "defines.h"
 #include <quickjs.h>
 #include <cutils.h>
 #include <quickjs-libc.h>
-#include "quickjs-syscallerror.h"
-#include "utils.h"
-#include "buffer-utils.h"
-#include "path.h"
-#include "vector.h"
-#include "iteration.h"
-#include "base64.h"
 #include <time.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -107,15 +110,15 @@
 #if HAVE_INOTIFY_INIT1
 #include <sys/inotify.h>
 #endif
+
 #include "buffer-utils.h"
-#ifdef HAVE_TERMIOS_H
+
+#ifndef _WIN32
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <signal.h>
-#ifndef _WIN32
 #include <grp.h>
 #include <sys/stat.h>
-#endif
 #endif
 
 #ifdef HAVE_FCNTL_H
@@ -152,7 +155,6 @@ int lutimes(const char*, const struct timeval[2]);
 #ifndef HAVE_MKSTEMP
 #include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 
@@ -200,7 +202,6 @@ qjs_mkstemp(char* template) {
 #ifndef HAVE_TEMPNAM
 #include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

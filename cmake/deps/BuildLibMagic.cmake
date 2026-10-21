@@ -15,7 +15,8 @@ macro(build_libmagic BINARY SUFFIX PIC)
 
   set(LIBMAGIC_PREFIX_${SUFFIX} "${BINARY}/deps-${SUFFIX}")
   set(LIBMAGIC_INCLUDE_DIR_${SUFFIX} "${LIBMAGIC_PREFIX_${SUFFIX}}/include")
-  set(LIBMAGIC_LIBRARY_FILE_${SUFFIX} "${LIBMAGIC_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}magic${CMAKE_STATIC_LIBRARY_SUFFIX}")
+  set(LIBMAGIC_LIBRARY_FILE_${SUFFIX}
+      "${LIBMAGIC_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}magic${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(LIBMAGIC_DB_${SUFFIX} "${LIBMAGIC_PREFIX_${SUFFIX}}/share/misc/magic.mgc")
 
   if(${PIC})
@@ -30,10 +31,10 @@ macro(build_libmagic BINARY SUFFIX PIC)
     DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
-    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${LIBMAGIC_PREFIX_${SUFFIX}} --libdir=${LIBMAGIC_PREFIX_${SUFFIX}}/lib
-                      --enable-static --disable-shared --disable-libseccomp --disable-zlib --disable-bzlib
-                      --disable-xzlib --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}}
-                      "CC=${CMAKE_C_COMPILER}" "CFLAGS=-O2 -w"
+    CONFIGURE_COMMAND
+      <SOURCE_DIR>/configure --prefix=${LIBMAGIC_PREFIX_${SUFFIX}} --libdir=${LIBMAGIC_PREFIX_${SUFFIX}}/lib
+      --enable-static --disable-shared --disable-libseccomp --disable-zlib --disable-bzlib --disable-xzlib
+      --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=-O2 -w"
     BUILD_COMMAND make
     INSTALL_COMMAND make install
     BUILD_BYPRODUCTS "${LIBMAGIC_LIBRARY_FILE_${SUFFIX}}" "${LIBMAGIC_DB_${SUFFIX}}")

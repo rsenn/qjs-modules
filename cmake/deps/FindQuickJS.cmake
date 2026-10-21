@@ -28,10 +28,11 @@ function(quickjs_installed OUTVAR)
   endif()
 
   unset(_QUICKJS_PROBE_H CACHE)
-  find_file(_QUICKJS_PROBE_H quickjs.h
-            PATHS "${_prefix}/include/quickjs" "${_prefix}/include" "${CMAKE_INSTALL_PREFIX}/include/quickjs"
-                  "/usr/local/include/quickjs" "/usr/include/quickjs" "${QUICKJS_ROOT}/include/quickjs"
-                  "${QuickJS_DIR}/include/quickjs")
+  find_file(
+    _QUICKJS_PROBE_H quickjs.h
+    PATHS "${_prefix}/include/quickjs" "${_prefix}/include" "${CMAKE_INSTALL_PREFIX}/include/quickjs"
+          "/usr/local/include/quickjs" "/usr/include/quickjs" "${QUICKJS_ROOT}/include/quickjs"
+          "${QuickJS_DIR}/include/quickjs")
 
   if(_QUICKJS_PROBE_H)
     set(${OUTVAR} TRUE PARENT_SCOPE)
@@ -263,15 +264,18 @@ macro(_find_quickjs)
 
   include_directories(${QUICKJS_INCLUDE_DIR})
 
-  find_program(QJS qjs PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
-  find_program(QJSC qjsc PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
+  find_program(QJS qjs PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH
+               NO_DEFAULT_PATH)
+  find_program(QJSC qjsc PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH
+               NO_DEFAULT_PATH)
 
   # the module shell, for projects that run their tests with it; qjs-modules builds its own
   if(NOT DEFINED QUICKJS_FIND_QJSM)
     set(QUICKJS_FIND_QJSM ON)
   endif(NOT DEFINED QUICKJS_FIND_QJSM)
   if(QUICKJS_FIND_QJSM)
-    find_program(QJSM qjsm PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH NO_DEFAULT_PATH)
+    find_program(QJSM qjsm PATHS "${QUICKJS_BUILD_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV
+                                 PATH NO_DEFAULT_PATH)
   endif(QUICKJS_FIND_QJSM)
 
   set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
@@ -305,16 +309,10 @@ macro(configure_quickjs)
   if(NOT QUICKJS_CONFIGURATION_SHOWN)
     configure_quickjs_module_path()
 
-    message_table("QuickJS"
-      "interpreter" "${QJS}"
-      "compiler" "${QJSC}"
-      "library" "${QUICKJS_LIBRARY}"
-      "install prefix" "${QUICKJS_PREFIX}"
-      "include dir" "${QUICKJS_INCLUDE_DIR}"
-      "library dir" "${QUICKJS_LIBRARY_DIR}"
-      "C modules" "${QUICKJS_C_MODULE_DIR}"
-      "JS modules" "${QUICKJS_JS_MODULE_DIR}"
-      "module path" "${QUICKJS_MODULE_PATH}")
+    message_table(
+      "QuickJS" "interpreter" "${QJS}" "compiler" "${QJSC}" "library" "${QUICKJS_LIBRARY}" "install prefix"
+      "${QUICKJS_PREFIX}" "include dir" "${QUICKJS_INCLUDE_DIR}" "library dir" "${QUICKJS_LIBRARY_DIR}" "C modules"
+      "${QUICKJS_C_MODULE_DIR}" "JS modules" "${QUICKJS_JS_MODULE_DIR}" "module path" "${QUICKJS_MODULE_PATH}")
     set(QUICKJS_CONFIGURATION_SHOWN TRUE)
   else()
     configure_quickjs_module_path()

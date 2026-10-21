@@ -4,10 +4,6 @@
 #include "pointer.h"
 #include "property-enumeration.h"
 
-/*#include <assert.h>
-#include <stdint.h>
-#include <stdlib.h>*/
-
 /**
  * \addtogroup property-enumeration
  * @{

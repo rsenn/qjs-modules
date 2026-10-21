@@ -127,7 +127,6 @@ function(relative_path OUT_VAR RELATIVE_TO)
   set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
 endfunction()
 
-
 #
 # contains <LIST-NAME> <VALUE> <OUTPUT-VARIABLE>
 #
@@ -236,7 +235,6 @@ function(libname OUT_VAR FILENAME)
   set(${OUT_VAR} "${LIBNAME}" PARENT_SCOPE)
 endfunction()
 
-
 #
 # append_vars <STR> <VARS...>
 #
@@ -296,4 +294,3 @@ macro(add_nowarn_flags)
     nowarn_flag(-Wno-deprecated-enum-enum-conversion)
   endif()
 endmacro()
-

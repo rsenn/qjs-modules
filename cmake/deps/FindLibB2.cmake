@@ -29,4 +29,4 @@ macro(find_libb2)
     set(LIBB2_FOUND FALSE)
   endif()
 
- endmacro()
+endmacro()

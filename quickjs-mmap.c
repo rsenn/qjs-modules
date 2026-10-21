@@ -1,7 +1,6 @@
-#include "defines.h"
-#include "utils.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
+#include "utils.h"
 
 #include <quickjs.h>
 #include <cutils.h>

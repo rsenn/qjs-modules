@@ -1,6 +1,5 @@
-#include "defines.h"
-#include "quickjs-list.h"
 #include "char-utils.h"
+#include "quickjs-list.h"
 #include "utils.h"
 #include "iteration.h"
 #include "debug.h"
