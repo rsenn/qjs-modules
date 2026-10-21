@@ -13,7 +13,7 @@ returned as `ArrayBuffer`s.
 | `munmap(buffer)` | 1 | Unmaps a previously mapped region. |
 | `msync(buffer, flags, ...)` | 3 | Flushes changes in a mapping back to the backing store (`MS_*` flags). |
 | `mprotect(buffer, prot, ...)` | 3 | Changes the protection (`PROT_*`) of a mapping. |
-| `filename(buffer)` | 1 | Returns the file name backing a mapping, if any. |
+| `filename(buffer)` | 1 | Returns the file name backing a mapping (from `/proc/self/maps` on Linux, `GetMappedFileNameW` on Windows), `undefined` for an anonymous mapping or an address in no mapping. |
 | `toString(buffer)` | 1 | Renders a description of a mapping. |
 
 ## Constants

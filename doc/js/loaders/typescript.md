@@ -2,23 +2,26 @@
 
 Source: `lib/loaders/typescript.js` (JS wrapper over `registerHooks()`) — default export: `installTypeScript()`; qjsm only
 
-Loads `.ts`, `.tsx` and `.mts` modules (format `module-typescript`) by running the
-external `swc` CLI (`npm i -g @swc/cli @swc/core`) through `std.popen`. Types are
-stripped, not checked; output target is es2022.
+Loads `.ts` and `.mts` modules (format `module-typescript`) by stripping their
+types with node's `module.stripTypeScriptTypes` (swc in strip-only mode, node
+22.13+ in `PATH`), run through `std.popen`. Types are blanked out with spaces,
+not checked, so line and column numbers stay exact.
 
 ```js
 import installTypeScript from 'loaders/typescript';
 
 installTypeScript();
 const { A } = await import('./a.ts');
-await import('./a');          // extensionless: tries .ts, .tsx, .mts, /index.ts
+await import('./a');          // extensionless: tries .ts, .mts, /index.ts
 ```
 
 | Behavior | Detail |
 | --- | --- |
-| Command | `swc -C jsc.target=es2022 -C jsc.parser.syntax=typescript [-C jsc.parser.tsx=true] <file>` |
-| Errors | `Error: swc failed to transpile '<file>'` when swc exits non-zero or prints nothing. |
-| Not covered | `.cts` / `commonjs-typescript`. |
+| Command | `node -e "<stripTypeScriptTypes(readFileSync(file))>" <file>` |
+| Supported | erasable syntax only: annotations, interfaces, type aliases, generics, `as`/`satisfies`, `declare`, `import type` |
+| Rejected | `enum`, `namespace` with values, parameter properties, `import x = require()`: the load throws |
+| Errors | `Error: cannot strip types of '<file>': <node's error line>`, or `cannot run node for '<file>'` |
+| Not covered | `.tsx` (JSX), `.cts` / `commonjs-typescript`. |
 
 ## Exports
 

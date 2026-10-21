@@ -15,6 +15,22 @@ Tier 5/6 line numbers were refreshed against the current tree. Open work keeps i
 relative order: Tier 9 DOM gaps, Tier 11 `qjsm.c` refactors, Tier 10 C API consolidation,
 Tier 12/13 yaml/cyaml. Line numbers elsewhere may still have drifted.
 
+## ctest state (2026-10-21)
+
+153 of 156 pass. Fixed since the 2026-10-18 list below: `test-directory` (`new Directory()` is an empty
+iteration), `test-mmap` (`filename()` reads `/proc/self/maps` until EOF), `test-lexer-cpp` (a backslash-newline
+is skipped, no token), `test-typescript` (strip-only syntax), `test-globals`. Still failing:
+
+| Test | Cause | Fix |
+| --- | --- | --- |
+| `test-extract-c` | `findDefines()` wants one `preprocessor` token, `CLexer` yields `pp_*` runs (`BUGS` extract-c-finddefines-expects-preprocessor-token) | rebuild the directive from the `pp_*` run in `utilities/extract-c.js` |
+| `test-misc` | `valuePointer`, `gettid` | not investigated |
+| `test-sql` | needs a reachable MySQL/PostgreSQL | environment |
+
+Verified, small, open (`BUGS`): `new Directory(path, { recursive })` zeroes the default `flags`/`mask`
+(directory-options-object-zeroes-defaults); `test-typescript.js` is gated on `swc` although the loader
+runs node (typescript-test-gated-on-swc-cli).
+
 ## Roadmap
 
 Four standing goals for this project, in priority order. Every tier below should be read
@@ -3345,8 +3361,7 @@ move to magic-string (Tier 27).
 
 ## Tier 27 — replace `FileMap` with magic-string (plan 2026-10-20)
 
-`FileMap` (`utilities/resolve-imports.js:1090-1500`, plus `NumericRange`, `Range`, `InRange`, `IsRange`,
-`CompareRange`, `BufferFile`, `FdWriter`/`FileWriter`/`FileReplacer`/`StringWriter`/`ArrayWriter`/`DummyWriter`,
+`FileMap` (`utilities/resolve-imports.js:1090-1500`, plus `NumericRange`, `Range`, `InRange`, `BufferFile`, `FdWriter`/`FileWriter`/`FileReplacer`/`StringWriter`/`ArrayWriter`/`DummyWriter`,
 `FileBannerComment`: about 700 lines) rewrites byte ranges of a file. It addresses every edit in the original file's
 coordinates and splices other files' `FileMap`s in, so the tool can bundle recursively. Only `resolve-imports.js` uses
 it (and its old copy in `~/Sources/plot-cv`).
@@ -3392,7 +3407,7 @@ and bun (`node_modules`).
    lines as `intro`/appended text. `-C` (remove comments) becomes `remove` per comment token, `--merge` becomes
    `overwrite` of the first import plus `remove` of the rest, and in-place output becomes `toString()` + one
    `writeFileSync` to `file.new` + `renameSync` (keeping `FileReplacer`'s mode handling). Delete `FileMap`,
-   `NumericRange`, `Range`, `InRange`, `IsRange`, `CompareRange`, `BufferFile`, the six writers and
+   `NumericRange`, `Range`, `InRange`, `BufferFile`, the six writers and
    `FileBannerComment`. Verify: `test-resolve-imports.js` passes, and bundles of `utilities/*.js` are byte-identical
    to the ones the old code writes (record them before the port).
 3. Source maps come for free (`Bundle.generateMap`). Add a `--sourcemap` option only if asked.

@@ -1084,16 +1084,6 @@
 
     new Directory('/tmp', { recursive: false }).next()   // flags 0
 
-- block-from-file-procfs-empty: block_from_file() (src/buffer-utils.c)
-  sizes the read by fstat st_size where HAVE_FSTAT, which is 0 for procfs
-  files, so it returns an empty block for /proc/self/maps and the like.
-  The read-until-EOF #else branch works. In the same function a short
-  read releases js_malloc memory with free(), and js_mallocz(ctx, 0) may
-  be NULL. mmap.filename() no longer uses it. Found 2026-10-21.
-
-    MemoryBlock b;
-    block_from_file(&b, "/proc/self/maps", ctx);   /* b.size == 0 */
-
 - typescript-test-gated-on-swc-cli: test-typescript.js runs only when the
   swc CLI is in PATH, but lib/loaders/typescript.js calls node's
   module.stripTypeScriptTypes, so a box with node 22.13+ and no swc skips

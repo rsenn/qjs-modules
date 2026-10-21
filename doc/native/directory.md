@@ -8,8 +8,16 @@ itself an iterator.
 ## Constructor
 
 ```js
-new Directory([path])   // length 1
+new Directory()                       // empty iteration until open() or adopt()
+new Directory(path [, flags [, mask]])
+new Directory(fd [, flags [, mask]])  // adopts an open descriptor
+new Directory(null)                   // same as no argument
+new Directory(path, { flags, mask, recursive })
+new Directory({ path | fd, flags, mask, recursive })
 ```
+
+`Directory.length` is 1. Without a path or fd, `next()` returns
+`{ done: true }` at once instead of throwing.
 
 ## Methods
 
