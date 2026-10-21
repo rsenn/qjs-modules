@@ -220,7 +220,6 @@ const TokIs = curry((type, lexeme, tok) => {
     return true;
   }
 });
-const CompareRange = (a, b) => (a === null || b === null ? 0 : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
 
 const PutsFunction = outFn => str => {
   const b = types.isArrayBuffer(str) ? str : toArrayBuffer(str);
@@ -497,10 +496,6 @@ function InRange([start, end], i) {
   return false;
 }
 
-function IsRange(obj) {
-  return isObject(obj) && ('length' in obj || 'start' in obj || obj instanceof NumericRange);
-}
-
 Object.assign(Range, {
   merge(...args) {
     return new Range(args[0].file, Math.min(...args.map(r => (Array.isArray(r) ? r[0] : r.start))), Math.max(...args.map(r => (Array.isArray(r) ? r[1] : r.end))));
@@ -545,40 +540,6 @@ class NumericRange extends Array {
     return n >= s && n < e;
   }
 
-  static from(range) {
-    if(isObject(range) && range instanceof NumericRange) return range;
-
-    try {
-      let r = new NumericRange(...range);
-      range = r;
-    } catch(e) {}
-
-    console.log('NumericRange.from', range);
-    return range;
-  }
-
-  static *holes(ranges, only = false) {
-    let prev = [0, 0];
-    let i = -1;
-    for(let range of ranges) {
-      if(IsRange(range)) {
-        range = [...range];
-        console.log('range#' + ++i, inspect(range));
-        if(IsRange(prev) && IsRange(range)) {
-          let [start, end] = range;
-          if(start >= prev[1]) yield new NumericRange(prev[1], start);
-        }
-
-        if(!only) {
-          if(!(isObject(range) && range instanceof NumericRange)) range = new NumericRange(...range);
-          yield range;
-        }
-      }
-
-      prev = range;
-    }
-  }
-
   static between([s1, e1], [s2, e2]) {
     if(s2 > e1) return [e1, s2];
     if(s1 > e2) return [e2, s1];
@@ -604,7 +565,6 @@ define(
 
 class FileMap extends Array {
   static buffers = mapWrapper(fileBuffers);
-  static filenames = mapWrapper(bufferRef);
   static serials = mapWrapper(new WeakMap());
 
   constructor(file, buf) {
@@ -627,15 +587,6 @@ class FileMap extends Array {
     return FileMap.buffers(path.resolve(this.file));
   }
 
-  static empty(file) {
-    if(typeof file == 'string') file = FileMap.for(file);
-    if(isObject(file) && file instanceof FileMap) return file.isEmpty();
-  }
-
-  isEmpty() {
-    return false;
-  }
-
   static for(file, buf) {
     let m;
     if(file && (m = fileMaps.get(file))) return m;
@@ -656,20 +607,6 @@ class FileMap extends Array {
     if(fileMaps.has(file)) return fileMaps.get(file);
     buf ??= FileMap.buffers(path.resolve(file));
     return new FileMap(file, buf);
-  }
-
-  findSlice(pos) {
-    const n = this.length;
-    for(let i = 0; i < n; i++) {
-      let range;
-      if((range = this.ranges[i])) {
-        range = [...range];
-        if(InRange([...range], pos)) return i;
-      }
-    }
-
-    //  return -1;
-    return this.findIndex(([range, buf]) => range && InRange([...range], pos));
   }
 
   splitAt(pos) {
@@ -707,21 +644,10 @@ class FileMap extends Array {
     let i;
     const entries = args.map(file => (types.isArrayBuffer(file) ? [null, file] : [null, null, file]));
 
-    /*    if(pos <= this.rangeAt(0)[0]) {
-      this.unshift(...entries);
-      return 0;
-    }*/
-
     if((i = this.splitAt(pos)) != -1) {
       this.splice(i, 0, ...entries);
       return i;
     }
-  }
-
-  insert(index, file) {
-    let entry = types.isArrayBuffer(file) ? [null, file] : [null, null, file];
-    this.splice(index, 0, entry);
-    return index;
   }
 
   replaceRange(range, file) {
@@ -749,7 +675,6 @@ class FileMap extends Array {
 
       return i;
     };
-    //if(debug > 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
 
     let i = sliceIndex(range[0]);
     let j = sliceIndex(range[1]);
@@ -811,65 +736,6 @@ class FileMap extends Array {
     return arr.join('');
   }
 
-  rangeAt(n) {
-    if(n in this) {
-      let r;
-
-      if(this[n][0]) r = this[n][0];
-      else if(types.isArrayBuffer(this[n][1])) {
-        let start = n > 0 ? this.rangeAt(n - 1)[1] : 0;
-        let end = start + this[n][1].byteLength;
-        r = [start, end];
-      } else {
-        r = [n > 0 ? this.rangeAt(n - 1)[1] : 0, n + 1 < this.length ? this.rangeAt(n + 1)[0] : Infinity];
-      }
-
-      return r ? new NumericRange(...r) : null;
-    }
-  }
-
-  get ranges() {
-    const r = [];
-    const { length } = this;
-
-    for(let i = 0; i < length; i++) r.push(this[i][0] === null ? null : this.rangeAt(i));
-
-    return r;
-  }
-
-  *[Symbol.iterator]() {
-    const { length } = this;
-
-    for(let i = 0; i < length; ++i) yield this.at(i);
-  }
-
-  dump() {
-    const source = this.file;
-    return (
-      `FileMap {\n\tfile: \x1b[38;5;215m${source},\n\t\x1b[0m[ ` +
-      [...this]
-        .map((item, i) => item.concat([this.at(i)]))
-        .reduce((acc, [range, buf, str], i) => {
-          let s = acc + `\n\t\t[ `;
-          s += ('' + (range ? '[' + NumericRange.from(range) + ']' : range)).padEnd(10);
-          s += ', ';
-
-          if(isObject(buf) && 'byteLength' in buf) {
-            let filename = bufferRef.get(buf);
-            buf = filename ?? `<this>`;
-          }
-
-          if(typeof buf == 'string') buf = path.resolve(buf);
-
-          s += inspect(buf, { maxArrayLength: 30 });
-          s += ` ],`;
-
-          return s;
-        }, '') +
-      `\n\t]\n}`
-    );
-  }
-
   at(i) {
     if(!this[i]) return null;
     let [range, buf, file] = this[i];
@@ -883,30 +749,6 @@ class FileMap extends Array {
       if(!path.isFile(file)) throw Error(`FileMap\x1b[1;35m<${this.file}>\x1b[0m Inexistent file '${file}'`);
       return FileMap.for(file);
     }
-  }
-
-  toArray() {
-    return this.map((s, i) => {
-      s = this.at(i);
-
-      if(isObject(s) && 'toArray' in s) s = s.toArray();
-
-      return s;
-    });
-  }
-
-  holes() {
-    const ranges = [...this.map(([range]) => range)].sort(CompareRange);
-    const holes = [...NumericRange.holes(ranges, true)];
-    const { length } = holes;
-
-    for(let i = 0; i < length; i++) {
-      const hole = holes[i];
-      const [range] = this[i];
-      console.log('#' + (i + 1), compact(2), inspect({ hole, range }, { compact: 2, depth: Infinity }));
-    }
-
-    return holes;
   }
 
   firstChunk() {
@@ -1541,7 +1383,7 @@ function ProcessFile(source, recursive, depth = 0) {
     const lexer = new ECMAScriptLexer(bytebuf, source);
     const ranges = statements.map(st => st.range);
 
-    for(let token; (token = lexer.nextToken()); ) {
+    for(let token; (token = lexer.nextToken());) {
       if(/comment/i.test(token.type)) comments.push(token);
       else if(used && token.type == 'identifier' && !ranges.some(r => InRange(r, token.byteRange[0]))) used.add(token.lexeme);
     }
@@ -1670,8 +1512,7 @@ function ProcessFile(source, recursive, depth = 0) {
         continue;
       }
 
-      if(processed.has(file) || file == source)
-        continue;
+      if(processed.has(file) || file == source) continue;
 
       if(debug >= 1) log(`Import(recursive)`, compact(true), { recursive, file });
 
@@ -1693,7 +1534,6 @@ function ProcessFile(source, recursive, depth = 0) {
           console.error(`ERROR processing file '${file}': ${e.message}`);
         }
       }
-
     }
   }
 
