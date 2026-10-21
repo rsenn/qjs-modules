@@ -343,7 +343,7 @@ node:-prefix audit):
   for core names, and a package below `node_modules` gets Node's `util`/`events`/`buffer` by bare name.
 - Open from the sweep (`BUGS`): `require()` ignores `"exports"`, no `.json` extension, no
   `require.resolve`, one shared `require()`, no file and line in CommonJS stack frames.
-- No Node-style `crypto`/`zlib`/`dns`/`net`/`worker_threads`/`vm`/`string_decoder` builtins
+- No Node-style `crypto`/`zlib`/`dns`/`net`/`worker_threads`/`vm` builtins (`string_decoder` done 2026-10-21)
   — common Node imports fail outright (`tests/node-modules-sweep.sh` counts them).
 - Node globals still missing under `lib/node.js` (2026-10-21, `doc/js/node.md`): `MessageChannel`, `BroadcastChannel`, the compression streams,
   `navigator`, `localStorage`, `crypto.subtle`, `URLPattern`.

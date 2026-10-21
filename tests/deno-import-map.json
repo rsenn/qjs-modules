@@ -13,6 +13,7 @@
     "util": "node:util",
     "buffer": "node:buffer",
     "readline": "node:readline",
-    "readline/promises": "node:readline/promises"
+    "readline/promises": "node:readline/promises",
+    "string_decoder": "node:string_decoder"
   }
 }

@@ -39,6 +39,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [globals](globals.md) — web/Node globals (`URL`, `structuredClone`, `crypto`, `Intl`, ...), installed by [node](node.md)
 - [intl](intl.md) — `Intl` (ECMA-402) with English data: `NumberFormat`, `DateTimeFormat`, `PluralRules`, `Collator`, `ListFormat`, `RelativeTimeFormat`, `Locale`
 - [jsonStreams](jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
+- [string_decoder](string_decoder.md) — Node's `string_decoder` (`StringDecoder`)
 - [textLineStream](textLineStream.md) — Deno's `TextLineStream`
 - [timersPromises](timersPromises.md) — `timers/promises`
 - [wasi](wasi.md) — `WASI` (Node's `node:wasi`, preview1), portable: qjsm, node, bun, deno

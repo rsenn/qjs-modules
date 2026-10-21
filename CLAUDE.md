@@ -305,7 +305,8 @@ doc/
     ├── Wrappers: assert.md, console.md, fs.md, fsPromises.md, process.md, node.md
     │             streams.md, io.md, tty.md, repl.md, require.md
     │             module.md, stack.md, inotify.md, terminal.md
-    │             perf_hooks.md, url.md, xpath.md, vfs.md
+    │             perf_hooks.md, url.md, xpath.md, vfs.md,
+    │             string_decoder.md
     ├── Extensions: extendArray.md, extendArrayBuffer.md,
     │               extendMap.md, extendSet.md,
     │               extendFunction.md, extendAsyncFunction.md,

@@ -1158,15 +1158,6 @@
     import os from 'node:os';
     # qjsm: ERR_UNKNOWN_BUILTIN_MODULE or could not load module 'node:os'
 
-- node-string-decoder-missing: there is no string_decoder module, so
-  minipass and the 5 packages using it fail with could not load module
-  'string_decoder'. Fix: lib/node/string_decoder.js, StringDecoder with
-  write() and end() on TextDecoder with stream: true, plus the utf16le,
-  base64, hex and latin1 cases Node has. Found 2026-10-21.
-
-    const { StringDecoder } = require('string_decoder');
-    new StringDecoder('utf8').write(Buffer.from([0xe2, 0x82]));   // ''
-
 - quickjs-regexp-v-flag-hyphen: the QuickJS that qjsm links rejects a
   plain - anywhere in a pattern with the v flag, also outside a class:
   /a-b/v, /^(?:-?\d+n)/v throw invalid character in class (5 packages:
@@ -1179,3 +1170,13 @@
 
     /a-b/v;          // node: ok   qjsm: SyntaxError
     /[a\&]/v;        // node: ok   qjsm: SyntaxError
+
+- misc-btoa-ignores-view-offset: misc.btoa() of a subarray or DataView
+  encodes the whole underlying ArrayBuffer, and btoa(x, true) (base64url)
+  still pads with =. js_input_chars in quickjs-misc.c takes the buffer
+  without byteOffset and byteLength. Found 2026-10-21.
+
+    import { btoa } from 'misc';
+    const u = new Uint8Array([0xfb, 0xff, 1, 2]);
+    btoa(u.subarray(0, 2));        // '+/8BAg==', expected '+/8='
+    btoa(u.subarray(0, 2), true);  // '-_8BAg==', expected '-_8'

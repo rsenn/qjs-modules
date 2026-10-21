@@ -60,6 +60,7 @@ Key modules:
 - [jsonStreams](js/jsonStreams.md) — Deno's `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream`
 - [readline](js/readline.md) — Node's `readline`
 - [readlinePromises](js/readlinePromises.md) — `readline/promises`
+- [string_decoder](js/string_decoder.md) — Node's `string_decoder` (`StringDecoder`)
 - [textLineStream](js/textLineStream.md) — Deno's `TextLineStream`
 - [timersPromises](js/timersPromises.md) — `timers/promises`
 
