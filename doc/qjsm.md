@@ -236,7 +236,7 @@ is taken as an argument, a loaded-module name is accepted too.
 | `getModule(nameOrIndex)` | The `moduleList` item for a module, or `null` if it isn't loaded. |
 | `moduleEntries` *(getter)* | Array of `[name, moduleValue]` pairs, skipping synthetic (`<...>`-named) modules. |
 | `builtins` *(getter)* | Module items (see [Module items](#module-items)) for every registered builtin. One not loaded yet has only `name`, `kind` and `builtin`. |
-| `evalFile(path, [asModule])` / `evalBuf(source, [filename], [asModule])` | Evaluate a file or in-memory source, optionally as a module (in which case the return value is `{name, exports}` rather than the completion value). |
+| `evalFile(path, [asModule])` / `evalBuf(source, [filename], [asModule])` | Evaluate a file or in-memory source, optionally as a module (in which case the return value is `{name, exports}` rather than the completion value). An exception the code throws propagates to the caller. |
 | `scriptList` / `scriptFile` / `scriptDir` / `__filename` / `__dirname` *(getters)* | Views of the include/import stack (`jsm_stack`) — which file is currently executing and its ancestry. |
 | `startInteractive()` | Drops into the REPL from script code, same as `-i`/`SIGUSR1`. |
 
