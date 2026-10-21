@@ -1017,15 +1017,6 @@
     # 'pp_hash:#,pp_directive:define,pp_identifier:A,pp_number:1,...'
     # expected '...,pp_identifier:A,pp_continuation:\,pp_number:1,...'
 
-- textencoder-encodeinto-read-counts-code-points: TextEncoder.encodeInto()
-  reports read in code points, WHATWG (and node, bun) count UTF-16 code
-  units, so a caller mapping a UTF-16 index to a UTF-8 offset goes wrong
-  after the first character outside the BMP. Found 2026-10-20.
-
-    qjsm -e "import('textcode').then(({TextEncoder}) => console.log(
-      JSON.stringify(new TextEncoder().encodeInto('aé😀', new Uint8Array(16)))))"
-    # {"read":3,"written":7}, node: {"read":4,"written":7}
-
 - readfilesync-procfs-empty: fs.readFileSync on a /proc file returns an
   empty string (std.loadFile too), because the size comes from stat, which
   is 0 there. node reads to EOF. Found 2026-10-20.

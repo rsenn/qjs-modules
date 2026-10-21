@@ -1,9 +1,25 @@
 import { ReadableStream } from 'stream';
 import { Blob } from 'blob';
+import * as os from 'os';
+import * as std from 'std';
 import { TextEncoder } from 'textcode';
 import { assert, assertStrictEquals, tests } from '../../lib/tinytest.js';
 
 const equals = (actual, expected) => assertStrictEquals(expected, actual);
+const segments = Symbol.for('qjs.blob.segments');
+
+/* resident set size in bytes from /proc/self/statm, undefined without /proc */
+function rss() {
+  const fd = os.open('/proc/self/statm', os.O_RDONLY);
+
+  if(fd < 0) return undefined;
+
+  const buf = new ArrayBuffer(256),
+    n = os.read(fd, buf, 0, 256);
+
+  os.close(fd);
+  return String.fromCharCode(...new Uint8Array(buf, 0, n)).split(' ')[1] * 4096;
+}
 const isTrue = value => assert(value === true, `expected true, got ${value}`);
 
 function throwsJs(Ctor, fn) {
@@ -457,5 +473,55 @@ tests({
     isTrue(blob.json() instanceof Promise);
     throwsJs(TypeError, () => Blob.prototype.json.call({}));
     equals(Blob.prototype.json.length, 0);
+  },
+
+  async 'a slice of a slice and Blob parts inside Blobs read the right bytes'() {
+    const a = new Blob(['abc', new Uint8Array([100, 101]), new Blob(['fgh'])]);
+    const b = new Blob([a.slice(1, 6), '-', a.slice(-2)]);
+
+    equals(await b.text(), 'bcdef-gh');
+    equals(await b.slice(2).slice(1, 4).text(), 'ef-');
+    equals(b.size, 8);
+  },
+
+  async 'a source buffer changed after construction does not change the Blob'() {
+    const src = new Uint8Array([104, 105]);
+    const blob = new Blob([src, src.buffer]);
+
+    src[0] = 0;
+    equals(await blob.text(), 'hihi');
+  },
+
+  async 'stream() gives one chunk per part'() {
+    const blob = new Blob(['ab', new Uint8Array([1, 2, 3]), new Blob(['xyz']).slice(1)]);
+    const sizes = [];
+
+    for await(const chunk of blob.stream()) sizes.push(chunk.byteLength);
+
+    equals(sizes.join(), '2,3,2');
+  },
+
+  async 'the segments hook gives views that outlive the Blob'() {
+    let blob = new Blob(['ab', new Blob(['cd']).slice(1), new Uint8Array([101])]);
+    const views = blob[segments]();
+
+    blob = null;
+    std.gc();
+
+    equals(views.length, 3);
+    equals(views.map(v => String.fromCharCode(...v)).join('|'), 'ab|d|e');
+  },
+
+  'slices share the bytes: 100 slices of 4 MiB add far less than 400 MiB'() {
+    const before = rss();
+
+    if(before === undefined) return;
+
+    const big = new Blob([new Uint8Array(4 << 20).fill(65)]);
+    const slices = Array.from({ length: 100 }, (_, i) => big.slice(i, (4 << 20) - i));
+    const grown = rss() - before;
+
+    equals(slices.length, 100);
+    assert(grown < 64 << 20, `rss grew by ${grown} bytes`);
   },
 });

@@ -27,6 +27,7 @@
 #include "buffer-utils.h"
 #include "path.h"
 #include "vector.h"
+#include "iteration.h"
 #include "base64.h"
 #include <time.h>
 #include <stddef.h>
@@ -125,6 +126,14 @@
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+
+#if HAVE_READV || HAVE_WRITEV || HAVE_PREADV || HAVE_PWRITEV || HAVE_PREADV2 || HAVE_PWRITEV2
+#include <sys/uio.h>
+#include <limits.h>
+#ifndef IOV_MAX
+#define IOV_MAX 1024
+#endif
 #endif
 
 #if defined(HAVE_UTIME) || defined(HAVE_UTIMES) || defined(HAVE_FUTIMES) || defined(HAVE_LUTIMES)
@@ -775,46 +784,158 @@ js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return JS_NewArrayBuffer(ctx, buf, total_size, js_arraybuffer_free_pointer, 0, FALSE);
 }
 
+/**
+ * lineStarts(input): where the lines of a string or buffer start, for
+ * line and column lookup by binary search (source maps, error positions).
+ *
+ *   lineStarts('a\nbc\n')   -> Uint32Array [0, 2, 5]
+ *
+ *   string|ArrayBuffer|view  input  the text
+ *
+ *   returns Uint32Array  line starts, first entry 0, UTF-16 indices for a
+ *                        string and byte offsets for a buffer
+ *
+ * a line ends at \n only, as source maps count them, \r stays in the line.
+ * throws TypeError for an input that is neither.
+ * wired in as JS_CFUNC_DEF("lineStarts", 1, js_misc_linestarts).
+ */
+static JSValue
+js_misc_linestarts(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  BOOL is_string = JS_IsString(argv[0]);
+  const uint8_t *p, *q, *nl, *end;
+  size_t len;
+  uint32_t unit = 0;
+  InputBuffer in;
+  DynBuf db;
+  JSValue buf, ret;
+
+  /* cesu8: every UTF-16 unit is its own sequence, so a UTF-16 index is
+   * the number of bytes before it that are not 10xxxxxx */
+  if(is_string) {
+    if(!(p = (const uint8_t*)JS_ToCStringLen2(ctx, &len, argv[0], TRUE)))
+      return JS_EXCEPTION;
+  } else {
+    in = js_input_buffer(ctx, argv[0]);
+
+    if(JS_IsException(in.value))
+      return JS_EXCEPTION;
+
+    p = inputbuffer_data(&in);
+    len = inputbuffer_length(&in);
+  }
+
+  dbuf_init2(&db, ctx, (DynBufReallocFunc*)&vector_js_realloc);
+  dbuf_put_u32(&db, 0);
+
+  for(q = p, end = p + len; (nl = memchr(q, '\n', end - q)); q = nl + 1) {
+    if(is_string)
+      for(; q <= nl; q++)
+        unit += (*q & 0xc0) != 0x80;
+    else
+      unit = nl + 1 - p;
+
+    dbuf_put_u32(&db, unit);
+  }
+
+  if(is_string)
+    JS_FreeCString(ctx, (const char*)p);
+  else
+    inputbuffer_free(&in, ctx);
+
+  if(dbuf_error(&db)) {
+    dbuf_free(&db);
+    return JS_ThrowOutOfMemory(ctx);
+  }
+
+  /* refcount: the ArrayBuffer takes db.buf */
+  buf = JS_NewArrayBuffer(ctx, db.buf, db.size, js_arraybuffer_free_pointer, 0, FALSE);
+  ret = js_typedarray_new(ctx, 32, FALSE, FALSE, buf);
+  JS_FreeValue(ctx, buf);
+  return ret;
+}
+
+/* the last occurrence of needle in haystack, NULL when there is none.
+ * memrchr finds the candidates by the first byte. never throws. */
+static uint8_t*
+memrmem(const uint8_t* hay, size_t hn, const uint8_t* needle, size_t nn) {
+  const uint8_t* p;
+  size_t len;
+
+  if(!nn || nn > hn)
+    return 0;
+
+  for(len = hn - nn + 1; len; len = p - hay) {
+#if HAVE_MEMRCHR
+    if(!(p = memrchr(hay, needle[0], len)))
+      return 0;
+#else
+    for(p = hay + len - 1; *p != needle[0]; p--)
+      if(p == hay)
+        return 0;
+#endif
+
+    if(!memcmp(p, needle, nn))
+      return (uint8_t*)p;
+  }
+
+  return 0;
+}
+
 /* searchArrayBuffer(haystack, needle[, offset[, length]][, mask]): index of the first match, or null.
- * the search covers haystack[offset, offset + length); with a `mask`, a byte matches where
- * `(haystack ^ needle) & mask` is 0. an offset given as BigInt returns a BigInt.
+ * searchArrayBufferLast(...): the same for the last match, as lastIndexOf.
+ * the match lies in haystack[offset, offset + length), needle is an ArrayBuffer or a view.
+ * with a mask, a byte matches where (haystack ^ needle) & mask is 0. an offset given as
+ * BigInt returns a BigInt.
  * throws RangeError if the needle is empty or longer than the haystack. */
 static JSValue
-js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int last) {
   MemoryBlock haystack, needle, mask, range;
   OffsetLength ol = OFFSET_LENGTH_0();
+  InputBuffer in;
   uint8_t* found = 0;
   int i = 0, n = 0;
+  JSValue ret = JS_EXCEPTION;
 
   if(i >= argc || !block_from_arraybuffer(&haystack, argv[i++], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
 
-  if(i >= argc || !block_from_arraybuffer(&needle, argv[i++], ctx))
-    return JS_ThrowTypeError(ctx, "argument %d (needle) must be an ArrayBuffer", i + 1);
+  if(i >= argc)
+    return JS_ThrowTypeError(ctx, "argument 2 (needle) must be an ArrayBuffer or a view");
 
-  if(needle.size == 0)
-    return JS_ThrowRangeError(ctx, "needle size is 0");
+  if(JS_IsException((in = js_input_buffer(ctx, argv[i++])).value))
+    return JS_EXCEPTION;
 
-  if(needle.size > haystack.size)
-    return JS_ThrowRangeError(ctx, "needle size %" PRIu64 " is greater than haystack size %" PRIu64, (uint64_t)needle.size, (uint64_t)haystack.size);
+  needle = MEMORY_BLOCK((uint8_t*)inputbuffer_data(&in), inputbuffer_length(&in));
+
+  if(needle.size == 0) {
+    JS_ThrowRangeError(ctx, "needle size is 0");
+    goto end;
+  }
+
+  if(needle.size > haystack.size) {
+    JS_ThrowRangeError(ctx, "needle size %" PRIu64 " is greater than haystack size %" PRIu64, (uint64_t)needle.size, (uint64_t)haystack.size);
+    goto end;
+  }
 
   while(n < 2 && i + n < argc && !JS_IsObject(argv[i + n]))
     ++n;
 
   if(n && offsetlength_from_argv(&ol, haystack.size, n, argv + i, ctx) < 0)
-    return JS_EXCEPTION;
+    goto end;
 
   range = offsetlength_block(ol, haystack);
 
   if(i + n < argc) {
-    if(!block_from_arraybuffer(&mask, argv[i + n], ctx))
-      return JS_ThrowTypeError(ctx, "argument %d (mask) must be an ArrayBuffer", i + n + 1);
+    if(!block_from_arraybuffer(&mask, argv[i + n], ctx)) {
+      JS_ThrowTypeError(ctx, "argument %d (mask) must be an ArrayBuffer", i + n + 1);
+      goto end;
+    }
 
     size_t n_size = MIN_NUM(needle.size, mask.size);
 
-    /* naive searching algorithm (slow) */
-    for(size_t pos = 0; n_size && pos + n_size <= range.size; pos++) {
-      size_t j;
+    /* naive searching algorithm (slow), backwards for the last match */
+    for(size_t k = 0; n_size && k + n_size <= range.size; k++) {
+      size_t j, pos = last ? range.size - n_size - k : k;
 
       for(j = 0; j < n_size; j++)
         if((range.base[pos + j] ^ needle.base[j]) & mask.base[j])
@@ -826,18 +947,86 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       }
     }
   } else if(needle.size <= range.size) {
-    found = memmem(range.base, range.size, needle.base, needle.size);
+    found = last ? memrmem(range.base, range.size, needle.base, needle.size) : memmem(range.base, range.size, needle.base, needle.size);
   }
 
   if(!found)
-    return JS_NULL;
+    ret = JS_NULL;
+  else if(n && JS_IsBigInt(ctx, argv[i]))
+    ret = JS_NewBigUint64(ctx, found - haystack.base);
+  else
+    ret = js_newint64(ctx, found - haystack.base);
 
-  int64_t ofs = found - haystack.base;
+end:
+  inputbuffer_free(&in, ctx);
+  return ret;
+}
 
-  if(n && JS_IsBigInt(ctx, argv[i]))
-    return JS_NewBigUint64(ctx, ofs);
+/**
+ * byteSwap(view, size): reverses the byte order of every size-byte word
+ * of view in place, for Buffer swap16(), swap32() and swap64().
+ *
+ *   byteSwap(new Uint8Array([1, 2, 3, 4]), 2)   -> Uint8Array [2, 1, 4, 3]
+ *
+ *   ArrayBuffer|view  view  the bytes, a multiple of size long
+ *   number            size  2, 4 or 8
+ *
+ *   returns view
+ *
+ * throws RangeError for another size or a length that is no multiple.
+ * wired in as JS_CFUNC_DEF("byteSwap", 2, js_misc_byteswap).
+ */
+static JSValue
+js_misc_byteswap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer in = js_input_buffer(ctx, argv[0]);
+  uint8_t* p = (uint8_t*)inputbuffer_data(&in);
+  size_t i, n = inputbuffer_length(&in);
+  int32_t size = 0;
+  JSValue ret = JS_EXCEPTION;
 
-  return js_newint64(ctx, ofs);
+  if(JS_IsException(in.value))
+    return JS_EXCEPTION;
+
+  if(argc > 1 && JS_ToInt32(ctx, &size, argv[1]))
+    goto end;
+
+  if((size != 2 && size != 4 && size != 8) || n % size) {
+    JS_ThrowRangeError(ctx, "byteSwap: size must be 2, 4 or 8 and divide the length %zu", n);
+    goto end;
+  }
+
+  /* memcpy: the words need not be aligned */
+  for(i = 0; i < n; i += size) {
+    switch(size) {
+      case 2: {
+        uint16_t w;
+        memcpy(&w, p + i, 2);
+        w = __builtin_bswap16(w);
+        memcpy(p + i, &w, 2);
+        break;
+      }
+      case 4: {
+        uint32_t w;
+        memcpy(&w, p + i, 4);
+        w = __builtin_bswap32(w);
+        memcpy(p + i, &w, 4);
+        break;
+      }
+      case 8: {
+        uint64_t w;
+        memcpy(&w, p + i, 8);
+        w = __builtin_bswap64(w);
+        memcpy(p + i, &w, 8);
+        break;
+      }
+    }
+  }
+
+  ret = JS_DupValue(ctx, argv[0]);
+
+end:
+  inputbuffer_free(&in, ctx);
+  return ret;
 }
 
 int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
@@ -1062,10 +1251,10 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(argc < 1 || !JS_IsObject(argv[0]))
     return JS_ThrowTypeError(ctx, "argument 1 object excepted");
 
-  if(argc >= 2 && !js_is_null_or_undefined(argv[1]))
+  if(argc >= 2 && !js_is_nullish(argv[1]))
     JS_ToInt64Ext(ctx, &limit, argv[1]);
 
-  if(argc >= 3 && !js_is_null_or_undefined(argv[2]))
+  if(argc >= 3 && !js_is_nullish(argv[2]))
     JS_ToInt64Ext(ctx, &start, argv[2]);
 
   ret = JS_NewArray(ctx);
@@ -3551,6 +3740,149 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return JS_UNDEFINED;
 }
 
+#if HAVE_READV || HAVE_WRITEV || HAVE_PREADV || HAVE_PWRITEV || HAVE_PREADV2 || HAVE_PWRITEV2
+/* magic bits of js_misc_rwv */
+enum {
+  RWV_WRITE = 1,
+  RWV_OFFSET = 2,
+  RWV_FLAGS = 4,
+};
+
+/**
+ * readv, writev, preadv, pwritev, preadv2, pwritev2: scatter/gather I/O
+ * over a list of buffers, the base of fs.readvSync() and fs.writevSync().
+ *
+ *   misc.writev(fd, [new Uint8Array([97, 98]), buf])         -> 2 + buf size
+ *   misc.preadv2(fd, buffers, -1, misc.RWF_NOWAIT)
+ *
+ *   number    fd       the file descriptor
+ *   iterable  buffers  ArrayBuffer, TypedArray or DataView items
+ *   number    offset   p variants: file position, the 2 variants take -1
+ *                      for the current one
+ *   number    flags    2 variants: RWF_HIPRI, RWF_DSYNC, RWF_SYNC, ...
+ *
+ *   returns number     bytes read or written, 0 at end of file
+ *
+ * more than IOV_MAX buffers: a write goes in batches of IOV_MAX until a
+ * short count, a read fills the first IOV_MAX only, as in node.
+ *
+ * throws TypeError for buffers that is not an iterable of buffers,
+ * SyscallError when the call fails.
+ * wired in as JS_CFUNC_MAGIC_DEF("readv", 2, js_misc_rwv, 0) and so on,
+ * magic is RWV_WRITE | RWV_OFFSET | RWV_FLAGS.
+ */
+static JSValue
+js_misc_rwv(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  static const char* const names[] = {"readv", "writev", "preadv", "pwritev", 0, 0, "preadv2", "pwritev2"};
+  int32_t fd, flags = 0;
+  int64_t offset = -1, total = 0;
+  uint32_t i, m, n, done;
+  size_t want;
+  struct iovec* iov;
+  ssize_t r = -1;
+  Vector bufs;
+  InputBuffer *buf, *first;
+  Iteration iter = ITERATION_INIT();
+  JSValue ret = JS_EXCEPTION;
+
+  if(JS_ToInt32(ctx, &fd, argv[0]))
+    return JS_EXCEPTION;
+
+  if((magic & RWV_OFFSET) && argc > 2 && JS_ToInt64Ext(ctx, &offset, argv[2]))
+    return JS_EXCEPTION;
+
+  if((magic & RWV_FLAGS) && argc > 3 && JS_ToInt32(ctx, &flags, argv[3]))
+    return JS_EXCEPTION;
+
+  if(argc < 2 || !iteration_method_symbol(&iter, ctx, argv[1], "iterator")) {
+    iteration_reset(&iter, ctx);
+    return JS_ThrowTypeError(ctx, "argument 2 must be an iterable of buffers");
+  }
+
+  vector_init(&bufs, ctx);
+
+  /* bufs holds a ref per buffer until the call is done */
+  while(!iteration_next(&iter, ctx)) {
+    JSValue item = iteration_value(&iter, ctx);
+    InputBuffer input = js_input_buffer(ctx, item);
+
+    JS_FreeValue(ctx, item);
+
+    if(JS_IsException(input.value))
+      goto fail;
+
+    if(!vector_push(&bufs, input)) {
+      inputbuffer_free(&input, ctx);
+      JS_ThrowOutOfMemory(ctx);
+      goto fail;
+    }
+  }
+
+  n = vector_size(&bufs, sizeof(InputBuffer));
+  first = vector_begin(&bufs);
+
+  /* batches of IOV_MAX, the most one call takes, so alloca stays bounded */
+  iov = alloca(MIN_NUM(n, IOV_MAX) * sizeof(struct iovec));
+
+  for(done = 0; done < n; done += m) {
+    m = MIN_NUM(n - done, IOV_MAX);
+    want = 0;
+
+    for(i = 0; i < m; i++) {
+      iov[i].iov_base = (void*)inputbuffer_data(&first[done + i]);
+      want += iov[i].iov_len = inputbuffer_length(&first[done + i]);
+    }
+
+    /* a later batch goes on where the last one ended, -1 stays -1 */
+    int64_t pos = offset < 0 ? offset : offset + total;
+
+    errno = ENOSYS;
+    r = -1;
+
+    switch(magic) {
+#if HAVE_READV
+      case 0: r = readv(fd, iov, m); break;
+#endif
+#if HAVE_WRITEV
+      case RWV_WRITE: r = writev(fd, iov, m); break;
+#endif
+#if HAVE_PREADV
+      case RWV_OFFSET: r = preadv(fd, iov, m, pos); break;
+#endif
+#if HAVE_PWRITEV
+      case RWV_WRITE | RWV_OFFSET: r = pwritev(fd, iov, m, pos); break;
+#endif
+#if HAVE_PREADV2
+      case RWV_OFFSET | RWV_FLAGS: r = preadv2(fd, iov, m, pos, flags); break;
+#endif
+#if HAVE_PWRITEV2
+      case RWV_WRITE | RWV_OFFSET | RWV_FLAGS: r = pwritev2(fd, iov, m, pos, flags); break;
+#endif
+    }
+
+    /* an error after a batch went through returns what got through */
+    if(r == -1)
+      break;
+
+    total += r;
+
+    /* a short count ends it, as one call would, a read stops after one
+     * batch as libuv does (node returns the same) */
+    if((size_t)r < want || !(magic & RWV_WRITE))
+      break;
+  }
+
+  ret = r == -1 && !total && n ? js_syscallerror_throw(ctx, names[magic]) : JS_NewInt64(ctx, total);
+
+fail:
+  vector_foreach_t(&bufs, buf) inputbuffer_free(buf, ctx);
+
+  vector_free(&bufs);
+  iteration_reset(&iter, ctx);
+  return ret;
+}
+#endif
+
 static JSValue
 js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* file;
@@ -3899,6 +4231,39 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #if HAVE_LCHOWN
     JS_CFUNC_MAGIC_DEF("lchown", 3, js_misc_chown, 2),
 #endif
+#if HAVE_READV
+    JS_CFUNC_MAGIC_DEF("readv", 2, js_misc_rwv, 0),
+#endif
+#if HAVE_WRITEV
+    JS_CFUNC_MAGIC_DEF("writev", 2, js_misc_rwv, RWV_WRITE),
+#endif
+#if HAVE_PREADV
+    JS_CFUNC_MAGIC_DEF("preadv", 3, js_misc_rwv, RWV_OFFSET),
+#endif
+#if HAVE_PWRITEV
+    JS_CFUNC_MAGIC_DEF("pwritev", 3, js_misc_rwv, RWV_WRITE | RWV_OFFSET),
+#endif
+#if HAVE_PREADV2
+    JS_CFUNC_MAGIC_DEF("preadv2", 4, js_misc_rwv, RWV_OFFSET | RWV_FLAGS),
+#endif
+#if HAVE_PWRITEV2
+    JS_CFUNC_MAGIC_DEF("pwritev2", 4, js_misc_rwv, RWV_WRITE | RWV_OFFSET | RWV_FLAGS),
+#endif
+#ifdef RWF_HIPRI
+    JS_CONSTANT(RWF_HIPRI),
+#endif
+#ifdef RWF_DSYNC
+    JS_CONSTANT(RWF_DSYNC),
+#endif
+#ifdef RWF_SYNC
+    JS_CONSTANT(RWF_SYNC),
+#endif
+#ifdef RWF_NOWAIT
+    JS_CONSTANT(RWF_NOWAIT),
+#endif
+#ifdef RWF_APPEND
+    JS_CONSTANT(RWF_APPEND),
+#endif
 #if HAVE_FSYNC
     JS_CFUNC_MAGIC_DEF("fsync", 1, js_misc_fsync, 0),
 #endif
@@ -3939,6 +4304,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(F_GETFL),
 #ifdef F_GETPATH
     JS_CONSTANT(F_GETPATH),
+#else
+    /* -1, so import { F_GETPATH } resolves everywhere, an export list
+     * cannot hold undefined (JS_SetModuleExportList aborts) */
+    JS_PROP_INT32_DEF("F_GETPATH", -1, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
 #endif
     JS_CONSTANT(F_GETLK),
     JS_CONSTANT(F_RDLCK),
@@ -3977,7 +4346,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slicearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
-    JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
+    JS_CFUNC_MAGIC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer, 0),
+    JS_CFUNC_MAGIC_DEF("searchArrayBufferLast", 2, js_misc_searcharraybuffer, 1),
+    JS_CFUNC_DEF("byteSwap", 2, js_misc_byteswap),
+    JS_CFUNC_DEF("lineStarts", 1, js_misc_linestarts),
     JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),
     JS_CFUNC_DEF("compareArrayBuffer", 2, js_misc_comparearraybuffer),
 #if HAVE_FMEMOPEN

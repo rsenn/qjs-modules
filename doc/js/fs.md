@@ -34,7 +34,11 @@ promise API of its own.
 | `closeSync(fd)` | 1 | Closes an fd. |
 | `readSync(fd, buffer, offset, length, position?)` | 4–5 | Reads into a buffer; a numeric `position` reads there and leaves the offset alone (Node's pread). |
 | `writeSync(fd, buffer, offset, length, position?)` | 4–5 | Writes from a buffer; `position` as for `readSync()`. |
+| `readvSync(fd, buffers, position?)` | 2–3 | Fills an array of buffers in order in one call (`readv`, `preadv` with a numeric `position`). |
+| `writevSync(fd, buffers, position?)` | 2–3 | Writes an array of buffers in order in one call (`writev`, `pwritev`). |
 | `readFileSync(file, options)` | 1–2 | Reads a whole file. |
+| `openAsBlob(path, options?)` | 1–2 | Node's `fs.openAsBlob()`: a promise of a `Blob` over a read-only mapping of the file (`mmap`), no copy; `options.type` sets the MIME type. Throws synchronously when the file cannot be opened or is a directory. The Blob follows the file: changed bytes show through, and truncating the file while the Blob lives makes a read fault (SIGBUS), where Node throws `NotReadableError`. |
+| `openAsBlobSync(path, options?)` | 1–2 | The same, returning the `Blob` directly (no Node/Bun/Deno equivalent). |
 | `writeFileSync(file, data, options)` | 2–3 | Writes a whole file. |
 | `appendFileSync(path, data, options)` | 2–3 | Appends to a file, creating it if needed. |
 | `readdirSync(path, options)` | 1–2 | Lists a directory (`withFileTypes`, `recursive`). |

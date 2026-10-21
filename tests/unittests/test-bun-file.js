@@ -117,6 +117,12 @@ tests({
     eq('xyz', await Bun.file(at('c')).text());
   },
 
+  async 'Bun.write writes a Blob of several parts and slices'() {
+    const blob = new Blob(['ab', new Uint8Array([99, 100]), new Blob(['efgh']).slice(1, 3)]);
+    eq(6, await Bun.write(at('parts'), blob));
+    eq('abcdfg', await Bun.file(at('parts')).text());
+  },
+
   async 'Bun.write returns the bytes written for strings and binary data'() {
     eq(6, await Bun.write(at('w1'), 'héllo'));
     eq(3, await Bun.write(at('w2'), new Uint8Array([1, 2, 3])));

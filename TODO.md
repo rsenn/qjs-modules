@@ -3459,7 +3459,12 @@ Trade-off:
 
 Small native pieces that make a magic-string implementation (Tier 27 option B) and `resolve-imports.js` output
 mostly zero-copy. Three of them are standard APIs qjs-modules lacks or implements slowly, so they pay off on their
-own. Plan only.
+own. **Done 2026-10-21** (28.1-28.6), except the optional `json` value-end report (28.6, last row).
+
+Timing on 1 MiB, qjsm, before -> after: latin1 decode 488 -> 13 ms, base64 encode 606 -> 2 ms, base64 parse
+1027 -> 346 ms, hex encode 931 -> 3 ms, hex parse 2661 -> 189 ms, `lastIndexOf` near the end 228 -> 0 ms (all-`a`
+input with no match 3.3 -> 9.3 ms, memrchr hits every byte), swap32 285 -> 0.7 ms, isAscii 147 -> 0.2 ms, isUtf8
+853 -> 2.5 ms.
 
 Measured on qjsm 2026-10-20, the reason the zero-copy path runs on bytes:
 - concatenation is cheap: the engine has rope strings (`JS_TAG_STRING_ROPE`), 100k pieces join in 19 ms (node 14 ms)
@@ -3468,12 +3473,12 @@ Measured on qjsm 2026-10-20, the reason the zero-copy path runs on bytes:
 
 | # | Building block | Kind | Order |
 | --- | --- | --- | --- |
-| 28.1 | `TextEncoder.encodeInto()` `read` in UTF-16 code units, plus a UTF-16 index → UTF-8 offset helper | WHATWG bug fix + internal helper | 1st |
-| 28.2 | `buffer.isAscii()` / `buffer.isUtf8()` in C | Node API, faster | 2nd |
-| 28.3 | `lineStarts(input)` | internal helper | 3rd |
-| 28.4 | `fs.writevSync()` / `fs.writev()` | Node API, missing | 4th |
-| 28.5 | Blob as an immutable segment list: zero-copy `slice()` and Blob parts, `fs.openAsBlob()` | WHATWG semantics + Node API | 6th, largest |
-| 28.6 | lift byte loops in `lib/` into C: fix `TextDecoder`, `byteSwap`, reverse `searchArrayBuffer`, TC39 base64/hex | WHATWG/TC39 + internal helpers | 5th |
+| 28.1 | ~~`TextEncoder.encodeInto()` `read` in UTF-16 code units, plus a UTF-16 index → UTF-8 offset helper~~ done: `textcode.utf8Offsets` | WHATWG bug fix + internal helper | 1st |
+| 28.2 | ~~`buffer.isAscii()` / `buffer.isUtf8()` in C~~ done: `textcode.isAscii`/`isUtf8` | Node API, faster | 2nd |
+| 28.3 | ~~`lineStarts(input)`~~ done: `misc.lineStarts` | internal helper | 3rd |
+| 28.4 | ~~`fs.writevSync()` / `fs.writev()`~~ done, with `readvSync`/`readv`, `FileHandle.readv`/`writev` | Node API, missing | 4th |
+| 28.5 | ~~Blob as an immutable segment list: zero-copy `slice()` and Blob parts, `fs.openAsBlob()`~~ done, plus `openAsBlobSync` | WHATWG semantics + Node API | 6th, largest |
+| 28.6 | ~~lift byte loops in `lib/` into C~~ done: `misc.byteSwap`, `searchArrayBufferLast`, needle views, `textcode.encode`/`decode`, TC39 base64/hex; `json` value end left open | WHATWG/TC39 + internal helpers | 5th |
 
 ### 28.1 UTF-16 ↔ UTF-8 offsets
 

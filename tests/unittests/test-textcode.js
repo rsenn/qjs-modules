@@ -1,4 +1,4 @@
-import { TextDecoder, TextEncoder } from 'textcode';
+import { decode, encode, isAscii, isUtf8, TextDecoder, TextEncoder, utf8Offsets } from 'textcode';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -149,5 +149,55 @@ tests({
     const dest = new Uint8Array(2);
     const result = enc.encodeInto('Hello', dest);
     assert(result.written <= 2);
+  },
+  'TextEncoder encodeInto() reports read in UTF-16 units, as WHATWG'() {
+    const enc = new TextEncoder();
+    const r = enc.encodeInto('a\u00e9\ud83d\ude00', new Uint8Array(16));
+    eq(r.read, 4);
+    eq(r.written, 7);
+    eq(enc.encodeInto('\ud83d\ude00\ud83d\ude00x', new Uint8Array(5)).read, 2);
+  },
+  'utf8Offsets() maps UTF-16 indices to UTF-8 byte offsets in place'() {
+    const enc = new TextEncoder();
+    const text = 'a\u00e9\ud83d\ude00b\u4e2d\n\u20acx';
+    const idx = Uint32Array.from({ length: text.length + 1 }, (_, i) => i);
+    const ret = utf8Offsets(enc.encode(text), idx);
+    assert(ret === idx);
+
+    for(let i = 0; i <= text.length; i++) {
+      const pair = i > 0 && i < text.length && text.charCodeAt(i - 1) >= 0xd800 && text.charCodeAt(i - 1) < 0xdc00;
+      eq(idx[i], enc.encode(text.slice(0, pair ? i - 1 : i)).length, `index ${i}`);
+    }
+
+    eq([...utf8Offsets(enc.encode('ab'), new Uint32Array([2, 0, 9]))].join(), '2,0,2');
+  },
+  'isAscii() and isUtf8() check bytes like node'() {
+    const u = (...b) => new Uint8Array(b);
+    eq(isAscii(u()), true);
+    eq(isAscii(u(0x41, 0x7f)), true);
+    eq(isAscii(u(0x41, 0x80)), false);
+    eq(isAscii(new Uint8Array(1000).fill(65).subarray(3)), true);
+    eq(isUtf8(u(0xe2, 0x82, 0xac)), true);
+    eq(isUtf8(u(0xf0, 0x9f, 0x98, 0x80)), true);
+    eq(isUtf8(u(0xc0, 0xaf)), false);
+    eq(isUtf8(u(0xed, 0xa0, 0x80)), false);
+    eq(isUtf8(u(0xf4, 0x90, 0x80, 0x80)), false);
+    eq(isUtf8(u(0xe2, 0x82)), false);
+    eq(isUtf8(new Uint8Array([65, 66, 67, 68, 69, 70, 71, 72, 73, 0xc3, 0xa9]).buffer), true);
+  },
+  'encode() and decode() handle latin1, ascii and utf-16le'() {
+    const bytes = b => [...new Uint8Array(b)].join();
+    eq(bytes(encode('A\u00e9\u0100\ud83d\ude00', 'latin1')), '65,233,0,61,0');
+    eq(bytes(encode('A\ud800\u00e9', 'utf-16le')), '65,0,0,216,233,0');
+    eq(decode(new Uint8Array([0x41, 0xe9, 0xff, 0x80]), 'latin1'), 'A\u00e9\u00ff\u0080');
+    eq(decode(new Uint8Array([0x41, 0xe9, 0xff, 0x80]), 'ascii'), 'Ai\x7f\0');
+
+    let name;
+    try {
+      encode('x', 'utf-7');
+    } catch(e) {
+      name = e.name;
+    }
+    eq(name, 'RangeError');
   },
 });

@@ -355,7 +355,7 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case BLOB_SIZE: {
-      ret = JS_NewUint32(ctx, blob->size);
+      ret = JS_NewInt64(ctx, blob->size);
       break;
     }
     case BLOB_TYPE: {
@@ -615,6 +615,95 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+/**
+ * Blob[Symbol.for('qjs.blob.fromArrayBuffer')]: a Blob over the bytes of
+ * an ArrayBuffer without a copy, for fs.openAsBlob() over a mapping.
+ *
+ *   const blob = Blob[Symbol.for('qjs.blob.fromArrayBuffer')](buffer);
+ *
+ *   ArrayBuffer  buffer  bytes nobody writes from here on, the Blob
+ *                        holds a ref to it
+ *
+ *   returns Blob         an untyped Blob, new Blob([blob], { type }) types it
+ *
+ * throws TypeError when buffer is not an ArrayBuffer or is detached.
+ * not exported, defined on the Blob constructor in js_blob_init().
+ */
+static JSValue
+js_blob_from_arraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  Blob* blob;
+  uint8_t* data;
+  size_t len;
+
+  if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
+    return JS_EXCEPTION;
+
+  if(!(blob = blob_new(ctx, 0)))
+    return JS_EXCEPTION;
+
+  if(len) {
+    InputBuffer seg = INPUTBUFFER_DATA_FREE(data, len, &segment_free_ref);
+
+    seg.value = JS_DupValue(ctx, argv[0]);
+
+    if(blob_add(ctx, blob, &seg)) {
+      blob_free(JS_GetRuntime(ctx), blob);
+      return JS_EXCEPTION;
+    }
+  }
+
+  return js_blob_wrap(ctx, blob);
+}
+
+/* ArrayBuffer free callback of a segment view: drops the ref on the
+ * object that keeps the bytes, opaque is its pointer */
+static void
+segment_view_free(JSRuntime* rt, void* opaque, void* ptr) {
+  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_OBJECT, opaque));
+}
+
+/**
+ * blob[Symbol.for('qjs.blob.segments')](): the bytes of the Blob as one
+ * Uint8Array per segment, without copying, for fs.writevSync().
+ *
+ *   writevSync(fd, blob[Symbol.for('qjs.blob.segments')]())
+ *
+ *   returns Array  Uint8Array views, read only by contract, each one keeps
+ *                  the object that owns its bytes alive
+ *
+ * throws TypeError when this is not a Blob.
+ * not exported, defined on Blob.prototype in js_blob_init().
+ */
+static JSValue
+js_blob_segments(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  Blob* blob;
+  InputBuffer* seg;
+  uint32_t i = 0;
+  JSValue ret;
+
+  if(!(blob = JS_GetOpaque2(ctx, this_val, js_blob_class_id)))
+    return JS_EXCEPTION;
+
+  ret = JS_NewArray(ctx);
+
+  vector_foreach_t(&blob->segments, seg) {
+    /* refcount: the ArrayBuffer holds this ref until it is freed */
+    JSValue owner = JS_DupValue(ctx, JS_IsUndefined(seg->value) ? this_val : seg->value);
+    JSValue buf = JS_NewArrayBuffer(ctx, (uint8_t*)inputbuffer_data(seg), inputbuffer_length(seg), segment_view_free, JS_VALUE_GET_PTR(owner), FALSE);
+
+    if(JS_IsException(buf)) {
+      JS_FreeValue(ctx, owner);
+      JS_FreeValue(ctx, ret);
+      return JS_EXCEPTION;
+    }
+
+    JS_SetPropertyUint32(ctx, ret, i++, js_typedarray_new(ctx, 8, FALSE, FALSE, buf));
+    JS_FreeValue(ctx, buf);
+  }
+
+  return ret;
+}
+
 static void
 js_blob_finalizer(JSRuntime* rt, JSValue val) {
   Blob* blob;
@@ -666,6 +755,14 @@ js_blob_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetClassProto(ctx, js_blob_class_id, blob_proto);
   JS_SetConstructor(ctx, blob_ctor, blob_proto);
+
+  JSAtom from_ab = js_symbol_for_atom(ctx, "qjs.blob.fromArrayBuffer");
+  JS_DefinePropertyValue(ctx, blob_ctor, from_ab, JS_NewCFunction(ctx, js_blob_from_arraybuffer, "fromArrayBuffer", 1), JS_PROP_CONFIGURABLE);
+  JS_FreeAtom(ctx, from_ab);
+
+  JSAtom segments = js_symbol_for_atom(ctx, "qjs.blob.segments");
+  JS_DefinePropertyValue(ctx, blob_proto, segments, JS_NewCFunction(ctx, js_blob_segments, "segments", 0), JS_PROP_CONFIGURABLE);
+  JS_FreeAtom(ctx, segments);
 
   if(m)
     JS_SetModuleExport(ctx, m, "Blob", blob_ctor);

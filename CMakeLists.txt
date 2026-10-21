@@ -347,6 +347,7 @@ check_functions_def(fnmatch daemon)
 check_functions_def(chmod fchmod)
 check_functions_def(chown fchown lchown)
 check_functions_def(fsync fdatasync)
+check_functions_def(readv writev preadv pwritev preadv2 pwritev2)
 check_functions_def(truncate ftruncate)
 check_functions_def(utime utimes futimes lutimes)
 check_include_def(sys/time.h)
@@ -1096,6 +1097,8 @@ file(
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                                                              GROUP_READ WORLD_EXECUTE WORLD_READ)
+
+install(FILES utilities/quickjs-gdb.py DESTINATION share/quickjs/gdb)
 
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")

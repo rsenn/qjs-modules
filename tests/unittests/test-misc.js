@@ -1,5 +1,6 @@
 import * as misc from 'misc';
 import * as os from 'os';
+import * as std from 'std';
 import * as fs from 'fs';
 import process from 'process';
 import { assert, eq, tests } from '../../lib/tinytest.js';
@@ -510,5 +511,103 @@ tests({
       err = e;
     }
     assert(err instanceof Error);
+  },
+
+  'writev and readv move all buffers in one call'() {
+    ensureDir();
+    const file = `${TMP}/rwv.txt`;
+    const fd = os.open(file, os.O_CREAT | os.O_RDWR | os.O_TRUNC, 0o644);
+    const view = new DataView(new ArrayBuffer(4), 1, 2);
+    view.setUint8(0, 0x63);
+    view.setUint8(1, 0x64);
+    eq(misc.writev(fd, [new Uint8Array([0x61, 0x62]), view, new Uint8Array([0x65]).buffer]), 5);
+    os.seek(fd, 0, std.SEEK_SET);
+    const a = new Uint8Array(3),
+      b = new Uint8Array(new ArrayBuffer(8), 4, 2);
+    eq(misc.readv(fd, [a, b]), 5);
+    eq([...a, ...b].join(), '97,98,99,100,101');
+    eq(misc.readv(fd, [a]), 0);
+    os.close(fd);
+    removeQuiet(file);
+  },
+
+  'pwritev and preadv use the offset, not the file position'() {
+    ensureDir();
+    const file = `${TMP}/prwv.txt`;
+    const fd = os.open(file, os.O_CREAT | os.O_RDWR | os.O_TRUNC, 0o644);
+    eq(misc.writev(fd, [new Uint8Array([1, 2, 3, 4])]), 4);
+    eq(misc.pwritev(fd, [new Uint8Array([9])], 1), 1);
+    const a = new Uint8Array(2);
+    eq(misc.preadv(fd, [a], 0), 2);
+    eq(a.join(), '1,9');
+    eq(os.seek(fd, 0, std.SEEK_CUR), 4);
+    if(misc.preadv2) {
+      eq(misc.pwritev2(fd, [new Uint8Array([5])], -1, 0), 1);
+      eq(misc.preadv2(fd, [a], 3, 0), 2);
+      eq(a.join(), '4,5');
+    }
+    os.close(fd);
+    removeQuiet(file);
+  },
+
+  'writev takes any iterable of buffers'() {
+    ensureDir();
+    const file = `${TMP}/rwv-iter.txt`;
+    const fd = os.open(file, os.O_CREAT | os.O_RDWR | os.O_TRUNC, 0o644);
+    eq(misc.writev(fd, new Set([new Uint8Array([1, 2]), new Uint8Array([3])])), 3);
+    eq(misc.writev(fd, []), 0);
+    os.close(fd);
+    removeQuiet(file);
+  },
+
+  'writev throws SyscallError on a bad fd and TypeError on a bad buffer'() {
+    let err;
+    try {
+      misc.writev(-1, [new Uint8Array(1)]);
+    } catch(e) {
+      err = e;
+    }
+    eq(err?.syscall, 'writev');
+    err = undefined;
+    try {
+      misc.writev(1, ['x']);
+    } catch(e) {
+      err = e;
+    }
+    assert(err instanceof TypeError);
+  },
+
+  'lineStarts() gives line starts as UTF-16 indices or byte offsets'() {
+    eq([...misc.lineStarts('a\nbc\n')].join(), '0,2,5');
+    eq([...misc.lineStarts('a\r\nb')].join(), '0,3');
+    eq([...misc.lineStarts('')].join(), '0');
+    eq([...misc.lineStarts('\u00e9\ud83d\ude00\nx')].join(), '0,4');
+    eq([...misc.lineStarts(new Uint8Array([0xc3, 0xa9, 10, 65, 10]))].join(), '0,3,5');
+    eq([...misc.lineStarts(new Uint8Array([35, 10, 65, 10, 66]).subarray(2))].join(), '0,2');
+  },
+
+  'byteSwap() reverses 2, 4 and 8 byte words in place'() {
+    const u = () => new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    eq([...misc.byteSwap(u(), 2)].join(), '2,1,4,3,6,5,8,7');
+    eq([...misc.byteSwap(u(), 4)].join(), '4,3,2,1,8,7,6,5');
+    eq([...misc.byteSwap(u(), 8)].join(), '8,7,6,5,4,3,2,1');
+    eq([...misc.byteSwap(u().subarray(1, 5), 2)].join(), '3,2,5,4');
+
+    let name;
+    try {
+      misc.byteSwap(new Uint8Array(3), 2);
+    } catch(e) {
+      name = e.name;
+    }
+    eq(name, 'RangeError');
+  },
+
+  'searchArrayBufferLast() finds the last match, a needle may be a view'() {
+    const hay = new Uint8Array([1, 2, 3, 1, 2, 3, 1, 2]).buffer;
+    eq(misc.searchArrayBufferLast(hay, new Uint8Array([1, 2])), 6);
+    eq(misc.searchArrayBufferLast(hay, new Uint8Array([1, 2, 3])), 3);
+    eq(misc.searchArrayBufferLast(hay, new Uint8Array([1, 2, 3]), 0, 5), 0);
+    eq(misc.searchArrayBufferLast(hay, new Uint8Array([9])), null);
+    eq(misc.searchArrayBuffer(hay, new Uint8Array([0, 2, 3, 0]).subarray(1, 3), 2), 4);
   },
 });

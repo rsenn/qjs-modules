@@ -839,9 +839,11 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, Writer wr, JSContext* ctx) 
   uint8_t u8[UTF8_CHAR_LEN_MAX];
   size_t i = 0, written = 0;
   const uint8_t *ptr = inputbuffer_begin(&in), *end = inputbuffer_end(&in), *next;
+  int cp;
 
-  for(i = 0; ptr < end; ptr = next, i++) {
-    int cp = unicode_from_utf8(ptr, end - ptr, &next);
+  /* i counts UTF-16 units, as encodeInto() reports read */
+  for(i = 0; ptr < end; ptr = next, i += cp > 0xffff ? 2 : 1) {
+    cp = unicode_from_utf8(ptr, end - ptr, &next);
 
     if(cp == -1)
       break;
@@ -1020,6 +1022,311 @@ js_encoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
+/* length of the ASCII run at the start of p, 8 bytes at a time */
+static size_t
+ascii_span(const uint8_t* p, size_t n) {
+  size_t i;
+  uint64_t word;
+
+  for(i = 0; i + 8 <= n; i += 8) {
+    memcpy(&word, p + i, 8);
+
+    if(word & 0x8080808080808080ULL)
+      break;
+  }
+
+  while(i < n && p[i] < 0x80)
+    i++;
+
+  return i;
+}
+
+/* length of the valid UTF-8 sequence at p, 0 when it is invalid or cut
+ * off. valid as in WHATWG: no overlong form, no surrogate, <= U+10FFFF.
+ *
+ *   E2 82 AC  ->  3
+ *   ED A0 80  ->  0  (a surrogate)
+ */
+static size_t
+utf8_seqlen(const uint8_t* p, size_t n) {
+  uint8_t b = p[0], lower = 0x80, upper = 0xbf;
+  size_t i, len;
+
+  if(b < 0x80)
+    return 1;
+
+  if(b >= 0xc2 && b <= 0xdf) {
+    len = 2;
+  } else if(b >= 0xe0 && b <= 0xef) {
+    len = 3;
+    lower = b == 0xe0 ? 0xa0 : 0x80;
+    upper = b == 0xed ? 0x9f : 0xbf;
+  } else if(b >= 0xf0 && b <= 0xf4) {
+    len = 4;
+    lower = b == 0xf0 ? 0x90 : 0x80;
+    upper = b == 0xf4 ? 0x8f : 0xbf;
+  } else {
+    return 0;
+  }
+
+  if(len > n || p[1] < lower || p[1] > upper)
+    return 0;
+
+  for(i = 2; i < len; i++)
+    if((p[i] & 0xc0) != 0x80)
+      return 0;
+
+  return len;
+}
+
+enum {
+  TEXTCODE_IS_ASCII,
+  TEXTCODE_IS_UTF8,
+};
+
+/**
+ * isAscii(view), isUtf8(view): whether the bytes are 7-bit ASCII or
+ * valid UTF-8, the base of Node's buffer.isAscii() and buffer.isUtf8().
+ *
+ *   isUtf8(new Uint8Array([0xe2, 0x82, 0xac]))   -> true
+ *   isUtf8(new Uint8Array([0xc0, 0xaf]))         -> false, overlong
+ *
+ *   ArrayBuffer|view  view  the bytes, a view counts from its offset
+ *
+ *   returns boolean
+ *
+ * throws TypeError when view is not an ArrayBuffer or a view.
+ * wired in as JS_CFUNC_MAGIC_DEF("isAscii", 1, js_textcode_is, ...).
+ */
+static JSValue
+js_textcode_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  InputBuffer in = js_input_buffer(ctx, argv[0]);
+  const uint8_t* p = inputbuffer_data(&in);
+  size_t i, len, n = inputbuffer_length(&in);
+
+  if(JS_IsException(in.value))
+    return JS_EXCEPTION;
+
+  i = ascii_span(p, n);
+
+  if(magic == TEXTCODE_IS_UTF8)
+    while(i < n && (len = utf8_seqlen(p + i, n - i)))
+      i += len + ascii_span(p + i + len, n - i - len);
+
+  inputbuffer_free(&in, ctx);
+  return JS_NewBool(ctx, i == n);
+}
+
+/**
+ * utf8Offsets(bytes, indices): converts UTF-16 indices into the text
+ * that bytes encodes to byte offsets, in place, in one pass.
+ *
+ *   utf8Offsets(new TextEncoder().encode('aé😀b'), new Uint32Array([1, 2, 4]))
+ *     -> Uint32Array [1, 3, 7]
+ *
+ *   ArrayBuffer|view  bytes    UTF-8, as TextEncoder makes it
+ *   Uint32Array       indices  UTF-16 indices, ascending for one pass,
+ *                              each one becomes a byte offset
+ *
+ *   returns Uint32Array        indices
+ *
+ * an index inside a surrogate pair maps to the start of its code point,
+ * one past the end maps to the length of bytes.
+ * throws TypeError when bytes is no buffer or indices has no 4-byte
+ * elements. wired in as JS_CFUNC_DEF("utf8Offsets", 2, ...).
+ */
+static JSValue
+js_textcode_utf8offsets(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer in = js_input_buffer(ctx, argv[0]);
+  const uint8_t* p = inputbuffer_data(&in);
+  size_t k, offset, length, bpe, size, n = inputbuffer_length(&in), pos = 0;
+  uint32_t* idx;
+  uint32_t u16 = 0;
+  JSValue buf;
+
+  if(JS_IsException(in.value))
+    return JS_EXCEPTION;
+
+  buf = JS_GetTypedArrayBuffer(ctx, argv[1], &offset, &length, &bpe);
+
+  if(JS_IsException(buf) || bpe != 4 || !(idx = (uint32_t*)JS_GetArrayBuffer(ctx, &size, buf))) {
+    JS_FreeValue(ctx, buf);
+    inputbuffer_free(&in, ctx);
+    return JS_IsException(buf) ? JS_EXCEPTION : JS_ThrowTypeError(ctx, "argument 2 must be a Uint32Array");
+  }
+
+  idx = (uint32_t*)((uint8_t*)idx + offset);
+
+  for(k = 0; k < length / 4; k++) {
+    uint32_t target = idx[k];
+
+    /* a smaller index than the last one starts over */
+    if(target < u16)
+      pos = u16 = 0;
+
+    while(u16 < target && pos < n) {
+      size_t len, run;
+
+      if((run = ascii_span(p + pos, MIN_NUM(n - pos, target - u16)))) {
+        pos += run;
+        u16 += run;
+        continue;
+      }
+
+      /* an invalid byte counts as one U+FFFD */
+      if(!(len = utf8_seqlen(p + pos, n - pos)))
+        len = 1;
+
+      if(u16 + (len == 4 ? 2 : 1) > target)
+        break;
+
+      pos += len;
+      u16 += len == 4 ? 2 : 1;
+    }
+
+    idx[k] = pos;
+  }
+
+  JS_FreeValue(ctx, buf);
+  inputbuffer_free(&in, ctx);
+  return JS_DupValue(ctx, argv[1]);
+}
+
+static void
+textcode_buffer_free(JSRuntime* rt, void* opaque, void* ptr) {
+  js_free_rt(rt, ptr);
+}
+
+/**
+ * encode(string, encoding): the UTF-16 units of string as bytes, for the
+ * Node encodings no standard API has, Buffer.from(string, 'latin1').
+ *
+ *   encode('AéĀ', 'latin1')   -> ArrayBuffer [0x41, 0xe9, 0x00]
+ *   encode('A\ud800', 'utf-16le')       -> ArrayBuffer [0x41, 0, 0x00, 0xd8]
+ *
+ *   string  string    the text, a lone surrogate is kept as its unit
+ *   string  encoding  'utf-16le', or 'latin1' and 'ascii' (unit & 255)
+ *
+ *   returns ArrayBuffer
+ *
+ * throws RangeError for another encoding.
+ * wired in as JS_CFUNC_DEF("encode", 2, js_textcode_encode).
+ */
+static JSValue
+js_textcode_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const uint8_t *s, *p, *end, *next;
+  const char* enc;
+  size_t len, units = 0, k = 0;
+  uint8_t* out;
+  BOOL wide;
+
+  if(!(enc = JS_ToCString(ctx, argc > 1 ? argv[1] : JS_UNDEFINED)))
+    return JS_EXCEPTION;
+
+  wide = !strcmp(enc, "utf-16le");
+
+  if(!wide && strcmp(enc, "latin1") && strcmp(enc, "ascii")) {
+    JS_ThrowRangeError(ctx, "encode: unknown encoding '%s'", enc);
+    JS_FreeCString(ctx, enc);
+    return JS_EXCEPTION;
+  }
+
+  JS_FreeCString(ctx, enc);
+
+  /* cesu8: every UTF-16 unit, lone surrogates too, is its own sequence */
+  if(!(s = (const uint8_t*)JS_ToCStringLen2(ctx, &len, argv[0], TRUE)))
+    return JS_EXCEPTION;
+
+  for(p = s, end = s + len; p < end; p++)
+    units += (*p & 0xc0) != 0x80;
+
+  if(!(out = js_malloc(ctx, (units << wide) + 1))) {
+    JS_FreeCString(ctx, (const char*)s);
+    return JS_EXCEPTION;
+  }
+
+  for(p = s; p < end; p = next) {
+    int unit = unicode_from_utf8(p, end - p, &next);
+
+    if(unit < 0) {
+      unit = 0xfffd;
+      next = p + 1;
+    }
+
+    out[k++] = unit & 0xff;
+
+    if(wide)
+      out[k++] = unit >> 8;
+  }
+
+  JS_FreeCString(ctx, (const char*)s);
+  return JS_NewArrayBuffer(ctx, out, k, textcode_buffer_free, 0, FALSE);
+}
+
+/**
+ * decode(view, encoding): bytes as code points, for the Node encodings
+ * whose names WHATWG uses for windows-1252, buffer.toString('latin1').
+ *
+ *   decode(new Uint8Array([0x41, 0xe9]), 'latin1')   -> 'Aé'
+ *   decode(new Uint8Array([0x41, 0xe9]), 'ascii')    -> 'Ai'
+ *
+ *   ArrayBuffer|view  view      the bytes
+ *   string            encoding  'latin1' (byte = code point) or 'ascii'
+ *                               (byte & 0x7f)
+ *
+ *   returns string
+ *
+ * throws RangeError for another encoding.
+ * wired in as JS_CFUNC_DEF("decode", 2, js_textcode_decode).
+ */
+static JSValue
+js_textcode_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer in = js_input_buffer(ctx, argv[0]);
+  const uint8_t* p = inputbuffer_data(&in);
+  size_t i, k = 0, n = inputbuffer_length(&in);
+  const char* enc;
+  uint8_t mask, *out;
+  JSValue ret = JS_EXCEPTION;
+
+  if(JS_IsException(in.value))
+    return JS_EXCEPTION;
+
+  if(!(enc = JS_ToCString(ctx, argc > 1 ? argv[1] : JS_UNDEFINED)))
+    goto end;
+
+  mask = !strcmp(enc, "ascii") ? 0x7f : 0xff;
+
+  if(mask == 0xff && strcmp(enc, "latin1")) {
+    JS_ThrowRangeError(ctx, "decode: unknown encoding '%s'", enc);
+    JS_FreeCString(ctx, enc);
+    goto end;
+  }
+
+  JS_FreeCString(ctx, enc);
+
+  /* as UTF-8 for JS_NewStringLen, a byte >= 0x80 takes 2 */
+  if(!(out = js_malloc(ctx, n * 2 + 1)))
+    goto end;
+
+  for(i = 0; i < n; i++) {
+    uint8_t c = p[i] & mask;
+
+    if(c < 0x80) {
+      out[k++] = c;
+    } else {
+      out[k++] = 0xc0 | (c >> 6);
+      out[k++] = 0x80 | (c & 0x3f);
+    }
+  }
+
+  ret = JS_NewStringLen(ctx, (const char*)out, k);
+  js_free(ctx, out);
+
+end:
+  inputbuffer_free(&in, ctx);
+  return ret;
+}
+
 static void
 js_encoder_finalizer(JSRuntime* rt, JSValue val) {
   TextEncoder* enc;
@@ -1041,6 +1348,21 @@ static const JSCFunctionListEntry js_encoder_methods[] = {
     JS_CGETSET_MAGIC_DEF("endian", js_encoder_get, 0, ENCODER_ENDIANNESS),
     JS_CGETSET_MAGIC_DEF("buffered", js_encoder_get, 0, ENCODER_BUFFERED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TextEncoder", JS_PROP_CONFIGURABLE),
+};
+
+/* module exports besides the two classes, one line per name:
+ *   isAscii      7-bit ASCII check, buffer.isAscii()
+ *   isUtf8       UTF-8 validity check, buffer.isUtf8()
+ *   utf8Offsets  UTF-16 indices to UTF-8 byte offsets
+ *   encode       a string as utf-16le or latin1 bytes
+ *   decode       latin1 or ascii bytes as a string
+ */
+static const JSCFunctionListEntry js_textcode_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("isAscii", 1, js_textcode_is, TEXTCODE_IS_ASCII),
+    JS_CFUNC_MAGIC_DEF("isUtf8", 1, js_textcode_is, TEXTCODE_IS_UTF8),
+    JS_CFUNC_DEF("utf8Offsets", 2, js_textcode_utf8offsets),
+    JS_CFUNC_DEF("encode", 2, js_textcode_encode),
+    JS_CFUNC_DEF("decode", 2, js_textcode_decode),
 };
 
 int
@@ -1070,6 +1392,7 @@ js_code_init(JSContext* ctx, JSModuleDef* m) {
   if(m) {
     JS_SetModuleExport(ctx, m, "TextDecoder", textdecoder_ctor);
     JS_SetModuleExport(ctx, m, "TextEncoder", textencoder_ctor);
+    JS_SetModuleExportList(ctx, m, js_textcode_funcs, countof(js_textcode_funcs));
   }
 
   return 0;
@@ -1088,6 +1411,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_code_init))) {
     JS_AddModuleExport(ctx, m, "TextDecoder");
     JS_AddModuleExport(ctx, m, "TextEncoder");
+    JS_AddModuleExportList(ctx, m, js_textcode_funcs, countof(js_textcode_funcs));
   }
 
   return m;

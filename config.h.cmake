@@ -173,6 +173,21 @@
 /* Define this if you have the mkstemp() function */
 #cmakedefine HAVE_MKSTEMP 1
 
+/* Define this if you have the preadv() function */
+#cmakedefine HAVE_PREADV 1
+
+/* Define this if you have the preadv2() function */
+#cmakedefine HAVE_PREADV2 1
+
+/* Define this if you have the pwritev() function */
+#cmakedefine HAVE_PWRITEV 1
+
+/* Define this if you have the pwritev2() function */
+#cmakedefine HAVE_PWRITEV2 1
+
+/* Define this if you have the readv() function */
+#cmakedefine HAVE_READV 1
+
 /* Define this if you have the recvmmsg() function */
 #cmakedefine HAVE_RECVMMSG 1
 
@@ -229,6 +244,9 @@
 
 /* Define this if you have the wordexp() function */
 #cmakedefine HAVE_WORDEXP 1
+
+/* Define this if you have the writev() function */
+#cmakedefine HAVE_WRITEV 1
 
 /* Define this if you have the JS_GetClassId() function */
 #cmakedefine HAVE_JS_GETCLASSID 1

@@ -21,9 +21,12 @@ below by theme.
 | `chown` / `fchown` / `lchown` | 3 | Change ownership. |
 | `fsync` / `fdatasync` | 1 | Flush file data to disk. |
 | `truncate` / `ftruncate` | 2 | Set file length. |
+| `readv(fd, buffers)` / `writev(fd, buffers)` | 2 | Scatter/gather I/O over an iterable of ArrayBuffer / TypedArray / DataView, returns the byte count. More than `IOV_MAX` buffers: a write goes in batches, a read fills the first `IOV_MAX` (as node). |
+| `preadv(fd, buffers, offset)` / `pwritev(...)` | 3 | Same, at a file offset; the file position is not moved. |
+| `preadv2(fd, buffers, offset, flags)` / `pwritev2(...)` | 4 | Same with `RWF_*` flags (Linux); offset `-1` uses the file position. |
 | `utime` / `utimes` / `lutimes` / `futimes` | 2 | Set access/modification times. |
 | `access(path, mode)` | 2 | Check file accessibility. |
-| `fcntl(fd, cmd, ...)` | 2 | File descriptor control. |
+| `fcntl(fd, cmd, ...)` | 2 | File descriptor control. `F_GETPATH` is `-1` where the OS has no such command. |
 | `fstat(fd)` | 1 | Stat by descriptor. |
 | `fmemopen(buf, mode)` | 2 | Open an in-memory `FILE`. |
 | `_get_osfhandle` / `_open_osfhandle` | 1 | Windows fd ↔ handle conversion. |
@@ -76,7 +79,10 @@ below by theme.
 | `awaitSync(promise, timeout?)` | 1 | Wait synchronously for a promise, running jobs and the event loop; returns the value or throws the reason. Non-promises pass through. With `timeout` (ms) throws `Error('awaitSync: timed out')`; without it never returns for a promise that cannot settle. |
 | `importSync(specifier, base?)` | 1 | Load an ES module synchronously and return its namespace; works with top-level await. |
 | `dupArrayBuffer` / `sliceArrayBuffer` / `concatArrayBuffer` | 1 | Copy / slice / concatenate buffers. |
-| `searchArrayBuffer(haystack, needle)` | 2 | Find a byte pattern. |
+| `searchArrayBuffer(haystack, needle[, offset[, length]][, mask])` | 2 | Index of the first match in `haystack[offset, offset + length)`, or `null`; `needle` is an ArrayBuffer or a view. |
+| `searchArrayBufferLast(...)` | 2 | The same for the last match, as `lastIndexOf`. |
+| `byteSwap(view, size)` | 2 | Reverses every 2-, 4- or 8-byte word in place (Buffer `swap16`/`swap32`/`swap64`). |
+| `lineStarts(input)` | 1 | `Uint32Array` of line starts, first entry 0; UTF-16 indices for a string, byte offsets for a buffer. Lines end at `\n` only. |
 | `copyArrayBuffer` / `compareArrayBuffer` | 2 | Copy into / compare buffers. |
 | `toPointer(value)` | 1 | Native pointer of a value. |
 | `strcmp(a, b)` | 2 | C-string comparison. |
@@ -125,4 +131,4 @@ below by theme.
 ## Constants
 
 The module also exports a large set of `errno`, signal, `O_*`, `S_*`, `F_*`,
-`AT_*` and similar numeric constants.
+`AT_*`, `RWF_*` and similar numeric constants.

@@ -112,6 +112,64 @@ try {
       fs.closeSync(fd2);
     },
 
+    'writevSync()/readvSync() move several buffers, a position leaves the offset alone'() {
+      const file = path.join(ROOT, 'rwv.bin');
+      const fd = fs.openSync(file, fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_TRUNC, 0o644);
+      eq(fs.writevSync(fd, [new Uint8Array([0x61, 0x62]), new Uint8Array([0x63, 0x64, 0x65])]), 5);
+      eq(fs.writevSync(fd, [new Uint8Array([0x5a])], 0), 1);
+      eq(fs.tell(fd), 5);
+
+      const a = new Uint8Array(2),
+        b = new Uint8Array(3);
+      eq(fs.readvSync(fd, [a, b], 0), 5);
+      eq(fs.bufferToString(a.buffer, 0, 2) + fs.bufferToString(b.buffer, 0, 3), 'Zbcde');
+      eq(fs.tell(fd), 5);
+      eq(fs.readvSync(fd, [a]), 0);
+      fs.closeSync(fd);
+    },
+
+    'writevSync() on a FILE from openSync(path, flags) writes after its buffered data'() {
+      const file = path.join(ROOT, 'rwv-file.txt');
+      const f = fs.openSync(file, 'w+');
+      f.puts('ab');
+      eq(fs.writevSync(f, [fs.bufferFrom('cd', 0, 2)]), 2);
+      fs.closeSync(f);
+      eq(fs.readFileSync(file, 'utf-8'), 'abcd');
+    },
+
+    'openAsBlobSync() maps the file into a typed Blob, empty files too'() {
+      const file = path.join(ROOT, 'blob.txt');
+      fs.writeFileSync(file, 'hello mapped world');
+      const blob = fs.openAsBlobSync(file, { type: 'text/plain' });
+      eq(blob.size, 18);
+      eq(blob.type, 'text/plain');
+      eq(blob[Symbol.toStringTag], 'Blob');
+
+      const empty = path.join(ROOT, 'blob-empty.txt');
+      fs.writeFileSync(empty, '');
+      eq(fs.openAsBlobSync(empty).size, 0);
+    },
+
+    async 'openAsBlob() resolves to a Blob, text() and slice() read the mapping'() {
+      const file = path.join(ROOT, 'blob2.txt');
+      fs.writeFileSync(file, 'hello mapped world');
+      const blob = await fs.openAsBlob(file);
+      eq(await blob.text(), 'hello mapped world');
+      eq(await blob.slice(6, 12).text(), 'mapped');
+    },
+
+    'openAsBlob() throws synchronously for a missing file or a directory'() {
+      for(const p of [path.join(ROOT, 'missing'), ROOT]) {
+        let err;
+        try {
+          fs.openAsBlob(p);
+        } catch(e) {
+          err = e;
+        }
+        assert(err instanceof Error, p);
+      }
+    },
+
     'fopenSync()/fdopenSync() open stdio FILE handles usable by FileHandle'() {
       const file = path.join(ROOT, 'fopen.txt');
       const f = fs.fopenSync(file, 'w');
@@ -622,6 +680,40 @@ try {
     'inotify_event can be constructed from a plain object'() {
       const ev = new fs.inotify_event({ wd: 1, mask: 0, cookie: 0, len: 0 });
       assert(ev instanceof ArrayBuffer, 'expected inotify_event to extend ArrayBuffer');
+    },
+
+    async 'writev()/readv() call back with the count and the buffers'() {
+      const file = path.join(ROOT, 'rwv-cb.bin');
+      const fd = fs.openSync(file, fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_TRUNC, 0o644);
+      const views = [fs.bufferFrom('ab', 0, 2), fs.bufferFrom('cd', 0, 2)];
+
+      const [err, n, bufs] = await new Promise(res => fs.writev(fd, views, (...a) => res(a)));
+      eq(err, null);
+      eq(n, 4);
+      assert(bufs === views);
+
+      const a = new Uint8Array(3);
+      const r = await new Promise(res => fs.readv(fd, [a], 1, (...x) => res(x)));
+      eq(r[1], 3);
+      eq(fs.bufferToString(a.buffer, 0, 3), 'bcd');
+
+      const bad = await new Promise(res => fs.writev(9999, views, e => res(e)));
+      assert(bad instanceof Error);
+      fs.closeSync(fd);
+    },
+
+    'writevSync() writes more than IOV_MAX buffers, readvSync() fills the first IOV_MAX as node'() {
+      const file = path.join(ROOT, 'rwv-many.bin');
+      const fd = fs.openSync(file, fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_TRUNC, 0o644);
+      const views = Array.from({ length: 2500 }, (_, i) => new Uint8Array([i & 255, i >> 8]));
+      eq(fs.writevSync(fd, views), 5000);
+      eq(fs.fstatSync(fd).size, 5000);
+
+      const back = Array.from({ length: 3000 }, () => new Uint8Array(2));
+      eq(fs.readvSync(fd, back, 0), 2048);
+      eq(back[1023][0], 255);
+      eq(back[1023][1], 3);
+      fs.closeSync(fd);
     },
   });
 } finally {

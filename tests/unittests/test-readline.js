@@ -48,6 +48,12 @@ tests({
     eq(await lines(['x\n\n\ny']), '["x","","","y"]');
     eq(await lines(['']), '[]');
   },
+  async 'bytes split inside a character decode as one, a cut-off end is dropped'() {
+    const u = (...b) => new Uint8Array(b);
+
+    /* € = e2 82 ac, 😀 = f0 9f 98 80 */
+    eq(await lines([u(0x61, 0xe2), u(0x82), u(0xac, 0x0a, 0xf0, 0x9f), u(0x98, 0x80, 0x0a, 0x62, 0xe2, 0x82)]), JSON.stringify(['a€', '😀', 'b']));
+  },
   async 'for await iterates the lines'() {
     const rl = readline.createInterface({ input: input(['€\n', 'é']) });
     const got = [];

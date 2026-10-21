@@ -56,7 +56,18 @@ new TextEncoder([encoding])   // length 1
 | Member | Args | Kind | Description |
 | --- | --- | --- | --- |
 | `encode(input)` | 1 | method | Encodes a string into a `Uint8Array`. |
-| `encodeInto(source, dest)` | 2 | method | Encodes `source` into the existing `dest` typed array; returns read/written counts. |
+| `encodeInto(source, dest)` | 2 | method | Encodes `source` into the existing `dest` typed array; returns `{ read, written }`, `read` in UTF-16 units as WHATWG. |
 | `encoding` | — | getter | `'utf-8'`, or `'utf-16le'`/`'utf-16be'`/`'utf-32le'`/`'utf-32be'` for the extension encodings (enumerable). |
 | `endian` | — | getter | Byte order used for multi-byte encodings. |
 | `buffered` | — | getter | Bytes pending across incremental encode calls. |
+
+## Internal helpers
+
+Module exports that `lib/` builds Node APIs on; not standard APIs themselves.
+
+| Function | Args | Description |
+| --- | --- | --- |
+| `isAscii(view)` / `isUtf8(view)` | 1 | Whether the bytes are 7-bit ASCII / valid UTF-8 (no overlong form, no surrogate); `buffer.isAscii()`/`isUtf8()`. |
+| `utf8Offsets(bytes, indices)` | 2 | Converts a `Uint32Array` of UTF-16 indices into the text `bytes` (UTF-8) encodes to byte offsets, in place, one pass when ascending. |
+| `encode(string, encoding)` | 2 | `'utf-16le'`, `'latin1'` or `'ascii'` bytes of a string as an `ArrayBuffer`, lone surrogates kept (Node's `Buffer.from`). |
+| `decode(view, encoding)` | 2 | `'latin1'` (byte = code point) or `'ascii'` (`byte & 0x7f`) bytes as a string (Node's `toString`). |

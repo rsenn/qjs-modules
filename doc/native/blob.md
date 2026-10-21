@@ -30,3 +30,9 @@ new Blob(parts[, options])   // length 1
 | `size` | Length of the blob in bytes (enumerable). |
 | `type` | MIME type string. |
 | `[Symbol.toStringTag]` | `"Blob"`. |
+
+## Internal hook
+
+`Blob[Symbol.for('qjs.blob.fromArrayBuffer')](buffer)` returns an untyped `Blob` over the bytes of `buffer` without copying them; the Blob holds a reference to `buffer`, which nobody may write from then on. `fs.openAsBlob()` uses it for a file mapping. Not a module export.
+
+`blob[Symbol.for('qjs.blob.segments')]()` returns the Blob's bytes as one `Uint8Array` per segment, without copying; each view keeps the object owning its bytes alive and must not be written. `Bun.write()` hands them to `fs.writevSync()`.
