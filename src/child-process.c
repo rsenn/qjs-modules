@@ -7,7 +7,6 @@
 
 #include "defines.h"
 #include "child-process.h"
-#include "path.h"
 #include "debug.h"
 #include "utils.h"
 
@@ -23,6 +22,7 @@
 #else
 #include <unistd.h>
 #endif
+#include <sys/wait.h>
 #endif
 
 #ifndef __ANDROID__
