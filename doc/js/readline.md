@@ -67,7 +67,9 @@ as in Node.
 With `terminal: true` (the default when `output` is a tty) the input is read as keystrokes and
 the line is edited and redrawn with the same escape sequences as Node. A tty FILE input
 (`process.stdin`) is put into raw mode and restored on `close()`. Any other input works too,
-which is how the tests drive it.
+which is how the tests drive it. Reads, writes to a FILE output, keys and widths go through
+[terminal](terminal.md), so a Windows console without VT processing gets the same keys and
+redraws.
 
 | Keys | Action |
 | --- | --- |

@@ -1,5 +1,6 @@
 import { browserEvent, callTree, callees, callers, classifyStatement, dependencies, findDefines, findFunctions, findIdentifiers, findTypes, format, formatRows, placedIdentifier, makeBrowser, makeInputFilter, makePager, pagerEvent, renderPager, clipAnsi, identAtColumn, identAt, recordInfo, paneContent, drawPane, parseInput, reachable, renderBrowser, rowAt, show, showable, srcColAt, locate, pointerString, codeFor, base64 } from '../../utilities/extract-c.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
+import * as std from 'std';
 
 const byName = (list, name) => list.find(d => d.name == name);
 const layoutOf = d => d.fields.map(f => [f.name, f.offset, f.size]);
@@ -169,16 +170,18 @@ tests({
     assert(paneContent(recordInfo(ids, 'printf', cgRead))[0][0].includes('external or unknown'));
   },
   'drawPane() draws a titled box with the record data through terminal.js'() {
-    const out = [];
-    const f = { puts: s => out.push(s), flush() {} };
+    const f = std.tmpfile();
     drawPane(recordInfo(findIdentifiers(CG_SRC, 'cg.c'), 'mid', cgRead), 20, 1, 40, f);
-    const text = out.join('').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '|');
+    f.seek(0, std.SEEK_SET);
+    const raw = f.readAsString();
+    f.close();
+    const text = raw.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '|');
 
     assert(text.includes('┌') && text.includes('┘'), text);
     assert(text.includes(' mid '), text);
     assert(text.includes('cg.c:5:12 · lines 5–8'), text);
     assert(text.includes('referenced 2×  ·  3 dependencies'), text);
-    assert(out.join('').includes('\x1b[20;1H'));
+    assert(raw.includes('\x1b[20;1H'));
   },
   'recordInfo() has no kind for names that are not declared, so the pane offers no show()'() {
     const ids = findIdentifiers(CG_SRC, 'cg.c');

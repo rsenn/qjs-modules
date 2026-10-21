@@ -3637,3 +3637,26 @@ checked in a 40-column tmux pane). Left open from them:
 
 Verify: a piped test in `tests/unittests/test-repl.js` per item where the behavior is visible without a tty;
 the rest by hand in a terminal.
+
+## Tier 31 — terminal I/O on a Windows console without VT (2026-10-22)
+
+`lib/terminal.js` writes only through `misc.ttyWrite()`, reads through `misc.ttyRead()`;
+`readline`, `repl`, `tty`, `process` and `console` take raw mode, window size, reads and
+writes from it.
+
+**Done:** `src/vtparse.c` (VT parser, `tests/c/vtparse-events.c`), `src/win32/vtconsole.c`
+(console calls for CSI cursor/erase/SGR/?25, key events to VT bytes), `misc.ttyWrite`,
+`misc.ttyRead`, `misc.ttyGetWinSize` (window, not buffer), `misc.ttySetRaw` saves and restores
+console modes and code pages, sets UTF-8, returns whether VT output is native. Smoke-tested
+under wine only (a C check of vtconsole output and injected key events), not on Windows.
+
+| # | Item | Notes |
+| --- | --- | --- |
+| 31.1 | Run qjsm.exe on a real Windows console, legacy (conhost, VT off) and Windows Terminal | does ReadConsoleInputW with ENABLE_VIRTUAL_TERMINAL_INPUT deliver the sequence characters as key events, or also the raw arrow keys (then 31.2 sends them twice)? |
+| 31.2 | Decide VT input on or off in `ttySetRaw`, once 31.1 is known | `vtconsole_read` translates virtual keys itself, VT input only matters for `os.read` users |
+| 31.3 | `repl.js` `supportsAnsi` is still false on Windows | colors now go through `ttyWrite`; `inspect()` output printed with `console.log` does not, it needs `ttyWrite` too before colors can be on |
+| 31.4 | Resize events are dropped by `vtconsole_read` | report them, so `tty.WriteStream` can emit `'resize'` where there is no SIGWINCH |
+| 31.5 | Untranslated sequences: `CSI S/T` scroll, `CSI r` region, `CSI ?1049 h/l`, `CSI @ P L M` | `ScrollConsoleScreenBuffer`, `CreateConsoleScreenBuffer` + `SetConsoleActiveScreenBuffer` |
+| 31.6 | Mouse input (`mousetrackingEnable`) on a console | `ENABLE_MOUSE_INPUT` without QuickEdit, MOUSE_EVENT to SGR 1006 reports |
+| 31.7 | `readKey()` polls with `os.sleep(10)` on a console | `ttyRead` never blocks there; a waiting variant would need WaitForSingleObject |
+| 31.8 | `util.stripAnsi` and `terminal.stripAnsi` differ | util's also strips `ESC (B` and similar, terminal's only CSI; one of them should go |
