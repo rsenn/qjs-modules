@@ -1251,3 +1251,14 @@
 
     qjsm -e 'import("misc").then(m => console.log(typeof m.valuePointer({})))'
                               # number
+
+- os-ttygetwinsize-win32-buffer-size: quickjs-libc's os.ttyGetWinSize() on
+  Windows returns the console screen buffer size (dwSize, e.g. [120, 9001])
+  instead of the visible window (srWindow), so a full-screen redraw or a
+  line wrap computed from it is wrong on Windows. lib/ no longer calls it,
+  misc.ttyGetWinSize(fd) reports the window. The fix belongs in
+  ../quickjs-libc.c js_os_ttyGetWinSize (srWindow.Right - Left + 1, Bottom -
+  Top + 1).
+
+    os.ttyGetWinSize(1)     // [120, 9001] in a 120x30 cmd.exe window
+    misc.ttyGetWinSize(1)   // [120, 30]

@@ -821,6 +821,10 @@ target_include_directories(jread-dialects PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(jread-dialects PRIVATE modules ${QUICKJS_LIBRARY} m)
 add_test(NAME c-jread-dialects COMMAND jread-dialects)
 
+add_executable(vtparse-events tests/c/vtparse-events.c src/vtparse.c)
+target_include_directories(vtparse-events PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+add_test(NAME c-vtparse-events COMMAND vtparse-events)
+
 add_executable(json-pull-dump tests/c/json-pull-dump.c)
 target_include_directories(json-pull-dump PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(json-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
@@ -941,7 +945,7 @@ if(mmap_SOURCES)
   list(APPEND LIBRARY_SOURCES src/win32/mmap.c)
 endif(mmap_SOURCES)
 if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
-  list(APPEND LIBRARY_SOURCES src/win32/socketpair.c)
+  list(APPEND LIBRARY_SOURCES src/win32/socketpair.c src/win32/vtconsole.c)
 endif()
 if(NOT WIN32 AND NOT CYGWIN AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Linux") AND NOT ANDROID)
   # src/getdents.c's non-Windows backend only works on Linux/Android (it needs

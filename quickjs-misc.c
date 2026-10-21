@@ -23,6 +23,7 @@
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
+#include "vtconsole.h"
 #else
 #include <unistd.h>
 #include <signal.h>
@@ -330,7 +331,41 @@ typedef enum {
   CLEAR_ENTIRE,
 } ClearMode;
 
+/* writes buf to out, a std FILE object or an fd number, through a Writer.
+ *
+ * a FILE object is flushed after, so the sequence is not left in its
+ * buffer. returns TRUE when all of buf was written, never throws.
+ */
+static BOOL
+term_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
+  Writer wr;
+  ssize_t r;
+
+  if(!writer_from_js(ctx, out, &wr))
+    return FALSE;
+
+  r = writer_write(&wr, buf, len);
+  writer_free(&wr);
+
+  if(JS_IsObject(out)) {
+    JSValue ret = js_invoke(ctx, out, "flush", 0, 0);
+
+    if(JS_IsException(ret)) {
+      JS_FreeValue(ctx, JS_GetException(ctx));
+      return FALSE;
+    }
+
+    JS_FreeValue(ctx, ret);
+  }
+
+  return r == (ssize_t)len;
+}
+
 #ifdef _WIN32
+/* Windows 10 built-in VT100 emulation */
+#define __ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#define __ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+
 /* the console handle behind out, a std FILE object or an fd number.
  *
  * a FILE object is flushed first, so the console calls come after what
@@ -364,105 +399,50 @@ term_handle(JSContext* ctx, JSValueConst out) {
   return fd < 0 ? INVALID_HANDLE_VALUE : (HANDLE)_get_osfhandle(fd);
 }
 
-static BOOL
-clear_screen(JSContext* ctx, JSValueConst out, ClearMode mode, BOOL line) {
-  COORD coords = {0, 0};
-  DWORD w, n = 0;
-  CONSOLE_SCREEN_BUFFER_INFO sbi;
-  HANDLE h = term_handle(ctx, out);
+/* the VtConsole of console output handle h, set up on first use.
+ * a process has few of them (stdout, stderr), a fifth one reuses the last slot. */
+static VtConsole*
+term_console(HANDLE h) {
+  static VtConsole consoles[4];
+  static int count;
+  int i;
 
-  if(h == INVALID_HANDLE_VALUE || !GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
+  for(i = 0; i < count; i++)
+    if(consoles[i].handle == h)
+      return &consoles[i];
 
-#define CHAR_POS(c) (((c).Y * sbi.dwSize.X) + (c).X)
-
-  switch(mode) {
-    case CLEAR_TO_END: {
-      coords = sbi.dwCursorPosition;
-      n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
-      break;
-    }
-    case CLEAR_TO_BEGIN: {
-      if(line)
-        coords.Y = sbi.dwCursorPosition.Y;
-      n = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
-      break;
-    }
-    case CLEAR_ENTIRE: {
-      if(line)
-        coords.Y = sbi.dwCursorPosition.Y;
-      n = line ? sbi.dwSize.X : sbi.dwSize.X * sbi.dwSize.Y;
-      break;
-    }
-  }
-
-  if(!FillConsoleOutputCharacter(h, (TCHAR)' ', n, coords, &w))
-    return FALSE;
-
-  if(!GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
-
-  if(!FillConsoleOutputAttribute(h, sbi.wAttributes, n, coords, &w))
-    return FALSE;
-
-  return TRUE;
+  i = count < 4 ? count++ : 3;
+  vtconsole_init(&consoles[i], h);
+  return &consoles[i];
 }
+#endif
 
-#else
-/* writes buf to out, a std FILE object or an fd number, through a Writer.
+/* writes the VT output buf to out, a std FILE object or an fd number.
  *
- * a FILE object is flushed after, so the sequence is not left in its
- * buffer. returns TRUE when all of buf was written, never throws.
+ * a Win32 console without VT processing gets the sequences carried out
+ * by console calls (vtconsole), everything else the bytes as they are.
+ * returns TRUE when all of buf was handled, never throws.
  */
 static BOOL
-term_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
-  Writer wr;
-  ssize_t r;
+tty_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
+#ifdef _WIN32
+  HANDLE h = term_handle(ctx, out);
+  DWORD mode;
 
-  if(!writer_from_js(ctx, out, &wr))
-    return FALSE;
+  if(h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode) && !(mode & __ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+    return vtconsole_write(term_console(h), buf, len);
+#endif
 
-  r = writer_write(&wr, buf, len);
-  writer_free(&wr);
-
-  if(JS_IsObject(out)) {
-    JSValue ret = js_invoke(ctx, out, "flush", 0, 0);
-
-    if(JS_IsException(ret)) {
-      JS_FreeValue(ctx, JS_GetException(ctx));
-      return FALSE;
-    }
-
-    JS_FreeValue(ctx, ret);
-  }
-
-  return r == (ssize_t)len;
+  return term_write(ctx, out, buf, len);
 }
 
 static BOOL
 clear_screen(JSContext* ctx, JSValueConst out, ClearMode mode, BOOL line) {
   char buf[] = {27, '[', mode + '0', line ? 'K' : 'J'};
 
-  return term_write(ctx, out, buf, sizeof(buf));
+  return tty_write(ctx, out, buf, sizeof(buf));
 }
-#endif
 
-#ifdef _WIN32
-static BOOL
-set_cursor_position(JSContext* ctx, JSValueConst out, int x, int y) {
-  COORD coords = {0, 0};
-  CONSOLE_SCREEN_BUFFER_INFO sbi;
-  HANDLE h = term_handle(ctx, out);
-
-  if(h == INVALID_HANDLE_VALUE || !GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
-
-  coords.X = x == -1 ? sbi.dwCursorPosition.X : x;
-  coords.Y = y == -1 ? sbi.dwCursorPosition.Y : y;
-
-  return !!SetConsoleCursorPosition(h, coords);
-}
-#else
 static BOOL
 set_cursor_position(JSContext* ctx, JSValueConst out, int x, int y) {
   char buf[2 + (FMT_ULONG + 1) * 2] = {27, '['};
@@ -481,26 +461,9 @@ set_cursor_position(JSContext* ctx, JSValueConst out, int x, int y) {
     buf[pos++] = 'H';
   }
 
-  return term_write(ctx, out, buf, pos);
+  return tty_write(ctx, out, buf, pos);
 }
-#endif
 
-#ifdef _WIN32
-static BOOL
-move_cursor(JSContext* ctx, JSValueConst out, int x, int y) {
-  COORD coords = {0, 0};
-  CONSOLE_SCREEN_BUFFER_INFO sbi;
-  HANDLE h = term_handle(ctx, out);
-
-  if(h == INVALID_HANDLE_VALUE || !GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
-
-  coords.X = sbi.dwCursorPosition.X + x;
-  coords.Y = sbi.dwCursorPosition.Y + y;
-
-  return !!SetConsoleCursorPosition(h, coords);
-}
-#else
 static BOOL
 move_cursor(JSContext* ctx, JSValueConst out, int x, int y) {
   char buf[(2 + (FMT_ULONG) + 1) * 2];
@@ -526,9 +489,8 @@ move_cursor(JSContext* ctx, JSValueConst out, int x, int y) {
     buf[pos++] = x < 0 ? 'D' : 'C';
   }
 
-  return term_write(ctx, out, buf, pos);
+  return tty_write(ctx, out, buf, pos);
 }
-#endif
 
 #ifdef _WIN32
 static BOOL
@@ -4127,41 +4089,116 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 #ifndef __wasi__
 #ifdef _WIN32
+static HANDLE raw_handles[2];   /* console input and output ttySetRaw changed */
+static DWORD raw_modes[2];      /* their modes before */
+static UINT raw_codepages[2];   /* input and output code pages before */
+static BOOL have_raw;
 
-/* Windows 10 built-in VT100 emulation */
-#define __ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-#define __ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+static void
+term_exit(void) {
+  if(!have_raw)
+    return;
 
+  SetConsoleMode(raw_handles[0], raw_modes[0]);
+
+  if(raw_handles[1] != INVALID_HANDLE_VALUE)
+    SetConsoleMode(raw_handles[1], raw_modes[1]);
+
+  SetConsoleCP(raw_codepages[0]);
+  SetConsoleOutputCP(raw_codepages[1]);
+  have_raw = FALSE;
+}
+
+/* ttySetRaw: console input fd to raw mode, or back to how it was.
+ *
+ *   ttySetRaw(0)         // raw, UTF-8 code pages, VT output when possible
+ *   ttySetRaw(0, true)   // the modes and code pages from before
+ *
+ *   number   fd       a console input, 0 also sets up the output (fd 1)
+ *   boolean  restore  undo the last ttySetRaw
+ *
+ *   returns boolean   true when the console output does VT itself,
+ *                     ttyWrite translates for it otherwise
+ *
+ * throws InternalError when fd is no console.
+ * wired in: JS_CFUNC_DEF("ttySetRaw").
+ */
 static JSValue
 js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int fd;
-  HANDLE handle;
+  int32_t fd;
+  HANDLE in, out;
+  DWORD mode;
+  BOOL vt = FALSE;
 
   if(JS_ToInt32(ctx, &fd, argv[0]))
     return JS_EXCEPTION;
 
-  handle = (HANDLE)_get_osfhandle(fd);
-  SetConsoleMode(handle, ENABLE_WINDOW_INPUT | __ENABLE_VIRTUAL_TERMINAL_INPUT);
-  _setmode(fd, _O_BINARY);
-
-  if(fd == 0) {
-    handle = (HANDLE)_get_osfhandle(1); /* corresponding output */
-    SetConsoleMode(handle, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | __ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+  if(argc > 1 && JS_ToBool(ctx, argv[1])) {
+    term_exit();
+    return JS_TRUE;
   }
 
-  return JS_UNDEFINED;
+  in = (HANDLE)_get_osfhandle(fd);
+  out = fd == 0 ? (HANDLE)_get_osfhandle(1) : INVALID_HANDLE_VALUE;
+
+  if(in == INVALID_HANDLE_VALUE || !GetConsoleMode(in, &mode))
+    return JS_ThrowInternalError(ctx, "ttySetRaw: fd %d is not a console", fd);
+
+  if(!have_raw) {
+    static BOOL registered;
+
+    raw_handles[0] = in;
+    raw_modes[0] = mode;
+    raw_handles[1] = out != INVALID_HANDLE_VALUE && GetConsoleMode(out, &raw_modes[1]) ? out : INVALID_HANDLE_VALUE;
+    raw_codepages[0] = GetConsoleCP();
+    raw_codepages[1] = GetConsoleOutputCP();
+    have_raw = TRUE;
+
+    if(!registered)
+      registered = !atexit(term_exit);
+  }
+
+  /* no ENABLE_WINDOW_INPUT: resize events would wake the read handler */
+  if(!SetConsoleMode(in, __ENABLE_VIRTUAL_TERMINAL_INPUT))
+    SetConsoleMode(in, 0);
+
+  _setmode(fd, _O_BINARY);
+  SetConsoleCP(CP_UTF8);
+  SetConsoleOutputCP(CP_UTF8);
+
+  if(raw_handles[1] != INVALID_HANDLE_VALUE) {
+    mode = raw_modes[1] | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT;
+
+    if(!(vt = SetConsoleMode(raw_handles[1], mode | __ENABLE_VIRTUAL_TERMINAL_PROCESSING)))
+      SetConsoleMode(raw_handles[1], mode);
+  }
+
+  return JS_NewBool(ctx, vt);
 }
 #else
 
 static struct termios oldtty;
-static BOOL have_oldtty;
+static int oldtty_fd = -1;
 
 static void
 term_exit(void) {
-  tcsetattr(0, TCSANOW, &oldtty);
+  if(oldtty_fd >= 0)
+    tcsetattr(oldtty_fd, TCSANOW, &oldtty);
 }
 
-/* XXX: should add a way to go back to normal mode */
+/* ttySetRaw: tty fd to raw mode, or back to how it was.
+ *
+ *   ttySetRaw(0)         // raw: no echo, no line buffering, no signals
+ *   ttySetRaw(0, true)   // the settings from before
+ *
+ *   number   fd       a tty
+ *   boolean  restore  undo the last ttySetRaw, sane defaults without one
+ *
+ *   returns boolean   true, a tty does VT output itself
+ *
+ * throws SyscallError of tcgetattr or tcsetattr.
+ * wired in: JS_CFUNC_DEF("ttySetRaw").
+ */
 static JSValue
 js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct termios tty;
@@ -4175,7 +4212,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     restore = JS_ToBool(ctx, argv[1]);
 
   if(restore) {
-    if(!have_oldtty) {
+    if(oldtty_fd < 0) {
       if(tcgetattr(fd, &tty) == -1)
         return js_syscallerror_throw(ctx, "tcgetattr");
 
@@ -4194,7 +4231,8 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       tty = oldtty;
     }
 
-    return js_syscall_result(ctx, tcsetattr, 0, TCSANOW, &tty);
+    if(tcsetattr(fd, TCSANOW, &tty) == -1)
+      return js_syscallerror_throw(ctx, "tcsetattr");
 
   } else {
 
@@ -4203,8 +4241,11 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     if(tcgetattr(fd, &tty) == -1)
       return js_syscallerror_throw(ctx, "tcgetattr");
 
-    oldtty = tty;
-    have_oldtty = TRUE;
+    if(oldtty_fd < 0) {
+      oldtty = tty;
+      oldtty_fd = fd;
+      atexit(term_exit);
+    }
 
     tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
     tty.c_oflag |= OPOST;
@@ -4216,14 +4257,151 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     if(tcsetattr(fd, TCSANOW, &tty) == -1)
       return js_syscallerror_throw(ctx, "tcsetattr");
-
-    atexit(term_exit);
   }
 
-  return JS_UNDEFINED;
+  return JS_TRUE;
 }
 
 #endif /* !_WIN32 */
+
+/* ttyGetWinSize: columns and rows of the visible terminal window.
+ *
+ *   ttyGetWinSize(1)   // [120, 30]
+ *
+ *   number  fd       a tty, on Windows a console input or output
+ *
+ *   returns Array    [columns, rows], null when fd is no terminal
+ *
+ * unlike os.ttyGetWinSize on Windows this is the window (srWindow),
+ * not the scrollback buffer. wired in: JS_CFUNC_DEF("ttyGetWinSize").
+ */
+static JSValue
+js_misc_ttygetwinsize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t fd;
+  int cols, rows;
+  JSValue ret;
+
+  if(JS_ToInt32(ctx, &fd, argv[0]))
+    return JS_EXCEPTION;
+
+#ifdef _WIN32
+  {
+    CONSOLE_SCREEN_BUFFER_INFO sbi;
+    HANDLE h = (HANDLE)_get_osfhandle(fd);
+    DWORD mode;
+
+    /* a console input has no screen buffer, the window is stdout's */
+    if(!GetConsoleScreenBufferInfo(h, &sbi) && !(GetConsoleMode(h, &mode) && GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi)))
+      return JS_NULL;
+
+    cols = sbi.srWindow.Right - sbi.srWindow.Left + 1;
+    rows = sbi.srWindow.Bottom - sbi.srWindow.Top + 1;
+  }
+#elif defined(TIOCGWINSZ)
+  {
+    struct winsize ws;
+
+    if(ioctl(fd, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
+      return JS_NULL;
+
+    cols = ws.ws_col;
+    rows = ws.ws_row;
+  }
+#else
+  return JS_NULL;
+#endif
+
+  ret = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt32(ctx, cols));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt32(ctx, rows));
+  return ret;
+}
+
+/* ttyWrite: writes VT/ANSI output, translated where the terminal needs it.
+ *
+ *   ttyWrite(std.out, '\x1b[1;31mred\x1b[0m\n')
+ *
+ *   FILE|number         out   std FILE object or fd
+ *   string|ArrayBuffer  data  text with escape sequences, UTF-8 bytes
+ *
+ *   returns boolean     true when all of data was written
+ *
+ * a FILE object is flushed, a Win32 console without VT processing gets
+ * the sequences as console calls. wired in: JS_CFUNC_DEF("ttyWrite").
+ */
+static JSValue
+js_misc_ttywrite(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer in = js_input_chars(ctx, argv[1]);
+  BOOL ok;
+
+  if(JS_IsException(in.value))
+    return JS_EXCEPTION;
+
+  ok = tty_write(ctx, argv[0], inputbuffer_data(&in), inputbuffer_length(&in));
+  inputbuffer_free(&in, ctx);
+  return JS_NewBool(ctx, ok);
+}
+
+/* ttyRead: reads terminal input as the bytes a VT terminal sends.
+ *
+ *   const n = ttyRead(0, buf, 0, buf.byteLength)
+ *
+ *   number       fd      input, called when its read handler fires
+ *   ArrayBuffer  buffer  receives the bytes
+ *   number       offset  default 0
+ *   number       length  default the rest, at least 16 on a console
+ *
+ *   returns number       bytes read, 0 at end of input, a negative errno,
+ *                        -EAGAIN when no key was pending
+ *
+ * os.read on other fds, on a Win32 console key events become UTF-8 and
+ * escape sequences, other events are dropped without blocking.
+ * wired in: JS_CFUNC_DEF("ttyRead").
+ */
+static JSValue
+js_misc_ttyread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t fd;
+  uint64_t off = 0, len;
+  size_t size;
+  uint8_t* data;
+  ssize_t r;
+
+  if(JS_ToInt32(ctx, &fd, argv[0]))
+    return JS_EXCEPTION;
+
+  if(!(data = JS_GetArrayBuffer(ctx, &size, argv[1])))
+    return JS_EXCEPTION;
+
+  if(argc > 2 && JS_ToIndex(ctx, &off, argv[2]))
+    return JS_EXCEPTION;
+
+  len = off < size ? size - off : 0;
+
+  if(argc > 3 && JS_ToIndex(ctx, &len, argv[3]))
+    return JS_EXCEPTION;
+
+  if(off + len > size)
+    return JS_ThrowRangeError(ctx, "read/write array buffer overflow");
+
+#ifdef _WIN32
+  {
+    static WCHAR surrogate;
+    HANDLE h = (HANDLE)_get_osfhandle(fd);
+    DWORD mode;
+
+    if(h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode)) {
+      if(len < 16)
+        return JS_ThrowRangeError(ctx, "ttyRead: a console needs length >= 16");
+
+      r = vtconsole_read(h, (char*)data + off, len, &surrogate);
+      return JS_NewInt32(ctx, r < 0 ? -EIO : r == 0 ? -EAGAIN : r);
+    }
+  }
+#endif
+
+  r = read(fd, data + off, len);
+  return JS_NewInt64(ctx, r < 0 ? -errno : r);
+}
 #endif
 
 static JSValue
@@ -4555,6 +4733,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isUninitialized", 1, js_misc_is, IS_UNINITIALIZED),
     JS_CFUNC_MAGIC_DEF("isArrayBuffer", 1, js_misc_is, IS_ARRAYBUFFER),
     JS_CFUNC_DEF("ttySetRaw", 1, js_misc_ttysetraw),
+    JS_CFUNC_DEF("ttyGetWinSize", 1, js_misc_ttygetwinsize),
+    JS_CFUNC_DEF("ttyWrite", 2, js_misc_ttywrite),
+    JS_CFUNC_DEF("ttyRead", 4, js_misc_ttyread),
     JS_CFUNC_DEF("enqueueJob", 1, js_misc_enqueue_job),
     JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
     JS_CONSTANT(JS_EVAL_TYPE_MODULE),

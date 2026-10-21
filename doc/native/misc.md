@@ -64,11 +64,29 @@ below by theme.
 | --- | --- | --- |
 | `ioctl(fd, request, arg)` | 3 | Device control. |
 | `getScreenSize()` | 0 | Terminal size. |
-| `clearScreen(out, mode)` / `clearLine(out, mode)` | 1 | ANSI erase: mode 0 to the end, 1 to the start, 2 all. `out` is a std FILE object (written through its buffer, then flushed) or an fd, default 1. On Windows the FILE is flushed and its `fileno()` handle gets the console calls. |
-| `setCursorPosition(out, x, y)` / `moveCursor(out, dx, dy)` | 1 | Cursor control, 0-based; `out` as for `clearScreen`. |
+| `ttyWrite(out, data)` | 2 | Writes VT/ANSI output (string or ArrayBuffer of UTF-8) to `out`, a std FILE object (through its buffer, then flushed) or an fd. A Windows console without VT processing gets the sequences carried out with console calls (see below); everything else gets the bytes as they are. Returns `true` when all was written. |
+| `ttyRead(fd, buffer, offset, length)` | 4 | Like `os.read`, returns the byte count, 0 at the end, or a negative errno. On a Windows console it reads the pending input events without blocking: keys become UTF-8 and the escape sequences a VT terminal sends, other events (resize, focus, mouse) are dropped, and `-EAGAIN` means no key was pending. `length` must be at least 16 there. |
+| `ttyGetWinSize(fd)` | 1 | `[columns, rows]` of the visible window, `null` when `fd` is no terminal. Unlike `os.ttyGetWinSize` on Windows, which reports the scrollback buffer (e.g. 120×9001). A console input fd reports stdout's window. |
+| `ttySetRaw(fd, restore)` | 1 | Raw mode for input `fd`: no echo, no line buffering, no signal keys. `restore` puts back the settings from before the first call. On Windows it also switches both code pages to UTF-8, and for fd 0 tries VT processing on fd 1. It restores modes and code pages at exit too. Returns `true` when the output does VT itself (always on Unix), `false` when `ttyWrite` translates. Throws when `fd` is no tty/console. |
+| `clearScreen(out, mode)` / `clearLine(out, mode)` | 1 | ANSI erase through `ttyWrite`: mode 0 to the end, 1 to the start, 2 all. `out` as for `ttyWrite`, default 1. |
+| `setCursorPosition(out, x, y)` / `moveCursor(out, dx, dy)` | 1 | Cursor control through `ttyWrite`, 0-based; `out` as for `ttyWrite`. |
 | `setTextAttribute` / `setTextColor` | 2 | ANSI text styling. |
 | `setConsoleMode` / `getConsoleMode` | 1–2 | Console mode (Windows). |
-| `ttySetRaw(fd)` | 1 | Put a TTY into raw mode. |
+
+What `ttyWrite` carries out on a Windows console without VT processing (`src/win32/vtconsole.c`,
+parsed by `src/vtparse.c`); coordinates are relative to the visible window. Any other sequence is
+dropped, never printed:
+
+| Sequence | Effect |
+| --- | --- |
+| text, CR, LF, BS, HT, BEL | `WriteConsoleW` (UTF-8 converted, a character split across writes is kept) |
+| `CSI n A/B/C/D`, `CSI n E/F`, `CSI n G`, `CSI n d`, `CSI r;c H`/`f` | cursor moves |
+| `CSI n J`, `CSI n K`, `CSI n X` | erase in display, in line, n characters (current colors) |
+| `CSI ... m` | SGR: 0 1 4 7 22 24 27, 30–37, 39, 40–47, 49, 90–97, 100–107; 38/48 with `5;n` or `2;r;g;b` map to the nearest of the 16 console colors |
+| `CSI ?25 h`/`l` | cursor shown/hidden |
+| `ESC 7`/`ESC 8`, `CSI s`/`CSI u` | cursor saved/restored |
+| `ESC c` | reset colors, clear the window |
+| OSC, DCS and other strings | consumed |
 
 ## Buffers & ArrayBuffers
 
