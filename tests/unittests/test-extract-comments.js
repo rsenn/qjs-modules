@@ -1,7 +1,7 @@
 /* utilities/extract-comments.js: what counts as a comment, grouping, doc
  * detection, the filters, and the text/JSON shapes.
  * Each scan builds one Lexer and reads it to the end before the next. */
-import { extractComments, toLines, toObject } from '../../utilities/extract-comments.js';
+import { extractComments, toBlockComments, toLines, toObject } from '../../utilities/extract-comments.js';
 import { assert, assertEquals, tests } from '../../lib/tinytest.js';
 
 /* eq() of tinytest compares arrays and objects by reference */
@@ -149,6 +149,14 @@ tests({
 
   'C++ comments on several lines (type line, 2+ lines)'() {
     eq(['// a\n// b'], bodies('// a\n// b\nint x; // c\n/* d\ne */\n', 'c', { types: ['line'], minLines: 2 }));
+  },
+
+  'toBlockComments: // runs that start their lines become one block comment'() {
+    const src = '  // a\n  //\n  //   b\nint x; // c\n// d\n/// e\n// f */\n';
+
+    eq('  /* a\n\n       b */\nint x; // c\n/* d */\n/// e\n// f */\n', toBlockComments(src, 'c'));
+    eq('  /* a\n\n       b */\nint x; // c\n// d\n/// e\n// f */\n', toBlockComments(src, 'c', { minLines: 2 }));
+    eq('a();\r\n/* x\r\n   y */\r\n', toBlockComments('a();\r\n// x\r\n// y\r\n', 'js'));
   },
 
   'filter by a pattern, inverted, on the text as printed'() {

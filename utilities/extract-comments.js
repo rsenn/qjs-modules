@@ -324,6 +324,35 @@ export function* extractComments(source, language, opts = {}) {
   if(error) throw error;
 }
 
+/* the source with each run of `//` lines that start their lines turned into
+ * one block comment: `// a` + `// b` become one comment, b aligned under a.
+ * A run holding a star-slash or ending a line in `\` stays as it is.
+ *
+ *   object  opts  filters as for extractComments(), types is forced to line
+ *
+ *   returns string  the converted source; a lexer error is thrown
+ */
+export function toBlockComments(source, language, opts = {}) {
+  const out = [];
+  let pos = 0;
+
+  for(const rec of extractComments(source, language, { ...opts, types: ['line'], strip: false, group: opts.group ?? true })) {
+    const raw = source.slice(rec.offset, rec.end),
+      lead = source.slice(source.lastIndexOf('\n', rec.offset - 1) + 1, rec.offset);
+
+    if(rec.marker != '//' || /\S/.test(lead) || raw.includes('*/') || /\\\r?$/m.test(raw)) continue;
+
+    const lines = raw.split('\n').map((l, i) => (i ? l.replace(/^([ \t]*)\/\//, '$1  ').replace(/[ \t]+(\r?)$/, '$1') : '/*' + l.slice(2)));
+
+    lines.push(lines.pop().trimEnd() + ' */');
+    out.push(source.slice(pos, rec.offset), lines.join('\n'));
+    pos = rec.end;
+  }
+
+  out.push(source.slice(pos));
+  return out.join('');
+}
+
 /* a record as the JSON object `-j`/`-n` print.
  *
  *   object  rec    a record from extractComments()
@@ -400,6 +429,7 @@ const OPTIONS = {
   json: [false, null, 'j'],
   ndjson: [false, null, 'n'],
   output: [true, null, 'o'],
+  'to-block': [false, null, 'b'],
   help: [false, null, 'h'],
   '@': 'paths',
 };
@@ -443,6 +473,12 @@ Output:
                          end    .end   "<file>:<line>:<column>" (past the last character)
   -o, --output FILE      write to FILE instead of stdout
   -h, --help             show this help
+
+Convert (c and js, one FILE):
+  -b, --to-block         print the source with each run of // lines that start their
+                         lines as one /* */ comment, continuation lines aligned under
+                         the first; the filters above pick the runs (-m: 2+ lines).
+                         -o FILE may name the input file itself
 `;
 
 function fail(message) {
@@ -502,8 +538,34 @@ export function main(...args) {
       pattern,
       invert: !!params['invert-match'],
     },
-    shape = { modes, key: params['comment-key'] ?? 'comment' },
-    out = params.output ? std.open(params.output, 'w+') : std.out;
+    shape = { modes, key: params['comment-key'] ?? 'comment' };
+
+  if(params['to-block']) {
+    const file = files[0],
+      language = params.lang ?? languageFor(file);
+    let source;
+
+    if(files.length != 1) return fail(`--to-block: expected one FILE`);
+    if(language != 'c' && language != 'js') return fail(`--to-block: ${file}: expected a c or js source`);
+
+    try {
+      source = file == '-' ? std.in.readAsString() : readFileSync(file, 'utf-8');
+      if(typeof source != 'string') throw new Error(`${file}: cannot read`);
+      source = toBlockComments(source, language, { ...opts, file: file == '-' ? '<stdin>' : file });
+    } catch(e) {
+      return fail(String(e.message).split('\n')[0]);
+    }
+
+    /* opened after reading, so -o may name the input */
+    const dest = params.output ? std.open(params.output, 'w+') : std.out;
+
+    dest.puts(source);
+    dest.flush();
+    if(params.output) dest.close();
+    return 0;
+  }
+
+  const out = params.output ? std.open(params.output, 'w+') : std.out;
   let status = 0,
     pending = null;
 

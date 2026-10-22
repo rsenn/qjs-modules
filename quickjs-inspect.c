@@ -41,7 +41,7 @@ static thread_local JSValue object_tostring;
 
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 /* compact: true (INT32_MIN) is leaf-relative compaction with no depth limit, like a negative number:
-   the expanded output is joined afterwards, but only where the result fits breakLength */
+   the expanded output is joined afterwards, ignoring breakLength (a negative number respects it) */
 #define IS_COMPACT(d) (opts->compact >= 0 ? (d) > opts->compact : 0)
 
 #define VALID_BASE(b) ((b) == 2 || (b) == 8 || (b) == 10 || (b) == 16)
@@ -481,7 +481,8 @@ compact_close_level(Vector* stack, DynBuf* dbuf, int32_t compact_threshold, int3
 
   int32_t leaf_depth = cl.has_sub_objects ? (cl.min_child_leaf - 1) : -1;
 
-  if(leaf_depth >= compact_threshold && dbuf && cl.buf_offset <= dbuf->size && compact_width(dbuf->buf, cl.buf_offset, dbuf->size) <= (size_t)break_length) {
+  if(leaf_depth >= compact_threshold && dbuf && cl.buf_offset <= dbuf->size &&
+     (compact_threshold == INT32_MIN || compact_width(dbuf->buf, cl.buf_offset, dbuf->size) <= (size_t)break_length)) {
     size_t new_end = compact_whitespace(dbuf->buf, cl.buf_offset, dbuf->size);
     dbuf->size = new_end;
   }
