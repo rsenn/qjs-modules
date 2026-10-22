@@ -35,6 +35,9 @@
 /* Define this if you have sys/time.h */
 #cmakedefine HAVE_SYS_TIME_H 1
 
+/* Define this if you have sys/uid.h */
+#cmakedefine HAVE_SYS_UIO_H 1
+
 /* Define this if you have sys/wait.h */
 #cmakedefine HAVE_SYS_WAIT_H 1
 

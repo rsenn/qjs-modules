@@ -323,6 +323,8 @@ check_function_def(mmap)
 check_includes_def(sys/param.h sys/stat.h unistd.h dirent.h)
 check_functions_def(issetugid)
 
+check_includes(sys/uio.h)
+
 if(NOT ANDROID)
   check_include_def(pwd.h)
   check_functions_def(getpwuid getpwnam)

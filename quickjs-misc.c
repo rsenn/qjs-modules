@@ -133,6 +133,10 @@
 #include <sys/time.h>
 #endif
 
+#ifdef HAVE_SYS_UIO_H
+#include <sys/uio.h>
+#endif
+
 #if HAVE_READV || HAVE_WRITEV || HAVE_PREADV || HAVE_PWRITEV || HAVE_PREADV2 || HAVE_PWRITEV2
 #include <sys/uio.h>
 #include <limits.h>
