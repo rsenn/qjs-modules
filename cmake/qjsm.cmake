@@ -698,6 +698,8 @@ macro(qjsm_init_builtins)
           assert
           assertStrict
           bun
+          bun/util
+          glob
           loaders/commonjs
           console
           events
@@ -897,6 +899,8 @@ macro(qjsm_declare_imports)
   set(assertStrict_MODULES assert)
   set(events_MODULES node/events)
   set(bun_MODULES node blob fs path stream textcode url lazyGlobal)
+  set(bun_util_MODULES fs path misc blob inspect terminal glob perf_hooks textcode url)
+  set(glob_MODULES fs path)
   set(node_MODULES loaders/node loaders/packages loaders/commonjs lazyGlobal)
   set(loaders_commonjs_MODULES require path)
   set(console_MODULES util inspect terminal)

@@ -1997,8 +1997,9 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
     name = "path";
 
   /* the subdirectories of lib/ that are baked in as flat builtins: "node/events" -> "node_events",
-     "loaders/node" -> "loaders_node"; without the builtin the name is searched as a file below */
-  if((str_start(name, "node/") || str_start(name, "loaders/")) && (bltin = jsm_builtin_lookup(name))) {
+     "loaders/node" -> "loaders_node", "bun/util" -> "bun_util"; without the builtin the name is
+     searched as a file below */
+  if((str_start(name, "node/") || str_start(name, "loaders/") || str_start(name, "bun/")) && (bltin = jsm_builtin_lookup(name))) {
     file = js_strdup(ctx, bltin->module_name);
   } else if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)
