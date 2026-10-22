@@ -3632,8 +3632,9 @@ main(int argc, char** argv) {
     size_t bl;
     const char* b = path_basename(argv[0], strlen(argv[0]), &bl);
 
-    exename = strndup(b, bl);
+    exename = str_ndup(b, bl);
   }
+  
   exelen = strlen(exename);
 
   /* load jscalc runtime if invoked as 'qjscalc' */

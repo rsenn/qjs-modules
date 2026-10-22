@@ -1235,7 +1235,7 @@ endmacro(qjsm_process_builtins)
 # the qjsm target: sources, link line, rpath, definitions, install rule.
 macro(qjsm_add_executable)
   add_executable(qjsm ${QJSM_SOURCES})
-  target_link_libraries(qjsm PUBLIC ${LIBM})
+  target_link_libraries(qjsm PUBLIC ${SOCKET_LIBRARY} ${LIBM})
 
   if(COMPILED_TARGETS)
     add_dependencies(qjsm ${COMPILED_TARGETS})

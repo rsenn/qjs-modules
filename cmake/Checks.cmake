@@ -1,5 +1,6 @@
 include(CheckFunctionExists)
 include(CheckSymbolExists)
+include(CheckLibraryExists)
 include(CheckTypeSize)
 include(CheckCCompilerFlag)
 
@@ -458,22 +459,20 @@ function(check_winsock2)
     set(LIBRARY_VAR "${ARGV1}")
   endif()
 
-  check_windows_native(WIN_NATIVE)
+  check_windows_native(WINDOWS)
 
-  if(WIN_NATIVE)
-    check_library_exists(ws2_32 gethostname /usr/lib HAVE_WS2_32)
+  if(WINDOWS)
+    # List of Winsock libraries to check in order of preference
+    foreach(lib ws2_32 wsock32 mswsock)
+      set(CMAKE_REQUIRED_LIBRARIES ${lib})
+      check_symbol_exists(socket "winsock2.h" HAVE_WINSOCK)
+      unset(CMAKE_REQUIRED_LIBRARIES)
 
-    if(NOT HAVE_WS2_32)
-      check_library_exists(wsock32 gethostname /usr/lib HAVE_WSOCK32)
-    endif()
-  endif()
-
-  if(HAVE_WSOCK32)
-    set(LIBRARY wsock32)
-  endif()
-
-  if(HAVE_WS2_32)
-    set(LIBRARY ws2_32)
+      if(HAVE_WINSOCK)
+        set(LIBRARY ${lib})
+        break()
+      endif()
+    endforeach()
   endif()
 
   if(LIBRARY_VAR)
@@ -495,8 +494,13 @@ function(check_socket_library)
     set(RESULT_VAR SOCKET_LIBRARY)
   endif()
 
-  if(WINDOWS_NATIVE)
+  check_windows_native(WINDOWS)
+
+  if(WINDOWS)
     check_winsock2(HAVE_WINSOCK RESULT)
+  
+  dump(RESULT)
+
   else()
     check_library_exists(socket "connect" /usr/lib HAVE_LIBSOCKET)
 
