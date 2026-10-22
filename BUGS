@@ -1242,6 +1242,30 @@
     os.ttyGetWinSize(1)     // [120, 9001] in a 120x30 cmd.exe window
     misc.ttyGetWinSize(1)   // [120, 30]
 
+- deep-equals-leaks-pending-rangeerror: deep.equals() returns false and leaves
+  "RangeError: PropertyEnumeration is at end" pending when one side runs out
+  of properties first, or has none to enumerate: {a: undefined} vs {}, two
+  equal Dates, two RegExps, two Maps, Object.create(null) vs {}, two
+  ArrayBuffers. A try/catch around the call does not see it, the error
+  surfaces at the next exception check. Bun.deepEquals does not use it (own
+  walk in lib/bun/util.js).
+
+    import { equals } from 'deep';
+    try { equals({ a: undefined }, {}); } catch(e) { /* not reached */ }
+    // RangeError: PropertyEnumeration is at end, after the try
+
+- quickjs-local-function-overwrites-import: in QuickJS (qjs and qjsm), a
+  hoisted function declaration with the name of an import replaces the
+  exporting module's binding for every importer, not only for the module
+  that declares it. Node and the spec reject it as a SyntaxError. lib/bun.js
+  (resolve, from path) and lib/repl.js (define, from util) had it, both
+  fixed by dropping or renaming the import. A check in a lint script would
+  catch new cases.
+
+    // lib.js:  export function f() { return 'lib'; }
+    // a.js:    import { f } from './lib.js'; function f() { return 'a'; }
+    // main.js: import './a.js'; import { f } from './lib.js'; f()  // 'a'
+
 - jsonserializer-iterator-never-done (quickjs-json.c, JsonSerializer
   [Symbol.iterator]): after the last chunk the iterator returns
   {done: false} with no value forever, so spread or for...of hangs.

@@ -9,7 +9,7 @@ returned as `ArrayBuffer`s.
 
 | Function | Args | Description |
 | --- | --- | --- |
-| `mmap(length, prot, flags, fd, offset)` | 2 | Maps memory and returns it as an `ArrayBuffer`. Uses `PROT_*` and `MAP_*` flags. |
+| `mmap(addr, length, prot, flags, fd, offset)` | 2 | Maps memory and returns it as an `ArrayBuffer` (`-1` when `mmap(2)` fails). `addr` may be `null`; `prot` defaults to `PROT_READ \| PROT_WRITE`, `flags` to `MAP_ANONYMOUS`, `fd` to -1, `offset` to 0. A `MAP_SHARED` mapping is a plain `ArrayBuffer`, not a `SharedArrayBuffer`. |
 | `munmap(buffer)` | 1 | Unmaps a previously mapped region. |
 | `msync(buffer, flags, ...)` | 3 | Flushes changes in a mapping back to the backing store (`MS_*` flags). |
 | `mprotect(buffer, prot, ...)` | 3 | Changes the protection (`PROT_*`) of a mapping. |

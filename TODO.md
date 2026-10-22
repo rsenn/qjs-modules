@@ -2180,6 +2180,11 @@ Bun; each item still needs its own probe-and-diff.
 
 ### Part 1 — implementable now (the functionality exists)
 
+**Status 2026-10-22:** batches (a) and (b) done: `lib/bun/util.js` (lazy, `bun/util` builtin), `lib/glob.js`
+(`Bun.Glob`, golden against bun on 21 patterns x 27 paths), `Bun.mmap` in `lib/bun.js`, `Bun.JSON5`/`JSONC` (`lib/json5.js`, `lib/jsonc.js`); `tests/unittests/test-bun-util.js`
+passes under qjsm and under bun. Left from part 1: `inspect.table`, `semver`, `color`, `sliceAnsi`/`wrapAnsi`,
+`randomUUIDv7`, `resolveSync`, `SQL`/`sql`, `YAML.stringify`, and batch (c): `spawn`/`spawnSync`, `Archive`, `XML`, `$`.
+
 | `Bun.*` | Backed by | Work |
 | --- | --- | --- |
 | `JSONL.parse`, `JSONL.parseChunk` | `json` `JSONL` | alias only |

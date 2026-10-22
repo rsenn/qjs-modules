@@ -1,6 +1,6 @@
 # bun
 
-Source: `lib/bun.js` (pure JS) — named exports: `plugin`, `file`, `write`, `stdin`, `stdout`, `stderr`; the default export is installed as `globalThis.Bun` by qjsm, on top of [node](node.md)'s globals, with `Bun.serve`/`Bun.fetch` when qjs-lws is installed ([below](#globals-from-other-modules))
+Source: `lib/bun.js` (pure JS) — named exports: `plugin`, `file`, `write`, `stdin`, `stdout`, `stderr`, `mmap`; the default export is installed as `globalThis.Bun` by qjsm, on top of [node](node.md)'s globals, with the [utilities](#utilities) of `lib/bun/util.js` and `Bun.serve`/`Bun.fetch` when qjs-lws is installed ([below](#globals-from-other-modules))
 
 Bun's runtime plugin API (https://bun.com/docs/runtime/plugins), built on
 `registerHooks()` (`doc/qjsm.md`). Only the runtime half exists here: there is no bundler,
@@ -41,7 +41,7 @@ Bun.plugin.clearAll();
 | --- | --- |
 | Callbacks may be async | Synchronous only — a Promise result throws `TypeError` |
 | Loaders `ts`, `tsx`, `jsx`, `toml`, `yaml`, `css`, ... | Only `js`, `json` and `text`; others throw `TypeError` (no transpiler) |
-| `typeof Bun` is the Bun runtime | `Bun` carries only what is listed here (roadmap: `TODO.md` Tier 15); do not use it to detect Bun |
+| `typeof Bun` is the Bun runtime | `Bun` carries only what is listed here (roadmap: `TODO.md` Tier 19); do not use it to detect Bun |
 | Plugins in `bunfig.toml` `preload` | Call `Bun.plugin()` before the `import()` it should affect (static imports are resolved first) |
 
 ## Bun.file / Bun.write
@@ -68,6 +68,35 @@ BunFiles over fd 0/1/2 (`stdin.size` is `Infinity`).
 | `Bun.file(...)` is a plain `Blob` (`constructor.name`) | a `BunFile` subclass of `Blob`; `instanceof Blob` holds |
 | `slice(0, 100000).size` is `100000` | clamped to the file size |
 | `FileSink.flush()` may return a Promise | returns the number synchronously (also fine to `await`) |
+
+## Utilities
+
+Each loads its module on first read, so they cost nothing at startup. Results were compared with
+bun 1.4.2 (`tests/unittests/test-bun-util.js` runs under both: `bun tests/unittests/test-bun-util.js`).
+
+| Member | From | Notes |
+| --- | --- | --- |
+| `env`, `argv`, `main` | `process` | `main` is `process.argv[1]` |
+| `version`, `revision`, `origin`, `isMainThread`, `enableANSIColors` | | `version` is qjsm's (`process.versions.qjsm`), `revision` and `origin` are `''` |
+| `password.hash/verify/hashSync/verifySync` | [password](password.md) | bcrypt only: `argon2*` throws |
+| `JSONL.parse/parseChunk` | `lib/jsonl.js` | |
+| `JSON5.parse/stringify` | [json5](json5.md) | |
+| `JSONC.parse` | [jsonc](jsonc.md) | single quotes, hex numbers and trailing text are a `SyntaxError` |
+| `ArrayBufferSink` | [arraybuffer-sink](../native/arraybuffer-sink.md) | |
+| `mmap(path, { shared })` | [mmap](../native/mmap.md) | opens read-write like Bun, `shared: false` is a private copy-on-write mapping, an empty file is `EINVAL` |
+| `deepEquals(a, b, strict)`, `deepMatch(subset, v)` | `lib/bun/util.js` | Bun's rules: `0` and `-0` differ, `undefined` properties count only when `strict`, Sets compare unordered |
+| `inspect(v, opts)`, `inspect.custom` | [inspect](../native/inspect.md) | no colors unless asked; `custom` is `Symbol.for('nodejs.util.inspect.custom')`; no `inspect.table` |
+| `Glob` (`match`, `scan`, `scanSync`) | [glob](glob.md) | |
+| `which(cmd, { PATH, cwd })` | | executable regular files, `null` when none |
+| `sleep(ms \| Date)`, `sleepSync(ms)`, `nanoseconds()`, `gc()` | timers, `os.sleep`, `perf_hooks`, `std.gc` | |
+| `peek(p)`, `peek.status(p)` | `misc.promiseState` | |
+| `concatArrayBuffers(list, max, asUint8Array)`, `allocUnsafe(n)`, `indexOfLine(buf, offset)` | | |
+| `escapeHTML(v)`, `stripANSI(s)`, `stringWidth(s, { countAnsiEscapeCodes })` | [terminal](terminal.md) | wide characters count 2 |
+| `readableStreamTo{Text,JSON,Bytes,ArrayBuffer,Blob,Array}` | | string and byte chunks alike |
+| `fileURLToPath`, `pathToFileURL` | [url](url.md) | |
+
+Not yet: `spawn`/`spawnSync`, `$`, `Archive`, `XML`, `YAML`, `semver`, `color`, the hashing and
+compression functions (TODO.md Tier 19).
 
 ## Globals from other modules
 

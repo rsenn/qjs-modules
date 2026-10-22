@@ -1402,7 +1402,7 @@ macro(qjsm_report_compat)
     message("")
     message_table(
       "compatibility: Bun" "builtins" "bun" "provides"
-      "bun (Bun.plugin(), Bun.file(), Bun.write(), Bun.stdin/stdout/stderr)" "rewrites"
+      "bun (Bun.plugin(), Bun.file(), Bun.write(), Bun.stdin/stdout/stderr, Bun.mmap(), Bun.Glob, Bun.deepEquals() and the utilities of bun/util)" "rewrites"
       "none itself, plugins registered by a script resolve and load" "globals" "Bun")
   endif()
 

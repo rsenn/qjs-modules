@@ -58,7 +58,8 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   if(ptr == MAP_FAILED)
     return JS_NewInt32(ctx, -1);
 
-  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)(uintptr_t)length, !!(flags & MAP_SHARED));
+  /* MAP_SHARED shares with the file and other processes, not between JS agents: a plain ArrayBuffer */
+  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)(uintptr_t)length, FALSE);
 }
 
 static JSValue
