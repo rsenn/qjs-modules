@@ -130,6 +130,7 @@ static void
 jr_accum_reset(jr_state_t* state) {
   state->accum_len = 0;
   state->esc_hi = 0;
+  state->surrogate_hi = 0;
 }
 
 static void
@@ -1278,22 +1279,26 @@ l_esc_u_digit: {
    * src/json.c's json_scan_string() JSON_STR_UNICODE handling (same surrogate-pair rule). */
   state->accum_len -= 2 + state->unicode_need;
   {
-    uint32_t cp = state->unicode_val;
+    uint32_t cp = state->unicode_val, unit = cp;
+    uint8_t buf[UTF8_CHAR_LEN_MAX];
+    int n, i;
 
-    if(is_utf16_high_surrogate(cp)) {
-      state->surrogate_hi = cp; /* wait for the low half - the paired \uXXXX immediately follows */
-    } else {
-      uint8_t buf[UTF8_CHAR_LEN_MAX];
-      int n, i;
+    /* a high surrogate is written alone (3 bytes, kept like JSON.parse keeps it),
+     * a low one right after it replaces those 3 bytes with the pair */
+    if(is_utf16_low_surrogate(cp) && state->surrogate_hi && state->accum_len == state->surrogate_end) {
+      cp = 0x10000 + ((state->surrogate_hi - 0xd800) << 10) + (cp - 0xdc00);
+      state->accum_len -= 3;
+    }
 
-      if(is_utf16_low_surrogate(cp) && state->surrogate_hi)
-        cp = 0x10000 + ((state->surrogate_hi - 0xd800) << 10) + (cp - 0xdc00);
+    state->surrogate_hi = 0;
+    n = unicode_to_utf8(buf, cp);
 
-      state->surrogate_hi = 0;
-      n = unicode_to_utf8(buf, cp);
+    for(i = 0; i < n; i++)
+      jr_accum_putc(state, (char)buf[i]);
 
-      for(i = 0; i < n; i++)
-        jr_accum_putc(state, (char)buf[i]);
+    if(is_utf16_high_surrogate(unit)) {
+      state->surrogate_hi = unit;
+      state->surrogate_end = state->accum_len;
     }
   }
   JR_DISPATCH_NEXT();

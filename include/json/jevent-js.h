@@ -35,8 +35,11 @@ JSValue js_jsonevent_new(JSContext*, const JsonEvent* ev);
  *   size_t          size  its length in bytes
  *   const char*     name  optional: the input name for error messages
  *
- * returns the value (objects have no prototype), undefined for empty input, or JS_EXCEPTION
- * with a SyntaxError pending (loc, length and code set). */
+ * objects get Object.prototype and a "__proto__" key stays a key, like JSON.parse. Nothing
+ * recurses, so the depth is not limited by the C stack. Blob.prototype.json() is built on it.
+ *
+ * returns the value, or JS_EXCEPTION with a SyntaxError pending (loc, length and code set),
+ * also for input without a value. */
 JSValue json_read_value(JSContext*, const uint8_t* data, size_t size, const char* name);
 
 /* json_new_from_js: the pull parser of the JsonParser constructor.

@@ -97,6 +97,7 @@ typedef struct jr_state {
   int32_t utf8_mask;
   char* accum;
   size_t accum_len;
+  size_t surrogate_end; /* accum_len right after a high surrogate written alone */
   size_t accum_cap;
   /* bit-fields, bunched and sized to their value range so they share machine words */
   unsigned accumulating : 1;
@@ -125,7 +126,7 @@ typedef struct jr_state {
   unsigned unicode_need : 3;  /* hex digits the current escape takes: 4 for \u, 2 for \x */
   /* narrow members, kept together so they pack into the same word */
   uint16_t unicode_val;  /* \uXXXX hex digits decoded so far, mid-escape */
-  uint16_t surrogate_hi; /* a buffered UTF-16 high surrogate, waiting for its low half */
+  uint16_t surrogate_hi; /* the last high surrogate, written alone, a low half may join it */
   uint8_t flags;         /* JR_* syntax flags */
   int roots;             /* documents completed so far */
   const char* kw;        /* the keyword being matched, and how far */

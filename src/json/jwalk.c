@@ -376,47 +376,6 @@ jwalk_close(JwalkIterator* it, JSContext* ctx) {
   jwalk_close_rt(it, JS_GetRuntime(ctx));
 }
 
-JSValue
-jwalk_stringify(JSContext* ctx, JSValueConst value, JSValueConst replacer, JSValueConst space) {
-  JsonSpace sp;
-  JsonWriter wr = {0};
-  JwalkSource src;
-  JsonEventSink sink;
-  JsonEvent ev;
-  JsonPull st;
-  DynBuf out;
-  JSValue ret;
-
-  if(jsonspace_parse(ctx, space, &sp))
-    return JS_EXCEPTION;
-
-  if(jwalk_source_init(&src, ctx, value))
-    return JS_EXCEPTION;
-
-  dbuf_init_ctx(ctx, &out);
-  wr.writer = writer_from_dynbuf(&out);
-  jsonspace_apply(&sp, &wr.opts);
-  jwrite_init(&wr, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx));
-  sink = jwrite_sink(&wr);
-  st = JS_IsUndefined(replacer) || !jwalk_set_replacer(&src.it, ctx, replacer) ? JSON_PULL_EVENT : JSON_PULL_FAIL;
-
-  while(st == JSON_PULL_EVENT && (st = jwalk_event(&src, &ev)) == JSON_PULL_EVENT)
-    if(js_jsonwriter_ret(ctx, jevent_send(&sink, &ev)) < 0)
-      st = JSON_PULL_FAIL;
-
-  if(st == JSON_PULL_FAIL)
-    ret = JS_EXCEPTION;
-  else if(jwalk_root_omitted(&src.it))
-    ret = JS_UNDEFINED;
-  else
-    ret = JS_NewStringLen(ctx, (const char*)out.buf, out.size);
-
-  jwalk_source_close(&src, ctx);
-  jwrite_free(&wr);
-  dbuf_free(&out);
-  return ret;
-}
-
 /**
  * @}
  */

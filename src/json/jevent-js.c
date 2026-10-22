@@ -132,6 +132,7 @@ json_read_value(JSContext* ctx, const uint8_t* data, size_t size, const char* na
 
   p->flags = JR_JSON;
   jbuild_init(&b, ctx);
+  b.plain_objects = 1;
   sink = jbuild_sink(&b);
 
   /* the input ends when the reader is dry, then the end events follow */
@@ -152,7 +153,10 @@ json_read_value(JSContext* ctx, const uint8_t* data, size_t size, const char* na
     jevent_send(&sink, &ev);
   } while(1);
 
-  ret = b.has_root ? jbuild_root(&b) : JS_UNDEFINED;
+  if(b.has_root)
+    ret = jbuild_root(&b);
+  else
+    JS_ThrowSyntaxError(ctx, "%s: unexpected end of input", name ? name : "<json>");
 done:
   jbuild_free(&b, JS_GetRuntime(ctx));
   json_free(p, JS_GetRuntime(ctx));

@@ -1945,7 +1945,7 @@ Rules (the whole plan in six lines):
 | P6 (done) | handshake symbols, `source.pump(sink)`, `pushParser.connect(sink)`, JS object to C sink adapter, `tee`; replaces EV8, B3, X4, J4, J5 | medium | P1 | a push parser plugged into a writer, a builder and a tee; a JS-object sink gets the same events |
 | P7 (done) | builders: `proto` option, queue of completed roots with end positions (`take()`), `jbuild_value_js()`, flat `XmlBuilder` for `XMLNodeParser` (X3, B6) | medium | P1 | differential 0, `test-xml.js` |
 | P8 (done) | parser options: dialect names in the `JsonParser` constructor (`'json'`, `'jsonc'`, `'json5'`, `'jsonl'` over the `JR_*` flags), strict mode (J1 step 2), one `xml_options_from_js()`, `strict`, `entities` | medium | P2 | `test-json-dialects`, `tests/unittests/test-xml-errors.js` |
-| P9 (partly: `lib/jsonl.js`) | the glue: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js` on the engines, `lib/xml.js` (`read`, `write`), `lib/dom.js` (`DOMParser`, `XMLSerializer`), `Blob.json()`; then C `JSONL`, `read`, `write` deprecated and deleted (J1, J2, J7, X7, X8 phase 9) | large | P2 to P8 | Bun / Browser / Deno differential batteries, `portable-check.sh` |
+| P9 (partly: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `Blob.json()` on the strict reader, C `read`/`write` and `sj.h` removed 2026-10-22) | the glue: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js` on the engines, `lib/xml.js` (`read`, `write`), `lib/dom.js` (`DOMParser`, `XMLSerializer`), `Blob.json()`; then C `JSONL`, `read`, `write` deprecated and deleted (J1, J2, J7, X7, X8 phase 9) | large | P2 to P8 | Bun / Browser / Deno differential batteries, `portable-check.sh` |
 | P10 | clean-up: duplicated token ids, `property-enumeration.h` and `char-utils.h` out of the bindings, `api-surface/` regenerated, `doc/native/{json,xml}.md` rewritten to the engine classes | small | P9 | line counts in `doc/api-implement-{json,xml}.md` |
 
 Steps after the bindings are lifted (what moves into `include/` and `src/`, what becomes private, what merges: `doc/api-event-model.md` 12;
@@ -2003,9 +2003,10 @@ C side (the order is free, none blocks the others):
 
 JS side:
 
-- P9: `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js`, `lib/xml.js` (`read`, `write`), `lib/dom.js`
-  (`DOMParser`, `XMLSerializer`, `<parsererror>`, X7); `read` / `write` stay native until the module naming is decided.
-- J1 steps 1 to 5 and J2 (`read()` equal to `JSON.parse`, remove the vendored `sj`), J3 / X8 (`JsonRewriter`, `XmlRewriter`, Tier 17), J7 and X6 (errors: `Blob.prototype.json()`
+- P9: `lib/bun.js` (`XML`), `lib/jsonStreams.js`, `lib/xml.js` (`read`, `write`), `lib/dom.js`
+  (`DOMParser`, `XMLSerializer`, `<parsererror>`, X7). Done 2026-10-22: `lib/json5.js`, `lib/jsonc.js` (`Bun.JSON5`, `Bun.JSONC`),
+  `Blob.json()` on `json_read_value()`, json `read` / `write` and the vendored `sj.h` removed.
+- J3 / X8 (`JsonRewriter`, `XmlRewriter`, Tier 17), J7 and X6 (errors: `Blob.prototype.json()`
   and `JSONL` carry `loc`, lenient `xml.read` repairs report through `onParseError`).
 - P10: `api-surface/` regenerate (it still lists the old `XMLSerializer` and removed members).
 

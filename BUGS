@@ -927,16 +927,6 @@
     // actual: ReferenceError: could not load module 'path/win32'
 
 
-- json-read-does-not-decode-escapes (quickjs-json.c, js_json_parse over
-  sj.h): read() returns string escapes undecoded, and accepts what
-  JSON.parse rejects: trailing commas, leading zeros (01), "1.", a raw tab
-  inside a string. Objects are null-prototype. found while writing
-  doc/api-compare-json.md.
-
-    read('"\\u0041\\n"');
-    // expected: 'A\n' (as JSON.parse)
-    // actual: '\\u0041\\n' (backslash, u, 0, 0, 4, 1, backslash, n)
-
 - xml-doctype-internal-subset-mangled (src/xml.c, bang-tag scan): a
   DOCTYPE with an internal subset ends at the first '>' inside the
   subset, so the subset is split into a bogus tag name and a text node
@@ -946,17 +936,6 @@
     xml.read('<!DOCTYPE a [<!ENTITY foo "val">]><a>&foo;</a>');
     // expected: a !DOCTYPE node holding the whole declaration
     // actual: [{tagName: '!DOCTYPE a [<!ENTITY foo "val"'}, ']>', {tagName: 'a', ...}]
-
-- json-read-throws-internalerror (quickjs-json.c:61, parse_throw): a
-  parse error in read() is an InternalError, not a SyntaxError, and the
-  file name argument is dropped from the message. Also: bad argument types
-  throw ReferenceError ("expecting buffer or string") in json.read,
-  xml.read, JsonPushParser.write and XMLPushParser.write; TypeError is
-  the class for that. found while writing doc/api-compare-json.md.
-
-    try { json.read('{') } catch(e) { e.constructor.name }
-    // expected: 'SyntaxError'
-    // actual: 'InternalError'
 
 - jsonparser-error-position-after-token (src/json.c, quickjs-json.c:1560):
   JsonParser reports the position after the offending token, one column
@@ -1262,3 +1241,12 @@
 
     os.ttyGetWinSize(1)     // [120, 9001] in a 120x30 cmd.exe window
     misc.ttyGetWinSize(1)   // [120, 30]
+
+- jsonserializer-iterator-never-done (quickjs-json.c, JsonSerializer
+  [Symbol.iterator]): after the last chunk the iterator returns
+  {done: false} with no value forever, so spread or for...of hangs.
+  found while writing the doc/native/json.md example.
+
+    [...new JsonSerializer([1])]
+    // expected: ['[1]']
+    // actual: never returns

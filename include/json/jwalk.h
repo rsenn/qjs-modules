@@ -134,14 +134,6 @@ JsonEventSource jwalk_source(JwalkSource*);
 void jwalk_source_close_rt(JwalkSource*, JSRuntime*);
 void jwalk_source_close(JwalkSource*, JSContext*);
 
-/* jwalk_stringify: JSON.stringify(value, replacer, space), through the walk and a JsonWriter.
- *
- * replacer is a function, an array or undefined, space is as for jsonspace_parse().
- *
- * returns the JSON text, undefined when value has no JSON form, or JS_EXCEPTION (bigint, circular
- * reference, what toJSON or the replacer throws). */
-JSValue jwalk_stringify(JSContext*, JSValueConst value, JSValueConst replacer, JSValueConst space);
-
 /**
  * @}
  */

@@ -13,6 +13,7 @@
 #include "stream-utils.h"
 #include "iteration.h"
 #include "debug.h"
+#include "json/jevent-js.h"
 
 /**
  * \addtogroup quickjs-blob
@@ -517,7 +518,8 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
     case BLOB_JSON: {
       /* json(): text() then JSON.parse; a bad document rejects, never throws.
-       * the BOM is dropped; invalid UTF-8 decodes to U+FFFD like text(). */
+       * the BOM is dropped; invalid UTF-8 decodes to U+FFFD like text().
+       * json_read_value does not recurse, so deep nesting works like in Bun. */
       DynBuf db = DBUF_INIT_RT(JS_GetRuntime(ctx));
       const uint8_t* data;
       size_t size = blob->size;
@@ -539,9 +541,9 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(JS_IsException(str))
         return JS_EXCEPTION;
 
-      /* JS_ParseJSON wants NUL-terminated input; JS_ToCStringLen provides it */
+      /* the string round trip makes the bytes valid UTF-8 */
       if((cstr = JS_ToCStringLen(ctx, &len, str))) {
-        parsed = JS_ParseJSON(ctx, cstr, len, "<blob>");
+        parsed = json_read_value(ctx, (const uint8_t*)cstr, len, "<blob>");
         JS_FreeCString(ctx, cstr);
       }
 

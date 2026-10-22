@@ -2,13 +2,14 @@
 
 Source: `quickjs-json.c` — module exports **`JsonBuilder`**, **`tee`**, **`JsonParser`**, **`JsonPushParser`**, **`JsonSerializer`**, **`JsonWriter`** and a function list.
 
-A streaming/extended JSON reader plus simple read/write helpers.
+A streaming/extended JSON reader and writer. One-shot parsing is `JSON.parse`, or `JSON5`/`JSONC` from
+[lib/json5.js](../js/json5.md) and [lib/jsonc.js](../js/jsonc.md), which compose these engines.
 
 **Comments:** `JsonParser` and `JsonPushParser` are tolerant of C++ (`// ...` to end of
 line) and C (`/* ... */`) comments wherever whitespace is allowed, including between a
 value and its comma, and across `write()` chunk boundaries. Comment markers inside strings
-are plain text. A `/` that doesn't start a comment is a syntax error. `read()` does not
-accept comments.
+are plain text. A `/` that doesn't start a comment is a syntax error. Set `dialect: 'json'` for
+strict JSON without comments.
 
 Set `parser.comments = true` on a `JsonParser` to get each comment back as a
 `JsonParser.COMMENT` token (`parser.token` is the text including `//` or `/* */`) instead of
@@ -18,13 +19,15 @@ having it skipped. `JsonPushParser` always skips them.
 
 | Function | Args | Description |
 | --- | --- | --- |
-| `read(input, inputName?)` | 1–2 | Parses JSON text into a JS value. `input` is a string or buffer. `inputName` is an optional filename for error messages. Throws on trailing data after the root value. |
-| `write(value, replacer?, space?)` | 1–3 | `JSON.stringify(value, replacer, space)`, with the same result for every value (see [What is serialized](#what-is-serialized)). `write(value, 2)` is shorthand for `write(value, null, 2)`. Returns `undefined` when `value` has no JSON form (`undefined`, a function, a symbol). |
+| `tee(...sinks)` | 1+ | A sink that forwards every event to each sink (see [Connecting engines](#connecting-engines-pump-connect-tee-jsonbuilder)). |
+
+`read()` and `write()` were removed: use `JSON.parse` / `JSON5.parse` and `JSON.stringify` / `JsonSerializer`.
+`Blob.prototype.json()` parses with the strict `JsonParser` reader, so nesting depth is not limited.
 
 ### What is serialized
 
-`write()` and `JsonSerializer` follow `JSON.stringify` rule for rule, so a value serializes the
-same whichever one writes it (`tests/unittests/test-json.js` compares them on every case below):
+`JsonSerializer` follows `JSON.stringify` rule for rule (`tests/unittests/test-json.js`
+compares them on every case below):
 
 | JS value | Written as |
 | --- | --- |
@@ -49,7 +52,15 @@ Strings are written with lone surrogates as `\udXXX` escapes. Nesting depth is n
 (nothing recurses), so an object `JSON.stringify` rejects with a `RangeError` still serializes here.
 
 ```js
-import { write } from 'json';
+import { JsonSerializer } from 'json';
+
+function write(...args) {
+  const s = new JsonSerializer(...args);
+  let out, chunk;
+
+  while((chunk = s.read(4096)) !== undefined) out = (out ?? '') + chunk;
+  return out;
+}
 
 write({ when: new Date(0), skipped: undefined, n: NaN }); // '{"when":"1970-01-01T00:00:00.000Z","n":null}'
 write([1, 2], null, '\t');                                 // '[\n\t1,\n\t2\n]'
@@ -303,7 +314,7 @@ new JsonSerializer(value, indent)              // a number or string alone is th
 ```
 
 It serializes by the rules in [What is serialized](#what-is-serialized): `read()` returns exactly
-the text `write()` returns, in pieces. A value with no JSON form (`undefined`) gives no text at
+the text `JSON.stringify()` returns, in pieces. A value with no JSON form (`undefined`) gives no text at
 all, so the first `read()` is `undefined`. `toJSON()` and the replacer run once per property, as
 the walk reaches it, and an error they throw comes out of the `read()` that reached it; after an
 error the serializer is finished.

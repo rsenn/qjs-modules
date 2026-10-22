@@ -24,70 +24,10 @@ js_json_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_DupValue(ctx, this_val);
 }
 
-/* read: JSON.parse() of a string or UTF-8 bytes, a JsonParser feeding a JsonBuilder.
- *
- * ```js
- * read('{"a":[1,"x"]}');        // {a: [1, "x"]}
- * read(bytes, 'config.json');   // errors name config.json
- * read('[1,');                  // SyntaxError, code 'unexpected-end'
- * ```
- *
- *   string|Uint8Array  input  the JSON text
- *   string             name   optional: the input name for error messages
- *
- *   returns  the value, objects have no prototype
- *   throws   TypeError for another input, SyntaxError with loc, length and code for bad JSON
- *
- * exported as `read` by the json module. */
-static JSValue
-js_json_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input;
-  JSValue ret = JS_EXCEPTION;
-  const char* name = argc >= 2 ? JS_ToCString(ctx, argv[1]) : 0;
-
-  if(!(argc > 0 && js_is_bytes_or_string(ctx, argv[0])))
-    JS_ThrowTypeError(ctx, "json.read(): expecting buffer or string");
-  else if((input = js_input_chars(ctx, argv[0])).data) {
-    ret = json_read_value(ctx, input.data, input.size, name);
-    inputbuffer_free(&input, ctx);
-  }
-
-  if(name)
-    JS_FreeCString(ctx, name);
-
-  return ret;
-}
-
-/* write: JSON.stringify(), through walk (the rules) and jwrite (the text).
- *
- * ```js
- * write({ a: new Date(0), b: undefined }, null, 2);   // '{\n  "a": "1970-01-01T00:00:00.000Z"\n}'
- * write([1n]);                                         // TypeError
- * ```
- *
- *   any              value     what to serialize
- *   function|array   replacer  optional: JSON.stringify's replacer; with two arguments a number
- *                              or string here is taken as `space` (write(value, 2))
- *   number|string    space     optional: indentation
- *
- *   returns  the JSON text, or undefined when value has no JSON form
- *   throws   TypeError for a bigint or a circular structure; what toJSON or the replacer throws
- *
- * exported as `write` by the json module. */
-static JSValue
-js_json_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValueConst replacer = JS_UNDEFINED, space = JS_UNDEFINED;
-
-  jsonspace_args(ctx, argc, argv, &replacer, &space);
-  return jwalk_stringify(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, replacer, space);
-}
-
 static JSValue js_json_tee(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]);
 
 static const JSCFunctionListEntry js_json_funcs[] = {
     JS_CFUNC_DEF("tee", 0, js_json_tee),
-    JS_CFUNC_DEF("read", 1, js_json_read),
-    JS_CFUNC_DEF("write", 2, js_json_write),
 };
 
 /* ---------------------------------------------------------------------- */

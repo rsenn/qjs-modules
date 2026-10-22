@@ -1,8 +1,28 @@
 import * as std from 'std';
 import { ArrayBufferSink } from 'arraybuffer_sink';
 import { JSONL } from '../../lib/jsonl.js';
-import { read, write, tee, JsonParser, JsonPushParser, JsonSerializer, JsonWriter, JsonBuilder } from 'json';
+import { tee, JsonParser, JsonPushParser, JsonSerializer, JsonWriter, JsonBuilder } from 'json';
 import { assert, eq, tests } from '../../lib/tinytest.js';
+
+/* the engines behind JSON.parse and JSON.stringify: the strict pull parser into a
+ * builder, and the serializer, read to the end (undefined when there is no JSON form) */
+function read(text, filename) {
+  const builder = new JsonBuilder({ plain: true });
+
+  new JsonParser(text, { dialect: 'json', filename }).pump(builder, true);
+
+  const [value] = builder.take();
+
+  return value;
+}
+
+function write(value, ...args) {
+  const s = new JsonSerializer(value, ...args);
+  let out, chunk;
+
+  while((chunk = s.read(65536)) !== undefined) out = (out ?? '') + chunk;
+  return out;
+}
 
 const NEED_DATA = -2;
 const NONE = -1;
@@ -182,11 +202,10 @@ tests({
     eq(e.constructor, SyntaxError);
     assert(e.message.endsWith(' at f.json:2:7'), e.message);
     eq(assertThrows(() => read('xyz')).constructor, SyntaxError);
-    assert(assertThrows(() => read('xyz')).message.endsWith(' at <json>:1:1'));
+    assert(assertThrows(() => read('xyz')).message.endsWith(' at 1:1'));
   },
-  'read: empty text is a SyntaxError, a non-string a TypeError'() {
+  'read: empty text is a SyntaxError'() {
     eq(assertThrows(() => read('')).constructor, SyntaxError);
-    for(const v of [undefined, null, 5, {}, [], true]) eq(assertThrows(() => read(v)).constructor, TypeError);
   },
   'JsonPushParser.write: a non-string chunk is a TypeError'() {
     for(const v of [undefined, null, 5, {}]) eq(assertThrows(() => new JsonPushParser().write(v)).constructor, TypeError);
@@ -569,7 +588,7 @@ tests({
     eq(r.error.loc.column, 1);
     eq(r.error.length, 8);
   },
-  'json.read: errors carry loc, length and code'() {
+  'strict reader: errors carry loc, length and code'() {
     let e = assertThrows(() => read('{"a":\n  [1, x]}', 'f.json'));
 
     eq(e.code, 'unexpected-token');

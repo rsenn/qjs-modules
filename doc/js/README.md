@@ -55,6 +55,8 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [stream](stream.md) — WHATWG Streams API (ReadableStream, WritableStream, TransformStream)
 - [streams](streams.md) — Stream utilities
 - [vfs](vfs.md) — Virtual filesystem
+- [json5](json5.md) — `JSON5.parse/stringify` (`Bun.JSON5`)
+- [jsonc](jsonc.md) — `JSONC.parse`, JSON with comments and trailing commas (`Bun.JSONC`)
 - [inotify](inotify.md) — inotify wrapper
 - [tty](tty.md) — TTY utilities
 - [terminal](terminal.md) — Terminal utilities

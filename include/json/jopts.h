@@ -30,7 +30,7 @@ int jsonspace_parse(JSContext*, JSValueConst space, JsonSpace* out);
  * as JSON.stringify writes no whitespace then. never throws. */
 void jsonspace_apply(const JsonSpace* sp, JsonWriteOptions* opts);
 
-/* jsonspace_args: the replacer and space of write(value, ...) and new JsonSerializer(value, ...).
+/* jsonspace_args: the replacer and space of new JsonSerializer(value, ...).
  *
  *   (v, null, 2)   (v, fn)   (v, [..], 2)   JSON.stringify's own forms
  *   (v, 2)         (v, '\t')                 a number or string alone is the space

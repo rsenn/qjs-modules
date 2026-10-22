@@ -68,7 +68,8 @@ jbuild_push(JsonBuilder* b, JsonEventType type) {
         parent->current_key = NULL;
 
         JSAtom atom = JS_NewAtomLen(ctx, child_key, strlen(child_key));
-        JS_SetProperty(ctx, parent->obj, atom, JS_DupValue(ctx, container));
+        /* a data property like JSON.parse makes: a "__proto__" key stays a key */
+        JS_DefinePropertyValue(ctx, parent->obj, atom, JS_DupValue(ctx, container), JS_PROP_C_W_E);
         JS_FreeAtom(ctx, atom);
       }
     } else {
@@ -166,7 +167,7 @@ jbuild_value_js(JsonBuilder* b, JSValue val) {
     if(parent->is_object) {
       if(parent->current_key) {
         JSAtom atom = JS_NewAtomLen(ctx, parent->current_key, strlen(parent->current_key));
-        JS_SetProperty(ctx, parent->obj, atom, val);
+        JS_DefinePropertyValue(ctx, parent->obj, atom, val, JS_PROP_C_W_E);
         JS_FreeAtom(ctx, atom);
         js_free(ctx, parent->current_key);
         parent->current_key = NULL;
