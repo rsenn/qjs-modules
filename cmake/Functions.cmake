@@ -667,7 +667,7 @@ function(dump_paths VAR_NAME)
   else()
     set(REL_TO "${CMAKE_CURRENT_BINARY_DIR}")
   endif()
-  
+
   relative_paths("${VAR_NAME}" "${REL_TO}" ${${VAR_NAME}})
   dump_list("${VAR_NAME}")
 endfunction()

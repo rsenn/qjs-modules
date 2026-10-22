@@ -972,7 +972,7 @@ macro(qjsm_compile_builtins)
   set(QJSM_COMPILED_NEEDED ${BUILTINS_NEEDED_JS})
 
   #dump_paths(COMPILED_MODULES)
- 
+
   if(NOT COMPILED_MODULES)
     message(WARNING "No compiled modules")
   else()
@@ -1096,7 +1096,10 @@ macro(qjsm_process_builtins)
         qjsm_header_compiled("${BUILTIN_MODULE}")
       endif()
     else()
-      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, .js/.a/.so file or existing directory -- skipping")
+      message(
+        WARNING
+          "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, .js/.a/.so file or existing directory -- skipping"
+      )
       # (native: ${NATIVE_MODULES}; compiled: ${COMPILED_MODULE_NAMES})")
 
       #dump_list(COMPILED_MODULE_NAMES)

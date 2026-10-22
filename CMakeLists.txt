@@ -325,6 +325,15 @@ check_functions_def(issetugid)
 
 check_includes(sys/uio.h)
 
+foreach(FUNC preadv preadv2 pwritev pwritev2 readv writev)
+  if(HAVE_SYS_UIO_H)
+    string(TOUPPER "${FUNC}" FUNC_NAME)
+    check_symbol_exists(socket "sys/uio.h" HAVE_${FUNC_NAME})
+  else()
+    check_function_def("${FUNC}")
+  endif()
+endforeach()
+
 if(NOT ANDROID)
   check_include_def(pwd.h)
   check_functions_def(getpwuid getpwnam)
