@@ -126,7 +126,6 @@ check_functions(getegid geteuid getgid getpid getppid getsid getuid setegid sete
 check_functions(uname)
 
 check_socket_library(SOCKET_LIBRARY)
-dump(SOCKET_LIBRARY)
 
 # posix_spawn() is only trusted when a test program using it runs
 if(NOT CMAKE_CROSSCOMPILING)

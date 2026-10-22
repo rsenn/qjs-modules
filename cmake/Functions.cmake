@@ -659,6 +659,20 @@ function(dump_list VAR_NAME)
 endfunction()
 
 #
+# dump_paths <VAR-NAME>
+#
+function(dump_paths VAR_NAME)
+  if(${ARGC} GREATER_EQUAL 2)
+    set(REL_TO "${ARGV2}")
+  else()
+    set(REL_TO "${CMAKE_CURRENT_BINARY_DIR}")
+  endif()
+  
+  relative_paths("${VAR_NAME}" "${REL_TO}" ${${VAR_NAME}})
+  dump_list("${VAR_NAME}")
+endfunction()
+
+#
 # make_list <OUTPUT-VAR> <MAX_LINE_LEN>
 #
 function(make_list OUTPUT_VAR MAX_LINE_LEN)

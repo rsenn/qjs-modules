@@ -971,9 +971,8 @@ macro(qjsm_compile_builtins)
   endforeach(LIB_MODULE ${BUILTINS_COMPILED} ${BUILTINS_NEEDED_JS})
   set(QJSM_COMPILED_NEEDED ${BUILTINS_NEEDED_JS})
 
-  dump_list(COMPILED_MODULES)
-  dump(COMPILED_MODULES)
-
+  #dump_paths(COMPILED_MODULES)
+ 
   if(NOT COMPILED_MODULES)
     message(WARNING "No compiled modules")
   else()
@@ -989,6 +988,8 @@ macro(qjsm_process_builtins)
   unset(QJSM_LDADD)
 
   set(QJSM_SOURCES src/qjsm.c)
+
+  #dump_list(BUILTIN_MODULES)
 
   # the names BUILTIN_MODULES accepts: quickjs-<name>.c as <name> ('-' written '_') and
   # lib/<name>.js; get_native_modules()/get_compiled_modules() list them
@@ -1095,10 +1096,10 @@ macro(qjsm_process_builtins)
         qjsm_header_compiled("${BUILTIN_MODULE}")
       endif()
     else()
-      message(
-        WARNING
-          "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, .js/.a/.so file or existing directory -- skipping (native: ${NATIVE_MODULES}; compiled: ${COMPILED_MODULE_NAMES})"
-      )
+      message(WARNING "BUILTIN_MODULES entry '${BUILTIN_MODULE}' matches no lib/<name>.js, quickjs-<name>.c, .js/.a/.so file or existing directory -- skipping")
+      # (native: ${NATIVE_MODULES}; compiled: ${COMPILED_MODULE_NAMES})")
+
+      #dump_list(COMPILED_MODULE_NAMES)
     endif()
   endforeach()
 

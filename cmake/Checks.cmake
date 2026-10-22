@@ -498,9 +498,6 @@ function(check_socket_library)
 
   if(WINDOWS)
     check_winsock2(HAVE_WINSOCK RESULT)
-  
-  dump(RESULT)
-
   else()
     check_library_exists(socket "connect" /usr/lib HAVE_LIBSOCKET)
 
