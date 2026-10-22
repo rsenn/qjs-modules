@@ -9,6 +9,7 @@
 #include "child-process.h"
 #include "debug.h"
 #include "utils.h"
+#include "path.h"
 
 #include <stdlib.h>
 #include <errno.h>
