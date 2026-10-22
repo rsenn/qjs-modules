@@ -1105,6 +1105,7 @@ file(
   utilities/highlight.js
   utilities/extract-comments.js
   utilities/parse-ast.js
+  utilities/git-watch.js
   examples/html2md.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
