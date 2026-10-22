@@ -49,6 +49,58 @@ def _native_pos(name, addr):
     return ' at %s:%d' % (_rel(sal.symtab.filename), sal.line) if sal.symtab else ''
 
 
+def _bytecode_classes():
+    """class ids of functions that carry bytecode (js_class_has_bytecode is static)."""
+    names = ('BYTECODE_FUNCTION', 'GENERATOR_FUNCTION', 'ASYNC_FUNCTION', 'ASYNC_GENERATOR_FUNCTION')
+    return {int(gdb.parse_and_eval('(int)JS_CLASS_' + n)) for n in names}
+
+
+def _leb128(mem, i, signed):
+    """decode one (s)leb128 from bytes, returns (value, next index)."""
+    r = shift = 0
+    while True:
+        c = mem[i]
+        i += 1
+        r |= (c & 0x7f) << shift
+        shift += 7
+        if not c & 0x80:
+            break
+    if signed and c & 0x40:
+        r -= 1 << shift
+    return r, i
+
+
+def _pc2line(b, pc_value):
+    """line and column of pc_value, decoding b->debug.pc2line_buf like find_line_num."""
+    dbg = b['debug']
+    n = int(dbg['pc2line_len'])
+    if not n:
+        return 0, 0
+    mem = bytes(gdb.selected_inferior().read_memory(int(dbg['pc2line_buf']), n))
+    line, i = _leb128(mem, 0, False)
+    col, i = _leb128(mem, i, False)
+    line += 1
+    col += 1
+    pc = 0
+    while i < n:
+        op = mem[i]
+        i += 1
+        if op == 0:
+            d, i = _leb128(mem, i, False)
+            pc += d
+            v, i = _leb128(mem, i, True)
+            new_line = line + v
+        else:
+            op -= 1  # PC2LINE_OP_FIRST
+            pc += op // 5  # PC2LINE_RANGE
+            new_line = line + op % 5 - 1  # PC2LINE_BASE
+        v, i = _leb128(mem, i, True)
+        if pc_value < pc:
+            break
+        line, col = new_line, col + v
+    return line, col
+
+
 def _describe(ctx, sf):
     """name and source position of sf->cur_func, read through quickjs.c helpers."""
     func = sf['cur_func']
@@ -58,7 +110,7 @@ def _describe(ctx, sf):
     obj = '((JSObject*)%d)' % int(func['u']['ptr'])
     cls = int(gdb.parse_and_eval('%s->class_id' % obj))
 
-    if not int(gdb.parse_and_eval('js_class_has_bytecode(%d)' % cls)):
+    if cls not in _bytecode_classes():
         cfn = gdb.parse_and_eval('%s->u.cfunc.c_function.generic' % obj)
         name = str(cfn).split('>')[0].split('<')[-1]
         return '%s (native%s)' % (name, _native_pos(name, int(cfn)))
@@ -68,11 +120,7 @@ def _describe(ctx, sf):
     if not int(b['has_debug']):
         return '%s (no debug info)' % name
 
-    buf = int(gdb.parse_and_eval('(long)js_malloc((JSContext*)%d, 4)' % int(ctx) + ''))
-    pc = int(sf['cur_pc']) - int(b['byte_code_buf']) - 1
-    line = int(gdb.parse_and_eval('find_line_num((JSContext*)%d, (JSFunctionBytecode*)%d, %d, (int*)%d)' % (int(ctx), int(b), pc, buf)))
-    col = int(gdb.parse_and_eval('*(int*)%d' % buf))
-    gdb.parse_and_eval('js_free((JSContext*)%d, (void*)%d)' % (int(ctx), buf))
+    line, col = _pc2line(b, int(sf['cur_pc']) - int(b['byte_code_buf']) - 1)
     file = _cstr('JS_AtomToCString((JSContext*)%d, %d)' % (int(ctx), int(b['debug']['filename'])))
     return '%s (%s:%d:%d)' % (name, file, line, col)
 
