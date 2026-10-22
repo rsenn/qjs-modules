@@ -7,8 +7,8 @@ functions take a path string as the first argument.
 
 The Node functions (`basename`, `dirname`, `extname`, `format`, `isAbsolute`, `join`, `normalize`, `parse`,
 `relative`, `resolve`) throw `TypeError` with `code: 'ERR_INVALID_ARG_TYPE'` and Node's message for a
-non-string argument (`basename` also for a non-string `suffix`); `relative(x)` with one argument is qjsm's
-own form. The other functions coerce their arguments to strings.
+non-string argument (`basename` also for a non-string `suffix`, `relative` also for a missing `to`).
+The other functions coerce their arguments to strings.
 
 `toNamespacedPath(path)` returns `path` unchanged (POSIX); `_makeLong` is the same function. `path/posix`
 and `node:path/posix` import this module.
@@ -18,50 +18,33 @@ and `node:path/posix` import this module.
 | Function | Args | Description |
 | --- | --- | --- |
 | `basename(path)` | 1 | Final path component. |
-| `basepos(path)` | 1 | Character offset where the basename begins. |
-| `baselen(path)` | 1 | Length of the basename. |
 | `dirname(path)` | 1 | Directory portion of the path. |
-| `dirlen(path)` | 1 | Length of the directory portion. |
 | `extname(path)` | 1 | File extension (with dot). |
-| `extpos(path)` | 1 | Offset of the extension. |
-| `extlen(path)` | 1 | Length of the extension. |
-| `length(path)` | 1 | Number of path components. |
-| `components(path)` | 1 | Splits into an array of components. |
-| `at(path, index)` | 2 | Returns the component at `index`. |
-| `right(path)` | 1 | Tail portion of the path. |
-| `skip(path)` | 1 | Skips the leading component. |
-| `skipSeparator(path)` | 1 | Skips a leading separator. |
-| `isSeparator(ch)` | 1 | Whether a character is a path separator. |
+| `skip(path, pos?)` | 1 | Offset after the component at `pos` and its separators, `-1` at the end. |
 
 ## Filesystem queries
 
 | Function | Args | Description |
 | --- | --- | --- |
-| `exists(path)` | 1 | Whether the path exists. |
-| `isAbsolute(path)` / `isRelative(path)` | 1 | Path kind. |
-| `isDirectory` / `isFile` / `isCharDev` / `isBlockDev` / `isFIFO` / `isSocket` / `isSymlink` | 1 | Type predicates on the `S_IF*` bits. All follow symlinks (`stat`, like `fs.statSync`) except `isSymlink`, which tests the link itself (`lstat`). `false` if the entry is missing. |
+| `exists(path)` | 1 | Whether the path exists. Follows symlinks like `fs.existsSync`: a dangling link is `false`. |
+| `isAbsolute(path)` | 1 | Whether the path starts at the root; `!isAbsolute(p)` for a relative one. |
+| `isDirectory` / `isFile` / `isSymlink` | 1 | Type predicates on the `S_IF*` bits. `isDirectory` and `isFile` follow symlinks (`stat`, like `fs.statSync`), `isSymlink` tests the link itself (`lstat`). `false` if the entry is missing. Other types: `fs.statSync(p).isFIFO()` and the like. |
 | `getcwd(buf)` | 1 | Current working directory. |
 | `gethome(buf)` | 1 | Home directory. |
-| `getsep(buf)` | 1 | Platform path separator. |
-| `readlink(path)` | 1 | Reads a symbolic link target. |
 | `fnmatch(pattern)` | 1 | Glob-style pattern match. |
 
 ## Normalization (return newly built strings)
 
 | Function | Args | Description |
 | --- | --- | --- |
-| `absolute(path)` | 1 | Resolves to an absolute path. |
-| `canonical(path)` | 1 | Canonical form (resolving `.`/`..`). |
 | `normalize(path)` | 1 | Normalizes separators and `.`/`..`. |
 | `realpath(path)` | 1 | Resolves all symlinks. |
-| `search(path, list)` | 2 | Searches for a file across a path list. |
 | `relative(from, to)` | 2 | Relative path from `from` to `to`. |
 
 ## Node-style helpers
 
 | Function | Args | Description |
 | --- | --- | --- |
-| `slice(path, start, end)` | 0 | Sub-range of components. |
 | `join(...parts)` | 1 | Joins components with the separator. |
 | `parse(path)` | 1 | Returns `{root, dir, base, ext, name}`. |
 | `format(obj)` | 1 | Inverse of `parse`. |
@@ -77,3 +60,16 @@ and `node:path/posix` import this module.
 'path'`; `path.posix === path`). There is no `path.win32`. `join()` does not normalize
 (`join('a', '..', 'b')` is `'a/../b'`, Node gives `'b'`) and an absolute argument restarts
 the result.
+
+## Removed
+
+These qjsm-only functions had no user and no standard counterpart, or one that does the same:
+
+| Removed | Use instead |
+| --- | --- |
+| `absolute(p)` | `resolve(p)` |
+| `isRelative(p)` | `!isAbsolute(p)` |
+| `readlink(p)` | `fs.readlinkSync(p)` |
+| `isCharDev` `isBlockDev` `isFIFO` `isSocket` | `fs.statSync(p).isCharacterDevice()` and the like |
+| `toArray(p)`, `slice(p, a, b)`, `length(p)` | `p.split('/')` and array methods |
+| `at` `components` `right` `skipSeparator` `isSeparator` `getsep` `basepos` `baselen` `dirlen` `extpos` `extlen` `canonical` `isin` `equal` `search` | none |

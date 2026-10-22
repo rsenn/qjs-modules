@@ -72,8 +72,8 @@ header says so in one line.
 | `path_gethome2(user, n)` | `path_homeof(user, n)` | `src/compat/glob.c:378` |
 
 `path_exists(p, n)` uses `lstat`; this stays, `src/qjsm.c` and the module search rely on it. The
-JS `path.exists` disagreement with `fs.existsSync` is `BUGS`' `path-exists-true-for-dangling-symlink`
-and is fixed in `quickjs-path.c` with its own `stat()` call, not by changing `path_exists`.
+JS `path.exists` follows symlinks like `fs.existsSync` through its own `stat()` call in `quickjs-path.c`
+(C9, 2026-10-22).
 
 ### 3.3 Not in shish, lexical: move into `quickjs-path.c` as `static`, or delete
 
@@ -105,14 +105,15 @@ a hit being `ns.name` or the named import used. Locals called `path` (arrays, st
 | `slice` `length` `toArray` | `plot-cv/upload-server.js:31,114,120,677,679` only (an own `isin`/dir splitter) | `split('/')` | remove after porting that script (author's call) |
 | `absolute` | `lib/process.js:93`, `utilities/resolve-imports.js:142`, `utilities/list-exports.js:502,605`, plot-cv (8) | `path.resolve` | migrate callers to `resolve`, then remove |
 | `isRelative` | `utilities/resolve-imports.js:2068`, `utilities/list-exports.js:509`, plot-cv (6) | `!isAbsolute` | migrate callers, then remove |
-| `exists` `isFile` `isDirectory` | `utilities/resolve-imports.js` (15), `utilities/list-exports.js`, `utilities/source-scanner.js`, plot-cv, `qjs-opencv`, `qjs-debugger` | `fs.existsSync`, `fs.statSync(p).isFile()` | keep for now (many users); `exists` waits for decision C9 |
+| `exists` `isFile` `isDirectory` | `utilities/resolve-imports.js` (15), `utilities/list-exports.js`, `utilities/source-scanner.js`, plot-cv, `qjs-opencv`, `qjs-debugger` | `fs.existsSync`, `fs.statSync(p).isFile()` | keep for now (many users); `exists` follows symlinks since C9 |
 | `getcwd` | `lib/process.js:26,732` (it is `process.cwd`), `utilities/resolve-imports.js:144`, plot-cv | `process.cwd` | keep: `process.js` is built on it |
 | `gethome` | `lib/repl.js:1428`, `qjs-debugger/gui/theme.js:15,16`, `plot-cv/google-contacts.js:42` | `os.homedir` | keep until qjsm has `os.homedir` |
 | `realpath` | plot-cv (3) | `fs.realpathSync` | keep for now |
 | `isSymlink` | `plot-cv/project-server.js:226` | `fs.lstatSync(p).isSymbolicLink()` | keep for now |
 | `fnmatch` | `plot-cv/project-server.js:55,85,211`, `plot-cv/upload-server.js:574` | `path.matchesGlob` (phase G) | keep; revisit after G2 |
 
-Nothing is deleted before the user answers (step X1).
+Applied 2026-10-22: every name of the remove rows is gone from `quickjs-path.c`, its callers ported
+(`absolute` to `resolve`, `isRelative` to `!isAbsolute`, upload-server.js to its own splitter).
 
 Decision gate before any of 3.3 is rewritten: run the usage audit (task 1 of Tier 22), then
 for each JS method either port it or delete method, test and doc row together.

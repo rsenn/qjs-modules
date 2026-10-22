@@ -499,14 +499,14 @@ function ListExports(file, output, params) {
 
   if(relativeTo) {
     let rel = path.resolve(relativeTo);
-    source = path.absolute(source);
+    source = path.resolve(source);
 
     if(path.exists(rel) && !path.isDirectory(rel)) rel = path.dirname(rel);
 
     source = path.relative(source, rel);
   }
 
-  if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
+  if(!path.isAbsolute(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
   if(debug >= 3) log('exportNames', exportNames);
 
@@ -602,7 +602,7 @@ function main(...args) {
       for: [true, null, 'f'],
       'print-files': [false, () => (printFiles = true), 'p'],
       output: [true, filename => (outputFile = filename), 'o'],
-      'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
+      'relative-to': [true, arg => (relativeTo = path.resolve(arg)), 'r'],
       uppercase: [false, null, 'u'],
       interactive: [false, null, 'y'],
       '@': 'files',

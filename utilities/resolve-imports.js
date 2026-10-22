@@ -134,7 +134,7 @@ function IsWhitespace(str) {
 }
 
 function NormalizePath(p) {
-  p = path.absolute(p);
+  p = path.resolve(p);
   p = path.normalize(p);
   p = path.relative(path.getcwd(), p);
   p = path.resolve(p);
@@ -1038,7 +1038,7 @@ function main(...args) {
       quiet: [false, () => (quiet = (quiet | 0) + 1), 'q'],
       export: [false, () => (exp = true), 'e'],
       imports: [false, () => (onlyImports = true), 'i'],
-      //'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'R'],
+      //'relative-to': [true, arg => (relativeTo = path.resolve(arg)), 'R'],
       output: [true, file => (outputFile = file), 'o'],
       flatten: [false, null, 'f'],
       merge: [false, null, 'm'],
@@ -1290,7 +1290,7 @@ try {
 function ProcessFile(source, recursive, depth = 0) {
   if(modules[source]) return modules[source];
 
-  const log = (...args) => console.log(`[${depth}]\x1b[38;5;208m${path.relative(source)}\x1b[0m:`, ...args);
+  const log = (...args) => console.log(`[${depth}]\x1b[38;5;208m${path.relative(process.cwd(), source)}\x1b[0m:`, ...args);
 
   if(debug >= 1) log('Processing...', compact(true), { recursive, depth });
   if(printFiles) process.stdout.write(`${source}\n`);
@@ -1362,7 +1362,7 @@ function ProcessFile(source, recursive, depth = 0) {
       if(!url.startsWith('file://') || !url.includes('/node_modules/')) return {};
 
       j = decodeURIComponent(url.slice(7));
-    } else if(path.isRelative(j)) {
+    } else if(!path.isAbsolute(j)) {
       j = path.normalize(path.join(dir, j));
     }
 
@@ -1372,7 +1372,7 @@ function ProcessFile(source, recursive, depth = 0) {
 
     /* one spelling per file (relative to the cwd): FileMaps are keyed by the path string, so
        an absolute path (e.g. from --module-map) would get a second map for the same file */
-    return { file: path.isAbsolute(j) ? path.relative(j) : j };
+    return { file: path.isAbsolute(j) ? path.relative(process.cwd(), j) : j };
   };
 
   const used = identifiersUsed ? identifiersUsed(source) : null;

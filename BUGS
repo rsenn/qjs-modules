@@ -904,19 +904,6 @@
     // expected: '<a>ü€</a>'
     // actual: replacement characters in place of ü€
 
-- path-exists-true-for-dangling-symlink (quickjs-path.c, PATH_EXISTS ->
-  path_exists1 in src/path.c): exists() uses lstat(), so a symlink whose
-  target is missing counts as existing. fs.existsSync(), node:fs, Bun and
-  Deno follow the link and answer false. src/qjsm.c and the module search
-  also call path_exists1, so a fix needs a separate JS-facing stat() check.
-
-    import * as path from 'path';
-    import * as fs from 'fs';
-    // ln -s /nowhere /tmp/dl
-    path.exists('/tmp/dl');     // expected: false (as fs.existsSync)
-    fs.existsSync('/tmp/dl');   // false
-    // actual: path.exists is true
-
 - path-missing-node-names (quickjs-path.c): path.win32, matchesGlob and
   the specifier path/win32 (node:path/win32) do not exist. Node, Bun and
   Deno have them. See doc/api-compare-path.md; plan in TODO.md Tier 22

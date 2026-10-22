@@ -68,6 +68,8 @@ tests({
         eq(e.message, message);
       }
     }
+
+    eq(caught(() => path.relative('/a')).message, 'The "to" argument must be of type string. Received undefined');
   },
   'isAbsolute, dirname, extname, basename, parse and join throw like Node'() {
     for(const fn of ['isAbsolute', 'dirname', 'extname', 'basename', 'parse', 'join'])

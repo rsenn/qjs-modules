@@ -2785,13 +2785,13 @@ Phase C — posix interface of `path` made Node-correct (changes behaviour; need
       `import('path/posix')` and `import('node:path/posix')`; add the rows to the comment table of `lib/loaders/node.js`.
 - [x] C8 `BUGS`: strike `path-functions-coerce-non-string-arguments` and the posix part of `path-missing-node-names`
       (leave `win32` and `matchesGlob` in the entry until W11/G2). Verify with `rg -n 'path-functions-coerce' BUGS`.
-- [ ] C9 DECISION (user): `path.exists` follows symlinks (`stat`) like `fs.existsSync`, or keeps `lstat`?
+- [x] C9 (done 2026-10-22: follows) DECISION (user): `path.exists` follows symlinks (`stat`) like `fs.existsSync`, or keeps `lstat`?
       If it follows: change `quickjs-path.c` only (`PATH_EXISTS` calls `stat`); `path_exists` (lstat) stays for the
       C callers (module search); add a dangling-symlink case to `test-path.js`; strike
       `path-exists-true-for-dangling-symlink` in `BUGS`; fix the `exists` row in `doc/api-compare-path.md`
       section 2 and `doc/native/path.md`. If it keeps lstat: document it as a deliberate difference in both docs
       and strike the `BUGS` entry as "won't fix".
-- [ ] C10 DECISION (user): `relative(x)` with one argument (qjsm's own form, x against the cwd). Node throws for
+- [x] C10 (done 2026-10-22: strict) DECISION (user): `relative(x)` with one argument (qjsm's own form, x against the cwd). Node throws for
       the missing `to`. If strict: change the four calls in `utilities/resolve-imports.js` (lines ~1971, 2079, 2360,
       2380) to `path.relative(process.cwd(), x)`, drop the `argc == 1` branch in `PATH_RELATIVE`, add the Node
       error case to `test-path-interface.js`. If kept: list it in `doc/api-compare-path.md` section 2 as an extra.
@@ -2838,9 +2838,9 @@ Phase G — `matchesGlob` (independent, last)
 Phase X — the qjsm-only extras (needs T5; removals are breaking and need the user's go per method)
 The 38 names no runtime has (api-compare-path.md section 2). Rule of CLAUDE.md "Choosing the Next Task": no user
 in `examples/ utilities/ lib/ ~/Sources/plot-cv` and no sibling `qjs-*` plus no standard target means remove.
-- [ ] X1 (table written 2026-10-17, doc/api-implement-path.md 3.3.1; waiting for the user's answer) apply the T5 table: list per method keep / remove with the usage found (file:line) in section 3.3 of
+- [x] X1 (table written 2026-10-17, doc/api-implement-path.md 3.3.1; approved 2026-10-22) apply the T5 table: list per method keep / remove with the usage found (file:line) in section 3.3 of
       `doc/api-implement-path.md`; show it to the user, nothing is deleted before the answer.
-- [ ] X2 per approved family, one commit each: delete the JS method(s) and their `static js_path_*` helper in
+- [x] X2 (done 2026-10-22 for the 25 names of the 3.3.1 "remove" rows, callers in utilities/, lib/process.js and plot-cv ported) per approved family, one commit each: delete the JS method(s) and their `static js_path_*` helper in
       `quickjs-path.c`, the cases in `test-path.js`, the rows in `doc/native/path.md` and
       `doc/api-compare-path.md`; families: (a) component helpers `at components length slice toArray`, (b) offsets
       `baselen basepos dirlen extlen extpos`, (c) scanning `skip skipSeparator right isSeparator getsep`,
@@ -2848,7 +2848,7 @@ in `examples/ utilities/ lib/ ~/Sources/plot-cv` and no sibling `qjs-*` plus no 
       `!isAbsolute`), (f) filesystem extras that have a standard home `readlink realpath getcwd gethome exists`
       (`fs.readlinkSync`, `fs.realpathSync`, `process.cwd`, `os.homedir`, `fs.existsSync`), (g) the `is*` type
       tests (`fs.Stats`). Check the Tier 22 usage grep again right before each deletion.
-- [ ] X3 after each removal: `utilities/api-surface.sh` collect on the build before and after, `diff` is the changelog
+- [x] X3 (done 2026-10-22: 25 members removed from `path`, `api-surface/` path rows dropped) after each removal: `utilities/api-surface.sh` collect on the build before and after, `diff` is the changelog
       entry (members removed means a major bump).
 
 Phase F — closing Tier 22
