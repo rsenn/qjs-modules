@@ -5,7 +5,6 @@
  * rule: segment bytes never change, a buffer or string part is copied
  * once, a Blob part or a slice shares the segments of its source. */
 #include "defines.h"
-#include "quickjs-blob.h"
 #include "quickjs.h"
 #include "utils.h"
 #include "js-utils.h"
@@ -13,12 +12,27 @@
 #include "stream-utils.h"
 #include "iteration.h"
 #include "debug.h"
+#include "vector.h"
 #include "json/jevent-js.h"
 
 /**
  * \addtogroup quickjs-blob
  * @{
  */
+
+/* a Blob: an immutable list of segments, one InputBuffer each.
+ *
+ *   segment     value       data
+ *   owning      undefined   the Blob's own copy, freed with the Blob
+ *   non-owning  an object   lives in value, the segment holds one ref
+ *
+ * a segment's bytes are inputbuffer_data(seg), inputbuffer_length(seg).
+ */
+typedef struct blob {
+  Vector segments; /* InputBuffer per segment, js_realloc_rt */
+  size_t size;     /* sum of the segment lengths */
+  char* type;
+} Blob;
 
 JSClassID js_blob_class_id = 0;
 static JSValue blob_proto, blob_ctor;

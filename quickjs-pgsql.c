@@ -5,7 +5,7 @@
 #include "iteration.h"
 #include "property-enumeration.h"
 
-#include "quickjs-pgsql.h"
+#include <libpq-fe.h>
 
 /**
  * \addtogroup quickjs-pgsql
@@ -504,9 +504,6 @@ js_pgconn_data2(JSContext* ctx, JSValueConst value) {
 static JSValue
 js_pgconn_new(JSContext* ctx, JSValueConst proto) {
   JSValue obj;
-
-  if(js_pgconn_class_id == 0)
-    js_pgsql_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, pgsql_proto);
@@ -1625,9 +1622,6 @@ js_pgresult_new(JSContext* ctx, JSValueConst proto, PGresult* res) {
 
   if(!(opaque = pgresult_new(ctx)))
     return JS_EXCEPTION;
-
-  if(js_pgresult_class_id == 0)
-    js_pgsql_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = pgresult_proto;

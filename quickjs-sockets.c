@@ -5,22 +5,45 @@
 #include "debug.h"
 #include "iteration.h"
 #include "quickjs-syscallerror.h"
-#include "quickjs-sockets.h"
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#ifdef HAVE_AFUNIX_H
+#include <afunix.h>
+#endif
+
 int socketpair(int, int, int, SOCKET[2]);
 
 #define socket_handle(sock) ((SOCKET)_get_osfhandle(socket_fd(sock)))
 #else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/un.h>
+#include <sys/select.h>
+
 typedef int SOCKET;
 #define socket_handle(sock) socket_fd(sock)
 #define closesocket(sock) close(sock)
-#include <sys/select.h>
-/*#include <sys/syscall.h>*/
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <poll.h>
 #include <unistd.h>
+#endif
+
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+#include <linux/ipx.h>
+#include <linux/x25.h>
+#include <linux/can.h>
+#include <linux/nfc.h>
+#include <linux/ax25.h>
+#include <linux/netlink.h>
+#include <linux/atalk.h>
+#include <linux/phonet.h>
+#include <linux/if_alg.h>
+#endif
+
+#if defined(AF_UNIX) || defined(HAVE_AFUNIX_H)
+#define HAVE_AF_UNIX
 #endif
 
 #include <fcntl.h>
@@ -31,6 +54,81 @@ typedef int SOCKET;
  * \addtogroup quickjs-sockets
  * @{
  */
+
+typedef struct {
+  int32_t family, type, protocol;
+} SockType;
+
+typedef union {
+  uint16_t family;
+  struct sockaddr s;
+  struct sockaddr_in ip4;
+  struct sockaddr_in6 ip6;
+#ifdef HAVE_AF_UNIX
+  struct sockaddr_un un;
+#endif
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+  struct sockaddr_ipx ipx;
+  struct sockaddr_ax25 ax25;
+  struct sockaddr_nl nl;
+  struct sockaddr_can can;
+  struct sockaddr_nfc nfc;
+  struct sockaddr_x25 x25;
+  struct sockaddr_at at;
+  struct sockaddr_pn pn;
+  struct sockaddr_alg alg;
+#endif
+} SockAddr;
+
+#define SOCKET_PROPS() \
+  unsigned fd : 16; \
+  unsigned error : 8; \
+  unsigned sysno : 4; \
+  BOOL nonblock : 1, async : 1, owner : 1; \
+  signed ret : 32
+
+union PACK socket_state {
+  PACK struct {
+    SOCKET_PROPS();
+  };
+  ENDPACK
+  uint64_t u64;
+  void* ptr;
+};
+ENDPACK
+
+struct socket_handlers {
+  JSValue close, connect, data, drain, end, error, lookup, ready, timeout;
+};
+
+struct async_closure {
+  JSCFunctionMagic* set_mux;
+};
+
+struct asyncsocket_state {
+  union {
+    struct {
+      union socket_state socket;
+      JSValue pending[2];
+    };
+    struct PACK {
+      SOCKET_PROPS();
+    };
+    ENDPACK
+  };
+};
+
+#define SOCKET(fd, err, sys, nonb, asyn, own) \
+  { \
+    { \
+      (fd), (err), (sys), (nonb), (asyn), (own), (0) \
+    } \
+  }
+
+#define SOCKET_INIT() SOCKET(-1, 0, -1, FALSE, FALSE, FALSE)
+
+typedef union socket_state Socket;
+typedef struct asyncsocket_state AsyncSocket;
 
 #define JS_SOCKETCALL(socketcall_no, sock, result) \
   JS_SOCKETCALL_RETURN(socketcall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
@@ -43,12 +141,153 @@ typedef int SOCKET;
     ret = (sock)->ret < 0 ? (on_fail) : (on_success); \
   } while(0)
 
+
+enum SocketCalls {
+  SYSCALL_SOCKET = 0,
+  SYSCALL_GETSOCKNAME,
+  SYSCALL_GETPEERNAME,
+  SYSCALL_FCNTL,
+  SYSCALL_BIND,
+  SYSCALL_ACCEPT,
+  SYSCALL_ACCEPT4,
+  SYSCALL_CONNECT,
+  SYSCALL_LISTEN,
+  SYSCALL_RECV,
+  SYSCALL_RECVFROM,
+  SYSCALL_SEND,
+  SYSCALL_SENDTO,
+  SYSCALL_SHUTDOWN,
+  SYSCALL_CLOSE,
+  SYSCALL_GETSOCKOPT,
+  SYSCALL_SETSOCKOPT,
+  SYSCALL_RECVMSG,
+  SYSCALL_SENDMSG,
+  SYSCALL_RECVMMSG,
+  SYSCALL_SENDMMSG,
+};
+
+#define socket_fd(sock) ((int16_t)(uint16_t)(sock).fd)
+#define socket_closed(sock) ((sock).sysno == SYSCALL_CLOSE && (sock).ret == 0)
+#define socket_eof(sock) (((sock).sysno == SYSCALL_RECV || (sock).sysno == SYSCALL_RECVFROM) && (sock).ret == 0)
+#define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
+#define socket_retval(sock) ((sock).ret)
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+#define socket_error(sock) ((sock).ret < 0 ? (int)(sock).error + WSABASEERR : 0)
+#else
+#define socket_error(sock) ((sock).ret < 0 ? (int)(sock).error : 0)
+#endif
+#define socket_syscall(sock) socketcall_name((sock).sysno)
+#define socket_adopted(sock) (!(sock).owner)
+
+static inline int
+sockaddr_port(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return ntohs(sa->ip4.sin_port);
+    case AF_INET6: return ntohs(sa->ip6.sin6_port);
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+    case AF_IPX: return ntohs(sa->ipx.sipx_port);
+    case AF_APPLETALK: return ntohs(sa->at.sat_port);
+#endif
+  }
+
+  return -1;
+}
+
+static inline BOOL
+sockaddr_setport(SockAddr* sa, uint16_t port) {
+  switch(sa->family) {
+    case AF_INET: sa->ip4.sin_port = htons(port); return TRUE;
+    case AF_INET6: sa->ip6.sin6_port = htons(port); return TRUE;
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+    case AF_IPX: return sa->ipx.sipx_port = htons(port); return TRUE;
+    case AF_APPLETALK: return sa->at.sat_port = htons(port); return TRUE;
+#endif
+  }
+
+  return FALSE;
+}
+
+static inline void*
+sockaddr_addr(SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return &sa->ip4.sin_addr;
+    case AF_INET6: return &sa->ip6.sin6_addr;
+#ifdef HAVE_AF_UNIX
+    case AF_UNIX: return &sa->un.sun_path;
+#endif
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+    case AF_IPX: return &sa->ipx.sipx_node;
+    case AF_NETLINK: return &sa->nl.nl_pid;
+    case AF_CAN: return &sa->can.can_addr;
+    case AF_NFC: return &sa->nfc.target_idx;
+    case AF_AX25: return &sa->ax25.sax25_call;
+    case AF_X25: return &sa->x25.sx25_addr;
+    case AF_APPLETALK: return &sa->at.sat_addr;
+#endif
+  }
+
+  return 0;
+}
+
+static inline socklen_t
+sockaddr_addrlen(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return sizeof(sa->ip4.sin_addr);
+    case AF_INET6: return sizeof(sa->ip6.sin6_addr);
+#ifdef HAVE_AF_UNIX
+    case AF_UNIX: return sizeof(sa->un.sun_path);
+#endif
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+
+    case AF_IPX: return sizeof(sa->ipx.sipx_node);
+    case AF_NETLINK: return sizeof(sa->nl.nl_pid);
+    case AF_CAN: return sizeof(sa->can.can_addr);
+    case AF_NFC: return sizeof(sa->nfc.target_idx);
+    case AF_AX25: return sizeof(sa->ax25.sax25_call);
+    case AF_X25: return sizeof(sa->x25.sx25_addr);
+    case AF_APPLETALK: return sizeof(sa->at.sat_addr);
+    case AF_PHONET: return sizeof(sa->pn.spn_obj) + sizeof(sa->pn.spn_dev) + sizeof(sa->pn.spn_resource);
+#endif
+  }
+
+  return 0;
+}
+
+static inline size_t
+sockaddr_size(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return sizeof(struct sockaddr_in);
+    case AF_INET6: return sizeof(struct sockaddr_in6);
+#ifdef HAVE_AF_UNIX
+    case AF_UNIX: return sizeof(struct sockaddr_un);
+#endif
+#ifdef HAVE_LINUX_NETWORK_HEADERS
+    case AF_IPX: return sizeof(struct sockaddr_ipx);
+    case AF_NETLINK: return sizeof(struct sockaddr_nl);
+    case AF_CAN: return sizeof(struct sockaddr_can);
+    case AF_NFC: return sizeof(struct sockaddr_nfc);
+    case AF_AX25: return sizeof(struct sockaddr_ax25);
+    case AF_X25: return sizeof(struct sockaddr_x25);
+    case AF_APPLETALK: return sizeof(struct sockaddr_at);
+    case AF_PHONET: return sizeof(struct sockaddr_pn);
+    case AF_ALG: return sizeof(struct sockaddr_alg);
+#endif
+  }
+
+  return 0;
+}
+
+static inline size_t
+sockaddr_len(const SockAddr* sa) {
+  size_t len = sockaddr_size(sa);
+
+  if(len == 0)
+    len = sizeof(SockAddr);
+  return len;
+}
+
 static JSValue socket_adopt(JSContext*, int, BOOL);
-static int js_sockets_init(JSContext*, JSModuleDef*);
-static int js_socket_type(JSContext*, SockType*, int, JSValueConst[]);
 static JSValue js_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
-static int js_socket_fd(JSValueConst);
-static BOOL js_socket_check_open(JSContext*, Socket);
 static JSValue js_socket_create(JSContext*, JSValueConst, int, JSValueConst[], BOOL);
 static JSValue js_socket_new_proto(JSContext*, JSValueConst, int, BOOL, BOOL);
 static int js_socket_address_family(JSValueConst);
@@ -110,12 +349,7 @@ js_sockaddr_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
 
 static JSValue
 js_sockaddr_wrap(JSContext* ctx, SockAddr* a) {
-  JSValue obj;
-
-  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
-    js_sockets_init(ctx, 0);
-
-  obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
+  JSValue  obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
   JS_SetOpaque(obj, a);
 
   return obj;
@@ -302,9 +536,6 @@ static JSValue
 js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   SockAddr *a, *other;
-
-  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
-    js_sockets_init(ctx, 0);
 
   if(!(a = js_mallocz(ctx, sizeof(SockAddr))))
     return JS_EXCEPTION;
@@ -1015,6 +1246,49 @@ optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp)
   return buf;
 }
 
+static BOOL
+js_socket_check_open(JSContext* ctx, Socket sock) {
+  if(socket_closed(sock)) {
+    JS_ThrowInternalError(ctx, "Socket #%d has already been closed", socket_fd(sock));
+    return FALSE;
+  }
+
+  if(!socket_open(sock)) {
+    JS_ThrowInternalError(ctx, "Socket #%d is not yet open", socket_fd(sock));
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static int
+js_socket_type(JSContext* ctx, SockType* st, int argc, JSValueConst argv[]) {
+  int index = 0;
+
+  st->family = AF_UNSPEC;
+  st->type = SOCK_STREAM;
+  st->protocol = IPPROTO_IP;
+
+  if(argc > index) {
+    if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->family, argv[index]))
+      return index;
+
+    if(argc > ++index) {
+      if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->type, argv[index]))
+        return index;
+
+      if(argc > ++index) {
+        if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->protocol, argv[index]))
+          return index;
+
+        ++index;
+      }
+    }
+  }
+
+  return index;
+}
+
 static JSValue
 js_socketpair(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   SockType st = {AF_UNSPEC, SOCK_STREAM, IPPROTO_IP};
@@ -1501,34 +1775,6 @@ js_socket_data(JSValueConst value) {
   return sock;
 }
 
-static int
-js_socket_type(JSContext* ctx, SockType* st, int argc, JSValueConst argv[]) {
-  int index = 0;
-
-  st->family = AF_UNSPEC;
-  st->type = SOCK_STREAM;
-  st->protocol = IPPROTO_IP;
-
-  if(argc > index) {
-    if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->family, argv[index]))
-      return index;
-
-    if(argc > ++index) {
-      if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->type, argv[index]))
-        return index;
-
-      if(argc > ++index) {
-        if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->protocol, argv[index]))
-          return index;
-
-        ++index;
-      }
-    }
-  }
-
-  return index;
-}
-
 static JSValue
 js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   return js_socket_create(ctx, new_target, argc, argv, FALSE);
@@ -1547,28 +1793,10 @@ js_socket_error(JSContext* ctx, Socket sock) {
   return ret;
 }
 
-static BOOL
-js_socket_check_open(JSContext* ctx, Socket sock) {
-  if(socket_closed(sock)) {
-    JS_ThrowInternalError(ctx, "Socket #%d has already been closed", socket_fd(sock));
-    return FALSE;
-  }
-
-  if(!socket_open(sock)) {
-    JS_ThrowInternalError(ctx, "Socket #%d is not yet open", socket_fd(sock));
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
 static JSValue
 js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL owner) {
   JSValue obj;
   Socket* s;
-
-  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
-    js_sockets_init(ctx, 0);
 
   if(js_is_nullish(proto))
     proto = async ? asyncsocket_proto : socket_proto;

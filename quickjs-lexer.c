@@ -1,5 +1,4 @@
 #include "defines.h"
-#include "quickjs-lexer.h"
 #include "quickjs-location.h"
 #include "vector.h"
 #include "buffer-utils.h"
@@ -21,8 +20,28 @@ typedef struct {
   BOOL skip;
 } JSLexerRule;
 
-VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
-static JSValue token_proto, token_ctor, lexer_proto, lexer_ctor;
+static thread_local JSClassID js_token_class_id, js_lexer_class_id;
+static thread_local JSValue token_proto, token_ctor, lexer_proto, lexer_ctor;
+
+static Token*
+js_token_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_token_class_id);
+}
+
+static Token*
+js_token_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_token_class_id);
+}
+
+static Lexer*
+js_lexer_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_lexer_class_id);
+}
+
+static Lexer*
+js_lexer_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_lexer_class_id);
+}
 
 static int
 escape_pred(int c) {
@@ -145,16 +164,6 @@ token_char_indexrange(Token* tok) {
 }
 
 JSValue
-js_token_new(JSContext* ctx, JSValueConst new_target) {
-  Token* tok;
-
-  if(!(tok = token_new(ctx)))
-    return JS_EXCEPTION;
-
-  return js_token_wrap(ctx, new_target, tok);
-}
-
-JSValue
 js_token_wrap(JSContext* ctx, JSValueConst new_target, Token* tok) {
   /* using new_target to get the prototype is necessary when the class is extended. */
   JSValue obj = JS_UNDEFINED, proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -170,6 +179,16 @@ js_token_wrap(JSContext* ctx, JSValueConst new_target, Token* tok) {
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
+}
+
+JSValue
+js_token_new(JSContext* ctx, JSValueConst new_target) {
+  Token* tok;
+
+  if(!(tok = token_new(ctx)))
+    return JS_EXCEPTION;
+
+  return js_token_wrap(ctx, new_target, tok);
 }
 
 JSValue
@@ -565,18 +584,6 @@ lexer_lex(Lexer* lex, JSValueConst this_val, int argc, JSValueConst argv[], JSCo
 }
 
 JSValue
-js_lexer_new(JSContext* ctx, JSValueConst new_target) {
-  Lexer* lex;
-  int32_t mode = 0;
-  JSValue obj = JS_UNDEFINED;
-
-  if(!(lex = lexer_new(ctx)))
-    return JS_EXCEPTION;
-
-  return js_lexer_wrap(ctx, new_target, lex);
-}
-
-JSValue
 js_lexer_wrap(JSContext* ctx, JSValueConst new_target, Lexer* lex) {
   /* using new_target to get the prototype is necessary when the class is extended. */
   JSValue obj, proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -588,6 +595,18 @@ js_lexer_wrap(JSContext* ctx, JSValueConst new_target, Lexer* lex) {
 
   JS_SetOpaque(obj, lex);
   return obj;
+}
+
+JSValue
+js_lexer_new(JSContext* ctx, JSValueConst new_target) {
+  Lexer* lex;
+  int32_t mode = 0;
+  JSValue obj = JS_UNDEFINED;
+
+  if(!(lex = lexer_new(ctx)))
+    return JS_EXCEPTION;
+
+  return js_lexer_wrap(ctx, new_target, lex);
 }
 
 static JSValue

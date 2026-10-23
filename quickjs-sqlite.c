@@ -4,7 +4,8 @@
 #include "defines.h"
 #include "iteration.h"
 #include "property-enumeration.h"
-#include "quickjs-sqlite.h"
+
+#include <sqlite3.h>
 
 /**
  * \addtogroup quickjs-sqlite
@@ -240,9 +241,6 @@ js_sqlite_data2(JSContext* ctx, JSValueConst value) {
 static JSValue
 js_sqlite_new(JSContext* ctx, JSValueConst proto) {
   JSValue obj;
-
-  if(js_sqlite_class_id == 0)
-    js_sqlite_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, sqlite_proto);
@@ -1062,9 +1060,6 @@ js_sqliteresult_new(JSContext* ctx, JSValueConst proto, sqlite3_stmt* stmt) {
 
   if(!(opaque = sqliteresult_new(ctx)))
     return JS_EXCEPTION;
-
-  if(js_sqliteresult_class_id == 0)
-    js_sqlite_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = sqliteresult_proto;

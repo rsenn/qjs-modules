@@ -1,6 +1,5 @@
 #include "defines.h"
 #include "gpio.h"
-#include "quickjs-gpio.h"
 #include "debug.h"
 
 /**
@@ -31,9 +30,6 @@ js_gpio_data(JSContext* ctx, JSValueConst value) {
 static JSValue
 js_gpio_wrap_proto(JSContext* ctx, JSValueConst proto, struct gpio* gpio) {
   JSValue obj;
-
-  if(js_gpio_class_id == 0)
-    js_gpio_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, gpio_proto);

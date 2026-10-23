@@ -1,9 +1,11 @@
-#include "char-utils.h"
+ #include "char-utils.h"
 #include "buffer-utils.h"
-#include "quickjs-mysql.h"
 #include "utils.h"
 #include "async-closure.h"
 #include <cutils.h>
+
+#define list_add mariadb_list_add
+#include <mysql.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -377,9 +379,6 @@ js_mysql_data2(JSContext* ctx, JSValueConst value) {
 static JSValue
 js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   JSValue obj;
-
-  if(js_mysql_class_id == 0)
-    js_mysql_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, mysql_proto);
@@ -1659,9 +1658,6 @@ static JSValue
 js_mysqlresult_new(JSContext* ctx, JSValueConst proto, MYSQL_RES* res) {
   JSValue obj;
 
-  if(js_mysqlresult_class_id == 0)
-    js_mysql_init(ctx, 0);
-
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = mysqlresult_proto;
 
@@ -1748,22 +1744,6 @@ js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   }
 
   return ret;
-}
-
-static JSValue
-js_mysqlresult_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-
-  /* using new_target to get the prototype is necessary when the class is extended. */
-  JSValue proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-
-  return js_mysqlresult_new(ctx, proto, 0);
-
-fail:
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
 }
 
 static void
@@ -2034,7 +2014,7 @@ js_mysql_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_mysqlresult_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_mysqlresult_class_id, &js_mysqlresult_class);
 
-  mysqlresult_ctor = JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
+  mysqlresult_ctor = JS_NewObject(ctx);
   mysqlresult_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, mysqlresult_proto, js_mysqlresult_funcs, countof(js_mysqlresult_funcs));

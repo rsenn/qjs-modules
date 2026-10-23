@@ -1,5 +1,4 @@
 #include "defines.h"
-#include "quickjs-archive.h"
 #include "utils.h"
 #include "buffer-utils.h"
 #include "debug.h"
@@ -158,9 +157,6 @@ js_archive_progress_callback(void* opaque) {
 
 static JSValue
 js_archive_wrap(JSContext* ctx, JSValueConst proto, struct archive* ar) {
-  if(js_archive_class_id == 0)
-    js_archive_init(ctx, 0);
-
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, archive_proto);
 
@@ -1260,9 +1256,6 @@ js_archiveentry_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 static JSValue
 js_archiveentry_wrap(JSContext* ctx, JSValueConst proto, struct archive_entry* ent) {
   JSValue obj;
-
-  if(js_archive_class_id == 0)
-    js_archive_init(ctx, 0);
 
   if(js_is_nullish(proto))
     proto = entry_proto;
