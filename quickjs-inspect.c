@@ -536,9 +536,9 @@ inspect_custom(Inspector* insp, JSValueConst obj, int32_t level) {
   InspectOptions* const opts = &insp->opts;
   JSValue ret = JS_UNDEFINED, inspect = JS_UNDEFINED;
 
-  if(JS_HasProperty(ctx, obj, inspect_custom_atom))
+  if(js_has_property(ctx, obj, inspect_custom_atom))
     inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
-  else if(JS_HasProperty(ctx, obj, inspect_custom_atom_node))
+  else if(js_has_property(ctx, obj, inspect_custom_atom_node))
     inspect = JS_GetProperty(ctx, obj, inspect_custom_atom_node);
 
   if(JS_IsFunction(ctx, inspect)) {
@@ -1105,23 +1105,6 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
-  JSValue val = JS_DupValue(ctx, value), proto;
-
-  for(proto = JS_DupValue(ctx, val);; proto = JS_GetPrototype(ctx, val)) {
-    JS_FreeValue(ctx, val);
-    val = proto;
-
-    void* optr = js_value_obj(val);
-
-    if(optr == 0)
-      break;
-
-    if(((uintptr_t*)optr)[3] == 0)
-      return -1;
-  }
-
-  JS_FreeValue(ctx, val);
-
   BOOL is_array = JS_IsArray(ctx, value);
   BOOL is_function = JS_IsFunction(ctx, value);
 
@@ -1180,7 +1163,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
     BOOL has_class_key;
 
     if(!opts->reparseable) {
-      if(!is_array && ((has_class_key = JS_HasProperty(ctx, value, opts->class_key.atom)) || js_global_instanceof(ctx, value, "Object"))) {
+      if(!is_array && ((has_class_key = js_has_property(ctx, value, opts->class_key.atom)) || js_global_instanceof(ctx, value, "Object"))) {
         char* tag = 0;
 
         if(has_class_key)

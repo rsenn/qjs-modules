@@ -81,10 +81,7 @@ void* utils_js_realloc_rt(JSRuntime*, void* ptr, size_t size);
 size_t list_size(struct list_head*);
 struct list_head* list_front(const struct list_head*);
 struct list_head* list_back(const struct list_head*);
-struct list_head* list_unlink_before(struct list_head*);
 struct list_head list_unlink(struct list_head*, struct list_head*);
-void list_link_next(struct list_head*, struct list_head*);
-void list_link_prev(struct list_head*, struct list_head*);
 void __list_splice(struct list_head*, struct list_head*);
 void list_splice(struct list_head*, struct list_head*);
 void __list_sort(struct list_head*, int (*cmp)(struct list_head*, struct list_head*, void*), void*);
@@ -621,6 +618,7 @@ js_object_same(JSValueConst a, JSValueConst b) {
 }
 
 BOOL js_has_prototype(JSContext* ctx, JSValueConst arg, JSValueConst proto);
+BOOL js_has_property(JSContext*, JSValueConst, JSAtom);
 BOOL js_has_property_symbol_static(JSContext*, JSValueConst, const char* str);
 BOOL js_has_propertystr(JSContext*, JSValueConst obj, const char* str);
 JSValue js_get_property_symbol_static(JSContext*, JSValueConst, const char* str);
@@ -629,7 +627,7 @@ BOOL js_get_propertystr_bool(JSContext*, JSValueConst obj, const char* str);
 static inline BOOL
 js_has_property_value(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
-  BOOL ret = JS_HasProperty(ctx, obj, atom);
+  BOOL ret = js_has_property(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
   return ret;
 }

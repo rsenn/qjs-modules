@@ -548,8 +548,8 @@ function ListExports(file, output, params) {
 function ModuleExports(file) {
   let m;
   try {
-    if((m = moduleList.find(m => new RegExp(file).test(getModuleName(m)))) || (m = loadModule(file))) {
-      let list = getModuleExports(m);
+    if((m = moduleList.find(m => new RegExp(file).test(m.name))) || (m = loadModule(file))) {
+      let list = getModuleNS(m);
       let keys = Object.keys(list);
 
       return keys;

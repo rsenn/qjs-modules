@@ -31,28 +31,94 @@ class LongJmp {} /* thrown by _emscripten_throw_longjmp, caught by invoke_* */
 
 /* import letters -> Emscripten names (from each build's wasmImports) */
 const SHUTIL_IMPORTS = {
-  i: '___syscall_fcntl64', h: '___syscall_fstat64', t: '___syscall_newfstatat', p: '___syscall_openat',
-  n: '___syscall_unlinkat', k: '__emscripten_throw_longjmp', q: '__msync_js', r: '__munmap_js',
-  l: '_emscripten_resize_heap', c: '_exit', j: '_fd_close', s: '_fd_fdstat_get', o: '_fd_read', m: '_fd_write',
-  a: 'invoke_ii', b: 'invoke_iii', e: 'invoke_iiii', g: 'invoke_v', d: 'invoke_vi', f: 'invoke_vii'
+  i: '___syscall_fcntl64',
+  h: '___syscall_fstat64',
+  t: '___syscall_newfstatat',
+  p: '___syscall_openat',
+  n: '___syscall_unlinkat',
+  k: '__emscripten_throw_longjmp',
+  q: '__msync_js',
+  r: '__munmap_js',
+  l: '_emscripten_resize_heap',
+  c: '_exit',
+  j: '_fd_close',
+  s: '_fd_fdstat_get',
+  o: '_fd_read',
+  m: '_fd_write',
+  a: 'invoke_ii',
+  b: 'invoke_iii',
+  e: 'invoke_iiii',
+  g: 'invoke_v',
+  d: 'invoke_vi',
+  f: 'invoke_vii',
 };
 const SHUTIL_EXPORTS = { memory: 'u', table: 'w', ctors: 'v', free: 'x', format: 'z', malloc: 'A', parse: 'B', setThrew: 'D', restore: 'E', current: 'G' };
 
 const SHISH_IMPORTS = {
-  G: '___call_sighandler', fa: '___syscall_chdir', ea: '___syscall_chmod', da: '___syscall_dup', ca: '___syscall_dup3',
-  ga: '___syscall_faccessat', e: '___syscall_fcntl64', aa: '___syscall_fstat64', Y: '___syscall_getcwd',
-  E: '___syscall_getdents64', X: '___syscall_getegid32', W: '___syscall_geteuid32', r: '___syscall_getgid32',
-  g: '___syscall_getuid32', q: '___syscall_ioctl', o: '___syscall_linkat', Z: '___syscall_lstat64',
-  U: '___syscall_mkdirat', _: '___syscall_newfstatat', M: '___syscall_openat', L: '___syscall_pipe2',
-  n: '___syscall_poll', K: '___syscall_poll_nonblocking', D: '___syscall_readlinkat', C: '___syscall_renameat',
-  B: '___syscall_rmdir', $: '___syscall_stat64', A: '___syscall_symlinkat', y: '___syscall_umask',
-  x: '___syscall_unlinkat', w: '___syscall_utimensat', J: '__abort_js', I: '__emscripten_runtime_keepalive_clear',
-  t: '__emscripten_throw_longjmp', R: '__localtime_js', S: '__mktime_js', N: '__mmap_js', O: '__msync_js',
-  Q: '__munmap_js', m: '__setitimer_js', ha: '__tzset_js', T: '_clock_time_get', ba: '_emscripten_date_now',
-  z: '_emscripten_get_heap_max', h: '_emscripten_get_now', u: '_emscripten_resize_heap', ia: '_environ_get',
-  ja: '_environ_sizes_get', f: '_exit', k: '_fd_close', p: '_fd_fdstat_get', F: '_fd_read', V: '_fd_seek',
-  v: '_fd_write', i: 'invoke_i', c: 'invoke_ii', b: 'invoke_iii', d: 'invoke_iiii', j: 'invoke_iiiii',
-  s: 'invoke_v', a: 'invoke_vi', P: 'invoke_vii', l: 'invoke_viii', H: '_proc_exit'
+  G: '___call_sighandler',
+  fa: '___syscall_chdir',
+  ea: '___syscall_chmod',
+  da: '___syscall_dup',
+  ca: '___syscall_dup3',
+  ga: '___syscall_faccessat',
+  e: '___syscall_fcntl64',
+  aa: '___syscall_fstat64',
+  Y: '___syscall_getcwd',
+  E: '___syscall_getdents64',
+  X: '___syscall_getegid32',
+  W: '___syscall_geteuid32',
+  r: '___syscall_getgid32',
+  g: '___syscall_getuid32',
+  q: '___syscall_ioctl',
+  o: '___syscall_linkat',
+  Z: '___syscall_lstat64',
+  U: '___syscall_mkdirat',
+  _: '___syscall_newfstatat',
+  M: '___syscall_openat',
+  L: '___syscall_pipe2',
+  n: '___syscall_poll',
+  K: '___syscall_poll_nonblocking',
+  D: '___syscall_readlinkat',
+  C: '___syscall_renameat',
+  B: '___syscall_rmdir',
+  $: '___syscall_stat64',
+  A: '___syscall_symlinkat',
+  y: '___syscall_umask',
+  x: '___syscall_unlinkat',
+  w: '___syscall_utimensat',
+  J: '__abort_js',
+  I: '__emscripten_runtime_keepalive_clear',
+  t: '__emscripten_throw_longjmp',
+  R: '__localtime_js',
+  S: '__mktime_js',
+  N: '__mmap_js',
+  O: '__msync_js',
+  Q: '__munmap_js',
+  m: '__setitimer_js',
+  ha: '__tzset_js',
+  T: '_clock_time_get',
+  ba: '_emscripten_date_now',
+  z: '_emscripten_get_heap_max',
+  h: '_emscripten_get_now',
+  u: '_emscripten_resize_heap',
+  ia: '_environ_get',
+  ja: '_environ_sizes_get',
+  f: '_exit',
+  k: '_fd_close',
+  p: '_fd_fdstat_get',
+  F: '_fd_read',
+  V: '_fd_seek',
+  v: '_fd_write',
+  i: 'invoke_i',
+  c: 'invoke_ii',
+  b: 'invoke_iii',
+  d: 'invoke_iiii',
+  j: 'invoke_iiiii',
+  s: 'invoke_v',
+  a: 'invoke_vi',
+  P: 'invoke_vii',
+  l: 'invoke_viii',
+  H: '_proc_exit',
 };
 const SHISH_EXPORTS = { memory: 'ka', table: 'na', ctors: 'la', main: 'ma', setThrew: 'qa', restore: 'ra', alloc: 'sa', current: 'ta' };
 
@@ -74,7 +140,8 @@ function load(file, letters, names) {
   const output = (fd, text) => writeSync(fd === 2 ? 2 : 1, text);
 
   /* a tiny in-memory file system: enough for tmpfile()-style scratch files */
-  const files = new Map(), fds = new Map();
+  const files = new Map(),
+    fds = new Map();
   let nextFd = 3;
   const bytes = (iov, iovcnt) => {
     const v = [];
@@ -156,7 +223,7 @@ function load(file, letters, names) {
       nextFd += 2;
       return 0;
     },
-    ___syscall_fcntl64: (fd, cmd) => (fd < 3 || fds.has(fd) ? (cmd === 3 ? 2 : 0) : -9), /* F_GETFL: O_RDWR; else EBADF */
+    ___syscall_fcntl64: (fd, cmd) => (fd < 3 || fds.has(fd) ? (cmd === 3 ? 2 : 0) : -9) /* F_GETFL: O_RDWR; else EBADF */,
     ___syscall_unlinkat: (dirfd, path) => (files.delete(readString(path)), 0),
     ___syscall_fstat64(fd, buf) {
       const f = fds.get(fd);
@@ -169,10 +236,18 @@ function load(file, letters, names) {
       writeStat(buf, file.size, 0o100644);
       return 0;
     },
-    _exit: code => { throw new ExitStatus(code); },
-    _proc_exit: code => { throw new ExitStatus(code); },
-    __abort_js: () => { throw new Error('abort()'); },
-    __emscripten_throw_longjmp: () => { throw new LongJmp(); },
+    _exit: code => {
+      throw new ExitStatus(code);
+    },
+    _proc_exit: code => {
+      throw new ExitStatus(code);
+    },
+    __abort_js: () => {
+      throw new Error('abort()');
+    },
+    __emscripten_throw_longjmp: () => {
+      throw new LongJmp();
+    },
     _emscripten_date_now: () => Date.now(),
     _emscripten_get_now: () => Date.now(),
     _emscripten_get_heap_max: () => 2147483648,
@@ -186,7 +261,7 @@ function load(file, letters, names) {
       return 0;
     },
     _environ_get: () => 0,
-    _fd_fdstat_get: () => 0
+    _fd_fdstat_get: () => 0,
   };
 
   /* setjmp/longjmp emulation: a call that may longjmp runs inside invoke_*. */
@@ -203,10 +278,7 @@ function load(file, letters, names) {
 
   const a = {};
   for(const [letter, name] of Object.entries(letters))
-    a[letter] = name.startsWith('invoke_') ? (...args) => invoke(...args)
-      : name in host ? (...args) => host[name](...args)
-      : name.startsWith('___syscall_') ? () => ENOSYS
-      : () => 0;
+    a[letter] = name.startsWith('invoke_') ? (...args) => invoke(...args) : name in host ? (...args) => host[name](...args) : name.startsWith('___syscall_') ? () => ENOSYS : () => 0;
 
   ex = new WebAssembly.Instance(module, { a }).exports;
   ex[names.ctors]();

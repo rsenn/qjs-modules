@@ -245,7 +245,14 @@ js_path_invalid_arg(JSContext* ctx, JSValueConst v, const char* name, const char
 
     tmp = JS_Call(ctx, str, JS_UNDEFINED, 1, &v);
     s = JS_IsString(tmp) ? JS_ToCString(ctx, tmp) : 0;
-    dbuf_printf(&db, "type %s (%s%s)", JS_IsNumber(v) ? "number" : JS_IsBool(v) ? "boolean" : JS_IsBigInt(ctx, v) ? "bigint" : "symbol", s ? s : "", JS_IsBigInt(ctx, v) ? "n" : "");
+    dbuf_printf(&db,
+                "type %s (%s%s)",
+                JS_IsNumber(v)        ? "number"
+                : JS_IsBool(v)        ? "boolean"
+                : JS_IsBigInt(ctx, v) ? "bigint"
+                                      : "symbol",
+                s ? s : "",
+                JS_IsBigInt(ctx, v) ? "n" : "");
     if(s)
       JS_FreeCString(ctx, s);
     JS_FreeValue(ctx, tmp);

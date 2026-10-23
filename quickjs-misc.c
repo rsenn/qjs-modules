@@ -4093,9 +4093,9 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 #ifndef __wasi__
 #ifdef _WIN32
-static HANDLE raw_handles[2];   /* console input and output ttySetRaw changed */
-static DWORD raw_modes[2];      /* their modes before */
-static UINT raw_codepages[2];   /* input and output code pages before */
+static HANDLE raw_handles[2]; /* console input and output ttySetRaw changed */
+static DWORD raw_modes[2];    /* their modes before */
+static UINT raw_codepages[2]; /* input and output code pages before */
 static BOOL have_raw;
 
 static void

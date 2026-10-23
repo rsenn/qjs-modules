@@ -69,40 +69,27 @@ list_back(const struct list_head* list) {
   return list->prev != list ? list->prev : 0;
 }
 
-struct list_head*
-list_unlink_before(struct list_head* list) {
-  struct list_head* prev = list->prev;
-
-  prev->next = NULL;
-  list->prev = NULL;
-
-  return prev;
-}
-
+/**
+ * Unlink a range of nodes from a list and isolate them.
+ *
+ * @param start  the first node of the range to unlink.
+ * @param end    the node immediately following the range to unlink.
+ * @return       a struct list_head representing the unlinked range boundaries.
+ */
 struct list_head
 list_unlink(struct list_head* start, struct list_head* end) {
-  struct list_head *prev, *last;
+  struct list_head* prev = start->prev;
+  struct list_head* last = end->prev;
 
-  prev = list_unlink_before(start);
-  last = list_unlink_before(end);
+  start->prev = NULL;
+  last->next = NULL;
 
-  list_link_next(prev, end);
-  list_link_prev(end, prev);
+  prev->next = end;
+  end->prev = prev;
 
   return (struct list_head){last, start};
 }
 
-void
-list_link_next(struct list_head* node, struct list_head* newn) {
-  node->next = newn;
-  newn->prev = node;
-}
-
-void
-list_link_prev(struct list_head* node, struct list_head* newn) {
-  node->prev = newn;
-  newn->next = node;
-}
 void
 __list_splice(struct list_head* list, struct list_head* head) {
   struct list_head* first = list->next;
@@ -117,7 +104,9 @@ __list_splice(struct list_head* list, struct list_head* head) {
 }
 
 /**
- * @brief join two lists
+ * join two lists by inserting the source list immediately after
+ * the specified target head node.
+ *
  * @param list  the new list to add.
  * @param head  the place to add it in the first list.
  */
@@ -1025,9 +1014,29 @@ js_has_prototype(JSContext* ctx, JSValueConst arg, JSValueConst proto) {
 }
 
 BOOL
+js_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
+  JSValue val = JS_DupValue(ctx, obj);
+  BOOL ret = FALSE;
+
+  while(JS_IsObject(val)) {
+    if(JS_HasProperty(ctx, val, prop)) {
+      ret = TRUE;
+      break;
+    }
+
+    JSValue proto = JS_GetPrototype(ctx, val);
+    JS_FreeValue(ctx, val);
+    val = proto;
+  }
+
+  JS_FreeValue(ctx, val);
+  return ret;
+}
+
+BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom = JS_NewAtom(ctx, str);
-  BOOL ret = JS_HasProperty(ctx, obj, atom);
+  BOOL ret = js_has_property(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
   return ret;
 }
@@ -1035,7 +1044,7 @@ js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
 BOOL
 js_has_property_symbol_static(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom = js_symbol_static_atom(ctx, str);
-  BOOL ret = JS_HasProperty(ctx, obj, atom);
+  BOOL ret = js_has_property(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
   return ret;
 }

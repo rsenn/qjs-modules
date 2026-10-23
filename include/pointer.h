@@ -11,13 +11,13 @@
  * @{
  */
 
-void atoms_dump(JSAtom const[], size_t, Writer*, BOOL, ssize_t, JSContext*);
+/*void atoms_dump(JSAtom const[], size_t, Writer*, BOOL, ssize_t, JSContext*);
 void atoms_serialize(JSAtom const[], size_t, Writer*, JSContext*);
 JSValue atoms_deref(JSAtom const[], size_t, size_t*, JSValueConst, JSContext*);
 JSValue atoms_acquire(JSAtom const[], size_t, size_t, JSValueConst, JSContext*);
 JSValue atoms_toarray(JSAtom const[], size_t, JSContext*);
 JSValue atoms_uint32array(JSAtom const[], size_t, JSContext*);
-BOOL atoms_equal(JSAtom const[], JSAtom const[], size_t);
+BOOL atoms_equal(JSAtom const[], JSAtom const[], size_t);*/
 
 typedef struct Pointer {
   size_t n, a;
@@ -52,8 +52,8 @@ JSValue pointer_pop(Pointer*, JSContext*);
 BOOL pointer_unshift(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_push(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_pushfree(Pointer*, JSValue item, JSContext*);
-JSValue pointer_deref(Pointer const*, size_t*, JSValueConst, JSContext*);
-JSValue pointer_acquire(Pointer const*, size_t, JSValueConst, JSContext*);
+JSValue pointer_deref(Pointer const*, size_t*, JSValueConst, BOOL, JSContext*);
+JSValue pointer_acquire(Pointer const*, size_t, JSValueConst, BOOL, JSContext*);
 BOOL pointer_fromstring(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_fromarray(Pointer*, JSValueConst, JSContext*);
 BOOL pointer_fromiterable(Pointer*, JSValueConst, JSContext*);

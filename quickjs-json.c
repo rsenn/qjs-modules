@@ -816,19 +816,36 @@ js_json_init(JSContext* ctx, JSModuleDef* m) {
   if(js_location_class_id == 0)
     js_location_init(ctx, 0);
 
-  parser = js_class_define(ctx, &js_jsonparser_class_id, &js_jsonparser_class, js_jsonparser_constructor, 1, js_jsonparser_proto_funcs, countof(js_jsonparser_proto_funcs), &proto);
+  parser = js_class_define(
+      ctx, &js_jsonparser_class_id, &js_jsonparser_class, js_jsonparser_constructor, 1, js_jsonparser_proto_funcs, countof(js_jsonparser_proto_funcs), &proto);
   JS_SetPropertyFunctionList(ctx, proto, js_jsonparser_static_props, countof(js_jsonparser_static_props));
   JS_SetPropertyFunctionList(ctx, parser, js_jsonparser_static_props, countof(js_jsonparser_static_props));
 
-  push = js_class_define(ctx, &js_jsonpushparser_class_id, &js_jsonpushparser_class, js_jsonpushparser_constructor, 0, js_jsonpushparser_proto_funcs, countof(js_jsonpushparser_proto_funcs), 0);
-  serializer = js_class_define(ctx, &js_jsonserializer_class_id, &js_jsonserializer_class, js_jsonserializer_constructor, 1, js_jsonserializer_proto_funcs, countof(js_jsonserializer_proto_funcs), 0);
+  push = js_class_define(ctx,
+                         &js_jsonpushparser_class_id,
+                         &js_jsonpushparser_class,
+                         js_jsonpushparser_constructor,
+                         0,
+                         js_jsonpushparser_proto_funcs,
+                         countof(js_jsonpushparser_proto_funcs),
+                         0);
+  serializer = js_class_define(ctx,
+                               &js_jsonserializer_class_id,
+                               &js_jsonserializer_class,
+                               js_jsonserializer_constructor,
+                               1,
+                               js_jsonserializer_proto_funcs,
+                               countof(js_jsonserializer_proto_funcs),
+                               0);
 
-  writer = js_class_define(ctx, &js_jsonwriter_class_id, &js_jsonwriter_class, js_jsonwriter_constructor, 1, js_jsonwriter_funcs, countof(js_jsonwriter_funcs), &proto);
+  writer = js_class_define(
+      ctx, &js_jsonwriter_class_id, &js_jsonwriter_class, js_jsonwriter_constructor, 1, js_jsonwriter_funcs, countof(js_jsonwriter_funcs), &proto);
   js_jsonsink_register(js_jsonwriter_class_id, js_jsonwriter_sink, js_jsonwriter_throw, NULL);
   js_jsonsink_define(ctx, proto);
   js_jsonsink_define_handshake(ctx, proto, js_jsonwriter_handshake);
 
-  builder = js_class_define(ctx, &js_jsonbuilder_class_id, &js_jsonbuilder_class, js_jsonbuilder_constructor, 0, js_jsonbuilder_funcs, countof(js_jsonbuilder_funcs), &proto);
+  builder = js_class_define(
+      ctx, &js_jsonbuilder_class_id, &js_jsonbuilder_class, js_jsonbuilder_constructor, 0, js_jsonbuilder_funcs, countof(js_jsonbuilder_funcs), &proto);
   js_jsonsink_register(js_jsonbuilder_class_id, js_jsonbuilder_sink, NULL, NULL);
   js_jsonsink_define(ctx, proto);
   js_jsonsink_define_handshake(ctx, proto, js_jsonbuilder_handshake);

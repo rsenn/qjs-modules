@@ -100,7 +100,7 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
   } else if(js_is_date(ctx, value)) {
     size_t len;
     JSValue val = js_invoke(ctx, value, "toISOString", 0, 0);
-    char*  str = js_tostringlen(ctx, &len, val);
+    char* str = js_tostringlen(ctx, &len, val);
 
     if(len >= 24)
       if(str[23] == 'Z')
@@ -1297,7 +1297,7 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
 static JSValue
 js_mysqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSAtom prop;
-  JSValue obj,stack, proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  JSValue obj, stack, proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 

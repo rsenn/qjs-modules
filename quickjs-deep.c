@@ -653,7 +653,7 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       JS_ToUint32(ctx, &flags, argv[2]);
 
     pointer_from(ptr, argv[1], ctx);
-    ret = pointer_deref(ptr, NULL, argv[0], ctx);
+    ret = pointer_deref(ptr, NULL, argv[0], !(flags & NO_THROW), ctx);
 
     if(JS_IsException(ret) && (flags & NO_THROW)) {
       JS_GetException(ctx);
@@ -689,7 +689,7 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     if(!js_pointer_from(&ptr, argv[1], ctx))
       return JS_EXCEPTION;
 
-    JSValue obj = pointer_acquire(&ptr, ptr.n - 1, argv[0], ctx);
+    JSValue obj = pointer_acquire(&ptr, ptr.n - 1, argv[0], TRUE, ctx);
     JSAtom prop = pointer_popatom(&ptr);
 
     if(!JS_IsException(obj))
@@ -725,7 +725,7 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       return JS_EXCEPTION;
 
     JSAtom prop = pointer_popatom(&ptr);
-    JSValue obj = pointer_deref(&ptr, NULL, argv[0], ctx);
+    JSValue obj = pointer_deref(&ptr, NULL, argv[0], TRUE, ctx);
 
     if(!JS_IsException(obj)) {
       if(0 > JS_DeleteProperty(ctx, obj, prop, argc > 2 && JS_ToBool(ctx, argv[2]) ? JS_PROP_THROW : 0)) {

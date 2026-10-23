@@ -368,7 +368,7 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   switch(magic) {
     case METHOD_DEREF: {
       size_t pos;
-      JSValue ret = pointer_deref(ptr, &pos, argv[0], ctx);
+      JSValue ret = pointer_deref(ptr, &pos, argv[0], argc > 1 ? JS_ToBool(ctx, argv[1]) : FALSE, ctx);
 
       if(JS_IsException(ret))
         ret = JS_Throw(ctx, js_dereferenceerror_new(ctx, this_val, pos, argv[0]));

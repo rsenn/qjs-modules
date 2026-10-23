@@ -2,6 +2,7 @@
 #include "buffer-utils.h"
 #include "debug.h"
 #include "quickjs-pointer.h"
+#include "quickjs.h"
 
 /**
  * \addtogroup pointer
@@ -10,7 +11,7 @@
 
 #define pointer_color(s) (((index != -1) && (i) >= (size_t)(index)) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
-void
+static void
 atoms_dump(JSAtom const atoms[], size_t count, Writer* wr, BOOL color, ssize_t index, JSContext* ctx) {
   for(size_t i = 0; i < count; i++) {
     const char* s = JS_AtomToCString(ctx, atoms[i]);
@@ -36,7 +37,7 @@ atoms_dump(JSAtom const atoms[], size_t count, Writer* wr, BOOL color, ssize_t i
   writer_puts(wr, color ? COLOR_NONE : "");
 }
 
-void
+static void
 atoms_serialize(JSAtom const atoms[], size_t n, Writer* wr, JSContext* ctx) {
   size_t i, j;
 
@@ -69,12 +70,12 @@ atoms_serialize(JSAtom const atoms[], size_t n, Writer* wr, JSContext* ctx) {
   }
 }
 
-JSValue
-atoms_deref(JSAtom const atoms[], size_t n, size_t* pos, JSValueConst arg, JSContext* ctx) {
+static JSValue
+atoms_deref(JSAtom const atoms[], size_t n, size_t* pos, JSValueConst arg, BOOL throw_ref_error, JSContext* ctx) {
   JSValue obj = JS_DupValue(ctx, arg);
 
   for(size_t i = 0; i < n; i++) {
-    JSValue child = JS_GetProperty(ctx, obj, atoms[i]); // deref_value(ctx, obj, atoms[i]);
+    JSValue child = JS_GetPropertyInternal(ctx, obj, atoms[i], obj, throw_ref_error);
 
     JS_FreeValue(ctx, obj);
 
@@ -90,29 +91,37 @@ atoms_deref(JSAtom const atoms[], size_t n, size_t* pos, JSValueConst arg, JSCon
   return obj;
 }
 
-JSValue
-atoms_acquire(JSAtom const atoms[], size_t n, size_t max_len, JSValueConst arg, JSContext* ctx) {
+static JSValue
+atoms_acquire(JSAtom const atoms[], size_t n, size_t max_len, JSValueConst arg, BOOL throw_ref_error, JSContext* ctx) {
   JSValue obj = JS_DupValue(ctx, arg);
 
   for(size_t i = 0; i < n; i++) {
     JSValue child;
 
+    /* if object doesn't have such OWN property, create it */
     if(!JS_HasProperty(ctx, obj, atoms[i])) {
       BOOL is_array = i + 1 < max_len && JS_ATOM_ISINT(atoms[i + 1]);
       child = is_array ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      JS_SetProperty(ctx, obj, atoms[i], JS_DupValue(ctx, child));
+
+      if(JS_SetPropertyInternal(ctx, obj, atoms[i], JS_DupValue(ctx, child), obj, throw_ref_error ? JS_PROP_THROW : 0) != TRUE) {
+        JS_FreeValue(ctx, child);
+        child = throw_ref_error ? JS_EXCEPTION : JS_UNDEFINED;
+      }
     } else {
-      child = JS_GetProperty(ctx, obj, atoms[i]);
+      child = JS_GetPropertyInternal(ctx, obj, atoms[i], obj, throw_ref_error);
     }
 
     JS_FreeValue(ctx, obj);
     obj = child;
+
+    if(JS_IsException(child))
+      break;
   }
 
   return obj;
 }
 
-JSValue
+static JSValue
 atoms_toarray(JSAtom const atoms[], size_t n, JSContext* ctx) {
   JSValue array = JS_NewArray(ctx);
 
@@ -122,7 +131,7 @@ atoms_toarray(JSAtom const atoms[], size_t n, JSContext* ctx) {
   return array;
 }
 
-JSValue
+static JSValue
 atoms_uint32array(JSAtom const atoms[], size_t n, JSContext* ctx) {
   JSValue ret, buf = JS_NewArrayBufferCopy(ctx, (uint8_t*)atoms, sizeof(JSAtom) * n);
   ret = js_typedarray_new(ctx, 32, FALSE, FALSE, buf);
@@ -130,13 +139,9 @@ atoms_uint32array(JSAtom const atoms[], size_t n, JSContext* ctx) {
   return ret;
 }
 
-BOOL
+static inline BOOL
 atoms_equal(JSAtom const a[], JSAtom const b[], size_t len) {
-  for(uint32_t i = 0; i < len; i++)
-    if(a[i] != b[i])
-      return FALSE;
-
-  return TRUE;
+  return !memcmp(a, b, sizeof(JSAtom) * len);
 }
 
 void
@@ -627,13 +632,13 @@ pointer_pushfree(Pointer* ptr, JSValue item, JSContext* ctx) {
 }
 
 JSValue
-pointer_deref(Pointer const* ptr, size_t* pos, JSValueConst arg, JSContext* ctx) {
-  return atoms_deref(ptr->atoms, ptr->n, pos, arg, ctx);
+pointer_deref(Pointer const* ptr, size_t* pos, JSValueConst arg, BOOL throw_ref_error, JSContext* ctx) {
+  return atoms_deref(ptr->atoms, ptr->n, pos, arg, throw_ref_error, ctx);
 }
 
 JSValue
-pointer_acquire(Pointer const* ptr, size_t max_len, JSValueConst arg, JSContext* ctx) {
-  return atoms_acquire(ptr->atoms, MIN_NUM(max_len, ptr->n), ptr->n, arg, ctx);
+pointer_acquire(Pointer const* ptr, size_t max_len, JSValueConst arg, BOOL throw_ref_error, JSContext* ctx) {
+  return atoms_acquire(ptr->atoms, MIN_NUM(max_len, ptr->n), ptr->n, arg, throw_ref_error, ctx);
 }
 
 BOOL
@@ -689,12 +694,6 @@ pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
 
 BOOL
 pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
-  /*Pointer* ptr2;
-
-  if((ptr2 = js_pointer_data(value)))
-    if(pointer_copy(ptr, ptr2, ctx))
-      return TRUE;*/
-
   if(JS_IsString(value))
     if(pointer_fromstring(ptr, value, ctx))
       return TRUE;
