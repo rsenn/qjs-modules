@@ -1,5 +1,6 @@
 #include "defines.h"
 #include "utils.h"
+#include "list-utils.h"
 #include "js-utils.h"
 #include "debug.h"
 

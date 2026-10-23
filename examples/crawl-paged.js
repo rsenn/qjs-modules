@@ -1,5 +1,6 @@
 import { Queue } from 'queue';
 import { urlGet } from 'std';
+import { writeFileSync } from 'fs';
 import { List } from 'list';
 import { XMLParser, XMLPushParser, XMLTreeSerializer, XMLWriter } from 'xml';
 
@@ -60,20 +61,8 @@ function* deferUntilNextMatch(source, predicate, transform = list => [...list]) 
   }
 
   if([...hold].some(predicate)) yield [...hold];
-  //if(hold.length) yield [...hold];
 }
 
-function* xmlToText(...args) {
-  const parser = new XMLParser(...args);
-  for(const tok of parser) {
-    switch (tok.type) {
-      case TEXT:
-        yield tok.value;
-      default:
-        break;
-    }
-  }
-}
 function xmlToken({ type, name, value }) {
   switch (type) {
     case ELEMENT_START:
@@ -94,6 +83,8 @@ function main(baseUrl = 'https://github.com/rsenn?tab=repositories', paramName =
 
   const url = new URL(baseUrl);
 
+  const output=[];
+
   for(let response of it) {
     const rd = readerFrom(response);
 
@@ -109,35 +100,50 @@ function main(baseUrl = 'https://github.com/rsenn?tab=repositories', paramName =
       tok =>
         tok.type == ATTRIBUTE && tok.name == attrName && pred(tok);
     const isRepo = token => isAttr('itemprop')(token) && /codeRepository/.test(token.value);
+    const isText = token => token.type == TEXT;
 
     const generator = deferUntilNextMatch(parser, isRepo, l => [...l.splice(l.begin(), l.findLast(isLink))]);
 
     const projects = [];
 
     for(const tokens of generator) {
-      const startIndex = tokens.findIndex(isAttr('href', t => t.value.startsWith(url.pathname + '/')));
+      /* find main repository href */
+      const hrefAttr = tokens.find(isAttr('href', t => t.value.startsWith(url.pathname + '/')));
+      if(!hrefAttr) continue;
 
-      if(startIndex == -1) continue;
-      tokens.splice(0, startIndex);
+      const obj = { href: hrefAttr.value };
 
-      const obj = { href: tokens[0].value };
+      /* helper to slice tokens starting from the first match of a predicate */
+      const fromMatch = pred => {
+        const idx = tokens.findIndex(pred);
+        return idx != -1 ? tokens.slice(idx) : [];
+      };
 
-      const forkedIndex = tokens.findIndex(t => /^Forked/.test(t.value));
+      /* extract forked repository link */
+      const forkedTokens = fromMatch(t => /^Forked/.test(t.value));
+      const forkedHref = forkedTokens.find(isAttr('href'));
+      if(forkedHref) obj.forked = forkedHref.value;
 
-      if(forkedIndex != -1) obj.forked = tokens.slice(forkedIndex).find(isAttr('href')).value;
+      /* extract description text from paragraph tag */
+      const pTokens = fromMatch(isTag('p'));
+      const descToken = pTokens.find(isText);
+      if(descToken) obj.description = descToken.value.trim();
 
-      const pIndex = tokens.findIndex(isTag('p'));
-
-      if(pIndex != -1) obj.description = tokens.slice(pIndex).find(({ type }) => type == TEXT).value;
+      //console.log(console.config({ compact: -2}), {pTokens})
 
       projects.push(obj);
 
-      console.log(obj);
-      //  console.log(tokens.map(xmlToken));
+      const { href, description, forked } = obj;
+
+      console.log([href.replace(/.*\//g, ''), description.replace(/\.\s.*/g, ''), ...(forked ? [`[Forked from ${forked}]`] : [])].map((l, i, a) => l.padEnd(i == 0 ? 20 : 0)).join(' '));
     }
 
     if(projects.length == 0) break;
+
+    output.push(...projects);
   }
+
+writeFileSync('projects.json', JSON.stringify(output, null, 2))
 }
 
 main(...scriptArgs.slice(1));

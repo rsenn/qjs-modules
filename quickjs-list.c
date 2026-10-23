@@ -1,5 +1,7 @@
 #include "char-utils.h"
+#include "list-utils.h"
 #include "quickjs-list.h"
+#include "quickjs.h"
 #include "utils.h"
 #include "iteration.h"
 #include "debug.h"
@@ -42,7 +44,6 @@ typedef enum {
 } IteratorYield;
 
 typedef struct {
-  /*List* list;*/
   Node *node, *header;
   IteratorType iterator_type;
   IteratorYield kind;
@@ -60,7 +61,7 @@ js_list_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_list_class_id);
 }
 
-static inline List* 
+static inline List*
 js_list_data(JSValueConst value) {
   return JS_GetOpaque(value, js_list_class_id);
 }
@@ -125,8 +126,9 @@ node_get(JSContext* ctx, JSValueConst value) {
 
   if((iter = JS_GetOpaque(value, js_list_iterator_class_id))) {
     node = iter->node;
-  } else if(!(node = JS_GetOpaque(value, js_node_class_id))) {
-    JS_ThrowInternalError(ctx, "argument 1 must be a ListIterator or ListNode");
+  } else if((node = js_node_data(value))) {
+  } else {
+    JS_ThrowInternalError(ctx, "argument 1 must be ListIterator | ListNode");
   }
 
   return node;
@@ -201,35 +203,6 @@ list_remove(List* list, Node* node, JSContext* ctx) {
 
   list_erase(list, node, ctx);
   return ret;
-}
-
-static inline BOOL
-list_has(List* list, int64_t index) {
-  int64_t size = (int64_t)list->size;
-  return index >= -size && index < size;
-}
-
-static Node*
-list_at(List* list, int64_t index) {
-  index = WRAP_NUM(index, (int64_t)list->size);
-
-  if(index < (int64_t)list->size && index >= 0) {
-    struct list_head* ptr;
-    int64_t from_back = (list->size - 1) - index;
-
-    if(from_back < index)
-      list_for_each_prev(ptr, &list->header) {
-        if(from_back-- == 0)
-          return list_entry(ptr, Node, link);
-      }
-    else
-      list_for_each(ptr, &list->header) {
-        if(index-- == 0)
-          return list_entry(ptr, Node, link);
-      }
-  }
-
-  return NULL;
 }
 
 static void
@@ -460,8 +433,13 @@ js_list_iterator_method(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     case ITERATOR_EQUALS: {
       Node* node;
 
-      if(!(node = node_get(ctx, argv[0])))
-        return JS_EXCEPTION;
+      if(!(node = JS_GetOpaque(argv[0], js_node_class_id))) {
+        ListIterator* iter;
+        if(!(iter = JS_GetOpaque(argv[0], js_list_iterator_class_id)))
+          return JS_EXCEPTION;
+
+        node = iter->node;
+      }
 
       ret = JS_NewBool(ctx, node == it->node);
       break;
@@ -859,10 +837,10 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       Node *start, *end, *node;
 
       if(!(start = node_get(ctx, argv[0])))
-        return JS_ThrowTypeError(ctx, "argument 1 must be ListNode");
+        return JS_EXCEPTION;
 
       if(!(end = node_get(ctx, argv[1])))
-        return JS_ThrowTypeError(ctx, "argument 2 must be ListNode");
+        return JS_EXCEPTION;
 
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
@@ -879,10 +857,10 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       Node *start, *end;
 
       if(!(start = node_get(ctx, argv[0])))
-        return JS_ThrowTypeError(ctx, "argument 1 must be ListNode");
+        return JS_EXCEPTION;
 
       if(!(end = node_get(ctx, argv[1])))
-        return JS_ThrowTypeError(ctx, "argument 2 must be ListNode");
+        return JS_EXCEPTION;
 
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
@@ -904,10 +882,10 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       Node *node, *start, *end;
 
       if(!(start = node_get(ctx, argv[1])))
-        return JS_ThrowTypeError(ctx, "argument 2 must be ListNode");
+        return JS_EXCEPTION;
 
       if(!(end = node_get(ctx, argv[2])))
-        return JS_ThrowTypeError(ctx, "argument 3 must be ListNode");
+        return JS_EXCEPTION;
 
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
@@ -924,10 +902,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       Node* node;
 
       if(!(node = node_get(ctx, argv[0])))
-        return JS_ThrowTypeError(ctx, "argument 1 must be ListNode");
-
-      if(JS_IsUninitialized(node->value))
-        return JS_ThrowTypeError(ctx, "ListNode must not be a sentinel");
+        return JS_EXCEPTION;
 
       list_del(&list->header);
       __list_add(&list->header, node->link.prev, &node->link);
@@ -1125,90 +1100,9 @@ js_list_finalizer(JSRuntime* rt, JSValue val) {
     list_free(list, rt);
 }
 
-static int
-js_list_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
-  List* list;
-  int64_t index;
-
-  if(!(list = js_list_data2(ctx, obj)))
-    return FALSE;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    Node* node;
-
-    if((node = list_at(list, index))) {
-      if(pdesc) {
-        pdesc->flags = JS_PROP_ENUMERABLE;
-        pdesc->value = JS_DupValue(ctx, node->value);
-        pdesc->getter = JS_UNDEFINED;
-        pdesc->setter = JS_UNDEFINED;
-      }
-
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
-static int
-js_list_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  List* list;
-  int64_t index;
-
-  if(!(list = js_list_data2(ctx, obj)))
-    return FALSE;
-
-  if(js_atom_is_index(ctx, &index, prop))
-    return list_has(list, index);
-
-  return FALSE;
-}
-
-static int
-js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
-  List* list;
-  int64_t index, size;
-
-  if(!(list = js_list_data2(ctx, obj)))
-    return FALSE;
-
-  size = (int64_t)list->size;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    if(index >= size) {
-      for(int64_t i = size; i < index; i++)
-        list_insert_before(list, JS_UNDEFINED, NULL, ctx);
-
-      list_insert_before(list, value, NULL, ctx);
-    } else if(index < -size) {
-      for(int64_t i = index; i < -(size + 1); i++)
-        list_insert(list, JS_UNDEFINED, NULL, ctx);
-
-      list_insert(list, value, NULL, ctx);
-    } else {
-      Node* node = list_at(list, index);
-
-      JS_FreeValue(ctx, node->value);
-      node->value = JS_DupValue(ctx, value);
-    }
-
-    return TRUE;
-  }
-
-  return FALSE;
-}
-
-static JSClassExoticMethods js_list_exotic_methods = {
-    .get_own_property = js_list_get_own_property,
-    .has_property = js_list_has_property,
-    .set_property = js_list_set_property,
-};
-
 static JSClassDef js_list_class = {
     .class_name = "List",
     .finalizer = js_list_finalizer,
-    .exotic = &js_list_exotic_methods,
 };
 
 static JSClassDef js_list_iterator_class = {
@@ -1311,8 +1205,13 @@ js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case NODE_EQUALS: {
       Node* other;
 
-      if(!(other = node_get(ctx, argv[0])))
-        return JS_EXCEPTION;
+      if(!(other = JS_GetOpaque(argv[0], js_node_class_id))) {
+        ListIterator* iter;
+        if(!(iter = JS_GetOpaque(argv[0], js_list_iterator_class_id)))
+          return JS_EXCEPTION;
+
+        other = iter->node;
+      }
 
       ret = JS_NewBool(ctx, other == node);
       break;
@@ -1335,7 +1234,6 @@ enum {
   NODE_PREV,
   NODE_NEXT,
   NODE_LINKED,
-  NODE_ADDRESS,
   NODE_SENTINEL,
 };
 
@@ -1366,14 +1264,6 @@ js_node_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case NODE_SENTINEL: {
       ret = JS_NewBool(ctx, JS_IsUninitialized(node->value));
-      break;
-    }
-    case NODE_ADDRESS: {
-      char buf[32];
-
-      buf[0] = '0';
-      buf[1] = 'x';
-      ret = JS_NewStringLen(ctx, buf, 2 + fmt_xlonglong(&buf[2], (uintptr_t)node));
       break;
     }
   }
@@ -1420,7 +1310,6 @@ static const JSCFunctionListEntry js_node_methods[] = {
     JS_CGETSET_MAGIC_DEF("linked", js_node_get, 0, NODE_LINKED),
     JS_CGETSET_MAGIC_DEF("sentinel", js_node_get, 0, NODE_SENTINEL),
     JS_CGETSET_MAGIC_DEF("value", js_node_get, js_node_set, NODE_VALUE),
-    JS_CGETSET_MAGIC_DEF("address", js_node_get, 0, NODE_ADDRESS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Node", JS_PROP_CONFIGURABLE),
 };
 

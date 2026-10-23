@@ -8,7 +8,7 @@
 #include "defines.h"
 #include "child-process.h"
 #include "debug.h"
-#include "utils.h"
+#include "list-utils.h"
 #include "path.h"
 
 #include <stdlib.h>

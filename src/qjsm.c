@@ -15,20 +15,10 @@
 #endif
 #include "char-utils.h"
 #include "buffer-utils.h"
+#include "list-utils.h"
 
 #include <errno.h>
 #include <signal.h>
-
-/*#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <inttypes.h>
-#include <strings.h>
-#include <assert.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <time.h>
-*/
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -3634,7 +3624,7 @@ main(int argc, char** argv) {
 
     exename = str_ndup(b, bl);
   }
-  
+
   exelen = strlen(exename);
 
   /* load jscalc runtime if invoked as 'qjscalc' */

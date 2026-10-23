@@ -678,7 +678,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     if((code = textcode_lookup(s, len)) < 0) {
       char msg[96];
 
-      snprintf(msg, sizeof(msg), "The \"%.64s\" encoding is not supported", s);
+      snprintf(msg, sizeof(msg), "The \"%.63s\" encoding is not supported", s);
       JS_FreeCString(ctx, s);
       textcode_throw(ctx, TRUE, "ERR_ENCODING_NOT_SUPPORTED", msg);
       goto fail;
