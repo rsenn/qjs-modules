@@ -79,7 +79,7 @@ function preprocessorComments(text) {
     directive = /^#\s*(\w+)/.exec(text)?.[1];
   let angle = /^(include|include_next|import)$/.test(directive ?? '');
 
-  for(let i = 0; i < text.length; ) {
+  for(let i = 0; i < text.length;) {
     const c = text[i];
 
     if(c == '"' || c == "'") {
@@ -123,7 +123,7 @@ function findComments(source, language, file) {
     error = null;
 
   try {
-    for(let tok; (tok = lexer.nextToken()); ) {
+    for(let tok; (tok = lexer.nextToken());) {
       const start = toIndex(tok.loc.charOffset),
         end = toIndex(tok.loc.charOffset + tok.charLength);
 

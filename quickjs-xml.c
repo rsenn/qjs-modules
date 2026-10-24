@@ -733,7 +733,7 @@ static JSClassDef js_xmltee_class = {
 };
 
 typedef struct {
-  XmlWriter xw;   /* first: the opaque pointer is also an XmlWriter* */
+  XmlWriter xw; /* first: the opaque pointer is also an XmlWriter* */
   XmlEventSink sink;
   DynBuf buf;     /* backs `xw.writer` when no output was given to the constructor */
   int32_t indent; /* as given; negative: compact */
@@ -897,9 +897,18 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyStr(ctx, defaults, "write", JS_NewCFunction(ctx, js_xml_write, "write", 2));
   JS_SetModuleExport(ctx, m, "default", defaults);
 
-  serializer = js_class_define(ctx, &js_xmlserializer_class_id, &js_xmlserializer_class, js_xmlserializer_constructor, 1, js_xmlserializer_funcs, countof(js_xmlserializer_funcs), 0);
-  push = js_class_define(ctx, &js_xml_pushparser_class_id, &js_xml_pushparser_class, js_xml_pushparser_constructor, 1, js_xml_pushparser_proto_funcs, countof(js_xml_pushparser_proto_funcs), 0);
-  parser = js_class_define(ctx, &js_xml_parser_class_id, &js_xml_parser_class, js_xml_parser_constructor, 1, js_xml_parser_proto_funcs, countof(js_xml_parser_proto_funcs), 0);
+  serializer = js_class_define(
+      ctx, &js_xmlserializer_class_id, &js_xmlserializer_class, js_xmlserializer_constructor, 1, js_xmlserializer_funcs, countof(js_xmlserializer_funcs), 0);
+  push = js_class_define(ctx,
+                         &js_xml_pushparser_class_id,
+                         &js_xml_pushparser_class,
+                         js_xml_pushparser_constructor,
+                         1,
+                         js_xml_pushparser_proto_funcs,
+                         countof(js_xml_pushparser_proto_funcs),
+                         0);
+  parser = js_class_define(
+      ctx, &js_xml_parser_class_id, &js_xml_parser_class, js_xml_parser_constructor, 1, js_xml_parser_proto_funcs, countof(js_xml_parser_proto_funcs), 0);
 
   /* the type of an event of next(), the XmlEventType ids of include/xml/xevent.h */
   JS_DefinePropertyValueStr(ctx, parser, "ELEMENT_START", JS_NewInt32(ctx, XE_ELEMENT_START), JS_PROP_ENUMERABLE);
@@ -911,12 +920,14 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_DefinePropertyValueStr(ctx, parser, "INSTRUCTION", JS_NewInt32(ctx, XE_INSTRUCTION), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, parser, "CDATA", JS_NewInt32(ctx, XE_CDATA), JS_PROP_ENUMERABLE);
 
-  writer = js_class_define(ctx, &js_xmlwriter_class_id, &js_xmlwriter_class, js_xmlwriter_constructor, 1, js_xmlwriter_funcs, countof(js_xmlwriter_funcs), &proto);
+  writer =
+      js_class_define(ctx, &js_xmlwriter_class_id, &js_xmlwriter_class, js_xmlwriter_constructor, 1, js_xmlwriter_funcs, countof(js_xmlwriter_funcs), &proto);
   js_xmlsink_register(js_xmlwriter_class_id, js_xmlwriter_sink, js_xmlwrite_throw, js_xmlwriter_note);
   js_xmlsink_define(ctx, proto);
   js_xmlsink_define_handshake(ctx, proto, js_xmlwriter_handshake);
 
-  builder = js_class_define(ctx, &js_xmlbuilder_class_id, &js_xmlbuilder_class, js_xmlbuilder_constructor, 0, js_xmlbuilder_funcs, countof(js_xmlbuilder_funcs), &proto);
+  builder = js_class_define(
+      ctx, &js_xmlbuilder_class_id, &js_xmlbuilder_class, js_xmlbuilder_constructor, 0, js_xmlbuilder_funcs, countof(js_xmlbuilder_funcs), &proto);
   js_xmlsink_register(js_xmlbuilder_class_id, js_xmlbuilder_sink, NULL, NULL);
   js_xmlsink_define(ctx, proto);
   js_xmlsink_define_handshake(ctx, proto, js_xmlbuilder_handshake);

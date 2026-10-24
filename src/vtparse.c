@@ -128,9 +128,7 @@ vt_feed(VtParser* vp, const char* buf, size_t len) {
           vp->state = VT_STRING_ESC;
         break;
 
-      case VT_STRING_ESC:
-        vp->state = c == 0x1b ? VT_STRING_ESC : c == '\\' ? VT_GROUND : VT_STRING;
-        break;
+      case VT_STRING_ESC: vp->state = c == 0x1b ? VT_STRING_ESC : c == '\\' ? VT_GROUND : VT_STRING; break;
 
       default:
         if(c == 0x1b) {

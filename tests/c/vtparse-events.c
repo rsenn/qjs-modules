@@ -101,15 +101,22 @@ main(void) {
   CHECK(PARSE("T(a)S(_ 12 C)T(b)", "a\x1b", "[1", "2Cb"));
 
   /* ESC, OSC and DCS strings are consumed */
-  CHECK(PARSE("E(_7)E(_8)", "\x1b" "7\x1b" "8"));
+  CHECK(PARSE("E(_7)E(_8)",
+              "\x1b"
+              "7\x1b"
+              "8"));
   CHECK(PARSE("E((B)", "\x1b(B"));
-  CHECK(PARSE("T(a)T(b)", "a\x1b]0;title\x07" "b"));
+  CHECK(PARSE("T(a)T(b)",
+              "a\x1b]0;title\x07"
+              "b"));
   CHECK(PARSE("T(a)T(b)", "a\x1b]0;ti", "tle\x1b\\b"));
   CHECK(PARSE("T(c)", "\x1bPq#0\x1b\\c"));
 
   /* UTF-8 passes as text, DEL is dropped */
   CHECK(PARSE("T(\xc3\xa4\xe2\x82\xac)", "\xc3\xa4\xe2\x82\xac"));
-  CHECK(PARSE("T(a)T(b)", "a\x7f" "b"));
+  CHECK(PARSE("T(a)T(b)",
+              "a\x7f"
+              "b"));
 
   /* a control inside CSI runs, the sequence goes on */
   CHECK(PARSE("C(8)S(_ 2 A)", "\x1b[2\bA"));

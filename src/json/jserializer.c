@@ -133,7 +133,6 @@ jserializer_read(JSContext* ctx, JsonSerializer* js, int argc, JSValueConst argv
   return ret;
 }
 
-
 /**
  * @}
  */

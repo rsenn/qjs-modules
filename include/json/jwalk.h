@@ -49,11 +49,11 @@
  * {a: [1]} gives: object_start, key("a"), array_start, value(1),
  * array_end, object_end. */
 typedef struct {
-  WalkIterator walk;      /* the stepper; its hooks point back at this struct */
-  JSValue replacer;       /* function(key, value) called with the holder as this, or undefined */
-  JSValue holder;         /* {"": root} while a replacer function is set, else undefined */
-  JSValue is_raw;         /* JSON.isRawJSON, or undefined */
-  JSAtom* allow;          /* keys an array replacer lets through, in its order; NULL = all */
+  WalkIterator walk; /* the stepper; its hooks point back at this struct */
+  JSValue replacer;  /* function(key, value) called with the holder as this, or undefined */
+  JSValue holder;    /* {"": root} while a replacer function is set, else undefined */
+  JSValue is_raw;    /* JSON.isRawJSON, or undefined */
+  JSAtom* allow;     /* keys an array replacer lets through, in its order; NULL = all */
   uint32_t allow_len;
 } JwalkIterator;
 
@@ -109,10 +109,10 @@ jwalk_root_omitted(const JwalkIterator* it) {
 typedef struct {
   JwalkIterator it;
   JSContext* ctx;
-  JSValue val;  /* the value of the event just captured, owned */
-  int kind;     /* WalkEvent captured, 0 for none */
-  int raw;      /* val is a rawJSON object */
-  DynBuf text;  /* str of the event just made; runtime-bound, so a finalizer can free it */
+  JSValue val; /* the value of the event just captured, owned */
+  int kind;    /* WalkEvent captured, 0 for none */
+  int raw;     /* val is a rawJSON object */
+  DynBuf text; /* str of the event just made; runtime-bound, so a finalizer can free it */
 } JwalkSource;
 
 /* jwalk_source_init: starts a walk of `root` that reports events through jwalk_event().

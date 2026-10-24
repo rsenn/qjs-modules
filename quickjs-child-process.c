@@ -64,8 +64,7 @@ child_process_signal(JSContext* ctx, JSValueConst handler) {
   JS_FreeValue(ctx, ret);
 }
 
-static void
-js_child_process_handler_update(JSContext* ctx, BOOL install);
+static void js_child_process_handler_update(JSContext* ctx, BOOL install);
 
 static JSValue
 js_child_process_sigchld(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -770,7 +769,7 @@ static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_PROP_INT32_DEF("WNOWAIT", WNOWAIT, JS_PROP_ENUMERABLE),
 #endif
     JS_PROP_INT32_DEF("WUNTRACED", WUNTRACED, JS_PROP_ENUMERABLE),
- #ifdef SIGHUP
+#ifdef SIGHUP
     JS_CONSTANT(SIGHUP),
 #endif
 #ifdef SIGINT

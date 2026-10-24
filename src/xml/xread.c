@@ -1053,12 +1053,11 @@ xr_feed_compat(xr_state_t* s, const char* chunk, size_t len, XmlEventHandler* ha
 
         break;
 
-      case CS_PEEKED:
-        s->cs = !memcmp(s->tag_accum.buf, "!--", 3) ? CS_COMMENT : CS_BANG;
-        break;
+      case CS_PEEKED: s->cs = !memcmp(s->tag_accum.buf, "!--", 3) ? CS_COMMENT : CS_BANG; break;
 
       case CS_NAME:
-        for(n = 0; i + n < len && !(XCLS(p[n]) & (XC_WS | XC_END)); n++) {}
+        for(n = 0; i + n < len && !(XCLS(p[n]) & (XC_WS | XC_END)); n++) {
+        }
 
         xr_accum_put(&s->tag_accum, p, n);
         i += n;
@@ -1140,7 +1139,8 @@ xr_feed_compat(xr_state_t* s, const char* chunk, size_t len, XmlEventHandler* ha
         break;
 
       case CS_ATTR_NAME:
-        for(n = 0; i + n < len && !(XCLS(p[n]) & (XC_EQUAL | XC_WS | XC_SPECIAL | XC_CLOSE | XC_SLASH)); n++) {}
+        for(n = 0; i + n < len && !(XCLS(p[n]) & (XC_EQUAL | XC_WS | XC_SPECIAL | XC_CLOSE | XC_SLASH)); n++) {
+        }
 
         xr_accum_put(&s->name_accum, p, n);
         i += n;
@@ -1192,7 +1192,8 @@ xr_feed_compat(xr_state_t* s, const char* chunk, size_t len, XmlEventHandler* ha
       }
 
       case CS_VAL_U:
-        for(n = 0; i + n < len && !(XCLS(p[n]) & (XC_WS | XC_CLOSE)); n++) {}
+        for(n = 0; i + n < len && !(XCLS(p[n]) & (XC_WS | XC_CLOSE)); n++) {
+        }
 
         xr_accum_put(&s->val_accum, p, n);
         i += n;

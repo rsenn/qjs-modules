@@ -83,7 +83,7 @@ function main(baseUrl = 'https://github.com/rsenn?tab=repositories', paramName =
 
   const url = new URL(baseUrl);
 
-  const output=[];
+  const output = [];
 
   for(let response of it) {
     const rd = readerFrom(response);
@@ -143,7 +143,7 @@ function main(baseUrl = 'https://github.com/rsenn?tab=repositories', paramName =
     output.push(...projects);
   }
 
-writeFileSync('projects.json', JSON.stringify(output, null, 2))
+  writeFileSync('projects.json', JSON.stringify(output, null, 2));
 }
 
 main(...scriptArgs.slice(1));

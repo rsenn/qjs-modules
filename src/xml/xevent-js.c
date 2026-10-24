@@ -156,7 +156,8 @@ xml_read_value(JSContext* ctx, const uint8_t* buf, size_t len, const char* input
     xbuild_handler(&xb, &ev);
 
     /* an element or markup start has a position, so has the end of a flat list's element */
-    located = ev.type == XE_ELEMENT_START || ev.type == XE_COMMENT || ev.type == XE_DECLARATION || ev.type == XE_INSTRUCTION || ev.type == XE_CDATA || (ev.type == XE_ELEMENT_END && opts.flat);
+    located = ev.type == XE_ELEMENT_START || ev.type == XE_COMMENT || ev.type == XE_DECLARATION || ev.type == XE_INSTRUCTION || ev.type == XE_CDATA ||
+              (ev.type == XE_ELEMENT_END && opts.flat);
 
     if(located && opts.location) {
       JSValue last = xbuild_last(&xb);

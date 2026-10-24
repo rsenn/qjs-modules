@@ -85,7 +85,6 @@ xpush_handler(const XMLPushParser* pp) {
   return pp->connected ? xpush_event_ext : pp->use_builder ? xpush_event_build : xpush_event;
 }
 
-
 JSValue
 xpush_write(JSContext* ctx, XMLPushParser* pp, const uint8_t* data, size_t len) {
   ssize_t r = xr_feed(&pp->xrs, (const char*)data, len, xpush_handler(pp), pp);
@@ -110,7 +109,8 @@ xpush_close(JSContext* ctx, XMLPushParser* pp) {
     return js_xmlsink_failed(ctx, pp->ext_adapter != NULL, r);
 
   if(pp->xrs.error && pp->use_builder && !JS_IsFunction(ctx, pp->cb.on_parse_error))
-    return js_throw_syntax_error_at(ctx, "<xml>", &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed or truncated input");
+    return js_throw_syntax_error_at(
+        ctx, "<xml>", &pp->xrs.err_pos, pp->xrs.err_len, xr_error_name(pp->xrs.err_code), "XMLPushParser: malformed or truncated input");
 
   if(pp->xrs.error) /* the error callback already ran, nothing left open to report */
     return JS_UNDEFINED;

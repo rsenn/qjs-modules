@@ -118,10 +118,10 @@ jsfunc_detect_nargs(JSContext* ctx, JSValueConst func_obj) {
   if(!JS_IsException(length_val) && !JS_IsUndefined(length_val)) {
     int32_t length;
 
-    if(!JS_ToInt32(ctx, &length, length_val)) 
+    if(!JS_ToInt32(ctx, &length, length_val))
       nargs = (length >= 3) ? 3 : 2;
   }
-  
+
   JS_FreeValue(ctx, length_val);
 
   return nargs;
@@ -1668,7 +1668,7 @@ then_jsstream(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
         ssize_t r;
 
         if((r = queue_write(fr->rd_wr, inputbuffer_data(&input), len)) <= 0)
-          ret = JS_ThrowInternalError(ctx, "queue_write() returned %"PRId64,  (int64_t)r);
+          ret = JS_ThrowInternalError(ctx, "queue_write() returned %" PRId64, (int64_t)r);
       }
 
       inputbuffer_free(&input, ctx);

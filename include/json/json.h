@@ -19,8 +19,8 @@
 typedef struct json_parser {
   Reader reader;
   jr_state_t st;
-  Location* loc;   /* where the last event came from, and the file name for errors */
-  uint8_t flags;   /* JR_* syntax flags of jread.h; json_init() sets JR_LEGACY */
+  Location* loc;         /* where the last event came from, and the file name for errors */
+  uint8_t flags;         /* JR_* syntax flags of jread.h; json_init() sets JR_LEGACY */
   unsigned comments : 1; /* deliver comments as JSON_EVENT_COMMENT, else skip them */
   unsigned started : 1;
   unsigned ended : 1;
@@ -67,7 +67,6 @@ JsonPull json_next_end(JsonParser*, JsonEvent* ev);
 
 /* json_source: the pull parser as a JsonEventSource, for jevent_pump(). */
 JsonEventSource json_source(JsonParser*);
-
 
 /**
  * @}

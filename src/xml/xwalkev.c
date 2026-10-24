@@ -22,10 +22,10 @@ typedef struct {
   int kind;
   char* tag; /* ELEMENT: its tagName, owned, NULL until the key is seen */
   size_t len;
-  int key;               /* ELEMENT: which key is current, 1 tag 2 attributes 3 children */
-  unsigned markup : 2;   /* ELEMENT: 0 normal, 1 comment or declaration or CDATA, 2 instruction, 3 instruction already queued */
-  unsigned started : 1;  /* ELEMENT: XE_ELEMENT_START was queued */
-  unsigned marker : 1;   /* ELEMENT: tagName was /x, an end event was queued instead of a start */
+  int key;              /* ELEMENT: which key is current, 1 tag 2 attributes 3 children */
+  unsigned markup : 2;  /* ELEMENT: 0 normal, 1 comment or declaration or CDATA, 2 instruction, 3 instruction already queued */
+  unsigned started : 1; /* ELEMENT: XE_ELEMENT_START was queued */
+  unsigned marker : 1;  /* ELEMENT: tagName was /x, an end event was queued instead of a start */
 } XwalkFrame;
 
 typedef struct {

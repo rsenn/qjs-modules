@@ -37,9 +37,9 @@
  * tree is always reachable from xbuild_root(). */
 typedef struct XmlBuilder {
   JsonBuilder json;
-  JSValue names;  /* tag names of the open elements, root first */
-  JSValue last;   /* the element or end marker the latest start/end made, or undefined */
-  uint32_t depth; /* open elements */
+  JSValue names;          /* tag names of the open elements, root first */
+  JSValue last;           /* the element or end marker the latest start/end made, or undefined */
+  uint32_t depth;         /* open elements */
   unsigned state : 2;     /* what the innermost element has open: XB_* */
   unsigned flat : 1;      /* XB_FLAT */
   unsigned skip_end : 1;  /* flat: the next end belongs to a comment/declaration */

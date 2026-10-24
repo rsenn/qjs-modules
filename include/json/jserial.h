@@ -31,7 +31,7 @@
 typedef struct {
   JsonEventSource src;
   JsonWriter wr;
-  DynBuf out;   /* bytes written by the writer, served from `pos` */
+  DynBuf out; /* bytes written by the writer, served from `pos` */
   size_t pos;
   JsonPull status; /* of the source: EVENT while it can go on */
   ssize_t error;   /* the first negative result of the writer, or 0 */

@@ -538,7 +538,7 @@ WB_CallFunc(WBContext* ctx, WBFunc* func, const WBValue* args, WBValue* results)
 
   for(size_t i = 0; i < t->nparams; i++) {
     if(args[i].type != t->params[i] || kind_of(t->params[i], &a[i].kind)) {
-      set_ex(ctx, WB_ERR_TYPE, "argument %"PRIu64" has the wrong type", (uint64_t)i);
+      set_ex(ctx, WB_ERR_TYPE, "argument %" PRIu64 " has the wrong type", (uint64_t)i);
       return -1;
     }
 
@@ -693,7 +693,7 @@ WB_NewInstance(WBContext* ctx, WBModule* mod, const WBExtern* imports, size_t ni
   char err[160];
 
   if(nimports != mod->sec.nimports) {
-    set_ex(ctx, WB_ERR_LINK, "expected %"PRIu64" imports, got %"PRIu64, (uint64_t)mod->sec.nimports, (uint64_t)nimports);
+    set_ex(ctx, WB_ERR_LINK, "expected %" PRIu64 " imports, got %" PRIu64, (uint64_t)mod->sec.nimports, (uint64_t)nimports);
     return NULL;
   }
 

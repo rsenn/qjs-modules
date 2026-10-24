@@ -40,11 +40,23 @@ cb(void* user, const JsonEvent* ev) {
     case JSON_EVENT_ARRAY_END: put(r, "]"); break;
     case JSON_EVENT_OBJECT_START: put(r, "{"); break;
     case JSON_EVENT_OBJECT_END: put(r, "}"); break;
-    case JSON_EVENT_NUMBER: snprintf(buf, sizeof(buf), "n:%.*s", (int)ev->len, ev->str ? ev->str : ""); put(r, buf); break;
-    case JSON_EVENT_STRING: snprintf(buf, sizeof(buf), "s:%.*s", (int)ev->len, ev->str ? ev->str : ""); put(r, buf); break;
-    case JSON_EVENT_KEY: snprintf(buf, sizeof(buf), "k:%.*s", (int)ev->len, ev->str ? ev->str : ""); put(r, buf); break;
+    case JSON_EVENT_NUMBER:
+      snprintf(buf, sizeof(buf), "n:%.*s", (int)ev->len, ev->str ? ev->str : "");
+      put(r, buf);
+      break;
+    case JSON_EVENT_STRING:
+      snprintf(buf, sizeof(buf), "s:%.*s", (int)ev->len, ev->str ? ev->str : "");
+      put(r, buf);
+      break;
+    case JSON_EVENT_KEY:
+      snprintf(buf, sizeof(buf), "k:%.*s", (int)ev->len, ev->str ? ev->str : "");
+      put(r, buf);
+      break;
     case JSON_EVENT_COMMENT: break;
-    case JSON_EVENT_ERROR: snprintf(buf, sizeof(buf), "E:%s@%u:%u", jr_error_name(r->st.err_code), (unsigned)r->st.err_pos.line, (unsigned)r->st.err_pos.column); put(r, buf); break;
+    case JSON_EVENT_ERROR:
+      snprintf(buf, sizeof(buf), "E:%s@%u:%u", jr_error_name(r->st.err_code), (unsigned)r->st.err_pos.line, (unsigned)r->st.err_pos.column);
+      put(r, buf);
+      break;
   }
 
   return 0;
@@ -132,7 +144,8 @@ main(int argc, char** argv) {
   check(JR_JSONC, "['a']", "[ E:unexpected-token@1:2 ]");
 
   /* JR_JSON5 */
-  check(JR_JSON5, "{a:1, $b_:'x', \"c\":[+1, .5, 5., 0x1F, -0xff, Infinity, -Infinity, +Infinity, NaN, 1e3,],}",
+  check(JR_JSON5,
+        "{a:1, $b_:'x', \"c\":[+1, .5, 5., 0x1F, -0xff, Infinity, -Infinity, +Infinity, NaN, 1e3,],}",
         "{ k:a n:1 k:$b_ s:x k:c [ n:+1 n:.5 n:5. n:0x1F n:-0xff n:Infinity n:-Infinity n:+Infinity n:NaN n:1e3 ] }");
   check(JR_JSON5, "[-NaN, -.5, +.5e-2, 1.e3]", "[ n:-NaN n:-.5 n:+.5e-2 n:1.e3 ]");
   check(JR_JSON5, "'it\\'s \"q\"'", "s:it's \"q\"");

@@ -32,7 +32,6 @@
  *  validate(bytes)                  WB_ValidateModule
  */
 
-
 typedef struct WBRuntime WBRuntime;   /* the engine; one per thread */
 typedef struct WBContext WBContext;   /* objects sharing a context may share state */
 typedef struct WBModule WBModule;     /* compiled, not yet instantiated */
@@ -376,7 +375,6 @@ int WB_SetGlobal(WBContext* ctx, WBGlobal* global, const WBValue* v);
 
 /* the global's type and mutability. never throws. */
 WBValType WB_GetGlobalType(WBGlobal* global, int* is_mutable);
-
 
 /**
  * @}

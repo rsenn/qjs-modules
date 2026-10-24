@@ -62,7 +62,8 @@ dump(FILE* out, JSContext* ctx, unsigned flags, int comments, const char* s, siz
 
     fprintf(out, "  %d@%u:%u", ev.type, (unsigned)ev.at.line, (unsigned)ev.at.column);
 
-    if(ev.str && (ev.type == JSON_EVENT_KEY || ev.type == JSON_EVENT_STRING || ev.type == JSON_EVENT_NUMBER || ev.type == JSON_EVENT_COMMENT || ev.type == JSON_EVENT_ERROR))
+    if(ev.str && (ev.type == JSON_EVENT_KEY || ev.type == JSON_EVENT_STRING || ev.type == JSON_EVENT_NUMBER || ev.type == JSON_EVENT_COMMENT ||
+                  ev.type == JSON_EVENT_ERROR))
       fprintf(out, " [%.*s]", (int)ev.len, ev.str);
 
     if(ev.type == JSON_EVENT_ERROR) {
@@ -130,7 +131,9 @@ main(int argc, char** argv) {
       {JR_JSON5, "'it\\'s \"q\"'"},
       {JR_JSON5, "\"a\\\nb\""},
       {JR_JSON5, "\"a\\\r\nb\""},
-      {JR_JSON5, "\"a\\\xe2\x80\xa8" "b\""},
+      {JR_JSON5,
+       "\"a\\\xe2\x80\xa8"
+       "b\""},
       {JR_JSON5, "'\\x41\\u0042\\v\\z\\0'"},
       {JR_JSON5, "'\\01'"},
       {JR_JSON5, "\"tab\there\""},

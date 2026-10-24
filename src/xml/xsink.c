@@ -16,7 +16,8 @@
 
 enum { M_ERROR, M_ELEMENT_START, M_ATTRIBUTE, M_ELEMENT_END, M_TEXT, M_COMMENT, M_DECLARATION, M_INSTRUCTION, M_CDATA };
 
-static const XmlEventType method_types[] = {XE_ERROR, XE_ELEMENT_START, XE_ATTRIBUTE, XE_ELEMENT_END, XE_TEXT, XE_COMMENT, XE_DECLARATION, XE_INSTRUCTION, XE_CDATA};
+static const XmlEventType method_types[] = {
+    XE_ERROR, XE_ELEMENT_START, XE_ATTRIBUTE, XE_ELEMENT_END, XE_TEXT, XE_COMMENT, XE_DECLARATION, XE_INSTRUCTION, XE_CDATA};
 
 static JSClassID js_xmlsink_class_id = 0;
 
@@ -89,15 +90,42 @@ js_xmlsink_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
   switch(magic) {
-    case M_ERROR: has_cb = !!sink.error; w = has_cb ? sink.error(sink.opaque, name, nlen) : 0; break;
-    case M_ELEMENT_START: has_cb = !!sink.element_start; w = has_cb ? sink.element_start(sink.opaque, name, nlen) : 0; break;
-    case M_ATTRIBUTE: has_cb = !!sink.attribute; w = has_cb ? sink.attribute(sink.opaque, name, nlen, value, vlen) : 0; break;
-    case M_ELEMENT_END: has_cb = !!sink.element_end; w = has_cb ? sink.element_end(sink.opaque, name, nlen) : 0; break;
-    case M_TEXT: has_cb = !!sink.text; w = has_cb ? sink.text(sink.opaque, name, nlen) : 0; break;
-    case M_COMMENT: has_cb = !!sink.comment; w = has_cb ? sink.comment(sink.opaque, name, nlen) : 0; break;
-    case M_DECLARATION: has_cb = !!sink.declaration; w = has_cb ? sink.declaration(sink.opaque, name, nlen) : 0; break;
-    case M_INSTRUCTION: has_cb = !!sink.instruction; w = has_cb ? sink.instruction(sink.opaque, name, nlen) : 0; break;
-    case M_CDATA: has_cb = !!sink.cdata; w = has_cb ? sink.cdata(sink.opaque, name, nlen) : 0; break;
+    case M_ERROR:
+      has_cb = !!sink.error;
+      w = has_cb ? sink.error(sink.opaque, name, nlen) : 0;
+      break;
+    case M_ELEMENT_START:
+      has_cb = !!sink.element_start;
+      w = has_cb ? sink.element_start(sink.opaque, name, nlen) : 0;
+      break;
+    case M_ATTRIBUTE:
+      has_cb = !!sink.attribute;
+      w = has_cb ? sink.attribute(sink.opaque, name, nlen, value, vlen) : 0;
+      break;
+    case M_ELEMENT_END:
+      has_cb = !!sink.element_end;
+      w = has_cb ? sink.element_end(sink.opaque, name, nlen) : 0;
+      break;
+    case M_TEXT:
+      has_cb = !!sink.text;
+      w = has_cb ? sink.text(sink.opaque, name, nlen) : 0;
+      break;
+    case M_COMMENT:
+      has_cb = !!sink.comment;
+      w = has_cb ? sink.comment(sink.opaque, name, nlen) : 0;
+      break;
+    case M_DECLARATION:
+      has_cb = !!sink.declaration;
+      w = has_cb ? sink.declaration(sink.opaque, name, nlen) : 0;
+      break;
+    case M_INSTRUCTION:
+      has_cb = !!sink.instruction;
+      w = has_cb ? sink.instruction(sink.opaque, name, nlen) : 0;
+      break;
+    case M_CDATA:
+      has_cb = !!sink.cdata;
+      w = has_cb ? sink.cdata(sink.opaque, name, nlen) : 0;
+      break;
   }
 
   if(name)
@@ -199,7 +227,6 @@ js_xmlsink_wrap(JSContext* ctx, XmlEventSink sink) {
   JS_SetOpaque(obj, copy);
   return obj;
 }
-
 
 /* the JS object as a sink: each member calls the method of the same name on `obj` */
 struct xml_js_sink {

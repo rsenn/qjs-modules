@@ -86,17 +86,17 @@ typedef struct xr_state {
   size_t err_len;
 
   /* XR_COMPAT only */
-  unsigned flags;                         /* XR_* */
-  const char* const* self_closing_tags;   /* void elements, null terminated: set after xr_state_init_flags() to change */
-  unsigned cs;                            /* lexer state */
+  unsigned flags;                       /* XR_* */
+  const char* const* self_closing_tags; /* void elements, null terminated: set after xr_state_init_flags() to change */
+  unsigned cs;                          /* lexer state */
   unsigned closing : 1, self_closing : 1, is_pi : 1, raw : 1;
-  int quote;                              /* closing quote of the attribute value being read */
-  size_t raw_m;                           /* raw text element: bytes of </name> matched so far */
-  SourcePos tag_pos, cand_pos;            /* where the current tag starts, and the '<' that may start </name> */
-  xr_accum_t pi_accum;                    /* the text of a processing instruction, name and attributes */
-  char* fnames;                           /* names of the open elements, one after the other */
+  int quote;                   /* closing quote of the attribute value being read */
+  size_t raw_m;                /* raw text element: bytes of </name> matched so far */
+  SourcePos tag_pos, cand_pos; /* where the current tag starts, and the '<' that may start </name> */
+  xr_accum_t pi_accum;         /* the text of a processing instruction, name and attributes */
+  char* fnames;                /* names of the open elements, one after the other */
   size_t fnames_len, fnames_cap;
-  size_t* foffs;                          /* start of each name in fnames */
+  size_t* foffs; /* start of each name in fnames */
   size_t nframes, foffs_cap;
 } xr_state_t;
 

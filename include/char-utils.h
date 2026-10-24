@@ -104,7 +104,7 @@ byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
   return hlen;
 }
 #else
- size_t byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen);
+size_t byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen);
 #endif
 
 #define byte_copy(out, len, in) memcpy((out), (in), (len))

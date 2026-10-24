@@ -15,7 +15,7 @@
  * @{
  */
 
-static thread_local JSClassID js_decoder_class_id , js_encoder_class_id;
+static thread_local JSClassID js_decoder_class_id, js_encoder_class_id;
 static thread_local JSValue textdecoder_proto, textdecoder_ctor, textencoder_proto, textencoder_ctor;
 
 typedef enum utf_encoding {
@@ -71,14 +71,13 @@ typedef enum text_encoding {
 struct text_coder {
   uint8_t buf[UTF8_CHAR_LEN_MAX];
   uint8_t buflen;
-  TextcodeType
-  uint32_t cp;                  /* utf-8: code point so far, utf-16: lead surrogate */
-  uint8_t needed, seen;         /* utf-8: continuation bytes expected and read */
-  uint8_t lower, upper;         /* utf-8: allowed range of the next byte */
-  unsigned fatal : 1;           /* decode errors throw instead of giving U+FFFD */
-  unsigned ignore_bom : 1;      /* keep a leading U+FEFF */
-  unsigned bom_seen : 1;        /* the first code point of the stream is out */
-  unsigned do_not_flush : 1;    /* the last decode() had stream: true */
+  TextcodeType uint32_t cp;  /* utf-8: code point so far, utf-16: lead surrogate */
+  uint8_t needed, seen;      /* utf-8: continuation bytes expected and read */
+  uint8_t lower, upper;      /* utf-8: allowed range of the next byte */
+  unsigned fatal : 1;        /* decode errors throw instead of giving U+FFFD */
+  unsigned ignore_bom : 1;   /* keep a leading U+FEFF */
+  unsigned bom_seen : 1;     /* the first code point of the stream is out */
+  unsigned do_not_flush : 1; /* the last decode() had stream: true */
 };
 
 typedef struct text_coder TextEncoder;

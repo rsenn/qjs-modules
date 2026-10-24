@@ -20,7 +20,7 @@
 #include "stream-utils.h"
 #include "quickjs-syscallerror.h"
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #include <process.h>
 #include <windows.h>
 #include "vtconsole.h"
@@ -37,7 +37,7 @@
 #include <time.h>
 #include <stddef.h>
 #include <sys/types.h>
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
@@ -115,7 +115,7 @@
 
 #include "buffer-utils.h"
 
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <signal.h>
@@ -243,7 +243,7 @@ qjs_tempnam(const char* dir, const char* template) {
 }
 #endif
 
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
 #define FOREGROUND_BLUE (1 << 0)
 #define FOREGROUND_GREEN (1 << 1)
 #define FOREGROUND_RED (1 << 2)
@@ -365,7 +365,7 @@ term_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
   return r == (ssize_t)len;
 }
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 /* Windows 10 built-in VT100 emulation */
 #define __ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #define __ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
@@ -429,7 +429,7 @@ term_console(HANDLE h) {
  */
 static BOOL
 tty_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
-#ifdef _WIN32
+#if WINDOWS_NATIVE
   HANDLE h = term_handle(ctx, out);
   DWORD mode;
 
@@ -440,63 +440,7 @@ tty_write(JSContext* ctx, JSValueConst out, const void* buf, size_t len) {
   return term_write(ctx, out, buf, len);
 }
 
-static BOOL
-clear_screen(JSContext* ctx, JSValueConst out, ClearMode mode, BOOL line) {
-  char buf[] = {27, '[', mode + '0', line ? 'K' : 'J'};
-
-  return tty_write(ctx, out, buf, sizeof(buf));
-}
-
-static BOOL
-set_cursor_position(JSContext* ctx, JSValueConst out, int x, int y) {
-  char buf[2 + (FMT_ULONG + 1) * 2] = {27, '['};
-  size_t pos = 2;
-
-  if(y == -1 && x >= 0) {
-    pos += fmt_ulong(&buf[pos], x + 1);
-    buf[pos++] = 'G';
-  } else {
-    if(y >= 0 && x >= 0) {
-      pos += fmt_ulong(&buf[pos], y + 1);
-      buf[pos++] = ';';
-      pos += fmt_ulong(&buf[pos], x + 1);
-    }
-
-    buf[pos++] = 'H';
-  }
-
-  return tty_write(ctx, out, buf, pos);
-}
-
-static BOOL
-move_cursor(JSContext* ctx, JSValueConst out, int x, int y) {
-  char buf[(2 + (FMT_ULONG) + 1) * 2];
-  size_t pos = 0;
-
-  if(y) {
-    buf[pos++] = 27;
-    buf[pos++] = '[';
-
-    if(ABS_NUM(y) != 1)
-      pos += fmt_ulong(&buf[pos], ABS_NUM(y));
-
-    buf[pos++] = y < 0 ? 'A' : 'B';
-  }
-
-  if(x) {
-    buf[pos++] = 27;
-    buf[pos++] = '[';
-
-    if(ABS_NUM(x) != 1)
-      pos += fmt_ulong(&buf[pos], ABS_NUM(x));
-
-    buf[pos++] = x < 0 ? 'D' : 'C';
-  }
-
-  return tty_write(ctx, out, buf, pos);
-}
-
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 static BOOL
 set_text_attributes(intptr_t h, uint32_t attr) {
   return !!SetConsoleTextAttribute((HANDLE)h, attr);
@@ -1572,7 +1516,7 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return ret;
 }
 
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
 static JSValue
 js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1, args[2] = {-1, -1};
@@ -1593,7 +1537,7 @@ js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
 static int
 screen_size(int size[2]) {
-#ifdef _WIN32
+#if WINDOWS_NATIVE
   CONSOLE_SCREEN_BUFFER_INFO csbi;
 
   GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
@@ -1682,7 +1626,9 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(argc >= 2 && JS_ToInt32(ctx, &mode, argv[1]))
     return JS_EXCEPTION;
 
-  return JS_NewBool(ctx, clear_screen(ctx, out, mode, magic == ERASE_IN_LINE));
+  char buf[] = {27, '[', mode + '0', magic == ERASE_IN_LINE ? 'K' : 'J'};
+
+  return JS_NewBool(ctx, tty_write(ctx, out, buf, sizeof(buf)));
 }
 
 enum {
@@ -1708,6 +1654,8 @@ static JSValue
 js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
   JSValueConst out = argc >= 1 ? argv[0] : JS_NewInt32(ctx, 1);
+  char buf[(2 + FMT_ULONG + 1) * 2];
+  size_t pos = 0;
 
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToInt32(ctx, &x, argv[1]);
@@ -1715,7 +1663,45 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(argc >= 3 && JS_IsNumber(argv[2]))
     JS_ToInt32(ctx, &y, argv[2]);
 
-  return JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(ctx, out, x, y) : set_cursor_position(ctx, out, x, y));
+  switch(magic) {
+    case MOVE_CURSOR: {
+      if(y) {
+        buf[pos++] = 27;
+        buf[pos++] = '[';
+        if(ABS_NUM(y) != 1)
+          pos += fmt_ulong(&buf[pos], ABS_NUM(y));
+        buf[pos++] = y < 0 ? 'A' : 'B';
+      }
+      if(x) {
+        buf[pos++] = 27;
+        buf[pos++] = '[';
+        if(ABS_NUM(x) != 1)
+          pos += fmt_ulong(&buf[pos], ABS_NUM(x));
+        buf[pos++] = x < 0 ? 'D' : 'C';
+      }
+
+      break;
+    }
+    case SET_CURSOR_POSITION: {
+      buf[pos++] = 27;
+      buf[pos++] = '[';
+      if(y == -1 && x >= 0) {
+        pos += fmt_ulong(&buf[pos], x + 1);
+        buf[pos++] = 'G';
+      } else {
+        if(y >= 0 && x >= 0) {
+          pos += fmt_ulong(&buf[pos], y + 1);
+          buf[pos++] = ';';
+          pos += fmt_ulong(&buf[pos], x + 1);
+        }
+        buf[pos++] = 'H';
+      }
+
+      break;
+    }
+  }
+
+  return JS_NewBool(ctx, tty_write(ctx, out, buf, pos));
 }
 
 enum {
@@ -1732,10 +1718,9 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
   if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
-
 #else
   h = fd;
 #endif
@@ -1751,7 +1736,7 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       break;
     }
     case SET_TEXT_COLOR: {
-#ifdef _WIN32
+#if WINDOWS_NATIVE
       uint32_t attr = 0;
 
       get_text_attributes(h, &attr);
@@ -1789,7 +1774,7 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return ret;
 }
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 enum {
   SET_CONSOLE_MODE = 0,
   GET_CONSOLE_MODE,
@@ -3371,7 +3356,7 @@ js_misc_signame(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return JS_UNDEFINED;
 }
 
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
 /* umask: sets the file mode creation mask and returns the previous one.
  *
  * ```js
@@ -3972,7 +3957,7 @@ js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
 static int64_t
 timespec_to_ms(const struct timespec* tv) {
   return (int64_t)tv->tv_sec * 1000 + (tv->tv_nsec / 1000000);
@@ -4028,7 +4013,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, obj, "gid", new64.u(ctx, st.st_gid));
     JS_SetPropertyStr(ctx, obj, "rdev", new64.u(ctx, st.st_rdev));
     JS_SetPropertyStr(ctx, obj, "size", new64.u(ctx, st.st_size));
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
     JS_SetPropertyStr(ctx, obj, "blocks", new64.u(ctx, st.st_blocks));
 #endif
 
@@ -4061,7 +4046,7 @@ static JSValue
 js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
   switch(magic) {
     case FUNC_GET_OSFHANDLE: {
       int32_t fd = -1;
@@ -4092,7 +4077,7 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 }
 
 #ifndef __wasi__
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 static HANDLE raw_handles[2]; /* console input and output ttySetRaw changed */
 static DWORD raw_modes[2];    /* their modes before */
 static UINT raw_codepages[2]; /* input and output code pages before */
@@ -4288,7 +4273,7 @@ js_misc_ttygetwinsize(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(JS_ToInt32(ctx, &fd, argv[0]))
     return JS_EXCEPTION;
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
   {
     CONSOLE_SCREEN_BUFFER_INFO sbi;
     HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -4387,7 +4372,7 @@ js_misc_ttyread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(off + len > size)
     return JS_ThrowRangeError(ctx, "read/write array buffer overflow");
 
-#ifdef _WIN32
+#if WINDOWS_NATIVE
   {
     static WCHAR surrogate;
     HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -4450,7 +4435,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("signum", 1, js_misc_signum),
     JS_CFUNC_DEF("signame", 1, js_misc_signame),
 
-#ifndef _WIN32
+#if !WINDOWS_NATIVE
     JS_CFUNC_DEF("umask", 1, js_misc_umask),
     JS_CFUNC_DEF("setgroups", 1, js_misc_setgroups),
     JS_CFUNC_DEF("initgroups", 2, js_misc_initgroups),
@@ -4655,7 +4640,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
     JS_CFUNC_MAGIC_DEF("setTextAttribute", 2, js_misc_settextattr, SET_TEXT_ATTRIBUTES),
     JS_CFUNC_MAGIC_DEF("setTextColor", 2, js_misc_settextattr, SET_TEXT_COLOR),
-#ifdef _WIN32
+#if WINDOWS_NATIVE
     JS_CFUNC_MAGIC_DEF("setConsoleMode", 2, js_misc_consolemode, SET_CONSOLE_MODE),
     JS_CFUNC_MAGIC_DEF("getConsoleMode", 1, js_misc_consolemode, GET_CONSOLE_MODE),
 #endif
@@ -5222,7 +5207,7 @@ static const JSCFunctionListEntry js_misc_errnoconst[] = {
 #ifdef EXDEV
     JS_CONSTANT(EXDEV),
 #endif
-#ifdef _WIN32
+#if WINDOWS_NATIVE
 #ifdef WSAEINTR
     JS_CONSTANT(WSAEINTR),
 #endif

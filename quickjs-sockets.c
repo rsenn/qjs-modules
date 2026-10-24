@@ -141,7 +141,6 @@ typedef struct asyncsocket_state AsyncSocket;
     ret = (sock)->ret < 0 ? (on_fail) : (on_success); \
   } while(0)
 
-
 enum SocketCalls {
   SYSCALL_SOCKET = 0,
   SYSCALL_GETSOCKNAME,
@@ -349,7 +348,7 @@ js_sockaddr_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
 
 static JSValue
 js_sockaddr_wrap(JSContext* ctx, SockAddr* a) {
-  JSValue  obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
+  JSValue obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
   JS_SetOpaque(obj, a);
 
   return obj;

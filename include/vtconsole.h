@@ -20,7 +20,7 @@ typedef struct vt_console {
   WORD default_attr; /* attributes at vtconsole_init(), what SGR 0 restores */
   int fg, bg;        /* ANSI color 0-15, -1 for the default */
   unsigned bold : 1, underline : 1, reverse : 1, failed : 1;
-  COORD saved; /* cursor stored by ESC 7 or CSI s, window relative */
+  COORD saved;  /* cursor stored by ESC 7 or CSI s, window relative */
   char tail[4]; /* incomplete UTF-8 sequence at the end of a write */
   int ntail;
 } VtConsole;

@@ -90,7 +90,8 @@ size_t path_listlen(const char* l, size_t n);
 size_t path_listnext(const char* l, size_t n, size_t pos);
 size_t path_search(char* out, size_t cap, const char* l, size_t ln, const char* name, size_t nl, int (*ok)(const char*, void*), void* arg);
 #define PATH_LIST_FOREACH(l, n, elem, elen) \
-  for(size_t pl_pos_ = 0; pl_pos_ != (size_t)-1 && ((elem) = (l) + pl_pos_, (elen) = path_listlen((elem), (n)-pl_pos_), 1); pl_pos_ = path_listnext((l), (n), pl_pos_))
+  for(size_t pl_pos_ = 0; pl_pos_ != (size_t)-1 && ((elem) = (l) + pl_pos_, (elen) = path_listlen((elem), (n) - pl_pos_), 1); \
+      pl_pos_ = path_listnext((l), (n), pl_pos_))
 
 /**
  * @}

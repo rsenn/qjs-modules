@@ -105,10 +105,10 @@ typedef struct jr_state {
    * end of input (jr_end()) can close it */
   unsigned in_number : 1;
   unsigned literal_active : 1; /* mid null/true/false at the last pause */
-  unsigned after_comma : 1; /* a comma was read and no item has started since */
-  unsigned num_ok : 1;   /* the number read so far is a complete one */
-  unsigned kw_active : 1; /* mid Infinity / NaN */
-  unsigned esc_hi : 1;    /* a backslash came before a 0xE2 byte, U+2028 and U+2029 then continue the line */
+  unsigned after_comma : 1;    /* a comma was read and no item has started since */
+  unsigned num_ok : 1;         /* the number read so far is a complete one */
+  unsigned kw_active : 1;      /* mid Infinity / NaN */
+  unsigned esc_hi : 1;         /* a backslash came before a 0xE2 byte, U+2028 and U+2029 then continue the line */
   unsigned done : 1;
   /* set by the caller after jr_state_init_flags(): comments arrive as JSON_EVENT_COMMENT, the text with its // or slash-star */
   unsigned comment_events : 1;
@@ -118,10 +118,10 @@ typedef struct jr_state {
   /* reset at the top of every jr_feed(), set if this call hit an error, so a
    * caller can throw once per bad span */
   unsigned just_erred : 1;
-  unsigned str_type : 4;   /* JsonEventType of the string being scanned: string or key */
-  unsigned cmt : 2;        /* inside a comment: 1 after a slash, 2 line, 3 block */
-  unsigned err_code : 4;   /* jr_error_t of the last error */
-  unsigned kw_pos : 4;     /* how far the keyword is matched, 0..8 */
+  unsigned str_type : 4;      /* JsonEventType of the string being scanned: string or key */
+  unsigned cmt : 2;           /* inside a comment: 1 after a slash, 2 line, 3 block */
+  unsigned err_code : 4;      /* jr_error_t of the last error */
+  unsigned kw_pos : 4;        /* how far the keyword is matched, 0..8 */
   unsigned unicode_count : 3; /* how many of the 4 hex digits have been read */
   unsigned unicode_need : 3;  /* hex digits the current escape takes: 4 for \u, 2 for \x */
   /* narrow members, kept together so they pack into the same word */
@@ -130,11 +130,11 @@ typedef struct jr_state {
   uint8_t flags;         /* JR_* syntax flags */
   int roots;             /* documents completed so far */
   const char* kw;        /* the keyword being matched, and how far */
-  SourcePos pos, tok; /* pos: bytes fed so far, tok: start of the current token */
-  const char* mark; /* chunk byte that pos has been advanced up to (jr_feed() only) */
-  const void* tab;  /* one-shot dispatch table that read the last byte, or NULL */
-  SourcePos err_pos; /* token start of the last error, or its offending byte outside a token */
-  size_t err_len; /* bytes from err_pos through the offending byte, 0 at end of input */
+  SourcePos pos, tok;    /* pos: bytes fed so far, tok: start of the current token */
+  const char* mark;      /* chunk byte that pos has been advanced up to (jr_feed() only) */
+  const void* tab;       /* one-shot dispatch table that read the last byte, or NULL */
+  SourcePos err_pos;     /* token start of the last error, or its offending byte outside a token */
+  size_t err_len;        /* bytes from err_pos through the offending byte, 0 at end of input */
 } jr_state_t;
 
 /* jr_state_init: sets up state with the JR_LEGACY syntax. never throws. */

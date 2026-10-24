@@ -119,7 +119,37 @@ rnd(void) {
 
 int
 main(int argc, char** argv) {
-  static const char* const atoms[] = {"<", ">", "/", "a", "b", "p", "li", "br", " ", "\n", "=", "\"", "'", "!", "-", "?", "&amp;", "x", "<!--", "-->", "<![CDATA[", "]]>", "<script>", "</script>", "<a>", "</a>", "<p>", "<br>", "id=1 ", "<?xml ?>", "<!DOCTYPE html>"};
+  static const char* const atoms[] = {"<",
+                                      ">",
+                                      "/",
+                                      "a",
+                                      "b",
+                                      "p",
+                                      "li",
+                                      "br",
+                                      " ",
+                                      "\n",
+                                      "=",
+                                      "\"",
+                                      "'",
+                                      "!",
+                                      "-",
+                                      "?",
+                                      "&amp;",
+                                      "x",
+                                      "<!--",
+                                      "-->",
+                                      "<![CDATA[",
+                                      "]]>",
+                                      "<script>",
+                                      "</script>",
+                                      "<a>",
+                                      "</a>",
+                                      "<p>",
+                                      "<br>",
+                                      "id=1 ",
+                                      "<?xml ?>",
+                                      "<!DOCTYPE html>"};
   static const unsigned flag_sets[] = {0, 1, 3, 4, 5};
   static const size_t steps[] = {1, 3, 16384};
   FILE* out = argc > 1 ? tmpfile() : stdout;

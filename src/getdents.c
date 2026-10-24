@@ -15,7 +15,7 @@
 
 #define DIRENT(d) ((find_data_type*)&(d)->fdw)
 
-#if(defined(__MSYS__) || defined(__CYGWIN__))
+#if (defined(__MSYS__) || defined(__CYGWIN__))
 #include <minwinbase.h>
 #include <wchar.h>
 #define FIND_W

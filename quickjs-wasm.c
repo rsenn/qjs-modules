@@ -1443,8 +1443,8 @@ js_wasm_init(JSContext* ctx, JSModuleDef* m) {
                                "Instance");
   memory_ctor = define_class(
       ctx, &wasm_memory_class_id, &wasm_memory_class, &memory_proto, js_memory_proto_funcs, countof(js_memory_proto_funcs), js_memory_constructor, "Memory");
-  table_ctor =
-      define_class(ctx, &wasm_table_class_id, &wasm_table_class, &table_proto, js_table_proto_funcs, countof(js_table_proto_funcs), js_table_constructor, "Table");
+  table_ctor = define_class(
+      ctx, &wasm_table_class_id, &wasm_table_class, &table_proto, js_table_proto_funcs, countof(js_table_proto_funcs), js_table_constructor, "Table");
   global_ctor = define_class(
       ctx, &wasm_global_class_id, &wasm_global_class, &global_proto, js_global_proto_funcs, countof(js_global_proto_funcs), js_global_constructor, "Global");
 

@@ -19,9 +19,13 @@ const USAGE = `usage: git-watch.js [options] [directory]
   -h, --help        this text
 `;
 
-const HEAD = '\x1b[1m', DIM = '\x1b[2m', OFF = '\x1b[0m';
-const GREEN_FG = '\x1b[32m', RED_FG = '\x1b[31m';
-const GREEN_BG = '\x1b[48;5;22m', RED_BG = '\x1b[48;5;52m';
+const HEAD = '\x1b[1m',
+  DIM = '\x1b[2m',
+  OFF = '\x1b[0m';
+const GREEN_FG = '\x1b[32m',
+  RED_FG = '\x1b[31m';
+const GREEN_BG = '\x1b[48;5;22m',
+  RED_BG = '\x1b[48;5;52m';
 const DEBOUNCE_MS = 120;
 const MASK = IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE;
 
@@ -49,7 +53,8 @@ function run(cmd, cwd = opts.dir) {
 
 /* 53-bit string hash, enough to tell two hunk bodies apart */
 function checksum(s) {
-  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  let h1 = 0xdeadbeef,
+    h2 = 0x41c6ce57;
 
   for(let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
@@ -76,7 +81,8 @@ function readProc(pid, name) {
 /* true while a process named opts.filter, or a child of one, exists.
  * inotify reports no pid, so this is the closest to "accessed by". */
 function filterActive() {
-  const parent = new Map(), comm = new Map();
+  const parent = new Map(),
+    comm = new Map();
 
   for(const d of readdirSync('/proc')) {
     if(!/^\d+$/.test(d)) continue;
@@ -99,8 +105,7 @@ function filterActive() {
 
   /* any process whose ancestry hits a wanted pid counts as a child */
   for(const pid of parent.keys()) {
-    for(let p = parent.get(pid), n = 0; p > 1 && n < 64; p = parent.get(p), n++)
-      if(wanted.has(p)) return true;
+    for(let p = parent.get(pid), n = 0; p > 1 && n < 64; p = parent.get(p), n++) if(wanted.has(p)) return true;
   }
 
   return wanted.size > 0;
@@ -165,7 +170,8 @@ function fmtLine(l, num) {
 /* prints one hunk, cutting the middle of a long one:
  *   ........ 1337 more lines ..... */
 function printHunk(h) {
-  let o = +/^@@ -(\d+)/.exec(h.header)[1], n = h.newStart;
+  let o = +/^@@ -(\d+)/.exec(h.header)[1],
+    n = h.newStart;
   const rows = h.lines.map(l => fmtLine(l, l[0] == '-' ? o++ : (o++, n++)));
   const keep = opts.context;
 
@@ -243,10 +249,13 @@ function addTree(dir) {
 
 function schedule(rel) {
   clearTimeout(timers.get(rel));
-  timers.set(rel, setTimeout(() => {
-    timers.delete(rel);
-    if(existsSync(`${opts.dir}/${rel}`)) check(rel);
-  }, DEBOUNCE_MS));
+  timers.set(
+    rel,
+    setTimeout(() => {
+      timers.delete(rel);
+      if(existsSync(`${opts.dir}/${rel}`)) check(rel);
+    }, DEBOUNCE_MS),
+  );
 }
 
 ino.onread = ev => {

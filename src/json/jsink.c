@@ -252,14 +252,14 @@ js_jsonsink_wrap(JSContext* ctx, JsonEventSink sink) {
   return obj;
 }
 
-
 /* the JS object as a sink: each member calls the method of the same name on `obj` */
 struct json_js_sink {
   JSContext* ctx;
   JSValue obj;
 };
 
-static const char* const js_sink_names[] = {"error", "null", "true", "false", "number", "string", "arrayStart", "arrayEnd", "objectStart", "objectEnd", "key", "comment", "raw"};
+static const char* const js_sink_names[] = {
+    "error", "null", "true", "false", "number", "string", "arrayStart", "arrayEnd", "objectStart", "objectEnd", "key", "comment", "raw"};
 
 /* js_jsonsink_call: obj[name](text?) or obj[name](); a missing method drops the event.
  *

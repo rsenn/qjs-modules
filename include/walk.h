@@ -82,20 +82,20 @@ typedef struct {
  * array_end, object_end. Only an array's indices and an object's own
  * enumerable string keys are walked. JSON.stringify's rules are jwalk's. */
 typedef struct {
-  Vector stack;           /* PropertyEnumeration, one per open container */
-  Vector meta;            /* array position per open container, parallel to stack */
-  uintptr_t* active;      /* hash set of the objects in `stack`: the circularity check is O(1) */
+  Vector stack;                    /* PropertyEnumeration, one per open container */
+  Vector meta;                     /* array position per open container, parallel to stack */
+  uintptr_t* active;               /* hash set of the objects in `stack`: the circularity check is O(1) */
   uint32_t active_cap, active_len; /* slots (a power of two or 0) and used slots */
-  WalkInterface iface;    /* the callbacks, copied by value */
-  WalkHooks hooks;        /* copied by value */
-  int flags;              /* JS_GPN_* flags for the property enumeration */
-  JSValue root;           /* the value being walked, owned */
-  JSValue pending;        /* value of the key just reported, owned, until its own event */
-  unsigned state : 2;     /* start, running, done */
-  unsigned key_done : 1;  /* key reported for the top frame's property */
-  unsigned entered : 1;   /* the last event was a container start */
-  unsigned pending_kind : 2; /* what `pending` is: a WalkKind */
-  unsigned root_omitted : 1; /* the root was omitted by prepare: no events at all */
+  WalkInterface iface;             /* the callbacks, copied by value */
+  WalkHooks hooks;                 /* copied by value */
+  int flags;                       /* JS_GPN_* flags for the property enumeration */
+  JSValue root;                    /* the value being walked, owned */
+  JSValue pending;                 /* value of the key just reported, owned, until its own event */
+  unsigned state : 2;              /* start, running, done */
+  unsigned key_done : 1;           /* key reported for the top frame's property */
+  unsigned entered : 1;            /* the last event was a container start */
+  unsigned pending_kind : 2;       /* what `pending` is: a WalkKind */
+  unsigned root_omitted : 1;       /* the root was omitted by prepare: no events at all */
 } WalkIterator;
 
 int walk_init(WalkIterator*, JSContext*, JSValueConst root, WalkInterface iface, WalkHooks hooks);

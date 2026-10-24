@@ -398,7 +398,9 @@ function ListExports(file, output, params) {
     };
     Object.assign(self, {
       stack,
-      reset() { stack.clear(); },
+      reset() {
+        stack.clear();
+      },
       /* prettier-ignore */ get depth() { return stack.length; },
     });
 
@@ -458,8 +460,7 @@ function ListExports(file, output, params) {
         if([';', '\n'].indexOf(tok.lexeme) != -1) {
           cond = false;
 
-          if(imp.some(i => i.lexeme == 'from'))
-            if(impexp == What.IMPORT) imports.push(AddImport(imp));
+          if(imp.some(i => i.lexeme == 'from')) if (impexp == What.IMPORT) imports.push(AddImport(imp));
 
           if(impexp == What.EXPORT) exports.push(AddExport(imp));
         }
@@ -560,7 +561,6 @@ function ModuleExports(file) {
 }
 
 function main(...args) {
-
   globalThis.console = new Console(process.stderr, {
     inspectOptions: {
       colors: true,

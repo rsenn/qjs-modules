@@ -287,8 +287,7 @@ restart:
 
     tmp.size = 0;
 
-    if(dbuf_put(&tmp, link.buf, link.size) || dbuf_putc(&tmp, PATHSEP_C) ||
-       dbuf_put(&tmp, rest.buf + pos, rest.size - pos))
+    if(dbuf_put(&tmp, link.buf, link.size) || dbuf_putc(&tmp, PATHSEP_C) || dbuf_put(&tmp, rest.buf + pos, rest.size - pos))
       goto fail;
 
     dbuf_0(&tmp);

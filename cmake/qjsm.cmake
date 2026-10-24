@@ -297,14 +297,6 @@ function(compile_module SOURCE)
   string(REGEX REPLACE "\\.js$" "" BASE "${BASE}")
   string(REGEX REPLACE "[/]" "_" BASE "${BASE}")
 
-  #message("compile_module(\n\tSOURCE ${SOURCE}\n\tBASE ${BASE}\n)")
-
-  #if(COMPILE_MODULE_CNAME)
-  #  set(BASE "${COMPILE_MODULE_CNAME}")
-  #endif(COMPILE_MODULE_CNAME)
-
-  #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
-
   set(ARGLIST "${ARGN}")
   list(POP_FRONT ARGLIST OUT)
 
@@ -323,8 +315,6 @@ function(compile_module SOURCE)
   relative_paths(OUTPUT_FILE "${MODULES_DIR}" "${OUTPUT_FILE}")
   string(REGEX REPLACE "/" "_" OUTPUT_FILE "${OUTPUT_FILE}")
   set(OUTPUT_FILE "modules/${OUTPUT_FILE}")
-
-  #dump(OUTPUT_FILE)
 
   list(APPEND COMPILED_TARGETS "${TARGET_NAME}")
   set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
@@ -357,7 +347,7 @@ function(compile_module SOURCE)
     DEPENDS ${QJSC_DEPS}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler"
-    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" #DEPENDS qjs-inspect qjs-misc
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}"
   )
 endfunction()
 
@@ -387,7 +377,6 @@ function(generate_module_header SOURCE)
     endif(NOT FNAME MATCHES "\\.h$")
     set(S "${S}#include \"${FNAME}\"\n")
   endforeach(INCLUDE ${INCLUDES})
-  #message("INCLUDES: ${INCLUDES}")
 
   foreach(NAME ${SYMBOLS})
     if(NOT NAME IN_LIST INCLUDES)
@@ -396,8 +385,6 @@ function(generate_module_header SOURCE)
   endforeach()
 
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/modules/${BASE}.h" "${S}")
-  #string(REGEX REPLACE "[\\n;]" "\\\\n" SYMBOLS "${SYMBOLS}")
-  #message("Symbols: ${SYMBOLS}")
 endfunction()
 
 #
@@ -450,7 +437,6 @@ endfunction()
 # given (underscores written as '-').
 #
 function(include_definitions OUTVAR)
-  #print_str("include_definitions(${OUTVAR} ${ARGN})")
   set(S "")
   foreach(DEF ${ARGN})
     string(STRIP "${DEF}" DEF)
@@ -458,7 +444,6 @@ function(include_definitions OUTVAR)
     set(S "${S}#include \"${NAME}.h\"\n")
   endforeach(DEF ${ARGN})
 
-  #print_str("include_definitions S=${S}")
   set("${OUTVAR}" "${S}" PARENT_SCOPE)
 endfunction()
 
@@ -507,8 +492,6 @@ function(remake_module SOURCE)
   list(FILTER DEFLIST EXCLUDE REGEX "^${NAME}$")
   list(FILTER DEFLIST EXCLUDE REGEX "^${BASE}$")
 
-  #print_str("Included definitions in ${NAME}: ${DEFLIST}")
-
   include_definitions(INC "${DEFLIST}")
 
   extract_definition("${SOURCE}" DEF "${NAME}")
@@ -517,7 +500,6 @@ function(remake_module SOURCE)
 
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/modules/${BASE}.c" "#include \"${BASE}.h\"\n\n${DEF}")
   generate_module_header(${SOURCE} ${DEFLIST})
-
 endfunction()
 
 #

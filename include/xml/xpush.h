@@ -24,15 +24,15 @@ typedef struct xml_push_parser {
   JSContext* ctx;
   struct xr_state xrs;
   XmlJsCallbacks cb;
-  JSValue last_error;     /* SyntaxError of the latest error, or JS_UNDEFINED */
+  JSValue last_error; /* SyntaxError of the latest error, or JS_UNDEFINED */
   XmlBuilder builder;
   XmlEventSink sink; /* xbuild_sink(&builder) */
-  BOOL use_builder; /* build {tagName, attributes, children} tree
-                       instead of forwarding events */
-  BOOL connected;   /* connect(): every event goes to ext */
+  BOOL use_builder;  /* build {tagName, attributes, children} tree
+                        instead of forwarding events */
+  BOOL connected;    /* connect(): every event goes to ext */
   XmlEventSink ext;
   XmlJsSink* ext_adapter;
-  JSValue ext_obj;  /* the object behind ext, kept alive */
+  JSValue ext_obj; /* the object behind ext, kept alive */
 } XMLPushParser;
 
 /* xpush_init: sets up pp, the options object (any value, others have none) is also the this of its callbacks.

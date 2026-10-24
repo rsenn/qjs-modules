@@ -7,7 +7,7 @@
 /**
  * \defgroup quickjs-location quickjs-location: Text location object
  * @{
-*/
+ */
 VISIBLE JSValue js_location_wrap(JSContext*, Location*);
 VISIBLE void js_location_from2(JSContext*, JSValueConst, Location*);
 VISIBLE Location* js_location_from(JSContext*, JSValueConst);

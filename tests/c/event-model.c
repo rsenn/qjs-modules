@@ -217,7 +217,8 @@ json_walker_throws(void) {
 
   CHECK(jwalk_source_init(&src, ctx, v) == 0);
 
-  while((st = jwalk_event(&src, &ev)) == JSON_PULL_EVENT) {}
+  while((st = jwalk_event(&src, &ev)) == JSON_PULL_EVENT) {
+  }
 
   CHECK(st == JSON_PULL_FAIL && JS_HasException(ctx));
   JS_FreeValue(ctx, JS_GetException(ctx));

@@ -135,7 +135,6 @@ xtag_is_raw_text(const char* name, size_t namelen) {
   return xtag_in_list(name, namelen, xtag_raw_text_tags);
 }
 
-
 /**
  * @}
  */

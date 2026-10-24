@@ -49,18 +49,18 @@ typedef struct {
   Writer writer;
   size_t written; /* bytes put through the writer so far */
   XmlWriteOptions opts;
-  Vector stack; /* XmlWriterFrame, one per open element */
-  Vector names; /* the names of the open elements, back to back */
+  Vector stack;      /* XmlWriterFrame, one per open element */
+  Vector names;      /* the names of the open elements, back to back */
   unsigned prev : 3; /* the previous event, an XW_PREV_* */
 } XmlWriter;
 
 enum {
-  XWRITE_E_WRITE = 1,   /* the Writer refused the bytes */
-  XWRITE_E_NOMEM,       /* the frame stack could not grow */
-  XWRITE_E_UNMATCHED,   /* element_end with nothing open */
-  XWRITE_E_MISMATCH,    /* element_end names another element than the open one */
-  XWRITE_E_NOT_IN_TAG,  /* attribute when no start tag is open */
-  XWRITE_E_UNCLOSED,    /* xwrite_finish() with elements still open */
+  XWRITE_E_WRITE = 1,  /* the Writer refused the bytes */
+  XWRITE_E_NOMEM,      /* the frame stack could not grow */
+  XWRITE_E_UNMATCHED,  /* element_end with nothing open */
+  XWRITE_E_MISMATCH,   /* element_end names another element than the open one */
+  XWRITE_E_NOT_IN_TAG, /* attribute when no start tag is open */
+  XWRITE_E_UNCLOSED,   /* xwrite_finish() with elements still open */
 };
 
 /* the text for a failed event's return value: xwrite_error_message(-r) */

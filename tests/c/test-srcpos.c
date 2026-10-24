@@ -68,7 +68,9 @@ main(void) {
   CHECK(p.byte_offset == 9 && p.char_offset == 4 && p.column == 5);
 
   /* a stray continuation byte counts for nothing */
-  p = count("a\x80" "b", 0);
+  p = count("a\x80"
+            "b",
+            0);
   CHECK(p.byte_offset == 3 && p.char_offset == 2 && p.column == 3);
 
   /* BOM is one character */
