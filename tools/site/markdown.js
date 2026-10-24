@@ -53,46 +53,41 @@ export function slugify(text) {
 /** Bare identifier out of a member-table cell's code span, for slugging. */
 function memberName(code) {
   return code
-    .replace(/\(.*\)$/, '')   // drop call args: 'find(root, predicate)' -> 'find'
-    .replace(/^\[|\]$/g, '')  // unwrap computed names: '[Symbol.iterator]' -> 'Symbol.iterator'
-    .replace(/\./g, '-');     // 'XMLParser.PARSE_AGAIN' -> 'XMLParser-PARSE_AGAIN'
+    .replace(/\(.*\)$/, '') // drop call args: 'find(root, predicate)' -> 'find'
+    .replace(/^\[|\]$/g, '') // unwrap computed names: '[Symbol.iterator]' -> 'Symbol.iterator'
+    .replace(/\./g, '-'); // 'XMLParser.PARSE_AGAIN' -> 'XMLParser-PARSE_AGAIN'
 }
 
 /* ---------------------------------------------------------------- inline */
 
 function inline(text, ctx, slots) {
   const owns = !slots;
-  if (owns) slots = [];
+  if(owns) slots = [];
   const put = html => NUL + (slots.push(html) - 1) + NUL;
 
   // 1. code spans, before anything else gets a chance to look inside them
-  text = text.replace(/(`+)([^\n]*?)\1/g, (m, ticks, code) =>
-    put('<code>' + esc(code.replace(/^ (.*) $/, '$1')) + '</code>'));
+  text = text.replace(/(`+)([^\n]*?)\1/g, (m, ticks, code) => put('<code>' + esc(code.replace(/^ (.*) $/, '$1')) + '</code>'));
 
   // 2. everything still in play is literal text
   text = esc(text);
 
   // 3. links (labels can hold code slots, so recurse on the label)
-  text = text.replace(/\[((?:[^\[\]]|\[[^\]]*\])*)\]\(\s*([^\s)]*)(?:\s+"([^"]*)")?\s*\)/g,
-    (m, label, href, title) => {
-      const url = ctx.link ? ctx.link(href) : href;
-      const t = title ? ' title="' + escAttr(title) + '"' : '';
-      const ext = /^[a-z][a-z0-9+.-]*:/i.test(url) ? ' target="_blank" rel="noopener"' : '';
-      return put('<a href="' + escAttr(url) + '"' + t + ext + '>' + inline(label, ctx, slots) + '</a>');
-    });
+  text = text.replace(/\[((?:[^\[\]]|\[[^\]]*\])*)\]\(\s*([^\s)]*)(?:\s+"([^"]*)")?\s*\)/g, (m, label, href, title) => {
+    const url = ctx.link ? ctx.link(href) : href;
+    const t = title ? ' title="' + escAttr(title) + '"' : '';
+    const ext = /^[a-z][a-z0-9+.-]*:/i.test(url) ? ' target="_blank" rel="noopener"' : '';
+    return put('<a href="' + escAttr(url) + '"' + t + ext + '>' + inline(label, ctx, slots) + '</a>');
+  });
 
   // 4. bare URLs
-  text = text.replace(/(^|[\s(])(https?:\/\/[^\s<>()]+[^\s<>().,;:])/g,
-    (m, pre, url) => pre + put('<a href="' + escAttr(url) + '" target="_blank" rel="noopener">' + url + '</a>'));
+  text = text.replace(/(^|[\s(])(https?:\/\/[^\s<>()]+[^\s<>().,;:])/g, (m, pre, url) => pre + put('<a href="' + escAttr(url) + '" target="_blank" rel="noopener">' + url + '</a>'));
 
   // 5. emphasis ('_' is intentionally not a delimiter - see file header)
   text = text.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, '<strong>$1</strong>');
   text = text.replace(/(^|[^*\w])\*(?=[^\s*])([^*]*?[^\s*])\*(?!\*)/g, '$1<em>$2</em>');
 
   // 6. restore slots (a link slot can itself contain code slots)
-  if (owns)
-    for (let i = 0; i < 8 && text.indexOf(NUL) >= 0; i++)
-      text = text.replace(RE_SLOT, (m, n) => slots[+n]);
+  if(owns) for(let i = 0; i < 8 && text.indexOf(NUL) >= 0; i++) text = text.replace(RE_SLOT, (m, n) => slots[+n]);
 
   return text;
 }
@@ -102,25 +97,31 @@ function inline(text, ctx, slots) {
 /** Split a GFM table row, honouring \| escapes and pipes inside code spans. */
 function splitRow(line) {
   const cells = [];
-  let cur = '', tick = 0;
-  for (let i = 0; i < line.length; i++) {
+  let cur = '',
+    tick = 0;
+  for(let i = 0; i < line.length; i++) {
     const c = line[i];
-    if (c === '\\' && line[i + 1] === '|') { cur += '|'; i++; continue; }
-    if (c === '`') tick ^= 1;
-    if (c === '|' && !tick) { cells.push(cur); cur = ''; continue; }
+    if(c === '\\' && line[i + 1] === '|') {
+      cur += '|';
+      i++;
+      continue;
+    }
+    if(c === '`') tick ^= 1;
+    if(c === '|' && !tick) {
+      cells.push(cur);
+      cur = '';
+      continue;
+    }
     cur += c;
   }
   cells.push(cur);
-  if (cells.length && !cells[0].trim()) cells.shift();
-  if (cells.length && !cells[cells.length - 1].trim()) cells.pop();
+  if(cells.length && !cells[0].trim()) cells.shift();
+  if(cells.length && !cells[cells.length - 1].trim()) cells.pop();
   return cells.map(c => c.trim());
 }
 
 function alignments(delim) {
-  return splitRow(delim).map(c =>
-    c.startsWith(':') && c.endsWith(':') ? 'center'
-      : c.endsWith(':') ? 'right'
-      : c.startsWith(':') ? 'left' : '');
+  return splitRow(delim).map(c => (c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : c.startsWith(':') ? 'left' : ''));
 }
 
 const indentOf = line => line.match(/^\s*/)[0].length;
@@ -130,18 +131,23 @@ function blocks(lines, ctx) {
   const out = [];
   let i = 0;
 
-  while (i < lines.length) {
+  while(i < lines.length) {
     const line = lines[i];
 
-    if (isBlank(line)) { i++; continue; }
+    if(isBlank(line)) {
+      i++;
+      continue;
+    }
 
     const fence = line.match(RE_FENCE);
-    if (fence) {
-      const pad = fence[1], marker = fence[2], lang = fence[3];
+    if(fence) {
+      const pad = fence[1],
+        marker = fence[2],
+        lang = fence[3];
       const close = new RegExp('^\\s*' + marker[0] + '{' + marker.length + ',}\\s*$');
       const body = [];
       i++;
-      while (i < lines.length && !close.test(lines[i])) {
+      while(i < lines.length && !close.test(lines[i])) {
         body.push(lines[i].startsWith(pad) ? lines[i].slice(pad.length) : lines[i].trimStart());
         i++;
       }
@@ -149,62 +155,71 @@ function blocks(lines, ctx) {
       const code = body.join('\n');
       const cls = lang ? ' class="language-' + escAttr(lang) + '"' : '';
       const html = ctx.highlight ? ctx.highlight(code, lang) : esc(code);
-      out.push('<div class="codeblock"' + (lang ? ' data-lang="' + escAttr(lang) + '"' : '') +
-        '><pre><code' + cls + '>' + html + '</code></pre></div>');
+      out.push('<div class="codeblock"' + (lang ? ' data-lang="' + escAttr(lang) + '"' : '') + '><pre><code' + cls + '>' + html + '</code></pre></div>');
       continue;
     }
 
     const head = line.match(RE_HEADING);
-    if (head) {
+    if(head) {
       const level = head[1].length;
       const id = ctx.slug(slugify(head[2]));
       ctx.headings.push({ level, id, text: head[2].replace(/[`*]/g, '') });
-      if (level >= 2) ctx.section = { id, text: head[2].replace(/[`*]/g, '') };
-      out.push('<h' + level + ' id="' + escAttr(id) + '">' +
-        '<a class="anchor" href="#' + escAttr(id) + '" aria-hidden="true">#</a>' +
-        inline(head[2], ctx) + '</h' + level + '>');
+      if(level >= 2) ctx.section = { id, text: head[2].replace(/[`*]/g, '') };
+      out.push('<h' + level + ' id="' + escAttr(id) + '">' + '<a class="anchor" href="#' + escAttr(id) + '" aria-hidden="true">#</a>' + inline(head[2], ctx) + '</h' + level + '>');
       i++;
       continue;
     }
 
-    if (RE_HR.test(line) && !RE_ITEM.test(line)) { out.push('<hr>'); i++; continue; }
-
-    if (line.indexOf('|') >= 0 && i + 1 < lines.length && RE_TABLE_DELIM.test(lines[i + 1])) {
-      const align = alignments(lines[i + 1]);
-      const headerCells = splitRow(line);
-      const memberTable = RE_MEMBER_TABLE.test(headerCells[0] || '');
-      const th = headerCells.map((c, n) =>
-        '<th' + (align[n] ? ' style="text-align:' + align[n] + '"' : '') + '>' + inline(c, ctx) + '</th>').join('');
-      i += 2;
-      const rows = [];
-      while (i < lines.length && !isBlank(lines[i]) && lines[i].indexOf('|') >= 0) {
-        const cells = splitRow(lines[i]);
-        const first = memberTable ? cells[0].match(RE_MEMBER_CELL) : null;
-        rows.push('<tr>' + cells.map((c, n) => {
-          const style = align[n] ? ' style="text-align:' + align[n] + '"' : '';
-          if (n === 0 && first) {
-            const text = first[1].replace(/[`*]/g, '');
-            const id = ctx.slug((ctx.section ? ctx.section.id + '-' : '') + slugify(memberName(text)));
-            ctx.members.push({ id, text, section: ctx.section && ctx.section.text });
-            return '<td' + style + '><code id="' + escAttr(id) + '">' + esc(text) + '</code>' +
-              '<a class="member-anchor" href="#' + escAttr(id) + '" aria-hidden="true">#</a></td>';
-          }
-          return '<td' + style + '>' + inline(c, ctx) + '</td>';
-        }).join('') + '</tr>');
-        i++;
-      }
-      out.push('<div class="tablewrap"><table><thead><tr>' + th + '</tr></thead><tbody>' +
-        rows.join('') + '</tbody></table></div>');
+    if(RE_HR.test(line) && !RE_ITEM.test(line)) {
+      out.push('<hr>');
+      i++;
       continue;
     }
 
-    if (RE_ITEM.test(line)) { const r = list(lines, i, ctx); out.push(r.html); i = r.next; continue; }
+    if(line.indexOf('|') >= 0 && i + 1 < lines.length && RE_TABLE_DELIM.test(lines[i + 1])) {
+      const align = alignments(lines[i + 1]);
+      const headerCells = splitRow(line);
+      const memberTable = RE_MEMBER_TABLE.test(headerCells[0] || '');
+      const th = headerCells.map((c, n) => '<th' + (align[n] ? ' style="text-align:' + align[n] + '"' : '') + '>' + inline(c, ctx) + '</th>').join('');
+      i += 2;
+      const rows = [];
+      while(i < lines.length && !isBlank(lines[i]) && lines[i].indexOf('|') >= 0) {
+        const cells = splitRow(lines[i]);
+        const first = memberTable ? cells[0].match(RE_MEMBER_CELL) : null;
+        rows.push(
+          '<tr>' +
+            cells
+              .map((c, n) => {
+                const style = align[n] ? ' style="text-align:' + align[n] + '"' : '';
+                if(n === 0 && first) {
+                  const text = first[1].replace(/[`*]/g, '');
+                  const id = ctx.slug((ctx.section ? ctx.section.id + '-' : '') + slugify(memberName(text)));
+                  ctx.members.push({ id, text, section: ctx.section && ctx.section.text });
+                  return '<td' + style + '><code id="' + escAttr(id) + '">' + esc(text) + '</code>' + '<a class="member-anchor" href="#' + escAttr(id) + '" aria-hidden="true">#</a></td>';
+                }
+                return '<td' + style + '>' + inline(c, ctx) + '</td>';
+              })
+              .join('') +
+            '</tr>',
+        );
+        i++;
+      }
+      out.push('<div class="tablewrap"><table><thead><tr>' + th + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>');
+      continue;
+    }
+
+    if(RE_ITEM.test(line)) {
+      const r = list(lines, i, ctx);
+      out.push(r.html);
+      i = r.next;
+      continue;
+    }
 
     // paragraph: runs to the next blank line or the start of another block
     const para = [];
-    while (i < lines.length && !isBlank(lines[i])) {
+    while(i < lines.length && !isBlank(lines[i])) {
       const l = lines[i];
-      if (para.length && (RE_FENCE.test(l) || RE_HEADING.test(l) || RE_ITEM.test(l) || RE_HR.test(l))) break;
+      if(para.length && (RE_FENCE.test(l) || RE_HEADING.test(l) || RE_ITEM.test(l) || RE_HR.test(l))) break;
       para.push(l.trim());
       i++;
     }
@@ -219,24 +234,34 @@ function list(lines, start, ctx) {
   const base = indentOf(lines[start]);
   const ordered = /\d/.test(first[2]);
   const items = [];
-  let i = start, loose = false, pendingBlank = false;
+  let i = start,
+    loose = false,
+    pendingBlank = false;
 
-  while (i < lines.length) {
-    if (isBlank(lines[i])) { pendingBlank = true; i++; continue; }
+  while(i < lines.length) {
+    if(isBlank(lines[i])) {
+      pendingBlank = true;
+      i++;
+      continue;
+    }
 
     const m = lines[i].match(RE_ITEM);
     const ind = indentOf(lines[i]);
 
-    if (m && ind === base && /\d/.test(m[2]) === ordered) {
-      if (pendingBlank && items.length) loose = true;
+    if(m && ind === base && /\d/.test(m[2]) === ordered) {
+      if(pendingBlank && items.length) loose = true;
       pendingBlank = false;
       items.push({ indent: base + m[2].length + m[3].length, body: [m[4]] });
       i++;
       continue;
     }
-    if (items.length && ind > base) {
+    if(items.length && ind > base) {
       const cur = items[items.length - 1];
-      if (pendingBlank) { cur.body.push(''); loose = true; pendingBlank = false; }
+      if(pendingBlank) {
+        cur.body.push('');
+        loose = true;
+        pendingBlank = false;
+      }
       cur.body.push(lines[i].slice(Math.min(ind, cur.indent)));
       i++;
       continue;
@@ -244,12 +269,14 @@ function list(lines, start, ctx) {
     break;
   }
 
-  const html = items.map(it => {
-    const body = blocks(it.body, ctx);
-    // a tight list drops the <p> wrapper around the item's leading paragraph
-    const text = loose ? body : body.replace(/^<p>([\s\S]*?)<\/p>/, '$1');
-    return '<li>' + text + '</li>';
-  }).join('\n');
+  const html = items
+    .map(it => {
+      const body = blocks(it.body, ctx);
+      // a tight list drops the <p> wrapper around the item's leading paragraph
+      const text = loose ? body : body.replace(/^<p>([\s\S]*?)<\/p>/, '$1');
+      return '<li>' + text + '</li>';
+    })
+    .join('\n');
 
   const n = ordered ? +first[2].replace(/\D/g, '') : 0;
   const tag = ordered ? 'ol' : 'ul';

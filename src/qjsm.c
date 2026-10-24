@@ -157,7 +157,10 @@ enum {
   EVAL_BUF,
 };
 
-enum { HOOK_RESOLVE, HOOK_LOAD, };
+enum {
+  HOOK_RESOLVE,
+  HOOK_LOAD,
+};
 
 /* Signature of a module-path lookup helper: takes a candidate module name and either
     returns a newly allocated, resolved path or 0 if it didn't match. */
@@ -446,7 +449,11 @@ jsm_promise_rejection_tracker(JSContext* ctx, JSValueConst promise, JSValueConst
      message/stack text instead. */
   static char* last_msg = 0;
   char* msg;
-  JSValueConst hook_args[3] = {promise, reason, is_handled ? JS_TRUE : JS_FALSE,};
+  JSValueConst hook_args[3] = {
+      promise,
+      reason,
+      is_handled ? JS_TRUE : JS_FALSE,
+  };
 
   /* process.on('unhandledRejection' | 'uncaughtException' | 'rejectionHandled') */
   if(jsm_hooks_alive && jsm_hook_bool(ctx, "rejection", countof(hook_args), hook_args) && !is_handled)

@@ -754,8 +754,8 @@ static const JSCFunctionListEntry js_blob_funcs[] = {
     JS_CFUNC_MAGIC_DEF("json", 0, js_blob_method, BLOB_JSON),
     JS_CFUNC_MAGIC_DEF("stream", 0, js_blob_method, BLOB_STREAM),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_blob_method, BLOB_SLICE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("size", js_blob_get, 0, BLOB_SIZE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("type", js_blob_get, 0, BLOB_TYPE),
+    JS_CGETSET_MAGIC_DEF("size", js_blob_get, 0, BLOB_SIZE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("type", js_blob_get, 0, BLOB_TYPE, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Blob", JS_PROP_CONFIGURABLE),
 };
 

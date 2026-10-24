@@ -129,7 +129,7 @@ options_init(InspectOptions* opts, JSContext* ctx) {
   opts->max_string_length = INT32_MAX;
   opts->break_length = screen_width();
   opts->compact = 5;
-  opts->proto_chain = FALSE;
+  opts->proto_chain = TRUE;
   opts->number_base = 10;
   opts->number_precision = INT32_MAX;
 
@@ -293,15 +293,19 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
   }
 
   value = JS_GetPropertyStr(ctx, object, "protoChain");
-  JS_ToInt32(ctx, &opts->proto_chain, value);
-  JS_FreeValue(ctx, value);
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    JS_ToInt32(ctx, &opts->proto_chain, value);
+    JS_FreeValue(ctx, value);
+  }
 
   value = JS_GetPropertyStr(ctx, object, "numberBase");
-  if(JS_IsNumber(value))
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
     JS_ToInt32(ctx, &opts->number_base, value);
+    JS_FreeValue(ctx, value);
 
-  if(!VALID_BASE(opts->number_base))
-    opts->number_base = 10;
+    if(!VALID_BASE(opts->number_base))
+      opts->number_base = 10;
+  }
 
   value = JS_GetPropertyStr(ctx, object, "numberPrecision");
   if(JS_IsNumber(value)) {
@@ -315,11 +319,12 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, object, "classKey");
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    opts->class_key.atom = JS_ValueToAtom(ctx, value);
+    opts->class_key.name = JS_AtomToCString(ctx, opts->class_key.atom);
 
-  opts->class_key.atom = JS_ValueToAtom(ctx, value);
-  opts->class_key.name = JS_AtomToCString(ctx, opts->class_key.atom);
-
-  JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 }
 
 static JSValue

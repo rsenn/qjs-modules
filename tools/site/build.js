@@ -173,8 +173,7 @@ const NAV = [
 ];
 
 const PAGES = [];
-for (const { group, pages } of NAV)
-  for (const [src, out, title] of pages) PAGES.push({ src, out, title, group });
+for(const { group, pages } of NAV) for(const [src, out, title] of pages) PAGES.push({ src, out, title, group });
 
 const bySrc = new Map(PAGES.map(p => [p.src, p]));
 
@@ -184,9 +183,9 @@ const dirname = p => (p.indexOf('/') >= 0 ? p.slice(0, p.lastIndexOf('/')) : '')
 
 function normalize(p) {
   const out = [];
-  for (const part of p.split('/')) {
-    if (!part || part === '.') continue;
-    if (part === '..') out.pop();
+  for(const part of p.split('/')) {
+    if(!part || part === '.') continue;
+    if(part === '..') out.pop();
     else out.push(part);
   }
   return out.join('/');
@@ -197,16 +196,16 @@ function relative(fromDir, to) {
   const f = fromDir ? fromDir.split('/') : [];
   const t = to.split('/');
   let i = 0;
-  while (i < f.length && i < t.length - 1 && f[i] === t[i]) i++;
+  while(i < f.length && i < t.length - 1 && f[i] === t[i]) i++;
   return '../'.repeat(f.length - i) + t.slice(i).join('/');
 }
 
 function mkdirp(path) {
   let cur = path.startsWith('/') ? '/' : '';
-  for (const part of path.split('/')) {
-    if (!part) continue;
+  for(const part of path.split('/')) {
+    if(!part) continue;
     cur += (cur ? '/' : '') + part;
-    if (!fs.existsSync(cur)) fs.mkdirSync(cur, 0o755);
+    if(!fs.existsSync(cur)) fs.mkdirSync(cur, 0o755);
   }
 }
 
@@ -223,17 +222,16 @@ function write(path, text) {
 
 /** Rewrite one markdown href found in `page` into a link that works on the site. */
 function linkFor(page, href) {
-  if (!href || href.startsWith('#') || href.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(href))
-    return href;
+  if(!href || href.startsWith('#') || href.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(href)) return href;
 
   const hash = href.indexOf('#');
   const path = hash < 0 ? href : href.slice(0, hash);
   const frag = hash < 0 ? '' : href.slice(hash);
-  if (!path) return href;
+  if(!path) return href;
 
   const target = normalize(dirname(page.src) + '/' + path);
   const hit = bySrc.get(target);
-  if (hit) return relative(dirname(page.out), hit.out) + frag;
+  if(hit) return relative(dirname(page.out), hit.out) + frag;
 
   const kind = path.endsWith('/') ? 'tree' : 'blob';
   return GITHUB + '/' + kind + '/main/' + target + frag;
@@ -246,9 +244,9 @@ const escAttr = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g
 function sidebar(page) {
   const here = dirname(page.out);
   let html = '';
-  for (const { group, pages } of NAV) {
+  for(const { group, pages } of NAV) {
     html += '<div class="navgroup"><h3>' + group + '</h3><ul>';
-    for (const [, out, title] of pages) {
+    for(const [, out, title] of pages) {
       const cls = out === page.out ? ' class="here"' : '';
       html += '<li><a href="' + escAttr(relative(here, out)) + '"' + cls + '>' + title + '</a></li>';
     }
@@ -259,9 +257,8 @@ function sidebar(page) {
 
 function toc(headings) {
   const items = headings.filter(h => h.level >= 2 && h.level <= 3);
-  if (items.length < 2) return '';
-  const links = items.map(h =>
-    '<li class="lvl' + h.level + '"><a href="#' + escAttr(h.id) + '">' + escAttr(h.text) + '</a></li>').join('');
+  if(items.length < 2) return '';
+  const links = items.map(h => '<li class="lvl' + h.level + '"><a href="#' + escAttr(h.id) + '">' + escAttr(h.text) + '</a></li>').join('');
   return '<nav class="toc"><h3>On this page</h3><ul>' + links + '</ul></nav>';
 }
 
@@ -299,12 +296,12 @@ ${body}
 <script src="${root}assets/search-index.js"></script>
 <script src="${root}assets/search.js"></script>
 <script>
-document.querySelector('.themetoggle').addEventListener('click', function () {
+document.querySelector('.themetoggle').addEventListener('click', function() {
   var d = document.documentElement;
   var dark = d.dataset.theme ? d.dataset.theme === 'dark'
     : matchMedia('(prefers-color-scheme: dark)').matches;
   d.dataset.theme = dark ? 'light' : 'dark';
-  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+  try { localStorage.setItem('theme', d.dataset.theme); } catch(e) {}
 });
 </script>
 </body>
@@ -329,10 +326,8 @@ function buildPage(page) {
   const pageTitle = h1 ? h1.text : page.title;
 
   SEARCH.push({ u: page.out, t: pageTitle, k: 'page' });
-  for (const h of headings)
-    if (h.level >= 2) SEARCH.push({ u: page.out + '#' + h.id, t: h.text, p: pageTitle, k: 'section' });
-  for (const m of members)
-    SEARCH.push({ u: page.out + '#' + m.id, t: m.text, p: m.section || pageTitle, k: 'member' });
+  for(const h of headings) if(h.level >= 2) SEARCH.push({ u: page.out + '#' + h.id, t: h.text, p: pageTitle, k: 'section' });
+  for(const m of members) SEARCH.push({ u: page.out + '#' + m.id, t: m.text, p: m.section || pageTitle, k: 'member' });
 
   const body = `<div class="layout">
 <aside class="sidebar">${sidebar(page)}</aside>
@@ -343,10 +338,15 @@ function buildPage(page) {
 ${toc(headings)}
 </div>`;
 
-  write(OUT + '/' + page.out, shell({
-    title: pageTitle + ' — qjs-modules',
-    root, body, cls: 'has-sidebar',
-  }));
+  write(
+    OUT + '/' + page.out,
+    shell({
+      title: pageTitle + ' — qjs-modules',
+      root,
+      body,
+      cls: 'has-sidebar',
+    }),
+  );
 }
 
 /** Strip the common leading indentation from a block of source text. */
@@ -364,21 +364,27 @@ function dedent(text) {
 function expandCode(html) {
   return html.replace(/<x-code lang="([^"]*)">([\s\S]*?)<\/x-code>/g, (m, lang, body) => {
     const src = dedent(body).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    return '<div class="codeblock" data-lang="' + escAttr(lang) + '"><pre><code class="language-' +
-      escAttr(lang) + '">' + highlight(src, lang) + '</code></pre></div>';
+    return '<div class="codeblock" data-lang="' + escAttr(lang) + '"><pre><code class="language-' + escAttr(lang) + '">' + highlight(src, lang) + '</code></pre></div>';
   });
 }
 
 function buildLanding() {
   // placeholders first: they also appear inside <x-code>, where expansion
   // would otherwise scatter them across highlight spans
-  const body = expandCode(read(SELF + '/landing.html')
-    .replace(/\{\{GITHUB\}\}/g, GITHUB)
-    .replace(/\{\{REPO\}\}/g, REPO));
-  write(OUT + '/index.html', shell({
-    title: 'qjs-modules — ' + TAGLINE,
-    root: '', body, cls: 'landing',
-  }));
+  const body = expandCode(
+    read(SELF + '/landing.html')
+      .replace(/\{\{GITHUB\}\}/g, GITHUB)
+      .replace(/\{\{REPO\}\}/g, REPO),
+  );
+  write(
+    OUT + '/index.html',
+    shell({
+      title: 'qjs-modules — ' + TAGLINE,
+      root: '',
+      body,
+      cls: 'landing',
+    }),
+  );
 }
 
 /** JSON-safe-ish emit: search entries are our own generated strings (doc
@@ -392,7 +398,7 @@ const SELF = dirname(import.meta.url.replace(/^file:\/\//, '')) || '.';
 const OUT = (typeof scriptArgs !== 'undefined' ? scriptArgs[1] : process.argv[2]) || '_site';
 
 buildLanding();
-for (const page of PAGES) buildPage(page);
+for(const page of PAGES) buildPage(page);
 buildSearchIndex();
 
 write(OUT + '/assets/style.css', read(SELF + '/style.css'));
