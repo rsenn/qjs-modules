@@ -284,10 +284,19 @@ js_child_process_environment(JSContext* ctx, JSValueConst object) {
     return 0;
 
   do {
-    size_t namelen, valuelen;
+    size_t namelen, valuelen, varlen;
     const char* name = property_enumeration_keystrlen(&propenum, &namelen, ctx);
     const char* value = property_enumeration_valuestrlen(&propenum, &valuelen, ctx);
-    char *var = malloc(namelen + 1 + valuelen + 1), **tmp = realloc(ret, sizeof(char*) * (n + 2));
+    char* var = NULL;
+    char** tmp = realloc(ret, sizeof(char*) * (n + 2));
+
+    /* guard against size_t overflow in the length computation below, which
+     * would otherwise cause malloc() to allocate a buffer smaller than what
+     * the subsequent memcpy() calls write into it (CWE-119) */
+    varlen = namelen + 1 + valuelen + 1;
+
+    if(varlen > namelen && varlen > valuelen)
+      var = malloc(varlen);
 
     if(var && tmp) {
       memcpy(var, name, namelen);
