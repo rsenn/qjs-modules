@@ -5,8 +5,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_virtual_class_id = 0;
-static JSValue virtual_proto, virtual_ctor;
+static thread_local JSClassID js_virtual_class_id;
+static thread_local JSValue virtual_proto, virtual_ctor;
 
 static inline VirtualProperties*
 js_virtual_data2(JSContext* ctx, JSValueConst value) {

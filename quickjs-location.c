@@ -10,8 +10,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_location_class_id = 0;
-static JSValue location_proto, location_ctor;
+static thread_local JSClassID js_location_class_id;
+static thread_local JSValue location_proto, location_ctor;
 
 enum {
   PROP_LINE,
@@ -20,6 +20,16 @@ enum {
   PROP_CHAROFFSET,
   PROP_BYTEOFFSET,
 };
+
+Location*
+js_location_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_location_class_id);
+}
+
+Location*
+js_location_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_location_class_id);
+}
 
 static JSValue
 js_location_create(JSContext* ctx, JSValueConst proto, Location* loc) {

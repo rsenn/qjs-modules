@@ -7,8 +7,8 @@
  * \addtogroup quickjs-predicate
  * @{
  */
-VISIBLE JSClassID js_predicate_class_id = 0;
-static JSValue predicate_proto, predicate_ctor;
+static thread_local JSClassID js_predicate_class_id;
+static thread_local JSValue predicate_proto, predicate_ctor;
 
 static JSValue
 predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
@@ -46,6 +46,16 @@ predicate_duparg(JSContext* ctx, JSValueConst value) {
 static JSValue
 predicate_nextarg(JSContext* ctx, JSArguments* args) {
   return predicate_duparg(ctx, js_arguments_shift(args));
+}
+
+Predicate*
+js_predicate_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_predicate_class_id);
+}
+
+Predicate*
+js_predicate_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_predicate_class_id);
 }
 
 VISIBLE JSValue

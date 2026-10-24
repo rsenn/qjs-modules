@@ -11,10 +11,10 @@
  * \defgroup quickjs-tree-walker quickjs-tree_walker: Object tree walker
  * @{
  */
-VISIBLE JSClassID js_tree_walker_class_id = 0;
-static JSValue tree_walker_proto, tree_walker_ctor;
-VISIBLE JSClassID js_tree_iterator_class_id = 0;
-static JSValue tree_iterator_proto, tree_iterator_ctor;
+static thread_local JSClassID js_tree_walker_class_id;
+static thread_local JSValue tree_walker_proto, tree_walker_ctor;
+static thread_local JSClassID js_tree_iterator_class_id;
+static thread_local JSValue tree_iterator_proto, tree_iterator_ctor;
 
 enum tree_walker_filter {
   FILTER_ACCEPT = 1,

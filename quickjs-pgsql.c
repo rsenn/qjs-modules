@@ -12,8 +12,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_pgsqlerror_class_id = 0, js_pgconn_class_id = 0, js_pgresult_class_id = 0;
-static JSValue pgsqlerror_proto, pgsqlerror_ctor, pgsql_proto, pgsql_ctor, pgresult_proto, pgresult_ctor;
+static thread_local JSClassID js_pgsqlerror_class_id, js_pgconn_class_id, js_pgresult_class_id;
+static thread_local JSValue pgsqlerror_proto, pgsqlerror_ctor, pgsql_proto, pgsql_ctor, pgresult_proto, pgresult_ctor;
 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);

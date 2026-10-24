@@ -293,8 +293,8 @@ static JSValue js_socket_new_proto(JSContext*, JSValueConst, int, BOOL, BOOL);
 static int js_socket_address_family(JSValueConst);
 static int js_sockaddr_init(JSContext*, int, JSValueConst[], SockAddr*);
 
-JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_asyncsocket_class_id = 0;
-static JSValue sockaddr_proto, sockaddr_ctor, socket_proto, asyncsocket_proto, socket_ctor, asyncsocket_ctor;
+static thread_local JSClassID js_sockaddr_class_id, js_socket_class_id, js_asyncsocket_class_id;
+static thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, asyncsocket_proto, socket_ctor, asyncsocket_ctor;
 
 static const char* socketcall_names[] = {
     "socket",      "getsockname", "getpeername",

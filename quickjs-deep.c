@@ -15,8 +15,8 @@
  * \defgroup quickjs-deep quickjs-deep: Deep object
  * @{
  */
-VISIBLE JSClassID js_deep_iterator_class_id = 0;
-static JSValue deep_functions, deep_iterator_proto, deep_iterator_ctor;
+static thread_local JSClassID js_deep_iterator_class_id;
+static thread_local JSValue deep_functions, deep_iterator_proto, deep_iterator_ctor;
 
 typedef enum {
   YIELD = 1,
@@ -64,7 +64,7 @@ typedef struct DeepIterator {
   uint32_t seq;
 } DeepIterator;
 
-static const uint32_t js_deep_defaultflags = 0;
+static const uint32_t js_deep_defaultflags;
 
 static BOOL
 atom_skip(Vector const* vec, JSAtom atom) {

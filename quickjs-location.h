@@ -7,12 +7,11 @@
 /**
  * \defgroup quickjs-location quickjs-location: Text location object
  * @{
- */
-extern VISIBLE JSClassID js_location_class_id;
-
+*/
 VISIBLE JSValue js_location_wrap(JSContext*, Location*);
 VISIBLE void js_location_from2(JSContext*, JSValueConst, Location*);
 VISIBLE Location* js_location_from(JSContext*, JSValueConst);
+
 /* js_syntax_error_new: a SyntaxError with own, non-enumerable `loc` (a Location
  * clone), `length` and `code`; message is "<text> at <file>:<line>:<column>".
  *
@@ -40,31 +39,8 @@ VISIBLE JSValue js_throw_syntax_error_at(JSContext*, const char* name, const Sou
 
 VISIBLE int js_location_init(JSContext*, JSModuleDef*);
 
-static inline Location*
-js_location_data(JSValueConst value) {
-  Location* loc;
-
-  assert(js_location_class_id);
-
-  if((loc = JS_GetOpaque(value, js_location_class_id)))
-    if(loc == (Location*)-1)
-      loc = 0;
-
-  return loc;
-}
-
-static inline Location*
-js_location_data2(JSContext* ctx, JSValueConst value) {
-  Location* loc;
-
-  assert(js_location_class_id);
-
-  if((loc = JS_GetOpaque2(ctx, value, js_location_class_id)))
-    if(loc == (Location*)-1)
-      loc = 0;
-
-  return loc;
-}
+VISIBLE Location* js_location_data(JSValueConst value);
+VISIBLE Location* js_location_data2(JSContext* ctx, JSValueConst value);
 
 /**
  * @}

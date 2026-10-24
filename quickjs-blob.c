@@ -34,8 +34,8 @@ typedef struct blob {
   char* type;
 } Blob;
 
-JSClassID js_blob_class_id = 0;
-static JSValue blob_proto, blob_ctor;
+static thread_local JSClassID js_blob_class_id;
+static thread_local JSValue blob_proto, blob_ctor;
 
 /* InputBuffer free callback of an owning segment: frees the copy */
 static void

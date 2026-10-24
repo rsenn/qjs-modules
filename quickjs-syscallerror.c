@@ -15,8 +15,8 @@
  * \addtogroup quickjs-syscallerror
  * @{
  */
-VISIBLE JSClassID js_syscallerror_class_id = 0;
-static JSValue syscallerror_proto, syscallerror_ctor;
+static thread_local JSClassID js_syscallerror_class_id;
+static thread_local JSValue syscallerror_proto, syscallerror_ctor;
 
 int js_syscallerror_init(JSContext*, JSModuleDef*);
 static const char* syscallerror_symbol(int number);
@@ -306,7 +306,7 @@ js_syscallerror_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
-const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
+static const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, 0, PROP_SYSCALL),
     JS_CGETSET_MAGIC_DEF("code", js_syscallerror_get, 0, PROP_CODE),
     JS_CGETSET_MAGIC_DEF("errno", js_syscallerror_get, 0, PROP_ERRNO),
@@ -318,7 +318,7 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
 
-const JSCFunctionListEntry js_syscallerror_defines[] = {
+static const JSCFunctionListEntry js_syscallerror_defines[] = {
 #ifdef EPERM
     JS_CONSTANT(EPERM),
 #endif
@@ -690,7 +690,7 @@ const JSCFunctionListEntry js_syscallerror_defines[] = {
 #endif
 };
 
-const JSCFunctionListEntry js_syscallerror_static_funcs[] = {
+static const JSCFunctionListEntry js_syscallerror_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("errno", 0, js_syscallerror_functions, FUNCTION_ERRNO),
     JS_CFUNC_MAGIC_DEF("strerror", 0, js_syscallerror_functions, FUNCTION_STRERROR),
 };

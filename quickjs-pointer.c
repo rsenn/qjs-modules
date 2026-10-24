@@ -12,14 +12,17 @@
  * @{
  */
 
-VISIBLE JSClassID js_dereferenceerror_class_id = 0;
-static JSValue dereferenceerror_proto, dereferenceerror_ctor;
-
 typedef struct {
   void* pointer;
   int32_t pos;
   JSValue root, stack;
 } DereferenceError;
+
+static thread_local JSClassID js_dereferenceerror_class_id;
+static thread_local JSValue dereferenceerror_proto, dereferenceerror_ctor;
+
+static thread_local JSClassID js_pointer_class_id;
+static thread_local JSValue pointer_proto, pointer_ctor;
 
 static JSValue
 js_dereferenceerror_new(JSContext* ctx, JSValueConst pointer, int32_t pos, JSValueConst root) {
@@ -169,9 +172,6 @@ static const JSCFunctionListEntry js_dereferenceerror_proto_funcs[] = {
     JS_PROP_STRING_DEF("name", "DereferenceError", JS_PROP_CONFIGURABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "DereferenceError", JS_PROP_CONFIGURABLE),
 };
-
-VISIBLE JSClassID js_pointer_class_id = 0;
-static JSValue pointer_proto, pointer_ctor;
 
 enum {
   STATIC_FROM = 0,

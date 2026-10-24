@@ -84,7 +84,7 @@ struct text_coder {
 typedef struct text_coder TextEncoder;
 typedef struct text_coder TextDecoder;
 
-const TUTF8encoder* tutf8e_coders[] = {
+static const TUTF8encoder* tutf8e_coders[] = {
     /* 0, 0, 0, 0, 0, 0, 0, 0, */
     &tutf8e_encoder_iso_8859_1,   &tutf8e_encoder_iso_8859_2,   &tutf8e_encoder_iso_8859_3,   &tutf8e_encoder_iso_8859_4,   &tutf8e_encoder_iso_8859_5,
     &tutf8e_encoder_iso_8859_6,   &tutf8e_encoder_iso_8859_7,   &tutf8e_encoder_iso_8859_8,   &tutf8e_encoder_iso_8859_9,   &tutf8e_encoder_iso_8859_10,
@@ -93,7 +93,7 @@ const TUTF8encoder* tutf8e_coders[] = {
     &tutf8e_encoder_windows_1255, &tutf8e_encoder_windows_1256, &tutf8e_encoder_windows_1257, &tutf8e_encoder_windows_1258,
 };
 
-const char* const textcode_encodings[] = {
+static const char* const textcode_encodings[] = {
     "unknown",      "utf-8",        "utf-16le",     "utf-32le",     "unknown",      "utf-8",        "utf-16be",     "utf-32be",     "iso-8859-1",
     "iso-8859-2",   "iso-8859-3",   "iso-8859-4",   "iso-8859-5",   "iso-8859-6",   "iso-8859-7",   "iso-8859-8",   "iso-8859-9",   "iso-8859-10",
     "iso-8859-11",  "iso-8859-13",  "iso-8859-14",  "iso-8859-15",  "iso-8859-16",  "windows-1250", "windows-1251", "windows-1252", "windows-1253",

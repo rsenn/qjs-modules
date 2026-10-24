@@ -9,8 +9,8 @@
  * \defgroup quickjs-serial quickjs-serial: libserial MIME types
  * @{
  */
-VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-static JSValue serialport_proto, serialport_ctor, serial_ctor, serialerror_proto, serialerror_ctor;
+static thread_local JSClassID js_serialport_class_id, js_serialerror_class_id;
+static thread_local JSValue serialport_proto, serialport_ctor, serial_ctor, serialerror_proto, serialerror_ctor;
 
 static JSValue
 js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {

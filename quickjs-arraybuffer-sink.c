@@ -12,8 +12,8 @@
  * \defgroup quickjs-tree-walker quickjs-arraybuffer_sink: Object tree walker
  * @{
  */
-VISIBLE JSClassID js_arraybuffer_sink_class_id = 0;
-static JSValue arraybuffer_sink_proto, arraybuffer_sink_ctor;
+static thread_local JSClassID js_arraybuffer_sink_class_id;
+static thread_local JSValue arraybuffer_sink_proto, arraybuffer_sink_ctor;
 
 static JSValue
 js_arraybuffer_sink_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {

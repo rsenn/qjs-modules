@@ -9,8 +9,8 @@
  * \defgroup quickjs-magic quickjs-magic: libmagic MIME types
  * @{
  */
-VISIBLE JSClassID js_magic_class_id = 0;
-static JSValue magic_proto, magic_ctor;
+static thread_local JSClassID js_magic_class_id;
+static thread_local JSValue magic_proto, magic_ctor;
 
 enum {
   LIBMAGIC_ERROR = 0,

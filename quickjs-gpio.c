@@ -7,8 +7,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_gpio_class_id = 0;
-static JSValue gpio_proto, gpio_ctor;
+static thread_local JSClassID js_gpio_class_id;
+static thread_local JSValue gpio_proto, gpio_ctor;
 
 enum {
   GPIO_METHOD_INIT_PIN = 0,

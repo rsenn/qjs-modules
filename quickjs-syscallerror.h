@@ -50,14 +50,12 @@ js_syscallerror_result(JSContext* ctx, const char* syscall, int result) {
   { \
     if(ret != -1) \
       return JS_NewInt32(ctx, ret); \
-\
     return js_syscallerror_throw(ctx, namestr); \
   }
 
 #define js_syscall_return(name, args...) \
   { \
     int ret = name(args); \
-\
     js_syscall_throw(#name, ret); \
   }
 

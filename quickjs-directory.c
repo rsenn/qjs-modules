@@ -192,8 +192,8 @@ getdents_new(void) {
 
 #endif /* DIRECTORY_PORTABLE_BACKEND */
 
-VISIBLE JSClassID js_directory_class_id = 0;
-static JSValue directory_proto, directory_ctor;
+static thread_local JSClassID js_directory_class_id;
+static thread_local JSValue directory_proto, directory_ctor;
 
 enum {
   FLAG_NAME = 1,

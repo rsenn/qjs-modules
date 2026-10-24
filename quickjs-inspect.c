@@ -29,14 +29,14 @@
 #endif
 #endif
 
-/*static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;*/
+/*static thread_local JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;*/
 
 /**
  * \defgroup quickjs-inspect quickjs-inspect: Inspection
  * @{
  */
 
-thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
+static thread_local JSAtom inspect_custom_atom, inspect_custom_atom_node;
 static thread_local JSValue object_tostring;
 
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)

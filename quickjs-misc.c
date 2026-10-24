@@ -3481,8 +3481,8 @@ typedef struct {
   JSValue fn;
 } JSAtExitEntry;
 
-thread_local Vector js_misc_atexit_functions;
-thread_local BOOL js_misc_atexit_called = FALSE;
+static thread_local Vector js_misc_atexit_functions;
+static thread_local BOOL js_misc_atexit_called = FALSE;
 
 static void
 js_misc_atexit_handler(void) {

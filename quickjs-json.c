@@ -17,7 +17,7 @@
 #include "json/jserializer.h"
 #include "quickjs-location.h"
 
-VISIBLE JSClassID js_jsonparser_class_id = 0, js_jsonpushparser_class_id = 0, js_jsonserializer_class_id = 0;
+static thread_local JSClassID js_jsonparser_class_id, js_jsonpushparser_class_id, js_jsonserializer_class_id;
 
 static JSValue
 js_json_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -338,7 +338,7 @@ typedef struct {
   JsonEventSink sink;
 } JsonWriterObj;
 
-static JSClassID js_jsonwriter_class_id = 0;
+static thread_local JSClassID js_jsonwriter_class_id;
 
 /* js_jsonwriter_throw: the exception of a failed sink member, see js_jsonwriter_ret(). */
 static JSValue
@@ -489,7 +489,7 @@ typedef struct {
   JsonEventSink sink;
 } JsonBuilderObj;
 
-static JSClassID js_jsonbuilder_class_id = 0;
+static thread_local JSClassID js_jsonbuilder_class_id;
 
 static JsonEventSink
 js_jsonbuilder_sink(void* opaque) {
@@ -584,7 +584,7 @@ static const JSCFunctionListEntry js_jsonbuilder_funcs[] = {
  * the sinks are called in order, the first failure stops the event.
  * wired in: JS_CFUNC_DEF("tee") in the module exports. */
 
-static JSClassID js_jsontee_class_id = 0;
+static thread_local JSClassID js_jsontee_class_id;
 
 static JsonEventSink
 js_jsontee_sink(void* opaque) {
@@ -812,9 +812,6 @@ static JSClassDef js_jsonparser_class = {
 static int
 js_json_init(JSContext* ctx, JSModuleDef* m) {
   JSValue parser, push, serializer, writer, builder, proto;
-
-  if(js_location_class_id == 0)
-    js_location_init(ctx, 0);
 
   parser = js_class_define(
       ctx, &js_jsonparser_class_id, &js_jsonparser_class, js_jsonparser_constructor, 1, js_jsonparser_proto_funcs, countof(js_jsonparser_proto_funcs), &proto);

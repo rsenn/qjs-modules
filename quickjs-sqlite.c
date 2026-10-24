@@ -12,8 +12,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_sqliteerror_class_id = 0, js_sqlite_class_id = 0, js_sqliteresult_class_id = 0;
-static JSValue sqliteerror_proto, sqliteerror_ctor, sqlite_proto, sqlite_ctor, sqliteresult_proto, sqliteresult_ctor;
+static thread_local JSClassID js_sqliteerror_class_id, js_sqlite_class_id, js_sqliteresult_class_id;
+static thread_local JSValue sqliteerror_proto, sqliteerror_ctor, sqlite_proto, sqlite_ctor, sqliteresult_proto, sqliteresult_ctor;
 
 static JSValue js_sqliteerror_new(JSContext* ctx, const char* msg);
 

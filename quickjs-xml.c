@@ -116,7 +116,7 @@ static const JSCFunctionListEntry js_xml_funcs[] = {
  * throws a bad tree like XMLWriter does (mismatched end, bad element), RangeError for a negative n.
  * wired in: JS_CFUNC_DEF("read") and two getters on the XMLTreeSerializer prototype.
  * rule: an event is taken once, so a getter in the tree runs once. */
-static JSClassID js_xmlserializer_class_id;
+static thread_local JSClassID js_xmlserializer_class_id;
 
 typedef struct {
   XwalkSource src;
@@ -269,7 +269,7 @@ static const JSCFunctionListEntry js_xmlserializer_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLTreeSerializer", JS_PROP_CONFIGURABLE),
 };
 
-static JSClassID js_xml_pushparser_class_id;
+static thread_local JSClassID js_xml_pushparser_class_id;
 
 static JSValue
 js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -426,7 +426,7 @@ static JSClassDef js_xml_pushparser_class = {
    give typed events, pump() runs it into a sink in C.
    ---------------------------------------------------------------------- */
 
-static JSClassID js_xml_parser_class_id;
+static thread_local JSClassID js_xml_parser_class_id;
 
 /* XMLParser.pump: runs the parser into a sink, in C.
  *
@@ -578,7 +578,7 @@ typedef struct {
   XmlEventSink sink;
 } XmlBuilderObj;
 
-static JSClassID js_xmlbuilder_class_id = 0;
+static thread_local JSClassID js_xmlbuilder_class_id;
 
 static XmlEventSink
 js_xmlbuilder_sink(void* opaque) {
@@ -683,7 +683,7 @@ static const JSCFunctionListEntry js_xmlbuilder_funcs[] = {
  * the sinks are called in order, the first failure stops the event.
  * wired in: JS_CFUNC_DEF("tee") in the module exports. */
 
-static JSClassID js_xmltee_class_id = 0;
+static thread_local JSClassID js_xmltee_class_id;
 
 static XmlEventSink
 js_xmltee_sink(void* opaque) {
@@ -740,7 +740,7 @@ typedef struct {
   int event;      /* XML_* of the last call, 0 before the first */
 } XMLWriter;
 
-static JSClassID js_xmlwriter_class_id;
+static thread_local JSClassID js_xmlwriter_class_id;
 
 /* xmlwriter_set_indent: remembers `indent` as given (the getter returns it) and sets the layout. */
 static void
@@ -889,9 +889,6 @@ static const JSCFunctionListEntry js_xmlwriter_funcs[] = {
 static int
 js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JSValue serializer, push, parser, writer, builder, defaults, proto;
-
-  if(js_location_class_id == 0)
-    js_location_init(ctx, 0);
 
   JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
 

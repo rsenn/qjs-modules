@@ -6,8 +6,8 @@
  * \defgroup quickjs-queue quickjs-queue: Queue reader
  * @{
  */
-VISIBLE JSClassID js_queue_class_id = 0, js_queue_iterator_class_id = 0;
-static JSValue queue_proto, queue_ctor, queue_iterator_proto;
+static thread_local JSClassID js_queue_class_id, js_queue_iterator_class_id;
+static thread_local JSValue queue_proto, queue_ctor, queue_iterator_proto;
 
 JSValue chunk_arraybuffer(Chunk* ch, JSContext* ctx);
 

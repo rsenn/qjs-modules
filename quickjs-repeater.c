@@ -14,8 +14,8 @@
 static JSValue js_repeater_push(JSContext*, JSValueConst, int, JSValueConst[]);
 static JSValue js_repeater_stop(JSContext*, JSValueConst, int, JSValueConst[]);
 
-VISIBLE JSClassID js_repeater_class_id = 0;
-static JSValue repeater_proto, repeater_ctor;
+static thread_local JSClassID js_repeater_class_id;
+static thread_local JSValue repeater_proto, repeater_ctor;
 
 enum repeater_getters {
   PROP_LENGTH = 0,

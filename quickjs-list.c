@@ -52,8 +52,8 @@ typedef struct {
 static JSValue js_node_wrap(JSContext*, JSValueConst, Node*);
 static JSValue js_list_wrap(JSContext*, JSValueConst, List*);
 
-VISIBLE JSClassID js_list_class_id = 0, js_list_iterator_class_id = 0, js_node_class_id = 0;
-static JSValue list_proto, list_ctor, list_iterator_proto, list_iterator_ctor, node_proto, node_ctor;
+static thread_local JSClassID js_list_class_id, js_list_iterator_class_id, js_node_class_id;
+static thread_local JSValue list_proto, list_ctor, list_iterator_proto, list_iterator_ctor, node_proto, node_ctor;
 
 static inline List*
 js_list_data2(JSContext* ctx, JSValueConst value) {

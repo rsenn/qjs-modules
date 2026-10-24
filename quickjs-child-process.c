@@ -35,8 +35,8 @@ enum {
   CHILD_PROCESS_ONEXIT,
 };
 
-VISIBLE JSClassID js_child_process_class_id = 0;
-static JSValue child_process_proto, child_process_ctor;
+static thread_local JSClassID js_child_process_class_id;
+static thread_local JSValue child_process_proto, child_process_ctor;
 
 static BOOL child_process_handler;
 

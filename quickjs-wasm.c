@@ -18,7 +18,7 @@
 #define countof(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
-static JSClassID wasm_env_class_id, wasm_module_class_id, wasm_instance_class_id, wasm_memory_class_id, wasm_table_class_id, wasm_global_class_id,
+static thread_local JSClassID wasm_env_class_id, wasm_module_class_id, wasm_instance_class_id, wasm_memory_class_id, wasm_table_class_id, wasm_global_class_id,
     wasm_funcref_class_id;
 static JSValue wasm_errors[3]; /* JS thread only: CompileError, LinkError, RuntimeError */
 static JSValue module_proto, instance_proto, memory_proto, table_proto, global_proto;
@@ -570,7 +570,7 @@ memory_wrap(JSContext* ctx, JSValueConst proto, JSValueConst env, JSValueConst o
 
 /* new Memory({ initial, maximum }): standalone memory, shareable between instances. */
 static JSValue
-js_memory_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_memory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   WBLimits lim;
   JSValue env, proto, obj;
   WBMemory* mem;
@@ -744,7 +744,7 @@ table_wrap(JSContext* ctx, JSValueConst proto, JSValueConst env, JSValueConst ow
 
 /* new Table({ element: "anyfunc", initial, maximum }, value?). */
 static JSValue
-js_table_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_table_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   WBLimits lim;
   WBValType elem;
   JSValue env, proto, obj, el;
@@ -888,7 +888,7 @@ global_create(JSContext* ctx, Env* e, WBValType t, int is_mutable, JSValueConst 
 
 /* new Global({ value: "i32", mutable }, v). */
 static JSValue
-js_global_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_global_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   WBValType t;
   JSValue env, proto, obj, tv, mv;
   WBGlobal* g;
@@ -963,7 +963,7 @@ get_bytes(JSContext* ctx, JSValueConst v, size_t* len) {
 }
 
 static JSValue
-js_module_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_module_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   const uint8_t* bytes;
   size_t len;
   Module* m;
@@ -1219,7 +1219,7 @@ export_wrap(JSContext* ctx, JSValueConst env, JSValueConst inst, WBExtern ext, c
 }
 
 static JSValue
-js_instance_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_instance_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Module* mod = argc > 0 ? JS_GetOpaque2(ctx, argv[0], wasm_module_class_id) : NULL;
   Env* e;
   Instance* inst;
@@ -1431,7 +1431,7 @@ js_wasm_init(JSContext* ctx, JSModuleDef* m) {
   JS_FreeValue(ctx, sym);
 
   module_ctor = define_class(
-      ctx, &wasm_module_class_id, &wasm_module_class, &module_proto, js_module_proto_funcs, countof(js_module_proto_funcs), js_module_ctor, "Module");
+      ctx, &wasm_module_class_id, &wasm_module_class, &module_proto, js_module_proto_funcs, countof(js_module_proto_funcs), js_module_constructor, "Module");
   JS_SetPropertyFunctionList(ctx, module_ctor, js_module_static_funcs, countof(js_module_static_funcs));
   instance_ctor = define_class(ctx,
                                &wasm_instance_class_id,
@@ -1439,14 +1439,14 @@ js_wasm_init(JSContext* ctx, JSModuleDef* m) {
                                &instance_proto,
                                js_instance_proto_funcs,
                                countof(js_instance_proto_funcs),
-                               js_instance_ctor,
+                               js_instance_constructor,
                                "Instance");
   memory_ctor = define_class(
-      ctx, &wasm_memory_class_id, &wasm_memory_class, &memory_proto, js_memory_proto_funcs, countof(js_memory_proto_funcs), js_memory_ctor, "Memory");
+      ctx, &wasm_memory_class_id, &wasm_memory_class, &memory_proto, js_memory_proto_funcs, countof(js_memory_proto_funcs), js_memory_constructor, "Memory");
   table_ctor =
-      define_class(ctx, &wasm_table_class_id, &wasm_table_class, &table_proto, js_table_proto_funcs, countof(js_table_proto_funcs), js_table_ctor, "Table");
+      define_class(ctx, &wasm_table_class_id, &wasm_table_class, &table_proto, js_table_proto_funcs, countof(js_table_proto_funcs), js_table_constructor, "Table");
   global_ctor = define_class(
-      ctx, &wasm_global_class_id, &wasm_global_class, &global_proto, js_global_proto_funcs, countof(js_global_proto_funcs), js_global_ctor, "Global");
+      ctx, &wasm_global_class_id, &wasm_global_class, &global_proto, js_global_proto_funcs, countof(js_global_proto_funcs), js_global_constructor, "Global");
 
   for(int i = 0; i < 3; i++) {
     char src[160];

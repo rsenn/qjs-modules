@@ -22,8 +22,8 @@ typedef BOOL my_bool;
  * @{
  */
 
-VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
-static JSValue mysqlerror_proto, mysqlerror_ctor, mysql_proto, mysql_ctor, mysqlresult_proto, mysqlresult_ctor;
+static thread_local JSClassID js_connectparams_class_id, js_mysqlerror_class_id, js_mysql_class_id, js_mysqlresult_class_id;
+static thread_local JSValue mysqlerror_proto, mysqlerror_ctor, mysql_proto, mysql_ctor, mysqlresult_proto, mysqlresult_ctor;
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
