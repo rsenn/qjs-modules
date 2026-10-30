@@ -43,6 +43,9 @@ With `-E`/`-e` everything else is read from the preprocessed text.
 | `-E`, `-e PROG`, `-I DIR` | preprocess with `cpp`/`gcc -E`, or `PROG`; `-I` is passed on (only with `-E`/`-e`) |
 | `-L MODE[,MODE]` | position shape in JSON: `line offset loc range file start end` |
 | `-s DIR` | write each function to `DIR/<name>.c` |
+| `-S DIR` | split `N.c` + `N.h` into `DIR/N.h` and `DIR/N/<function>.c` (diet layout), see below |
+| `-J DIR`, `-M DIR`, `--guard G` | the reverse of `-S`, see below |
+| `--name N`, `-A` | with `-S`: library name (default the .c base name), carry out the follow-ups |
 | `-o FILE` | write to `FILE`; for JSON, `jq` examples are printed to stderr |
 | `-r` | open the REPL before writing the output |
 
@@ -265,3 +268,32 @@ Three layers, so everything but the loop is testable without a terminal:
 `tests/unittests/test-extract-c.js` covers the scanners, `format()`/`show()`
 and its filter, the call-graph functions, `parseInput()` and the browser's
 click/key handling (`qjsm tests/unittests/test-extract-c.js`).
+
+## Splitting a .c/.h pair into a library (`-S`)
+
+```sh
+extract-c.js -S lib uri.c uri.h        # writes lib/uri.h, lib/uri/uri_*.c, prints the follow-ups
+extract-c.js -S lib -A uri.c uri.h     # also applies them (clean git tree)
+```
+
+One file per externally visible function, each opening with `#include "../N.h"` plus only the lib
+headers it uses (identifier `x` or `x_*` selects `x.h`). A static helper, file-scope constant or
+macro used by one function moves into its file. Reported with exit status 2, not guessed: helpers
+used by several functions (own file plus `N_internal.h`), shared data, functions not prefixed `N_`,
+globals, banner and trailing comments. Libc calls per file are listed; replacing them is by hand.
+Follow-ups: `MODSUBDIRS` in `lib/CMakeLists.txt`, `set(<prog>_SOURCES)` and `program(...)` in the
+root `CMakeLists.txt`, includes of the old header in other sources, `git rm`/`git add`.
+
+### The reverse: `-J` and `-M`
+
+```sh
+extract-c.js -J lib --name uri -o out/           # out/uri.h + out/uri.c
+extract-c.js -M lib --name uri -o uri-all.c      # one file, stdout without -o
+extract-c.js -M lib --name uri --guard URI_ALL_H # change the header's include guard
+```
+
+`-J` joins `lib/N.h` and `lib/N/*.c` into `N.h` and `N.c`: placeholder `/* */` comments go,
+`"../x.h"` becomes `"lib/x.h"`, includes are de-duped to the top, functions follow the order of the
+header. `-M` writes the header, then `#ifdef N_IMPL`, the de-duped includes of all `.c` files, all
+functions, `#endif /* defined N_IMPL */`. Both warn (exit 2) on a function defined twice and on a
+file including `N_internal.h`.

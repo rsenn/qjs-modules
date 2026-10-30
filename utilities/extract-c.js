@@ -10,6 +10,7 @@ import CLexer from 'lexer/c.js';
 import { foldDirectives } from 'lexer/cpp.js';
 import { Screen, setScrollRegion, resetScrollRegion } from 'terminal';
 import process from 'process';
+import { splitLib, joinLib, amalgamate, followUps } from './extract-c-split.js';
 
 const COMMENT = new Set(['singleLineComment', 'multiLineComment']);
 const AGG = new Set(['struct', 'union', 'class']);
@@ -51,7 +52,7 @@ const PRIM = {
   time_t: [8, 8],
 };
 
-function lex(source, filename) {
+export function lex(source, filename) {
   const lexer = new CLexer(source, undefined, filename);
   const toks = [];
   let tok;
@@ -2860,7 +2861,7 @@ async function openRepl(vars) {
 }
 
 async function main(...args) {
-  let pattern, list, types, identifiers, fields, splitDir, output, kinds, count, countExpr, deps, entries, prog, wantRepl;
+  let pattern, list, types, identifiers, fields, splitDir, libDir, joinDir, amalDir, guard, apply, libName, output, kinds, count, countExpr, deps, entries, prog, wantRepl;
   const includes = [];
   const defaultPrep = () => (std.popen('command -v cpp >/dev/null 2>&1', 'r').close() == 0 ? 'cpp' : 'gcc -E');
   let locModes = ['line'];
@@ -2883,6 +2884,12 @@ async function main(...args) {
       filter: [true, v => (kinds = v.split(',')), 'F'],
       loc: [true, v => (locModes = v.split(',')), 'L'],
       split: [true, v => (splitDir = v), 's'],
+      'split-lib': [true, v => (libDir = v), 'S'],
+      'join-lib': [true, v => (joinDir = v), 'J'],
+      amalgamate: [true, v => (amalDir = v), 'M'],
+      guard: [true, v => (guard = v)],
+      name: [true, v => (libName = v)],
+      apply: [false, () => (apply = true), 'A'],
       output: [true, v => (output = v), 'o'],
       help: [false, null, 'h'],
       '@': 'files',
@@ -2970,6 +2977,17 @@ async function main(...args) {
                         end    .end   "<file>:<line>:<column>" (just past the last character)
   -s, --split DIR       write each function to DIR/<name>.c, prefixed with the
                         text preceding the file's first function(#includes etc.)
+  -S, --split-lib DIR   split the FILE.c + FILE.h pair into DIR/<name>.h and
+                        DIR/<name>/<function>.c, one external function per file;
+                        reports what needs a decision, prints the follow-ups
+  -J, --join-lib DIR    the reverse: join DIR/<name>.h and DIR/<name>/*.c into
+                        <name>.h and <name>.c (written to -o DIR, default .)
+  -M, --amalgamate DIR  one file: DIR/<name>.h, then #ifdef <NAME>_IMPL, the
+                        includes of all .c files de-duped, all functions, #endif
+                        (to -o FILE or stdout)
+      --guard NAME      with -M, replace the include guard of the header
+      --name NAME       library name (default: the .c file's base name)
+  -A, --apply           with -S, carry out the follow-ups (cmake, includes, git)
   -o, --output FILE     write to FILE instead of stdout
 
 A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
@@ -2977,6 +2995,52 @@ A DIR argument stands for every *.c/*.h file below it, searched recursively.`);
   }
 
   if(splitDir) fs.mkdirSync(splitDir, { recursive: true });
+
+  if(joinDir || amalDir) {
+    const dir = joinDir ?? amalDir;
+    const name = libName ?? files[0];
+    if(!name) {
+      console.log('extract-c.js: --join-lib/--amalgamate: expected --name NAME');
+      return 1;
+    }
+    if(joinDir) {
+      const res = joinLib({ libDir: dir, name });
+      const out = output ?? '.';
+      fs.mkdirSync(out, { recursive: true });
+      for(const [f, t] of [[name + '.h', res.header], [name + '.c', res.c]]) {
+        fs.writeFileSync(path.join(out, f), t);
+        console.log(`wrote ${path.join(out, f)}`);
+      }
+      for(const w of res.warnings) console.log(`warning: ${w}`);
+      return res.warnings.length ? 2 : 0;
+    }
+    const res = amalgamate({ libDir: dir, name, guard });
+    if(output) fs.writeFileSync(output, res.text);
+    else std.out.puts(res.text);
+    for(const w of res.warnings) std.err.puts(`warning: ${w}\n`);
+    return res.warnings.length ? 2 : 0;
+  }
+
+  if(libDir) {
+    const cFile = files.find(f => f.endsWith('.c'));
+    const hFile = files.find(f => f.endsWith('.h'));
+    if(!cFile || !hFile) {
+      console.log('extract-c.js: --split-lib: expected a FILE.c and a FILE.h');
+      return 1;
+    }
+    const name = libName ?? path.basename(cFile, '.c');
+    const res = splitLib({ cSource: fs.readFileSync(cFile, 'utf8'), hSource: fs.readFileSync(hFile, 'utf8'), name, libDir }, { lex, findFunctions });
+    fs.mkdirSync(path.join(libDir, name), { recursive: true });
+    for(const [file, text] of res.files) {
+      fs.writeFileSync(file, text);
+      console.log(`wrote ${file}`);
+    }
+    for(const w of res.warnings) console.log(`warning: ${w}`);
+    for(const n of res.notes) console.log(`note: ${n}`);
+    for(const l of res.libc) console.log(`libc: ${l}`);
+    for(const l of followUps({ name, libDir: path.resolve(libDir), root: path.dirname(path.resolve(libDir)), apply, cFile, hFile })) console.log(l);
+    return res.warnings.length ? 2 : 0;
+  }
 
   let chunks = [],
     irs = [],
