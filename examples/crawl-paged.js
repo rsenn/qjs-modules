@@ -6,6 +6,18 @@ import { XMLParser, XMLPushParser, XMLTreeSerializer, XMLWriter } from 'xml';
 
 const { ELEMENT_START, ATTRIBUTE, ELEMENT_END, TEXT, COMMENT, DECLARATION, INSTRUCTION, CDATA } = XMLParser;
 
+function isTag(tagName) {
+  return ({ type, name }) => type == ELEMENT_START && name.toLowerCase() == tagName.toLowerCase();
+}
+
+function isAttr(attrName, pred = () => true) {
+  return tok => tok.type == ATTRIBUTE && tok.name == attrName && pred(tok);
+}
+
+function isText(token) {
+  return token.type == TEXT;
+}
+
 /* for the base URL generate succession of URLs where paramName is 2,3,4,5,...
  * from the 2nd generated value on */
 function* generatePagedUrls(baseUrl, paramName = 'page') {
@@ -90,17 +102,8 @@ function main(baseUrl = 'https://github.com/rsenn?tab=repositories', paramName =
 
     const parser = new XMLParser(rd, { tolerant: true, selfClosingTags: ['option'] });
 
-    const isTag =
-      tagName =>
-      ({ type, name }) =>
-        type == ELEMENT_START && name.toLowerCase() == tagName.toLowerCase();
     const isLink = isTag('a');
-    const isAttr =
-      (attrName, pred = () => true) =>
-      tok =>
-        tok.type == ATTRIBUTE && tok.name == attrName && pred(tok);
     const isRepo = token => isAttr('itemprop')(token) && /codeRepository/.test(token.value);
-    const isText = token => token.type == TEXT;
 
     const generator = deferUntilNextMatch(parser, isRepo, l => [...l.splice(l.begin(), l.findLast(isLink))]);
 
