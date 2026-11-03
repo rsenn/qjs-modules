@@ -19,6 +19,7 @@
   <nav class="topnav">
     <a href="getting-started.html">Get started</a>
     <a href="docs/index.html">Docs</a>
+    <a href="docs/runtime-compat.html">Compatibility</a>
     <a href="roadmap.html">Roadmap</a>
     <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
   </nav>
@@ -119,7 +120,7 @@
     <div>
       <h3>Native modules (~34)</h3>
       <p>
-        <code>archive</code>, <code>blob</code>, <code>stream</code>, <code>xml</code>,
+        <code>archive</code>, <code>blob</code>, <code>queue</code>, <code>xml</code>,
         <code>json</code>, <code>bjson</code>, <code>deep</code>, <code>pointer</code>,
         <code>predicate</code>, <code>tree-walker</code>, <code>child-process</code>,
         <code>sockets</code>, <code>mysql</code>, <code>pgsql</code>, <code>mmap</code>,
@@ -128,7 +129,7 @@
       </p>
     </div>
     <div>
-      <h3>JavaScript layer (~45)</h3>
+      <h3>JavaScript layer (~75)</h3>
       <p>
         WHATWG/Node polyfills and wrappers: <code>events</code>, <code>url</code>,
         <code>timers</code>, <code>console</code>, <code>assert</code>, <code>fs</code>,
@@ -138,6 +139,14 @@
         global, <code>.wasm</code> ES-module imports, WASI (portable across qjsm, Node, Bun
         and Deno) and the web/Node globals (<code>URL</code>, <code>structuredClone</code>,
         <code>crypto</code>, …).
+      </p>
+      <p>
+        Node's <code>node:buffer</code>, <code>node:util</code>, <code>node:events</code>,
+        <code>node:os</code> and <code>node:child_process</code>, Bun's <code>Bun.file()</code>,
+        <code>Bun.Glob</code>, <code>Bun.JSON5</code>/<code>JSONC</code>/<code>JSONL</code> and
+        <code>Bun.*</code> utilities, and a TypeScript loader sit on top. How much of Node, Bun
+        and Deno that adds up to, member by member:
+        <a href="docs/runtime-compat.html">compatibility</a>.
       </p>
     </div>
   </div>

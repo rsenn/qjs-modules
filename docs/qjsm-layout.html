@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qjsm: module layout, loader configuration, build info — qjs-modules</title>
+<meta name="description" content="qjs-modules — The standard library QuickJS deserves. WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/theme.css">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-site="qjs-modules" data-root="../">
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="mark">{ }</span> <span class="brand-name">qjs-modules</span></a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../getting-started.html">Get started</a>
+    <a href="../docs/index.html">Docs</a>
+    <a href="../docs/runtime-compat.html">Compatibility</a>
+    <a href="../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../getting-started.html">Getting started</a></li><li><a href="../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="index.html">API reference</a></li><li><a href="runtime-compat.html">Node / Bun / Deno compatibility</a></li><li><a href="api-compatibility.html">Standards compatibility</a></li><li><a href="api-compatibility-nodejs.html">Node.js API gaps</a></li><li><a href="api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="qjsm.html">qjsm</a></li><li><a href="qjsm-layout.html" class="here">qjsm layout (working paper)</a></li><li><a href="grammar.html">Grammar</a></li></ul></div><div class="navgroup"><h3>json, xml & path studies</h3><ul><li><a href="api-event-model.html">Event model (design)</a></li><li><a href="event-model-state.html">Event model (state)</a></li><li><a href="api-compare-json.html">json: comparison</a></li><li><a href="api-implement-json.html">json: implementation</a></li><li><a href="api-interface-json.html">json: interfaces</a></li><li><a href="api-compare-xml.html">xml: comparison</a></li><li><a href="api-implement-xml.html">xml: implementation</a></li><li><a href="api-interface-xml.html">xml: interfaces</a></li><li><a href="api-compare-path.html">path: comparison</a></li><li><a href="api-implement-path.html">path: implementation</a></li><li><a href="api-interface-path.html">path: interfaces</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="native/index.html">Native modules overview</a></li><li><a href="native/archive.html">archive</a></li><li><a href="native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="native/bcrypt.html">bcrypt</a></li><li><a href="native/bjson.html">bjson</a></li><li><a href="native/blob.html">blob</a></li><li><a href="native/json.html">json</a></li><li><a href="native/lexer.html">lexer</a></li><li><a href="native/list.html">list</a></li><li><a href="native/textcode.html">textcode</a></li><li><a href="native/xml.html">xml</a></li><li><a href="native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="native/child-process.html">child-process</a></li><li><a href="native/directory.html">directory</a></li><li><a href="native/gpio.html">gpio</a></li><li><a href="native/location.html">location</a></li><li><a href="native/magic.html">magic</a></li><li><a href="native/misc.html">misc</a></li><li><a href="native/mmap.html">mmap</a></li><li><a href="native/path.html">path</a></li><li><a href="native/serial.html">serial</a></li><li><a href="native/sockets.html">sockets</a></li><li><a href="native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="native/deep.html">deep</a></li><li><a href="native/inspect.html">inspect</a></li><li><a href="native/pointer.html">pointer</a></li><li><a href="native/predicate.html">predicate</a></li><li><a href="native/tree-walker.html">tree-walker</a></li><li><a href="native/queue.html">queue</a></li><li><a href="native/repeater.html">repeater</a></li><li><a href="native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — QuickJS core</h3><ul><li><a href="native/os.html">os</a></li><li><a href="native/std.html">std</a></li></ul></div><div class="navgroup"><h3>WebAssembly</h3><ul><li><a href="native/wasm.html">wasm (engines & API)</a></li><li><a href="js/webassembly.html">WebAssembly global</a></li><li><a href="js/wasi.html">WASI</a></li><li><a href="js/loaders/wasm.html">.wasm loader</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="native/mysql.html">mysql</a></li><li><a href="native/pgsql.html">pgsql</a></li><li><a href="native/sqlite.html">sqlite</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="js/index.html">JS modules overview</a></li><li><a href="js/util.html">util</a></li><li><a href="js/iterator.html">iterator</a></li><li><a href="js/asyncIterator.html">asyncIterator</a></li><li><a href="js/extendArray.html">extendArray</a></li><li><a href="js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="js/extendMap.html">extendMap</a></li><li><a href="js/extendSet.html">extendSet</a></li><li><a href="js/extendFunction.html">extendFunction</a></li><li><a href="js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="js/extendGenerator.html">extendGenerator</a></li><li><a href="js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="js/assert.html">assert</a></li><li><a href="js/assertStrict.html">assertStrict</a></li><li><a href="js/console.html">console</a></li><li><a href="js/process.html">process</a></li><li><a href="js/events.html">events</a></li><li><a href="js/abort.html">abort</a></li><li><a href="js/timers.html">timers</a></li><li><a href="js/timersPromises.html">timersPromises</a></li><li><a href="js/globals.html">globals</a></li><li><a href="js/intl.html">intl</a></li><li><a href="js/perf_hooks.html">perf_hooks</a></li><li><a href="js/module.html">module</a></li><li><a href="js/require.html">require</a></li><li><a href="js/stack.html">stack</a></li><li><a href="js/lazyGlobal.html">lazyGlobal</a></li></ul></div><div class="navgroup"><h3>JS — Node & Bun</h3><ul><li><a href="js/node.html">node</a></li><li><a href="js/node-buffer.html">node-buffer</a></li><li><a href="js/node-child-process.html">node-child-process</a></li><li><a href="js/node-events.html">node-events</a></li><li><a href="js/node-os.html">node-os</a></li><li><a href="js/node-util.html">node-util</a></li><li><a href="js/bun.html">bun</a></li><li><a href="js/bun-util.html">bun-util</a></li><li><a href="js/loaders/commonjs.html">loaders/commonjs</a></li><li><a href="js/loaders/file.html">loaders/file</a></li><li><a href="js/loaders/packages.html">loaders/packages</a></li><li><a href="js/loaders/trace.html">loaders/trace</a></li><li><a href="js/loaders/typescript.html">loaders/typescript</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="js/fs.html">fs</a></li><li><a href="js/fsPromises.html">fsPromises</a></li><li><a href="js/io.html">io</a></li><li><a href="js/stream.html">stream</a></li><li><a href="js/streams.html">streams</a></li><li><a href="js/vfs.html">vfs</a></li><li><a href="js/glob.html">glob</a></li><li><a href="js/file.html">file</a></li><li><a href="js/inotify.html">inotify</a></li><li><a href="js/tty.html">tty</a></li><li><a href="js/terminal.html">terminal</a></li><li><a href="js/readline.html">readline</a></li><li><a href="js/readlinePromises.html">readlinePromises</a></li><li><a href="js/string_decoder.html">string_decoder</a></li><li><a href="js/textLineStream.html">textLineStream</a></li><li><a href="js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — JSON dialects</h3><ul><li><a href="js/json5.html">json5</a></li><li><a href="js/jsonc.html">jsonc</a></li><li><a href="js/jsonl.html">jsonl</a></li><li><a href="js/jsonStreams.html">jsonStreams</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="js/dom.html">dom</a></li><li><a href="js/xpath.html">xpath</a></li><li><a href="js/parser.html">parser</a></li><li><a href="js/lex.html">lex</a></li><li><a href="js/grammar-parsers.html">grammar-parsers</a></li><li><a href="js/parse-ast.html">parse-ast</a></li><li><a href="js/module-lexer.html">module-lexer</a></li><li><a href="js/lexers.html">lexers</a></li><li><a href="js/css3-selectors.html">css3-selectors</a></li><li><a href="js/html.html">html</a></li><li><a href="js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases</h3><ul><li><a href="js/sql.html">sql</a></li><li><a href="js/db.html">db</a></li><li><a href="js/database.html">database</a></li><li><a href="js/dbi.html">dbi</a></li></ul></div><div class="navgroup"><h3>JS — Tooling & Misc</h3><ul><li><a href="js/repl.html">repl</a></li><li><a href="js/describe.html">describe</a></li><li><a href="js/c-functions.html">c-functions</a></li><li><a href="js/magic-string.html">magic-string</a></li><li><a href="js/tinytest.html">tinytest</a></li><li><a href="js/simple-queue.html">simple-queue</a></li><li><a href="js/password.html">password</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="qjsm-module-layout-loader-configuration-build-info"><a class="anchor" href="#qjsm-module-layout-loader-configuration-build-info" aria-hidden="true">#</a>qjsm: module layout, loader configuration, build info</h1>
+<p>Working document. It collects ideas and specs for one goal: a build and
+installation whose module layout is <strong>configurable, reported accurately,
+consistent and inspectable</strong>, and a <code>qjsm</code> binary that can say what it was built
+from. Nothing here is implemented unless marked so.</p>
+<p>Status tags: <code>[verified]</code> seen in the tree or by running it, <code>[proposed]</code> a spec
+we have not agreed on yet, <code>[open]</code> a question, <code>[decided]</code> agreed with the user.</p>
+<p>Related: <a href="qjsm.html">qjsm.md</a> (loader pipeline, hooks), <code>cmake/qjsm.cmake</code> (builtins
+configuration), <code>cmake/deps/FindQuickJS.cmake</code> (module path variables).</p>
+<h2 id="1-goals"><a class="anchor" href="#1-goals" aria-hidden="true">#</a>1. Goals</h2>
+<ol>
+<li>The module layout and the loader configuration are the same story for qjsm,
+Node, Bun, Deno and the browser: the same specifiers resolve to the same
+modules, or fail the same way. [decided]</li>
+<li>The layout is a set of named variables, configurable at configure time, and
+every configure prints the resulting layout. [decided]</li>
+<li>An installation in any directory is self-consistent and inspectable: from the
+installation alone one can tell which modules are builtin, which are installed
+as files, and which of the two wins. No silent shadowing. [decided]</li>
+<li><code>qjsm</code> carries build information that can be queried at run time: build date,
+git commit, the qjsc version the builtin bytecode was compiled with.
+[decided]</li>
+<li>The data baked into qjsm (build info, builtin table, bytecode blobs) can be
+read from JS, through <code>lib/module.js</code> and an API in <code>qjsm.c</code>. [decided]</li>
+</ol>
+<h2 id="2-where-things-stand-today"><a class="anchor" href="#2-where-things-stand-today" aria-hidden="true">#</a>2. Where things stand today</h2>
+<h3 id="21-layout-verified"><a class="anchor" href="#21-layout-verified" aria-hidden="true">#</a>2.1 Layout [verified]</h3>
+<p><code>cmake --install</code> of a default configure puts:</p>
+<div class="tablewrap"><table><thead><tr><th>What</th><th>Where</th><th>Count</th></tr></thead><tbody><tr><td>native modules, <code>.so</code></td><td><code>&lt;prefix&gt;/lib/&lt;multiarch&gt;/quickjs</code> (<code>QUICKJS_C_MODULE_DIR</code>)</td><td>34</td></tr><tr><td>JS modules, <code>.js</code></td><td><code>&lt;prefix&gt;/lib/quickjs</code> (<code>QUICKJS_JS_MODULE_DIR</code>)</td><td>the <code>lib/*.js</code> that are not builtin</td></tr><tr><td>scripts</td><td><code>&lt;prefix&gt;/bin</code></td><td>16</td></tr><tr><td><code>qjsm</code></td><td><code>&lt;prefix&gt;/bin</code></td><td>1</td></tr></tbody></table></div>
+<p><code>QUICKJS_MODULE_PATH</code> (default: header value, then the two directories above,
+without duplicates) is compiled into qjsm and can be overridden by the
+environment variable of the same name.</p>
+<h3 id="22-builtin-versus-installed-verified"><a class="anchor" href="#22-builtin-versus-installed-verified" aria-hidden="true">#</a>2.2 Builtin versus installed [verified]</h3>
+<ul>
+<li>A builtin is found <strong>before</strong> any file search (<code>jsm_module_normalize</code>, step 1
+of the pipeline), so a builtin always shadows an installed module of the same
+name, whatever <code>QUICKJS_MODULE_PATH</code> says.</li>
+<li>Native modules: all 34 are installed as <code>.so</code>, <strong>including the 13 that are also
+baked into qjsm</strong>. So an installation holds both. Which one a script gets
+depends on how it imports: a bare name gives the builtin; reaching the file is
+[open], <code>import 'path.so'</code> on the installed qjsm failed with "could not load
+module filename 'path.so' as shared library" (checked 2026-10-14), so how to
+name the installed copy is itself unspecified. This is the conflict to remove.</li>
+<li>JS modules: the builtin ones are excluded from the install
+(<code>qjsm_resolve_builtins</code>, <code>EXCLUDE_REGEX</code>), so no duplicate there.</li>
+<li>Nothing in the installation records which modules are builtin in the qjsm that
+sits next to it. Only the running binary knows (<code>builtins</code> global,
+<code>moduleList</code>).</li>
+</ul>
+<h3 id="23-loader-configuration-verified"><a class="anchor" href="#23-loader-configuration-verified" aria-hidden="true">#</a>2.3 Loader configuration [verified]</h3>
+<p>Resolution order: builtin registry, relative path, <code>.so</code> with search, existing
+file; load: <code>data:</code>, <code>node:</code>, hooks, <code>package.json</code> <code>_moduleAliases</code>, builtin
+again, <code>.json</code>, default loader. The module path comes only from
+<code>QUICKJS_MODULE_PATH</code>. Details in <a href="qjsm.html#module-resolution-pipeline">qjsm.md</a>.</p>
+<h3 id="24-what-the-build-knows-and-discards-verified"><a class="anchor" href="#24-what-the-build-knows-and-discards-verified" aria-hidden="true">#</a>2.4 What the build knows and discards [verified]</h3>
+<ul>
+<li><code>qjsc</code> prints <code>QuickJS Compiler version 2026-06-04</code>; the generated
+<code>modules/&lt;name&gt;.c</code> has no version, date or source hash in it.</li>
+<li><code>qjsm</code> only has <code>CONFIG_VERSION</code> (the QuickJS version); <code>qjsm --version</code> is
+an unknown option.</li>
+<li>The bytecode of a builtin is <code>const uint8_t qjsc_&lt;name&gt;[N]</code> plus
+<code>const uint32_t qjsc_&lt;name&gt;_size</code>, referenced from <code>quickjs-builtins.h</code> via
+<code>BUILTIN_COMPILED(name)</code>.</li>
+<li>Bytecode is only valid for the exact QuickJS bytecode version it was compiled
+with; the version of the <em>runtime</em> the blob is loaded by must match.</li>
+</ul>
+<h2 id="3-layout-as-configuration"><a class="anchor" href="#3-layout-as-configuration" aria-hidden="true">#</a>3. Layout as configuration</h2>
+<h3 id="31-variables-implemented"><a class="anchor" href="#31-variables-implemented" aria-hidden="true">#</a>3.1 Variables [implemented]</h3>
+<p>One table, all cache variables, each with a default derived from the previous
+one, so <code>-DCMAKE_INSTALL_PREFIX</code> alone gives a consistent layout:</p>
+<div class="tablewrap"><table><thead><tr><th>Variable</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>QJSM_BINDIR</code></td><td><code>bin</code></td><td>qjsm and the scripts</td></tr><tr><td><code>QJSM_C_MODULE_DIR</code></td><td><code>lib/&lt;multiarch&gt;/quickjs</code></td><td>native <code>.so</code> modules</td></tr><tr><td><code>QJSM_JS_MODULE_DIR</code></td><td><code>lib/quickjs</code></td><td>JS modules</td></tr><tr><td><code>QJSM_DATA_DIR</code></td><td><code>share/qjsm</code></td><td>manifest, import maps, docs</td></tr><tr><td><code>QJSM_MODULE_PATH</code></td><td>both module dirs</td><td>what is compiled in as the search path</td></tr><tr><td><code>QJSM_RELOCATABLE</code></td><td><code>OFF</code></td><td>paths relative to the executable instead of absolute</td></tr></tbody></table></div>
+<p>[open] Reuse <code>QUICKJS_C_MODULE_DIR</code>/<code>QUICKJS_JS_MODULE_DIR</code> (what the build takes
+from FindQuickJS today) or introduce <code>QJSM_*</code> and map from the old names? The
+quickjs fork installs by the old names, so the two must not disagree.</p>
+<h3 id="32-relocatable-installs-proposed"><a class="anchor" href="#32-relocatable-installs-proposed" aria-hidden="true">#</a>3.2 Relocatable installs [proposed]</h3>
+<p><code>QJSM_RELOCATABLE=ON</code>: module path entries are stored relative to the directory
+of the executable (<code>$ORIGIN/../lib/quickjs</code>), resolved at start. Needed for an
+installation "somewhere in a folder" (tarball, portable app). RUNPATH likewise
+(<code>$ORIGIN/../lib/&lt;multiarch&gt;</code>). [open] Windows and macOS equivalents
+(<code>@executable_path</code>, DLL search).</p>
+<h3 id="33-report-at-configure-time-implemented"><a class="anchor" href="#33-report-at-configure-time-implemented" aria-hidden="true">#</a>3.3 Report at configure time [implemented]</h3>
+<p>The configure summary prints the table above with the resolved values, for each
+row where it came from (default, cache, command line), the resulting search path
+in order, and a verdict line:</p>
+<div class="codeblock"><pre><code>-- layout
+--   prefix            /opt/qjs
+--   native modules    /opt/qjs/lib/x86_64-linux-gnu/quickjs   (34 files, 21 not builtin)
+--   JS modules        /opt/qjs/lib/quickjs                    (61 files)
+--   module path       /opt/qjs/lib/quickjs : /opt/qjs/lib/x86_64-linux-gnu/quickjs
+--   builtin and installed at the same time: none</code></pre></div>
+<p>The last line is the check from section 4.</p>
+<h2 id="4-builtin-versus-installed-one-rule-implemented"><a class="anchor" href="#4-builtin-versus-installed-one-rule-implemented" aria-hidden="true">#</a>4. Builtin versus installed: one rule [implemented]</h2>
+<p>Make an installation unambiguous:</p>
+<ol>
+<li><strong>Do not install a native module that is builtin.</strong> Same rule JS modules
+already follow. Option <code>QJSM_INSTALL_BUILTIN_NATIVE</code> (default <code>OFF</code>) to install
+them anyway, for programs that load <code>fs.so</code> by path.</li>
+<li>If both exist (option on, or a stale file from an earlier install), the
+configure summary and the manifest (section 5) list it as <em>shadowed</em>.</li>
+<li>Precedence is documented and queryable: builtin, then module path in order.
+[open] a documented spelling that reaches the installed file of a module that
+is also builtin (see 2.2); today <code>import 'path.so'</code> does not.</li>
+<li>A manifest installed with the modules, <code>&lt;QJSM_DATA_DIR&gt;/manifest.json</code>,
+records for this installation:</li>
+</ol>
+<div class="codeblock" data-lang="json"><pre><code class="language-json">{
+  "qjsm": { "version": "0.9", "commit": "d59a45e4", "date": "2026-10-14T09:30:00Z" },
+  "quickjs": { "version": "2026-06-04", "bytecode": 24 },
+  "paths": { "native": "lib/x86_64-linux-gnu/quickjs", "js": "lib/quickjs" },
+  "builtin": { "native": ["bjson", "..."], "js": ["assert", "..."] },
+  "installed": { "native": ["archive", "..."], "js": ["abort", "..."] },
+  "shadowed": []
+}</code></pre></div>
+<p><code>qjsm --layout</code> (or <code>Module.layout()</code>) prints the same information from the
+binary and the files it finds, and reports differences between the two (a
+module in the manifest that is not on disk, a file on the search path that is
+not in the manifest).</p>
+<p>[open] JSON or a <code>.cmake</code>/<code>.ini</code> file? JSON is readable from JS without
+bootstrap and by every other runtime's tooling.</p>
+<h3 id="41-builtins-are-closed-implemented"><a class="anchor" href="#41-builtins-are-closed-implemented" aria-hidden="true">#</a>4.1 Builtins are closed [implemented]</h3>
+<p><strong>Hard rule: a compiled-in JS builtin never loads a <code>.js</code> from disk.</strong> Every
+module it imports statically is itself a builtin, built from the same <code>lib/</code>
+the importer was built against.</p>
+<p><em>cmake.</em> <code>qjsm_resolve_builtins</code> scans each builtin's literal <code>import</code>/`export
+from<code> specifiers (</code>qjsm_scan_imports`; computed specifiers are reported, not followed) and
+adds what they name to <code>BUILTINS_NEEDED</code> (<code>_JS</code>, <code>_NATIVE</code> for the split).</p>
+<ul>
+<li>Weak: derived on every configure, never cached. Remove the dependants from
+<code>BUILTIN_MODULES</code> and the dependencies leave the binary with them.</li>
+<li>Compiled in is <code>${BUILTIN_MODULES} ${BUILTINS_NEEDED}</code>. Needed JS modules are
+not installed as <code>.js</code>; needed natives join the link closure (their
+libraries and extra sources follow).</li>
+<li>The configure summary prints "Pulled in as dependencies of the builtins" as
+<code>name (js|C) &lt;- importers</code>. <code>vfs</code> loads <code>archive</code> on first use (<code>requireModule</code>), so it is not a build
+dependency: the default qjsm no longer links libarchive and <code>archive.so</code> is found on the
+module path when an archive is opened.</li>
+<li>Names containing <code>-</code> are emitted with <code>BUILTIN_COMPILED_AS(symbol, "name")</code>
+(<code>simple_queue</code> / "simple-queue").</li>
+<li>A builtin does not import <code>node:x</code>: C knows nothing of that prefix. The
+lib files use <code>node/x</code> (<code>lib/readline.js</code>, <code>lib/node/child_process.js</code>).</li>
+</ul>
+<p><em>qjsm.c.</em> While the engine resolves a builtin's static imports
+(<code>jsm_builtin_init</code> around <code>JS_ResolveModule</code>, <code>jsm_builtin_depth &gt; 0</code>):</p>
+<ul>
+<li>only the builtin table is consulted: no disk, no <code>QUICKJS_MODULE_PATH</code>, no
+<code>package.json</code>, no hooks. A miss throws a ReferenceError naming the importer,
+the specifier and the reason (not built in, or <code>--disable-builtin</code>).</li>
+<li>the window is per thread and covers the builtin and its dependencies, so a
+C-&gt;JS-&gt;C chain stays inside it.</li>
+<li>run-time dynamic <code>import()</code> called by a builtin (e.g. <code>require.js</code>) is <em>not</em>
+inside the window; it is the user's request and resolves normally. [decided
+2026-10-14] This is not restricted: <code>require()</code>, the REPL and <code>describe</code> exist to load
+what the user names. A literal <code>import('x')</code> is followed at build time like a static
+import (so <code>process</code> pulls in <code>node/events</code>); a computed one is listed in the configure
+summary ("Builtins with a computed import()", <code>qjsm_scan_computed_imports</code>).</li>
+</ul>
+<p><em>Hooks.</em> <code>registerHooks()</code> hooks do not see imports of a builtin or its
+dependencies, so they cannot redirect them. <code>--hooks-on-builtins</code> /
+<code>QJSM_HOOKS_ON_BUILTINS=1</code> lifts this for the <em>bare name</em> lookup of user code
+(a hook then runs before the builtin is chosen). Default off.</p>
+<p><em>Aliases.</em> <code>package.json</code> <code>_moduleAliases</code> is no longer in the C loader. The
+builtin <code>loaders_package-aliases</code> (preloaded, only when present) registers a resolve
+hook when <code>./package.json</code> has the key, so aliases apply after builtin
+resolution and never to a builtin's own imports.</p>
+<p><em>Disabling.</em> <code>--disable-builtin a,b</code> or <code>QJSM_DISABLE_BUILTINS=a,b</code> mark
+builtins unfindable (<code>-l</code> shows "(disabled)", the <code>builtins</code> global skips
+them). A builtin importing a disabled one fails with the error above. From JS,
+<code>disableBuiltin(...names)</code> does the same at run time (returns the names switched off;
+modules already loaded stay loaded).</p>
+<p><em>Compat.</em> Node (<code>loaders_node</code>, <code>node/*</code>), module-alias (<code>loaders_package-aliases</code>), Bun
+and Web platform layers are builtins like any other and so opt-out: leave them
+out of <code>BUILTIN_MODULES</code>/<code>BUILTINS_COMPILED</code> at build time or disable them on
+the command line. The configure summary reports each one present (specifiers
+it provides, what it rewrites, globals); with no builtins and no compat it
+prints nothing.</p>
+<p><em>Tracing.</em> <code>DEBUG=modules</code> prints the load tree (tags <code>import</code>/<code>load</code>/<code>FAIL</code>,
+<code>| </code> per nesting level, <code>(builtin)</code>/<code>(builtin, dependency)</code>/<code>(native)</code>/<code>(file)</code>
+marks, colors on a terminal, <code>NO_COLOR</code> honored) and a count line at exit;
+<code>DEBUG=modules,modules,...</code> adds the C-level <code>DEBUG_MODULE()</code> detail. It stays
+in C because it also sees what happens before any hook exists and does not
+perturb hook chains. The JS counterpart is <code>lib/loaders/trace.js</code> (<code>doc/js/loaders/trace.md</code>).</p>
+<h2 id="5-build-info-in-qjsm"><a class="anchor" href="#5-build-info-in-qjsm" aria-hidden="true">#</a>5. Build info in qjsm</h2>
+<h3 id="51-fields-implemented"><a class="anchor" href="#51-fields-implemented" aria-hidden="true">#</a>5.1 Fields [implemented]</h3>
+<div class="tablewrap"><table><thead><tr><th>Field</th><th>Source</th><th>Note</th></tr></thead><tbody><tr><td><code>version</code></td><td><code>project(VERSION)</code></td><td>qjs-modules</td></tr><tr><td><code>commit</code></td><td><code>git rev-parse --short=12 HEAD</code></td><td>plus <code>-dirty</code> if the tree has changes</td></tr><tr><td><code>date</code></td><td>configure or build time?</td><td>[open] see below</td></tr><tr><td><code>quickjs.version</code></td><td><code>CONFIG_VERSION</code>, libquickjs</td><td>the runtime linked</td></tr><tr><td><code>qjsc.version</code></td><td><code>qjsc -h</code> first line, parsed</td><td>the compiler of the builtins</td></tr><tr><td><code>qjsc.path</code></td><td><code>QJSC</code></td><td></td></tr><tr><td><code>bytecode</code></td><td>bytecode version number of the engine</td><td>a blob is unusable on a different one</td></tr><tr><td><code>compiler</code></td><td><code>CMAKE_C_COMPILER_ID</code> + version</td><td></td></tr><tr><td><code>target</code></td><td><code>CMAKE_SYSTEM_NAME-ARCH</code>, multiarch triple</td><td></td></tr><tr><td><code>build_type</code></td><td><code>CMAKE_BUILD_TYPE</code></td><td></td></tr><tr><td><code>layout</code></td><td>the table of 3.1</td><td>the compiled-in view</td></tr><tr><td><code>builtins</code></td><td>counts and the names</td><td>same as the manifest</td></tr></tbody></table></div>
+<p>[open] Date: a build date changes the object file on every build (no reproducible
+builds, always relinks). Options: <code>SOURCE_DATE_EPOCH</code> when set, otherwise the
+configure time; a separate tiny object (<code>qjsm-buildinfo.c</code>) regenerated on every
+build so only that object and the link change.</p>
+<h3 id="52-carrying-it-implemented"><a class="anchor" href="#52-carrying-it-implemented" aria-hidden="true">#</a>5.2 Carrying it [implemented]</h3>
+<ul>
+<li>Generated file <code>qjsm-buildinfo.c</code> in the build directory, written by CMake at
+configure time (static part) plus a build-time step for the volatile part
+(date, dirty flag), compiled into <code>qjsm</code>.</li>
+<li>Contents: one JSON document as <code>const char qjsm_buildinfo[]</code> in its own
+section (<code>.qjsm.info</code>) so the blob can also be found from outside with
+<code>objcopy -O binary --only-section=.qjsm.info qjsm</code> or <code>readelf -p</code>.
+[open] COFF/Mach-O equivalents of the section.</li>
+<li>Prefix with a magic string (<code>QJSM-BUILDINFO\0</code>) so <code>strings</code>/<code>file</code> style tools
+and a future <code>qjsm --inspect &lt;binary&gt;</code> can locate it in a binary they did not
+start.</li>
+<li>The same data is exposed by:
+<ul>
+<li><code>qjsm --version</code> (one line) and <code>qjsm --build-info</code> (JSON);</li>
+<li>the global <code>qjsm.info</code> / <code>import { buildInfo } from 'module'</code>.</li>
+</ul></li>
+</ul>
+<h3 id="53-compatibility-check-implemented"><a class="anchor" href="#53-compatibility-check-implemented" aria-hidden="true">#</a>5.3 Compatibility check [implemented]</h3>
+<p>At start qjsm compares <code>quickjs.version</code>/<code>bytecode</code> of the info blob with the
+linked libquickjs. A mismatch (builtin bytecode compiled by another qjsc than the
+engine that runs it) is a hard error naming both versions, not a crash in
+<code>JS_ReadObject</code>.</p>
+<h2 id="6-reading-the-baked-in-data-from-js"><a class="anchor" href="#6-reading-the-baked-in-data-from-js" aria-hidden="true">#</a>6. Reading the baked-in data from JS</h2>
+<h3 id="61-the-c-side-implemented"><a class="anchor" href="#61-the-c-side-implemented" aria-hidden="true">#</a>6.1 The C side [implemented]</h3>
+<p><code>qjsm.c</code> owns four things that are today only reachable through the loader:</p>
+<ol>
+<li>the build info blob (5.2),</li>
+<li>the builtin table (<code>jsm_builtins</code>: name, native or compiled, init function,
+bytecode pointer and size),</li>
+<li>the qjsc bytecode blobs <code>qjsc_&lt;name&gt;</code>,</li>
+<li>the layout (compiled-in module path, prefix).</li>
+</ol>
+<p>API options, from most conservative:</p>
+<ul>
+<li><strong>A. Plain accessors, ArrayBuffer out.</strong> A native module <code>qjsm</code> (or properties
+on the existing <code>*Module</code> globals) with
+<code>info() -&gt; object</code>, <code>builtins() -&gt; [{name, kind}]</code>,
+<code>bytecode(name) -&gt; ArrayBuffer</code> (a <strong>copy</strong>, or a non-owning view; see open
+question), <code>layout() -&gt; object</code>. No pointers leave C.</li>
+<li><strong>B. Addresses via <code>dlsym()</code>.</strong> <code>dlsym(RTLD_DEFAULT, "qjsc_assert")</code> needs the
+symbols exported from the executable (<code>-rdynamic</code>/<code>--export-dynamic</code>), which
+bloats the dynamic symbol table and does not exist on static, Windows or wasm
+builds. [open] probably not; one sentence in the doc so nobody tries it again
+unless the numbers say it is worth it.</li>
+<li><strong>C. One table, one pass.</strong> <code>qjsm.c</code> exports a single array
+<code>{name, kind, data, size}</code> and the JS side gets it as ArrayBuffers sliced from
+one view over <code>.rodata</code> (zero-copy) when the platform allows
+<code>JS_NewArrayBuffer</code> with a no-op free callback.</li>
+</ul>
+<p>[open] Copy or view? A view over <code>.rodata</code> is free and read-only in practice but
+JS can write to an ArrayBuffer; a write faults. Either freeze (a typed array on a
+copy-on-first-write wrapper) or copy: 34 modules are about 640 KiB, so a copy per
+<code>bytecode(name)</code> call is acceptable and safe. Start with copies.</p>
+<h3 id="62-libmodulejs-implemented"><a class="anchor" href="#62-libmodulejs-implemented" aria-hidden="true">#</a>6.2 <code>lib/module.js</code> [implemented]</h3>
+<p>Names follow Node where Node has one (<code>builtinModules</code>, <code>isBuiltin</code>,
+<code>findPackageJSON</code> already exist in <code>lib/module.js</code>):</p>
+<div class="tablewrap"><table><thead><tr><th>Function</th><th>Returns</th></tr></thead><tbody><tr><td><code id="62-libmodulejs-implemented-module-builtinmodules">Module.builtinModules</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-builtinmodules" aria-hidden="true">#</a></td><td>list of builtin names (exists)</td></tr><tr><td><code id="62-libmodulejs-implemented-module-isbuiltin">Module.isBuiltin(name)</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-isbuiltin" aria-hidden="true">#</a></td><td>boolean (exists)</td></tr><tr><td><code id="62-libmodulejs-implemented-module-buildinfo">Module.buildInfo</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-buildinfo" aria-hidden="true">#</a></td><td>the parsed info blob</td></tr><tr><td><code id="62-libmodulejs-implemented-module-layout">Module.layout()</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-layout" aria-hidden="true">#</a></td><td>compiled-in paths plus the effective search path (env override applied)</td></tr><tr><td><code id="62-libmodulejs-implemented-module-builtins">Module.builtins()</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-builtins" aria-hidden="true">#</a></td><td><code>[{name, kind: 'native'|'js', size?}]</code></td></tr><tr><td><code id="62-libmodulejs-implemented-module-bytecode">Module.bytecode(name)</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-bytecode" aria-hidden="true">#</a></td><td><code>ArrayBuffer</code> of the qjsc blob of a compiled builtin</td></tr><tr><td><code id="62-libmodulejs-implemented-module-installed">Module.installed()</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-installed" aria-hidden="true">#</a></td><td>scan of the search path: <code>[{name, kind, path, shadowed}]</code></td></tr><tr><td><code id="62-libmodulejs-implemented-module-manifest">Module.manifest()</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-manifest" aria-hidden="true">#</a></td><td>the installed <code>manifest.json</code>, or <code>null</code></td></tr><tr><td><code id="62-libmodulejs-implemented-module-verify">Module.verify()</code><a class="member-anchor" href="#62-libmodulejs-implemented-module-verify" aria-hidden="true">#</a></td><td>compare binary, manifest and disk; returns the list of differences</td></tr></tbody></table></div>
+<p>On Node/Bun/Deno the same functions exist with the portable parts only
+(<code>builtinModules</code>, <code>isBuiltin</code>, <code>layout()</code> from <code>process.execPath</code>/import maps),
+so a script can call <code>Module.layout()</code> everywhere. [open] where that shim lives
+(<code>lib/</code> polyfill versus a separate package). Today the functions exist in qjsm only;
+<code>Module.buildInfo</code> is <code>undefined</code> elsewhere.</p>
+<h2 id="7-cross-runtime-layout"><a class="anchor" href="#7-cross-runtime-layout" aria-hidden="true">#</a>7. Cross-runtime layout</h2>
+<p>The point of a clear layout is that the <strong>same import specifiers work</strong> in qjsm,
+Node, Bun, Deno and a browser. What each needs:</p>
+<div class="tablewrap"><table><thead><tr><th>Runtime</th><th>How it finds a module</th><th>What the build can provide</th></tr></thead><tbody><tr><td>qjsm</td><td>builtin table, <code>QUICKJS_MODULE_PATH</code>, hooks</td><td>the table and path of sections 3 to 6</td></tr><tr><td>Node</td><td><code>node_modules</code>, <code>package.json</code> <code>exports</code>/<code>imports</code></td><td>a generated <code>package.json</code> with <code>exports</code> for the installed JS modules</td></tr><tr><td>Bun</td><td>like Node, plus <code>bunfig.toml</code></td><td>the same <code>package.json</code></td></tr><tr><td>Deno</td><td>import map (<code>tests/deno-import-map.json</code> exists)</td><td>an import map generated from the layout instead of hand written</td></tr><tr><td>Browser</td><td>import map in the page, ES module URLs</td><td>the same import map, with URLs relative to the install root</td></tr></tbody></table></div>
+<p>[proposed] The build generates, from the one layout description, into
+<code>&lt;QJSM_DATA_DIR&gt;</code>:</p>
+<ul>
+<li><code>package.json</code> (<code>exports</code>, <code>imports</code>) for Node and Bun,</li>
+<li><code>import-map.json</code> for Deno and browsers,</li>
+<li><code>manifest.json</code> (section 4).</li>
+</ul>
+<p>so the tests (<code>@portable</code> tests run on node, bun and deno) and users share one
+source of truth and the hand written <code>tests/deno-import-map.json</code> goes away.
+[open] Native modules have no meaning outside qjsm: the maps list only the
+JS modules, and a native-only module is marked as unavailable (or points at the
+portable JS fallback where one exists, e.g. <code>lib/*.js</code> polyfills of builtins).</p>
+<p>Consistency rule: a specifier that resolves to a builtin in qjsm must not
+resolve to a <em>different</em> implementation in another runtime without being listed
+as such in the manifest (<code>"portable": false</code>, <code>"fallback": "&lt;path&gt;"</code>).</p>
+<h2 id="8-order-of-work"><a class="anchor" href="#8-order-of-work" aria-hidden="true">#</a>8. Order of work</h2>
+<ol>
+<li>Layout variables and the configure report (3.1, 3.3). Smallest, no runtime
+change. Includes the "builtin and installed at the same time" line.</li>
+<li>Stop installing builtin natives (4.1) behind an option; the manifest file
+(4.4) written at install time.</li>
+<li>Build info: generated object, <code>qjsm --version</code>/<code>--build-info</code> (5).</li>
+<li>C accessors and <code>Module.*</code> in <code>lib/module.js</code> (6).</li>
+<li>Relocatable installs (3.2).</li>
+<li>Generated <code>package.json</code>/import maps (7).</li>
+</ol>
+<p>Each step: a snapshot comparison of the configure artifacts for the unchanged
+parts, and a test for the new behaviour (<code>tests/unittests/test-module.js</code>).</p>
+<h2 id="9-open-questions"><a class="anchor" href="#9-open-questions" aria-hidden="true">#</a>9. Open questions</h2>
+<ol>
+<li><code>QJSM_*</code> variables versus the existing <code>QUICKJS_*</code> names (3.1).</li>
+<li>Build date and reproducibility (5.1).</li>
+<li>Copy or view for bytecode blobs (6.1).</li>
+<li>Where the cross-runtime <code>Module.*</code> shim lives (6.2).</li>
+<li>Native modules in the generated maps (7).</li>
+<li>~~JS API to disable a builtin at run time~~ <code>disableBuiltin()</code> global, done 2026-10-14.</li>
+<li>Do installed natives that are also builtin ever matter? <code>qjs</code> (not qjsm) can
+load <code>fs.so</code> from the module path; if the answer is yes, option
+<code>QJSM_INSTALL_BUILTIN_NATIVE</code> stays, defaulting to <code>OFF</code>.</li>
+</ol>
+<h2 id="10-decision-log"><a class="anchor" href="#10-decision-log" aria-hidden="true">#</a>10. Decision log</h2>
+<div class="tablewrap"><table><thead><tr><th>Date</th><th>Decision</th></tr></thead><tbody><tr><td>2026-10-14</td><td>Goals 1 to 5 as listed in section 1 (user).</td></tr><tr><td>2026-10-14</td><td>Document started; sections 3 to 7 are proposals.</td></tr><tr><td>2026-10-14</td><td>Builtins are closed: dependencies of builtins are builtins (<code>BUILTINS_NEEDED</code>), no disk or hook access below a builtin; <code>_moduleAliases</code> moved to a hook (user).</td></tr></tbody></table></div></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/qjsm-layout.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#1-goals">1. Goals</a></li><li class="lvl2"><a href="#2-where-things-stand-today">2. Where things stand today</a></li><li class="lvl3"><a href="#21-layout-verified">2.1 Layout [verified]</a></li><li class="lvl3"><a href="#22-builtin-versus-installed-verified">2.2 Builtin versus installed [verified]</a></li><li class="lvl3"><a href="#23-loader-configuration-verified">2.3 Loader configuration [verified]</a></li><li class="lvl3"><a href="#24-what-the-build-knows-and-discards-verified">2.4 What the build knows and discards [verified]</a></li><li class="lvl2"><a href="#3-layout-as-configuration">3. Layout as configuration</a></li><li class="lvl3"><a href="#31-variables-implemented">3.1 Variables [implemented]</a></li><li class="lvl3"><a href="#32-relocatable-installs-proposed">3.2 Relocatable installs [proposed]</a></li><li class="lvl3"><a href="#33-report-at-configure-time-implemented">3.3 Report at configure time [implemented]</a></li><li class="lvl2"><a href="#4-builtin-versus-installed-one-rule-implemented">4. Builtin versus installed: one rule [implemented]</a></li><li class="lvl3"><a href="#41-builtins-are-closed-implemented">4.1 Builtins are closed [implemented]</a></li><li class="lvl2"><a href="#5-build-info-in-qjsm">5. Build info in qjsm</a></li><li class="lvl3"><a href="#51-fields-implemented">5.1 Fields [implemented]</a></li><li class="lvl3"><a href="#52-carrying-it-implemented">5.2 Carrying it [implemented]</a></li><li class="lvl3"><a href="#53-compatibility-check-implemented">5.3 Compatibility check [implemented]</a></li><li class="lvl2"><a href="#6-reading-the-baked-in-data-from-js">6. Reading the baked-in data from JS</a></li><li class="lvl3"><a href="#61-the-c-side-implemented">6.1 The C side [implemented]</a></li><li class="lvl3"><a href="#62-libmodulejs-implemented">6.2 lib/module.js [implemented]</a></li><li class="lvl2"><a href="#7-cross-runtime-layout">7. Cross-runtime layout</a></li><li class="lvl2"><a href="#8-order-of-work">8. Order of work</a></li><li class="lvl2"><a href="#9-open-questions">9. Open questions</a></li><li class="lvl2"><a href="#10-decision-log">10. Decision log</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/rsenn/tree/main/tools/site">rsenn/rsenn tools/site</a>.</p>
+</footer>
+<script src="../assets/search-index.js"></script>
+<script src="../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qjsm — REPL with module functions — qjs-modules</title>
+<meta name="description" content="qjs-modules — The standard library QuickJS deserves. WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../assets/base.css">
+<link rel="stylesheet" href="../assets/theme.css">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-site="qjs-modules" data-root="../">
+<header class="topbar">
+  <a class="brand" href="../index.html"><span class="mark">{ }</span> <span class="brand-name">qjs-modules</span></a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../getting-started.html">Get started</a>
+    <a href="../docs/index.html">Docs</a>
+    <a href="../docs/runtime-compat.html">Compatibility</a>
+    <a href="../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../getting-started.html">Getting started</a></li><li><a href="../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="index.html">API reference</a></li><li><a href="runtime-compat.html">Node / Bun / Deno compatibility</a></li><li><a href="api-compatibility.html">Standards compatibility</a></li><li><a href="api-compatibility-nodejs.html">Node.js API gaps</a></li><li><a href="api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="qjsm.html" class="here">qjsm</a></li><li><a href="qjsm-layout.html">qjsm layout (working paper)</a></li><li><a href="grammar.html">Grammar</a></li></ul></div><div class="navgroup"><h3>json, xml & path studies</h3><ul><li><a href="api-event-model.html">Event model (design)</a></li><li><a href="event-model-state.html">Event model (state)</a></li><li><a href="api-compare-json.html">json: comparison</a></li><li><a href="api-implement-json.html">json: implementation</a></li><li><a href="api-interface-json.html">json: interfaces</a></li><li><a href="api-compare-xml.html">xml: comparison</a></li><li><a href="api-implement-xml.html">xml: implementation</a></li><li><a href="api-interface-xml.html">xml: interfaces</a></li><li><a href="api-compare-path.html">path: comparison</a></li><li><a href="api-implement-path.html">path: implementation</a></li><li><a href="api-interface-path.html">path: interfaces</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="native/index.html">Native modules overview</a></li><li><a href="native/archive.html">archive</a></li><li><a href="native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="native/bcrypt.html">bcrypt</a></li><li><a href="native/bjson.html">bjson</a></li><li><a href="native/blob.html">blob</a></li><li><a href="native/json.html">json</a></li><li><a href="native/lexer.html">lexer</a></li><li><a href="native/list.html">list</a></li><li><a href="native/textcode.html">textcode</a></li><li><a href="native/xml.html">xml</a></li><li><a href="native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="native/child-process.html">child-process</a></li><li><a href="native/directory.html">directory</a></li><li><a href="native/gpio.html">gpio</a></li><li><a href="native/location.html">location</a></li><li><a href="native/magic.html">magic</a></li><li><a href="native/misc.html">misc</a></li><li><a href="native/mmap.html">mmap</a></li><li><a href="native/path.html">path</a></li><li><a href="native/serial.html">serial</a></li><li><a href="native/sockets.html">sockets</a></li><li><a href="native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="native/deep.html">deep</a></li><li><a href="native/inspect.html">inspect</a></li><li><a href="native/pointer.html">pointer</a></li><li><a href="native/predicate.html">predicate</a></li><li><a href="native/tree-walker.html">tree-walker</a></li><li><a href="native/queue.html">queue</a></li><li><a href="native/repeater.html">repeater</a></li><li><a href="native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — QuickJS core</h3><ul><li><a href="native/os.html">os</a></li><li><a href="native/std.html">std</a></li></ul></div><div class="navgroup"><h3>WebAssembly</h3><ul><li><a href="native/wasm.html">wasm (engines & API)</a></li><li><a href="js/webassembly.html">WebAssembly global</a></li><li><a href="js/wasi.html">WASI</a></li><li><a href="js/loaders/wasm.html">.wasm loader</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="native/mysql.html">mysql</a></li><li><a href="native/pgsql.html">pgsql</a></li><li><a href="native/sqlite.html">sqlite</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="js/index.html">JS modules overview</a></li><li><a href="js/util.html">util</a></li><li><a href="js/iterator.html">iterator</a></li><li><a href="js/asyncIterator.html">asyncIterator</a></li><li><a href="js/extendArray.html">extendArray</a></li><li><a href="js/extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="js/extendMap.html">extendMap</a></li><li><a href="js/extendSet.html">extendSet</a></li><li><a href="js/extendFunction.html">extendFunction</a></li><li><a href="js/extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="js/extendGenerator.html">extendGenerator</a></li><li><a href="js/extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="js/assert.html">assert</a></li><li><a href="js/assertStrict.html">assertStrict</a></li><li><a href="js/console.html">console</a></li><li><a href="js/process.html">process</a></li><li><a href="js/events.html">events</a></li><li><a href="js/abort.html">abort</a></li><li><a href="js/timers.html">timers</a></li><li><a href="js/timersPromises.html">timersPromises</a></li><li><a href="js/globals.html">globals</a></li><li><a href="js/intl.html">intl</a></li><li><a href="js/perf_hooks.html">perf_hooks</a></li><li><a href="js/module.html">module</a></li><li><a href="js/require.html">require</a></li><li><a href="js/stack.html">stack</a></li><li><a href="js/lazyGlobal.html">lazyGlobal</a></li></ul></div><div class="navgroup"><h3>JS — Node & Bun</h3><ul><li><a href="js/node.html">node</a></li><li><a href="js/node-buffer.html">node-buffer</a></li><li><a href="js/node-child-process.html">node-child-process</a></li><li><a href="js/node-events.html">node-events</a></li><li><a href="js/node-os.html">node-os</a></li><li><a href="js/node-util.html">node-util</a></li><li><a href="js/bun.html">bun</a></li><li><a href="js/bun-util.html">bun-util</a></li><li><a href="js/loaders/commonjs.html">loaders/commonjs</a></li><li><a href="js/loaders/file.html">loaders/file</a></li><li><a href="js/loaders/packages.html">loaders/packages</a></li><li><a href="js/loaders/trace.html">loaders/trace</a></li><li><a href="js/loaders/typescript.html">loaders/typescript</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="js/fs.html">fs</a></li><li><a href="js/fsPromises.html">fsPromises</a></li><li><a href="js/io.html">io</a></li><li><a href="js/stream.html">stream</a></li><li><a href="js/streams.html">streams</a></li><li><a href="js/vfs.html">vfs</a></li><li><a href="js/glob.html">glob</a></li><li><a href="js/file.html">file</a></li><li><a href="js/inotify.html">inotify</a></li><li><a href="js/tty.html">tty</a></li><li><a href="js/terminal.html">terminal</a></li><li><a href="js/readline.html">readline</a></li><li><a href="js/readlinePromises.html">readlinePromises</a></li><li><a href="js/string_decoder.html">string_decoder</a></li><li><a href="js/textLineStream.html">textLineStream</a></li><li><a href="js/socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — JSON dialects</h3><ul><li><a href="js/json5.html">json5</a></li><li><a href="js/jsonc.html">jsonc</a></li><li><a href="js/jsonl.html">jsonl</a></li><li><a href="js/jsonStreams.html">jsonStreams</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="js/dom.html">dom</a></li><li><a href="js/xpath.html">xpath</a></li><li><a href="js/parser.html">parser</a></li><li><a href="js/lex.html">lex</a></li><li><a href="js/grammar-parsers.html">grammar-parsers</a></li><li><a href="js/parse-ast.html">parse-ast</a></li><li><a href="js/module-lexer.html">module-lexer</a></li><li><a href="js/lexers.html">lexers</a></li><li><a href="js/css3-selectors.html">css3-selectors</a></li><li><a href="js/html.html">html</a></li><li><a href="js/url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases</h3><ul><li><a href="js/sql.html">sql</a></li><li><a href="js/db.html">db</a></li><li><a href="js/database.html">database</a></li><li><a href="js/dbi.html">dbi</a></li></ul></div><div class="navgroup"><h3>JS — Tooling & Misc</h3><ul><li><a href="js/repl.html">repl</a></li><li><a href="js/describe.html">describe</a></li><li><a href="js/c-functions.html">c-functions</a></li><li><a href="js/magic-string.html">magic-string</a></li><li><a href="js/tinytest.html">tinytest</a></li><li><a href="js/simple-queue.html">simple-queue</a></li><li><a href="js/password.html">password</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="qjsm--repl-with-module-functions"><a class="anchor" href="#qjsm--repl-with-module-functions" aria-hidden="true">#</a>qjsm — REPL with module functions</h1>
+<p>Source: <code>src/qjsm.c</code> (~2800 lines), built on top of the <code>quickjs-modules</code> static
+library (<code>src/*.c</code>) and every native module this build was configured with
+(<code>quickjs-*.c</code>).</p>
+<p><code>qjsm</code> is this project's own QuickJS shell/REPL binary — a sibling of upstream
+QuickJS's <code>qjs</code>, built from a private fork of it, that adds everything qjs-modules
+exists to provide: a real ES module loader with builtin/<code>node:</code>/<code>data:</code>/JSON/alias
+resolution, a <code>process</code>-shaped bootstrap, and a set of <code>*Module</code> introspection
+functions on <code>globalThis</code> for working with the module graph from script code.</p>
+<h2 id="why-qjsm-exists-vs-plain-qjs"><a class="anchor" href="#why-qjsm-exists-vs-plain-qjs" aria-hidden="true">#</a>Why qjsm exists (vs. plain <code>qjs</code>)</h2>
+<p>Upstream <code>qjs</code> (<code>quickjs-libc.c</code>'s <code>qjs.c</code>) is deliberately minimal: it exposes
+<code>std</code>/<code>os</code>, a bare-bones <code>import</code>, and nothing else. That's the right default for
+the reference implementation, but it's not enough to actually <em>use</em> qjs-modules:</p>
+<ul>
+<li>qjs-modules ships ~30 native C modules (<code>fs</code>, <code>path</code>, <code>child-process</code>,
+<code>sockets</code>, <code>inspect</code>, <code>xml</code>, <code>dom</code>, ...) and ~45 JS modules (<code>lib/*.js</code>). Plain
+<code>qjs</code> has no way to know these exist, let alone resolve a bare specifier like
+<code>import fs from 'fs'</code> to one of them.</li>
+<li>Plain <code>qjs</code>'s loader only understands filesystem paths. It has no concept of a
+builtin-module registry, an <code>QUICKJS_MODULE_PATH</code> search path, <code>node:</code> prefix
+aliasing, <code>data:</code> URLs, JSON modules, or <code>package.json</code>-driven aliasing —
+every one of those is a qjs-modules-specific addition.</li>
+<li>Plain <code>qjs</code> has no <code>process</code> global, no <code>require()</code>-flavored introspection of
+what's loaded, and its REPL (<code>qjs -i</code>) has no notion of importing a module
+interactively.</li>
+</ul>
+<p><code>qjsm</code> is the shell that actually dogfoods qjs-modules: every module in the
+build is registered into it as a builtin, <code>lib/process.js</code> is imported
+automatically at startup (so <code>process</code>/<code>console</code> behave like they do under
+Node/Bun/Deno — see the project's <a href="index.html">API-compatibility priority</a>), and
+the module loader is rewritten from scratch (<code>jsm_module_normalize</code>/
+<code>jsm_module_loader</code>) to support the resolution order below. Everything else in
+qjs-modules — <code>fs</code>, <code>path</code>, <code>stream</code>, ... — works identically under plain <code>qjs</code>
+too (that's a deliberate design constraint: no module may <em>require</em> <code>qjsm</code>); <code>qjsm</code>
+is specifically the convenience shell for developing and exploring this stack
+interactively, not a dependency of it.</p>
+<div class="tablewrap"><table><thead><tr><th></th><th><code>qjs</code></th><th><code>qjsm</code></th></tr></thead><tbody><tr><td>Module loader</td><td>Filesystem paths only</td><td>Builtin registry, <code>node:</code> prefix, <code>data:</code> URLs, <code>.json</code>, <code>package.json</code> <code>_moduleAliases</code>, <code>QUICKJS_MODULE_PATH</code> search, Node-style <code>registerHooks()</code> resolve/load hooks</td></tr><tr><td>Builtin modules</td><td>None</td><td>Every native/JS module the build was configured with, statically registered</td></tr><tr><td>Bootstrap globals</td><td><code>std</code>, <code>os</code> (only with <code>--std</code>)</td><td><code>process</code>, Node's globals (<code>Buffer</code>, <code>URL</code>, <code>fetch</code>, ...) and <code>Bun</code>, see <a href="#node-and-bun-compatibility">Node and Bun compatibility</a>; <code>std</code>/<code>os</code> with <code>--std</code>; <code>console</code> from the REPL</td></tr><tr><td>Module introspection</td><td>None</td><td><code>findModule</code>, <code>loadModule</code>, <code>requireModule</code>, <code>normalizeModule</code>, <code>resolveModule</code>, <code>locateModule</code>, <code>registerHooks</code>, <code>moduleList</code>, <code>moduleEntries</code> on <code>globalThis</code></td></tr><tr><td>REPL</td><td>Line evaluator only</td><td>Line evaluator + <code>\</code>-directives, including <code>\i &lt;module&gt;</code> to import interactively</td></tr><tr><td><code>-m</code> flag</td><td>N/A</td><td>Loads named modules onto <code>globalThis</code> before the main script/REPL runs</td></tr></tbody></table></div>
+<h2 id="design-ideas"><a class="anchor" href="#design-ideas" aria-hidden="true">#</a>Design ideas</h2>
+<p><strong>One loader, layered resolution.</strong> Rather than several competing module
+systems, <code>qjsm</code> registers a single <code>JSModuleLoaderFunc</code>
+(<code>jsm_module_loader</code>) and normalizer (<code>jsm_module_normalize</code>) with the engine
+via <code>JS_SetModuleLoaderFunc()</code>, and every special case (builtin, <code>data:</code>,
+<code>.json</code>, alias, path search) is a branch inside that one pipeline, tried in a
+fixed precedence order (see below). Anything not recognized falls through to
+the engine's own default filesystem loader (<code>js_module_loader()</code>).</p>
+<p><strong>Builtins are a build-time-generated table, not a runtime registry.</strong>
+<code>jsm_builtin_modules[]</code> (a <code>Vector</code> of <code>BuiltinModule</code> records: name, init
+function or bytecode blob, cached <code>JSModuleDef*</code>) is populated once at startup
+by expanding <code>#include "quickjs-builtins.h"</code> through the
+<code>jsm_builtin_native(name)</code>/<code>jsm_builtin_compiled(name)</code> macros. That header is
+<em>generated by CMake</em> (<code>CMakeLists.txt</code>, written to
+<code>${CMAKE_CURRENT_BINARY_DIR}/quickjs-builtins.h</code>) from the set of native
+modules the build was configured with (<code>QUICKJS_MODULES</code>) and the set of
+<code>lib/*.js</code> files precompiled to QuickJS bytecode via the <code>qjs</code> compiler at
+build time (see the root <code>CLAUDE.md</code>'s note on <code>modules/*.c</code> generation). So
+"what's builtin to this <code>qjsm</code>" is a compile-time property of the build, not
+something assembled by scanning a directory at runtime — a release binary and
+a WASM/Emscripten build can ship a different builtin set without any code
+change, just a different <code>QUICKJS_MODULES</code> list.</p>
+<p>A builtin is only actually <em>initialized</em> (native module function called, or
+bytecode <code>JS_ReadObject</code>'d and evaluated) the first time it's imported
+(<code>jsm_builtin_init()</code>), and the resulting <code>JSModuleDef*</code> is cached on its
+record — so listing 30 builtins costs nothing if a script only imports 3 of
+them.</p>
+<p><strong>A shadow list, because <code>JSModuleDef</code> is opaque.</strong> The engine keeps its own
+internal list of loaded modules (<code>ctx-&gt;loaded_modules</code>), but nothing in the
+public <code>quickjs.h</code> API exposes it or the module's own name back to embedder
+code (module <em>identity</em> — the <code>JSModuleDef*</code> — is public via
+<code>JS_TAG_MODULE</code>/<code>JS_ResolveModule()</code>/<code>JS_GetModuleNamespace()</code>, but "what's the
+name of this loaded module" and "list everything that's loaded" are not).
+<code>qjsm</code> keeps its own parallel list, <code>loaded_modules</code> (a <code>struct list_head</code> of
+<code>LoadedModule { name, module }</code> records), appended to by <code>jsm_module_loader()</code>
+every time it resolves a specifier. <code>moduleList</code>/<code>moduleEntries</code>,
+<code>findModule</code>, and the loader's own re-entrancy cache
+(<code>jsm_module_find()</code>) all walk this shadow list rather than reaching into engine
+internals — see <a href="#implementation-notes-and-history">Implementation notes</a> for
+why that restraint matters.</p>
+<p><strong>Everything interesting is a <code>globalThis</code> function, not a CLI-only
+feature.</strong> <code>-m module</code> (load a module onto <code>globalThis</code> before the main script
+runs) and <code>loadModule('module')</code> (do the same thing from script code) are
+literally the same code path (<code>jsm_module_load()</code>) — the CLI flag just queues
+its argument into <code>module_list</code>, drained once at startup. Likewise the REPL's
+<code>\i module</code> directive (<code>lib/repl.js</code>) is just calling the exported
+<code>loadModule()</code> <em>JS</em> helper there, which itself is a thin wrapper around
+<code>import()</code> — a separate, simpler thing from the C-level <code>loadModule</code> global
+described below (same name, same idea, two independent implementations: one
+for scripts, one for the REPL). The goal throughout is that nothing requires
+dropping into a debugger or recompiling to inspect the module graph — it's all
+reachable from a one-liner.</p>
+<h2 id="module-resolution-pipeline"><a class="anchor" href="#module-resolution-pipeline" aria-hidden="true">#</a>Module resolution pipeline</h2>
+<p><code>QUICKJS_MODULE_PATH</code> is a list of directories separated by <code>;</code>, and on non-Windows systems also by <code>:</code>
+(the POSIX convention). Scripts that build it for portability (cmake, tests) always use <code>;</code>.</p>
+<p><code>jsm_module_normalize(path, name)</code> and <code>jsm_module_loader(name)</code> run in that
+order for every <code>import</code>/<code>import()</code>. Normalize tries, in order:</p>
+<ol>
+<li><strong>Builtin registry</strong> — if <code>name</code> has no <code>.</code>/<code>/</code> (a bare specifier) and
+<code>jsm_builtin_find(name)</code> matches a compiled-in module, resolve to it
+directly (no filesystem access at all), except for an importer below
+<code>node_modules</code>: there a Node name (<code>util</code>, <code>events</code>, <code>buffer</code>, ...) means Node's
+module, and <code>lib/loaders/node.js</code> maps it to <code>node:&lt;name&gt;</code>.</li>
+<li><strong>Relative/<code>./</code>/<code>../</code> import</strong> — joined against the <em>importing</em> module's own
+resolved path and normalized (<code>path_cat()</code> then <code>path_canon()</code>), skipped for a <code>data:</code>
+importer (see the comment at <code>jsm_module_normalize()</code> for why: naive
+<code>/</code>-splitting on a multi-KB <code>data:</code> URL body finds a <code>/</code> inside the source
+text, not a directory boundary).</li>
+<li><strong>Explicit shared-library suffix</strong> (<code>.so</code>/<code>.dll</code>/...) with no path
+component — searched via <code>QUICKJS_MODULE_PATH</code>.</li>
+<li><strong>Existing relative file</strong> — resolved to an absolute path directly.</li>
+</ol>
+<p>Then, in <code>jsm_module_loader(name)</code> once a candidate name is in hand:</p>
+<ol>
+<li><strong><code>data:</code> URL</strong> — <code>jsm_module_data()</code>: <code>data:[&lt;mime&gt;][;base64],&lt;payload&gt;</code>.
+<code>/javascript</code>or<code>/ecmascript</code> MIME evaluates the payload as a module's
+source (URL-decoded, or base64-decoded if <code>;base64</code> is present); <code>/json</code>
+MIME wraps it as <code>export default JSON.parse(...)</code> instead.</li>
+<li><strong><code>node:</code> prefix</strong> — not handled by the engine. <code>lib/loaders/node.js</code>, a
+<code>registerHooks()</code> resolver that <code>lib/node.js</code> installs (off with <code>-N</code>), maps <code>node:&lt;name&gt;</code> to the
+<code>lib/node/&lt;name&gt;.js</code> layer (builtin <code>node_&lt;name&gt;</code>), else to bare <code>&lt;name&gt;</code>;
+<code>node:os</code> is the layer <code>lib/node/os.js</code>, bare <code>os</code> stays this engine's <code>os</code>. Only Node's
+own module names are mapped: <code>node:deep</code> or <code>node:sqlite</code> resolves to itself and loading
+it throws <code>Error</code> <code>ERR_UNKNOWN_BUILTIN_MODULE</code> ("No such built-in module: node:deep"),
+as on Node and Bun.
+The subdirectories of <code>lib/</code> that are baked in are also reachable by their path:
+<code>import 'node/events'</code> is the builtin <code>node_events</code> and <code>import 'loaders/typescript'</code>
+the builtin <code>loaders_typescript</code> (slash written <code>_</code>, <code>jsm_builtin_lookup()</code>); when
+the builtin is absent or disabled the name is searched as a file (<code>node/events.js</code>
+in the module path).</li>
+<li><strong>Registered hooks</strong> (<code>registerHooks()</code>, see below) — when any are registered,
+steps 1-2 and 4-6 collapse into the hook chain's final <code>nextLoad()</code> and a
+<code>load</code> hook can answer for any URL (<code>data:</code> included). With none registered
+this step is skipped and the steps below run exactly as before.</li>
+<li><strong>Builtin registry</strong> (again, now that hooks may have rewritten the name).
+<code>package.json</code> <code>_moduleAliases</code> is applied by the builtin <code>loaders_package-aliases</code>
+as a resolve hook, so it never overrides a builtin; imports made <em>by</em> a
+builtin only see the builtin table (<a href="qjsm-layout.html">layout 4.1</a>).
+Bare names in <code>node_modules</code> and <code>#name</code> imports are resolved by the builtin
+<code>loaders_packages</code> (<a href="js/loaders/packages.html">loaders/packages</a>), a resolve hook
+installed like <code>loaders_node</code> (off with <code>-N</code>): Node's algorithm with <code>exports</code>,
+<code>imports</code> and the conditions <code>node</code>, <code>import</code>, <code>default</code> plus <code>-C</code>. A bare name no
+<code>node_modules</code> holds goes on to <code>QUICKJS_MODULE_PATH</code>.</li>
+<li><strong><code>.json</code> suffix</strong> — <code>jsm_module_json()</code> wraps the file's contents as
+<code>export default &lt;parsed JSON&gt;</code> and compiles that.</li>
+<li><strong>Everything else</strong> — the engine's own default loader
+(<code>js_module_loader()</code>), i.e. read-and-compile a file from disk.</li>
+</ol>
+<p>Every module that resolves this way (steps 1-6, plus builtins) gets a
+<code>LoadedModule</code> entry appended to <code>loaded_modules</code>, whether or not it's
+<code>import</code>ed again later — that shadow list is qjsm's only source of truth for
+"what's loaded" (see <a href="#design-ideas">Design ideas</a>).</p>
+<h2 id="import-attributes"><a class="anchor" href="#import-attributes" aria-hidden="true">#</a>Import attributes</h2>
+<p><code>with { type: "json" }</code> works in static and dynamic imports, and the attributes
+reach the loader, so <code>type</code> decides how a file is read whatever its name:</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-id">config</span> <span class="t-kw">from</span> <span class="t-str">"./config.json"</span> <span class="t-id">with</span> { <span class="t-id">type</span><span class="t-op">:</span> <span class="t-str">"json"</span> };
+
+<span class="t-kw">const</span> <span class="t-id">data</span> <span class="t-op">=</span> <span class="t-kw">await</span> <span class="t-kw">import</span>(<span class="t-str">"./data.dat"</span>, { <span class="t-id">with</span><span class="t-op">:</span> { <span class="t-id">type</span><span class="t-op">:</span> <span class="t-str">"json"</span> } }); <span class="t-cm">// parsed as JSON</span></code></pre></div>
+<p>qjsm checks the <strong>keys</strong>, as the specification and plain <code>qjs</code> do: <code>type</code> is the
+only supported one, and any other (<code>with { foo: "bar" }</code>) is a <code>TypeError</code> when
+the import is resolved, in a static and in a dynamic import. The values are not
+checked: <code>type: "nope"</code> and a <code>.json</code> imported with no attribute at all still
+load, which Node, Bun and Deno refuse. For a script that has to run there too,
+always write <code>with { type: "json" }</code>. The old <code>assert { ... }</code> keyword is a
+<code>SyntaxError</code>.</p>
+<h2 id="builtin-modules"><a class="anchor" href="#builtin-modules" aria-hidden="true">#</a>Builtin modules</h2>
+<p>The set of builtins is exactly <code>QUICKJS_MODULES</code> (native, e.g. <code>fs</code>, <code>path</code>,
+<code>sockets</code>) plus every <code>lib/*.js</code> file the build precompiles (e.g. <code>console</code>,
+<code>util</code>, <code>process</code>, <code>assert</code>) — see <code>CMakeLists.txt</code>'s <code>BUILTIN_HEADER</code>
+generation. Query the live set from script code:</p>
+<p>Node's subpath builtins resolve to flat modules: <code>fs/promises</code> (and <code>node:fs/promises</code>) is
+<code>fsPromises</code>, <code>timers/promises</code> is <code>timersPromises</code>. The compiled-in list is the CMake cache
+variable <code>BUILTINS_COMPILED</code>; an existing build directory keeps its cached value, so pass
+<code>-DBUILTINS_COMPILED=...</code> (the current default is in <code>CMakeLists.txt</code>) when a module is added
+to it. A compiled module's own imports of other compiled modules must be listed in its
+<code>&lt;name&gt;_MODULES</code> set in <code>CMakeLists.txt</code>.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">builtins</span>);          <span class="t-cm">// array of registered builtin names</span>
+<span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">moduleList</span>);        <span class="t-cm">// [{name, builtin}, ...] for everything actually loaded so far</span></code></pre></div>
+<h2 id="module-globals"><a class="anchor" href="#module-globals" aria-hidden="true">#</a><code>*Module</code> globals</h2>
+<p>Every one of these is installed via <code>JS_SetPropertyFunctionList()</code> in <code>main()</code>
+(<code>jsm_global_funcs[]</code>), dispatched through a single C function
+(<code>jsm_module_func()</code>) keyed by a <code>magic</code> enum — one dispatcher, one place to
+reason about the module-identifier argument conventions shared across all of
+them. A module is identified by its index in <code>loaded_modules</code> (the order of
+<code>moduleList</code>); these functions never hand out a raw <code>Module</code> value. Where a module
+is taken as an argument, a loaded-module name is accepted too.</p>
+<div class="tablewrap"><table><thead><tr><th>Global</th><th>Description</th></tr></thead><tbody><tr><td><code>findModule(name, [start])</code></td><td>Look up an already-loaded module by name, starting at index <code>start</code>. Returns its position in <code>loaded_modules</code>, or <code>-1</code> (not an exception) if nothing matches. Index <code>0</code> is valid.</td></tr><tr><td><code>loadModule(path, [name])</code></td><td>Synthesizes and evaluates <code>import tmp from 'path'; globalThis[name] = tmp;</code> (or <code>import * as tmp</code>/<code>tmp()</code> for the <code>*</code>/<code>!</code> modifiers — see <code>jsm_module_script()</code>). This is what <code>-m</code> and the REPL's <code>\i</code> ultimately call.</td></tr><tr><td><code>requireModule(name)</code></td><td>CommonJS-flavored <code>require()</code>: loads the module and returns its full namespace object (<code>JS_GetModuleNamespace()</code>), rather than binding it onto <code>globalThis</code>.</td></tr><tr><td><code>resolveModule(index)</code></td><td>Runs <code>JS_ResolveModule()</code> (link the module's imports/exports) on an already-loaded module.</td></tr><tr><td><code>getModuleName(index)</code></td><td>The module's name (<code>JS_GetModuleName()</code>).</td></tr><tr><td><code>getModuleMetaObject(index)</code></td><td>The module's <code>import.meta</code> object (<code>JS_GetImportMeta()</code>).</td></tr><tr><td><code>getModuleNS(index)</code></td><td>The module's namespace object (<code>JS_GetModuleNamespace()</code>).</td></tr><tr><td><code>normalizeModule(pathOrIndex, specifier)</code></td><td>Exposes <code>jsm_module_normalize()</code> directly — what would <code>specifier</code> resolve to, importing from <code>pathOrModule</code>?</td></tr><tr><td><code>locateModule(name)</code></td><td>Path-search only (<code>jsm_module_locate()</code>): where would <code>QUICKJS_MODULE_PATH</code>/extension search find <code>name</code>, without importing it? Returns <code>null</code> if not found.</td></tr><tr><td><code>registerHooks({resolve?, load?})</code></td><td>Node's synchronous <code>module.registerHooks()</code> — see <a href="#module-customization-hooks">Module customization hooks</a>. Also exported as <code>registerHooks</code> from the <code>module</code> builtin.</td></tr><tr><td><code>disableBuiltin(...names)</code></td><td>Switches builtins off at run time, like <code>--disable-builtin</code>; returns the names switched off. A disabled builtin is not found by name, so a later import of it fails; modules already loaded stay loaded.</td></tr><tr><td><code>buildInfo</code></td><td>The parsed build-info blob (version, commit, layout, builtin lists, <code>bytecode</code> engine version); <code>qjsm --build-info</code> prints it as JSON, <code>--version</code> one line.</td></tr><tr><td><code>getBuiltinBytecode(name)</code></td><td><code>ArrayBuffer</code> copy of a JS builtin's bytecode, <code>null</code> for a native builtin, <code>undefined</code> if unknown.</td></tr><tr><td><code>moduleList</code> <em>(getter)</em></td><td>Array of module items, see <a href="#module-items">Module items</a>.</td></tr><tr><td><code>getModule(nameOrIndex)</code></td><td>The <code>moduleList</code> item for a module, or <code>null</code> if it isn't loaded.</td></tr><tr><td><code>moduleEntries</code> <em>(getter)</em></td><td>Array of <code>[name, moduleValue]</code> pairs, skipping synthetic (<code>&lt;...&gt;</code>-named) modules.</td></tr><tr><td><code>builtins</code> <em>(getter)</em></td><td>Module items (see <a href="#module-items">Module items</a>) for every registered builtin. One not loaded yet has only <code>name</code>, <code>kind</code> and <code>builtin</code>.</td></tr><tr><td><code>evalFile(path, [asModule])</code> / <code>evalBuf(source, [filename], [asModule])</code></td><td>Evaluate a file or in-memory source, optionally as a module (in which case the return value is <code>{name, exports}</code> rather than the completion value). An exception the code throws propagates to the caller.</td></tr><tr><td><code>scriptList</code> / <code>scriptFile</code> / <code>scriptDir</code> / <code>__filename</code> / <code>__dirname</code> <em>(getters)</em></td><td>Views of the include/import stack (<code>jsm_stack</code>) — which file is currently executing and its ancestry.</td></tr><tr><td><code>startInteractive()</code></td><td>Drops into the REPL from script code, same as <code>-i</code>/<code>SIGUSR1</code>.</td></tr></tbody></table></div>
+<p>An earlier <code>addModule(name)</code> global (queue a path for the <em>next</em> <code>-m</code>-style
+load) was removed — see
+<a href="#implementation-notes-and-history">Implementation notes</a>: the queue it wrote
+to is only ever drained once, at startup, before any user script can run, so
+calling it from script code was a silent no-op.</p>
+<h3 id="module-items"><a class="anchor" href="#module-items" aria-hidden="true">#</a>Module items</h3>
+<p><code>moduleList</code> and <code>getModule()</code> return items with these properties; <code>index</code> is
+the argument the other <code>*Module</code> functions take.</p>
+<div class="tablewrap"><table><thead><tr><th>Property</th><th>Meaning</th></tr></thead><tbody><tr><td><code id="module-items-index">index</code><a class="member-anchor" href="#module-items-index" aria-hidden="true">#</a></td><td>position in <code>moduleList</code> (load order; fixed once the module is loaded)</td></tr><tr><td><code id="module-items-name">name</code><a class="member-anchor" href="#module-items-name" aria-hidden="true">#</a></td><td>resolved module name</td></tr><tr><td><code id="module-items-kind">kind</code><a class="member-anchor" href="#module-items-kind" aria-hidden="true">#</a></td><td><code>'native'</code>, <code>'compiled'</code>, <code>'data'</code>, <code>'json'</code> or <code>'js'</code></td></tr><tr><td><code id="module-items-builtin">builtin</code><a class="member-anchor" href="#module-items-builtin" aria-hidden="true">#</a></td><td>registered in the builtin table</td></tr><tr><td><code id="module-items-path">path</code><a class="member-anchor" href="#module-items-path" aria-hidden="true">#</a></td><td>file the module was loaded from (absent for builtins and <code>data:</code>)</td></tr><tr><td><code>url</code>, <code>main</code></td><td>the module's <code>import.meta.url</code> / <code>import.meta.main</code>, when set</td></tr><tr><td><code id="module-items-parent">parent</code><a class="member-anchor" href="#module-items-parent" aria-hidden="true">#</a></td><td><code>index</code> of the module that imported it first (absent for the entry point and eval'd code)</td></tr><tr><td><code id="module-items-hooked">hooked</code><a class="member-anchor" href="#module-items-hooked" aria-hidden="true">#</a></td><td><code>true</code> when produced by a <code>registerHooks()</code> hook; absent otherwise</td></tr><tr><td><code>status</code>, <code>async</code></td><td><code>'unlinked'</code> … <code>'evaluated'</code>, and whether it uses top-level await (needs the engine's <code>JS_GetModuleStatus()</code>)</td></tr></tbody></table></div>
+<h2 id="importmeta"><a class="anchor" href="#importmeta" aria-hidden="true">#</a>import.meta</h2>
+<div class="tablewrap"><table><thead><tr><th>Property</th><th>Value</th><th>Same on</th></tr></thead><tbody><tr><td><code id="importmeta-url">url</code><a class="member-anchor" href="#importmeta-url" aria-hidden="true">#</a></td><td><code>'file:///dir/x.js'</code>, or the module name when it is not a file (<code>data:</code>, a builtin)</td><td>all</td></tr><tr><td><code id="importmeta-filename">filename</code><a class="member-anchor" href="#importmeta-filename" aria-hidden="true">#</a></td><td><code>'/dir/x.js'</code>, the path of a <code>file:</code> <code>url</code>; absent otherwise</td><td>Node 20.11+, Bun, Deno</td></tr><tr><td><code id="importmeta-dirname">dirname</code><a class="member-anchor" href="#importmeta-dirname" aria-hidden="true">#</a></td><td><code>'/dir'</code></td><td>Node 20.11+, Bun, Deno</td></tr><tr><td><code id="importmeta-main">main</code><a class="member-anchor" href="#importmeta-main" aria-hidden="true">#</a></td><td><code>true</code> in the script qjsm was started with, <code>false</code> in what it imports</td><td>Node 24.2+, Bun, Deno</td></tr><tr><td><code id="importmeta-resolve">resolve()</code><a class="member-anchor" href="#importmeta-resolve" aria-hidden="true">#</a></td><td>see below</td><td>all</td></tr></tbody></table></div>
+<h2 id="importmetaresolve"><a class="anchor" href="#importmetaresolve" aria-hidden="true">#</a>import.meta.resolve()</h2>
+<p>WHATWG's <code>import.meta.resolve(specifier)</code>, with Bun's optional second argument (Node has it behind
+<code>--experimental-import-meta-resolve</code>, Deno rejects it). It runs the same resolution as an <code>import</code> from
+the module, hooks and <code>QUICKJS_MODULE_PATH</code> included.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span>.<span class="t-prop">meta</span>.<span class="t-fn">resolve</span>(<span class="t-str">'./x.js'</span>);            <span class="t-cm">// 'file:///dir/x.js', not checked for existence (as on Node)</span>
+<span class="t-kw">import</span>.<span class="t-prop">meta</span>.<span class="t-fn">resolve</span>(<span class="t-str">'fs'</span>);                <span class="t-cm">// 'node:fs', a Node core module that node:fs loads too</span>
+<span class="t-kw">import</span>.<span class="t-prop">meta</span>.<span class="t-fn">resolve</span>(<span class="t-str">'node:deep'</span>);         <span class="t-cm">// 'node:deep', not checked: loading it throws</span>
+<span class="t-kw">import</span>.<span class="t-prop">meta</span>.<span class="t-fn">resolve</span>(<span class="t-str">'std'</span>);               <span class="t-cm">// 'std', a qjsm builtin has no URL</span>
+<span class="t-kw">import</span>.<span class="t-prop">meta</span>.<span class="t-fn">resolve</span>(<span class="t-str">'@sc/pkg/sub'</span>);       <span class="t-cm">// 'file:///dir/node_modules/@sc/pkg/s.js'</span>
+<span class="t-kw">import</span>.<span class="t-prop">meta</span>.<span class="t-fn">resolve</span>(<span class="t-str">'pkg'</span>, <span class="t-str">'/a/b.js'</span>);    <span class="t-cm">// as imported from /a/b.js (a path or a file: URL)</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th>Throws</th><th>When</th></tr></thead><tbody><tr><td><code>Error</code> <code>ERR_MODULE_NOT_FOUND</code></td><td>a bare name nothing provides</td></tr><tr><td><code>Error</code> <code>ERR_PACKAGE_PATH_NOT_EXPORTED</code>, <code>TypeError</code> <code>ERR_PACKAGE_IMPORT_NOT_DEFINED</code>, ...</td><td>what <code>loaders/packages</code> throws, with Node's codes and messages</td></tr></tbody></table></div>
+<p><code>os</code> resolves to <code>os</code>, not <code>node:os</code>: qjsm's <code>os</code> is not Node's. Set in C (<code>jsm_import_meta_init</code>) on every
+module qjsm compiles and on the main script.</p>
+<h2 id="module-customization-hooks"><a class="anchor" href="#module-customization-hooks" aria-hidden="true">#</a>Module customization hooks</h2>
+<p><code>registerHooks()</code> follows Node's synchronous
+<a href="https://nodejs.org/api/module.html#customization-hooks" target="_blank" rel="noopener">customization hooks</a>;
+<code>Bun.plugin()</code> (<code>doc/js/bun.md</code>) is built on the same chain.</p>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">registerHooks</span> } <span class="t-kw">from</span> <span class="t-str">'module'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">hooks</span> <span class="t-op">=</span> <span class="t-fn">registerHooks</span>({
+  <span class="t-fn">resolve</span>(<span class="t-id">specifier</span>, { <span class="t-id">parentURL</span>, <span class="t-id">conditions</span>, <span class="t-id">importAttributes</span> }, <span class="t-id">nextResolve</span>) {
+    <span class="t-kw">if</span>(<span class="t-id">specifier</span> <span class="t-op">===</span> <span class="t-str">'virtual:hello'</span>) <span class="t-kw">return</span> { <span class="t-id">url</span><span class="t-op">:</span> <span class="t-str">'virtual:hello'</span>, <span class="t-id">shortCircuit</span><span class="t-op">:</span> <span class="t-atom">true</span> };
+    <span class="t-kw">return</span> <span class="t-fn">nextResolve</span>(<span class="t-id">specifier</span>);
+  },
+  <span class="t-fn">load</span>(<span class="t-id">url</span>, { <span class="t-id">format</span>, <span class="t-id">conditions</span>, <span class="t-id">importAttributes</span> }, <span class="t-id">nextLoad</span>) {
+    <span class="t-kw">if</span>(<span class="t-id">url</span> <span class="t-op">===</span> <span class="t-str">'virtual:hello'</span>) <span class="t-kw">return</span> { <span class="t-id">format</span><span class="t-op">:</span> <span class="t-str">'module'</span>, <span class="t-id">source</span><span class="t-op">:</span> <span class="t-str">'export default "hi"'</span>, <span class="t-id">shortCircuit</span><span class="t-op">:</span> <span class="t-atom">true</span> };
+    <span class="t-kw">return</span> <span class="t-fn">nextLoad</span>(<span class="t-id">url</span>);
+  },
+});
+
+<span class="t-id">hooks</span>.<span class="t-fn">deregister</span>();   <span class="t-cm">// also [Symbol.dispose], for `using`</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th>Rule</th><th>Detail</th></tr></thead><tbody><tr><td>Order</td><td>Last registered runs first; the engine's own resolution/loading is the final <code>next*()</code>.</td></tr><tr><td>Chain</td><td>A hook must call <code>next*()</code> or return <code>shortCircuit: true</code>, else <code>Error</code> with <code>code: 'ERR_LOADER_CHAIN_INCOMPLETE'</code>.</td></tr><tr><td><code>resolve</code> returns</td><td><code>{ url, format?, shortCircuit? }</code>. <code>format</code> is handed on as <code>context.format</code> to <code>load</code>.</td></tr><tr><td><code>load</code> returns</td><td><code>{ format, source, shortCircuit? }</code>; <code>source</code> is a string, <code>ArrayBuffer</code> or typed array.</td></tr><tr><td>Formats</td><td><code>module</code>, <code>json</code>, <code>builtin</code>, <code>addon</code> (the last two with <code>source: null</code>); <code>commonjs</code>, <code>wasm</code> and the <code>*-typescript</code> formats throw <code>TypeError</code>.</td></tr><tr><td>URLs</td><td>Hooks see <code>file:///abs/path</code>, <code>node:fs</code> (<code>os</code> and <code>std</code> stay bare), <code>data:</code> and any custom scheme; the module key (<code>loaded_modules</code>, <code>import.meta</code>, relative resolution) stays the plain path/bare name.</td></tr><tr><td><code>conditions</code></td><td><code>['node', 'import']</code> plus the names given with <code>-C</code>; <code>default</code> always matches.</td></tr><tr><td>Errors</td><td>An exception thrown by a hook propagates to the <code>import</code> (it no longer ends the process).</td></tr><tr><td><code>importAttributes</code></td><td><code>load</code> gets the real attributes (<code>{ type: 'file' }</code>); <code>resolve</code> always gets <code>{}</code> because the engine's normalize callback receives none (Node passes them to both, Bun to neither).</td></tr><tr><td>Sync only</td><td>A hook returning a Promise throws <code>TypeError</code>; the async <code>module.register()</code>/<code>initialize</code> thread API is not provided.</td></tr><tr><td>Scope</td><td>Per thread (workers start with none); not inherited.</td></tr></tbody></table></div>
+<p>The old <code>moduleLoader({normalize, loader})</code> global was removed; port
+<code>normalize</code> to <code>resolve</code> and <code>loader</code> to <code>load</code> (see <code>lib/loaders/node.js</code>).</p>
+<h2 id="repl-integration"><a class="anchor" href="#repl-integration" aria-hidden="true">#</a>REPL integration</h2>
+<p><code>qjs -i</code>/<code>qjsm -i</code> (or the <code>USR1</code> signal, or <code>startInteractive()</code>) enters
+<code>lib/repl.js</code>'s <code>REPL</code>. Its <code>\</code>-prefixed directives include:</p>
+<div class="codeblock"><pre><code>\i module          import a module, bind it to its basename on globalThis
+\i *module         import a module, Object.assign() its exports onto globalThis
+\i !module         import a module, then call its default export</code></pre></div>
+<p>implemented by the REPL's own <code>loadModule()</code> export (<code>lib/repl.js</code>) — a small
+wrapper around plain <code>import()</code> plus the <code>*</code>/<code>!</code> modifier handling from
+<code>jsm_module_script()</code>'s CLI/<code>-m</code> syntax, reimplemented in JS since the REPL
+doesn't go through the C <code>loadModule</code> global at all. Successfully-imported
+module names are remembered across sessions (<code>this.modules</code>,
+persisted via <code>modulesSave()</code>/<code>modulesLoad()</code> to a REPL state file) and
+re-imported automatically the next time the REPL starts, so a module you <code>\i</code>
+once stays available in later sessions without repeating the directive.</p>
+<h2 id="implementation-notes-and-history"><a class="anchor" href="#implementation-notes-and-history" aria-hidden="true">#</a>Implementation notes and history</h2>
+<p><code>qjsm</code> used to have a second, more invasive way to inspect modules: an
+optional <code>QUICKJS_INTERNAL</code> build mode that <code>sed</code>-scraped <code>JSModuleDef</code>'s
+private struct layout out of <code>quickjs.c</code> at build time
+(<code>quickjs-internal.c</code>/<code>.h</code>, generated, never checked in) to reach fields like
+<code>m-&gt;module_name</code> directly. It was off by default, and by the time of its
+removal (commit <code>26d776f7</code>) it could no longer be generated against the
+current engine at all, so every <code>#if QUICKJS_INTERNAL</code> block in <code>qjsm.c</code>/
+<code>utils.c</code> had long since been dead weight for a default build. It's gone now;
+the pieces of it that were still load-bearing were reimplemented on top of
+public API instead:</p>
+<ul>
+<li><code>module_name()</code>/<code>module_nameval()</code>/<code>module_namecstr()</code> (<code>src/utils.c</code>) used
+to read <code>m-&gt;module_name</code> via raw pointer arithmetic
+(<code>*(JSAtom*)((int*)m + 1)</code>) as their <em>default</em>, non-<code>QUICKJS_INTERNAL</code> path —
+a guess at the atom's offset that assumed a struct layout the engine no
+longer has (<code>JSGCObjectHeader</code> grew to a full <code>list_head</code>, moving
+<code>module_name</code> to a different offset), so it read garbage and segfaulted
+<code>normalizeModule()</code>. Replaced with the public <code>JS_GetModuleName()</code>.</li>
+<li><code>jsm_module_load()</code> (backing <code>loadModule</code>/<code>-m</code>) used to locate the
+just-imported module by walking the engine's own module list positionally
+(<code>module_next(module_next(last_module))</code>, skipping the synthetic wrapper
+script's own module) under <code>QUICKJS_INTERNAL</code>, falling back to a
+name-based <code>jsm_module_find()</code> otherwise — a fallback that never actually
+matched, since <code>loaded_modules</code> records a module under its <em>resolved</em> name
+(e.g. an absolute <code>.so</code> path) while the fallback searched by the original,
+unresolved specifier (e.g. <code>"sndobj"</code>). Fixed by tracking the shadow list's
+size before/after the synthetic import and taking the newly-added head
+entry directly (list insertion order already puts the just-imported
+module there, dependencies first) — no name matching needed.</li>
+<li><code>requireModule</code>'s entire body used to live inside a <code>QUICKJS_INTERNAL</code>
+block (calling a <code>module_exports()</code> helper that, notably, was <em>never
+itself defined outside that mode</em> even historically); removing the block
+left the case empty, so it silently returned the engine's
+"no exception" sentinel value as if it were one. Reimplemented on top of
+<code>jsm_module_load()</code> + the public <code>JS_GetModuleNamespace()</code>.</li>
+</ul>
+<p>The general lesson embedded in the design now: anything <code>qjsm</code> needs from a
+<code>JSModuleDef</code> goes through <code>quickjs.h</code>'s public accessors
+(<code>JS_GetModuleName</code>, <code>JS_GetModuleNamespace</code>, <code>JS_ResolveModule</code>,
+<code>JS_MKPTR(JS_TAG_MODULE, ...)</code>/<code>JS_VALUE_GET_PTR</code>) or through qjsm's own
+<code>loaded_modules</code> shadow list — never through a guessed struct offset.</p>
+<h2 id="command-line-options"><a class="anchor" href="#command-line-options" aria-hidden="true">#</a>Command-line options</h2>
+<div class="codeblock"><pre><code>qjsm [options] [file [args]]
+-h  --help          list options
+-e  --eval EXPR     evaluate EXPR
+-i  --interactive   go to interactive mode
+-m  --module NAME   load an ES6 module (comma-separated; see loadModule() above)
+-I  --include file  include an additional file
+    --std           make 'std' and 'os' available to the loaded script
+    --no-bignum     disable the bignum extensions (BigFloat, BigDecimal)
+    --qjscalc       load the QJSCalc runtime (default if invoked as qjscalc)
+-T  --trace         trace memory allocation
+-d  --dump          dump the memory usage stats
+    --memory-limit n   limit the memory usage to 'n' bytes
+    --stack-size n     limit the stack size to 'n' bytes
+-q  --quit          just instantiate the interpreter and quit
+-l  --list          list modules (disabled ones are marked)
+    --disable-builtin a,b   builtins not to find by name (env QJSM_DISABLE_BUILTINS)
+    --hooks-on-builtins     let registerHooks() hooks see bare builtin names
+                            (env QJSM_HOOKS_ON_BUILTINS=1)
+-N  --no-node           no Node or Bun compatibility: no node:, node_modules and CommonJS
+                        loaders, no Node globals, no Bun; --no-node-hooks works too
+-B  --no-bun            Node compatibility only (lib/node.js), no Bun global
+-C  --conditions name   add an export condition for package.json "exports"/"imports",
+                        repeatable; node, import and default are always on
+
+  USR1 signal starts interactive mode</code></pre></div>
+<p><code>-m</code> and <code>-I</code> each accept multiple values (<code>-m a,b,c</code>, or repeat the flag);
+<code>-m</code> entries load in order once the bootstrap (<code>process</code> import, <code>--std</code>
+imports) has run, before <code>-I</code> includes, before <code>-e</code>, before the REPL. See
+<a href="#module-resolution-pipeline">Module resolution pipeline</a> for what a bare
+module name in <code>-m</code>/<code>loadModule()</code> resolves against.</p>
+<h2 id="node-and-bun-compatibility"><a class="anchor" href="#node-and-bun-compatibility" aria-hidden="true">#</a>Node and Bun compatibility</h2>
+<p>Bun is Node-compatible, so <a href="js/bun.html">bun</a> is a superset of <a href="js/node.html">node</a>: it imports <code>node</code> and
+adds the <code>Bun</code> global. qjsm loads them before the script runs, each only when it is compiled in:</p>
+<div class="tablewrap"><table><thead><tr><th>Flags</th><th>Loaded</th><th>Globals</th></tr></thead><tbody><tr><td>none</td><td><code>node</code>, then <code>bun</code></td><td>Node's (below) and <code>Bun</code></td></tr><tr><td><code>-B</code>, <code>--no-bun</code></td><td><code>node</code></td><td>Node's: the <code>node:</code>, <code>node_modules</code> and CommonJS loaders, <code>Buffer</code>, <code>global</code>, <code>fetch</code>, <code>URL</code>, <code>AbortController</code>, <code>Event</code>, <code>TextEncoder</code>, <code>Blob</code>, the streams, <code>atob</code>, <code>structuredClone</code>, <code>crypto</code>, <code>performance</code>, <code>Intl</code>, <code>WebAssembly</code>, ...</td></tr><tr><td><code>-N</code>, <code>--no-node</code></td><td>nothing</td><td>QuickJS's own and <code>process</code></td></tr></tbody></table></div>
+<p><code>node</code> is imported before <code>process</code>, whose <code>import('node:events')</code> needs its loaders. Without the <code>node</code>
+builtin, qjsm still preloads <code>loaders_node</code> and <code>loaders_packages</code> when they are compiled in. <code>-P</code> turns
+<code>process</code> off.</p>
+<h2 id="out-of-tree-modules-as-builtins"><a class="anchor" href="#out-of-tree-modules-as-builtins" aria-hidden="true">#</a>Out-of-tree modules as builtins</h2>
+<p>Build the sibling project with <code>-DBUILD_STATIC=ON</code> (it writes <code>quickjs-&lt;mod&gt;.a</code> and
+<code>quickjs-&lt;mod&gt;.module.cmake</code> into its build dir), then name it in <code>BUILTIN_MODULES</code>:</p>
+<div class="codeblock" data-lang="sh"><pre><code class="language-sh"><span class="t-id">cmake</span> <span class="t-op">-B</span> <span class="t-id">build</span> <span class="t-op">-DBUILTIN_MODULES</span>=<span class="t-str">"&lt;defaults&gt;;../qjs-ffi/build;../qjs-sound/build/quickjs-sndfile.module.cmake"</span></code></pre></div>
+<ul>
+<li>a directory (below a <code>qjs-&lt;name&gt;</code> ancestor) registers every <code>quickjs-*.module.cmake</code> in it</li>
+<li>one <code>quickjs-&lt;mod&gt;.module.cmake</code> file registers just that module</li>
+<li>the archive is partial-linked with only <code>js_init_module_&lt;mod&gt;</code> kept global, so the
+helper copies each project carries (<code>js_error_print</code>, ...) do not collide</li>
+<li>a C++ module's <code>quickjs-&lt;mod&gt;.module.cmake</code> lists <code>stdc++</code>, since qjsm is linked as C</li>
+<li>two modules embedding different copies of one vendored library (sound's <code>stk</code> and
+<code>labsound</code>, both RtAudio) cannot share one executable; list one of them</li>
+<li>an explicit <code>BUILTIN_MODULES</code> replaces the default list, so give the defaults too</li>
+</ul></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/qjsm.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#why-qjsm-exists-vs-plain-qjs">Why qjsm exists (vs. plain qjs)</a></li><li class="lvl2"><a href="#design-ideas">Design ideas</a></li><li class="lvl2"><a href="#module-resolution-pipeline">Module resolution pipeline</a></li><li class="lvl2"><a href="#import-attributes">Import attributes</a></li><li class="lvl2"><a href="#builtin-modules">Builtin modules</a></li><li class="lvl2"><a href="#module-globals">Module globals</a></li><li class="lvl3"><a href="#module-items">Module items</a></li><li class="lvl2"><a href="#importmeta">import.meta</a></li><li class="lvl2"><a href="#importmetaresolve">import.meta.resolve()</a></li><li class="lvl2"><a href="#module-customization-hooks">Module customization hooks</a></li><li class="lvl2"><a href="#repl-integration">REPL integration</a></li><li class="lvl2"><a href="#implementation-notes-and-history">Implementation notes and history</a></li><li class="lvl2"><a href="#command-line-options">Command-line options</a></li><li class="lvl2"><a href="#node-and-bun-compatibility">Node and Bun compatibility</a></li><li class="lvl2"><a href="#out-of-tree-modules-as-builtins">Out-of-tree modules as builtins</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/rsenn/tree/main/tools/site">rsenn/rsenn tools/site</a>.</p>
+</footer>
+<script src="../assets/search-index.js"></script>
+<script src="../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>

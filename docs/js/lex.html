@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lex — qjs-modules</title>
+<meta name="description" content="qjs-modules — The standard library QuickJS deserves. WHATWG/W3C/Node-shaped native modules and JS helpers for QuickJS.">
+<link rel="stylesheet" href="../../assets/base.css">
+<link rel="stylesheet" href="../../assets/theme.css">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="has-sidebar" data-site="qjs-modules" data-root="../../">
+<header class="topbar">
+  <a class="brand" href="../../index.html"><span class="mark">{ }</span> <span class="brand-name">qjs-modules</span></a>
+  <div class="search">
+    <input id="site-search" type="search" placeholder="Search docs… ( / )" autocomplete="off" spellcheck="false">
+  </div>
+  <nav class="topnav">
+    <a href="../../getting-started.html">Get started</a>
+    <a href="../../docs/index.html">Docs</a>
+    <a href="../../docs/runtime-compat.html">Compatibility</a>
+    <a href="../../roadmap.html">Roadmap</a>
+    <a href="https://github.com/rsenn/qjs-modules" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+  <button class="themetoggle" type="button" aria-label="Toggle colour scheme">◐</button>
+</header>
+<div class="layout">
+<aside class="sidebar"><div class="navgroup"><h3>Start here</h3><ul><li><a href="../../getting-started.html">Getting started</a></li><li><a href="../../roadmap.html">Roadmap</a></li></ul></div><div class="navgroup"><h3>Reference</h3><ul><li><a href="../index.html">API reference</a></li><li><a href="../runtime-compat.html">Node / Bun / Deno compatibility</a></li><li><a href="../api-compatibility.html">Standards compatibility</a></li><li><a href="../api-compatibility-nodejs.html">Node.js API gaps</a></li><li><a href="../api-compatibility-plan.html">Compatibility roadmap</a></li><li><a href="../qjsm.html">qjsm</a></li><li><a href="../qjsm-layout.html">qjsm layout (working paper)</a></li><li><a href="../grammar.html">Grammar</a></li></ul></div><div class="navgroup"><h3>json, xml & path studies</h3><ul><li><a href="../api-event-model.html">Event model (design)</a></li><li><a href="../event-model-state.html">Event model (state)</a></li><li><a href="../api-compare-json.html">json: comparison</a></li><li><a href="../api-implement-json.html">json: implementation</a></li><li><a href="../api-interface-json.html">json: interfaces</a></li><li><a href="../api-compare-xml.html">xml: comparison</a></li><li><a href="../api-implement-xml.html">xml: implementation</a></li><li><a href="../api-interface-xml.html">xml: interfaces</a></li><li><a href="../api-compare-path.html">path: comparison</a></li><li><a href="../api-implement-path.html">path: implementation</a></li><li><a href="../api-interface-path.html">path: interfaces</a></li></ul></div><div class="navgroup"><h3>Native — Data & Text</h3><ul><li><a href="../native/index.html">Native modules overview</a></li><li><a href="../native/archive.html">archive</a></li><li><a href="../native/arraybuffer-sink.html">arraybuffer-sink</a></li><li><a href="../native/bcrypt.html">bcrypt</a></li><li><a href="../native/bjson.html">bjson</a></li><li><a href="../native/blob.html">blob</a></li><li><a href="../native/json.html">json</a></li><li><a href="../native/lexer.html">lexer</a></li><li><a href="../native/list.html">list</a></li><li><a href="../native/textcode.html">textcode</a></li><li><a href="../native/xml.html">xml</a></li><li><a href="../native/yaml.html">yaml</a></li></ul></div><div class="navgroup"><h3>Native — System & I/O</h3><ul><li><a href="../native/child-process.html">child-process</a></li><li><a href="../native/directory.html">directory</a></li><li><a href="../native/gpio.html">gpio</a></li><li><a href="../native/location.html">location</a></li><li><a href="../native/magic.html">magic</a></li><li><a href="../native/misc.html">misc</a></li><li><a href="../native/mmap.html">mmap</a></li><li><a href="../native/path.html">path</a></li><li><a href="../native/serial.html">serial</a></li><li><a href="../native/sockets.html">sockets</a></li><li><a href="../native/syscallerror.html">syscallerror</a></li></ul></div><div class="navgroup"><h3>Native — Objects & Streams</h3><ul><li><a href="../native/deep.html">deep</a></li><li><a href="../native/inspect.html">inspect</a></li><li><a href="../native/pointer.html">pointer</a></li><li><a href="../native/predicate.html">predicate</a></li><li><a href="../native/tree-walker.html">tree-walker</a></li><li><a href="../native/queue.html">queue</a></li><li><a href="../native/repeater.html">repeater</a></li><li><a href="../native/virtual.html">virtual</a></li></ul></div><div class="navgroup"><h3>Native — QuickJS core</h3><ul><li><a href="../native/os.html">os</a></li><li><a href="../native/std.html">std</a></li></ul></div><div class="navgroup"><h3>WebAssembly</h3><ul><li><a href="../native/wasm.html">wasm (engines & API)</a></li><li><a href="webassembly.html">WebAssembly global</a></li><li><a href="wasi.html">WASI</a></li><li><a href="loaders/wasm.html">.wasm loader</a></li></ul></div><div class="navgroup"><h3>Native — Databases</h3><ul><li><a href="../native/mysql.html">mysql</a></li><li><a href="../native/pgsql.html">pgsql</a></li><li><a href="../native/sqlite.html">sqlite</a></li></ul></div><div class="navgroup"><h3>JS — Core & Extensions</h3><ul><li><a href="index.html">JS modules overview</a></li><li><a href="util.html">util</a></li><li><a href="iterator.html">iterator</a></li><li><a href="asyncIterator.html">asyncIterator</a></li><li><a href="extendArray.html">extendArray</a></li><li><a href="extendArrayBuffer.html">extendArrayBuffer</a></li><li><a href="extendMap.html">extendMap</a></li><li><a href="extendSet.html">extendSet</a></li><li><a href="extendFunction.html">extendFunction</a></li><li><a href="extendAsyncFunction.html">extendAsyncFunction</a></li><li><a href="extendGenerator.html">extendGenerator</a></li><li><a href="extendAsyncGenerator.html">extendAsyncGenerator</a></li></ul></div><div class="navgroup"><h3>JS — Runtime</h3><ul><li><a href="assert.html">assert</a></li><li><a href="assertStrict.html">assertStrict</a></li><li><a href="console.html">console</a></li><li><a href="process.html">process</a></li><li><a href="events.html">events</a></li><li><a href="abort.html">abort</a></li><li><a href="timers.html">timers</a></li><li><a href="timersPromises.html">timersPromises</a></li><li><a href="globals.html">globals</a></li><li><a href="intl.html">intl</a></li><li><a href="perf_hooks.html">perf_hooks</a></li><li><a href="module.html">module</a></li><li><a href="require.html">require</a></li><li><a href="stack.html">stack</a></li><li><a href="lazyGlobal.html">lazyGlobal</a></li></ul></div><div class="navgroup"><h3>JS — Node & Bun</h3><ul><li><a href="node.html">node</a></li><li><a href="node-buffer.html">node-buffer</a></li><li><a href="node-child-process.html">node-child-process</a></li><li><a href="node-events.html">node-events</a></li><li><a href="node-os.html">node-os</a></li><li><a href="node-util.html">node-util</a></li><li><a href="bun.html">bun</a></li><li><a href="bun-util.html">bun-util</a></li><li><a href="loaders/commonjs.html">loaders/commonjs</a></li><li><a href="loaders/file.html">loaders/file</a></li><li><a href="loaders/packages.html">loaders/packages</a></li><li><a href="loaders/trace.html">loaders/trace</a></li><li><a href="loaders/typescript.html">loaders/typescript</a></li></ul></div><div class="navgroup"><h3>JS — I/O & Filesystem</h3><ul><li><a href="fs.html">fs</a></li><li><a href="fsPromises.html">fsPromises</a></li><li><a href="io.html">io</a></li><li><a href="stream.html">stream</a></li><li><a href="streams.html">streams</a></li><li><a href="vfs.html">vfs</a></li><li><a href="glob.html">glob</a></li><li><a href="file.html">file</a></li><li><a href="inotify.html">inotify</a></li><li><a href="tty.html">tty</a></li><li><a href="terminal.html">terminal</a></li><li><a href="readline.html">readline</a></li><li><a href="readlinePromises.html">readlinePromises</a></li><li><a href="string_decoder.html">string_decoder</a></li><li><a href="textLineStream.html">textLineStream</a></li><li><a href="socklen_t.html">socklen_t</a></li></ul></div><div class="navgroup"><h3>JS — JSON dialects</h3><ul><li><a href="json5.html">json5</a></li><li><a href="jsonc.html">jsonc</a></li><li><a href="jsonl.html">jsonl</a></li><li><a href="jsonStreams.html">jsonStreams</a></li></ul></div><div class="navgroup"><h3>JS — Parsing & DOM</h3><ul><li><a href="dom.html">dom</a></li><li><a href="xpath.html">xpath</a></li><li><a href="parser.html">parser</a></li><li><a href="lex.html" class="here">lex</a></li><li><a href="grammar-parsers.html">grammar-parsers</a></li><li><a href="parse-ast.html">parse-ast</a></li><li><a href="module-lexer.html">module-lexer</a></li><li><a href="lexers.html">lexers</a></li><li><a href="css3-selectors.html">css3-selectors</a></li><li><a href="html.html">html</a></li><li><a href="url.html">url</a></li></ul></div><div class="navgroup"><h3>JS — Databases</h3><ul><li><a href="sql.html">sql</a></li><li><a href="db.html">db</a></li><li><a href="database.html">database</a></li><li><a href="dbi.html">dbi</a></li></ul></div><div class="navgroup"><h3>JS — Tooling & Misc</h3><ul><li><a href="repl.html">repl</a></li><li><a href="describe.html">describe</a></li><li><a href="c-functions.html">c-functions</a></li><li><a href="magic-string.html">magic-string</a></li><li><a href="tinytest.html">tinytest</a></li><li><a href="simple-queue.html">simple-queue</a></li><li><a href="password.html">password</a></li></ul></div></aside>
+<main class="doc">
+<article><h1 id="lex"><a class="anchor" href="#lex" aria-hidden="true">#</a>lex</h1>
+<p>Source: <code>lib/lexer/lex.js</code> (tokens), <code>lib/parser/lex.js</code> (AST and what it becomes)</p>
+<p>Reads lex/flex <code>.l</code> files. <code>LexLexer</code> tokenizes the source (it is what
+<code>lexers.js</code> uses for <code>.l</code> files, so <code>utilities/highlight.js</code> colors them);
+<code>parseLex()</code> builds an AST that prints back the exact text it was parsed from
+and turns into a working <code>lexer</code> rule set.</p>
+<p>Rationale: flex files describe a scanner declaratively, so the same file can
+drive a <code>Lexer</code> directly instead of being translated by hand. Nothing here is
+a standard API; flex itself is the format being read.</p>
+<h2 id="lexlexer"><a class="anchor" href="#lexlexer" aria-hidden="true">#</a>LexLexer</h2>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> <span class="t-type">LexLexer</span> <span class="t-kw">from</span> <span class="t-str">'lexer/lex.js'</span>;
+
+<span class="t-kw">for</span>(<span class="t-kw">const</span> <span class="t-id">tok</span> <span class="t-kw">of</span> <span class="t-kw">new</span> <span class="t-fn">LexLexer</span>(<span class="t-id">src</span>, <span class="t-type">LexLexer</span>.<span class="t-type">FIRST</span>, <span class="t-str">'a.l'</span>)) <span class="t-id">console</span>.<span class="t-fn">log</span>(<span class="t-id">tok</span>.<span class="t-prop">type</span>, <span class="t-id">tok</span>.<span class="t-prop">lexeme</span>);</code></pre></div>
+<p>Token types, by section:</p>
+<div class="tablewrap"><table><thead><tr><th>Section</th><th>Types</th></tr></thead><tbody><tr><td>any</td><td><code>codeblock</code> (<code>%{ ... %}</code>), <code>comment</code>, <code>indented</code> (an indented line, copied code), <code>section</code> / <code>user_section</code> (<code>%%</code>)</td></tr><tr><td>definitions</td><td><code>directive</code> (<code>%option</code>, <code>%x</code>, <code>%s</code>, ...) followed by <code>d_word</code>, <code>d_string</code>, <code>d_number</code>, <code>d_equals</code>; <code>def_name</code> + <code>def_regex</code> for <code>NAME  pattern</code>; <code>top</code> (<code>%top{ }</code>)</td></tr><tr><td>rules</td><td><code>scope</code> / <code>scope_end</code> (<code>&lt;A&gt;{</code> ... <code>}</code>), <code>rule_comment</code>, <code>condition</code> (<code>&lt;A,B&gt;</code>), <code>regex</code> (the pattern), <code>eof</code> (<code>&lt;&lt;EOF&gt;&gt;</code>), <code>action</code> (balanced <code>{ }</code>), <code>action_line</code> (rest of line), <code>action_fallthrough</code> (<code>|</code>)</td></tr><tr><td>user code</td><td><code>user</code> (everything after the second <code>%%</code>)</td></tr></tbody></table></div>
+<p>Whitespace and newlines are skipped; <code>highlight.js</code> fills them back in.</p>
+<h2 id="parselex"><a class="anchor" href="#parselex" aria-hidden="true">#</a>parseLex</h2>
+<div class="codeblock" data-lang="js"><pre><code class="language-js"><span class="t-kw">import</span> { <span class="t-id">parseLex</span> } <span class="t-kw">from</span> <span class="t-str">'parser/lex.js'</span>;
+
+<span class="t-kw">const</span> <span class="t-id">file</span> <span class="t-op">=</span> <span class="t-fn">parseLex</span>(<span class="t-id">text</span>, <span class="t-str">'scan.l'</span>); <span class="t-cm">// LexFile</span>
+<span class="t-fn">String</span>(<span class="t-id">file</span>) <span class="t-op">===</span> <span class="t-id">text</span>; <span class="t-cm">// true, for any file that parses</span></code></pre></div>
+<div class="tablewrap"><table><thead><tr><th><code>LexFile</code> member</th><th>Description</th></tr></thead><tbody><tr><td><code>definitions</code></td><td><code>Code</code>, <code>Directive</code> and <code>Definition</code> items of section 1</td></tr><tr><td><code>rules</code></td><td><code>Code</code> and <code>Rule</code> items of section 2</td></tr><tr><td><code>user</code></td><td>text after the second <code>%%</code>, or <code>null</code></td></tr><tr><td><code>states</code></td><td><code>[[name, exclusive]]</code> from the <code>%x</code> / <code>%s</code> lines</td></tr><tr><td><code>toString()</code></td><td>the <code>.l</code> text again; each item keeps the whitespace before it (<code>lead</code>)</td></tr><tr><td><code>compile()</code></td><td><code>{defines, states, rules}</code> as plain data</td></tr><tr><td><code>createLexer(input, fileName, mode)</code></td><td>a <code>Lexer</code> with the rules; <code>Lexer.LONGEST</code> by default</td></tr><tr><td><code>scan(input, fileName)</code></td><td>generator of tokens: <code>for(const tok of file.scan(src))</code></td></tr><tr><td><code>toLexerSource(className)</code></td><td>JS module source: a <code>Lexer</code> subclass like those in <code>lib/lexer/</code></td></tr></tbody></table></div>
+<p><code>Rule</code> has <code>conditions</code> (<code>null</code> or names), <code>pattern</code> (a regex node) and
+<code>action</code> (the text). A pattern is a tree of <code>Alt</code>, <code>Seq</code>, <code>Literal</code>, <code>Char</code>,
+<code>CharClass</code>, <code>Any</code>, <code>Ref</code>, <code>Group</code>, <code>Repeat</code>, <code>Bol</code>, <code>Eol</code>, <code>Slash</code> (trailing
+context) and <code>Eof</code>; <code>String(node)</code> is flex source, <code>node.toJS()</code> the same
+pattern for the <code>lexer</code> module. <code>parseRegex(src)</code> parses one pattern.</p>
+<h2 id="what-the-generated-lexer-does"><a class="anchor" href="#what-the-generated-lexer-does" aria-hidden="true">#</a>What the generated lexer does</h2>
+<p>Actions are C code and cannot run, so only these are understood:</p>
+<div class="tablewrap"><table><thead><tr><th>In the action</th><th>Effect</th></tr></thead><tbody><tr><td><code>return NAME;</code>, <code>return(NAME);</code></td><td>the rule is named <code>NAME</code>, its match is a token</td></tr><tr><td>no <code>return</code></td><td>the match is skipped</td></tr><tr><td><code>BEGIN(S)</code></td><td><code>lexer.state = 'S'</code></td></tr><tr><td><code>yy_push_state(S)</code>, <code>yy_pop_state()</code></td><td><code>pushState</code> / <code>popState</code></td></tr><tr><td><code>|</code> instead of an action</td><td>shares the next rule's action</td></tr></tbody></table></div>
+<p>Other behavior:</p>
+<ul>
+<li>Rule names must be unique: a repeated token is <code>NAME_2</code>, a rule that returns
+something else is <code>rule_&lt;n&gt;</code> (or its quoted word, e.g. <code>auto</code>).</li>
+<li>A rule without <code>&lt;STATE&gt;</code> is active in <code>INITIAL</code> and the <code>%s</code> states; with
+<code>&lt;*&gt;</code> in all of them; <code>%x</code> states only where named.</li>
+<li>Rules compete longest match first, then the earlier rule (flex), which is
+<code>Lexer.LONGEST</code>. Inside one pattern JS alternation is leftmost-first, so
+<code>a|ab</code> differs from flex; put the longer alternative first.</li>
+<li><code>&lt;STATE&gt;{ ... }</code> blocks give their rules that start condition.</li>
+<li>A file that does not parse as flex is read again with jison's single-quoted
+patterns (<code>'"'[^"]+'"'</code>).</li>
+<li><code>&lt;&lt;EOF&gt;&gt;</code> rules are dropped; <code>^</code> is "after a newline", <code>$</code> "before a
+newline", <code>r/s</code> is <code>r(?=s)</code>.</li>
+<li><code>%option case-insensitive</code>, <code>yymore</code>, <code>yyless</code> and similar are not applied.</li>
+</ul></article>
+<p class="editlink"><a href="https://github.com/rsenn/qjs-modules/blob/main/doc/js/lex.md">Edit this page on GitHub →</a></p>
+</main>
+<nav class="toc"><h3>On this page</h3><ul><li class="lvl2"><a href="#lexlexer">LexLexer</a></li><li class="lvl2"><a href="#parselex">parseLex</a></li><li class="lvl2"><a href="#what-the-generated-lexer-does">What the generated lexer does</a></li></ul></nav>
+</div>
+<footer class="sitefoot">
+  <p>qjs-modules — MIT. Built from the repo's own markdown by
+     <a href="https://github.com/rsenn/rsenn/tree/main/tools/site">rsenn/rsenn tools/site</a>.</p>
+</footer>
+<script src="../../assets/search-index.js"></script>
+<script src="../../assets/search.js"></script>
+<script>
+document.querySelector('.themetoggle').addEventListener('click', function () {
+  var d = document.documentElement;
+  var dark = d.dataset.theme ? d.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  d.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('theme', d.dataset.theme); } catch (e) {}
+});
+</script>
+</body>
+</html>
