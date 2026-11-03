@@ -1102,6 +1102,8 @@ file(
   utilities/unused-functions.js
   utilities/runtime-diff.js
   utilities/extract-c.js
+  utilities/extract-c-split.js
+  utilities/move-modules.js
   utilities/highlight.js
   utilities/extract-comments.js
   utilities/parse-ast.js

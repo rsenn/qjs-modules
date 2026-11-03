@@ -443,34 +443,114 @@ export function followUps({ name, libDir, root, apply, cFile, hFile }) {
   return out;
 }
 
-/* reads lib/<name>.h and lib/<name>/*.c back: header text, and per function file its includes and body */
+/* #if / #ifdef / #ifndef / #elif / #else / #endif tracking, so an include knows which condition it sits under */
+function condOf(line) {
+  const m = /^\s*#\s*(ifdef|ifndef|if|elif)\b\s*(.*?)\s*$/.exec(line);
+  if(!m) return null;
+  if(m[1] == 'ifdef') return `defined(${m[2]})`;
+  if(m[1] == 'ifndef') return `!defined(${m[2]})`;
+  return m[2];
+}
+
+/* src without its #include lines: { incs: [{ h, sys, local, guard }], body }. Each include carries the condition
+ * it was under (guard, or undefined), so it can be hoisted without losing the #if. onLocal gets every quoted
+ * include and returns true when it inlined that file (the line goes away, no include is recorded). */
+function stripIncludes(src, name, onLocal, keep) {
+  const incs = [];
+  const stack = [];
+  const out = [];
+
+  for(const line of src.split('\n')) {
+    const d = /^\s*#\s*(ifdef|ifndef|if|elif|else|endif)\b/.exec(line)?.[1];
+
+    if(d == 'if' || d == 'ifdef' || d == 'ifndef') stack.push({ cond: condOf(line), prev: [] });
+    else if(d == 'elif' || d == 'else') {
+      const top = stack[stack.length - 1];
+      if(top) {
+        top.prev.push(top.cond);
+        top.cond = d == 'else' ? null : condOf(line);
+      }
+    } else if(d == 'endif') stack.pop();
+
+    const m = !d && /^[ \t]*#[ \t]*include[ \t]*([<"])([^>"\n]+)[>"]/.exec(line);
+
+    if(!m) {
+      out.push(line);
+      continue;
+    }
+
+    const parts = stack.map(f => [...f.prev.map(c => `!(${c})`), ...(f.cond ? [`(${f.cond})`] : [])].join(' && '));
+    const guard = parts.length ? parts.join(' && ') : undefined;
+    const [, q, h] = m;
+
+    if(keep && q == '<') {
+      out.push(line);
+      continue;
+    }
+
+    if(keep && q == '"' && h != `../${name}.h` && h != `${name}.h` && !onLocal(h)) {
+      out.push(line.replace(`"${h}"`, `"${keep(h)}"`));
+      continue;
+    }
+
+    if(q == '<') incs.push({ sys: true, h, guard });
+    else if(h == `../${name}.h` || h == `${name}.h`) continue;
+    else if(onLocal(h)) continue;
+    else if(h.startsWith('../../')) incs.push({ h: h.slice(6), guard });
+    else if(h.startsWith('../')) incs.push({ h: 'lib/' + h.slice(3), local: h.slice(3), guard });
+    else incs.push({ h, guard });
+  }
+
+  let body = out.join('\n');
+  /* an #if left without any content, and an #else left without any content */
+  for(let prev; prev !== body; ) {
+    prev = body;
+    body = body
+      .replace(/^[ \t]*#[ \t]*(?:if|ifdef|ifndef)\b[^\n]*\n(?:[ \t]*\n)*(?:[ \t]*#[ \t]*else\b[^\n]*\n(?:[ \t]*\n)*)?[ \t]*#[ \t]*endif\b[^\n]*\n?/gm, '')
+      .replace(/^[ \t]*#[ \t]*else\b[^\n]*\n(?:[ \t]*\n)*(?=[ \t]*#[ \t]*endif\b)/gm, '');
+  }
+  return { incs, body };
+}
+
+/* reads lib/<name>.h and lib/<name>/*.c back: header text, and per function file its includes and body.
+ * A private header (internal.h, <name>_internal.h) the .c files include is inlined once into inlined[],
+ * with its own includes hoisted like the others. */
 function gatherLib(libDir, name) {
   const warnings = [];
   const hText = fs.readFileSync(path.join(libDir, name + '.h'), 'utf8').replace(/^\/\* \*\/\n/gm, '');
   const dir = path.join(libDir, name);
-  const INC = /^[ \t]*#[ \t]*include[ \t]*([<"])([^>"\n]+)[>"][^\n]*\n?/gm;
   const libHeaders = new Set(fs.readdirSync(libDir).filter(f => f.endsWith('.h')));
+  const inlined = new Map();
+  const root = path.dirname(path.resolve(libDir));
+
+  const keepOf = base => h => {
+    const rel = path.relative(root, path.resolve(base, h));
+    return fs.existsSync(path.resolve(base, h)) && !rel.startsWith('..') ? rel : h;
+  };
+
+  const inliner = base => h => {
+    const p = path.resolve(base, h);
+    if(!/(^|[_/])internal\.h$/.test(h) || !fs.existsSync(p)) return false;
+    if(!inlined.has(p)) {
+      inlined.set(p, null);
+      const r = stripIncludes(fs.readFileSync(p, 'utf8'), name, inliner(path.dirname(p)), keepOf(path.dirname(p)));
+      inlined.set(p, r);
+    }
+    return true;
+  };
 
   const units = fs
     .readdirSync(dir)
     .filter(f => f.endsWith('.c'))
     .map(f => {
-      const src = fs.readFileSync(path.join(dir, f), 'utf8');
-      const incs = [];
-      const body = src.replace(INC, (m, q, h) => {
-        if(q == '<') incs.push({ sys: true, h });
-        else if(h == `../${name}.h`) return '';
-        else if(h == `../${name}_internal.h`) warnings.push(`${f}: includes ${name}_internal.h, merge its contents by hand`);
-        else if(h.startsWith('../../')) incs.push({ h: h.slice(6) });
-        else if(h.startsWith('../')) incs.push({ h: 'lib/' + h.slice(3), local: h.slice(3) });
-        else incs.push({ h });
-        return '';
-      });
+      const { incs, body } = stripIncludes(fs.readFileSync(path.join(dir, f), 'utf8'), name, inliner(dir));
       const fn = f.slice(0, -2);
       const at = hText.search(new RegExp(`\\b${fn}\\s*\\(`));
       return { file: f, fn, incs, body: body.trim(), at: at < 0 ? Infinity : at };
     })
     .sort((a, b) => a.at - b.at || a.file.localeCompare(b.file));
+
+  const privates = [...inlined.values()].filter(Boolean).map(r => r.body.trim());
 
   for(const u of units) if(u.at == Infinity) warnings.push(`${u.file}: not declared in ${name}.h, placed last`);
   const names = new Map();
@@ -479,36 +559,45 @@ function gatherLib(libDir, name) {
       if(names.has(m[1])) warnings.push(`${m[1]} defined in ${names.get(m[1])} and ${u.file}`);
       else names.set(m[1], u.file);
     }
-  return { hText, units, warnings, libHeaders };
+  return { hText, units, privates, warnings, libHeaders };
 }
 
-/* the includes of all units, de-duped in first-seen order, own and header-included ones removed */
-function mergedIncludes(units, skip, rewrite) {
+/* the includes of all units, de-duped in first-seen order, own and header-included ones removed.
+ * An include under a condition stays under it: one #if block per distinct condition, after the plain ones
+ * and after mid (the private headers, which define the macros those conditions test). */
+function mergedIncludes(units, skip, rewrite, mid = []) {
   const lib = [];
   const sys = [];
+  const guarded = new Map();
+
   for(const u of units)
     for(const i of u.incs) {
-      if(i.sys) addUnique(sys, i.h);
-      else if(!skip.has(i.h) && !skip.has(i.local)) addUnique(lib, rewrite(i));
+      if(!i.sys && (skip.has(i.h) || skip.has(i.local))) continue;
+      const line = i.sys ? `#include <${i.h}>` : `#include "${rewrite(i)}"`;
+      if(i.guard) {
+        if(!guarded.has(i.guard)) guarded.set(i.guard, []);
+        addUnique(guarded.get(i.guard), line);
+      } else addUnique(i.sys ? sys : lib, line);
     }
-  return [...lib.map(h => `#include "${h}"`), ...sys.map(h => `#include <${h}>`)];
+
+  return [...lib, ...sys, ...mid, ...[...guarded].flatMap(([g, l]) => [`#if ${g}`, ...l, '#endif'])];
 }
 
 const addUnique = (list, v) => list.includes(v) || list.push(v);
 
 /* reverse of splitLib: lib/<name>.h + lib/<name>/*.c -> <name>.h and <name>.c text */
 export function joinLib({ libDir, name }) {
-  const { hText, units, warnings, libHeaders } = gatherLib(libDir, name);
+  const { hText, units, privates, warnings, libHeaders } = gatherLib(libDir, name);
   const hinc = new Set([...hText.matchAll(/#\s*include\s*"([^"]+)"/g)].map(m => m[1]));
   const header = hText.replace(/#(\s*)include(\s*)"([^"/]+\.h)"/g, (m, a, b, h) => (libHeaders.has(h) ? `#${a}include${b}"lib/${h}"` : m));
-  const incs = mergedIncludes(units, hinc, i => i.h);
+  const incs = mergedIncludes(units, hinc, i => i.h, privates);
   const c = [`#include "${name}.h"`, ...incs, '', units.map(u => u.body).join('\n\n'), ''].join('\n');
   return { header, c, warnings };
 }
 
 /* header, then #ifdef NAME_IMPL with all includes and all functions of lib/<name>/ */
 export function amalgamate({ libDir, name, guard }) {
-  const { hText, units, warnings } = gatherLib(libDir, name);
+  const { hText, units, privates, warnings } = gatherLib(libDir, name);
   const IMPL = name.toUpperCase() + '_IMPL';
   const hinc = new Set([...hText.matchAll(/#\s*include\s*"([^"]+)"/g)].map(m => m[1]));
   let header = hText;
@@ -519,6 +608,6 @@ export function amalgamate({ libDir, name, guard }) {
     else warnings.push('no include guard found in the header, --guard ignored');
   }
 
-  const incs = mergedIncludes(units, hinc, i => i.local ?? i.h);
+  const incs = mergedIncludes(units, hinc, i => i.local ?? i.h, privates);
   return { text: [header.trimEnd(), '', `#ifdef ${IMPL}`, ...incs, '', units.map(u => u.body).join('\n\n'), '', `#endif /* defined ${IMPL} */`, ''].join('\n'), warnings };
 }
