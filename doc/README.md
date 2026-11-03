@@ -83,3 +83,20 @@ implementation is split into `include/` + `src/` pieces, and the interfaces betw
 ### General Documentation
 
 - [grammar.md](grammar.md) — JavaScript grammar specification
+- [runtime-compat.md](runtime-compat.md) — how much of Node's, Bun's and Deno's surface qjsm has, member counts per module and global
+- [qjsm.md](qjsm.md) — the `qjsm` interpreter
+- [qjsm-layout.md](qjsm-layout.md) — working document: a configurable, reported module layout and build info for qjsm
+- [api-event-model.md](api-event-model.md) — the source/sink event model of the json and xml engines
+- [event-model-state.md](event-model-state.md) — where the event model stands
+
+### Export lists
+
+The last section of every module page, "Export list", is generated from the running qjsm and rewritten by
+`utilities/doc-api.js`:
+
+```sh
+utilities/api-surface.sh -m "$PWD/lib;$PWD/build/$(cc -dumpmachine)" -o /tmp/surface
+qjsm utilities/doc-api.js /tmp/surface .
+```
+
+Text above the "Export list" heading is written by hand.

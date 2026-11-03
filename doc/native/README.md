@@ -31,6 +31,10 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 - [sockets](sockets.md) — BSD sockets
 - [syscallerror](syscallerror.md) — System call error codes
 
+### QuickJS Core
+- [os](os.md) — QuickJS's `os` module as built into qjsm
+- [std](std.md) — QuickJS's `std` module as built into qjsm
+
 ### WebAssembly
 - [wasm](wasm.md) — WebAssembly JS API over wasm3 or WAMR (`Module`, `Instance`, `Memory`, `Table`, `Global`); the `WebAssembly` global, `.wasm` loader and WASI are in [js/](../js/README.md)
 

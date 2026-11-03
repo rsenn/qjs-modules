@@ -63,6 +63,17 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [terminal](terminal.md) — Terminal utilities
 - [socklen_t](socklen_t.md) — Socket length type
 
+### Node and Bun Parts
+- [node:buffer](node-buffer.md) — `node:buffer` (`Buffer`, `atob`, `btoa`)
+- [node:child_process](node-child-process.md) — `node:child_process` over the native module
+- [node:events](node-events.md) — `node:events` (`EventEmitter`, `once`, `on`)
+- [node:os](node-os.md) — `node:os`
+- [node:util](node-util.md) — `node:util`
+- [assertStrict](assertStrict.md) — `assert/strict`
+- [bun-util](bun-util.md) — the `Bun.*` utility functions
+
+How much of Node's, Bun's and Deno's surface this adds up to: [runtime-compat](../runtime-compat.md).
+
 ### Parsing, DOM & Selectors
 - [dom](dom.md) — W3C DOM API (wraps native modules)
 - [xpath](xpath.md) — XPath implementation
@@ -78,15 +89,21 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 ### Databases
 - [sql](sql.md) — Bun `bun:sql`-flavored tagged-template client unifying sqlite/pgsql/mysql
 - [db](db.md) — Database utilities
-- database (`lib/database.js`) — Database abstraction (undocumented)
+- [database](database.md) — `bun:sqlite`-style `Database` and `Statement` over the sqlite module
+- [dbi](dbi.md) — database-independent `Database`/`Result` over sqlite, mysql and pgsql
 
 ### Tooling
 - [repl](repl.md) — REPL implementation
 - [lexers](lexers.md) — Lexer for a file or language name
 
 ### Utilities
-- describe (`lib/describe.js`) — describeClass()/describeObject(), also a command-line tool (undocumented)
-- dbi (`lib/dbi.js`) — Database interface (undocumented)
+- [describe](describe.md) — describeClass()/describeObject(), also a command-line tool that dumps an API in qjsm, node, bun, deno
+- [c-functions](c-functions.md) — find C function definitions and prototypes in a source
+- [magic-string](magic-string.md) — bundled magic-string: edit a string by index, generate a source map
+- [tinytest](tinytest.md) — the zero-dependency test library of `tests/unittests/`
+- [simple-queue](simple-queue.md) — the Chromium `SimpleQueue` behind the streams
+- [file](file.md) — the WHATWG `File`
+- [lazyGlobal](lazyGlobal.md) — define a global that loads its module on first read
 
 ## Module Classification
 
@@ -114,7 +131,7 @@ Extend built-in JavaScript prototypes (Array, Object, Map, etc.):
 
 ## Statistics
 
-- **Total JS modules:** 60+
+- **Total JS modules:** 75 files in `lib/`, 79 docs
 - **Polyfills:** 26 (standalone JS implementations)
 - **Wrappers:** 32 (wrap native modules)
 - **Extensions:** 10 (prototype extensions)
