@@ -34,7 +34,7 @@ typedef struct {
  *
  * ```c
  * XwalkIterator it;
- * xwalk_init(&it, ctx, tree, iface, NULL);   // NULL: tagName, attributes, children
+ * xwalk_init(&it, ctx, tree, NULL);   // NULL: tagName, attributes, children
  * while((r = xwalk_next(&it, ctx)) > 0) {}
  * xwalk_close(&it, ctx);                     // r is 0 when done, -1 on error
  * ```
@@ -47,7 +47,7 @@ typedef struct {
   JSAtom atom[3];    /* tag, attributes, children */
 } XwalkIterator;
 
-int xwalk_init(XwalkIterator*, JSContext*, JSValueConst root, WalkInterface iface, const XwalkShape* shape);
+int xwalk_init(XwalkIterator*, JSContext*, JSValueConst root, const XwalkShape* shape);
 void xwalk_close(XwalkIterator*, JSContext*);
 void xwalk_close_rt(XwalkIterator*, JSRuntime*);
 

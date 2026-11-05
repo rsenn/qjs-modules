@@ -1,6 +1,6 @@
 # XML: how the implementation is split
 
-> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 933 and `quickjs-xml.c` 967 lines. The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XMLBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 933 and `quickjs-xml.c` 967 lines. The layering described below is done except the `lib/` glue for `read`/`write`, which stay native.
 > Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
 > `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
 
@@ -157,7 +157,7 @@ oracle for which inputs are errors (`api-compare-xml.md` 3), not for the wording
 ## 6. State 2026-10-17
 
 Done: `read()` on `xbuilder`; `write()` on `xwalk` + `xlayout` (`src/xml/xtreewrite.c`, tree and flat list; `quickjs-xml.c` is 2156 lines); `XMLWriter` on
-`xwrite`, decorated with the `XmlEventSink` methods by `js_xmlsink_*` (`src/xml/xsink.c`); `XmlEventSink`, pumps, `XmlBuilder`; error contract E0 to E2.
+`xwrite`, decorated with the `XmlEventSink` methods by `js_xmlsink_*` (`src/xml/xsink.c`); `XmlEventSink`, pumps, `XMLBuilder`; error contract E0 to E2.
 Sections 2 and 3 above predate this; the open items are in `TODO.md`, "Remaining work: json and xml" (X1 to X8, B1 to B9).
 
 ## 7. Plan 2026-10-18: engines in C, APIs in `lib/`
@@ -184,7 +184,7 @@ against the pre-refactor parser stays at 0 on well-formed input; push output is 
 
 ### 7.1 End state (plan 2026-10-18)
 
-After the binding is lifted `quickjs-xml.c` is the list of classes (about 1000 lines): `XMLParser`, `XMLPushParser`, `XmlBuilder`, `XmlWalker`,
+After the binding is lifted `quickjs-xml.c` is the list of classes (about 1000 lines): `XMLParser`, `XMLPushParser`, `XMLBuilder`, `XmlWalker`,
 `XMLWriter`, `XMLTreeSerializer`, `tee`. The rest goes to `src/xml/`: error shaping (`xml_error_new`, `xml_throw_at`,
 `xml_pushparser_report`, `xml_nodeparser_record_error`), the four copies of option parsing (`xopts.c`), event to JS value and JS-function
 handlers (`xevent-js.c`), handshake and `js_xml_pump` (`xconnect.c`), the serializer's `read()` (`xserial-js.c`), `location_from_srcpos`,

@@ -1,7 +1,7 @@
 /* xwalkev.c: XwalkSource, xwalk_event(); an element tree or flat list as a pull source of XmlEvent.
  * depends on: xwalk.h (the iterator), xevent.h (the event).
- * rule: the walk calls a WalkInterface that turns each step into queued XmlEvents, xwalk_event()
- * hands them out one by one. Nothing here writes bytes. */
+ * rule: each step of the walk is turned into queued XmlEvents, xwalk_event() hands them out one
+ * by one. Nothing here writes bytes. */
 
 #define _GNU_SOURCE 1
 
@@ -133,8 +133,7 @@ xwe_end_all(XwalkSource* s) {
 }
 
 static ssize_t
-xwe_key(void* o, JSContext* ctx, JSValueConst key) {
-  XwalkSource* s = o;
+xwe_key(XwalkSource* s, JSContext* ctx, JSValueConst key) {
   XwalkFrame* f = xwe_top(s);
 
   if(f->kind == XF_ELEMENT) {
@@ -170,16 +169,14 @@ xwe_push(XwalkSource* s, int kind) {
 }
 
 static ssize_t
-xwe_object_start(void* o, JSContext* ctx) {
-  XwalkSource* s = o;
+xwe_object_start(XwalkSource* s, JSContext* ctx) {
   XwalkFrame* f = xwe_top(s);
 
   return xwe_push(s, !f || f->kind == XF_LIST ? XF_ELEMENT : XF_ATTRS);
 }
 
 static ssize_t
-xwe_array_start(void* o, JSContext* ctx) {
-  XwalkSource* s = o;
+xwe_array_start(XwalkSource* s, JSContext* ctx) {
   XwalkFrame* f = xwe_top(s);
 
   /* the instruction comes before its children, its attributes are all in by now */
@@ -251,8 +248,7 @@ xwe_tag(XwalkSource* s, XwalkFrame* f, const char* str, size_t len) {
 }
 
 static ssize_t
-xwe_value(void* o, JSContext* ctx, JSValueConst value) {
-  XwalkSource* s = o;
+xwe_value(XwalkSource* s, JSContext* ctx, JSValueConst value) {
   XwalkFrame* f = xwe_top(s);
 
   if(f->kind == XF_ELEMENT && f->key == 1) {
@@ -317,8 +313,7 @@ xwe_value(void* o, JSContext* ctx, JSValueConst value) {
 }
 
 static ssize_t
-xwe_object_end(void* o, JSContext* ctx) {
-  XwalkSource* s = o;
+xwe_object_end(XwalkSource* s, JSContext* ctx) {
   XwalkFrame* f = xwe_top(s);
   int r = 0;
 
@@ -336,16 +331,13 @@ xwe_object_end(void* o, JSContext* ctx) {
 }
 
 static ssize_t
-xwe_array_end(void* o, JSContext* ctx) {
-  XwalkSource* s = o;
-
+xwe_array_end(XwalkSource* s, JSContext* ctx) {
   vector_pop(&s->frames, sizeof(XwalkFrame));
   return vector_empty(&s->frames) && xwe_end_all(s) < 0 ? xwe_fail(s) : 0;
 }
 
 int
 xwalk_source_init(XwalkSource* s, JSContext* ctx, JSValueConst root, int flags, const XwalkShape* shape) {
-  WalkInterface iface = {s, xwe_key, xwe_object_start, xwe_array_start, xwe_object_end, xwe_array_end, xwe_value, 0};
   JSRuntime* rt = JS_GetRuntime(ctx);
 
   s->ctx = ctx;
@@ -358,7 +350,23 @@ xwalk_source_init(XwalkSource* s, JSContext* ctx, JSValueConst root, int flags, 
   vector_init_rt(&s->text, rt);
   vector_init_rt(&s->attr, rt);
   vector_init_rt(&s->pi, rt);
-  return xwalk_init(&s->it, ctx, root, iface, shape);
+  return xwalk_init(&s->it, ctx, root, shape);
+}
+
+/* xwe_step_event: queues what the walk event `kind` stands for; returns 0, or -1 with an exception pending. */
+static ssize_t
+xwe_step_event(XwalkSource* s, int kind) {
+  JSContext* ctx = s->ctx;
+  const WalkIterator* w = &s->it.walk;
+
+  switch(kind) {
+    case WALK_EVENT_KEY: return xwe_key(s, ctx, w->val);
+    case WALK_EVENT_OBJECT_START: return xwe_object_start(s, ctx);
+    case WALK_EVENT_ARRAY_START: return xwe_array_start(s, ctx);
+    case WALK_EVENT_OBJECT_END: return xwe_object_end(s, ctx);
+    case WALK_EVENT_ARRAY_END: return xwe_array_end(s, ctx);
+    default: return xwe_value(s, ctx, w->val);
+  }
 }
 
 XmlPull
@@ -393,6 +401,9 @@ xwalk_event(XwalkSource* s, XmlEvent* ev) {
 
     if(r == 0)
       return XML_PULL_END;
+
+    if(xwe_step_event(s, r) < 0)
+      return XML_PULL_FAIL;
   }
 }
 

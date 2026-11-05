@@ -11,11 +11,11 @@
  * @{
  */
 
-/* XmlParser: the pull parser of the JS class, an XMLParser with the Reader it reads, the Location
+/* XmlParser: the pull parser of the JS class, an XmlPullParser with the Reader it reads, the Location
  * the JS side reads and the selfClosingTags option it owns. */
 typedef struct xml_parser_obj {
   Reader reader;
-  XMLParser xp; /* xp.reader is &reader, xp.loc is loc */
+  XmlPullParser xp; /* xp.reader is &reader, xp.loc is loc */
   Location* loc;
   char** self_closing_owned;
 } XmlParser;

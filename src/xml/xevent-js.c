@@ -124,7 +124,7 @@ make_tuple(JSContext* ctx, JSValue a, JSValue b) {
 JSValue
 xml_read_value(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, XmlOptions opts) {
   Reader reader = reader_from_bytes(buf, len);
-  XMLParser xp;
+  XmlPullParser xp;
   XmlBuilder xb;
   JSValue ret;
   VirtualProperties vprop = {0};

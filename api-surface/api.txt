@@ -6609,27 +6609,27 @@ xml: XMLWriter.prototype.text()
 xml: XMLWriter.prototype.written: get
 xml: XMLWriter.prototype[Symbol.for('qjs.xmlsink')]()
 xml: XMLWriter.prototype[Symbol.toStringTag]: string = "XMLWriter"
-xml: XmlBuilder.constructor()
-xml: XmlBuilder.prototype.attribute()
-xml: XmlBuilder.prototype.cdata()
-xml: XmlBuilder.prototype.comment()
-xml: XmlBuilder.prototype.declaration()
-xml: XmlBuilder.prototype.elementEnd()
-xml: XmlBuilder.prototype.elementStart()
-xml: XmlBuilder.prototype.error()
-xml: XmlBuilder.prototype.finish()
-xml: XmlBuilder.prototype.instruction()
-xml: XmlBuilder.prototype.path: get
-xml: XmlBuilder.prototype.root: get
-xml: XmlBuilder.prototype.text()
-xml: XmlBuilder.prototype[Symbol.for('qjs.xmlsink')]()
-xml: XmlBuilder.prototype[Symbol.toStringTag]: string = "XmlBuilder"
+xml: XMLBuilder.constructor()
+xml: XMLBuilder.prototype.attribute()
+xml: XMLBuilder.prototype.cdata()
+xml: XMLBuilder.prototype.comment()
+xml: XMLBuilder.prototype.declaration()
+xml: XMLBuilder.prototype.elementEnd()
+xml: XMLBuilder.prototype.elementStart()
+xml: XMLBuilder.prototype.error()
+xml: XMLBuilder.prototype.finish()
+xml: XMLBuilder.prototype.instruction()
+xml: XMLBuilder.prototype.path: get
+xml: XMLBuilder.prototype.root: get
+xml: XMLBuilder.prototype.text()
+xml: XMLBuilder.prototype[Symbol.for('qjs.xmlsink')]()
+xml: XMLBuilder.prototype[Symbol.toStringTag]: string = "XMLBuilder"
 xml: class XMLNodeParser
 xml: class XMLParser
 xml: class XMLPushParser
 xml: class XMLTreeSerializer
 xml: class XMLWriter
-xml: class XmlBuilder
+xml: class XMLBuilder
 xml: default.read()
 xml: default.write()
 xml: function read()

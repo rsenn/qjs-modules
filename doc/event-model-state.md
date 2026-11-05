@@ -140,7 +140,7 @@ Done (2026-10-18):
 - P6 handshake (2026-10-18): `include/{json,xml}/{j,x}connect.h` + `src/{json,xml}/{j,x}connect.c`
   (`js_jsonsink_resolve`: the sink behind `obj[Symbol.for('qjs.jsonsink')]()` by address, else the JS-object adapter;
   `js_jsonsink_define_handshake`; XML twin), `js_{json,xml}sink_from_js_free_rt`. Bindings: `JsonWriter`/`XMLWriter`
-  and the new `JsonBuilder`/`XmlBuilder` and `tee` answer the handshake; `JsonParser.pump(sink, end)`, `XMLParser.pump(sink)`,
+  and the new `JsonBuilder`/`XMLBuilder` and `tee` answer the handshake; `JsonParser.pump(sink, end)`, `XMLParser.pump(sink)`,
   `JsonPushParser.connect(sink)`, `XMLPushParser.connect(sink)` plus the `sink` getter. Tests in test-json.js and test-xml.js
   ('handshake: pump(), connect(), tee'). `quickjs-json.c` 1727 lines, `quickjs-xml.c` 2126. Full ctest: the same 8 failures.
   Known limit: no self-closing flag through a sink, so a built tree gives `<b/>` an empty `children`.
@@ -154,6 +154,11 @@ Done (2026-10-18):
   `js_xmlevent_new`), both parsers are iterable. `parse()` and the raw getters stay, deprecated: `lib/html.js`,
   `examples/html2md.js`, `tools/site/markdown.js` and the sibling `qjs-lws/examples/crawler/lib/html2md.js` still use them, so
   `xml_parse` / `json_parse` cannot become private before those move to `next()`.
+
+- Location class registration (2026-11-05): `js_location_wrap()` registers the Location class itself when 'location' was not
+  imported yet (`js_location_init` is idempotent now). Before, `e.loc` of every json/xml error was an object of class 0:
+  its getters returned undefined and `String(e.loc)` threw. `test-json`, `test-json5`, `test-xml` pass again; ctest
+  187 of 190, left: `test-list` (segfault), `test-misc`, `test-mysql`, none of them event-model.
 
 Open, in order: migrate those four consumers to `next()` then delete `parse()` + make `json_parse`/`xml_parse` private (rest of P13),
 `XMLNodeParser` as a one-line alias in the glue,
@@ -212,7 +217,7 @@ Full list with gates: `TODO.md` "Event model v2" and `api-event-model.md` 12.5.
 
 1. ~~P11~~ done (3.3).
 2. **P12** the engine-bound helpers of 12.1, each introduced together with the binding code it replaces so the line count of `quickjs-*.c` falls in the same change.
-3. **Lift** `quickjs-json.c`, then `quickjs-xml.c`: classes on `json_next` / `xml_next` / `jr_feed` / `xr_feed`; serializers on `JsonSerial` / `XmlSerial`; `JsonBuilder` / `XmlBuilder` options; handshake, `pump()`, `connect()`; constructor options; `JsonParser.next()` results as `{type, value, loc}`.
+3. **Lift** `quickjs-json.c`, then `quickjs-xml.c`: classes on `json_next` / `xml_next` / `jr_feed` / `xr_feed`; serializers on `JsonSerial` / `XmlSerial`; `JsonBuilder` / `XMLBuilder` options; handshake, `pump()`, `connect()`; constructor options; `JsonParser.next()` results as `{type, value, loc}`.
 4. **P13** privatize and delete (12.2). **P14** make `c-json-dialects` green (done), measure (done: `jread` 85 / `json.c` 28, `xread` compat 48 / `xml.c` 13 MB/s), `xread` `XR_COMPAT` (done), merge tokenizers (done: `json.c` and `xml.c` are deleted, `json_next` is a queue over `jread`, `xml_next` a queue over `xr_feed` in `XR_COMPAT` mode, golden `tests/fixtures/{json,xml}-pull-dump.txt` replace the old oracles). **P15**, **P16** as in 12.5.
 5. **P9** the `lib/` glue, then delete the C `JSONL`, `read`, `write`.
 
@@ -254,3 +259,12 @@ Open: `json_parse` / `xml_parse` stay as engine functions under `json_next` / `x
 - `jconnect.c` / `xconnect.c`: `JsonJsCallbacks` / `XmlJsCallbacks` (the callback mode of the push parsers) and
   `JsonJsTee` / `XmlJsTee` (the JS-owning tee).
 What stays is binding: classes, constructors, getters, finalizers, the push parsers' write/close error rules, module init.
+
+## P15 done, naming rule (2026-11-05)
+
+- P15: `walk_next()` leaves the event in the iterator (`event`, `val`, `raw`); `WalkInterface` and the capture layer of `jwalkev.c` are gone,
+  `walk_init` / `jwalk_init` / `xwalk_init` lost their `iface` argument. `xwalkev.c` keeps its `xwe_*` step functions, called from `xwalk_event`.
+- Names: JS classes of the xml module are `XML*` (`XMLParser`, `XMLPushParser`, `XMLTreeSerializer`, `XMLWriter`, `XMLBuilder`, as the platform's
+  `XMLSerializer`); JS classes of the json module are `Json*`. C types are `Xml*` / `Json*` only. Renamed C types: `XMLParser` -> `XmlPullParser`
+  (`xml.h`; `XmlParser` in `xparser.h` is its JS wrapper), `XMLPushParser` -> `XmlPushParser`, `XMLWriter` -> `XmlWriterObj`,
+  `XMLTreeSerializer` -> `XmlTreeSerializer`. JS `XmlBuilder` -> `XMLBuilder` (the C type stays `XmlBuilder`).

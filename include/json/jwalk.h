@@ -9,7 +9,7 @@
  * @{
  */
 
-/* JwalkIterator: walks a JS value and reports it to a WalkInterface, one
+/* JwalkIterator: walks a JS value, one
  * event per jwalk_next() call (a walk.h WalkIterator with the JSON hooks),
  * with JSON.stringify's rules for what a value is.
  *
@@ -36,7 +36,7 @@
  *
  * ```c
  * JwalkIterator it;
- * jwalk_init(&it, ctx, value, iface);
+ * jwalk_init(&it, ctx, value);
  * while((r = jwalk_next(&it, ctx)) > 0) {}
  * jwalk_close(&it, ctx);   // r is 0 when done, -1 on error
  *
@@ -57,7 +57,7 @@ typedef struct {
   uint32_t allow_len;
 } JwalkIterator;
 
-int jwalk_init(JwalkIterator*, JSContext*, JSValueConst root, WalkInterface iface);
+int jwalk_init(JwalkIterator*, JSContext*, JSValueConst root);
 int jwalk_set_replacer(JwalkIterator*, JSContext*, JSValueConst replacer);
 void jwalk_close(JwalkIterator*, JSContext*);
 void jwalk_close_rt(JwalkIterator*, JSRuntime*);
@@ -109,9 +109,6 @@ jwalk_root_omitted(const JwalkIterator* it) {
 typedef struct {
   JwalkIterator it;
   JSContext* ctx;
-  JSValue val; /* the value of the event just captured, owned */
-  int kind;    /* WalkEvent captured, 0 for none */
-  int raw;     /* val is a rawJSON object */
   DynBuf text; /* str of the event just made; runtime-bound, so a finalizer can free it */
 } JwalkSource;
 

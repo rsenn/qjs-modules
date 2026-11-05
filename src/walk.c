@@ -123,24 +123,25 @@ walk_prepare_plain(void* opaque, JSContext* ctx, JSValueConst holder, JSValueCon
   return JS_IsObject(*val) ? WALK_KIND_CONTAINER : WALK_KIND_VALUE;
 }
 
-/* walk_init: starts walking `root`, reporting to `iface`; emits nothing yet.
+/* walk_init: starts walking `root`; emits nothing yet.
  *
  *   WalkIterator*  it     iterator to initialize
  *   JSValueConst   root   value to walk, dup'ed (refcount: freed by close)
- *   WalkInterface  iface  callbacks, copied by value
  *   WalkHooks      hooks  value rules, copied by value; zeroed for the plain ones
  *
  *   returns int  0, or -1 with an exception pending.
  */
 int
-walk_init(WalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface iface, WalkHooks hooks) {
+walk_init(WalkIterator* it, JSContext* ctx, JSValueConst root, WalkHooks hooks) {
   vector_init_rt(&it->stack, JS_GetRuntime(ctx)); /* rt, not ctx: walk_close_rt() may run in a finalizer */
   vector_init_rt(&it->meta, JS_GetRuntime(ctx));
-  it->iface = iface;
   it->hooks = hooks;
   it->flags = JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY;
   it->root = JS_DupValue(ctx, root);
   it->pending = JS_UNDEFINED;
+  it->val = JS_UNDEFINED;
+  it->event = 0;
+  it->raw = FALSE;
   it->state = WALK_START;
   it->key_done = FALSE;
   it->entered = FALSE;
@@ -214,43 +215,27 @@ walk_enter(WalkIterator* it, JSContext* ctx, JSValue obj) {
   it->key_done = FALSE;
   it->entered = TRUE;
 
-  if((array ? it->iface.array_start : it->iface.object_start)(it->iface.opaque, ctx) < 0)
-    return -1;
-
   return array ? WALK_EVENT_ARRAY_START : WALK_EVENT_OBJECT_START;
 }
 
 /* walk_report: reports a prepared value, or enters a prepared container.
  *
- * refcount: takes `val`.
+ * refcount: takes `val`, a value event keeps it in it->val.
  * returns the WalkEvent emitted, or -1 with an exception pending. */
 static int
 walk_report(WalkIterator* it, JSContext* ctx, int kind, JSValue val) {
-  ssize_t r;
-
   if(kind == WALK_KIND_CONTAINER)
     return walk_enter(it, ctx, val);
 
-  r = kind == WALK_KIND_RAW && it->iface.raw ? it->iface.raw(it->iface.opaque, ctx, val) : it->iface.value(it->iface.opaque, ctx, val);
-  JS_FreeValue(ctx, val);
-  return r < 0 ? -1 : WALK_EVENT_VALUE;
+  it->val = val;
+  it->raw = kind == WALK_KIND_RAW;
+  return WALK_EVENT_VALUE;
 }
 
-/* walk_next: reports the next event to the callbacks.
- *
- * {a: 1} gives, over three calls: object_start, key("a") + value(1)
- * (two calls), object_end; what is skipped or rewritten is up to the hooks.
- *
- *   returns int  the WalkEvent emitted (> 0), 0 when done, -1 with an
- *                exception pending (callback error, toJSON/replacer error,
- *                BigInt, circular reference or enumeration failure).
- */
-int
-walk_next(WalkIterator* it, JSContext* ctx) {
-  void* opaque = it->iface.opaque;
+static int
+walk_step(WalkIterator* it, JSContext* ctx) {
   PropertyEnumeration* top;
   WalkMeta* meta;
-  ssize_t r;
   BOOL array;
   JSValue val;
 
@@ -329,8 +314,10 @@ walk_next(WalkIterator* it, JSContext* ctx) {
 
       meta->next++;
 
-      if(kind == WALK_KIND_OMIT)
-        return it->iface.value(opaque, ctx, JS_NULL) < 0 ? -1 : WALK_EVENT_VALUE;
+      if(kind == WALK_KIND_OMIT) {
+        it->val = JS_NULL;
+        return WALK_EVENT_VALUE;
+      }
 
       return walk_report(it, ctx, kind, val);
     }
@@ -363,14 +350,7 @@ walk_next(WalkIterator* it, JSContext* ctx) {
       continue;
     }
 
-    r = it->iface.key(opaque, ctx, key);
-    JS_FreeValue(ctx, key);
-
-    if(r < 0) {
-      JS_FreeValue(ctx, val);
-      return -1;
-    }
-
+    it->val = key;
     it->pending = val;
     it->pending_kind = kind;
     it->key_done = TRUE;
@@ -378,7 +358,6 @@ walk_next(WalkIterator* it, JSContext* ctx) {
   }
 
 end:
-  r = (array ? it->iface.array_end : it->iface.object_end)(opaque, ctx);
   walk_active_del(it, (uintptr_t)JS_VALUE_GET_PTR(top->obj));
   property_recursion_pop(&it->stack, ctx);
   vector_pop(&it->meta, sizeof(WalkMeta));
@@ -392,7 +371,28 @@ end:
       top->idx++; /* the property the container was the value of */
   }
 
-  return r < 0 ? -1 : array ? WALK_EVENT_ARRAY_END : WALK_EVENT_OBJECT_END;
+  return array ? WALK_EVENT_ARRAY_END : WALK_EVENT_OBJECT_END;
+}
+
+/* walk_next: makes the next event and leaves it in it->event, it->val and it->raw.
+ *
+ * {a: 1} gives, over four calls: object_start, key("a") + value(1)
+ * (two calls), object_end; what is skipped or rewritten is up to the hooks.
+ *
+ *   returns int  the WalkEvent emitted (> 0), 0 when done, -1 with an
+ *                exception pending (toJSON/replacer error, BigInt,
+ *                circular reference or enumeration failure).
+ */
+int
+walk_next(WalkIterator* it, JSContext* ctx) {
+  int r;
+
+  JS_FreeValue(ctx, it->val);
+  it->val = JS_UNDEFINED;
+  it->raw = FALSE;
+  r = walk_step(it, ctx);
+  it->event = r > 0 ? r : 0;
+  return r;
 }
 
 /* walk_skip: does not descend into the container just started.
@@ -435,7 +435,8 @@ walk_close_rt(WalkIterator* it, JSRuntime* rt) {
   it->active_cap = it->active_len = 0;
   JS_FreeValueRT(rt, it->root);
   JS_FreeValueRT(rt, it->pending);
-  it->root = it->pending = JS_UNDEFINED;
+  JS_FreeValueRT(rt, it->val);
+  it->root = it->pending = it->val = JS_UNDEFINED;
 
   it->state = WALK_DONE;
 }

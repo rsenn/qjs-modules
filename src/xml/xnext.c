@@ -1,4 +1,4 @@
-/* xnext.c: XMLParser, xml_next(), xml_source(); the pull parser as an XmlEvent source.
+/* xnext.c: XmlPullParser, xml_next(), xml_source(); the pull parser as an XmlEvent source.
  * depends on: xread.h (the XR_COMPAT parser), xevent.h (the event).
  * rule: xread does the parsing, this reads blocks, queues what it made and hands it out one by one. */
 
@@ -15,14 +15,14 @@
  */
 
 void
-xml_init(XMLParser* p, Reader* reader) {
+xml_init(XmlPullParser* p, Reader* reader) {
   memset(p, 0, sizeof(*p));
   p->reader = reader;
   p->self_closing_tags = xtag_html_self_closing;
 }
 
 void
-xml_free(XMLParser* p) {
+xml_free(XmlPullParser* p) {
   if(p->started)
     xr_state_free(&p->st);
 
@@ -31,17 +31,17 @@ xml_free(XMLParser* p) {
 }
 
 void
-xml_set_tolerant(XMLParser* p, int tolerant) {
+xml_set_tolerant(XmlPullParser* p, int tolerant) {
   p->tolerant = !!tolerant;
 }
 
 void
-xml_set_flat(XMLParser* p, int flat) {
+xml_set_flat(XmlPullParser* p, int flat) {
   p->flat = !!flat;
 }
 
 void
-xml_set_implied_end(XMLParser* p, int enable) {
+xml_set_implied_end(XmlPullParser* p, int enable) {
   p->no_implied_end = !enable;
 }
 
@@ -77,7 +77,7 @@ xnext_text(struct xml_queue* q, const char* str, size_t len, int nul) {
  * an offset plus one until the event is handed out. */
 static ssize_t
 xnext_push(void* user, const XmlEvent* ev) {
-  XMLParser* p = user;
+  XmlPullParser* p = user;
   struct xml_queue* q = &p->queue;
   XmlEvent copy = *ev;
 
@@ -104,7 +104,7 @@ xnext_push(void* user, const XmlEvent* ev) {
 
 /* xnext_pop: writes the oldest queued event to *ev, XML_PULL_AGAIN when the queue is empty. */
 static XmlPull
-xnext_pop(XMLParser* p, XmlEvent* ev) {
+xnext_pop(XmlPullParser* p, XmlEvent* ev) {
   struct xml_queue* q = &p->queue;
 
   if(!q->len)
@@ -142,7 +142,7 @@ xnext_pop(XMLParser* p, XmlEvent* ev) {
 }
 
 XmlPull
-xml_next(XMLParser* p, XmlEvent* ev) {
+xml_next(XmlPullParser* p, XmlEvent* ev) {
   for(;;) {
     ssize_t n;
 
@@ -179,7 +179,7 @@ xnext_step(void* opaque, XmlEvent* ev) {
 }
 
 XmlEventSource
-xml_source(XMLParser* p) {
+xml_source(XmlPullParser* p) {
   return (XmlEventSource){p, xnext_step};
 }
 

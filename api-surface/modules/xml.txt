@@ -58,27 +58,27 @@ XMLWriter.prototype.text()
 XMLWriter.prototype.written: get
 XMLWriter.prototype[Symbol.for('qjs.xmlsink')]()
 XMLWriter.prototype[Symbol.toStringTag]: string = "XMLWriter"
-XmlBuilder.constructor()
-XmlBuilder.prototype.attribute()
-XmlBuilder.prototype.cdata()
-XmlBuilder.prototype.comment()
-XmlBuilder.prototype.declaration()
-XmlBuilder.prototype.elementEnd()
-XmlBuilder.prototype.elementStart()
-XmlBuilder.prototype.error()
-XmlBuilder.prototype.finish()
-XmlBuilder.prototype.instruction()
-XmlBuilder.prototype.path: get
-XmlBuilder.prototype.root: get
-XmlBuilder.prototype.text()
-XmlBuilder.prototype[Symbol.for('qjs.xmlsink')]()
-XmlBuilder.prototype[Symbol.toStringTag]: string = "XmlBuilder"
+XMLBuilder.constructor()
+XMLBuilder.prototype.attribute()
+XMLBuilder.prototype.cdata()
+XMLBuilder.prototype.comment()
+XMLBuilder.prototype.declaration()
+XMLBuilder.prototype.elementEnd()
+XMLBuilder.prototype.elementStart()
+XMLBuilder.prototype.error()
+XMLBuilder.prototype.finish()
+XMLBuilder.prototype.instruction()
+XMLBuilder.prototype.path: get
+XMLBuilder.prototype.root: get
+XMLBuilder.prototype.text()
+XMLBuilder.prototype[Symbol.for('qjs.xmlsink')]()
+XMLBuilder.prototype[Symbol.toStringTag]: string = "XMLBuilder"
 class XMLNodeParser
 class XMLParser
 class XMLPushParser
 class XMLTreeSerializer
 class XMLWriter
-class XmlBuilder
+class XMLBuilder
 default.read()
 default.write()
 function read()

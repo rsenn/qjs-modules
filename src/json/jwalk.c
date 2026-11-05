@@ -321,16 +321,15 @@ jwalk_set_replacer(JwalkIterator* it, JSContext* ctx, JSValueConst replacer) {
   return 0;
 }
 
-/* jwalk_init: starts walking `root`, reporting to `iface`; emits nothing yet.
+/* jwalk_init: starts walking `root`; emits nothing yet.
  *
  *   JwalkIterator*  it     iterator to initialize; must not move while in use
  *   JSValueConst    root   value to walk, dup'ed (refcount: freed by close)
- *   WalkInterface   iface  callbacks, copied by value
  *
  *   returns int  0, or -1 with an exception pending.
  */
 int
-jwalk_init(JwalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface iface) {
+jwalk_init(JwalkIterator* it, JSContext* ctx, JSValueConst root) {
   JSValue global, json;
   WalkHooks hooks = {it, jwalk_prepare, jwalk_keys, "Converting circular structure to JSON"};
 
@@ -345,7 +344,7 @@ jwalk_init(JwalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface i
     it->is_raw = JS_GetPropertyStr(ctx, json, "isRawJSON");
   JS_FreeValue(ctx, json);
   JS_FreeValue(ctx, global);
-  return walk_init(&it->walk, ctx, root, iface, hooks);
+  return walk_init(&it->walk, ctx, root, hooks);
 }
 
 /* jwalk_close_rt: frees the frames and everything the iterator owns; safe after done or error.

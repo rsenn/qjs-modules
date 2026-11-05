@@ -20,7 +20,7 @@
  *
  * returns TRUE when onParseError exists (the error is handled). */
 static BOOL
-xpush_report(XMLPushParser* pp, const SourcePos* pos, size_t length, const char* code, const char* msg) {
+xpush_report(XmlPushParser* pp, const SourcePos* pos, size_t length, const char* code, const char* msg) {
   JSContext* ctx = pp->ctx;
   JSValue err = js_syntax_error_at(ctx, "<xml>", pos, length, code, msg);
 
@@ -46,7 +46,7 @@ xpush_report(XMLPushParser* pp, const SourcePos* pos, size_t length, const char*
 /* xpush_event_build: the handler of the builder mode, an error goes to onParseError. */
 static ssize_t
 xpush_event_build(void* user, const XmlEvent* ev) {
-  XMLPushParser* pp = user;
+  XmlPushParser* pp = user;
 
   if(ev->type == XE_ERROR) {
     xpush_report(pp, &ev->at, ev->span, ev->code, "XMLPushParser: malformed input");
@@ -60,7 +60,7 @@ xpush_event_build(void* user, const XmlEvent* ev) {
  * to the error callback. */
 static ssize_t
 xpush_event(void* user, const XmlEvent* ev) {
-  XMLPushParser* pp = user;
+  XmlPushParser* pp = user;
 
   if(ev->type == XE_ERROR)
     xpush_report(pp, &ev->at, ev->span, ev->code, "XMLPushParser: malformed input");
@@ -71,7 +71,7 @@ xpush_event(void* user, const XmlEvent* ev) {
 /* xpush_event_ext: the handler after connect(), every event goes to the sink. */
 static ssize_t
 xpush_event_ext(void* user, const XmlEvent* ev) {
-  XMLPushParser* pp = user;
+  XmlPushParser* pp = user;
 
   if(ev->type == XE_ERROR)
     xpush_report(pp, &ev->at, ev->span, ev->code, "XMLPushParser: malformed input");
@@ -81,12 +81,12 @@ xpush_event_ext(void* user, const XmlEvent* ev) {
 
 /* xpush_handler: the handler for the mode the parser is in. */
 static XmlEventHandler*
-xpush_handler(const XMLPushParser* pp) {
+xpush_handler(const XmlPushParser* pp) {
   return pp->connected ? xpush_event_ext : pp->use_builder ? xpush_event_build : xpush_event;
 }
 
 JSValue
-xpush_write(JSContext* ctx, XMLPushParser* pp, const uint8_t* data, size_t len) {
+xpush_write(JSContext* ctx, XmlPushParser* pp, const uint8_t* data, size_t len) {
   ssize_t r = xr_feed(&pp->xrs, (const char*)data, len, xpush_handler(pp), pp);
 
   if(r < 0)
@@ -102,7 +102,7 @@ xpush_write(JSContext* ctx, XMLPushParser* pp, const uint8_t* data, size_t len) 
 }
 
 JSValue
-xpush_close(JSContext* ctx, XMLPushParser* pp) {
+xpush_close(JSContext* ctx, XmlPushParser* pp) {
   ssize_t r = xr_end(&pp->xrs, xpush_handler(pp), pp);
 
   if(r < 0)
@@ -127,7 +127,7 @@ xpush_close(JSContext* ctx, XMLPushParser* pp) {
 }
 
 int
-xpush_connect(XMLPushParser* pp, JSContext* ctx, JSValueConst obj) {
+xpush_connect(XmlPushParser* pp, JSContext* ctx, JSValueConst obj) {
   XmlEventSink sink;
   XmlJsSink* adapter;
 
@@ -144,7 +144,7 @@ xpush_connect(XMLPushParser* pp, JSContext* ctx, JSValueConst obj) {
 }
 
 int
-xpush_init(XMLPushParser* pp, JSContext* ctx, JSValueConst options) {
+xpush_init(XmlPushParser* pp, JSContext* ctx, JSValueConst options) {
   memset(pp, 0, sizeof(*pp));
   pp->ctx = ctx;
   pp->last_error = JS_UNDEFINED;
@@ -160,7 +160,7 @@ xpush_init(XMLPushParser* pp, JSContext* ctx, JSValueConst options) {
 }
 
 void
-xpush_free(XMLPushParser* pp, JSRuntime* rt) {
+xpush_free(XmlPushParser* pp, JSRuntime* rt) {
   xr_state_free(&pp->xrs);
   xbuild_free(&pp->builder, rt);
   js_xmlcallbacks_free_rt(rt, &pp->cb);

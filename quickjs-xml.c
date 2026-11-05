@@ -123,7 +123,7 @@ typedef struct {
   XmlSerial ser;
   JSValue root;
   unsigned failed : 1;
-} XMLTreeSerializer;
+} XmlTreeSerializer;
 
 /* xmlserializer_read: up to n bytes into buf, on a character boundary.
  *
@@ -131,7 +131,7 @@ typedef struct {
  *
  * returns the bytes copied (0 at the end), or -1 with an exception pending. */
 static ssize_t
-xmlserializer_read(JSContext* ctx, XMLTreeSerializer* xs, void* buf, size_t n) {
+xmlserializer_read(JSContext* ctx, XmlTreeSerializer* xs, void* buf, size_t n) {
   ssize_t r;
 
   if(xs->failed)
@@ -151,7 +151,7 @@ xmlserializer_read(JSContext* ctx, XMLTreeSerializer* xs, void* buf, size_t n) {
 
 static JSValue
 js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XMLTreeSerializer* xs;
+  XmlTreeSerializer* xs;
   ssize_t r;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
@@ -191,7 +191,7 @@ js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_xmlserializer_get_root(JSContext* ctx, JSValueConst this_val) {
-  XMLTreeSerializer* xs;
+  XmlTreeSerializer* xs;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
     return JS_EXCEPTION;
@@ -201,7 +201,7 @@ js_xmlserializer_get_root(JSContext* ctx, JSValueConst this_val) {
 
 static JSValue
 js_xmlserializer_get_finished(JSContext* ctx, JSValueConst this_val) {
-  XMLTreeSerializer* xs;
+  XmlTreeSerializer* xs;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
     return JS_EXCEPTION;
@@ -213,11 +213,11 @@ static JSValue
 js_xmlserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, root;
   JSValueConst tree = argc > 0 ? argv[0] : JS_UNDEFINED;
-  XMLTreeSerializer* xs;
+  XmlTreeSerializer* xs;
   BOOL flat;
   int flags;
 
-  if(!(xs = js_mallocz(ctx, sizeof(XMLTreeSerializer))))
+  if(!(xs = js_mallocz(ctx, sizeof(XmlTreeSerializer))))
     return JS_EXCEPTION;
 
   root = xml_tree_list(ctx, tree, &flat);
@@ -247,7 +247,7 @@ js_xmlserializer_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
 
 static void
 js_xmlserializer_finalizer(JSRuntime* rt, JSValue val) {
-  XMLTreeSerializer* xs;
+  XmlTreeSerializer* xs;
 
   if((xs = JS_GetOpaque(val, js_xmlserializer_class_id))) {
     xwalk_source_close_rt(&xs->src, rt);
@@ -273,7 +273,7 @@ static thread_local JSClassID js_xml_pushparser_class_id;
 
 static JSValue
 js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
   InputBuffer input;
   JSValue ret;
 
@@ -293,7 +293,7 @@ js_xml_pushparser_write(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
 static JSValue
 js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
@@ -303,7 +303,7 @@ js_xml_pushparser_close(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
 static JSValue
 js_xml_pushparser_get_root(JSContext* ctx, JSValueConst this_val) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
@@ -313,7 +313,7 @@ js_xml_pushparser_get_root(JSContext* ctx, JSValueConst this_val) {
 
 static JSValue
 js_xml_pushparser_get_error(JSContext* ctx, JSValueConst this_val) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
@@ -328,7 +328,7 @@ js_xml_pushparser_get_error(JSContext* ctx, JSValueConst this_val) {
  * stays empty. */
 static JSValue
 js_xml_pushparser_get_path(JSContext* ctx, JSValueConst this_val) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
@@ -338,10 +338,10 @@ js_xml_pushparser_get_path(JSContext* ctx, JSValueConst this_val) {
 
 static JSValue
 js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
   JSValue obj;
 
-  if(!(pp = js_malloc(ctx, sizeof(XMLPushParser))))
+  if(!(pp = js_malloc(ctx, sizeof(XmlPushParser))))
     return JS_EXCEPTION;
 
   if(xpush_init(pp, ctx, argc > 0 ? argv[0] : JS_UNDEFINED)) {
@@ -361,7 +361,7 @@ js_xml_pushparser_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 
 static void
 js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if((pp = JS_GetOpaque(val, js_xml_pushparser_class_id))) {
     xpush_free(pp, rt);
@@ -373,7 +373,7 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
  *
  * ```js
  * const p = new XMLPushParser();
- * p.connect(new XmlBuilder());      // or an XMLWriter, tee(a, b), { elementStart(n) {}, ... }
+ * p.connect(new XMLBuilder());      // or an XMLWriter, tee(a, b), { elementStart(n) {}, ... }
  * p.write('<a><b/></a>');
  * ```
  *
@@ -387,7 +387,7 @@ js_xml_pushparser_finalizer(JSRuntime* rt, JSValue val) {
  * wired in: JS_CFUNC_DEF("connect") and the `sink` getter. */
 static JSValue
 js_xml_pushparser_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
@@ -397,7 +397,7 @@ js_xml_pushparser_connect(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
 static JSValue
 js_xml_pushparser_get_sink(JSContext* ctx, JSValueConst this_val) {
-  XMLPushParser* pp;
+  XmlPushParser* pp;
 
   if(!(pp = JS_GetOpaque2(ctx, this_val, js_xml_pushparser_class_id)))
     return JS_EXCEPTION;
@@ -431,7 +431,7 @@ static thread_local JSClassID js_xml_parser_class_id;
 /* XMLParser.pump: runs the parser into a sink, in C.
  *
  * ```js
- * const b = new XmlBuilder();
+ * const b = new XMLBuilder();
  * new XMLParser('<a><b/></a>').pump(b);   // 0
  * b.root;                                 // [{tagName: 'a', attributes: {}, children: [...]}]
  * ```
@@ -557,10 +557,10 @@ static JSClassDef js_xml_parser_class = {
     .finalizer = js_xml_parser_finalizer,
 };
 
-/* XmlBuilder: an XmlEventSink that builds the element tree or flat list of xml.read().
+/* XMLBuilder: an XmlEventSink that builds the element tree or flat list of xml.read().
  *
  * ```js
- * const b = new XmlBuilder();            // { flat: true } for the flat list
+ * const b = new XMLBuilder();            // { flat: true } for the flat list
  * parser.pump(b);
  * b.finish();                            // ends what the input left open
  * b.root;                                // [{tagName: 'a', attributes: {}, children: [...]}]
@@ -574,7 +574,7 @@ static JSClassDef js_xml_parser_class = {
  * of XMLWriter, see xsink.h.
  * wired in: JS_CGETSET_DEF("root") and friends, js_xmlsink_register for the methods. */
 typedef struct {
-  XmlBuilder b; /* first: the opaque pointer is also an XmlBuilder* */
+  XmlBuilder b; /* first: the opaque pointer is also an XMLBuilder* */
   XmlEventSink sink;
 } XmlBuilderObj;
 
@@ -658,7 +658,7 @@ js_xmlbuilder_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static JSClassDef js_xmlbuilder_class = {
-    .class_name = "XmlBuilder",
+    .class_name = "XMLBuilder",
     .finalizer = js_xmlbuilder_finalizer,
 };
 
@@ -666,13 +666,13 @@ static const JSCFunctionListEntry js_xmlbuilder_funcs[] = {
     JS_CGETSET_MAGIC_DEF("root", js_xmlbuilder_get, 0, 0),
     JS_CGETSET_MAGIC_DEF("path", js_xmlbuilder_get, 0, 1),
     JS_CFUNC_DEF("finish", 0, js_xmlbuilder_finish),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XmlBuilder", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "XMLBuilder", JS_PROP_CONFIGURABLE),
 };
 
 /* tee: a sink that sends every event to several sinks.
  *
  * ```js
- * const t = tee(new XmlBuilder(), new XMLWriter(out));
+ * const t = tee(new XMLBuilder(), new XMLWriter(out));
  * parser.pump(t);                 // one parse, a tree and a copy of the text
  * ```
  *
@@ -738,13 +738,13 @@ typedef struct {
   DynBuf buf;     /* backs `xw.writer` when no output was given to the constructor */
   int32_t indent; /* as given; negative: compact */
   int event;      /* XML_* of the last call, 0 before the first */
-} XMLWriter;
+} XmlWriterObj;
 
 static thread_local JSClassID js_xmlwriter_class_id;
 
 /* xmlwriter_set_indent: remembers `indent` as given (the getter returns it) and sets the layout. */
 static void
-xmlwriter_set_indent(XMLWriter* wr, int32_t indent) {
+xmlwriter_set_indent(XmlWriterObj* wr, int32_t indent) {
   wr->indent = indent;
   xwrite_set_indent(&wr->xw, indent);
 }
@@ -754,12 +754,12 @@ xmlwriter_set_indent(XMLWriter* wr, int32_t indent) {
  * write through xwrite.h; failures are thrown by js_xmlwrite_throw(). */
 static XmlEventSink
 js_xmlwriter_sink(void* opaque) {
-  return xwrite_sink(&((XMLWriter*)opaque)->xw);
+  return xwrite_sink(&((XmlWriterObj*)opaque)->xw);
 }
 
 static void
 js_xmlwriter_note(void* opaque, int type) {
-  ((XMLWriter*)opaque)->event = type;
+  ((XmlWriterObj*)opaque)->event = type;
 }
 
 enum {
@@ -770,7 +770,7 @@ enum {
 
 static JSValue
 js_xmlwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  XMLWriter* wr;
+  XmlWriterObj* wr;
   JSValue ret = JS_UNDEFINED;
 
   if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
@@ -796,7 +796,7 @@ js_xmlwriter_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_xmlwriter_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  XMLWriter* wr;
+  XmlWriterObj* wr;
   JSValue ret = JS_UNDEFINED;
 
   if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
@@ -815,10 +815,10 @@ js_xmlwriter_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int 
 static JSValue
 js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj;
-  XMLWriter* wr;
+  XmlWriterObj* wr;
   int i = 0;
 
-  if(!(wr = js_mallocz(ctx, sizeof(XMLWriter))))
+  if(!(wr = js_mallocz(ctx, sizeof(XmlWriterObj))))
     return JS_EXCEPTION;
 
   if(argc > 0 && writer_from_js(ctx, argv[i], &wr->xw.writer)) {
@@ -856,7 +856,7 @@ js_xmlwriter_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
 static void
 js_xmlwriter_finalizer(JSRuntime* rt, JSValue val) {
-  XMLWriter* wr;
+  XmlWriterObj* wr;
 
   if((wr = JS_GetOpaque(val, js_xmlwriter_class_id))) {
     xwrite_free(&wr->xw); /* also frees the writer */
@@ -866,7 +866,7 @@ js_xmlwriter_finalizer(JSRuntime* rt, JSValue val) {
 
 static JSValue
 js_xmlwriter_handshake(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  XMLWriter* wr;
+  XmlWriterObj* wr;
 
   if(!(wr = JS_GetOpaque2(ctx, this_val, js_xmlwriter_class_id)))
     return JS_EXCEPTION;
@@ -940,7 +940,7 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetModuleExport(ctx, m, "XMLTreeSerializer", serializer);
   JS_SetModuleExport(ctx, m, "XMLPushParser", push);
   JS_SetModuleExport(ctx, m, "XMLParser", parser);
-  JS_SetModuleExport(ctx, m, "XmlBuilder", builder);
+  JS_SetModuleExport(ctx, m, "XMLBuilder", builder);
   JS_SetModuleExport(ctx, m, "XMLWriter", writer);
   return 0;
 }
@@ -959,7 +959,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
     JS_AddModuleExport(ctx, m, "default");
     JS_AddModuleExport(ctx, m, "XMLTreeSerializer");
-    JS_AddModuleExport(ctx, m, "XmlBuilder");
+    JS_AddModuleExport(ctx, m, "XMLBuilder");
     JS_AddModuleExport(ctx, m, "XMLPushParser");
     JS_AddModuleExport(ctx, m, "XMLParser");
     JS_AddModuleExport(ctx, m, "XMLWriter");

@@ -1,6 +1,6 @@
 # Event model: sources, sinks, pull and push; the C modules are engines, the APIs are glue (plan 2026-10-18)
 
-> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XmlBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines.
+> **Status 2026-10-18 (implemented).** The event model is in: every class is a source or sink over `JsonEvent` / `XmlEvent`, `pump()`/`connect()`/`tee`/`JsonBuilder`/`XMLBuilder` exist, `parse()` and `XMLNodeParser` are removed (`next()` and the iterator replace them), `xml.write()` is `xwalk` pumped into an `XmlWriter` (`XW_PRETTY`, indent 2), `quickjs-json.c` is 1412 and `quickjs-xml.c` 1339 lines.
 > Running state and what is left: [event-model-state.md](event-model-state.md). Text below that describes `parse()`, `XMLNodeParser`,
 > `eventName`/`eventValue`, `PARSE_*`, `xtreewrite` or `xlayout` is the plan or the history, those are gone.
 
@@ -26,7 +26,7 @@ refer here for everything about how parsers, builders, walkers, writers and seri
 |  | **source** (produces events) | **sink** (consumes events) |
 | --- | --- | --- |
 | **pull** (the client asks) | `JsonParser`, `XMLParser`, `XMLNodeParser` (over a `Reader`); the walkers `jwalk`, `xwalk` (over a JS value) | the **serializer**: a writer that runs its source only as far as the client has read bytes |
-| **push** (the producer calls) | `JsonPushParser`, `XMLPushParser`: the client feeds chunks, events go to a connected sink | `JsonWriter`, `XMLWriter`, `JsonBuilder`, `XmlBuilder` (also flat), JS-object sinks, tee, rewriters (a sink that owns a sink) |
+| **push** (the producer calls) | `JsonPushParser`, `XMLPushParser`: the client feeds chunks, events go to a connected sink | `JsonWriter`, `XMLWriter`, `JsonBuilder`, `XMLBuilder` (also flat), JS-object sinks, tee, rewriters (a sink that owns a sink) |
 
 How they connect. "pump" is the C loop `while(next(source, &ev) == EVENT) send(sink, &ev)`.
 
@@ -44,8 +44,8 @@ JsonPushParser ──push──► tee ──► JsonBuilder + JsonWriter      s
 JwalkIterator(value) ──pull──► pump ──► JsonWriter             JSON.stringify, JSON5.stringify
 JwalkIterator(value) ──pull──► Serializer ──► read(n)          JsonStringifyStream, Response body
 JsonParser ──pull──► Serializer ──► read(n)                    streaming reformat of a file
-XMLParser(flat) ──pull──► pump ──► XmlBuilder(flat)            XMLNodeParser (a flat object list)
-XMLParser ──pull──► pump ──► XmlBuilder                        xml.read(), DOMParser tree
+XMLParser(flat) ──pull──► pump ──► XMLBuilder(flat)            XMLNodeParser (a flat object list)
+XMLParser ──pull──► pump ──► XMLBuilder                        xml.read(), DOMParser tree
 xwalk(tree) ──pull──► pump ──► XmlWriter                       xml.write(), XMLSerializer
 JS value ──walker──► JS sink (object with methods)             Bun.XML.stringify, custom shapes
 ```
@@ -150,7 +150,7 @@ event it was just handed, and `*_event()` turns it into a `JsonEvent` / `XmlEven
 
 ### Builders are push sinks
 
-`JsonBuilder`, `XmlBuilder` (also `XB_FLAT`) are `JsonEventSink` / `XmlEventSink` already. Additions the dialects need:
+`JsonBuilder`, `XMLBuilder` (also `XB_FLAT`) are `JsonEventSink` / `XmlEventSink` already. Additions the dialects need:
 
 | Addition | For |
 | --- | --- |
@@ -219,11 +219,11 @@ the push parsers. A JS sink may return a negative number or throw: that stops th
 
 | `json` | `xml` |
 | --- | --- |
-| `JsonParser` (options: dialect flags, `comments`, `filename`), `JsonPushParser`, `JsonBuilder`, `JsonWalker`, `JsonWriter`, `JsonSerializer`, `tee` | `XMLParser` (options: `tolerant`, `flat`, `selfClosingTags`, `strict`, `entities`, `location`), `XMLPushParser`, `XmlBuilder`, `XmlWalker`, `XMLWriter`, `XMLTreeSerializer`, `tee` |
+| `JsonParser` (options: dialect flags, `comments`, `filename`), `JsonPushParser`, `JsonBuilder`, `JsonWalker`, `JsonWriter`, `JsonSerializer`, `tee` | `XMLParser` (options: `tolerant`, `flat`, `selfClosingTags`, `strict`, `entities`, `location`), `XMLPushParser`, `XMLBuilder`, `XmlWalker`, `XMLWriter`, `XMLTreeSerializer`, `tee` |
 | `TYPE_*` / event type constants | `XE_*` constants |
 | during the migration only: `read`, `write`, `JSONL` (deprecated, then deleted) | during the migration only: `read`, `write` |
 
-`XMLNodeParser` becomes `new XMLParser(input, {flat: true})` piped into `new XmlBuilder({flat: true})`; the class name stays as a one-line alias in the glue
+`XMLNodeParser` becomes `new XMLParser(input, {flat: true})` piped into `new XMLBuilder({flat: true})`; the class name stays as a one-line alias in the glue
 until nothing imports it.
 
 ## 7. The glue in `lib/`
@@ -238,7 +238,7 @@ composition of the engines, no parsing code.
 | `lib/jsonc.js` (new) | `JSONC.parse` (Bun, `@std/jsonc`) | dialect `jsonc`, `JsonBuilder` |
 | `lib/bun.js` | `Bun.JSONL`, `Bun.JSON5`, `Bun.JSONC`, `Bun.XML` | re-exports of the three files above and `lib/xmlbun.js`; `Bun.XML` parse = `XMLParser({strict: true})` into a JS sink that builds `'@name'` / `'#text'` objects (M8) |
 | `lib/jsonStreams.js` | `@std/json` `JsonParseStream`, `ConcatenatedJsonParseStream`, `JsonStringifyStream` (Deno, WHATWG streams) | `JsonPushParser` connected to a `JsonBuilder` with `onValue`; stringify = `JsonSerializer.read` in `pull()` |
-| `lib/dom.js` | Browser `DOMParser`, `XMLSerializer`, `Document` | `XMLParser({tolerant: false})` into `XmlBuilder`, then the existing DOM constructors; serializing = `xwalk` pumped into `XMLWriter`; a strict failure becomes the `<parsererror>` document |
+| `lib/dom.js` | Browser `DOMParser`, `XMLSerializer`, `Document` | `XMLParser({tolerant: false})` into `XMLBuilder`, then the existing DOM constructors; serializing = `xwalk` pumped into `XMLWriter`; a strict failure becomes the `<parsererror>` document |
 | `lib/blob-json.js` (or `blob.js`) | `Blob.prototype.json()` | `text()` then `JSON.parse`-equivalent through `JsonParser(strict)` for the 100000-level nesting |
 | `JSON.parse`-compatible `read` / `write` | deprecated | one-line wrappers over the engines for the callers (`plot-cv/yt-playlist.js`, `clang-ast.js`), then removed |
 | Node | nothing built in | an npm-shape adapter (`json5`, `jsonc-parser`, `@streamparser/json`, `sax`, `fast-xml-parser`) only when a script asks |
@@ -257,8 +257,8 @@ Rules for the glue:
 | --- | --- | --- |
 | `JSONL.parse`, `JSONL.parseChunk` | `lib/jsonl.js` | P9 |
 | `read(text)`, `write(v, ...)` | deprecated wrappers in the glue, then deleted | P9 |
-| `js_xml_parse` event loop of `read()` | `new XMLParser(...).pump(new XmlBuilder(...))` in a 5-line `xml.read` in `lib/xml.js` | P9 |
-| `XMLNodeParser` assembly | `XMLParser({flat})` + flat `XmlBuilder` | P7 |
+| `js_xml_parse` event loop of `read()` | `new XMLParser(...).pump(new XMLBuilder(...))` in a 5-line `xml.read` in `lib/xml.js` | P9 |
+| `XMLNodeParser` assembly | `XMLParser({flat})` + flat `XMLBuilder` | P7 |
 | the option parsing (4 copies in `quickjs-xml.c`) | one `xml_options_from_js()` shared by `XMLParser`, `XMLPushParser` | P8 |
 | the pull parsers' private token ids (`JsonParser` numeric tokens, `XMLParser` `PARSE_*` statuses) | `JsonEventType` / `XmlEventType` + `JsonPull` / `XmlPull` | P2 |
 | the push parsers' `(type, name, value)` callbacks | `JsonEvent` / `XmlEvent` handler | P3 |
@@ -290,7 +290,7 @@ Taken as decided in this plan; reverse by editing this table and the steps that 
 | P4 | `jwalk_event`, `xwalk_event`; `xtreewrite.c` becomes a pump | `write()` golden byte-identical |
 | P5 | demand-driven `JsonSerializer` / `XMLTreeSerializer` over any pull source | equality with `write()` at read sizes 1, 7, 4096 |
 | P6 | handshake, `pump()`, `connect()`, JS-sink adapter, `tee` (EV8) | a push parser plugged into a writer, a builder, a tee |
-| P7 | builder options: `proto`, root queue with end positions, flat `XmlBuilder` for `XMLNodeParser` | differential 0 |
+| P7 | builder options: `proto`, root queue with end positions, flat `XMLBuilder` for `XMLNodeParser` | differential 0 |
 | P8 | parser options: dialect flags in the `JsonParser` constructor, one `xml_options_from_js()`, strict mode | `test-json-dialects`, `test-xml-errors.js` |
 | P9 | the glue of section 7; C `JSONL`, `read`, `write` deprecated and deleted | Bun / Browser / Deno differential batteries |
 | P10 | clean-up: duplicated token ids, `jr_callback`, `xr_callback`, `property-enumeration.h` and `char-utils.h` out of the bindings | line counts in `api-implement-*.md` |
@@ -307,7 +307,7 @@ Implemented in `include/{json,xml}/` and `src/{json,xml}/`, covered by `tests/c/
 | P4 | walkers | `JwalkSource` / `jwalk_event()` (CESU-8 text, number spelling, `JSON.rawJSON` as `JSON_EVENT_RAW`); `XwalkSource` / `xwalk_event()` (tree and flat lists, `XWALK_FLAT`, `XWALK_BALANCED`, `max_depth`, typed markup both ways); `xtreewrite.c` is **unchanged**: it still writes through `xlayout`, because moving `write()` onto `xwrite` is the open X1 decision |
 | P5 | serials | `JsonSerial` / `jserial_read()`, `XmlSerial` / `xserial_read()` over any source; `chars` cuts on character boundaries; `JSERIAL_AGAIN` for a dry Reader |
 | P6 (C part) | sinks from JS | `js_jsonsink_from_js()`, `js_xmlsink_from_js()` (a JS object as a C sink), `comment` and `raw` methods in `js_jsonsink_define()`; the handshake symbols and `pump()` / `connect()` are binding code |
-| P7 | builder | `JsonBuilder.done`, `jbuild_take()`, `on_root` / `on_root_user`, `jbuild_value_js()`, `raw` member; `plain_objects` was there; `XmlBuilder` flat mode was there |
+| P7 | builder | `JsonBuilder.done`, `jbuild_take()`, `on_root` / `on_root_user`, `jbuild_value_js()`, `raw` member; `plain_objects` was there; `XMLBuilder` flat mode was there |
 | P8 (part) | dialects | `jr_flags_from_name()` (`json`, `jsonc`, `json5`, `jsonl`, `legacy`) |
 
 Behaviour worth knowing:

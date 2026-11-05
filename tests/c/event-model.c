@@ -261,7 +261,7 @@ static void
 xml_typed(void) {
   const char* text = "<?xml version=\"1.0\"?><!DOCTYPE html><!-- c --><a id=\"7\"><![CDATA[x<y]]>t</a>";
   Reader rd = reader_from_bytes(text, strlen(text));
-  XMLParser xp;
+  XmlPullParser xp;
   XmlEvent ev;
   char got[256] = "";
   XmlPull st;
@@ -294,7 +294,7 @@ xml_pull_serial(void) {
 
   for(size_t step = 1; step <= 4096; step *= 7) {
     Reader rd = reader_from_bytes(text, strlen(text));
-    XMLParser xp;
+    XmlPullParser xp;
     XmlSerial s;
     char buf[4096];
     DynBuf out;
@@ -393,7 +393,7 @@ xml_js_sink(void) {
   JSValue obj = eval("({log: [], elementStart(n) { this.log.push('<' + n); }, attribute(n, v) { this.log.push('@' + n + '=' + v); },"
                      " text(t) { this.log.push('T' + t); }, elementEnd(n) { this.log.push('>' + n); }})");
   Reader rd = reader_from_bytes("<a b c='1'>t</a>", 16);
-  XMLParser xp;
+  XmlPullParser xp;
   XmlEventSink sink;
   XmlJsSink* js = js_xmlsink_from_js(ctx, obj, &sink);
   JSValue log, joined;
@@ -504,7 +504,7 @@ xml_error_info(void) {
   {
     const char* text = "<a></b>";
     Reader rd = reader_from_bytes(text, strlen(text));
-    XMLParser xp;
+    XmlPullParser xp;
     XmlEvent ev;
     ErrorInfo e = {0};
 

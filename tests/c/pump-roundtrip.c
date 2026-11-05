@@ -123,7 +123,7 @@ xml_pull(void) {
   XmlWriter wr = {.writer = writer_from_dynbuf(&db), .opts = {.layout = XW_COMPACT}};
   XmlEventSink sink;
   Reader rd = reader_from_bytes(xml_text, strlen(xml_text));
-  XMLParser xp;
+  XmlPullParser xp;
 
   dbuf_init(&db);
   xwrite_init(&wr, NULL, NULL);
@@ -147,7 +147,7 @@ xml_sink_failure(void) {
   int calls = 0;
   XmlEventSink sink = {.opaque = &calls, .element_start = fail_element_start};
   Reader rd = reader_from_bytes("<a><b/><c/></a>", 15);
-  XMLParser xp;
+  XmlPullParser xp;
 
   xml_init(&xp, &rd);
   CHECK(xevent_pump(xml_source(&xp), &sink) == -42);

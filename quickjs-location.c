@@ -47,8 +47,13 @@ fail:
   return JS_EXCEPTION;
 }
 
+/* js_location_init() runs on first import of 'location', but a binding
+ * (json, xml) can wrap a Location before that: register the class then. */
 JSValue
 js_location_wrap(JSContext* ctx, Location* loc) {
+  if(!js_location_class_id || !JS_IsRegisteredClass(JS_GetRuntime(ctx), js_location_class_id))
+    js_location_init(ctx, 0);
+
   return js_location_create(ctx, location_proto, location_dup(loc));
 }
 
@@ -521,6 +526,13 @@ static const JSCFunctionListEntry js_location_static_funcs[] = {
 
 int
 js_location_init(JSContext* ctx, JSModuleDef* m) {
+  if(js_location_class_id && JS_IsRegisteredClass(JS_GetRuntime(ctx), js_location_class_id)) {
+    if(m)
+      JS_SetModuleExport(ctx, m, "Location", JS_DupValue(ctx, location_ctor));
+
+    return 0;
+  }
+
   JS_NewClassID(&js_location_class_id);
 
   JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);

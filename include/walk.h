@@ -11,22 +11,7 @@
  * @{
  */
 
-/* WalkInterface: the events a walk of a value tree reports, one callback each.
- *
- * Every callback returns the bytes written (>= 0), or -1 with an
- * exception pending. `opaque` is passed as the first argument. */
-typedef struct {
-  void* opaque;
-  ssize_t (*key)(void*, JSContext*, JSValueConst);
-  ssize_t (*object_start)(void*, JSContext*);
-  ssize_t (*array_start)(void*, JSContext*);
-  ssize_t (*object_end)(void*, JSContext*);
-  ssize_t (*array_end)(void*, JSContext*);
-  ssize_t (*value)(void*, JSContext*, JSValueConst);
-  ssize_t (*raw)(void*, JSContext*, JSValueConst); /* optional: a JSON.rawJSON() object; value() when NULL */
-} WalkInterface;
-
-/* what walk_next() reports: its return value is the event kind (> 0) */
+/* what walk_next() reports: its return value is the event kind (> 0), also left in WalkIterator.event */
 typedef enum {
   WALK_EVENT_KEY = 1,
   WALK_EVENT_OBJECT_START,
@@ -63,12 +48,18 @@ typedef struct {
   const char* circular;
 } WalkHooks;
 
-/* WalkIterator: walks a JS value and reports it to a WalkInterface, one
- * event per walk_next() call; what a value is comes from the WalkHooks.
+/* WalkIterator: walks a JS value, one event per walk_next() call; what a value is
+ * comes from the WalkHooks. The event is left in the iterator:
+ *
+ *   event  the WalkEvent, 0 before the first call and after the end
+ *   val    KEY: the key, VALUE: the value (null for an omitted array item), else undefined
+ *   raw    VALUE: val is a raw JSON object, the hook said WALK_KIND_RAW
+ *
+ * borrowed: val is owned by the iterator, valid until the next walk_next() or close.
  *
  * ```c
  * WalkIterator it;
- * walk_init(&it, ctx, value, iface, hooks);
+ * walk_init(&it, ctx, value, hooks);
  * while((r = walk_next(&it, ctx)) > 0) {}
  * walk_close(&it, ctx);   // r is 0 when done, -1 on error
  *
@@ -86,7 +77,8 @@ typedef struct {
   Vector meta;                     /* array position per open container, parallel to stack */
   uintptr_t* active;               /* hash set of the objects in `stack`: the circularity check is O(1) */
   uint32_t active_cap, active_len; /* slots (a power of two or 0) and used slots */
-  WalkInterface iface;             /* the callbacks, copied by value */
+  JSValue val;                     /* the value of the event just made, owned */
+  int event;                       /* the WalkEvent just made, 0 for none */
   WalkHooks hooks;                 /* copied by value */
   int flags;                       /* JS_GPN_* flags for the property enumeration */
   JSValue root;                    /* the value being walked, owned */
@@ -96,9 +88,10 @@ typedef struct {
   unsigned entered : 1;            /* the last event was a container start */
   unsigned pending_kind : 2;       /* what `pending` is: a WalkKind */
   unsigned root_omitted : 1;       /* the root was omitted by prepare: no events at all */
+  unsigned raw : 1;                /* `val` is a WALK_KIND_RAW value */
 } WalkIterator;
 
-int walk_init(WalkIterator*, JSContext*, JSValueConst root, WalkInterface iface, WalkHooks hooks);
+int walk_init(WalkIterator*, JSContext*, JSValueConst root, WalkHooks hooks);
 int walk_next(WalkIterator*, JSContext*);
 int walk_skip(WalkIterator*, JSContext*);
 void walk_close(WalkIterator*, JSContext*);

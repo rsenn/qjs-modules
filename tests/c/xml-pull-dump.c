@@ -44,7 +44,7 @@ static void
 dump(FILE* out, unsigned flags, const char* s, size_t step) {
   Feed feed = {s, strlen(s), 0, step};
   Reader rd = {&feed_read, &feed, NULL, NULL};
-  XMLParser xp;
+  XmlPullParser xp;
   XmlEvent ev;
   XmlPull st;
 

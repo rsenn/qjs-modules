@@ -33,27 +33,27 @@ typedef struct xml_push_parser {
   XmlEventSink ext;
   XmlJsSink* ext_adapter;
   JSValue ext_obj; /* the object behind ext, kept alive */
-} XMLPushParser;
+} XmlPushParser;
 
 /* xpush_init: sets up pp, the options object (any value, others have none) is also the this of its callbacks.
  * returns 0, or -1 with an exception pending and nothing to free. */
-int xpush_init(XMLPushParser* pp, JSContext* ctx, JSValueConst options);
+int xpush_init(XmlPushParser* pp, JSContext* ctx, JSValueConst options);
 
 /* xpush_free: releases everything pp holds, not pp itself. */
-void xpush_free(XMLPushParser* pp, JSRuntime* rt);
+void xpush_free(XmlPushParser* pp, JSRuntime* rt);
 
 /* xpush_write: XMLPushParser.write() of one chunk (UTF-8 bytes).
  * returns undefined, or JS_EXCEPTION: the SyntaxError of a malformed input in builder mode
  * (callback modes report through onParseError), what a sink throws. */
-JSValue xpush_write(JSContext* ctx, XMLPushParser* pp, const uint8_t* data, size_t len);
+JSValue xpush_write(JSContext* ctx, XmlPushParser* pp, const uint8_t* data, size_t len);
 
 /* xpush_close: XMLPushParser.close(), the end of the input.
  * returns undefined, or JS_EXCEPTION as xpush_write() does, also for an element left open. */
-JSValue xpush_close(JSContext* ctx, XMLPushParser* pp);
+JSValue xpush_close(JSContext* ctx, XmlPushParser* pp);
 
 /* xpush_connect: from now on every event goes to the sink behind obj and nothing else.
  * returns 0, or -1 with an exception pending. */
-int xpush_connect(XMLPushParser* pp, JSContext* ctx, JSValueConst obj);
+int xpush_connect(XmlPushParser* pp, JSContext* ctx, JSValueConst obj);
 
 /** @} */
 #endif /* XPUSH_H */

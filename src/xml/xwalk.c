@@ -106,17 +106,16 @@ xwalk_keys(void* opaque, JSContext* ctx, PropertyEnumeration* top, int array) {
   return 0;
 }
 
-/* xwalk_init: starts walking the tree `root`, reporting to `iface`; emits nothing yet.
+/* xwalk_init: starts walking the tree `root`, emits nothing yet.
  *
  *   XwalkIterator*     it     iterator to initialize; must not move while in use
  *   JSValueConst       root   an element, or an array of elements and texts; dup'ed
- *   WalkInterface      iface  callbacks, copied by value
  *   const XwalkShape*  shape  key names, or NULL for tagName/attributes/children
  *
  *   returns int  0, or -1 with an exception pending.
  */
 int
-xwalk_init(XwalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface iface, const XwalkShape* shape) {
+xwalk_init(XwalkIterator* it, JSContext* ctx, JSValueConst root, const XwalkShape* shape) {
   const char* names[3] = {
       shape && shape->tag ? shape->tag : "tagName",
       shape && shape->attributes ? shape->attributes : "attributes",
@@ -133,7 +132,7 @@ xwalk_init(XwalkIterator* it, JSContext* ctx, JSValueConst root, WalkInterface i
     }
   }
 
-  return walk_init(&it->walk, ctx, root, iface, hooks);
+  return walk_init(&it->walk, ctx, root, hooks);
 }
 
 /* xwalk_close_rt: frees the frames and the key atoms; the form for a finalizer. */

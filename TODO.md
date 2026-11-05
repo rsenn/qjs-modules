@@ -1943,7 +1943,7 @@ Rules (the whole plan in six lines):
 | P4 (done) | `jwalk_event`, `xwalk_event`: walkers as pull sources; the tag / attributes / children interpretation of `xtreewrite.c` moves into `xwalk`; `xtreewrite` becomes a pump into `xwrite`; replaces EV5 / B1 | medium | P1 | `write()` golden and `JsonSerializer` byte-identical |
 | P5 (done) | demand-driven `JsonSerializer` / `XMLTreeSerializer` over any pull source (a value or a parser); replay (`skip`, `delivered`, `capped`) deleted; `readText(n)` on character boundaries; replaces X2 | medium | P4 | equality with `write()` at read sizes 1, 7, 4096; a `JsonParser` source reformats |
 | P6 (done) | handshake symbols, `source.pump(sink)`, `pushParser.connect(sink)`, JS object to C sink adapter, `tee`; replaces EV8, B3, X4, J4, J5 | medium | P1 | a push parser plugged into a writer, a builder and a tee; a JS-object sink gets the same events |
-| P7 (done) | builders: `proto` option, queue of completed roots with end positions (`take()`), `jbuild_value_js()`, flat `XmlBuilder` for `XMLNodeParser` (X3, B6) | medium | P1 | differential 0, `test-xml.js` |
+| P7 (done) | builders: `proto` option, queue of completed roots with end positions (`take()`), `jbuild_value_js()`, flat `XMLBuilder` for `XMLNodeParser` (X3, B6) | medium | P1 | differential 0, `test-xml.js` |
 | P8 (done) | parser options: dialect names in the `JsonParser` constructor (`'json'`, `'jsonc'`, `'json5'`, `'jsonl'` over the `JR_*` flags), strict mode (J1 step 2), one `xml_options_from_js()`, `strict`, `entities` | medium | P2 | `test-json-dialects`, `tests/unittests/test-xml-errors.js` |
 | P9 (partly: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `Blob.json()` on the strict reader, C `read`/`write` and `sj.h` removed 2026-10-22) | the glue: `lib/jsonl.js`, `lib/json5.js`, `lib/jsonc.js`, `lib/bun.js` (`Bun.JSONL`, `JSON5`, `JSONC`, `XML`), `lib/jsonStreams.js` on the engines, `lib/xml.js` (`read`, `write`), `lib/dom.js` (`DOMParser`, `XMLSerializer`), `Blob.json()`; then C `JSONL`, `read`, `write` deprecated and deleted (J1, J2, J7, X7, X8 phase 9) | large | P2 to P8 | Bun / Browser / Deno differential batteries, `portable-check.sh` |
 | P10 | clean-up: duplicated token ids, `property-enumeration.h` and `char-utils.h` out of the bindings, `api-surface/` regenerated, `doc/native/{json,xml}.md` rewritten to the engine classes | small | P9 | line counts in `doc/api-implement-{json,xml}.md` |
@@ -2015,7 +2015,7 @@ Tests and tools:
 - `tests/tools/xml-diff.js` (the `read()` differential, oracle a build of `ecdf0ca7`), `test-xml-errors.js`, `test-json-errors.js`;
 - engine-free C tests for `xwrite` `XW_PRETTY` (the golden covers it only through `write()`).
 
-Done since 2026-10-17 (details in `doc/event-model-state.md`): typed markup events, `next()` / iterator / `pump()` / `connect()` / `tee` / `JsonBuilder` / `XmlBuilder`,
+Done since 2026-10-17 (details in `doc/event-model-state.md`): typed markup events, `next()` / iterator / `pump()` / `connect()` / `tee` / `JsonBuilder` / `XMLBuilder`,
 handshake symbols, `JsonWriter` as a sink, `xml.write()` on `XW_PRETTY` (golden regenerated, layout changed), `parse()` and `XMLNodeParser` removed, push-parser callback mode,
 tee owner and the `read` / `write` cores moved into `src/`.
 Unrelated ctest failures (2026-10-18): `test-directory`, `test-extract-c`, `test-globals`, `test-lexer-cpp`, `test-misc`, `test-mmap`, and `test-sql` when no database is up.

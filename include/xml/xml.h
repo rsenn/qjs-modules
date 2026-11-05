@@ -13,7 +13,7 @@
  * \defgroup xml xml: streaming XML parser
  * @{
  *
- * The pull parser behind XMLParser and read(): a Reader in and one XmlEvent per xml_next().
+ * XmlPullParser, the pull parser behind the JS XMLParser and read(): a Reader in and one XmlEvent per xml_next().
  * xread does the parsing (XR_COMPAT mode): xml_next() reads a block, feeds it to xr_feed() and
  * queues the events it makes, so a block may leave many events behind.
  */
@@ -41,20 +41,20 @@ typedef struct xml_parser {
     size_t text_len, text_cap;
   } queue;
   uint8_t block[XML_BLOCK_SIZE];
-} XMLParser;
+} XmlPullParser;
 
 /* xml_init: sets up p, reading from reader (borrowed: it must outlive p). Set tolerant, flat,
  * no_implied_end and self_closing_tags (default: the HTML void elements) before the first xml_next(). */
-void xml_init(XMLParser*, Reader* reader);
-void xml_free(XMLParser*);
-void xml_set_tolerant(XMLParser*, int tolerant);
-void xml_set_implied_end(XMLParser*, int enable);
-void xml_set_flat(XMLParser*, int flat);
+void xml_init(XmlPullParser*, Reader* reader);
+void xml_free(XmlPullParser*);
+void xml_set_tolerant(XmlPullParser*, int tolerant);
+void xml_set_implied_end(XmlPullParser*, int enable);
+void xml_set_flat(XmlPullParser*, int flat);
 
 /* xml_next: the next event of a pull parser, written to *ev .
  *
- *   XMLParser*  p   the parser, set up by xml_init()
- *   XmlEvent*   ev  filled when the result is XML_PULL_EVENT
+ *   XmlPullParser*  p   the parser, set up by xml_init()
+ *   XmlEvent*       ev  filled when the result is XML_PULL_EVENT
  *
  *   returns XmlPull  XML_PULL_EVENT, XML_PULL_AGAIN (the Reader has no data right now) or
  *                    XML_PULL_END (clean end of input, and after a terminal XE_ERROR event)
@@ -68,13 +68,13 @@ void xml_set_flat(XMLParser*, int flat);
  *   - an XE_ERROR event has the stable error code in code (mismatched-end-tag) and the message in str
  *
  * never throws. */
-XmlPull xml_next(XMLParser*, XmlEvent* ev);
+XmlPull xml_next(XmlPullParser*, XmlEvent* ev);
 
 /* xml_next_end is not needed: the Reader answering end of input ends the document, xr_end() runs
  * then and what it completes is delivered before XML_PULL_END. */
 
 /* xml_source: the pull parser as an XmlEventSource, for xevent_pump(). */
-XmlEventSource xml_source(XMLParser*);
+XmlEventSource xml_source(XmlPullParser*);
 
 /**
  * @}

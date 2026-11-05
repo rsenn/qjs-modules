@@ -1,4 +1,4 @@
-import xml, { XMLParser, XMLWriter, XMLPushParser, XMLTreeSerializer, XmlBuilder, tee } from 'xml';
+import xml, { XMLParser, XMLWriter, XMLPushParser, XMLTreeSerializer, XMLBuilder, tee } from 'xml';
 import { toString } from 'util';
 import { ArrayBufferSink } from 'arraybuffer_sink';
 import { assert, eq, tests } from '../../lib/tinytest.js';
@@ -35,7 +35,7 @@ const PARSE_ERROR = -1;
  * (the SyntaxError in .error), and eventName / eventValue / hasValue describe it. */
 class Pull extends XMLParser {
   #ev;
-  #b = new XmlBuilder();
+  #b = new XMLBuilder();
   error = null;
 
   parse() {
@@ -560,7 +560,7 @@ tests({
     eq(p.parse(), XMLParser.ELEMENT_START); // c
     eq(p.depth, 2);
   },
-  'XMLParser: .root optionally builds a tree (via the same XmlBuilder as XMLPushParser)'() {
+  'XMLParser: .root optionally builds a tree (via the same XMLBuilder as XMLPushParser)'() {
     let { parser } = drain('<root a="1"><child>hello <b>world</b></child></root>');
 
     eqArr(parser.root, [
@@ -1675,10 +1675,10 @@ tests({
   },
 
   /* ---------- handshake: pump(), connect(), tee ---------- */
-  'XMLParser.pump: into an XmlBuilder, tree and flat'() {
+  'XMLParser.pump: into an XMLBuilder, tree and flat'() {
     const doc = '<?xml version="1.0"?><r><!-- c --><a x="1">t<b/></a></r>';
     const viaPump = flat => {
-      const b = new XmlBuilder({ flat, plain: true });
+      const b = new XMLBuilder({ flat, plain: true });
 
       eq(new Pull(doc).pump(b), 0);
       return b.finish().root;
@@ -1690,7 +1690,7 @@ tests({
   },
   'XMLParser.pump: into an XMLWriter, a tee and a JS object'() {
     const buf = new Uint8Array(128), w = new XMLWriter(buf, { indent: -1 });
-    const b = new XmlBuilder(), seen = [];
+    const b = new XMLBuilder(), seen = [];
     const o = { elementStart: n => seen.push('<' + n), text: t => seen.push(t), elementEnd: n => seen.push('/' + n) };
 
     new Pull('<a>x<b/></a>').pump(tee(w, b, o));
@@ -1699,14 +1699,14 @@ tests({
     eq(seen.join(' '), '<a x <b /b /a');
   },
   'XMLParser.pump: a mismatched tag is a SyntaxError, a throwing sink propagates'() {
-    const e = assertThrows(() => new Pull('<a></b>', 'f.xml').pump(new XmlBuilder()));
+    const e = assertThrows(() => new Pull('<a></b>', 'f.xml').pump(new XMLBuilder()));
 
     assert(e instanceof SyntaxError);
     eq(assertThrows(() => new Pull('<a/>').pump({ elementStart() { throw new RangeError('stop'); } })).message, 'stop');
     assertThrows(() => new Pull('<a/>').pump(5));
   },
   'XMLPushParser.connect: events go to the sink'() {
-    const b = new XmlBuilder(), p = new XMLPushParser();
+    const b = new XMLBuilder(), p = new XMLPushParser();
 
     eq(p.connect(b), p);
     eq(p.sink, b);
@@ -1719,7 +1719,7 @@ tests({
   /* ---------- parser options ---------- */
   'XMLParser: selfClosingTags, tolerant and flat options'() {
     const build = (doc, options, builder = {}) => {
-      const b = new XmlBuilder({ plain: true, ...builder });
+      const b = new XMLBuilder({ plain: true, ...builder });
 
       new Pull(doc, options).pump(b);
       return b.finish().root;
