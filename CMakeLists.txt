@@ -325,14 +325,17 @@ check_functions_def(issetugid)
 
 check_includes(sys/uio.h)
 
+set(CMAKE_REQUIRED_DEFINITIONS_SAVED "${CMAKE_REQUIRED_DEFINITIONS}")
+list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE) # bionic declares preadv only under it
 foreach(FUNC preadv preadv2 pwritev pwritev2 readv writev)
   if(HAVE_SYS_UIO_H)
     string(TOUPPER "${FUNC}" FUNC_NAME)
-    check_symbol_exists(socket "sys/uio.h" HAVE_${FUNC_NAME})
+    check_symbol_exists(${FUNC} "sys/uio.h" HAVE_${FUNC_NAME})
   else()
     check_function_def("${FUNC}")
   endif()
 endforeach()
+set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS_SAVED}")
 
 if(NOT ANDROID)
   check_include_def(pwd.h)
