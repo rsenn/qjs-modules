@@ -71,6 +71,7 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [node:util](node-util.md) — `node:util`
 - [assertStrict](assertStrict.md) — `assert/strict`
 - [bun-util](bun-util.md) — the `Bun.*` utility functions
+- [webcrypto](webcrypto.md) — `crypto.subtle` (digest, HMAC, ECDSA) over the `lws` crypto engines
 - [bun-spawn](bun-spawn.md) — `Bun.spawn()` and `Bun.spawnSync()` over `child_process` and WHATWG streams
 - [bun-sqlite](bun-sqlite.md) — `bun:sqlite` (`Database`, `Statement`, `SQLiteError`) over the native sqlite module
 - [node-crypto](node-crypto.md) — `node:crypto` `createHash()`, `hash()`, `getHashes()` over the native digest module

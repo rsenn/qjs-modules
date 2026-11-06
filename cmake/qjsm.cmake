@@ -681,6 +681,7 @@ macro(qjsm_init_builtins)
           assertStrict
           bun
           bun/crypto
+          webcrypto
           bun/spawn
           bun/util
           glob
@@ -903,7 +904,7 @@ macro(qjsm_declare_imports)
   set(file_MODULES blob)
   set(fs_MODULES blob node/events os path misc mmap std syscallerror textcode directory)
   set(fsPromises_MODULES fs)
-  set(globals_MODULES timers fs stream blob events textcode url abort streams perf_hooks intl)
+  set(globals_MODULES timers fs stream blob events textcode url abort streams perf_hooks intl lazyGlobal)
   set(timersPromises_MODULES timers)
   set(io_MODULES util misc)
   set(module_MODULES fs)
@@ -930,6 +931,7 @@ macro(qjsm_declare_imports)
   set(node_child_process_MODULES child_process node/events node/buffer misc sockets process textcode)
   set(node_crypto_MODULES digest node/buffer)
   set(bun_crypto_MODULES node/crypto node/buffer)
+  set(webcrypto_MODULES node/buffer)
   set(node_os_MODULES misc node/buffer process)
   set(node_util_MODULES assert misc textcode)
   set(inspect_MODULES pointer)

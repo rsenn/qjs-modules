@@ -33,14 +33,18 @@ This supersedes the sparse root-level `TODO` file; its four items are folded in 
 4. **DONE 2026-11-06 (uncommitted): `createHmac()` in `lib/node/crypto.js` and `Bun.CryptoHasher`** (`lib/bun/crypto.js`, over
    `node/crypto`; md5, sha1, sha2 only; Bun's blake2/sha3/md4/ripemd160/shake are absent). Tests `test-bun-crypto.js` (qjsm and bun),
    two more in `test-node-crypto.js`. Open: `Bun.SHA1/SHA256/...` classes, `update()` of a Blob.
-5. **IN PROGRESS: `crypto.subtle` (wild-beauty `server/push.js`: ECDSA P-256 generateKey/exportKey raw+jwk/importKey jwk/sign).**
+5. **DONE 2026-11-06 (uncommitted), was: `crypto.subtle` (wild-beauty `server/push.js`: ECDSA P-256 generateKey/exportKey raw+jwk/importKey jwk/sign).**
    Plan: `lib/webcrypto.js` = SubtleCrypto/CryptoKey in JS (digest, HMAC, ECDSA; shapes and errors from bun 1.4.2, probe in the
    session scratchpad `sub.mjs`: DOMException names, `key_ops`, jwk member order, `algorithm.hash` objects, P1363 signatures),
    imports `lws` dynamically for the engines. Hooked in as `crypto.subtle` through `lazyGlobal(crypto, 'subtle', ...)` in
-   `lib/globals.js`, plus `CryptoKey`/`SubtleCrypto` globals. Blocked on qjs-lws: asked its session (2026-11-06) to expose
-   digest, hmac, ECDSA generate/sign/verify (+ point derive/validate) from gencrypto/OpenSSL. Postponed: RSA, ECDH, AES, PBKDF2.
-6. **Open, found in the wild-beauty survey: `Bun.password.hash(pw, 'argon2id')` returns bcrypt (`$2a$12$...`)**: existing argon2id
-   hashes written by real Bun do not verify. Needs a native argon2id (qjs-lws/OpenSSL 3 has it via EVP KDF, or vendor it).
+   `lib/globals.js`, plus `CryptoKey`/`SubtleCrypto` globals. Done as `lib/webcrypto.js` on the `crypto` export of qjs-lws's `lws` (uncommitted there too), test `test-webcrypto.js`
+   (12, qjsm with lws, and bun; skipped without lws), `doc/js/webcrypto.md`. Open: `DOMException.code`, pkcs8/spki, RSA, ECDH, AES,
+   PBKDF2/HKDF (ask qjs-lws), install check: `lws.so` with `crypto` must be installed for ctest to run it.
+6. **Open (requested from qjs-lws 2026-11-06, waiting for its reply): `Bun.password.hash(pw, 'argon2id')` returns bcrypt (`$2a$12$...`)**: existing argon2id
+   hashes written by real Bun do not verify. Wanted from qjs-lws: `crypto.argon2id(password, salt, { memoryCost, timeCost, parallelism, hashLength })` -> ArrayBuffer
+   (OpenSSL 3.2+ EVP_KDF ARGON2ID; defaults 65536 KiB, 2, 1, 32), optionally `pbkdf2`, `hkdf`, `scrypt`. The PHC string
+   (`$argon2id$v=19$m=65536,t=2,p=1$salt$hash`), salt and constant-time compare go in JS in `lib/password.js`.
+   Test vector: RFC 9106.
    Unchecked: `server.requestIP()`, `Bun.serve` `maxRequestBodySize`/`idleTimeout`, `process.stdin.setRawMode`.
 
 ## Reassessment (2026-10-04)
