@@ -683,6 +683,7 @@ macro(qjsm_init_builtins)
           bun/crypto
           webcrypto
           bun/spawn
+          bun/test
           bun/util
           glob
           loaders/commonjs
@@ -932,6 +933,7 @@ macro(qjsm_declare_imports)
   set(node_crypto_MODULES digest node/buffer)
   set(bun_crypto_MODULES node/crypto node/buffer)
   set(webcrypto_MODULES node/buffer)
+  set(bun_test_MODULES inspect)
   set(node_os_MODULES misc node/buffer process)
   set(node_util_MODULES assert misc textcode)
   set(inspect_MODULES pointer)
