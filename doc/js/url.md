@@ -11,6 +11,17 @@ WHATWG `URL` / `URLSearchParams` implementation.
 | `URL` | class | Parsed URL with `href`, `protocol`, `host`, `hostname`, `port`, `pathname`, `search`, `searchParams`, `hash`, etc. |
 | `URLSearchParams` | class | Query-string map: `get`, `getAll`, `set`, `append`, `delete`, `has`, `entries`, `toString`, iteration. |
 
+## domainToASCII / domainToUnicode
+
+`domainToASCII(domain)` and `domainToUnicode(domain)` run the host parser of the WHATWG URL standard, as Node's `url` does (checked against node 23): the domain is mapped (NFKC, lowercase), its labels become punycode (`xn--`), a numeric last label is an IPv4 address (`'123.456'` is `'123.0.1.200'`), and `[...]` is an IPv6 address. An invalid host gives `''`. A missing argument throws `TypeError` `ERR_MISSING_ARGS`.
+
+```js
+domainToASCII('español.com');          // 'xn--espaol-zwa.com'
+domainToUnicode('xn--espaol-zwa.com'); // 'español.com'
+```
+
+The UTS 46 mapping is NFKC plus lowercase with the ignored and disallowed code points of the common scripts. Not done: the full disallowed table, the bidi rules, the joiner context rules (a joiner is invalid). The `URL` class here does not parse hosts, so `new URL('http://español.com').hostname` stays as written.
+
 ## fileURLToPath / pathToFileURL
 
 `fileURLToPath(url)` (string or `URL`; `TypeError` with `code` `ERR_INVALID_URL_SCHEME`,
