@@ -40,12 +40,18 @@ This supersedes the sparse root-level `TODO` file; its four items are folded in 
    `lib/globals.js`, plus `CryptoKey`/`SubtleCrypto` globals. Done as `lib/webcrypto.js` on the `crypto` export of qjs-lws's `lws` (uncommitted there too), test `test-webcrypto.js`
    (12, qjsm with lws, and bun; skipped without lws), `doc/js/webcrypto.md`. Open: `DOMException.code`, pkcs8/spki, RSA, ECDH, AES,
    PBKDF2/HKDF (ask qjs-lws), install check: `lws.so` with `crypto` must be installed for ctest to run it.
-6. **Open (requested from qjs-lws 2026-11-06, waiting for its reply): `Bun.password.hash(pw, 'argon2id')` returns bcrypt (`$2a$12$...`)**: existing argon2id
-   hashes written by real Bun do not verify. Wanted from qjs-lws: `crypto.argon2id(password, salt, { memoryCost, timeCost, parallelism, hashLength })` -> ArrayBuffer
+6. **DONE 2026-11-06 (uncommitted), was: `Bun.password.hash(pw, 'argon2id')` returned bcrypt (`$2a$12$...`)**: existing argon2id
+   hashes written by real Bun do not verify. Done on qjs-lws's `crypto.argon2id(password, salt, { memoryCost, timeCost, parallelism, hashLength })` -> ArrayBuffer
    (OpenSSL 3.2+ EVP_KDF ARGON2ID; defaults 65536 KiB, 2, 1, 32), optionally `pbkdf2`, `hkdf`, `scrypt`. The PHC string
    (`$argon2id$v=19$m=65536,t=2,p=1$salt$hash`), salt and constant-time compare go in JS in `lib/password.js`.
-   Test vector: RFC 9106.
+   Test vector: RFC 9106. `lib/password.js`, test `test-bun-password.js`, `doc/js/password.md`. Open: argon2i/argon2d, SHA-512 pre-hash
+   of bcrypt passwords over 72 bytes.
    Unchecked: `server.requestIP()`, `Bun.serve` `maxRequestBodySize`/`idleTimeout`, `process.stdin.setRawMode`.
+
+7. **DONE 2026-11-06 (uncommitted): `process.stdin` events in qjsm** (wild-beauty `server/cli.js` restart keys): `on`/`once`/`off`
+   (`data`, `end`, `close`), `setEncoding`, `pause`/`resume`, `for await`, `setRawMode` on a tty (`lib/process.js`); `ttySetRaw(fd,
+   restore, nosig)` clears ISIG so ^C reads as byte 3 (`quickjs-misc.c`). Test `test-process-stdin.js`. Open: `ref`/`unref` are
+   no-ops, `readable` event and `read()`, `process.stdout` as a stream, the readline-based paths still use the raw file.
 
 ## Reassessment (2026-10-04)
 

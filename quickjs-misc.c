@@ -4177,11 +4177,13 @@ term_exit(void) {
 
 /* ttySetRaw: tty fd to raw mode, or back to how it was.
  *
- *   ttySetRaw(0)         // raw: no echo, no line buffering, no signals
- *   ttySetRaw(0, true)   // the settings from before
+ *   ttySetRaw(0)              // raw: no echo, no line buffering
+ *   ttySetRaw(0, false, true) // the same, and ^C reads as byte 3, no SIGINT
+ *   ttySetRaw(0, true)        // the settings from before
  *
  *   number   fd       a tty
  *   boolean  restore  undo the last ttySetRaw, sane defaults without one
+ *   boolean  nosig    also clear ISIG, as Node's setRawMode(true) does
  *
  *   returns boolean   true, a tty does VT output itself
  *
@@ -4192,13 +4194,16 @@ static JSValue
 js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct termios tty;
   int fd;
-  BOOL restore = FALSE;
+  BOOL restore = FALSE, nosig = FALSE;
 
   if(JS_ToInt32(ctx, &fd, argv[0]))
     return JS_EXCEPTION;
 
   if(argc > 1)
     restore = JS_ToBool(ctx, argv[1]);
+
+  if(argc > 2)
+    nosig = JS_ToBool(ctx, argv[2]);
 
   if(restore) {
     if(oldtty_fd < 0) {
@@ -4239,6 +4244,10 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
     tty.c_oflag |= OPOST;
     tty.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
+
+    if(nosig)
+      tty.c_lflag &= ~ISIG;
+
     tty.c_cflag &= ~(CSIZE | PARENB);
     tty.c_cflag |= CS8;
     tty.c_cc[VMIN] = 1;

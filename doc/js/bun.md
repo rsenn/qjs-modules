@@ -82,7 +82,7 @@ bun 1.4.2 (`tests/unittests/test-bun-util.js` runs under both: `bun tests/unitte
 | --- | --- | --- |
 | `env`, `argv`, `main` | `process` | `main` is `process.argv[1]` |
 | `version`, `revision`, `origin`, `isMainThread`, `enableANSIColors` | | `version` is qjsm's (`process.versions.qjsm`), `revision` and `origin` are `''` |
-| `password.hash/verify/hashSync/verifySync` | [password](password.md) | bcrypt only: `argon2*` throws |
+| `password.hash/verify/hashSync/verifySync` | [password](password.md) | argon2id (default, needs qjs-lws) and bcrypt; `argon2i`/`argon2d` throw |
 | `JSONL.parse/parseChunk` | `lib/jsonl.js` | |
 | `JSON5.parse/stringify` | [json5](json5.md) | |
 | `JSONC.parse` | [jsonc](jsonc.md) | single quotes, hex numbers and trailing text are a `SyntaxError` |

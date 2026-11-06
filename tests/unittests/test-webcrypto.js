@@ -4,7 +4,7 @@ import { assert, eq, tests } from '../../lib/tinytest.js';
 
 if(!globalThis.Bun) await import('../../lib/globals.js');
 
-const native = !!globalThis.Bun || !!(await import('lws').then(m => m.crypto?.digest, () => false));
+const native = !!globalThis.process?.versions?.bun || (await globalThis.crypto.subtle.digest('SHA-256', new Uint8Array(1)).then(() => true, () => false));
 
 const subtle = globalThis.crypto.subtle;
 const data = new TextEncoder().encode('hello');

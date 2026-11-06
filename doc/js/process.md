@@ -77,8 +77,11 @@ object
 
 ### `stdin`
 
-object
+object, the std file with Node's readable events:
 
+- `on('data' | 'end' | 'close', fn)`, `once()`, `off()`, `removeListener()`, `removeAllListeners()`, `emit()`, `listenerCount()`: a `data` listener starts reading (`os.setReadHandler`) and gives `Buffer`s, the last one removed stops it
+- `setEncoding(enc)`, `pause()`, `resume()`, `isPaused()`, `ref()`, `unref()` (no-op), `for await(const chunk of process.stdin)`
+- `setRawMode(bool)`, `isRaw`: on a terminal only; raw mode also turns off the signal keys, so ^C arrives as the byte 3, as in Node
 - **static methods:** `columns()`, `fd()`, `isTTY()`, `rows()`
 
 ### `stdout`

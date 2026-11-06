@@ -1,24 +1,24 @@
 # password
 
-Source: `lib/password.js` (pure JS) — default export: `{ hash, hashSync, verify, verifySync }`
+Source: `lib/password.js` (pure JS over the native `bcrypt` module and the `lws` crypto engine) — default export: `{ hash, hashSync, verify, verifySync }`
 
 `Bun.password`-compatible password hashing/verification
-(https://bun.com/docs/api/hashing, https://bun.com/guides/util/hash-a-password),
-backed by the native `bcrypt` module (libbcrypt).
+(https://bun.com/docs/api/hashing, https://bun.com/guides/util/hash-a-password).
+Hash strings, defaults and error messages follow Bun (checked against bun 1.4.2): a hash made by Bun verifies here and the other way round.
 
-Bun supports both bcrypt and Argon2 (its default). This engine only has a bcrypt
-binding - no Argon2 - so `options.algorithm` here only ever accepts `"bcrypt"`
-(the default); anything else throws instead of silently hashing with an
-unavailable algorithm. `verify()`/`verifySync()` don't take an `algorithm` option,
-same as Bun's: bcrypt's `$2b$<cost>$...` hash format is self-describing.
+- **argon2id** (Bun's default): `$argon2id$v=19$m=65536,t=2,p=1$<salt>$<hash>`, 32 byte salt and hash, computed by `crypto.argon2id()` of the `lws` module of qjs-lws (OpenSSL 3, loaded on first use)
+- **bcrypt**: `$2b$<cost>$...` by libbcrypt, passwords over 72 bytes are cut (Bun hashes them with SHA-512 first)
+- `argon2i` and `argon2d` throw `PASSWORD_UNSUPPORTED_ALGORITHM`, in `hash()` and in `verify()` of such a hash
+- without the `lws` crypto module the default algorithm is `bcrypt`, and `argon2id` throws
+- `verify()` takes the algorithm from the hash string, like Bun's
 
 ## Exports
 
 | Export | Args | Kind | Description |
 | --- | --- | --- | --- |
-| `hash(password, options?)` | 1-2 | async function | Hashes `password`. `options`: `{ algorithm: "bcrypt", cost }` (`cost` 4-31, default 12). |
+| `hash(password, options?)` | 1-2 | function | Promise of the hash. `options` is an algorithm name or `{ algorithm, cost, memoryCost, timeCost }`: `cost` 4-31 (default 10) for bcrypt, `memoryCost` in KiB (default 65536, at least 8) and `timeCost` (default 2) for argon2id. A bad argument throws at once, as in Bun. |
 | `hashSync(password, options?)` | 1-2 | function | Synchronous `hash()`. |
-| `verify(password, hash)` | 2 | async function | Whether `password` matches `hash`. |
+| `verify(password, hash)` | 2 | function | Promise of whether `password` matches `hash`, `false` for an empty password or hash, a rejection for a hash of unknown format. |
 | `verifySync(password, hash)` | 2 | function | Synchronous `verify()`. |
 | *(default)* | — | object | `{ hash, hashSync, verify, verifySync }` |
 
