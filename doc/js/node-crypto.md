@@ -23,4 +23,5 @@ Algorithm names are case-insensitive, `sha-256` and `rsa-sha256` also work. Afte
 - Fewer algorithms: no ripemd160, sha3, blake2, shake.
 - `Hash` is no `Transform` stream (this project does not implement Node streams): no `write()`, `pipe()`, `end()`, and the `options` argument is ignored.
 - Not implemented: `createHmac`, `randomBytes`, `randomUUID`, `createCipheriv` and the rest of `node:crypto`. `crypto.getRandomValues()` and `crypto.randomUUID()` stay on the `crypto` global.
+- `update()` also takes an `ArrayBuffer` (Node throws), because `readFileSync()` returns one here where Node returns a `Buffer`.
 - The input is kept in memory until `digest()`.

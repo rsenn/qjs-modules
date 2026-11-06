@@ -96,6 +96,12 @@ tests({
       eq(createHash('sha256').update(Buffer.from(bytes.slice(offset, offset + 40))).digest('hex'), createHash('sha256').update(bytes.subarray(offset, offset + 40)).digest('hex'));
   },
 
+  'update takes an ArrayBuffer on qjsm, where readFileSync returns one'() {
+    if(typeof scriptArgs == 'undefined') return;
+
+    eq('a9993e364706816aba3e25717850c26c9cd0d89d', createHash('sha1').update(new Uint8Array([97, 98, 99]).buffer).digest('hex'));
+  },
+
   'update copies the data'() {
     const bytes = new Uint8Array([97, 98, 99]);
     const h = createHash('sha1').update(bytes);
