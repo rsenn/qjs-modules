@@ -71,6 +71,7 @@ else()
   option(MODULE_SQLITE "Build 'sqlite' module" ON)
 endif()
 option(MODULE_BCRYPT "Build 'bcrypt' module" ON)
+option(MODULE_DIGEST "Build 'digest' module (md5, sha1, sha2; needs third_party/Hash-Algorithms)" ON)
 option(MODULE_SERIAL "Build 'serial' module" ON)
 option(MODULE_GPIO "Build 'gpio' module (Raspberry Pi only)" OFF)
 
@@ -424,6 +425,10 @@ if(MODULE_BCRYPT)
   list(APPEND QUICKJS_MODULES bcrypt)
 endif(MODULE_BCRYPT)
 
+if(MODULE_DIGEST AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/Hash-Algorithms/md5.c)
+  list(APPEND QUICKJS_MODULES digest)
+endif()
+
 if(MODULE_SERIAL)
   option(BUILD_LIBSERIALPORT "Build serialport library" ON)
 
@@ -737,6 +742,18 @@ else(X86)
   file(GLOB libbcrypt_SOURCES third_party/libbcrypt/*.c third_party/libbcrypt/*/*.c)
 endif(X86)
 
+# Hash-Algorithms: the md5, sha1 and sha2 sources only, main.c and test.c are demos.
+# its own debug printf and unaligned reads are the library's, so keep its warnings quiet
+if(MODULE_DIGEST)
+  foreach(ALGO md5 sha1 sha224 sha256 sha384 sha512-224 sha512-256 sha512)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/Hash-Algorithms/${ALGO}.c)
+      list(APPEND libhash_SOURCES third_party/Hash-Algorithms/${ALGO}.c)
+    endif()
+  endforeach()
+
+  set_source_files_properties(${libhash_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+endif(MODULE_DIGEST)
+
 if(HAVE_SYS_MMAN_H)
   set(gpio_SOURCES src/gpio.c include/gpio.h)
 endif(HAVE_SYS_MMAN_H)
@@ -1026,7 +1043,7 @@ qjsm_compile_builtins()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 add_definitions(-DHAVE_CONFIG_H)
 
-add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
+add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES} ${libhash_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
 
 target_link_libraries(modules PUBLIC m)
@@ -1130,7 +1147,7 @@ add_custom_target(js SOURCES ${JS_SCRIPTS})
 
 # the summary of this configure: what will be built, with what, and what was generated
 set(DISABLED_MODULES "")
-foreach(MODULE archive magic mysql pgsql sqlite bcrypt serial gpio wasm)
+foreach(MODULE archive magic mysql pgsql sqlite bcrypt digest serial gpio wasm)
   string(TOUPPER "${MODULE}" MODULE_UPPER)
   if(NOT MODULE_${MODULE_UPPER})
     list(APPEND DISABLED_MODULES "${MODULE} (MODULE_${MODULE_UPPER}=OFF)")

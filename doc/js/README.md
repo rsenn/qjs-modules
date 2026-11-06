@@ -71,6 +71,8 @@ Pure JavaScript modules (`lib/*.js`) providing polyfills for standard APIs, wrap
 - [node:util](node-util.md) — `node:util`
 - [assertStrict](assertStrict.md) — `assert/strict`
 - [bun-util](bun-util.md) — the `Bun.*` utility functions
+- [bun-sqlite](bun-sqlite.md) — `bun:sqlite` (`Database`, `Statement`, `SQLiteError`) over the native sqlite module
+- [node-crypto](node-crypto.md) — `node:crypto` `createHash()`, `hash()`, `getHashes()` over the native digest module
 
 How much of Node's, Bun's and Deno's surface this adds up to: [runtime-compat](../runtime-compat.md).
 

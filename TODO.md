@@ -8,6 +8,28 @@ the code (and, where noted, by actually running it) — not just grepped.
 This supersedes the sparse root-level `TODO` file; its four items are folded in below (marked
 *(pre-existing)*).
 
+## Open detours (2026-11-06)
+
+1. **DONE 2026-11-06 (uncommitted): `bun:sqlite` over `quickjs-sqlite.c`** (Tier 15 Phase 6 slice). C: `prepare`, `bind`,
+   `finalize`, `paramCount`, `inTransaction`, `extendedErrorCode`, result flags `RESULT_BIGINT/BYTES/PLAIN`; JS:
+   `lib/bun/sqlite.js`, the `bun:<name>` hook in `lib/bun.js`; tests `test-bun-sqlite.js` (19, same results under bun 1.4.2)
+   and four more in `test-sqlite.js`; docs `doc/js/bun-sqlite.md`, `doc/native/sqlite.md`. Open: ctest run, an install check
+   (`lib/bun/sqlite.js` must reach the module path), the generated export lists (`utilities/doc-api.js`), postponed:
+   `serialize`/`deserialize`, `loadExtension`, `fileControl`, `setCustomSQLite`, `columnTypes`, expanded `toString()`
+2. **Pending check: Termux debug build** (`~/plot-cv/quickjs/qjs-modules/build/aarch64-android-debug` on the phone, ssh
+   port 22221/22222 tunnel). Done: `misc` added to `bun_MODULES` in `cmake/qjsm.cmake` (also applied on the phone), stale
+   `HAVE_PREADV*` cache entries cleared, `make -j6` started (log `~/build-debug.log`, ends with `done <rc>`). Open: read the
+   log, then the user runs `make install`; re-run `qjsm` there (the `Failed loading module 'globals'` error must be gone).
+   The installed `$PREFIX/lib/quickjs` directory was missing after the last install: check it.
+
+3. **DONE 2026-11-06 (uncommitted): `node:crypto` `createHash()`** over a new native `digest` module (`quickjs-digest.c`) and
+   the `third_party/Hash-Algorithms` submodule (staged, not committed): md5, sha1, sha224/256/384/512, sha512-224/256,
+   `lib/node/crypto.js` (`createHash`, `Hash`, `hash`, `getHashes`), test `test-node-crypto.js` (qjsm, node, bun, deno).
+   Existing build dirs need `cmake -UBUILTIN_MODULES` to see the new `node/crypto` builtin (the list is a cached string,
+   so the Termux build dir too). Open: `createHmac` (blocks sizes are in `algorithms`), `randomBytes`/`randomUUID`/`randomInt`/
+   `timingSafeEqual` in `node:crypto`, `Bun.CryptoHasher`/`Bun.SHA*` on the same engine (Tier 15 Phase 5), ripemd160/sha3/blake2
+   (the library has none), incremental hashing in C if a huge input matters, big-endian hosts (the library reads LE words)
+
 ## Reassessment (2026-10-04)
 
 Done/stale items are removed rather than struck through (history is in `git log`), and the

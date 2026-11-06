@@ -687,6 +687,7 @@ macro(qjsm_init_builtins)
           events
           node/buffer
           node/child_process
+          node/crypto
           node/events
           node/os
           node/util
@@ -924,6 +925,7 @@ macro(qjsm_declare_imports)
   set(webassembly_MODULES wasm)
   set(node_buffer_MODULES misc blob textcode)
   set(node_child_process_MODULES child_process node/events node/buffer misc sockets process textcode)
+  set(node_crypto_MODULES digest node/buffer)
   set(node_os_MODULES misc node/buffer process)
   set(node_util_MODULES assert misc textcode)
   set(inspect_MODULES pointer)
@@ -1317,7 +1319,7 @@ macro(qjsm_report_compat)
 
   # Node.js
   set(_node_builtins "")
-  foreach(_m loaders/node loaders/packages node/buffer node/child_process node/events node/os node/util module process
+  foreach(_m loaders/node loaders/packages node/buffer node/child_process node/crypto node/events node/os node/util module process
              fsPromises timersPromises assertStrict readlinePromises string_decoder)
     if(_m IN_LIST _cb)
       list(APPEND _node_builtins "${_m}")

@@ -10,6 +10,7 @@ Native C modules (`quickjs-*.c`) providing direct JavaScript bindings to system 
 - [bcrypt](bcrypt.md) — bcrypt password hashing
 - [bjson](bjson.md) — Native binary object (de)serialization
 - [blob](blob.md) — WHATWG Blob API
+- [digest](digest.md) — md5, sha1 and SHA-2 message digests (Hash-Algorithms)
 - [json](json.md) — JSON read/write and streaming parser
 - [lexer](lexer.md) — Rule-based lexer/tokenizer
 - [list](list.md) — Doubly-linked list
