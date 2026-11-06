@@ -1261,3 +1261,10 @@
     [...new JsonSerializer([1])]
     // expected: ['[1]']
     // actual: never returns
+- console-log-trailing-undefined-prints-console (lib/console.js,
+  console.log): a call whose last argument is undefined prints the console
+  object (options, log, info, ...) in that position.
+
+    console.log('a', undefined)
+    // expected: a undefined
+    // actual:   a { options: { depth: Infinity, ... }, log: [Function: log], ... }

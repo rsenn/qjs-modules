@@ -1655,13 +1655,16 @@ end:
   return ret;
 }
 
-/* adds resolve, and for a file: url filename and dirname, to the
- * import.meta of module: js_import_meta_init of utils.c and
+/* adds resolve, and for a file: url filename, dirname and Bun's dir, path,
+ * file, to the import.meta of module: js_import_meta_init of utils.c and
  * jsm_module_compile
  *
  *   url       'file:///dir/x.js'
  *   filename  '/dir/x.js'   as on Node, Bun and Deno
  *   dirname   '/dir'
+ *   path      '/dir/x.js'   Bun, same as filename
+ *   dir       '/dir'        Bun, same as dirname
+ *   file      'x.js'        Bun, the base name
  */
 static void
 jsm_import_meta_init(JSContext* ctx, JSValueConst module) {
@@ -1676,11 +1679,14 @@ jsm_import_meta_init(JSContext* ctx, JSValueConst module) {
   JS_FreeValue(ctx, name);
 
   if((url = js_get_propertystr_cstring(ctx, meta, "url"))) {
-    char* file;
+    char *file, *base;
 
     if(str_start(url, "file://") && (file = jsm_url_tokey(ctx, url))) {
       JS_SetPropertyStr(ctx, meta, "filename", JS_NewString(ctx, file));
       JS_SetPropertyStr(ctx, meta, "dirname", JS_NewStringLen(ctx, file, path_dirlen(file, strlen(file))));
+      JS_SetPropertyStr(ctx, meta, "path", JS_NewString(ctx, file));
+      JS_SetPropertyStr(ctx, meta, "dir", JS_NewStringLen(ctx, file, path_dirlen(file, strlen(file))));
+      JS_SetPropertyStr(ctx, meta, "file", JS_NewString(ctx, (base = strrchr(file, '/')) ? base + 1 : file));
       js_free(ctx, file);
     }
 
