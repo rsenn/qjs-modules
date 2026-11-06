@@ -99,7 +99,9 @@ bun 1.4.2 (`tests/unittests/test-bun-util.js` runs under both: `bun tests/unitte
 | `readableStreamTo{Text,JSON,Bytes,ArrayBuffer,Blob,Array}` | | string and byte chunks alike |
 | `fileURLToPath`, `pathToFileURL` | [url](url.md) | |
 
-Not yet: `spawn`/`spawnSync`, `$`, `Archive`, `XML`, `YAML`, `semver`, `color`, the hashing and
+| `spawn(cmd, options)`, `spawnSync()` | [bun-spawn](bun-spawn.md) | `Subprocess` over `node/child_process` and `stream` |
+
+Not yet: `$`, `Archive`, `XML`, `YAML`, `semver`, `color`, the hashing and
 compression functions (TODO.md Tier 19).
 
 ## Globals from other modules

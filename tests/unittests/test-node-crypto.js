@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* node:crypto createHash(); expected values come from node 23 */
-import crypto, { Hash, createHash, getHashes, hash } from 'node:crypto';
+import crypto, { Hash, Hmac, createHash, createHmac, getHashes, hash } from 'node:crypto';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* algorithm | digest of '' | of 'abc' | first 16 hex of 1000 times 'a' */
@@ -164,5 +164,20 @@ tests({
     eq('a9993e364706816aba3e25717850c26c9cd0d89d', hash('sha1', 'abc'));
     eq('qZk+NkcGgWq6PiVxeFDCbJzQ2J0=', hash('sha1', 'abc', 'base64'));
     eq('a9993e364706816aba3e25717850c26c9cd0d89d', hash('sha1', 'abc', 'buffer').toString('hex'));
+  },
+
+  'createHmac() matches Node, long keys are hashed first'() {
+    eq('9c196e32dc0175f86f4b1cb89289d6619de6bee699e4c378e68309ed97a1a6ab', createHmac('sha256', 'key').update('abc').digest('hex'));
+    eq('9b4a918f398d74d3e367970aba3cbe54e4d2b5d9', createHmac('sha1', '').update('abc').digest('hex'));
+    eq('b5245971beb52a5a986812c4666a05c735bf5bb7aba32eae2192adad605df4112d6c285d1c46cf81ccb7ab8c2c3b7b3c6793216909b5add05223ed21f24cdb1e', createHmac('sha512', 'k'.repeat(200)).update('msg').digest('hex'));
+    eq('63530468a04e386459855da0063b6596', createHmac('md5', new TextEncoder().encode('key')).digest('hex'));
+    assert(createHmac('sha1', 'k') instanceof Hmac, 'Hmac');
+    assert(crypto.createHmac === createHmac, 'default.createHmac');
+  },
+
+  'createHmac() without a key throws ERR_INVALID_ARG_TYPE'() {
+    const e = fails(() => createHmac('sha256'));
+
+    eq('TypeError ERR_INVALID_ARG_TYPE', `${e.name} ${e.code}`);
   },
 });

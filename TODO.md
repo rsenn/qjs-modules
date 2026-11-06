@@ -30,6 +30,19 @@ This supersedes the sparse root-level `TODO` file; its four items are folded in 
    `timingSafeEqual` in `node:crypto`, `Bun.CryptoHasher`/`Bun.SHA*` on the same engine (Tier 15 Phase 5), ripemd160/sha3/blake2
    (the library has none), incremental hashing in C if a huge input matters, big-endian hosts (the library reads LE words)
 
+4. **DONE 2026-11-06 (uncommitted): `createHmac()` in `lib/node/crypto.js` and `Bun.CryptoHasher`** (`lib/bun/crypto.js`, over
+   `node/crypto`; md5, sha1, sha2 only; Bun's blake2/sha3/md4/ripemd160/shake are absent). Tests `test-bun-crypto.js` (qjsm and bun),
+   two more in `test-node-crypto.js`. Open: `Bun.SHA1/SHA256/...` classes, `update()` of a Blob.
+5. **IN PROGRESS: `crypto.subtle` (wild-beauty `server/push.js`: ECDSA P-256 generateKey/exportKey raw+jwk/importKey jwk/sign).**
+   Plan: `lib/webcrypto.js` = SubtleCrypto/CryptoKey in JS (digest, HMAC, ECDSA; shapes and errors from bun 1.4.2, probe in the
+   session scratchpad `sub.mjs`: DOMException names, `key_ops`, jwk member order, `algorithm.hash` objects, P1363 signatures),
+   imports `lws` dynamically for the engines. Hooked in as `crypto.subtle` through `lazyGlobal(crypto, 'subtle', ...)` in
+   `lib/globals.js`, plus `CryptoKey`/`SubtleCrypto` globals. Blocked on qjs-lws: asked its session (2026-11-06) to expose
+   digest, hmac, ECDSA generate/sign/verify (+ point derive/validate) from gencrypto/OpenSSL. Postponed: RSA, ECDH, AES, PBKDF2.
+6. **Open, found in the wild-beauty survey: `Bun.password.hash(pw, 'argon2id')` returns bcrypt (`$2a$12$...`)**: existing argon2id
+   hashes written by real Bun do not verify. Needs a native argon2id (qjs-lws/OpenSSL 3 has it via EVP KDF, or vendor it).
+   Unchecked: `server.requestIP()`, `Bun.serve` `maxRequestBodySize`/`idleTimeout`, `process.stdin.setRawMode`.
+
 ## Reassessment (2026-10-04)
 
 Done/stale items are removed rather than struck through (history is in `git log`), and the
@@ -1865,7 +1878,7 @@ slice is clamped to the file (Bun reports `end - start`), `FileSink.start()`, `f
 `Bun.randomUUIDv7`, `Bun.indexOfLine`, `Bun.semver`, `Bun.color`, `Bun.enableANSIColors`,
 `Bun.readableStreamTo{Text,JSON,Bytes,ArrayBuffer,Blob,Array}`.
 
-### Phase 4 — `Bun.spawn` / `Bun.spawnSync` and `Bun.$`
+### Phase 4 — `Bun.spawn` / `Bun.spawnSync` (DONE 2026-11-06, `lib/bun/spawn.js`) and `Bun.$` (open)
 
 On `child_process`: `{ cmd, cwd, env, stdin/stdout/stderr: 'pipe' | 'inherit' | 'ignore' | BunFile | fd,
 onExit }` → `Subprocess` (`pid`, `exited`, `exitCode`, `signalCode`, `kill()`, `stdin` as

@@ -680,6 +680,8 @@ macro(qjsm_init_builtins)
           assert
           assertStrict
           bun
+          bun/crypto
+          bun/spawn
           bun/util
           glob
           loaders/commonjs
@@ -882,6 +884,7 @@ macro(qjsm_declare_imports)
   set(assertStrict_MODULES assert)
   set(events_MODULES node/events)
   set(bun_MODULES node blob fs path stream textcode url misc lazyGlobal)
+  set(bun_spawn_MODULES node/child_process stream node/buffer misc fs path)
   set(bun_util_MODULES fs path misc blob inspect terminal glob perf_hooks textcode url)
   set(glob_MODULES fs path)
   set(node_MODULES loaders/node loaders/packages loaders/commonjs lazyGlobal)
@@ -926,6 +929,7 @@ macro(qjsm_declare_imports)
   set(node_buffer_MODULES misc blob textcode)
   set(node_child_process_MODULES child_process node/events node/buffer misc sockets process textcode)
   set(node_crypto_MODULES digest node/buffer)
+  set(bun_crypto_MODULES node/crypto node/buffer)
   set(node_os_MODULES misc node/buffer process)
   set(node_util_MODULES assert misc textcode)
   set(inspect_MODULES pointer)
