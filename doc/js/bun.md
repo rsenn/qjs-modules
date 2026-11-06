@@ -44,6 +44,10 @@ Bun.plugin.clearAll();
 | `typeof Bun` is the Bun runtime | `Bun` carries only what is listed here (roadmap: `TODO.md` Tier 19); do not use it to detect Bun |
 | Plugins in `bunfig.toml` `preload` | Call `Bun.plugin()` before the `import()` it should affect (static imports are resolved first) |
 
+## `bun:<name>` imports
+
+Loading `bun` registers a resolve hook: `bun:bun` is this module, `bun:<name>` is `bun/<name>` in the module path, so `bun:sqlite` is [bun-sqlite](bun-sqlite.md). A name with no such module throws as any missing module does.
+
 ## Bun.file / Bun.write
 
 ```js

@@ -16,6 +16,7 @@ new SQLite3()   // length 1
 | --- | --- | --- |
 | `open(filename)` | 1 | Opens (or creates) a database file. |
 | `query(sql)` | 1 | Runs a query; returns a `SQLite3Result`. |
+| `prepare(sql)` | 1 | Prepares the first statement without running it; returns a `SQLite3Result`, or `null` for empty sql. |
 | `exec(sql)` | 1 | Runs a statement without returning rows. |
 | `close()` | 0 | Closes the connection. |
 | `escapeString(str)` | 1 | Escapes a string for safe interpolation. |
@@ -27,7 +28,7 @@ new SQLite3()   // length 1
 ### Properties (read-only)
 
 `affectedRows`/`changes`, `insertId`/`lastInsertRowid`, `totalChanges`,
-`errorMessage`, `errorCode`, `filename`.
+`errorMessage`, `errorCode`, `extendedErrorCode`, `filename`, `inTransaction`.
 
 ### Static members
 
@@ -48,6 +49,10 @@ A result set; iterable.
 | `fetchField(i)` | 1 | method | Returns metadata for one field. |
 | `fetchFields()` | 0 | method | Returns metadata for all fields. |
 | `reset()` | 0 | method | Resets the statement for re-execution. |
+| `bind(values, strict)` | 1 | method | Resets, then binds an array (positional) or an object (named, with prefix; `strict` also matches without). |
+| `finalize()` | 0 | method | Releases the statement now. |
+| `paramCount` | — | getter | Number of parameters of the statement. |
+| `resultType` | — | property | Flags for the rows: `RESULT_OBJECT`, `RESULT_STRING`, `RESULT_BIGINT` (integers as bigint), `RESULT_BYTES` (blobs as `Uint8Array`), `RESULT_PLAIN` (objects with `Object.prototype`). |
 | `eof` | — | getter | Whether all rows are consumed. |
 | `[Symbol.iterator]` | 0 | method | Row iteration. |
 

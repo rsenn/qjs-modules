@@ -49,6 +49,9 @@ typedef JSValue RowValueFunc(JSContext*, SQLiteResult*, int);
 enum ResultFlags {
   RESULT_OBJECT = 1,
   RESULT_STRING = 2,
+  RESULT_BIGINT = 4,
+  RESULT_BYTES = 8,
+  RESULT_PLAIN = 16,
 };
 
 static SQLiteResult* sqliteresult_dup(SQLiteResult*);
@@ -279,6 +282,9 @@ enum {
   PROP_EOF,
   PROP_NUM_ROWS,
   PROP_NUM_FIELDS,
+  PROP_IN_TRANSACTION,
+  PROP_EXTENDED_ERROR_CODE,
+  PROP_PARAM_COUNT,
 };
 
 static JSValue
@@ -313,6 +319,16 @@ js_sqlite_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_ERROR_CODE: {
       if(db->db)
         ret = JS_NewInt32(ctx, sqlite3_errcode(db->db));
+      break;
+    }
+    case PROP_IN_TRANSACTION: {
+      if(db->db)
+        ret = JS_NewBool(ctx, !sqlite3_get_autocommit(db->db));
+      break;
+    }
+    case PROP_EXTENDED_ERROR_CODE: {
+      if(db->db)
+        ret = JS_NewInt32(ctx, sqlite3_extended_errcode(db->db));
       break;
     }
     case PROP_FILENAME: {
@@ -538,8 +554,12 @@ js_sqlite_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
       }
     }
 
-    if(sqlite3_open_v2(filename, &db->db, flags, NULL) != SQLITE_OK) {
+    int rc = sqlite3_open_v2(filename, &db->db, flags, NULL);
+
+    if(rc != SQLITE_OK) {
       JSValue err = js_sqliteerror_new(ctx, sqlite_error(db));
+
+      JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, rc));
       JS_FreeCString(ctx, filename);
       JS_FreeValue(ctx, obj);
       return JS_Throw(ctx, err);
@@ -579,8 +599,12 @@ js_sqlite_open(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ret = sqlite3_open_v2(filename, &db->db, flags, NULL);
   JS_FreeCString(ctx, filename);
 
-  if(ret != SQLITE_OK)
-    return JS_Throw(ctx, js_sqliteerror_new(ctx, sqlite_error(db)));
+  if(ret != SQLITE_OK) {
+    JSValue err = js_sqliteerror_new(ctx, sqlite_error(db));
+
+    JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, ret));
+    return JS_Throw(ctx, err);
+  }
 
   return JS_NewBool(ctx, TRUE);
 }
@@ -627,6 +651,42 @@ js_sqlite_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JS_DefinePropertyValueStr(ctx, ret, "handle", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
 
   return ret;
+}
+
+/* SQLite3: prepare(sql) is the SQLite3Result of the first statement.
+ *
+ *   db.prepare('SELECT ?')   not run yet, call bind() then fetchRow()
+ *
+ * Text after the first statement is ignored.
+ *
+ *   returns SQLite3Result, null for empty or comment-only sql, or -1
+ *   with an exception pending. */
+static JSValue
+js_sqlite_prepare(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  SQLiteConnection* db;
+  const char* sql;
+  size_t sql_len;
+  sqlite3_stmt* stmt = NULL;
+
+  if(!(db = js_sqlite_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(!db->db)
+    return JS_Throw(ctx, js_sqliteerror_new(ctx, "no database"));
+
+  if(!(sql = JS_ToCStringLen(ctx, &sql_len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be string");
+
+  if(sqlite3_prepare_v2(db->db, sql, (int)sql_len, &stmt, NULL) != SQLITE_OK) {
+    JSValue err = js_sqliteerror_new(ctx, sqlite_error(db));
+
+    JS_FreeCString(ctx, sql);
+    return JS_Throw(ctx, err);
+  }
+
+  JS_FreeCString(ctx, sql);
+
+  return stmt ? sqlite_result(db, stmt, ctx) : JS_NULL;
 }
 
 static JSValue
@@ -697,6 +757,9 @@ static const JSCFunctionListEntry js_sqlite_funcs[] = {
     JS_CGETSET_MAGIC_DEF("errorCode", js_sqlite_get, 0, PROP_ERROR_CODE),
     JS_CGETSET_MAGIC_DEF("filename", js_sqlite_get, 0, PROP_FILENAME),
     JS_CFUNC_DEF("open", 1, js_sqlite_open),
+    JS_CGETSET_MAGIC_DEF("inTransaction", js_sqlite_get, 0, PROP_IN_TRANSACTION),
+    JS_CGETSET_MAGIC_DEF("extendedErrorCode", js_sqlite_get, 0, PROP_EXTENDED_ERROR_CODE),
+    JS_CFUNC_DEF("prepare", 1, js_sqlite_prepare),
     JS_CFUNC_DEF("query", 1, js_sqlite_query),
     JS_CFUNC_DEF("exec", 1, js_sqlite_exec),
     JS_CFUNC_DEF("close", 0, js_sqlite_close),
@@ -718,6 +781,9 @@ static const JSCFunctionListEntry js_sqlite_static[] = {
 static const JSCFunctionListEntry js_sqlite_defines[] = {
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("RESULT_BIGINT", RESULT_BIGINT, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("RESULT_BYTES", RESULT_BYTES, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("RESULT_PLAIN", RESULT_PLAIN, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPEN_READONLY", SQLITE_OPEN_READONLY, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPEN_READWRITE", SQLITE_OPEN_READWRITE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPEN_CREATE", SQLITE_OPEN_CREATE, JS_PROP_CONFIGURABLE),
@@ -829,6 +895,9 @@ result_column_value(JSContext* ctx, SQLiteResult* res, int col, int rtype) {
     case SQLITE_INTEGER: {
       sqlite3_int64 v = sqlite3_column_int64(stmt, col);
 
+      if(rtype & RESULT_BIGINT)
+        return JS_NewBigInt64(ctx, v);
+
       if(v >= INT32_MIN && v <= INT32_MAX)
         return JS_NewInt32(ctx, (int32_t)v);
 
@@ -846,16 +915,28 @@ result_column_value(JSContext* ctx, SQLiteResult* res, int col, int rtype) {
       const void* blob = sqlite3_column_blob(stmt, col);
       int len = sqlite3_column_bytes(stmt, col);
 
-      if(!blob || len == 0)
-        return JS_NewArrayBuffer(ctx, NULL, 0, NULL, NULL, FALSE);
+      JSValue buf;
 
-      uint8_t* copy = js_malloc(ctx, len);
+      if(!blob || len == 0) {
+        buf = JS_NewArrayBuffer(ctx, NULL, 0, NULL, NULL, FALSE);
+      } else {
+        uint8_t* copy = js_malloc(ctx, len);
 
-      if(!copy)
-        return JS_EXCEPTION;
+        if(!copy)
+          return JS_EXCEPTION;
 
-      memcpy(copy, blob, len);
-      return JS_NewArrayBuffer(ctx, copy, len, &result_blob_free, NULL, FALSE);
+        memcpy(copy, blob, len);
+        buf = JS_NewArrayBuffer(ctx, copy, len, &result_blob_free, NULL, FALSE);
+      }
+
+      if(rtype & RESULT_BYTES) {
+        JSValue bytes = js_typedarray_new(ctx, 8, FALSE, FALSE, buf);
+
+        JS_FreeValue(ctx, buf);
+        return bytes;
+      }
+
+      return buf;
     }
   }
 
@@ -875,7 +956,7 @@ result_array(JSContext* ctx, SQLiteResult* res, int rtype) {
 
 static JSValue
 result_object(JSContext* ctx, SQLiteResult* res, int rtype) {
-  JSValue ret = JS_NewObjectProto(ctx, JS_NULL);
+  JSValue ret = (rtype & RESULT_PLAIN) ? JS_NewObject(ctx) : JS_NewObjectProto(ctx, JS_NULL);
   int i, n = sqlite3_column_count(res->stmt);
 
   for(i = 0; i < n; i++) {
@@ -1053,6 +1134,174 @@ js_sqliteresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
+/* bind one value to parameter index (1-based) of stmt.
+ *
+ *   JS value              SQLite
+ *   null, undefined       NULL
+ *   boolean               INTEGER 0 or 1
+ *   integral number       INTEGER, NaN and Infinity bind NULL
+ *   other number          REAL
+ *   bigint                INTEGER
+ *   string                TEXT
+ *   ArrayBuffer, view     BLOB
+ *   any other object      NULL
+ *
+ * returns 0, an SQLite error code, or -1 with an exception pending. */
+static int
+sqliteresult_bind_value(JSContext* ctx, sqlite3_stmt* stmt, int index, JSValueConst value) {
+  if(JS_IsBool(value))
+    return sqlite3_bind_int(stmt, index, JS_ToBool(ctx, value));
+
+  if(JS_IsNumber(value)) {
+    double d;
+
+    if(JS_ToFloat64(ctx, &d, value))
+      return -1;
+
+    if(d != d || d - d != 0)
+      return sqlite3_bind_null(stmt, index);
+
+    if(d == (double)(int64_t)d && d >= -9007199254740992.0 && d <= 9007199254740992.0)
+      return sqlite3_bind_int64(stmt, index, (int64_t)d);
+
+    return sqlite3_bind_double(stmt, index, d);
+  }
+
+  if(JS_IsBigInt(ctx, value)) {
+    int64_t i;
+
+    if(JS_ToBigInt64(ctx, &i, value))
+      return -1;
+
+    return sqlite3_bind_int64(stmt, index, i);
+  }
+
+  if(JS_IsString(value)) {
+    size_t len;
+    const char* str = JS_ToCStringLen(ctx, &len, value);
+    int rc;
+
+    if(!str)
+      return -1;
+
+    rc = sqlite3_bind_text(stmt, index, str, (int)len, SQLITE_TRANSIENT);
+    JS_FreeCString(ctx, str);
+    return rc;
+  }
+
+  if(js_is_arraybuffer(ctx, value) || js_is_typedarray(ctx, value) || js_is_dataview(ctx, value)) {
+    InputBuffer in = js_input_buffer(ctx, value);
+    int rc;
+
+    if(JS_IsException(in.value))
+      return -1;
+
+    rc = sqlite3_bind_blob64(stmt, index, inputbuffer_begin(&in), inputbuffer_length(&in), SQLITE_TRANSIENT);
+    inputbuffer_free(&in, ctx);
+    return rc;
+  }
+
+  return sqlite3_bind_null(stmt, index);
+}
+
+/* SQLite3Result: finalize() releases the statement now, not at GC time.
+ *
+ * wired in: JS_CFUNC_DEF("finalize", 0, ...) on the SQLite3Result
+ * prototype, later calls and fetches see a result with no rows.
+ *
+ *   returns undefined, or -1 with an exception pending. */
+static JSValue
+js_sqliteresult_finalize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  SQLiteResult* res;
+
+  if(!(res = js_sqliteresult_opaque2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(res->stmt) {
+    sqlite3_finalize(res->stmt);
+    res->stmt = 0;
+  }
+
+  res->done = TRUE;
+  return JS_UNDEFINED;
+}
+
+/* the exception for a failed bind: rc -1 has one pending already. */
+static JSValue
+sqliteresult_bind_fail(JSContext* ctx, int rc) {
+  return rc == -1 ? JS_EXCEPTION : JS_Throw(ctx, js_sqliteerror_new(ctx, sqlite3_errstr(rc)));
+}
+
+/* SQLite3Result: bind(values, strict) resets the statement, binds values.
+ *
+ *   stmt.bind([1, 'a'])         positional, values[0] is parameter 1
+ *   stmt.bind({ $id: 1 })       named, the key carries its prefix
+ *   stmt.bind({ id: 1 }, true)  strict, id also matches $id, :id and @id
+ *
+ * A parameter without a value stays NULL, unless strict is set and a
+ * named one has no key, which throws TypeError. A bind failure throws
+ * SQLite3Error.
+ *
+ * wired in: JS_CFUNC_DEF("bind", 1, ...) on the SQLite3Result prototype. */
+static JSValue
+js_sqliteresult_bind(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  SQLiteResult* res;
+  sqlite3_stmt* stmt;
+  BOOL strict = argc > 1 && JS_ToBool(ctx, argv[1]);
+  int i, n;
+
+  if(!(res = js_sqliteresult_opaque2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(!(stmt = res->stmt))
+    return JS_ThrowInternalError(ctx, "statement has finalized");
+
+  sqlite3_reset(stmt);
+  sqlite3_clear_bindings(stmt);
+  res->row_index = 0;
+  res->done = FALSE;
+
+  n = sqlite3_bind_parameter_count(stmt);
+
+  if(argc > 0 && JS_IsArray(ctx, argv[0])) {
+    for(i = 1; i <= n; i++) {
+      JSValue value = JS_GetPropertyUint32(ctx, argv[0], i - 1);
+      int rc = JS_IsException(value) ? -1 : sqliteresult_bind_value(ctx, stmt, i, value);
+
+      JS_FreeValue(ctx, value);
+
+      if(rc)
+        return sqliteresult_bind_fail(ctx, rc);
+    }
+  } else if(argc > 0 && JS_IsObject(argv[0])) {
+    for(i = 1; i <= n; i++) {
+      const char* name = sqlite3_bind_parameter_name(stmt, i);
+      JSValue value = JS_UNDEFINED;
+      int rc;
+
+      if(!name)
+        continue;
+
+      if(js_has_propertystr(ctx, argv[0], name))
+        value = JS_GetPropertyStr(ctx, argv[0], name);
+      else if(strict && js_has_propertystr(ctx, argv[0], name + 1))
+        value = JS_GetPropertyStr(ctx, argv[0], name + 1);
+      else if(strict)
+        return JS_ThrowTypeError(ctx, "Missing parameter \"%s\"", name + 1);
+      else
+        continue;
+
+      rc = JS_IsException(value) ? -1 : sqliteresult_bind_value(ctx, stmt, i, value);
+      JS_FreeValue(ctx, value);
+
+      if(rc)
+        return sqliteresult_bind_fail(ctx, rc);
+    }
+  }
+
+  return JS_UNDEFINED;
+}
+
 static JSValue
 js_sqliteresult_new(JSContext* ctx, JSValueConst proto, sqlite3_stmt* stmt) {
   JSValue obj;
@@ -1095,6 +1344,10 @@ js_sqliteresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case PROP_NUM_FIELDS: {
       ret = JS_NewInt32(ctx, res->stmt ? sqlite3_column_count(res->stmt) : 0);
+      break;
+    }
+    case PROP_PARAM_COUNT: {
+      ret = JS_NewInt32(ctx, res->stmt ? sqlite3_bind_parameter_count(res->stmt) : 0);
       break;
     }
   }
@@ -1179,6 +1432,9 @@ static const JSCFunctionListEntry js_sqliteresult_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_sqliteresult_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_sqliteresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_sqliteresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_DEF("paramCount", js_sqliteresult_get, 0, PROP_PARAM_COUNT),
+    JS_CFUNC_DEF("bind", 1, js_sqliteresult_bind),
+    JS_CFUNC_DEF("finalize", 0, js_sqliteresult_finalize),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_sqliteresult_functions, METHOD_FETCH_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_sqliteresult_functions, METHOD_FETCH_FIELDS),
     JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_sqliteresult_functions, METHOD_FETCH_ROW),

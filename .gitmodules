@@ -28,3 +28,6 @@
 [submodule "third_party/wamr"]
 	path = third_party/wamr
 	url = https://github.com/bytecodealliance/wasm-micro-runtime.git
+[submodule "third_party/Hash-Algorithms"]
+	path = third_party/Hash-Algorithms
+	url = https://github.com/th-blitz/Hash-Algorithms

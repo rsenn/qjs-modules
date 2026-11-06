@@ -185,4 +185,66 @@ tests({
     eq(1, SQLite3.OPEN_READONLY);
     eq(128, SQLite3.OPEN_MEMORY);
   },
+
+  'prepare() does not run, bind() takes an array or an object'() {
+    const db = open();
+    const ins = db.prepare('INSERT INTO t (name, n) VALUES (?, ?)');
+    const sel = db.prepare('SELECT name, n FROM t WHERE name = $name');
+
+    eq(2, ins.paramCount);
+    eq(0, db.totalChanges);
+    ins.bind(['a', 1.5]);
+    eq(null, ins.fetchRow());
+    eq(1, db.totalChanges);
+    sel.bind({ $name: 'a' });
+    eq('a,1.5', sel.fetchRow().join());
+    sel.bind({ name: 'a' });
+    eq(null, sel.fetchRow());
+    sel.bind({ name: 'a' }, true);
+    eq('a,1.5', sel.fetchRow().join());
+    eq('Missing parameter "name"', throws(() => sel.bind({ x: 1 }, true)).message);
+    eq(null, db.prepare('-- nothing'));
+    db.close();
+  },
+
+  'bind() maps JS values to SQLite types'() {
+    const db = open();
+    const q = db.prepare('SELECT typeof(?1), typeof(?2), typeof(?3), typeof(?4), typeof(?5), typeof(?6), ?7');
+
+    q.bind([1, 1.5, 'a', null, new Uint8Array([1]), 2n ** 40n, true]);
+    eq('integer,real,text,null,blob,integer,1', q.fetchRow().join());
+    q.bind([NaN, Infinity, undefined, {}, -0, 2 ** 53, false]);
+    eq('null,null,null,null,integer,integer,0', q.fetchRow().join());
+    db.close();
+  },
+
+  'result flags choose bigint, Uint8Array and plain objects'() {
+    const db = open();
+    const q = db.prepare("SELECT 5 i, x'0102' b");
+
+    q.resultType = SQLite3.RESULT_OBJECT | SQLite3.RESULT_BIGINT | SQLite3.RESULT_BYTES | SQLite3.RESULT_PLAIN;
+
+    const row = q.fetchRow();
+
+    eq('bigint', typeof row.i);
+    assert(row.b instanceof Uint8Array, 'Uint8Array');
+    assert(Object.getPrototypeOf(row) === Object.prototype, 'plain');
+    db.close();
+  },
+
+  'finalize() ends a result, inTransaction and extendedErrorCode'() {
+    const db = open();
+    const q = db.prepare('SELECT 1');
+
+    q.finalize();
+    eq(null, q.fetchRow());
+    eq(false, db.inTransaction);
+    db.exec('BEGIN');
+    eq(true, db.inTransaction);
+    db.exec('ROLLBACK');
+    db.exec("INSERT INTO t (name) VALUES ('a')");
+    throws(() => db.exec("INSERT INTO t (name) VALUES ('a')"));
+    eq(2067, db.extendedErrorCode);
+    db.close();
+  },
 });
