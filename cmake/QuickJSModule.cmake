@@ -163,9 +163,12 @@ function(make_module FNAME)
     #dump(QUICKJS_C_MODULE_DIR QUICKJS_LIBRARY_DIR)
     #dump(MODULE_COMPILE_FLAGS)
 
+    # libquickjs.so sits in the directory above the module directory
+    get_filename_component(QUICKJS_C_MODULE_PARENT_DIR "${QUICKJS_C_MODULE_DIR}" DIRECTORY)
+
     set_target_properties(
       ${TARGET_NAME}
-      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}"
+      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}:${QUICKJS_C_MODULE_PARENT_DIR}:${CMAKE_INSTALL_PREFIX}/lib"
                  LINK_FLAGS "${LINK_FLAGS}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS
                                                                                       "${MODULE_COMPILE_FLAGS}")
 

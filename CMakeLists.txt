@@ -185,7 +185,22 @@ configure_quickjs()
 
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 
-list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
+# Built as a subproject QUICKJS_LIBRARY is just the target name ("quickjs") and
+# QUICKJS_LIBRARY_DIR is relative, so a probe linking -lquickjs fails and every
+# check_function_exists()/check_include_file() result comes out empty. The
+# library sits in the top-level binary dir; when it is not built yet, leave it
+# out - the libc probes do not need it.
+if(QUICKJS_LIBRARY AND NOT IS_ABSOLUTE "${QUICKJS_LIBRARY}" AND NOT EXISTS "${QUICKJS_LIBRARY}")
+  # absolute path: CMAKE_REQUIRED_LINK_DIRECTORIES is only honoured by CMake >= 3.31
+  foreach(_ext so a)
+    if(EXISTS "${CMAKE_BINARY_DIR}/lib${QUICKJS_LIBRARY}.${_ext}")
+      list(APPEND CMAKE_REQUIRED_LIBRARIES "${CMAKE_BINARY_DIR}/lib${QUICKJS_LIBRARY}.${_ext}")
+      break()
+    endif()
+  endforeach(_ext)
+else()
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
+endif()
 list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
 
 include(CheckLibraryExists)
@@ -252,7 +267,7 @@ check_library_exists(quickjs JS_PromiseResult "${QUICKJS_LIBRARY_DIR}" HAVE_JS_P
 set(CMAKE_REQUIRED_LINK_DIRECTORIES_OLD "${CMAKE_REQUIRED_LINK_DIRECTORIES}")
 set(CMAKE_REQUIRED_LIBRARIES_OLD "${CMAKE_REQUIRED_LIBRARIES}")
 
-list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
+list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}" "${CMAKE_BINARY_DIR}")
 list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 
 # check_function_def() (check_function_exists() under the hood) only
@@ -757,6 +772,9 @@ endif(MODULE_DIGEST)
 if(HAVE_SYS_MMAN_H)
   set(gpio_SOURCES src/gpio.c include/gpio.h)
 endif(HAVE_SYS_MMAN_H)
+
+# a bare system include dir would shadow the musl headers
+list(REMOVE_ITEM LibArchive_INCLUDE_DIRS /usr/include /usr/local/include)
 
 include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libutf/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tutf8e/include)

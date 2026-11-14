@@ -1266,8 +1266,12 @@ macro(qjsm_add_executable)
   endif()
 
   if(BUILD_SHARED_LIBS)
-    set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
-                                          INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
+    if(IS_ABSOLUTE "${QUICKJS_LIBRARY_DIR}")
+      set(QJSM_RPATH "${QUICKJS_LIBRARY_DIR}")
+    else()
+      set(QJSM_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
+    endif()
+    set_target_properties(qjsm PROPERTIES RPATH "${QJSM_RPATH}" INSTALL_RPATH "${QJSM_RPATH}")
   endif(BUILD_SHARED_LIBS)
 
   # cmake --install strips the build RUNPATH; QUICKJS_LIBRARY_DIR is already absolute.
