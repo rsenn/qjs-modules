@@ -12,9 +12,8 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
 
   set(_sp_flags "${MODULE_COMPILE_FLAGS}")
   set(_sp_msys_args "")
-  if(MSYS OR CYGWIN)
+  if(MSYS OR CYGWIN OR CMAKE_SYSTEM_NAME MATCHES "MSYS|CYGWIN" OR CMAKE_C_COMPILER_TARGET MATCHES "msys|cygwin" OR CMAKE_C_COMPILER MATCHES "msys")
     # POSIX build, no windows.c: see libserialport-msys.cmake
-    set(_sp_flags "${_sp_flags} -DNO_ENUMERATION -DNO_PORT_METADATA")
     set(_sp_msys_args "-DCMAKE_PROJECT_libserialport_INCLUDE:FILEPATH=${SOURCE}/cmake/deps/libserialport-msys.cmake")
   endif()
 

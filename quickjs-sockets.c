@@ -42,7 +42,7 @@ typedef int SOCKET;
 #include <linux/if_alg.h>
 #endif
 
-#if defined(AF_UNIX) || defined(HAVE_AFUNIX_H)
+#if defined(HAVE_AFUNIX_H)
 #define HAVE_AF_UNIX
 #endif
 

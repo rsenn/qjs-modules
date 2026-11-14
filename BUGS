@@ -1268,13 +1268,3 @@
     console.log('a', undefined)
     // expected: a undefined
     // actual:   a { options: { depth: Infinity, ... }, log: [Function: log], ... }
-- libarchive-source-build-misses-optional-libs (cmake/deps/BuildLibArchive.cmake,
-  BUILD_LIBARCHIVE=ON): libarchive is configured with openssl, libxml2, acl
-  and the like on when the host has them, but only the codec libraries reach
-  the module link line, so archive.so has undefined symbols and fails to load.
-  found while testing BUILD_LIBARCHIVE with the BUILD_LIB* flags.
-
-    cmake -DBUILD_LIBARCHIVE=ON ... && cmake --build . --target qjs-archive
-    ldd -r archive.so   # undefined: acl_get_qualifier, EVP_MAC_free,
-                        #   xmlTextReaderConstLocalName
-    import('archive')   // could not load module ... as shared library

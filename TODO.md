@@ -76,6 +76,13 @@ This supersedes the sparse root-level `TODO` file; its four items are folded in 
      and `BUILD_OPENSSL=ON` there (system OpenSSL 3 breaks its configure checks).
    - **Open, c-utils `pkgcfg`:** the `<triplet>-pkg-config` wrapper does not fix the `sysroot` -> `sys-root` typo in
      `libmagic.pc`/`libmariadb.pc`; `Deps.cmake` works around it with `PKGCFG_PATH_MAP`.
+   - **Open, qjs-lws on MSYS (found 2026-11-14):** `/opt/cmake-toolchains/msys{32,64}.cmake` set `CMAKE_SYSTEM_NAME Windows`,
+     but the MSYS gcc is Cygwin-like (`__MSYS__`, `__CYGWIN__`, no `_WIN32`), so CMake's `WIN32` is true and libwebsockets
+     compiles `plat/windows` against headers that select `plat/unix` (`private-lib-plat-unix.h: No such file`). With
+     `CMAKE_SYSTEM_NAME MSYS` it picks the Unix sources; then two gaps remain in libwebsockets: `net/route.h` (unix-sockets.c)
+     and `ETHER_ADDR_LEN` (libwebsockets.h) do not exist in the MSYS headers (a patch in `qjs-lws/patches`, applied at
+     configure). qjs-lws's own CMake also links `iphlpapi`/`mincore` under `WIN32`. Not done: the toolchain edit needs the
+     user's approval, and an MSYS sysroot has no OpenSSL (`msys2-get.sh -s <triplet> openssl`).
    - **Postponed:** the same gating in qjs-lws/qjs-ffi (they have their own `BUILD_*` logic and a libc-tree default); libpq
      with LibreSSL on mingw untested; `wasm3`/`libserialport` always built from source (not in any sysroot).
 

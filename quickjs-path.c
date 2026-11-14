@@ -4,6 +4,9 @@
 #include "debug.h"
 #include "path.h"
 #include "utils.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <quickjs.h>
 #include <cutils.h>
@@ -742,7 +745,11 @@ js_path_istype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   {
     struct stat st;
 
-    if((magic == PATH_TYPE(S_IFLNK) ? lstat(a, &st) : stat(a, &st)) == 0)
+    if((magic == 
+#if defined(HAVE_LSTAT) || !defined(WINDOWS_NATIVE)
+      PATH_TYPE(S_IFLNK) ? lstat(a, &st) : 
+#endif
+      stat(a, &st)) == 0)
       ret = PATH_TYPE(st.st_mode & S_IFMT) == magic;
   }
 
