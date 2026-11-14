@@ -1,7 +1,7 @@
 # Third-party dependencies of the native modules
 
 Libraries that `quickjs-*.c` / `quickjs-*.h` need when every module is enabled
-(`MODULE_ARCHIVE`, `MODULE_MAGIC`, `MODULE_MYSQL`, `MODULE_PGSQL`, `MODULE_SQLITE`,
+(`MODULE_ARCHIVE`, `MODULE_MAGIC`, `MODULE_MYSQL`, `MODULE_PGSQL`, `MODULE_SQLITE` AUTO,
 `MODULE_BCRYPT`, `MODULE_DIGEST`, `MODULE_SERIAL`, `MODULE_WASM` ON; `MODULE_GPIO` is
 Raspberry Pi only and OFF by default, listed for completeness).
 
@@ -98,12 +98,12 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 | Library | System probe | Built from source when | Submodule / URL | Switch |
 |---|---|---|---|---|
 | QuickJS | `FindQuickJS.cmake` | `BUILD_QUICKJS` | engine checkout | `BUILD_QUICKJS=AUTO` |
-| libarchive | `FindLibArchive` | `BUILD_LIBARCHIVE` (AUTO: none installed) | `third_party/libarchive` (v3.7.5) | `MODULE_ARCHIVE` |
+| libarchive | `FindLibArchive` | `BUILD_LIBARCHIVE`, `MODULE_ARCHIVE=ON` | `third_party/libarchive` (v3.7.5) | `MODULE_ARCHIVE` |
 | bz2, libb2, lzma, lz4, lzo2, zlib, zstd | `cmake/deps/Find*.cmake` | codec ON and not found | downloaded by `Build*.cmake` | `LIBARCHIVE_{GZIP,BZIP2,LZ4,LZMA,ZSTD,LZO}` |
-| libmagic | `find_libmagic()` | no usable libmagic and magic.h | `file-5.46` tarball (astron.com) | `MODULE_MAGIC` |
+| libmagic | `find_libmagic()` | `BUILD_LIBMAGIC`, `MODULE_MAGIC=ON` | `file-5.46` tarball (astron.com) | `MODULE_MAGIC` |
 | libmariadb | `pkg_search_module(mariadb libmariadb mysqlclient)` | never | system only | `MODULE_MYSQL` |
 | libpq | `FindPgSQL.cmake` | never | system only | `MODULE_PGSQL` |
-| libsqlite3 | `pkg_check_modules(sqlite3)` | no usable sqlite3 and sqlite3.h | sqlite-autoconf-3500400 (sqlite.org) | `MODULE_SQLITE` |
+| libsqlite3 | `pkg_check_modules(sqlite3)` | `BUILD_LIBSQLITE`, `MODULE_SQLITE=ON` | sqlite-autoconf-3500400 (sqlite.org) | `MODULE_SQLITE` |
 | wasm3 | none | always | `third_party/wasm3` | `MODULE_WASM`, `WASM_BACKEND=wasm3` |
 | WAMR | none | always | `third_party/wamr` (`cmake/wamr`) | `WASM_BACKEND=wamr` |
 | libserialport | none | `BUILD_LIBSERIALPORT=ON` (default) | `third_party/libserialport` (rsenn fork) | `MODULE_SERIAL` |
@@ -114,21 +114,48 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 
 ## 4. Building the client libraries from git
 
-`BUILD_LIBPQ`, `BUILD_LIBMARIADB`, `BUILD_LIBSQLITE` and `BUILD_LIBARCHIVE` say where the
-library of an enabled module (`MODULE_PGSQL`, `MODULE_MYSQL`, `MODULE_SQLITE`, `MODULE_ARCHIVE`)
-comes from:
+`BUILD_LIBPQ`, `BUILD_LIBMARIADB`, `BUILD_LIBSQLITE`, `BUILD_LIBARCHIVE` and `BUILD_LIBMAGIC` say
+where the library of an enabled module (`MODULE_PGSQL`, `MODULE_MYSQL`, `MODULE_SQLITE`,
+`MODULE_ARCHIVE`, `MODULE_MAGIC`) comes from. These five modules are `ON`, `OFF` or `AUTO`
+(default); nothing is built behind your back:
 
-| Value | Meaning |
+| `MODULE_<name>` | A library that is not installed |
 |---|---|
-| `AUTO` (default) | the installed library, else build it |
-| `ON` | always build it |
-| `OFF` | the installed library only, the module is skipped without it |
+| `AUTO` (default) | not built, the module is switched off with a warning |
+| `ON` | built (an error when it cannot be) |
+| `OFF` | the module is not wanted |
 
-A library counts as installed when its header is there too, not only the runtime library. With
-`AUTO` and a missing build tool (`make`, `bison`, `flex`, `perl` for libpq, `make` and `tclsh` for
-SQLite) the module is skipped with a warning instead of failing the configure. A foreign toolchain
-(musl, mingw, `-m32`) looks for the installed library in its own directories only, see
-`toolchain_divert()` in `cmake/Deps.cmake`.
+| `BUILD_LIB<x>` | Meaning |
+|---|---|
+| `AUTO` (default) | the installed library, else as `MODULE_<name>` and `DEPS_BUILD` say |
+| `ON` | always build it, even when installed |
+| `OFF` | the installed library only |
+
+The first configure of a tree with a missing library warns, for each module, how to go on:
+`-DMODULE_<name>=OFF` to drop the module quietly, or `-DBUILD_LIB<x>=ON` (or
+`-DMODULE_<name>=ON`) to build the library. Two cache variables set the policy for the whole
+tree (`cmake/Deps.cmake`, "build policy"):
+
+| `DEPS_BUILD` | Libraries that are built |
+|---|---|
+| `REQUESTED` (default) | only those a `MODULE_<name>=ON` or `BUILD_LIB<x>=ON` asks for |
+| `NONE` | none; asking for a build is an error |
+| `CMAKE` | also every missing one that has a CMake build |
+| `ALL` | every missing one |
+
+| `DEPS_MISSING` | A missing library that is not built |
+|---|---|
+| `DISABLE` (default) | the module is switched off, with a warning |
+| `FAIL` | the configure stops |
+
+Every library has a build kind: CMake (libarchive and its codecs, libmariadb, zlib, LibreSSL),
+GNU autotools (libmagic, libpq) or its own tools (SQLite: `make`, `tclsh`). A kind the machine
+cannot run is never built: autotools never under MSVC, and anything whose tools are not
+installed. A library to build that way is reported as missing, and `BUILD_LIB<x>=ON` for it is an
+error. The libraries a built library needs itself (zlib, LibreSSL, the archive codecs) follow
+the same rules. A library counts as installed when its header is there too, not only the runtime
+library. A foreign toolchain (musl, mingw, `-m32`) looks for the installed library in its own
+directories only, see `toolchain_divert()` in `cmake/Deps.cmake`.
 
 A library to build is cloned (shallow) into `third_party/<repo>` on first use, and only the client
 library is compiled, once per module kind (PIC for the shared module, non-PIC for the static one).

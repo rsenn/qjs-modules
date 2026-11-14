@@ -64,7 +64,18 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
   endif()
 
   set(LIBARCHIVE_DEPS_${SUFFIX} "")
-  set(LIBARCHIVE_DEP_ARGS_${SUFFIX} "")
+  # the module link line carries the codecs only: leave out what libarchive would pick up from the host
+  set(LIBARCHIVE_DEP_ARGS_${SUFFIX}
+      "-DENABLE_ACL:BOOL=OFF"
+      "-DENABLE_XATTR:BOOL=OFF"
+      "-DENABLE_OPENSSL:BOOL=OFF"
+      "-DENABLE_NETTLE:BOOL=OFF"
+      "-DENABLE_MBEDTLS:BOOL=OFF"
+      "-DENABLE_LIBXML2:BOOL=OFF"
+      "-DENABLE_EXPAT:BOOL=OFF"
+      "-DENABLE_ICONV:BOOL=OFF"
+      "-DENABLE_PCREPOSIX:BOOL=OFF"
+      "-DENABLE_PCRE2POSIX:BOOL=OFF")
 
   if(NOT LIBARCHIVE_BZIP2)
     list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DENABLE_BZip2:BOOL=OFF")

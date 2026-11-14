@@ -1,13 +1,5 @@
 include(${CMAKE_CURRENT_LIST_DIR}/FindZlib.cmake)
 
-# use_zlib(BINARY SUFFIX PIC)
-#
-# What every script that links zlib calls: the system zlib when find_zlib() found one, else
-# build_zlib(), built once per SUFFIX however many scripts ask. Sets ZLIB_INCLUDE_DIR_${SUFFIX}
-# (empty: the compiler's default), ZLIB_LIBRARIES_${SUFFIX} and ZLIB_DEPENDS_${SUFFIX}, the
-# target to add to DEPENDS (empty for a system zlib). A built zlib also has
-# ZLIB_LIBRARY_FILE_${SUFFIX}, the path of its archive.
-#
 # build_zlib(BINARY SUFFIX PIC)
 #
 # Downloads and builds zlib as a static library into ${BINARY}/deps-${SUFFIX}, once per
@@ -49,20 +41,56 @@ macro(build_zlib BINARY SUFFIX PIC)
     BUILD_BYPRODUCTS "${ZLIB_LIBRARY_FILE_${SUFFIX}}")
 endmacro()
 
-macro(use_zlib BINARY SUFFIX PIC)
-  if(NOT DEFINED ZLIB_FOUND)
-    find_zlib()
+# Registration with Deps.cmake: the installed zlib (-DZLIB_FOUND=FALSE ignores it), else build_zlib().
+include(${CMAKE_CURRENT_LIST_DIR}/../Deps.cmake)
+
+function(_zlib_find name suffix)
+  if(DEFINED ZLIB_FOUND AND NOT ZLIB_FOUND)
+    return()
   endif()
 
+  find_zlib()
+
   if(ZLIB_FOUND)
-    set(ZLIB_INCLUDE_DIR_${SUFFIX} "${ZLIB_INCLUDE_DIR}")
-    set(ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARIES})
+    find_library(_zlib_library NAMES ${ZLIB_LIBRARY})
+    if(NOT _zlib_library)
+      set(_zlib_library "-l${ZLIB_LIBRARY}")
+    endif()
+    dep_provide(zlib ${suffix} SOURCE system ORIGIN "${_zlib_library}" INCLUDE_DIRS ${ZLIB_INCLUDE_DIR}
+                LIBRARIES "${_zlib_library}")
+  endif()
+endfunction()
+
+function(_zlib_build name suffix pic binary source)
+  build_zlib(${binary} ${suffix} ${pic})
+
+  dep_provide(zlib ${suffix} SOURCE built ORIGIN "${ZLIB_LIBRARY_FILE_${suffix}}" PREFIX "${binary}/deps-${suffix}"
+              INCLUDE_DIRS "${ZLIB_INCLUDE_DIR_${suffix}}" LIBRARIES "${ZLIB_LIBRARY_FILE_${suffix}}"
+              TARGETS zlib_${suffix})
+endfunction()
+
+dep_declare(zlib DESCRIPTION zlib FIND _zlib_find BUILD _zlib_build)
+
+# use_zlib(BINARY SUFFIX PIC)
+#
+# Resolves zlib for one SUFFIX through dep_resolve() and leaves the variables the scripts
+# that link zlib read: ZLIB_FOUND (an installed copy), ZLIB_INCLUDE_DIR_${SUFFIX} (empty:
+# the compiler's default), ZLIB_LIBRARIES_${SUFFIX}, ZLIB_DEPENDS_${SUFFIX} (the target to
+# add to DEPENDS, empty for an installed copy) and, for a built one, ZLIB_LIBRARY_FILE_${SUFFIX}.
+macro(use_zlib BINARY SUFFIX PIC)
+  dep_resolve(zlib SUFFIX ${SUFFIX} PIC ${PIC} BINARY ${BINARY} SOURCE ${CMAKE_CURRENT_SOURCE_DIR})
+
+  dep_get(zlib ${SUFFIX} SOURCE _UZ_SOURCE)
+  dep_get(zlib ${SUFFIX} INCLUDE_DIRS ZLIB_INCLUDE_DIR_${SUFFIX})
+  dep_get(zlib ${SUFFIX} LIBRARIES ZLIB_LIBRARIES_${SUFFIX})
+
+  if("${_UZ_SOURCE}" STREQUAL "system")
+    set(ZLIB_FOUND TRUE)
+    set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES_${SUFFIX}})
     set(ZLIB_DEPENDS_${SUFFIX} "")
   else()
-    if(NOT TARGET zlib_${SUFFIX})
-      build_zlib(${BINARY} ${SUFFIX} ${PIC})
-    endif()
-    set(ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARY_FILE_${SUFFIX}})
+    set(ZLIB_FOUND FALSE)
+    set(ZLIB_LIBRARY_FILE_${SUFFIX} ${ZLIB_LIBRARIES_${SUFFIX}})
     set(ZLIB_DEPENDS_${SUFFIX} zlib_${SUFFIX})
   endif()
 endmacro()

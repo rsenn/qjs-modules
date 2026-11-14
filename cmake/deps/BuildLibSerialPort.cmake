@@ -10,6 +10,14 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
 
   message(STATUS "Building libserialport from source (${SUFFIX}, PIC=${PIC})")
 
+  set(_sp_flags "${MODULE_COMPILE_FLAGS}")
+  set(_sp_msys_args "")
+  if(MSYS OR CYGWIN)
+    # POSIX build, no windows.c: see libserialport-msys.cmake
+    set(_sp_flags "${_sp_flags} -DNO_ENUMERATION -DNO_PORT_METADATA")
+    set(_sp_msys_args "-DCMAKE_PROJECT_libserialport_INCLUDE:FILEPATH=${SOURCE}/cmake/deps/libserialport-msys.cmake")
+  endif()
+
   ExternalProject_Add(
     libserialport_${SUFFIX}
     SOURCE_DIR ${SOURCE}/third_party/libserialport
@@ -17,7 +25,8 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
     CMAKE_CACHE_ARGS
       "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
-      "-DCMAKE_C_FLAGS:STRING=${MODULE_COMPILE_FLAGS}"
+      "-DCMAKE_C_FLAGS:STRING=${_sp_flags}"
+      ${_sp_msys_args}
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"

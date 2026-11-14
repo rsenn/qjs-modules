@@ -57,23 +57,38 @@ option(DO_TESTS "Perform tests" ON)
 # sysroot-aware here), which would link host x86_64 .so files into an
 # Emscripten build and fail. None of them have a wasm-usable counterpart set
 # up in this tree, so default them off for WASI/Emscripten targets.
+# MODULE_<name> of a module that needs a library is ON, OFF or AUTO (see Deps.cmake):
+#   ON    a missing library is built          AUTO  a missing library switches the module off, with a warning
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-  option(MODULE_ARCHIVE "Build 'archive' module" OFF)
-  option(MODULE_MAGIC "Build 'magic' module" OFF)
-  option(MODULE_MYSQL "Build 'mysql' module" OFF)
-  option(MODULE_PGSQL "Build 'pgsql' module" OFF)
-  option(MODULE_SQLITE "Build 'sqlite' module" OFF)
+  set(_module_default OFF)
 else()
-  option(MODULE_ARCHIVE "Build 'archive' module" ON)
-  option(MODULE_MAGIC "Build 'magic' module" ON)
-  option(MODULE_MYSQL "Build 'mysql' module" ON)
-  option(MODULE_PGSQL "Build 'pgsql' module" ON)
-  option(MODULE_SQLITE "Build 'sqlite' module" ON)
+  set(_module_default AUTO)
 endif()
-# build the database client library from its git repository (third_party/<repo>) instead of using the system one
-option(BUILD_LIBMARIADB "Build MariaDB Connector/C into third_party/mariadb-connector-c for the 'mysql' module" OFF)
-option(BUILD_LIBPQ "Build libpq from PostgreSQL into third_party/postgres for the 'pgsql' module" OFF)
-option(BUILD_LIBSQLITE "Build SQLite from git into third_party/sqlite for the 'sqlite' module" OFF)
+foreach(_mod ARCHIVE MAGIC MYSQL PGSQL SQLITE)
+  string(TOLOWER "${_mod}" _modlower)
+  set(MODULE_${_mod} ${_module_default} CACHE STRING "Build '${_modlower}' module: ON (build its library if missing), AUTO (only with an installed library), OFF")
+  set_property(CACHE MODULE_${_mod} PROPERTY STRINGS AUTO ON OFF)
+endforeach(_mod)
+# BUILD_LIB<x> decides where the library of a module comes from (see Deps.cmake):
+#   ON    always build it, third_party/<repo> cloned from git when needed
+#   OFF   the installed one only         AUTO  the installed one, built only when MODULE_<m>=ON or DEPS_BUILD allows
+set(BUILD_LIBMARIADB AUTO CACHE STRING "MariaDB Connector/C for the 'mysql' module: AUTO, ON or OFF")
+set(BUILD_LIBPQ AUTO CACHE STRING "libpq from PostgreSQL for the 'pgsql' module: AUTO, ON or OFF")
+set(BUILD_LIBSQLITE AUTO CACHE STRING "SQLite for the 'sqlite' module: AUTO, ON or OFF")
+set(BUILD_LIBARCHIVE AUTO CACHE STRING "libarchive for the 'archive' module: AUTO, ON or OFF")
+set(BUILD_LIBMAGIC AUTO CACHE STRING "libmagic for the 'magic' module: AUTO, ON or OFF")
+foreach(_lib LIBMARIADB LIBPQ LIBSQLITE LIBARCHIVE LIBMAGIC)
+  set_property(CACHE BUILD_${_lib} PROPERTY STRINGS AUTO ON OFF)
+  # one of ON, OFF, AUTO: compare with STREQUAL, "AUTO" is true for if(BUILD_LIB<x>)
+  string(TOUPPER "${BUILD_${_lib}}" _mode)
+  if("${_mode}" MATCHES "^(ON|TRUE|YES|1)$")
+    set(BUILD_${_lib} ON)
+  elseif("${_mode}" MATCHES "^(OFF|FALSE|NO|0)$")
+    set(BUILD_${_lib} OFF)
+  else()
+    set(BUILD_${_lib} AUTO)
+  endif()
+endforeach(_lib)
 option(MODULE_BCRYPT "Build 'bcrypt' module" ON)
 option(MODULE_DIGEST "Build 'digest' module (md5, sha1, sha2; needs third_party/Hash-Algorithms)" ON)
 option(MODULE_SERIAL "Build 'serial' module" ON)
@@ -429,6 +444,10 @@ endif(NOT NO_MKSTEMP)
 
 message(STATUS "Selecting native modules and locating their libraries")
 
+# library dependencies: installed or built, listed when the configure ends
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Deps.cmake)
+dep_summary(DEFER)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
@@ -463,9 +482,16 @@ if(MODULE_GPIO)
 endif(MODULE_GPIO)
 
 if(MODULE_ARCHIVE)
-  option(BUILD_LIBARCHIVE "Build archive library" OFF)
+  if(NOT "${BUILD_LIBARCHIVE}" STREQUAL "ON")
+    # a foreign toolchain (musl, mingw, -m32) must not find the host's libraries
+    toolchain_divert()
+    include(FindLibArchive)
+    toolchain_restore()
+  endif()
 
-  if(BUILD_LIBARCHIVE)
+  dep_gate(libarchive MODULE archive BUILDER cmake FOUND "${LibArchive_FOUND}" OUT _gate)
+
+  if("${_gate}" STREQUAL "BUILD")
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibArchive.cmake)
 
     # Built once per enabled module-linkage kind (BUILD_SHARED/BUILD_STATIC):
@@ -483,9 +509,9 @@ if(MODULE_ARCHIVE)
     set(LibArchive_INCLUDE_DIRS ${LibArchive_INCLUDE_DIRS_shared} ${LibArchive_INCLUDE_DIRS_static})
     list(REMOVE_DUPLICATES LibArchive_INCLUDE_DIRS)
     set(LibArchive_FOUND TRUE)
-  else(BUILD_LIBARCHIVE)
-    include(FindLibArchive)
-  endif(BUILD_LIBARCHIVE)
+  elseif("${_gate}" STREQUAL "SKIP")
+    set(LibArchive_FOUND FALSE)
+  endif()
 
   if(LibArchive_FOUND)
     set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
@@ -498,7 +524,15 @@ if(MODULE_MAGIC)
 
   set(magic_MODULE magic)
 
-  if(NOT (HAVE_LIBMAGIC AND HAVE_MAGIC_H))
+  set(_found FALSE)
+  if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+    set(_found TRUE)
+  endif()
+  dep_gate(libmagic MODULE magic BUILDER autotools FOUND "${_found}" OUT _gate)
+
+  if("${_gate}" STREQUAL "SKIP")
+    list(REMOVE_ITEM QUICKJS_MODULES magic)
+  elseif("${_gate}" STREQUAL "BUILD")
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibMagic.cmake)
 
     if(BUILD_SHARED)
@@ -529,7 +563,27 @@ if(MODULE_MAGIC)
 endif(MODULE_MAGIC)
 
 if(MODULE_MYSQL)
-  if(BUILD_LIBMARIADB)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindMariaDB.cmake)
+
+  if(NOT "${BUILD_LIBMARIADB}" STREQUAL "ON")
+    # a foreign toolchain (musl, mingw, -m32) must not find the host's libraries
+    toolchain_divert()
+    find_mariadb()
+    toolchain_restore()
+  endif()
+
+  # installed and usable: the header is there too, not only the runtime library
+  set(_found FALSE)
+  if("mysql" IN_LIST QUICKJS_MODULES AND (HAVE_MYSQL_H OR EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h"))
+    set(_found TRUE)
+  endif()
+  dep_gate(libmariadb MODULE mysql BUILDER cmake FOUND "${_found}" OUT _gate OPTION BUILD_LIBMARIADB)
+
+  if("${_gate}" STREQUAL "SKIP")
+    list(REMOVE_ITEM QUICKJS_MODULES mysql)
+  endif()
+
+  if("${_gate}" STREQUAL "BUILD")
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibMariaDB.cmake)
 
     if(BUILD_SHARED)
@@ -547,16 +601,34 @@ if(MODULE_MYSQL)
       include_directories(${LIBMARIADB_INCLUDE_DIR_static})
     endif(BUILD_STATIC)
 
-    list(APPEND QUICKJS_MODULES mysql)
-  else(BUILD_LIBMARIADB)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindMariaDB.cmake)
-
-    find_mariadb()
-  endif(BUILD_LIBMARIADB)
+    if(NOT "mysql" IN_LIST QUICKJS_MODULES)
+      list(APPEND QUICKJS_MODULES mysql)
+    endif()
+  endif()
 endif(MODULE_MYSQL)
 
 if(MODULE_PGSQL)
-  if(BUILD_LIBPQ)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindPgSQL.cmake)
+
+  if(NOT "${BUILD_LIBPQ}" STREQUAL "ON")
+    # a foreign toolchain (musl, mingw, -m32) must not find the host's libraries
+    toolchain_divert()
+    find_pgsql()
+    toolchain_restore()
+  endif()
+
+  # installed and usable: the header is there too, not only the runtime library
+  set(_found FALSE)
+  if("pgsql" IN_LIST QUICKJS_MODULES AND (HAVE_LIBPQ_FE_H OR EXISTS "${LIBPQ_INCLUDE_DIR}/libpq-fe.h"))
+    set(_found TRUE)
+  endif()
+  dep_gate(libpq MODULE pgsql BUILDER autotools TOOLS bison flex perl FOUND "${_found}" OUT _gate OPTION BUILD_LIBPQ)
+
+  if("${_gate}" STREQUAL "SKIP")
+    list(REMOVE_ITEM QUICKJS_MODULES pgsql)
+  endif()
+
+  if("${_gate}" STREQUAL "BUILD")
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibPQ.cmake)
 
     if(BUILD_SHARED)
@@ -574,15 +646,34 @@ if(MODULE_PGSQL)
       include_directories(${LIBPQ_INCLUDE_DIR_static})
     endif(BUILD_STATIC)
 
-    list(APPEND QUICKJS_MODULES pgsql)
-  else(BUILD_LIBPQ)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindPgSQL.cmake)
-    find_pgsql()
-  endif(BUILD_LIBPQ)
+    if(NOT "pgsql" IN_LIST QUICKJS_MODULES)
+      list(APPEND QUICKJS_MODULES pgsql)
+    endif()
+  endif()
 endif(MODULE_PGSQL)
 
 if(MODULE_SQLITE)
-  if(BUILD_LIBSQLITE)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindSQLite.cmake)
+
+  if(NOT "${BUILD_LIBSQLITE}" STREQUAL "ON")
+    # a foreign toolchain (musl, mingw, -m32) must not find the host's libraries
+    toolchain_divert()
+    find_sqlite()
+    toolchain_restore()
+  endif()
+
+  # installed and usable: the header is there too, not only the runtime library
+  set(_found FALSE)
+  if(LIBSQLITE_LIBRARY AND HAVE_SQLITE3_H)
+    set(_found TRUE)
+  endif()
+  dep_gate(sqlite3 MODULE sqlite BUILDER tool TOOLS make tclsh FOUND "${_found}" OUT _gate OPTION BUILD_LIBSQLITE)
+
+  if("${_gate}" STREQUAL "SKIP")
+    list(REMOVE_ITEM QUICKJS_MODULES sqlite)
+  endif()
+
+  if("${_gate}" STREQUAL "BUILD")
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildLibSQLite.cmake)
 
     if(BUILD_SHARED)
@@ -598,30 +689,6 @@ if(MODULE_SQLITE)
       endif()
       set(sqlite_LIBRARIES_static ${LIBSQLITE_LIBRARIES_static})
       include_directories(${LIBSQLITE_INCLUDE_DIR_static})
-    endif(BUILD_STATIC)
-
-    list(APPEND QUICKJS_MODULES sqlite)
-  else(BUILD_LIBSQLITE)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/FindSQLite.cmake)
-    find_sqlite()
-  endif(BUILD_LIBSQLITE)
-
-  if(NOT BUILD_LIBSQLITE AND NOT (LIBSQLITE_LIBRARY AND HAVE_SQLITE3_H))
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/BuildSQLite.cmake)
-
-    if(BUILD_SHARED)
-      build_sqlite(${CMAKE_CURRENT_BINARY_DIR} shared ON)
-      set(sqlite_LIBRARIES ${SQLite_LIBRARIES_shared})
-      set(sqlite_LIBRARIES_shared ${SQLite_LIBRARIES_shared})
-      include_directories(${SQLITE_INCLUDE_DIR_shared})
-    endif(BUILD_SHARED)
-    if(BUILD_STATIC)
-      build_sqlite(${CMAKE_CURRENT_BINARY_DIR} static OFF)
-      if(NOT BUILD_SHARED)
-        set(sqlite_LIBRARIES ${SQLite_LIBRARIES_static})
-      endif()
-      set(sqlite_LIBRARIES_static ${SQLite_LIBRARIES_static})
-      include_directories(${SQLITE_INCLUDE_DIR_static})
     endif(BUILD_STATIC)
 
     if(NOT "sqlite" IN_LIST QUICKJS_MODULES)
@@ -1157,6 +1224,7 @@ endforeach(JS_MODULE ${QUICKJS_MODULES})
 ##
 ## Native C module dependencies
 ##
+module_depends(blob location)
 module_depends(deep predicate pointer location)
 module_depends(inspect pointer)
 module_depends(json location)

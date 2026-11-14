@@ -53,6 +53,32 @@ This supersedes the sparse root-level `TODO` file; its four items are folded in 
    restore, nosig)` clears ISIG so ^C reads as byte 3 (`quickjs-misc.c`). Test `test-process-stdin.js`. Open: `ref`/`unref` are
    no-ops, `readable` event and `read()`, `process.stdout` as a stream, the readline-based paths still use the raw file.
 
+8. **IN PROGRESS (2026-11-14): 3rd-party libs built instead of found, and a build policy for them** (detour chain from a static
+   musl build of `~/Sources/quickjs`, `-DBUILD_SHARED=OFF -DBUILD_STATIC=ON -DLINK_STATIC=ON`, no GL/X11/C++ subprojects).
+   - **DONE 2026-11-14 (uncommitted): gating in `cmake/Deps.cmake`** ("build policy"): `dep_gate()`, `dep_builder_usable()`,
+     `dep_mode()`; `MODULE_<name>` AUTO|ON|OFF for archive/magic/mysql/pgsql/sqlite (AUTO builds nothing); `BUILD_<lib>`
+     AUTO|ON|OFF; `DEPS_BUILD` REQUESTED|NONE|CMAKE|ALL and `DEPS_MISSING` DISABLE|FAIL; zlib/openssl follow the same rules in
+     `dep_resolve()`; doc `doc/third-party.md` section 4. Tested by configuring msys64 and mingw64 scratch trees through
+     the policy matrix; not tested on MSVC. Open: the same in qjs-lws/qjs-ffi, `wasm3` and `libserialport` are vendored and
+     always built, a build with `DEPS_BUILD=NONE` and a built library that needs a dependency (libmariadb needs a TLS
+     library) fails later in the ExternalProject, not at configure.
+   - **Done, uncommitted:** `toolchain_divert()` keeps the toolchain file's roots and uses `<triplet>-pkg-config` / `pkgcfg`
+     with a path map (`TOOLCHAIN_PKGCONFIG_PATH_MAP`); `FindLibMagic.cmake` `find_path`. `cmake/Deps.cmake` itself is still
+     untracked, and the committed `BuildLibMariaDB.cmake`/`CMakeLists.txt` already call into it.
+   - **Done, committed locally, not pushed:** the static musl fixes (`QUICKJS_LIBRARY` kept in static-only builds, six
+     `FindQuickJS.cmake` copies, `BuildLibMariaDB.cmake`, `qjs-lws/cmake/BuildLibwebsockets.cmake`, bzip2/libb2 helper
+     CMakeLists) in quickjs, qjs-modules, qjs-lws, qjs-ffi, qjs-glfw, qjs-nanovg, qjs-sound. Two earlier pushed qjs-modules
+     commits (`5366736e`, `341c100a`) carry a `Co-Authored-By` trailer against CLAUDE.md.
+   - **Open, qjs-ffi (uncommitted, partly the user's):** `CMakeLists.txt` (libffi include dir from pkg-config, `libffi.a` for
+     `LINK_STATIC`), `cmake/BuildLibFFI.cmake`, and the `ffi.c` `_GNU_SOURCE` guard.
+   - **Open, static musl result:** `qjs`/`qjsm` are dynamic against musl (`LINK_STATIC` links the module libs in, it adds no
+     `-static`), `ffi` and `mysql` do not load in static `qjsm`, `pgsql` untested; libwebsockets needs `BUILD_LIBRESSL=ON`
+     and `BUILD_OPENSSL=ON` there (system OpenSSL 3 breaks its configure checks).
+   - **Open, c-utils `pkgcfg`:** the `<triplet>-pkg-config` wrapper does not fix the `sysroot` -> `sys-root` typo in
+     `libmagic.pc`/`libmariadb.pc`; `Deps.cmake` works around it with `PKGCFG_PATH_MAP`.
+   - **Postponed:** the same gating in qjs-lws/qjs-ffi (they have their own `BUILD_*` logic and a libc-tree default); libpq
+     with LibreSSL on mingw untested; `wasm3`/`libserialport` always built from source (not in any sysroot).
+
 ## Reassessment (2026-10-04)
 
 Done/stale items are removed rather than struck through (history is in `git log`), and the

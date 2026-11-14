@@ -4,6 +4,11 @@ macro(find_libmagic)
   check_library_exists(magic magic_open "${LIBMAGIC_LIBRARY_DIR}" HAVE_LIBMAGIC)
   set(old_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
 
+  # a sysroot keeps its headers outside the compiler's own search path (sys-root/mingw/include)
+  if(NOT LIBMAGIC_INCLUDE_DIR)
+    find_path(LIBMAGIC_INCLUDE_DIR magic.h)
+  endif(NOT LIBMAGIC_INCLUDE_DIR)
+
   if(LIBMAGIC_INCLUDE_DIR)
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMAGIC_INCLUDE_DIR}")
   endif(LIBMAGIC_INCLUDE_DIR)
