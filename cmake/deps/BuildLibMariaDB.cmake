@@ -75,6 +75,11 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
   set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${ZLIB_LIBRARIES_${SUFFIX}} ${CMAKE_DL_LIBS} m
                                        pthread)
 
+  # the Windows pvio and config-dir code: winsock, PathRemoveFileSpecA
+  if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    list(APPEND LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ws2_32 shlwapi)
+  endif()
+
   # a built zlib is an archive its find_package(ZLIB) has to be pointed at
   if(ZLIB_DEPENDS_${SUFFIX})
     list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR_${SUFFIX}}"
@@ -119,6 +124,9 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
     BINARY_DIR ${LIBMARIADB_BINARY_DIR_${SUFFIX}}
     DOWNLOAD_COMMAND ""
     UPDATE_COMMAND ""
+    # the variadic mysql_load_plugin is declared without STDCALL, its definition must match (i686 MinGW)
+    PATCH_COMMAND perl -0pi -e "s/\\* STDCALL\\n(?=mysql_load_plugin\\(MYSQL)/*\\n/"
+                  <SOURCE_DIR>/libmariadb/ma_client_plugin.c.in
     CMAKE_CACHE_ARGS
       ${LIBMARIADB_ARGS_${SUFFIX}}
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"

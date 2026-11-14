@@ -54,6 +54,17 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
     string(APPEND LIBPQ_CFLAGS_${SUFFIX} " -fPIC")
   endif()
 
+  # cross compiling: configure must be told the target triplet or it tries to run the
+  # compiled test programs
+  set(LIBPQ_HOST_FLAG_${SUFFIX})
+  if(CMAKE_CROSSCOMPILING)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE LIBPQ_TRIPLET
+                    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(LIBPQ_TRIPLET)
+      set(LIBPQ_HOST_FLAG_${SUFFIX} --host=${LIBPQ_TRIPLET})
+    endif()
+  endif()
+
   set(LIBPQ_SYSTEM_LIBS_${SUFFIX} pthread m)
 
   set(LIBPQ_DEPS_${SUFFIX} libpq_source)
@@ -68,6 +79,14 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
     if(OPENSSL_ROOT_DIR_${SUFFIX})
       list(APPEND LIBPQ_SSL_FLAG_${SUFFIX} --with-includes=${OPENSSL_INCLUDE_DIR_${SUFFIX}}
            --with-libraries=${OPENSSL_ROOT_DIR_${SUFFIX}}/lib "LIBS=${OPENSSL_LINK_FLAGS_${SUFFIX}}")
+    endif()
+
+    # a cross toolchain's own OpenSSL (e.g. a MinGW sys-root) lies outside the linker's default search path
+    if(CMAKE_CROSSCOMPILING AND NOT OPENSSL_ROOT_DIR_${SUFFIX} AND OPENSSL_LIBRARIES_${SUFFIX})
+      list(GET OPENSSL_LIBRARIES_${SUFFIX} 0 _LP_SSL)
+      get_filename_component(_LP_LIBDIR "${_LP_SSL}" DIRECTORY)
+      list(APPEND LIBPQ_SSL_FLAG_${SUFFIX} --with-includes=${OPENSSL_INCLUDE_DIR_${SUFFIX}}
+           --with-libraries=${_LP_LIBDIR})
     endif()
   else()
     set(LIBPQ_SSL_FLAG_${SUFFIX} "") # SSL is off unless --with-ssl is given
@@ -86,7 +105,7 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
       <SOURCE_DIR>/configure --prefix=${LIBPQ_PREFIX_${SUFFIX}} --without-readline --without-zlib --without-icu
       --without-gssapi --without-ldap --without-pam --without-systemd --without-selinux --without-libxml
       --without-libxslt --without-lz4 --without-zstd --without-perl --without-python --without-tcl
-      ${LIBPQ_SSL_FLAG_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBPQ_CFLAGS_${SUFFIX}}"
+      ${LIBPQ_SSL_FLAG_${SUFFIX}} ${LIBPQ_HOST_FLAG_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBPQ_CFLAGS_${SUFFIX}}"
     BUILD_COMMAND ${MAKE_PROGRAM} -C src/backend generated-headers
     COMMAND ${MAKE_PROGRAM} -C src/port
     COMMAND ${MAKE_PROGRAM} -C src/common
