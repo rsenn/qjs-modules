@@ -4,7 +4,7 @@
 # static libraries, once per SUFFIX ("shared"/"static") with its own PIC setting. Only the
 # libraries and their headers are built: no apps, no tests, no docs, no engines, no modules.
 # zlib compression support is compiled in (OPENSSL_ZLIB), against the zlib that find_zlib()
-# found or, when there is none, one built by build_zlib() for the same SUFFIX.
+# found or, when there is none, one built by build_zlib() for the same SUFFIX (use_zlib()).
 #
 # Sets OPENSSL_ROOT_DIR_${SUFFIX}, OPENSSL_INCLUDE_DIR_${SUFFIX} and OPENSSL_LIBRARIES_${SUFFIX}
 # (libssl, libcrypto, zlib, then the system libraries they need) and OPENSSL_LINK_FLAGS_${SUFFIX}
@@ -47,6 +47,11 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
     if(EXISTS "${OPENSSL_SOURCE_DIR}/Configure")
       add_custom_target(openssl_source)
     else()
+      # CMP0097 NEW makes the empty GIT_SUBMODULES below mean "no submodules"
+      cmake_policy(PUSH)
+      if(POLICY CMP0097)
+        cmake_policy(SET CMP0097 NEW)
+      endif()
       ExternalProject_Add(
         openssl_source
         GIT_REPOSITORY ${OPENSSL_GIT_REPOSITORY}
@@ -58,6 +63,7 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
         INSTALL_COMMAND "")
+      cmake_policy(POP)
     endif()
   endif()
 
@@ -66,23 +72,17 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
   set(OPENSSL_ZLIB_LIBRARIES_${SUFFIX} "")
 
   if(OPENSSL_ZLIB)
-    if(NOT DEFINED ZLIB_FOUND)
-      find_zlib()
-    endif()
+    use_zlib(${BINARY} ${SUFFIX} ${PIC})
 
     list(APPEND OPENSSL_CONFIGURE_ARGS_${SUFFIX} zlib)
+    list(APPEND OPENSSL_DEPS_${SUFFIX} ${ZLIB_DEPENDS_${SUFFIX}})
+    set(OPENSSL_ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARIES_${SUFFIX}})
 
-    if(ZLIB_FOUND)
-      set(OPENSSL_ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARIES})
-      if(ZLIB_INCLUDE_DIR)
-        list(APPEND OPENSSL_CONFIGURE_ARGS_${SUFFIX} --with-zlib-include=${ZLIB_INCLUDE_DIR})
-      endif()
-    else()
-      build_zlib(${BINARY} ${SUFFIX} ${PIC})
-      list(APPEND OPENSSL_DEPS_${SUFFIX} zlib_${SUFFIX})
-      list(APPEND OPENSSL_CONFIGURE_ARGS_${SUFFIX} --with-zlib-include=${ZLIB_INCLUDE_DIR_${SUFFIX}}
-           --with-zlib-lib=${ZLIB_LIBRARY_FILE_${SUFFIX}})
-      set(OPENSSL_ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARY_FILE_${SUFFIX}})
+    if(ZLIB_INCLUDE_DIR_${SUFFIX})
+      list(APPEND OPENSSL_CONFIGURE_ARGS_${SUFFIX} --with-zlib-include=${ZLIB_INCLUDE_DIR_${SUFFIX}})
+    endif()
+    if(ZLIB_DEPENDS_${SUFFIX})
+      list(APPEND OPENSSL_CONFIGURE_ARGS_${SUFFIX} --with-zlib-lib=${ZLIB_LIBRARY_FILE_${SUFFIX}})
     endif()
   endif()
 

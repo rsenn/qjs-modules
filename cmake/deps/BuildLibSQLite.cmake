@@ -6,7 +6,7 @@
 #
 # Sets LIBSQLITE_INCLUDE_DIR_${SUFFIX} and LIBSQLITE_LIBRARIES_${SUFFIX} (the archive, then
 # the system libraries it needs); the ExternalProject target is libsqlite_${SUFFIX}.
-# Needs tclsh to generate the amalgamation. Used when BUILD_SQLITE is ON.
+# Needs tclsh to generate the amalgamation. Used when BUILD_LIBSQLITE is ON.
 set(LIBSQLITE_GIT_REPOSITORY "https://github.com/sqlite/sqlite.git" CACHE STRING "SQLite git repository")
 set(LIBSQLITE_GIT_TAG "version-3.50.4" CACHE STRING "SQLite git tag to build")
 
@@ -46,7 +46,7 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
 
   find_program(TCLSH_EXECUTABLE NAMES tclsh tclsh8.6 tclsh9.0)
   if(NOT TCLSH_EXECUTABLE)
-    message(FATAL_ERROR "BUILD_SQLITE needs tclsh to generate the sqlite3.c amalgamation")
+    message(FATAL_ERROR "BUILD_LIBSQLITE needs tclsh to generate the sqlite3.c amalgamation")
   endif()
 
   set(LIBSQLITE_CFLAGS_${SUFFIX} "-O2 -w")

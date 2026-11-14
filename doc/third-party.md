@@ -114,16 +114,16 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 
 ## 4. Building the client libraries from git
 
-`BUILD_PGSQL`, `BUILD_MYSQL` and `BUILD_SQLITE` (all OFF) build the database client library
+`BUILD_LIBPQ`, `BUILD_LIBMARIADB` and `BUILD_LIBSQLITE` (all OFF) build the database client library
 from its git repository instead of using the system one. Each is cloned (shallow) into
 `third_party/<repo>` on first use, and only the client library is compiled, once per module
 kind (PIC for the shared module, non-PIC for the static one).
 
 | Flag | Macro | Repository | Directory | Tag option | Compiled |
 |---|---|---|---|---|---|
-| `BUILD_PGSQL` | `build_libpq` (`cmake/deps/BuildLibPQ.cmake`) | postgres/postgres | `third_party/postgres` | `LIBPQ_GIT_TAG` | generated headers, src/port, src/common, src/interfaces/libpq |
-| `BUILD_MYSQL` | `build_libmariadb` (`BuildLibMariaDB.cmake`) | mariadb-corporation/mariadb-connector-c | `third_party/mariadb-connector-c` | `LIBMARIADB_GIT_TAG` | target mariadbclient, bundled zlib, no plugins but pvio_socket and the password ones |
-| `BUILD_SQLITE` | `build_libsqlite` (`BuildLibSQLite.cmake`) | sqlite/sqlite | `third_party/sqlite` | `LIBSQLITE_GIT_TAG` | the sqlite3.c amalgamation only (needs tclsh) |
+| `BUILD_LIBPQ` | `build_libpq` (`cmake/deps/BuildLibPQ.cmake`) | postgres/postgres | `third_party/postgres` | `LIBPQ_GIT_TAG` | generated headers, src/port, src/common, src/interfaces/libpq |
+| `BUILD_LIBMARIADB` | `build_libmariadb` (`BuildLibMariaDB.cmake`) | mariadb-corporation/mariadb-connector-c | `third_party/mariadb-connector-c` | `LIBMARIADB_GIT_TAG` | target mariadbclient, bundled zlib, no plugins but pvio_socket and the password ones |
+| `BUILD_LIBSQLITE` | `build_libsqlite` (`BuildLibSQLite.cmake`) | sqlite/sqlite | `third_party/sqlite` | `LIBSQLITE_GIT_TAG` | the sqlite3.c amalgamation only (needs tclsh) |
 
 TLS for libpq and the MariaDB client comes from `use_openssl()` (`cmake/deps/BuildOpenSSL.cmake`,
 with `FindOpenSSL.cmake`): the system OpenSSL when found, else OpenSSL built from

@@ -1,3 +1,13 @@
+include(${CMAKE_CURRENT_LIST_DIR}/FindZlib.cmake)
+
+# use_zlib(BINARY SUFFIX PIC)
+#
+# What every script that links zlib calls: the system zlib when find_zlib() found one, else
+# build_zlib(), built once per SUFFIX however many scripts ask. Sets ZLIB_INCLUDE_DIR_${SUFFIX}
+# (empty: the compiler's default), ZLIB_LIBRARIES_${SUFFIX} and ZLIB_DEPENDS_${SUFFIX}, the
+# target to add to DEPENDS (empty for a system zlib). A built zlib also has
+# ZLIB_LIBRARY_FILE_${SUFFIX}, the path of its archive.
+#
 # build_zlib(BINARY SUFFIX PIC)
 #
 # Downloads and builds zlib as a static library into ${BINARY}/deps-${SUFFIX}, once per
@@ -37,4 +47,22 @@ macro(build_zlib BINARY SUFFIX PIC)
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
       "-DZLIB_BUILD_EXAMPLES:BOOL=OFF"
     BUILD_BYPRODUCTS "${ZLIB_LIBRARY_FILE_${SUFFIX}}")
+endmacro()
+
+macro(use_zlib BINARY SUFFIX PIC)
+  if(NOT DEFINED ZLIB_FOUND)
+    find_zlib()
+  endif()
+
+  if(ZLIB_FOUND)
+    set(ZLIB_INCLUDE_DIR_${SUFFIX} "${ZLIB_INCLUDE_DIR}")
+    set(ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARIES})
+    set(ZLIB_DEPENDS_${SUFFIX} "")
+  else()
+    if(NOT TARGET zlib_${SUFFIX})
+      build_zlib(${BINARY} ${SUFFIX} ${PIC})
+    endif()
+    set(ZLIB_LIBRARIES_${SUFFIX} ${ZLIB_LIBRARY_FILE_${SUFFIX}})
+    set(ZLIB_DEPENDS_${SUFFIX} zlib_${SUFFIX})
+  endif()
 endmacro()

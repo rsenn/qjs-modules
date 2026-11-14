@@ -3,17 +3,18 @@
 # Builds MariaDB Connector/C from its git repository (third_party/mariadb-connector-c, cloned
 # on first use) as a static library, once per SUFFIX ("shared"/"static") with its own PIC
 # setting. Only the client library target (mariadbclient) is built: no tests, no tools, no
-# dynamic plugins, no curl; the zlib bundled with the connector is used.
+# dynamic plugins, no curl; zlib comes from use_zlib() (BuildZlib.cmake), not the bundled copy.
 #
 # Sets LIBMARIADB_INCLUDE_DIR_${SUFFIX} and LIBMARIADB_LIBRARIES_${SUFFIX} (the archive, then
 # the system libraries it needs); the ExternalProject target is libmariadb_${SUFFIX}.
-# Used when BUILD_MYSQL is ON. TLS comes from use_openssl() (BuildOpenSSL.cmake): the connector
+# Used when BUILD_LIBMARIADB is ON. TLS comes from use_openssl() (BuildOpenSSL.cmake): the connector
 # has no build without a TLS library (WITH_SSL=OFF is rejected by its CMakeLists.txt).
 set(LIBMARIADB_GIT_REPOSITORY "https://github.com/mariadb-corporation/mariadb-connector-c.git"
     CACHE STRING "MariaDB Connector/C git repository")
 set(LIBMARIADB_GIT_TAG "v3.4.9" CACHE STRING "MariaDB Connector/C git tag to build")
 
 include(${CMAKE_CURRENT_LIST_DIR}/BuildOpenSSL.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/BuildZlib.cmake)
 
 macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
   include(ExternalProject)
@@ -49,7 +50,7 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
   set(LIBMARIADB_ARGS_${SUFFIX}
       "-DWITH_UNIT_TESTS:BOOL=OFF"
       "-DWITH_CURL:BOOL=OFF"
-      "-DWITH_EXTERNAL_ZLIB:BOOL=OFF"
+      "-DWITH_EXTERNAL_ZLIB:BOOL=ON"
       "-DWITH_MYSQLCOMPAT:BOOL=OFF"
       "-DWITH_SIGNCODE:BOOL=OFF"
       "-DCLIENT_PLUGIN_DIALOG:STRING=OFF"
@@ -69,7 +70,16 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
       "-DCLIENT_PLUGIN_MYSQL_OLD_PASSWORD:STRING=OFF")
 
   use_openssl(${SOURCE} ${BINARY} ${SUFFIX} ${PIC})
-  set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${CMAKE_DL_LIBS} m pthread)
+  use_zlib(${BINARY} ${SUFFIX} ${PIC})
+  set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${ZLIB_LIBRARIES_${SUFFIX}} ${CMAKE_DL_LIBS} m
+                                       pthread)
+
+  # a built zlib is an archive its find_package(ZLIB) has to be pointed at
+  if(ZLIB_DEPENDS_${SUFFIX})
+    list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR_${SUFFIX}}"
+         "-DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}"
+         "-DZLIB_LIBRARY_RELEASE:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}")
+  endif()
 
   # a built OpenSSL is a static prefix the connector's find_package(OpenSSL) has to be pointed at
   if(OPENSSL_ROOT_DIR_${SUFFIX})
@@ -79,7 +89,7 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
 
   ExternalProject_Add(
     libmariadb_${SUFFIX}
-    DEPENDS libmariadb_source ${OPENSSL_DEPENDS_${SUFFIX}}
+    DEPENDS libmariadb_source ${OPENSSL_DEPENDS_${SUFFIX}} ${ZLIB_DEPENDS_${SUFFIX}}
     SOURCE_DIR ${LIBMARIADB_SOURCE_DIR}
     BINARY_DIR ${LIBMARIADB_BINARY_DIR_${SUFFIX}}
     DOWNLOAD_COMMAND ""

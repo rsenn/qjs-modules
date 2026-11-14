@@ -59,10 +59,6 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
     find_lzo2()
   endif()
 
-  if(LIBARCHIVE_GZIP AND NOT DEFINED ZLIB_FOUND)
-    find_zlib()
-  endif()
-
   if(LIBARCHIVE_ZSTD AND NOT DEFINED ZSTD_FOUND)
     find_zstd()
   endif()
@@ -115,13 +111,16 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
 
   if(NOT LIBARCHIVE_GZIP)
     list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DENABLE_ZLIB:BOOL=OFF")
-  elseif(NOT ZLIB_FOUND)
-    build_zlib(${BINARY} ${SUFFIX} ${PIC})
-    list(APPEND LIBARCHIVE_DEPS_${SUFFIX} zlib_${SUFFIX})
-    # zlib installs a shared copy next to the static one, so FindZLIB must be told which to pick.
-    list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR_${SUFFIX}}"
-         "-DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}"
-         "-DZLIB_LIBRARY_RELEASE:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}")
+  else()
+    use_zlib(${BINARY} ${SUFFIX} ${PIC})
+
+    if(ZLIB_DEPENDS_${SUFFIX})
+      list(APPEND LIBARCHIVE_DEPS_${SUFFIX} ${ZLIB_DEPENDS_${SUFFIX}})
+      # zlib installs a shared copy next to the static one, so FindZLIB must be told which to pick.
+      list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR_${SUFFIX}}"
+           "-DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}"
+           "-DZLIB_LIBRARY_RELEASE:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}")
+    endif()
   endif()
 
   if(NOT LIBARCHIVE_ZSTD)
