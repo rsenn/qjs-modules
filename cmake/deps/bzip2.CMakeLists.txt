@@ -1,0 +1,19 @@
+# CMakeLists.txt for the bzip2 1.0.8 source tree, which has none of its own: BuildBZip2.cmake copies this
+# file over <source dir>/CMakeLists.txt after the tarball is extracted, then builds it like any other
+# CMake project (toolchain file, compiler flags and PIC come in through the cache).
+cmake_minimum_required(VERSION 3.10)
+project(bzip2 C)
+
+add_library(bz2 STATIC
+  blocksort.c
+  huffman.c
+  crctable.c
+  randtable.c
+  compress.c
+  decompress.c
+  bzlib.c)
+
+target_compile_definitions(bz2 PRIVATE _FILE_OFFSET_BITS=64)
+
+install(TARGETS bz2 ARCHIVE DESTINATION lib)
+install(FILES bzlib.h DESTINATION include)

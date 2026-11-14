@@ -50,6 +50,7 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
   set(LIBMARIADB_ARGS_${SUFFIX}
       "-DWITH_UNIT_TESTS:BOOL=OFF"
       "-DWITH_CURL:BOOL=OFF"
+      "-DREMOTEIO_PLUGIN_TYPE:STRING=OFF" # else a host libcurl turns HAVE_REMOTEIO on
       "-DWITH_EXTERNAL_ZLIB:BOOL=ON"
       "-DWITH_MYSQLCOMPAT:BOOL=OFF"
       "-DWITH_SIGNCODE:BOOL=OFF"
@@ -81,19 +82,24 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
          "-DZLIB_LIBRARY_RELEASE:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}")
   endif()
 
-  # a built LibreSSL is a static prefix outside a cross toolchain's find root, so the connector's
-  # find_package(OpenSSL) gets the files itself (libssl, libcrypto: the first two libraries)
-  if(OPENSSL_ROOT_DIR_${SUFFIX})
+  # the connector's find_package(OpenSSL) gets the files use_openssl() resolved (libssl, libcrypto: the
+  # first two libraries), else it finds the host's: a built LibreSSL lies outside a cross toolchain's
+  # find root, and a musl build must not pick up the glibc OpenSSL in /usr
+  if(OPENSSL_LIBRARIES_${SUFFIX})
     list(GET OPENSSL_LIBRARIES_${SUFFIX} 0 _LM_SSL)
     list(GET OPENSSL_LIBRARIES_${SUFFIX} 1 _LM_CRYPTO)
-    list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DOPENSSL_ROOT_DIR:PATH=${OPENSSL_ROOT_DIR_${SUFFIX}}"
+    list(APPEND LIBMARIADB_ARGS_${SUFFIX}
          "-DOPENSSL_INCLUDE_DIR:PATH=${OPENSSL_INCLUDE_DIR_${SUFFIX}}"
          "-DOPENSSL_SSL_LIBRARY:FILEPATH=${_LM_SSL}" "-DOPENSSL_CRYPTO_LIBRARY:FILEPATH=${_LM_CRYPTO}"
          "-DSSL_EAY:FILEPATH=${_LM_SSL}" "-DLIB_EAY:FILEPATH=${_LM_CRYPTO}" # CMake's MinGW/Windows branch
          "-DOPENSSL_USE_STATIC_LIBS:BOOL=ON")
 
+    if(OPENSSL_ROOT_DIR_${SUFFIX})
+      list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DOPENSSL_ROOT_DIR:PATH=${OPENSSL_ROOT_DIR_${SUFFIX}}")
+    endif()
+
     # its libressl_version.c probe is run by try_run(), which a cross build cannot do
-    if(CMAKE_CROSSCOMPILING)
+    if(CMAKE_CROSSCOMPILING AND OPENSSL_ROOT_DIR_${SUFFIX})
       list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DLIBRESSL_RESULT:STRING=0"
            "-DLIBRESSL_RESULT__TRYRUN_OUTPUT:STRING=LibreSSL ${LIBRESSL_VERSION}")
     endif()

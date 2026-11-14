@@ -233,14 +233,18 @@ macro(_find_quickjs)
   unset(TMP)
   set(QUICKJS_SHARED_LIBRARY "${QUICKJS_LIBRARY}" CACHE PATH "QuickJS shared library (.so/.dll/.dylib)")
 
-  unset(QUICKJS_LIBRARY)
-  unset(QUICKJS_LIBRARY CACHE)
+  # with LINK_STATIC and no .a beside the library found (a static-only build names it
+  # "quickjs"), keep what was found instead of replacing it with an empty value
+  if(NOT LINK_STATIC OR QUICKJS_STATIC_LIBRARY)
+    unset(QUICKJS_LIBRARY)
+    unset(QUICKJS_LIBRARY CACHE)
 
-  if(LINK_STATIC)
-    set(QUICKJS_LIBRARY "${QUICKJS_STATIC_LIBRARY}" CACHE PATH "QuickJS library")
-  else(LINK_STATIC)
-    set(QUICKJS_LIBRARY "${QUICKJS_SHARED_LIBRARY}" CACHE PATH "QuickJS library")
-  endif(LINK_STATIC)
+    if(LINK_STATIC)
+      set(QUICKJS_LIBRARY "${QUICKJS_STATIC_LIBRARY}" CACHE PATH "QuickJS library")
+    else(LINK_STATIC)
+      set(QUICKJS_LIBRARY "${QUICKJS_SHARED_LIBRARY}" CACHE PATH "QuickJS library")
+    endif(LINK_STATIC)
+  endif(NOT LINK_STATIC OR QUICKJS_STATIC_LIBRARY)
 
   if(NOT QUICKJS_INCLUDE_DIRS)
     set(QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIR}")
