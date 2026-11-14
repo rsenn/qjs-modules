@@ -1040,6 +1040,10 @@ endfunction()
 #   --   library      /usr/local/lib/libquickjs.so
 #
 function(message_table TITLE)
+  # a summary shows through the quiet level of a module configure (QUICKJS_MODULE_QUIET)
+  if(QUICKJS_MODULE_QUIET)
+    set(CMAKE_MESSAGE_LOG_LEVEL STATUS)
+  endif()
   set(WIDTH 0)
   math(EXPR LAST "${ARGC} - 1")
 
