@@ -98,7 +98,7 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 | Library | System probe | Built from source when | Submodule / URL | Switch |
 |---|---|---|---|---|
 | QuickJS | `FindQuickJS.cmake` | `BUILD_QUICKJS` | engine checkout | `BUILD_QUICKJS=AUTO` |
-| libarchive | `FindLibArchive` | `BUILD_LIBARCHIVE=ON` | `third_party/libarchive` (v3.7.5) | `MODULE_ARCHIVE` |
+| libarchive | `FindLibArchive` | `BUILD_LIBARCHIVE` (AUTO: none installed) | `third_party/libarchive` (v3.7.5) | `MODULE_ARCHIVE` |
 | bz2, libb2, lzma, lz4, lzo2, zlib, zstd | `cmake/deps/Find*.cmake` | codec ON and not found | downloaded by `Build*.cmake` | `LIBARCHIVE_{GZIP,BZIP2,LZ4,LZMA,ZSTD,LZO}` |
 | libmagic | `find_libmagic()` | no usable libmagic and magic.h | `file-5.46` tarball (astron.com) | `MODULE_MAGIC` |
 | libmariadb | `pkg_search_module(mariadb libmariadb mysqlclient)` | never | system only | `MODULE_MYSQL` |
@@ -114,10 +114,24 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 
 ## 4. Building the client libraries from git
 
-`BUILD_LIBPQ`, `BUILD_LIBMARIADB` and `BUILD_LIBSQLITE` (all OFF) build the database client library
-from its git repository instead of using the system one. Each is cloned (shallow) into
-`third_party/<repo>` on first use, and only the client library is compiled, once per module
-kind (PIC for the shared module, non-PIC for the static one).
+`BUILD_LIBPQ`, `BUILD_LIBMARIADB`, `BUILD_LIBSQLITE` and `BUILD_LIBARCHIVE` say where the
+library of an enabled module (`MODULE_PGSQL`, `MODULE_MYSQL`, `MODULE_SQLITE`, `MODULE_ARCHIVE`)
+comes from:
+
+| Value | Meaning |
+|---|---|
+| `AUTO` (default) | the installed library, else build it |
+| `ON` | always build it |
+| `OFF` | the installed library only, the module is skipped without it |
+
+A library counts as installed when its header is there too, not only the runtime library. With
+`AUTO` and a missing build tool (`make`, `bison`, `flex`, `perl` for libpq, `make` and `tclsh` for
+SQLite) the module is skipped with a warning instead of failing the configure. A foreign toolchain
+(musl, mingw, `-m32`) looks for the installed library in its own directories only, see
+`toolchain_divert()` in `cmake/Deps.cmake`.
+
+A library to build is cloned (shallow) into `third_party/<repo>` on first use, and only the client
+library is compiled, once per module kind (PIC for the shared module, non-PIC for the static one).
 
 | Flag | Macro | Repository | Directory | Tag option | Compiled |
 |---|---|---|---|---|---|
@@ -125,11 +139,10 @@ kind (PIC for the shared module, non-PIC for the static one).
 | `BUILD_LIBMARIADB` | `build_libmariadb` (`BuildLibMariaDB.cmake`) | mariadb-corporation/mariadb-connector-c | `third_party/mariadb-connector-c` | `LIBMARIADB_GIT_TAG` | target mariadbclient, bundled zlib, no plugins but pvio_socket and the password ones |
 | `BUILD_LIBSQLITE` | `build_libsqlite` (`BuildLibSQLite.cmake`) | sqlite/sqlite | `third_party/sqlite` | `LIBSQLITE_GIT_TAG` | the sqlite3.c amalgamation only (needs tclsh) |
 
-TLS for libpq and the MariaDB client comes from `use_openssl()` (`cmake/deps/BuildOpenSSL.cmake`,
-with `FindOpenSSL.cmake`): the system OpenSSL when found, else OpenSSL built from
-`openssl/openssl` into `third_party/openssl` (`BUILD_OPENSSL=ON` forces that). The built
-OpenSSL is static, without apps, tests, docs, engines and modules, and with zlib
-(`OPENSSL_ZLIB`, on by default) taken from `find_zlib()` or built by `build_zlib()`.
+TLS for libpq and the MariaDB client comes from `use_openssl()` (`cmake/deps/BuildLibreSSL.cmake`,
+with `FindOpenSSL.cmake`): the system OpenSSL or LibreSSL when found, else LibreSSL built from
+its release tarball with its native CMake build (`BUILD_OPENSSL=ON` forces that). OpenSSL itself
+is never built. The built LibreSSL is static, without apps and tests (`LIBRESSL_VERSION`).
 SQLite has no TLS client, so it does not use OpenSSL. `LIBPQ_SSL` (default ON) turns TLS in
 libpq off.
 

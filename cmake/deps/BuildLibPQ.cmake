@@ -9,11 +9,11 @@
 # then the system libraries they need); the ExternalProject target is libpq_${SUFFIX}.
 # Needs the autoconf build prerequisites of a PostgreSQL checkout: make, bison, flex, perl.
 # Used when BUILD_LIBPQ is ON. TLS (LIBPQ_SSL, default ON) comes from use_openssl() in
-# BuildOpenSSL.cmake: the system OpenSSL, or one built from git.
+# BuildLibreSSL.cmake: the system OpenSSL/LibreSSL, or a LibreSSL built from its release tarball.
 set(LIBPQ_GIT_REPOSITORY "https://github.com/postgres/postgres.git" CACHE STRING "PostgreSQL git repository")
 set(LIBPQ_GIT_TAG "REL_17_12" CACHE STRING "PostgreSQL git tag to build")
 option(LIBPQ_SSL "Build libpq with TLS support (OpenSSL)" ON)
-include(${CMAKE_CURRENT_LIST_DIR}/BuildOpenSSL.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/BuildLibreSSL.cmake)
 
 macro(build_libpq SOURCE BINARY SUFFIX PIC)
   include(ExternalProject)

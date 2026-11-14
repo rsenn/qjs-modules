@@ -7,13 +7,13 @@
 #
 # Sets LIBMARIADB_INCLUDE_DIR_${SUFFIX} and LIBMARIADB_LIBRARIES_${SUFFIX} (the archive, then
 # the system libraries it needs); the ExternalProject target is libmariadb_${SUFFIX}.
-# Used when BUILD_LIBMARIADB is ON. TLS comes from use_openssl() (BuildOpenSSL.cmake): the connector
+# Used when BUILD_LIBMARIADB is ON. TLS comes from use_openssl() (BuildLibreSSL.cmake): the connector
 # has no build without a TLS library (WITH_SSL=OFF is rejected by its CMakeLists.txt).
 set(LIBMARIADB_GIT_REPOSITORY "https://github.com/mariadb-corporation/mariadb-connector-c.git"
     CACHE STRING "MariaDB Connector/C git repository")
 set(LIBMARIADB_GIT_TAG "v3.4.9" CACHE STRING "MariaDB Connector/C git tag to build")
 
-include(${CMAKE_CURRENT_LIST_DIR}/BuildOpenSSL.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/BuildLibreSSL.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/BuildZlib.cmake)
 
 macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
@@ -57,8 +57,8 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
       "-DCLIENT_PLUGIN_MYSQL_CLEAR_PASSWORD:STRING=OFF"
       "-DCLIENT_PLUGIN_AUTH_GSSAPI_CLIENT:STRING=OFF"
       "-DCLIENT_PLUGIN_REMOTE_IO:STRING=OFF"
-      "-DCLIENT_PLUGIN_PVIO_NPIPE:STRING=OFF"
-      "-DCLIENT_PLUGIN_PVIO_SHMEM:STRING=OFF"
+      "-DCLIENT_PLUGIN_PVIO_NPIPE:STRING=${LIBMARIADB_WIN_PVIO_${SUFFIX}}"
+      "-DCLIENT_PLUGIN_PVIO_SHMEM:STRING=${LIBMARIADB_WIN_PVIO_${SUFFIX}}"
       "-DCLIENT_PLUGIN_SHA256_PASSWORD:STRING=STATIC"
       "-DCLIENT_PLUGIN_CACHING_SHA2_PASSWORD:STRING=STATIC"
       "-DWITH_SSL:STRING=OPENSSL"
@@ -81,10 +81,29 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
          "-DZLIB_LIBRARY_RELEASE:FILEPATH=${ZLIB_LIBRARY_FILE_${SUFFIX}}")
   endif()
 
-  # a built OpenSSL is a static prefix the connector's find_package(OpenSSL) has to be pointed at
+  # a built LibreSSL is a static prefix outside a cross toolchain's find root, so the connector's
+  # find_package(OpenSSL) gets the files itself (libssl, libcrypto: the first two libraries)
   if(OPENSSL_ROOT_DIR_${SUFFIX})
+    list(GET OPENSSL_LIBRARIES_${SUFFIX} 0 _LM_SSL)
+    list(GET OPENSSL_LIBRARIES_${SUFFIX} 1 _LM_CRYPTO)
     list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DOPENSSL_ROOT_DIR:PATH=${OPENSSL_ROOT_DIR_${SUFFIX}}"
+         "-DOPENSSL_INCLUDE_DIR:PATH=${OPENSSL_INCLUDE_DIR_${SUFFIX}}"
+         "-DOPENSSL_SSL_LIBRARY:FILEPATH=${_LM_SSL}" "-DOPENSSL_CRYPTO_LIBRARY:FILEPATH=${_LM_CRYPTO}"
+         "-DSSL_EAY:FILEPATH=${_LM_SSL}" "-DLIB_EAY:FILEPATH=${_LM_CRYPTO}" # CMake's MinGW/Windows branch
          "-DOPENSSL_USE_STATIC_LIBS:BOOL=ON")
+
+    # its libressl_version.c probe is run by try_run(), which a cross build cannot do
+    if(CMAKE_CROSSCOMPILING)
+      list(APPEND LIBMARIADB_ARGS_${SUFFIX} "-DLIBRESSL_RESULT:STRING=0"
+           "-DLIBRESSL_RESULT__TRYRUN_OUTPUT:STRING=LibreSSL ${LIBRESSL_VERSION}")
+    endif()
+  endif()
+
+  # the Windows-only pvio plugins take STATIC or DYNAMIC there, OFF is rejected
+  if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(LIBMARIADB_WIN_PVIO_${SUFFIX} STATIC)
+  else()
+    set(LIBMARIADB_WIN_PVIO_${SUFFIX} OFF)
   endif()
 
   ExternalProject_Add(
