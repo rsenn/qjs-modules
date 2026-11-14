@@ -8,21 +8,18 @@
 #
 # Sets OPENSSL_ROOT_DIR_${SUFFIX}, OPENSSL_INCLUDE_DIR_${SUFFIX} and OPENSSL_LIBRARIES_${SUFFIX}
 # (libssl, libcrypto, zlib, then the system libraries they need) and OPENSSL_LINK_FLAGS_${SUFFIX}
-# (zlib and the system libraries as linker flags); the ExternalProject target is openssl_${SUFFIX}. Needs perl and make, as any OpenSSL source build does.
-#
-# use_openssl(SOURCE BINARY SUFFIX PIC)
-#
-# What the database drivers call: the system OpenSSL when find_openssl() found one and
-# BUILD_OPENSSL is OFF, else build_openssl(). Sets the same three variables plus
-# OPENSSL_DEPENDS_${SUFFIX}, the target to add to DEPENDS (empty for a system OpenSSL).
+# (zlib and the system libraries as linker flags); the ExternalProject target is openssl_${SUFFIX}.
+# Needs perl and make, as any OpenSSL source build does. Scripts call use_openssl() below.
+include(${CMAKE_CURRENT_LIST_DIR}/../Deps.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/FindOpenSSL.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/FindZlib.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/BuildZlib.cmake)
 
 set(OPENSSL_GIT_REPOSITORY "https://github.com/openssl/openssl.git" CACHE STRING "OpenSSL git repository")
 set(OPENSSL_GIT_TAG "openssl-3.5.9" CACHE STRING "OpenSSL git tag to build")
-option(BUILD_OPENSSL "Build OpenSSL from git into third_party/openssl instead of using the system one" OFF)
 option(OPENSSL_ZLIB "Build OpenSSL with zlib compression support" ON)
+
+set(OPENSSL_CLONE_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/GitCloneOnce.cmake")
 
 macro(build_openssl SOURCE BINARY SUFFIX PIC)
   include(ExternalProject)
@@ -42,29 +39,13 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
         "${OPENSSL_ROOT_DIR_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${lib}${CMAKE_STATIC_LIBRARY_SUFFIX}")
   endforeach(lib)
 
-  # one clone for both variants, skipped when third_party/openssl is already checked out
+  # one clone for both variants, done at build time unless third_party/openssl has Configure
   if(NOT TARGET openssl_source)
-    if(EXISTS "${OPENSSL_SOURCE_DIR}/Configure")
-      add_custom_target(openssl_source)
-    else()
-      # CMP0097 NEW makes the empty GIT_SUBMODULES below mean "no submodules"
-      cmake_policy(PUSH)
-      if(POLICY CMP0097)
-        cmake_policy(SET CMP0097 NEW)
-      endif()
-      ExternalProject_Add(
-        openssl_source
-        GIT_REPOSITORY ${OPENSSL_GIT_REPOSITORY}
-        GIT_TAG ${OPENSSL_GIT_TAG}
-        GIT_SHALLOW TRUE
-        GIT_SUBMODULES "" # the submodules only hold test suites
-        SOURCE_DIR ${OPENSSL_SOURCE_DIR}
-        UPDATE_COMMAND ""
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-        INSTALL_COMMAND "")
-      cmake_policy(POP)
-    endif()
+    add_custom_target(
+      openssl_source
+      COMMAND ${CMAKE_COMMAND} -DDIR=${OPENSSL_SOURCE_DIR} -DMARKER=Configure -DREPO=${OPENSSL_GIT_REPOSITORY}
+              -DTAG=${OPENSSL_GIT_TAG} -P ${OPENSSL_CLONE_SCRIPT}
+      VERBATIM)
   endif()
 
   set(OPENSSL_DEPS_${SUFFIX} openssl_source)
@@ -90,6 +71,23 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
     list(APPEND OPENSSL_CONFIGURE_ARGS_${SUFFIX} -fPIC)
   endif()
 
+  # config guesses the target from uname, so a MinGW cross build names it: Configure mingw64
+  set(OPENSSL_CONFIGURE_${SUFFIX} config)
+  set(OPENSSL_TARGET_ARGS_${SUFFIX} "")
+  set(OPENSSL_CC_${SUFFIX} "${CMAKE_C_COMPILER}")
+  if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      set(OPENSSL_CONFIGURE_${SUFFIX} "Configure;mingw64")
+    else()
+      set(OPENSSL_CONFIGURE_${SUFFIX} "Configure;mingw")
+    endif()
+    if(CMAKE_C_COMPILER MATCHES "^(.*-)gcc(\\.exe)?$")
+      get_filename_component(_OSSL_PFX "${CMAKE_MATCH_1}" NAME)
+      set(OPENSSL_TARGET_ARGS_${SUFFIX} --cross-compile-prefix=${_OSSL_PFX})
+      set(OPENSSL_CC_${SUFFIX} gcc) # the prefix is prepended to CC
+    endif()
+  endif()
+
   cmake_host_system_information(RESULT OPENSSL_JOBS QUERY NUMBER_OF_LOGICAL_CORES)
 
   ExternalProject_Add(
@@ -100,8 +98,9 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
     DOWNLOAD_COMMAND ""
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND
-      ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}" <SOURCE_DIR>/config --prefix=${OPENSSL_ROOT_DIR_${SUFFIX}}
-      --openssldir=${OPENSSL_ROOT_DIR_${SUFFIX}}/ssl --libdir=lib ${OPENSSL_CONFIGURE_ARGS_${SUFFIX}}
+      ${CMAKE_COMMAND} -E env "CC=${OPENSSL_CC_${SUFFIX}}" <SOURCE_DIR>/${OPENSSL_CONFIGURE_${SUFFIX}}
+      --prefix=${OPENSSL_ROOT_DIR_${SUFFIX}} --openssldir=${OPENSSL_ROOT_DIR_${SUFFIX}}/ssl --libdir=lib
+      ${OPENSSL_TARGET_ARGS_${SUFFIX}} ${OPENSSL_CONFIGURE_ARGS_${SUFFIX}}
     BUILD_COMMAND ${MAKE_PROGRAM} -j${OPENSSL_JOBS} build_libs
     INSTALL_COMMAND ${MAKE_PROGRAM} install_dev
     BUILD_BYPRODUCTS "${OPENSSL_ssl_FILE_${SUFFIX}}" "${OPENSSL_crypto_FILE_${SUFFIX}}")
@@ -129,21 +128,52 @@ macro(build_openssl SOURCE BINARY SUFFIX PIC)
                                   ${OPENSSL_ZLIB_LIBRARIES_${SUFFIX}} ${CMAKE_DL_LIBS} pthread)
 endmacro()
 
-macro(use_openssl SOURCE BINARY SUFFIX PIC)
-  if(NOT DEFINED OPENSSL_FOUND)
-    find_openssl()
-  endif()
+# Registration with Deps.cmake: the installed OpenSSL, else build_openssl(). Built with zlib
+# (OPENSSL_ZLIB), which is then resolved first.
+function(_openssl_find name suffix)
+  find_openssl()
 
-  if(BUILD_OPENSSL OR NOT OPENSSL_FOUND)
-    # several drivers share one build per SUFFIX
-    if(NOT TARGET openssl_${SUFFIX})
-      build_openssl(${SOURCE} ${BINARY} ${SUFFIX} ${PIC})
-    endif()
+  if(OPENSSL_FOUND)
+    dep_provide(openssl ${suffix} SOURCE system ORIGIN "${OPENSSL_SSL_LIBRARY}" INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR}
+                LIBRARIES ${OPENSSL_LIBRARIES})
+  endif()
+endfunction()
+
+function(_openssl_build name suffix pic binary source)
+  build_openssl(${source} ${binary} ${suffix} ${pic})
+
+  dep_provide(openssl ${suffix} SOURCE built ORIGIN "git ${OPENSSL_GIT_TAG}: ${OPENSSL_ROOT_DIR_${suffix}}"
+              PREFIX "${OPENSSL_ROOT_DIR_${suffix}}" INCLUDE_DIRS "${OPENSSL_INCLUDE_DIR_${suffix}}"
+              LIBRARIES ${OPENSSL_LIBRARIES_${suffix}} LINK_FLAGS "${OPENSSL_LINK_FLAGS_${suffix}}"
+              TARGETS openssl_${suffix})
+endfunction()
+
+if(OPENSSL_ZLIB)
+  set(OPENSSL_DEP_ZLIB zlib)
+else()
+  set(OPENSSL_DEP_ZLIB "")
+endif()
+
+dep_declare(openssl DESCRIPTION OpenSSL FIND _openssl_find BUILD _openssl_build DEPENDS ${OPENSSL_DEP_ZLIB})
+
+# use_openssl(SOURCE BINARY SUFFIX PIC)
+#
+# Resolves OpenSSL for one SUFFIX through dep_resolve() and leaves OPENSSL_FOUND,
+# OPENSSL_ROOT_DIR_${SUFFIX} (empty for an installed copy), OPENSSL_INCLUDE_DIR_${SUFFIX},
+# OPENSSL_LIBRARIES_${SUFFIX}, OPENSSL_LINK_FLAGS_${SUFFIX} (built: zlib and the system
+# libraries as linker flags) and OPENSSL_DEPENDS_${SUFFIX} (the target to add to DEPENDS).
+macro(use_openssl SOURCE BINARY SUFFIX PIC)
+  dep_resolve(openssl SUFFIX ${SUFFIX} PIC ${PIC} BINARY ${BINARY} SOURCE ${SOURCE})
+
+  dep_get(openssl ${SUFFIX} SOURCE _UO_SOURCE)
+  dep_get(openssl ${SUFFIX} PREFIX OPENSSL_ROOT_DIR_${SUFFIX})
+  dep_get(openssl ${SUFFIX} INCLUDE_DIRS OPENSSL_INCLUDE_DIR_${SUFFIX})
+  dep_get(openssl ${SUFFIX} LIBRARIES OPENSSL_LIBRARIES_${SUFFIX})
+  dep_get(openssl ${SUFFIX} LINK_FLAGS OPENSSL_LINK_FLAGS_${SUFFIX})
+
+  if("${_UO_SOURCE}" STREQUAL "built")
     set(OPENSSL_DEPENDS_${SUFFIX} openssl_${SUFFIX})
   else()
-    set(OPENSSL_ROOT_DIR_${SUFFIX} "")
-    set(OPENSSL_INCLUDE_DIR_${SUFFIX} ${OPENSSL_INCLUDE_DIR})
-    set(OPENSSL_LIBRARIES_${SUFFIX} ${OPENSSL_LIBRARIES})
     set(OPENSSL_DEPENDS_${SUFFIX} "")
   endif()
 endmacro()
