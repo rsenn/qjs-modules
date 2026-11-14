@@ -67,3 +67,9 @@ blah.tmp*
 /tmp.txt
 /unicode2.txt
 /writer.txt
+
+# cloned at build time by cmake/deps/Build{LibPQ,LibMariaDB,LibSQLite,OpenSSL}.cmake
+/third_party/postgres/
+/third_party/mariadb-connector-c/
+/third_party/sqlite/
+/third_party/openssl/

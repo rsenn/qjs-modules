@@ -112,7 +112,37 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 | tutf8e, libutf | none | always | `third_party/tutf8e`, `third_party/libutf` | always on |
 | pigpio | `Findpigpio.cmake` | never | `third_party/pigpio` | unused: nothing includes pigpio.h |
 
-## 4. Notes
+## 4. Building the client libraries from git
+
+`BUILD_PGSQL`, `BUILD_MYSQL` and `BUILD_SQLITE` (all OFF) build the database client library
+from its git repository instead of using the system one. Each is cloned (shallow) into
+`third_party/<repo>` on first use, and only the client library is compiled, once per module
+kind (PIC for the shared module, non-PIC for the static one).
+
+| Flag | Macro | Repository | Directory | Tag option | Compiled |
+|---|---|---|---|---|---|
+| `BUILD_PGSQL` | `build_libpq` (`cmake/deps/BuildLibPQ.cmake`) | postgres/postgres | `third_party/postgres` | `LIBPQ_GIT_TAG` | generated headers, src/port, src/common, src/interfaces/libpq |
+| `BUILD_MYSQL` | `build_libmariadb` (`BuildLibMariaDB.cmake`) | mariadb-corporation/mariadb-connector-c | `third_party/mariadb-connector-c` | `LIBMARIADB_GIT_TAG` | target mariadbclient, bundled zlib, no plugins but pvio_socket and the password ones |
+| `BUILD_SQLITE` | `build_libsqlite` (`BuildLibSQLite.cmake`) | sqlite/sqlite | `third_party/sqlite` | `LIBSQLITE_GIT_TAG` | the sqlite3.c amalgamation only (needs tclsh) |
+
+TLS for libpq and the MariaDB client comes from `use_openssl()` (`cmake/deps/BuildOpenSSL.cmake`,
+with `FindOpenSSL.cmake`): the system OpenSSL when found, else OpenSSL built from
+`openssl/openssl` into `third_party/openssl` (`BUILD_OPENSSL=ON` forces that). The built
+OpenSSL is static, without apps, tests, docs, engines and modules, and with zlib
+(`OPENSSL_ZLIB`, on by default) taken from `find_zlib()` or built by `build_zlib()`.
+SQLite has no TLS client, so it does not use OpenSSL. `LIBPQ_SSL` (default ON) turns TLS in
+libpq off.
+
+```mermaid
+graph LR
+  pgsql --> libpq --> openssl
+  mysql --> libmariadb["mariadb-connector-c"] --> openssl
+  sqlite --> sqlite3["sqlite3.c"]
+  openssl --> zlib
+  libmariadb --> zlib_b["zlib (bundled)"]
+```
+
+## 5. Notes
 
 - libarchive is configured with `ENABLE_OPENSSL`, `ENABLE_LIBXML2`, `ENABLE_EXPAT`,
   `ENABLE_ICONV`, `ENABLE_ACL` on by default, so a source build also picks up whatever of
