@@ -703,7 +703,9 @@ always `src/yaml/ywrite.c`. Open:
 - **Multi-document write:** `parse()` returns an array for `a\n---\nb`, but `write()` has no inverse
   (an array is a sequence). Bun has none either.
 - **YPATH** (`cyaml_path_query()`): deliberately not exposed (no standard to match).
-- **Merge keys** (`<<`) are not expanded, as in YAML 1.2 and CYAML.
+- **Merge keys** (`<<`) are not expanded by `yaml.parse` (YAML 1.2 and CYAML); `Bun.YAML.parse` (`lib/bun/yaml.js`) does it.
+- **`require('./a.yaml')`** is not supported (`loaders/commonjs` reads it as JS); `import` is, through the load hook of `lib/bun.js`.
+- **Circular `Bun.YAML.stringify`** throws `TypeError`; Bun writes `&root {o: *root}`.
 - **Duplicate keys:** `parse('a: 1\na: 2')` gives `{a: 2}`; CYAML accepts it although its option
   `dup_keys` defaults to false.
 
@@ -1861,7 +1863,7 @@ slice is clamped to the file (Bun reports `end - start`), `FileSink.start()`, `f
 | `Bun.inspect(v, opts)` | `inspect` | `Bun.inspect.custom`, `Bun.inspect.table` later |
 | `Bun.mmap(path)` | `mmap` | returns `Uint8Array`; Bun's `shared`/`sync` options |
 | `Bun.Glob` (`scan`, `scanSync`, `match`) | `fs` glob / `path.fnmatch` | |
-| `Bun.XML` / `Bun.YAML` / `Bun.TOML` / `Bun.JSON5` / `Bun.JSONC` `.parse` | `xml`, `yaml` (Tier 12/13), new parsers | XML and YAML first, the other three only if a user shows up |
+| `Bun.XML` / `Bun.TOML` / `Bun.JSON5` / `Bun.JSONC` `.parse` | `xml`, new parsers | XML first (`Bun.YAML` is done: `lib/bun/yaml.js`), the others only if a user shows up |
 
 ### Phase 3 — process and environment (cheap, pure wrappers)
 
@@ -2212,7 +2214,7 @@ Bun; each item still needs its own probe-and-diff.
 **Status 2026-10-22:** batches (a) and (b) done: `lib/bun/util.js` (lazy, `bun/util` builtin), `lib/glob.js`
 (`Bun.Glob`, golden against bun on 21 patterns x 27 paths), `Bun.mmap` in `lib/bun.js`, `Bun.JSON5`/`JSONC` (`lib/json5.js`, `lib/jsonc.js`); `tests/unittests/test-bun-util.js`
 passes under qjsm and under bun. Left from part 1: `inspect.table`, `semver`, `color`, `sliceAnsi`/`wrapAnsi`,
-`randomUUIDv7`, `resolveSync`, `SQL`/`sql`, `YAML.stringify`, and batch (c): `spawn`/`spawnSync`, `Archive`, `XML`, `$`.
+`randomUUIDv7`, `resolveSync`, `SQL`/`sql`, and batch (c): `spawn`/`spawnSync`, `Archive`, `XML`, `$`.
 
 | `Bun.*` | Backed by | Work |
 | --- | --- | --- |
@@ -2236,7 +2238,6 @@ passes under qjsm and under bun. Left from part 1: `inspect.table`, `semver`, `c
 | `escapeHTML(v)` | none needed | ~5 lines; `&lt; &amp; &gt; &quot; &#x27;` |
 | `readableStreamTo{Text,JSON,Bytes,ArrayBuffer,Blob,Array,FormData}` | `streams`, `textcode`, `Blob`, `JSON` | a reader loop each; `FormData` needs the qjs-lws `FormData`, do it last or skip |
 | `SQL`, `sql`, `postgres` | `lib/sql.js` | export; Bun's `postgres` is an alias of `sql` |
-| `YAML.stringify` | `yaml.write` | alias only; `YAML.parse` is part 2 |
 | `resolveSync(spec, from)`, `resolve` | `module._resolveFilename` | wrapper; probe the error shape |
 | `spawn`, `spawnSync` | `child_process` (native, `lib/node/child_process.js`) | adapter: `Subprocess` (`pid`, `exited`, `exitCode`, `signalCode`, `kill`, `stdin` as `FileSink`, `stdout/stderr` as `ReadableStream`), `spawnSync` result `{stdout, stderr, exitCode, success}` |
 | `$` (shell template) | on `spawn` | only after `spawn` works; a small parser for pipes, `&&`, redirects, globs |
@@ -2264,7 +2265,6 @@ to the file, `FileSink.start()`, `BunFile.watch`, `Bun.write` of a sliced BunFil
 | `gzipSync`, `gunzipSync`, `deflateSync`, `inflateSync` | `archive` only wraps whole-archive filters, no zlib-framed bytes API | native zlib binding (also `CompressionStream`/`DecompressionStream`) |
 | `zstdCompress(+Sync)`, `zstdDecompress(+Sync)` | no zstd outside libarchive's archive filter | native zstd binding |
 | `TOML.parse/stringify` | no TOML parser | new parser (C or JS) |
-| `YAML.parse` | `yaml` module has `write` only | Tier 12/13 plan (cyaml reader) |
 | `dns.lookup`, `dns.prefetch`, `dns.getCacheStats` | no `getaddrinfo` binding in `sockets` | add to `sockets` |
 | `serve`, `fetch`, `connect`, `listen`, `udpSocket` | HTTP/TCP/UDP stack | `../qjs-lws/` (`lib/serve.js`, `tcpsocket.js`, `udpsocket.js`); wire `Bun.*` there, not here |
 | `FFI` | FFI | `../qjs-ffi/` |
@@ -2280,7 +2280,7 @@ to the file, `FileSink.start()`, `BunFile.watch`, `Bun.write` of a sliced BunFil
    adapters (`spawn`/`spawnSync`, `Archive`, `XML`, `$`).
 2. Tier 18 steps 2-3, then the `JSON5`/`JSONC` rows.
 3. Part 2 in this order, by number of dependants: a digest module (unlocks 11 names plus `randomUUIDv5`, `CSRF`),
-   then zlib/zstd, `hash`, `dns`, `YAML.parse`, `TOML`.
+   then zlib/zstd, `hash`, `dns`, `TOML`.
 
 ## Tier 20 — `quickjs-xml.c` onto engine-free C pieces, mirroring the `quickjs-json.c` refactor (planned 2026-10-17)
 

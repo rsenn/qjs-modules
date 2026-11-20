@@ -35,17 +35,25 @@ typedef struct {
 
 static JSValue yaml_to_js(YamlParse*, const cyaml_node_t*, int);
 
-/* a scalar that is not plain, or has a tag, is a string: "123", !!str 123 */
+/* a scalar that is not plain is a string: "123". A tag picks the type of a plain one:
+ * !!int 5, !!float 1, !!bool true, !!null keeps the text's own type, any other tag (!!str 123) gives a string */
 static JSValue
 yaml_scalar_to_js(YamlParse* p, const cyaml_node_t* n) {
   JSContext* ctx = p->ctx;
 
-  if(n->style == CYAML_PLAIN && !n->tag.len) {
+  if(n->style == CYAML_PLAIN) {
     int64_t i;
     double d;
     bool b;
+    cyaml_scalar_kind_t kind = cyaml_scalar_kind(p->doc, n);
 
-    switch(cyaml_scalar_kind(p->doc, n)) {
+    if(n->tag.len && !cyaml_span_eq(p->doc, n->tag, "!!null"))
+      kind = cyaml_span_eq(p->doc, n->tag, "!!int")     ? CYAML_KIND_INT
+             : cyaml_span_eq(p->doc, n->tag, "!!float") ? CYAML_KIND_FLOAT
+             : cyaml_span_eq(p->doc, n->tag, "!!bool")  ? CYAML_KIND_BOOL
+                                                        : CYAML_KIND_STRING;
+
+    switch(kind) {
       case CYAML_KIND_NULL: return JS_NULL;
       case CYAML_KIND_BOOL:
         if(cyaml_as_bool(p->doc, n, &b))

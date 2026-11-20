@@ -40,7 +40,7 @@ Bun.plugin.clearAll();
 | Bun | Here |
 | --- | --- |
 | Callbacks may be async | Synchronous only — a Promise result throws `TypeError` |
-| Loaders `ts`, `tsx`, `jsx`, `toml`, `yaml`, `css`, ... | Only `js`, `json` and `text`; others throw `TypeError` (no transpiler) |
+| Loaders `ts`, `tsx`, `jsx`, `toml`, `css`, ... | Only `js`, `json` and `text` in a plugin; others throw `TypeError` (no transpiler). A `.yaml`/`.yml` import works without a plugin, see [YAML](#yaml) |
 | `typeof Bun` is the Bun runtime | `Bun` carries only what is listed here (roadmap: `TODO.md` Tier 19); do not use it to detect Bun |
 | Plugins in `bunfig.toml` `preload` | Call `Bun.plugin()` before the `import()` it should affect (static imports are resolved first) |
 
@@ -73,6 +73,38 @@ BunFiles over fd 0/1/2 (`stdin.size` is `Infinity`).
 | `slice(0, 100000).size` is `100000` | clamped to the file size |
 | `FileSink.flush()` may return a Promise | returns the number synchronously (also fine to `await`) |
 
+## YAML
+
+https://bun.com/docs/runtime/yaml. Source `lib/bun/yaml.js` (loaded on first use) over the native [yaml](../native/yaml.md)
+module; `Bun.YAML` and `import { YAML } from 'bun'` exist when the yaml module is in the module path, and `parse` needs it
+built with CYAML (`-DBUILD_LIBCYAML=ON` or an installed copy), else a call throws.
+
+```js
+import { YAML } from 'bun';                       // or Bun.YAML
+
+YAML.parse('name: John\nhobbies:\n  - coding\n'); // { name: 'John', hobbies: ['coding'] }
+YAML.parse('---\na: 1\n---\nb: 2\n');             // [{ a: 1 }, { b: 2 }]
+YAML.stringify({ a: [1, 'x y'] });                // '{a: [1,x y]}'
+YAML.stringify({ a: [1, 'x y'] }, null, 2);       // 'a: \n  - 1\n  - x y'
+
+import config, { database } from './config.yaml'; // default and the top-level keys
+```
+
+| Page section | Here |
+| --- | --- |
+| `parse` of scalars, collections, multi-line strings, comments, directives | CYAML, YAML 1.2 core schema |
+| several documents | an array of them |
+| anchors and aliases | an alias is the same JS value as its anchor, a cycle is allowed |
+| tags `!!str`, `!!int`, `!!float`, `!!bool`, `!!null` | as Bun: they type a plain scalar, a quoted one stays a string |
+| merge keys `<<: *defaults` | expanded after parsing (a mapping or a sequence of mappings; the first source wins, the mapping's own keys win over all) |
+| `SyntaxError` for invalid YAML | `SyntaxError`, message `yaml.parse: ... (line N, column M)` |
+| `parse(x)` of a non-string | a buffer is decoded, anything else is coerced with `String()` |
+| `stringify(value, null, space)` | flow style without `space`, block style with a number 1-10 or a string (first 10 characters); a replacer or a BigInt throws `Error`; undefined, functions and symbols are skipped |
+| `import x from './a.yaml'`, `.yml`, dynamic `import()` | a load hook of `lib/bun.js`: the parsed value is `default`, each top-level key that is an identifier is a named export |
+
+Differences: a circular value throws `TypeError` where Bun writes an anchor (`&root {o: *root}`); the key order of a mapping with
+`<<` can differ from Bun's; `require('./a.yaml')`, `bun --hot` reloading and the bundler (build-time parsing) do not exist here.
+
 ## Utilities
 
 Each loads its module on first read, so they cost nothing at startup. Results were compared with
@@ -101,7 +133,7 @@ bun 1.4.2 (`tests/unittests/test-bun-util.js` runs under both: `bun tests/unitte
 
 | `spawn(cmd, options)`, `spawnSync()` | [bun-spawn](bun-spawn.md) | `Subprocess` over `node/child_process` and `stream` |
 
-Not yet: `$`, `Archive`, `XML`, `YAML`, `semver`, `color`, the hashing and
+Not yet: `$`, `Archive`, `XML`, `semver`, `color`, the hashing and
 compression functions (TODO.md Tier 19).
 
 ## Globals from other modules

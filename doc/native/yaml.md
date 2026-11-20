@@ -42,7 +42,8 @@ this module always writes block style.
 | plain `null`, `~`, empty | `null` |
 | plain `true`/`false` (any case) | boolean |
 | plain `12`, `0x1F`, `0o17`, `1.5e3`, `.inf`, `.nan` | number (an integer past int64 is a double) |
-| quoted, block (`\|`, `>`) or tagged (`!!str 12`) scalar | string |
+| quoted, block (`\|`, `>`) scalar, or a plain one with a tag other than the types below (`!!str 12`) | string |
+| plain `!!int 5`, `!!float 1`, `!!bool true` | number, number, boolean (a text that is not one stays a string); `!!null` keeps the text's own type |
 | mapping | plain object, keys in document order, a key is its text (`1:` is `"1"`, `~:` is `"null"`) |
 | sequence | array |
 | alias `*a` | **the same JS value** as the anchored node (so `r.y === r.x`, and `&a {b: *a}` is a cycle) |

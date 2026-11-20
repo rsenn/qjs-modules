@@ -105,6 +105,12 @@ tests({
     eq(parse(''), null);
   },
 
+  'parse: a tag types a plain scalar'() {
+    if(!parse) return;
+
+    same(parse('- !!int 5\n- !!float 1\n- !!bool true\n- !!bool yes\n- !!str true\n- !!int abc\n- !!null null\n- !!int "5"\n'), [5, 1, true, 'yes', 'true', 'abc', null, '5']);
+  },
+
   'parse: block scalars and nesting'() {
     if(!parse) return;
 
