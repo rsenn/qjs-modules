@@ -46,9 +46,9 @@ set(TOOLCHAIN_PKGCFG "" CACHE FILEPATH "c-utils pkgcfg used in place of pkg-conf
 set(DEPS_BUILD "REQUESTED" CACHE STRING
     "Which missing libraries may be built from source: REQUESTED (those a MODULE_<name>=ON or BUILD_<lib>=ON asks for), NONE, CMAKE (every missing one that has a CMake build) or ALL")
 set_property(CACHE DEPS_BUILD PROPERTY STRINGS REQUESTED NONE CMAKE ALL)
-set(DEPS_MISSING "DISABLE" CACHE STRING
-    "A missing library that is not built: DISABLE the module that needs it (with a warning) or FAIL the configure")
-set_property(CACHE DEPS_MISSING PROPERTY STRINGS DISABLE FAIL)
+set(DEPS_MISSING "FAIL" CACHE STRING
+    "A missing library that is not built: FAIL the configure, or DISABLE the module that needs it (with a warning)")
+set_property(CACHE DEPS_MISSING PROPERTY STRINGS FAIL DISABLE)
 
 foreach(_DEPS_VAR DEPS_BUILD DEPS_MISSING)
   string(TOUPPER "${${_DEPS_VAR}}" _DEPS_VALUE)
@@ -378,7 +378,7 @@ endmacro(toolchain_restore)
 ##############################################################################
 #
 #   dep_mode(<value> <out>)                  ON, OFF or AUTO ("" and anything else is AUTO)
-#   dep_module_mode(<module> <out>)          MODULE_<MODULE> as ON, OFF or AUTO
+#   dep_module_mode(<module> <out>)          MODULE_<MODULE> as ON or OFF (AUTO is an error)
 #   dep_builder_usable(<builder> <out> [TOOLS <tool>...])
 #       can this machine run a build of that kind: cmake always; autotools needs sh and make and
 #       never works on MSVC; TOOLS must all be installed. Sets <out> and <out>_WHY.
@@ -387,17 +387,17 @@ endmacro(toolchain_restore)
 #       what to do about a library: FOUND (use the installed one), BUILD or SKIP (the module
 #       stays out, a warning says how to change that)
 #
-# Who decides what (BUILD_<lib> and MODULE_<module> are ON, OFF or AUTO):
+# Who decides what (BUILD_<lib> is ON, OFF or AUTO, MODULE_<module> is ON or OFF):
 #
 #   BUILD_<lib>=ON       build it, even when installed          (needs DEPS_BUILD to allow it)
 #   BUILD_<lib>=OFF      never build it
-#   MODULE_<m>=ON        a missing library is built             (an error when it cannot be)
-#   MODULE_<m>=AUTO      a missing library is not built, the module is switched off
+#   MODULE_<m>=ON        the module is built; a missing library is built (an error when it cannot be)
+#   MODULE_<m>=OFF       the module is not built, its library is not looked for
 #   DEPS_BUILD           REQUESTED  builds only what the two above ask for (default)
 #                        NONE       builds nothing, so a request for a build is an error
 #                        CMAKE      also builds every missing library that has a CMake build
 #                        ALL        builds every missing library
-#   DEPS_MISSING         DISABLE (default) switches the module off with a warning, FAIL stops
+#   DEPS_MISSING         FAIL (default) stops, DISABLE switches the module off with a warning
 #
 # A library without a build the platform can run (autotools on MSVC) is never built.
 
@@ -415,7 +415,14 @@ endfunction(dep_mode)
 function(dep_module_mode module out)
   string(TOUPPER "${module}" upper)
   string(REGEX REPLACE "[^A-Z0-9]" "_" upper "${upper}")
+  if("${MODULE_${upper}}" STREQUAL "")
+    set(MODULE_${upper} ON)
+  endif()
   dep_mode("${MODULE_${upper}}" mode)
+  if("${mode}" STREQUAL "AUTO")
+    message(FATAL_ERROR "MODULE_${upper}='${MODULE_${upper}}': a module is ON or OFF, AUTO does not exist. "
+                        "A module is not chosen by which libraries are installed.")
+  endif()
   set(${out} "${mode}" PARENT_SCOPE)
 endfunction(dep_module_mode)
 
@@ -529,7 +536,7 @@ function(dep_gate lib)
       string(APPEND text " (${why})")
     endif()
     string(APPEND text ", module skipped. Either -DMODULE_${modupper}=OFF to drop it quietly,")
-    string(APPEND text " or -D${G_OPTION}=ON (also -DMODULE_${modupper}=ON) to build ${lib} from source,")
+    string(APPEND text " or -D${G_OPTION}=ON to build ${lib} from source,")
     string(APPEND text " or install ${lib}.")
     if("${DEPS_MISSING}" STREQUAL "FAIL")
       message(FATAL_ERROR "${text} (DEPS_MISSING=FAIL)")

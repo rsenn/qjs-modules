@@ -1,8 +1,8 @@
 # Third-party dependencies of the native modules
 
 Libraries that `quickjs-*.c` / `quickjs-*.h` need when every module is enabled
-(`MODULE_ARCHIVE`, `MODULE_MAGIC`, `MODULE_MYSQL`, `MODULE_PGSQL`, `MODULE_SQLITE` AUTO,
-`MODULE_BCRYPT`, `MODULE_DIGEST`, `MODULE_SERIAL`, `MODULE_WASM` ON; `MODULE_GPIO` is
+(`MODULE_ARCHIVE`, `MODULE_MAGIC`, `MODULE_MYSQL`, `MODULE_PGSQL`, `MODULE_SQLITE`,
+`MODULE_BCRYPT`, `MODULE_DIGEST`, `MODULE_SERIAL`, `MODULE_WASM` ON (default; `MODULE_<name>` is ON or OFF, never AUTO); `MODULE_GPIO` is
 Raspberry Pi only and OFF by default, listed for completeness).
 
 Sources: `CMakeLists.txt` section 7, `cmake/deps/*.cmake`, `cmake/wamr/`, the `#include`
@@ -116,24 +116,22 @@ predicate, queue, repeater, syscallerror, tree-walker, virtual, xml, yaml.
 
 `BUILD_LIBPQ`, `BUILD_LIBMARIADB`, `BUILD_LIBSQLITE`, `BUILD_LIBARCHIVE` and `BUILD_LIBMAGIC` say
 where the library of an enabled module (`MODULE_PGSQL`, `MODULE_MYSQL`, `MODULE_SQLITE`,
-`MODULE_ARCHIVE`, `MODULE_MAGIC`) comes from. These five modules are `ON`, `OFF` or `AUTO`
-(default); nothing is built behind your back:
+`MODULE_ARCHIVE`, `MODULE_MAGIC`) comes from. These five modules are `ON` (default) or `OFF`;
+a module is never chosen by which libraries are installed:
 
 | `MODULE_<name>` | A library that is not installed |
 |---|---|
-| `AUTO` (default) | not built, the module is switched off with a warning |
-| `ON` | built (an error when it cannot be) |
+| `ON` (default) | built (an error when it cannot be) |
 | `OFF` | the module is not wanted |
 
 | `BUILD_LIB<x>` | Meaning |
 |---|---|
-| `AUTO` (default) | the installed library, else as `MODULE_<name>` and `DEPS_BUILD` say |
+| `AUTO` (default) | the installed library, else as `DEPS_BUILD` says (the module is ON) |
 | `ON` | always build it, even when installed |
 | `OFF` | the installed library only |
 
-The first configure of a tree with a missing library warns, for each module, how to go on:
-`-DMODULE_<name>=OFF` to drop the module quietly, or `-DBUILD_LIB<x>=ON` (or
-`-DMODULE_<name>=ON`) to build the library. Two cache variables set the policy for the whole
+A configure with a missing library that cannot be built stops and says how to go on:
+`-DMODULE_<name>=OFF` to drop the module, or `-DBUILD_LIB<x>=ON` to build the library. Two cache variables set the policy for the whole
 tree (`cmake/Deps.cmake`, "build policy"):
 
 | `DEPS_BUILD` | Libraries that are built |
@@ -145,8 +143,8 @@ tree (`cmake/Deps.cmake`, "build policy"):
 
 | `DEPS_MISSING` | A missing library that is not built |
 |---|---|
-| `DISABLE` (default) | the module is switched off, with a warning |
-| `FAIL` | the configure stops |
+| `FAIL` (default) | the configure stops |
+| `DISABLE` | the module is switched off, with a warning (explicit opt-in) |
 
 Every library has a build kind: CMake (libarchive and its codecs, libmariadb, zlib, LibreSSL),
 GNU autotools (libmagic, libpq) or its own tools (SQLite: `make`, `tclsh`). A kind the machine

@@ -57,21 +57,23 @@ option(DO_TESTS "Perform tests" ON)
 # sysroot-aware here), which would link host x86_64 .so files into an
 # Emscripten build and fail. None of them have a wasm-usable counterpart set
 # up in this tree, so default them off for WASI/Emscripten targets.
-# MODULE_<name> of a module that needs a library is ON, OFF or AUTO (see Deps.cmake):
-#   ON    a missing library is built          AUTO  a missing library switches the module off, with a warning
+# MODULE_<name> of a module that needs a library is ON or OFF (see Deps.cmake): ON builds the
+# module, and its library when it is missing; a module is never chosen by what is installed.
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(_module_default OFF)
 else()
-  set(_module_default AUTO)
+  set(_module_default ON)
 endif()
 foreach(_mod ARCHIVE MAGIC MYSQL PGSQL SQLITE)
   string(TOLOWER "${_mod}" _modlower)
-  set(MODULE_${_mod} ${_module_default} CACHE STRING "Build '${_modlower}' module: ON (build its library if missing), AUTO (only with an installed library), OFF")
-  set_property(CACHE MODULE_${_mod} PROPERTY STRINGS AUTO ON OFF)
+  option(MODULE_${_mod} "Build '${_modlower}' module (ON builds its library when missing)" ${_module_default})
+  if(NOT MODULE_${_mod} MATCHES "^(ON|OFF|TRUE|FALSE|YES|NO|1|0)$")
+    message(FATAL_ERROR "MODULE_${_mod}='${MODULE_${_mod}}': a module is ON or OFF, AUTO does not exist")
+  endif()
 endforeach(_mod)
 # BUILD_LIB<x> decides where the library of a module comes from (see Deps.cmake):
 #   ON    always build it, third_party/<repo> cloned from git when needed
-#   OFF   the installed one only         AUTO  the installed one, built only when MODULE_<m>=ON or DEPS_BUILD allows
+#   OFF   the installed one only         AUTO  the installed one, built only when it is missing and DEPS_BUILD allows (MODULE_<m> is ON)
 set(BUILD_LIBMARIADB AUTO CACHE STRING "MariaDB Connector/C for the 'mysql' module: AUTO, ON or OFF")
 set(BUILD_LIBPQ AUTO CACHE STRING "libpq from PostgreSQL for the 'pgsql' module: AUTO, ON or OFF")
 set(BUILD_LIBSQLITE AUTO CACHE STRING "SQLite for the 'sqlite' module: AUTO, ON or OFF")
