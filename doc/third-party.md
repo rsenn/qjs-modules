@@ -3,7 +3,7 @@
 Libraries that `quickjs-*.c` / `quickjs-*.h` need when every module is enabled
 (`MODULE_ARCHIVE`, `MODULE_MAGIC`, `MODULE_MYSQL`, `MODULE_PGSQL`, `MODULE_SQLITE`,
 `MODULE_BCRYPT`, `MODULE_DIGEST`, `MODULE_SERIAL`, `MODULE_WASM` ON (default; `MODULE_<name>` is ON or OFF, never AUTO); `MODULE_GPIO` is
-Raspberry Pi only and OFF by default, listed for completeness).
+Raspberry Pi only: ON by default on an ARM Raspberry Pi (a cross build for ARM counts), OFF elsewhere, listed for completeness).
 
 Sources: `CMakeLists.txt` section 7, `cmake/deps/*.cmake`, `cmake/wamr/`, the `#include`
 lines of `quickjs-*.[ch]`, and `ldd` / `readelf -d` of the `x86_64-linux-gnu` build

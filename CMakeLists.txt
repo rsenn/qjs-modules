@@ -95,7 +95,20 @@ endforeach(_lib)
 option(MODULE_BCRYPT "Build 'bcrypt' module" ON)
 option(MODULE_DIGEST "Build 'digest' module (md5, sha1, sha2; needs third_party/Hash-Algorithms)" ON)
 option(MODULE_SERIAL "Build 'serial' module" ON)
-option(MODULE_GPIO "Build 'gpio' module (Raspberry Pi only)" OFF)
+# gpio drives the Raspberry Pi (ARM) registers: ON for an ARM target that is a Raspberry Pi
+# (native: /proc/device-tree/model says so; cross build: assumed), else OFF
+set(_gpio_default OFF)
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm)")
+  if(CMAKE_CROSSCOMPILING)
+    set(_gpio_default ON)
+  elseif(EXISTS /proc/device-tree/model)
+    file(READ /proc/device-tree/model _gpio_model)
+    if(_gpio_model MATCHES "Raspberry Pi")
+      set(_gpio_default ON)
+    endif()
+  endif()
+endif()
+option(MODULE_GPIO "Build 'gpio' module (Raspberry Pi only)" ${_gpio_default})
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   # 'serial' (libserialport, needs termios/native tty ioctls) and 'gpio'
