@@ -75,6 +75,25 @@ ywrite_scalar_is_keyword(const char* s, size_t len) {
   return FALSE;
 }
 
+/* YAML 1.2 core numbers that a JS number never prints as: 0x1F, 0o17, .inf, -.Inf, .nan */
+static BOOL
+ywrite_scalar_is_special_number(const char* s, size_t len) {
+  static const char* const inf[] = {".inf", ".Inf", ".INF"}, *const nan[] = {".nan", ".NaN", ".NAN"};
+  size_t i = len > 0 && (s[0] == '+' || s[0] == '-') ? 1 : 0;
+
+  if(len > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'o'))
+    return TRUE;
+
+  if(len - i != 4)
+    return FALSE;
+
+  for(size_t k = 0; k < 3; k++)
+    if(!memcmp(s + i, inf[k], 4) || (!i && !memcmp(s, nan[k], 4)))
+      return TRUE;
+
+  return FALSE;
+}
+
 static BOOL
 ywrite_scalar_needs_quote(const char* s, size_t len) {
   if(len == 0)
@@ -99,7 +118,7 @@ ywrite_scalar_needs_quote(const char* s, size_t len) {
       return TRUE;
   }
 
-  if(ywrite_scalar_is_number(s, len))
+  if(ywrite_scalar_is_number(s, len) || ywrite_scalar_is_special_number(s, len))
     return TRUE;
 
   if(ywrite_scalar_is_keyword(s, len))

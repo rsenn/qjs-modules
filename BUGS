@@ -1328,3 +1328,15 @@
     //   import { Predicate } from 'predicate';
     //   Predicate.charset('abc')('b'); Predicate.string('abc')('abc');
     //   -> free(): double free detected in tcache 2
+
+- ywrite-circular-structure-segfault (src/yaml/ywrite.c ywrite_node/ywrite_mapping): a value that
+  contains itself recurses until the stack is gone, no depth limit (JSON.stringify throws a
+  TypeError). Found 2026-11-20 while testing yaml.write.
+
+    // const o = {}; o.o = o; require('yaml').write(o);   -> Segmentation fault
+
+- ywrite-function-top-level-written-as-map (src/yaml/ywrite.c ywrite_document): a function as the
+  top-level value is written as {} although doc/native/yaml.md says a function throws TypeError
+  (only a function nested in a tree throws). Found 2026-11-20.
+
+    // write(() => 1)   -> '{}\n'      write({f: () => 1})   -> TypeError

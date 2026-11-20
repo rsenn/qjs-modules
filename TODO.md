@@ -691,79 +691,21 @@ done inline since each is either large or a judgment call on API shape.
   implementation is ever added. A small named-enum-plus-lookup (or just naming the parameter
   at each call site in the trace) would stay correct automatically.
 
-## Tier 12 — deferred: `yaml` module `read()` (YAML → JS)
+## Tier 12 — `yaml` module: what is left after `parse()` landed
 
-`quickjs-yaml.c` currently only implements `write()` (JS value → block-YAML text), added for
-the eagle-agent EDA parts catalog export (used by `~/Sources/plot-cv/eagle-*.js`). Parsing was explicitly
-out of scope for that work and is deferred:
+`parse(text)` and `stringify(value, replacer, space)` (Bun's `YAML` shape) are in `quickjs-yaml.c`;
+`parse` needs CYAML (`HAVE_LIBCYAML`, from an installed copy or `-DBUILD_LIBCYAML=ON`), writing is
+always `src/yaml/ywrite.c`. Open:
 
-- A `read(text)` function, symmetric with `write()`, decoding the same block-YAML subset
-  back into a JS value.
-- If/when that's built, model it as a computed-goto push/SAX parser in
-  `src/yread.c`/`include/yread.h`, the same pattern `src/json/jread.c`/`include/json/jread.h` (JSON) and
-  `src/xml/xread.c`/`include/xml/xread.h` (XML) already use, rather than a recursive-descent parser
-  inline in `quickjs-yaml.c`.
-- Scope stays pinned to the writer's own subset (block style, plain/quoted scalars, no
-  anchors/aliases/multi-doc/flow/tags) — no need to handle full YAML 1.1/1.2.
-
-  **Superseded by Tier 13 below** if cyaml adoption goes ahead: cyaml's `cyaml_parse()` +
-  `cyaml_emit()` would cover both `read()` and `write()` (full YAML 1.2, not just this
-  writer's subset), making a hand-rolled `src/yread.c` push parser unnecessary. Leaving this
-  entry in place until that decision is made.
-
-## Tier 13 — adopt cyaml as the `yaml` module's backing library (plan only, not started)
-
-`quickjs-yaml.c` currently hand-rolls its own block-YAML writer (`quickjs-yaml.c:js_yaml_write()`,
-~200 lines of DynBuf-based emission logic covering only a
-restricted subset — see Tier 12 above) and has no reader at all. Replace both with
-[cyaml](https://github.com/andrewmd5/cyaml) (MIT, C11, zero dependencies beyond libc,
-passes the full `yaml-test-suite`), vendored as a git submodule.
-
-**Submodule placement:** put it at `3rdparty/cyaml`. All current submodules (`libarchive`,
-`pigpio`, `libutf`, `tutf8e`, `libserialport`, `libbcrypt`) live under `third_party/<name>`,
-not `3rdparty/`. So the name the plan wants for the new `cyaml` submodule differs from the
-existing directory; decide whether to follow `third_party/` or rename it to `3rdparty/` as a
-separate follow-up, not bundled into the cyaml change itself.
-
-**API shape — full-tree only, no evented/pull parser:** confirmed by reading `src/cyaml.h`
-(and the README's "Event stream output" feature) that cyaml has no SAX-style push parser
-(no read-callback/handler registration) and no incremental pull parser (no "get next
-event" call that holds cursor state across calls) comparable to this project's own
-`src/json/jread.c`/`src/xml/xread.c` computed-goto push parsers or the pull-style primitives
-`XMLPushParser`/JSON's streaming reader expose. `cyaml_parse()`/`cyaml_parse_stream()`
-take the entire source buffer up front and return a fully-built `cyaml_doc_t*` node tree;
-there is no way to feed it chunks incrementally or stop after N events. `cyaml_events()`/
-`cyaml_stream_events()` sound like a streaming API from the name, but they are the
-opposite: they take an *already fully-parsed* `cyaml_doc_t*` and serialize it back out as
-a textual canonical event-log string (the same event-log format `yaml-test-suite` uses for
-its conformance fixtures) — a dump format, not a live callback/cursor API. Implication for
-this module: `read()` will have to be a whole-buffer-in, whole-JS-value-out conversion
-(`cyaml_parse()` → walk the `cyaml_node_t` tree → build the JS value), same shape as the
-existing JSON module's non-streaming `parse()`, not the incremental push/pull style used
-for XML. If an evented/pull YAML reader is ever wanted, cyaml won't provide it — would
-still need the hand-rolled `src/yread.c` design sketched in Tier 12, on top of or instead
-of cyaml.
-
-**Plan:**
-1. Add `3rdparty/cyaml` submodule (`https://github.com/andrewmd5/cyaml`), wire into
-   `CMakeLists.txt` (cyaml ships its own `CMakeLists.txt`; likely `add_subdirectory()` with
-   `CYAML_BUILD_TESTS`/`CYAML_BUILD_SHARED` off, static-link into `quickjs-yaml.c`'s module).
-2. Replace `js_yaml_write()`'s hand-rolled emission with `cyaml_doc_new()` +
-   `cyaml_new_*()`/`cyaml_map_set()`/`cyaml_seq_push()` tree construction from the JS value,
-   then `cyaml_emit()`. Drops the current subset restrictions (flow style, anchors/aliases,
-   multi-doc all become available "for free").
-3. Implement `read()` via `cyaml_parse()` + a `cyaml_node_t` → `JSValue` walk (using
-   `cyaml_scalar_kind()`/`cyaml_as_int()`/`cyaml_as_float()`/`cyaml_as_bool()`/
-   `cyaml_scalar_str()` for scalars, iterate seq/map nodes for containers).
-4. Decide whether to also expose YPATH (`cyaml_path()`/`cyaml_path_query()`) as a
-   `yaml`-module convenience, or leave that as a `deep`/`pointer`-module-style concern —
-   default to *not* exposing it initially (avoid growing custom API surface per the
-   "internal vs public APIs" project principle), revisit only if a concrete use case shows up.
-5. Update `doc/native/yaml.md` for the new `read()` export and the widened `write()`
-   compliance (full YAML 1.2 vs. today's documented subset).
-6. Remove/resolve the Tier 12 entry above once this lands (either fold its `read()` request
-   into this work, or explicitly drop the yread.c push-parser design if cyaml covers the
-   need without it).
+- **Writer through CYAML:** not used because `cyaml_emit()` quotes a built boolean (`cyaml_new_bool()`
+  is the string `true`, and the emitter quotes reserved words unless the node has a tag), so
+  `write([true])` would read back as `["true"]`. Revisit if upstream gets a plain-bool node.
+- **Multi-document write:** `parse()` returns an array for `a\n---\nb`, but `write()` has no inverse
+  (an array is a sequence). Bun has none either.
+- **YPATH** (`cyaml_path_query()`): deliberately not exposed (no standard to match).
+- **Merge keys** (`<<`) are not expanded, as in YAML 1.2 and CYAML.
+- **Duplicate keys:** `parse('a: 1\na: 2')` gives `{a: 2}`; CYAML accepts it although its option
+  `dup_keys` defaults to false.
 
 Node.js API compatibility gaps (process, timers, assert, buffer, console, globals, perf_hooks, tty, url) are tracked in `doc/api-compatibility-nodejs.md`.
 

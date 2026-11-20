@@ -1,24 +1,62 @@
 # yaml
 
-Source: `quickjs-yaml.c` — module exports a flat list of functions.
+Source: `quickjs-yaml.c` (module), `src/yaml/ywrite.c` + `include/yaml/ywrite.h` (writer) — flat function list.
 
-Serializes a plain JS value tree (object/array/string/number/boolean/null)
-to a small, deterministic block-YAML subset: nested mappings/sequences via
-indentation, plain or quoted scalars. No anchors/aliases, no multi-document
-streams, no flow style (except the two exceptions noted below), no custom
-tags. Written for the eagle-agent library indexer (`../eagle-agent.md`),
-which needs a compact, human- and LLM-readable source-of-truth text for the
+Parses YAML into a plain JS value tree (`parse`, needs CYAML), and serializes one back to a small,
+deterministic block-YAML subset (`write`, `stringify`): nested mappings/sequences via indentation,
+plain or quoted scalars. The writer has no anchors/aliases, no multi-document streams, no flow style
+(except the two exceptions noted below), no custom tags. Written for the eagle-agent library indexer
+(`../eagle-agent.md`), which needs a compact, human- and LLM-readable source-of-truth text for the
 EAGLE parts catalog — but it's general-purpose for any plain data tree.
 
-**There is no `read()` yet.** This module is write-only for now; parsing
-YAML back into a JS value is deferred (tracked as Tier 12 in `TODO.md`).
-Don't round-trip through this module until that lands.
+## Build: CYAML is optional
+
+`parse` is parsed by [CYAML](https://github.com/andrewmd5/cyaml) (YAML 1.2, MIT, no dependencies).
+The module builds without it and then exports only `write` and `stringify`; a script that needs
+`parse` can test `typeof yaml.parse`.
+
+| `-DBUILD_LIBCYAML=` | CYAML | `parse` |
+| --- | --- | --- |
+| `AUTO` (default) | the installed one (`cyaml.h` + `libcyaml`), else none | only if found |
+| `ON` | built from `third_party/cyaml` (cloned from git on first configure) | yes |
+| `OFF` | not used | no |
+
+`DEPS_BUILD=CMAKE` or `ALL` also builds a missing CYAML. `CYAML_PREFIX`, `CYAML_INCLUDE_DIR` and
+`CYAML_LIBRARY_DIR` point at an installed copy that is not in the default paths.
 
 ## Functions
 
 | Function | Args | Description |
 | --- | --- | --- |
+| `parse(text)` | 1 | YAML text to a JS value. Several documents (`---`) give an array of them, an empty text gives `null`. Only with CYAML. |
+| `stringify(value, replacer?, space?)` | 1 | As `write()`, with `Bun.YAML.stringify`'s signature: `space` is a number of spaces per level or a string whose length is used (max 10), default 2. A `replacer` other than `null`/`undefined` throws `TypeError`. |
 | `write(value, indent?)` | 1 | Serializes `value` to a YAML string. `indent` is the number of spaces per nesting level, default `2`. Non-positive values fall back to the default. |
+
+`stringify` differs from Bun in the output: Bun writes flow style (`{a: 1}`) when `space` is omitted,
+this module always writes block style.
+
+### `parse()` rules
+
+| YAML | JS |
+| --- | --- |
+| plain `null`, `~`, empty | `null` |
+| plain `true`/`false` (any case) | boolean |
+| plain `12`, `0x1F`, `0o17`, `1.5e3`, `.inf`, `.nan` | number (an integer past int64 is a double) |
+| quoted, block (`\|`, `>`) or tagged (`!!str 12`) scalar | string |
+| mapping | plain object, keys in document order, a key is its text (`1:` is `"1"`, `~:` is `"null"`) |
+| sequence | array |
+| alias `*a` | **the same JS value** as the anchored node (so `r.y === r.x`, and `&a {b: *a}` is a cycle) |
+
+Merge keys (`<<`) are an ordinary key, as in YAML 1.2. A mapping key that is not a scalar throws
+`TypeError`; a syntax error throws `SyntaxError` with `line N, column M`; a non-string argument
+throws `TypeError`.
+
+```js
+import { parse } from 'yaml';
+
+parse('a: 1\nb: [x, true, ~]\n'); // { a: 1, b: ['x', true, null] }
+parse('a: 1\n---\nb: 2\n');      // [{ a: 1 }, { b: 2 }]
+```
 
 ## Translation rules
 
@@ -86,7 +124,7 @@ in which case it's written **double-quoted** with JSON-style escapes
 - starts with a YAML indicator character: `- ? : , [ ] { } # & * ! | > ' " % @` \` `` ` or whitespace
 - contains `: ` (colon-space) or a bare trailing `:`, or ` #` (space-hash) — these are structurally significant in YAML
 - contains any control character (byte < 0x20)
-- looks like a number (`123`, `-1.5e10`, …) — quoted so it stays a string on read-back
+- looks like a number (`123`, `-1.5e10`, `0x1F`, `0o17`, `.inf`, `.nan`, …) — quoted so it stays a string on read-back
 - matches a YAML 1.1 boolean/null keyword, case-sensitively against `null`/`Null`/`NULL`/`~`, `true`/`True`/`TRUE`, `false`/`False`/`FALSE`, `yes`/`Yes`/`YES`, `no`/`No`/`NO`, `on`/`On`/`ON`, `off`/`Off`/`OFF`
 
 Everything else — including a string that merely *contains* a `"` or `'`
@@ -156,12 +194,12 @@ the numeric-lookalike rule quotes them to keep them strings.
 - Key order is whatever order you assigned object properties in; if
   ordering matters for the catalog's readability (e.g. `prefix` before
   `pins`), build the object literal in that order.
-- `write()` throws on functions/symbols in the tree — strip or convert
+- `write()` throws on functions/symbols nested in the tree — strip or convert
   those before calling it.
 
 ## Export list
 
-Generated by `utilities/doc-api.js` from the `yaml` dump of `utilities/api-surface.sh`: 1 members. Edit the text above this block, not the block.
+Generated by `utilities/doc-api.js` from the `yaml` dump of `utilities/api-surface.sh`: 3 members. Edit the text above this block, not the block.
 
-**Functions:** `write()`
+**Functions:** `parse()`, `stringify()`, `write()`
 
