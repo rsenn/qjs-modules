@@ -100,10 +100,10 @@ import config, { database } from './config.yaml'; // default and the top-level k
 | `SyntaxError` for invalid YAML | `SyntaxError`, message `yaml.parse: ... (line N, column M)` |
 | `parse(x)` of a non-string | a buffer is decoded, anything else is coerced with `String()` |
 | `stringify(value, null, space)` | flow style without `space`, block style with a number 1-10 or a string (first 10 characters); a replacer or a BigInt throws `Error`; undefined, functions and symbols are skipped |
-| `import x from './a.yaml'`, `.yml`, dynamic `import()` | a load hook of `lib/bun.js`: the parsed value is `default`, each top-level key that is an identifier is a named export |
+| `import x from './a.yaml'`, `.yml`, dynamic `import()` | a load hook of `lib/bun.js`: the parsed value is `default`, each top-level key that is an identifier (reserved words such as `class` included) is a named export |
 
 Differences: a circular value throws `TypeError` where Bun writes an anchor (`&root {o: *root}`); the key order of a mapping with
-`<<` can differ from Bun's; `require('./a.yaml')`, `bun --hot` reloading and the bundler (build-time parsing) do not exist here.
+`<<` can differ from Bun's; Bun writes an anchor and an alias for an object that occurs twice (`{a: &a {x: 1},b: *a}`), `stringify` writes it twice; Bun writes a symbol key by its description, `stringify` skips it; `require('./a.yaml')`, `bun --hot` reloading and the bundler (build-time parsing) do not exist here.
 
 ## Utilities
 

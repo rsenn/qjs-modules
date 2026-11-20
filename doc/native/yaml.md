@@ -71,7 +71,8 @@ parse('a: 1\n---\nb: 2\n');      // [{ a: 1 }, { b: 2 }]
 | `[]` (empty array) | `[]` |
 | non-empty object | block mapping, keys in **JS insertion order** |
 | non-empty array | block sequence |
-| function / symbol | throws `TypeError` |
+| symbol, BigInt | throws `TypeError` |
+| function | `{}` (a known quirk, see `BUGS`) |
 
 **Empty `{}`/`[]` are the one deliberate flow-style exception** — block
 style has no way to represent zero entries, so an empty collection is
@@ -195,7 +196,7 @@ the numeric-lookalike rule quotes them to keep them strings.
 - Key order is whatever order you assigned object properties in; if
   ordering matters for the catalog's readability (e.g. `prefix` before
   `pins`), build the object literal in that order.
-- `write()` throws on functions/symbols nested in the tree — strip or convert
+- `write()` throws on symbols and BigInts in the tree — strip or convert
   those before calling it.
 
 ## Export list
