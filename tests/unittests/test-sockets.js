@@ -83,6 +83,34 @@ tests({
     eq(u.path, 'other.sock');
   },
 
+  'SockAddr AF_UNIX long path'() {
+    const dir = '/tmp/qjs-sockets-test-long-unix-path-' + os.getpid?.();
+    const p1 = dir + '-aaaaaaaaaaaa.sock', p2 = dir + '-bbbbbbbbbbbb.sock';
+    const addr = new SockAddr(AF_UNIX);
+    eq(addr.byteLength, 110);
+    assert(p1.length > 26 && p1.length < 108);
+
+    const u1 = new SockAddr(AF_UNIX, p1), u2 = new SockAddr(AF_UNIX, p2);
+    eq(u1.path, p1);
+    eq(u1.toString(), 'unix://' + p1);
+
+    for(const p of [p1, p2]) os.remove(p);
+    const s1 = new Socket(AF_UNIX, SOCK_STREAM), s2 = new Socket(AF_UNIX, SOCK_STREAM);
+    s1.bind(u1);
+    s2.bind(u2);
+    s1.listen(1);
+    const c = new Socket(AF_UNIX, SOCK_STREAM);
+    c.connect(u1);
+    c.close();
+    s1.close();
+    s2.close();
+    for(const p of [p1, p2]) os.remove(p);
+
+    throws(() => new SockAddr(AF_UNIX, 'x'.repeat(108)), e => assert(e instanceof RangeError));
+    new SockAddr(AF_UNIX, 'x'.repeat(107));
+    throws(() => (u1.path = 'x'.repeat(108)), e => assert(e instanceof RangeError));
+  },
+
   'SockAddr addr/port setters'() {
     const a = new SockAddr(AF_INET, '10.0.0.1', 1);
     a.addr = '1.2.3.4';

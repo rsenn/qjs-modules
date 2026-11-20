@@ -123,6 +123,15 @@ against these — they're the "why" behind what gets picked up next.
 4. **Support archives, filesystem, sockets, serial, and databases** as first-class, ergonomic
    JS APIs, not just raw native bindings.
 
+- **`lib/deep.js` does not comply with `doc/native/deep.md`** — the module is missing the
+  `DeepIterator` class, the `default` object, and the `pathOf()` function. Several constants have
+  wrong values (`TYPE_ALL`, `TYPE_ARRAY`, `TYPE_BIG_INT`, `TYPE_FLOAT64`, `TYPE_FUNCTION`,
+  `TYPE_NAN`, `TYPE_NUMBER`, `TYPE_PRIMITIVE`, `FILTER_NEGATE`, `PATH_AS_STRING`, `NO_THROW`).
+  It also exports extra functions (`extend`, `delegate`, `transform`, `unflatten`) and helpers
+  (`ValueType`, `ReturnValuePath`, `ReturnValuePathFunction`, `isPlainObject`) that are not in
+  the spec, and misses constants `TYPE_CATCH_OFFSET`, `TYPE_EXCEPTION`, `TYPE_FUNCTION_BYTECODE`,
+  `TYPE_MODULE`, `TYPE_UNINITIALIZED`, `MAXDEPTH_MASK`. The doc is the source of truth; the module
+  must be rewritten to match it exactly. *(2026-11-19)*
 ## Tier 3 — known perf/architecture debt (already flagged) and spec-compliance gaps
 
 - **`js_is_*` type-check helpers (`js_is_arraybuffer`, `js_is_date`, `js_is_map`, etc. in
@@ -3744,3 +3753,12 @@ under wine only (a C check of vtconsole output and injected key events), not on 
 | 31.6 | Mouse input (`mousetrackingEnable`) on a console | `ENABLE_MOUSE_INPUT` without QuickEdit, MOUSE_EVENT to SGR 1006 reports |
 | 31.7 | `readKey()` polls with `os.sleep(10)` on a console | `ttyRead` never blocks there; a waiting variant would need WaitForSingleObject |
 | 31.8 | `util.stripAnsi` and `terminal.stripAnsi` differ | util's also strips `ESC (B` and similar, terminal's only CSI; one of them should go |
+
+
+## Build on a fresh machine (found 2026-11-15, Termux restore)
+
+- standalone configure (no quickjs installed) fails in cmake/deps/BuildQuickJS.cmake:192, see BUGS
+  build-quickjs-forwards-cmake-system-name; first fix, it blocks every first configure on Termux
+- when the parent directory is a quickjs tree (`plot-cv/quickjs/qjs-modules/..` was used) the build
+  runs in that tree's sources (the log shows repl.js of plot-cv/quickjs): decide whether a build tree
+  of someone else's checkout is acceptable

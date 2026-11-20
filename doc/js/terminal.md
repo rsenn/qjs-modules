@@ -13,6 +13,11 @@ written to `f` before. On a Windows console without VT processing it carries out
 with console API calls (see [misc](../native/misc.md#terminal--console)), so the same code works
 there. The module has no default output.
 
+The module also runs on node, bun and deno (checked 2026-11-19, `test-terminal-portable.js`). There
+`f` is `process.stdout`, `process.stderr` or an fd number, `ttyWrite` is `f.write(s)` or
+`fs.writeSync`, and raw mode, size and reads go through `process.stdin`, `process.stdout` and
+`fs.readSync(0)`. `readKey(0)` blocks by polling every 10 ms on every runtime.
+
 ```js
 import * as std from 'std';
 import { cursorPosition, eraseInLine, windowSize } from 'terminal';
@@ -42,15 +47,30 @@ const [columns, rows] = windowSize(std.out);
 `eraseInDisplay(f, n)`, `eraseInLine(f, n)` (n: 0 to the end, 1 to the start, 2 all),
 `scrollUp(f, n)`, `scrollDown(f, n)`, `setAlternateScreen(f)`, `setNormalScreen(f)`,
 `setScreen(f, alternate)`, `linewrapEnable(f)`, `linewrapDisable(f)` (`CSI ?7 h/l`),
-`setScrollRegion(f, top, bottom)`, `resetScrollRegion(f)`.
+`setScrollRegion(f, top, bottom)`, `resetScrollRegion(f)`, `insertLines(f, n)` /
+`deleteLines(f, n)` (`CSI n L` / `CSI n M`: rows below the cursor move down or up inside the
+scroll region).
+
+`alternateScreen(f, fn)` runs `fn` on the alternate screen and switches back to the normal one
+afterwards, also when `fn` throws; when `fn` returns a promise the switch waits for it. The
+normal screen, its scrollback and cursor stay untouched meanwhile (a pager, a full-screen
+picker):
+
+```js
+await alternateScreen(std.out, async () => {
+  /* draw, read keys */
+});
+```
 
 ### Backbuffer
 
 `class Screen(f)` - accumulates draw calls (`write`, `moveTo`, `clear`, `clearLine`, `fg`, `bg`,
 `sgr`, `resetAttrs`, `fillRect`, `box`) into an in-memory string and sends them to `f` in one
 `flush()`, which avoids flicker on a full-screen redraw. Later draws in a frame cover earlier
-ones. `BOX_SINGLE`, `BOX_DOUBLE` are the border sets for `box()`, `centeredRect(cols, rows,
-width, height)` places a centered panel.
+ones. `alternate(on)` switches screens inside the frame, `lines(row, col, lines)` draws the
+lines a widget below returns. `BOX_SINGLE`, `BOX_DOUBLE`, `BOX_ROUNDED`, `BOX_HEAVY` are the
+border sets for `box()`, `boxLines()` and `table()` (keys `tl tr bl br h v` and the tees
+`t b l r x`); `centeredRect(cols, rows, width, height)` places a centered panel.
 
 ### Color
 
@@ -59,8 +79,28 @@ width, height)` places a centered panel.
 
 ### Mouse / device / tabs
 
-`mousetrackingEnable(f)`, `mousetrackingDisable(f)`, `devicecodeQuery(f)`,
-`devicestatusQuery(f)`, `deviceReset(f)`, `tabSet(f)`, `tabClear(f)`, `tabsClearall(f)`.
+`mouseEnable(f, mode)` turns on SGR mouse reports; `mode` is `click` (presses, releases, wheel,
+the default), `drag` (also motion with a button held) or `move` (all motion).
+`mouseDisable(f)` turns every mode off. `decodeKeys()` and `readKey()` decode the reports
+(SGR `ESC [ < b;x;y M/m`, urxvt `ESC [ b;x;y M` and X10 `ESC [ M bxy`) into mouse keys:
+
+```js
+mouseEnable(std.out, 'drag');
+readKey(0);   // { type: 'mouse', button: 'left', action: 'press', x: 12, y: 3, ctrl: false, meta: false, shift: false }
+```
+
+| Field | Values |
+| --- | --- |
+| `button` | `left`, `middle`, `right`, `none` (motion without a button, X10 releases), `wheelup`, `wheeldown`, `wheelleft`, `wheelright` |
+| `action` | `press`, `release`, `drag`, `move`, `wheel` |
+| `x`, `y` | cell, 1-based |
+
+`decodeKeys()` gives such a key as `{ name: 'mouse', mouse: { button, action, x, y }, ctrl,
+meta, shift }`. `mousetrackingEnable(f)` / `mousetrackingDisable(f)` set modes 1000, 1006 and
+1015 together.
+
+`devicecodeQuery(f)`, `devicestatusQuery(f)`, `deviceReset(f)`, `tabSet(f)`, `tabClear(f)`,
+`tabsClearall(f)`.
 
 ### Input and size
 
@@ -68,7 +108,7 @@ width, height)` places a centered panel.
 | --- | --- |
 | `enableRawMode(fd)` / `disableRawMode(fd)` | `ttySetRaw(fd)` / `ttySetRaw(fd, true)`; `enableRawMode` returns whether the output does VT itself |
 | `windowSize(f)` | `[columns, rows]` of the window behind a FILE or fd, `[80, 24]` when it is no terminal |
-| `readKey(fd)` | one keypress, waits for it: `{ type }` with `up`, `down`, `left`, `right`, `pageup`, `pagedown`, `space`, `enter`, `backspace`, `ctrlc`, `escape` (also any other sequence), `eof`, or `{ type: 'char', char }` |
+| `readKey(fd)` | one keypress, waits for it: `{ type }` with `up`, `down`, `left`, `right`, `pageup`, `pagedown`, `space`, `enter`, `backspace`, `ctrlc`, `escape` (also any other sequence), `eof`, `{ type: 'char', char }` or `{ type: 'mouse', ... }` (see Mouse) |
 | `decodeKeys(str, final)` | `{ keys, rest }`: each key as `{ s, key }` with Node's keypress shape `{ sequence, name, ctrl, meta, shift }`; `rest` is an unfinished escape sequence to prepend to the next chunk, unless `final` |
 
 ### Widths
@@ -76,11 +116,98 @@ width, height)` places a centered panel.
 `charWidth(ch)` (0 for controls and combining marks, 2 for wide characters, else 1),
 `stringWidth(str)` (cells, CSI sequences left out), `stripAnsi(str)` (CSI sequences removed).
 
+## Widgets
+
+String builders for TUI layouts. Each returns a string or an array of lines and writes nothing,
+so the result can go to `console.log`, a `Screen` (`screen.lines(row, col, lines)`) or another
+widget. Widths are terminal cells (`stringWidth`), escape sequences in the input are kept.
+
+```js
+import { bigText, gradient, boxLines, inputBox, statusBar, BOX_ROUNDED } from 'terminal';
+
+console.log(gradient(bigText('qjs', { half: true }), ['#6ec3f4', '#c084fc', '#f9a8d4']).join('\n'));
+console.log(boxLines('Tips:\n1. /help', { title: 'qjs', chars: BOX_ROUNDED, border: { fg: '#c084fc' } }).join('\n'));
+console.log(inputBox('', { width: 60, placeholder: 'Type your message' }).join('\n'));
+console.log(statusBar(['~/src', 'no sandbox', 'model (100%)'], 60));
+```
+
+| Export | Result |
+| --- | --- |
+| `style(text, attrs)` | text with SGR attributes and a reset; `attrs`: `fg`, `bg` (`'#rrggbb'`, `'#rgb'`, `[r, g, b]`, a 0-255 palette index or a name like `red`), `bold`, `dim`, `italic`, `underline`, `inverse`, `strike` |
+| `parseColor(c)` | `[r, g, b]` of `'#rrggbb'`, `'#rgb'` or an array, else `null` |
+| `gradient(text, stops, bg)` | each column colored along the color `stops`, left to right; `text` is a string or lines, which share the columns (one gradient across a banner) |
+| `truncate(str, width, ellipsis)` | cut to `width` cells with `…`, unchanged when it fits |
+| `pad(str, width, align, fill)` | filled to `width` cells, `align` `left`, `right` or `center`, truncated when longer |
+| `wrap(str, width)` | lines broken at spaces, long words split, a color running over a break closed and reopened |
+| `rule(width, { char, label, style })` | `── label ─────` |
+| `bigText(text, { half, fill, shadow })` | block letters, 5 lines; `half` packs them into 3 lines of `▀▄█`, `shadow` adds a `░` drop shadow |
+| `boxLines(content, opts)` | bordered panel; `width`, `padding`, `title`, `titleAlign`, `footer`, `align`, `chars`, `border` (attrs); long lines are wrapped |
+| `inputBox(value, opts)` | input line between two rules: `width`, `prompt`, `placeholder`, `cursor`, `rule`, `promptStyle`, `placeholderStyle` |
+| `statusBar([left, center, right], width)` | one line, center kept centered while there is room |
+| `keyValue(pairs, { width, keyStyle, gap })` | aligned `key  value` lines, null values left out |
+| `table(rows, opts)` | bordered table; a row is cells or `{ section: title }`; `header`, `align`, `columnStyle` (per-column attrs over the padded cell, for highlighted columns), `headerStyle`, `sectionStyle`, `border`, `chars`, `maxWidth`; numbers align right |
+| `progressBar(fraction, width, opts)` | bar in eighth-cell steps; `style`, `empty`, `emptyStyle` |
+| `sparkline(values, { width, min, max })` | `▁▂▃▄▅▆▇█`, one cell per value |
+| `SPINNERS` | frame sets: `dots`, `line`, `arc`, `circle`, `quadrant`, `bounce`, `pulse` |
+| `scrollbar(height, total, offset)` | one cell per row, `┃` over the visible part |
+
+### Scrolling
+
+`class ScrollView(height, lines)` is a window of `height` lines onto a longer list. While
+`follow` is on, new lines keep the end in view (a log); scrolling up turns it off, reaching the
+bottom turns it on again.
+
+```js
+const view = new ScrollView(rows - 4);
+view.push(...wrap(text, columns - 1));
+if(view.handleKey(key)) screen.lines(1, 1, view.render(columns)).flush();
+```
+
+| Member | Description |
+| --- | --- |
+| `lines`, `offset`, `follow`, `height` | content, first visible line, end-following |
+| `push(...lines)`, `setLines(lines)`, `resize(height)` | change content or height |
+| `scrollTo(n)`, `scrollBy(n)`, `pageUp()`, `pageDown()`, `home()`, `end()` | move the window |
+| `atBottom`, `maxOffset` | getters |
+| `visible()` | the lines in the window |
+| `render(width, { bar })` | exactly `height` lines of `width` cells, a scrollbar in the last column |
+| `handleKey(key)` | scrolls for up, down, pageup, pagedown, home, end and the mouse wheel (3 lines); takes a `decodeKeys()` key or a `readKey()` result; returns whether it scrolled |
+
+For scrolling the terminal itself use `setScrollRegion()` with `scrollUp()` / `scrollDown()` or
+`insertLines()` / `deleteLines()`.
+
+### Drawing without flicker
+
+A status line or an input row that is redrawn on every key flickers when
+the redraw starts with an erase (`CSI J`, `CSI 2K`) and then writes the
+same text again. `Region` remembers what each of its rows shows and
+writes only the rows that changed, each erased to its end after the new
+text instead of before it:
+
+```js
+const status = new Region(rows - 1, 2, cols);
+ttyWrite(f, status.update([left, right]));   // both rows the first time
+ttyWrite(f, status.update([left, right]));   // '' - nothing to write
+status.moveTo(newRows - 1, 2, newCols);       // after a resize: drawn again
+status.invalidate();                          // after the screen was cleared
+```
+
+`layoutInput([prompt, cont], text, cursor, columns)` cuts an edited text
+into screen rows (`prompt` before the first line, `cont` before each line
+after a newline, wide characters counted as two cells) and gives the
+cursor's row and column, so a line editor can draw its rows through a
+`Region` and place the cursor without erasing what is below it:
+
+```js
+const { lines, row, col } = layoutInput(['> ', '. '], 'ab\ncd', 4, 80);
+// lines ['> ab', '. cd'], row 1, col 3
+```
+
 ## Export list
 
-Generated by `utilities/doc-api.js` from the `terminal` dump of `utilities/api-surface.sh`: 81 members. Edit the text above this block, not the block.
+Generated by `utilities/doc-api.js` from the `terminal` dump of `utilities/api-surface.sh`: 162 members. Edit the text above this block, not the block.
 
-**Functions:** `centeredRect()`, `charWidth()`, `cursorBackward()`, `cursorDown()`, `cursorForward()`, `cursorHide()`, `cursorHome()`, `cursorHorizontalAbsolute()`, `cursorNextLine()`, `cursorOrigin()`, `cursorPosition()`, `cursorPreviousLine()`, `cursorQuery()`, `cursorRestore()`, `cursorSave()`, `cursorShow()`, `cursorUp()`, `decodeKeys()`, `deviceReset()`, `devicecodeQuery()`, `devicestatusQuery()`, `disableRawMode()`, `enableRawMode()`, `eraseInDisplay()`, `eraseInLine()`, `hslToRgb()`, `linewrapDisable()`, `linewrapEnable()`, `mousetrackingDisable()`, `mousetrackingEnable()`, `readKey()`, `resetScrollRegion()`, `reverseVideoOff()`, `reverseVideoOn()`, `rgbBackground()`, `rgbForeground()`, `scrollDown()`, `scrollUp()`, `setAlternateScreen()`, `setNormalScreen()`, `setScreen()`, `setScrollRegion()`, `sgr()`, `stringWidth()`, `stripAnsi()`, `tabClear()`, `tabSet()`, `tabsClearall()`, `ttyGetWinSize()`, `ttyRead()`, `ttySetRaw()`, `ttyWrite()`, `windowSize()`
+**Functions:** `alternateScreen()`, `bigText()`, `boxLines()`, `centeredRect()`, `charWidth()`, `cursorBackward()`, `cursorDown()`, `cursorForward()`, `cursorHide()`, `cursorHome()`, `cursorHorizontalAbsolute()`, `cursorNextLine()`, `cursorOrigin()`, `cursorPosition()`, `cursorPreviousLine()`, `cursorQuery()`, `cursorRestore()`, `cursorSave()`, `cursorShow()`, `cursorUp()`, `decodeKeys()`, `deleteLines()`, `deviceReset()`, `devicecodeQuery()`, `devicestatusQuery()`, `disableRawMode()`, `enableRawMode()`, `eraseInDisplay()`, `eraseInLine()`, `gradient()`, `hslToRgb()`, `inputBox()`, `insertLines()`, `keyValue()`, `linewrapDisable()`, `linewrapEnable()`, `mouseDisable()`, `mouseEnable()`, `mousetrackingDisable()`, `mousetrackingEnable()`, `pad()`, `parseColor()`, `progressBar()`, `readKey()`, `resetScrollRegion()`, `reverseVideoOff()`, `reverseVideoOn()`, `rgbBackground()`, `rgbForeground()`, `rule()`, `scrollDown()`, `scrollUp()`, `scrollbar()`, `setAlternateScreen()`, `setNormalScreen()`, `setScreen()`, `setScrollRegion()`, `sgr()`, `sparkline()`, `statusBar()`, `stringWidth()`, `stripAnsi()`, `style()`, `tabClear()`, `tabSet()`, `table()`, `tabsClearall()`, `truncate()`, `ttyGetWinSize()`, `ttyRead()`, `ttySetRaw()`, `ttyWrite()`, `windowSize()`, `wrap()`
 
 **Values:** `EAGAIN = 11`
 
@@ -88,17 +215,42 @@ Generated by `utilities/doc-api.js` from the `terminal` dump of `utilities/api-s
 
 object
 
-- **static values:** `bl`, `br`, `h`, `tl`, `tr`, `v`
+- **static values:** `b`, `bl`, `br`, `h`, `l`, `r`, `t`, `tl`, `tr`, `v`, `x`
+
+### `BOX_HEAVY`
+
+object
+
+- **static values:** `b`, `bl`, `br`, `h`, `l`, `r`, `t`, `tl`, `tr`, `v`, `x`
+
+### `BOX_ROUNDED`
+
+object
+
+- **static values:** `b`, `bl`, `br`, `h`, `l`, `r`, `t`, `tl`, `tr`, `v`, `x`
 
 ### `BOX_SINGLE`
 
 object
 
-- **static values:** `bl`, `br`, `h`, `tl`, `tr`, `v`
+- **static values:** `b`, `bl`, `br`, `h`, `l`, `r`, `t`, `tl`, `tr`, `v`, `x`
+
+### `SPINNERS`
+
+object
+
+- **static values:** `arc`, `bounce`, `circle`, `dots`, `line`, `pulse`, `quadrant`
 
 ### `Screen`
 
 class, constructible
 
-- **methods:** `bg()`, `box()`, `clear()`, `clearLine()`, `fg()`, `fillRect()`, `flush()`, `moveTo()`, `resetAttrs()`, `sgr()`, `write()`
+- **methods:** `alternate()`, `bg()`, `box()`, `clear()`, `clearLine()`, `fg()`, `fillRect()`, `flush()`, `lines()`, `moveTo()`, `resetAttrs()`, `sgr()`, `write()`
+
+### `ScrollView`
+
+class, constructible
+
+- **methods:** `end()`, `handleKey()`, `home()`, `pageDown()`, `pageUp()`, `push()`, `render()`, `resize()`, `scrollBy()`, `scrollTo()`, `setLines()`, `visible()`
+- **properties:** `atBottom (get)`, `maxOffset (get)`
 

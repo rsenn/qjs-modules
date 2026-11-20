@@ -42,7 +42,8 @@ typedef int SOCKET;
 #include <linux/if_alg.h>
 #endif
 
-#if defined(HAVE_AFUNIX_H)
+/* sockaddr_un is in the SockAddr union, so SockAddr(AF_UNIX) is 110 bytes */
+#if defined(HAVE_AFUNIX_H) || !defined(_WIN32) || defined(__MSYS__) || defined(__CYGWIN__)
 #define HAVE_AF_UNIX
 #endif
 
@@ -376,7 +377,12 @@ js_sockaddr_args(JSContext* ctx, int* argcp, JSValueConst** argvp) {
     if((sa = js_sockaddr_data(ret))) {
       int r;
 
-      if((r = js_sockaddr_init(ctx, *argcp, *argvp, sa)) > 0) {
+      if((r = js_sockaddr_init(ctx, *argcp, *argvp, sa)) < 0) {
+        JS_FreeValue(ctx, ret);
+        return JS_EXCEPTION;
+      }
+
+      if(r > 0) {
         *argcp -= r;
         *argvp += r;
       }
@@ -429,6 +435,13 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
     const char* str;
 
     if((str = JS_ToCString(ctx, argv[0]))) {
+#ifdef HAVE_AF_UNIX
+      if(a->family == AF_UNIX && strlen(str) >= sizeof(a->un.sun_path)) {
+        JS_ThrowRangeError(ctx, "AF_UNIX path too long (max %zu bytes)", sizeof(a->un.sun_path) - 1);
+        JS_FreeCString(ctx, str);
+        return -1;
+      }
+#endif
 #ifdef HAVE_LINUX_NETWORK_HEADERS
 
       if(a->family == AF_IPX) {
@@ -548,8 +561,8 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   if(argc >= 1 && (other = js_sockaddr_data(argv[0]))) {
     *a = *other;
-  } else {
-    js_sockaddr_init(ctx, argc, argv, a);
+  } else if(js_sockaddr_init(ctx, argc, argv, a) < 0) {
+    goto fail;
   }
 
   JS_SetOpaque(obj, a);
@@ -666,7 +679,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
 #ifdef HAVE_AF_UNIX
     case SOCKADDR_PATH: {
       if(a->family == AF_UNIX)
-        ret = JS_NewString(ctx, a->un.sun_path);
+        ret = JS_NewStringLen(ctx, a->un.sun_path, strnlen(a->un.sun_path, sizeof(a->un.sun_path)));
 
       break;
     }
@@ -729,7 +742,10 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         const char* str;
 
         if((str = JS_ToCString(ctx, value))) {
-          str_copyn(a->un.sun_path, str, sizeof(a->un.sun_path));
+          if(strlen(str) >= sizeof(a->un.sun_path))
+            ret = JS_ThrowRangeError(ctx, "AF_UNIX path too long (max %zu bytes)", sizeof(a->un.sun_path) - 1);
+          else
+            str_copyn(a->un.sun_path, str, sizeof(a->un.sun_path));
           JS_FreeCString(ctx, str);
         }
       }

@@ -855,24 +855,6 @@ static JSClassDef js_predicate_class = {
     .call = js_predicate_call,
 };
 
-/* Installed three times, unmodified, in js_predicate_init() below - as the
- * "self" operators (Predicate + Predicate), and twice more for Predicate
- * mixed with Number (Number + Predicate / Predicate + Number). Same C
- * function every time (js_predicate_operator() above): which cross-type
- * table QuickJS's operator-overload dispatch had to consult to *find* it
- * doesn't matter, since it always composes its result from argv[0]/argv[1]
- * in the order actually written in the expression. */
-static const JSCFunctionListEntry js_predicate_operator_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("+", 2, js_predicate_operator, OPERATOR_PLUS),
-    JS_CFUNC_MAGIC_DEF("-", 2, js_predicate_operator, OPERATOR_MINUS),
-    JS_CFUNC_MAGIC_DEF("*", 2, js_predicate_operator, OPERATOR_MUL),
-    JS_CFUNC_MAGIC_DEF("/", 2, js_predicate_operator, OPERATOR_DIV),
-    JS_CFUNC_MAGIC_DEF("%", 2, js_predicate_operator, OPERATOR_MOD),
-    JS_CFUNC_MAGIC_DEF("|", 2, js_predicate_operator, OPERATOR_BOR),
-    JS_CFUNC_MAGIC_DEF("&", 2, js_predicate_operator, OPERATOR_BAND),
-    JS_CFUNC_MAGIC_DEF("**", 2, js_predicate_operator, OPERATOR_POW),
-};
-
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_predicate_tostring, 0),
@@ -992,56 +974,8 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_ids, countof(js_predicate_ids));
   JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_types, countof(js_predicate_types));
 
-  /* Builds Predicate.prototype[Symbol.operatorSet] via the same
-   * Operators.create(selfOps, leftDef, rightDef, ...) mechanism user code
-   * uses (see doc/js/predicate.md) - just called from C instead of
-   * JS. args[0] (selfOps) is used verbatim as self_ops: both operands are
-   * Predicate. args[1]/args[2] each carry the *same* js_predicate_operator_
-   * funcs table again, plus a "left"/"right" property naming the *other*
-   * type (Number) - but note the JS-facing property name is the inverse of
-   * which internal cross-type table it ends up in: quickjs.c's
-   * js_operators_create_internal() reads a `left` property into
-   * opset->right (used when Predicate is on the right, Number on the left -
-   * `5 * predicate`) and a `right` property into opset->left (Predicate on
-   * the left - `predicate * 5`). Both still resolve to the same
-   * js_predicate_operator(), which doesn't care which table found it - see
-   * doc/js/predicate.md for the full explanation. */
-  JSValue operators, operators_create;
-  JSAtom operators_set = js_symbol_operatorset_atom(ctx);
-
-  operators_create = js_operators_create(ctx, &operators);
-
-  JSValue predicate_operators = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, predicate_operators, js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
-
-  JSValueConst args[3] = {predicate_operators, JS_NewObject(ctx), JS_NewObject(ctx)};
-
-  /* args[1]: { left: Number, +, -, ... } -> opset->right -> "Number OP predicate" */
-  JS_SetPropertyFunctionList(ctx, args[1], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
-
-  JS_SetPropertyStr(ctx, args[1], "left", js_global_get_str(ctx, "Number"));
-
-  /* args[2]: { right: Number, +, -, ... } -> opset->left -> "predicate OP Number" */
-  JS_SetPropertyFunctionList(ctx, args[2], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
-
-  JS_SetPropertyStr(ctx, args[2], "right", js_global_get_str(ctx, "Number"));
-
-  JSValue predicate_operatorset = JS_UNDEFINED;
-
-  if(JS_IsFunction(ctx, operators_create)) {
-    predicate_operatorset = JS_Call(ctx, operators_create, operators, 3, args);
-    JS_DefinePropertyValue(ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
-  }
-
-  JS_FreeValue(ctx, operators);
-  JS_FreeValue(ctx, operators_create);
-  // JS_FreeValue(ctx, predicate_operators);
-  JS_FreeAtom(ctx, operators_set);
-
   if(m) {
     JS_SetModuleExport(ctx, m, "Predicate", predicate_ctor);
-    JS_SetModuleExport(ctx, m, "PredicateOperators", predicate_operators);
-    JS_SetModuleExport(ctx, m, "PredicateOperatorSet", predicate_operatorset);
     JS_SetModuleExportList(ctx, m, js_predicate_funcs, countof(js_predicate_funcs));
     JS_SetModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
   }
@@ -1061,8 +995,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   if((m = JS_NewCModule(ctx, module_name, js_predicate_init))) {
     JS_AddModuleExport(ctx, m, "Predicate");
-    JS_AddModuleExport(ctx, m, "PredicateOperators");
-    JS_AddModuleExport(ctx, m, "PredicateOperatorSet");
     JS_AddModuleExportList(ctx, m, js_predicate_funcs, countof(js_predicate_funcs));
     JS_AddModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
   }

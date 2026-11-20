@@ -1268,3 +1268,63 @@
     console.log('a', undefined)
     // expected: a undefined
     // actual:   a { options: { depth: Infinity, ... }, log: [Function: log], ... }
+
+- build-quickjs-forwards-cmake-system-name (cmake/deps/BuildQuickJS.cmake:137, quickjs_configure_args): the nested
+  quickjs configure gets -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}. On Termux that is Android, and
+  passing CMAKE_SYSTEM_NAME on the command line makes CMake set CMAKE_CROSSCOMPILING=TRUE even
+  though host and target are the same machine (quickjs-build/CMakeFiles/4.5.0/CMakeSystem.cmake
+  says so). quickjs's CMakeLists.txt:727 then sets QJSC to the bare name `qjsc` (a host compiler
+  expected on PATH), the generation of repl.c fails with "make[2]: qjsc: No such file or
+  directory ... Error 127", and find_quickjs() stops with "Building quickjs failed". Found
+  2026-11-15 on a fresh Termux (CMake 4.5.0, clang 21.1.8): the first configure without an
+  installed quickjs fails in every project that has BuildQuickJS.cmake. Fix: forward
+  CMAKE_SYSTEM_NAME, CMAKE_SYSROOT and the toolchain file only when CMAKE_CROSSCOMPILING is true
+  of this project; the quickjs side needs the matching fix (see ../TODO, host qjsc for a real
+  cross build). Same code in the canonical BuildQuickJS.cmake of the quickjs-native-bindings
+  skill and in the copies of the other qjs-* projects.
+
+    # on Termux, no quickjs installed
+    cmake -S . -B build/x
+    # expected: quickjs is built, then the project configures
+    # actual:   CMake Error at cmake/BuildQuickJS.cmake:189 (message): Building quickjs failed
+    #           (see build/x/quickjs-build.log: make[2]: qjsc: No such file or directory)
+
+- check-cflag-result-cached-under-fixed-name (cmake/Checks.cmake:19, check_cflag()): the function
+  probes with check_c_compiler_flag("${FLAG}" RESULT). The result variable of that macro is a
+  cache entry, so the name RESULT is shared by every call, and every probe after the first one
+  returns the first answer without running (checked with a scratch project: after
+  -fnonexistent-flag fails, -O0 and -g report "not supported"). On the Termux configure
+  (2026-11-15) the probes -w, -O0, -ggdb, -g3 and -g all print "not supported", which clang
+  accepts, so those flags were silently dropped. Why -w was the first to fail is not found. Same
+  function in the Checks.cmake of qjs-ffi, qjs-glfw, qjs-imgui, qjs-lws, qjs-modules, qjs-opencv
+  and qjs-sound (line 19 in each). Fix: a result name derived from the flag (the way check_flag()
+  does) and unset it afterwards.
+
+    # scratch CMakeLists.txt: project(t C); include(CheckCCompilerFlag)
+    # function(chk F) check_c_compiler_flag("${F}" RESULT) message(STATUS "${F}: ${RESULT}") endfunction()
+    # chk(-fnonexistent-flag) chk(-O0) chk(-g)   # all three print empty
+
+- externalproject-cmp0225-wasm3-libserialport (cmake/deps/BuildWasm3.cmake:15,
+  cmake/deps/BuildLibSerialPort.cmake:20): ExternalProject_Add(wasm3_shared, libserialport_static)
+  uses the default configure command without CMAKE_INSTALL_PREFIX; CMake 4.5 warns (policy CMP0225) on
+  every configure. Pass CMAKE_INSTALL_PREFIX or set the policy. Found 2026-11-15 on Termux.
+
+- typedarray-prototype-cache-unreferenced: js_typedarray_prototype()
+  (src/utils.c:2138) stores the freshly obtained prototype in the static
+  `typedarray_prototype` and returns the same value without a
+  JS_DupValue(), so the cache holds no reference of its own while the
+  caller later frees the one it was handed (js_is_typedarray() does
+  `JS_FreeValue(ctx, proto)` right after). Stock QuickJS never notices
+  because %TypedArray%.prototype stays alive through Uint8Array's own
+  prototype link, but any engine that counts references for real (the
+  js-engines N-API adapter, where the box is deleted at count zero) is left
+  with a dangling cache: use-after-free and a double free in js_input_chars()
+  on the second string argument (Predicate.string('abc')('abc') after any
+  earlier call). One-line fix: `typedarray_prototype = JS_DupValue(ctx, ret);`
+  before the early `return ret;`. Found while running tests/unittests on
+  Bun/Deno/Node through the adapter.
+
+    // bun/deno/node via the adapter:
+    //   import { Predicate } from 'predicate';
+    //   Predicate.charset('abc')('b'); Predicate.string('abc')('abc');
+    //   -> free(): double free detected in tcache 2

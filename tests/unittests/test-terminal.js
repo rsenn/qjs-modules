@@ -2,8 +2,11 @@
 import * as std from 'std';
 import { close, pipe, write } from 'os';
 import * as terminal from '../../lib/terminal.js';
-import { Screen, cursorPosition, cursorSave, cursorUp, decodeKeys, devicecodeQuery, eraseInLine, mousetrackingEnable, readKey, setScrollRegion, stringWidth, ttyGetWinSize, ttyWrite, windowSize } from '../../lib/terminal.js';
+import { BOX_ROUNDED, Region, ScrollView, layoutInput, Screen, alternateScreen, bigText, boxLines, gradient, inputBox, keyValue, mouseDisable, mouseEnable, pad, progressBar, rule, scrollbar, sparkline, statusBar, stripAnsi, style, table, truncate, wrap, cursorPosition, cursorSave, cursorUp, decodeKeys, devicecodeQuery, eraseInLine, mousetrackingEnable, readKey, setScrollRegion, stringWidth, ttyGetWinSize, ttyWrite, windowSize } from '../../lib/terminal.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
+
+/* arrays and objects compared by their JSON, eq() compares with != */
+const same = (a, b) => eq(JSON.stringify(a), JSON.stringify(b));
 
 /* what fn writes to a fresh tmpfile */
 function written(fn) {
@@ -87,5 +90,116 @@ tests({
     eq('ctrlc', readKey(r).type);
     eq('eof', readKey(r).type);
     close(r);
+  },
+
+  'decodeKeys reads SGR, urxvt and X10 mouse reports'() {
+    const { keys, rest } = decodeKeys('\x1b[<64;10;5M\x1b[<2;3;4m\x1b[<32;7;8M\x1b[35;1;2M\x1b[M !!x\x1b[<0;1');
+    const m = keys.map(k => k.key.mouse && Object.values(k.key.mouse).join(' '));
+
+    same(['wheelup wheel 10 5', 'right release 3 4', 'left drag 7 8', 'none release 1 2', 'left press 1 1', undefined], m);
+    eq('x', keys[5].key.name);
+    eq('\x1b[<0;1', rest);
+  },
+
+  'readKey returns mouse keys'() {
+    const [r, w] = pipe();
+    const bytes = new TextEncoder().encode('\x1b[<20;4;6M');
+
+    write(w, bytes.buffer, 0, bytes.length);
+    close(w);
+
+    const k = readKey(r);
+
+    same(['mouse', 'left', 'press', 4, 6, true, true], [k.type, k.button, k.action, k.x, k.y, k.ctrl, k.shift]);
+    close(r);
+  },
+
+  'mouse modes and the alternate screen write their sequences'() {
+    eq('\x1b[?1002h\x1b[?1006h', written(f => mouseEnable(f, 'drag')));
+    assert(written(f => mouseDisable(f)).includes('\x1b[?1000l'));
+    eq('\x1b[?1049hx\x1b[?1049l', written(f => alternateScreen(f, () => f.puts('x'))));
+    eq('\x1b[?1049h', written(f => new Screen(f).alternate().flush()));
+  },
+
+  'style, truncate and pad keep cell widths'() {
+    eq('\x1b[1;38;2;0;255;0mok\x1b[0m', style('ok', { fg: '#0f0', bold: true }));
+    eq('hello w…', truncate('hello world', 8));
+    eq('ab', truncate('ab', 8));
+    eq('  漢  ', pad('漢', 6, 'center'));
+    eq(4, stringWidth(pad('\x1b[1mabcdef\x1b[0m', 4)));
+  },
+
+  'wrap breaks at spaces and carries colors over the break'() {
+    same(['one two', 'three'], wrap('one two three', 7));
+    same(['abcd', 'ef'], wrap('abcdef', 4));
+    same(['\x1b[31mab\x1b[0m', '\x1b[31mcd\x1b[0m'], wrap('\x1b[31mab cd\x1b[0m', 3));
+    same(['a', '', 'b'], wrap('a\n\nb', 5));
+  },
+
+  'gradient colors columns and keeps the text'() {
+    const g = gradient(['ab', 'c'], ['#000000', '#ffffff']);
+
+    same(['ab', 'c'], g.map(stripAnsi));
+    assert(g[0].includes('38;2;0;0;0m') && g[0].includes('38;2;255;255;255m'));
+  },
+
+  'bigText draws block letters'() {
+    eq(5, bigText('A').length);
+    eq(' ███', bigText('A')[0]);
+    eq(3, bigText('hi', { half: true }).length);
+  },
+
+  'boxLines, inputBox, rule and statusBar are as wide as asked'() {
+    const box = boxLines('hi there', { title: 't', width: 14, chars: BOX_ROUNDED });
+
+    same(['╭─ t ────────╮', '│ hi there   │', '╰────────────╯'], box);
+    eq('── x ─────', rule(10, { label: 'x' }));
+    same([20, 20, 20], inputBox('', { width: 20, placeholder: 'type' }).map(l => stringWidth(l)).filter((w, k) => k != 1).concat(20));
+    eq('left    mid    right', statusBar(['left', 'mid', 'right'], 20));
+  },
+
+  'table draws sections and aligns numbers right'() {
+    const t = table([['a', '1'], { section: 'S' }, ['bb', '22']], { header: ['k', 'v'], headerStyle: null, sectionStyle: null });
+
+    same(['┌────┬────┐', '│ k  │ v  │', '├────┼────┤', '│ a  │  1 │', '├────┴────┤', '│    S    │', '├────┬────┤', '│ bb │ 22 │', '└────┴────┘'], t);
+  },
+
+  'keyValue, progressBar and sparkline'() {
+    same(['a    1', 'bbb  2'], keyValue({ a: 1, bbb: 2, c: null }));
+    eq('█████     ', progressBar(0.5, 10));
+    eq('▌ ', progressBar(0.25, 2));
+    eq('▁▅▃█', sparkline([1, 5, 3, 8]));
+  },
+
+  'layoutInput wraps rows and places the cursor'() {
+    same({ lines: ['> ab', '. cd'], row: 1, col: 3 }, layoutInput(['> ', '. '], 'ab\ncd', 4, 80));
+    same({ lines: ['> abc', 'de'], row: 1, col: 1 }, layoutInput(['> ', ''], 'abcde', 4, 5));
+    same({ lines: ['> abc', ''], row: 1, col: 0 }, layoutInput(['> ', ''], 'abc', 3, 5));
+    same({ lines: ['> 漢', '字'], row: 0, col: 2 }, layoutInput(['> ', ''], '漢字', 0, 5));
+  },
+
+  'Region writes only the rows that changed'() {
+    const r = new Region(5, 2, 10);
+
+    eq('\x1b[5;1H\x1b[0ma\x1b[0m\x1b[K\x1b[6;1H\x1b[0mb\x1b[0m\x1b[K', r.update(['a', 'b']));
+    eq('', r.update(['a', 'b']));
+    eq('\x1b[6;1H\x1b[0mc\x1b[0m\x1b[K', r.update(['a', 'c']));
+    eq('\x1b[1;1H\x1b[0ma\x1b[0m', r.moveTo(1, 1).update(['a']).replace('\x1b[K', ''));
+    eq('\x1b[1;1H\x1b[0m0123456789\x1b[0m', r.invalidate().update(['0123456789']));
+  },
+
+  'ScrollView follows the end until scrolled up'() {
+    const v = new ScrollView(3, ['a', 'b', 'c', 'd', 'e']);
+
+    same(['c', 'd', 'e'], v.visible());
+    assert(v.handleKey({ name: 'pageup' }));
+    same(['a', 'b', 'c'], v.visible());
+    v.push('f');
+    same(['a', 'b', 'c'], v.visible());
+    v.handleKey({ type: 'mouse', button: 'wheeldown' });
+    same(['d', 'e', 'f'], v.visible());
+    assert(v.follow);
+    same(['d ┃', 'e ┃', 'f ┃'].length, v.render(3).length);
+    same(['│', '│', '┃', '┃'], scrollbar(4, 8, 4));
   },
 });
