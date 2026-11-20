@@ -1166,8 +1166,8 @@ if(NOT WASI)
   endif(EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 endif(NOT WASI)
 
-file(GLOB LIBRARY_SOURCES include/*.h include/json/*.h include/xml/*.h include/compat/*.h src/*.c src/json/*.c
-     src/xml/*.c src/compat/*.c)
+file(GLOB LIBRARY_SOURCES include/*.h include/json/*.h include/xml/*.h include/yaml/*.h include/compat/*.h src/*.c src/json/*.c
+     src/xml/*.c src/yaml/*.c src/compat/*.c)
 list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
 foreach(F wasm-sections.c wasm3-backend.c wamr-backend.c)
   list(REMOVE_ITEM LIBRARY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/${F}")
