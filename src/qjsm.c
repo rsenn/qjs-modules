@@ -133,6 +133,7 @@ typedef struct {
    document in the ELF section .qjsm.info, and the one-line version */
 extern const char qjsm_buildinfo[];
 extern const char qjsm_version_line[];
+extern const char* const qjsm_native_names[]; /* quickjs-<name>.c of this tree, '_' for '-', ends in 0 */
 #define QJSM_BUILDINFO_MAGIC_SIZE sizeof("QJSM-BUILDINFO")
 
 /* Opaque state threaded through the jsm_trace_malloc* allocator, used to compute
@@ -1073,9 +1074,38 @@ jsm_search_path(JSContext* ctx, const char* module_name) {
   return jsm_search_list(ctx, module_name, path);
 }
 
+/* Whether the bare `module_name` is a native module of this tree (deep, list, tree_walker, ...).
+ * A lib/<name>.js of the same name is a polyfill for other runtimes and is never loaded for it:
+ * the import resolves to the native module or fails.
+ *
+ *   jsm_is_native_name("list") == TRUE      jsm_is_native_name("node/events") == FALSE
+ */
+static BOOL
+jsm_is_native_name(const char* module_name) {
+  size_t len = strlen(module_name);
+
+  if(len == 0 || strpbrk(module_name, "/\\."))
+    return FALSE;
+
+  for(const char* const* n = qjsm_native_names; *n; n++)
+    if(strlen(*n) == len) {
+      size_t i;
+
+      for(i = 0; i < len; i++)
+        if((module_name[i] == '-' ? '_' : module_name[i]) != (*n)[i])
+          break;
+
+      if(i == len)
+        return TRUE;
+    }
+
+  return FALSE;
+}
+
 /*
  * Tries `module_name` with each of module_extensions appended in turn, calling `fn`
- * on each candidate until one succeeds.
+ * on each candidate until one succeeds. A script candidate (.js, /index.js) of a bare name that
+ * is a native module is refused, see jsm_is_native_name().
  */
 static char*
 jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
@@ -1095,8 +1125,14 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
     n = str_chrs(ext, ";\n", 2);
     str_copyn(&s[len], ext, n);
 
-    if((t = fn(ctx, s)))
-      break;
+    if((t = fn(ctx, s))) {
+      if(fn == &jsm_search_path && !(n == sizeof(CONFIG_SHEXT) - 1 && !strncmp(ext, CONFIG_SHEXT, n)) && jsm_is_native_name(module_name)) {
+        DEBUG_MODULE(3, "(module_name: \"%s\") skipped script %s: a native module has this name", module_name, t);
+        js_free(ctx, t);
+        t = 0;
+      } else
+        break;
+    }
 
     ext += n;
   }

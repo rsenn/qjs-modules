@@ -1754,6 +1754,12 @@ js_mysqlresult_finalizer(JSRuntime* rt, JSValue val) {
     mysql_free_result(res);
 }
 
+/* MySQLResult: only query() creates one. */
+static JSValue
+js_mysqlresult_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  return JS_ThrowTypeError(ctx, "MySQLResult is not constructible, query() returns it");
+}
+
 static JSClassDef js_mysqlresult_class = {
     .class_name = "MySQLResult",
     .finalizer = js_mysqlresult_finalizer,
@@ -2014,11 +2020,12 @@ js_mysql_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_mysqlresult_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_mysqlresult_class_id, &js_mysqlresult_class);
 
-  mysqlresult_ctor = JS_NewObject(ctx);
+  mysqlresult_ctor = JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 0, JS_CFUNC_constructor, 0);
   mysqlresult_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, mysqlresult_proto, js_mysqlresult_funcs, countof(js_mysqlresult_funcs));
   JS_SetClassProto(ctx, js_mysqlresult_class_id, mysqlresult_proto);
+  JS_SetConstructor(ctx, mysqlresult_ctor, mysqlresult_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "MySQL", mysql_ctor);

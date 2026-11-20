@@ -142,7 +142,7 @@ check_windows_native(WINDOWS_NATIVE)
 var2define(WINDOWS_NATIVE)
 
 check_functions(memrchr memmem)
-check_functions(getegid geteuid getgid getpid getppid getsid getuid setegid seteuid setgid setuid)
+check_functions(getegid geteuid getgid getpid getppid getsid gettid getuid setegid seteuid setgid setuid)
 
 check_functions(uname)
 

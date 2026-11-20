@@ -54,32 +54,19 @@ tests({
     eq(empty.shift(), undefined);
   },
 
-  'index access (get/set/has)'() {
+  'index access is not provided'() {
+    /* a linked list cannot index in O(1): doc/native/list.md, use values()/entries() or a ListIterator */
     const l = new List([1, 2, 3]);
 
-    eq(l[0], 1);
-    eq(l[2], 3);
-    eq(l[-1], 3);
-    eq(l[-3], 1);
-
-    assert(0 in l);
-    assert(!(5 in l));
-    assert(!(-4 in l));
-    assert(-3 in l);
+    eq(l[0], undefined);
+    eq(l[-1], undefined);
+    assert(!(0 in l));
+    eq(l.at, undefined);
+    eq(l.length, 3);
 
     l[1] = 'X';
-    eqArr(l, [1, 'X', 3]);
-
-    // setting out of range (positive) pads with undefined
-    const l2 = new List([1, 2, 3]);
-    l2[5] = 99;
-    eqArr(l2, [1, 2, 3, undefined, undefined, 99]);
-    eq(l2.length, 6);
-
-    // setting out of range (negative) pads at the head
-    const l3 = new List([1, 2, 3]);
-    l3[-5] = 'Y';
-    eqArr(l3, ['Y', undefined, 1, 2, 3]);
+    eqArr(l, [1, 2, 3]);
+    eq(l[1], 'X');
   },
 
   'clear()'() {
@@ -344,8 +331,6 @@ tests({
       'lastIndexOf',
       'findIndex',
       'findLastIndex',
-      'find',
-      'findLast',
       'every',
       'some',
       'filter',

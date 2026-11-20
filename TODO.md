@@ -101,7 +101,6 @@ is skipped, no token), `test-typescript` (strip-only syntax), `test-globals`. St
 
 | Test | Cause | Fix |
 | --- | --- | --- |
-| `test-misc` | `valuePointer`, `gettid` | not investigated |
 | `test-sql` | needs a reachable MySQL/PostgreSQL | environment |
 
 Verified, small, open (`BUGS`): `new Directory(path, { recursive })` zeroes the default `flags`/`mask`

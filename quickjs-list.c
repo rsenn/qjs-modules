@@ -903,6 +903,10 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(!(node = node_get(ctx, argv[0])))
         return JS_EXCEPTION;
 
+      /* the sentinel is what moves: it cannot be the place to move it to */
+      if(node == &list->node)
+        return JS_ThrowRangeError(ctx, "rotate(): argument 1 must be an element, not the end of the list");
+
       list_del(&list->header);
       __list_add(&list->header, node->link.prev, &node->link);
 
@@ -1234,6 +1238,7 @@ enum {
   NODE_NEXT,
   NODE_LINKED,
   NODE_SENTINEL,
+  NODE_ADDRESS,
 };
 
 static JSValue
@@ -1263,6 +1268,14 @@ js_node_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case NODE_SENTINEL: {
       ret = JS_NewBool(ctx, JS_IsUninitialized(node->value));
+      break;
+    }
+    case NODE_ADDRESS: {
+      char buf[32];
+
+      buf[0] = '0';
+      buf[1] = 'x';
+      ret = JS_NewStringLen(ctx, buf, 2 + fmt_xlonglong(&buf[2], (uintptr_t)node));
       break;
     }
   }
@@ -1309,6 +1322,7 @@ static const JSCFunctionListEntry js_node_methods[] = {
     JS_CGETSET_MAGIC_DEF("linked", js_node_get, 0, NODE_LINKED),
     JS_CGETSET_MAGIC_DEF("sentinel", js_node_get, 0, NODE_SENTINEL),
     JS_CGETSET_MAGIC_DEF("value", js_node_get, js_node_set, NODE_VALUE),
+    JS_CGETSET_MAGIC_DEF("address", js_node_get, 0, NODE_ADDRESS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Node", JS_PROP_CONFIGURABLE),
 };
 

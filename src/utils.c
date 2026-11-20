@@ -2915,7 +2915,7 @@ js_newpointer(JSContext* ctx, void* ptr) {
   if(ptr == 0)
     return JS_NULL;
 
-  return DEF6432(js_newuint64, JS_NewUint32)(ctx, (uintptr_t)ptr);
+  return JS_NewBigUint64(ctx, (uint64_t)(uintptr_t)ptr);
 }
 
 JSValue

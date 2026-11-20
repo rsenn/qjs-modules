@@ -1203,21 +1203,6 @@
     os.totalmem();            // macOS, node: 17179869184
                               // qjsm: InternalError, no /proc/meminfo
 
-- misc-gettid-never-detected: misc exports gettid only #if HAVE_GETTID,
-  config.h.cmake has #cmakedefine HAVE_GETTID since 2026-10-13, but no
-  check_functions() call tests for gettid, so it is never defined and
-  test-misc.js fails "not a function". Found 2026-10-21.
-
-    qjsm -e 'import("misc").then(m => console.log(typeof m.gettid))'
-                              # undefined on glibc 2.30+
-
-- misc-valuepointer-not-bigint: misc.valuePointer({}) returns a number,
-  test-misc.js expects a bigint (typeof p === 'bigint'), so the test
-  fails. js_newpointer() picks the type. Found 2026-10-21.
-
-    qjsm -e 'import("misc").then(m => console.log(typeof m.valuePointer({})))'
-                              # number
-
 - os-ttygetwinsize-win32-buffer-size: quickjs-libc's os.ttyGetWinSize() on
   Windows returns the console screen buffer size (dwSize, e.g. [120, 9001])
   instead of the visible window (srWindow), so a full-screen redraw or a
