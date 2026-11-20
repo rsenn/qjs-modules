@@ -72,4 +72,5 @@ blah.tmp*
 /third_party/postgres/
 /third_party/mariadb-connector-c/
 /third_party/sqlite/
+/third_party/cyaml/
 /third_party/openssl/
