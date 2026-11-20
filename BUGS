@@ -1328,21 +1328,3 @@
     //   import { Predicate } from 'predicate';
     //   Predicate.charset('abc')('b'); Predicate.string('abc')('abc');
     //   -> free(): double free detected in tcache 2
-
-- ywrite-circular-structure-segfault (src/yaml/ywrite.c ywrite_node/ywrite_mapping): a value that
-  contains itself recurses until the stack is gone, no depth limit (JSON.stringify throws a
-  TypeError). Found 2026-11-20 while testing yaml.write.
-
-    // const o = {}; o.o = o; require('yaml').write(o);   -> Segmentation fault
-
-- ywrite-function-written-as-empty-map (src/yaml/ywrite.c ywrite_node, ywrite_document): a function,
-  at the top level or nested, is written as {} although doc/native/yaml.md says it throws TypeError
-  (only a Symbol or BigInt throws). Found 2026-11-20 while writing the yaml tests.
-
-    // write(() => 1)  -> '{}\n'      write({f: () => 1})  -> 'f: {}\n'
-
-- ywrite-nan-infinity-written-plain (src/yaml/ywrite.c ywrite_scalar): NaN, Infinity and -Infinity are
-  written as the plain words NaN/Infinity/-Infinity, which parse() reads back as strings; YAML 1.2
-  spells them .nan/.inf/-.inf (Bun.YAML.stringify does). Found 2026-11-20.
-
-    // parse(write([NaN]))  -> ['NaN']

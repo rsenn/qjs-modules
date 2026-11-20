@@ -65,14 +65,13 @@ parse('a: 1\n---\nb: 2\n');      // [{ a: 1 }, { b: 2 }]
 | --- | --- |
 | `null`, `undefined` | `null` |
 | `true` / `false` | `true` / `false` |
-| number | its JS string form (`42`, `3.14`, …) — unquoted |
+| number | its JS string form (`42`, `3.14`, …) — unquoted; `NaN`, `Infinity`, `-Infinity` as `.nan`, `.inf`, `-.inf` |
 | string | plain if unambiguous, else double-quoted (see below) |
 | `{}` (empty object) | `{}` |
 | `[]` (empty array) | `[]` |
 | non-empty object | block mapping, keys in **JS insertion order** |
 | non-empty array | block sequence |
-| symbol, BigInt | throws `TypeError` |
-| function | `{}` (a known quirk, see `BUGS`) |
+| function, symbol, BigInt | throws `TypeError` |
 
 **Empty `{}`/`[]` are the one deliberate flow-style exception** — block
 style has no way to represent zero entries, so an empty collection is
@@ -196,7 +195,7 @@ the numeric-lookalike rule quotes them to keep them strings.
 - Key order is whatever order you assigned object properties in; if
   ordering matters for the catalog's readability (e.g. `prefix` before
   `pins`), build the object literal in that order.
-- `write()` throws on symbols and BigInts in the tree — strip or convert
+- `write()` throws `TypeError` on functions, symbols and BigInts in the tree, and on a value that contains itself (nesting past 1000 levels) — strip or convert
   those before calling it.
 
 ## Export list

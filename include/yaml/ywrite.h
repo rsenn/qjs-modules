@@ -15,8 +15,12 @@
  *   dbuf_init_ctx(ctx, &db);
  *   ywrite_document(ctx, &db, val, 2);   val {a: [1, 2]} gives "a:\n  - 1\n  - 2\n"
  *
- * Supports null, undefined, booleans, numbers, strings, arrays and plain objects.
+ * Supports null, undefined, booleans, numbers (NaN and Infinity as .nan and .inf), strings, arrays
+ * and plain objects. A function, symbol or BigInt throws TypeError, so does a nesting deeper than
+ * YWRITE_MAX_DEPTH, which is what a value that contains itself comes to.
  */
+
+#define YWRITE_MAX_DEPTH 1000
 
 /** quote s as a double-quoted YAML string, escaping as needed. */
 void ywrite_quoted(DynBuf* db, const char* s, size_t len);

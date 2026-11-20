@@ -245,6 +245,84 @@ tests({
     eq(write({ 'a b': 1, '': 2, '123': 3, true: 4, 'x:y': 5, 'x: y': 6, 'multi\nkey': 7 }), '"123": 3\na b: 1\n"": 2\n"true": 4\nx:y: 5\n"x: y": 6\n"multi\\nkey": 7\n');
   },
 
+  'write: a function throws TypeError, at any depth'() {
+    for(const v of [() => 1, function f() {}, class A {}, { f() {} }, { a: { b: () => 1 } }, [() => 1], [[1, { g: Math.max }]]]) {
+      let err;
+
+      try {
+        write(v);
+      } catch(e) {
+        err = e;
+      }
+
+      assert(err instanceof TypeError, String(typeof v));
+      assert(/unsupported value type/.test(err.message));
+    }
+  },
+
+  'write: NaN and Infinity use the YAML 1.2 spelling'() {
+    eq(write(NaN), '.nan\n');
+    eq(write(Infinity), '.inf\n');
+    eq(write(-Infinity), '-.inf\n');
+    eq(write([NaN, Infinity, -Infinity, 1]), '- .nan\n- .inf\n- -.inf\n- 1\n');
+    eq(write({ a: NaN, b: -Infinity }), 'a: .nan\nb: -.inf\n');
+
+    if(parse) {
+      const r = parse(write([NaN, Infinity, -Infinity]));
+
+      assert(Number.isNaN(r[0]) && r[1] === Infinity && r[2] === -Infinity);
+    }
+  },
+
+  'write: a value that contains itself throws TypeError'() {
+    const o = { name: 'o' };
+    const a = [1];
+
+    o.self = o;
+    a.push(a);
+
+    for(const v of [o, a, { x: { y: [o] } }, [[a]]]) {
+      let err;
+
+      try {
+        write(v);
+      } catch(e) {
+        err = e;
+      }
+
+      assert(err instanceof TypeError);
+      assert(/circular structure or nesting too deep/.test(err.message));
+    }
+  },
+
+  'write: nesting up to the limit works, past it throws'() {
+    const nest = n => {
+      let v = 'leaf';
+
+      for(let i = 0; i < n; i++) v = [v];
+
+      return v;
+    };
+
+    assert(write(nest(900)).endsWith('leaf\n'));
+
+    let err;
+
+    try {
+      write(nest(5000));
+    } catch(e) {
+      err = e;
+    }
+
+    assert(err instanceof TypeError);
+  },
+
+  'write: a shared object is not a cycle'() {
+    const shared = { x: 1 };
+
+    eq(write({ a: shared, b: shared, c: [shared, shared] }), 'a:\n  x: 1\nb:\n  x: 1\nc:\n  -\n    x: 1\n  -\n    x: 1\n');
+  },
+
   'write: symbol and bigint throw TypeError'() {
     for(const v of [Symbol('s'), 1n, { a: 1n }, [Symbol('x')], { nested: { deep: [1n] } }]) {
       let err;

@@ -180,9 +180,21 @@ ywrite_scalar(JSContext* ctx, DynBuf* db, JSValueConst val) {
 
   if(JS_IsNumber(val)) {
     size_t len;
-    const char* s = JS_ToCStringLen(ctx, &len, val);
+    const char* s;
+    double d;
 
-    if(!s)
+    if(JS_ToFloat64(ctx, &d, val))
+      return -1;
+
+    /* YAML 1.2 spells them .nan, .inf and -.inf: the JS words would read back as strings */
+    if(d != d || d - d != 0) {
+      const char* word = d != d ? ".nan" : d > 0 ? ".inf" : "-.inf";
+
+      dbuf_put(db, (const uint8_t*)word, strlen(word));
+      return 0;
+    }
+
+    if(!(s = JS_ToCStringLen(ctx, &len, val)))
       return -1;
 
     dbuf_put(db, (const uint8_t*)s, len);
@@ -204,6 +216,19 @@ ywrite_scalar(JSContext* ctx, DynBuf* db, JSValueConst val) {
 
   JS_ThrowTypeError(ctx, "yaml.write: unsupported value type");
   return -1;
+}
+
+/* exception pending: a value that contains itself would recurse until the stack is gone */
+static int
+ywrite_too_deep(JSContext* ctx) {
+  JS_ThrowTypeError(ctx, "yaml.write: circular structure or nesting too deep");
+  return -1;
+}
+
+/* an object that is written as a mapping or sequence: a function is not, it is an unsupported value */
+static BOOL
+ywrite_is_collection(JSContext* ctx, JSValueConst val) {
+  return JS_IsObject(val) && !JS_IsFunction(ctx, val);
 }
 
 static BOOL
@@ -233,14 +258,14 @@ int
 ywrite_node(JSContext* ctx, DynBuf* db, JSValueConst val, int indent, int depth) {
   BOOL is_array = JS_IsArray(ctx, val);
 
-  if(JS_IsObject(val) && !JS_IsFunction(ctx, val) && !ywrite_is_empty(ctx, val, is_array)) {
+  if(ywrite_is_collection(ctx, val) && !ywrite_is_empty(ctx, val, is_array)) {
     dbuf_putc(db, '\n');
     return is_array ? ywrite_sequence(ctx, db, val, indent, depth + 1) : ywrite_mapping(ctx, db, val, indent, depth + 1);
   }
 
   dbuf_putc(db, ' ');
 
-  if(JS_IsObject(val))
+  if(ywrite_is_collection(ctx, val))
     dbuf_put(db, (const uint8_t*)(is_array ? "[]" : "{}"), 2);
   else if(ywrite_scalar(ctx, db, val))
     return -1;
@@ -253,6 +278,9 @@ int
 ywrite_mapping(JSContext* ctx, DynBuf* db, JSValueConst obj, int indent, int depth) {
   JSPropertyEnum* tab;
   uint32_t len;
+
+  if(depth > YWRITE_MAX_DEPTH)
+    return ywrite_too_deep(ctx);
 
   if(JS_GetOwnPropertyNames(ctx, &tab, &len, obj, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY))
     return -1;
@@ -293,7 +321,12 @@ ywrite_mapping(JSContext* ctx, DynBuf* db, JSValueConst obj, int indent, int dep
 int
 ywrite_sequence(JSContext* ctx, DynBuf* db, JSValueConst arr, int indent, int depth) {
   int64_t len = 0;
-  JSValue lval = JS_GetPropertyStr(ctx, arr, "length");
+  JSValue lval;
+
+  if(depth > YWRITE_MAX_DEPTH)
+    return ywrite_too_deep(ctx);
+
+  lval = JS_GetPropertyStr(ctx, arr, "length");
 
   JS_ToInt64(ctx, &len, lval);
   JS_FreeValue(ctx, lval);
@@ -323,9 +356,9 @@ ywrite_document(JSContext* ctx, DynBuf* db, JSValueConst val, int indent) {
   BOOL is_array = JS_IsArray(ctx, val);
   int r;
 
-  if(JS_IsObject(val) && !JS_IsFunction(ctx, val) && !ywrite_is_empty(ctx, val, is_array)) {
+  if(ywrite_is_collection(ctx, val) && !ywrite_is_empty(ctx, val, is_array)) {
     r = is_array ? ywrite_sequence(ctx, db, val, indent, 0) : ywrite_mapping(ctx, db, val, indent, 0);
-  } else if(JS_IsObject(val)) {
+  } else if(ywrite_is_collection(ctx, val)) {
     dbuf_put(db, (const uint8_t*)(is_array ? "[]\n" : "{}\n"), 3);
     r = 0;
   } else {
