@@ -49,6 +49,12 @@ macro(build_libmagic BINARY SUFFIX PIC)
     endif()
   endif()
 
+  # dietlibc declares wcwidth() (used by file.c) only under _XOPEN_SOURCE
+  set(LIBMAGIC_CFLAGS_${SUFFIX} "-O2 -w")
+  if(DIET)
+    string(APPEND LIBMAGIC_CFLAGS_${SUFFIX} " -D_XOPEN_SOURCE")
+  endif(DIET)
+
   # MinGW has no POSIX regex: file(1) needs libgnurx, built here as a static archive into the
   # same prefix (a single source file, no configure step)
   set(LIBMAGIC_DEPENDS_${SUFFIX})
@@ -79,10 +85,12 @@ macro(build_libmagic BINARY SUFFIX PIC)
     DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
+    # config.sub from older autotools does not know dietlibc and newer OS names
+    PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND
       <SOURCE_DIR>/configure --prefix=${LIBMAGIC_PREFIX_${SUFFIX}} --libdir=${LIBMAGIC_PREFIX_${SUFFIX}}/lib
       --enable-static --disable-shared --disable-libseccomp --disable-zlib --disable-bzlib --disable-xzlib
-      --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}} ${LIBMAGIC_HOST_FLAG_${SUFFIX}} ${LIBMAGIC_ENV_FLAGS_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=-O2 -w"
+      --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}} ${LIBMAGIC_HOST_FLAG_${SUFFIX}} ${LIBMAGIC_ENV_FLAGS_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBMAGIC_CFLAGS_${SUFFIX}}"
     BUILD_COMMAND make ${LIBMAGIC_MAKE_ARGS_${SUFFIX}}
     INSTALL_COMMAND make ${LIBMAGIC_MAKE_ARGS_${SUFFIX}} install
     BUILD_BYPRODUCTS "${LIBMAGIC_LIBRARY_FILE_${SUFFIX}}" "${LIBMAGIC_DB_${SUFFIX}}")

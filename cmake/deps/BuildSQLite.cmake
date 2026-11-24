@@ -27,6 +27,8 @@ macro(build_sqlite BINARY SUFFIX PIC)
     DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
+    # config.sub from older autotools does not know dietlibc and newer OS names
+    PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND
       <SOURCE_DIR>/configure --prefix=${SQLITE_PREFIX_${SUFFIX}} --libdir=${SQLITE_PREFIX_${SUFFIX}}/lib --enable-static
       --disable-shared --disable-readline "CC=${CMAKE_C_COMPILER}" "CFLAGS=${SQLITE_CFLAGS_${SUFFIX}}"

@@ -61,6 +61,8 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
     BINARY_DIR ${BINARY}/libsqlite-${SUFFIX}
     DOWNLOAD_COMMAND ""
     UPDATE_COMMAND ""
+    # config.sub from older autotools does not know dietlibc and newer OS names
+    PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND <SOURCE_DIR>/configure "TCLSH_CMD=${TCLSH_EXECUTABLE}" --disable-readline "CC=${CMAKE_C_COMPILER}"
     BUILD_COMMAND ${MAKE_PROGRAM} sqlite3.c
     COMMAND sh -c "\"${CMAKE_C_COMPILER}\" ${LIBSQLITE_CFLAGS_${SUFFIX}} -c sqlite3.c -o sqlite3.o"

@@ -105,6 +105,8 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
     BINARY_DIR ${BINARY}/libpq-${SUFFIX}
     DOWNLOAD_COMMAND ""
     UPDATE_COMMAND ""
+    # config.sub from older autotools does not know dietlibc and newer OS names
+    PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND
       <SOURCE_DIR>/configure --prefix=${LIBPQ_PREFIX_${SUFFIX}} --without-readline --without-zlib --without-icu
       --without-gssapi --without-ldap --without-pam --without-systemd --without-selinux --without-libxml
