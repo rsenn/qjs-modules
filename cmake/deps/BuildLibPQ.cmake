@@ -79,10 +79,14 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
     if(OPENSSL_ROOT_DIR_${SUFFIX})
       list(APPEND LIBPQ_SSL_FLAG_${SUFFIX} --with-includes=${OPENSSL_INCLUDE_DIR_${SUFFIX}}
            --with-libraries=${OPENSSL_ROOT_DIR_${SUFFIX}}/lib "LIBS=${OPENSSL_LINK_FLAGS_${SUFFIX}}")
-    endif()
-
-    # a cross toolchain's own OpenSSL (e.g. a MinGW sys-root) lies outside the linker's default search path
-    if(CMAKE_CROSSCOMPILING AND NOT OPENSSL_ROOT_DIR_${SUFFIX} AND OPENSSL_LIBRARIES_${SUFFIX})
+    elseif(CMAKE_CROSSCOMPILING AND OPENSSL_LIBRARIES_${SUFFIX})
+      # a cross toolchain's own OpenSSL (e.g. a MinGW sys-root) lies outside the linker's default search path
+      list(GET OPENSSL_LIBRARIES_${SUFFIX} 0 _LP_SSL)
+      get_filename_component(_LP_LIBDIR "${_LP_SSL}" DIRECTORY)
+      list(APPEND LIBPQ_SSL_FLAG_${SUFFIX} --with-includes=${OPENSSL_INCLUDE_DIR_${SUFFIX}}
+           --with-libraries=${_LP_LIBDIR})
+    elseif(OPENSSL_LIBRARIES_${SUFFIX})
+      # system OpenSSL (not cross-compiling): still need to point configure at the includes and libraries
       list(GET OPENSSL_LIBRARIES_${SUFFIX} 0 _LP_SSL)
       get_filename_component(_LP_LIBDIR "${_LP_SSL}" DIRECTORY)
       list(APPEND LIBPQ_SSL_FLAG_${SUFFIX} --with-includes=${OPENSSL_INCLUDE_DIR_${SUFFIX}}
