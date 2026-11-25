@@ -11,9 +11,9 @@ if(view.handleKey(key)) screen.lines(1, 1, view.render(columns)).flush();
 | Member | Description |
 | --- | --- |
 | `height` | The height of the viewport in lines |
-| `lines` | The initial list of lines to display |
-| `push(...texts)` | Appends source entries (strings with newlines/colors) to the display. Throws an error if `setWidth` hasn't been called yet. |
-| `setWidth(width)` | Sets the wrap width. First call turns on source text mode. If `width` equals the current width, does nothing. Otherwise, re-wraps all source entries and rebuilds the display lines. If `follow` is on, keeps the end in view. |
+| `lines` | The current flat display lines (backward compatible) |
+| `push(...texts)` | Appends source entries (strings with newlines/colors) to the display. In source mode (after `setWidth`), each entry is wrapped and cached. |
+| `setWidth(width)` | Sets the wrap width. First call turns on **source text mode**. If `width` equals the current width, does nothing. Otherwise, re-wraps all source entries and rebuilds the display lines. If `follow` is on, keeps the end in view. |
 | `setText(texts)` | Replaces all source entries and rebuilds the display lines. |
 | `render(width)` | Returns the rendered lines as a string array, with the current viewport height. |
 | `visible()` | Returns the visible lines as an array. |
@@ -21,7 +21,16 @@ if(view.handleKey(key)) screen.lines(1, 1, view.render(columns)).flush();
 | `follow` | Whether the view follows the end of the list when new entries are added. |
 | `atBottom` | Whether the view is at the bottom of the list. |
 | `rewraps` | The number of source entries that have been wrapped so far (test hook). |
-| `width` | The current wrap width, or `undefined` if not set. |
+| `width` | The current wrap width, or `undefined` if not in source mode. |
+| `maxOffset` | Maximum offset (= `Math.max(0, this.lines.length - this.height)`). |
+| `setLines(lines)` | Replaces all display lines (old-style, no source mode). |
+| `resize(height)` | Updates the viewport height. |
+| `scrollTo(offset)` | Scrolls to a given offset; resets `follow` when offset is extreme. |
+| `scrollBy(n)` | Scrolls by `n` lines. |
+| `pageUp()` | Scrolls up by `height - 1` lines. |
+| `pageDown()` | Scrolls down by `height - 1` lines. |
+| `home()` | Scrolls to the top (offset 0). |
+| `end()` | Scrolls to the bottom. |
 
 #### Wrapped text in a ScrollView
 
@@ -29,12 +38,12 @@ The `ScrollView` class supports an optional "source text" mode that caches wrapp
 
 When in source text mode:
 
-- `pushText()` appends source entries (strings with newlines/colors) and wraps each with `wrap(text, width)`
-- `setText()` replaces all source entries and rebuilds the display lines
-- `rewraps` tracks the number of source entries that have been wrapped so far
-- `width` returns the current wrap width
+- `pushText(...texts)` appends source entries (strings with newlines/colors) and wraps each with `wrap(text, width)`. Throws an error if `setWidth` hasn't been called yet.
+- `setText(texts)` replaces all source entries and rebuilds the display lines.
+- `rewraps` tracks the number of source entries that have been wrapped so far.
+- `width` returns the current wrap width.
 
-This mode ensures that re-wrapping only happens when the width changes, improving performance for long logs or streams.
+This mode ensures that re-wrapping only happens when the width changes, improving performance for long logs or streams where the text content changes frequently.
 
 Note: The `Region` class does not wrap text.
 
@@ -44,7 +53,7 @@ Example:
 // Create a scroll view with 10 lines of height
 const view = new ScrollView(10);
 
-// Set the width to 0 cells
+// Set the width to 20 cells
 view.setWidth(20);
 
 // Push text entries
