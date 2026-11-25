@@ -79,6 +79,18 @@ const SCENARIOS = {
   'alt-backspace and ctrl-w': [['ab cd', '\x1b\x7f', '\x17']],
   'up arrow searches by prefix': [['line1\r', 'lin', '\x1b[A', '\x1b[B']],
   'up at the oldest entry empties the line': [['first\r', '\x1b[A', '\x1b[A']],
+  'kill ring: ctrl-y yanks the newest, meta-y rotates': [['abc', '\x15', 'def', '\x15', '\x19', '\x1by', '\x1by', '\x1by']],
+  'meta-y without a yank does nothing': [['a', '\x15', 'b', '\x15', '\x1by']],
+  'meta-y only follows a yank': [['abc', '\x15', 'de', '\x15', '\x19', 'x', '\x1by']],
+  'kill ring: ctrl-k and ctrl-u share it': [['ab', '\x1b[D', '\x0b', 'cd', '\x01', '\x0b', '\x19', '\x1by']],
+  'the same kill twice is one entry': [['a', '\x15', 'a', '\x15', '\x19', '\x1by']],
+  'undo and redo': [['a', 'b', 'c', '\x1f', '\x1f', '\x1e', '\x1e', '\x1e']],
+  'undo a kill': [['abc', '\x15', '\x1f']],
+  'undo a delete': [['abc', '\x7f', '\x1f', '\x1e']],
+  'undo after history navigation': [['one\r', 'tw', '\x1b[A', '\x1f']],
+  'enter clears the undo stack': [['ab', '\r', '\x1f']],
+  'undo with nothing to undo': [['\x1f', '\x1e']],
+  'a new edit keeps the redo stack': [['ab', '\x1f', 'c', '\x1e']],
   'historySize and the history option': [['z\r'], { history: ['x', 'y'], historySize: 2 }],
 };
 
@@ -173,6 +185,18 @@ const EXPECTED = {
   "up arrow searches by prefix": {"events":["history:line1","line:line1","pause","close"],"rows":[["line1\\r","line1\\r\\n","",0],["lin","lin","lin",3],["\\e[A","\\e[1G\\e[0J> line1\\e[8G","line1",5],["\\e[B","\\e[1G\\e[0J> lin\\e[6G","lin",3]]},
   "up at the oldest entry empties the line": {"events":["history:first","line:first","pause","close"],"rows":[["first\\r","first\\r\\n","",0],["\\e[A","\\e[1G\\e[0J> first\\e[8G","first",5],["\\e[A","\\e[1G\\e[0J> \\e[3G","",0]]},
   "historySize and the history option": {"events":["history:z|x","line:z","pause","close"],"rows":[["z\\r","z\\r\\n","",0]]},
+  "kill ring: ctrl-y yanks the newest, meta-y rotates": {"events":["pause","close"],"rows":[["abc","abc","abc",3],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["def","def","def",3],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["\u0019","def","def",3],["\\ey","\\e[1G\\e[0J> abc\\e[6G","abc",3],["\\ey","\\e[1G\\e[0J> def\\e[6G","def",3],["\\ey","\\e[1G\\e[0J> abc\\e[6G","abc",3]]},
+  "meta-y without a yank does nothing": {"events":["pause","close"],"rows":[["a","a","a",1],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["b","b","b",1],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["\\ey","","",0]]},
+  "meta-y only follows a yank": {"events":["pause","close"],"rows":[["abc","abc","abc",3],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["de","de","de",2],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["\u0019","de","de",2],["x","x","dex",3],["\\ey","","dex",3]]},
+  "kill ring: ctrl-k and ctrl-u share it": {"events":["pause","close"],"rows":[["ab","ab","ab",2],["\\e[D","\\e[1D","ab",1],["\u000b","\\e[1G\\e[0J> a\\e[4G","a",1],["cd","cd","acd",3],["\u0001","\\e[3D","acd",0],["\u000b","\\e[1G\\e[0J> \\e[3G","",0],["\u0019","acd","acd",3],["\\ey","\\e[1G\\e[0J> b\\e[4G","b",1]]},
+  "the same kill twice is one entry": {"events":["pause","close"],"rows":[["a","a","a",1],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["a","a","a",1],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["\u0019","a","a",1],["\\ey","","a",1]]},
+  "undo and redo": {"events":["pause","close"],"rows":[["a","a","a",1],["b","b","ab",2],["c","c","abc",3],["\u001f","\\e[1G\\e[0J> ab\\e[5G","ab",2],["\u001f","\\e[1G\\e[0J> a\\e[4G","a",1],["\u001e","\\e[1G\\e[0J> ab\\e[5G","ab",2],["\u001e","\\e[1G\\e[0J> abc\\e[6G","abc",3],["\u001e","","abc",3]]},
+  "undo a kill": {"events":["pause","close"],"rows":[["abc","abc","abc",3],["\u0015","\\e[1G\\e[0J> \\e[3G","",0],["\u001f","\\e[1G\\e[0J> abc\\e[6G","abc",3]]},
+  "undo a delete": {"events":["pause","close"],"rows":[["abc","abc","abc",3],["","\\e[1G\\e[0J> ab\\e[5G","ab",2],["\u001f","\\e[1G\\e[0J> abc\\e[6G","abc",3],["\u001e","\\e[1G\\e[0J> ab\\e[5G","ab",2]]},
+  "undo after history navigation": {"events":["history:one","line:one","pause","close"],"rows":[["one\\r","one\\r\\n","",0],["tw","tw","tw",2],["\\e[A","\\e[1G\\e[0J> tw\\e[5G","tw",2],["\u001f","\\e[1G\\e[0J> tw\\e[5G","tw",2]]},
+  "enter clears the undo stack": {"events":["history:ab","line:ab","pause","close"],"rows":[["ab","ab","ab",2],["\\r","\\r\\n","",0],["\u001f","","",0]]},
+  "undo with nothing to undo": {"events":["pause","close"],"rows":[["\u001f","","",0],["\u001e","","",0]]},
+  "a new edit keeps the redo stack": {"events":["pause","close"],"rows":[["ab","ab","ab",2],["\u001f","\\e[1G\\e[0J> a\\e[4G","a",1],["c","c","ac",2],["\u001e","\\e[1G\\e[0J> ab\\e[5G","ab",2]]},
 };
 
 tests({

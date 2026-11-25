@@ -80,9 +80,11 @@ redraws.
 | home / end, ctrl-a / ctrl-e | start / end of the line |
 | ctrl-left / right, meta-b / meta-f | previous / next word |
 | backspace, ctrl-h / delete, ctrl-d | delete left / right; ctrl-d on an empty line closes |
-| ctrl-u / ctrl-k | delete to the start / end of the line (kept for ctrl-y) |
-| ctrl-w, ctrl-backspace, meta-backspace / meta-d, ctrl-delete | delete the word left / right |
-| ctrl-y | insert the last deleted text |
+| ctrl-u / ctrl-k | delete to the start / end of the line (pushed on the kill ring) |
+| ctrl-w, ctrl-backspace, meta-backspace / meta-d, ctrl-delete | delete the word left / right (also pushed on the kill ring, which Node does not do) |
+| ctrl-y | insert the newest text of the kill ring |
+| meta-y | right after ctrl-y or meta-y: swap the inserted text for the next older one of the ring |
+| ctrl-_ / ctrl-^ | undo / redo the last edit of the line |
 | up / down | history, limited to entries starting with the text before the cursor |
 | ctrl-p / ctrl-n | history, without the prefix filter |
 | tab | with a `completer`: complete; without: insert a tab |
@@ -98,10 +100,15 @@ drops older equal entries.
 A lone escape key is held `escapeCodeTimeout` ms (500) in case it starts a sequence.
 Two tabs arriving in one chunk are not special-cased (Node inserts a literal tab then).
 
+The kill ring keeps 32 entries and shares them between ctrl-u, ctrl-k and the word deletes; the
+same text twice in a row is one entry. Undo and redo keep 2048 states each: an edit, a history
+step or a completion list pushes the line and cursor before it, Enter clears both. Like Node, a
+new edit does not clear the redo stack.
+
 ## Not implemented
 
-Kill-ring rotation (meta-y), undo/redo, the `Readline` class of `readline/promises`, and
-`output` resize events from a plain FILE without `on()` (an emitter output's `'resize'` redraws, `process.stdout` is one).
+The `Readline` class of `readline/promises`, and `output` resize events from a plain FILE
+without `on()` (an emitter output's `'resize'` redraws, `process.stdout` is one).
 
 ## Export list
 
