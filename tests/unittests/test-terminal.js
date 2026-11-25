@@ -2,7 +2,7 @@
 import * as std from 'std';
 import { close, pipe, write } from 'os';
 import * as terminal from '../../lib/terminal.js';
-import { BOX_ROUNDED, Region, ScrollView, layoutInput, Screen, alternateScreen, bigText, boxLines, gradient, inputBox, keyValue, mouseDisable, mouseEnable, pad, progressBar, rule, scrollbar, sparkline, statusBar, stripAnsi, style, table, truncate, wrap, cursorPosition, cursorSave, cursorUp, decodeKeys, devicecodeQuery, eraseInLine, mousetrackingEnable, readKey, setScrollRegion, stringWidth, ttyGetWinSize, ttyWrite, windowSize } from '../../lib/terminal.js';
+import { BOX_ROUNDED, gradientRule, meter, panel, shortPath, sideBySide, Region, ScrollView, layoutInput, Screen, alternateScreen, bigText, boxLines, gradient, inputBox, keyValue, mouseDisable, mouseEnable, pad, progressBar, rule, scrollbar, sparkline, statusBar, stripAnsi, style, table, truncate, wrap, cursorPosition, cursorSave, cursorUp, decodeKeys, devicecodeQuery, eraseInLine, mousetrackingEnable, readKey, setScrollRegion, stringWidth, ttyGetWinSize, ttyWrite, windowSize } from '../../lib/terminal.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* arrays and objects compared by their JSON, eq() compares with != */
@@ -149,6 +149,23 @@ tests({
     eq(3, bigText('hi', { half: true }).length);
   },
 
+  'panel boxes the text, truncates with max and keeps the background'() {
+    const p = panel('note', 'a\nb\nc\n', 40, { max: 2, background: '#101820', more: n => `+${n}` });
+    const lines = stripAnsi(p).split('\n');
+
+    same(true, lines.every(l => stringWidth(l) == stringWidth(lines[0])));
+    same(true, lines[3].includes('+1'));
+    same(true, p.split('\n').every(l => l.startsWith('\x1b[48;2;16;24;32m')));
+  },
+  'sideBySide, meter, gradientRule and shortPath'() {
+    same(['ab  1', 'c   2', '    3'], sideBySide(['ab', 'c'], ['1', '2', '3'], 2));
+    same(10, stringWidth(meter(0.5, 10)));
+    same(true, meter(0.9, 4, { bad: '#ff0000' }).includes('38;2;255;0;0'));
+    same(true, meter(0.9, 4, { color: 'blue' }).includes('34m'));
+    same(20, stringWidth(gradientRule(20, 'log', ['#ff0000', '#0000ff'])));
+    same('~/a', shortPath(process.env.HOME + '/a'));
+    same('…c/a/b', shortPath('/x/y/c/a/b', 6));
+  },
   'boxLines, inputBox, rule and statusBar are as wide as asked'() {
     const box = boxLines('hi there', { title: 't', width: 14, chars: BOX_ROUNDED });
 
