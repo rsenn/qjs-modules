@@ -3696,7 +3696,7 @@ Rechecked 2026-11-25 (no Windows here): 31.1 and 31.2 need a Windows machine; 31
 | 31.5 | Untranslated sequences: `CSI S/T` scroll, `CSI r` region, `CSI ?1049 h/l`, `CSI @ P L M` | `ScrollConsoleScreenBuffer`, `CreateConsoleScreenBuffer` + `SetConsoleActiveScreenBuffer` |
 | 31.6 | Mouse input (`mousetrackingEnable`) on a console | `ENABLE_MOUSE_INPUT` without QuickEdit, MOUSE_EVENT to SGR 1006 reports |
 | 31.7 | `readKey()` polls with `os.sleep(10)` on a console | `ttyRead` never blocks there; a waiting variant would need WaitForSingleObject |
-| 31.8 | `util.stripAnsi` and `terminal.stripAnsi` differ | rechecked 2026-11-25: terminal's strips CSI, OSC, DCS/SOS/PM/APC and two-byte ESC forms (native and JS agree); util's is one loose regex (`lib/util.js:1122`) that leaves OSC text behind (`\x1b]0;t\x07` gives `0;t\x07`). Make util re-export terminal's (or textcode's) |
+| 31.8 done | `util.stripAnsi` is `terminal.stripAnsi` | `lib/util.js` re-exports it; `terminal` added to `util_MODULES` in `cmake/qjsm.cmake` (qjsc embeds a followed import twice otherwise). `tests/unittests/test-util-strip-ansi.js` |
 
 
 ## Tier 32 — `lib/terminal.js` string widths and wrapping (2026-11-25)
