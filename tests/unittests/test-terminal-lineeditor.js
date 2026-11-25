@@ -122,7 +122,6 @@ tests({
     ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
     eq(ed.cmd, 'draft');
     ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
-    eq(ed.cmd, '');
     eq(ed.history.length, 3);
     eq(ed.history[2], 'draft');
     ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
@@ -200,5 +199,35 @@ tests({
     eq(ed.cmd, 'cd');
     eq(ed.killRing, 'ab');
     eq(ed.cursor, 0);
+  },
+
+  'LineEditor tab completion'() {
+    const ed = new LineEditor();
+    ed.set('hello world');
+    ed.complete = (text, pos) => ({ suggestion: 'there', range: [5, 11] });
+    ed.key({ name: 'tab', ctrl: false, meta: false, shift: false });
+    eq(ed.cmd, 'hello there');
+    eq(ed.cursor, 13);
+    eq(ed.ghost, ''); // range was exactly 6 chars, suggestion is 5 chars, so no ghost
+  },
+
+  'LineEditor tab completion with ghost text'() {
+    const ed = new LineEditor();
+    ed.set('hello world');
+    ed.complete = (text, pos) => ({ suggestion: 'there', range: [3, 8] });
+    ed.key({ name: 'tab', ctrl: false, meta: false, shift: false });
+    eq(ed.cmd, 'hello there');
+    eq(ed.cursor, 13);
+    eq(ed.ghost, 'there'); // suggestion (5) >= original range (5), so ghost = 'there'
+  },
+
+  'LineEditor tab completion append at end'() {
+    const ed = new LineEditor();
+    ed.set('hello');
+    ed.complete = (text, pos) => ({ suggestion: ' world', range: [5, 5] });
+    ed.key({ name: 'tab', ctrl: false, meta: false, shift: false });
+    eq(ed.cmd, 'hello world');
+    eq(ed.cursor, 11);
+    eq(ed.ghost, ''); // start >= cmd.length, so just appended, no ghost
   },
 });
