@@ -1,0 +1,183 @@
+ ▐▛███▛█   Claude Code v2.1.318
+▝▜██████▀  Sonnet 5.5 · Claude Pro
+ ▝▝   ▝▝   ~/Sources/quickjs/qjs-modules
+
+
+❯ /remote-control 
+
+❯ /rename qjs-modules 
+  ⎿  Session renamed to: qjs-modules
+
+@ ollama-repl❯
+  Please fix the AF_UNIX SockAddr bug in quickjs-sockets.c (qjs-modules); it is
+  logged as sockaddr-unix-length in qjs-lws/BUGS.
+
+  Symptoms, all seen with the installed qjsm 0.9 (757b576bf8ab-dirty):
+  1. SockAddr(AF_UNIX).byteLength is 28, not sizeof(struct sockaddr_un) = 110,
+     so only 26 bytes of sun_path are bound. Longer paths are truncated, and two
+     different long paths can collide (EADDRINUSE).
+  2. new SockAddr(AF_UNIX, path) leaves sun_path all zero, which is the shared
+     Linux abstract-socket name. Every such socket binds to the same name, and a
+     client connects to whichever process holds it.
+  3. The likely cause is that the AF_UNIX case is missing or guarded by a
+     HAVE_AF_UNIX / length check around quickjs-sockets.c:280. Please confirm in
+     the source.
+
+  Wanted:
+  - SockAddr(AF_UNIX [, path]) allocates sizeof(struct sockaddr_un) and copies
+    the path into sun_path (NUL-terminated).
+  - A path that is too long throws a clear error.
+  - Also support a leading NUL (abstract name) with an explicit length if that
+    is easy.
+  - The path getter and toString return the path again.
+
+  Test: bind and connect on a path longer than 26 bytes (e.g.
+  /run/user/1000/ollama-repl/4039043.sock), two different long paths bound at
+  once, and a round trip of the path through the getter.
+
+  Rules:
+  - Follow qjs-modules' own CLAUDE.md (BUGS, ChangeLog, tests).
+  - Rebuild and install qjsm only if that is the normal flow there.
+  - Remove the sockaddr-unix-length entry from qjs-lws/BUGS once fixed.
+
+  Workaround in ollama-repl (examples/ollama-repl/lib/control-socket.js,
+  unixAddr()): it builds a raw sockaddr_un buffer, new
+  SockAddr(ArrayBuffer(110)) with setUint16(0, AF_UNIX, true) plus the path
+  bytes. It can be simplified once the fix is installed. Tell me when it is
+  installed.
+
+● I'll load the required skills first, then look at the source.
+
+● Skill(quickjs-native-bindings)
+  ⎿  Successfully loaded skill
+
+● Skill(quickjs-scripting)
+  ⎿  Successfully loaded skill
+
+  Searched for 1 pattern, read 1 file, listed 1 directory, ran 3 shell commands (ctrl+o to expand)
+
+● Fixed the AF_UNIX root cause in the source; now adding the tests and building.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Adding a test after the existing AF_UNIX path test.
+
+  Listed 1 directory, ran 4 shell commands (ctrl+o to expand)
+  ⎿  “AF_UNIX SockAddr fix is installed. /usr/local/bin/qjsm now reports 
+     new SockAddr(AF_UNIX).byteLength 110, so you can simplify unixAddr().”
+     → uds:/run/user/1000/cc-socks/3967686.sock
+
+● The AF_UNIX SockAddr bug is fixed and the new qjsm is installed in /usr/local.
+  new SockAddr(AF_UNIX).byteLength is now 110, and I messaged the ollama-repl
+  session to say so. test-sockets.js passes (32 tests); I did not run the rest
+  of ctest.
+
+  - Cause: HAVE_AF_UNIX in quickjs-sockets.c was only defined when HAVE_AFUNIX_H
+    was set, which is Windows only. On Linux, sockaddr_un was not in the
+    SockAddr union, so the length fell back to 28 bytes. The AF_UNIX path code
+    for the constructor, getter and setter was also compiled out.
+  - Fix: it is now defined for every non-Windows build, and for MSYS and Cygwin.
+  - Behaviour:
+    - new SockAddr(AF_UNIX, path) copies the path into sun_path, and the getter
+      and toString return it again.
+    - A path of 108 bytes or more throws RangeError, from the constructor and
+      from the path setter.
+    - If the constructor throws, the error now propagates instead of being
+      ignored.
+  - Test: the new SockAddr AF_UNIX long path test in
+    tests/unittests/test-sockets.js binds two different paths longer than 26
+    bytes at once, connects over one, and checks the path round trip.
+  - Bookkeeping: I removed the sockaddr-unix-length entry from qjs-lws/BUGS.
+    qjs-modules has no ChangeLog file, so I added nothing there.
+
+  I did not add abstract-name support (a leading NUL with an explicit length).
+  SockAddr has no length field, so bind and connect always use 110 bytes, and an
+  abstract name would not match other programs. Say if you want a length field
+  added.
+
+✻ Worked for 1m 15s · done Donnerstag, 16:40
+
+❯ Make lib/terminal.js portable across qjsm/Bun/node/Deno                       
+
+  Searched for 1 pattern, ran 4 shell commands (ctrl+o to expand)
+
+● Writing the runtime backend at the top of lib/terminal.js now. On qjsm it
+  keeps using misc. Elsewhere it uses process and node:fs.
+
+  Ran 7 shell commands (ctrl+o to expand)
+
+● Adding a short portability note to the doc.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● lib/terminal.js now runs on qjsm, Node, Bun and Deno. The new portable test
+  passes on all four (5 tests each), and the existing test-terminal.js still
+  passes (24 tests). I also ran the repl, readline, tty, console and process
+  tests under ctest, and they pass.
+
+  I also drove readKey, windowSize, enableRawMode and the escape output through
+  a real pty on each runtime (node, bun, deno, rebuilt qjsm), and all gave the
+  same result.
+
+  - Backend: the module picks its four tty primitives (write, read, set raw
+    mode, window size) once at load, with a top-level await. On QuickJS it uses
+    misc, os and textcode as before. Elsewhere it uses process and node:fs.
+  - Detection: it checks for the QuickJS-only scriptArgs global. Trying
+    import('misc') as a fallback made Bun go to npm to look for a package named
+    misc.
+  - Output target: on Node, Bun and Deno, pass process.stdout, process.stderr or
+    an fd number where qjsm takes std.out. windowSize now also accepts those.
+  - Blocking read: readKey blocks the same way on every runtime, polling every
+    10 ms.
+  - qjsm: it embeds lib/ at build time and the top-level await compiles into it.
+    The build dir qjsm is rebuilt, but I did not run cmake --install, so the
+    installed /usr/local/bin/qjsm still has the old terminal.js.
+  - Other files: doc/js/terminal.md has a short portability note, and the new
+    test is tests/unittests/test-terminal-portable.js (marked @portable, covers
+    the pure functions and exports).
+
+  lib/terminal.js already had your uncommitted edits (about 850 lines). I only
+  changed the header, the import block, windowSize and the exports, so I did not
+  touch your own changes.
+
+  I did not add a terminal entry to quickjs-scripting/modules.yaml. Say if you
+  want one.
+
+✻ Cogitated for 2m 14s · done Donnerstag, 22:17
+
+❯ commit the link list changes                                                  
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● I committed lib/list.js as a4bca4a ("lib/list.js: add JS wrapper for the
+  linked list module"). I took that to be what you meant by the link list
+  changes, since it was the only list-related change in the tree. Nothing else
+  was committed.
+
+  The index also held other changes that were already staged: lib/directory.js,
+  lib/location.js, lib/queue.js, lib/virtual.js, lib/pointer.js,
+  lib/predicate.js, lib/url.js, lib/password.js, lib/webcrypto.js, lib/repl.js
+  and lib/terminal.js. I left them staged. The earlier quickjs-sockets.c and
+  terminal changes are also still uncommitted.
+
+  I left the Co-Authored-By trailer off, as the project's CLAUDE.md asks.
+
+✻ Brewed for 28s · done 2:38
+
+❯ commit the link list changes                                                  
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● The link list changes are already committed as a4bca4a1 ("lib/list.js: add JS
+  wrapper for the linked list module"), so I made no new commit.
+
+  No tracked list-related changes remain. The commit is still in the history,
+  but other commits have landed on top since, the latest being 89d2c027. That
+  one trims 8 lines from lib/list.js and also touches lib/deep.js and
+  lib/location.js. The only uncommitted files left are untracked: .ai-context/,
+  2026-11-19-124541-overnight-freellmapi-work.txt, auto.json and
+  tests/unittests/test-terminal-portable.js.
+
+  If you meant a different set of changes, tell me which files.
+
+✻ Cogitated for 21s · done 3:40

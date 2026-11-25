@@ -1,0 +1,2 @@
+No Serial Meshtastic device detected, attempting TCP connection on localhost.
+Error connecting to localhost:[Errno 111] Connection refused
