@@ -69,25 +69,29 @@ object
 - **static methods:** `getReport()`, `writeReport()`
 - **static values:** `compact = false`, `directory`, `excludeNetwork = false`, `filename`, `reportOnFatalError = false`, `reportOnSignal = false`, `reportOnUncaughtException = false`, `signal`
 
-### `stderr`
-
-object
-
-- **static methods:** `columns()`, `fd()`, `getColorDepth()`, `getWindowSize()`, `hasColors()`, `isTTY()`, `rows()`
-
 ### `stdin`
 
-object, the std file with Node's readable events:
+object, the std file with Node's readable surface:
 
-- `on('data' | 'end' | 'close', fn)`, `once()`, `off()`, `removeListener()`, `removeAllListeners()`, `emit()`, `listenerCount()`: a `data` listener starts reading (`os.setReadHandler`) and gives `Buffer`s, the last one removed stops it
-- `setEncoding(enc)`, `pause()`, `resume()`, `isPaused()`, `ref()`, `unref()` (no-op), `for await(const chunk of process.stdin)`
+- `on('data' | 'readable' | 'end' | 'close', fn)`, `once()`, `prependListener()`, `off()`, `removeListener()`, `removeAllListeners()`, `emit()`, `listenerCount()`, `listeners()`, `eventNames()`: a `data` or `readable` listener starts reading (`os.setReadHandler`), the last one removed stops it
+- flowing mode: `data` gives `Buffer`s, or strings after `setEncoding(enc)`
+- paused mode: with a `readable` listener the chunks are kept and `'readable'` is emitted; `read()` returns everything buffered, `read(n)` n bytes or `null` while fewer are there before the end, `null` when empty. `'end'` follows the `read()` that returns `null` after the end of the input. `read()` also emits `'data'` when there is a listener
+- `readable`, `readableLength`, `readableEnded`, `readableEncoding`, `readableFlowing`
+- `pause()`, `resume()`, `isPaused()`, `for await(const chunk of process.stdin)`
+- `ref()`, `unref()`, `hasRef()` record the flag only: the engine cannot let a read handler go without keeping the event loop alive, so an unref'd stdin still keeps the process running
 - `setRawMode(bool)`, `isRaw`: on a terminal only; raw mode also turns off the signal keys, so ^C arrives as the byte 3, as in Node
 - **static methods:** `columns()`, `fd()`, `isTTY()`, `rows()`
 
-### `stdout`
+### `stdout`, `stderr`
 
-object
+object, the std file with Node's writable surface:
 
+- `write(chunk, encoding?, callback?)`: a string, `Buffer`, `Uint8Array`, any typed array or `DataView`; an encoding other than utf8 converts through `Buffer`; the stream is flushed, `true` is returned and the callback runs on the next tick. A number, an object or `null` throws (`ERR_INVALID_ARG_TYPE`, `ERR_STREAM_NULL_VALUES`). The std call `write(arrayBuffer, offset, length)` still works
+- `end(chunk?, encoding?, callback?)`: writes the chunk, emits `'finish'` on the next tick. Neither stream is closed; `console.log` keeps working. A later `write()` gives the callback an `ERR_STREAM_WRITE_AFTER_END` error and emits `'error'`
+- `on()`, `once()`, `off()`, `emit()` and the other emitter methods as for `stdin`; `emit('error')` without a listener throws
+- on a terminal a `'resize'` listener follows `SIGWINCH`; `readline` redraws on it
+- `writable`, `writableEnded`, `writableFinished`, `writableLength` (always 0), `writableHighWaterMark` (16384), `writableNeedDrain`, `writableObjectMode`, `writableCorked`, `destroyed`, `_isStdio`
+- `cork()`, `uncork()`, `destroy()`, `setDefaultEncoding()` do nothing beyond Node's return values
 - **static methods:** `columns()`, `fd()`, `getColorDepth()`, `getWindowSize()`, `hasColors()`, `isTTY()`, `rows()`
 
 ### `versions`
