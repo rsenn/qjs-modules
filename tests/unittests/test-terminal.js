@@ -162,6 +162,17 @@ tests({
     same(true, lines[3].includes('+1'));
     same(true, p.split('\n').every(l => l.startsWith('\x1b[48;2;16;24;32m')));
   },
+  'panel kind plain is a borderless filled rectangle'() {
+    const p = panel('note', 'a\nlonger line', 40, { kind: 'plain', background: '#101820' });
+    const rows = p.split('\n');
+    const plain = stripAnsi(p).split('\n');
+
+    same(5, rows.length);
+    same(true, plain.every(l => stringWidth(l) == stringWidth(plain[0])));
+    same(false, /[╭╮╰╯│─]/.test(p));
+    same(true, rows.every(l => l.startsWith('\x1b[48;2;16;24;32m')));
+    same(true, panel('t', 'x', 40, { kind: 'plain' }).startsWith('\x1b[48;5;236m'));
+  },
   'sideBySide, meter, gradientRule and shortPath'() {
     same(['ab  1', 'c   2', '    3'], sideBySide(['ab', 'c'], ['1', '2', '3'], 2));
     same(10, stringWidth(meter(0.5, 10)));
