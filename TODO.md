@@ -3798,7 +3798,18 @@ tests/deno-import-map.json, callers in ~/Sources/quickjs/qjs-* and plot-cv.
 
 Done in the split commit: files created, callers and tests migrated, cmake lists, `terminal/` prefix in
 src/qjsm.c builtin lookup, node/bun resolve hooks and deno import map (option 1: bare specifiers).
-Still open: regenerate the export blocks of doc/js/terminal.md with utilities/api-surface.sh and
-doc-api.js (SPECIAL map), tell the ollama-repl session when it is installed, the 4 failing
-decodeKeys/readKey tests, a bun run of test-terminal-portable.js (0 tests run, same before and after),
-BUILTIN_MODULES of an existing build dir must list the new terminal/* names (the cached value pins it).
+Done after the split commit: export blocks of doc/js/terminal.md regenerated (doc-api.js now groups several
+modules per doc, terminal_internal skipped), bun runs test-terminal-portable.js through
+tests/bun-tsconfig.json (paths), decodeKeys fixed (params scope, mouse branch, kitty/legacy modifier bits:
+1 shift, 2 alt, 4 ctrl, kitty event type), test-terminal.js 27/27, test-terminal-keys.js 14/14,
+test-terminal-portable.js 19/19 on qjsm, node, bun.
+
+Still open:
+- 10 LineEditor tests whose expectations conflict with the code and with each other, a contract decision:
+  test-terminal-lineeditor.js 'tab completion' (cursor 13 in an 11 char text), 'tab completion with ghost
+  text' (range replace vs insert), four 'reverse search' tests (which entry Ctrl-R finds first: tests expect
+  index 0 'hello world', code finds index 2 'hello qjs'; case insensitive returns -1),
+  test-completion.js 'partial ghost', 'layout returns ghostLines', 'ghostLines alignment',
+  test-terminal-lineeditor-search.js 'layout shows prompt in search mode'.
+- tell the ollama-repl session when the build is installed (user decides the install).
+- BUILTIN_MODULES of an existing build dir must list the new terminal/* names (the cached value pins it).

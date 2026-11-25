@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "terminal": ["lib/terminal.js"],
+      "terminal/*": ["lib/terminal/*.js"]
+    }
+  }
+}
