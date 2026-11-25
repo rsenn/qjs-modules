@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js: the pure functions and the exports, the same on every runtime */
-import { EAGAIN, decodeKeys, enableCapabilities, parseCapabilityReplies, queryCapabilities, syncOutput, SYNC_BEGIN, SYNC_END, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
+import { EAGAIN, LineEditor, decodeKeys, enableCapabilities, parseCapabilityReplies, queryCapabilities, syncOutput, SYNC_BEGIN, SYNC_END, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -113,6 +113,66 @@ tests({
     eq(keys.length, 2);
     eq(keys[0].s, 'a');
     eq(keys[1].key.name, 'up');
+  },
+
+  'LineEditor edits, moves and kills'() {
+    const ed = new LineEditor();
+    const feed = str => decodeKeys(str, true).keys.map(k => ed.key(k.key));
+    feed('hello world');
+    eq(ed.cmd, 'hello world');
+    feed('\x1b[D\x1b[D');
+    eq(ed.cursor, 9);
+    feed('\x17');
+    eq(ed.cmd, 'hello ld');
+    eq(ed.killRing, 'wor');
+    feed('\x19');
+    eq(ed.cmd, 'hello world');
+    feed('\x01\x0b');
+    eq(ed.cmd, '');
+    feed('a😀');
+    feed('\x7f');
+    eq(ed.cmd, 'a');
+    eq(feed('\r')[0], 'submit');
+    eq(ed.accept(), 'a');
+    eq(feed('\x03')[0], 'cancel');
+    eq(feed('\x04')[0], 'eof');
+  },
+
+  'LineEditor multi-line: newline keys and line moves'() {
+    const ed = new LineEditor();
+    ed.key({ name: 'a', sequence: 'a' });
+    ed.key({ name: 'return', meta: true });
+    ed.key({ name: 'b', sequence: 'b' });
+    ed.key({ name: 'paste', paste: 'c\r\nd' });
+    eq(ed.cmd, 'a\nbc\nd');
+    const { lines, row, col } = ed.layout(['> ', '. '], 20);
+    eq(lines.join('|'), '> a|. bc|. d');
+    eq(`${row},${col}`, '2,3');
+    ed.key({ name: 'up' });
+    eq(ed.cursor, 3);
+  },
+
+  'LineEditor history: Up, Down, draft, one new empty entry'() {
+    const ed = new LineEditor({ history: ['one', 'two'] });
+    const up = () => ed.key({ name: 'up' }), down = () => ed.key({ name: 'down' });
+    ed.set('draft');
+    up();
+    eq(ed.cmd, 'two');
+    up();
+    eq(ed.cmd, 'one');
+    down();
+    down();
+    eq(ed.cmd, 'draft');
+    down();
+    eq(ed.cmd, '');
+    eq(ed.history.length, 3);
+    eq(ed.history[2], 'draft');
+    down();
+    eq(ed.history.length, 3);
+    eq(ed.accept(), '');
+    ed.set('x');
+    eq(ed.accept(), 'x');
+    eq(ed.history[ed.history.length - 1], 'x');
   },
 
   'windowSize falls back to 80x24 or the real size'() {

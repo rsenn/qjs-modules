@@ -111,6 +111,28 @@ meta, shift }`. `mousetrackingEnable(f)` / `mousetrackingDisable(f)` set modes 1
 | `readKey(fd)` | one keypress, waits for it: `{ type }` with `up`, `down`, `left`, `right`, `pageup`, `pagedown`, `space`, `enter`, `backspace`, `ctrlc`, `escape` (also any other sequence), `eof`, `{ type: 'char', char }` or `{ type: 'mouse', ... }` (see Mouse) |
 | `decodeKeys(str, final)` | `{ keys, rest }`: each key as `{ s, key }` with Node's keypress shape `{ sequence, name, ctrl, meta, shift }`; `rest` is an unfinished escape sequence to prepend to the next chunk, unless `final` |
 
+### Line editor
+
+`new LineEditor({ history, maxHistory })` is the state of one edited line, with no I/O: feed it the
+`key` of each `decodeKeys()` entry and draw `layout()`.
+
+```js
+const ed = new LineEditor({ history: ['ls', 'pwd'] });
+for(const { key } of decodeKeys(input).keys) {
+  const what = ed.key(key); // 'submit' 'cancel' 'eof' 'change' or null (not a key of the editor)
+  if(what == 'submit') run(ed.accept()); // the text goes into the history, the editor is empty again
+}
+const { lines, row, col } = ed.layout(['> ', '. '], columns); // as layoutInput()
+```
+
+Keys: printable keys and pastes insert; Backspace, Delete, the arrows, Home and End; Ctrl-A E B F D H K U
+W Y; Alt-B F D Backspace and Ctrl-Left/Right move or kill by word; Ctrl-J, Alt-Enter and Shift-Enter
+insert a newline; Enter submits, Ctrl-C cancels, Ctrl-D on an empty line is the end of input. Up and
+Down move a line in a multi-line text, else through the history; the text typed before the first Up
+comes back with Down, and Down in the new entry with text in it puts that text into the history and
+starts one empty entry. Enable bracketed paste with `enableCapabilities` (only when
+`caps.bracketedPaste`), the editor handles the `paste` key.
+
 ### Terminal features
 
 `queryCapabilities(f, { input, timeout, raw, env })` asks the terminal which features it has: it
