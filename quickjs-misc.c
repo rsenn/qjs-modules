@@ -1305,7 +1305,7 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 2 && JS_IsString(argv[1]))
     pfx = JS_ToCString(ctx, argv[1]);
 
-  if((nam = tempnam(dir, pfx))) {
+  if((nam = tempnam((char*)dir, (char*)pfx))) {
     ret = JS_NewString(ctx, nam);
     free(nam);
   }

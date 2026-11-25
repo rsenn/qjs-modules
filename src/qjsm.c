@@ -97,7 +97,7 @@
 
 /* --- extern declarations for functions defined elsewhere (quickjs-libc.c / libc) --- */
 
-#if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID) && !defined(__ANDROID__)
+#if !defined(DONT_HAVE_MALLOC_USABLE_SIZE) && !defined(ANDROID) && !defined(__ANDROID__)
 #if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
 extern size_t malloc_usable_size(void*);
@@ -243,7 +243,7 @@ static int bignum_ext = 1;
 #include "quickjs-builtins.h"
 
 #ifdef QJS_BIGNUM_EXT
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
 BUILTIN_COMPILED(qjscalc);
 #endif
 #endif
@@ -3614,7 +3614,7 @@ jsm_help(void) {
          "    --std                  make 'std' and 'os' available to the loaded script\n"
 #ifdef QJS_BIGNUM_EXT
          "    --no-bignum            disable bignum extension (BigFloat, BigDecimal)\n"
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
          "    --qjscalc              load the qjscalc runtime (default if invoked as qjscalc)\n"
 #endif
 #endif
@@ -3661,7 +3661,7 @@ main(int argc, char** argv) {
   char no_node = 0, no_bun = 0, no_process_global = 0;
   const char* include_list[32];
   size_t memory_limit = 0, include_count = 0, stack_size = 0;
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
   int load_jscalc;
 #endif
 
@@ -3677,7 +3677,7 @@ main(int argc, char** argv) {
   exelen = strlen(exename);
 
   /* load jscalc runtime if invoked as 'qjscalc' */
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
   load_jscalc = str_equal(exename, "qjscalc");
 #endif
 
@@ -3803,7 +3803,7 @@ main(int argc, char** argv) {
         bignum_ext = 1;
         break;
       }
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
       if(str_equal(longopt, "qjscalc")) {
         load_jscalc = 1;
         break;
@@ -3944,7 +3944,7 @@ main(int argc, char** argv) {
     }
   }
 
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
   if(load_jscalc)
     bignum_ext = 1;
 #endif
@@ -4007,7 +4007,7 @@ main(int argc, char** argv) {
     DynBuf db;
     dbuf_init_ctx(jsm_ctx, &db);
 
-#if HAVE_QJSCALC
+#if defined(HAVE_QJSCALC) && HAVE_QJSCALC
     if(load_jscalc) {
       JS_FreeValue(ctx, js_eval_binary(jsm_ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0));
     }

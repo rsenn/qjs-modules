@@ -103,7 +103,7 @@ static JSValue
 js_serialport_ioready(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   struct sp_port* port;
   JSValue args[2];
-  int64_t fd = -1, ret;
+  int64_t fd = -1, ret = -1;
   InputBuffer input;
 
   if(!(port = js_serialport_data(ctx, data[0])))

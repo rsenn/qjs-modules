@@ -140,11 +140,10 @@ js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
     case LIBMAGIC_BUFFER: {
-      int n = 1;
       InputBuffer input = js_input_chars(ctx, argv[0]);
 
       if(argc > 1)
-        n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
+        js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
       str = magic_buffer(cookie, inputbuffer_data(&input), inputbuffer_length(&input));
 

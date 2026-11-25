@@ -20,6 +20,11 @@ macro(build_liblzma BINARY SUFFIX PIC)
     set(LIBLZMA_THREADS_ARG "")
   endif()
 
+  # dietlibc's cdefs.h defines __leaf as a macro, which breaks gcc's cpuid.h: no CLMUL CRC there
+  if(DIET OR HAVE_DIETLIBC)
+    set(LIBLZMA_THREADS_ARG ${LIBLZMA_THREADS_ARG} "-DXZ_CLMUL_CRC:BOOL=OFF" "-DHAVE_CPUID_H:INTERNAL=0")
+  endif()
+
   ExternalProject_Add(
     liblzma_${SUFFIX}
     URL https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz

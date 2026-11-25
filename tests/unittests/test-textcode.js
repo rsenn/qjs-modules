@@ -1,4 +1,4 @@
-import { decode, encode, isAscii, isUtf8, stringWidth, stripAnsi, TextDecoder, TextEncoder, truncate, utf8Offsets, wrap } from 'textcode';
+import { decode, encode, isAscii, isUtf8, stringWidth, stripAnsi, TextDecoder, TextEncoder, truncate, truncateLines, utf8Offsets, wrap } from 'textcode';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -206,5 +206,13 @@ tests({
     eq(stripAnsi('\x1b[1mbold\x1b[0m'), 'bold');
     eq(truncate('hello world', 6), 'hello…');
     eq(JSON.stringify(wrap('one two three', 7)), '["one two","three"]');
+    eq(JSON.stringify(truncateLines(['hello world', 'hi'], 6)), '["hello…","hi"]');
+    let thrown;
+    try {
+      truncateLines('hello', 6);
+    } catch(e) {
+      thrown = e;
+    }
+    assert(thrown instanceof TypeError);
   },
 });

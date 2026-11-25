@@ -52,7 +52,8 @@ cb(void* user, const JsonEvent* ev) {
       snprintf(buf, sizeof(buf), "k:%.*s", (int)ev->len, ev->str ? ev->str : "");
       put(r, buf);
       break;
-    case JSON_EVENT_COMMENT: break;
+    case JSON_EVENT_COMMENT:
+    case JSON_EVENT_RAW: break;
     case JSON_EVENT_ERROR:
       snprintf(buf, sizeof(buf), "E:%s@%u:%u", jr_error_name(r->st.err_code), (unsigned)r->st.err_pos.line, (unsigned)r->st.err_pos.column);
       put(r, buf);

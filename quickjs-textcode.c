@@ -1741,6 +1741,57 @@ end:
   return ret;
 }
 
+/**
+ * truncateLines(lines, width, ellipsis): truncate() of each element of
+ * lines, in one call.
+ *
+ *   truncateLines(['hello world', 'hi'], 6)   -> ['hello…', 'hi']
+ *
+ *   Array   lines     elements are converted as truncate() does
+ *   number  width     cells, the ellipsis included
+ *   string  ellipsis  default U+2026
+ *
+ *   returns string[]  a new array, one string per element
+ *
+ * throws TypeError when lines is not an array.
+ * wired in as JS_CFUNC_DEF("truncateLines", 3, ...).
+ */
+static JSValue
+js_textcode_truncatelines(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret, len, args[3];
+  uint32_t n, i;
+  int bad;
+
+  if(argc < 1 || !JS_IsArray(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "lines is not an array");
+
+  len = JS_GetPropertyStr(ctx, argv[0], "length");
+  bad = JS_ToUint32(ctx, &n, len);
+  JS_FreeValue(ctx, len);
+
+  if(bad)
+    return JS_EXCEPTION;
+
+  args[1] = argc > 1 ? argv[1] : JS_UNDEFINED;
+  args[2] = argc > 2 ? argv[2] : JS_UNDEFINED;
+  ret = JS_NewArray(ctx);
+
+  for(i = 0; i < n; i++) {
+    JSValue line = JS_GetPropertyUint32(ctx, argv[0], i), cut;
+
+    args[0] = line;
+    cut = js_textcode_truncate(ctx, JS_UNDEFINED, 3, args);
+    JS_FreeValue(ctx, line);
+
+    if(JS_IsException(cut) || JS_SetPropertyUint32(ctx, ret, i, cut) < 0) {
+      JS_FreeValue(ctx, ret);
+      return JS_EXCEPTION;
+    }
+  }
+
+  return ret;
+}
+
 /* what wrap() carries while it fills lines */
 typedef struct {
   JSContext* ctx;
@@ -2019,6 +2070,7 @@ end:
  *   stringWidth  terminal cells of a string, escape sequences count 0
  *   stripAnsi    a string without its escape sequences
  *   truncate     a string cut to a number of cells
+ *   truncateLines  truncate() of each element of an array
  *   wrap         a string broken into lines of a number of cells
  */
 static const JSCFunctionListEntry js_textcode_funcs[] = {
@@ -2030,6 +2082,7 @@ static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_DEF("stringWidth", 1, js_textcode_stringwidth),
     JS_CFUNC_DEF("stripAnsi", 1, js_textcode_stripansi),
     JS_CFUNC_DEF("truncate", 3, js_textcode_truncate),
+    JS_CFUNC_DEF("truncateLines", 3, js_textcode_truncatelines),
     JS_CFUNC_DEF("wrap", 2, js_textcode_wrap),
 };
 

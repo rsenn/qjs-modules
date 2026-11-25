@@ -838,7 +838,7 @@ xr_attribute(xr_state_t* s, XrOut* o, int has_value) {
   size_t nlen = s->name_accum.len;
 
   if(has_value)
-    s->val_accum.len = xml_decode_entities(s->val_accum.buf ? s->val_accum.buf : "", s->val_accum.len);
+    s->val_accum.len = (s->val_accum.buf ? xml_decode_entities(s->val_accum.buf, s->val_accum.len) : 0);
 
   if(s->is_pi) {
     xr_accum_put(&s->pi_accum, " ", 1);

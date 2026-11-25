@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js: the pure functions and the exports, the same on every runtime */
-import { EAGAIN, decodeKeys, stringWidth, stripAnsi, truncate, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
+import { EAGAIN, decodeKeys, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -43,6 +43,12 @@ tests({
     eq(truncate('\x1b[31mhello world\x1b[0m', 6), '\x1b[31mhello\x1b[0m…');
     eq(truncate('hello', 0), '');
     eq(truncate('hello', 1, '....'), '');
+  },
+
+  'truncateLines cuts every element like truncate'() {
+    eq(JSON.stringify(truncateLines(['hello world', 'hi', '\x1b[31mhello world\x1b[0m'], 6)), JSON.stringify(['hello…', 'hi', '\x1b[31mhello\x1b[0m…']));
+    eq(JSON.stringify(truncateLines(['hello world'], 6, '..')), '["hell.."]');
+    eq(JSON.stringify(truncateLines([], 6)), '[]');
   },
 
   'wrap breaks after spaces and carries a style over the break'() {

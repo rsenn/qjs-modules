@@ -152,7 +152,7 @@ xmlserializer_read(JSContext* ctx, XmlTreeSerializer* xs, void* buf, size_t n) {
 static JSValue
 js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   XmlTreeSerializer* xs;
-  ssize_t r;
+  ssize_t r = 0;
 
   if(!(xs = JS_GetOpaque2(ctx, this_val, js_xmlserializer_class_id)))
     return JS_EXCEPTION;

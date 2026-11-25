@@ -3696,6 +3696,21 @@ under wine only (a C check of vtconsole output and injected key events), not on 
 | 31.8 | `util.stripAnsi` and `terminal.stripAnsi` differ | util's also strips `ESC (B` and similar, terminal's only CSI; one of them should go |
 
 
+## Tier 32 — `lib/terminal.js` string widths and wrapping (2026-11-25)
+
+Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2.0 ms per 190-cell line, so a
+613-line list redraw took 0.8 s per key. **Done** in `lib/terminal.js` (installed to
+`/usr/local/lib/quickjs` 2026-11-25): `charWidth` fast path and binary search, `stringWidth` fast path for plain ASCII,
+`truncate` and `wrap` without the `cells()` generator, `activeStyle` through one regex. JS only: 24 ms and 73 ms for the
+613 lines (31x and 17x), identical output on a randomized differential test against the old code.
+
+| # | Item | Notes |
+| --- | --- | --- |
+| 32.1 done | Install the new `lib/terminal.js` over `/usr/local/lib/quickjs/terminal.js` and tell qjs-lws-24 |  |
+| 32.2 done | Native `stringWidth`, `stripAnsi`, `truncate`, `wrap` and a batch `truncateLines(lines, width)` | in `quickjs-textcode.c`, `lib/terminal.js` uses it when textcode has it (613 lines: truncate 1.2 ms, wrap 2.6 ms, `truncateLines` 0.65 ms); one UTF-8 pass, escapes copied through, sorted width tables; same behaviour as the JS (escapes kept, RESET added on a cut, color reopened across a wrap break) |
+| 32.3 done | `wrap(str, 1)` never returns when a double-width character does not fit | a cell wider than an empty line now goes onto it (JS and native), test in `test-terminal-portable.js` |
+| 32.4 done | `cells()` without the `String.fromCodePoint` round trip | still a tuple per character, used by `gradient` and the JS `wrap` for a word longer than the line; the native `wrap` does not use it |
+
 ## Build on a fresh machine (found 2026-11-15, Termux restore)
 
 - standalone configure (no quickjs installed) fails in cmake/deps/BuildQuickJS.cmake:192, see BUGS

@@ -351,7 +351,7 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
      * handle a plain ~ or ~/ by expanding $HOME
      * first and then trying the password file
      */
-#if HAVE_ISSETUGID
+#if defined(HAVE_ISSETUGID) && HAVE_ISSETUGID
     if(issetugid() != 0 || (h = getenv("HOME")) == NULL) {
 #endif
 #if HAVE_GETPWUID
@@ -369,7 +369,7 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
       h = path_gethome(getuid());
 #endif
 #endif
-#if HAVE_ISSETUGID
+#if defined(HAVE_ISSETUGID) && HAVE_ISSETUGID
     }
 #endif
   } else {

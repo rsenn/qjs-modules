@@ -1851,7 +1851,7 @@ js_is_primitive(JSValueConst obj) {
   return FALSE;
 }
 
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
 /* Constructs a throwaway instance of the named global constructor to learn
  * its JS_GetClassID() tag, since built-in class IDs aren't exposed as
  * constants in quickjs.h (they vary by quickjs build/version) but ARE fixed
@@ -1879,7 +1879,7 @@ js_probe_class_id(JSContext* ctx, JSValue ctor, int argc, JSValueConst argv[]) {
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -1898,7 +1898,7 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -1917,7 +1917,7 @@ js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_date(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -1935,7 +1935,7 @@ js_is_date(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -1953,7 +1953,7 @@ js_is_map(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_weakmap(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -1971,7 +1971,7 @@ js_is_weakmap(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -1989,7 +1989,7 @@ js_is_set(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -2019,7 +2019,7 @@ js_is_generator(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_asyncgenerator(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -2049,7 +2049,7 @@ js_is_asyncgenerator(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -2079,7 +2079,7 @@ js_is_promise(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 
@@ -2097,7 +2097,7 @@ js_is_dataview(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_error(JSContext* ctx, JSValueConst value) {
-#if HAVE_JS_GETCLASSID
+#if defined(HAVE_JS_GETCLASSID) && HAVE_JS_GETCLASSID
   static JSClassID id;
   static BOOL probed;
 

@@ -93,6 +93,12 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
          "-DLIBB2_LIBRARY:FILEPATH=${LIBB2_LIBRARY_FILE_${SUFFIX}}")
   endif()
 
+  # the detected "lzma" is a bare library name with no include directory, so libarchive's own probe
+  # finds the host liblzma.so and /usr/include/lzma.h and ends up without lzma (HAVE_LZMA_H unset)
+  if(LIBARCHIVE_LZMA AND LIBLZMA_FOUND AND (DIET OR HAVE_DIETLIBC))
+    set(LIBLZMA_FOUND FALSE)
+  endif()
+
   if(NOT LIBARCHIVE_LZMA)
     list(APPEND LIBARCHIVE_DEP_ARGS_${SUFFIX} "-DENABLE_LZMA:BOOL=OFF")
   elseif(NOT LIBLZMA_FOUND)
@@ -177,6 +183,27 @@ macro(build_libarchive SOURCE BINARY SUFFIX PIC)
       LIBARCHIVE_DEP_ARGS_${SUFFIX}
       "-DCMAKE_EXE_LINKER_FLAGS:STRING=-lwasi-emulated-signal -lwasi-emulated-getpid -lwasi-emulated-process-clocks -lwasi-emulated-mman"
     )
+  endif()
+
+  # dietlibc has none of these: the probes find the glibc headers in /usr/include, and their
+  # linux/types.h typedefs break the probes that follow (conflicting types for __u64)
+  if(DIET OR HAVE_DIETLIBC)
+    list(
+      APPEND
+      LIBARCHIVE_DEP_ARGS_${SUFFIX}
+      "-DENABLE_ACL:BOOL=OFF"
+      "-DENABLE_XATTR:BOOL=OFF"
+      "-DENABLE_TAR:BOOL=OFF"
+      "-DENABLE_CPIO:BOOL=OFF"
+      "-DENABLE_CAT:BOOL=OFF"
+      "-DENABLE_UNZIP:BOOL=OFF"
+      "-DHAVE_ACL_LIBACL_H:INTERNAL=0"
+      "-DHAVE_ATTR_XATTR_H:INTERNAL=0"
+      "-DHAVE_SYS_ACL_H:INTERNAL=0"
+      "-DHAVE_EXT2FS_EXT2_FS_H:INTERNAL=0"
+      "-DHAVE_WORKING_EXT2_IOC_GETFLAGS:INTERNAL=0")
+    # fstatat(), linkat() and the other *at() calls are declared only under it
+    set(LIBARCHIVE_C_FLAGS "${LIBARCHIVE_C_FLAGS} -D_ATFILE_SOURCE=1")
   endif()
 
   ExternalProject_Add(
