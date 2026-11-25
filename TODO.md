@@ -3813,3 +3813,9 @@ Still open:
   test-terminal-lineeditor-search.js 'layout shows prompt in search mode'.
 - tell the ollama-repl session when the build is installed (user decides the install).
 - BUILTIN_MODULES of an existing build dir must list the new terminal/* names (the cached value pins it).
+
+Reversed later on 2026-11-25 (user decision): lib/terminal.js is now only `export *` of lib/terminal/*.js
+(the old terminal.js is terminal/core.js), so `from 'terminal'` gives every name again. Nothing imports
+the facade inside lib/: util, console, process, tty, bun/util, readline and repl import terminal/core
+(readline and repl also terminal/keys), so they do not load the rest. The ollama-repl session needs no
+import migration any more. Build dirs that pin BUILTIN_MODULES also need terminal/core.

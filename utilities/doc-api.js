@@ -21,6 +21,7 @@ const SPECIAL = {
   loaders_node: 'js/node',
   loaders_nodeNames: 'js/node',
   terminal_capabilities: 'js/terminal',
+  terminal_core: 'js/terminal',
   terminal_keys: 'js/terminal',
   terminal_lineeditor: 'js/terminal',
   terminal_screen: 'js/terminal',
@@ -29,8 +30,8 @@ const SPECIAL = {
   terminal_widgets: 'js/terminal',
 };
 
-/* modules that are not API: no export list */
-const SKIP = new Set(['terminal_internal']);
+/* modules that are not API or only re-export others: no export list */
+const SKIP = new Set(['terminal', 'terminal_internal']);
 
 /* doc path of a module, relative to doc/: native/<name>.md or js/<name>.md */
 function docOf(root, name) {

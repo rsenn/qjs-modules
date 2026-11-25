@@ -23,6 +23,7 @@
     "terminal/screen": "../lib/terminal/screen.js",
     "terminal/scrollview": "../lib/terminal/scrollview.js",
     "terminal/style": "../lib/terminal/style.js",
-    "terminal/widgets": "../lib/terminal/widgets.js"
+    "terminal/widgets": "../lib/terminal/widgets.js",
+    "terminal/core": "../lib/terminal/core.js"
   }
 }
