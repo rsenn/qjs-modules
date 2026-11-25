@@ -146,6 +146,56 @@ tests({
     eq(ed.cursor, 3);
   },
 
+  'LineEditor history filter'() {
+    const ed = new LineEditor();
+    // Test historyFilter - only allow entries that don't start with '#'
+    ed.historyFilter = (entry) => !entry.startsWith('#');
+    ed.set('comment');
+    eq(ed.accept(), 'comment');
+    eq(ed.history.length, 1);
+    eq(ed.history[0], 'comment');
+    // Filtered entry should not be added
+    ed.set('#filtered');
+    eq(ed.accept(), '#filtered');
+    eq(ed.history.length, 1); // Still 1, not 2
+  },
+
+  'LineEditor onRemember callback'() {
+    const ed = new LineEditor();
+    const remembered = [];
+    ed.onRemember = (entry) => remembered.push(entry);
+    ed.set('first');
+    eq(ed.accept(), 'first');
+    eq(remembered.length, 1);
+    eq(remembered[0], 'first');
+    ed.set('second');
+    eq(ed.accept(), 'second');
+    eq(remembered.length, 2);
+    eq(remembered[1], 'second');
+  },
+
+  'LineEditor loadHistory and saveHistory'() {
+    const ed = new LineEditor({ history: ['one', 'two'] });
+    // saveHistory returns a copy
+    const saved = ed.saveHistory();
+    eq(saved.length, 2);
+    eq(saved[0], 'one');
+    eq(saved[1], 'two');
+    eq(ed.history.length, 2); // original unchanged
+    eq(ed.history[0], 'one');
+    eq(ed.history[1], 'two');
+    // Modify returned array should not affect history
+    saved.push('three');
+    eq(ed.history.length, 2);
+    // loadHistory replaces history and resets historyPos
+    ed.loadHistory(['new1', 'new2', 'new3']);
+    eq(ed.history.length, 3);
+    eq(ed.history[0], 'new1');
+    eq(ed.history[1], 'new2');
+    eq(ed.history[2], 'new3');
+    eq(ed.historyPos, -1);
+  },
+
   'LineEditor CJK cursor math'() {
     const ed = new LineEditor();
     ed.key({ name: 'a', ctrl: false, meta: false, shift: false });
