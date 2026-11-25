@@ -1,6 +1,6 @@
 # repl
 
-Source: `lib/repl.js` (pure JS)
+Source: `lib/repl.js` (pure JS). It imports `terminal/core` (tty I/O, widths, escape writers) and `terminal/keys` (`readKey`), see [terminal](terminal.md#modules).
 
 An interactive read-eval-print loop with line editing, history, completion and
 syntax highlighting.
@@ -190,6 +190,10 @@ drive it over a pipe (`REPL.piped` is true):
 ```sh
 printf '1+1\nawait fetch(url)\n' | qjsm repl-script.js
 ```
+
+## Relation to LineEditor
+
+`REPL` edits its input itself: its own key table (`commands`, keyed by raw sequences), its own redraw (`render()`, `paintLine()`) and its own history search. `LineEditor` in [terminal](terminal.md#lineeditor) is the same kind of editor as a state machine over decoded keys, without drawing. The two are separate for now. What `LineEditor` lacks before `REPL` can be ported onto it is listed in `TODO.md`, "Port lib/repl.js onto terminal.js LineEditor": the missing keys (transpose, case of a word, quoted insert, Ctrl-L, forward search), a renderer, syntax coloring with bracket matching, a completion list, vi mode and a key table by key name.
 
 ## Exports
 

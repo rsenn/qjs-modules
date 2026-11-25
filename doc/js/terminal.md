@@ -334,6 +334,17 @@ The `decodeKeys()` function normalises both legacy xterm/ECMA-48 sequences and k
 
 Legacy xterm sequences use `ESC [ ... ~` or `ESC O` prefixes, while kitty sends `ESC [ code ; mods u`. The decoder maps both to the same `{name, ctrl, meta, shift}` representation.
 
+The modifier parameter of both forms is 1 plus a bit set: 1 is shift, 2 is alt (`meta`), 4 is ctrl, so `ESC [ 1 ; 5 D` is Ctrl-Left and `ESC [ 9 ; 3 u` is Alt-Tab. `ESC [ Z` is Shift-Tab. Further key fields:
+
+| Key | Extra fields |
+| --- | --- |
+| a kitty key sent with `kittyKeyboardEnable(f, 2)` | `event`: `'press'`, `'repeat'` or `'release'`, from the second group of the modifier parameter (`ESC [ 9 ; 3 : 3 u` is a release) |
+| `paste` | `paste`: the pasted text, CR LF and CR are left as sent |
+| `mouse` | `mouse`: `{ button, action, x, y }`. `button` is `left`, `middle`, `right`, `none` or `wheelup`, `wheeldown`, `wheelleft`, `wheelright`. `action` is `press`, `release`, `drag`, `move` or `wheel`. `ctrl`, `meta` and `shift` are the held modifiers. The SGR (`ESC [ < b ; x ; y M`), urxvt (`ESC [ b ; x ; y M`) and X10 (`ESC [ M b x y`) reports all give this shape. |
+| `focusin`, `focusout` | none |
+
+`decodeKeys(str, final = false)` returns `{ keys, rest }`: `keys` is an array of `{ s, key }` with `s` the bytes of the key, `rest` an unfinished sequence to prepend to the next chunk. With `final` an ESC at the end is the Escape key, not the start of a sequence.
+
 ## Export list
 
 ### `terminal/capabilities`
