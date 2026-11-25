@@ -1,7 +1,7 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js: fitTable, the table fitter (native in textcode, pure JS elsewhere) */
 import { fitTable, stringWidth } from '../../lib/terminal.js';
-import { assert, tests } from '../../lib/tinytest.js';
+import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const plain = s => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 const widest = t => Math.max(...t.split('\n').map(l => stringWidth(l)));
@@ -47,6 +47,24 @@ tests({
 
     fitTable(20, bar => (bars.push(bar), [['a', 'meter'], ['x', '#'.repeat(bar) + 'xxxxxxxxxxxxxxxxx']]));
     assert(bars.join() == '6,3,0', bars.join());
+  },
+
+  'make runs once for each bar, also when columns are dropped'() {
+    const bars = [];
+    const make = bar => (bars.push(bar), [['a', 'b', 'c'], ['x'.repeat(30), 'y'.repeat(30), 'z'.repeat(30)]]);
+    const text = fitTable(20, make, [0], [2, 1]);
+
+    eq('6,3,0', bars.join());
+    assert(stringWidth(text.split('\n')[1]) <= 20, text);
+    eq('a', text.split('\n')[0]);
+  },
+
+  'a table made from the same make result is not changed by the fitting'() {
+    const table = [['a', 'b'], ['x'.repeat(30), 'y'], ['k', 'v']];
+    const before = JSON.stringify(table);
+
+    fitTable(20, () => table, [0], [1]);
+    eq(before, JSON.stringify(table));
   },
 
   'flex may be one number'() {

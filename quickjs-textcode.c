@@ -2008,26 +2008,31 @@ fit_emit(DynBuf* out, const FitGrid* g, const DynBuf* arena, int64_t* colw, int6
 
 /* one try of fitTable with meters of bar cells. appends the text to out when
  * the table fits or last is set, and sets *fits. returns 0, 1 when the next
- * bar should be tried, or -1 with an exception pending. */
+ * bar should be tried, or -1 with an exception pending.
+ *
+ * made holds what make returned for 6, 3 and 0: make runs once per bar, the
+ * rows are only read, so a try after a column was dropped reuses them. */
 static int
-fit_try(JSContext* ctx, int64_t width, JSValueConst make, int bar, const int64_t* flex, size_t nflex, const int64_t* gone, size_t ngone, BOOL last, DynBuf* out, BOOL* fits) {
+fit_try(JSContext* ctx, int64_t width, JSValueConst make, JSValue* made, int bar, const int64_t* flex, size_t nflex, const int64_t* gone, size_t ngone, BOOL last, DynBuf* out, BOOL* fits) {
   static const uint8_t dots[] = "\xe2\x80\xa6";
   int64_t *v, *colw, *tgt, *cols, over, total;
   size_t i, j, k, ncf = 0;
-  JSValue rows, arg = JS_NewInt32(ctx, bar);
+  JSValue* rows = &made[bar == 6 ? 0 : bar == 3 ? 1 : 2];
+  JSValue arg = JS_NewInt32(ctx, bar);
   FitGrid g;
   DynBuf arena;
   int ret = -1;
 
-  rows = JS_Call(ctx, make, JS_UNDEFINED, 1, &arg);
+  if(JS_IsUndefined(*rows)) {
+    JSValue r = JS_Call(ctx, make, JS_UNDEFINED, 1, &arg);
 
-  if(JS_IsException(rows))
-    return -1;
+    if(JS_IsException(r))
+      return -1;
 
-  j = fit_load(ctx, rows, gone, ngone, &g);
-  JS_FreeValue(ctx, rows);
+    *rows = r;
+  }
 
-  if(j)
+  if(fit_load(ctx, *rows, gone, ngone, &g))
     return -1;
 
   dbuf_init_ctx(ctx, &arena);
@@ -2174,7 +2179,8 @@ fit_ints(JSContext* ctx, JSValueConst v, BOOL dflt, int64_t** out, size_t* n) {
  *
  *   returns string   rows joined by newlines, columns two spaces apart
  *
- * make is called with 6, 3 and 0 until the table fits. flex columns give up
+ * make is called with 6, 3 and 0 until the table fits, once for each, also
+ * when columns are dropped and the tries start again. flex columns give up
  * cells, the widest first, down to their header width (at least 6), cut as
  * truncate() cuts. a column below the header made only of 0-9 . , k M G % -
  * lines up on the right. flex and drop count the columns make returns.
@@ -2187,7 +2193,7 @@ static JSValue
 js_textcode_fittable(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int64_t width, *flex = 0, *drop = 0, *gone = 0;
   size_t nflex = 0, ndrop = 0, ngone = 0, i;
-  JSValue ret = JS_EXCEPTION;
+  JSValue ret = JS_EXCEPTION, made[3] = {JS_UNDEFINED, JS_UNDEFINED, JS_UNDEFINED};
   BOOL fits = FALSE;
   DynBuf out;
 
@@ -2219,7 +2225,7 @@ js_textcode_fittable(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     last = i == ndrop;
 
     for(r = 1, i = 0; i < 3 && r == 1; i++)
-      r = fit_try(ctx, width, argv[1], i == 0 ? 6 : i == 1 ? 3 : 0, flex, nflex, gone, ngone, last, &out, &fits);
+      r = fit_try(ctx, width, argv[1], made, i == 0 ? 6 : i == 1 ? 3 : 0, flex, nflex, gone, ngone, last, &out, &fits);
 
     if(r < 0)
       goto done;
@@ -2237,6 +2243,8 @@ js_textcode_fittable(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 done:
   dbuf_free(&out);
 end:
+  for(i = 0; i < 3; i++)
+    JS_FreeValue(ctx, made[i]);
   js_free(ctx, flex);
   js_free(ctx, drop);
   js_free(ctx, gone);
