@@ -42,6 +42,12 @@ The list Tab prints after a second press shows the kind of each entry:
 arguments, `JSON.` an object, a plain name any other value. Getters are not
 called.
 
+Preview: with the cursor at the end of a single line holding a literal
+(`0x10`) or a plain property chain (`Math.PI`), the value is shown in grey on
+the row below. Nothing is evaluated: a getter ends the chain without a preview,
+and an expression such as `1 + 1` has none. `repl.preview = false` turns it
+off.
+
 Pasted text arrives as one piece (bracketed paste), so a multi-line paste is
 edited as a whole and runs on Enter.
 

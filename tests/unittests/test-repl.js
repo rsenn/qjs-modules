@@ -415,4 +415,95 @@ tests({
     eq(false, called);
     eq('toString()', r.completionLabel(ctx, 'toString'));
   },
+  'previewText shows the value of a literal or a property chain'() {
+    const r = new REPL('v', false);
+    const at = cmd => ((r.cmd = cmd), (r.cursorPos = cmd.length), r.previewText());
+
+    r.showColors = true;
+    r.columns = 80;
+    eq('16', at('0x10'));
+    eq('3.141592653589793', at('Math.PI'));
+    eq('1000', at('1_000'));
+    eq('', at('5'));
+    eq("'abc'", at('"abc"'));
+    eq('', at("'abc'"));
+    eq('', at('true'));
+    eq('', at('Math.nope'));
+    eq('', at('1 + 1'));
+    eq('', at(''));
+  },
+
+  'previewText never calls a getter'() {
+    const r = new REPL('v', false);
+    let called = false;
+
+    globalThis.previewProbe = {
+      get g() {
+        called = true;
+        return 1;
+      },
+      v: 7,
+    };
+    r.showColors = true;
+    r.columns = 80;
+
+    const at = cmd => ((r.cmd = cmd), (r.cursorPos = cmd.length), r.previewText());
+
+    eq('7', at('previewProbe.v'));
+    eq('', at('previewProbe.g'));
+    eq(false, called);
+    delete globalThis.previewProbe;
+  },
+
+  'previewText is off while the cursor is inside, on several lines and with preview = false'() {
+    const r = new REPL('v', false);
+
+    r.showColors = true;
+    r.columns = 80;
+    r.cmd = '0x10';
+    r.cursorPos = 2;
+    eq('', r.previewText());
+
+    r.cmd = '0x10\n';
+    r.cursorPos = 5;
+    eq('', r.previewText());
+
+    r.cmd = '0x10';
+    r.cursorPos = 4;
+    r.preview = false;
+    eq('', r.previewText());
+  },
+
+  'a long preview is cut to the width'() {
+    const r = new REPL('v', false);
+
+    r.showColors = true;
+    r.columns = 20;
+    r.cmd = 'Object';
+    r.cursorPos = 6;
+
+    const text = r.previewText();
+
+    assert(text.length <= 16, text);
+  },
+
+  'render draws the preview on the row below and returns to the cursor'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('v', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = true;
+    r.columns = 80;
+    r.out = f;
+    r.cmd = '0x10';
+    r.cursorPos = 4;
+    r.render();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    assert(/\n\r[^\n]*16[^\n]*\x1b\[1A\r/.test(out), JSON.stringify(out));
+    eq(0, r.renderRow);
+  },
 });

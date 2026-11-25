@@ -3663,7 +3663,7 @@ checked in a 40-column tmux pane). Left open from them:
 | 30.3 done | Bracketed paste (`\e[200~` ... `\e[201~`): pasted text is inserted as is, not run line by line | Node, IPython, fish | |
 | 30.4 done | Grey inline suggestion from history, Right or `^E` accepts it (`suggestion()`, `acceptGhost()`; off with `repl.suggest = false`) | fish, IPython, PSReadLine | |
 | 30.5 done | Grey preview of the one remaining completion; the completion list shows the kind (function, value) and a function's arity (`completionPreview()`, `completionLabel()`) | Node | |
-| 30.6 | Live result preview while typing | Node, Chrome DevTools | QuickJS has no side-effect-free eval: only literals and plain property chains (`a.b.c`), getters skipped |
+| 30.6 done | Live result preview while typing (`previewText()`, `previewValue()`: literals and plain property chains, getters skipped, off with `repl.preview = false`) | Node, Chrome DevTools | QuickJS has no side-effect-free eval: only literals and plain property chains (`a.b.c`), getters skipped |
 | 30.7 | Prompt turns red while the input cannot parse | PSReadLine; Bun exports `isValidSyntax()` | |
 | 30.8 | Introspection: `obj?` prints type, prototype chain and function source; a `.type expr` command | IPython, GHCi | |
 | 30.9 | Helpers: `copy(x)` over OSC 52, `keys()`, `values()`, `table()`, a `.time expr` command | Chrome DevTools, IPython `%timeit` | `\t` only toggles the timing display |
