@@ -21,6 +21,17 @@ macro(build_zlib BINARY SUFFIX PIC)
   set(ZLIB_LIBRARY_FILE_${SUFFIX}
       "${ZLIB_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}${ZLIB_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+  # dietlibc cannot link a shared object: build and install the static library only
+  set(ZLIB_STATIC_ONLY_ARGS "")
+  if(DIET OR HAVE_DIETLIBC)
+    set(ZLIB_STATIC_ONLY_ARGS
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target zlibstatic
+        INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${ZLIB_PREFIX_${SUFFIX}}/include ${ZLIB_PREFIX_${SUFFIX}}/lib
+        COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/zlib.h <BINARY_DIR>/zconf.h ${ZLIB_PREFIX_${SUFFIX}}/include
+        COMMAND ${CMAKE_COMMAND} -E copy <BINARY_DIR>/${CMAKE_STATIC_LIBRARY_PREFIX}${ZLIB_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}
+                ${ZLIB_PREFIX_${SUFFIX}}/lib)
+  endif()
+
   ExternalProject_Add(
     zlib_${SUFFIX}
     URL https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
@@ -38,6 +49,7 @@ macro(build_zlib BINARY SUFFIX PIC)
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
       "-DZLIB_BUILD_EXAMPLES:BOOL=OFF"
+    ${ZLIB_STATIC_ONLY_ARGS}
     BUILD_BYPRODUCTS "${ZLIB_LIBRARY_FILE_${SUFFIX}}")
 endmacro()
 

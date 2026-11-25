@@ -3,14 +3,21 @@
 # Builds LibreSSL (native CMake build) from its release tarball as static libraries, once per
 # SUFFIX ("shared"/"static") with its own PIC setting. It is reported under the dependency name
 # openssl: the headers are <openssl/...>, the libraries libssl and libcrypto, as with OpenSSL.
-# OpenSSL itself is never built here: an installed OpenSSL or LibreSSL is found through
-# FindOpenSSL.cmake, and only when there is none is LibreSSL built. Scripts call use_openssl().
+# TLS_LIBRARY (LibreSSL, the default, or OpenSSL) picks the library: an installed one of that kind is
+# found through FindLibreSSL.cmake/FindOpenSSL.cmake, and only when there is none is it built
+# (build_libressl() here, build_openssl() in BuildOpenSSL.cmake). Scripts call use_openssl().
 #
 # Sets OPENSSL_ROOT_DIR_${SUFFIX}, OPENSSL_INCLUDE_DIR_${SUFFIX}, OPENSSL_LIBRARIES_${SUFFIX} and
 # OPENSSL_LINK_FLAGS_${SUFFIX}; the ExternalProject target is openssl_${SUFFIX}.
 include(${CMAKE_CURRENT_LIST_DIR}/../Deps.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/FindOpenSSL.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/FindLibreSSL.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/BuildOpenSSL.cmake)
 
+set(TLS_LIBRARY "LibreSSL" CACHE STRING "TLS library to find or build: LibreSSL or OpenSSL")
+set_property(CACHE TLS_LIBRARY PROPERTY STRINGS LibreSSL OpenSSL)
+
+option(BUILD_LIBRESSL "build LibreSSL instead of OpenSSL when no TLS library is installed" OFF)
 set(LIBRESSL_VERSION "4.3.3" CACHE STRING "LibreSSL release to build")
 set(LIBRESSL_URL "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${LIBRESSL_VERSION}.tar.gz" CACHE STRING
     "LibreSSL release tarball")
@@ -35,6 +42,12 @@ macro(build_libressl BINARY SUFFIX PIC)
     string(REGEX REPLACE "-.*" "" _LSSL_PROC "${_LSSL_TRIPLET}")
   endif()
 
+  # dietlibc has no be32toh() and friends
+  set(_LSSL_C_FLAGS "")
+  if(DIET OR HAVE_DIETLIBC)
+    set(_LSSL_C_FLAGS "-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
+  endif()
+
   ExternalProject_Add(
     openssl_${SUFFIX}
     URL ${LIBRESSL_URL}
@@ -50,6 +63,7 @@ macro(build_libressl BINARY SUFFIX PIC)
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      "-DCMAKE_C_FLAGS:STRING=${_LSSL_C_FLAGS}"
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
       "-DBUILD_SHARED_LIBS:BOOL=OFF"
       "-DLIBRESSL_APPS:BOOL=OFF"
@@ -74,9 +88,21 @@ macro(build_libressl BINARY SUFFIX PIC)
                                   ${OPENSSL_SYSTEM_LIBS_${SUFFIX}})
 endmacro()
 
-# Registration with Deps.cmake: the installed OpenSSL/LibreSSL, else build_libressl().
+# Registration with Deps.cmake: the installed OpenSSL/LibreSSL, else build_openssl() (or build_libressl()
+# with -DBUILD_LIBRESSL=ON).
 function(_openssl_find name suffix)
-  find_openssl()
+  if(TLS_LIBRARY STREQUAL "LibreSSL")
+    find_libressl()
+  else()
+    find_openssl()
+    # an installed LibreSSL is not what was asked for
+    if(OPENSSL_FOUND)
+      file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" _FO_LINE REGEX "LIBRESSL_VERSION_NUMBER")
+      if(_FO_LINE)
+        set(OPENSSL_FOUND FALSE)
+      endif()
+    endif()
+  endif()
 
   if(OPENSSL_FOUND)
     dep_provide(openssl ${suffix} SOURCE system ORIGIN "${OPENSSL_SSL_LIBRARY}" INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR}
@@ -85,9 +111,15 @@ function(_openssl_find name suffix)
 endfunction()
 
 function(_openssl_build name suffix pic binary source)
-  build_libressl(${binary} ${suffix} ${pic})
+  if(TLS_LIBRARY STREQUAL "LibreSSL")
+    build_libressl(${binary} ${suffix} ${pic})
+    set(_OB_ORIGIN "libressl ${LIBRESSL_VERSION}")
+  else()
+    build_openssl(${binary} ${suffix} ${pic})
+    set(_OB_ORIGIN "openssl ${OPENSSL_VERSION}")
+  endif()
 
-  dep_provide(openssl ${suffix} SOURCE built ORIGIN "libressl ${LIBRESSL_VERSION}: ${OPENSSL_ROOT_DIR_${suffix}}"
+  dep_provide(openssl ${suffix} SOURCE built ORIGIN "${_OB_ORIGIN}: ${OPENSSL_ROOT_DIR_${suffix}}"
               PREFIX "${OPENSSL_ROOT_DIR_${suffix}}" INCLUDE_DIRS "${OPENSSL_INCLUDE_DIR_${suffix}}"
               LIBRARIES ${OPENSSL_LIBRARIES_${suffix}} LINK_FLAGS "${OPENSSL_LINK_FLAGS_${suffix}}"
               TARGETS openssl_${suffix})

@@ -117,6 +117,18 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
     set(LIBMARIADB_WIN_PVIO_${SUFFIX} OFF)
   endif()
 
+  # dietlibc declares errno thread-local (ma_sys.h must include <errno.h> instead of declaring it),
+  # keeps strcasecmp() in strings.h behind _GNU_SOURCE, and has no ceilf() or u_char (_BSD_SOURCE would clash with ma_global.h ulong)
+  set(LIBMARIADB_C_FLAGS_${SUFFIX} "-w")
+  set(LIBMARIADB_INCLUDE_ORDER_${SUFFIX} OFF)
+  if(DIET OR HAVE_DIETLIBC)
+    # /opt/diet/include, the OpenSSL include directory, also holds an old mysql errmsg.h: the
+    # connector's own include directories must come before it
+    set(LIBMARIADB_INCLUDE_ORDER_${SUFFIX} ON)
+    set(LIBMARIADB_C_FLAGS_${SUFFIX}
+        "-w -DHAVE_ERRNO_AS_DEFINE=1 -D_GNU_SOURCE -include strings.h -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
+  endif()
+
   ExternalProject_Add(
     libmariadb_${SUFFIX}
     DEPENDS libmariadb_source ${OPENSSL_DEPENDS_${SUFFIX}} ${ZLIB_DEPENDS_${SUFFIX}}
@@ -132,7 +144,8 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-      "-DCMAKE_C_FLAGS:STRING=-w"
+      "-DCMAKE_C_FLAGS:STRING=${LIBMARIADB_C_FLAGS_${SUFFIX}}"
+      "-DCMAKE_INCLUDE_DIRECTORIES_BEFORE:BOOL=${LIBMARIADB_INCLUDE_ORDER_${SUFFIX}}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=OFF"

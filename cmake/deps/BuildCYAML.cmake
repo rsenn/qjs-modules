@@ -39,6 +39,12 @@ macro(build_cyaml SOURCE BINARY SUFFIX PIC)
     endif()
   endif()
 
+  # dietlibc has no NAN, INFINITY, locale_t or strtod_l(); -w keeps the library's -Werror quiet
+  set(CYAML_C_FLAGS "")
+  if(DIET OR HAVE_DIETLIBC)
+    set(CYAML_C_FLAGS "-w -D_GNU_SOURCE -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
+  endif()
+
   ExternalProject_Add(
     cyaml_${SUFFIX}
     DEPENDS cyaml_source
@@ -54,6 +60,7 @@ macro(build_cyaml SOURCE BINARY SUFFIX PIC)
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      "-DCMAKE_C_FLAGS:STRING=${CYAML_C_FLAGS}"
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
       "-DCYAML_BUILD_STATIC:BOOL=ON"
       "-DCYAML_BUILD_SHARED:BOOL=OFF"

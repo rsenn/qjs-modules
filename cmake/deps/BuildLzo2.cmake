@@ -22,15 +22,17 @@ macro(build_lzo2 BINARY SUFFIX PIC)
   endif()
 
   # dietlibc defines __noinline__ as a macro, which breaks __attribute__((__noinline__))
-  if(DIET)
-    set(LZO2_WASI_ARGS "-DCMAKE_C_FLAGS:STRING=-w -D__lzo_noinline=")
-  endif(DIET)
+  set(LZO2_PATCH_${SUFFIX})
+  if(DIET OR HAVE_DIETLIBC)
+    set(LZO2_PATCH_${SUFFIX} PATCH_COMMAND sed -i "s/__attribute__((__noinline__/__attribute__((noinline/" <SOURCE_DIR>/include/lzo/lzodefs.h)
+  endif()
 
   ExternalProject_Add(
     lzo2_${SUFFIX}
     URL https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz
     DOWNLOAD_DIR ${BINARY}/downloads-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    ${LZO2_PATCH_${SUFFIX}}
     BINARY_DIR ${BINARY}/lzo2-${SUFFIX}
     CMAKE_CACHE_ARGS
       "-DCMAKE_INSTALL_PREFIX:PATH=${LZO2_PREFIX_${SUFFIX}}"

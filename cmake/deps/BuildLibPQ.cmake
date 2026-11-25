@@ -50,6 +50,10 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
   endif()
 
   set(LIBPQ_CFLAGS_${SUFFIX} "-O2 -w")
+  if(DIET OR HAVE_DIETLIBC)
+    # gcc's cpuid.h has a parameter named like dietlibc's __leaf macro, u_char and u_int need _BSD_SOURCE
+    string(APPEND LIBPQ_CFLAGS_${SUFFIX} " -D_GNU_SOURCE -D_BSD_SOURCE -I${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet")
+  endif()
   if(${PIC})
     string(APPEND LIBPQ_CFLAGS_${SUFFIX} " -fPIC")
   endif()
