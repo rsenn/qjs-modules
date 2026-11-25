@@ -111,6 +111,36 @@ meta, shift }`. `mousetrackingEnable(f)` / `mousetrackingDisable(f)` set modes 1
 | `readKey(fd)` | one keypress, waits for it: `{ type }` with `up`, `down`, `left`, `right`, `pageup`, `pagedown`, `space`, `enter`, `backspace`, `ctrlc`, `escape` (also any other sequence), `eof`, `{ type: 'char', char }` or `{ type: 'mouse', ... }` (see Mouse) |
 | `decodeKeys(str, final)` | `{ keys, rest }`: each key as `{ s, key }` with Node's keypress shape `{ sequence, name, ctrl, meta, shift }`; `rest` is an unfinished escape sequence to prepend to the next chunk, unless `final` |
 
+### Terminal features
+
+`queryCapabilities(f, { input, timeout, raw, env })` asks the terminal which features it has: it
+sends DECRQM for modes 2026, 2027, 2004, 1004 and 1006, the kitty keyboard query, XTVERSION and
+the primary device attributes last, and reads the answers until that last one came or `timeout`
+(300 ms) passed. Call it once at start-up, before the line editor reads the input; what the user
+typed meanwhile is returned. No terminal or no answer gives `false` everywhere.
+
+```js
+const caps = queryCapabilities(std.out);
+// { syncOutput, graphemeClusters, bracketedPaste, focusEvents, sgrMouse, kittyKeyboard, kittyFlags,
+//   truecolor (from COLORTERM), terminal ('kitty(0.35)'), answered, typeahead }
+const restore = enableCapabilities(std.out, caps, { kitty: true });   // returns the undo function
+const screen = new Screen(std.out, { sync: caps.syncOutput });        // each frame in one 2026 block
+```
+
+| Export | Description |
+| --- | --- |
+| `syncOutput(f, frame)`, `SYNC_BEGIN`, `SYNC_END` | one `ttyWrite` of the frame between begin and end of synchronized output (mode 2026) |
+| `bracketedPasteEnable(f)` / `...Disable(f)` | mode 2004; `decodeKeys()` returns a paste as one key `{ name: 'paste', paste: text }` |
+| `focusEventsEnable(f)` / `...Disable(f)` | mode 1004; keys `focusin` and `focusout` |
+| `graphemeClustersEnable(f)` / `...Disable(f)` | mode 2027 |
+| `kittyKeyboardEnable(f, flags = 1)` / `kittyKeyboardDisable(f)` | push and pop of the kitty keyboard flags; `decodeKeys()` reads `ESC [ code ; mods u` (with `event` press, repeat or release) |
+| `parseCapabilityReplies(str)` | the answers found in `str`: `{ modes, kitty, version, da1, rest }` |
+| `enableCapabilities(f, caps, options)` | switches on what `caps` has (`paste`, `graphemes` by default, `focus`, `kitty` on request), returns the function that switches it off |
+
+`enableCapabilities` leaves the kitty keyboard off unless asked: with it on, Esc, Alt chords and
+Ctrl chords no longer arrive as the legacy byte strings, so the code that reads the keys has to
+go through `decodeKeys()`.
+
 ### Widths
 
 `charWidth(ch)` (0 for controls and combining marks, 2 for wide characters, else 1),

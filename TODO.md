@@ -3710,6 +3710,11 @@ Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2
 | 32.2 done | Native `stringWidth`, `stripAnsi`, `truncate`, `wrap` and a batch `truncateLines(lines, width)` | in `quickjs-textcode.c`, `lib/terminal.js` uses it when textcode has it (613 lines: truncate 1.2 ms, wrap 2.6 ms, `truncateLines` 0.65 ms); one UTF-8 pass, escapes copied through, sorted width tables; same behaviour as the JS (escapes kept, RESET added on a cut, color reopened across a wrap break) |
 | 32.3 done | `wrap(str, 1)` never returns when a double-width character does not fit | a cell wider than an empty line now goes onto it (JS and native), test in `test-terminal-portable.js` |
 | 32.4 done | `cells()` without the `String.fromCodePoint` round trip | still a tuple per character, used by `gradient` and the JS `wrap` for a word longer than the line; the native `wrap` does not use it |
+| 32.5 | Native batch `fitTable(width, make, flex, drop)` | asked by qjs-lws (ollama-repl) 2026-11-25, most valuable: `examples/ollama-repl/lib/usage-stats.js:128` costs ~100 ms per call, runs on every filter keystroke of a 613-row pager. `make()` returns rows of ANSI cells, a table wider than `width` first cuts the `flex` columns widest-first (reset kept), then removes the `drop` columns one by one in the given order. Test to satisfy: `examples/ollama-repl/test-fit-table.js` in qjs-lws. Not started |
+| 32.6 | Install `truncateLines` into the installed qjsm (`qjsm install` from the repo build) | only the JS fallback runs now; needs a repo build of qjsm first |
+| 32.7 | `decodeKeys` returns `{ name, shift, alt, ctrl }` for legacy sequences too | `\x1b\x1b`, `\x1b[Z` (Shift-Tab), `\x1bOQ`, Alt-1..4, lone Esc; same key names as kitty so the kitty keyboard can be enabled later |
+| 32.8 | Line editor in `terminal.js` (history, multi-line, cursor move, input box via `layoutInput`) | so ChatREPL need not subclass `repl.js`; gate `ESC[?2004h` on `caps.bracketedPaste` (repl.js:2241 sends it unconditionally). No rush |
+| 32.9 | `ScrollView`/`Region` cache the wrapped lines per width | re-wrap only on a width change (ollama-repl Tui re-wraps its whole history on resize) |
 
 ## Build on a fresh machine (found 2026-11-15, Termux restore)
 

@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js: the pure functions and the exports, the same on every runtime */
-import { EAGAIN, decodeKeys, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
+import { EAGAIN, decodeKeys, enableCapabilities, parseCapabilityReplies, queryCapabilities, syncOutput, SYNC_BEGIN, SYNC_END, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -60,6 +60,52 @@ tests({
 
   'wrap puts a cell wider than the width on a line of its own'() {
     eq(JSON.stringify(wrap('日本x', 1)), '["日","本","x"]');
+  },
+
+  'parseCapabilityReplies reads DECRQM, kitty, XTVERSION and DA1 answers'() {
+    const r = parseCapabilityReplies('a\x1b[?2026;2$y\x1b[?2004;0$y\x1b[?0u\x1bP>|kitty(0.35)\x1b\\\x1b[?62;4cb');
+    eq(r.modes[2026], 2);
+    eq(r.modes[2004], 0);
+    eq(r.kitty, 0);
+    eq(r.version, 'kitty(0.35)');
+    assert(r.da1);
+    eq(r.rest, 'ab');
+    assert(!parseCapabilityReplies('x').da1);
+    eq(parseCapabilityReplies('x').kitty, undefined);
+  },
+
+  'queryCapabilities gives false everywhere without a terminal'() {
+    const caps = queryCapabilities(1, { env: {} });
+    if(caps.answered) return;
+    assert(!caps.syncOutput && !caps.kittyKeyboard && !caps.bracketedPaste && !caps.truecolor);
+    eq(typeof enableCapabilities(1, caps), 'function');
+  },
+
+  'syncOutput brackets a frame'() {
+    eq(SYNC_BEGIN, '\x1b[?2026h');
+    eq(SYNC_END, '\x1b[?2026l');
+    eq(typeof syncOutput, 'function');
+  },
+
+  'decodeKeys reads kitty keys, focus and a bracketed paste'() {
+    const { keys } = decodeKeys('\x1b[27u\x1b[13;2u\x1b[97;5u\x1b[9;3:3u\x1b[I\x1b[O\x1b[200~a\nb\x1b[201~\x1b[?2026;2$yq', true);
+    const k = keys.map(k => k.key);
+    eq(k[0].name, 'escape');
+    assert(k[1].name == 'return' && k[1].shift && !k[1].ctrl);
+    assert(k[2].name == 'a' && k[2].ctrl && !k[2].meta);
+    assert(k[3].name == 'tab' && k[3].meta && k[3].event == 'release');
+    eq(k[4].name, 'focusin');
+    eq(k[5].name, 'focusout');
+    eq(k[6].name, 'paste');
+    eq(k[6].paste, 'a\nb');
+    eq(keys.at(-1).s, 'q');
+    eq(keys.length, 9);
+  },
+
+  'decodeKeys keeps an unfinished paste for the next chunk'() {
+    const { keys, rest } = decodeKeys('x\x1b[200~abc');
+    eq(keys.length, 1);
+    eq(rest, '\x1b[200~abc');
   },
 
   'decodeKeys'() {
