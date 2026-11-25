@@ -53,6 +53,10 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
   if(${PIC})
     string(APPEND LIBSQLITE_CFLAGS_${SUFFIX} " -fPIC")
   endif()
+  if(DIET OR HAVE_DIETLIBC)
+    # dietlibc only has the _NP spelling
+    string(APPEND LIBSQLITE_CFLAGS_${SUFFIX} " -DPTHREAD_MUTEX_RECURSIVE=PTHREAD_MUTEX_RECURSIVE_NP")
+  endif()
 
   ExternalProject_Add(
     libsqlite_${SUFFIX}

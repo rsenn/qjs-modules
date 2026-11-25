@@ -1,6 +1,11 @@
 /* getdents.c: the Directory reader behind quickjs-directory.c.
  * depends on: char-utils.h (Windows: utf8_towcs, utf8_fromwcs).
  * rule: getdents_read() hands out entries in place, no copy per entry. */
+/* dietlibc declares fstatat() only under _ATFILE_SOURCE */
+#ifndef _ATFILE_SOURCE
+#define _ATFILE_SOURCE 1
+#endif
+
 #include "char-utils.h"
 #include "getdents.h"
 #include <errno.h>
@@ -322,7 +327,7 @@ struct getdents_reader {
 };
 
 #ifdef __dietlibc__
-#define getdents_sys(fd, buf, size) getdents64(fd, buf, size)
+#define getdents_sys(fd, buf, size) getdents64(fd, (struct dirent64*)(buf), size)
 #else
 #define getdents_sys(fd, buf, size) syscall(SYS_getdents64, fd, buf, size)
 #endif

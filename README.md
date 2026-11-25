@@ -124,7 +124,7 @@ configure time:
 | `BUILTINS_NATIVE` | Native C modules linked in directly | `path stream yaml` |
 | `BUILTINS_NATIVE_EXCLUDE` | Native modules built but not registered as builtins (still importable via a `.so`, if `BUILD_SHARED_MODULES` built one) | `arraybuffer-sink child-process lexer location repeater tree-walker virtual` |
 | `EXTERNAL_MODULES` | Externally-built modules (e.g. from `../qjs-glfw`) to link in, via `<name>_MODULE` | *(empty)* |
-| `BUILTIN_MODULES` | Convenience list: mixes module names and external-module build directories, auto-routed into the three variables above | *(empty)* |
+| `BUILTIN_MODULES` | Convenience list: mixes module names and external-module build directories, auto-routed into the three variables above; `*` stands for every native module that gets built plus the default compiled `lib/*.js` | *(empty)* |
 
 `BUILTINS_NATIVE`'s short default list isn't the full picture — any
 builtin's own transitive module dependencies (e.g. `stream` needs

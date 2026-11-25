@@ -1936,7 +1936,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_ACCEPT: {
       socklen_t addrlen = sockaddr_len(a);
 
-#ifdef HAVE_ACCEPT4
+#if defined(HAVE_ACCEPT4) && !defined(__dietlibc__) /* no accept4() declaration there */
       if(argc > 1) {
         int32_t flags = 0;
         JS_ToInt32(ctx, &flags, argv[1]);

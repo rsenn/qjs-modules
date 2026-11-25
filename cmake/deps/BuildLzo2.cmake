@@ -21,6 +21,11 @@ macro(build_lzo2 BINARY SUFFIX PIC)
     set(LZO2_WASI_ARGS "-DCMAKE_C_FLAGS:STRING=-w")
   endif()
 
+  # dietlibc defines __noinline__ as a macro, which breaks __attribute__((__noinline__))
+  if(DIET)
+    set(LZO2_WASI_ARGS "-DCMAKE_C_FLAGS:STRING=-w -D__lzo_noinline=")
+  endif(DIET)
+
   ExternalProject_Add(
     lzo2_${SUFFIX}
     URL https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz

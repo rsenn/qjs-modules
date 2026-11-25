@@ -7,6 +7,14 @@
 #include <math.h>
 #include <stdlib.h>
 
+/* dietlibc math.h defines neither */
+#ifndef INFINITY
+#define INFINITY __builtin_inf()
+#endif
+#ifndef NAN
+#define NAN __builtin_nan("")
+#endif
+
 /**
  * \addtogroup jevent
  * @{

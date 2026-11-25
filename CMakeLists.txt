@@ -687,6 +687,13 @@ if(MODULE_SQLITE)
   set(_found FALSE)
   if(LIBSQLITE_LIBRARY AND HAVE_SQLITE3_H)
     set(_found TRUE)
+
+    # the module needs sqlite3_bind_blob64() (3.8.7); e.g. dietlibc ships 3.7.3
+    include(CheckCSourceCompiles)
+    check_c_source_compiles("#include <sqlite3.h>\n#if SQLITE_VERSION_NUMBER < 3008007\n#error too old\n#endif\nint main(void) { return 0; }" HAVE_SQLITE3_RECENT)
+    if(NOT HAVE_SQLITE3_RECENT)
+      set(_found FALSE)
+    endif()
   endif()
   dep_gate(sqlite3 MODULE sqlite BUILDER tool TOOLS make tclsh FOUND "${_found}" OUT _gate OPTION BUILD_LIBSQLITE)
 
@@ -1066,15 +1073,24 @@ foreach(C_TEST ${C_TESTS})
   add_test(NAME "c-${C_TEST_SHORT}" COMMAND ${C_TEST_NAME})
 endforeach(C_TEST)
 
+# a static libquickjs.a needs the thread library after it (dietlibc has no libc-resident pthread)
+set(TEST_THREAD_LIBRARIES "")
+if(DIET)
+  find_library(DIET_PTHREAD_LIBRARY NAMES libpthread.a) # the .so there cannot link statically
+  if(DIET_PTHREAD_LIBRARY)
+    set(TEST_THREAD_LIBRARIES ${DIET_PTHREAD_LIBRARY})
+  endif(DIET_PTHREAD_LIBRARY)
+endif(DIET)
+
 # jread-positions needs the jread tokenizer, which uses Vector
 add_executable(jread-positions tests/c/jread-positions.c src/json/jread.c)
 target_include_directories(jread-positions PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(jread-positions PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(jread-positions PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-jread-positions COMMAND jread-positions)
 
 add_executable(jread-dialects tests/c/jread-dialects.c src/json/jread.c)
 target_include_directories(jread-dialects PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(jread-dialects PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(jread-dialects PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-jread-dialects COMMAND jread-dialects)
 
 add_executable(vtparse-events tests/c/vtparse-events.c src/vtparse.c)
@@ -1083,31 +1099,31 @@ add_test(NAME c-vtparse-events COMMAND vtparse-events)
 
 add_executable(json-pull-dump tests/c/json-pull-dump.c)
 target_include_directories(json-pull-dump PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(json-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(json-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-json-pull-dump COMMAND json-pull-dump "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/json-pull-dump.txt")
 
 add_executable(xml-pull-dump tests/c/xml-pull-dump.c)
 target_include_directories(xml-pull-dump PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(xml-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(xml-pull-dump PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-xml-pull-dump COMMAND xml-pull-dump "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/xml-pull-dump.txt")
 
 # events-sinks drives the writers through JsonEventSink and XmlEventSink
 add_executable(events-sinks tests/c/events-sinks.c src/json/jevent.c src/json/jwrite.c src/xml/xevent.c
                             src/xml/xwrite.c)
 target_include_directories(events-sinks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(events-sinks PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(events-sinks PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-events-sinks COMMAND events-sinks)
 
 # pump-roundtrip: every parser driving a writer through the sinks, at several chunk sizes
 add_executable(pump-roundtrip tests/c/pump-roundtrip.c)
 target_include_directories(pump-roundtrip PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(pump-roundtrip PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(pump-roundtrip PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-pump-roundtrip COMMAND pump-roundtrip)
 
 # event-model: sources and sinks of the Event model v2 (parsers, walkers, builders, serials, JS sinks)
 add_executable(event-model tests/c/event-model.c)
 target_include_directories(event-model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(event-model PRIVATE modules ${QUICKJS_LIBRARY} m)
+target_link_libraries(event-model PRIVATE modules ${QUICKJS_LIBRARY} m ${TEST_THREAD_LIBRARIES})
 add_test(NAME c-event-model COMMAND event-model)
 
 file(GLOB TESTS tests/test_*.js tests/unittests/test-*.js)
@@ -1267,6 +1283,11 @@ qjsm_compile_builtins()
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 add_definitions(-DHAVE_CONFIG_H)
+
+# dietlibc declares gettid() and other Linux calls only under _LINUX_SOURCE
+if(DIET)
+  add_definitions(-D_LINUX_SOURCE=1)
+endif(DIET)
 
 add_library(modules STATIC ${LIBRARY_SOURCES} ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES} ${libhash_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")

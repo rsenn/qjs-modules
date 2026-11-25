@@ -21,6 +21,13 @@
 #include "config.h"
 #endif
 
+#ifdef __dietlibc__
+#include <strings.h> /* strcasecmp(), strncasecmp(): not in string.h here */
+
+/* dietlibc's isnan(), isinf() macros call it, math.h has no prototype */
+int __fpclassifyl(long double);
+#endif
+
 /**
  * \defgroup defines defines: Preprocessor definitions
  * @{

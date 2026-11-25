@@ -665,7 +665,8 @@ macro(qjsm_init_builtins)
   # This is evaluated here, before BUILTINS_COMPILED's compile_module() loop's own output
   # targets (modules/*.c above, the "compiled" library) and BUILTINS_NATIVE/EXTERNAL_MODULES
   # are consumed further down, so an entry routed to any of the three actually takes effect.
-  if(NOT DEFINED BUILTIN_MODULES)
+  set(_bm_given ${BUILTIN_MODULES})
+  if(NOT DEFINED BUILTIN_MODULES OR "*" IN_LIST BUILTIN_MODULES)
     # a default cached by an earlier configure pins its list; drop it so new builtins are
     # picked up (a -DBUILTINS_COMPILED=... given on the command line is kept)
     if(DEFINED CACHE{BUILTINS_COMPILED})
@@ -738,6 +739,10 @@ macro(qjsm_init_builtins)
     endif(NOT DEFINED BUILTINS_NATIVE)
 
     set_init(BUILTIN_MODULES ${BUILTINS_NATIVE} ${BUILTINS_COMPILED})
+    set(QJSM_DEFAULT_COMPILED ${BUILTINS_COMPILED})
+    if("*" IN_LIST _bm_given)
+      set(BUILTIN_MODULES ${_bm_given})
+    endif()
 
     unset(BUILTINS_NATIVE)
     unset(BUILTINS_NATIVE CACHE)
@@ -768,6 +773,17 @@ macro(qjsm_resolve_builtins)
   get_native_modules(NATIVE_MODULES)
 
   set_remove(COMPILED_MODULE_NAMES ${NATIVE_MODULES})
+
+  # BUILTIN_MODULES=*: every native module that gets built (QUICKJS_MODULES, '-' written '_')
+  # plus the default compiled lib/*.js; a module switched off or not built here is left out
+  if("*" IN_LIST BUILTIN_MODULES)
+    list(REMOVE_ITEM BUILTIN_MODULES "*")
+    string(REPLACE "-" "_" _bm_enabled "${QUICKJS_MODULES}")
+    list(APPEND BUILTIN_MODULES ${_bm_enabled} ${QJSM_DEFAULT_COMPILED})
+    list(REMOVE_DUPLICATES BUILTIN_MODULES)
+    list(LENGTH BUILTIN_MODULES _bm_count)
+    message(STATUS "qjsm: BUILTIN_MODULES=* expands to ${_bm_count} entries")
+  endif()
 
   set_intersection(BUILTINS_NATIVE NATIVE_MODULES BUILTIN_MODULES)
   set_intersection(BUILTINS_COMPILED COMPILED_MODULE_NAMES BUILTIN_MODULES)

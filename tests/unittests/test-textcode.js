@@ -1,4 +1,4 @@
-import { decode, encode, isAscii, isUtf8, TextDecoder, TextEncoder, utf8Offsets } from 'textcode';
+import { decode, encode, isAscii, isUtf8, stringWidth, stripAnsi, TextDecoder, TextEncoder, truncate, utf8Offsets, wrap } from 'textcode';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({
@@ -199,5 +199,12 @@ tests({
       name = e.name;
     }
     eq(name, 'RangeError');
+  },
+  'terminal text functions work on strings and other values'() {
+    eq(stringWidth('\x1b[31m日本\x1b[0m'), 4);
+    eq(stringWidth(123), 3);
+    eq(stripAnsi('\x1b[1mbold\x1b[0m'), 'bold');
+    eq(truncate('hello world', 6), 'hello…');
+    eq(JSON.stringify(wrap('one two three', 7)), '["one two","three"]');
   },
 });

@@ -31,10 +31,11 @@ macro(build_libmagic BINARY SUFFIX PIC)
   set(LIBMAGIC_VERSION 5.46)
   set(LIBMAGIC_HOST_FLAG_${SUFFIX})
   set(LIBMAGIC_MAKE_ARGS_${SUFFIX})
-  if(CMAKE_CROSSCOMPILING)
+  # dietlibc: its regcomp() crashes in the target-built `file -C`, so use the host one too
+  if(CMAKE_CROSSCOMPILING OR DIET OR HAVE_DIETLIBC)
     execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE LIBMAGIC_TRIPLET
                     OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-    if(LIBMAGIC_TRIPLET)
+    if(LIBMAGIC_TRIPLET AND CMAKE_CROSSCOMPILING)
       set(LIBMAGIC_HOST_FLAG_${SUFFIX} --host=${LIBMAGIC_TRIPLET})
     endif()
     find_program(LIBMAGIC_HOST_FILE file)
@@ -51,7 +52,7 @@ macro(build_libmagic BINARY SUFFIX PIC)
 
   # dietlibc declares wcwidth() (used by file.c) only under _XOPEN_SOURCE
   set(LIBMAGIC_CFLAGS_${SUFFIX} "-O2 -w")
-  if(DIET)
+  if(DIET OR HAVE_DIETLIBC)
     string(APPEND LIBMAGIC_CFLAGS_${SUFFIX} " -D_XOPEN_SOURCE")
   endif(DIET)
 

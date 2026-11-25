@@ -1424,12 +1424,602 @@ static const JSCFunctionListEntry js_encoder_methods[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TextEncoder", JS_PROP_CONFIGURABLE),
 };
 
+/* terminal cells: width of a string as a terminal draws it, escape
+ * sequences cut out. same tables and rules as lib/terminal.js, which
+ * keeps its own copy for runtimes without textcode.
+ *
+ *   cp < 0x20, 0x7f..0x9f   0 cells    combining marks   0 cells
+ *   East Asian wide, emoji  2 cells    everything else   1 cell
+ */
+static const uint32_t cell_wide[][2] = {
+    {0x1100, 0x115f},  {0x2e80, 0x303e},  {0x3041, 0x33ff},  {0x3400, 0x4dbf},   {0x4e00, 0x9fff},
+    {0xa000, 0xa4cf},  {0xac00, 0xd7a3},  {0xf900, 0xfaff},  {0xfe30, 0xfe6f},   {0xff00, 0xff60},
+    {0xffe0, 0xffe6},  {0x1f300, 0x1f64f}, {0x1f680, 0x1f6ff}, {0x1f900, 0x1f9ff}, {0x20000, 0x3fffd},
+};
+
+static const uint32_t cell_zero[][2] = {
+    {0x300, 0x36f}, {0x200b, 0x200f}, {0x20d0, 0x20ff}, {0xfe00, 0xfe0f}, {0x1ab0, 0x1aff}, {0x1dc0, 0x1dff},
+};
+
+/* binary search in sorted ranges, returns 1 when cp is in one of them. */
+static int
+cell_within(const uint32_t (*r)[2], size_t n, uint32_t cp) {
+  size_t lo = 0, hi = n;
+
+  while(lo < hi) {
+    size_t mid = (lo + hi) >> 1;
+
+    if(cp < r[mid][0])
+      hi = mid;
+    else if(cp > r[mid][1])
+      lo = mid + 1;
+    else
+      return 1;
+  }
+
+  return 0;
+}
+
+/* cells of one code point: 0, 1 or 2. never throws. */
+static int
+cell_width(uint32_t cp) {
+  if(cp >= 0x20 && cp < 0x7f)
+    return 1;
+  if(cp < 0x20 || (cp >= 0x7f && cp < 0xa0))
+    return 0;
+  if(cp < 0x300)
+    return 1;
+
+  return cell_within(cell_zero, countof(cell_zero), cp) ? 0 : cell_within(cell_wide, countof(cell_wide), cp) ? 2 : 1;
+}
+
+/* next code point of UTF-8 text, advances *pp. a bad byte is U+FFFD. */
+static uint32_t
+cell_next(const uint8_t** pp, const uint8_t* end) {
+  const uint8_t* next;
+  int cp = unicode_from_utf8(*pp, end - *pp, &next);
+
+  if(cp < 0) {
+    ++*pp;
+    return 0xfffd;
+  }
+
+  *pp = next;
+  return cp;
+}
+
+/* byte length of the escape sequence at p, 0 when none starts there.
+ *
+ *   CSI     ESC [ params intermediates final   (ESC [ 31 m)
+ *   OSC     ESC ] text, up to BEL or ESC \
+ *   DCS..   ESC P, X, ^ or _ text, up to ESC \
+ *   other   ESC intermediates final            (ESC 7)
+ */
+static size_t
+cell_ansi(const uint8_t* p, size_t n) {
+  size_t i = 2;
+
+  if(n < 2 || p[0] != 0x1b)
+    return 0;
+
+  if(p[1] == '[') {
+    while(i < n && p[i] >= 0x30 && p[i] <= 0x3f)
+      i++;
+    while(i < n && p[i] >= 0x20 && p[i] <= 0x2f)
+      i++;
+    if(i < n && p[i] >= 0x40 && p[i] <= 0x7e)
+      return i + 1;
+    /* no final byte: ESC [ is the two byte form below */
+  } else if(p[1] == ']') {
+    while(i < n && p[i] != 0x07 && p[i] != 0x1b)
+      i++;
+    if(i < n && p[i] == 0x07)
+      return i + 1;
+    return i + 1 < n && p[i] == 0x1b && p[i + 1] == '\\' ? i + 2 : i;
+  } else if(p[1] == 'P' || p[1] == 'X' || p[1] == '^' || p[1] == '_') {
+    while(i < n && p[i] != 0x1b)
+      i++;
+    return i + 1 < n && p[i + 1] == '\\' ? i + 2 : i;
+  }
+
+  for(i = 1; i < n && p[i] >= 0x20 && p[i] <= 0x2f;)
+    i++;
+
+  return i < n && p[i] >= 0x30 && p[i] <= 0x7e ? i + 1 : 0;
+}
+
+/* appends n bytes, none is fine for a NULL buffer. */
+static void
+cell_put(DynBuf* db, const void* p, size_t n) {
+  if(n)
+    dbuf_put(db, p, n);
+}
+
+/* cells of n bytes of UTF-8, escape sequences count 0. never throws. */
+static int64_t
+cells_width(const uint8_t* p, size_t n) {
+  const uint8_t* end = p + n;
+  int64_t w = 0;
+
+  while(p < end) {
+    size_t a;
+
+    if(*p < 0x80) {
+      if(*p == 0x1b && (a = cell_ansi(p, end - p))) {
+        p += a;
+        continue;
+      }
+
+      w += *p >= 0x20 && *p < 0x7f;
+      p++;
+      continue;
+    }
+
+    w += cell_width(cell_next(&p, end));
+  }
+
+  return w;
+}
+
+/* a width argument as a cell count: NaN is 0, Infinity is huge. */
+static int
+cells_arg(JSContext* ctx, int64_t* out, JSValueConst v) {
+  double d;
+
+  if(JS_ToFloat64(ctx, &d, v))
+    return -1;
+
+  *out = d != d ? 0 : d > 1e15 ? (int64_t)1e15 : d < -1e15 ? (int64_t)-1e15 : (int64_t)d;
+  return 0;
+}
+
+/**
+ * stringWidth(str): cells str takes on a terminal, escape sequences
+ * count 0.
+ *
+ *   stringWidth('\x1b[31m日本\x1b[0m')   -> 4
+ *
+ *   string  str   any value, converted with String()
+ *
+ *   returns number
+ *
+ * same result as the pure JS stringWidth in lib/terminal.js.
+ * wired in as JS_CFUNC_DEF("stringWidth", 1, ...).
+ */
+static JSValue
+js_textcode_stringwidth(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char* s;
+  size_t n;
+  JSValue ret;
+
+  if(!(s = JS_ToCStringLen(ctx, &n, argv[0])))
+    return JS_EXCEPTION;
+
+  ret = JS_NewInt64(ctx, cells_width((const uint8_t*)s, n));
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+
+/**
+ * stripAnsi(str): str without its escape sequences.
+ *
+ *   stripAnsi('\x1b[1mbold\x1b[0m')   -> 'bold'
+ *
+ *   string  str   any value, converted with String()
+ *
+ *   returns string
+ *
+ * CSI, OSC to BEL or ST, DCS/SOS/PM/APC to ST and two byte ESC forms
+ * are cut. wired in as JS_CFUNC_DEF("stripAnsi", 1, ...).
+ */
+static JSValue
+js_textcode_stripansi(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const uint8_t *p, *end, *run, *esc;
+  const char* s;
+  size_t n;
+  DynBuf db;
+  JSValue ret;
+
+  if(!(s = JS_ToCStringLen(ctx, &n, argv[0])))
+    return JS_EXCEPTION;
+
+  p = run = (const uint8_t*)s;
+  end = p + n;
+
+  if(!memchr(s, 0x1b, n)) {
+    ret = JS_IsString(argv[0]) ? JS_DupValue(ctx, argv[0]) : JS_NewStringLen(ctx, s, n);
+    JS_FreeCString(ctx, s);
+    return ret;
+  }
+
+  dbuf_init_ctx(ctx, &db);
+
+  while((esc = memchr(p, 0x1b, end - p))) {
+    size_t a = cell_ansi(esc, end - esc);
+
+    p = esc + 1;
+
+    if(!a)
+      continue;
+
+    cell_put(&db, run, esc - run);
+    p = run = esc + a;
+  }
+
+  cell_put(&db, run, end - run);
+  ret = db.error ? JS_ThrowOutOfMemory(ctx) : JS_NewStringLen(ctx, (const char*)db.buf, db.size);
+
+  dbuf_free(&db);
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+
+/**
+ * truncate(str, width, ellipsis): str cut to width cells, the cut
+ * marked with ellipsis. escape sequences are kept, a reset follows
+ * when str had any.
+ *
+ *   truncate('hello world', 6)   -> 'hello…'
+ *
+ *   string  str       any value, converted with String()
+ *   number  width     cells, the ellipsis included
+ *   string  ellipsis  default U+2026, left out when width is less
+ *
+ *   returns string    str itself when it fits
+ *
+ * same result as the pure JS truncate in lib/terminal.js.
+ * wired in as JS_CFUNC_DEF("truncate", 3, ...).
+ */
+static JSValue
+js_textcode_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  static const char dots[] = "\xe2\x80\xa6";
+  const char *s, *ell = dots;
+  const uint8_t *p, *end;
+  size_t n, en = 3;
+  int64_t width, ew, room, w = 0;
+  BOOL styled = FALSE;
+  DynBuf db;
+  JSValue ret = JS_EXCEPTION;
+
+  if(cells_arg(ctx, &width, argc > 1 ? argv[1] : JS_UNDEFINED))
+    return JS_EXCEPTION;
+
+  if(!(s = JS_ToCStringLen(ctx, &n, argv[0])))
+    return JS_EXCEPTION;
+
+  if(argc > 2 && !JS_IsUndefined(argv[2]) && !(ell = JS_ToCStringLen(ctx, &en, argv[2]))) {
+    JS_FreeCString(ctx, s);
+    return JS_EXCEPTION;
+  }
+
+  p = (const uint8_t*)s;
+  end = p + n;
+
+  if(cells_width(p, n) <= width) {
+    ret = JS_IsString(argv[0]) ? JS_DupValue(ctx, argv[0]) : JS_NewStringLen(ctx, s, n);
+    goto end;
+  }
+
+  ew = cells_width((const uint8_t*)ell, en);
+  room = width - ew > 0 ? width - ew : 0;
+  dbuf_init_ctx(ctx, &db);
+
+  while(p < end) {
+    const uint8_t* q = p;
+    size_t a = *p == 0x1b ? cell_ansi(p, end - p) : 0;
+    int cw;
+
+    if(a) {
+      cell_put(&db, p, a);
+      styled = TRUE;
+      p += a;
+      continue;
+    }
+
+    cw = cell_width(cell_next(&q, end));
+
+    if(w + cw > room)
+      break;
+
+    cell_put(&db, p, q - p);
+    w += cw;
+    p = q;
+  }
+
+  if(styled)
+    dbuf_putstr(&db, "\x1b[0m");
+  if(width >= ew)
+    cell_put(&db, (const uint8_t*)ell, en);
+
+  ret = db.error ? JS_ThrowOutOfMemory(ctx) : JS_NewStringLen(ctx, (const char*)db.buf, db.size);
+  dbuf_free(&db);
+
+end:
+  if(ell != dots)
+    JS_FreeCString(ctx, ell);
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+
+/* what wrap() carries while it fills lines */
+typedef struct {
+  JSContext* ctx;
+  DynBuf line, open, tmp;
+  int64_t lw;
+  JSValue lines;
+  uint32_t count;
+} WrapState;
+
+/* SGR sequences in effect at the end of p, appended to out.
+ * ESC [ m and ESC [ 0 m reset, anything else adds up. */
+static void
+wrap_active(DynBuf* out, const uint8_t* p, size_t n) {
+  size_t i = 0;
+
+  while(i + 2 < n) {
+    size_t j;
+
+    if(p[i] != 0x1b || p[i + 1] != '[') {
+      i++;
+      continue;
+    }
+
+    for(j = i + 2; j < n && ((p[j] >= '0' && p[j] <= '9') || p[j] == ';');)
+      j++;
+
+    if(j >= n || p[j] != 'm') {
+      i++;
+      continue;
+    }
+
+    j++;
+
+    if(j - i == 3 || (j - i == 4 && p[i + 2] == '0'))
+      out->size = 0;
+    else
+      cell_put(out, p + i, j - i);
+
+    i = j;
+  }
+}
+
+/* the run of spaces before a tail of SGR sequences at the end of p,
+ * as the range [*from, *to). trailing spaces after the last SGR
+ * sequence count too, the range is empty when there are none. */
+static void
+wrap_trim(const uint8_t* p, size_t n, size_t* from, size_t* to) {
+  size_t t = n, s;
+
+  while(t >= 3 && p[t - 1] == 'm') {
+    for(s = t - 1; s > 0 && ((p[s - 1] >= '0' && p[s - 1] <= '9') || p[s - 1] == ';');)
+      s--;
+
+    if(s < 2 || p[s - 1] != '[' || p[s - 2] != 0x1b)
+      break;
+
+    t = s - 2;
+  }
+
+  for(*from = t; *from > 0 && p[*from - 1] == ' ';)
+    --*from;
+
+  *to = t;
+}
+
+/* pushes the line, trailing spaces cut, to the result. -1 on error. */
+static int
+wrap_emit(WrapState* w) {
+  size_t from, to;
+  JSValue s;
+
+  wrap_trim(w->line.buf, w->line.size, &from, &to);
+  w->tmp.size = 0;
+  cell_put(&w->tmp, w->line.buf, from);
+  cell_put(&w->tmp, w->line.buf + to, w->line.size - to);
+
+  if(w->tmp.error || JS_IsException(s = JS_NewStringLen(w->ctx, w->tmp.size ? (const char*)w->tmp.buf : "", w->tmp.size)))
+    return -1;
+
+  JS_SetPropertyUint32(w->ctx, w->lines, w->count++, s);
+  return 0;
+}
+
+/* ends the line, a style still on is closed and starts the next line. */
+static int
+wrap_flush(WrapState* w) {
+  w->open.size = 0;
+  wrap_active(&w->open, w->line.buf, w->line.size);
+
+  if(w->open.size)
+    dbuf_putstr(&w->line, "\x1b[0m");
+
+  if(wrap_emit(w))
+    return -1;
+
+  w->line.size = 0;
+  cell_put(&w->line, w->open.buf, w->open.size);
+  w->lw = 0;
+  return w->line.error ? -1 : 0;
+}
+
+/* JS trimEnd() whitespace, as a code point. */
+static int
+wrap_space(uint32_t cp) {
+  return cp == ' ' || (cp >= 9 && cp <= 13) || cp == 0xa0 || cp == 0x1680 || (cp >= 0x2000 && cp <= 0x200a) || cp == 0x2028 || cp == 0x2029 ||
+         cp == 0x202f || cp == 0x205f || cp == 0x3000 || cp == 0xfeff;
+}
+
+/* bytes of word up to its last character that is not whitespace. */
+static size_t
+wrap_trimmed(const uint8_t* word, size_t n) {
+  const uint8_t *p = word, *end = word + n;
+  size_t last = 0;
+
+  while(p < end) {
+    if(!wrap_space(cell_next(&p, end)))
+      last = p - word;
+  }
+
+  return last;
+}
+
+/* one word onto the line, a word wider than width is cut over lines.
+ * -1 on error. */
+static int
+wrap_word(WrapState* w, const uint8_t* word, size_t n, int64_t width) {
+  int64_t ww = cells_width(word, n);
+
+  if(w->lw && w->lw + ww > width && w->lw + cells_width(word, wrap_trimmed(word, n)) > width && wrap_flush(w))
+    return -1;
+
+  while(ww > width) {
+    const uint8_t *p = word, *end = word + n;
+    int64_t hw = 0;
+
+    while(p < end) {
+      const uint8_t* q = p;
+      size_t a = *p == 0x1b ? cell_ansi(p, end - p) : 0;
+      int cw;
+
+      if(a) {
+        p += a;
+        continue;
+      }
+
+      cw = cell_width(cell_next(&q, end));
+
+      if(hw + cw > width - w->lw) {
+        /* a cell wider than an empty line still goes onto it */
+        if(!hw && !w->lw)
+          p = q, hw = cw;
+
+        break;
+      }
+
+      hw += cw;
+      p = q;
+    }
+
+    if(p == word) {
+      if(wrap_flush(w))
+        return -1;
+      continue;
+    }
+
+    cell_put(&w->line, word, p - word);
+    w->lw += hw;
+    n -= p - word;
+    word = p;
+    ww = cells_width(word, n);
+
+    if(wrap_flush(w))
+      return -1;
+  }
+
+  cell_put(&w->line, word, n);
+  w->lw += ww;
+  return w->line.error ? -1 : 0;
+}
+
+/**
+ * wrap(str, width): lines of at most width cells, broken after spaces.
+ *
+ *   wrap('one two three', 7)   -> ['one two', 'three']
+ *
+ *   string  str    any value, converted with String(), newlines kept
+ *   number  width  cells, at least 1
+ *
+ *   returns string[]
+ *
+ * a word wider than width is split. a color that runs over a break is
+ * closed at the line end and opened again on the next line. same
+ * result as the pure JS wrap in lib/terminal.js.
+ * wired in as JS_CFUNC_DEF("wrap", 2, ...).
+ */
+static JSValue
+js_textcode_wrap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const uint8_t *p, *end, *para;
+  const char* s;
+  size_t n;
+  int64_t width;
+  WrapState w = {ctx};
+  JSValue ret = JS_EXCEPTION;
+
+  if(cells_arg(ctx, &width, argc > 1 ? argv[1] : JS_UNDEFINED))
+    return JS_EXCEPTION;
+
+  if(!(s = JS_ToCStringLen(ctx, &n, argv[0])))
+    return JS_EXCEPTION;
+
+  if(width < 1)
+    width = 1;
+
+  p = (const uint8_t*)s;
+  end = p + n;
+  w.lines = JS_NewArray(ctx);
+  dbuf_init_ctx(ctx, &w.line);
+  dbuf_init_ctx(ctx, &w.open);
+  dbuf_init_ctx(ctx, &w.tmp);
+
+  for(;;) {
+    const uint8_t* stop;
+
+    para = p;
+    stop = memchr(p, '\n', end - p);
+    stop = stop ? stop : end;
+
+    w.line.size = 0;
+    w.lw = 0;
+
+    /* words end after a space, an empty paragraph is one empty word */
+    for(p = para; p < stop || p == para;) {
+      const uint8_t* word = p;
+
+      while(p < stop && *p != ' ')
+        p++;
+      if(p < stop)
+        p++;
+
+      if(wrap_word(&w, word, p - word, width))
+        goto end;
+      if(p == word)
+        break;
+    }
+
+    if(wrap_emit(&w))
+      goto end;
+
+    if(stop == end)
+      break;
+
+    p = stop + 1;
+  }
+
+  if(!w.line.error && !w.open.error) {
+    ret = w.lines;
+    w.lines = JS_UNDEFINED;
+  } else
+    JS_ThrowOutOfMemory(ctx);
+
+end:
+  JS_FreeValue(ctx, w.lines);
+  dbuf_free(&w.line);
+  dbuf_free(&w.open);
+  dbuf_free(&w.tmp);
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+
 /* module exports besides the two classes, one line per name:
  *   isAscii      7-bit ASCII check, buffer.isAscii()
  *   isUtf8       UTF-8 validity check, buffer.isUtf8()
  *   utf8Offsets  UTF-16 indices to UTF-8 byte offsets
  *   encode       a string as utf-16le or latin1 bytes
  *   decode       latin1 or ascii bytes as a string
+ *   stringWidth  terminal cells of a string, escape sequences count 0
+ *   stripAnsi    a string without its escape sequences
+ *   truncate     a string cut to a number of cells
+ *   wrap         a string broken into lines of a number of cells
  */
 static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isAscii", 1, js_textcode_is, TEXTCODE_IS_ASCII),
@@ -1437,6 +2027,10 @@ static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_DEF("utf8Offsets", 2, js_textcode_utf8offsets),
     JS_CFUNC_DEF("encode", 2, js_textcode_encode),
     JS_CFUNC_DEF("decode", 2, js_textcode_decode),
+    JS_CFUNC_DEF("stringWidth", 1, js_textcode_stringwidth),
+    JS_CFUNC_DEF("stripAnsi", 1, js_textcode_stripansi),
+    JS_CFUNC_DEF("truncate", 3, js_textcode_truncate),
+    JS_CFUNC_DEF("wrap", 2, js_textcode_wrap),
 };
 
 int

@@ -62,6 +62,8 @@ archive_open(struct archive* ar, void* client_data) {
   return ARCHIVE_OK;
 }
 
+static int archive_destroy(struct archive* ar, void* client_data);
+
 static int
 archive_close(struct archive* ar, void* client_data) {
   ArchiveVirtual* cb = client_data;
@@ -69,6 +71,10 @@ archive_close(struct archive* ar, void* client_data) {
   JSValue ret = JS_Call(ctx, cb->close, cb->this_obj, 0, 0);
 
   JS_FreeValue(ctx, ret);
+#if ARCHIVE_VERSION_NUMBER < 3004000
+  /* no archive_write_open2(): the client data is released on close */
+  archive_destroy(ar, client_data);
+#endif
   return ARCHIVE_OK;
 }
 
@@ -259,7 +265,11 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         archive_write_callback* write = JS_IsFunction(ctx, cb->write) ? &archive_write : NULL;
         archive_close_callback* close = JS_IsFunction(ctx, cb->close) ? &archive_close : NULL;
 
+#if ARCHIVE_VERSION_NUMBER >= 3004000
         r = archive_write_open2(ar, cb, open, write, close, &archive_destroy);
+#else
+        r = archive_write_open(ar, cb, open, write, close);
+#endif
       }
 
       if(r == ARCHIVE_FATAL || r == ARCHIVE_FAILED) {
