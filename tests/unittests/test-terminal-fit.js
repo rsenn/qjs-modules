@@ -1,67 +1,73 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
-/* lib/terminal.js: fitTable pure JS implementation tests */
-import { fitTable, stringWidth, stripAnsi } from '../../lib/terminal.js';
-import { assert, eq, tests } from '../../lib/tinytest.js';
+/* lib/terminal.js: fitTable, the table fitter (native in textcode, pure JS elsewhere) */
+import { fitTable, stringWidth } from '../../lib/terminal.js';
+import { assert, tests } from '../../lib/tinytest.js';
 
-const plain = s => s.replace(/\x1b\[[\d;]*m/g, '');
-const widest = t => Math.max(...t.split('\n').map(l => [...plain(l)].length));
+const plain = s => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+const widest = t => Math.max(...t.split('\n').map(l => stringWidth(l)));
 
-const mkBasic = () => [
+const mk = () => [
   ['Model', 'Rate', 'Status', 'Probe', 'Says'],
   ['gemini-3.7-flash', '\x1b[32m 59\x1b[0m', '\x1b[32mREADY\x1b[0m', '\x1b[32m✔ usable\x1b[0m 4.3s no tools', 'I am Qwen, developed by Alibaba Cloud and a long identity sentence'],
   ['glm-5.3', '\x1b[33m 45\x1b[0m', '\x1b[32mREADY\x1b[0m', '\x1b[31m✗ All 2 routed attempts failed upstream\x1b[0m', ''],
 ];
 
-const mkNumeric = () => [
-  ['Name', 'Count', 'Rate'],
-  ['items', 12345, ' 1.2k'],
-  ['total', 987654321, ' 987M'],
-];
-
-const mkCjk = () => [
-  ['Model', 'Text'],
-  ['model-1', '日本語テスト'],
-  ['model-2', '한국어 테스트'],
-];
-
 tests({
-  'fitTable fits at various widths'() {
+  'fits 200, 100, 70, 50, 40 and 30 cells'() {
     for(const w of [200, 100, 70, 50, 40, 30]) {
-      const t = fitTable(w, mkBasic, [4, 3, 0], [4, 3]);
-      assert(widest(t) <= w, `width ${w}: ${widest(t)} > ${w}`);
+      const t = fitTable(w, mk, [4, 3, 0], [4, 3]);
+
+      assert(widest(t) <= w, `width ${w}: ${widest(t)}`);
     }
   },
 
-  'fitTable unlimited width keeps everything'() {
-    const t = fitTable(0, mkBasic, [4, 3, 0]);
-    assert(plain(t).includes('failed upstream'), 'should keep all columns');
-    assert(plain(t).includes('long identity sentence'), 'should keep Says column');
+  'width 0 keeps everything'() {
+    const t = plain(fitTable(0, mk, [4, 3, 0]));
+
+    assert(t.includes('failed upstream'), 'Probe column cut');
+    assert(t.includes('long identity sentence'), 'Says column cut');
   },
 
-  'fitTable coloured cells keep reset when cut'() {
-    const t = fitTable(70, mkBasic, [4, 3, 0], [4, 3]);
-    const lines = t.split('\n');
-    for(const l of lines) {
-      if(l.includes('\x1b[3')) {
-        assert(l.includes('\x1b[0m'), 'colored cut should have reset: ' + l);
-      }
-    }
+  'a coloured cell keeps its reset when cut'() {
+    const t = fitTable(70, mk, [4, 3, 0], [4, 3]);
+
+    assert(t.includes('…'), 'nothing was cut');
+    assert(t.split('\n').every(l => !l.includes('\x1b[3') || l.includes('\x1b[0m')), 'reset lost');
   },
 
-  'fitTable drops Says before Model at narrow width'() {
-    const t = fitTable(30, mkBasic, [4, 3, 0], [4, 3]);
-    assert(plain(t).includes('Model'), 'Model column should remain');
-    assert(!plain(t).includes('Says'), 'Says column should drop first');
+  'at 30 the Says column goes before Model'() {
+    const t = fitTable(30, mk, [4, 3, 0], [4, 3]);
+
+    assert(t.includes('Model'), 'Model dropped');
+    assert(!t.includes('Says'), 'Says kept');
   },
 
-  'fitTable right-aligns numeric columns'() {
-    const countCell1 = row1.split('  ')[1];
-    const countCell2 = row2.split('  ')[1];
-    const rateCell1 = row1.split('  ')[2];
-    const rateCell2 = row2.split('  ')[2];
-    // Numbers should be visible and right-aligned within their cells
-    assert(countCell1.trim() === '12345', 'Count should be 12345, got: ' + JSON.stringify(countCell1));
-    assert(countCell2.trim() === '987654321', 'Count should be 987654321, got: ' + JSON.stringify(countCell2));
-    assert(rateCell1.includes('1.2k') || rateCell1.includes('1234'), 'Rate should have number');
-    assert(rateCell2.includes('987M') || rateCell2.includes('987654'), 'Rate should have 987M, got: ' + JSON.stringify(rateCell2));
+  'make is called with the bar widths 6, 3, 0 until the table fits'() {
+    const bars = [];
+
+    fitTable(20, bar => (bars.push(bar), [['a', 'meter'], ['x', '#'.repeat(bar) + 'xxxxxxxxxxxxxxxxx']]));
+    assert(bars.join() == '6,3,0', bars.join());
+  },
+
+  'flex may be one number'() {
+    const rows = () => [['id', 'text'], ['1', 'a very long line of text indeed']];
+
+    assert(fitTable(20, rows, 1) == fitTable(20, rows, [1]), 'number and array differ');
+    assert(widest(fitTable(20, rows, 1)) <= 20, 'too wide');
+  },
+
+  'a CJK cell counts 2 cells'() {
+    const rows = () => [['id', 'text'], ['1', '日本語テスト日本語テスト']];
+    const t = fitTable(12, rows, [1]);
+
+    assert(stringWidth('日本') == 4, 'stringWidth');
+    assert(widest(t) <= 12, `width ${widest(t)}: ${t}`);
+    assert(t.includes('…'), 'not cut');
+  },
+
+  'a numeric column lines up on the right'() {
+    const t = fitTable(0, () => [['Name', 'Count', 'Text'], ['items', '12345', 'a'], ['total', '7', 'b']], [], []);
+
+    assert(t == 'Name   Count  Text\nitems  12345  a\ntotal      7  b', JSON.stringify(t));
+  },
 });

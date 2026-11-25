@@ -75,6 +75,28 @@ console.log('Width:', view.width); // Output: 10
 
 The source text mode improves performance by avoiding re-wrapping on every resize, making it ideal for long logs or streams where the text content changes frequently.
 
+### Fitting a table
+
+`fitTable(width, make, flex, drop)` returns a table as text that is at most `width` cells wide. It is native in `textcode` where that has it, pure JS elsewhere, with the same result.
+
+```js
+import { fitTable } from 'terminal';
+
+const make = bar => [
+  ['Model', 'Rate', 'Says'],
+  ...models.map(m => [m.name, '#'.repeat(bar) + m.rate, m.says]),
+];
+
+console.log(fitTable(process.stdout.columns, make, [2], [2]));
+```
+
+- `make(bar)` builds the rows, header first. It is called with `bar` = 6, then 3, then 0 until the table fits: build the meters of the table (a bar column) `bar` cells wide, and leave them out at 0. Without a `width` (0) the first try (6) is kept.
+- `flex` are the column indices that may shrink (one number is fine, default `0`). A try with a meter is skipped when the first flex column would lose below 24 cells. The widest flex column gives up one cell at a time until the table fits or every flex column is down to its header width (at least 6); cells are cut with an ellipsis and keep a reset after a color.
+- `drop` are column indices removed one by one, in the order given, when shrinking is not enough, each time starting again from `bar` 6. Indices of `flex` and `drop` count the columns `make` returns, dropped ones included.
+- A column below the header whose cells are made only of `0-9 . , k M G % -` is right aligned, the others are left aligned. Columns are two spaces apart and trailing spaces are cut.
+
+Widths are `stringWidth` cells, so a CJK character counts 2 and escape sequences count 0; cutting is `truncate()`, which is cell based too. The ollama-repl `usage-stats.js` this comes from counts code points and cuts a colored cell even when no escape sequence precedes the cut, so a table with wide characters or an escape after the cut can differ from it.
+
 ### Key names
 
 The `decodeKeys()` function normalises both legacy xterm/ECMA-48 sequences and kitty keyboard sequences to produce identical key objects with `name`, `ctrl`, `meta`, and `shift` flags. The following matrix shows the equivalence:

@@ -1313,3 +1313,11 @@
     //   import { Predicate } from 'predicate';
     //   Predicate.charset('abc')('b'); Predicate.string('abc')('abc');
     //   -> free(): double free detected in tcache 2
+
+terminal-portable-lineeditor-tests-fail
+  tests/unittests/test-terminal-portable.js fails 3 of 19 tests on qjsm, node,
+  bun and deno, also on HEAD without the fitTable work: "LineEditor history:
+  Up, Down, draft, one new empty entry" ends with assertEquals() draft != "".
+  Found while running ctest -R terminal for fitTable.
+
+    // node tests/unittests/test-terminal-portable.js

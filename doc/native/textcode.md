@@ -75,9 +75,10 @@ Module exports that `lib/` builds Node APIs on; not standard APIs themselves.
 | `stripAnsi(str)` | 1 | The string without CSI, OSC, DCS/SOS/PM/APC and two byte escape sequences. |
 | `truncateLines(lines, width, ellipsis = '…')` | 3 | `truncate()` of each element of the array `lines`, in one call; a new array. Throws `TypeError` when `lines` is not an array. |
 | `truncate(str, width, ellipsis = '…')` | 3 | The string cut to `width` cells with the ellipsis, escapes kept and a reset appended when it had any; the string itself when it fits. |
+| `fitTable(width, make, flex = 0, drop = [])` | 4 | A table of the rows `make(bar)` returns (header first) cut to `width` cells: meters of `bar` = 6, 3, 0 cells, then the `flex` columns cut with an ellipsis as `truncate()` does, then the `drop` columns removed one by one; columns two spaces apart, number columns on the right. Throws what `make` throws. |
 | `wrap(str, width)` | 2 | Lines of at most `width` cells broken after spaces, newlines kept, over-long words split, a color closed at a break and opened again; an array of strings. |
 
-The last four are the native half of `lib/terminal.js`, which exports them under the same names and keeps pure JS versions for runtimes without `textcode`. A cell wider than the width (a wide character at width 1) goes onto a line of its own in `wrap`.
+The last five are the native half of `lib/terminal.js`, which exports them under the same names and keeps pure JS versions for runtimes without `textcode`. A cell wider than the width (a wide character at width 1) goes onto a line of its own in `wrap`.
 
 ## Export list
 

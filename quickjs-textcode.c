@@ -1654,6 +1654,42 @@ js_textcode_stripansi(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return ret;
 }
 
+/* appends the text p..end cut to width cells and marked with ell. escape
+ * sequences are kept, a reset follows when there was any. the caller has
+ * checked that the text does not fit. never throws, db.error tells OOM. */
+static void
+cells_cut(DynBuf* db, const uint8_t* p, const uint8_t* end, int64_t width, const uint8_t* ell, size_t en) {
+  int64_t ew = cells_width(ell, en), room = width - ew > 0 ? width - ew : 0, w = 0;
+  BOOL styled = FALSE;
+
+  while(p < end) {
+    const uint8_t* q = p;
+    size_t a = *p == 0x1b ? cell_ansi(p, end - p) : 0;
+    int cw;
+
+    if(a) {
+      cell_put(db, p, a);
+      styled = TRUE;
+      p += a;
+      continue;
+    }
+
+    cw = cell_width(cell_next(&q, end));
+
+    if(w + cw > room)
+      break;
+
+    cell_put(db, p, q - p);
+    w += cw;
+    p = q;
+  }
+
+  if(styled)
+    dbuf_putstr(db, "\x1b[0m");
+  if(width >= ew)
+    cell_put(db, ell, en);
+}
+
 /**
  * truncate(str, width, ellipsis): str cut to width cells, the cut
  * marked with ellipsis. escape sequences are kept, a reset follows
@@ -1676,8 +1712,7 @@ js_textcode_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   const char *s, *ell = dots;
   const uint8_t *p, *end;
   size_t n, en = 3;
-  int64_t width, ew, room, w = 0;
-  BOOL styled = FALSE;
+  int64_t width;
   DynBuf db;
   JSValue ret = JS_EXCEPTION;
 
@@ -1700,36 +1735,8 @@ js_textcode_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     goto end;
   }
 
-  ew = cells_width((const uint8_t*)ell, en);
-  room = width - ew > 0 ? width - ew : 0;
   dbuf_init_ctx(ctx, &db);
-
-  while(p < end) {
-    const uint8_t* q = p;
-    size_t a = *p == 0x1b ? cell_ansi(p, end - p) : 0;
-    int cw;
-
-    if(a) {
-      cell_put(&db, p, a);
-      styled = TRUE;
-      p += a;
-      continue;
-    }
-
-    cw = cell_width(cell_next(&q, end));
-
-    if(w + cw > room)
-      break;
-
-    cell_put(&db, p, q - p);
-    w += cw;
-    p = q;
-  }
-
-  if(styled)
-    dbuf_putstr(&db, "\x1b[0m");
-  if(width >= ew)
-    cell_put(&db, (const uint8_t*)ell, en);
+  cells_cut(&db, p, end, width, (const uint8_t*)ell, en);
 
   ret = db.error ? JS_ThrowOutOfMemory(ctx) : JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   dbuf_free(&db);
@@ -1789,6 +1796,450 @@ js_textcode_truncatelines(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     }
   }
 
+  return ret;
+}
+
+/* one cell of a fitted table */
+typedef struct {
+  const char* s; /* borrowed: valid until JS_FreeCString, NULL when not loaded */
+  size_t len;    /* bytes of s, or of the cut text */
+  int64_t w;     /* cells it takes */
+  BOOL cut;      /* the text lives in the arena at off, not in s */
+  size_t off;
+} FitCell;
+
+/* the rows make() returned, the dropped columns left out */
+typedef struct {
+  FitCell* cells; /* nrows * ncols, row after row */
+  uint32_t nrows, ncols;
+} FitGrid;
+
+static BOOL
+fit_gone(const int64_t* gone, size_t n, int64_t i) {
+  while(n--)
+    if(gone[n] == i)
+      return TRUE;
+
+  return FALSE;
+}
+
+/* how many of the dropped columns lie before column i */
+static int64_t
+fit_before(const int64_t* gone, size_t n, int64_t i) {
+  int64_t c = 0;
+
+  while(n--)
+    c += gone[n] < i;
+
+  return c;
+}
+
+static const uint8_t*
+fit_text(const FitCell* c, const DynBuf* arena) {
+  return c->cut ? arena->buf + c->off : (const uint8_t*)c->s;
+}
+
+static void
+fit_free(JSContext* ctx, FitGrid* g) {
+  size_t i, n = (size_t)g->nrows * g->ncols;
+
+  for(i = 0; i < n; i++)
+    if(g->cells[i].s)
+      JS_FreeCString(ctx, g->cells[i].s);
+
+  js_free(ctx, g->cells);
+  g->cells = 0;
+}
+
+/* length of an array or array-like. returns 0, or -1 with an exception pending. */
+static int
+fit_length(JSContext* ctx, JSValueConst obj, uint32_t* n) {
+  JSValue len = JS_GetPropertyStr(ctx, obj, "length");
+  int bad = JS_ToUint32(ctx, n, len);
+
+  JS_FreeValue(ctx, len);
+  return bad ? -1 : 0;
+}
+
+/* reads rows, the array make() returned, into g without the columns in
+ * gone. returns 0, or -1 with an exception pending and g empty. */
+static int
+fit_load(JSContext* ctx, JSValueConst rows, const int64_t* gone, size_t ngone, FitGrid* g) {
+  uint32_t nrows, len0, j, k;
+  JSValue row;
+
+  g->cells = 0;
+  g->nrows = g->ncols = 0;
+
+  if(!JS_IsArray(ctx, rows))
+    return JS_ThrowTypeError(ctx, "make() did not return an array"), -1;
+
+  if(fit_length(ctx, rows, &nrows))
+    return -1;
+
+  if(!nrows)
+    return JS_ThrowTypeError(ctx, "make() returned no rows"), -1;
+
+  row = JS_GetPropertyUint32(ctx, rows, 0);
+
+  if(JS_IsException(row) || fit_length(ctx, row, &len0)) {
+    JS_FreeValue(ctx, row);
+    return -1;
+  }
+
+  JS_FreeValue(ctx, row);
+
+  for(j = 0; j < len0; j++)
+    g->ncols += !fit_gone(gone, ngone, j);
+
+  if(g->ncols && nrows > SIZE_MAX / sizeof(FitCell) / g->ncols)
+    return JS_ThrowRangeError(ctx, "table too large"), -1;
+
+  if(!(g->cells = js_mallocz(ctx, sizeof(FitCell) * ((size_t)nrows * g->ncols + 1))))
+    return -1;
+
+  g->nrows = nrows;
+
+  for(k = 0; k < nrows; k++) {
+    FitCell* c = &g->cells[(size_t)k * g->ncols];
+
+    row = JS_GetPropertyUint32(ctx, rows, k);
+
+    if(JS_IsException(row))
+      goto fail;
+
+    for(j = 0; j < len0; j++) {
+      JSValue cell;
+
+      if(fit_gone(gone, ngone, j))
+        continue;
+
+      cell = JS_GetPropertyUint32(ctx, row, j);
+      c->s = JS_IsException(cell) ? 0 : JS_ToCStringLen(ctx, &c->len, cell);
+      JS_FreeValue(ctx, cell);
+
+      if(!c->s) {
+        JS_FreeValue(ctx, row);
+        goto fail;
+      }
+
+      c->w = cells_width((const uint8_t*)c->s, c->len);
+      c++;
+    }
+
+    JS_FreeValue(ctx, row);
+  }
+
+  return 0;
+
+fail:
+  fit_free(ctx, g);
+  return -1;
+}
+
+/* widest cell of each column. */
+static void
+fit_widths(const FitGrid* g, int64_t* colw) {
+  uint32_t j, k;
+
+  for(j = 0; j < g->ncols; j++)
+    colw[j] = 0;
+
+  for(k = 0; k < g->nrows; k++)
+    for(j = 0; j < g->ncols; j++)
+      if(g->cells[(size_t)k * g->ncols + j].w > colw[j])
+        colw[j] = g->cells[(size_t)k * g->ncols + j].w;
+}
+
+/* appends the table as text: columns two spaces apart, padded to their widest
+ * cell. a column below the header made only of 0-9 . , k M G % - is padded on
+ * the left, the others on the right, trailing spaces of a line are cut.
+ * colw and num are scratch, one entry per column. */
+static void
+fit_emit(DynBuf* out, const FitGrid* g, const DynBuf* arena, int64_t* colw, int64_t* num) {
+  uint32_t j, k;
+
+  fit_widths(g, colw);
+
+  for(j = 0; j < g->ncols; j++) {
+    num[j] = j > 0;
+
+    for(k = 1; k < g->nrows && num[j]; k++) {
+      const FitCell* c = &g->cells[(size_t)k * g->ncols + j];
+      const uint8_t* p = fit_text(c, arena);
+      size_t i;
+
+      for(i = 0; i < c->len; i++)
+        if(!((p[i] >= '0' && p[i] <= '9') || p[i] == '.' || p[i] == ',' || p[i] == 'k' || p[i] == 'M' || p[i] == 'G' || p[i] == '%' || p[i] == '-')) {
+          num[j] = 0;
+          break;
+        }
+    }
+  }
+
+  for(k = 0; k < g->nrows; k++) {
+    size_t start = out->size;
+
+    for(j = 0; j < g->ncols; j++) {
+      const FitCell* c = &g->cells[(size_t)k * g->ncols + j];
+      int64_t fill = colw[j] - c->w;
+
+      if(j)
+        cell_put(out, "  ", 2);
+
+      if(num[j] && k)
+        for(; fill > 0; fill--)
+          dbuf_putc(out, ' ');
+
+      cell_put(out, fit_text(c, arena), c->len);
+
+      if(!(num[j] && k))
+        for(; fill > 0; fill--)
+          dbuf_putc(out, ' ');
+    }
+
+    while(out->size > start && out->buf[out->size - 1] == ' ')
+      out->size--;
+
+    if(k + 1 < g->nrows)
+      dbuf_putc(out, '\n');
+  }
+}
+
+/* one try of fitTable with meters of bar cells. appends the text to out when
+ * the table fits or last is set, and sets *fits. returns 0, 1 when the next
+ * bar should be tried, or -1 with an exception pending. */
+static int
+fit_try(JSContext* ctx, int64_t width, JSValueConst make, int bar, const int64_t* flex, size_t nflex, const int64_t* gone, size_t ngone, BOOL last, DynBuf* out, BOOL* fits) {
+  static const uint8_t dots[] = "\xe2\x80\xa6";
+  int64_t *v, *colw, *tgt, *cols, over, total;
+  size_t i, j, k, ncf = 0;
+  JSValue rows, arg = JS_NewInt32(ctx, bar);
+  FitGrid g;
+  DynBuf arena;
+  int ret = -1;
+
+  rows = JS_Call(ctx, make, JS_UNDEFINED, 1, &arg);
+
+  if(JS_IsException(rows))
+    return -1;
+
+  j = fit_load(ctx, rows, gone, ngone, &g);
+  JS_FreeValue(ctx, rows);
+
+  if(j)
+    return -1;
+
+  dbuf_init_ctx(ctx, &arena);
+
+  /* colw, tgt (cut width, -1 when the column is not flexible), cols (the flexible ones), num */
+  if(!(v = js_malloc(ctx, sizeof(int64_t) * 4 * (g.ncols + 1))))
+    goto end;
+
+  colw = v;
+  tgt = v + g.ncols + 1;
+  cols = tgt + g.ncols + 1;
+
+  for(j = 0; j < g.ncols; j++)
+    tgt[j] = -1;
+
+  for(i = 0; i < nflex; i++) {
+    int64_t m = flex[i] - fit_before(gone, ngone, flex[i]);
+
+    if(fit_gone(gone, ngone, flex[i]) || m < 0 || m >= g.ncols || tgt[m] >= 0)
+      continue;
+
+    tgt[m] = 0;
+    cols[ncf++] = m;
+  }
+
+  fit_widths(&g, colw);
+
+  for(total = 2 * ((int64_t)g.ncols - 1), j = 0; j < g.ncols; j++)
+    total += colw[j];
+
+  over = width > 0 ? total - width : 0;
+
+  if(over <= 0) {
+    *fits = TRUE;
+    fit_emit(out, &g, &arena, colw, cols + g.ncols + 1);
+    ret = 0;
+    goto end;
+  }
+
+  if(bar != 0 && (!ncf || colw[cols[0]] - over < 24)) {
+    ret = 1;
+    goto end;
+  }
+
+  for(i = 0; i < ncf; i++)
+    tgt[cols[i]] = colw[cols[i]];
+
+  /* the widest flexible column gives up a cell at a time, down to its header (at least 6) */
+  while(over > 0) {
+    int64_t best = -1;
+
+    for(i = 0; i < ncf; i++) {
+      int64_t min = g.cells[cols[i]].w > 6 ? g.cells[cols[i]].w : 6;
+
+      if(tgt[cols[i]] > min && (best < 0 || tgt[cols[i]] > tgt[best]))
+        best = cols[i];
+    }
+
+    if(best < 0)
+      break;
+
+    tgt[best]--;
+    over--;
+  }
+
+  for(k = 1; k < g.nrows; k++)
+    for(i = 0; i < ncf; i++) {
+      FitCell* c = &g.cells[k * g.ncols + cols[i]];
+      const uint8_t* p = (const uint8_t*)c->s;
+      size_t off = arena.size;
+
+      if(c->w <= tgt[cols[i]])
+        continue;
+
+      cells_cut(&arena, p, p + c->len, tgt[cols[i]], dots, 3);
+
+      c->cut = TRUE;
+      c->off = off;
+      c->len = arena.size - off;
+      c->w = cells_width(arena.buf + off, c->len);
+    }
+
+  if(arena.error) {
+    JS_ThrowOutOfMemory(ctx);
+    goto end;
+  }
+
+  *fits = over <= 0;
+
+  if(*fits || last)
+    fit_emit(out, &g, &arena, colw, cols + g.ncols + 1);
+
+  ret = 0;
+
+end:
+  js_free(ctx, v);
+  dbuf_free(&arena);
+  fit_free(ctx, &g);
+  return ret;
+}
+
+/* an integer or an array of integers argument. an undefined one is [0] when
+ * dflt is set, else empty. returns 0 with *out from js_malloc, or -1 with an
+ * exception pending. */
+static int
+fit_ints(JSContext* ctx, JSValueConst v, BOOL dflt, int64_t** out, size_t* n) {
+  uint32_t len = 1, i;
+  int64_t* a;
+
+  if(JS_IsUndefined(v))
+    len = dflt;
+  else if(JS_IsArray(ctx, v) && fit_length(ctx, v, &len))
+    return -1;
+
+  if(!(a = js_mallocz(ctx, sizeof(int64_t) * (len + 1))))
+    return -1;
+
+  for(i = 0; i < len; i++) {
+    JSValue e = JS_IsArray(ctx, v) ? JS_GetPropertyUint32(ctx, v, i) : JS_DupValue(ctx, v);
+    int bad = JS_IsException(e) || JS_ToInt64(ctx, &a[i], e);
+
+    JS_FreeValue(ctx, e);
+
+    if(bad) {
+      js_free(ctx, a);
+      return -1;
+    }
+  }
+
+  *out = a;
+  *n = len;
+  return 0;
+}
+
+/**
+ * fitTable(width, make, flex, drop): a table that fits width cells.
+ *
+ *   fitTable(80, bar => rows(bar), [5], [4, 3])   -> 'Model  Rate ...'
+ *
+ *   number    width  cells the table may take, 0 for no limit
+ *   function  make   make(bar) returns the rows, header first, with meters of bar cells
+ *   number[]  flex   columns that may shrink, one number is fine, default 0
+ *   number[]  drop   columns that go one by one when shrinking is not enough
+ *
+ *   returns string   rows joined by newlines, columns two spaces apart
+ *
+ * make is called with 6, 3 and 0 until the table fits. flex columns give up
+ * cells, the widest first, down to their header width (at least 6), cut as
+ * truncate() cuts. a column below the header made only of 0-9 . , k M G % -
+ * lines up on the right. flex and drop count the columns make returns.
+ *
+ * throws what make throws, TypeError when make is not a function or returns
+ * no rows. same result as the pure JS fitTable in lib/terminal.js.
+ * wired in as JS_CFUNC_DEF("fitTable", 4, ...).
+ */
+static JSValue
+js_textcode_fittable(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int64_t width, *flex = 0, *drop = 0, *gone = 0;
+  size_t nflex = 0, ndrop = 0, ngone = 0, i;
+  JSValue ret = JS_EXCEPTION;
+  BOOL fits = FALSE;
+  DynBuf out;
+
+  if(cells_arg(ctx, &width, argc > 0 ? argv[0] : JS_UNDEFINED))
+    return JS_EXCEPTION;
+
+  if(argc < 2 || !JS_IsFunction(ctx, argv[1]))
+    return JS_ThrowTypeError(ctx, "make is not a function");
+
+  if(fit_ints(ctx, argc > 2 ? argv[2] : JS_UNDEFINED, TRUE, &flex, &nflex))
+    return JS_EXCEPTION;
+
+  if(fit_ints(ctx, argc > 3 ? argv[3] : JS_UNDEFINED, FALSE, &drop, &ndrop))
+    goto end;
+
+  if(!(gone = js_malloc(ctx, sizeof(int64_t) * (ndrop + 1))))
+    goto end;
+
+  dbuf_init_ctx(ctx, &out);
+
+  for(;;) {
+    BOOL last;
+    int r;
+
+    fits = FALSE;
+
+    for(i = 0; i < ndrop && fit_gone(gone, ngone, drop[i]); i++) {}
+
+    last = i == ndrop;
+
+    for(r = 1, i = 0; i < 3 && r == 1; i++)
+      r = fit_try(ctx, width, argv[1], i == 0 ? 6 : i == 1 ? 3 : 0, flex, nflex, gone, ngone, last, &out, &fits);
+
+    if(r < 0)
+      goto done;
+
+    if(fits || last)
+      break;
+
+    for(i = 0; fit_gone(gone, ngone, drop[i]); i++) {}
+
+    gone[ngone++] = drop[i];
+  }
+
+  ret = out.error ? JS_ThrowOutOfMemory(ctx) : JS_NewStringLen(ctx, (const char*)out.buf, out.size);
+
+done:
+  dbuf_free(&out);
+end:
+  js_free(ctx, flex);
+  js_free(ctx, drop);
+  js_free(ctx, gone);
   return ret;
 }
 
@@ -2071,6 +2522,7 @@ end:
  *   stripAnsi    a string without its escape sequences
  *   truncate     a string cut to a number of cells
  *   truncateLines  truncate() of each element of an array
+ *   fitTable     a table of rows from make(bar) cut to a width
  *   wrap         a string broken into lines of a number of cells
  */
 static const JSCFunctionListEntry js_textcode_funcs[] = {
@@ -2083,6 +2535,7 @@ static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_DEF("stripAnsi", 1, js_textcode_stripansi),
     JS_CFUNC_DEF("truncate", 3, js_textcode_truncate),
     JS_CFUNC_DEF("truncateLines", 3, js_textcode_truncatelines),
+    JS_CFUNC_DEF("fitTable", 4, js_textcode_fittable),
     JS_CFUNC_DEF("wrap", 2, js_textcode_wrap),
 };
 
