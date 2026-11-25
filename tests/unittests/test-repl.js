@@ -1,5 +1,5 @@
 /* lib/repl.js: the parts of REPL that work without a terminal */
-import { isValidSyntax, REPL } from '../../lib/repl.js';
+import { describeValue, isValidSyntax, REPL } from '../../lib/repl.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 import { popen, loadFile, open as fopen } from 'std';
 import { readlink, remove } from 'os';
@@ -574,5 +574,58 @@ tests({
 
     assert(!loadFile(file).includes('\x1b[31mP> '));
     remove(file);
+  },
+  'describeValue names type, class and prototype chain'() {
+    const lines = describeValue([1, 2]);
+
+    eq('type    object', lines[0]);
+    eq('class   Array', lines[1]);
+    eq('proto   Array.prototype -> Object.prototype', lines[2]);
+    assert(lines.includes('length  2'), lines.join('\n'));
+  },
+
+  'describeValue shows the source and arity of a function'() {
+    const lines = describeValue(function add(a, b) { return a + b; });
+
+    eq('type    function', lines[0]);
+    assert(lines.includes('name    "add"'), lines.join('\n'));
+    assert(lines.includes('args    2'), lines.join('\n'));
+    assert(lines.some(l => /^  function add\(a, b\)/.test(l)), lines.join('\n'));
+  },
+
+  'describeValue handles primitives and null'() {
+    eq('type    null', describeValue(null).join());
+    eq('type    number,value   5', describeValue(5).join());
+    eq('type    string,length  3', describeValue('abc').join());
+    eq('type    undefined', describeValue(undefined).join());
+  },
+
+  'describeValue follows a class chain'() {
+    class A {}
+    class B extends A {}
+
+    eq('proto   B.prototype -> A.prototype -> Object.prototype', describeValue(new B())[2]);
+    eq('proto   null', describeValue(Object.create(null))[2]);
+  },
+
+  'a trailing ? describes the value'() {
+    const out = session('[1,2]?\n');
+
+    assert(out.includes('class   Array'), out);
+    assert(out.includes('proto   Array.prototype -> Object.prototype'), out);
+    assert(!out.includes('Uncaught'), out);
+  },
+
+  '\\type describes the value'() {
+    const out = session('\\\\type Math.max\n');
+
+    assert(out.includes('type    function'), out);
+    assert(out.includes('args    2'), out);
+  },
+
+  'a failing ? prints the error'() {
+    const out = session('nope?\n');
+
+    assert(out.includes('Uncaught ReferenceError'), out);
   },
 });

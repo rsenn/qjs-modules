@@ -57,6 +57,11 @@ turns the red prompt off.
 Pasted text arrives as one piece (bracketed paste), so a multi-line paste is
 edited as a whole and runs on Enter.
 
+Introspection: `expr?` or `\\type expr` prints the type, class, prototype
+chain and size of the value, and for a function its name, argument count and
+source. A trailing `?` is never valid JavaScript, so it cannot clash with a
+ternary. `describeValue(value)` returns the lines and is exported.
+
 ### Node.js behavior
 
 - an error prints as `Uncaught TypeError: message`, followed by the stack

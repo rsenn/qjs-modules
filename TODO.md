@@ -3665,7 +3665,7 @@ checked in a 40-column tmux pane). Left open from them:
 | 30.5 done | Grey preview of the one remaining completion; the completion list shows the kind (function, value) and a function's arity (`completionPreview()`, `completionLabel()`) | Node | |
 | 30.6 done | Live result preview while typing (`previewText()`, `previewValue()`: literals and plain property chains, getters skipped, off with `repl.preview = false`) | Node, Chrome DevTools | QuickJS has no side-effect-free eval: only literals and plain property chains (`a.b.c`), getters skipped |
 | 30.7 done | Prompt turns red while the input cannot parse (`isValidSyntax()` exported, `repl.syntaxCheck`) | PSReadLine; Bun exports `isValidSyntax()` | |
-| 30.8 | Introspection: `obj?` prints type, prototype chain and function source; a `.type expr` command | IPython, GHCi | |
+| 30.8 done | Introspection: `obj?` prints type, prototype chain and function source; a `\\type expr` command (`describeValue()` exported, `introspect()`) | IPython, GHCi | |
 | 30.9 | Helpers: `copy(x)` over OSC 52, `keys()`, `values()`, `table()`, a `.time expr` command | Chrome DevTools, IPython `%timeit` | `\t` only toggles the timing display |
 | 30.10 | Optional auto-closing brackets that can be typed over, Alt-Enter inserts a newline, numbered results `$1`, `$2`, a vi mode, column width of wide characters via `Intl.Segmenter` | IPython, DevTools, readline | `ucsLength()` only handles surrogates |
 
