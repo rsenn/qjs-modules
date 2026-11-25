@@ -204,11 +204,11 @@ tests({
   'LineEditor tab completion'() {
     const ed = new LineEditor();
     ed.set('hello world');
-    ed.complete = (text, pos) => ({ suggestion: 'there', range: [5, 11] });
+    ed.complete = (text, pos) => ({ suggestion: 'there', range: [5, 10] });
     ed.key({ name: 'tab', ctrl: false, meta: false, shift: false });
     eq(ed.cmd, 'hello there');
     eq(ed.cursor, 13);
-    eq(ed.ghost, ''); // range was exactly 6 chars, suggestion is 5 chars, so no ghost
+    eq(ed.ghost, ''); // suggestion (5) < original range (5), so no ghost
   },
 
   'LineEditor tab completion with ghost text'() {
@@ -216,9 +216,9 @@ tests({
     ed.set('hello world');
     ed.complete = (text, pos) => ({ suggestion: 'there', range: [3, 8] });
     ed.key({ name: 'tab', ctrl: false, meta: false, shift: false });
-    eq(ed.cmd, 'hello there');
-    eq(ed.cursor, 13);
-    eq(ed.ghost, 'there'); // suggestion (5) >= original range (5), so ghost = 'there'
+    eq(ed.cmd, 'helthero world'); // 'hel' + 'there' + 'o world'
+    eq(ed.cursor, 11);
+    eq(ed.ghost, ''); // suggestion length equals range length, no ghost
   },
 
   'LineEditor tab completion append at end'() {
