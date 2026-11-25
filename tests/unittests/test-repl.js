@@ -1,7 +1,7 @@
 /* lib/repl.js: the parts of REPL that work without a terminal */
 import { REPL } from '../../lib/repl.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
-import { popen, loadFile } from 'std';
+import { popen, loadFile, open as fopen } from 'std';
 import { readlink, remove } from 'os';
 
 const fixture = import.meta.dirname + '/../fixtures/repl/piped.js';
@@ -265,5 +265,87 @@ tests({
 
     eq('a\n\tb', r.cmd);
     eq(null, r.pasting);
+  },
+  'suggestion is the rest of the newest history entry with the prefix'() {
+    const r = new REPL('s', false);
+
+    r.showColors = true;
+    r.historyAdd('foo(1)');
+    r.historyAdd('foo(22)');
+    r.historyAdd('bar');
+    r.cmd = 'fo';
+    r.cursorPos = 2;
+    eq('o(22)', r.suggestion());
+
+    r.cmd = 'zz';
+    r.cursorPos = 2;
+    eq('', r.suggestion());
+
+    r.cmd = 'fo';
+    r.cursorPos = 1;
+    eq('', r.suggestion());
+
+    r.cmd = 'foo(22)';
+    r.cursorPos = 7;
+    eq('', r.suggestion());
+
+    r.suggest = false;
+    r.cmd = 'fo';
+    r.cursorPos = 2;
+    eq('', r.suggestion());
+  },
+
+  'a multi-line history entry is not suggested'() {
+    const r = new REPL('s', false);
+
+    r.showColors = true;
+    r.historyAdd('[1,\n2]');
+    r.cmd = '[1';
+    r.cursorPos = 2;
+    eq('', r.suggestion());
+  },
+
+  'Right and ^E accept the suggestion at the end of the buffer'() {
+    const r = new REPL('s', false);
+
+    r.showColors = true;
+    r.historyAdd('console.log(1)');
+    r.cmd = 'con';
+    r.cursorPos = 3;
+    r.forwardChar();
+    eq('console.log(1)', r.cmd);
+    eq(14, r.cursorPos);
+
+    r.cmd = 'con';
+    r.cursorPos = 3;
+    r.endOfLine();
+    eq('console.log(1)', r.cmd);
+
+    r.cmd = 'con';
+    r.cursorPos = 1;
+    r.forwardChar();
+    eq('con', r.cmd);
+    eq(2, r.cursorPos);
+  },
+
+  'render draws the suggestion in grey after the buffer'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('s', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = true;
+    r.out = f;
+    r.historyAdd('hello(1)');
+    r.cmd = 'hel';
+    r.cursorPos = 3;
+    r.render();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    assert(out.includes('lo(1)'), JSON.stringify(out));
+    assert(out.indexOf('lo(1)') > out.indexOf('hel'), JSON.stringify(out));
+    assert(!out.includes('hello(1)hel'), JSON.stringify(out));
   },
 });

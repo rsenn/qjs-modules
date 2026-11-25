@@ -31,6 +31,10 @@ Brackets while typing:
   shown on a red background, and Enter submits it instead of waiting for
   the missing bracket
 
+Suggestion: when the buffer is the start of a single-line history entry, the
+rest of the newest such entry is shown in grey after the cursor. Right or ^E at
+the end of the buffer inserts it. `repl.suggest = false` turns it off.
+
 Pasted text arrives as one piece (bracketed paste), so a multi-line paste is
 edited as a whole and runs on Enter.
 
