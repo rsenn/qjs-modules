@@ -2512,6 +2512,173 @@ end:
   return ret;
 }
 
+/* grapheme clusters: the characters a user sees, as a cursor steps over them.
+ * a compact UAX 29: no break before a combining mark, variation selector,
+ * ZWNJ, ZWJ or emoji modifier, none inside CR LF, a ZWJ emoji sequence, a
+ * pair of regional indicators or a Hangul syllable, every other place breaks.
+ * same rules as lib/terminal.js, which keeps its own copy.
+ */
+static const uint32_t gc_extend[][2] = {
+    {0x300, 0x36f},   {0x483, 0x489},   {0x591, 0x5bd},   {0x5bf, 0x5bf},   {0x5c1, 0x5c2},   {0x610, 0x61a},   {0x64b, 0x65f},
+    {0x670, 0x670},   {0x6d6, 0x6dc},   {0xe31, 0xe31},   {0xe34, 0xe3a},   {0xe47, 0xe4e},   {0x1ab0, 0x1aff}, {0x1dc0, 0x1dff},
+    {0x200c, 0x200d}, {0x20d0, 0x20ff}, {0x3099, 0x309a}, {0xfe00, 0xfe0f}, {0xfe20, 0xfe2f}, {0x1f3fb, 0x1f3ff}, {0xe0020, 0xe007f}, {0xe0100, 0xe01ef},
+};
+
+static const uint32_t gc_pict[][2] = {
+    {0xa9, 0xa9},       {0xae, 0xae},       {0x203c, 0x203c},   {0x2049, 0x2049},   {0x2122, 0x2122},   {0x2139, 0x2139},   {0x2194, 0x21aa},
+    {0x231a, 0x23ff},   {0x24c2, 0x24c2},   {0x25aa, 0x25fe},   {0x2600, 0x27bf},   {0x2934, 0x2935},   {0x2b05, 0x2b55},   {0x3030, 0x3030},
+    {0x303d, 0x303d},   {0x3297, 0x3297},   {0x3299, 0x3299},   {0x1f000, 0x1faff},
+};
+
+/* Hangul class of cp: 1 L, 2 V, 3 T, 4 LV, 5 LVT, 0 none. */
+static int
+gc_hangul(uint32_t cp) {
+  if(cp >= 0x1100 && cp <= 0x115f)
+    return 1;
+  if(cp >= 0x1160 && cp <= 0x11a7)
+    return 2;
+  if(cp >= 0x11a8 && cp <= 0x11ff)
+    return 3;
+  if(cp >= 0xac00 && cp <= 0xd7a3)
+    return (cp - 0xac00) % 28 ? 5 : 4;
+  return 0;
+}
+
+static int
+gc_control(uint32_t cp) {
+  return cp < 0x20 || (cp >= 0x7f && cp < 0xa0) || cp == 0x2028 || cp == 0x2029;
+}
+
+/* 1 when a cluster boundary lies before cps[i], 0 < i < n. */
+static int
+gc_break(const uint32_t* cps, size_t i) {
+  uint32_t a = cps[i - 1], b = cps[i];
+  int ha, hb;
+
+  if(a == '\r' && b == '\n')
+    return 0;
+  if(gc_control(a) || gc_control(b))
+    return 1;
+  if(cell_within(gc_extend, countof(gc_extend), b))
+    return 0;
+
+  if(a == 0x200d && cell_within(gc_pict, countof(gc_pict), b)) {
+    size_t k = i - 1;
+
+    while(k > 0 && cell_within(gc_extend, countof(gc_extend), cps[k - 1]) && cps[k - 1] != 0x200d)
+      k--;
+    if(k > 0 && cell_within(gc_pict, countof(gc_pict), cps[k - 1]))
+      return 0;
+  }
+
+  if(a >= 0x1f1e6 && a <= 0x1f1ff && b >= 0x1f1e6 && b <= 0x1f1ff) {
+    size_t k = i, run = 0;
+
+    while(k > 0 && cps[k - 1] >= 0x1f1e6 && cps[k - 1] <= 0x1f1ff) {
+      run++;
+      k--;
+    }
+    return run % 2 == 0;
+  }
+
+  ha = gc_hangul(a);
+  hb = gc_hangul(b);
+
+  if(ha && hb) {
+    if(ha == 1 && hb != 3)
+      return 0;
+    if((ha == 4 || ha == 2) && (hb == 2 || hb == 3))
+      return 0;
+    if((ha == 5 || ha == 3) && hb == 3)
+      return 0;
+  }
+
+  return 1;
+}
+
+/**
+ * prevCluster(str, pos), nextCluster(str, pos): the UTF-16 index of the
+ * character boundary before / after pos, what Backspace and the arrow keys
+ * step over.
+ *
+ *   nextCluster('éx', 0)   -> 2     e and its accent are one
+ *   prevCluster('a👨‍👩‍👧', 9)     -> 1     the family is one
+ *
+ *   string  str   any value, converted with String()
+ *   number  pos   UTF-16 index, clamped to 0..str.length
+ *
+ *   returns number, 0 or str.length at the ends
+ *
+ * a pos inside a cluster gives its start or end. wired in as
+ * JS_CFUNC_MAGIC_DEF("prevCluster"/"nextCluster", 2, ...), magic 0 is prev.
+ */
+static JSValue
+js_textcode_cluster(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  const uint8_t *p, *end;
+  const char* s;
+  uint32_t *cps, *off;
+  size_t n, count = 0, i;
+  int64_t pos = 0;
+  JSValue ret;
+
+  if(!(s = JS_ToCStringLen(ctx, &n, argv[0])))
+    return JS_EXCEPTION;
+
+  if(argc > 1 && cells_arg(ctx, &pos, argv[1])) {
+    JS_FreeCString(ctx, s);
+    return JS_EXCEPTION;
+  }
+
+  /* n bytes hold at most n code points, off has one more entry for the end */
+  cps = js_malloc(ctx, (2 * n + 1) * sizeof(uint32_t));
+
+  if(!cps) {
+    JS_FreeCString(ctx, s);
+    return JS_EXCEPTION;
+  }
+
+  off = cps + n;
+  off[0] = 0;
+  p = (const uint8_t*)s;
+  end = p + n;
+
+  while(p < end) {
+    uint32_t cp = cell_next(&p, end);
+
+    cps[count] = cp;
+    off[count + 1] = off[count] + (cp >= 0x10000 ? 2 : 1);
+    count++;
+  }
+
+  if(magic == 0) {
+    /* the cluster holding the unit before pos starts at the boundary */
+    i = 0;
+
+    while(i + 1 < count && off[i + 1] < pos)
+      i++;
+    while(i > 0 && !gc_break(cps, i))
+      i--;
+    if(pos <= 0)
+      i = 0;
+  } else {
+    /* the cluster holding pos ends at the boundary */
+    i = 0;
+
+    while(i < count && off[i + 1] <= pos)
+      i++;
+    if(i < count) {
+      i++;
+      while(i < count && !gc_break(cps, i))
+        i++;
+    }
+  }
+
+  ret = JS_NewUint32(ctx, off[i]);
+  js_free(ctx, cps);
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+
 /* module exports besides the two classes, one line per name:
  *   isAscii      7-bit ASCII check, buffer.isAscii()
  *   isUtf8       UTF-8 validity check, buffer.isUtf8()
@@ -2524,6 +2691,8 @@ end:
  *   truncateLines  truncate() of each element of an array
  *   fitTable     a table of rows from make(bar) cut to a width
  *   wrap         a string broken into lines of a number of cells
+ *   prevCluster  index of the character boundary before a position
+ *   nextCluster  index of the character boundary after a position
  */
 static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isAscii", 1, js_textcode_is, TEXTCODE_IS_ASCII),
@@ -2537,6 +2706,8 @@ static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_DEF("truncateLines", 3, js_textcode_truncatelines),
     JS_CFUNC_DEF("fitTable", 4, js_textcode_fittable),
     JS_CFUNC_DEF("wrap", 2, js_textcode_wrap),
+    JS_CFUNC_MAGIC_DEF("prevCluster", 2, js_textcode_cluster, 0),
+    JS_CFUNC_MAGIC_DEF("nextCluster", 2, js_textcode_cluster, 1),
 };
 
 int
