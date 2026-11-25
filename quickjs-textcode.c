@@ -2687,6 +2687,164 @@ js_textcode_cluster(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return ret;
 }
 
+/**
+ * layoutInput(prefixes, text, cursor, columns): the rows an edited text takes
+ * on a terminal, and where the cursor is in them.
+ *
+ *   layoutInput(['> ', '. '], 'ab\ncd', 4, 80)
+ *     -> { lines: ['> ab', '. cd'], row: 1, col: 3 }
+ *
+ *   string[]  prefixes  [first, cont = ''], first starts the text, cont each
+ *                       line after a newline in it
+ *   string    text      the edited text, may hold newlines
+ *   number    cursor    UTF-16 index into text
+ *   number    columns   cells a row may take
+ *
+ *   returns { lines: string[], row: number, col: number }
+ *
+ * a row is cut before the character that would pass columns. a cursor at the
+ * end of a full row sits at the start of the next one. a cursor inside a
+ * surrogate pair or past the text stays at row 0, col 0 unless it is at the
+ * end. a lone surrogate in text comes back as U+FFFD. same result as the
+ * pure JS layoutInput in lib/terminal.js.
+ * wired in as JS_CFUNC_DEF("layoutInput", 4, ...).
+ */
+static JSValue
+js_textcode_layoutinput(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const uint8_t *p, *end;
+  const char *text = 0, *own[2] = {0, 0}, *pre[2] = {"", ""};
+  size_t n = 0, plen[2] = {0, 0}, i;
+  int64_t cursor = 0, columns = 0, w = 0, g = 0, row = 0, col = 0;
+  uint32_t count = 0;
+  DynBuf cur;
+  JSValue lines = JS_UNDEFINED, ret = JS_EXCEPTION;
+  BOOL full = FALSE;
+
+  if(argc < 4)
+    return JS_ThrowTypeError(ctx, "layoutInput(prefixes, text, cursor, columns)");
+
+  for(i = 0; i < 2; i++) {
+    JSValue e = JS_GetPropertyUint32(ctx, argv[0], i);
+
+    if(JS_IsException(e))
+      goto fail;
+
+    if(!JS_IsUndefined(e)) {
+      own[i] = JS_ToCStringLen(ctx, &plen[i], e);
+
+      if(own[i])
+        pre[i] = own[i];
+    }
+
+    JS_FreeValue(ctx, e);
+
+    if(!JS_IsUndefined(e) && !own[i])
+      goto fail;
+  }
+
+  if(!(text = JS_ToCStringLen(ctx, &n, argv[1])) || cells_arg(ctx, &cursor, argv[2]) || cells_arg(ctx, &columns, argv[3]))
+    goto fail;
+
+  dbuf_init_ctx(ctx, &cur);
+  lines = JS_NewArray(ctx);
+
+  if(JS_IsException(lines))
+    goto done;
+
+  /* the first line starts with the first prefix, the others with cont */
+  cell_put(&cur, pre[0], plen[0]);
+  w = cells_width((const uint8_t*)pre[0], plen[0]);
+  p = (const uint8_t*)text;
+  end = p + n;
+  full = FALSE;
+
+  for(;;) {
+    const uint8_t* at = p;
+    uint32_t cp = p < end ? cell_next(&p, end) : '\n';
+    BOOL last = at == end;
+
+    if(cp == '\n') {
+      /* the end of a line: a cursor here sits after its last character */
+      if(g == cursor) {
+        if(w >= columns) {
+          JSValue v = JS_NewStringLen(ctx, (const char*)cur.buf, cur.size);
+
+          if(JS_IsException(v) || JS_SetPropertyUint32(ctx, lines, count++, v) < 0)
+            goto done;
+
+          cur.size = 0;
+          w = 0;
+        }
+
+        row = count;
+        col = w;
+      }
+
+      {
+        JSValue v = JS_NewStringLen(ctx, (const char*)cur.buf, cur.size);
+
+        if(JS_IsException(v) || JS_SetPropertyUint32(ctx, lines, count++, v) < 0)
+          goto done;
+      }
+
+      if(last)
+        break;
+
+      cur.size = 0;
+      cell_put(&cur, pre[1], plen[1]);
+      w = cells_width((const uint8_t*)pre[1], plen[1]);
+      g++;
+      continue;
+    }
+
+    {
+      int cw = cell_width(cp);
+
+      if(w + cw > columns) {
+        JSValue v = JS_NewStringLen(ctx, (const char*)cur.buf, cur.size);
+
+        if(JS_IsException(v) || JS_SetPropertyUint32(ctx, lines, count++, v) < 0)
+          goto done;
+
+        cur.size = 0;
+        w = 0;
+      }
+
+      if(g == cursor) {
+        row = count;
+        col = w;
+      }
+
+      cell_put(&cur, at, p - at);
+      w += cw;
+      g += cp >= 0x10000 ? 2 : 1;
+    }
+  }
+
+  ret = JS_NewObject(ctx);
+
+  if(!JS_IsException(ret)) {
+    JS_SetPropertyStr(ctx, ret, "lines", lines);
+    JS_SetPropertyStr(ctx, ret, "row", JS_NewInt64(ctx, row));
+    JS_SetPropertyStr(ctx, ret, "col", JS_NewInt64(ctx, col));
+    lines = JS_UNDEFINED;
+  }
+
+done:
+  if(cur.error && !JS_IsException(ret))
+    ret = JS_ThrowOutOfMemory(ctx);
+
+  dbuf_free(&cur);
+  JS_FreeValue(ctx, lines);
+fail:
+  for(i = 0; i < 2; i++)
+    if(own[i])
+      JS_FreeCString(ctx, own[i]);
+  if(text)
+    JS_FreeCString(ctx, text);
+  return ret;
+}
+
 /* module exports besides the two classes, one line per name:
  *   isAscii      7-bit ASCII check, buffer.isAscii()
  *   isUtf8       UTF-8 validity check, buffer.isUtf8()
@@ -2699,6 +2857,7 @@ js_textcode_cluster(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
  *   truncateLines  truncate() of each element of an array
  *   fitTable     a table of rows from make(bar) cut to a width
  *   wrap         a string broken into lines of a number of cells
+ *   layoutInput  rows an edited text takes and where its cursor is
  *   prevCluster  index of the character boundary before a position
  *   nextCluster  index of the character boundary after a position
  */
@@ -2714,6 +2873,7 @@ static const JSCFunctionListEntry js_textcode_funcs[] = {
     JS_CFUNC_DEF("truncateLines", 3, js_textcode_truncatelines),
     JS_CFUNC_DEF("fitTable", 4, js_textcode_fittable),
     JS_CFUNC_DEF("wrap", 2, js_textcode_wrap),
+    JS_CFUNC_DEF("layoutInput", 4, js_textcode_layoutinput),
     JS_CFUNC_MAGIC_DEF("prevCluster", 2, js_textcode_cluster, 0),
     JS_CFUNC_MAGIC_DEF("nextCluster", 2, js_textcode_cluster, 1),
 };

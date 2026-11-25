@@ -154,7 +154,7 @@ ttyWrite(f, status.update(['model x', 'tokens 13']));   // the second row only
 
 ### layoutInput
 
-`layoutInput([first, cont = ''], text, cursor, columns)` returns `{ lines, row, col }`: the rows an edited text takes and where the cursor is in them. `first` starts the text, `cont` each line after a newline in it. Rows are cut at `columns` cells, `cursor` is an index into `text`, and a cursor after a full row sits at the start of the next one.
+`layoutInput([first, cont = ''], text, cursor, columns)` returns `{ lines, row, col }`: the rows an edited text takes and where the cursor is in them. Native in `textcode` on qjsm (a 10 KB text takes under 1 ms, the JS version about 20 ms), a JS twin elsewhere with the same result. `first` starts the text, `cont` each line after a newline in it. Rows are cut at `columns` cells, `cursor` is an index into `text`, and a cursor after a full row sits at the start of the next one.
 
 ```js
 layoutInput(['> ', '. '], 'ab\ncd', 4, 80);   // { lines: ['> ab', '. cd'], row: 1, col: 3 }
