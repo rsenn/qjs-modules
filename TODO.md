@@ -3721,7 +3721,7 @@ Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2
 | 32.10 | `LineEditor.key()` does not recognise what `decodeKeys()` returns for Ctrl-C, Ctrl-D and Return | it tests the names `ctrlc`, `ctrlD`, `enter`; `decodeKeys` gives `c`+ctrl, `d`+ctrl, `return`: Ctrl-C inserts `C`, Ctrl-D inserts `D`, `\r` returns `null`, only `\n` submits. Decide the key names (the decoder's are the standard ones), fix `key()`, add tests; `BUGS` `lineeditor-ctrl-c-ctrl-d-return-not-recognised` |
 | 32.11 | `test-terminal-portable.js` fails 3 of 19 tests on qjsm, node, bun, deno | LineEditor history (Up, Down, draft), also on HEAD before `fitTable`, cause not looked at; `BUGS` `terminal-portable-lineeditor-tests-fail` |
 | 32.12 done | `doc/js/terminal.md` covered 9 of 101 exports | 2026-11-25: overview, cursor and mode tables, raw mode and input, capabilities, colors and text, widgets, `Screen`, `Region`, `layoutInput`, `LineEditor`, `fitTable`. Written from the code, uncommitted. Not checked: the old `ScrollView` section against the code |
-| 32.13 | `doc/native/textcode.md` generated export list | still says 26 members and lacks `fitTable`; regenerate with `utilities/doc-api.js` |
+| 32.13 done | `doc/native/textcode.md` export list regenerated: 28 members, `fitTable()` included | `utilities/api-surface.sh` and `utilities/doc-api.js`; `tests/unittests/test-textcode-doc.js` compares the list with the module's exports |
 
 ## dietlibc build: 6 failing tests (2026-11-25, `BUILTIN_MODULES=*`, 214 of 220 pass)
 
