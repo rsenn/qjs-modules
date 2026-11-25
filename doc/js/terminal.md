@@ -167,19 +167,25 @@ layoutInput(['> ', '. '], 'ab\ncd', 4, 80);   // { lines: ['> ab', '. cd'], row:
 
 | Keys | Action |
 | --- | --- |
-| printable keys, `space` | insert at the cursor |
-| `left`, `right`, `home`, `end`, Ctrl-A, Ctrl-E | move the cursor |
-| Ctrl-`left`, Ctrl-`right`, Alt-`left`, Alt-`right` | move by word |
-| `backspace`, `delete` | delete left and right |
-| Ctrl-K, Ctrl-U, Ctrl-`backspace`, Ctrl-`delete` | kill to end, to start, word left, word right (into `killRing`) |
+| printable keys, `space` | insert at the cursor; one code point is one key, a surrogate pair is one character |
+| `left`, `right`, `home`, `end`, Ctrl-B, Ctrl-F, Ctrl-A, Ctrl-E | move the cursor, Home, End, Ctrl-A and Ctrl-E on the line of a text with newlines |
+| Ctrl-`left`, Ctrl-`right`, Alt-`left`, Alt-`right`, Alt-B, Alt-F | move by word: to the start of the word before, to the end of the word after |
+| `backspace`, Ctrl-H, `delete` | delete left and right, a surrogate pair at once |
+| Ctrl-K, Ctrl-U | kill to the end, to the start of the line (into `killRing`, the cursor stays at the cut) |
+| Ctrl-W, Ctrl-`backspace`, Alt-`backspace` | kill the word left; Ctrl-`delete`, Alt-D kill the word right |
 | Ctrl-Y | yank the kill ring |
-| `up`, `down` | history |
-| `enter` | `'submit'`, or a newline when `multiline` is set |
-| Ctrl-J, Alt-Enter, Shift-Enter | insert a newline |
-| `escape`, `ctrlc` | clear the line, `'cancel'` |
-| `ctrlD` on an empty line | `'eof'` |
+| `up`, `down`, Ctrl-P, Ctrl-N | the line above or below in a text with newlines, else the history |
+| `return`, `enter` | `'submit'`, or a newline when `multiline` is set |
+| Alt-Enter, Shift-Enter, `ctrlJ` | insert a newline |
+| a bracketed paste | inserted, CRLF and CR as LF |
+| Ctrl-C, `escape` | clear the line, `'cancel'` |
+| Ctrl-D | `'eof'` on an empty line, else delete right |
 
-The names `ctrlc`, `ctrlD` and `ctrlJ` are the ones `key()` tests for; `decodeKeys()` reports Ctrl chords as the letter with `ctrl` set and the Return key as `return`.
+`decodeKeys()` reports Ctrl chords as the letter with `ctrl` set (Ctrl-C is `c` with `ctrl`), the Return key as `return` and a line feed as `enter`; the editor tests exactly those. The names `ctrlc`, `ctrlD` and `ctrlJ` of older callers still work. A Ctrl chord that is not in the table does nothing, it does not insert a letter.
+
+History: `historyPos` is -1 for a new entry, else the index of the entry shown, `history.length` for a new empty one. Up from a new entry with text keeps the text as the newest history entry first, then shows the older one. Down past the newest entry shows an empty line and adds nothing; Down on a new entry does nothing. `accept()` adds the text unless it is empty or equal to the newest entry, `maxHistory` drops the oldest.
+
+`key()` returns `null` when the key changed nothing (Left at the start, Delete at the end), so a caller can skip the redraw.
 
 ### ScrollView
 

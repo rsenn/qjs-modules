@@ -1293,20 +1293,3 @@
     //   import { Predicate } from 'predicate';
     //   Predicate.charset('abc')('b'); Predicate.string('abc')('abc');
     //   -> free(): double free detected in tcache 2
-
-terminal-portable-lineeditor-tests-fail
-  tests/unittests/test-terminal-portable.js fails 3 of 19 tests on qjsm, node,
-  bun and deno, also on HEAD without the fitTable work: "LineEditor history:
-  Up, Down, draft, one new empty entry" ends with assertEquals() draft != "".
-  Found while running ctest -R terminal for fitTable.
-
-    // node tests/unittests/test-terminal-portable.js
-
-lineeditor-ctrl-c-ctrl-d-return-not-recognised
-  LineEditor.key() tests for names ctrlc, ctrlD and enter, but decodeKeys()
-  yields name c with ctrl for Ctrl-C, d with ctrl for Ctrl-D and return for
-  the Return key: Ctrl-C inserts "C", Ctrl-D inserts "D", \r returns null.
-  Only \n (enter) submits and Escape cancels.
-
-    // const e = new LineEditor(); e.key(decodeKeys("\x03").keys[0].key)
-    // -> "change", e.cmd is "C"

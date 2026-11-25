@@ -28,9 +28,11 @@ tests({
     ed.key({ name: 'a', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'c', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'delete', ctrl: false, meta: false, shift: false });
     eq(ed.cmd, 'ab');
     eq(ed.cursor, 2);
+    eq(ed.key({ name: 'delete', ctrl: false, meta: false, shift: false }), null);
   },
 
   'LineEditor home end'() {
@@ -46,16 +48,14 @@ tests({
 
   'LineEditor ctrl-left word jump'() {
     const ed = new LineEditor();
-    ed.key({ name: 'a', ctrl: false, meta: false, shift: false });
-    ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
-    ed.key({ name: 'c', ctrl: false, meta: false, shift: false });
-    ed.key({ name: 'd', ctrl: false, meta: false, shift: false });
+
+    ed.set('ab cd');
     ed.key({ name: 'left', ctrl: true, meta: false, shift: false });
     eq(ed.cursor, 3);
     ed.key({ name: 'left', ctrl: true, meta: false, shift: false });
-    eq(ed.cursor, 1);
-    ed.key({ name: 'left', ctrl: true, meta: false, shift: false });
-    eq(ed.cursor, 1);
+    eq(ed.cursor, 0);
+    eq(ed.key({ name: 'left', ctrl: true, meta: false, shift: false }), null);
+    eq(ed.cursor, 0);
   },
 
   'LineEditor ctrl-right word jump'() {
@@ -64,9 +64,16 @@ tests({
     ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'c', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'left', ctrl: true, meta: false, shift: false });
-    eq(ed.cursor, 1);
+    eq(ed.cursor, 0);
     ed.key({ name: 'right', ctrl: true, meta: false, shift: false });
     eq(ed.cursor, 3);
+
+    ed.set('ab cd');
+    ed.key({ name: 'home', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'right', ctrl: true, meta: false, shift: false });
+    eq(ed.cursor, 2);
+    ed.key({ name: 'right', ctrl: true, meta: false, shift: false });
+    eq(ed.cursor, 5);
   },
 
   'LineEditor kill ring'() {
@@ -74,6 +81,7 @@ tests({
     ed.key({ name: 'a', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'c', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'k', ctrl: true });
     eq(ed.killRing, 'c');
     eq(ed.cmd, 'ab');
@@ -85,6 +93,7 @@ tests({
     ed.key({ name: 'a', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'c', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'k', ctrl: true });
     ed.key({ name: 'y', ctrl: true });
     eq(ed.cmd, 'abc');
@@ -108,6 +117,8 @@ tests({
     eq(ed.cmd, 'two');
     ed.key({ name: 'up', ctrl: false, meta: false, shift: false });
     eq(ed.cmd, 'one');
+    ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
+    eq(ed.cmd, 'two');
     ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
     eq(ed.cmd, 'draft');
     ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
@@ -143,9 +154,12 @@ tests({
     eq(ed.cmd, 'a𠮷');
     eq(stringWidth(ed.cmd), 3);
     ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
-    eq(ed.cursor, 2);
-    ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
     eq(ed.cursor, 1);
+    ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
+    eq(ed.cursor, 0);
+    ed.key({ name: 'right', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'right', ctrl: false, meta: false, shift: false });
+    eq(ed.cursor, 3);
   },
 
   'LineEditor Ctrl-C'() {
@@ -168,10 +182,10 @@ tests({
     ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
     const { lines, row, col } = ed.layout(['> ', '. '], 80);
     eq(lines.join('|'), '> ab');
-    eq(`${row},${col}`, '1,2');
+    eq(`${row},${col}`, '0,4');
   },
 
-  'LineEditor kill word with Ctrl-Q'() {
+  'LineEditor kill word with Ctrl-W'() {
     const ed = new LineEditor();
     ed.key({ name: 'a', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'b', ctrl: false, meta: false, shift: false });
@@ -181,9 +195,10 @@ tests({
     ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
     ed.key({ name: 'left', ctrl: false, meta: false, shift: false });
     eq(ed.cursor, 2);
-    // Ctrl-Q (or 'w' with ctrl) kills word at cursor
+    // Ctrl-W kills the word before the cursor, the cursor goes to where it was
     ed.key({ name: 'w', ctrl: true });
-    eq(ed.cmd, 'ab');  // 'c' killed
-    eq(ed.killRing, 'cd');  // 'cd' killed (from pos 2 to end)
+    eq(ed.cmd, 'cd');
+    eq(ed.killRing, 'ab');
+    eq(ed.cursor, 0);
   },
 });
