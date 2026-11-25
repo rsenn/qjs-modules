@@ -65,3 +65,26 @@ console.log('Width:', view.width); // Output: 10
 ```
 
 The source text mode improves performance by avoiding re-wrapping on every resize, making it ideal for long logs or streams where the text content changes frequently.
+
+### Key names
+
+The `decodeKeys()` function normalises both legacy xterm/ECMA-48 sequences and kitty keyboard sequences to produce identical key objects with `name`, `ctrl`, `meta`, and `shift` flags. The following matrix shows the equivalence:
+
+| Legacy sequence | Kitty sequence | Key name |
+|---|---|---|
+| `\x1b` (final=true) | `\x1b[27u` | `escape` |
+| `\x1b[Z` | `\x1b[9;2u` | `shift tab` |
+| `\x1b\t` | `\x1b[9;3u` | `alt tab` |
+| `\x1b1`–`\x1b4` | `\x1b[49;3u`–`\x1b[52;3u` | `alt 1`–`alt 4` |
+| `\x1b0` | `\x1b[48;3u` | `alt 0` |
+| `\x1b\\` | `\x1b[92;3u` | `alt backslash` |
+| `\x1ba` | `\x1b[97;3u` | `alt letter` |
+| `\x01` (Ctrl-A) | `\x1b[97;5u` | `ctrl letter` |
+| `\r` | `\x1b[13u` | `enter` |
+| `\x7f` (Backspace) | `\x1b[127u` | `backspace` |
+| `\x1bOQ` / `\x1b[12~` | — | `f2` |
+| `\x1b[1;2Q` | `\x1b[24~` | `f2` (shift), `f12` (no shift) |
+| `\x1b[5~` / `\x1b[6~` | — | `pageup` / `pagedown` |
+| `\x1b\x1b` | — | `escape` (meta true) |
+
+Legacy xterm sequences use `ESC [ ... ~` or `ESC O` prefixes, while kitty sends `ESC [ code ; mods u`. The decoder maps both to the same `{name, ctrl, meta, shift}` representation.
