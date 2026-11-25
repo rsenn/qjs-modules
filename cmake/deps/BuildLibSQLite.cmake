@@ -54,8 +54,9 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
     string(APPEND LIBSQLITE_CFLAGS_${SUFFIX} " -fPIC")
   endif()
   if(DIET OR HAVE_DIETLIBC)
-    # dietlibc only has the _NP spelling
-    string(APPEND LIBSQLITE_CFLAGS_${SUFFIX} " -DPTHREAD_MUTEX_RECURSIVE=PTHREAD_MUTEX_RECURSIVE_NP")
+    # dietlibc only has the _NP spelling, no pthread_mutexattr_settype(), and no dlopen() in a static binary
+    string(APPEND LIBSQLITE_CFLAGS_${SUFFIX}
+           " -DPTHREAD_MUTEX_RECURSIVE=PTHREAD_MUTEX_RECURSIVE_NP -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION=1")
   endif()
 
   ExternalProject_Add(
@@ -68,9 +69,10 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
     # config.sub from older autotools does not know dietlibc and newer OS names
     PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND <SOURCE_DIR>/configure "TCLSH_CMD=${TCLSH_EXECUTABLE}" --disable-readline "CC=${CMAKE_C_COMPILER}"
-    BUILD_COMMAND ${MAKE_PROGRAM} sqlite3.c
-    COMMAND sh -c "\"${CMAKE_C_COMPILER}\" ${LIBSQLITE_CFLAGS_${SUFFIX}} -c sqlite3.c -o sqlite3.o"
-    COMMAND "${CMAKE_AR}" rcs ${CMAKE_STATIC_LIBRARY_PREFIX}sqlite3${CMAKE_STATIC_LIBRARY_SUFFIX} sqlite3.o
+    BUILD_COMMAND ${DEPS_MAKE} sqlite3.c
+    COMMAND sh -x -c "\"${CMAKE_C_COMPILER}\" ${LIBSQLITE_CFLAGS_${SUFFIX}} -c sqlite3.c -o sqlite3.o"
+    COMMAND sh -x -c "\"${CMAKE_AR}\" rcs ${CMAKE_STATIC_LIBRARY_PREFIX}sqlite3${CMAKE_STATIC_LIBRARY_SUFFIX} sqlite3.o"
+    USES_TERMINAL_BUILD TRUE
     INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBSQLITE_PREFIX_${SUFFIX}}/include ${LIBSQLITE_PREFIX_${SUFFIX}}/lib
     COMMAND ${CMAKE_COMMAND} -E copy sqlite3.h ${LIBSQLITE_PREFIX_${SUFFIX}}/include/
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_STATIC_LIBRARY_PREFIX}sqlite3${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -82,5 +84,10 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
   set_target_properties(LibSQLite::${SUFFIX} PROPERTIES IMPORTED_LOCATION "${LIBSQLITE_LIBRARY_FILE_${SUFFIX}}")
 
   # an archive carries no dependencies: the amalgamation needs these at link time
-  set(LIBSQLITE_LIBRARIES_${SUFFIX} LibSQLite::${SUFFIX} ${CMAKE_DL_LIBS} m pthread)
+  # a static dietlibc binary has no dlopen()
+  set(_LS_DL ${CMAKE_DL_LIBS})
+  if(DIET OR HAVE_DIETLIBC)
+    set(_LS_DL "")
+  endif()
+  set(LIBSQLITE_LIBRARIES_${SUFFIX} LibSQLite::${SUFFIX} ${_LS_DL} m pthread)
 endmacro()

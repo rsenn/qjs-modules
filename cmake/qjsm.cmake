@@ -1247,6 +1247,12 @@ endmacro(qjsm_process_builtins)
 # the qjsm target: sources, link line, rpath, definitions, install rule.
 macro(qjsm_add_executable)
   add_executable(qjsm ${QJSM_SOURCES})
+
+  # libmariadb and quickjs-libc reference dlopen(), which a static dietlibc binary cannot have
+  if(DIET)
+    target_sources(qjsm PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/diet-dlstub.c)
+  endif(DIET)
+
   target_link_libraries(qjsm PUBLIC ${SOCKET_LIBRARY} ${LIBM})
 
   if(COMPILED_TARGETS)

@@ -116,10 +116,11 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
       --without-gssapi --without-ldap --without-pam --without-systemd --without-selinux --without-libxml
       --without-libxslt --without-lz4 --without-zstd --without-perl --without-python --without-tcl
       ${LIBPQ_SSL_FLAG_${SUFFIX}} ${LIBPQ_HOST_FLAG_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBPQ_CFLAGS_${SUFFIX}}"
-    BUILD_COMMAND ${MAKE_PROGRAM} -C src/backend generated-headers
-    COMMAND ${MAKE_PROGRAM} -C src/port
-    COMMAND ${MAKE_PROGRAM} -C src/common
-    COMMAND ${MAKE_PROGRAM} -C src/interfaces/libpq all-static-lib
+    BUILD_COMMAND ${DEPS_MAKE} -C src/backend generated-headers
+    COMMAND ${DEPS_MAKE} -C src/port
+    COMMAND ${DEPS_MAKE} -C src/common
+    COMMAND ${DEPS_MAKE} -C src/interfaces/libpq all-static-lib
+    USES_TERMINAL_BUILD TRUE
     INSTALL_COMMAND ${MAKE_PROGRAM} -C src/include install
     COMMAND ${MAKE_PROGRAM} -C src/port install
     COMMAND ${MAKE_PROGRAM} -C src/common install
@@ -128,6 +129,14 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
     COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/src/interfaces/libpq/libpq-fe.h
             <SOURCE_DIR>/src/interfaces/libpq/libpq-events.h ${LIBPQ_PREFIX_${SUFFIX}}/include/
     BUILD_BYPRODUCTS "${LIBPQ_LIBRARY_FILE_${SUFFIX}}")
+
+  # pgcommon's unicode_normalize() clashes with QuickJS's libunicode in a static link (other signature):
+  # rename it, its definition and its one caller are both inside this archive
+  ExternalProject_Add_Step(
+    libpq_${SUFFIX} rename_unicode_normalize
+    COMMAND ${CMAKE_OBJCOPY} --redefine-sym unicode_normalize=pg_unicode_normalize
+            ${LIBPQ_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}pgcommon_shlib${CMAKE_STATIC_LIBRARY_SUFFIX}
+    DEPENDEES install)
 
   add_library(LibPQ::${SUFFIX} STATIC IMPORTED GLOBAL)
   add_dependencies(LibPQ::${SUFFIX} libpq_${SUFFIX})

@@ -401,6 +401,10 @@ endmacro(toolchain_restore)
 #
 # A library without a build the platform can run (autotools on MSVC) is never built.
 
+# DEPS_MAKE: a nested make for an ExternalProject step. The CMake makefile that runs the step is started as
+# "make -s", which the nested make inherits through MAKEFLAGS and stays silent: clear it so every command shows.
+set(DEPS_MAKE ${CMAKE_COMMAND} -E env MAKEFLAGS= make)
+
 function(dep_mode value out)
   string(TOUPPER "${value}" v)
   if(v MATCHES "^(ON|TRUE|YES|Y|1)$")

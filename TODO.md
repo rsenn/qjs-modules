@@ -3716,6 +3716,15 @@ Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2
 | 32.8 | Line editor in `terminal.js` (history, multi-line, cursor move, input box via `layoutInput`) | so ChatREPL need not subclass `repl.js`; gate `ESC[?2004h` on `caps.bracketedPaste` (repl.js:2241 sends it unconditionally). No rush |
 | 32.9 | `ScrollView`/`Region` cache the wrapped lines per width | re-wrap only on a width change (ollama-repl Tui re-wraps its whole history on resize) |
 
+## dietlibc build: 6 failing tests (2026-11-25, `BUILTIN_MODULES=*`, 214 of 220 pass)
+
+| Test | Cause seen |
+| --- | --- |
+| test-fs.js, test-fs-promises.js | `realpath()` of a symlink returns the link path, not the target (dietlibc `realpath`) |
+| test-yaml.js | float round trip prints `1.0000000000000004e-7` for `1e-7` (dietlibc `strtod`/printf precision) |
+| test-inotify.js | `misc` has no `IN_EXCL_UNLINK` export, the dietlibc inotify header lacks it |
+| test-native-name-guard.js, test-bun-spawn.js | not looked at yet |
+
 ## Build on a fresh machine (found 2026-11-15, Termux restore)
 
 - standalone configure (no quickjs installed) fails in cmake/deps/BuildQuickJS.cmake:192, see BUGS

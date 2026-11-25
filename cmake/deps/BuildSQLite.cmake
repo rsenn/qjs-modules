@@ -32,8 +32,9 @@ macro(build_sqlite BINARY SUFFIX PIC)
     CONFIGURE_COMMAND
       <SOURCE_DIR>/configure --prefix=${SQLITE_PREFIX_${SUFFIX}} --libdir=${SQLITE_PREFIX_${SUFFIX}}/lib --enable-static
       --disable-shared --disable-readline "CC=${CMAKE_C_COMPILER}" "CFLAGS=${SQLITE_CFLAGS_${SUFFIX}}"
-    BUILD_COMMAND make
-    INSTALL_COMMAND make install
+    BUILD_COMMAND ${DEPS_MAKE}
+    INSTALL_COMMAND ${DEPS_MAKE} install
+    USES_TERMINAL_BUILD TRUE
     BUILD_BYPRODUCTS "${SQLITE_LIBRARY_FILE_${SUFFIX}}")
 
   add_library(SQLite::${SUFFIX} STATIC IMPORTED GLOBAL)

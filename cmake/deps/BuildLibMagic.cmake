@@ -92,8 +92,9 @@ macro(build_libmagic BINARY SUFFIX PIC)
       <SOURCE_DIR>/configure --prefix=${LIBMAGIC_PREFIX_${SUFFIX}} --libdir=${LIBMAGIC_PREFIX_${SUFFIX}}/lib
       --enable-static --disable-shared --disable-libseccomp --disable-zlib --disable-bzlib --disable-xzlib
       --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}} ${LIBMAGIC_HOST_FLAG_${SUFFIX}} ${LIBMAGIC_ENV_FLAGS_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBMAGIC_CFLAGS_${SUFFIX}}"
-    BUILD_COMMAND make ${LIBMAGIC_MAKE_ARGS_${SUFFIX}}
-    INSTALL_COMMAND make ${LIBMAGIC_MAKE_ARGS_${SUFFIX}} install
+    BUILD_COMMAND ${DEPS_MAKE} ${LIBMAGIC_MAKE_ARGS_${SUFFIX}}
+    INSTALL_COMMAND ${DEPS_MAKE} ${LIBMAGIC_MAKE_ARGS_${SUFFIX}} install
+    USES_TERMINAL_BUILD TRUE
     BUILD_BYPRODUCTS "${LIBMAGIC_LIBRARY_FILE_${SUFFIX}}" "${LIBMAGIC_DB_${SUFFIX}}")
 
   add_library(LibMagic::${SUFFIX} STATIC IMPORTED GLOBAL)

@@ -981,6 +981,10 @@ if(MODULE_DIGEST)
   endforeach()
 
   set_source_files_properties(${libhash_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+
+  # Hash-Algorithms' SHA512() constructor clashes with OpenSSL's one-shot SHA512() in a static link
+  set_source_files_properties(third_party/Hash-Algorithms/sha512.c quickjs-digest.c PROPERTIES COMPILE_DEFINITIONS
+                              "SHA512=Hash_SHA512")
 endif(MODULE_DIGEST)
 
 if(HAVE_SYS_MMAN_H)

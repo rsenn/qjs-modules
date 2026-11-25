@@ -150,6 +150,30 @@
 #include <sys/types.h>
 #include <utime.h>
 
+#ifdef __dietlibc__
+#include <fcntl.h>
+#include <sys/stat.h>
+
+/* dietlibc has utimensat() but no futimes() or lutimes(): futimes(fd, tv) is
+ * utimensat(fd, NULL, ts, 0), lutimes(path, tv) adds AT_SYMLINK_NOFOLLOW. */
+static int
+futimes(int fd, const struct timeval tv[2]) {
+  struct timespec ts[2] = {{tv[0].tv_sec, tv[0].tv_usec * 1000}, {tv[1].tv_sec, tv[1].tv_usec * 1000}};
+
+  return utimensat(fd, NULL, ts, 0);
+}
+
+static int
+lutimes(const char* path, const struct timeval tv[2]) {
+  struct timespec ts[2] = {{tv[0].tv_sec, tv[0].tv_usec * 1000}, {tv[1].tv_sec, tv[1].tv_usec * 1000}};
+
+  return utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW);
+}
+
+#define HAVE_FUTIMES 1
+#define HAVE_LUTIMES 1
+#endif
+
 #ifdef __ANDROID__
 #if !(__ANDROID_API__ >= 26)
 int futimes(int, const struct timeval[2]);

@@ -48,7 +48,8 @@ macro(build_openssl BINARY SUFFIX PIC)
     CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}" <SOURCE_DIR>/Configure
       --prefix=${OPENSSL_ROOT_DIR_${SUFFIX}} --libdir=lib ${_OSSL_FLAGS}
     # --trace prints every command and -j runs them in parallel: OpenSSL's Makefile is silent and serial
-    BUILD_COMMAND make -j${_OSSL_JOBS} --trace build_libs
+    # MAKEFLAGS= : the outer CMake makefile runs make -s, which a nested make inherits and stays silent
+    BUILD_COMMAND ${DEPS_MAKE} -j${_OSSL_JOBS} --trace build_libs
     USES_TERMINAL_CONFIGURE TRUE
     USES_TERMINAL_BUILD TRUE
     INSTALL_COMMAND make install_dev

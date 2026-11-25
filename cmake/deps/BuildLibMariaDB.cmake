@@ -72,7 +72,12 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
 
   use_openssl(${SOURCE} ${BINARY} ${SUFFIX} ${PIC})
   use_zlib(${BINARY} ${SUFFIX} ${PIC})
-  set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${ZLIB_LIBRARIES_${SUFFIX}} ${CMAKE_DL_LIBS} m
+  # a static dietlibc binary has no dlopen(): libdl.a needs the dynamic loader's symbols
+  set(_LM_DL ${CMAKE_DL_LIBS})
+  if(DIET OR HAVE_DIETLIBC)
+    set(_LM_DL "")
+  endif()
+  set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${ZLIB_LIBRARIES_${SUFFIX}} ${_LM_DL} m
                                        pthread)
 
   # the Windows pvio and config-dir code: winsock, PathRemoveFileSpecA
@@ -126,7 +131,7 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
     # connector's own include directories must come before it
     set(LIBMARIADB_INCLUDE_ORDER_${SUFFIX} ON)
     set(LIBMARIADB_C_FLAGS_${SUFFIX}
-        "-w -DHAVE_ERRNO_AS_DEFINE=1 -D_GNU_SOURCE -include strings.h -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
+        "-w -fno-builtin -DHAVE_ERRNO_AS_DEFINE=1 -D_GNU_SOURCE -include strings.h -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
   endif()
 
   ExternalProject_Add(
