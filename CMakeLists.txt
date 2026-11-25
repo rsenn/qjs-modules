@@ -708,7 +708,7 @@ if(MODULE_SQLITE)
       build_libsqlite(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} shared ON)
       set(sqlite_LIBRARIES ${LIBSQLITE_LIBRARIES_shared})
       set(sqlite_LIBRARIES_shared ${LIBSQLITE_LIBRARIES_shared})
-      include_directories(${LIBSQLITE_INCLUDE_DIR_shared})
+      include_directories(BEFORE ${LIBSQLITE_INCLUDE_DIR_shared}) # the old system sqlite3.h must not shadow it
     endif(BUILD_SHARED)
     if(BUILD_STATIC)
       build_libsqlite(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} static OFF)
@@ -716,7 +716,7 @@ if(MODULE_SQLITE)
         set(sqlite_LIBRARIES ${LIBSQLITE_LIBRARIES_static})
       endif()
       set(sqlite_LIBRARIES_static ${LIBSQLITE_LIBRARIES_static})
-      include_directories(${LIBSQLITE_INCLUDE_DIR_static})
+      include_directories(BEFORE ${LIBSQLITE_INCLUDE_DIR_static}) # the old system sqlite3.h must not shadow it
     endif(BUILD_STATIC)
 
     if(NOT "sqlite" IN_LIST QUICKJS_MODULES)
