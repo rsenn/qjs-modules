@@ -1254,26 +1254,6 @@
     // expected: a undefined
     // actual:   a { options: { depth: Infinity, ... }, log: [Function: log], ... }
 
-- build-quickjs-forwards-cmake-system-name (cmake/deps/BuildQuickJS.cmake:137, quickjs_configure_args): the nested
-  quickjs configure gets -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}. On Termux that is Android, and
-  passing CMAKE_SYSTEM_NAME on the command line makes CMake set CMAKE_CROSSCOMPILING=TRUE even
-  though host and target are the same machine (quickjs-build/CMakeFiles/4.5.0/CMakeSystem.cmake
-  says so). quickjs's CMakeLists.txt:727 then sets QJSC to the bare name `qjsc` (a host compiler
-  expected on PATH), the generation of repl.c fails with "make[2]: qjsc: No such file or
-  directory ... Error 127", and find_quickjs() stops with "Building quickjs failed". Found
-  2026-11-15 on a fresh Termux (CMake 4.5.0, clang 21.1.8): the first configure without an
-  installed quickjs fails in every project that has BuildQuickJS.cmake. Fix: forward
-  CMAKE_SYSTEM_NAME, CMAKE_SYSROOT and the toolchain file only when CMAKE_CROSSCOMPILING is true
-  of this project; the quickjs side needs the matching fix (see ../TODO, host qjsc for a real
-  cross build). Same code in the canonical BuildQuickJS.cmake of the quickjs-native-bindings
-  skill and in the copies of the other qjs-* projects.
-
-    # on Termux, no quickjs installed
-    cmake -S . -B build/x
-    # expected: quickjs is built, then the project configures
-    # actual:   CMake Error at cmake/BuildQuickJS.cmake:189 (message): Building quickjs failed
-    #           (see build/x/quickjs-build.log: make[2]: qjsc: No such file or directory)
-
 - check-cflag-result-cached-under-fixed-name (cmake/Checks.cmake:19, check_cflag()): the function
   probes with check_c_compiler_flag("${FLAG}" RESULT). The result variable of that macro is a
   cache entry, so the name RESULT is shared by every call, and every probe after the first one
@@ -1321,3 +1301,12 @@ terminal-portable-lineeditor-tests-fail
   Found while running ctest -R terminal for fitTable.
 
     // node tests/unittests/test-terminal-portable.js
+
+lineeditor-ctrl-c-ctrl-d-return-not-recognised
+  LineEditor.key() tests for names ctrlc, ctrlD and enter, but decodeKeys()
+  yields name c with ctrl for Ctrl-C, d with ctrl for Ctrl-D and return for
+  the Return key: Ctrl-C inserts "C", Ctrl-D inserts "D", \r returns null.
+  Only \n (enter) submits and Escape cancels.
+
+    // const e = new LineEditor(); e.key(decodeKeys("\x03").keys[0].key)
+    // -> "change", e.cmd is "C"

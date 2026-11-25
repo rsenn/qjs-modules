@@ -134,7 +134,17 @@ function(quickjs_configure_args OUTVAR SRC)
       "-DQUICKJS_PREFIX=${CMAKE_INSTALL_PREFIX}" "-DBUILD_SHARED_LIBS=${_shared}" -DBUILD_STATIC_LIBS=ON
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON)
 
-  foreach(_var CMAKE_TOOLCHAIN_FILE CMAKE_C_COMPILER CMAKE_SYSROOT CMAKE_SYSTEM_NAME)
+  # CMAKE_SYSTEM_NAME and CMAKE_SYSROOT given on the command line make the
+  # nested configure a cross build (CMAKE_CROSSCOMPILING=TRUE, quickjs then
+  # expects a host qjsc on PATH) even when host and target are the same
+  # machine, as on Termux (system name Android), so they are forwarded only
+  # when this project itself is cross compiling.
+  set(_vars CMAKE_TOOLCHAIN_FILE CMAKE_C_COMPILER)
+  if(CMAKE_CROSSCOMPILING)
+    list(APPEND _vars CMAKE_SYSROOT CMAKE_SYSTEM_NAME)
+  endif()
+
+  foreach(_var ${_vars})
     if(${_var})
       list(APPEND _args "-D${_var}=${${_var}}")
     endif()
