@@ -78,7 +78,7 @@ object, the std file with Node's readable surface:
 - paused mode: with a `readable` listener the chunks are kept and `'readable'` is emitted; `read()` returns everything buffered, `read(n)` n bytes or `null` while fewer are there before the end, `null` when empty. `'end'` follows the `read()` that returns `null` after the end of the input. `read()` also emits `'data'` when there is a listener
 - `readable`, `readableLength`, `readableEnded`, `readableEncoding`, `readableFlowing`
 - `pause()`, `resume()`, `isPaused()`, `for await(const chunk of process.stdin)`
-- `ref()`, `unref()`, `hasRef()` record the flag only: the engine cannot let a read handler go without keeping the event loop alive, so an unref'd stdin still keeps the process running
+- `ref()`, `unref()`, `hasRef()`: an unref'd stdin does not keep the process alive, it exits once nothing else is pending (a timer, a socket, another handler). Data still arrives while the loop runs for another reason. This needs `os.unrefHandler()` in the engine (quickjs-libc.c); an engine without it only records the flag, so `hasRef()` still answers but the process stays until EOF
 - `setRawMode(bool)`, `isRaw`: on a terminal only; raw mode also turns off the signal keys, so ^C arrives as the byte 3, as in Node
 - **static methods:** `columns()`, `fd()`, `isTTY()`, `rows()`
 
