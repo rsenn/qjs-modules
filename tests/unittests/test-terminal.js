@@ -2,7 +2,12 @@
 import * as std from 'std';
 import { close, pipe, write } from 'os';
 import * as terminal from '../../lib/terminal.js';
-import { BOX_ROUNDED, gradientRule, meter, panel, shortPath, sideBySide, Region, ScrollView, layoutInput, Screen, alternateScreen, bigText, boxLines, gradient, inputBox, keyValue, mouseDisable, mouseEnable, pad, progressBar, rule, scrollbar, sparkline, statusBar, stripAnsi, style, table, truncate, wrap, cursorPosition, cursorSave, cursorUp, decodeKeys, devicecodeQuery, eraseInLine, mousetrackingEnable, readKey, setScrollRegion, stringWidth, ttyGetWinSize, ttyWrite, windowSize } from '../../lib/terminal.js';
+import { layoutInput, alternateScreen, mouseDisable, mouseEnable, pad, stripAnsi, truncate, wrap, cursorPosition, cursorSave, cursorUp, devicecodeQuery, eraseInLine, mousetrackingEnable, setScrollRegion, stringWidth, ttyGetWinSize, ttyWrite, windowSize } from '../../lib/terminal.js';
+import { decodeKeys, readKey } from '../../lib/terminal/keys.js';
+import { BOX_ROUNDED, Region, Screen } from '../../lib/terminal/screen.js';
+import { ScrollView } from '../../lib/terminal/scrollview.js';
+import { gradient, style } from '../../lib/terminal/style.js';
+import { gradientRule, meter, panel, shortPath, sideBySide, bigText, boxLines, inputBox, keyValue, progressBar, rule, scrollbar, sparkline, statusBar, table } from '../../lib/terminal/widgets.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* arrays and objects compared by their JSON, eq() compares with != */

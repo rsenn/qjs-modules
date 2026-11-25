@@ -1,4 +1,4 @@
-import { LineEditor } from "../../lib/terminal.js";
+import { LineEditor } from "../../lib/terminal/lineeditor.js";
 
 // Test up/down navigation - simpler test
 const ed = new LineEditor({ history: ['one', 'two', 'three'] });

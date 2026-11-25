@@ -1,6 +1,6 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js LineEditor reverse search feature */
-import { LineEditor } from '../../lib/terminal.js';
+import { LineEditor } from '../../lib/terminal/lineeditor.js';
 import { eq, tests } from '../../lib/tinytest.js';
 
 tests({

@@ -1,14 +1,15 @@
 // @portable
 /* lib/terminal.js: ScrollView source text mode */
 
-import * as terminal from '../../lib/terminal.js';
+import { ScrollView } from '../../lib/terminal/scrollview.js';
+import { scrollbar } from '../../lib/terminal/widgets.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const same = (a, b) => eq(JSON.stringify(a), JSON.stringify(b));
 
 tests({
   'old-style ScrollView still works'() {
-    const v = new terminal.ScrollView(3, ['a', 'b', 'c', 'd', 'e']);
+    const v = new ScrollView(3, ['a', 'b', 'c', 'd', 'e']);
 
     same(['c', 'd', 'e'], v.visible());
     assert(v.handleKey({ name: 'pageup' }));
@@ -19,11 +20,11 @@ tests({
     same(['d', 'e', 'f'], v.visible());
     assert(v.follow);
     same(['d ┃', 'e ┃', 'f ┃'].length, v.render(3).length);
-    same(['│', '│', '┃', '┃'], terminal.scrollbar(4, 8, 4));
+    same(['│', '│', '┃', '┃'], scrollbar(4, 8, 4));
   },
 
   'setWidth(20), pushText(100-char para + short one): rewraps == 2'() {
-    const v = new terminal.ScrollView(10);
+    const v = new ScrollView(10);
     v.setWidth(20);
     // Two entries: a long paragraph and a short one
     v.pushText(
@@ -36,7 +37,7 @@ tests({
   },
 
   'pushText one more entry: rewraps == 3'() {
-    const v = new terminal.ScrollView(10);
+    const v = new ScrollView(10);
     v.setWidth(20);
     v.pushText(
       'This is a hundred character paragraph that will wrap at width twenty cells and contains multiple words and spaces',
@@ -47,7 +48,7 @@ tests({
   },
 
   'setWidth(20) again: rewraps still 3, lines unchanged'() {
-    const v = new terminal.ScrollView(10);
+    const v = new ScrollView(10);
     v.setWidth(20);
     v.pushText(
       'This is a hundred character paragraph that will wrap at width twenty cells and contains multiple words and spaces',
@@ -61,7 +62,7 @@ tests({
   },
 
   'setWidth(10): rewraps == 6, all lines <= 10 cells wide'() {
-    const v = new terminal.ScrollView(10);
+    const v = new ScrollView(10);
     v.setWidth(20);
     v.pushText(
       'This is a hundred character paragraph that will wrap at width twenty cells and contains multiple words and spaces',
@@ -76,7 +77,7 @@ tests({
   },
 
   'follow stays on after resize if at end, off if scrolled up'() {
-    const v = new terminal.ScrollView(3, ['a', 'b', 'c', 'd', 'e']);
+    const v = new ScrollView(3, ['a', 'b', 'c', 'd', 'e']);
     v.setWidth(20);
     // At bottom initially
     assert(v.atBottom);
@@ -91,7 +92,7 @@ tests({
   },
 
   'pushText before setWidth throws'() {
-    const v = new terminal.ScrollView(5);
+    const v = new ScrollView(5);
     try {
       v.pushText('test');
       assert(false, 'should have thrown');
@@ -101,7 +102,7 @@ tests({
   },
 
   'get width() returns wrap width or undefined'() {
-    const v = new terminal.ScrollView(5);
+    const v = new ScrollView(5);
     // Before setWidth, width should be undefined
     eq(v.width, undefined);
     // After setWidth, width should be the set value
@@ -113,7 +114,7 @@ tests({
   },
 
   'setText replaces all source entries'() {
-    const v = new terminal.ScrollView(5);
+    const v = new ScrollView(5);
     v.setWidth(10);
     v.setText(['entry one', 'entry two', 'entry three']);
     eq(v.rewraps, 3); // 3 source entries
@@ -123,7 +124,7 @@ tests({
   },
 
   'width getter returns current wrap width'() {
-    const v = new terminal.ScrollView(5);
+    const v = new ScrollView(5);
     // Before setWidth, width should be undefined
     eq(v.width, undefined);
     // After setWidth, width should be the set value

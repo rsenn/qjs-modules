@@ -1,6 +1,8 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 //: lib/terminal.js: LineEditor tests
-import { LineEditor, decodeKeys, stringWidth } from '../../lib/terminal.js';
+import { stringWidth } from '../../lib/terminal.js';
+import { decodeKeys } from '../../lib/terminal/keys.js';
+import { LineEditor } from '../../lib/terminal/lineeditor.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({

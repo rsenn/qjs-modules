@@ -14,6 +14,15 @@
     "buffer": "node:buffer",
     "readline": "node:readline",
     "readline/promises": "node:readline/promises",
-    "string_decoder": "node:string_decoder"
+    "string_decoder": "node:string_decoder",
+    "terminal": "../lib/terminal.js",
+    "terminal/capabilities": "../lib/terminal/capabilities.js",
+    "terminal/internal": "../lib/terminal/internal.js",
+    "terminal/keys": "../lib/terminal/keys.js",
+    "terminal/lineeditor": "../lib/terminal/lineeditor.js",
+    "terminal/screen": "../lib/terminal/screen.js",
+    "terminal/scrollview": "../lib/terminal/scrollview.js",
+    "terminal/style": "../lib/terminal/style.js",
+    "terminal/widgets": "../lib/terminal/widgets.js"
   }
 }

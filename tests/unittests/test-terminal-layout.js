@@ -1,7 +1,8 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js layoutInput(): the rows an edited text takes and the cursor in them.
  * Native in textcode on qjsm, pure JS elsewhere: one table of expectations for both. */
-import { LineEditor, layoutInput, stringWidth } from '../../lib/terminal.js';
+import { layoutInput, stringWidth } from '../../lib/terminal.js';
+import { LineEditor } from '../../lib/terminal/lineeditor.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 const P = ['> ', '. '];

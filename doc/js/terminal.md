@@ -1,11 +1,14 @@
 # terminal
 
-`lib/terminal.js`: escape sequences, raw mode, window size, key decoding, cell widths, string widgets and a buffered `Screen`. On qjsm it uses `misc`, `os` and `textcode`; on node, bun and deno it uses `process` and `node:fs`, so the same program runs on all of them.
+`lib/terminal.js` and `lib/terminal/*.js`: escape sequences, raw mode, window size, key decoding, cell widths, string widgets and a buffered `Screen`. On qjsm it uses `misc`, `os` and `textcode`; on node, bun and deno it uses `process` and `node:fs`, so the same program runs on all of them.
 
 Every write is one `ttyWrite(f, string)` call. `f` is a std `FILE` on qjsm, and `process.stdout`, `process.stderr` or an fd number elsewhere. The widgets (`rule`, `table`, `boxLines`, ...) only build strings or arrays of lines and never write.
 
 ```js
-import { Screen, enableRawMode, disableRawMode, windowSize, readKey, boxLines } from 'terminal';
+import { enableRawMode, disableRawMode, windowSize } from 'terminal';
+import { readKey } from 'terminal/keys';
+import { Screen } from 'terminal/screen';
+import { boxLines } from 'terminal/widgets';
 
 enableRawMode(0);
 const [columns, rows] = windowSize(1);
@@ -14,6 +17,23 @@ screen.alternate().clear().lines(1, 1, boxLines('hello', { width: 20 })).flush()
 const key = readKey(0);
 disableRawMode(0);
 ```
+
+## Modules
+
+There is no re-export: import each name from the module that holds it.
+
+| Module | Holds |
+| --- | --- |
+| `terminal` | tty I/O (`ttyRead`, `ttyWrite`, `ttySetRaw`, `ttyGetWinSize`, `EAGAIN`), the escape writers, `enableRawMode`, `windowSize`, widths and clusters (`stringWidth`, `stripAnsi`, `charWidth`, `prevCluster`, `nextCluster`), text (`truncate`, `truncateLines`, `wrap`, `pad`, `fitTable`, `layoutInput`, `cells`) |
+| `terminal/keys` | `decodeKeys`, `readKey` |
+| `terminal/capabilities` | `queryCapabilities`, `parseCapabilityReplies`, `enableCapabilities` |
+| `terminal/style` | `style`, `gradient`, `parseColor`, `colorCode` |
+| `terminal/screen` | `Screen`, `Region`, `BOX_SINGLE`, `BOX_DOUBLE`, `BOX_ROUNDED`, `BOX_HEAVY`, `centeredRect` |
+| `terminal/widgets` | `rule`, `boxLines`, `panel`, `sideBySide`, `meter`, `gradientRule`, `shortPath`, `inputBox`, `statusBar`, `keyValue`, `table`, `progressBar`, `sparkline`, `SPINNERS`, `bigText`, `scrollbar` |
+| `terminal/scrollview` | `ScrollView` |
+| `terminal/lineeditor` | `LineEditor` |
+
+`terminal/internal` holds the tty backend and is not part of the API. The specifiers are bare names. Node and bun need `tests/node-terminal-register.mjs` (`--import`) and `tests/bun-terminal-preload.js` (`--preload`) to resolve them, deno uses `tests/deno-import-map.json`.
 
 ## Cursor, erase and scrolling
 

@@ -1,7 +1,8 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js LineEditor fed with raw key bytes through decodeKeys(): Tier 32.10 (Ctrl-C, Ctrl-D and
  * Return are the keys decodeKeys() reports) and 32.11 (the editing and history the portable test checks) */
-import { LineEditor, decodeKeys } from '../../lib/terminal.js';
+import { decodeKeys } from '../../lib/terminal/keys.js';
+import { LineEditor } from '../../lib/terminal/lineeditor.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* the editor, and feed(bytes) giving what key() returned for each decoded key */

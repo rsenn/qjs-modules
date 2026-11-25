@@ -3737,3 +3737,68 @@ Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2
 - when the parent directory is a quickjs tree (`plot-cv/quickjs/qjs-modules/..` was used) the build
   runs in that tree's sources (the log shows repl.js of plot-cv/quickjs): decide whether a build tree
   of someone else's checkout is acceptable
+
+## Port lib/repl.js onto terminal.js LineEditor (gap list, 2026-11-25)
+
+Not started. `LineEditor` (lib/terminal.js:2305) has the buffer, kill ring and yank, word/line
+movement and kills, history with Ctrl-R, Tab via a `complete` callback, ghost text, multiline with
+`isIncomplete`, a `paste` key, and `layout(prefixes, columns)`. What `REPL` (lib/repl.js:150) does
+that it cannot yet. Suggested order: 1, 2, 3, 4, then 5 and 6.
+
+0. First: fix the 4 failing tests in tests/unittests/test-terminal.js (decodeKeys, readKey,
+   mouse reports; `'params' is not defined` at lib/terminal.js:858). The port runs through that path.
+
+1. Missing keys in `LineEditor.key()`:
+   - transpose chars (Ctrl-T) and words (Alt-T)
+   - upcase, downcase, capitalize word (Alt-U, Alt-L)
+   - quoted insert (Ctrl-Q), clear screen (Ctrl-L), cancel (Ctrl-X), abort (Ctrl-G)
+   - Alt-K kill to line start, `backwardKillMismatch` (kill back to an unmatched bracket)
+   - PageUp/PageDown as history-prefix search
+   - forward search (Ctrl-S) and cycling through matches on repeated Ctrl-R
+     (`_searchHistory` goes one way and has no match counter)
+
+2. A renderer: `REPL.render()` and `paintLine()` redraw prompt and every row, add ' \b' when a
+   line fills its last row exactly, place the cursor. `layout()` only computes coordinates. Either a
+   `LineEditor.render()` or a hookup to `Region`/`Screen`.
+
+3. Syntax coloring and bracket matching: `colorizeJs`, `bracketStyles`, `cursorMarks` in repl.js.
+   Needs a `colorize(text, cursor) -> string` callback and a cursor-aware repaint.
+
+4. A completion list: `complete` gives one suggestion. REPL shows candidates under the line
+   (`showCompletions`, `completionLabel`, `moveBelow`). Needs several candidates, common-prefix
+   insert and a draw hook.
+
+5. vi mode: `viKey`, `viWordStart`, normal/insert state, cursor shape escape (`\x1b[2 q` / `[6 q`).
+
+6. Key table: REPL maps raw sequences, `LineEditor` uses decoded names (`ctrlR`, ctrl+`c`, old
+   aliases ctrlc/ctrlD/ctrlJ). Rebuild REPL's `commands` table by name.
+
+Stays in repl.js, not the editor: `handleChar`'s ESC state machine (replace by `readKey`/
+`decodeKeys`), piped stdin queue (`pipeChar`, `pipeDrain`), directives, eval and result printing,
+banner, history/module files, the mouse stub.
+
+## Split lib/terminal.js into lib/terminal/*.js (decided 2026-11-25, committed, follow-ups open)
+
+Rules agreed with the user: no shim (no terminal/index.js, no re-exports from terminal.js), callers
+migrate once. keys and capabilities do not stay in terminal.js. Stray lib/terminal.js.bak and
+lib/repl.js.orig deleted. Pure move: the pass/fail set of every terminal test stays identical, the
+failing decodeKeys/readKey tests are fixed in a separate commit afterwards. Do not commit or push
+until asked.
+
+Layout: terminal.js keeps tty I/O, escape writers, raw mode, windowSize, width and cluster measures and
+the textcode-backed text functions (truncate, truncateLines, wrap, pad, fitTable, layoutInput).
+terminal/internal.js holds backend, ESC, CSI, RESET. New files: keys, capabilities, style, screen,
+widgets, scrollview, lineeditor. terminal.js exports `cells` too (gradient and table need it).
+Gate: union of exports of terminal.js and terminal/*.js equals the export set of adb19081, plus cells.
+
+Open follow-ups: doc/js/terminal.md update (export blocks via utilities/api-surface.sh and
+doc-api.js, SPECIAL map), tell the ollama-repl session the new module paths (look.js imports
+panel, meter, sideBySide, gradientRule, shortPath from 'terminal'), cmake/qjsm.cmake module lists,
+tests/deno-import-map.json, callers in ~/Sources/quickjs/qjs-* and plot-cv.
+
+Done in the split commit: files created, callers and tests migrated, cmake lists, `terminal/` prefix in
+src/qjsm.c builtin lookup, node/bun resolve hooks and deno import map (option 1: bare specifiers).
+Still open: regenerate the export blocks of doc/js/terminal.md with utilities/api-surface.sh and
+doc-api.js (SPECIAL map), tell the ollama-repl session when it is installed, the 4 failing
+decodeKeys/readKey tests, a bun run of test-terminal-portable.js (0 tests run, same before and after),
+BUILTIN_MODULES of an existing build dir must list the new terminal/* names (the cached value pins it).

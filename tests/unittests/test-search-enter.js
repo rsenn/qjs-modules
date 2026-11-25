@@ -1,4 +1,4 @@
-import { LineEditor } from "../../lib/terminal.js";
+import { LineEditor } from "../../lib/terminal/lineeditor.js";
 
 const ed = new LineEditor({ history: ["hello world", "goodbye world", "hello qjs"] });
 

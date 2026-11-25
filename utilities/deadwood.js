@@ -14,21 +14,8 @@ import * as std from 'std';
 import { puts, exit } from 'std';
 import * as os from 'os';
 import { getOpt, isMainModule } from 'util';
-import {
-  readKey,
-  windowSize,
-  enableRawMode,
-  disableRawMode,
-  setAlternateScreen,
-  setNormalScreen,
-  cursorHide,
-  cursorShow,
-  cursorPosition,
-  eraseInLine,
-  eraseInDisplay,
-  reverseVideoOn,
-  reverseVideoOff,
-} from 'terminal';
+import { windowSize, enableRawMode, disableRawMode, setAlternateScreen, setNormalScreen, cursorHide, cursorShow, cursorPosition, eraseInLine, eraseInDisplay, reverseVideoOn, reverseVideoOff } from 'terminal';
+import { readKey } from 'terminal/keys';
 import { findDeadFunctions } from './nm-symbols.js';
 import { removeDeadFunctions } from './remove-dead-functions.js';
 

@@ -2,7 +2,8 @@
 /* lib/terminal.js prevCluster() and nextCluster(): the character boundaries a cursor steps over.
  * On qjsm they are the native ones of textcode, elsewhere the JS twin: one table of expectations for both.
  * Node, bun and deno also compare with Intl.Segmenter. LineEditor uses them for Backspace, Delete and the arrows. */
-import { LineEditor, nextCluster, prevCluster } from '../../lib/terminal.js';
+import { nextCluster, prevCluster } from '../../lib/terminal.js';
+import { LineEditor } from '../../lib/terminal/lineeditor.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 /* str cut into clusters by walking nextCluster from 0, and by walking prevCluster back from the end */

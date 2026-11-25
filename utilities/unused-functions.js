@@ -37,23 +37,8 @@ import * as std from 'std';
 import { puts, exit } from 'std';
 import * as os from 'os';
 import { getOpt, isMainModule } from 'util';
-import {
-  readKey,
-  windowSize,
-  enableRawMode,
-  disableRawMode,
-  setAlternateScreen,
-  setNormalScreen,
-  cursorHide,
-  cursorShow,
-  cursorPosition,
-  eraseInLine,
-  eraseInDisplay,
-  reverseVideoOn,
-  reverseVideoOff,
-  rgbForeground,
-  sgr,
-} from 'terminal';
+import { windowSize, enableRawMode, disableRawMode, setAlternateScreen, setNormalScreen, cursorHide, cursorShow, cursorPosition, eraseInLine, eraseInDisplay, reverseVideoOn, reverseVideoOff, rgbForeground, sgr } from 'terminal';
+import { readKey } from 'terminal/keys';
 
 const COLOR_UNUSED = [255, 85, 85]; // light red
 const COLOR_ONCE = [255, 255, 85]; // yellow

@@ -1,6 +1,9 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
 /* lib/terminal.js: the pure functions and the exports, the same on every runtime */
-import { EAGAIN, LineEditor, decodeKeys, enableCapabilities, parseCapabilityReplies, queryCapabilities, syncOutput, SYNC_BEGIN, SYNC_END, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
+import { EAGAIN, syncOutput, SYNC_BEGIN, SYNC_END, stringWidth, stripAnsi, truncate, truncateLines, ttyGetWinSize, ttyRead, ttySetRaw, ttyWrite, windowSize, wrap } from '../../lib/terminal.js';
+import { enableCapabilities, parseCapabilityReplies, queryCapabilities } from '../../lib/terminal/capabilities.js';
+import { decodeKeys } from '../../lib/terminal/keys.js';
+import { LineEditor } from '../../lib/terminal/lineeditor.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({

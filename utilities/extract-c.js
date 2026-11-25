@@ -8,7 +8,8 @@ import { isatty, read, readdir, SIGINT, signal, setTimeout, ttyGetWinSize } from
 import { getOpt, isMainModule } from 'util';
 import CLexer from 'lexer/c.js';
 import { foldDirectives } from 'lexer/cpp.js';
-import { Screen, setScrollRegion, resetScrollRegion } from 'terminal';
+import { setScrollRegion, resetScrollRegion } from 'terminal';
+import { Screen } from 'terminal/screen';
 import process from 'process';
 import { splitLib, joinLib, amalgamate, followUps } from './extract-c-split.js';
 

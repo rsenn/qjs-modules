@@ -1,8 +1,8 @@
 // @portable: also run on node, bun and deno by ctest (tests/deno-import-map.json for deno)
-// import { decodeKeys } from '../../lib/terminal.js';
+// import { decodeKeys } from '../../lib/terminal/keys.js';
 // import { assert, eq, tests } from '../../lib/tinytest.js';
 
-import { decodeKeys } from '../../lib/terminal.js';
+import { decodeKeys } from '../../lib/terminal/keys.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 
 tests({

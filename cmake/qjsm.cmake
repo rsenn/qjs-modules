@@ -717,6 +717,14 @@ macro(qjsm_init_builtins)
           stream
           string_decoder
           terminal
+          terminal/capabilities
+          terminal/internal
+          terminal/keys
+          terminal/lineeditor
+          terminal/screen
+          terminal/scrollview
+          terminal/style
+          terminal/widgets
           timers
           timersPromises
           tty
@@ -928,16 +936,24 @@ macro(qjsm_declare_imports)
   set(parser_MODULES path util list)
   set(password_MODULES bcrypt node/buffer)
   set(process_MODULES path util misc node/events terminal node/buffer)
-  set(readline_MODULES node/events textcode misc timers terminal)
+  set(readline_MODULES node/events textcode misc timers terminal terminal/keys)
   set(readlinePromises_MODULES readline)
-  set(repl_MODULES util inspect path io process terminal)
+  set(repl_MODULES util inspect path io process terminal terminal/keys)
   set(loaders_node_MODULES loaders/nodeNames)
   set(require_MODULES util path process loaders/nodeNames)
   set(perf_hooks_MODULES misc timers)
   set(simple_queue_MODULES assert)
   set(stream_MODULES abort assert simple-queue util)
   set(streams_MODULES fs stream util std textcode)
-  set(terminal_MODULES misc textcode)
+  set(terminal_MODULES terminal/internal)
+  set(terminal_capabilities_MODULES terminal terminal/internal)
+  set(terminal_internal_MODULES misc os std textcode)
+  set(terminal_keys_MODULES terminal terminal/internal)
+  set(terminal_lineeditor_MODULES terminal)
+  set(terminal_screen_MODULES terminal terminal/internal)
+  set(terminal_scrollview_MODULES terminal terminal/widgets)
+  set(terminal_style_MODULES terminal terminal/internal)
+  set(terminal_widgets_MODULES terminal terminal/internal terminal/screen terminal/style)
   set(tty_MODULES util misc terminal)
   set(url_MODULES util path)
   set(util_MODULES timers inspect path misc textcode node/util terminal)
