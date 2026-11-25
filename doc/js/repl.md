@@ -57,10 +57,19 @@ turns the red prompt off.
 Pasted text arrives as one piece (bracketed paste), so a multi-line paste is
 edited as a whole and runs on Enter.
 
-Introspection: `expr?` or `\\type expr` prints the type, class, prototype
+Introspection: `expr?` or `\type expr` prints the type, class, prototype
 chain and size of the value, and for a function its name, argument count and
 source. A trailing `?` is never valid JavaScript, so it cannot clash with a
 ternary. `describeValue(value)` returns the lines and is exported.
+
+Helpers, defined on `globalThis` unless a global of that name exists:
+
+| Helper | Does |
+| --- | --- |
+| `copy(x)` | puts a string, else its JSON, in the yank buffer (^Y) and, on a terminal, in the system clipboard through OSC 52 |
+| `keys(o)`, `values(o)` | `Object.keys`, `Object.values` |
+| `table(data, columns?)` | prints a box table, a row per entry (`formatTable()` returns the text) |
+| `\time expr` | evaluates `expr`, prints the result and `time: N ms`, an `await` included |
 
 ### Node.js behavior
 
