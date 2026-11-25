@@ -15,6 +15,7 @@ rl.close();
 
 | Export | Description |
 | --- | --- |
+| `Readline` | `new Readline(stream, { autoCommit? })`: collects `cursorTo()`, `moveCursor()`, `clearLine()`, `clearScreenDown()`, sent by `commit()` (a promise), dropped by `rollback()`; see [readline](readline.md) |
 | `createInterface(...)` | as in `readline`, returning an `Interface` of this module |
 | `Interface` | `question(query, { signal })` resolves with the answer |
 

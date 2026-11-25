@@ -105,10 +105,28 @@ same text twice in a row is one entry. Undo and redo keep 2048 states each: an e
 step or a completion list pushes the line and cursor before it, Enter clears both. Like Node, a
 new edit does not clear the redo stack.
 
+## `Readline` (readline/promises)
+
+`new Readline(stream, { autoCommit? })` collects cursor and erase actions for a writable and sends
+them at once, as Node's class does. `stream` is anything `cursorTo()` writes to.
+
+| Method | Does |
+| --- | --- |
+| `cursorTo(x, y?)`, `moveCursor(dx, dy)` | move the cursor, absolute or relative |
+| `clearLine(dir)` | erase left (-1), all (0) or right (1) of the cursor |
+| `clearScreenDown()` | erase from the cursor to the end of the screen |
+| `commit()` | write the collected actions in one call, a promise that resolves when the stream took them |
+| `rollback()` | drop the collected actions |
+
+The actions return the `Readline`, so they chain. With `autoCommit: true` each action is written
+on the next tick instead. Arguments are checked as in Node: `ERR_INVALID_ARG_TYPE` for a
+non-number, `ERR_OUT_OF_RANGE` for a non-integer or a `dir` outside -1..1. It is also exported
+by `readline/promises` and as `readline.promises.Readline`.
+
 ## Not implemented
 
-The `Readline` class of `readline/promises`, and `output` resize events from a plain FILE
-without `on()` (an emitter output's `'resize'` redraws, `process.stdout` is one).
+`output` resize events from a plain FILE without `on()` (an emitter output's `'resize'` redraws,
+`process.stdout` is one).
 
 ## Export list
 
