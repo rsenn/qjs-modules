@@ -20,9 +20,10 @@ rl.question('name? ', name => console.log(name));      // prompt, take one line
 
 | Input | How it is read |
 | --- | --- |
-| `process.stdin`, any FILE (`fileno()`) | `os.setReadHandler()` on the fd; UTF-8 decoded, never cut inside a character |
+| `process.stdin`, any FILE with `on()` | its `'data'` and `'end'` events, so `pause()`/`resume()` and other listeners on the stream work; `close()` removes the listeners and pauses it. A tty is put into raw mode |
+| a plain FILE (`fileno()`, no `on()`) | `os.setReadHandler()` on the fd; UTF-8 decoded, never cut inside a character |
 | WHATWG `ReadableStream`, async iterable | pulled chunk by chunk; strings or bytes (`Uint8Array`, `ArrayBuffer`) |
-| emitter with `'data'` / `'end'` | what node, bun and deno pass (a `Readable`); `pause()`/`resume()` forwarded |
+| emitter with `'data'` / `'end'` | what node, bun and deno pass (a `Readable`); `pause()`/`resume()` forwarded; as in Node, the lines of a chunk that are already split are still emitted after `close()` |
 
 A missing or unusable `input` throws `TypeError`.
 
@@ -100,7 +101,7 @@ Two tabs arriving in one chunk are not special-cased (Node inserts a literal tab
 ## Not implemented
 
 Kill-ring rotation (meta-y), undo/redo, the `Readline` class of `readline/promises`, and
-`output` resize events from a FILE (an emitter output's `'resize'` redraws).
+`output` resize events from a plain FILE without `on()` (an emitter output's `'resize'` redraws, `process.stdout` is one).
 
 ## Export list
 
