@@ -48,6 +48,12 @@ the row below. Nothing is evaluated: a getter ends the chain without a preview,
 and an expression such as `1 + 1` has none. `repl.preview = false` turns it
 off.
 
+Syntax check: the prompt turns red while the input is complete but does not
+parse (`1 +`). An unfinished input (an open bracket) is not an error, nor is a
+directive. `isValidSyntax(src)` is exported: it compiles `src` as a function
+body or an async function body, which runs nothing. `repl.syntaxCheck = false`
+turns the red prompt off.
+
 Pasted text arrives as one piece (bracketed paste), so a multi-line paste is
 edited as a whole and runs on Enter.
 

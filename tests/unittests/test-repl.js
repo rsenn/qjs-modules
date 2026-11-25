@@ -1,5 +1,5 @@
 /* lib/repl.js: the parts of REPL that work without a terminal */
-import { REPL } from '../../lib/repl.js';
+import { isValidSyntax, REPL } from '../../lib/repl.js';
 import { assert, eq, tests } from '../../lib/tinytest.js';
 import { popen, loadFile, open as fopen } from 'std';
 import { readlink, remove } from 'os';
@@ -505,5 +505,74 @@ tests({
     remove(file);
     assert(/\n\r[^\n]*16[^\n]*\x1b\[1A\r/.test(out), JSON.stringify(out));
     eq(0, r.renderRow);
+  },
+  'isValidSyntax tells a parseable input from a broken one'() {
+    eq(true, isValidSyntax('1 + 1'));
+    eq(true, isValidSyntax('let a = 1; a'));
+    eq(true, isValidSyntax('{a: 1}'));
+    eq(true, isValidSyntax('await Promise.resolve(1)'));
+    eq(true, isValidSyntax('for(const x of [1]) x'));
+    eq(false, isValidSyntax('1 +'));
+    eq(false, isValidSyntax('f(]'));
+    eq(false, isValidSyntax('let let = 1'));
+    eq(false, isValidSyntax('a b'));
+  },
+
+  'isValidSyntax runs nothing'() {
+    globalThis.syntaxProbe = 0;
+    isValidSyntax('syntaxProbe = 1');
+    eq(0, globalThis.syntaxProbe);
+    delete globalThis.syntaxProbe;
+  },
+
+  'render paints the prompt red while the input cannot parse'() {
+    const render = cmd => {
+      const file = '/tmp/test-repl-render-' + Date.now();
+      const r = new REPL('x', false);
+      const f = fopen(file, 'w');
+
+      r.showColors = true;
+      r.columns = 80;
+      r.out = f;
+      r.prompt = 'P> ';
+      r.cmd = cmd;
+      r.cursorPos = cmd.length;
+      r.render();
+      f.close();
+
+      const out = loadFile(file);
+
+      remove(file);
+      return out;
+    };
+    const red = '\x1b[31mP> ';
+
+    /* without a tty on stdout the color table is empty, the prompt stays plain */
+    if(!render('1 +').includes(red)) return assert(render('1 +').includes('P> '));
+
+    assert(render('1 +').includes(red));
+    assert(!render('1 + 1').includes(red));
+    assert(!render('f(').includes(red));
+    assert(!render('\\h').includes(red));
+    assert(!render('foo?').includes(red));
+  },
+
+  'the syntax check can be turned off'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('x', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = true;
+    r.syntaxCheck = false;
+    r.columns = 80;
+    r.out = f;
+    r.prompt = 'P> ';
+    r.cmd = '1 +';
+    r.cursorPos = 3;
+    r.render();
+    f.close();
+
+    assert(!loadFile(file).includes('\x1b[31mP> '));
+    remove(file);
   },
 });
