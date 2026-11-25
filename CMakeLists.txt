@@ -965,11 +965,14 @@ else()
   set(X86 FALSE)
 endif()
 
-if(X86)
+set(libbcrypt_SOURCES "")
+if(NOT MODULE_BCRYPT)
+  # no 'bcrypt' module: its sources are not built
+elseif(X86)
   file(GLOB libbcrypt_SOURCES third_party/libbcrypt/*.c third_party/libbcrypt/*/*.c third_party/libbcrypt/*/*.S)
-else(X86)
+else()
   file(GLOB libbcrypt_SOURCES third_party/libbcrypt/*.c third_party/libbcrypt/*/*.c)
-endif(X86)
+endif()
 
 # Hash-Algorithms: the md5, sha1 and sha2 sources only, main.c and test.c are demos.
 # its own debug printf and unaligned reads are the library's, so keep its warnings quiet

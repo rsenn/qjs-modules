@@ -4440,7 +4440,29 @@ js_misc_enqueue_job(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return JS_NewInt32(ctx, JS_EnqueueJob(ctx, js_misc_job_function, argc, argv));
 }
 
-static const JSCFunctionListEntry js_misc_funcs[] = {
+#ifdef __COSMOPOLITAN__
+/* cosmo's TIOC*, AT_* and errno values are link-time symbols, not
+ * constant expressions: the tables are filled at run time instead */
+#define JS_MISC_TABLE(name) \
+  static JSCFunctionListEntry name[512]; \
+  static size_t name##_len; \
+  static void name##_fill(void) { \
+    const JSCFunctionListEntry t[] = {
+#define JS_MISC_TABLE_END(name) \
+    }; \
+    memcpy(name, t, sizeof(t)); \
+    name##_len = countof(t); \
+  }
+#define JS_MISC_LEN(name) name##_len
+#define JS_MISC_FILL() (js_misc_funcs_fill(), js_misc_errnoconst_fill())
+#else
+#define JS_MISC_TABLE(name) static const JSCFunctionListEntry name[] = {
+#define JS_MISC_TABLE_END(name) };
+#define JS_MISC_LEN(name) countof(name)
+#define JS_MISC_FILL() ((void)0)
+#endif
+
+JS_MISC_TABLE(js_misc_funcs)
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
@@ -4833,7 +4855,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_TERMIOS_H
     JS_CONSTANT(TIOCSCTTY),
+#ifdef TIOCGPGRP
     JS_CONSTANT(TIOCGPGRP),
+#endif
     JS_CONSTANT(TIOCSPGRP),
     JS_CONSTANT(TIOCGWINSZ),
     JS_CONSTANT(TIOCSWINSZ),
@@ -4841,11 +4865,19 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(TIOCMBIS),
     JS_CONSTANT(TIOCMBIC),
     JS_CONSTANT(TIOCMSET),
+#ifdef TIOCINQ
     JS_CONSTANT(TIOCINQ),
+#endif
+#ifdef TIOCLINUX
     JS_CONSTANT(TIOCLINUX),
+#endif
     JS_CONSTANT(TIOCPKT),
+#ifdef TIOCSBRK
     JS_CONSTANT(TIOCSBRK),
+#endif
+#ifdef TIOCCBRK
     JS_CONSTANT(TIOCCBRK),
+#endif
 #endif
     JS_CONSTANT(FOREGROUND_BLUE),
     JS_CONSTANT(FOREGROUND_GREEN),
@@ -4899,7 +4931,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifdef CLOCK_THREAD_CPUTIME_ID
     JS_CONSTANT(CLOCK_THREAD_CPUTIME_ID),
 #endif
-};
+JS_MISC_TABLE_END(js_misc_funcs)
 
 static const JSCFunctionListEntry js_misc_sigconst[] = {
 #ifdef SIGHUP
@@ -5003,7 +5035,7 @@ static const JSCFunctionListEntry js_misc_sigconst[] = {
 #endif
 };
 
-static const JSCFunctionListEntry js_misc_errnoconst[] = {
+JS_MISC_TABLE(js_misc_errnoconst)
 #ifdef E2BIG
     JS_CONSTANT(E2BIG),
 #endif
@@ -5417,7 +5449,7 @@ static const JSCFunctionListEntry js_misc_errnoconst[] = {
     JS_CONSTANT(WSAEREFUSED),
 #endif
 #endif
-};
+JS_MISC_TABLE_END(js_misc_errnoconst)
 
 static const JSCFunctionListEntry js_misc_dlopenconst[] = {
 #ifdef RTLD_LAZY
@@ -5460,13 +5492,14 @@ static const JSCFunctionListEntry js_misc_prioconst[] = {
 
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
+  JS_MISC_FILL();
   vector_init(&js_misc_atexit_functions, ctx);
   atexit(&js_misc_atexit_handler);
 
   if(m) {
-    JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
+    JS_SetModuleExportList(ctx, m, js_misc_funcs, JS_MISC_LEN(js_misc_funcs));
     JS_SetModuleExportList(ctx, m, js_misc_sigconst, countof(js_misc_sigconst));
-    JS_SetModuleExportList(ctx, m, js_misc_errnoconst, countof(js_misc_errnoconst));
+    JS_SetModuleExportList(ctx, m, js_misc_errnoconst, JS_MISC_LEN(js_misc_errnoconst));
     JS_SetModuleExportList(ctx, m, js_misc_dlopenconst, countof(js_misc_dlopenconst));
     JS_SetModuleExportList(ctx, m, js_misc_prioconst, countof(js_misc_prioconst));
   }
@@ -5484,10 +5517,12 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
+  JS_MISC_FILL();
+
   if((m = JS_NewCModule(ctx, module_name, js_misc_init))) {
-    JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
+    JS_AddModuleExportList(ctx, m, js_misc_funcs, JS_MISC_LEN(js_misc_funcs));
     JS_AddModuleExportList(ctx, m, js_misc_sigconst, countof(js_misc_sigconst));
-    JS_AddModuleExportList(ctx, m, js_misc_errnoconst, countof(js_misc_errnoconst));
+    JS_AddModuleExportList(ctx, m, js_misc_errnoconst, JS_MISC_LEN(js_misc_errnoconst));
     JS_AddModuleExportList(ctx, m, js_misc_dlopenconst, countof(js_misc_dlopenconst));
     JS_AddModuleExportList(ctx, m, js_misc_prioconst, countof(js_misc_prioconst));
   }
