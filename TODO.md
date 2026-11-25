@@ -3662,7 +3662,7 @@ checked in a 40-column tmux pane). Left open from them:
 | 30.2 done | Node REPL semantics: errors print as `Uncaught Error: ...`, `_` and `_error` on `globalThis` (assigning `_` disables the update), first `^C` clears the line and the buffered lines (`.break`), second `^C` on an empty line exits, an `.editor` mode for pasting | Node | `printEvalResult` sets `this._` today |
 | 30.3 done | Bracketed paste (`\e[200~` ... `\e[201~`): pasted text is inserted as is, not run line by line | Node, IPython, fish | |
 | 30.4 done | Grey inline suggestion from history, Right or `^E` accepts it (`suggestion()`, `acceptGhost()`; off with `repl.suggest = false`) | fish, IPython, PSReadLine | |
-| 30.5 | Grey preview of the one remaining completion; the completion list shows the kind (function, value) and a function's arity | Node | |
+| 30.5 done | Grey preview of the one remaining completion; the completion list shows the kind (function, value) and a function's arity (`completionPreview()`, `completionLabel()`) | Node | |
 | 30.6 | Live result preview while typing | Node, Chrome DevTools | QuickJS has no side-effect-free eval: only literals and plain property chains (`a.b.c`), getters skipped |
 | 30.7 | Prompt turns red while the input cannot parse | PSReadLine; Bun exports `isValidSyntax()` | |
 | 30.8 | Introspection: `obj?` prints type, prototype chain and function source; a `.type expr` command | IPython, GHCi | |

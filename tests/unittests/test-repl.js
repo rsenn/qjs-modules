@@ -348,4 +348,71 @@ tests({
     assert(out.indexOf('lo(1)') > out.indexOf('hel'), JSON.stringify(out));
     assert(!out.includes('hello(1)hel'), JSON.stringify(out));
   },
+  'completionPreview is the rest of the only completion'() {
+    const r = new REPL('c', false);
+
+    r.showColors = true;
+    r.cmd = 'Obj';
+    r.cursorPos = 3;
+    eq('ect', r.completionPreview());
+
+    r.cmd = 'Math.fl';
+    r.cursorPos = 7;
+    eq('oor', r.completionPreview());
+
+    r.cmd = 'Math.m';
+    r.cursorPos = 6;
+    eq('', r.completionPreview());
+
+    r.cmd = 'Obj';
+    r.cursorPos = 1;
+    eq('', r.completionPreview());
+
+    r.cmd = 'Obj ';
+    r.cursorPos = 4;
+    eq('', r.completionPreview());
+  },
+
+  'the history suggestion wins over the completion preview'() {
+    const r = new REPL('c', false);
+
+    r.showColors = true;
+    r.historyAdd('Object.keys(x)');
+    r.cmd = 'Obj';
+    r.cursorPos = 3;
+    eq('ect.keys(x)', r.ghost());
+  },
+
+  'Right accepts the completion preview'() {
+    const r = new REPL('c', false);
+
+    r.showColors = true;
+    r.cmd = 'Obj';
+    r.cursorPos = 3;
+    r.forwardChar();
+    eq('Object', r.cmd);
+  },
+
+  'completionLabel shows arity and kind without calling getters'() {
+    const r = new REPL('c', false);
+    let called = false;
+    const ctx = {
+      f(a, b) {},
+      g() {},
+      o: {},
+      n: 1,
+      get x() {
+        called = true;
+        return 1;
+      },
+    };
+
+    eq('f(2)', r.completionLabel(ctx, 'f'));
+    eq('g()', r.completionLabel(ctx, 'g'));
+    eq('o.', r.completionLabel(ctx, 'o'));
+    eq('n', r.completionLabel(ctx, 'n'));
+    eq('x', r.completionLabel(ctx, 'x'));
+    eq(false, called);
+    eq('toString()', r.completionLabel(ctx, 'toString'));
+  },
 });

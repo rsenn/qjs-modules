@@ -35,6 +35,13 @@ Suggestion: when the buffer is the start of a single-line history entry, the
 rest of the newest such entry is shown in grey after the cursor. Right or ^E at
 the end of the buffer inserts it. `repl.suggest = false` turns it off.
 
+Completion: when exactly one completion is left (`Obj`), the rest of it is
+shown in grey and Right or ^E inserts it. A history suggestion comes first.
+The list Tab prints after a second press shows the kind of each entry:
+`max(2)` a function and its argument count, `now()` a function without
+arguments, `JSON.` an object, a plain name any other value. Getters are not
+called.
+
 Pasted text arrives as one piece (bracketed paste), so a multi-line paste is
 edited as a whole and runs on Enter.
 
