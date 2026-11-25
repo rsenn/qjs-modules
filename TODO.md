@@ -3650,9 +3650,9 @@ cross-line part.
 checked in a 40-column tmux pane). Left open from them:
 
 - done 2026-11-25: typing a closer at the start of an indented line dedents it
-- a buffer taller than the terminal cannot be redrawn: `render()` moves up past the top row
-- accepting a ^R match prints the output over the second row of a wrapped search line
-- the `qjs-debugger` override of `repl.controlC` has no effect: the key table holds the prototype's method
+- done 2026-11-25: a buffer taller than the terminal is drawn as the lines around the cursor that fit (`render()`, `this.lines`); one logical line taller than the screen is still drawn whole
+- done 2026-11-25: accepting a ^R match clears every row of the wrapped search line, Enter in a search moves below it first (`searchRowsBelow`)
+- done 2026-11-25: an override of `repl.controlC` (or any key-table method) after construction is used, `handleKey()` resolves the table entry by name. Tests in `tests/unittests/test-repl-tier30.js`
 
 30.4 to 30.10 done 2026-11-25, one commit each. Still true: `'\x03': this.controlC` is still bound in the key table at `lib/repl.js:204`. The ^R wrapped-line and taller-than-terminal cases need a tmux run and were not retried.
 

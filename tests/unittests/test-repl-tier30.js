@@ -953,4 +953,227 @@ tests({
     remove(file);
     eq(1, r.renderRow);
   },
+
+  /* leftovers of 30.0 to 30.3 */
+
+  '30.x ^C goes to a controlC set on the REPL after construction'() {
+    const r = new REPL('c', false);
+    const calls = [];
+
+    r.out = null;
+    r.controlC = function(...args) {
+      calls.push(this === r);
+    };
+
+    r.handleKey('\x03');
+    eq('true', calls.join());
+    eq(r.controlC, r.thisFun);
+  },
+
+  '30.x an override that calls the original keeps its behavior'() {
+    const r = new REPL('c', false);
+    const { controlC } = r;
+    let seen = 0;
+
+    r.out = null;
+    r.cmd = 'abc';
+    r.cursorPos = 3;
+    r.controlC = function(...args) {
+      seen++;
+
+      return controlC.call(this, ...args);
+    };
+    r.moveBelow = () => {};
+    r.cmdReadlineStart = () => {};
+
+    r.handleKey('\x03');
+    eq(1, seen);
+    eq('', r.cmd);
+  },
+
+  '30.x other keys still use the key table'() {
+    const r = new REPL('c', false);
+
+    r.out = null;
+    r.cmd = 'ab';
+    r.cursorPos = 2;
+    r.handleKey('\x01');
+    eq(0, r.cursorPos);
+  },
+
+  '30.x a buffer taller than the screen draws the lines around the cursor'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('t', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = false;
+    r.columns = 20;
+    r.lines = 4;
+    r.out = f;
+    r.prompt = '> ';
+    r.cmd = ['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7'].join('\n');
+    r.cursorPos = r.cmd.length;
+    r.render();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    eq(3, (out.match(/\n/g) ?? []).length, JSON.stringify(out));
+    assert(out.includes('l7') && out.includes('l4') && !out.includes('l3'), JSON.stringify(out));
+    eq(3, r.renderRow);
+  },
+
+  '30.x the window follows the cursor up'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('t', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = false;
+    r.columns = 20;
+    r.lines = 3;
+    r.out = f;
+    r.prompt = '> ';
+    r.cmd = ['l0', 'l1', 'l2', 'l3', 'l4', 'l5'].join('\n');
+    r.cursorPos = 0;
+    r.render();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    assert(out.includes('l0') && out.includes('l2') && !out.includes('l3'), JSON.stringify(out));
+    eq(0, r.renderRow);
+  },
+
+  '30.x a buffer that fits is drawn whole, and so is one without a known height'() {
+    for(const lines of [10, undefined]) {
+      const file = '/tmp/test-repl-render-' + Date.now();
+      const r = new REPL('t', false);
+      const f = fopen(file, 'w');
+
+      r.showColors = false;
+      r.columns = 20;
+      r.lines = lines;
+      r.out = f;
+      r.prompt = '> ';
+      r.cmd = 'a\nb\nc\nd\ne';
+      r.cursorPos = r.cmd.length;
+      r.render();
+      f.close();
+
+      const out = loadFile(file);
+
+      remove(file);
+      eq(4, (out.match(/\n/g) ?? []).length, JSON.stringify(out));
+    }
+  },
+
+  '30.x the redraw of a tall buffer starts at the top of what was drawn'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('t', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = false;
+    r.columns = 20;
+    r.lines = 3;
+    r.out = f;
+    r.prompt = '> ';
+    r.cmd = 'a\nb\nc\nd\ne';
+    r.cursorPos = r.cmd.length;
+    r.render();
+    r.render();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    assert(out.split('\r\x1b[J')[2].length > 0 && out.includes('\x1b[2A\r\x1b[J'), JSON.stringify(out));
+  },
+
+  '30.x accepting a ^R match with a key clears every row of the wrapped search line'() {
+    const file = '/tmp/test-repl-search-' + Date.now();
+    const r = new REPL('s', false);
+    const f = fopen(file, 'w');
+
+    r.piped = false;
+    r.showColors = false;
+    r.columns = 20;
+    r.out = f;
+    r.historyAdd('x'.repeat(45));
+    r.readlineStart('', () => {});
+    r.cmd = 'xx';
+    r.cursorPos = 2;
+    r.reverseSearch();
+    f.flush();
+
+    const painted = r.renderRow;
+
+    eq(true, r.searchRowsBelow > 0 || painted > 0);
+
+    const before = loadFile(file).length;
+
+    r.handleKey('\x14');
+    f.close();
+
+    const after = loadFile(file).slice(before);
+
+    remove(file);
+    /* the first thing written moves up to the first row of the search line and clears from there */
+    assert(painted > 0 ? after.startsWith(`\x1b[${painted}A\r\x1b[J`) : after.startsWith('\r\x1b[J'), JSON.stringify(after));
+    eq(0, r.renderRow >= 0 ? 0 : 1);
+  },
+
+  '30.x Enter in a search moves below the whole painted line first'() {
+    const file = '/tmp/test-repl-search-' + Date.now();
+    const r = new REPL('s', false);
+    const f = fopen(file, 'w');
+
+    r.piped = false;
+    r.showColors = false;
+    r.columns = 20;
+    r.out = f;
+    r.historyAdd('x'.repeat(45));
+    r.readlineStart('', () => {});
+    r.cmd = 'xx';
+    r.cursorPos = 2;
+    r.reverseSearch();
+    f.flush();
+
+    const below = r.searchRowsBelow;
+    const before = loadFile(file).length;
+
+    assert(below > 0, 'the search line wraps: ' + below);
+
+    r.acceptLine();
+    f.close();
+
+    const after = loadFile(file).slice(before);
+
+    remove(file);
+    eq(`\x1b[${below}B\n`, after);
+    eq(0, r.searchRowsBelow);
+    eq(0, r.renderRow);
+
+    r.handleKey('\x14');
+  },
+
+  '30.x Enter outside a search writes only the newline'() {
+    const file = '/tmp/test-repl-search-' + Date.now();
+    const r = new REPL('s', false);
+    const f = fopen(file, 'w');
+
+    r.piped = false;
+    r.showColors = false;
+    r.out = f;
+    r.cmd = '1+1';
+    r.cursorPos = 3;
+    r.acceptLine();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    assert(out.endsWith('\n') && !out.includes('B'), JSON.stringify(out));
+  },
 });

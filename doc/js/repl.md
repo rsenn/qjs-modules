@@ -54,6 +54,16 @@ so the cursor and the wrapping stay right.
   function and its argument count, `now()` a function without arguments,
   `JSON.` an object, a plain name any other value. Getters are not called
 
+A buffer taller than the terminal is drawn as the lines around the cursor that fit, the rest
+is not on screen until the cursor moves to it (Up and Down scroll the window). One logical
+line that is taller than the terminal by itself is still drawn whole.
+
+In a ^R search the painted line may wrap over several rows. Enter moves below all of them
+before it runs the match, and any other key that leaves the search clears every row of it.
+
+A method of the `REPL` can be replaced after construction, `repl.controlC = function() { ... }`:
+the key table is resolved by name on each key, so the replacement is the one that runs.
+
 ### Auto-close and vi mode
 
 Both are off by default.
