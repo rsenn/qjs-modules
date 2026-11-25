@@ -50,8 +50,8 @@ This supersedes the sparse root-level `TODO` file; its four items are folded in 
 
 7. **DONE 2026-11-06 (uncommitted): `process.stdin` events in qjsm** (wild-beauty `server/cli.js` restart keys): `on`/`once`/`off`
    (`data`, `end`, `close`), `setEncoding`, `pause`/`resume`, `for await`, `setRawMode` on a tty (`lib/process.js`); `ttySetRaw(fd,
-   restore, nosig)` clears ISIG so ^C reads as byte 3 (`quickjs-misc.c`). Test `test-process-stdin.js`. Open: `ref`/`unref` are
-   no-ops, `readable` event and `read()`, `process.stdout` as a stream, the readline-based paths still use the raw file.
+   restore, nosig)` clears ISIG so ^C reads as byte 3 (`quickjs-misc.c`). Test `test-process-stdin.js`. `ref`/`unref` done 2026-11-25 (engine `os.unrefHandler`).
+   Open: `readable` event and `read()`, `process.stdout` as a stream, the readline-based paths still use the raw file.
 
 8. **IN PROGRESS (2026-11-14): 3rd-party libs built instead of found, and a build policy for them** (detour chain from a static
    musl build of `~/Sources/quickjs`, `-DBUILD_SHARED=OFF -DBUILD_STATIC=ON -DLINK_STATIC=ON`, no GL/X11/C++ subprojects).
