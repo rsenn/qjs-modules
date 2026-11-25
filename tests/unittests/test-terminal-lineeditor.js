@@ -280,4 +280,92 @@ tests({
     eq(ed.cursor, 11);
     eq(ed.ghost, ''); // start >= cmd.length, so just appended, no ghost
   },
+
+  'LineEditor reverse search ctrlR enter'() {
+    const ed = new LineEditor({ history: ['hello world', 'goodbye world', 'hello qjs'] });
+    ed.key({ name: 'ctrlR', ctrl: false, meta: false, shift: false });
+    eq(ed.searchMode, true);
+    eq(ed.searchBuffer, '');
+    eq(ed.searchIndex, 2);
+
+    /* type 'hello' */
+    ed.key({ name: 'h', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'e', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'l', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'l', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'o', ctrl: false, meta: false, shift: false });
+    eq(ed.searchBuffer, 'hello');
+    /* should find 'hello world' at index 0 */
+    eq(ed.searchIndex, 0);
+    eq(ed.cmd, 'hello world');
+    eq(ed.cursor, 11);
+
+    /* press enter to accept */
+    const result = ed.key({ name: 'enter', ctrl: false, meta: false, shift: false });
+    eq(result, 'submit');
+    eq(ed.searchMode, false);
+    eq(ed.cmd, 'hello world');
+  },
+
+  'LineEditor reverse search escape'() {
+    const ed = new LineEditor({ history: ['hello world', 'goodbye world'] });
+    ed.key({ name: 'ctrlR', ctrl: false, meta: false, shift: false });
+    eq(ed.searchMode, true);
+
+    /* press escape to exit */
+    const result = ed.key({ name: 'escape', ctrl: false, meta: false, shift: false });
+    eq(result, 'change');
+    eq(ed.searchMode, false);
+    /* restore previous cmd (the last one before search, which is empty since we haven't navigated) */
+    eq(ed.cmd, '');
+    eq(ed.cursor, 0);
+  },
+
+  'LineEditor reverse search backspace'() {
+    const ed = new LineEditor({ history: ['hello world', 'goodbye world', 'hello qjs'] });
+    ed.key({ name: 'ctrlR', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'h', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'e', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'l', ctrl: false, meta: false, shift: false });
+    eq(ed.searchBuffer, 'hel');
+
+    /* press backspace to remove 'l' */
+    const result = ed.key({ name: 'backspace', ctrl: false, meta: false, shift: false });
+    eq(result, 'change');
+    eq(ed.searchBuffer, 'he');
+    /* should find 'hello world' still */
+    eq(ed.searchIndex, 0);
+    eq(ed.cmd, 'hello world');
+  },
+
+  'LineEditor reverse search up/down navigation'() {
+    const ed = new LineEditor({ history: ['one', 'two', 'three', 'one'] });
+    ed.key({ name: 'ctrlR', ctrl: false, meta: false, shift: false });
+    eq(ed.searchIndex, 3); /* last entry */
+
+    /* press up to go to previous match */
+    ed.key({ name: 'up', ctrl: false, meta: false, shift: false });
+    /* should find the previous 'one' at index 0 */
+    eq(ed.searchIndex, 0);
+    eq(ed.cmd, 'one');
+
+    /* press down to go forward */
+    ed.key({ name: 'down', ctrl: false, meta: false, shift: false });
+    /* should find 'two' at index 1 */
+    eq(ed.searchIndex, 1);
+    eq(ed.cmd, 'two');
+  },
+
+  'LineEditor reverse search case insensitive'() {
+    const ed = new LineEditor({ history: ['Hello World', 'goodbye world'] });
+    ed.key({ name: 'ctrlR', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'h', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'e', ctrl: false, meta: false, shift: false });
+    ed.key({ name: 'l', ctrl: false, meta: false, shift: false });
+    eq(ed.searchBuffer, 'hel');
+
+    /* case insensitive: should find 'Hello World' */
+    eq(ed.searchIndex, 0);
+    eq(ed.cmd, 'Hello World');
+  },
 });
