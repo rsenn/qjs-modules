@@ -3650,7 +3650,7 @@ cross-line part.
 **Status 2026-10-21:** 30.0 to 30.3 are done (`lib/repl.js`, `doc/js/repl.md`, `tests/unittests/test-repl.js`,
 checked in a 40-column tmux pane). Left open from them:
 
-- typing a closer at the start of an indented line does not dedent it (IPython does)
+- done 2026-11-25: typing a closer at the start of an indented line dedents it
 - a buffer taller than the terminal cannot be redrawn: `render()` moves up past the top row
 - accepting a ^R match prints the output over the second row of a wrapped search line
 - the `qjs-debugger` override of `repl.controlC` has no effect: the key table holds the prototype's method
@@ -3666,8 +3666,8 @@ checked in a 40-column tmux pane). Left open from them:
 | 30.6 done | Live result preview while typing (`previewText()`, `previewValue()`: literals and plain property chains, getters skipped, off with `repl.preview = false`) | Node, Chrome DevTools | QuickJS has no side-effect-free eval: only literals and plain property chains (`a.b.c`), getters skipped |
 | 30.7 done | Prompt turns red while the input cannot parse (`isValidSyntax()` exported, `repl.syntaxCheck`) | PSReadLine; Bun exports `isValidSyntax()` | |
 | 30.8 done | Introspection: `obj?` prints type, prototype chain and function source; a `\type expr` command (`describeValue()` exported, `introspect()`) | IPython, GHCi | |
-| 30.9 | Helpers: `copy(x)` over OSC 52, `keys()`, `values()`, `table()`, a `.time expr` command | Chrome DevTools, IPython `%timeit` | `\t` only toggles the timing display |
-| 30.10 | Optional auto-closing brackets that can be typed over, Alt-Enter inserts a newline, numbered results `$1`, `$2`, a vi mode, column width of wide characters via `Intl.Segmenter` | IPython, DevTools, readline | `ucsLength()` only handles surrogates |
+| 30.9 done | Helpers: `copy(x)` over OSC 52, `keys()`, `values()`, `table()`, a `\time expr` command (`defineHelpers()`, `formatTable()` exported; tests for all of Tier 30 are in `tests/unittests/test-repl-tier30.js`) | Chrome DevTools, IPython `%timeit` | `\t` only toggles the timing display |
+| 30.10 done | Optional auto-closing brackets that can be typed over (`\autoclose`), Alt-Enter inserts a newline, numbered results `$1`, `$2`, a vi mode (`\vi`), column width of wide characters | IPython, DevTools, readline | width through `terminal.stringWidth` (`cellWidth()`), not `Intl.Segmenter`: qjsm has none, so an emoji sequence is wider than one cell. Tests for all of Tier 30: `tests/unittests/test-repl-tier30.js` |
 
 Verify: a piped test in `tests/unittests/test-repl.js` per item where the behavior is visible without a tty;
 the rest by hand in a terminal.

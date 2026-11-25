@@ -656,4 +656,301 @@ tests({
 
     assert(out.includes('│ (index) │ a │'), out);
   },
+
+  /* 30.10: auto-close, Alt-Enter, numbered results, vi mode, wide characters */
+
+  '30.10 auto-close inserts the closer and types over it'() {
+    const r = new REPL('a', false);
+    const type = text => {
+      for(const c of text) r.insertTyped(c);
+    };
+
+    r.autoClose = true;
+    type('f(');
+    eq('f()', r.cmd);
+    eq(2, r.cursorPos);
+    type(')');
+    eq('f()', r.cmd);
+    eq(3, r.cursorPos);
+
+    r.cmd = '';
+    r.cursorPos = 0;
+    type('[{"a');
+    eq('[{"a"}]', r.cmd);
+    type('"}]');
+    eq('[{"a"}]', r.cmd);
+    eq(7, r.cursorPos);
+  },
+
+  '30.10 auto-close is off by default and skips a quote after a word'() {
+    const r = new REPL('a', false);
+
+    r.insertTyped('(');
+    eq('(', r.cmd);
+
+    const q = new REPL('a', false);
+
+    q.autoClose = true;
+    q.cmd = "it";
+    q.cursorPos = 2;
+    q.insertTyped("'");
+    eq("it'", q.cmd);
+  },
+
+  '30.10 auto-close does not wrap an opener before a word'() {
+    const r = new REPL('a', false);
+
+    r.autoClose = true;
+    r.cmd = 'abc';
+    r.cursorPos = 0;
+    r.insertTyped('(');
+    eq('(abc', r.cmd);
+  },
+
+  '30.10 Backspace between an auto-closed pair removes both'() {
+    const r = new REPL('a', false);
+
+    r.autoClose = true;
+    r.cmd = 'f()';
+    r.cursorPos = 2;
+    r.backwardDeleteChar();
+    eq('f', r.cmd);
+    eq(1, r.cursorPos);
+
+    r.cmd = 'f(1)';
+    r.cursorPos = 3;
+    r.backwardDeleteChar();
+    eq('f()', r.cmd);
+  },
+
+  '30.10 a closer at the start of an indented line steps back'() {
+    const r = new REPL('a', false);
+
+    r.cmd = 'f(\n  ';
+    r.cursorPos = 5;
+    r.insertTyped(')');
+    eq('f(\n)', r.cmd);
+    eq(4, r.cursorPos);
+
+    r.cmd = '   ';
+    r.cursorPos = 3;
+    r.insertTyped(')');
+    eq('   )', r.cmd);
+  },
+
+  '30.10 Alt-Enter inserts a newline and never submits'() {
+    const r = new REPL('n', false);
+
+    eq(r.insertNewline, r.commands['\x1b\r']);
+    eq(r.insertNewline, r.commands['\x1b\n']);
+
+    r.cmd = 'f(1)';
+    r.cursorPos = 4;
+    r.insertNewline();
+    eq('f(1)\n', r.cmd);
+
+    r.cmd = 'f(';
+    r.cursorPos = 2;
+    r.insertNewline();
+    eq('f(\n  ', r.cmd);
+  },
+
+  '30.10 a result is kept as $1, $2'() {
+    const out = session('40+2\n$1+1\n$2\n');
+
+    assert(out.includes('t> 42'), out);
+    assert(out.includes('t> 43'), out);
+    eq(2, (out.match(/t> 43/g) ?? []).length, out);
+  },
+
+  '30.10 undefined takes no number'() {
+    const out = session('undefined\n7\n$1\n');
+
+    /* $1 is the 7, not the undefined: 7 is printed twice */
+    eq(2, (out.match(/t> 7\n/g) ?? []).length, out);
+    assert(!out.includes('ReferenceError'), out);
+  },
+
+  '30.10 vi: Esc enters normal mode, the motions move'() {
+    const r = new REPL('v', false);
+
+    r.viMode = true;
+    r.cmd = 'foo bar baz';
+    r.cursorPos = 11;
+    eq(true, r.viKey('\x1b'));
+    eq(true, r.viNormal);
+    eq(10, r.cursorPos);
+
+    r.viKey('0');
+    eq(0, r.cursorPos);
+    r.viKey('w');
+    eq(4, r.cursorPos);
+    r.viKey('b');
+    eq(0, r.cursorPos);
+    r.viKey('$');
+    eq(10, r.cursorPos);
+    r.viKey('h');
+    eq(9, r.cursorPos);
+    r.viKey('l');
+    eq(10, r.cursorPos);
+    r.viKey('l');
+    eq(10, r.cursorPos);
+  },
+
+  '30.10 vi: insert mode passes keys through'() {
+    const r = new REPL('v', false);
+
+    r.viMode = true;
+    eq(false, r.viKey('a'));
+    eq(false, r.viKey('\x1b[A'));
+    eq(false, r.viKey('\x1b\r'));
+    eq(false, r.viNormal);
+  },
+
+  '30.10 vi: Esc and a command key in one go'() {
+    const r = new REPL('v', false);
+
+    r.viMode = true;
+    r.cmd = 'abc';
+    r.cursorPos = 3;
+    r.viKey('\x1b0');
+    eq(true, r.viNormal);
+    eq(0, r.cursorPos);
+  },
+
+  '30.10 vi: x, X, D, dd, dw, cw'() {
+    const r = new REPL('v', false);
+    const at = (cmd, pos) => ((r.cmd = cmd), (r.cursorPos = pos), (r.viNormal = true), (r.viPending = ''));
+
+    r.viMode = true;
+
+    at('abc', 1);
+    r.viKey('x');
+    eq('ac', r.cmd);
+
+    at('abc', 1);
+    r.viKey('X');
+    eq('bc', r.cmd);
+
+    at('foo bar', 2);
+    r.viKey('D');
+    eq('fo', r.cmd);
+
+    at('foo bar', 1);
+    r.viKey('d');
+    r.viKey('d');
+    eq('', r.cmd);
+
+    at('foo bar', 0);
+    r.viKey('d');
+    r.viKey('w');
+    eq('bar', r.cmd);
+
+    at('foo bar', 0);
+    r.viKey('c');
+    r.viKey('w');
+    eq(' bar', r.cmd);
+    eq(false, r.viNormal);
+  },
+
+  '30.10 vi: i, a, A, I enter insert mode at the right place'() {
+    const r = new REPL('v', false);
+    const at = pos => ((r.cmd = 'abc'), (r.cursorPos = pos), (r.viNormal = true), r.viKey);
+
+    r.viMode = true;
+    at(1);
+    r.viKey('i');
+    eq(1, r.cursorPos);
+    eq(false, r.viNormal);
+
+    at(1);
+    r.viKey('a');
+    eq(2, r.cursorPos);
+
+    at(1);
+    r.viKey('A');
+    eq(3, r.cursorPos);
+
+    at(1);
+    r.viKey('I');
+    eq(0, r.cursorPos);
+  },
+
+  '30.10 vi: p pastes what d killed'() {
+    const r = new REPL('v', false);
+
+    r.viMode = true;
+    r.cmd = 'foo bar';
+    r.cursorPos = 0;
+    r.viNormal = true;
+    r.viKey('d');
+    r.viKey('w');
+    r.cursorPos = 2;
+    r.viKey('p');
+    eq('barfoo ', r.cmd);
+  },
+
+  '30.10 vi: control keys and Enter keep their meaning in normal mode'() {
+    const r = new REPL('v', false);
+
+    r.viMode = true;
+    r.viNormal = true;
+    eq(false, r.viKey('\r'));
+    eq(false, r.viKey('\x01'));
+    eq(false, r.viKey('\x1b[A'));
+  },
+
+  '30.10 vi: a new prompt starts in insert mode'() {
+    const r = new REPL('v', false);
+
+    r.viMode = true;
+    r.viNormal = true;
+    r.readlineStart('', () => {});
+    eq(false, r.viNormal);
+  },
+
+  '30.10 the \\vi and \\autoclose directives toggle the modes'() {
+    const out = session('\\\\vi\n\\\\autoclose\n\\\\vi\n');
+
+    assert(out.includes('vi mode on'), out);
+    assert(out.includes('autoclose on'), out);
+    assert(out.includes('vi mode off'), out);
+  },
+
+  '30.10 a wide character takes two cells in the cursor column'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('w', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = false;
+    r.columns = 80;
+    r.out = f;
+    r.prompt = '> ';
+    r.cmd = '漢字';
+    r.cursorPos = 2;
+    r.render();
+    f.close();
+
+    const out = loadFile(file);
+
+    remove(file);
+    assert(out.endsWith('\r\x1b[6C'), JSON.stringify(out));
+  },
+
+  '30.10 a wide character wraps by cells'() {
+    const file = '/tmp/test-repl-render-' + Date.now();
+    const r = new REPL('w', false);
+    const f = fopen(file, 'w');
+
+    r.showColors = false;
+    r.columns = 10;
+    r.out = f;
+    r.prompt = '> ';
+    r.cmd = '漢漢漢漢漢';
+    r.cursorPos = 5;
+    r.render();
+    f.close();
+    remove(file);
+    eq(1, r.renderRow);
+  },
 });
