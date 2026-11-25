@@ -437,8 +437,7 @@ node:-prefix audit):
 `node:<name>` export-surface diff vs Bun (found 2026-09-19, via
 `utilities/runtime-diff.js -r qjsm -r bun` against assert/child_process/console/events/
 fs/module/path/perf_hooks/process/stream/timers/tty/url/util/yaml - `node:repl` excluded,
-Bun itself doesn't implement it; `node:tty` failed to load on qjsm, see `BUGS`'s
-`lib-tty-imports-nonexistent-fdopensync`). Two kinds of divergence:
+Bun itself doesn't implement it; `node:tty` failed to load on qjsm then, loads fine since, checked 2026-11-25). Two kinds of divergence:
 
 **Missing in qjsm** (real Node/Bun exports our `node:x` doesn't have) - by module. *Since 2026-10-07 done: `events` (Node-conformant `EventEmitter`, `on`, `getEventListeners`, `*MaxListeners`), `fs` callback API + `promises` + `fs/promises`, `process` (`on`/`emit`, `nextTick`, `exitCode`, `memoryUsage`, `uptime`), `timers` `setImmediate` + `timers/promises`, `url` `fileURLToPath`/`pathToFileURL`, `util` (`format`, `promisify`, `callbackify`, `parseArgs`, `isDeepStrictEqual`, `deprecate`, `debuglog`, `TextEncoder`/`TextDecoder`), `path.posix`. Still open: `child_process.execFile*` (spawnSync cannot capture stdout), `path.win32`, `path.join` normalization, `process.version(s)`, `Buffer`, `fs.ReadStream`/`WriteStream`, legacy `url.parse`, `module.Module`, `console`, `readline`.*
 - `assert`: `CallTracker`, `strict`
@@ -3655,6 +3654,8 @@ checked in a 40-column tmux pane). Left open from them:
 - accepting a ^R match prints the output over the second row of a wrapped search line
 - the `qjs-debugger` override of `repl.controlC` has no effect: the key table holds the prototype's method
 
+30.4 to 30.10 done 2026-11-25, one commit each. Still true: `'\x03': this.controlC` is still bound in the key table at `lib/repl.js:204`. The ^R wrapped-line and taller-than-terminal cases need a tmux run and were not retried.
+
 | # | Item | Seen in | Notes |
 | --- | --- | --- | --- |
 | 30.0 done | Bracket aid: from the first mismatched closer to the end of the buffer in an error style (red background), underline the innermost unclosed opener around the cursor, highlight the opener that matches a closer before the cursor; Alt-Backspace with a mismatch kills from it to the end (into the kill buffer, `^Y` restores), else `backwardKillWord` | Emacs `show-paren-mode`, rustyline `MatchingBracketHighlighter` | `colorizeJs()` returns `mismatch`, opener positions and the stack at the cursor; `printColorText()` needs an attribute layer (SGR 4) on top of the color. Enter on a buffer with a mismatch evaluates it instead of asking for another line, since `foo(]` keeps `(` open forever |
@@ -3684,6 +3685,8 @@ writes from it.
 console modes and code pages, sets UTF-8, returns whether VT output is native. Smoke-tested
 under wine only (a C check of vtconsole output and injected key events), not on Windows.
 
+Rechecked 2026-11-25 (no Windows here): 31.1 and 31.2 need a Windows machine; 31.3 (`lib/repl.js:41` `supportsAnsi`), 31.4 (no resize in `src/win32/vtconsole.c`), 31.5 (no `ScrollConsoleScreenBuffer` or `CreateConsoleScreenBuffer`), 31.6 (no mouse handling) and 31.7 (`lib/terminal.js:553` `sleep(10)`) are still as described.
+
 | # | Item | Notes |
 | --- | --- | --- |
 | 31.1 | Run qjsm.exe on a real Windows console, legacy (conhost, VT off) and Windows Terminal | does ReadConsoleInputW with ENABLE_VIRTUAL_TERMINAL_INPUT deliver the sequence characters as key events, or also the raw arrow keys (then 31.2 sends them twice)? |
@@ -3693,7 +3696,7 @@ under wine only (a C check of vtconsole output and injected key events), not on 
 | 31.5 | Untranslated sequences: `CSI S/T` scroll, `CSI r` region, `CSI ?1049 h/l`, `CSI @ P L M` | `ScrollConsoleScreenBuffer`, `CreateConsoleScreenBuffer` + `SetConsoleActiveScreenBuffer` |
 | 31.6 | Mouse input (`mousetrackingEnable`) on a console | `ENABLE_MOUSE_INPUT` without QuickEdit, MOUSE_EVENT to SGR 1006 reports |
 | 31.7 | `readKey()` polls with `os.sleep(10)` on a console | `ttyRead` never blocks there; a waiting variant would need WaitForSingleObject |
-| 31.8 | `util.stripAnsi` and `terminal.stripAnsi` differ | util's also strips `ESC (B` and similar, terminal's only CSI; one of them should go |
+| 31.8 | `util.stripAnsi` and `terminal.stripAnsi` differ | rechecked 2026-11-25: terminal's strips CSI, OSC, DCS/SOS/PM/APC and two-byte ESC forms (native and JS agree); util's is one loose regex (`lib/util.js:1122`) that leaves OSC text behind (`\x1b]0;t\x07` gives `0;t\x07`). Make util re-export terminal's (or textcode's) |
 
 
 ## Tier 32 — `lib/terminal.js` string widths and wrapping (2026-11-25)
@@ -3710,11 +3713,15 @@ Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2
 | 32.2 done | Native `stringWidth`, `stripAnsi`, `truncate`, `wrap` and a batch `truncateLines(lines, width)` | in `quickjs-textcode.c`, `lib/terminal.js` uses it when textcode has it (613 lines: truncate 1.2 ms, wrap 2.6 ms, `truncateLines` 0.65 ms); one UTF-8 pass, escapes copied through, sorted width tables; same behaviour as the JS (escapes kept, RESET added on a cut, color reopened across a wrap break) |
 | 32.3 done | `wrap(str, 1)` never returns when a double-width character does not fit | a cell wider than an empty line now goes onto it (JS and native), test in `test-terminal-portable.js` |
 | 32.4 done | `cells()` without the `String.fromCodePoint` round trip | still a tuple per character, used by `gradient` and the JS `wrap` for a word longer than the line; the native `wrap` does not use it |
-| 32.5 | Native batch `fitTable(width, make, flex, drop)` | asked by qjs-lws (ollama-repl) 2026-11-25, most valuable: `examples/ollama-repl/lib/usage-stats.js:128` costs ~100 ms per call, runs on every filter keystroke of a 613-row pager. `make()` returns rows of ANSI cells, a table wider than `width` first cuts the `flex` columns widest-first (reset kept), then removes the `drop` columns one by one in the given order. Test to satisfy: `examples/ollama-repl/test-fit-table.js` in qjs-lws. Not started |
-| 32.6 | Install `truncateLines` into the installed qjsm (`qjsm install` from the repo build) | only the JS fallback runs now; needs a repo build of qjsm first |
-| 32.7 | `decodeKeys` returns `{ name, shift, alt, ctrl }` for legacy sequences too | `\x1b\x1b`, `\x1b[Z` (Shift-Tab), `\x1bOQ`, Alt-1..4, lone Esc; same key names as kitty so the kitty keyboard can be enabled later |
+| 32.5 done | Native batch `fitTable(width, make, flex, drop)` | `js_textcode_fittable` in `quickjs-textcode.c` (shares `cells_cut()` with `truncate`), pure JS `fitTableJs` in `lib/terminal.js`, `tests/unittests/test-terminal-fit.js` (qjsm, node, bun), commit `02ffd5f1` 2026-11-25. 2000 random tables: native and JS output identical. 613 rows x 6 columns: 2.4 ms in `fitTable` itself, 17 ms with a `make` that rebuilds all rows on each of its 4 calls (3.7 ms each on qjsm). Not checked against qjs-lws `examples/ollama-repl/test-fit-table.js` itself, only a port of it; wide characters and a reset after the cut differ from `usage-stats.js` (see `doc/js/terminal.md`). Switching ollama-repl to `terminal.fitTable` is qjs-lws's job |
+| 32.6 done | Install `truncateLines` into the installed qjsm | checked 2026-11-25: `/usr/local/bin/qjsm` exports `truncateLines`, `fitTable`, `wrap`, `stringWidth`, `stripAnsi`, `truncate` from `textcode`, and `/usr/local/lib/quickjs/terminal.js` equals `lib/terminal.js`. Reinstall after the next `lib/terminal.js` change (`doc/` only needs none) |
+| 32.7 done | `decodeKeys` returns the same key object for legacy sequences as for kitty | checked 2026-11-25: `\x1b\x1b` is `escape` + meta, `\x1b[Z` is `tab` + shift, `\x1bOQ` is `f2`, `\x1b1` is `1` + meta, lone Esc is `escape`; the field is `meta`, not `alt`. Commit `9ca065f0` (`test-terminal-portable.js`). `doc/js/terminal.md` key table corrected today: `\r` is `return`, not `enter` |
 | 32.8 done | Line editor in `terminal.js` (history, multi-line, cursor move, input box via `layoutInput`) | so ChatREPL need not subclass `repl.js`; gate `ESC[?2004h` on `caps.bracketedPaste` (repl.js:2241 sends it unconditionally). No rush |
-| 32.9 | `ScrollView`/`Region` cache the wrapped lines per width | re-wrap only on a width change (ollama-repl Tui re-wraps its whole history on resize) |
+| 32.9 done | `ScrollView` caches the wrapped lines per width | `setWidth()` with the same width does nothing, a new width re-wraps (`rewraps` counter, `test-terminal-scrollview.js`, commit `036e44cc`). `Region` does not wrap, nothing to cache there. Whether ollama-repl's Tui uses it is for qjs-lws to check |
+| 32.10 | `LineEditor.key()` does not recognise what `decodeKeys()` returns for Ctrl-C, Ctrl-D and Return | it tests the names `ctrlc`, `ctrlD`, `enter`; `decodeKeys` gives `c`+ctrl, `d`+ctrl, `return`: Ctrl-C inserts `C`, Ctrl-D inserts `D`, `\r` returns `null`, only `\n` submits. Decide the key names (the decoder's are the standard ones), fix `key()`, add tests; `BUGS` `lineeditor-ctrl-c-ctrl-d-return-not-recognised` |
+| 32.11 | `test-terminal-portable.js` fails 3 of 19 tests on qjsm, node, bun, deno | LineEditor history (Up, Down, draft), also on HEAD before `fitTable`, cause not looked at; `BUGS` `terminal-portable-lineeditor-tests-fail` |
+| 32.12 done | `doc/js/terminal.md` covered 9 of 101 exports | 2026-11-25: overview, cursor and mode tables, raw mode and input, capabilities, colors and text, widgets, `Screen`, `Region`, `layoutInput`, `LineEditor`, `fitTable`. Written from the code, uncommitted. Not checked: the old `ScrollView` section against the code |
+| 32.13 | `doc/native/textcode.md` generated export list | still says 26 members and lacks `fitTable`; regenerate with `utilities/doc-api.js` |
 
 ## dietlibc build: 6 failing tests (2026-11-25, `BUILTIN_MODULES=*`, 214 of 220 pass)
 
@@ -3727,8 +3734,6 @@ Asked by the ollama-repl session (qjs-lws): `truncate` and `wrap` cost 1.2 and 2
 
 ## Build on a fresh machine (found 2026-11-15, Termux restore)
 
-- standalone configure (no quickjs installed) fails in cmake/deps/BuildQuickJS.cmake:192, see BUGS
-  build-quickjs-forwards-cmake-system-name; first fix, it blocks every first configure on Termux
 - when the parent directory is a quickjs tree (`plot-cv/quickjs/qjs-modules/..` was used) the build
   runs in that tree's sources (the log shows repl.js of plot-cv/quickjs): decide whether a build tree
   of someone else's checkout is acceptable
