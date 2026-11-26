@@ -40,6 +40,24 @@ tests({
       JSON.stringify(['ws', 'number', 'ident', 'plus', 'dquote', 'strbody', 'strend']),
     );
   },
+  'eof is true once the string input is consumed'() {
+    const l = new Lexer('ab cd', Lexer.LONGEST);
+
+    l.addRule('word', /[a-z]+/);
+    l.addRule('space', /\s+/);
+
+    let n = 0;
+
+    while(!l.eof && n < 10) {
+      l.next();
+      n++;
+    }
+
+    assert(n < 10, 'a loop on !eof ends');
+    assert(l.eof);
+    eq(l.next(), null);
+    assert(l.eof);
+  },
   'peek()/peekToken() do not consume'() {
     const id1 = lex.peek();
     const id2 = lex.peek();

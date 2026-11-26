@@ -1090,7 +1090,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case LEXER_ENDOFFILE: {
-      ret = JS_NewBool(ctx, lex->reader.read ? lex->at_eof && LEXER_IDX(lex) >= lex->size : inputbuffer_eof(&lex->input));
+      ret = JS_NewBool(ctx, lex->reader.read ? lex->at_eof && LEXER_IDX(lex) >= lex->size : (lex->byte_offset >= 0 && (size_t)lex->byte_offset >= lex->size) || inputbuffer_eof(&lex->input));
       break;
     }
     case LEXER_FILENAME: {
