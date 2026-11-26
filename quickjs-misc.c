@@ -42,6 +42,7 @@
 #include <sys/utsname.h>
 #endif
 #if !WINDOWS_NATIVE && !defined(EMSCRIPTEN) && !defined(__wasi__)
+#include <sys/resource.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -3534,6 +3535,31 @@ js_misc_umask(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return JS_NewInt32(ctx, umask(mask));
 }
 
+/* setpriority(pid, priority): sets the nice value of a process, pid 0 is this one.
+ *
+ * ```js
+ * misc.setpriority(0, 10);
+ * ```
+ *
+ * returns undefined, throws SyscallError (EACCES, EPERM, ESRCH).
+ * wired in with JS_CFUNC_DEF("setpriority", 2, js_misc_setpriority). */
+static JSValue
+js_misc_setpriority(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+#ifdef HAVE_MISC_GETIFADDRS
+  int32_t pid, prio;
+
+  if(argc < 2 || JS_ToInt32(ctx, &pid, argv[0]) || JS_ToInt32(ctx, &prio, argv[1]))
+    return JS_EXCEPTION;
+
+  if(setpriority(PRIO_PROCESS, pid, prio) == -1)
+    return js_syscallerror_throw(ctx, "setpriority");
+
+  return JS_UNDEFINED;
+#else
+  return JS_ThrowInternalError(ctx, "setpriority() is not available on this platform");
+#endif
+}
+
 /* setgroups: sets the supplementary group list of the process.
  *
  * ```js
@@ -4813,6 +4839,7 @@ JS_MISC_TABLE(js_misc_funcs)
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
     JS_CFUNC_DEF("getifaddrs", 0, js_misc_getifaddrs),
+    JS_CFUNC_DEF("setpriority", 2, js_misc_setpriority),
 #ifdef HAVE_IOCTL_H
     JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
 #endif

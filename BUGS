@@ -539,12 +539,6 @@
     # 'pp_hash:#,pp_directive:define,pp_identifier:A,pp_number:1,...'
     # expected '...,pp_identifier:A,pp_continuation:\,pp_number:1,...'
 
-- io-getline-destructures-string: lib/io.js IOReadDecorator.getline()
-  destructures the decoded string as [code, len] and passes the first
-  character to String.fromCodePoint, which throws RangeError for a letter
-  and gives a control character for a digit.
-  It also decodes partial sequences without stream: true. Found 2026-10-20.
-
 - ecmascript-lexer-escaped-identifier: lib/lexer/ecmascript.js does not lex
   an identifier with a unicode escape, valid JS since ES2015: a and
   \u{62} give UNEXPECTED_CHARACTER at the backslash. IdentifierStart has
@@ -569,14 +563,6 @@
   defaults later (loaders/packages) never reaches an existing build
   directory. The same was fixed for BUILTINS_COMPILED only. Workaround:
   cmake -U BUILTIN_MODULES <builddir>. Found 2026-10-20.
-
-- directory-options-object-zeroes-defaults: new Directory(path, { recursive })
-  and new Directory({ path }) set flags and mask from the options object
-  with js_get_propertystr_int32, which gives 0 for a missing property, so
-  the defaults FLAG_BOTH and TYPE_MASK are lost and next() yields entries
-  without name or type. Found 2026-10-21.
-
-    new Directory('/tmp', { recursive: false }).next()   // flags 0
 
 - typescript-test-gated-on-swc-cli: test-typescript.js runs only when the
   swc CLI is in PATH, but lib/loaders/typescript.js calls node's
@@ -641,15 +627,6 @@
 
     # add node/os to BUILTINS_COMPILED in cmake/qjsm.cmake, then
     cmake -B build/x86_64-linux-gnu -S .    # node/os not listed
-
-- node-os-setpriority-unimplemented: os.setPriority() of node:os checks
-  pid and priority as Node does, then throws InternalError, there is no
-  setpriority(2) binding. Needs misc.setpriority(which, who, prio), its
-  errno mapped to Node's SystemError (EACCES, ESRCH). TODO.md 29.2. Found
-  2026-10-21.
-
-    import os from 'node:os';
-    os.setPriority(10);       // node: undefined  qjsm: InternalError
 
 - node-os-userinfo-passwd-only: os.userInfo() of node:os, and homedir()
   without $HOME, read /etc/passwd only. A user that NSS provides (LDAP,

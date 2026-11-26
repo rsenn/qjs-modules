@@ -95,4 +95,23 @@ tests({
       eq(lo.internal, true);
     }
   },
+  'setPriority() sets the nice value and reports ESRCH and EACCES as SystemError'() {
+    const cur = os.getPriority();
+
+    os.setPriority(0, cur);
+    os.setPriority(cur);
+    eq(os.getPriority(), cur);
+
+    const info = fn => {
+      try {
+        fn();
+      } catch(e) {
+        return e.info && e.info.code;
+      }
+    };
+
+    eq(info(() => os.setPriority(2 ** 30, 0)), 'ESRCH');
+
+    if(process.getuid() !== 0 && cur > -20) eq(info(() => os.setPriority(0, cur - 1)), 'EACCES');
+  },
 });
