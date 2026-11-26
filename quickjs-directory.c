@@ -328,8 +328,13 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   }
 
   if(i < argc && JS_IsObject(argv[i])) {
-    opts->flags = js_get_propertystr_int32(ctx, argv[i], "flags");
-    opts->mask = js_get_propertystr_int32(ctx, argv[i], "mask");
+    /* a missing property keeps the default */
+    if(js_has_propertystr(ctx, argv[i], "flags"))
+      opts->flags = js_get_propertystr_int32(ctx, argv[i], "flags");
+
+    if(js_has_propertystr(ctx, argv[i], "mask"))
+      opts->mask = js_get_propertystr_int32(ctx, argv[i], "mask");
+
     opts->recursive = js_get_propertystr_bool(ctx, argv[i], "recursive");
 
     if(i == 0) {

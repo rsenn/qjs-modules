@@ -145,4 +145,13 @@ tests({
     const dir = new Directory(TMP);
     eq(dir[Symbol.iterator](), dir);
   },
+  'an options object without flags and mask keeps the defaults'() {
+    for(const dir of [new Directory(TMP, { recursive: false }), new Directory({ path: TMP })]) {
+      const entries = collect(dir);
+
+      assert(entries.length > 0);
+      assert(entries.every(e => Array.isArray(e) && typeof e[0] == 'string' && typeof e[1] == 'number'), JSON.stringify(entries));
+      eq(entries.find(e => e[0] === 'a.txt')[1], Directory.TYPE_REG);
+    }
+  },
 });
