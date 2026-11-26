@@ -51,6 +51,16 @@ tests({
     const p2 = Pointer.from(s);
     assert(p.equal(p2));
   },
+  'a key with a leading zero stays a string key'() {
+    const p = Pointer.from(['01', 'x']);
+    eq(p.toString(), '01.x');
+
+    const q = Pointer.from(['0', 'x']);
+    eq(q.toString(), '[0].x');
+
+    const r = Pointer.from(['10', 'x']);
+    eq(r.toString(), '[10].x');
+  },
   'toRFC6901() renders JSON-Pointer syntax'() {
     eq(new Pointer(['a', 'b', 0]).toRFC6901(), '/a/b/0');
   },
