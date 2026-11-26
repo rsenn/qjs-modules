@@ -115,6 +115,17 @@ tests({
     eq(removed.toArray().join(','), 'b');
     eq(p.toArray().join(','), 'a,0');
   },
+  'splice() with atoms to insert replaces or inserts in place'() {
+    const insert = new Pointer(['a', 'b', 'c']);
+
+    eq(insert.splice(1, 1, 'x', 'y').toArray().join(), '');
+    eq(insert.toArray().join(), 'a,x,y,b,c');
+
+    const replace = new Pointer(['a', 'b', 'c', 'd']);
+
+    eq(replace.splice(1, 3, 'x').toArray().join(), 'b,c');
+    eq(replace.toArray().join(), 'a,x,d');
+  },
   'up() keeps the first n atoms'() {
     const p = new Pointer(['a', 'b', 0]);
     eq(p.up(1).toArray().join(','), 'a');
@@ -136,9 +147,19 @@ tests({
     assert(new Pointer(['a', 'b']).equal(new Pointer(['a', 'b'])));
     assert(!new Pointer(['a', 'b']).equal(new Pointer(['a', 'c'])));
   },
-  'compare() is negative for equal pointers, encoding the match length'() {
-    eq(new Pointer(['a']).compare(new Pointer(['a'])), -2);
-    eq(new Pointer(['a', 'b']).compare(new Pointer(['a', 'b'])), -3);
+  'compare() orders pointers: -1, 0 or 1, by the first differing atom, then by length'() {
+    const cmp = (a, b) => new Pointer(a).compare(new Pointer(b));
+
+    eq(cmp(['a'], ['a']), 0);
+    eq(cmp(['a', 'b'], ['a', 'b']), 0);
+    eq(cmp(['a'], ['b']), -1);
+    eq(cmp(['b'], ['a']), 1);
+    eq(cmp(['a', 'b'], ['a', 'c']), -1);
+    eq(cmp(['a'], ['a', 'b']), -1);
+    eq(cmp(['a', 'b'], ['a']), 1);
+    eq(cmp([2], [10]), -1);
+    eq(cmp([10], [2]), 1);
+    eq([['b'], ['a', 'c'], ['a']].map(a => new Pointer(a)).sort((x, y) => x.compare(y)).map(p => p.toArray().join('.')).join(), 'a,a.c,b');
   },
   'common() returns the length of the longest common prefix'() {
     eq(new Pointer(['a', 'b', 'c']).common(new Pointer(['a', 'b', 'd'])), 2);

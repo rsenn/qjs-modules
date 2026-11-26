@@ -532,10 +532,13 @@ pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom atoms[], size_t 
     if(!pointer_reserve(ptr, newlen, ctx))
       return NULL;
 
+  /* the removed atoms, an empty pointer for a pure insertion */
+  if(!(ret = pointer_new(ctx)))
+    return NULL;
+
   if(del) {
-    if(!(ret = pointer_new(ctx)) || !pointer_reserve(ret, del, ctx)) {
-      if(ret)
-        js_free(ctx, ret);
+    if(!pointer_reserve(ret, del, ctx)) {
+      js_free(ctx, ret);
       return NULL;
     }
 

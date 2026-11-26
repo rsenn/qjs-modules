@@ -531,6 +531,51 @@ enum {
   METHOD_RELATIVETO,
 };
 
+/* orders two atoms: numerically when both are array indices, else by their text.
+ * returns -1, 0 or 1. */
+static int
+js_pointer_atom_order(JSContext* ctx, JSAtom a, JSAtom b) {
+  const char *s, *u;
+  int64_t x, y;
+  int r = 0;
+
+  if(js_atom_is_index(ctx, &x, a) && js_atom_is_index(ctx, &y, b))
+    return x < y ? -1 : x > y;
+
+  s = JS_AtomToCString(ctx, a);
+  u = JS_AtomToCString(ctx, b);
+
+  if(s && u)
+    r = strcmp(s, u);
+
+  JS_FreeCString(ctx, s);
+  JS_FreeCString(ctx, u);
+  return r < 0 ? -1 : r > 0;
+}
+
+/* compares the windows of a and b like Array order: the first differing atom decides,
+ * else the shorter window is smaller. a limit len cuts both windows short.
+ * returns -1, 0 or 1. */
+static int
+js_pointer_order(JSContext* ctx, const Pointer* a, const Pointer* b, int32_t aoffs, int32_t boffs, uint32_t len) {
+  int32_t r = pointer_compare(a, b, aoffs, boffs, len);
+  uint32_t alen, blen, common;
+
+  aoffs = RANGE_NUM(aoffs, (int32_t)a->n);
+  boffs = RANGE_NUM(boffs, (int32_t)b->n);
+  alen = a->n - aoffs;
+  blen = b->n - boffs;
+  common = MIN_NUM(alen, blen);
+
+  if(r >= 0)
+    return js_pointer_atom_order(ctx, a->atoms[r + aoffs], b->atoms[r + boffs]);
+
+  if(len < common)
+    return 0;
+
+  return alen < blen ? -1 : alen > blen;
+}
+
 static JSValue
 js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Pointer* ptr = 0;
@@ -567,7 +612,7 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       if(argc > 3)
         JS_ToUint32(ctx, &len, argv[3]);
 
-      ret = JS_NewInt32(ctx, pointer_compare(ptr, other.ptr, aoffs, boffs, len));
+      ret = JS_NewInt32(ctx, js_pointer_order(ctx, ptr, other.ptr, aoffs, boffs, len));
       break;
     }
     case METHOD_COMMON: {
