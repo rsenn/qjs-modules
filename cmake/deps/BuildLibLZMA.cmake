@@ -25,6 +25,8 @@ macro(build_liblzma BINARY SUFFIX PIC)
     set(LIBLZMA_THREADS_ARG ${LIBLZMA_THREADS_ARG} "-DXZ_CLMUL_CRC:BOOL=OFF" "-DHAVE_CPUID_H:INTERNAL=0")
   endif()
 
+  toolchain_cache_args(_DEPS_CROSS_ARGS)
+
   ExternalProject_Add(
     liblzma_${SUFFIX}
     URL https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz
@@ -37,6 +39,7 @@ macro(build_liblzma BINARY SUFFIX PIC)
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      ${_DEPS_CROSS_ARGS}
       "-DCMAKE_C_FLAGS:STRING=-w"
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"

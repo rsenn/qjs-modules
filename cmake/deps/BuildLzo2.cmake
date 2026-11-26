@@ -27,6 +27,8 @@ macro(build_lzo2 BINARY SUFFIX PIC)
     set(LZO2_PATCH_${SUFFIX} PATCH_COMMAND sed -i "s/__attribute__((__noinline__/__attribute__((noinline/" <SOURCE_DIR>/include/lzo/lzodefs.h)
   endif()
 
+  toolchain_cache_args(_DEPS_CROSS_ARGS)
+
   ExternalProject_Add(
     lzo2_${SUFFIX}
     URL https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz
@@ -40,6 +42,7 @@ macro(build_lzo2 BINARY SUFFIX PIC)
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      ${_DEPS_CROSS_ARGS}
       ${LZO2_WASI_ARGS}
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"

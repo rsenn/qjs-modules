@@ -48,10 +48,19 @@ macro(build_libressl BINARY SUFFIX PIC)
     set(_LSSL_C_FLAGS "-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
   endif()
 
+  toolchain_cache_args(_LSSL_CROSS)
+
+  # a separate download directory per SUFFIX: the shared and the static build download at the same time
+  set(_LSSL_HASH)
+  if(LIBRESSL_VERSION STREQUAL "4.3.3" AND LIBRESSL_URL MATCHES "libressl-4.3.3.tar.gz$")
+    set(_LSSL_HASH URL_HASH SHA256=ff97c432457f349e6ba3d416ab903bc7468f1436f0f32efe5fff808de292c7b8)
+  endif()
+
   ExternalProject_Add(
     openssl_${SUFFIX}
     URL ${LIBRESSL_URL}
-    DOWNLOAD_DIR ${BINARY}/downloads-openssl
+    ${_LSSL_HASH}
+    DOWNLOAD_DIR ${BINARY}/downloads-openssl-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BINARY_DIR ${BINARY}/openssl-${SUFFIX}
     CMAKE_CACHE_ARGS
@@ -62,6 +71,7 @@ macro(build_libressl BINARY SUFFIX PIC)
       "-DCMAKE_SYSTEM_PROCESSOR:STRING=${_LSSL_PROC}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      ${_LSSL_CROSS}
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       "-DCMAKE_C_FLAGS:STRING=${_LSSL_C_FLAGS}"
       "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${PIC}"
@@ -75,7 +85,9 @@ macro(build_libressl BINARY SUFFIX PIC)
   if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
     list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} ws2_32 bcrypt)
   else()
-    list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} pthread)
+    if(NOT ANDROID)
+      list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} pthread)
+    endif()
   endif()
 
   set(OPENSSL_LINK_FLAGS_${SUFFIX} "")

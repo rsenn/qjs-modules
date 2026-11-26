@@ -61,15 +61,20 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
   # cross compiling: configure must be told the target triplet or it tries to run the
   # compiled test programs
   set(LIBPQ_HOST_FLAG_${SUFFIX})
+  toolchain_cc(_PQ_CC)
   if(CMAKE_CROSSCOMPILING)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE LIBPQ_TRIPLET
+    separate_arguments(_PQ_CC_CMD UNIX_COMMAND "${_PQ_CC}")
+    execute_process(COMMAND ${_PQ_CC_CMD} -dumpmachine OUTPUT_VARIABLE LIBPQ_TRIPLET
                     OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
     if(LIBPQ_TRIPLET)
       set(LIBPQ_HOST_FLAG_${SUFFIX} --host=${LIBPQ_TRIPLET})
     endif()
   endif()
 
-  set(LIBPQ_SYSTEM_LIBS_${SUFFIX} pthread m)
+  set(LIBPQ_SYSTEM_LIBS_${SUFFIX} m)
+  if(NOT ANDROID)
+    list(PREPEND LIBPQ_SYSTEM_LIBS_${SUFFIX} pthread)
+  endif()
 
   set(LIBPQ_DEPS_${SUFFIX} libpq_source)
 
@@ -115,7 +120,7 @@ macro(build_libpq SOURCE BINARY SUFFIX PIC)
       <SOURCE_DIR>/configure --prefix=${LIBPQ_PREFIX_${SUFFIX}} --without-readline --without-zlib --without-icu
       --without-gssapi --without-ldap --without-pam --without-systemd --without-selinux --without-libxml
       --without-libxslt --without-lz4 --without-zstd --without-perl --without-python --without-tcl
-      ${LIBPQ_SSL_FLAG_${SUFFIX}} ${LIBPQ_HOST_FLAG_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBPQ_CFLAGS_${SUFFIX}}"
+      ${LIBPQ_SSL_FLAG_${SUFFIX}} ${LIBPQ_HOST_FLAG_${SUFFIX}} "CC=${_PQ_CC}" "CFLAGS=${LIBPQ_CFLAGS_${SUFFIX}}"
     BUILD_COMMAND ${DEPS_MAKE} -C src/backend generated-headers
     COMMAND ${DEPS_MAKE} -C src/port
     COMMAND ${DEPS_MAKE} -C src/common

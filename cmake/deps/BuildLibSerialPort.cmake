@@ -17,6 +17,8 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
     set(_sp_msys_args "-DCMAKE_PROJECT_libserialport_INCLUDE:FILEPATH=${SOURCE}/cmake/deps/libserialport-msys.cmake")
   endif()
 
+  toolchain_cache_args(_sp_cross)
+
   ExternalProject_Add(
     libserialport_${SUFFIX}
     SOURCE_DIR ${SOURCE}/third_party/libserialport
@@ -27,6 +29,7 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
       "-DCMAKE_C_FLAGS:STRING=${_sp_flags}"
       ${_sp_msys_args}
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+      ${_sp_cross}
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"

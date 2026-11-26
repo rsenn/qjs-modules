@@ -77,8 +77,10 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
   if(DIET OR HAVE_DIETLIBC)
     set(_LM_DL "")
   endif()
-  set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${ZLIB_LIBRARIES_${SUFFIX}} ${_LM_DL} m
-                                       pthread)
+  set(LIBMARIADB_SYSTEM_LIBS_${SUFFIX} ${OPENSSL_LIBRARIES_${SUFFIX}} ${ZLIB_LIBRARIES_${SUFFIX}} ${_LM_DL} m)
+  if(NOT ANDROID)
+    list(APPEND LIBMARIADB_SYSTEM_LIBS_${SUFFIX} pthread)
+  endif()
 
   # the Windows pvio and config-dir code: winsock, PathRemoveFileSpecA
   if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -134,6 +136,8 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
         "-w -fno-builtin -DHAVE_ERRNO_AS_DEFINE=1 -D_GNU_SOURCE -include strings.h -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
   endif()
 
+  toolchain_cache_args(_DEPS_CROSS_ARGS)
+
   ExternalProject_Add(
     libmariadb_${SUFFIX}
     DEPENDS libmariadb_source ${OPENSSL_DEPENDS_${SUFFIX}} ${ZLIB_DEPENDS_${SUFFIX}}
@@ -149,6 +153,7 @@ macro(build_libmariadb SOURCE BINARY SUFFIX PIC)
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      ${_DEPS_CROSS_ARGS}
       "-DCMAKE_C_FLAGS:STRING=${LIBMARIADB_C_FLAGS_${SUFFIX}}"
       "-DCMAKE_INCLUDE_DIRECTORIES_BEFORE:BOOL=${LIBMARIADB_INCLUDE_ORDER_${SUFFIX}}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"

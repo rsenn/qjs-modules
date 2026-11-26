@@ -29,11 +29,14 @@ macro(build_libmagic BINARY SUFFIX PIC)
   # compiled test programs. The magic.mgc compiler is the build machine's `file`, which
   # has to be the same version as the sources, so use that version when it is known.
   set(LIBMAGIC_VERSION 5.46)
+  toolchain_cc(_LM_CC)
   set(LIBMAGIC_HOST_FLAG_${SUFFIX})
   set(LIBMAGIC_MAKE_ARGS_${SUFFIX})
   # dietlibc: its regcomp() crashes in the target-built `file -C`, so use the host one too
   if(CMAKE_CROSSCOMPILING OR DIET OR HAVE_DIETLIBC)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE LIBMAGIC_TRIPLET
+    toolchain_cc(_LM_CC)
+    separate_arguments(_LM_CC_CMD UNIX_COMMAND "${_LM_CC}")
+    execute_process(COMMAND ${_LM_CC_CMD} -dumpmachine OUTPUT_VARIABLE LIBMAGIC_TRIPLET
                     OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
     if(LIBMAGIC_TRIPLET AND CMAKE_CROSSCOMPILING)
       set(LIBMAGIC_HOST_FLAG_${SUFFIX} --host=${LIBMAGIC_TRIPLET})
@@ -91,7 +94,7 @@ macro(build_libmagic BINARY SUFFIX PIC)
     CONFIGURE_COMMAND
       <SOURCE_DIR>/configure --prefix=${LIBMAGIC_PREFIX_${SUFFIX}} --libdir=${LIBMAGIC_PREFIX_${SUFFIX}}/lib
       --enable-static --disable-shared --disable-libseccomp --disable-zlib --disable-bzlib --disable-xzlib
-      --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}} ${LIBMAGIC_HOST_FLAG_${SUFFIX}} ${LIBMAGIC_ENV_FLAGS_${SUFFIX}} "CC=${CMAKE_C_COMPILER}" "CFLAGS=${LIBMAGIC_CFLAGS_${SUFFIX}}"
+      --disable-zstdlib --disable-lzlib ${LIBMAGIC_PIC_FLAG_${SUFFIX}} ${LIBMAGIC_HOST_FLAG_${SUFFIX}} ${LIBMAGIC_ENV_FLAGS_${SUFFIX}} "CC=${_LM_CC}" "CFLAGS=${LIBMAGIC_CFLAGS_${SUFFIX}}"
     BUILD_COMMAND ${DEPS_MAKE} ${LIBMAGIC_MAKE_ARGS_${SUFFIX}}
     INSTALL_COMMAND ${DEPS_MAKE} ${LIBMAGIC_MAKE_ARGS_${SUFFIX}} install
     USES_TERMINAL_BUILD TRUE

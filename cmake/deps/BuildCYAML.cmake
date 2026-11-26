@@ -45,6 +45,8 @@ macro(build_cyaml SOURCE BINARY SUFFIX PIC)
     set(CYAML_C_FLAGS "-w -D_GNU_SOURCE -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
   endif()
 
+  toolchain_cache_args(_DEPS_CROSS_ARGS)
+
   ExternalProject_Add(
     cyaml_${SUFFIX}
     DEPENDS cyaml_source
@@ -58,6 +60,7 @@ macro(build_cyaml SOURCE BINARY SUFFIX PIC)
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      ${_DEPS_CROSS_ARGS}
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       "-DCMAKE_C_FLAGS:STRING=${CYAML_C_FLAGS}"

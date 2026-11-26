@@ -214,6 +214,49 @@ function(toolchain_triplet out)
   set(${out} "${value}" PARENT_SCOPE)
 endfunction()
 
+# toolchain_cache_args(OUT)
+#
+# The -D cache arguments that make a nested CMake project (ExternalProject) build for the
+# target when this project cross compiles: the toolchain file's own inputs (ANDROID_ABI,
+# ANDROID_PLATFORM, ... else the toolchain falls back to its default architecture) and the
+# compiler target triple. Empty for a native build. Used as ${OUT} inside CMAKE_CACHE_ARGS.
+function(toolchain_cache_args out)
+  set(args)
+  if(CMAKE_CROSSCOMPILING)
+    set(vars CMAKE_C_COMPILER_TARGET CMAKE_SYSTEM_PROCESSOR)
+    get_cmake_property(cache CACHE_VARIABLES)
+    foreach(var ${cache})
+      if(var MATCHES "^(CMAKE_)?ANDROID_")
+        list(APPEND vars ${var})
+      endif()
+    endforeach()
+    foreach(var ${vars})
+      if(${var})
+        list(APPEND args "-D${var}:STRING=${${var}}")
+      endif()
+    endforeach()
+  endif()
+  set(${out} "${args}" PARENT_SCOPE)
+endfunction()
+
+# toolchain_cc(OUT)
+#
+# The C compiler as one string for an autotools CC=: the compiler plus its --target and
+# --sysroot when cross compiling (a clang toolchain keeps those apart from the compiler
+# path, so the bare path builds for the host).
+function(toolchain_cc out)
+  set(cc "${CMAKE_C_COMPILER}")
+  if(CMAKE_CROSSCOMPILING)
+    if(CMAKE_C_COMPILER_TARGET)
+      string(APPEND cc " --target=${CMAKE_C_COMPILER_TARGET}")
+    endif()
+    if(CMAKE_SYSROOT)
+      string(APPEND cc " --sysroot=${CMAKE_SYSROOT}")
+    endif()
+  endif()
+  set(${out} "${cc}" PARENT_SCOPE)
+endfunction()
+
 function(toolchain_prefix out)
   _toolchain_get(PREFIX value)
   set(${out} "${value}" PARENT_SCOPE)

@@ -38,6 +38,8 @@ macro(build_openssl BINARY SUFFIX PIC)
          "-include" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
   endif()
 
+  toolchain_cc(_SSL_CC)
+
   ExternalProject_Add(
     openssl_${SUFFIX}
     URL ${OPENSSL_URL}
@@ -45,7 +47,7 @@ macro(build_openssl BINARY SUFFIX PIC)
     DOWNLOAD_DIR ${BINARY}/downloads-openssl-${SUFFIX}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
-    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env "CC=${CMAKE_C_COMPILER}" <SOURCE_DIR>/Configure
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env "CC=${_SSL_CC}" <SOURCE_DIR>/Configure
       --prefix=${OPENSSL_ROOT_DIR_${SUFFIX}} --libdir=lib ${_OSSL_FLAGS}
     # --trace prints every command and -j runs them in parallel: OpenSSL's Makefile is silent and serial
     # MAKEFLAGS= : the outer CMake makefile runs make -s, which a nested make inherits and stays silent
@@ -59,7 +61,10 @@ macro(build_openssl BINARY SUFFIX PIC)
   if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
     list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} ws2_32 crypt32 bcrypt)
   elseif(NOT DIET AND NOT HAVE_DIETLIBC)
-    list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} ${CMAKE_DL_LIBS} pthread)
+    list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} ${CMAKE_DL_LIBS})
+    if(NOT ANDROID)
+      list(APPEND OPENSSL_SYSTEM_LIBS_${SUFFIX} pthread)
+    endif()
   endif()
 
   set(OPENSSL_LINK_FLAGS_${SUFFIX} "")

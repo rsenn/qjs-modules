@@ -21,6 +21,8 @@ macro(build_sqlite BINARY SUFFIX PIC)
     string(APPEND SQLITE_CFLAGS_${SUFFIX} " -fPIC")
   endif()
 
+  toolchain_cc(_SQ_CC)
+
   ExternalProject_Add(
     sqlite_${SUFFIX}
     URL https://www.sqlite.org/2025/sqlite-autoconf-3500400.tar.gz
@@ -31,7 +33,7 @@ macro(build_sqlite BINARY SUFFIX PIC)
     PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND
       <SOURCE_DIR>/configure --prefix=${SQLITE_PREFIX_${SUFFIX}} --libdir=${SQLITE_PREFIX_${SUFFIX}}/lib --enable-static
-      --disable-shared --disable-readline "CC=${CMAKE_C_COMPILER}" "CFLAGS=${SQLITE_CFLAGS_${SUFFIX}}"
+      --disable-shared --disable-readline "CC=${_SQ_CC}" "CFLAGS=${SQLITE_CFLAGS_${SUFFIX}}"
     BUILD_COMMAND ${DEPS_MAKE}
     INSTALL_COMMAND ${DEPS_MAKE} install
     USES_TERMINAL_BUILD TRUE

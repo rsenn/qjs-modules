@@ -13,6 +13,8 @@ macro(build_zstd BINARY SUFFIX PIC)
   set(ZSTD_LIBRARY_FILE_${SUFFIX}
       "${ZSTD_PREFIX_${SUFFIX}}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}zstd${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+  toolchain_cache_args(_DEPS_CROSS_ARGS)
+
   ExternalProject_Add(
     zstd_${SUFFIX}
     URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
@@ -26,6 +28,7 @@ macro(build_zstd BINARY SUFFIX PIC)
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      ${_DEPS_CROSS_ARGS}
       "-DCMAKE_C_FLAGS:STRING=-w"
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"

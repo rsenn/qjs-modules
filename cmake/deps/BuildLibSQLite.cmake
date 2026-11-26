@@ -59,6 +59,8 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
            " -DPTHREAD_MUTEX_RECURSIVE=PTHREAD_MUTEX_RECURSIVE_NP -DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION=1")
   endif()
 
+  toolchain_cc(_LS_CC)
+
   ExternalProject_Add(
     libsqlite_${SUFFIX}
     DEPENDS libsqlite_source
@@ -68,7 +70,7 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
     UPDATE_COMMAND ""
     # config.sub from older autotools does not know dietlibc and newer OS names
     PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
-    CONFIGURE_COMMAND <SOURCE_DIR>/configure "TCLSH_CMD=${TCLSH_EXECUTABLE}" --disable-readline "CC=${CMAKE_C_COMPILER}"
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure "TCLSH_CMD=${TCLSH_EXECUTABLE}" --disable-readline "CC=${_LS_CC}"
     BUILD_COMMAND ${DEPS_MAKE} sqlite3.c
     COMMAND sh -x -c "\"${CMAKE_C_COMPILER}\" ${LIBSQLITE_CFLAGS_${SUFFIX}} -c sqlite3.c -o sqlite3.o"
     COMMAND sh -x -c "\"${CMAKE_AR}\" rcs ${CMAKE_STATIC_LIBRARY_PREFIX}sqlite3${CMAKE_STATIC_LIBRARY_SUFFIX} sqlite3.o"
@@ -86,8 +88,12 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
   # an archive carries no dependencies: the amalgamation needs these at link time
   # a static dietlibc binary has no dlopen()
   set(_LS_DL ${CMAKE_DL_LIBS})
+  set(_LS_PTHREAD pthread)
+  if(ANDROID)
+    set(_LS_PTHREAD "")
+  endif()
   if(DIET OR HAVE_DIETLIBC)
     set(_LS_DL "")
   endif()
-  set(LIBSQLITE_LIBRARIES_${SUFFIX} LibSQLite::${SUFFIX} ${_LS_DL} m pthread)
+  set(LIBSQLITE_LIBRARIES_${SUFFIX} LibSQLite::${SUFFIX} ${_LS_DL} m ${_LS_PTHREAD})
 endmacro()
