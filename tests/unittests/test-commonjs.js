@@ -25,6 +25,7 @@ tests({
     write('empty.cjs', '');
     write('shebang.cjs', '#!/usr/bin/env qjsm\nexports.ok = true;\n');
     write('throws.cjs', 'throw new RangeError("from cjs");\n');
+    write('stack.cjs', 'const a = 1;\nthrow new RangeError("at line two");\n');
     write('bad-id.cjs', 'exports["not valid"] = 1; exports.valid = 2;\n');
     write('builtin.cjs', "exports.readFileSync = typeof require('fs').readFileSync;\nexports.join = typeof require('path').join;\n");
 
@@ -113,6 +114,18 @@ tests({
     }
 
     assert(error && /from cjs/.test(error.message), String(error));
+  },
+
+  async 'an exception stack carries the file and line'() {
+    let error;
+
+    try {
+      await import(`${dir}/stack.cjs`);
+    } catch(e) {
+      error = e;
+    }
+
+    assert(error && String(error.stack).includes('stack.cjs:2'), String(error));
   },
 
   async 'require of a builtin returns its namespace'() {
