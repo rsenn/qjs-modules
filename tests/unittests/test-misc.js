@@ -634,4 +634,31 @@ tests({
     eq('\x1b[2J', out.data);
     eq(1, out.flushed);
   },
+
+  /* ---- class registry ---- */
+
+  'classId() finds built-in classes by name, className() and classAtom() agree'() {
+    for(const name of ['Object', 'Array', 'Error', 'ArrayBuffer', 'Map']) {
+      const id = misc.classId(name);
+
+      assert(Number.isInteger(id) && id > 0, `classId('${name}') = ${id}`);
+      eq(name, misc.className(id));
+      assert(Number.isInteger(misc.classAtom(id)), `classAtom(${id})`);
+    }
+
+    eq(2, misc.classId('Array'));
+  },
+
+  'classId() of an unknown name is undefined, className() of an unregistered id throws'() {
+    eq(undefined, misc.classId('NoSuchClassX'));
+
+    let error;
+    try {
+      misc.className(0x7fff);
+    } catch(e) {
+      error = e;
+    }
+
+    assert(error instanceof RangeError, String(error));
+  },
 });

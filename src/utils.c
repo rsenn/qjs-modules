@@ -1101,9 +1101,10 @@ typedef struct {
 
 #define JS_CLASS_ENTRY_SIZE (sizeof(JSClassHead) + 4 * sizeof(void*))
 
-/* JSRuntime is opaque and its layout differs between quickjs builds, so class_count is derived
- * from the public JS_IsRegisteredClass() instead of read from a hardcoded offset; JS_NewClass()
- * only ever grows class_count to the highest registered id + 1, which makes the two equal. */
+/* JSRuntime is opaque and its layout differs between quickjs builds, so the count is derived
+ * from the public JS_IsRegisteredClass() instead of read from a hardcoded offset: highest
+ * registered id + 1. The runtime's own class_count can be larger, JS_NewClass() grows it by
+ * a factor of 3/2. */
 uint32_t
 js_class_count(JSRuntime* rt) {
   uint32_t count = 0;
@@ -1116,9 +1117,10 @@ js_class_count(JSRuntime* rt) {
 }
 
 /* class_array has no public accessor, so its offset inside JSRuntime is found by scanning for
- * the `int class_count; JSClass* class_array;` pair and cross-checking the built-in classes
- * (ids 1-5 are always registered at their own index). Returns 0 if not found, never faults on
- * the way: candidate pointers must lie within 4GB of the runtime itself. */
+ * the `int class_count; JSClass* class_array;` pair: class_count is at least the highest
+ * registered id + 1, and every entry of the array must agree with JS_IsRegisteredClass().
+ * Returns 0 if not found, never faults on the way: candidate pointers must lie within 4GB of
+ * the runtime itself. */
 static const char*
 js_class_array(JSRuntime* rt) {
   static ptrdiff_t offset = -1;
@@ -1132,9 +1134,9 @@ js_class_array(JSRuntime* rt) {
       size_t ao = (o + sizeof(uint32_t) + sizeof(void*) - 1) & ~(sizeof(void*) - 1);
       const char* arr;
       uintptr_t dist;
-      uint32_t i;
+      uint32_t i, class_count = *(uint32_t*)((char*)rt + o);
 
-      if(*(uint32_t*)((char*)rt + o) != count)
+      if(class_count < count || class_count > JS_CLASS_PROBE_MAX)
         continue;
 
       arr = *(const char**)((char*)rt + ao);
@@ -1147,11 +1149,11 @@ js_class_array(JSRuntime* rt) {
       if((uint64_t)dist >> 32)
         continue;
 
-      for(i = 1; i <= 5; ++i)
-        if(((const JSClassHead*)(arr + i * JS_CLASS_ENTRY_SIZE))->class_id != i)
+      for(i = 1; i < count; ++i)
+        if(((const JSClassHead*)(arr + i * JS_CLASS_ENTRY_SIZE))->class_id != (JS_IsRegisteredClass(rt, i) ? i : 0))
           break;
 
-      if(i > 5) {
+      if(i == count) {
         offset = ao;
         break;
       }
