@@ -138,10 +138,18 @@ function(quickjs_configure_args OUTVAR SRC)
   # nested configure a cross build (CMAKE_CROSSCOMPILING=TRUE, quickjs then
   # expects a host qjsc on PATH) even when host and target are the same
   # machine, as on Termux (system name Android), so they are forwarded only
-  # when this project itself is cross compiling.
+  # when this project itself is cross compiling. The toolchain's own inputs
+  # (ANDROID_ABI, ANDROID_PLATFORM, ...) go with them, else the toolchain file
+  # falls back to its defaults and builds another architecture (32 bit ARM).
   set(_vars CMAKE_TOOLCHAIN_FILE CMAKE_C_COMPILER)
   if(CMAKE_CROSSCOMPILING)
-    list(APPEND _vars CMAKE_SYSROOT CMAKE_SYSTEM_NAME)
+    list(APPEND _vars CMAKE_SYSROOT CMAKE_SYSTEM_NAME CMAKE_SYSTEM_PROCESSOR CMAKE_C_COMPILER_TARGET)
+    get_cmake_property(_cache CACHE_VARIABLES)
+    foreach(_var ${_cache})
+      if(_var MATCHES "^(CMAKE_)?ANDROID_")
+        list(APPEND _vars ${_var})
+      endif()
+    endforeach()
   endif()
 
   foreach(_var ${_vars})
@@ -162,6 +170,60 @@ function(quickjs_configure_args OUTVAR SRC)
 endfunction()
 
 #
+# quickjs_host_qjsc <OUTPUT-VARIABLE> <SOURCE-DIR>
+#
+# The qjsc to run while building, for a cross build: QJSC when given, else one
+# built for the host in <build>/quickjs-host-build (host compiler, no toolchain
+# file, no module projects). Its directory is put on PATH for the nested quickjs
+# build, which looks for qjsc there, and QJSC is set to it so the modules'
+# generated sources use it too, not the target qjsc found in QUICKJS_BUILD_ROOT.
+#
+function(quickjs_host_qjsc OUTVAR SRC)
+  if(QJSC AND EXISTS "${QJSC}")
+    set(${OUTVAR} "${QJSC}" PARENT_SCOPE)
+    return()
+  endif()
+
+  set(_hdir "${CMAKE_CURRENT_BINARY_DIR}/quickjs-host-build")
+
+  if(NOT EXISTS "${_hdir}/qjsc")
+    find_program(_host_cc NAMES cc gcc clang NO_CMAKE_FIND_ROOT_PATH)
+    if(NOT _host_cc)
+      message(FATAL_ERROR "Cross build needs a host qjsc: no host C compiler found, pass -DQJSC=<host qjsc>")
+    endif()
+
+    set(_hargs -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON "-DCMAKE_C_COMPILER=${_host_cc}"
+               -DCMAKE_INSTALL_PREFIX=${_hdir}/inst)
+    file(GLOB _siblings RELATIVE "${SRC}" "${SRC}/qjs-*")
+    foreach(_sibling ${_siblings})
+      string(REGEX REPLACE "^qjs-" "" _name "${_sibling}")
+      string(TOUPPER "${_name}" _name)
+      list(APPEND _hargs "-DMODULE_${_name}=OFF")
+    endforeach()
+
+    message(STATUS "Configuring host qjsc: ${SRC} -> ${_hdir}")
+    file(MAKE_DIRECTORY "${_hdir}")
+    # a toolchain or compiler chosen through the environment must not reach the host build
+    execute_process(COMMAND "${CMAKE_COMMAND}" -E env --unset=CC --unset=CXX --unset=CFLAGS --unset=CXXFLAGS
+                            --unset=LDFLAGS "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" ${_hargs} "${SRC}"
+                    WORKING_DIRECTORY "${_hdir}" RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+    if(NOT _result EQUAL 0)
+      message(FATAL_ERROR "Configuring the host qjsc failed:\n${_out}")
+    endif()
+
+    cmake_host_system_information(RESULT _cores QUERY NUMBER_OF_LOGICAL_CORES)
+    message(STATUS "Building host qjsc in ${_hdir}")
+    execute_process(COMMAND "${CMAKE_COMMAND}" --build "${_hdir}" --target qjsc --parallel ${_cores}
+                    RESULT_VARIABLE _result OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+    if(NOT _result EQUAL 0 OR NOT EXISTS "${_hdir}/qjsc")
+      message(FATAL_ERROR "Building the host qjsc failed:\n${_out}")
+    endif()
+  endif()
+
+  set(${OUTVAR} "${_hdir}/qjsc" PARENT_SCOPE)
+endfunction()
+
+#
 # build_quickjs
 #
 # Configure and build quickjs in <build>/quickjs-build (the configure is redone
@@ -171,6 +233,13 @@ endfunction()
 function(build_quickjs)
   quickjs_source_dir(_src)
   quickjs_configure_args(_args "${_src}")
+
+  if(CMAKE_CROSSCOMPILING)
+    quickjs_host_qjsc(_host_qjsc "${_src}")
+    get_filename_component(_host_dir "${_host_qjsc}" DIRECTORY)
+    set(ENV{PATH} "${_host_dir}:$ENV{PATH}")
+    set(QJSC "${_host_qjsc}" CACHE FILEPATH "QuickJS compiler (host)" FORCE)
+  endif()
 
   set(_bdir "${CMAKE_CURRENT_BINARY_DIR}/quickjs-build")
   set(_stamp "${_bdir}/configure.stamp")
