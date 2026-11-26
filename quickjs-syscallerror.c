@@ -538,6 +538,189 @@ static const JSCFunctionListEntry js_syscallerror_defines[] = {
 #ifdef ENOTRECOVERABLE
     JS_CONSTANT(ENOTRECOVERABLE),
 #endif
+#ifdef EADV
+    JS_CONSTANT(EADV),
+#endif
+#ifdef EBADE
+    JS_CONSTANT(EBADE),
+#endif
+#ifdef EBADFD
+    JS_CONSTANT(EBADFD),
+#endif
+#ifdef EBADR
+    JS_CONSTANT(EBADR),
+#endif
+#ifdef EBADRQC
+    JS_CONSTANT(EBADRQC),
+#endif
+#ifdef EBADSLT
+    JS_CONSTANT(EBADSLT),
+#endif
+#ifdef EBFONT
+    JS_CONSTANT(EBFONT),
+#endif
+#ifdef ECHRNG
+    JS_CONSTANT(ECHRNG),
+#endif
+#ifdef ECOMM
+    JS_CONSTANT(ECOMM),
+#endif
+#ifdef EDEADLOCK
+    JS_CONSTANT(EDEADLOCK),
+#endif
+#ifdef EDOTDOT
+    JS_CONSTANT(EDOTDOT),
+#endif
+#ifdef EDQUOT
+    JS_CONSTANT(EDQUOT),
+#endif
+#ifdef EHOSTDOWN
+    JS_CONSTANT(EHOSTDOWN),
+#endif
+#ifdef EHWPOISON
+    JS_CONSTANT(EHWPOISON),
+#endif
+#ifdef EISNAM
+    JS_CONSTANT(EISNAM),
+#endif
+#ifdef EKEYEXPIRED
+    JS_CONSTANT(EKEYEXPIRED),
+#endif
+#ifdef EKEYREJECTED
+    JS_CONSTANT(EKEYREJECTED),
+#endif
+#ifdef EKEYREVOKED
+    JS_CONSTANT(EKEYREVOKED),
+#endif
+#ifdef EL2HLT
+    JS_CONSTANT(EL2HLT),
+#endif
+#ifdef EL2NSYNC
+    JS_CONSTANT(EL2NSYNC),
+#endif
+#ifdef EL3HLT
+    JS_CONSTANT(EL3HLT),
+#endif
+#ifdef EL3RST
+    JS_CONSTANT(EL3RST),
+#endif
+#ifdef ELIBACC
+    JS_CONSTANT(ELIBACC),
+#endif
+#ifdef ELIBBAD
+    JS_CONSTANT(ELIBBAD),
+#endif
+#ifdef ELIBEXEC
+    JS_CONSTANT(ELIBEXEC),
+#endif
+#ifdef ELIBMAX
+    JS_CONSTANT(ELIBMAX),
+#endif
+#ifdef ELIBSCN
+    JS_CONSTANT(ELIBSCN),
+#endif
+#ifdef ELNRNG
+    JS_CONSTANT(ELNRNG),
+#endif
+#ifdef ELOOP
+    JS_CONSTANT(ELOOP),
+#endif
+#ifdef EMEDIUMTYPE
+    JS_CONSTANT(EMEDIUMTYPE),
+#endif
+#ifdef EMULTIHOP
+    JS_CONSTANT(EMULTIHOP),
+#endif
+#ifdef ENAVAIL
+    JS_CONSTANT(ENAVAIL),
+#endif
+#ifdef ENOANO
+    JS_CONSTANT(ENOANO),
+#endif
+#ifdef ENOCSI
+    JS_CONSTANT(ENOCSI),
+#endif
+#ifdef ENODATA
+    JS_CONSTANT(ENODATA),
+#endif
+#ifdef ENOKEY
+    JS_CONSTANT(ENOKEY),
+#endif
+#ifdef ENOMEDIUM
+    JS_CONSTANT(ENOMEDIUM),
+#endif
+#ifdef ENONET
+    JS_CONSTANT(ENONET),
+#endif
+#ifdef ENOPKG
+    JS_CONSTANT(ENOPKG),
+#endif
+#ifdef ENOSR
+    JS_CONSTANT(ENOSR),
+#endif
+#ifdef ENOSTR
+    JS_CONSTANT(ENOSTR),
+#endif
+#ifdef ENOTBLK
+    JS_CONSTANT(ENOTBLK),
+#endif
+#ifdef ENOTNAM
+    JS_CONSTANT(ENOTNAM),
+#endif
+#ifdef ENOTSUP
+    JS_CONSTANT(ENOTSUP),
+#endif
+#ifdef ENOTUNIQ
+    JS_CONSTANT(ENOTUNIQ),
+#endif
+#ifdef EPFNOSUPPORT
+    JS_CONSTANT(EPFNOSUPPORT),
+#endif
+#ifdef EREMCHG
+    JS_CONSTANT(EREMCHG),
+#endif
+#ifdef EREMOTE
+    JS_CONSTANT(EREMOTE),
+#endif
+#ifdef EREMOTEIO
+    JS_CONSTANT(EREMOTEIO),
+#endif
+#ifdef ERFKILL
+    JS_CONSTANT(ERFKILL),
+#endif
+#ifdef ESHUTDOWN
+    JS_CONSTANT(ESHUTDOWN),
+#endif
+#ifdef ESOCKTNOSUPPORT
+    JS_CONSTANT(ESOCKTNOSUPPORT),
+#endif
+#ifdef ESRMNT
+    JS_CONSTANT(ESRMNT),
+#endif
+#ifdef ESTALE
+    JS_CONSTANT(ESTALE),
+#endif
+#ifdef ESTRPIPE
+    JS_CONSTANT(ESTRPIPE),
+#endif
+#ifdef ETIME
+    JS_CONSTANT(ETIME),
+#endif
+#ifdef ETOOMANYREFS
+    JS_CONSTANT(ETOOMANYREFS),
+#endif
+#ifdef EUCLEAN
+    JS_CONSTANT(EUCLEAN),
+#endif
+#ifdef EUNATCH
+    JS_CONSTANT(EUNATCH),
+#endif
+#ifdef EUSERS
+    JS_CONSTANT(EUSERS),
+#endif
+#ifdef EXFULL
+    JS_CONSTANT(EXFULL),
+#endif
 #ifdef WSAEINTR
     JS_CONSTANT(WSAEINTR),
 #endif
@@ -973,6 +1156,183 @@ syscallerror_symbol(int number) {
 #endif
 #ifdef ENOTRECOVERABLE
     case ENOTRECOVERABLE: return "ENOTRECOVERABLE";
+#endif
+#ifdef EADV
+    case EADV: return "EADV";
+#endif
+#ifdef EBADE
+    case EBADE: return "EBADE";
+#endif
+#ifdef EBADFD
+    case EBADFD: return "EBADFD";
+#endif
+#ifdef EBADR
+    case EBADR: return "EBADR";
+#endif
+#ifdef EBADRQC
+    case EBADRQC: return "EBADRQC";
+#endif
+#ifdef EBADSLT
+    case EBADSLT: return "EBADSLT";
+#endif
+#ifdef EBFONT
+    case EBFONT: return "EBFONT";
+#endif
+#ifdef ECHRNG
+    case ECHRNG: return "ECHRNG";
+#endif
+#ifdef ECOMM
+    case ECOMM: return "ECOMM";
+#endif
+#ifdef EDOTDOT
+    case EDOTDOT: return "EDOTDOT";
+#endif
+#ifdef EDQUOT
+    case EDQUOT: return "EDQUOT";
+#endif
+#ifdef EHOSTDOWN
+    case EHOSTDOWN: return "EHOSTDOWN";
+#endif
+#ifdef EHWPOISON
+    case EHWPOISON: return "EHWPOISON";
+#endif
+#ifdef EISNAM
+    case EISNAM: return "EISNAM";
+#endif
+#ifdef EKEYEXPIRED
+    case EKEYEXPIRED: return "EKEYEXPIRED";
+#endif
+#ifdef EKEYREJECTED
+    case EKEYREJECTED: return "EKEYREJECTED";
+#endif
+#ifdef EKEYREVOKED
+    case EKEYREVOKED: return "EKEYREVOKED";
+#endif
+#ifdef EL2HLT
+    case EL2HLT: return "EL2HLT";
+#endif
+#ifdef EL2NSYNC
+    case EL2NSYNC: return "EL2NSYNC";
+#endif
+#ifdef EL3HLT
+    case EL3HLT: return "EL3HLT";
+#endif
+#ifdef EL3RST
+    case EL3RST: return "EL3RST";
+#endif
+#ifdef ELIBACC
+    case ELIBACC: return "ELIBACC";
+#endif
+#ifdef ELIBBAD
+    case ELIBBAD: return "ELIBBAD";
+#endif
+#ifdef ELIBEXEC
+    case ELIBEXEC: return "ELIBEXEC";
+#endif
+#ifdef ELIBMAX
+    case ELIBMAX: return "ELIBMAX";
+#endif
+#ifdef ELIBSCN
+    case ELIBSCN: return "ELIBSCN";
+#endif
+#ifdef ELNRNG
+    case ELNRNG: return "ELNRNG";
+#endif
+#ifdef ELOOP
+    case ELOOP: return "ELOOP";
+#endif
+#ifdef EMEDIUMTYPE
+    case EMEDIUMTYPE: return "EMEDIUMTYPE";
+#endif
+#ifdef EMULTIHOP
+    case EMULTIHOP: return "EMULTIHOP";
+#endif
+#ifdef ENAVAIL
+    case ENAVAIL: return "ENAVAIL";
+#endif
+#ifdef ENOANO
+    case ENOANO: return "ENOANO";
+#endif
+#ifdef ENOCSI
+    case ENOCSI: return "ENOCSI";
+#endif
+#ifdef ENODATA
+    case ENODATA: return "ENODATA";
+#endif
+#ifdef ENOKEY
+    case ENOKEY: return "ENOKEY";
+#endif
+#ifdef ENOMEDIUM
+    case ENOMEDIUM: return "ENOMEDIUM";
+#endif
+#ifdef ENONET
+    case ENONET: return "ENONET";
+#endif
+#ifdef ENOPKG
+    case ENOPKG: return "ENOPKG";
+#endif
+#ifdef ENOSR
+    case ENOSR: return "ENOSR";
+#endif
+#ifdef ENOSTR
+    case ENOSTR: return "ENOSTR";
+#endif
+#ifdef ENOTBLK
+    case ENOTBLK: return "ENOTBLK";
+#endif
+#ifdef ENOTNAM
+    case ENOTNAM: return "ENOTNAM";
+#endif
+#ifdef ENOTUNIQ
+    case ENOTUNIQ: return "ENOTUNIQ";
+#endif
+#ifdef EPFNOSUPPORT
+    case EPFNOSUPPORT: return "EPFNOSUPPORT";
+#endif
+#ifdef EREMCHG
+    case EREMCHG: return "EREMCHG";
+#endif
+#ifdef EREMOTE
+    case EREMOTE: return "EREMOTE";
+#endif
+#ifdef EREMOTEIO
+    case EREMOTEIO: return "EREMOTEIO";
+#endif
+#ifdef ERFKILL
+    case ERFKILL: return "ERFKILL";
+#endif
+#ifdef ESHUTDOWN
+    case ESHUTDOWN: return "ESHUTDOWN";
+#endif
+#ifdef ESOCKTNOSUPPORT
+    case ESOCKTNOSUPPORT: return "ESOCKTNOSUPPORT";
+#endif
+#ifdef ESRMNT
+    case ESRMNT: return "ESRMNT";
+#endif
+#ifdef ESTALE
+    case ESTALE: return "ESTALE";
+#endif
+#ifdef ESTRPIPE
+    case ESTRPIPE: return "ESTRPIPE";
+#endif
+#ifdef ETIME
+    case ETIME: return "ETIME";
+#endif
+#ifdef ETOOMANYREFS
+    case ETOOMANYREFS: return "ETOOMANYREFS";
+#endif
+#ifdef EUCLEAN
+    case EUCLEAN: return "EUCLEAN";
+#endif
+#ifdef EUNATCH
+    case EUNATCH: return "EUNATCH";
+#endif
+#ifdef EUSERS
+    case EUSERS: return "EUSERS";
+#endif
+#ifdef EXFULL
+    case EXFULL: return "EXFULL";
 #endif
 #ifdef WSAEINTR
     case WSAEINTR: return "WSAEINTR";

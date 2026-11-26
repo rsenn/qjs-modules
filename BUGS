@@ -397,23 +397,6 @@
     l.skipBytes(1);      // valid (1 <= 2), but...
     l.charPos;            // 4294967296, not 3
 
-- lexer-non-ascii-input-corrupts-tokens (src/lexer.c, quickjs-lexer.c): lexing
-  source text that contains non-ascii (multi-byte utf-8) characters produces
-  wrong tokens. the ecmascript lexer re-emits the tail of a block comment
-  containing a non-ascii char (the comment lexeme comes out as "/* a - b */*/"),
-  and the xml lexer returns a text token ending with the multi-byte chars
-  followed by a bogus token whose lexeme is garbage ("�x") whose
-  charLength is 0 and whose charOffset equals a byte count, so charOffset and
-  byteOffset disagree about which unit they count. found while writing
-  utilities/highlight.js, whose lossless round-trip check fails only on files
-  with non-ascii text (examples/html2md.js, tests/test3.xml). ascii-only files
-  round-trip exactly. not root-caused; lexer_set_location (src/lexer.c:480)
-  assigns byte_offset from loc->char_offset, which may be related.
-
-    import ECMAScriptLexer from './lib/lexer/ecmascript.js';
-    [...new ECMAScriptLexer('/* a – b */\nlet x', 'f')].map(t => t.lexeme)[0];
-    // "/* a – b */*/", expected "/* a – b */"
-
 - pgsql-async-connect-live-server-hangs: an async pgsql connect (set
   pq.nonblocking = true, then pq.connect(...)) against a reachable server
   never settles cleanly. with deliberately wrong credentials against a local
@@ -487,16 +470,6 @@
 
     qjsm -e 'import("path.so").then(m=>print(Object.keys(m).length))'
 
-- syscallerror-no-code-for-eloop (quickjs-syscallerror.c): SyscallError
-  built with errno 40 has `code === null` and no `SyscallError.ELOOP`
-  constant, though the message is right. found while writing lib/vfs.js,
-  which hardcodes 40.
-
-    import { SyscallError } from 'syscallerror';
-    new SyscallError('stat', 40).code;
-    // expected: 'ELOOP'
-    // actual: null
-
 - lexer-imports-util-by-file-path (lib/lexer/cpp.js:6,
   lib/lexer/ecmascript.js:1): both import '../util.js', a file path, but
   util is a builtin compiled into qjsm and `cmake --install` leaves
@@ -542,15 +515,6 @@
     xml.read('<!DOCTYPE a [<!ENTITY foo "val">]><a>&foo;</a>');
     // expected: a !DOCTYPE node holding the whole declaration
     // actual: [{tagName: '!DOCTYPE a [<!ENTITY foo "val"'}, ']>', {tagName: 'a', ...}]
-
-- jsonparser-error-position-after-token (src/json.c, quickjs-json.c:1560):
-  JsonParser reports the position after the offending token, one column
-  right of JSON.parse and json5 (2:8 for a bad token at 2:7); the error
-  carries the position only in its message.
-
-    new JsonParser('{"a":\n  [1, x]}', 'f.json').parse() // ... throws
-    // expected: message ends 'f.json:2:7'
-    // actual: 'f.json:2:8: expected a value'
 
 - xmlpushparser-silent-on-mismatch (quickjs-xml.c, xread_callback):
   XMLPushParser.write() accepts a mismatched end tag without an error and

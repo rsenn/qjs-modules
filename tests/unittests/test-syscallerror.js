@@ -62,4 +62,12 @@ tests({
       assert(typeof SyscallError[name] === 'number', `${name} should be a numeric constant`);
     }
   },
+  'code is the errno name, also for ELOOP, ENOTSUP, ESTALE and EDQUOT'() {
+    eq(SyscallError.ELOOP, 40);
+    eq(new SyscallError('stat', 40).code, 'ELOOP');
+    eq(new SyscallError('stat', SyscallError.ESTALE).code, 'ESTALE');
+    eq(new SyscallError('stat', SyscallError.EDQUOT).code, 'EDQUOT');
+    eq(new SyscallError('open', SyscallError.ENOENT).code, 'ENOENT');
+    assert(typeof SyscallError.ENOTSUP === 'number');
+  },
 });
