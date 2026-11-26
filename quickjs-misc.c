@@ -1844,39 +1844,70 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 #endif
 
+/* btoa(data, url = false): data is a string or a buffer, a view is encoded
+ * from its byteOffset for its byteLength. url selects base64url, unpadded.
+ * returns the string, or JS_EXCEPTION with an exception pending. */
 static JSValue
 js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
-  size_t enclen = b64_get_encoded_buffer_size(input.size);
-  uint8_t* encbuf = js_malloc(ctx, enclen);
+  const uint8_t* data;
+  size_t size, enclen;
+  uint8_t* encbuf;
+  BOOL url = argc > 1 && JS_ToBool(ctx, argv[1]);
 
-  if(argc > 1 && JS_ToBool(ctx, argv[1]))
-    b64url_encode(input.data, input.size, encbuf);
+  if(JS_IsException(input.value))
+    return JS_EXCEPTION;
+
+  data = inputbuffer_data(&input);
+  size = inputbuffer_length(&input);
+  enclen = url ? b64url_get_encoded_buffer_size(size) : b64_get_encoded_buffer_size(size);
+
+  if(!(encbuf = js_malloc(ctx, enclen + 1))) {
+    inputbuffer_free(&input, ctx);
+    return JS_EXCEPTION;
+  }
+
+  if(url)
+    b64url_encode(data, size, encbuf);
   else
-    b64_encode(input.data, input.size, encbuf);
+    b64_encode(data, size, encbuf);
 
-  ret = JS_NewStringLen(ctx, (const char*)encbuf, byte_chr(encbuf, enclen, '\0'));
+  ret = JS_NewStringLen(ctx, (const char*)encbuf, enclen);
   js_free(ctx, encbuf);
+  inputbuffer_free(&input, ctx);
   return ret;
 }
 
+/* atob(data, url = false) and atos(): base64 to an ArrayBuffer or to a string, a view as in btoa.
+ * returns the result, or JS_EXCEPTION with an exception pending. */
 static JSValue
 js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
-  size_t outlen, declen = b64_get_decoded_buffer_size(input.size);
-  uint8_t* decbuf = js_malloc(ctx, declen);
-  BOOL output_string = magic > 0;
+  const uint8_t* data;
+  size_t size, outlen, declen;
+  uint8_t* decbuf;
+  BOOL url = argc > 1 && JS_ToBool(ctx, argv[1]), output_string = magic > 0;
 
-  if(argc > 1 && JS_ToBool(ctx, argv[1]))
-    outlen = b64url_decode(input.data, input.size, decbuf);
-  else
-    outlen = b64_decode(input.data, input.size, decbuf);
+  if(JS_IsException(input.value))
+    return JS_EXCEPTION;
+
+  data = inputbuffer_data(&input);
+  size = inputbuffer_length(&input);
+  declen = url ? b64url_get_decoded_buffer_size(size) : b64_get_decoded_buffer_size(size);
+
+  if(!(decbuf = js_malloc(ctx, declen + 1))) {
+    inputbuffer_free(&input, ctx);
+    return JS_EXCEPTION;
+  }
+
+  outlen = url ? b64url_decode(data, size, decbuf) : b64_decode(data, size, decbuf);
 
   ret = output_string ? JS_NewStringLen(ctx, (const char*)decbuf, outlen) : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, outlen);
 
   js_free(ctx, decbuf);
+  inputbuffer_free(&input, ctx);
   return ret;
 }
 

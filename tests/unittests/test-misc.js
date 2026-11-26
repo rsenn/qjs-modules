@@ -145,6 +145,23 @@ tests({
     eq(encoded, 'aGVsbG8=');
     eq(Array.from(new Uint8Array(misc.atob(encoded))).join(','), '104,101,108,108,111');
   },
+  'btoa() encodes a view from its byteOffset for its byteLength, base64url has no padding'() {
+    const u = new Uint8Array([0xfb, 0xff, 1, 2]);
+
+    eq('+/8=', misc.btoa(u.subarray(0, 2)));
+    eq('AQI=', misc.btoa(u.subarray(2)));
+    eq('-_8', misc.btoa(u.subarray(0, 2), true));
+    eq('+/8=', misc.btoa(new DataView(u.buffer, 0, 2)));
+    eq('+/8BAg==', misc.btoa(u));
+    eq('', misc.btoa(new Uint8Array(0)));
+  },
+  'atob() decodes a view from its byteOffset, base64url without padding round-trips'() {
+    const enc = new TextEncoder().encode('xx+/8=yy');
+
+    eq('251,255', Array.from(new Uint8Array(misc.atob(enc.subarray(2, 6)))).join(','));
+    eq('251,255', Array.from(new Uint8Array(misc.atob('-_8', true))).join(','));
+    eq('251,255', Array.from(new Uint8Array(misc.atob(misc.btoa(new Uint8Array([0xfb, 0xff]), true), true))).join(','));
+  },
   'stoa() is an alias for btoa()'() {
     eq(misc.stoa('hello'), misc.btoa('hello'));
   },
