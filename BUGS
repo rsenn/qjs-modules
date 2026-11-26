@@ -82,22 +82,6 @@
     // actual: throws InternalError: ...:4:5: No matching token (0: INITIAL)
     // expected: lexes the whole file without throwing
 
-- pointer-atom-index-ignores-leading-zero (include/utils.h:753,
-  js_atom_is_index): treats any atom whose string form parses as a
-  non-negative decimal (e.g. "01") as an array index, so
-  Pointer#toString()/toRFC6901()/atoms_serialize() render it as an
-  index (`[1]` / `/1`) instead of the literal string key ("01"),
-  losing the leading zero. ECMAScript's array-index canonical form (and
-  RFC 6901's array-index grammar) both require no leading zero except
-  for "0" itself, so "01" should stay a plain string key. Shared by
-  every module that reads array-index-ness off an atom via
-  js_atom_is_index, not pointer-specific. Found while adding RFC 6901
-  support to quickjs-pointer.c/src/pointer.c.
-
-    import { Pointer } from 'pointer';
-    Pointer.from(["01", "x"]).toString();
-    // "[1].x" -- should be ".01.x" (leading zero silently dropped)
-
 - excluded-native-modules-unreachable-without-shared-build (CMakeLists.txt):
   BUILD_SHARED_MODULES defaults OFF, so a from-scratch build never produces
   the .so files that BUILTINS_NATIVE_EXCLUDE-excluded native modules
@@ -213,33 +197,17 @@
   lexer_rule_release_rt() frees only name, expr and bytecode, so one copy
   of every compiled rule's pattern is kept until the runtime is freed.
 
-- lexer-skipbytes-overflows-charpos (quickjs-lexer.c:797-806): after
-  consuming a token with `next()`/`nextToken()`, calling
-  `lexer.skipBytes(n)` with a valid `n` (1 <= n <= the byte length of the
-  token just consumed - the bound `skipBytes()` itself enforces, by
-  comparing against `lex->byte_length`, i.e. the *current token's* length,
-  not the remaining input) leaves `lexer.charPos` at 4294967296 (2^32) -
-  an unsigned 32-bit wraparound, not a small, sensible cursor advance.
-  100% reproducible (3/3 runs). Not root-caused past `js_lexer_method`'s
-  `LEXER_SKIP_BYTES` case calling `lexer_skip_n(lex, n)`
-  (quickjs-lexer.c:803) - didn't trace into `lexer_skip_n` itself (not
-  found in a quick grep of src/lexer.c under that exact name). Separately,
-  calling `skipBytes(n)` with `n` greater than the current token's byte
-  length (including calling it right after construction, before any token
-  has been scanned, when the "current token" length is 0) throws
-  `InternalError: skipBytes(): count n > <byte_length>` - surprising given
-  the doc table lists `skipBytes`/`skipChars` as taking 0 args, but not a
-  bug once you know `n` is bounded by the current token, not the input.
-  Worked around in tests/unittests/test-lexer.js by only calling
-  skipBytes() with no argument (a harmless no-op) rather than exercising
-  the overflow.
+- lexer-skipbytes-unclear-charpos (quickjs-lexer.c, LEXER_SKIP_BYTES): skipBytes(n)
+  advances the cursor (the next token starts after the skipped bytes), but
+  charPos right after the call is the token start plus n, not the cursor.
+  The old 2^32 wrap is gone. Unclear what charPos should mean between
+  tokens; skipBytes(n) is also bounded by the last token's length, not the
+  remaining input.
 
-    import { Lexer } from 'lexer';
     const l = new Lexer('12 foo', Lexer.LONGEST, 'in.txt');
-    l.addRule('number', /[0-9]+/);
-    l.next();            // consumes "12", current token byte_length becomes 2
-    l.skipBytes(1);      // valid (1 <= 2), but...
-    l.charPos;            // 1 (2026-11-26; was 4294967296), expected 3
+    l.addRule('number', /[0-9]+/); l.addRule('ws', /[ ]+/); l.addRule('ident', /[a-z]+/);
+    l.next(); l.skipBytes(1); l.charPos;   // 1 (token start 0 + 1), cursor is at 3
+    l.next(); l.charPos;                   // 3, the token foo
 
 - pgsql-async-connect-live-server-hangs: an async pgsql connect (set
   pq.nonblocking = true, then pq.connect(...)) against a reachable server
@@ -326,24 +294,16 @@
     // expected: '<a>ü€</a>'
     // actual: replacement characters in place of ü€
 
-- xml-doctype-internal-subset-mangled (src/xml.c, bang-tag scan): a
-  DOCTYPE with an internal subset ends at the first '>' inside the
-  subset, so the subset is split into a bogus tag name and a text node
-  "]>", and entities declared in it are not available. found while
-  writing doc/api-compare-xml.md.
-
-    xml.read('<!DOCTYPE a [<!ENTITY foo "val">]><a>&foo;</a>');
-    // expected: a !DOCTYPE node holding the whole declaration
-    // actual: [{tagName: '!DOCTYPE a [<!ENTITY foo "val"'}, ']>', {tagName: 'a', ...}]
-
-- xmlpushparser-silent-on-mismatch (quickjs-xml.c, xread_callback):
-  XMLPushParser.write() accepts a mismatched end tag without an error and
-  the position of a later close() failure is not reported.
+- xmlpushparser-silent-on-mismatch (src/xml/xpush.c, xpush_init): XMLPushParser
+  runs the strict lexer (xr_state_init, no XR_COMPAT), which keeps no
+  open-element stack, so a mismatched end tag is never noticed. Passing
+  XR_COMPAT fixes the mismatch but makes names lenient (<1invalid/> is no
+  longer an error) and breaks four tests of test-xml.js that pin the strict
+  errors; the fix needs an element stack in the strict lexer.
 
     const p = new XMLPushParser(); p.write('<a>\n <b></c></a>'); p.close();
     // expected: SyntaxError at 2:5
     // actual: no error, p.root holds a repaired tree
-
 
 - ecmascript-lexer-escaped-identifier: lib/lexer/ecmascript.js does not lex
   an identifier with a unicode escape, valid JS since ES2015: a and
