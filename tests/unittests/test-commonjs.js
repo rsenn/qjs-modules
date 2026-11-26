@@ -155,6 +155,17 @@ tests({
     assert(error instanceof RangeError && error.message == 'thrower', String(error));
   },
 
+  async 'a relative require() made later from a getter resolves against its own module'() {
+    os.mkdir(`${dir}/sub`);
+    write('sub/lib.cjs', "module.exports = { get y() { return require('./y.cjs'); }, resolve: () => require.resolve('./y.cjs') };\n");
+    write('sub/y.cjs', 'module.exports = 1;\n');
+
+    const { default: lib } = await import(`${dir}/sub/lib.cjs`);
+
+    eq(1, lib.y);
+    eq(`${dir}/sub/y.cjs`, lib.resolve());
+  },
+
   'teardown'() {
     hooks.deregister();
     eq('undefined', typeof globalThis.require);
