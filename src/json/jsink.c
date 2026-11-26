@@ -191,7 +191,8 @@ js_jsonsink_define(JSContext* ctx, JSValueConst obj) {
       JS_CFUNC_MAGIC_DEF("raw", 1, js_jsonsink_method, M_RAW),
   };
 
-  return JS_SetPropertyFunctionList(ctx, obj, funcs, countof(funcs));
+  JS_SetPropertyFunctionList(ctx, obj, funcs, countof(funcs));
+  return 0;
 }
 
 static void
@@ -226,11 +227,12 @@ js_jsonsink_wrap(JSContext* ctx, JsonEventSink sink) {
   if(JS_IsNull(proto) || JS_IsUndefined(proto)) {
     proto = JS_NewObject(ctx);
 
-    if(js_jsonsink_define(ctx, proto) < 0 || JS_SetPropertyFunctionList(ctx, proto, js_jsonsink_tag, countof(js_jsonsink_tag)) < 0) {
+    if(js_jsonsink_define(ctx, proto) < 0) {
       JS_FreeValue(ctx, proto);
       return JS_EXCEPTION;
     }
 
+    JS_SetPropertyFunctionList(ctx, proto, js_jsonsink_tag, countof(js_jsonsink_tag));
     JS_SetClassProto(ctx, js_jsonsink_class_id, JS_DupValue(ctx, proto));
   }
 
