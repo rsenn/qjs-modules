@@ -124,44 +124,6 @@
     // actual: throws InternalError: ...:4:5: No matching token (0: INITIAL)
     // expected: lexes the whole file without throwing
 
-- require-cjs-wrapper-misparses-esm-file (lib/require.js:111): loading an
-  ES module file (plain `import`/`export`, no CommonJS) via the plain
-  `qjsm script.js` positional-argument path prints a spurious "SyntaxError:
-  unexpected line terminator in regexp" pointing into an imported file,
-  even though that file loads and executes correctly (the printed output
-  is right, exit code 0). Suspected cause: CJSModule.load() reads the raw
-  file text with loadFile() and feeds it verbatim into
-  `new Function('exports', 'require', 'module', text)` without checking
-  whether the file is actually CommonJS - a module using real
-  `import`/`export` syntax fed through that Function constructor can't
-  parse as a function body, and the tokenizer's error-recovery scan after
-  the initial mismatch appears to wrongly land on an unrelated `/`
-  (division after a private field access, e.g. `this.#x / 1000` inside a
-  template literal) and report that as a regexp-literal error instead of
-  the real one. Only intermittently observed - a file that imports several
-  named exports from a larger module didn't trigger it in one run, while a
-  minimal 4-line repro did every time - so the exact trigger condition
-  isn't fully pinned down, but the misleading-error symptom itself is
-  reliably reproducible.
-
-    // __mini.js
-    class Foo {
-      #x = 4000;
-      bar() { return `${(this.#x / 1000).toFixed(0)}s`; }
-    }
-    export default Foo;
-
-    // main.js
-    import Foo from './__mini.js';
-    console.log(new Foo().bar());
-
-    // qjsm main.js
-    // actual: prints "4s" (correct), then also prints:
-    //   SyntaxError: unexpected line terminator in regexp
-    //   Stack:
-    //       at __mini.js:3
-    // expected: prints "4s", nothing else
-
 - ctest-runs-disabled-optional-module-tests (CMakeLists.txt:830): the test
   registration loop globs every tests/test_*.js and add_test()s it
   unconditionally, with no check against MODULE_SERIAL/MODULE_GPIO (both
@@ -290,32 +252,6 @@
                                                          // dominated by wrapper
                                                          // property access
 
-- getopt-long-option-after-short-misparsed (lib/util.js:1336,1368-1371,
-  getOpt): `short`/`long` are declared once at the top of getOpt() and never
-  reset per-argument, only ever set to `true`. Once any short option
-  (`-x`) has been parsed, `short` stays `true` for the rest of the call, so
-  a later long option (`--foo`) still takes the short-option branch
-  (`start = short ? 1 : 2` stays 1, `end = short ? 2 : ...` stays 2) -
-  its name is computed as `arg.substring(1, 2)`, i.e. just the literal
-  `-` character, which never matches any real option name. The whole
-  `--foo` token then falls through unrecognized into the positional
-  ('@') bucket instead of being applied, and the option's own default/
-  absence goes unnoticed since getOpt doesn't report unrecognized flags.
-  Only argument *order* determines whether this happens - the same long
-  option before any short option works fine. Found while testing
-  utilities/runtime-diff.js's `-g <name> ... --all` (documented order in
-  its own --help) silently dropping `--all` and mis-capturing it as a
-  positional module name.
-
-    import { getOpt } from 'util';
-    const OPTIONS = { g: [true, null, 'g'], all: [false, null, 'a'], '@': 'names' };
-    getOpt(OPTIONS, ['-g', 'Math', '--all', 'foo']);
-    // { "@": ["--all", "foo"], "g": "Math" } -- 'all' key missing entirely,
-    // '--all' misfiled as a positional
-    getOpt(OPTIONS, ['--all', '-g', 'Math', 'foo']);
-    // { "@": ["foo"], "all": true, "g": "Math" } -- correct, only the
-    // argument order differs
-
 - ctest-nondeterministic-failures: not reproducible on HEAD (2026-11-26).
   40 runs of tests/unittests/test-child-process.js, 40 runs of a lone
   spawnSync(), 6 ctest rounds over child-process, node-child-process,
@@ -324,76 +260,6 @@
   crashes came from a stale build/x86_64-linux-gnu. The repeat-loop tests
   in test-child-process.js will catch a return. Delete this entry if it
   stays quiet.
-
-- deepiterator-never-descends-plain-object-root (quickjs-deep.c:314-411):
-  `new DeepIterator(root)` / `deep.iterate(root)` never recurses into `root`
-  when `root` is a plain object - `next()` reports `done: true` on the very
-  first call, 100% reproducible, even with an explicit always-true
-  predicate. An array root works fine (yields each element, recursing into
-  nested arrays/objects one level and even further for nested arrays). A
-  plain object nested *inside* an array root is yielded once as a whole
-  value but is itself never descended into either. `deep.find`/
-  `deep.select`/`deep.forEach`/`deep.iterate`-as-used-by-those (which all
-  push the same way via `property_recursion_push`) traverse plain objects
-  correctly, so the bug is specific to `js_deep_iterator_next`'s extra
-  `if(property_enumeration_length(penum) == 0) continue;` check
-  (quickjs-deep.c:347), which find/select/forEach don't have - suspect
-  `property_enumeration_length` reads 0 for a freshly-pushed plain-object
-  frame before its first `next`, causing an immediate skip/pop instead of
-  descending. Also, `DeepIterator.prototype.skip()` (quickjs-deep.c:442-445)
-  ends iteration entirely instead of resuming at the next sibling: after
-  skipping element 0 of `[[1, 2], 3]`, the following `next()` reports
-  `done: true` rather than yielding `3`. Not root-caused further. Worked
-  around in tests/unittests/test-deep.js by exercising `DeepIterator`/
-  `deep.iterate()` only over array roots, and by only asserting that
-  `skip()` prevents the skipped subtree's own values from ever being
-  yielded (not that iteration continues afterward).
-
-    import { DeepIterator } from 'deep';
-    new DeepIterator({ a: 1 }, () => true).next(); // {done: true}, expected {value: [1, ['a']], done: false}
-
-    import { DeepIterator } from 'deep';
-    const it = new DeepIterator([[1, 2], 3]);
-    it.next();     // {value: [[1, 2], [0]], done: false}
-    it.skip();
-    it.next();     // {done: true}, expected {value: [3, [1]], done: false}
-
-- pointer-splice-insert-throws-garbage-exception (quickjs-pointer.c:501-518):
-  `Pointer.prototype.splice(start, end, ...atomsToInsert)` works fine as a
-  pure deletion (no atoms to insert: it mutates in place and returns the
-  removed sub-pointer, like Array.prototype.splice), but as soon as any
-  insertion atoms are passed, `pointer_splice(...)` (called with `atoms`
-  built by `js_argv_to_atoms`) returns NULL, and js_pointer_method1's tail
-  (`return ret ? js_pointer_wrap(ctx, ret) : JS_EXCEPTION;`, line 549) then
-  returns the `JS_EXCEPTION` sentinel without ever calling `JS_Throw()` -
-  i.e. pointer_splice fails without setting a real pending exception. The
-  resulting "exception" is garbage: catching it in JS and trying to read/
-  print it throws a secondary `ReferenceError: arg is not initialized` from
-  inside the engine. 100% reproducible, not flaky. Routed around in
-  tests/unittests/test-pointer.js's splice() test by only exercising the
-  deletion form.
-
-    import { Pointer } from 'pointer';
-    const p = new Pointer(['a', 'b', 0]);
-    try { p.splice(0, 0, 'z'); } catch(e) { console.log(e); } // secondary crash printing e
-
-- pointer-compare-loses-direction (quickjs-pointer.c:587-602, pointer_compare
-  in src/pointer.c): `Pointer.prototype.compare(other)` is documented as an
-  "Ordering comparison" but its return value doesn't encode which side is
-  greater - `['a'].compare(['b'])` and `['b'].compare(['a'])` both return
-  `0`, so it can't be used to sort pointers by a differing first atom. What
-  it does return looks like it's really `common()`'s internal encoding
-  leaking out: equal pointers give a negative `-(commonLength)-1` (e.g.
-  `['a'].compare(['a'])` -> -2, `['a','b'].compare(['a','b'])` -> -3, matching
-  how METHOD_COMMON decodes `r < 0 ? -r - 1 : r`), and differing pointers
-  give the non-negative common-prefix length instead of a signed ordering
-  (`['a','b'].compare(['a','c'])` -> 1, not -1/0/1 in the position sense).
-  100% reproducible. tests/unittests/test-pointer.js's compare() test only
-  asserts the observed (not the documented) behavior because of this.
-
-    import { Pointer } from 'pointer';
-    new Pointer(['a']).compare(new Pointer(['b'])); // 0
-    new Pointer(['b']).compare(new Pointer(['a'])); // 0 too - no direction
 
 - predicate-bnot-sqrt-atan2-return-undefined (quickjs-predicate.c): calling
   `Predicate.bnot(x)`, `Predicate.sqrt(x)` or `Predicate.atan2(x, y)`
@@ -472,31 +338,6 @@
     misc.objectClassId({});   // 0, every time (should be a real class id)
     misc.objectRefCount({});  // a different huge number every run
 
-- ecmascript-lexer-division-lexed-as-regexp (lib/lexer/ecmascript.js): no
-  rule ever switches the lexer between INITIAL and NOREGEX, so a `/` after
-  an identifier, number, `)` or `]` is first tried as a regexp literal (the
-  regexpLiteral rule is listed before punctuator and the lexer is in FIRST
-  mode). `a = b / c; // x` lexes `/ c; /` as one regexpLiteral, so the
-  comment after it is swallowed and every later token is shifted. a
-  consumer can work around it by setting `lexer.state = 'NOREGEX'` after a
-  token that ends an expression (utilities/extract-comments.js does), but
-  the lexer itself should do it, e.g. from rule callbacks.
-
-    import ECMAScriptLexer from './lib/lexer/ecmascript.js';
-    [...new ECMAScriptLexer('a = b / c; // x', 'f')].map(t => t.type);
-    // [..., 'identifier', 'whitespace', 'regexpLiteral', 'punctuator', ...]
-    // expected: identifier, punctuator '/', identifier, ..., comment
-
-- ecmascript-lexer-division-in-template-substitution
-  (lib/lexer/ecmascript.js): inside `${ ... }` the lexer is in the NESTED
-  state, which allows a regexpLiteral and has no NOREGEX counterpart, so a
-  division there cannot be told apart from a regexp even by a consumer that
-  switches states (`lexer.state` is only safe in INITIAL/NOREGEX).
-
-    const src = '`a${b / c}d${/r/.source}`';
-    [...new ECMAScriptLexer(src, 'f')].map(t => t.lexeme);
-    // the regexpLiteral lexeme is '/ c}d${/r', expected two separate tokens
-
 - ecmascript-lexer-rejects-lone-dollar-in-template (lib/lexer/ecmascript.js,
   TemplateElement/TemplateStringCharacter): a `$` that is not followed by
   `{` is not accepted inside a template literal (the character class
@@ -555,17 +396,6 @@
     l.next();            // consumes "12", current token byte_length becomes 2
     l.skipBytes(1);      // valid (1 <= 2), but...
     l.charPos;            // 4294967296, not 3
-
-- predicate-import-prints-typeerror-at-exit (quickjs-predicate.c): a script
-  that only imports the predicate module prints "TypeError: not a function"
-  to stderr after it finishes, with exit code 0. Seen on both the freshly
-  built qjsm and the older installed one, so it predates recent changes.
-  Not root-caused; likely module init or teardown. The location module does
-  not do this.
-
-    import { Predicate } from 'predicate';
-    console.log(typeof Predicate);   // function, then: TypeError: not a function
-
 
 - lexer-non-ascii-input-corrupts-tokens (src/lexer.c, quickjs-lexer.c): lexing
   source text that contains non-ascii (multi-byte utf-8) characters produces
@@ -744,16 +574,6 @@
     resolve-imports.js --recursive --print-files -o /dev/null /tmp/a.js
     # prints only /tmp/a.js, without the directive also /tmp/b.js
 
-- lexer-eof-false-after-last-token: for a string input, Lexer.next()
-  returns null once the input is consumed, but lexer.eof stays false,
-  so a loop on !lexer.eof never ends (doc/native/lexer.md says eof is
-  true once everything was consumed).
-
-    import { Lexer } from 'lexer';
-    const l = new Lexer('ab', Lexer.LONGEST);
-    l.addRule('t', /[a-z]+/);
-    l.next(); console.log(l.next(), l.eof);   // null false
-
 - lexer-cpp-no-continuation-token: test-lexer-cpp.js 'an escaped newline
   continues the directive' fails: lib/lexer/c.js lexes the backslash of a
   continued #define line as no token at all, the test expects a
@@ -868,14 +688,6 @@
     # add node/os to BUILTINS_COMPILED in cmake/qjsm.cmake, then
     cmake -B build/x86_64-linux-gnu -S .    # node/os not listed
 
-- fs-readfilesync-proc-empty: fs.readFileSync() of a /proc or /sys file
-  returns '' (or an empty buffer), Node returns the contents. These files
-  report size 0, so a read sized by stat() or fseek/ftell gets nothing,
-  std.loadFile() does the same. Read until EOF instead. Found 2026-10-21.
-
-    import { readFileSync } from 'fs';
-    readFileSync('/proc/loadavg', 'utf8');  // node: '1.84 ...'  qjsm: ''
-
 - node-os-networkinterfaces-unimplemented: os.networkInterfaces() of
   node:os throws InternalError, qjs-modules has no getifaddrs(3) binding.
   Needs misc.getifaddrs() (name, family, address, netmask, MAC from
@@ -926,18 +738,6 @@
 
     os.ttyGetWinSize(1)     // [120, 9001] in a 120x30 cmd.exe window
     misc.ttyGetWinSize(1)   // [120, 30]
-
-- deep-equals-leaks-pending-rangeerror: deep.equals() returns false and leaves
-  "RangeError: PropertyEnumeration is at end" pending when one side runs out
-  of properties first, or has none to enumerate: {a: undefined} vs {}, two
-  equal Dates, two RegExps, two Maps, Object.create(null) vs {}, two
-  ArrayBuffers. A try/catch around the call does not see it, the error
-  surfaces at the next exception check. Bun.deepEquals does not use it (own
-  walk in lib/bun/util.js).
-
-    import { equals } from 'deep';
-    try { equals({ a: undefined }, {}); } catch(e) { /* not reached */ }
-    // RangeError: PropertyEnumeration is at end, after the try
 
 - quickjs-local-function-overwrites-import: in QuickJS (qjs and qjsm), a
   hoisted function declaration with the name of an import replaces the
