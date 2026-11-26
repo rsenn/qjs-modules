@@ -160,11 +160,11 @@
 #include <sys/types.h>
 #include <utime.h>
 
-#ifdef __dietlibc__
+#if defined(__dietlibc__) || (defined(__ANDROID__) && __ANDROID_API__ < 26)
 #include <fcntl.h>
 #include <sys/stat.h>
 
-/* dietlibc has utimensat() but no futimes() or lutimes(): futimes(fd, tv) is
+/* dietlibc and bionic before API 26 have utimensat() but no futimes() or lutimes(): futimes(fd, tv) is
  * utimensat(fd, NULL, ts, 0), lutimes(path, tv) adds AT_SYMLINK_NOFOLLOW. */
 static int
 futimes(int fd, const struct timeval tv[2]) {
@@ -182,13 +182,6 @@ lutimes(const char* path, const struct timeval tv[2]) {
 
 #define HAVE_FUTIMES 1
 #define HAVE_LUTIMES 1
-#endif
-
-#ifdef __ANDROID__
-#if !(__ANDROID_API__ >= 26)
-int futimes(int, const struct timeval[2]);
-int lutimes(const char*, const struct timeval[2]);
-#endif
 #endif
 
 #endif
