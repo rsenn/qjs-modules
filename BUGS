@@ -42,32 +42,6 @@
     // actual: ReferenceError: could not load module 'test.js': ReferenceError:
     //         could not load module filename 'test.js'
 
-- missing-line-number-single-line-function: a stack frame for a function whose
-  entire body (declaration through the throwing statement) sits on one
-  source line prints with no `:<line>` at all - just the bare filename -
-  while every enclosing/enclosed frame on its own line gets a correct line
-  number. Root cause is in the vendored ../quickjs/quickjs.c (not
-  qjs-modules' own code): build_backtrace() (quickjs.c:6497) calls
-  find_line_num(ctx, b, sf->cur_pc - b->byte_code_buf - 1) for each stack
-  frame and only appends `:%d` `if(line_num1 != -1)` (quickjs.c:6553); for a
-  one-line function body find_line_num() apparently can't resolve a line for
-  that pc and returns -1, silently dropping the position instead of falling
-  back to the function's declaration line. Splitting the exact same code
-  across multiple lines produces a fully located trace. Found via
-  tests/test_exceptions.js's 'synchronous throw inside a single-line
-  function body' case, which documents this as a known-failing test (same
-  convention as the pre-existing test_path.js/test_stream.js failures).
-
-    // tests/test_exceptions.js spawns qjsm on this exact script:
-    function foo() { throw new Error("boom"); }
-    function bar() { foo(); }
-    bar();
-    // actual stack (foo/bar frames have no line number):
-    //   at foo (script.js)
-    //   at bar (script.js)
-    //   at <anonymous> (script.js:3)
-    // expected: every frame carries a `:<line>`, e.g. "at foo (script.js:1)"
-
 - js-module-loader-detection-vs-actual-headers (CMakeLists.txt:544, cmake/QuickJSModule.cmake:4):
   the configure-time probe that decides whether qjsm.c should call the 3-arg
   or 4-arg js_module_loader() compiles its test snippet against
@@ -92,22 +66,6 @@
     //   error: too many arguments to function 'js_module_loader'
     // expected: consistent, correct macro selection every configure
 
-- test-xml-assertion-count-nondeterminism (tests/test_xml.js): the number of
-  failing assertions when running the full suite varies between builds - 20
-  under the plain glibc debug build, 23 under the ASan build - meaning at
-  least one test's pass/fail outcome is itself non-deterministic (candidates:
-  object-key or Map iteration order, or an uninitialized read that differs by
-  allocator). Not narrowed down to which specific test(s) flip; most of the
-  suite's failures were root-caused and moved to TODO.md's Tier 1 (see
-  XMLParser.on* callback / XMLWriter indentation / xml.c boolean-attribute /
-  text-boundary-space / js_xml_write_list end-marker entries), but this
-  count discrepancy itself wasn't chased down.
-
-    diff <(env QUICKJS_MODULE_PATH="build/x86_64-linux-debug;lib" ./build/x86_64-linux-debug/qjsm --bignum tests/test_xml.js 2>&1 | grep FAILED) \
-         <(env QUICKJS_MODULE_PATH="build/x86_64-linux-asan;lib"  ./build/x86_64-linux-asan/qjsm  --bignum tests/test_xml.js 2>&1 | grep FAILED)
-    // expected: identical failure lists between builds
-    // actual: differs by 2-3 tests
-
 - bnf-lexer-literal-newline-in-l-file (lib/lexer/bnf.js): BNFLexer throws
   "No matching token" on tests/Shell-Grammar.l's definitions section
   because a literal newline character inside a flex character-class
@@ -124,35 +82,6 @@
     // actual: throws InternalError: ...:4:5: No matching token (0: INITIAL)
     // expected: lexes the whole file without throwing
 
-- ctest-runs-disabled-optional-module-tests (CMakeLists.txt:830): the test
-  registration loop globs every tests/test_*.js and add_test()s it
-  unconditionally, with no check against MODULE_SERIAL/MODULE_GPIO (both
-  OFF by default, CMakeLists.txt:71-72) or any other optional-module
-  build flag. tests/test_serial.js and tests/test_gpio.js import a module
-  that was never built on a default configure, so they hard-fail every
-  ctest run instead of being skipped/excluded when their module is
-  disabled - can't distinguish "expected, module opted out" from "real
-  regression" in CI output. Found running `ctest` in build/x86_64-linux-gnu
-  (MODULE_SERIAL=OFF, MODULE_GPIO=OFF, the defaults).
-
-    cmake -B build -S . && cmake --build build && ctest --test-dir build
-    // actual: test_serial.js and test_gpio.js FAIL with
-    //   ReferenceError: could not load module 'serial'/'gpio'
-    // expected: skipped (or excluded from the test set) when
-    // MODULE_SERIAL/MODULE_GPIO are OFF
-
-- lib-modules-missing-docs (doc/js/README.md:61): `lib/database.js`,
-  `lib/dbi.js` and `lib/describe.js` exist and are exported like
-  any other JS module, but have no doc/js/*.md page - doc/js/README.md
-  used to link to database.md/dbi.md/describe.md as if they
-  existed, which is what surfaced this while fixing the
-  doc-cross-folder-md-links-unresolvable bug (now fixed: those entries
-  are plain text, not broken links). Writing the three missing pages is
-  unfinished, tracked here rather than done speculatively.
-
-    ls doc/js/database.md doc/js/dbi.md doc/js/describe.md
-    // No such file or directory (all three)
-
 - pointer-atom-index-ignores-leading-zero (include/utils.h:753,
   js_atom_is_index): treats any atom whose string form parses as a
   non-negative decimal (e.g. "01") as an array index, so
@@ -168,26 +97,6 @@
     import { Pointer } from 'pointer';
     Pointer.from(["01", "x"]).toString();
     // "[1].x" -- should be ".01.x" (leading zero silently dropped)
-
-- iohandler-fallback-wrong-module-loader (src/utils.c:3318, js_iohandler_fn):
-  when `globalThis.os` (or the given global_obj name) isn't set, the
-  fallback path calls quickjs-libc's raw `js_module_loader()`, which
-  treats the module name as a filesystem path and tries to open a file
-  literally named "os" - it doesn't know about qjsm's builtin module
-  table (that's `jsm_module_loader()` in src/qjsm.c, not reachable from
-  shared code in utils.c). Always throws "'os' module required" even
-  though the 'os' module is a real builtin and may already be imported
-  by name elsewhere in the same script. Found after flipping qjsm's
-  load_std default to 0 (std/os no longer auto-global) - this fallback
-  was previously dead code because globalThis.os always existed.
-  Affects any C code path that calls js_iohandler_fn() (native async
-  socket read/write registration, at least) when run without --std.
-
-    // qjsm, without --std:
-    import * as os from 'os';
-    import { AsyncSocket } from 'sockets';
-    const s = new AsyncSocket(...);
-    await s.recv(...); // ReferenceError: 'os' module required
 
 - excluded-native-modules-unreachable-without-shared-build (CMakeLists.txt):
   BUILD_SHARED_MODULES defaults OFF, so a from-scratch build never produces
@@ -338,18 +247,6 @@
     misc.objectClassId({});   // 0, every time (should be a real class id)
     misc.objectRefCount({});  // a different huge number every run
 
-- ecmascript-lexer-rejects-lone-dollar-in-template (lib/lexer/ecmascript.js,
-  TemplateElement/TemplateStringCharacter): a `$` that is not followed by
-  `{` is not accepted inside a template literal (the character class
-  excludes `$`, and only `${` is handled), so the whole input fails with
-  "No matching token". lib/css-selectors.js and lib/css3-selectors.js
-  contain such a template (`^${part}$`), so tools that lex them (e.g.
-  utilities/extract-comments.js) stop at that line.
-
-    import ECMAScriptLexer from './lib/lexer/ecmascript.js';
-    [...new ECMAScriptLexer('`a$b`', 'f')];
-    // throws "No matching token (0: INITIAL)", expected one template token
-
 - lexer-rule-expansion-never-freed (src/lexer.c: lexer_rule_compile ~146,
   lexer_rule_release_rt ~228): lexer_rule_compile() stores a js_strndup()ed
   copy of the expanded pattern in `rule->expansion`, but
@@ -382,7 +279,7 @@
     l.addRule('number', /[0-9]+/);
     l.next();            // consumes "12", current token byte_length becomes 2
     l.skipBytes(1);      // valid (1 <= 2), but...
-    l.charPos;            // 4294967296, not 3
+    l.charPos;            // 1 (2026-11-26; was 4294967296), expected 3
 
 - pgsql-async-connect-live-server-hangs: an async pgsql connect (set
   pq.nonblocking = true, then pq.connect(...)) against a reachable server
@@ -414,20 +311,6 @@
     await db.connect({ host: '127.0.0.1', port: 1, user: 'x', password: '', db: 'y' });
     // expected: rejects with MySQLError, or db.error is a message string
     // actual: resolves; db.errno === 2002, db.error === null
-
-- check-source-definitions-no-dash-d (cmake/Checks.cmake): the macro
-  check_source_definitions() appends bare names (GNU_SOURCE, XOPEN_SOURCE
-  ...) to CMAKE_REQUIRED_DEFINITIONS, which try_compile hands to the
-  compiler as arguments without "-D". The compiler reads them as input
-  files, so every check_function_exists()/check_include_file() probe fails.
-  A fresh configure ends with an empty HAVE_* set (config.h has no
-  HAVE_SYS_WAIT_H, so src/child-process.c fails with "implicit declaration
-  of function 'waitpid'"). An existing build directory is unaffected, its
-  cache still holds the results from before.
-
-    cmake -S . -B /tmp/b && grep -c 'define HAVE' /tmp/b/config.h
-    // expected: 73 (what build/x86_64-linux-gnu/config.h has)
-    // actual: 0, the log shows "Looking for getegid - not found"
 
 - relative-link-directory-multiarch (CMakeLists.txt): a relative
   "lib/<multiarch>" ends up in LINK_DIRECTORIES, so every module links with
@@ -502,30 +385,6 @@
     // actual: no error, p.root holds a repaired tree
 
 
-- resolve-imports-use-strict-ends-import-scan: utilities/resolve-imports.js
-  stops collecting imports at the first `;` that is not part of an
-  import (line 2161 sets doneImports), so a file that starts with a
-  "use strict"; directive has none of its imports followed by
-  --recursive. Every file of commonmark.js starts that way. The same pass
-  also does not follow `export { default as X } from './x.js'`, and
-  --remove-exports keeps the export keywords of the inlined files.
-
-    printf '"use strict";\nimport { a } from "./b.js";\n' > /tmp/a.js
-    printf 'export const a = 1;\n' > /tmp/b.js
-    resolve-imports.js --recursive --print-files -o /dev/null /tmp/a.js
-    # prints only /tmp/a.js, without the directive also /tmp/b.js
-
-- lexer-cpp-no-continuation-token: test-lexer-cpp.js 'an escaped newline
-  continues the directive' fails: lib/lexer/c.js lexes the backslash of a
-  continued #define line as no token at all, the test expects a
-  pp_continuation token between pp_identifier:A and pp_number:1. Found
-  2026-10-20 while running the lexer tests for lib/lexer/ecmascript.js,
-  fails the same with that change undone.
-
-    cd tests/unittests && qjsm test-lexer-cpp.js
-    # 'pp_hash:#,pp_directive:define,pp_identifier:A,pp_number:1,...'
-    # expected '...,pp_identifier:A,pp_continuation:\,pp_number:1,...'
-
 - ecmascript-lexer-escaped-identifier: lib/lexer/ecmascript.js does not lex
   an identifier with a unicode escape, valid JS since ES2015: a and
   \u{62} give UNEXPECTED_CHARACTER at the backslash. IdentifierStart has
@@ -544,12 +403,6 @@
 
     resolve-imports.js -o b.mjs ../../magic-string/dist/index.mjs
     qjsm b.mjs   # SyntaxError: invalid redefinition of global identifier
-
-- builtin-modules-cache-pins-defaults: cmake/qjsm.cmake caches
-  BUILTIN_MODULES on the first configure, so a builtin added to the
-  defaults later (loaders/packages) never reaches an existing build
-  directory. The same was fixed for BUILTINS_COMPILED only. Workaround:
-  cmake -U BUILTIN_MODULES <builddir>. Found 2026-10-20.
 
 - typescript-test-gated-on-swc-cli: test-typescript.js runs only when the
   swc CLI is in PATH, but lib/loaders/typescript.js calls node's
