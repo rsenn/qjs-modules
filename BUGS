@@ -170,46 +170,6 @@
   in test-child-process.js will catch a return. Delete this entry if it
   stays quiet.
 
-- predicate-bnot-sqrt-atan2-return-undefined (quickjs-predicate.c): calling
-  `Predicate.bnot(x)`, `Predicate.sqrt(x)` or `Predicate.atan2(x, y)`
-  returns `undefined` instead of a `Predicate`, even though all three are
-  registered, exported, callable functions (`JS_CFUNC_MAGIC_DEF("bnot", ...
-  PREDICATE_BNOT)` etc., quickjs-predicate.c:974/975/984) with working
-  `toString`/inspect support for their PREDICATE_BNOT/SQRT/ATAN2 ids
-  (quickjs-predicate.c:825-826,839). The actual builder switch inside
-  `js_predicate_function()` (quickjs-predicate.c, the dispatcher every
-  factory in doc/native/predicate.md goes through) simply has no
-  `case PREDICATE_BNOT/SQRT/ATAN2:` arm - unlike every sibling arithmetic
-  op (`add`/`sub`/`mul`/`div`/`mod`/`bor`/`band`/`pow`, all present), so the
-  switch falls through doing nothing and the function returns its
-  initial `ret = JS_UNDEFINED`. No exception is thrown, so this fails
-  silently. Worked around in tests/unittests/test-predicate.js by not
-  invoking `Predicate.bnot`/`sqrt`/`atan2`.
-
-    import { Predicate } from 'predicate';
-    Predicate.sqrt(9);           // undefined, expected a Predicate
-    Predicate.sqrt(9)();         // TypeError: not a function
-
-- predicate-xor-shares-args-cursor (src/predicate.c:196-208): `Predicate.xor
-  (p1, p2, ...)` only evaluates its first sub-predicate against the actual
-  call arguments; from the second sub-predicate onward it evaluates against
-  stale/empty arguments, because the `PREDICATE_XOR` case in
-  `predicate_eval()` passes the shared `args` (a stateful, shift-based
-  `JSArguments` cursor) straight to `predicate_value()` on every loop
-  iteration, whereas the otherwise-identical `PREDICATE_OR`/`PREDICATE_AND`
-  cases just above it (src/predicate.c:172-194) each take a fresh
-  `JSArguments args2 = *args` copy per iteration specifically to avoid this.
-  Net effect: `Predicate.xor(Predicate.equal(1), Predicate.equal(1))(1)`
-  (both operands should match -> logical/bitwise XOR of two trues -> falsy)
-  instead evaluates as if only the first operand saw `1` and the second saw
-  nothing, so it returns a truthy `1` in cases that should be falsy.
-  Worked around in tests/unittests/test-predicate.js by only checking that
-  `xor()` is callable and returns a number, not asserting specific
-  true/false outcomes across multiple operands.
-
-    import { Predicate } from 'predicate';
-    Predicate.xor(Predicate.equal(1), Predicate.equal(1))(1);   // 1 (truthy), expected 0 (falsy)
-
 - misc-dequote-does-not-remove-quotes (quickjs-misc.c:2627-2666):
   `misc.dequote(s)` is not the inverse of `misc.quote(s)`, despite
   doc/native/misc.md describing them as "Add / remove quoting". Both
@@ -423,30 +383,6 @@
     qjsm utilities/extract-structs.js quickjs-path.c
     # cFuncListObjects {}
     # []
-
-- commonjs-stack-has-no-file-and-line: lib/loaders/commonjs.js compiles
-  a module with new Function(...), so its frames read <input> and the
-  line is 2 too high. Fix: evalBuf('(function (exports, require, module,
-  __filename, __dirname) {' + source + '\n})', path) keeps the source on
-  its own lines under the file's name, and throws the same SyntaxError for
-  an ES module. Found 2026-10-21.
-
-    // x.cjs   line 1, then: throw new Error('here');   on line 2
-    # node: at Object.<anonymous> (/dir/x.cjs:2:7)
-    # qjsm: at anonymous (<input>:4:7)
-
-- quickjs-regexp-v-flag-hyphen: the QuickJS that qjsm links rejects a
-  plain - anywhere in a pattern with the v flag, also outside a class:
-  /a-b/v, /^(?:-?\d+n)/v throw invalid character in class (5 packages:
-  jsdoc-type-pratt-parser, eslint-plugin-jsdoc, eslint-plugin-regexp, ...).
-  get_class_atom() in ../quickjs/libregexp.c checks the reserved and the
-  doubled punctuators under s->unicode_sets alone. Fix: s->unicode_sets &&
-  inclass in both checks. Also inside a class v mode allows the escaped
-  punctuators & ! # % , : ; < = > @ ` ~ (ClassSetReservedPunctuator),
-  which throw invalid escape sequence. Found 2026-10-21.
-
-    /a-b/v;          // node: ok   qjsm: SyntaxError
-    /[a\&]/v;        // node: ok   qjsm: SyntaxError
 
 - builtin-modules-cache-pins-default: a new name in qjsm.cmake's default
   BUILTINS_COMPILED list does not reach an existing build dir. The first
