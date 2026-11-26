@@ -42,6 +42,21 @@ function run(args, script) {
   return fs.readFileSync(log, 'utf-8').trim();
 }
 
+/* runs a CommonJS script in app/cjs (no "type": "module"), returns its output as JSON */
+function runCjs(script) {
+  const log = path.join(dir, 'cjs.log');
+
+  write('cjs/package.json', {});
+  write('cjs/run.js', script);
+
+  const fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
+
+  os.exec([process.execPath, 'run.js'], { cwd: path.join(app, 'cjs'), stdout: fd, stderr: fd, block: true });
+  os.close(fd);
+
+  return fs.readFileSync(log, 'utf-8').trim();
+}
+
 tests({
   'setup'() {
     write('package.json', { name: 'app', type: 'module', imports: { '#int': './src/int.js', '#dep': 'dep', '#pat/*': './src/pat/*.js' }, exports: { '.': './src/main.js', './feat/*': './src/feat/*.js' } });
@@ -137,6 +152,53 @@ tests({
     eq('cond/node-import cond3/prod', run(['-C', 'production'], script));
     eq('cond/node-import cond3/browser', run(['--conditions=browser'], script));
     assert(/could not load module 'cond'/.test(run(['-N'], script)), run(['-N'], script));
+  },
+
+  'require() follows "exports" with the node and require conditions'() {
+    write(nm + 'reqexp/package.json', { name: 'reqexp', exports: { '.': { require: './main.cjs', import: './main.mjs' }, './sub': './sub.js', './data': './data.json' } });
+    write(nm + 'reqexp/main.cjs', 'module.exports = "cjs-main";\n');
+    write(nm + 'reqexp/main.mjs', 'export default "esm-main";\n');
+    write(nm + 'reqexp/sub.js', 'module.exports = "sub";\n');
+    write(nm + 'reqexp/hidden.js', 'module.exports = "hidden";\n');
+    write(nm + 'reqexp/data.json', { v: 1 });
+
+    const out = JSON.parse(
+      runCjs(`const out = { main: require('reqexp'), sub: require('reqexp/sub'), data: require('reqexp/data') };
+try { require('reqexp/hidden.js'); } catch(e) { out.hidden = e.code; }
+console.log(JSON.stringify(out));`),
+    );
+
+    eq('cjs-main', out.main);
+    eq('sub', out.sub);
+    eq(1, out.data.v);
+    eq('ERR_PACKAGE_PATH_NOT_EXPORTED', out.hidden);
+  },
+
+  'require() of a package without "exports" tries .json and index.json'() {
+    write(nm + 'reqjson/package.json', { name: 'reqjson' });
+    write(nm + 'reqjson/data.json', { w: 2 });
+    write(nm + 'reqjson/dir/index.json', { i: 3 });
+    write('cjs/local.json', { l: 4 });
+
+    const out = JSON.parse(runCjs("console.log(JSON.stringify([require('reqjson/data'), require('reqjson/dir'), require('./local')]));"));
+
+    eq(2, out[0].w);
+    eq(3, out[1].i);
+    eq(4, out[2].l);
+  },
+
+  'require.resolve() gives the file, MODULE_NOT_FOUND when there is none'() {
+    const out = JSON.parse(
+      runCjs(`const out = { type: typeof require.resolve, file: require.resolve('reqexp'), builtin: require.resolve('fs'), paths: require.resolve.paths('reqexp').length > 0 };
+try { require.resolve('no-such-package-x'); } catch(e) { out.missing = e.code; }
+console.log(JSON.stringify(out));`),
+    );
+
+    eq('function', out.type);
+    eq(path.join(app, nm + 'reqexp/main.cjs'), out.file);
+    eq('fs', out.builtin);
+    assert(out.paths, 'require.resolve.paths() lists the node_modules directories');
+    eq('MODULE_NOT_FOUND', out.missing);
   },
 
   'cleanup'() {
