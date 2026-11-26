@@ -316,47 +316,14 @@
     // { "@": ["foo"], "all": true, "g": "Math" } -- correct, only the
     // argument order differs
 
-- ctest-nondeterministic-failures (tests/test_childprocess.js, test_pointer.js,
-  test_repeater.js, test_streams.js, test_dom.js): built against
-  /opt/quickjs-2026-06-04, the same test gives different pass/fail results
-  between identical runs, on unmodified HEAD as well. 5 runs each, P=pass:
-  childprocess FPFFF, pointer FPPPP, repeater FFPFF, streams FFFPP. some
-  failures are segfaults, so this looks like memory corruption or a race, not
-  test logic. not root-caused; the results differ between full-suite runs too.
-
-    for i in 1 2 3 4 5; do ctest --test-dir build/bt-2026 -R test_childprocess.js; done
-
-  update: still reproduces on current HEAD while writing
-  tests/unittests/test-child-process.js - a single, isolated `spawnSync()`
-  or `execSync()` call (no other code) segfaults roughly half the time, and
-  one run produced glibc's `free(): invalid pointer` right before the
-  crash, which points at a real double-free/heap-corruption bug in the
-  spawn path rather than a race between unrelated tests. Not root-caused
-  further (didn't bisect which of exec/spawn/execSync/spawnSync/kill/wait
-  is the actual corruptor). tests/unittests/test-child-process.js is
-  written correctly against the module's real API (verified against
-  passing runs) but will fail intermittently until this is fixed.
-
-    import { spawnSync } from 'child_process';
-    spawnSync('sh', ['-c', 'exit 0']);   // segfaults roughly half the time, alone, with nothing else in the file
-
-  update 2: the segfaults above were against the stale build/x86_64-linux-gnu
-  (see jsm-module-loader note elsewhere in this file / test-deep.js's finding
-  that that directory's .so files predate the current qjsm and match no
-  current CMake target); against build/bt-2026, the finished
-  tests/unittests/test-child-process.js passes 5/5 identical runs
-  ("7 tests succeeded.", exit 0). It does leave one deterministic (5/5),
-  harmless artifact: an extra "TypeError: not a function at wait (native)"
-  is printed to stderr *after* "7 tests succeeded." on every run, sourced
-  from the `kill()` test's `child.wait()` call - despite that call's own
-  result being used successfully inside the test (the OK is logged first).
-  Looks like a duplicate/late invocation of `wait` from the module's async
-  job queue, not something the test itself does twice. Doesn't affect the
-  exit code or tinytest's pass count; not root-caused further.
-
-    for i in 1 2 3 4 5; do
-      QUICKJS_MODULE_PATH="build/bt-2026;lib" build/bt-2026/qjsm tests/unittests/test-child-process.js
-    done   # "7 tests succeeded." each time, but a stray TypeError trails every run
+- ctest-nondeterministic-failures: not reproducible on HEAD (2026-11-26).
+  40 runs of tests/unittests/test-child-process.js, 40 runs of a lone
+  spawnSync(), 6 ctest rounds over child-process, node-child-process,
+  pointer, repeater, streams and dom, and a valgrind run of the child
+  process test: no crash, no failure, no invalid access. The earlier
+  crashes came from a stale build/x86_64-linux-gnu. The repeat-loop tests
+  in test-child-process.js will catch a return. Delete this entry if it
+  stays quiet.
 
 - textdecoder-utf16-decode-returns-null (quickjs-textcode.c:66-89): calling
   `TextDecoder('utf-16').decode()` (or 'utf-16be') on well-formed input
@@ -425,39 +392,6 @@
     import { Pointer } from 'pointer';
     const p = new Pointer(['a', 'b', 0]);
     try { p.splice(0, 0, 'z'); } catch(e) { console.log(e); } // secondary crash printing e
-
-- misc-classid-struct-scraping-segfault (src/utils.c:1678-1759):
-  `misc.classId(name)`, `misc.className(id)` and `misc.classAtom(id)` are
-  all unsafe to call - `classId()` alone segfaults reliably (10/10 runs)
-  once called two or three times in the same script (e.g.
-  `classId('Array'); classId('Object'); classId('X')`), and
-  `className`/`classAtom` on any id it returns segfault 100% of the time,
-  even from a single call. Root cause: `js_class_count()`
-  (src/utils.c:1678-1683) reads the live class count via a hardcoded byte
-  offset into the opaque `JSRuntime` struct - `*((uint32_t*)rt +
-  DEF6432(27, 16))` - i.e. it "struct-scrapes" a private quickjs-internal
-  layout instead of using a public accessor. `js_class_atom`/`js_class_id`/
-  `js_class_find` (same file, right below) do the same for the class array
-  pointer. On the currently vendored QuickJS this offset no longer lines
-  up with the real `class_count` field, so `js_class_count()` returns a
-  garbage huge number (observed: 7980 for `classId('Array')`, where a
-  real class count is more like 100-200); `js_class_find()` then walks
-  `class_count` entries through `class_arr`, reading far past the real
-  array - which is why even repeated `classId()` calls alone eventually
-  walk into unmapped memory. The `assert(id > 0 && id < js_class_count(rt))`
-  guards in `js_class_atom`/`js_class_id` would normally catch a bad `id`
-  afterwards, but this project builds with `-DNDEBUG` (CMakeLists.txt:873),
-  so the assert compiles out and the out-of-bounds pointer arithmetic runs
-  unchecked. This is the same class of fragility the project has been
-  actively removing elsewhere (see 26d776f7, "remove QUICKJS_INTERNAL:
-  ... struct-scraping header generation") - these four functions in
-  src/utils.c look like leftover struct-scraping that wasn't migrated.
-  tests/unittests/test-misc.js does not exercise classId/className/
-  classAtom at all because of this.
-
-    import * as misc from 'misc';
-    misc.classId('Array'); misc.classId('Object'); misc.classId('X');
-    // segfault, reliably within a handful of calls
 
 - mmap-shared-flag-passed-as-arraybuffer-is-shared (quickjs-mmap.c:53):
   `mmap(addr, length, prot, MAP_SHARED, fd, offset)` segfaults 100%
@@ -856,18 +790,6 @@
 
     qjsm -e 'import("path.so").then(m=>print(Object.keys(m).length))'
 
-- misc-classid-lookup-finds-nothing (src/utils.c:1356, js_class_find): the
-  runtime class-table scan returns -1 for every name, built-in classes
-  included, so `misc.classId()` is useless with the installed libquickjs
-  (1.4). js_class_array() cannot locate class_array inside JSRuntime.
-  found while trying to resolve the ArrayBufferSink class id from
-  src/stream-utils.c by name.
-
-    import { classId } from 'misc';
-    classId('Object');
-    // expected: a number
-    // actual: undefined
-
 - syscallerror-no-code-for-eloop (quickjs-syscallerror.c): SyscallError
   built with errno 40 has `code === null` and no `SyscallError.ELOOP`
   constant, though the message is right. found while writing lib/vfs.js,
@@ -1057,35 +979,6 @@
     qjsm utilities/extract-structs.js quickjs-path.c
     # cFuncListObjects {}
     # []
-
-- require-ignores-package-exports: lib/require.js finds a package's file
-  by package.json main, index.js, main.js only, so a package with only
-  "exports" is a directory, but not a package (@typescript-eslint/types),
-  and a subpath like require('eslint/use-at-your-own-risk') is not found.
-  Fix: resolve bare names with packageResolve() of lib/loaders/packages.js
-  and the conditions node, require. Found 2026-10-21.
-
-    require('@typescript-eslint/types');
-    # qjsm: Error: Module .../@typescript-eslint/types is a directory,
-    #       but not a package
-
-- require-no-json-extension: lookupModule() of lib/require.js adds .js to
-  an extensionless path but not .json, so require('./data') of a data.json
-  is not found (core-js-compat). Node tries X, X.js, X.json, X/index.js,
-  X/index.json. Fix: try .json too and load it with loadJSON(). Found
-  2026-10-21.
-
-    require('core-js-compat/data');
-    # qjsm: Error: Module .../core-js-compat/data not found!
-
-- require-resolve-missing: require.resolve() does not exist, so
-  init-package-json fails with not a function. Fix: require.resolve(spec)
-  returns what lookupModule(spec, dir) finds and throws an Error with code
-  MODULE_NOT_FOUND otherwise, require.resolve.paths(spec) the
-  nodeModulesPaths() list. Found 2026-10-21.
-
-    typeof require.resolve
-    # node: 'function'   qjsm: 'undefined'
 
 - commonjs-require-not-per-module: lib/loaders/commonjs.js passes every
   module the one global require and sets require.filename only while the
