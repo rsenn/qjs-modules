@@ -284,6 +284,9 @@ predicate_mod(JSValue left, JSValue right) {
 PREDICATE_BINARY(bor, BOR)
 PREDICATE_BINARY(band, BAND)
 PREDICATE_BINARY(pow, POW)
+PREDICATE_BINARY(atan2, ATAN2)
+PREDICATE_UNARY(bnot, BNOT)
+PREDICATE_UNARY(sqrt, SQRT)
 
 static inline Predicate
 predicate_or(size_t npredicates, JSValue* predicates) {
@@ -312,8 +315,6 @@ predicate_xor(size_t npredicates, JSValue* predicates) {
 PREDICATE_UNARY(equal, EQUAL)
 PREDICATE_UNARY(notnot, NOTNOT)
 PREDICATE_UNARY(not, NOT)
-PREDICATE_UNARY(bnot, BNOT)
-PREDICATE_UNARY(sqrt, SQRT)
 
 static inline Predicate
 predicate_property(JSAtom prop, JSValue pred) {

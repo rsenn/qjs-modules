@@ -203,6 +203,24 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         break;
       }
 
+      case PREDICATE_ATAN2: {
+        JSValue left = predicate_nextarg(ctx, &args);
+        JSValue right = predicate_nextarg(ctx, &args);
+
+        *pr = predicate_atan2(left, right);
+        break;
+      }
+
+      case PREDICATE_BNOT: {
+        *pr = predicate_bnot(predicate_nextarg(ctx, &args));
+        break;
+      }
+
+      case PREDICATE_SQRT: {
+        *pr = predicate_sqrt(predicate_nextarg(ctx, &args));
+        break;
+      }
+
       case PREDICATE_OR: {
         *pr = predicate_or(argc, js_values_dup(ctx, argc, argv));
         break;
@@ -584,6 +602,25 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       JSValue right = predicate_nextarg(ctx, &args);
 
       ret = js_predicate_wrap(ctx, predicate_pow(left, right));
+      break;
+    }
+    case PREDICATE_ATAN2: {
+      JSValue left = predicate_nextarg(ctx, &args);
+      JSValue right = predicate_nextarg(ctx, &args);
+
+      ret = js_predicate_wrap(ctx, predicate_atan2(left, right));
+      break;
+    }
+    case PREDICATE_BNOT: {
+      JSValue value = predicate_nextarg(ctx, &args);
+
+      ret = js_predicate_wrap(ctx, predicate_bnot(value));
+      break;
+    }
+    case PREDICATE_SQRT: {
+      JSValue value = predicate_nextarg(ctx, &args);
+
+      ret = js_predicate_wrap(ctx, predicate_sqrt(value));
       break;
     }
     case PREDICATE_OR: {

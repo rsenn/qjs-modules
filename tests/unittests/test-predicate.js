@@ -52,10 +52,9 @@ tests({
     assert(Predicate.and(Predicate.equal(1), Predicate.equal(1))(1));
     assert(!Predicate.and(Predicate.equal(1), Predicate.equal(2))(1));
   },
-  /* xor()'s multi-operand behavior is unreliable beyond the first operand -
-   * see BUGS (predicate-xor-shares-args-cursor). Only checking it's callable. */
   'xor()'() {
-    eq(typeof Predicate.xor(Predicate.equal(1), Predicate.equal(2))(1), 'number');
+    eq(Predicate.xor(Predicate.equal(1), Predicate.equal(1))(1), 0);
+    eq(Predicate.xor(Predicate.equal(1), Predicate.equal(2))(1), 1);
   },
   'member()'() {
     const p = Predicate.member({ a: 1, b: 2 }, Predicate.equal(1));
@@ -89,8 +88,6 @@ tests({
   'pow()'() {
     eq(Predicate.pow(2, 3)(), 8);
   },
-  /* sqrt()/atan2()/bnot() return undefined instead of a Predicate - see
-   * BUGS (predicate-bnot-sqrt-atan2-return-undefined). Not invoked here. */
   'bor() / band()'() {
     eq(Predicate.bor(1, 2)(), 3);
     eq(Predicate.band(3, 1)(), 1);
@@ -139,20 +136,18 @@ tests({
     eq(Predicate.bor(1, 2)(), 3);
     eq(Predicate.band(3, 1)(), 1);
   },
-  /* bnot()/sqrt()/atan2() are registered factories; the native module returns
-   * undefined instead of a Predicate for them (see
-   * BUGS predicate-bnot-sqrt-atan2-return-undefined), while the JS port in
-   * lib/predicate.js returns a callable Predicate. Only assert the result
-   * when the implementation actually produces one. */
   'bnot() / sqrt() / atan2() factories'() {
     assert(typeof Predicate.bnot == 'function');
     assert(typeof Predicate.sqrt == 'function');
     assert(typeof Predicate.atan2 == 'function');
     const p = Predicate.bnot(1);
-    if(typeof p == 'function') eq(p(1), -2);
+    eq(typeof p, 'function');
+    eq(p(1), -2);
     const s = Predicate.sqrt(9);
-    if(typeof s == 'function') eq(s(), 3);
+    eq(typeof s, 'function');
+    eq(s(), 3);
     const a = Predicate.atan2(1, 2);
-    if(typeof a == 'function') eq(a(), Math.atan2(1, 2));
+    eq(typeof a, 'function');
+    eq(a(), Math.atan2(1, 2));
   },
 });

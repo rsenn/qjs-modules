@@ -188,9 +188,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       int64_t r = 0;
 
       for(size_t i = 0; i < pr->boolean.npredicates; i++) {
+        JSArguments args2 = *args;
         int64_t i64 = 0;
 
-        JS_ToInt64(ctx, &i64, predicate_value(ctx, pr->boolean.predicates[i], args));
+        JS_ToInt64(ctx, &i64, predicate_value(ctx, pr->boolean.predicates[i], &args2));
         r ^= i64;
       }
 
