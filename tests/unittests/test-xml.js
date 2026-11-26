@@ -277,6 +277,24 @@ tests({
 
     assert(outs[0].includes('&amp;') && outs[0].includes('&quot;') && outs[0].includes('&lt;') && outs[0].includes('&gt;'), outs[0]);
   },
+  'XMLTreeSerializer: read(n) never splits a multi-byte character'() {
+    const tree = () => new XMLTreeSerializer([{ tagName: 'a', attributes: {}, children: ['ü€\u{1f600}'] }]);
+    const whole = tree().read(1000);
+
+    eq(whole, '<a>ü€\u{1f600}</a>');
+
+    for(const n of [1, 2, 3, 5]) {
+      const s = tree();
+      let out = '',
+        chunk,
+        rounds = 0;
+
+      while((chunk = s.read(n)) !== '' && ++rounds < 50) out += chunk;
+
+      eq(out, whole);
+      assert(!out.includes('\uFFFD'));
+    }
+  },
   'XMLTreeSerializer: read(buffer) writes directly into an ArrayBuffer/TypedArray'() {
     let tree = [{ tagName: 'a', attributes: { x: '1' }, children: ['hello'] }];
     let s = new XMLTreeSerializer(tree);

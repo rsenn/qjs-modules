@@ -149,6 +149,21 @@ xmlserializer_read(JSContext* ctx, XmlTreeSerializer* xs, void* buf, size_t n) {
   return -1;
 }
 
+/* bytes still missing to complete the UTF-8 sequence that ends buf, 0 when it is complete */
+static size_t
+xml_utf8_missing(const uint8_t* buf, size_t len) {
+  for(size_t back = 1; back <= 3 && back <= len; back++) {
+    uint8_t c = buf[len - back];
+    size_t need;
+
+    if((c & 0xc0) == 0x80)
+      continue;
+    need = c >= 0xf0 ? 4 : c >= 0xe0 ? 3 : c >= 0xc0 ? 2 : 1;
+    return need > back ? need - back : 0;
+  }
+  return 0;
+}
+
 static JSValue
 js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   XmlTreeSerializer* xs;
@@ -182,6 +197,10 @@ js_xmlserializer_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     dbuf_put(&out, chunk, r);
     n -= r;
   }
+
+  if(r >= 0)
+    for(size_t miss = xml_utf8_missing(out.buf, out.size); miss > 0 && (r = xmlserializer_read(ctx, xs, chunk, miss)) > 0; miss -= r)
+      dbuf_put(&out, chunk, r);
 
   JSValue ret = r < 0 ? JS_EXCEPTION : JS_NewStringLen(ctx, (const char*)out.buf, out.size);
 
