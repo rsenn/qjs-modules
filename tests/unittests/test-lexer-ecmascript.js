@@ -94,4 +94,12 @@ tests({
 
     assert(tokens.some(t => t.startsWith('regexpLiteral:/\\/+$/')), tokens.join('|'));
   },
+
+  'an identifier may contain unicode escapes'() {
+    const lexemes = src => scan(src).filter(t => !t.startsWith('whitespace:')).map(t => t.slice(t.indexOf(':') + 1));
+
+    eq('var,\\u0061,=,1', lexemes('var \\u0061 = 1').join());
+    eq('var,\\u{62},=,1', lexemes('var \\u{62} = 1').join());
+    eq('a\\u0062c', lexemes('a\\u0062c').join());
+  },
 });
