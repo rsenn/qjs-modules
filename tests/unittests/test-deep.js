@@ -57,6 +57,23 @@ tests({
   'equals() true for deeply equal structures'() {
     assert(deep.equals({ a: [1, 2], b: 3 }, { a: [1, 2], b: 3 }));
   },
+  'equals() of objects with and without properties leaves no exception pending'() {
+    const results = [deep.equals({ a: undefined }, {}), deep.equals({}, { a: 1 }), deep.equals({}, {}), deep.equals([], []), deep.equals([], {}), deep.equals(Object.create(null), {}), deep.equals({ a: {} }, { a: { b: 1 } })];
+
+    eq(results.join(), 'false,false,true,true,false,true,false');
+
+    let error;
+
+    try {
+      deep.equals({ a: undefined }, {});
+    } catch(e) {
+      error = e;
+    }
+
+    eq(error, undefined);
+    assert(!deep.equals({ a: 1 }, { b: 1 }), 'the keys are compared');
+    assert(!deep.equals(new Date(1), new Date(2)));
+  },
   'equals() false for differing structures'() {
     assert(!deep.equals({ a: 1 }, { a: 2 }));
     assert(!deep.equals({ a: 1 }, { a: 1, b: 2 }));
@@ -77,8 +94,6 @@ tests({
     copy.b.c = 999;
     eq(root.b.c, 2);
   },
-  // DeepIterator/deep.iterate() only reliably recurses into array roots -
-  // see deepiterator-never-descends-plain-object-root in BUGS.
   'iterate() returns a DeepIterator over all nodes'() {
     const root = [1, 2];
     const it = deep.iterate(root);
@@ -86,6 +101,13 @@ tests({
     for(const [value] of it) values.push(value);
     assert(values.includes(1));
     assert(values.includes(2));
+  },
+  'DeepIterator descends into a plain object root and into objects nested in arrays'() {
+    const paths = [...new deep.DeepIterator({ a: 1, b: { c: 2 } })].map(([value, path]) => path.join('.'));
+
+    eq(paths.join(), 'a,b,b.c');
+    eq([...deep.iterate({ x: [{ y: 1 }] })].map(([value, path]) => path.join('.')).join(), 'x,x.0,x.0.y');
+    eq([...new deep.DeepIterator([{ a: 1 }])].length, 2);
   },
   'DeepIterator.next() yields [value, path] and reports done'() {
     const it = new deep.DeepIterator([1]);
@@ -126,5 +148,17 @@ tests({
 
     assert(!values.includes(1));
     assert(!values.includes(2));
+  },  'DeepIterator.skip() resumes at the next sibling'() {
+    const it = new deep.DeepIterator([[1, 2], 3]);
+
+    eq(it.next().value[0].join(), '1,2');
+    it.skip();
+
+    const step = it.next();
+
+    eq(step.done, false);
+    eq(step.value[0], 3);
+    eq(it.next().done, true);
   },
+
 });

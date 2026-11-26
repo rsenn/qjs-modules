@@ -62,6 +62,7 @@ typedef struct DeepIterator {
   ValueType mask;
   Vector atoms;
   uint32_t seq;
+  unsigned positioned : 1; /* skip() already moved to the next sibling */
 } DeepIterator;
 
 static const uint32_t js_deep_defaultflags;
@@ -320,6 +321,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     if(iter->seq == 0)
       property_recursion_push(&iter->frames, ctx, JS_DupValue(ctx, iter->root), PROPENUM_DEFAULT_FLAGS);
+    else if(iter->positioned)
+      iter->positioned = 0;
     else if(!STATUS_RECURSE(iter->status) || depth >= max_depth)
       property_recursion_skip(&iter->frames, ctx);
     else
@@ -338,7 +341,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     JSAtom atom = property_enumeration_atom(penum);
     ValueType obj_type = js_value_type(ctx, penum->obj);
 
-    if(!(obj_type & TYPE_ARRAY) && FLAGS_FILTER(iter->flags) == FILTER_KEY_OF && (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags))) {
+    if(!(obj_type & TYPE_ARRAY) && FLAGS_FILTER(iter->flags) == FILTER_KEY_OF && !vector_empty(&iter->atoms) && (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags))) {
       iter->status = NO_RECURSE;
       continue;
     }
@@ -409,6 +412,7 @@ js_deep_iterator_method(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     }
     case METHOD_SKIP: {
       ret = JS_NewInt32(ctx, property_recursion_skip(&iter->frames, ctx));
+      iter->positioned = iter->seq > 0;
       break;
     }
   }
@@ -876,6 +880,26 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return JS_UNDEFINED;
 }
 
+/* two frames of which at least one has no properties: equal when both are empty and the
+ * objects are of the same plain kind (Object or Array), or the very same object */
+static BOOL
+js_deep_empty_equals(JSContext* ctx, const PropertyEnumeration* a, const PropertyEnumeration* b) {
+  JSValue plain;
+  BOOL ret;
+
+  if(property_enumeration_length(a) != property_enumeration_length(b))
+    return FALSE;
+
+  if(js_object_same(a->obj, b->obj))
+    return TRUE;
+
+  plain = JS_NewObject(ctx);
+  ret = (JS_IsArray(ctx, a->obj) && JS_IsArray(ctx, b->obj)) || (JS_GetClassID(a->obj) == JS_GetClassID(plain) && JS_GetClassID(b->obj) == JS_GetClassID(plain));
+  JS_FreeValue(ctx, plain);
+
+  return ret;
+}
+
 static JSValue
 js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_TRUE;
@@ -899,6 +923,19 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     if(!a.it || !b.it) {
       ret = (!a.it && !b.it) ? JS_TRUE : JS_FALSE;
+      break;
+    }
+
+    /* an object without enumerable properties has no value to read, only the root can be one:
+       equal when both are plain objects or both arrays, else only when it is the same object */
+    if(property_enumeration_length(a.it) == 0 || property_enumeration_length(b.it) == 0) {
+      ret = JS_NewBool(ctx, js_deep_empty_equals(ctx, a.it, b.it));
+      break;
+    }
+
+    /* the properties are sorted, so the same keys line up */
+    if(property_enumeration_atom(a.it) != property_enumeration_atom(b.it)) {
+      ret = JS_FALSE;
       break;
     }
 
