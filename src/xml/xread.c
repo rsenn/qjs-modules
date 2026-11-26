@@ -806,6 +806,28 @@ xo_markup(XrOut* o, xr_state_t* s, const char* name, size_t len) {
   xo_send(o, &ev);
 }
 
+/* a DOCTYPE whose internal subset [ ... ] or quoted string is still open */
+static int
+xr_in_subset(const char* b, size_t len) {
+  int depth = 0;
+  char q = 0;
+
+  if(len < 8 || memcmp(b, "!DOCTYPE", 8))
+    return 0;
+
+  for(size_t i = 8; i < len; i++)
+    if(q) {
+      if(b[i] == q)
+        q = 0;
+    } else if(b[i] == '"' || b[i] == '\'')
+      q = b[i];
+    else if(b[i] == '[')
+      depth++;
+    else if(b[i] == ']')
+      depth--;
+
+  return depth > 0 || q;
+}
 /* xo_bang: the name starting with ! (or - : the class of xml.c is the same for both) is complete.
  * ! is markup, - an element that ends at once. */
 static void
@@ -1106,9 +1128,14 @@ xr_feed_compat(xr_state_t* s, const char* chunk, size_t len, XmlEventHandler* ha
         i += n;
 
         if(gt) {
-          xo_bang(&o, s);
-          i++;
-          s->cs = CS_TEXT;
+          if(xr_in_subset(s->tag_accum.buf, s->tag_accum.len)) {
+            xr_accum_put(&s->tag_accum, gt, 1);
+            i++;
+          } else {
+            xo_bang(&o, s);
+            i++;
+            s->cs = CS_TEXT;
+          }
         }
 
         break;

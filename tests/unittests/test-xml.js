@@ -1340,6 +1340,18 @@ tests({
     assert(r.length > 0, 'expected at least one element');
   },
 
+  'xml.read: a DOCTYPE with an internal subset is one declaration'() {
+    const r = xml.read('<!DOCTYPE a [<!ENTITY foo "val">]><a>&foo;</a>');
+
+    eq(r.length, 2);
+    eq(r[0].tagName, '!DOCTYPE a [<!ENTITY foo "val">]');
+    eq(r[1].tagName, 'a');
+
+    const r2 = xml.read('<!DOCTYPE a [<!ENTITY x "1>2"><!ELEMENT a ANY>]><a/>');
+
+    eq(r2.length, 2);
+    eq(r2[1].tagName, 'a');
+  },
   'xml.read: decodes numeric character references'() {
     let r = xml.read('<a>&#65;&#66;&#67;</a>');
 
