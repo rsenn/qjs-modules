@@ -177,10 +177,11 @@ tests({
   'quote() wraps and escapes a string'() {
     eq(misc.quote('a"b'), '"a\\"b"');
   },
-  'dequote() wraps and unescapes a string (not the inverse of quote())'() {
-    /* dequote() always wraps its output in quote chars too - see BUGS
-     * (misc-dequote-does-not-remove-quotes) - it only unescapes the interior. */
-    eq(misc.dequote('a\\"b'), '"a"b"');
+  'dequote() strips the quotes and unescapes, the inverse of quote()'() {
+    eq(misc.dequote('"a\\"b"'), 'a"b');
+    eq(misc.dequote(misc.quote('a"b')), 'a"b');
+    eq(misc.dequote(misc.quote('line\nbreak\t"q"')), 'line\nbreak\t"q"');
+    eq(misc.dequote('a\\"b'), 'a"b');
   },
   'not() flips all bits of a buffer'() {
     eq(Array.from(new Uint8Array(misc.not(new Uint8Array([0b10101010]).buffer))).join(','), '85');

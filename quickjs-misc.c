@@ -3066,9 +3066,21 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     table[(unsigned)'$'] = '$';
   }
 
-  dbuf_putc(&output, quote);
-  (magic ? dbuf_put_unescaped_table : dbuf_put_escaped_table)(&output, (const char*)input.data, input.size, table);
-  dbuf_putc(&output, quote);
+  if(magic) {
+    const char* data = (const char*)input.data;
+    size_t size = input.size;
+
+    if(size >= 2 && data[0] == quote && data[size - 1] == quote) {
+      data++;
+      size -= 2;
+    }
+
+    dbuf_put_unescaped_table(&output, data, size, table);
+  } else {
+    dbuf_putc(&output, quote);
+    dbuf_put_escaped_table(&output, (const char*)input.data, input.size, table);
+    dbuf_putc(&output, quote);
+  }
 
   return dbuf_tostring_free(&output, ctx);
 }
