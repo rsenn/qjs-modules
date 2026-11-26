@@ -258,6 +258,40 @@ try {
         assert(error !== undefined, `readFileSync(missing, ${JSON.stringify(encoding)}) did not throw`);
       }
     },
+    'readFileSync() reads a /proc file to EOF, its stat size is 0'() {
+      if(!fs.existsSync('/proc/self/status')) return;
+
+      const text = fs.readFileSync('/proc/self/status', 'utf8');
+
+      assert(text.length > 100 && text.includes('Name:'), `read ${text.length} characters`);
+    },
+
+    'readFileSync() of a directory throws EISDIR'() {
+      let error;
+
+      try {
+        fs.readFileSync(ROOT);
+      } catch(e) {
+        error = e;
+      }
+
+      assert(error !== undefined, 'did not throw');
+      assert(!(error instanceof RangeError), String(error));
+      eq(21, error.errno);
+    },
+
+    'readFileSync() of a file larger than one chunk gives every byte'() {
+      const file = path.join(ROOT, 'big.bin'),
+        bytes = new Uint8Array(200000).map((_, i) => i * 7);
+
+      fs.writeFileSync(file, bytes);
+
+      const read = new Uint8Array(fs.readFileSync(file));
+
+      eq(bytes.length, read.length);
+      assert(read.every((b, i) => b == bytes[i]), 'content differs');
+    },
+
     'readFileSync()/writeFileSync() round-trip text'() {
       const file = path.join(ROOT, 'whole.txt');
       fs.writeFileSync(file, 'hello whole file');
