@@ -72,4 +72,27 @@ tests({
     eq(constants.priority.PRIORITY_HIGHEST, -20);
     eq(constants.dlopen.RTLD_NOW, 2);
   },
+  'networkInterfaces() lists the loopback with Node\'s entry shape'() {
+    const nets = os.networkInterfaces();
+    const entries = Object.values(nets).flat();
+
+    assert(entries.length > 0, 'at least one interface is up');
+
+    for(const e of entries) {
+      assert(e.family == 'IPv4' || e.family == 'IPv6');
+      assert(/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(e.mac), e.mac);
+      eq(typeof e.internal, 'boolean');
+      eq(e.cidr.split('/')[0], e.address);
+      assert(+e.cidr.split('/')[1] > 0 || e.address == '0.0.0.0');
+      eq('scopeid' in e, e.family == 'IPv6');
+    }
+
+    const lo = entries.find(e => e.address == '127.0.0.1');
+
+    if(lo) {
+      eq(lo.netmask, '255.0.0.0');
+      eq(lo.cidr, '127.0.0.1/8');
+      eq(lo.internal, true);
+    }
+  },
 });

@@ -41,6 +41,16 @@
 #if !WINDOWS_NATIVE
 #include <sys/utsname.h>
 #endif
+#if !WINDOWS_NATIVE && !defined(EMSCRIPTEN) && !defined(__wasi__)
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <sys/socket.h>
+#ifdef __linux__
+#include <netpacket/packet.h>
+#endif
+#define HAVE_MISC_GETIFADDRS 1
+#endif
 #include <errno.h>
 
 #ifndef PATH_MAX
@@ -1474,6 +1484,100 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 #endif
+
+/* getifaddrs(): one object per interface address, as the C call lists them.
+ *
+ *   misc.getifaddrs()
+ *   // [{ name: 'lo', family: 2, flags: 73, address: '127.0.0.1', netmask: '255.0.0.0' },
+ *   //  { name: 'eth0', family: 17, flags: 69699, mac: '70:8b:cd:4c:7f:d9' }, ...]
+ *
+ *   family    AF_INET (2), AF_INET6 (10), AF_PACKET (17, Linux, carries mac)
+ *   prefix    netmask length in bits, scopeid AF_INET6 only
+ *
+ * throws SyscallError. wired in with JS_CFUNC_DEF("getifaddrs", 0, ...). */
+static JSValue
+js_misc_getifaddrs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+#ifdef HAVE_MISC_GETIFADDRS
+  struct ifaddrs *list = 0, *it;
+  uint32_t n = 0;
+  JSValue ret;
+
+  if(getifaddrs(&list) == -1)
+    return js_syscallerror_throw(ctx, "getifaddrs");
+
+  ret = JS_NewArray(ctx);
+
+  for(it = list; it; it = it->ifa_next) {
+    int family = it->ifa_addr ? it->ifa_addr->sa_family : AF_UNSPEC;
+    char buf[INET6_ADDRSTRLEN];
+    JSValue obj;
+
+    if(family != AF_INET && family != AF_INET6
+#ifdef __linux__
+       && family != AF_PACKET
+#endif
+    )
+      continue;
+
+    obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, obj, "name", JS_NewString(ctx, it->ifa_name));
+    JS_SetPropertyStr(ctx, obj, "family", JS_NewInt32(ctx, family));
+    JS_SetPropertyStr(ctx, obj, "flags", JS_NewUint32(ctx, it->ifa_flags));
+
+    if(family == AF_INET || family == AF_INET6) {
+      const void* addr = family == AF_INET ? (const void*)&((struct sockaddr_in*)it->ifa_addr)->sin_addr : (const void*)&((struct sockaddr_in6*)it->ifa_addr)->sin6_addr;
+
+      if(inet_ntop(family, addr, buf, sizeof(buf)))
+        JS_SetPropertyStr(ctx, obj, "address", JS_NewString(ctx, buf));
+
+      if(it->ifa_netmask) {
+        addr = family == AF_INET ? (const void*)&((struct sockaddr_in*)it->ifa_netmask)->sin_addr : (const void*)&((struct sockaddr_in6*)it->ifa_netmask)->sin6_addr;
+
+        if(inet_ntop(family, addr, buf, sizeof(buf)))
+          JS_SetPropertyStr(ctx, obj, "netmask", JS_NewString(ctx, buf));
+
+        const uint8_t* mb = addr;
+        int i, bits = 0, len = family == AF_INET ? 4 : 16;
+
+        for(i = 0; i < len; i++)
+          for(uint8_t b = mb[i]; b; b <<= 1)
+            bits += b >> 7;
+
+        JS_SetPropertyStr(ctx, obj, "prefix", JS_NewInt32(ctx, bits));
+      }
+
+      if(family == AF_INET6)
+        JS_SetPropertyStr(ctx, obj, "scopeid", JS_NewUint32(ctx, ((struct sockaddr_in6*)it->ifa_addr)->sin6_scope_id));
+    }
+#ifdef __linux__
+    else {
+      const struct sockaddr_ll* ll = (const struct sockaddr_ll*)it->ifa_addr;
+      static const char hex[] = "0123456789abcdef";
+      char mac[18];
+      int i, len = ll->sll_halen < 6 ? ll->sll_halen : 6;
+
+      for(i = 0; i < 6; i++) {
+        unsigned char b = i < len ? ll->sll_addr[i] : 0;
+
+        mac[i * 3] = hex[b >> 4];
+        mac[i * 3 + 1] = hex[b & 15];
+        mac[i * 3 + 2] = ':';
+      }
+
+      mac[17] = 0;
+      JS_SetPropertyStr(ctx, obj, "mac", JS_NewString(ctx, mac));
+    }
+#endif
+
+    JS_SetPropertyUint32(ctx, ret, n++, obj);
+  }
+
+  freeifaddrs(list);
+  return ret;
+#else
+  return JS_ThrowInternalError(ctx, "getifaddrs() is not available on this platform");
+#endif
+}
 
 static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -4715,6 +4819,7 @@ JS_MISC_TABLE(js_misc_funcs)
     JS_CFUNC_MAGIC_DEF("setegid", 1, js_misc_getx, FUNC_SETEGID),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
+    JS_CFUNC_DEF("getifaddrs", 0, js_misc_getifaddrs),
 #ifdef HAVE_IOCTL_H
     JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
 #endif

@@ -652,16 +652,6 @@
     # add node/os to BUILTINS_COMPILED in cmake/qjsm.cmake, then
     cmake -B build/x86_64-linux-gnu -S .    # node/os not listed
 
-- node-os-networkinterfaces-unimplemented: os.networkInterfaces() of
-  node:os throws InternalError, qjs-modules has no getifaddrs(3) binding.
-  Needs misc.getifaddrs() (name, family, address, netmask, MAC from
-  AF_PACKET, scope id), then lib/node/os.js builds Node's { address,
-  netmask, family, mac, internal, cidr, scopeid }. TODO.md 29.1. Found
-  2026-10-21.
-
-    import os from 'node:os';
-    os.networkInterfaces();   // node: { lo: [...], ... }  qjsm: InternalError
-
 - node-os-setpriority-unimplemented: os.setPriority() of node:os checks
   pid and priority as Node does, then throws InternalError, there is no
   setpriority(2) binding. Needs misc.setpriority(which, who, prio), its
