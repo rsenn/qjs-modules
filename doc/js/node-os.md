@@ -20,9 +20,9 @@ os.userInfo().username;    // 'roman'
 | `arch()`, `platform()` | `'x64'`, `'linux'` | `process.arch`, `process.platform` |
 | `type()`, `release()`, `version()`, `machine()`, `hostname()` | `uname(2)` fields | `misc.uname()` |
 | `endianness()` | `'LE'` or `'BE'` | |
-| `homedir()` | `$HOME`, else the user's home directory | `/etc/passwd` |
+| `homedir()` | `$HOME`, else the user's home directory | `/etc/passwd`, then `misc.getpwuid()` |
 | `tmpdir()` | `$TMPDIR`, `$TMP`, `$TEMP` or `/tmp`, no trailing `/` | |
-| `userInfo({ encoding })` | `{ uid, gid, username, homedir, shell }`, Buffers with `'buffer'` | `/etc/passwd` |
+| `userInfo({ encoding })` | `{ uid, gid, username, homedir, shell }`, Buffers with `'buffer'` | `/etc/passwd`, then `misc.getpwuid()` (NSS) |
 | `cpus()` | `{ model, speed, times: { user, nice, sys, idle, irq } }` per CPU, times in ms | `/proc/cpuinfo`, `/proc/stat`, `/sys/.../scaling_cur_freq` |
 | `availableParallelism()` | CPUs in the affinity mask | `/proc/self/status` |
 | `freemem()`, `totalmem()` | bytes, `MemAvailable` and `MemTotal` | `/proc/meminfo` |
@@ -41,7 +41,6 @@ without a passwd entry).
 
 | Node | Here |
 | --- | --- |
-| `userInfo()` for NSS users (LDAP, sssd) | `SystemError` `ENOENT`: only `/etc/passwd` is read |
 | macOS, Windows, BSD | the `/proc` functions throw `InternalError` |
 
 ## Export list

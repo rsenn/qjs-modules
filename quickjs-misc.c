@@ -43,6 +43,7 @@
 #endif
 #if !WINDOWS_NATIVE && !defined(EMSCRIPTEN) && !defined(__wasi__)
 #include <sys/resource.h>
+#include <pwd.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -3535,6 +3536,43 @@ js_misc_umask(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return JS_NewInt32(ctx, umask(mask));
 }
 
+/* getpwuid(uid): the user database entry of uid, through NSS (LDAP, sssd, ...).
+ *
+ * ```js
+ * misc.getpwuid(0);   // ['root', 'x', '0', '0', 'root', '/root', '/bin/bash']
+ * ```
+ *
+ * returns the 7 fields of a passwd line as strings, undefined for an unknown uid.
+ * wired in with JS_CFUNC_DEF("getpwuid", 1, js_misc_getpwuid). */
+static JSValue
+js_misc_getpwuid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+#ifdef HAVE_MISC_GETIFADDRS
+  struct passwd pw, *res = 0;
+  uint32_t uid;
+  char buf[4096];
+
+  if(argc < 1 || JS_ToUint32(ctx, &uid, argv[0]))
+    return JS_EXCEPTION;
+
+  if(getpwuid_r(uid, &pw, buf, sizeof(buf), &res) || !res)
+    return JS_UNDEFINED;
+
+  char num[2][16];
+  const char* f[7] = {pw.pw_name, pw.pw_passwd, num[0], num[1], pw.pw_gecos, pw.pw_dir, pw.pw_shell};
+  JSValue ret = JS_NewArray(ctx);
+
+  snprintf(num[0], sizeof(num[0]), "%u", (unsigned)pw.pw_uid);
+  snprintf(num[1], sizeof(num[1]), "%u", (unsigned)pw.pw_gid);
+
+  for(int i = 0; i < 7; i++)
+    JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, f[i] ? f[i] : ""));
+
+  return ret;
+#else
+  return JS_UNDEFINED;
+#endif
+}
+
 /* setpriority(pid, priority): sets the nice value of a process, pid 0 is this one.
  *
  * ```js
@@ -4840,6 +4878,7 @@ JS_MISC_TABLE(js_misc_funcs)
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
     JS_CFUNC_DEF("getifaddrs", 0, js_misc_getifaddrs),
     JS_CFUNC_DEF("setpriority", 2, js_misc_setpriority),
+    JS_CFUNC_DEF("getpwuid", 1, js_misc_getpwuid),
 #ifdef HAVE_IOCTL_H
     JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
 #endif

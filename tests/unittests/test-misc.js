@@ -460,6 +460,15 @@ tests({
     eq(u.sysname, 'Linux');
     assert(typeof u.release === 'string');
   },
+  'getpwuid() returns the 7 passwd fields of a user, undefined for an unknown uid'() {
+    const root = misc.getpwuid(0);
+
+    eq(root.length, 7);
+    eq(root[0], 'root');
+    eq(root[2], '0');
+    eq(misc.getpwuid(misc.geteuid())[2], String(misc.geteuid()));
+    eq(misc.getpwuid(4294967290), undefined);
+  },
   'getRelease() describes the QuickJS build'() {
     const r = misc.getRelease();
     assert(typeof r.name === 'string');

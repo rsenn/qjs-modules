@@ -46,6 +46,7 @@ below by theme.
 | `getExecutable` / `getWorkingDirectory` / `getRootDirectory` / `getFileDescriptor` | 0 | Resolve `/proc/self/*` links. |
 | `getCommandLine` / `getEnvironment` / `getProcStat` / `getProcMaps` / `getProcMounts` | 0 | Read `/proc` info. |
 | `uname()` | 0 | System identification. |
+| `getpwuid(uid)` | 1 | The 7 passwd fields of a user as strings, through NSS; `undefined` if unknown. |
 | `setpriority(pid, priority)` | 2 | Nice value of a process, 0 is this one. Throws `SyscallError`. |
 | `getifaddrs()` | 0 | Interface addresses, one object per entry: `name`, `family` (`AF_INET` 2, `AF_INET6` 10, `AF_PACKET` 17), `flags`, `address`, `netmask`, `prefix`, `scopeid` (IPv6), `mac` (`AF_PACKET`). Throws `SyscallError`. |
 | `getRelease()` | 0 | OS release string. |
