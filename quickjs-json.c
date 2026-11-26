@@ -290,7 +290,8 @@ js_jsonserializer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   JSValue args[] = {argc > 0 ? argv[0] : JS_NewUint32(ctx, 1024)};
   JSValue ret = js_jsonserializer_read(ctx, this_val, countof(args), args);
 
-  *pdone = FALSE;
+  /* read() gives undefined once everything was serialized */
+  *pdone = JS_IsUndefined(ret);
 
   if(JS_IsException(ret)) {
     *pdone = TRUE;

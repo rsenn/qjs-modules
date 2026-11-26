@@ -1172,4 +1172,21 @@ tests({
     eq(JSON.stringify(ev[1].loc), '{"line":1,"column":2,"offset":1}');
     assertThrows(() => [...new Pull('[1,x]')]);
   },
+
+  'a JsonSerializer is done after its last chunk, spread and for...of end'() {
+    eq(JSON.stringify([...new JsonSerializer([1])]), '["[1]"]');
+    eq([...new JsonSerializer({ a: [1, 2, { b: null }] })].join(''), '{"a":[1,2,{"b":null}]}');
+
+    const chunks = [];
+
+    for(const chunk of new JsonSerializer({ long: 'x'.repeat(5000) })) chunks.push(chunk);
+
+    eq(chunks.join(''), JSON.stringify({ long: 'x'.repeat(5000) }));
+
+    const s = new JsonSerializer([1]);
+
+    s.next();
+    eq(s.next().done, true);
+    eq(s.next().done, true);
+  },
 });
