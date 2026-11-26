@@ -21,6 +21,19 @@ tests({
     eq(result.status, 0);
     eq(result.signal, null);
   },
+  'spawnSync() and execSync() repeated many times neither crash nor leave a stray exception'() {
+    for(let i = 0; i < 100; i++) {
+      eq(spawnSync('sh', ['-c', 'exit 0']).status, 0);
+      eq(execSync('exit 2').status, 2);
+    }
+  },
+  async 'spawn() and wait() repeated many times give each exit status once'() {
+    for(let i = 0; i < 30; i++) {
+      const status = await spawn('sh', ['-c', `exit ${i % 7}`]).wait();
+
+      eq(status.exitCode, i % 7);
+    }
+  },
   'spawnSync() reports a nonzero exit status'() {
     const result = spawnSync('sh', ['-c', 'exit 5']);
     eq(result.status, 5);
