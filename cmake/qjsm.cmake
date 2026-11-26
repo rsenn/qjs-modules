@@ -1224,10 +1224,12 @@ macro(qjsm_process_builtins)
     if(UNIX AND CMAKE_OBJCOPY AND CMAKE_AR AND _ext_archive MATCHES "\\.a$")
       set(_ext_dir "${CMAKE_CURRENT_BINARY_DIR}/external")
       set(_ext_out "${_ext_dir}/quickjs-${_ext}.a")
+      toolchain_cc(_ext_cc)
+      separate_arguments(_ext_cc_list UNIX_COMMAND "${_ext_cc}")
       add_custom_command(
         OUTPUT "${_ext_out}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${_ext_dir}"
-        COMMAND ${CMAKE_C_COMPILER} -r -nostdlib -Wl,--whole-archive "${_ext_archive}" -Wl,--no-whole-archive -o
+        COMMAND ${_ext_cc_list} -r -nostdlib -Wl,--whole-archive "${_ext_archive}" -Wl,--no-whole-archive -o
                 "${_ext_dir}/${_ext}.o"
         COMMAND ${CMAKE_OBJCOPY} --keep-global-symbol=js_init_module_${_ext_id} "${_ext_dir}/${_ext}.o"
         COMMAND ${CMAKE_COMMAND} -E remove -f "${_ext_out}"

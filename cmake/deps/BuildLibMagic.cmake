@@ -64,6 +64,8 @@ macro(build_libmagic BINARY SUFFIX PIC)
   set(LIBMAGIC_DEPENDS_${SUFFIX})
   set(LIBMAGIC_ENV_FLAGS_${SUFFIX})
   if(MINGW OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    toolchain_cc(_LM_CC)
+    separate_arguments(_LM_CC_LIST UNIX_COMMAND "${_LM_CC}")
     ExternalProject_Add(
       libgnurx_${SUFFIX}
       URL https://downloads.sourceforge.net/project/mingw/Other/UserContributed/regex/mingw-regex-2.5.1/mingw-libgnurx-2.5.1-src.tar.gz
@@ -71,7 +73,7 @@ macro(build_libmagic BINARY SUFFIX PIC)
       DOWNLOAD_EXTRACT_TIMESTAMP TRUE
       BUILD_IN_SOURCE TRUE
       CONFIGURE_COMMAND ""
-      BUILD_COMMAND ${CMAKE_C_COMPILER} -O2 -w -I<SOURCE_DIR> -c <SOURCE_DIR>/regex.c -o regex.o
+      BUILD_COMMAND ${_LM_CC_LIST} -O2 -w -I<SOURCE_DIR> -c <SOURCE_DIR>/regex.c -o regex.o
       COMMAND ${CMAKE_AR} rcs libgnurx.a regex.o
       INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBMAGIC_PREFIX_${SUFFIX}}/include ${LIBMAGIC_PREFIX_${SUFFIX}}/lib
       COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/regex.h ${LIBMAGIC_PREFIX_${SUFFIX}}/include/regex.h
