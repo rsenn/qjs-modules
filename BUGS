@@ -325,22 +325,6 @@
   in test-child-process.js will catch a return. Delete this entry if it
   stays quiet.
 
-- textdecoder-utf16-decode-returns-null (quickjs-textcode.c:66-89): calling
-  `TextDecoder('utf-16').decode()` (or 'utf-16be') on well-formed input
-  always returns `null` instead of the decoded string, 100% reproducible
-  (not flaky). UTF-8 and UTF-32 decode work fine on equivalent input via the
-  same function (textdecoder_decode, quickjs-textcode.c:46), so the bug is
-  specific to the `case UTF16:` branch; not root-caused further (candidate
-  culprits: `u16[1]` is left uninitialized when `libutf_c16_type(u16[0])`
-  says the code unit isn't a surrogate, which is then still passed into
-  `libutf_c16_to_c32(u16, &cp)`, or `dbuf_encode` silently not appending).
-  TextEncoder with 'utf-16' works fine (produces a Uint16Array via
-  encode()). Routed around in tests/unittests/test-textcode.js, which only
-  exercises UTF-16 on the encode() side.
-
-    import { TextDecoder } from 'textcode';
-    new TextDecoder('utf-16').decode(new Uint8Array([97, 0])); // null, expected "a"
-
 - deepiterator-never-descends-plain-object-root (quickjs-deep.c:314-411):
   `new DeepIterator(root)` / `deep.iterate(root)` never recurses into `root`
   when `root` is a plain object - `next()` reports `done: true` on the very
@@ -689,19 +673,6 @@
     // expected: rejection with an authentication error
     // actual: resolves undefined; repeated callbacks; process hangs
 
-- fs-readfilesync-utf8-missing-file-returns-null (lib/fs.js:readFileSync):
-  readFileSync(path, 'utf-8') returns null for a missing or unreadable file
-  instead of throwing, because that encoding branch returns std.loadFile()
-  directly and std.loadFile() reports failure as null with no errno. node
-  throws ENOENT, and this function itself throws a SyscallError for the same
-  missing file when no encoding (or 'utf8', without the dash) is given. found
-  while writing examples/html2md.js.
-
-    import { readFileSync } from 'fs';
-    readFileSync('/no/such.html', 'utf-8');
-    // expected: throws SyscallError (ENOENT)
-    // actual: returns null
-
 - mysql-error-null-after-failed-connect (quickjs-mysql.c): after
   `await db.connect(...)` to a closed port, db.errno is 2002 but db.error
   is null instead of the client library's message, and connect() resolves
@@ -887,13 +858,6 @@
     l.addRule('t', /[a-z]+/);
     l.next(); console.log(l.next(), l.eof);   // null false
 
-- qjsm-no-atob-btoa: qjsm has no WHATWG atob/btoa globals (and no
-  Buffer), so npm packages that decode base64 tables at import time fail,
-  e.g. entities 7: ReferenceError: 'Buffer' is not defined in
-  decodeBase64. lib/node/buffer.js is the only base64 code in lib/.
-
-    qjsm -e 'console.log(typeof atob, typeof btoa)'   # undefined undefined
-
 - lexer-cpp-no-continuation-token: test-lexer-cpp.js 'an escaped newline
   continues the directive' fails: lib/lexer/c.js lexes the backslash of a
   continued #define line as no token at all, the test expects a
@@ -979,20 +943,6 @@
     qjsm utilities/extract-structs.js quickjs-path.c
     # cFuncListObjects {}
     # []
-
-- commonjs-require-not-per-module: lib/loaders/commonjs.js passes every
-  module the one global require and sets require.filename only while the
-  module body runs. A relative require() made later, from a function or
-  getter, resolves against the main script's directory (enhanced-resolve's
-  lazy getters: Module <work dir>/ResolverFactory not found). Fix: give
-  run() a require bound to its path, Node's createRequire(path), with
-  resolve, cache and main on it. Found 2026-10-21.
-
-    // sub/lib.cjs   module.exports =
-    //                 { get y() { return require('./y.cjs'); } };
-    // sub/y.cjs     module.exports = 1;
-    (await import('./sub/lib.cjs')).default.y;
-    # node: 1   qjsm: Error: Module <main script dir>/y.cjs not found!
 
 - commonjs-stack-has-no-file-and-line: lib/loaders/commonjs.js compiles
   a module with new Function(...), so its frames read <input> and the
@@ -1139,14 +1089,6 @@
     [...new JsonSerializer([1])]
     // expected: ['[1]']
     // actual: never returns
-- console-log-trailing-undefined-prints-console (lib/console.js,
-  console.log): a call whose last argument is undefined prints the console
-  object (options, log, info, ...) in that position.
-
-    console.log('a', undefined)
-    // expected: a undefined
-    // actual:   a { options: { depth: Infinity, ... }, log: [Function: log], ... }
-
 - check-cflag-result-cached-under-fixed-name (cmake/Checks.cmake:19, check_cflag()): the function
   probes with check_c_compiler_flag("${FLAG}" RESULT). The result variable of that macro is a
   cache entry, so the name RESULT is shared by every call, and every probe after the first one
