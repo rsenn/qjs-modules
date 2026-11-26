@@ -47,6 +47,10 @@ macro(build_libressl BINARY SUFFIX PIC)
   if(DIET OR HAVE_DIETLIBC)
     set(_LSSL_C_FLAGS "-include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/diet-compat.h")
   endif()
+  # bionic has syslog_r() as a macro polyfill but no struct syslog_data
+  if(ANDROID)
+    set(_LSSL_C_FLAGS "${_LSSL_C_FLAGS} -include ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/android-compat.h")
+  endif()
 
   toolchain_cache_args(_LSSL_CROSS)
 

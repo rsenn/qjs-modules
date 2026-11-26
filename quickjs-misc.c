@@ -166,24 +166,28 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-/* dietlibc and bionic before API 26 have utimensat() but no futimes() or lutimes(): futimes(fd, tv) is
- * utimensat(fd, NULL, ts, 0), lutimes(path, tv) adds AT_SYMLINK_NOFOLLOW. */
+/* dietlibc and bionic before API 26 have utimensat() but no futimes() or lutimes() (Termux's libc has both, the
+ * configure check then defines HAVE_FUTIMES/HAVE_LUTIMES): futimes(fd, tv) is utimensat(fd, NULL, ts, 0), lutimes(path, tv)
+ * adds AT_SYMLINK_NOFOLLOW. */
+#ifndef HAVE_FUTIMES
 static int
 futimes(int fd, const struct timeval tv[2]) {
   struct timespec ts[2] = {{tv[0].tv_sec, tv[0].tv_usec * 1000}, {tv[1].tv_sec, tv[1].tv_usec * 1000}};
 
   return utimensat(fd, NULL, ts, 0);
 }
+#define HAVE_FUTIMES 1
+#endif
 
+#ifndef HAVE_LUTIMES
 static int
 lutimes(const char* path, const struct timeval tv[2]) {
   struct timespec ts[2] = {{tv[0].tv_sec, tv[0].tv_usec * 1000}, {tv[1].tv_sec, tv[1].tv_usec * 1000}};
 
   return utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW);
 }
-
-#define HAVE_FUTIMES 1
 #define HAVE_LUTIMES 1
+#endif
 #endif
 
 #endif
