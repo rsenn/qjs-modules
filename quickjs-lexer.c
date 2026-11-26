@@ -711,7 +711,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     uint32_t mode = 0;
 
     JS_ToUint32(ctx, &mode, argv[i++]);
-    lex->mode |= mode;
+    lex->mode = mode;
   }
 
   if(i < argc && lex->loc.file == -1 && JS_IsString(argv[i]))

@@ -144,6 +144,20 @@ tests({
     l.nextToken();
     eq(l.currentLine(), '12 foo');
   },
+  'the mode argument of the constructor selects first or longest match'() {
+    const make = mode => {
+      const l = new Lexer('ab', mode);
+
+      l.addRule('short', /a/);
+      l.addRule('long', /ab/);
+      return l;
+    };
+
+    eq(make(Lexer.FIRST).mode, Lexer.FIRST);
+    eq(make(Lexer.LONGEST).mode, Lexer.LONGEST);
+    eq(make(Lexer.FIRST).nextToken().lexeme, 'a');
+    eq(make(Lexer.LONGEST).nextToken().lexeme, 'ab');
+  },
   'loc getter/Token.loc; mode and charPos getter/setter round-trip'() {
     const l = new Lexer('12 foo', Lexer.LONGEST, 'in.txt');
     l.addRule('number', /[0-9]+/);
