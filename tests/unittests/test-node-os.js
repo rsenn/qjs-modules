@@ -37,6 +37,10 @@ tests({
     if(saved === undefined) delete process.env.TMPDIR;
     else process.env.TMPDIR = saved;
   },
+  'arch() is one of Node\'s names and as process.arch'() {
+    assert(['arm', 'arm64', 'ia32', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64'].includes(os.arch()), os.arch());
+    eq(os.arch(), process.arch);
+  },
   'userInfo has the effective user'() {
     const u = userInfo();
 
