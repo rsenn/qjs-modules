@@ -243,6 +243,21 @@ try {
 
     /* --- whole-file read/write --- */
 
+    'readFileSync() of a missing file throws ENOENT for every encoding spelling'() {
+      const missing = path.join(ROOT, 'no-such-file');
+
+      for(const encoding of [undefined, 'utf8', 'utf-8', { encoding: 'utf-8' }]) {
+        let error;
+
+        try {
+          fs.readFileSync(missing, encoding);
+        } catch(e) {
+          error = e;
+        }
+
+        assert(error !== undefined, `readFileSync(missing, ${JSON.stringify(encoding)}) did not throw`);
+      }
+    },
     'readFileSync()/writeFileSync() round-trip text'() {
       const file = path.join(ROOT, 'whole.txt');
       fs.writeFileSync(file, 'hello whole file');

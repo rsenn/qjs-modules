@@ -91,7 +91,14 @@ let identifiersUsed;
 const STDIN_NAME = '<stdin>.js';
 
 function ReadJSON(filename) {
-  let data = readFileSync(filename, 'utf-8');
+  let data;
+
+  try {
+    data = readFileSync(filename, 'utf-8');
+  } catch(e) {
+    return null;
+  }
+
   return data ? JSON.parse(data) : null;
 }
 
