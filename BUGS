@@ -154,23 +154,6 @@
   in test-child-process.js will catch a return. Delete this entry if it
   stays quiet.
 
-- misc-dequote-does-not-remove-quotes (quickjs-misc.c:2627-2666):
-  `misc.dequote(s)` is not the inverse of `misc.quote(s)`, despite
-  doc/native/misc.md describing them as "Add / remove quoting". Both
-  `quote` (magic 0) and `dequote` (magic 1) always wrap their output in
-  the quote character (`dbuf_putc(&output, quote)` runs unconditionally
-  before *and* after, for both magics) - `magic` only switches whether the
-  interior bytes get escaped (`dbuf_put_escaped_table`) or unescaped
-  (`dbuf_put_unescaped_table`). So `dequote('"a\\"b"')` unescapes the
-  backslash but still adds a fresh pair of quote characters around the
-  result, producing `"a"b""`-shaped output instead of stripping the
-  surrounding quotes. tests/unittests/test-misc.js tests the real
-  (always-wraps) behavior rather than the doc's "remove quoting"
-  description.
-
-    import * as misc from 'misc';
-    misc.dequote(misc.quote('a"b'));   // '""a"b""', not 'a"b'
-
 - misc-objectrefcount-struct-scraping (src/utils.c:1134-1162): same
   struct-scraping fragility as misc-classid-struct-scraping-segfault
   above, on a different pair of functions. `js_object_classid(v)` reads
@@ -282,18 +265,6 @@
     // expected: loads (a bare 'util' resolves to the builtin)
     // actual: ReferenceError: could not load module '.../util.js'
 
-- xmlserializer-read-n-splits-utf8 (quickjs-xml.c, js_xmlserializer_read):
-  read(n) in string mode cuts the output at n bytes and decodes each piece
-  on its own, so a multi-byte character that straddles a cut becomes
-  U+FFFD in both pieces; the concatenation differs from read(1000).
-  found by tests/tools/xml-write-golden.js.
-
-    const s = new XMLSerializer([{tagName: 'a', children: ['ü€']}]);
-    let out = '', c;
-    while((c = s.read(1)) !== '') out += c;
-    // expected: '<a>ü€</a>'
-    // actual: replacement characters in place of ü€
-
 - xmlpushparser-silent-on-mismatch (src/xml/xpush.c, xpush_init): XMLPushParser
   runs the strict lexer (xr_state_init, no XR_COMPAT), which keeps no
   open-element stack, so a mismatched end tag is never noticed. Passing
@@ -304,17 +275,6 @@
     const p = new XMLPushParser(); p.write('<a>\n <b></c></a>'); p.close();
     // expected: SyntaxError at 2:5
     // actual: no error, p.root holds a repaired tree
-
-- ecmascript-lexer-escaped-identifier: lib/lexer/ecmascript.js does not lex
-  an identifier with a unicode escape, valid JS since ES2015: a and
-  \u{62} give UNEXPECTED_CHARACTER at the backslash. IdentifierStart has
-  "\\"[u]{HexDigit}{4}, which the native lexer apparently reads as the
-  literal text, and the \u{...} form is missing. module-lexer reports the
-  error and goes on. Found 2026-10-20.
-
-    import { parse } from 'lib/module-lexer.js';
-    parse('var \\u0061 = 1').error
-    // { code: 'UNEXPECTED_CHARACTER', line: 1, column: 5 }, expected none
 
 - resolve-imports-bundle-name-clash: the bundler concatenates files without
   renaming top-level names, so two files that declare the same name give a
