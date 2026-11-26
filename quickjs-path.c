@@ -800,13 +800,112 @@ js_path_tonamespaced(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_UNDEFINED;
 }
 
+/* the builtin module a lazy part of path comes from, via the requireModule global of qjsm.
+ *
+ * returns the module namespace, or JS_EXCEPTION with an exception pending. */
+static JSValue
+js_path_require(JSContext* ctx, const char* name) {
+  JSValue global = JS_GetGlobalObject(ctx), fn = JS_GetPropertyStr(ctx, global, "requireModule"), arg, ret;
+
+  JS_FreeValue(ctx, global);
+
+  if(!JS_IsFunction(ctx, fn)) {
+    JS_FreeValue(ctx, fn);
+    return JS_ThrowInternalError(ctx, "path: cannot load '%s', no requireModule here", name);
+  }
+
+  arg = JS_NewString(ctx, name);
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
+  JS_FreeValue(ctx, arg);
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
+/* path.matchesGlob(path, pattern): Node's glob test, done by matchesGlob() of the glob builtin.
+ *
+ * ```js
+ * path.matchesGlob('a/b.js', 'a/*.js');   // true
+ * ```
+ *
+ * throws TypeError ERR_INVALID_ARG_TYPE for a non-string argument.
+ * wired in with JS_CFUNC_DEF("matchesGlob", 2, js_path_matchesglob). */
+static JSValue
+js_path_matchesglob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ns = js_path_require(ctx, "glob"), fn, args[2], ret;
+
+  if(JS_IsException(ns))
+    return ns;
+
+  fn = JS_GetPropertyStr(ctx, ns, "matchesGlob");
+  JS_FreeValue(ctx, ns);
+  args[0] = argc > 0 ? argv[0] : JS_UNDEFINED;
+  args[1] = argc > 1 ? argv[1] : JS_UNDEFINED;
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 2, args);
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
+/* path.win32: the functions are stand-ins that load the builtin 'path/win32' on first call.
+ * Loading replaces them on this very object, then the call goes to the real function.
+ *
+ *   magic  win32 member
+ *   index  into js_path_win32_names, in the order of js_path_win32_funcs
+ *
+ * ```js
+ * path.win32.join('C:\\a', 'b');   // 'C:\\a\\b'
+ * ```
+ *
+ * throws InternalError when there is no requireModule global (not run by qjsm). */
+static const char* const js_path_win32_names[] = {"basename", "dirname", "extname", "format", "isAbsolute", "join", "normalize", "parse", "relative", "resolve", "toNamespacedPath", "_makeLong", "matchesGlob"};
+
+static JSValue
+js_path_win32_forward(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  const char* name = js_path_win32_names[magic];
+  JSValue ns = js_path_require(ctx, "path/win32"), def, fn, ret;
+
+  if(JS_IsException(ns))
+    return ns;
+
+  def = JS_GetPropertyStr(ctx, ns, "default");
+  fn = JS_GetPropertyStr(ctx, def, name);
+  JS_FreeValue(ctx, ns);
+
+  if(JS_IsException(fn)) {
+    JS_FreeValue(ctx, def);
+    return fn;
+  }
+
+  ret = JS_Call(ctx, fn, def, argc, argv);
+  JS_FreeValue(ctx, def);
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
+static const JSCFunctionListEntry js_path_win32_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("basename", 2, js_path_win32_forward, 0),
+    JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_win32_forward, 1),
+    JS_CFUNC_MAGIC_DEF("extname", 1, js_path_win32_forward, 2),
+    JS_CFUNC_MAGIC_DEF("format", 1, js_path_win32_forward, 3),
+    JS_CFUNC_MAGIC_DEF("isAbsolute", 1, js_path_win32_forward, 4),
+    JS_CFUNC_MAGIC_DEF("join", 0, js_path_win32_forward, 5),
+    JS_CFUNC_MAGIC_DEF("normalize", 1, js_path_win32_forward, 6),
+    JS_CFUNC_MAGIC_DEF("parse", 1, js_path_win32_forward, 7),
+    JS_CFUNC_MAGIC_DEF("relative", 2, js_path_win32_forward, 8),
+    JS_CFUNC_MAGIC_DEF("resolve", 0, js_path_win32_forward, 9),
+    JS_CFUNC_MAGIC_DEF("toNamespacedPath", 1, js_path_win32_forward, 10),
+    JS_CFUNC_MAGIC_DEF("_makeLong", 1, js_path_win32_forward, 11),
+    JS_CFUNC_MAGIC_DEF("matchesGlob", 2, js_path_win32_forward, 12),
+    JS_PROP_STRING_DEF("delimiter", ";", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("sep", "\\", JS_PROP_CONFIGURABLE),
+};
+
 /* path.posix: Node's name for the POSIX flavour, here the same functions as
  * the module itself; also the default export (`import path from 'path'`).
- * There is no path.win32. */
+ * path.win32 is an object of stand-ins, see js_path_win32_forward(). */
 static int
 js_path_init(JSContext* ctx, JSModuleDef* m) {
   if(m) {
-    JSValue posix = JS_NewObject(ctx);
+    JSValue posix = JS_NewObject(ctx), win32 = JS_NewObject(ctx), glob = JS_NewCFunction2(ctx, js_path_matchesglob, "matchesGlob", 2, JS_CFUNC_generic, 0);
 
     JSValue ns = JS_NewCFunction(ctx, js_path_tonamespaced, "toNamespacedPath", 1);
 
@@ -817,6 +916,13 @@ js_path_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyStr(ctx, posix, "toNamespacedPath", JS_DupValue(ctx, ns));
     JS_SetPropertyStr(ctx, posix, "_makeLong", ns);
     JS_SetPropertyStr(ctx, posix, "posix", JS_DupValue(ctx, posix)); // path.posix === path
+    JS_SetPropertyFunctionList(ctx, win32, js_path_win32_funcs, countof(js_path_win32_funcs));
+    JS_SetPropertyStr(ctx, win32, "win32", JS_DupValue(ctx, win32));
+    JS_SetPropertyStr(ctx, win32, "posix", JS_DupValue(ctx, posix));
+    JS_SetPropertyStr(ctx, posix, "win32", JS_DupValue(ctx, win32));
+    JS_SetPropertyStr(ctx, posix, "matchesGlob", JS_DupValue(ctx, glob));
+    JS_SetModuleExport(ctx, m, "win32", win32);
+    JS_SetModuleExport(ctx, m, "matchesGlob", glob);
     JS_SetModuleExport(ctx, m, "default", JS_DupValue(ctx, posix));
     JS_SetModuleExport(ctx, m, "posix", posix);
   }
@@ -838,6 +944,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
     JS_AddModuleExport(ctx, m, "default");
     JS_AddModuleExport(ctx, m, "posix");
+    JS_AddModuleExport(ctx, m, "win32");
+    JS_AddModuleExport(ctx, m, "matchesGlob");
     JS_AddModuleExport(ctx, m, "toNamespacedPath");
     JS_AddModuleExport(ctx, m, "_makeLong");
   }

@@ -496,16 +496,6 @@
     // expected: '<a>ü€</a>'
     // actual: replacement characters in place of ü€
 
-- path-missing-node-names (quickjs-path.c): path.win32, matchesGlob and
-  the specifier path/win32 (node:path/win32) do not exist. Node, Bun and
-  Deno have them. See doc/api-compare-path.md; plan in TODO.md Tier 22
-  (phases W and G).
-
-    import win32 from 'path/win32';
-    // expected: the win32 path object
-    // actual: ReferenceError: could not load module 'path/win32'
-
-
 - xml-doctype-internal-subset-mangled (src/xml.c, bang-tag scan): a
   DOCTYPE with an internal subset ends at the first '>' inside the
   subset, so the subset is split into a bogus tag name and a text node

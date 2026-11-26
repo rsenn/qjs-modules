@@ -1,9 +1,42 @@
 /* path: the parts of node:path's interface beyond valid-input results
  * (those are test-path-node.js); qjsm only, since it pins down where qjsm
- * agrees with Node today. A case that fails is added with the fix for it:
- * win32, matchesGlob. */
+ * agrees with Node today. A case that fails is added with the fix for it. */
 import path from 'path';
 import { assert, eq, tests } from '../../lib/tinytest.js';
+
+/* [[path, pattern], posix result, win32 result] from node v23.11 */
+const globCases = [
+  [["a/b.js","a/*.js"], true, true],
+  [["a/b/c.js","a/*.js"], false, false],
+  [["a/b/c.js","a/**/*.js"], true, true],
+  [["a/c.js","a/**/*.js"], true, true],
+  [[".a","*"], false, false],
+  [["a/.b","a/*"], false, false],
+  [["a/.b","a/.*"], true, true],
+  [["a","a/**"], false, false],
+  [["a/b","a/**"], true, true],
+  [["x.js","*.{js,ts}"], true, true],
+  [["x.ts","*.{js,ts}"], true, true],
+  [["x.md","*.{js,ts}"], false, false],
+  [["ab","a?"], true, true],
+  [["abc","a?"], false, false],
+  [["a","[abc]"], true, true],
+  [["d","[!abc]"], true, true],
+  [["!a","!a"], true, true],
+  [["b","!a"], false, false],
+  [["a","!a"], false, false],
+  [["a\\b","a/b"], false, true],
+  [["A.JS","a.js"], false, false],
+  [["a/b","a\\b"], true, true],
+  [["a","a/"], false, false],
+  [["a/b/","a/b"], true, true],
+  [["","*"], false, false],
+  [["a.js","*.js"], true, true],
+  [["dir/.hid/x","dir/**/x"], false, false],
+  [["a/b","**"], true, true],
+  [["/a/b","/a/*"], true, true],
+  [["a//b","a/*"], true, true],
+];
 
 const throwsType = fn => {
   try {
@@ -101,6 +134,45 @@ tests({
 
       assert(m.default === path, name);
       assert(m._makeLong === m.toNamespacedPath, name);
+    }
+  },
+  'path/win32 and node:path/win32 are path.win32, linked both ways'() {
+    eq(typeof path.win32, 'object');
+    assert(path.win32.win32 === path.win32);
+    assert(path.win32.posix === path);
+    assert(path.posix.win32 === path.win32);
+  },
+  async 'import of path/win32 gives the object of path.win32'() {
+    for(const name of ['path/win32', 'node:path/win32']) {
+      const m = await import(name);
+
+      assert(m.default === path.win32, name);
+      assert(m.win32 === path.win32, name);
+      assert(m.join === path.win32.join, name);
+    }
+  },
+  'named exports win32 and matchesGlob exist'() {
+    assert(typeof path.matchesGlob == 'function' && path.matchesGlob.length == 2);
+    assert(path.posix.matchesGlob === path.matchesGlob);
+    eq(path.win32.matchesGlob.length, 2);
+  },
+  'matchesGlob() equals the results of node'() {
+    for(const [[p, g], posix, win32] of globCases) {
+      eq(path.matchesGlob(p, g), posix, JSON.stringify([p, g]));
+      eq(path.win32.matchesGlob(p, g), win32, JSON.stringify([p, g]) + ' win32');
+    }
+  },
+  'matchesGlob() with a non-string throws ERR_INVALID_ARG_TYPE'() {
+    for(const args of [[1, 'a'], ['a', null], [undefined, 'a']]) {
+      let err;
+
+      try {
+        path.matchesGlob(...args);
+      } catch(e) {
+        err = e;
+      }
+
+      eq(err && err.code, 'ERR_INVALID_ARG_TYPE');
     }
   }
 });

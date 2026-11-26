@@ -796,6 +796,7 @@ jsm_builtin_find(const char* name) {
  *   "fs"          builtin fs
  *   "fs/promises" builtin fsPromises (the Node subpath builtins)
  *   "path/posix"  builtin path (path.posix is the module itself)
+ *   "path/win32"  builtin path_win32 (lib/path/win32.js)
  *   "node/events" builtin node_events (lib/node/events.js is registered with '/' written '_')
  *
  * borrowed: the record of the table, or NULL (also when the builtin is disabled). */
@@ -2038,7 +2039,7 @@ jsm_module_normalize_core(JSContext* ctx, const char* path, const char* name) {
   /* the subdirectories of lib/ that are baked in as flat builtins: "node/events" -> "node_events",
      "loaders/node" -> "loaders_node", "bun/util" -> "bun_util", "terminal/keys" -> "terminal_keys"; without the builtin the name is
      searched as a file below */
-  if((str_start(name, "node/") || str_start(name, "loaders/") || str_start(name, "bun/") || str_start(name, "terminal/")) && (bltin = jsm_builtin_lookup(name))) {
+  if((str_start(name, "node/") || str_start(name, "loaders/") || str_start(name, "bun/") || str_start(name, "terminal/") || str_start(name, "path/")) && (bltin = jsm_builtin_lookup(name))) {
     file = js_strdup(ctx, bltin->module_name);
   } else if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(!file)

@@ -199,7 +199,7 @@ try {
       eq(v.realpathSync('/link/rel'), '/real/f');
       v.symlinkSync('/l2', '/l1');
       v.symlinkSync('/l1', '/l2');
-      const loop = throws(() => v.statSync('/l1'), null); // syscallerror has no ELOOP name
+      const loop = throws(() => v.statSync('/l1'), 'ELOOP');
       eq(loop.errno, 40);
       throws(() => v.readlinkSync('/real/f'), 'EINVAL');
     },

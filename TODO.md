@@ -2824,6 +2824,11 @@ Phase C — posix interface of `path` made Node-correct (changes behaviour; need
       error case to `test-path-interface.js`. If kept: list it in `doc/api-compare-path.md` section 2 as an extra.
 
 Phase W — `path.win32` (needs T2, C7; all steps are JS, no C until W10)
+Status 2026-11-26: W2-W10 and G1-G2 landed in one go, differently from the steps below: `lib/path/win32.js` (builtin
+`path/win32`, port of node v23.11.1) installs over stand-in functions of the native `path.win32` (`quickjs-path.c`),
+`matchesGlob` is `lib/glob.js` (Node's rules, dot rule approximated as in `scanSync`). Golden tables were made by
+hand from node into `test-path-win32.js` and `test-path-interface.js`. Still open: W1 (the `gen-path-golden.mjs
+--win32/--glob` generator), W11 doc rows in `doc/api-compare-path.md`, W12 `./dump-node-path.sh` re-run.
 Port source: node v22.23.3 `lib/path.js` (fetch with `curl -sL https://raw.githubusercontent.com/nodejs/node/v22.23.3/lib/path.js`;
 MIT, credit and version in the file header). A JS port of the `win32` object only: no primordials, ES module, no
 `internalBinding`; `process` is imported lazily and only read inside `resolve` and `toNamespacedPath`.
@@ -3632,7 +3637,7 @@ pieces belong in `misc`, each a thin syscall wrapper; `lib/node/os.js` then drop
 
 | # | Node API | Today | Native backing needed |
 | --- | --- | --- | --- |
-| 29.1 | `os.networkInterfaces()` | `InternalError` | `misc.getifaddrs()`: `getifaddrs(3)`, per entry name, family, address, netmask, MAC (`AF_PACKET`), scope id; JS builds Node's `{ address, netmask, family, mac, internal, cidr, scopeid }` |
+| 29.1 (done 2026-11-26) | `os.networkInterfaces()` | `InternalError` | `misc.getifaddrs()`: `getifaddrs(3)`, per entry name, family, address, netmask, MAC (`AF_PACKET`), scope id; JS builds Node's `{ address, netmask, family, mac, internal, cidr, scopeid }` |
 | 29.2 | `os.setPriority([pid,] priority)` | `InternalError` after argument checks | `misc.setpriority(which, who, prio)` and `getpriority`: `setpriority(2)`, errno to Node's `SystemError` (`EACCES`, `ESRCH`) |
 | 29.3 | `os.userInfo()`, `os.homedir()` without `$HOME` | `/etc/passwd` only, NSS users (LDAP, sssd) give `ENOENT` | `misc.getpwuid(uid)`: `getpwuid_r(3)` |
 | 29.4 | `cpus()`, `freemem()`, `totalmem()`, `loadavg()`, `uptime()`, `getPriority()` on macOS, BSD, Windows | `InternalError`: no `/proc` | `sysctl(3)` / `sysinfo(2)` / `GetSystemTimes` per platform, or one `misc.sysinfo()` |

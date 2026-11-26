@@ -696,6 +696,7 @@ macro(qjsm_init_builtins)
           node/events
           node/os
           node/util
+          path/win32
           fs
           fsPromises
           globals
@@ -914,6 +915,7 @@ macro(qjsm_declare_imports)
   set(bun_spawn_MODULES node/child_process stream node/buffer misc fs path)
   set(bun_util_MODULES fs path misc blob inspect terminal/core glob perf_hooks textcode url)
   set(glob_MODULES fs path)
+  set(path_win32_MODULES path process glob)
   set(node_MODULES loaders/node loaders/packages loaders/commonjs lazyGlobal)
   set(loaders_commonjs_MODULES require path)
   set(console_MODULES util inspect terminal/core)

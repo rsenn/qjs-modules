@@ -57,7 +57,11 @@ and `node:path/posix` import this module.
 ## posix and default export
 
 `path.posix` and the default export are the module's own functions (`import path from
-'path'`; `path.posix === path`). There is no `path.win32`. `join()` does not normalize
+'path'`; `path.posix === path`). `path.win32` (also `import { win32 } from 'path'`, `path/win32`,
+`node:path/win32`) is a port of Node's win32 functions, `lib/path/win32.js`, loaded on the first call of one
+of its functions. `matchesGlob(path, pattern)` is on the module, `posix` and `win32`: the `Glob` engine
+with Node's rules (backslash is a separator, no `!` negation, a dot segment matches only a pattern with one).
+`join()` does not normalize
 (`join('a', '..', 'b')` is `'a/../b'`, Node gives `'b'`) and an absolute argument restarts
 the result.
 
