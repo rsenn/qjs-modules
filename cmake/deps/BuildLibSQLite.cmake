@@ -72,7 +72,7 @@ macro(build_libsqlite SOURCE BINARY SUFFIX PIC)
     PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/PatchConfigSub.cmake
     CONFIGURE_COMMAND <SOURCE_DIR>/configure "TCLSH_CMD=${TCLSH_EXECUTABLE}" --disable-readline "CC=${_LS_CC}"
     BUILD_COMMAND ${DEPS_MAKE} sqlite3.c
-    COMMAND sh -x -c "\"${CMAKE_C_COMPILER}\" ${LIBSQLITE_CFLAGS_${SUFFIX}} -c sqlite3.c -o sqlite3.o"
+    COMMAND sh -x -c "${_LS_CC} ${LIBSQLITE_CFLAGS_${SUFFIX}} -c sqlite3.c -o sqlite3.o"
     COMMAND sh -x -c "\"${CMAKE_AR}\" rcs ${CMAKE_STATIC_LIBRARY_PREFIX}sqlite3${CMAKE_STATIC_LIBRARY_SUFFIX} sqlite3.o"
     USES_TERMINAL_BUILD TRUE
     INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBSQLITE_PREFIX_${SUFFIX}}/include ${LIBSQLITE_PREFIX_${SUFFIX}}/lib
