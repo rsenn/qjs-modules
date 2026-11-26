@@ -16,6 +16,15 @@ tests({
     eq('a 1 true\n', out.join(''));
   },
 
+  'log prints undefined as undefined, also as the last argument'() {
+    const { out, console } = capture();
+
+    console.log('a', undefined);
+    console.log(undefined);
+    console.log(undefined, 'b');
+    eq('a undefined\nundefined\nundefined b\n', out.join(''));
+  },
+
   'log, info, warn, error and debug all write'() {
     const { out, console } = capture();
 
