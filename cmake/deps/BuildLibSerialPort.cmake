@@ -19,8 +19,17 @@ macro(build_libserialport SOURCE BINARY SUFFIX PIC)
 
   toolchain_cache_args(_sp_cross)
 
+  # its CMakeLists writes config.h into the source directory: two builds configuring at once race
+  # on that file, so each one waits for the one defined before it
+  set(_sp_after)
+  if(LIBSERIALPORT_PREVIOUS_TARGET)
+    set(_sp_after DEPENDS ${LIBSERIALPORT_PREVIOUS_TARGET})
+  endif()
+  set(LIBSERIALPORT_PREVIOUS_TARGET libserialport_${SUFFIX})
+
   ExternalProject_Add(
     libserialport_${SUFFIX}
+    ${_sp_after}
     SOURCE_DIR ${SOURCE}/third_party/libserialport
     BINARY_DIR ${BINARY}/libserialport-${SUFFIX}
     CMAKE_CACHE_ARGS
